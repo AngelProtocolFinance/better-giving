@@ -15,7 +15,7 @@ import {
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_get } from "$/pg/queries/npo";
 import { npo_admins } from "$/pg/queries/user";
-import { delete_webhook, query_webhooks } from "$/pg/queries/webhook";
+import { query_webhooks } from "$/pg/queries/webhook";
 
 function YYWW(iso: string): number {
   const date = new Date(iso);
@@ -165,13 +165,6 @@ async function trigger_webhooks(r: DonDistPayload) {
     });
 
     if (!res.ok) {
-      if (res.status === 410) {
-        await delete_webhook(webhook.id, webhook.npo_id).catch(report_error);
-        console.info(
-          `webhook ${webhook.url} returned 410, deleted (id=${webhook.id}, npo_id=${webhook.npo_id})`
-        );
-        continue;
-      }
       const err = await res.text();
       report_error(
         new Error(`webhook ${webhook.url} -> ${res.status}: ${err}`),
