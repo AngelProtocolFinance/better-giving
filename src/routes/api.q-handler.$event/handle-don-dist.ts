@@ -167,6 +167,9 @@ async function trigger_webhooks(r: DonDistPayload) {
     if (!res.ok) {
       if (res.status === 410) {
         await delete_webhook(webhook.id, webhook.npo_id).catch(report_error);
+        console.info(
+          `webhook ${webhook.url} returned 410, deleted (id=${webhook.id}, npo_id=${webhook.npo_id})`
+        );
         continue;
       }
       const err = await res.text();

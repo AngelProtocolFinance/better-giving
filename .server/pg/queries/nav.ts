@@ -359,44 +359,34 @@ export async function nav_log_put(db: DbOrTx, data: ILog, series?: ISeries) {
         },
       });
 
-    // value computed by pg numeric (not js float) so value = qty * price check holds.
+    // delete-then-insert children so a re-run with different composition
+    // (dropped ticker / removed npo) prunes orphans instead of leaving ghost rows.
     await tx
-      .insert(nav_log_positions)
-      .values(
-        positions.map((p) => ({
-          date: data.date,
-          ticker: p.id,
-          qty: p.qty,
-          price: p.price,
-          value: sql`(${String(p.qty)}::numeric(38,18) * ${String(p.price)}::numeric(38,18))::numeric(38, 18)`,
-          price_date: p.price_date,
-        }))
-      )
-      .onConflictDoUpdate({
-        target: [nav_log_positions.date, nav_log_positions.ticker],
-        set: {
-          qty: sql`excluded.qty`,
-          price: sql`excluded.price`,
-          value: sql`excluded.value`,
-          price_date: sql`excluded.price_date`,
-        },
-      });
+      .delete(nav_log_positions)
+      .where(eq(nav_log_positions.date, data.date));
+    await tx.delete(nav_holders).where(eq(nav_holders.date, data.date));
+
+    // value computed by pg numeric (not js float) so value = qty * price check holds.
+    await tx.insert(nav_log_positions).values(
+      positions.map((p) => ({
+        date: data.date,
+        ticker: p.id,
+        qty: p.qty,
+        price: p.price,
+        value: sql`(${String(p.qty)}::numeric(38,18) * ${String(p.price)}::numeric(38,18))::numeric(38, 18)`,
+        price_date: p.price_date,
+      }))
+    );
 
     const holder_entries = Object.entries(data.holders || {});
     if (holder_entries.length) {
-      await tx
-        .insert(nav_holders)
-        .values(
-          holder_entries.map(([npo_id, units]) => ({
-            date: data.date,
-            npo_id: Number(npo_id),
-            units,
-          }))
-        )
-        .onConflictDoUpdate({
-          target: [nav_holders.date, nav_holders.npo_id],
-          set: { units: sql`excluded.units` },
-        });
+      await tx.insert(nav_holders).values(
+        holder_entries.map(([npo_id, units]) => ({
+          date: data.date,
+          npo_id: Number(npo_id),
+          units,
+        }))
+      );
     }
   });
 }
