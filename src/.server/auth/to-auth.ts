@@ -1,0 +1,10 @@
+import { href, redirect } from "react-router";
+
+export const to_auth = (req: Request, headers?: Headers) => {
+  const from = new URL(req.url);
+  const to = new URL(from);
+  const { pathname: p, search: s } = from;
+  to.pathname = href("/signup");
+  to.searchParams.set("redirect", p + s);
+  return redirect(to.toString(), { headers });
+};

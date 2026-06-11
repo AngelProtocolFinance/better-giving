@@ -1,0 +1,33 @@
+# custom
+notes
+scripts/settle-cheque/*.json
+.claude/worktrees/
+
+# dependencies
+/node_modules
+
+# testing
+/coverage
+.vitest-attachments
+__screenshots__
+codecov-report.json
+
+# build
+/build
+
+# env
+.env
+.env.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# framework
+.vercel
+.react-router
+
+# others
+.DS_Store
+/.vscode
+mprocs.log

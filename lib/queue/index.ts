@@ -1,0 +1,15 @@
+export * as banking_approved from "./msgs/banking-approved";
+export * as banking_default from "./msgs/banking-default";
+export * as banking_new from "./msgs/banking-new";
+export * as banking_rejected from "./msgs/banking-rejected";
+export * as don_dist from "./msgs/don-dist";
+export * as don_sttl_dist from "./msgs/don-sttl-dist";
+export * as don_sttl_receipt from "./msgs/don-sttl-receipt";
+export * as fund_member_removed from "./msgs/fund-member-removed";
+export * as invite_email from "./msgs/invite-email";
+export * as lock_tx_created from "./msgs/lock-tx-created";
+export * as reg_created from "./msgs/reg-created";
+export * as reg_updated from "./msgs/reg-updated";
+export * as sub_deactivated from "./msgs/sub-deactivated";
+export * as tip_received from "./msgs/tip-received";
+export type { IMsg } from "./types";

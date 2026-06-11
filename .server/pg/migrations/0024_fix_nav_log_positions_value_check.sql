@@ -1,0 +1,2 @@
+ALTER TABLE "nav_log_positions" DROP CONSTRAINT "nav_log_positions_value_eq_qty_price";--> statement-breakpoint
+ALTER TABLE "nav_log_positions" ADD CONSTRAINT "nav_log_positions_value_eq_qty_price" CHECK ("nav_log_positions"."value" = ("nav_log_positions"."qty" * "nav_log_positions"."price")::numeric(38, 18));

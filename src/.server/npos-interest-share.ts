@@ -1,0 +1,37 @@
+import { bal_logs_all } from "$/pg/queries/liquid";
+
+interface AccrualPeriod {
+  start: string;
+  end: string;
+}
+
+export const npo_interest_shares = async (
+  period: AccrualPeriod
+): Promise<Record<string, number>> => {
+  const logs = await bal_logs_all(period.start, period.end);
+
+  const npo_bal_days: Record<string, number> = {};
+  let total_bal_days = 0;
+
+  for (let i = 0; i < logs.length; i++) {
+    const current_log = logs[i];
+
+    // logs is daily so use idx for weights
+    // in reverse chronological order
+    const days_remaining = i + 1;
+
+    const balances = current_log.balances as Record<string, number>;
+    for (const [npo_id, balance] of Object.entries(balances)) {
+      npo_bal_days[npo_id] ||= 0;
+      npo_bal_days[npo_id] += balance * days_remaining;
+    }
+    total_bal_days += Number(current_log.total) * days_remaining;
+  }
+
+  const shares: Record<string, number> = {};
+  for (const npo_id in npo_bal_days) {
+    shares[npo_id] = npo_bal_days[npo_id] / total_bal_days;
+  }
+
+  return shares;
+};

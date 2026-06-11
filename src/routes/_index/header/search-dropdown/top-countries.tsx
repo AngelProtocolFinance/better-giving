@@ -1,0 +1,56 @@
+import { href, NavLink } from "react-router";
+import use_swr from "swr/immutable";
+import { ContentLoader } from "#/components/content-loader";
+import { QueryLoader } from "#/components/query-loader";
+
+const fetcher = (path: string) => fetch(path).then<string[]>((x) => x.json());
+
+export function TopCountries() {
+  const { data, isLoading, error, isValidating } = use_swr(
+    "api/top-countries",
+    fetcher
+  );
+  return (
+    <div className="flex flex-wrap gap-2">
+      <QueryLoader
+        queryState={{
+          data,
+          is_loading: isLoading,
+          is_error: !!error,
+          is_fetching: isValidating,
+        }}
+        classes={{ container: "flex flex-wrap gap-2" }}
+        messages={{
+          loading: (
+            <>
+              {Array(10)
+                .fill(0)
+                .map((_, idx) => (
+                  <ContentLoader key={idx} className="w-32 h-10 rounded" />
+                ))}
+            </>
+          ),
+        }}
+      >
+        {(countries) => (
+          <>
+            {countries.map((country) => (
+              <NavLink
+                key={country}
+                className="[&:is(.pending)]:text-muted-fg [&:is(.pending)]:pointer-events-none border px-6 py-2 rounded text-sm hover:bg-secondary"
+                to={{
+                  pathname: href("/marketplace"),
+                  search: new URLSearchParams({
+                    countries: country,
+                  }).toString(),
+                }}
+              >
+                {country}
+              </NavLink>
+            ))}
+          </>
+        )}
+      </QueryLoader>
+    </div>
+  );
+}

@@ -1,0 +1,2 @@
+DROP INDEX "forms_active_npo_idx";--> statement-breakpoint
+CREATE INDEX "forms_owner_npo_status_date_idx" ON "forms" USING btree ("owner_npo_id","status","date_created") WHERE "forms"."owner_npo_id" IS NOT NULL;

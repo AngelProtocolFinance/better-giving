@@ -1,0 +1,147 @@
+import { href, useNavigation } from "react-router";
+import use_swr from "swr/immutable";
+import type { Payment } from "#/types/crypto";
+import { PROCESSING_RATES } from "@/constants/common";
+import type { IDonationIntent, IDonorFv } from "@/donations/schema";
+import { ru_vdec } from "@/helpers/decimal";
+import { min_fee_allowance } from "@/helpers/donation";
+import { ContentLoader } from "../../../content-loader";
+import { QueryLoader } from "../../../query-loader";
+import { ContinueBtn } from "../../common/continue-btn";
+import { type CryptoDonationDetails, type Init, tip_val } from "../../types";
+import { PayQr } from "./pay-qr";
+
+type Props = {
+  classes?: string;
+  fv: CryptoDonationDetails;
+  donor: IDonorFv;
+  init: Init;
+};
+
+const fetcher = async (intent: IDonationIntent) =>
+  fetch(href("/api/donation-intents"), {
+    method: "POST",
+    body: JSON.stringify(intent),
+  }).then<Payment>((res) => res.json());
+
+export function DirectMode({ fv, init, classes = "", donor }: Props) {
+  const navigation = useNavigation();
+
+  const handle_continue = () => {
+    const id = data?.order_id;
+    if (!id) throw new Error("No order ID found");
+
+    const custom_redirect = init.config?.success_redirect;
+    const url = custom_redirect
+      ? new URL(custom_redirect)
+      : new URL(`${init.base_url}${href("/donations/:id", { id })}`);
+
+    if (custom_redirect) {
+      url.searchParams.set("donation_amount", fv.token.amount);
+      url.searchParams.set("donation_currency", fv.token.code);
+      if (donor.first_name || donor.last_name) {
+        url.searchParams.set(
+          "donor_name",
+          `${donor.first_name} ${donor.last_name}`.trim()
+        );
+      }
+      url.searchParams.set("payment_method", "crypto");
+    }
+    const return_url = url.toString();
+
+    // redirect via postMessage if in iframe, otherwise navigate directly
+    if (window.self !== window.top) {
+      window.parent.postMessage(
+        {
+          type: "redirect",
+          redirect_url: return_url,
+          form_id: init.config?.id,
+        },
+        "*"
+      );
+    } else {
+      window.location.href = return_url;
+    }
+  };
+
+  const tipv = tip_val(fv.tip_format, fv.tip, +fv.token.amount);
+  const mfa = min_fee_allowance(
+    tipv + +fv.token.amount,
+    PROCESSING_RATES.crypto
+  );
+
+  const intent: IDonationIntent = {
+    via: "crypto",
+    via_extra: "",
+    frequency: "one-time",
+    amount: {
+      base: +fv.token.amount,
+      tip: tipv,
+      fee_allowance: mfa,
+    },
+    currency: fv.token.code,
+    to_id: init.recipient.id,
+    source: init.source,
+    donor,
+  };
+
+  if (init.program) intent.program = init.program;
+  if (init.config?.id) intent.form_id = init.config.id;
+
+  const { data, isLoading, error, isValidating } = use_swr(intent, fetcher);
+
+  const total_disp_amnt = ru_vdec(
+    +fv.token.amount + tipv + mfa,
+    fv.token.usdpu,
+    fv.token.precision
+  );
+
+  return (
+    <div className={`${classes} grid justify-items-center`}>
+      <p className="text-balance text-center mb-3.5 max-w-sm">
+        To complete your donation, send {total_disp_amnt}
+        &nbsp;
+        {fv.token.symbol} from your crypto wallet to the address below
+      </p>
+      <QueryLoader
+        queryState={{
+          is_loading: isLoading,
+          is_fetching: isValidating,
+          data: data,
+          is_error: !!error,
+        }}
+        messages={{
+          loading: <ContentLoader className="size-48 rounded" />,
+          error: "Failed to load donation address",
+        }}
+      >
+        {(payment) => (
+          <PayQr
+            token={fv.token}
+            recipient={payment.address}
+            extraId={payment.extra_address ?? null}
+          />
+        )}
+      </QueryLoader>
+
+      <p className="text-sm text-muted-fg mt-4 indent-4 leading-normal">
+        Please note that manual donations of cryptocurrencies using the QR code
+        may take up to 1 business day to process. Due to market fluctuations,
+        the value of your cryptocurrency donation may vary between the time it
+        is sent and the time it is received. Donors are responsible for ensuring
+        they send the correct token and amount pledged, as incorrect submissions
+        may result in processing errors and/or a permanent loss of funds. Better
+        Giving takes no responsibility for any variance in value of the donation
+        made during the processing period, or any loss of funds caused by donor
+        error when the donation is made.
+      </p>
+
+      <ContinueBtn
+        disabled={!!error || isLoading || navigation.state !== "idle"}
+        onClick={handle_continue}
+        text="I have completed the payment"
+        className="justify-self-stretch mt-8"
+      />
+    </div>
+  );
+}

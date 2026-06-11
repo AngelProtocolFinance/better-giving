@@ -1,0 +1,1 @@
+ALTER TABLE "dividend_logs" DROP COLUMN "per_npo_credit_status";

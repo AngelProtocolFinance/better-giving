@@ -1,0 +1,380 @@
+/** Layer 1 components */
+@layer components {
+  .btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    padding: calc(var(--spacing) * 3);
+    border-radius: var(--radius-sm);
+  }
+
+  .btn-secondary {
+    background-color: var(--card);
+    color: var(--secondary-fg);
+    border: 1px solid var(--border);
+    outline-color: color-mix(in oklch, var(--border) 80%, black);
+    &:active {
+      background-color: color-mix(in oklch, var(--secondary) 85%, black);
+    }
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: var(--secondary);
+    }
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: inherit;
+    outline-color: var(--ring);
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: var(--accent);
+    }
+    &:active {
+      background-color: color-mix(in oklch, var(--accent) 85%, black);
+    }
+    &:disabled {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+    }
+  }
+
+  .btn-primary {
+    background-color: var(--primary);
+    color: var(--primary-fg);
+    outline-color: var(--secondary);
+    &:active {
+      background-color: color-mix(in oklch, var(--primary) 85%, black);
+    }
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: color-mix(in oklch, var(--primary) 90%, black);
+    }
+  }
+
+  .btn-destructive {
+    background-color: var(--destructive);
+    color: var(--destructive-fg);
+    outline-color: color-mix(in oklch, var(--destructive) 20%, white);
+    &:active {
+      background-color: color-mix(in oklch, var(--destructive) 85%, black);
+    }
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: color-mix(in oklch, var(--destructive) 90%, black);
+    }
+    &.pending {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+  }
+
+  .btn-success {
+    background-color: var(--success);
+    color: var(--success-fg);
+    outline-color: color-mix(in oklch, var(--success) 20%, white);
+    &:active {
+      background-color: color-mix(in oklch, var(--success) 85%, black);
+    }
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: color-mix(in oklch, var(--success) 90%, black);
+    }
+    &.pending {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+  }
+
+  .btn-warning {
+    background-color: var(--warning);
+    color: var(--warning-fg);
+    outline-color: color-mix(in oklch, var(--warning) 20%, white);
+    &:active {
+      background-color: color-mix(in oklch, var(--warning) 85%, black);
+    }
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: color-mix(in oklch, var(--warning) 90%, black);
+    }
+    &.pending {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+  }
+
+  .btn-secondary,
+  .btn-success,
+  .btn-primary,
+  .btn-warning,
+  .btn-destructive {
+    &:disabled {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+    }
+  }
+  a.btn-secondary,
+  a.btn-warning,
+  a.btn-success,
+  a.btn-primary,
+  a.btn-destructive {
+    &[aria-disabled="true"] {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+    }
+    &.pending {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+  }
+
+  a.btn-ghost {
+    &[aria-disabled="true"] {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+    }
+    &.pending {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+  }
+
+  .field-input {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm) /* 0.875rem = 14px */;
+    line-height: var(
+      --tw-leading,
+      var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
+    );
+    background-color: var(--input);
+    padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
+    border: 1px solid var(--border);
+    outline-color: var(--ring);
+    color: var(--fg);
+
+    &::placeholder {
+      color: var(--muted-fg);
+    }
+    /* biome-ignore lint/style/noDescendingSpecificity: unrelated to a.btn-* selectors */
+    &[aria-disabled="true"],
+    &:disabled {
+      pointer-events: none;
+      background-color: var(--muted);
+      color: var(--muted-fg);
+    }
+
+    &:invalid,
+    &[aria-invalid="true"] {
+      @apply border-destructive;
+    }
+  }
+
+  .field-input-container {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm) /* 0.875rem = 14px */;
+    line-height: var(
+      --tw-leading,
+      var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
+    );
+    background-color: var(--input);
+    border: 1px solid var(--border);
+    color: var(--fg);
+
+    &:has(input:focus) {
+      outline: solid;
+      outline-width: 2px;
+      outline-color: var(--ring);
+    }
+
+    &:has(input::placeholder) {
+      color: var(--muted-fg);
+    }
+    &:has(input[aria-disabled="true"]),
+    &:has(input:disabled) {
+      pointer-events: none;
+      background-color: var(--muted);
+      color: var(--muted-fg);
+    }
+
+    &:has(input:invalid),
+    &:has(input[aria-invalid="true"]) {
+      @apply border-destructive;
+    }
+  }
+
+  .field-err {
+    text-align: right;
+    font-size: var(--text-xs);
+    color: var(--destructive);
+  }
+
+  .selector-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .selector-opt {
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+    &[data-selected="true"] {
+      background-color: var(--accent);
+    }
+    &:hover {
+      background-color: var(--accent);
+    }
+  }
+  .selector-opts {
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border);
+    background-color: var(--popover);
+    color: var(--popover-fg);
+    position: absolute;
+    top: 100%;
+    margin-top: calc(var(--spacing) * 2);
+    z-index: 10;
+    width: 100%;
+    max-height: 10rem;
+    overflow-y: auto;
+  }
+
+  .label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    &[data-required="true"]::after {
+      content: " *";
+      color: var(--destructive);
+    }
+    &[data-required="false"]::after {
+      content: " (optional)";
+      color: var(--muted-fg);
+      font-weight: normal;
+      font-size: 0.8em;
+    }
+  }
+
+  .label-floating {
+    position: absolute;
+    left: 0;
+    color: var(--ring);
+    transition: transform 0.2s ease-out;
+    background-color: var(--card);
+    padding-right: var(--spacing);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-xs);
+    bottom: calc(100% - 0.5lh);
+
+    &[data-required="true"]::after {
+      content: " *";
+      color: var(--destructive);
+    }
+    &[data-required="false"]::after {
+      content: " (optional)";
+      color: var(--muted-fg);
+      font-weight: normal;
+      font-size: 0.8em;
+    }
+  }
+
+  /* Floating label state when input is empty (placeholder shown) */
+  input:placeholder-shown + .label-floating {
+    left: calc(var(--spacing) * 4);
+    font-weight: normal;
+    background-color: transparent;
+    bottom: 50%;
+    transform: translateY(50%);
+    font-size: var(--text-sm);
+    color: var(--muted-fg);
+  }
+
+  .table {
+    min-width: 100%;
+    border: 1px solid var(--border);
+    border-collapse: separate;
+    border-spacing: 0;
+    font-feature-settings: "tnum", "zero";
+
+    & thead {
+      background-color: var(--muted);
+    }
+
+    & th {
+      font-weight: var(--font-weight-medium);
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+      color: var(--muted-fg);
+    }
+
+    & tbody tr {
+      font-size: var(--text-sm);
+      line-height: var(--text-sm--line-height);
+    }
+
+    /* column dividers */
+    & :is(th, td) + :is(th, td) {
+      border-left: 1px solid var(--border);
+    }
+
+    /* row dividers */
+    & :is(tbody, tfoot) > tr > :is(th, td) {
+      border-top: 1px solid var(--border);
+    }
+
+    & :is(th, td) {
+      padding: calc(var(--spacing) * 2);
+      text-align: left;
+    }
+
+    & tfoot button {
+      font-size: var(--text-xs);
+      font-weight: var(--font-weight-semibold);
+      width: 100%;
+      padding: calc(var(--spacing) * 2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(var(--spacing) * 2);
+      &:hover:not(:disabled),
+      /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
+        &:active {
+        background-color: var(--secondary);
+      }
+      /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
+      &:disabled {
+        background-color: var(--muted);
+        color: var(--muted-fg);
+      }
+    }
+  }
+
+  .tooltip-arrow {
+    display: flex;
+    &[data-side="top"] {
+      bottom: -8px;
+      rotate: 180deg;
+    }
+    &[data-side="bottom"] {
+      top: -8px;
+    }
+    &[data-side="left"] {
+      right: -13px;
+      rotate: 90deg;
+    }
+    &[data-side="right"] {
+      left: -13px;
+      rotate: -90deg;
+    }
+  }
+
+  /* When input is focused, apply floating styles even if placeholder shown */
+  input:focus + .label-floating {
+    left: 0;
+    color: var(--ring);
+    font-weight: var(--font-weight-semibold);
+    background-color: var(--card);
+    bottom: calc(100% - 0.5lh);
+    transform: translateY(0);
+    font-size: 0.75rem;
+  }
+}

@@ -1,0 +1,90 @@
+import { href, Link } from "react-router";
+import dappLogo from "#/assets/images/bg-logo-503c.webp";
+import { guidestar, INTERCOM_HELP } from "#/constants/urls";
+import { ExtLink } from "../ext-link";
+import { Newsletter } from "./newsletter";
+import { Socials } from "./socials";
+
+type Props = { classes?: string };
+
+export function Footer({ classes = "" }: Props) {
+  return (
+    <footer
+      className={`grid ${classes} grid-cols-[1fr_auto_1fr] max-2xl:gap-x-0 2xl:grid-cols-[auto_auto_1fr] items-center p-10 gap-10`}
+    >
+      <div className="flex items-center gap-x-2 shrink-0 max-2xl:col-start-2">
+        <img
+          src={dappLogo}
+          height={40}
+          width={170}
+          className="object-contain my-4"
+          alt="logo"
+        />
+        <ExtLink href={guidestar.profile} className="shrink-0">
+          <img
+            src={guidestar.seal}
+            width={100}
+            height={100}
+            alt="GuideStar Transparency Seal"
+          />
+        </ExtLink>
+      </div>
+
+      <div className="justify-self-center 2xl:justify-self-start order-3 2xl:order-2 max-2xl:col-span-full grid max-2xl:justify-items-center">
+        <Socials classes="order-3 2xl:order-1 max-2xl:mt-4" />
+        <div className="flex items-center max-2xl:justify-center flex-wrap my-2 order-2">
+          <Link
+            className="underline pr-2 2xl:border-r border-muted-fg"
+            to={href("/privacy-policy")}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            className="underline px-2 2xl:border-r border-muted-fg"
+            to={href("/security-policy")}
+          >
+            Security
+          </Link>
+          <Link
+            className="underline px-2 @sm/links:text-nowrap order-5 @md/links:order-none "
+            to={href("/terms-of-use")}
+          >
+            Terms of Use (Donors)
+          </Link>
+          <Link
+            className="underline px-2 2xl:border-r border-muted-fg"
+            to={href("/about-us")}
+          >
+            About Us
+          </Link>
+          <a
+            className="underline px-2 2xl:border-r border-muted-fg"
+            href={INTERCOM_HELP}
+          >
+            FAQs
+          </a>
+          <Link
+            className="underline px-2 2xl:border-r border-muted-fg @sm/links:text-nowrap"
+            to={href("/terms-of-use-npo")}
+          >
+            Terms of Use (Nonprofits)
+          </Link>
+        </div>
+        <Copyright classes="order-1 2xl:order-3 max-2xl:text-center" />
+      </div>
+
+      <Newsletter classes="2xl:justify-self-end 2xl:order-3 order-2 max-2xl:col-start-2" />
+    </footer>
+  );
+}
+
+function Copyright({ classes = "" }) {
+  return (
+    <p className={`text-sm text-muted-fg ${classes}`}>
+      <span>© Copyright {new Date().getFullYear()} Better&nbsp;Giving</span>
+      <br className="xl:hidden" />
+      <span className="hidden xl:inline">,</span>
+      <span> a Registered Charitable 501(c)(3) (EIN 87-3758939)</span>
+    </p>
+  );
+}

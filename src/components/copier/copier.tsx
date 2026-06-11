@@ -1,0 +1,45 @@
+import { Check, Copy } from "lucide-react";
+import type { ReactNode } from "react";
+import { unpack } from "#/helpers/unpack";
+import { use_copier } from "./use-copier";
+
+type Classes = string | { container?: string; icon?: string };
+
+type Props = {
+  text: string;
+  classes?: Classes;
+  size?: { copy?: number; check?: number } | number;
+  children?: ReactNode;
+};
+
+export function Copier({ text, classes, size, children }: Props) {
+  const { handle_copy, copied } = use_copier(text);
+  const { container, icon } = unpack(classes);
+  const { check = 16, copy = 16 } = size
+    ? typeof size === "number"
+      ? { check: size, copy: size }
+      : size
+    : {};
+  return (
+    <button
+      className={`${container} relative`}
+      type="button"
+      onClick={handle_copy}
+    >
+      {(copied && (
+        <Check
+          className={`${icon} text-success`}
+          size={check}
+          aria-labelledby="copied"
+        />
+      )) || <Copy className={`${icon}`} size={copy} aria-labelledby="copy" />}
+      <span id="copied" className="invisible absolute">
+        Copied!
+      </span>
+      <span id="copy" className="invisible absolute">
+        Copy
+      </span>
+      {children}
+    </button>
+  );
+}

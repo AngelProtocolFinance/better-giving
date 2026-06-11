@@ -1,0 +1,66 @@
+import {
+  ArrowDownToLineIcon,
+  ArrowLeftRightIcon,
+  ArrowUpFromLineIcon,
+  CircleHelp,
+} from "lucide-react";
+import { NavLink, Outlet } from "react-router";
+import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
+import { Arrow, Content, Tooltip } from "#/components/tooltip";
+import { humanize } from "@/helpers/decimal";
+import type { Route } from "./+types/route";
+import { Txs } from "./txs";
+
+export { loader } from "./api";
+export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
+export default CacheRoute(Page);
+
+function Page({ loaderData }: Route.ComponentProps) {
+  const { bal_liq, ...btxs_page1 } = loaderData;
+  return (
+    <div className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid content-start">
+      <div className="font-bold text-2xl mb-4 flex items-baseline gap-x-2">
+        <h3>Savings</h3>{" "}
+        <Tooltip
+          tip={
+            <Content className="bg-popover outline outline-border text-popover-fg text-sm max-w-xs p-4 rounded">
+              Funds held in Fidelity Government Money Market (SPAXX) consisting
+              of cash, US Government Securities and Repurchase Agreements
+              <Arrow />
+            </Content>
+          }
+        >
+          <CircleHelp size={16} className="text-muted-fg ml-1" />
+        </Tooltip>
+      </div>
+      <p className="text-xl  font-semibold bg-card border p-4 rounded">
+        ${humanize(bal_liq)}
+      </p>
+      <div className="flex items-center gap-4 mt-4">
+        <NavLink
+          to="deposit"
+          className="btn-success rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
+        >
+          <ArrowUpFromLineIcon size={16} />
+          Deposit
+        </NavLink>
+        <NavLink
+          to="withdraw"
+          className="btn-secondary rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
+        >
+          <ArrowDownToLineIcon size={16} />
+          Withdraw
+        </NavLink>
+        <NavLink
+          to="transfer"
+          className="btn-warning rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
+        >
+          <ArrowLeftRightIcon size={16} />
+          Transfer
+        </NavLink>
+      </div>
+      <Txs page1={btxs_page1} classes="mt-8" />
+      <Outlet />
+    </div>
+  );
+}

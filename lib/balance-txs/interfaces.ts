@@ -1,0 +1,85 @@
+import * as v from "valibot";
+
+/**
+ * liq - savings
+ * lock - investments
+ * grant - to: withrawal
+ * donation - from: deposit
+ * interest - from: savings interest payout
+ */
+export type TAccount =
+  | "liq"
+  | "lock"
+  | "grant"
+  | "donation"
+  | "interest"
+  | "dividend"
+  | "refund";
+/**
+ * pending - can be cancelled
+ * final - manager approved this tx along with other txs. units deducted and payout record created. for donations, status = `final`
+ * cancelled - manager cancelled this tx
+ */
+
+const statuses = ["pending", "final", "cancelled"] as const;
+export const status = v.picklist(statuses);
+export type TStatus = v.InferOutput<typeof status>;
+
+export interface IBalanceTx {
+  id: string;
+  date_created: string;
+  date_updated: string;
+  npo_id: number;
+  account: TAccount;
+  bal_begin: number;
+  bal_end: number;
+  /** e.g. $200 */
+  amount: number;
+  /** e.g. 100 units */
+  amount_units: number;
+
+  status: TStatus;
+
+  account_other_id: string | null;
+  account_other: TAccount | null;
+  account_other_bal_begin: number | null;
+  account_other_bal_end: number | null;
+
+  /** @internal */
+  env?: never;
+}
+/**
+ * add funds request - auto approved
+ * transfer liq | lock
+ *    - create balance tx, account liq
+ *    - upon approval, create balance tx, account lock, - account liq as other
+ * withdrawal
+ *     - create balance tx, account liq/lock
+ *     - upon approval, create balance tx, account other, - account liq/lock
+ *
+ */
+
+const limit_param = v.pipe(
+  v.string(),
+  v.transform((x) => +x),
+  v.integer(),
+  v.minValue(1)
+);
+
+const page_options = v.object({
+  // todo: replace with v.base64url() when valibot ships it (issue #947)
+  next: v.optional(v.string()),
+  limit: v.optional(limit_param),
+});
+
+export const balance_txs_options = v.object({
+  ...page_options.entries,
+  status: v.optional(status),
+});
+
+export interface IPageOptions extends v.InferOutput<typeof page_options> {}
+export interface IBalanceTxsPageOptions
+  extends v.InferOutput<typeof balance_txs_options> {
+  acc?: TAccount;
+  outflow_only?: boolean;
+}

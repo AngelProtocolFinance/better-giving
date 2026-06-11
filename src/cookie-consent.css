@@ -1,0 +1,16 @@
+#cc-main {
+  --cc-font-family: "DM Sans Variable";
+
+  --cc-btn-primary-bg: var(--primary);
+  --cc-btn-primary-border-color: var(--primary);
+  --cc-btn-primary-hover-bg: oklch(from var(--primary) calc(l + 0.08) c h);
+  --cc-btn-primary-hover-border-color: oklch(
+    from var(--primary) calc(l + 0.08) c h
+  );
+
+  /** Also make toggles the same color as the button **/
+  --cc-toggle-on-bg: var(--cc-btn-primary-bg);
+
+  /** Make the buttons a bit rounder **/
+  --cc-btn-border-radius: 8px;
+}

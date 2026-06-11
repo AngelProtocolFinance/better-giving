@@ -1,0 +1,1 @@
+ALTER TABLE "donations" ADD CONSTRAINT "donations_form_id_forms_id_fk" FOREIGN KEY ("form_id") REFERENCES "public"."forms"("id") ON DELETE no action ON UPDATE no action;

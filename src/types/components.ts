@@ -1,0 +1,88 @@
+//token selector
+import * as v from "valibot";
+import type { ICurrencyFv } from "#/types/currency";
+import { donate_method_id } from "@/npo/schema";
+
+//selector
+export type ValKey = string | number;
+export type OptionType<V extends ValKey> = { label: string; value: V };
+
+const wise_currency_option = v.object({
+  code: v.string(),
+  name: v.string(),
+  rate: v.null(),
+});
+
+export interface WiseCurrencyOption
+  extends v.InferOutput<typeof wise_currency_option> {}
+
+export type CurrencyOption =
+  | ICurrencyFv
+  | { name: string; code: string; rate: null };
+/**
+ * Rich text strings contain not only the user input itself, but is a
+ * stringified object that describes the styling of particular parts of
+ * the text (bolding, italics, lists etc.), which complicates getting the
+ * plain character length for checking whether the user has passed the max
+ * char. threshold.
+ * In order to avoid having to extract and calculate the plain text characters
+ * after they have been included in the rich text string, we save the character
+ * length as the text is being typed as a separate parameter and use *it* for
+ * any validation necessary.
+ */
+interface RichTextContentOptions {
+  maxChars?: number;
+  required?: boolean;
+}
+export const richtext_content = ({
+  maxChars = Number.MAX_SAFE_INTEGER,
+  required = false,
+}: RichTextContentOptions) => {
+  return v.object({
+    value: required
+      ? v.pipe(v.string("required"), v.nonEmpty("required"))
+      : v.string("dev:set default value to empty"),
+    length: v.optional(
+      v.pipe(
+        v.number(),
+        v.maxValue(maxChars, ({ requirement: r }) => `max length is ${r} chars`)
+      )
+    ),
+  });
+};
+
+/** query loader */
+export interface QueryState<T> {
+  error?: unknown;
+  data?: T | undefined;
+  is_loading: boolean;
+  is_fetching: boolean;
+  is_error: boolean;
+}
+
+/** query loader */
+export function is_query<T>(val: T | QueryState<T>): val is QueryState<T> {
+  return "is_loading" in (val as any) && "is_fetching" in (val as any);
+}
+export type RichTextContent = v.InferOutput<
+  ReturnType<typeof richtext_content>
+>;
+
+export const donate_method = v.object({
+  id: donate_method_id,
+  name: v.string(),
+  disabled: v.boolean(),
+});
+
+export type TDonateMethod = v.InferOutput<typeof donate_method>;
+
+//re-exports
+export type { ICurrencyFv } from "#/types/currency";
+
+export interface IPaginator<T> {
+  items: T[];
+  load_next?: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+  classes?: string;
+}

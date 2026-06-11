@@ -1,0 +1,26 @@
+import { ArrowRight } from "lucide-react";
+import { href, Link } from "react-router";
+
+export function Bottom({ classes = "" }) {
+  return (
+    <section
+      className={`${classes} grid bg-gradient-to-tl from-secondary to-primary rounded md:py-20 md:px-6 p-6`}
+    >
+      <h2 className="text-2xl/tight md:text-3xl/tight text-center mb-4 text-primary-fg">
+        Join Us - Start Making an Impact Today!
+      </h2>
+      <p className="px-6 max-w-5xl mx-auto text-primary-fg md:text-xl text-center text-pretty mb-6">
+        Whether you're a consultant, a fundraiser, or simply someone who loves
+        making a difference, Better Giving lets you turn your connections into a
+        force for good.
+      </p>
+      <Link
+        to={`${href("/signup")}?redirect=${href("/dashboard/referrals")}`}
+        className="btn btn-primary text-balance justify-self-center w-fit mx-auto font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
+      >
+        Get Your Referral Link Now
+        <ArrowRight size={18} className="shrink-0" />
+      </Link>
+    </section>
+  );
+}

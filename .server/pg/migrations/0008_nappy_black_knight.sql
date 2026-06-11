@@ -1,0 +1,1 @@
+CREATE INDEX "donations_form_id_idx" ON "donations" USING btree ("form_id");

@@ -1,0 +1,1 @@
+CREATE INDEX "forms_owner_user_status_date_idx" ON "forms" USING btree ("owner_user_id","status","date_created") WHERE "forms"."owner_user_id" IS NOT NULL;

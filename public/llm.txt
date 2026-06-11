@@ -1,0 +1,58 @@
+# Better Giving
+
+> Nonprofit fundraising and fund management platform — by a nonprofit, for nonprofits. Accept donations via card, crypto, stocks, DAF, and more. Grow funds with savings and investment options. Free for nonprofits.
+
+Better Giving is a 501(c)(3) public charity (EIN 87-3758939) that provides free donation processing, embeddable fundraising forms, fund management (high-yield savings and investment portfolio), and fiscal sponsorship for international NGOs. 195+ countries, 100+ cryptocurrencies, zero platform fees.
+
+## Product Pages
+
+- [Home](https://better.giving/): main landing page
+- [For Nonprofits](https://better.giving/nonprofit): features, pricing, FAQ for nonprofit organizations
+- [For Donors](https://better.giving/donor): donor benefits, giving methods, tax receipts
+- [Donation Forms](https://better.giving/donation-forms): customizable, embeddable donation form product page
+- [Fund Management](https://better.giving/fund-management): sustainability fund — savings and investment options
+- [Fiscal Sponsorship](https://better.giving/fiscal-sponsorship): how international NGOs access US tax-deductible donations
+- [About Us](https://better.giving/about-us): mission, team, and story
+- [Donation Calculator](https://better.giving/donation-calculator): estimate tax savings from donations
+
+## Marketplace & Discovery
+
+- [Nonprofit Marketplace](https://better.giving/marketplace): search nonprofits by name, cause, or geography
+- [Fundraisers](https://better.giving/fundraisers): browse peer-to-peer and organizational fundraising campaigns
+
+## Getting Started
+
+- [Register (Nonprofits)](https://better.giving/register): nonprofit onboarding — create account, verify org, set up banking
+- [Sign Up (Donors)](https://better.giving/signup): create a free donor account
+- [Login](https://better.giving/login): sign in to your account
+
+## Resources
+
+- [Blog](https://better.giving/blog): articles, guides, and nonprofit insights
+- [Referral Program](https://better.giving/referral-program): earn when referred nonprofits receive donations
+- [WordPress Plugin](https://better.giving/wp-plugin): embed donation forms on WordPress sites
+- [Zapier Integration](https://better.giving/zapier-integration): connect Better Giving to 1000+ apps
+- [Developer Docs](https://developer.better.giving): API reference and integration guides
+- [Help Center](https://intercom.help/better-giving/en): support articles and FAQ
+
+## Campaigns & Landing Pages
+
+- [Simplify Fundraising](https://better.giving/simplify-fundraising-maximize-impact): US nonprofits landing page
+- [Giving Tuesday](https://better.giving/giving-tuesday): Giving Tuesday campaign resources
+- [See What You're Losing](https://better.giving/see-what-youre-losing): donation calculator landing page
+
+## Legal
+
+- [Privacy Policy](https://better.giving/privacy-policy)
+- [Terms of Use (Donors)](https://better.giving/terms-of-use)
+- [Terms of Use (Nonprofits)](https://better.giving/terms-of-use-npo)
+- [Terms of Use (Referrals)](https://better.giving/terms-of-use-referrals)
+- [Security Policy](https://better.giving/security-policy)
+
+## Optional
+
+- [Nonprofit Profile Example](https://better.giving/marketplace/:id): individual nonprofit profile with programs and donation form
+- [Fundraiser Detail](https://better.giving/fundraisers/:fundId): individual fundraiser page with progress and donate button
+- [Donate](https://better.giving/donate/:id): donation checkout for a specific nonprofit
+- [Donate to Fundraiser](https://better.giving/fundraisers/:fundId/donate): donation checkout for a fundraiser
+- [Nonprofit Category](https://better.giving/nonprofits/:slug): browse nonprofits by NTEE category

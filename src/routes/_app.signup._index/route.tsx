@@ -1,0 +1,217 @@
+import { Mail } from "lucide-react";
+import { href, Link, type MetaDescriptor, useNavigation } from "react-router";
+import { useRemixForm } from "remix-hook-form";
+import googleIcon from "#/assets/icons/google.svg";
+import { ExtLink } from "#/components/ext-link";
+import { Input, PasswordInput, RmxForm } from "#/components/form";
+import { Image } from "#/components/image";
+import { Separator } from "#/components/separator";
+import { app_name } from "#/constants/env";
+import { metas } from "#/helpers/seo";
+import type { ISignUp } from "#/types/auth";
+import type { Route } from "./+types/route";
+
+export { ErrorBoundary } from "#/components/error";
+export { loader } from "../_app.signup/loader";
+export { action } from "./api";
+
+interface Terms {
+  to: string;
+  title: string;
+}
+
+interface Context {
+  title: string;
+  description: string;
+  terms: Terms[];
+  meta?: MetaDescriptor[];
+}
+
+const context: { [id: string]: Context } = {
+  registration: {
+    title: `Become a ${app_name} Member`,
+    description:
+      "Join the nonprofit-powered fundraising platform. Raise more and grow funds together.",
+    terms: [
+      { to: href("/terms-of-use-npo"), title: "Terms of Use (Nonprofits)" },
+    ],
+  },
+
+  referrals: {
+    title: "Empower More Nonprofits",
+    description: `Sign up to refer organizations to ${app_name} and help them grow their impact make a difference with every connection.`,
+    terms: [
+      {
+        to: href("/terms-of-use-referrals"),
+        title: "Terms of Use (Referrals)",
+      },
+    ],
+    meta: metas({
+      title: "Sign Up Referral | Better Giving",
+      description:
+        "Join Better Giving and start sharing the good! Sign up now to get your own referral code and link, earn rewards by inviting others to give better",
+    }),
+  },
+
+  donation: {
+    title: "Join Better Giving",
+    description: "Sign up to manage your donations",
+    terms: [{ to: href("/terms-of-use"), title: "Terms of Use (Donors)" }],
+  },
+
+  fallback: {
+    title: "Philanthropy for Everyone",
+    description:
+      "Sign up to support 18000+ causes or register and manage your nonprofit.",
+    terms: [
+      { to: href("/terms-of-use"), title: "Terms of Use (Donors)" },
+      { to: href("/terms-of-use-npo"), title: "Terms of Use (Nonprofits)" },
+    ],
+  },
+};
+
+const get_context = (to: string): Context => {
+  if (to.startsWith(href("/register"))) return context.registration;
+  if (to.startsWith(href("/dashboard/referrals"))) return context.referrals;
+  return context.fallback;
+};
+
+export const meta: Route.MetaFunction = ({ loaderData: to }) => {
+  const ctx = get_context(to as string);
+  return ctx?.meta || [{ title: "Sign Up - Better Giving" }];
+};
+
+export default function Page({ loaderData: to }: Route.ComponentProps) {
+  const ctx = get_context(to);
+  const terms_0 = ctx.terms[0];
+  const terms_1 = ctx.terms[1];
+
+  const nav = useNavigation();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useRemixForm<ISignUp>({});
+
+  const form_id = "sign-up-form";
+  const is_submitting = nav.state !== "idle";
+
+  return (
+    <div className="grid justify-items-center gap-3.5">
+      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+        <h3 className="text-center text-balance text-2xl font-bold">
+          {ctx.title}
+        </h3>
+        <p className="text-center text-pretty max-sm:text-sm mt-2">
+          {ctx.description}
+        </p>
+
+        <RmxForm disabled={is_submitting} method="POST" className="contents">
+          <button
+            name="intent"
+            value="oauth"
+            className="flex-center btn-secondary rounded gap-2 h-12 sm:h-[52px] mt-6 border-[0.8px]"
+            type="submit"
+          >
+            <Image src={googleIcon} height={18} width={18} />
+            <span className="font-semibold">Sign Up with Google</span>
+          </button>
+        </RmxForm>
+
+        <Separator classes="my-4 before:mr-3.5 after:ml-3.5 before:bg-border after:bg-border font-medium text-xs text-muted-fg">
+          OR
+        </Separator>
+
+        <RmxForm
+          id={form_id}
+          method="POST"
+          onSubmit={handleSubmit}
+          disabled={is_submitting}
+          className="grid gap-3"
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              {...register("first_name")}
+              placeholder="First Name"
+              error={errors.first_name?.message}
+            />
+            <Input
+              {...register("last_name")}
+              placeholder="Last Name"
+              error={errors.last_name?.message}
+            />
+          </div>
+          <Input
+            {...register("email")}
+            autoComplete="username"
+            placeholder="Email address"
+            icon={Mail}
+            error={errors.email?.message}
+            classes={{ container: "mt-4" }}
+          />
+          <Input
+            {...register("email_confirmation")}
+            autoComplete="username"
+            placeholder="Confirm email"
+            icon={Mail}
+            error={errors.email_confirmation?.message}
+            classes={{ container: "mb-4" }}
+          />
+          <PasswordInput
+            {...register("password")}
+            placeholder="Create password"
+            error={errors.password?.message}
+          />
+        </RmxForm>
+
+        <button
+          disabled={is_submitting}
+          form={form_id}
+          type="submit"
+          className="flex-center btn-primary h-12 sm:h-[52px] rounded sm:text-lg font-bold w-full my-8"
+        >
+          {is_submitting ? "Submitting..." : "Sign Up"}
+        </button>
+
+        <span className="flex-center gap-1 max-sm:text-sm">
+          Already have an account?
+          <Link
+            to={`${href("/login")}?redirect=${to}`}
+            className="text-primary hover:text-primary active:text-primary aria-disabled:text-muted-fg font-medium underline"
+            aria-disabled={is_submitting}
+          >
+            Login
+          </Link>
+        </span>
+      </div>
+
+      <span className="text-xs sm:text-sm text-center w-80">
+        By signing up, you agree to our{" "}
+        <ExtLink
+          href={href("/privacy-policy")}
+          className="text-primary hover:text-primary/80"
+        >
+          Privacy Policy
+        </ExtLink>
+        , {!terms_1 && " and  "}
+        {terms_0 && (
+          <ExtLink
+            href={href("/terms-of-use")}
+            className="text-primary hover:text-primary/80"
+          >
+            {terms_0.title}
+          </ExtLink>
+        )}
+        {terms_0 && terms_1 && ", and  "}
+        {terms_1 && (
+          <ExtLink
+            href={terms_1.to}
+            className="text-primary hover:text-primary/80"
+          >
+            {terms_1.title}
+          </ExtLink>
+        )}
+      </span>
+    </div>
+  );
+}

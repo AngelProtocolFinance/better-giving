@@ -1,0 +1,1 @@
+CREATE INDEX "dists_to_id_settled_donation_idx" ON "dists" USING btree ("to_id","donation_id") WHERE "dists"."status" = 'settled';

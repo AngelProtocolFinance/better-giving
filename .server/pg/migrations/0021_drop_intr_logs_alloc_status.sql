@@ -1,0 +1,1 @@
+ALTER TABLE "intr_logs" DROP COLUMN "alloc_status";

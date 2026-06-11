@@ -1,0 +1,14 @@
+services:
+  # neon websocket proxy in front of host postgres so the @neondatabase/serverless
+  # driver runs the same code path in dev as on vercel. host pg stays where it is.
+  # client connects to ws://localhost:4444?address=host.docker.internal:5432.
+  neon-wsproxy:
+    # upstream has no semver tags — pin by digest so the dev setup is reproducible.
+    image: ghcr.io/neondatabase/wsproxy@sha256:7f2e2149aa6a57ba382a140102fba44f5053f3e44389ccc18adcecf896054efb
+    ports:
+      - "4444:80"
+    environment:
+      ALLOW_ADDR_REGEX: "^host\\.docker\\.internal:[0-9]+$$"
+      LOG_TRAFFIC: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
