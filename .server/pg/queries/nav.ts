@@ -336,37 +336,67 @@ export async function nav_log_put(db: DbOrTx, data: ILog, series?: ISeries) {
   if (!positions.length) return;
 
   await db.transaction(async (tx) => {
-    await tx.insert(nav_logs).values({
-      date: data.date,
-      reason: data.reason,
-      units: data.units,
-      price: data.price,
-      price_updated: data.price_updated || undefined,
-      is_week: series?.week ?? false,
-      is_day: series?.day ?? false,
-    });
+    await tx
+      .insert(nav_logs)
+      .values({
+        date: data.date,
+        reason: data.reason,
+        units: data.units,
+        price: data.price,
+        price_updated: data.price_updated || undefined,
+        is_week: series?.week ?? false,
+        is_day: series?.day ?? false,
+      })
+      .onConflictDoUpdate({
+        target: nav_logs.date,
+        set: {
+          reason: data.reason,
+          units: data.units,
+          price: data.price,
+          price_updated: data.price_updated || undefined,
+          is_week: series?.week ?? false,
+          is_day: series?.day ?? false,
+        },
+      });
 
     // value computed by pg numeric (not js float) so value = qty * price check holds.
-    await tx.insert(nav_log_positions).values(
-      positions.map((p) => ({
-        date: data.date,
-        ticker: p.id,
-        qty: p.qty,
-        price: p.price,
-        value: sql`(${String(p.qty)}::numeric(38,18) * ${String(p.price)}::numeric(38,18))::numeric(38, 18)`,
-        price_date: p.price_date,
-      }))
-    );
+    await tx
+      .insert(nav_log_positions)
+      .values(
+        positions.map((p) => ({
+          date: data.date,
+          ticker: p.id,
+          qty: p.qty,
+          price: p.price,
+          value: sql`(${String(p.qty)}::numeric(38,18) * ${String(p.price)}::numeric(38,18))::numeric(38, 18)`,
+          price_date: p.price_date,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [nav_log_positions.date, nav_log_positions.ticker],
+        set: {
+          qty: sql`excluded.qty`,
+          price: sql`excluded.price`,
+          value: sql`excluded.value`,
+          price_date: sql`excluded.price_date`,
+        },
+      });
 
     const holder_entries = Object.entries(data.holders || {});
     if (holder_entries.length) {
-      await tx.insert(nav_holders).values(
-        holder_entries.map(([npo_id, units]) => ({
-          date: data.date,
-          npo_id: Number(npo_id),
-          units,
-        }))
-      );
+      await tx
+        .insert(nav_holders)
+        .values(
+          holder_entries.map(([npo_id, units]) => ({
+            date: data.date,
+            npo_id: Number(npo_id),
+            units,
+          }))
+        )
+        .onConflictDoUpdate({
+          target: [nav_holders.date, nav_holders.npo_id],
+          set: { units: sql`excluded.units` },
+        });
     }
   });
 }
