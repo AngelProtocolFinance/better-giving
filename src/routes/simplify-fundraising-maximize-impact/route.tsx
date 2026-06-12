@@ -24,7 +24,7 @@ export default function Component() {
   return (
     <main className="w-full grid content-start pb-16 @container">
       <div
-        className="sticky top-[-1px] z-50 bg-card"
+        className="sticky -top-px z-50 bg-card"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(
@@ -49,19 +49,19 @@ export default function Component() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-50% from-transparent to-peach/50">
+      <div className="bg-linear-to-br from-50% from-transparent to-peach/50">
         <Top className="xl:container xl:mx-auto px-10 bg-transparent" />
       </div>
-      <div className="bg-gradient-to-bl via-transparent via-50% from-peach/50 to-lilac/50">
+      <div className="bg-linear-to-bl via-transparent via-50% from-peach/50 to-lilac/50">
         <Brands className="my-20 xl:my-56" />
       </div>
-      <div className="bg-gradient-to-br from-lilac/50 via-transparent via-50% to-transparent">
+      <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
         <Feature className="xl:container xl:mx-auto px-10" />
       </div>
-      <div className="bg-gradient-to-br from-transparent via-transparent via-50% to-lilac/50">
+      <div className="bg-linear-to-br from-transparent via-transparent via-50% to-lilac/50">
         <DonationFormInfo className="mt-20 xl:mt-60 xl:container xl:mx-auto px-10" />
       </div>
-      <div className="bg-gradient-to-bl from-lilac/50 via-50% via-transparent to-transparent">
+      <div className="bg-linear-to-bl from-lilac/50 via-50% via-transparent to-transparent">
         <Testimonials classes="xl:container xl:mx-auto px-10" />
       </div>
       <div className="my-20 xl:my-40">

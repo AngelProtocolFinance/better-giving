@@ -82,7 +82,7 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
   return (
     <main className="w-full grid content-start @container">
       <div
-        className="sticky top-[-1px] z-50"
+        className="sticky -top-px z-50"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(

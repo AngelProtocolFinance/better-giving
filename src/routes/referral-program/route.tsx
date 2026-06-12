@@ -27,7 +27,7 @@ export default function Referrals() {
   return (
     <div className="w-full grid content-start pb-16 @container">
       <div
-        className="sticky top-[-1px] z-50"
+        className="sticky -top-px z-50"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(
@@ -60,13 +60,13 @@ export default function Referrals() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-50% from-transparent to-peach/50">
+      <div className="bg-linear-to-br from-50% from-transparent to-peach/50">
         <Top />
       </div>
-      <div className="bg-gradient-to-bl from-peach/50 via-transparent via-50% to-lilac/50">
+      <div className="bg-linear-to-bl from-peach/50 via-transparent via-50% to-lilac/50">
         <Feature className="xl:container xl:mx-auto px-10" />
       </div>
-      <div className="bg-gradient-to-br from-lilac/50 via-transparent via-50% to-transparent">
+      <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
         <Feature2 className="xl:container xl:mx-auto px-10" />
       </div>
       <Faq classes="xl:container xl:mx-auto px-10 mt-10" />
