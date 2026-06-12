@@ -21,8 +21,6 @@ import {
   type AppLoadContext,
   createCookie,
   type EntryContext,
-  type href,
-  matchPath,
   ServerRouter,
 } from "react-router";
 import { report_error } from "@/errors/report";
@@ -58,55 +56,6 @@ const vdpl_cookie = createCookie("__vdpl", {
   sameSite: "lax",
 });
 
-// public/embed routes that set `cache-control: public, s-maxage=...` in their
-// `headers` export. these benefit most from cdn caching, and a `set-cookie`
-// makes vercel's cdn skip the cache entirely. skip __vdpl on these paths so
-// the cdn can serve cached html. `satisfies` ties each literal to a real
-// route in `routes.ts` via href's type system — adding/removing a route here
-// fails the build if the pattern doesn't exist.
-//
-// to refresh this list, grep route `headers()` exports for cacheable values:
-//   rg -l "cache-control.*public.*s-maxage" src/routes
-// then add the matching url pattern (not the file path) below.
-const SKIP_VDPL_PATHS = [
-  "/",
-  "/forms/:id",
-  "/blog",
-  "/blog/:slug",
-  "/marketplace",
-  "/marketplace/filter",
-  "/marketplace/:id",
-  "/marketplace/:id/program/:program_id",
-  "/fundraisers",
-  "/fundraisers/:fund_id",
-  "/nonprofits/:slug",
-  // landing
-  "/donation-forms",
-  "/fiscal-sponsorship",
-  "/fund-management",
-  "/giving-tuesday",
-  // static marketing
-  "/about-us",
-  "/donor",
-  "/nonprofit",
-  "/donation-calculator",
-  "/privacy-policy",
-  "/security-policy",
-  "/resources",
-  "/wp-plugin",
-  "/zapier-integration",
-  "/terms-of-use",
-  "/terms-of-use-npo",
-  "/terms-of-use-referrals",
-  "/terms-of-use-sms",
-  "/referral-program",
-  "/see-what-youre-losing",
-  "/simplify-fundraising-maximize-impact",
-  "/simplify-fundraising-maximize-impacts",
-  "/the-smart-move-to-make-for-accepting-crypto-donations",
-  "/unlock-us-donations",
-] as const satisfies ReadonlyArray<Parameters<typeof href>[0]>;
-
 export default async function handle_request(
   request: Request,
   response_status_code: number,
@@ -126,21 +75,18 @@ export default async function handle_request(
   // edge reads the cookie and routes accordingly.
   // docs: https://vercel.com/docs/skew-protection#with-other-frameworks
   //
-  // skip the cookie on public/embed routes that rely on cdn caching — any
-  // `set-cookie` makes vercel's cdn bypass the cache. authenticated routes
-  // still get the cookie so their client-side asset/data fetches stay
-  // pinned to the serving deployment.
+  // set unconditionally — set-cookie kills cdn caching on these responses,
+  // but the alternative is /assets/* 404 storms after every deploy when
+  // cached html references content-hashed assets from the previous
+  // deployment. proper fix tracked in vercel/vercel#16604 (inject `?dpl=`
+  // into asset urls so the cookie isn't needed).
   if (vercel_skew_protection_enabled && vercel_deployment_id) {
-    const pathname = new URL(request.url).pathname;
-    const is_public = SKIP_VDPL_PATHS.some((p) => matchPath(p, pathname));
-    if (!is_public) {
-      const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
-      if (existing !== vercel_deployment_id) {
-        response_headers.append(
-          "set-cookie",
-          await vdpl_cookie.serialize(vercel_deployment_id)
-        );
-      }
+    const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
+    if (existing !== vercel_deployment_id) {
+      response_headers.append(
+        "set-cookie",
+        await vdpl_cookie.serialize(vercel_deployment_id)
+      );
     }
   }
 
