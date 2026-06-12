@@ -11,7 +11,7 @@
 //   sentry server:     https://docs.sentry.io/platforms/javascript/guides/react-router/
 //   vercel skew prot:  https://vercel.com/docs/skew-protection
 //   vercel system env: https://vercel.com/docs/environment-variables/system-environment-variables
-import { PassThrough } from "node:stream";
+import { PassThrough, Transform } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import * as Sentry from "@sentry/react-router";
 import { isbot } from "isbot";
@@ -19,7 +19,6 @@ import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
 import {
   type AppLoadContext,
-  createCookie,
   type EntryContext,
   ServerRouter,
 } from "react-router";
@@ -49,12 +48,42 @@ const vercel_deployment_id = process.env.VERCEL_DEPLOYMENT_ID;
 const vercel_skew_protection_enabled =
   process.env.VERCEL_SKEW_PROTECTION_ENABLED === "1";
 
-const vdpl_cookie = createCookie("__vdpl", {
-  path: "/",
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax",
-});
+// matches asset urls like /assets/foo-abc123.js (no query already attached).
+// the negative lookahead prevents re-rewriting and guards against matching
+// inside an already-querified url. extension set covers js/css/fonts/images
+// /sourcemaps/wasm — everything vite emits under /assets/.
+const ASSET_URL_RE =
+  /\/assets\/[A-Za-z0-9._\-/]+\.(?:js|mjs|css|map|woff2?|ttf|otf|svg|png|jpe?g|webp|gif|ico|wasm)(?![A-Za-z0-9._\-/?])/g;
+
+// rewrites every /assets/* reference in the ssr html stream to carry
+// ?dpl=<deployment-id>. browser tag-loads (script/link/preload/img) then
+// carry the deployment id on the request url, so vercel's edge pins the
+// asset request to the deployment that served the html. lets us drop the
+// __vdpl set-cookie (which was killing cdn caching on document responses)
+// without reintroducing /assets/* 404s after a rollout.
+// upstream tracking for a built-in fix: vercel/vercel#16604.
+function make_asset_pin_transform(deployment_id: string): Transform {
+  const TAIL = 256;
+  let tail = "";
+  return new Transform({
+    transform(chunk, _enc, cb) {
+      const combined = tail + chunk.toString("utf8");
+      // hold back the last TAIL chars so a url straddling the next chunk
+      // boundary isn't mis-rewritten. flush emits whatever remains.
+      const split = combined.length > TAIL ? combined.length - TAIL : 0;
+      const emit = combined
+        .slice(0, split)
+        .replace(ASSET_URL_RE, `$&?dpl=${deployment_id}`);
+      tail = combined.slice(split);
+      cb(null, Buffer.from(emit, "utf8"));
+    },
+    flush(cb) {
+      const emit = tail.replace(ASSET_URL_RE, `$&?dpl=${deployment_id}`);
+      tail = "";
+      cb(null, Buffer.from(emit, "utf8"));
+    },
+  });
+}
 
 export default async function handle_request(
   request: Request,
@@ -70,25 +99,15 @@ export default async function handle_request(
     });
   }
 
-  // __vdpl cookie pins subsequent client requests (assets, data) to this
-  // exact deployment, preventing version skew during rollouts. vercel's
-  // edge reads the cookie and routes accordingly.
-  // docs: https://vercel.com/docs/skew-protection#with-other-frameworks
-  //
-  // set unconditionally — set-cookie kills cdn caching on these responses,
-  // but the alternative is /assets/* 404 storms after every deploy when
-  // cached html references content-hashed assets from the previous
-  // deployment. proper fix tracked in vercel/vercel#16604 (inject `?dpl=`
-  // into asset urls so the cookie isn't needed).
-  if (vercel_skew_protection_enabled && vercel_deployment_id) {
-    const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
-    if (existing !== vercel_deployment_id) {
-      response_headers.append(
-        "set-cookie",
-        await vdpl_cookie.serialize(vercel_deployment_id)
-      );
-    }
-  }
+  // skew-protection strategy: rewrite asset urls in the response html to
+  // include ?dpl=<deployment-id>. browsers then carry it on tag-load
+  // requests (script/link/preload/img) and vercel's edge pins those to the
+  // correct deployment. no set-cookie, so document responses remain
+  // cdn-cacheable. docs: https://vercel.com/docs/skew-protection#supported-frameworks
+  const asset_pin =
+    vercel_skew_protection_enabled && vercel_deployment_id
+      ? make_asset_pin_transform(vercel_deployment_id)
+      : null;
 
   return new Promise((resolve, reject) => {
     let shell_rendered = false;
@@ -127,7 +146,11 @@ export default async function handle_request(
             })
           );
 
-          pipe(body);
+          if (asset_pin) {
+            pipe(asset_pin).pipe(body);
+          } else {
+            pipe(body);
+          }
         },
         onShellError(error: unknown) {
           reject(error);
