@@ -1,5 +1,5 @@
 #cc-main {
-  --cc-font-family: "DM Sans Variable";
+  --cc-font-family: var(--font-quicksand);
 
   --cc-btn-primary-bg: var(--primary);
   --cc-btn-primary-border-color: var(--primary);
