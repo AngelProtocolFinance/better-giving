@@ -11,6 +11,10 @@ import { Hero } from "./hero";
 import { WhyBG } from "./investment";
 import { Testimonials } from "./testimonials";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () => [
   {
     title: "For Nonprofits",

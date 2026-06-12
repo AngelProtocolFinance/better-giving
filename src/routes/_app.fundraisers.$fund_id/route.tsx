@@ -16,7 +16,7 @@ import type { Route } from "./+types/route";
 import { Share } from "./share";
 import { Video } from "./video";
 
-export { loader } from "./api";
+export { headers, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export const links: Route.LinksFunction = () => [...richtext_styles];
@@ -77,7 +77,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 />
               </div>
 
-              <h4 className="md:col-start-2 max-md:text-center  font-bold text-2xl w-full break-words">
+              <h4 className="md:col-start-2 max-md:text-center  font-bold text-2xl w-full wrap-break-word">
                 {fund.name}
               </h4>
               <div className="pl-0.5">

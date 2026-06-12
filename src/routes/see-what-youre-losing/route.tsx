@@ -4,6 +4,10 @@ import { DappLogo } from "#/components/image";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { Top } from "./top";
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "You’re Losing Donations - Find Out How Much | Better Giving",
@@ -15,7 +19,7 @@ export default function Component() {
   return (
     <main className="w-full grid content-start pb-16 @container">
       <div
-        className="sticky top-[-1px] z-50 bg-card"
+        className="sticky -top-px z-50 bg-card"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(

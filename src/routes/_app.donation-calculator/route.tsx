@@ -22,6 +22,10 @@ import heroImg from "./hero.png?url";
 import { Result1 } from "./result1";
 import { Table } from "./table";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "Better Giving Donation Calculator | Save More, Raise More, Do More",

@@ -1,1 +1,5 @@
-export { default, meta } from "../simplify-fundraising-maximize-impact/route";
+export {
+  default,
+  headers,
+  meta,
+} from "../simplify-fundraising-maximize-impact/route";

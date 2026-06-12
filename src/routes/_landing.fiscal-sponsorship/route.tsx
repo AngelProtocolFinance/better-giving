@@ -9,6 +9,10 @@ import { BottomCta } from "./bottom-cta";
 import { Ctas } from "./ctas";
 import { Hero } from "./hero";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: `Fiscal Sponsorship | ${app_name}`,

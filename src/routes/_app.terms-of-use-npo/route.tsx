@@ -7,6 +7,10 @@ const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
 );
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "Terms of use (NPO)",

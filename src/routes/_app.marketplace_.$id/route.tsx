@@ -9,7 +9,7 @@ import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { Body } from "./body/body";
 
-export { loader } from "./api";
+export { headers, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>({});
 
 export const links: Route.LinksFunction = () => [...richtext_styles];

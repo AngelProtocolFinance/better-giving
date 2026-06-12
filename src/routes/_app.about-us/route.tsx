@@ -7,6 +7,10 @@ import { Quote } from "./quote";
 import { Section2 } from "./section-2";
 import { Team } from "./team";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () => metas({ title: "About us" });
 export default function About() {
   return (

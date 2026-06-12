@@ -68,6 +68,10 @@ export const meta: Route.MetaFunction = ({ params: { slug = "" } }) => {
   });
 };
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const ctx = page_context[params.slug];
   if (!ctx) throw new Response("Not Found", { status: 404 });
@@ -78,7 +82,7 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
   return (
     <main className="w-full grid content-start @container">
       <div
-        className="sticky top-[-1px] z-50"
+        className="sticky -top-px z-50"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(

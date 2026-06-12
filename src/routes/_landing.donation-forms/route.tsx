@@ -9,6 +9,10 @@ import { Ctas } from "./ctas";
 import { DonationFormInfo } from "./donation-form-info";
 import { Members } from "./members";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: `All-In-One Donation Form | ${app_name}`,

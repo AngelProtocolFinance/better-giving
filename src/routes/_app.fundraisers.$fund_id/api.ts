@@ -10,6 +10,10 @@ export interface LoaderData extends IFund {
   url: string;
 }
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 const schema = union([fund_id, segment]);
 
 export const loader = async ({ request, params }: Route.LoaderArgs) => {
