@@ -11,6 +11,10 @@ import { Feature } from "./feature";
 import { Feature2 } from "./feature-2";
 import { Top } from "./top";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "Referral Program | Better Giving",

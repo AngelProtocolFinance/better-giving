@@ -9,6 +9,10 @@ import { Features } from "./features";
 import { Hero } from "./hero";
 import { Hero2 } from "./hero-2";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: `Giving Tuesday | ${app_name}`,

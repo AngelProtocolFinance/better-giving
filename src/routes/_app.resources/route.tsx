@@ -11,6 +11,10 @@ import {
 } from "./data";
 import { ResourceCard } from "./resource-card";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "Resources",

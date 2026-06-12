@@ -10,6 +10,10 @@ import { Feature } from "./feature";
 import Testimonials from "./testimonials";
 import { Top } from "./top";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "Simplify Fundraising, Maximize Impact",

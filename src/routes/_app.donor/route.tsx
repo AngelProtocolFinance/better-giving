@@ -6,6 +6,10 @@ import { BottomCta } from "./bottom-cta";
 import { DonationFormInfo } from "./donation-form-info";
 import { Hero } from "./hero";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "For Donors",

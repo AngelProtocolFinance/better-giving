@@ -1,6 +1,11 @@
 import { AlertCircle } from "lucide-react";
 import { apex_domain } from "@/constants";
 import { emails } from "@/constants/common";
+import type { Route } from "./+types/route";
+
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
 
 const imgSrc = "https://placehold.co/400x200";
 export default function Component() {

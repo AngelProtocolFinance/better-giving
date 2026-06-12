@@ -4,6 +4,10 @@ import { DappLogo } from "#/components/image";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { Top } from "./top";
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "You’re Losing Donations - Find Out How Much | Better Giving",

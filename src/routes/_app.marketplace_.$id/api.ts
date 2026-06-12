@@ -5,6 +5,10 @@ import { npo_media_list } from "$/pg/queries/npo-media";
 import { npo_programs } from "$/pg/queries/program";
 import type { Route } from "./+types/route";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const id = npo_id(params.id);
   const npo = await (typeof id === "number" ? npo_get(id) : npo_by_slug(id));

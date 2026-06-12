@@ -8,6 +8,10 @@ import { Brands } from "./brands";
 import { Feature } from "./feature";
 import { ProbSol } from "./prob-sol";
 import { Top } from "./top";
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const meta: Route.MetaFunction = () =>
   metas({
     title: "The Smart Move to Make for Accepting Crypto Donations",

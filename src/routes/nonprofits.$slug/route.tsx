@@ -68,6 +68,10 @@ export const meta: Route.MetaFunction = ({ params: { slug = "" } }) => {
   });
 };
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const ctx = page_context[params.slug];
   if (!ctx) throw new Response("Not Found", { status: 404 });

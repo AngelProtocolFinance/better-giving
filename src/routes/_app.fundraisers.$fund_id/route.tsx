@@ -16,7 +16,7 @@ import type { Route } from "./+types/route";
 import { Share } from "./share";
 import { Video } from "./video";
 
-export { loader } from "./api";
+export { headers, loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export const links: Route.LinksFunction = () => [...richtext_styles];

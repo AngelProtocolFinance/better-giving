@@ -6,6 +6,10 @@ import { npo_by_slug, npo_get } from "$/pg/queries/npo";
 import { npo_program_get } from "$/pg/queries/program";
 import type { Route } from "./+types/route";
 
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const p = safeParse(program_id, params.program_id);
   if (p.issues) throw resp.status(400, p.issues[0].message);

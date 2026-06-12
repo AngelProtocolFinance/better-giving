@@ -11,7 +11,7 @@ import { Cards } from "./cards";
 import Hero from "./hero";
 import hero from "./hero.webp?url";
 
-export { loader } from "./funds-api";
+export { headers, loader } from "./funds-api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export const meta: Route.MetaFunction = () =>
