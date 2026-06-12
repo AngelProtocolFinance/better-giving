@@ -77,7 +77,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 />
               </div>
 
-              <h4 className="md:col-start-2 max-md:text-center  font-bold text-2xl w-full break-words">
+              <h4 className="md:col-start-2 max-md:text-center  font-bold text-2xl w-full wrap-break-word">
                 {fund.name}
               </h4>
               <div className="pl-0.5">
