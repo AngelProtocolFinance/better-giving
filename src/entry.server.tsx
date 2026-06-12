@@ -42,11 +42,11 @@ if (dsn && env === "production") {
 export const streamTimeout = 5_000;
 
 // vercel skew protection — pins client to the deployment that served its assets.
-// both vars are auto-injected by vercel when skew protection is enabled on the project.
+// VERCEL_DEPLOYMENT_ID is auto-injected by vercel on every deploy. we don't gate
+// on VERCEL_SKEW_PROTECTION_ENABLED because the edge always honors ?dpl= when
+// present — the env flag only governs framework-default behavior, not routing.
 // docs: https://vercel.com/docs/skew-protection
 const vercel_deployment_id = process.env.VERCEL_DEPLOYMENT_ID;
-const vercel_skew_protection_enabled =
-  process.env.VERCEL_SKEW_PROTECTION_ENABLED === "1";
 
 // matches asset urls like /assets/foo-abc123.js (no query already attached).
 // the negative lookahead prevents re-rewriting and guards against matching
@@ -104,10 +104,9 @@ export default async function handle_request(
   // requests (script/link/preload/img) and vercel's edge pins those to the
   // correct deployment. no set-cookie, so document responses remain
   // cdn-cacheable. docs: https://vercel.com/docs/skew-protection#supported-frameworks
-  const asset_pin =
-    vercel_skew_protection_enabled && vercel_deployment_id
-      ? make_asset_pin_transform(vercel_deployment_id)
-      : null;
+  const asset_pin = vercel_deployment_id
+    ? make_asset_pin_transform(vercel_deployment_id)
+    : null;
 
   return new Promise((resolve, reject) => {
     let shell_rendered = false;
