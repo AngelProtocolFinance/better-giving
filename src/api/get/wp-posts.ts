@@ -8,7 +8,7 @@ export const posts = async (page: number): Promise<[IPost[], number]> => {
     return x;
   });
 
-  if (!res.ok) throw new Response("Bad Gateway", { status: 502 });
+  if (!res.ok) throw res;
   const total = +(res.headers.get("x-wp-total") ?? "0");
   return [await res.json(), total] as const;
 };
