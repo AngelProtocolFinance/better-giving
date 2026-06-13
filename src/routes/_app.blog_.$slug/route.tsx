@@ -20,12 +20,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     x.searchParams.set("slug", params.slug);
     return x;
   }).then<IPost[]>((res) => {
-    if (!res.ok) {
-      // 5xx → upstream WP outage (502), 4xx → treat as missing post (404)
-      throw new Response(res.status >= 500 ? "Bad Gateway" : "Not Found", {
-        status: res.status >= 500 ? 502 : 404,
-      });
-    }
+    if (!res.ok) throw res;
     return res.json();
   });
 
@@ -35,7 +30,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     x.pathname = p(`media/${post.featured_media}`);
     return x;
   }).then<IMedia>((res) => {
-    if (!res.ok) throw new Response("Bad Gateway", { status: 502 });
+    if (!res.ok) throw res;
     return res.json();
   });
 
@@ -43,7 +38,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     x.pathname = p(`users/${post.author}`);
     return x;
   }).then<IUser>((res) => {
-    if (!res.ok) throw new Response("Bad Gateway", { status: 502 });
+    if (!res.ok) throw res;
     return res.json();
   });
 
