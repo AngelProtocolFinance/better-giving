@@ -20,7 +20,12 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     x.searchParams.set("slug", params.slug);
     return x;
   }).then<IPost[]>((res) => {
-    if (!res.ok) throw new Response("Not Found", { status: 404 });
+    if (!res.ok) {
+      // 5xx → upstream WP outage (502), 4xx → treat as missing post (404)
+      throw new Response(res.status >= 500 ? "Bad Gateway" : "Not Found", {
+        status: res.status >= 500 ? 502 : 404,
+      });
+    }
     return res.json();
   });
 
