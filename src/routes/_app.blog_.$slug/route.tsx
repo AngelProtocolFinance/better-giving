@@ -19,19 +19,28 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     x.pathname = p("posts");
     x.searchParams.set("slug", params.slug);
     return x;
-  }).then<IPost[]>((res) => res.json());
+  }).then<IPost[]>((res) => {
+    if (!res.ok) throw new Response("Not Found", { status: 404 });
+    return res.json();
+  });
 
   if (!post) throw new Response("Not Found", { status: 404 });
 
   const media = await wp((x, p) => {
     x.pathname = p(`media/${post.featured_media}`);
     return x;
-  }).then<IMedia>((res) => res.json());
+  }).then<IMedia>((res) => {
+    if (!res.ok) throw new Response("Bad Gateway", { status: 502 });
+    return res.json();
+  });
 
   const author = await wp((x, p) => {
     x.pathname = p(`users/${post.author}`);
     return x;
-  }).then<IUser>((res) => res.json());
+  }).then<IUser>((res) => {
+    if (!res.ok) throw new Response("Bad Gateway", { status: 502 });
+    return res.json();
+  });
 
   return { ...post, media, authorName: author.name } satisfies IPostDetailed;
 };
