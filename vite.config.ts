@@ -10,6 +10,13 @@ import { inline_binary } from "./plugins/inline-binary";
 
 export default defineConfig((config) => {
   const is_test = !!process.env.VITEST;
+  // when ASSET_BASE_URL is set (vercel project env), content-hashed client
+  // assets are served from a deploy-independent origin (vercel blob) so cached
+  // html never 404s on assets from a rotated-out deployment. unset locally →
+  // base "/" → identical to legacy behavior.
+  const asset_base = process.env.ASSET_BASE_URL
+    ? process.env.ASSET_BASE_URL.replace(/\/?$/, "/")
+    : "/";
   const rr7 = !is_test && reactRouter();
   const sentry =
     !is_test &&
@@ -27,6 +34,7 @@ export default defineConfig((config) => {
       config
     );
   return {
+    base: asset_base,
     build: { outDir: "build", target: "es2022", sourcemap: "hidden" },
     server: { port: 4200, allowedHosts: [".ngrok-free.app"] },
     resolve: { tsconfigPaths: true },

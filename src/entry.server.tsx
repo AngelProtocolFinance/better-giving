@@ -49,6 +49,12 @@ const vercel_deployment_id = process.env.VERCEL_DEPLOYMENT_ID;
 const vercel_skew_protection_enabled =
   process.env.VERCEL_SKEW_PROTECTION_ENABLED === "1";
 
+// when assets are served from a deploy-independent origin (ASSET_BASE_URL →
+// vercel blob), content-hashed assets never 404 after a rollout, so the
+// deployment-pinning cookie is unnecessary. skipping it keeps the set-cookie
+// off document responses, which restores cdn caching of the s-maxage/SWR routes.
+const durable_assets = !!process.env.ASSET_BASE_URL;
+
 const vdpl_cookie = createCookie("__vdpl", {
   path: "/",
   httpOnly: true,
@@ -75,12 +81,15 @@ export default async function handle_request(
   // edge reads the cookie and routes accordingly.
   // docs: https://vercel.com/docs/skew-protection#with-other-frameworks
   //
-  // set unconditionally — set-cookie kills cdn caching on these responses,
-  // but the alternative is /assets/* 404 storms after every deploy when
-  // cached html references content-hashed assets from the previous
-  // deployment. proper fix tracked in vercel/vercel#16604 (inject `?dpl=`
-  // into asset urls so the cookie isn't needed).
-  if (vercel_skew_protection_enabled && vercel_deployment_id) {
+  // the set-cookie kills cdn caching on these responses, so we only fall back
+  // to it when assets are NOT served from a durable origin. with durable_assets
+  // the content-hashed asset is always reachable regardless of deployment, so
+  // no pinning is needed and html stays cacheable.
+  if (
+    !durable_assets &&
+    vercel_skew_protection_enabled &&
+    vercel_deployment_id
+  ) {
     const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
     if (existing !== vercel_deployment_id) {
       response_headers.append(
