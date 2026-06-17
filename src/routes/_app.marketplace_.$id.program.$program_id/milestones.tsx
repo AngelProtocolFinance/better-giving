@@ -58,7 +58,7 @@ function Milestone(m: IMilestone) {
       </h6>
       <div className="pl-6 sm:pl-8">
         <RichText
-          content={{ value: m.description_pt ?? "" }}
+          content={{ value: m.description_pt }}
           readOnly
           classes={{
             field: "text-muted-fg text-sm w-full",

@@ -46,6 +46,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   registration_number: "REG001",
   name: "Test Charity",
   endow_designation: "Charity",
+  overview_pt: "[]",
   hq_country: "United States",
   tagline: "Helping the world",
   image: "https://example.com/banner.jpg",

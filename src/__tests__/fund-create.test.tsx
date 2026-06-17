@@ -109,6 +109,7 @@ async function seed_npo(
       registration_number: "EIN-CREATE",
       name: "Create Test NPO",
       endow_designation: "Charity",
+      overview_pt: "[]",
       hq_country: "United States",
       published: false,
       active: true,

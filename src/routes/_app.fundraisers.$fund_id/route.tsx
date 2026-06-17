@@ -110,7 +110,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
             )}
             <RichText
               content={{
-                value: fund.description_pt ?? "",
+                value: fund.description_pt,
               }}
               classes={{
                 field: "",

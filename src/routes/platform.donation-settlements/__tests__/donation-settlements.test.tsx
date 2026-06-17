@@ -59,12 +59,14 @@ beforeAll(async () => {
         name: "Freegan Food Foundation",
         registration_number: "EIN-TEST-001",
         endow_designation: "Charity",
+        overview_pt: "[]",
         hq_country: "United States",
       },
       {
         name: "Zebra Wildlife Trust",
         registration_number: "EIN-TEST-002",
         endow_designation: "Charity",
+        overview_pt: "[]",
         hq_country: "United States",
       },
     ])

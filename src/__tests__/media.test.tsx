@@ -60,6 +60,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   registration_number: "EIN-MEDIA",
   name: "Media Test NPO",
   endow_designation: "Charity",
+  overview_pt: "[]",
   hq_country: "United States",
 };
 

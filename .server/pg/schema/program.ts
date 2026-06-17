@@ -11,8 +11,7 @@ export const programs = pgTable(
       .references(() => npos.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description_v2: text("description_v2"),
-    description_rich: text("description_rich"),
-    description_pt: text("description_pt"),
+    description_pt: text("description_pt").notNull(),
     banner: text("banner"),
     target_raise: numeric_as_number("target_raise", {
       precision: 38,
@@ -37,8 +36,7 @@ export const milestones = pgTable(
     date: timestamptz("date"),
     title: text("title").notNull(),
     description_v2: text("description_v2"),
-    description_rich: text("description_rich"),
-    description_pt: text("description_pt"),
+    description_pt: text("description_pt").notNull(),
     media: text("media"),
   },
   (t) => [index("milestones_program_id_idx").on(t.program_id, t.date)]

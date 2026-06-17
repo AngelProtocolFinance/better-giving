@@ -20,7 +20,7 @@ export default function Page() {
       <div className="flex flex-col gap-8 w-full h-full">
         <Container title="Overview">
           <RichText
-            content={{ value: npo.overview_pt ?? "" }}
+            content={{ value: npo.overview_pt }}
             classes={{ field: "w-full h-full px-8 py-10" }}
             readOnly
           />
