@@ -5,12 +5,9 @@
 //   - streamTimeout?: number — abort renderToPipeableStream after N ms
 //   - handleError?: (error, { request, params, context }) => void — fires on loader/action throws
 // runs on the vercel node runtime; full process.env is available (no VITE_ prefix needed).
-// vercel auto-injects: VERCEL_ENV, VERCEL_DEPLOYMENT_ID, VERCEL_SKEW_PROTECTION_ENABLED, VERCEL_GIT_COMMIT_SHA.
 // docs:
 //   rr entry.server:   https://reactrouter.com/api/framework-conventions/entry.server.tsx
 //   sentry server:     https://docs.sentry.io/platforms/javascript/guides/react-router/
-//   vercel skew prot:  https://vercel.com/docs/skew-protection
-//   vercel system env: https://vercel.com/docs/environment-variables/system-environment-variables
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import * as Sentry from "@sentry/react-router";
@@ -19,22 +16,17 @@ import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
 import {
   type AppLoadContext,
-  createCookie,
   type EntryContext,
   ServerRouter,
 } from "react-router";
 import { report_error } from "@/errors/report";
+import { sentry, stage } from "$/env";
 
-// SENTRY_DSN: set in vercel project env (server-side, no VITE_ prefix).
 // only report from prod — preview/dev noise drowns out real signal.
-// VERCEL_ENV: auto-injected by vercel ("production" | "preview" | "development").
-// STAGE: project-defined fallback for non-vercel envs.
-const env = process.env.VERCEL_ENV ?? process.env.STAGE;
-const dsn = process.env.SENTRY_DSN;
-if (dsn && env === "production") {
+if (stage === "production") {
   Sentry.init({
-    dsn,
-    environment: env,
+    dsn: sentry.dsn,
+    environment: stage,
     sendDefaultPii: false,
     tracesSampleRate: 0,
   });
@@ -42,19 +34,16 @@ if (dsn && env === "production") {
 
 export const streamTimeout = 5_000;
 
-// vercel skew protection — pins client to the deployment that served its assets.
-// both vars are auto-injected by vercel when skew protection is enabled on the project.
-// docs: https://vercel.com/docs/skew-protection
-const vercel_deployment_id = process.env.VERCEL_DEPLOYMENT_ID;
-const vercel_skew_protection_enabled =
-  process.env.VERCEL_SKEW_PROTECTION_ENABLED === "1";
-
-const vdpl_cookie = createCookie("__vdpl", {
-  path: "/",
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax",
-});
+// skew protection is handled by serving content-hashed client assets from a
+// deploy-independent origin (vercel blob — see vite.config.ts base +
+// utils/upload-client-assets.ts), so cached html from a rotated-out deployment
+// never 404s on assets. no deployment-pinning cookie is set, which keeps html
+// responses cdn-cacheable.
+//
+// tradeoff: .data loader requests are NOT pinned to the serving deployment, so
+// this only holds while loader response contracts stay backward-compatible
+// across deploys. document-navigation skew is still handled by vercel's default
+// detect-and-reload. docs: https://vercel.com/docs/skew-protection
 
 export default async function handle_request(
   request: Request,
@@ -68,26 +57,6 @@ export default async function handle_request(
       status: response_status_code,
       headers: response_headers,
     });
-  }
-
-  // __vdpl cookie pins subsequent client requests (assets, data) to this
-  // exact deployment, preventing version skew during rollouts. vercel's
-  // edge reads the cookie and routes accordingly.
-  // docs: https://vercel.com/docs/skew-protection#with-other-frameworks
-  //
-  // set unconditionally — set-cookie kills cdn caching on these responses,
-  // but the alternative is /assets/* 404 storms after every deploy when
-  // cached html references content-hashed assets from the previous
-  // deployment. proper fix tracked in vercel/vercel#16604 (inject `?dpl=`
-  // into asset urls so the cookie isn't needed).
-  if (vercel_skew_protection_enabled && vercel_deployment_id) {
-    const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
-    if (existing !== vercel_deployment_id) {
-      response_headers.append(
-        "set-cookie",
-        await vdpl_cookie.serialize(vercel_deployment_id)
-      );
-    }
   }
 
   return new Promise((resolve, reject) => {

@@ -3,41 +3,39 @@ import { reactRouter } from "@react-router/dev/vite";
 import { sentryReactRouter } from "@sentry/react-router";
 import tailwind from "@tailwindcss/vite";
 import { playwright } from "@vitest/browser-playwright";
-import { defineConfig, loadEnv } from "vite";
-import { check_env } from "./plugins/check-env";
+import { defineConfig } from "vite";
 import { devtools_json } from "./plugins/devtools-json";
 import { inline_binary } from "./plugins/inline-binary";
+import { check_env } from "./utils/check-env";
 
 export default defineConfig((config) => {
-  const is_test = !!process.env.VITEST;
+  const env = check_env(config.mode);
+  const is_test = !!env.VITEST;
+  // vite base for content-hashed client assets: "/" locally, blob origin on
+  // deployed stages (skew protection).
+  const asset_base = env.ASSET_BASE_URL;
   const rr7 = !is_test && reactRouter();
+  // vercel sets VERCEL_GIT_COMMIT_SHA on deploys; not part of the check_env list
+  // since sentry uploads only run on vercel (where SENTRY_AUTH_TOKEN is set).
   const sentry =
     !is_test &&
-    !!process.env.SENTRY_AUTH_TOKEN &&
+    !!env.SENTRY_AUTH_TOKEN &&
+    !!env.VERCEL_GIT_COMMIT_SHA &&
     sentryReactRouter(
       {
-        org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
-        authToken: process.env.SENTRY_AUTH_TOKEN,
-        // vercel sets VERCEL_GIT_COMMIT_SHA on deploys; not part of the
-        // check_env list since sentry uploads only run when SENTRY_AUTH_TOKEN
-        // is set (Vercel envs only).
-        release: { name: process.env.VERCEL_GIT_COMMIT_SHA ?? "" },
+        org: env.SENTRY_ORG,
+        project: env.SENTRY_PROJECT,
+        authToken: env.SENTRY_AUTH_TOKEN,
+        release: { name: env.VERCEL_GIT_COMMIT_SHA },
       },
       config
     );
   return {
+    base: asset_base,
     build: { outDir: "build", target: "es2022", sourcemap: "hidden" },
     server: { port: 4200, allowedHosts: [".ngrok-free.app"] },
     resolve: { tsconfigPaths: true },
-    plugins: [
-      check_env(),
-      devtools_json(),
-      inline_binary(),
-      rr7,
-      tailwind(),
-      sentry,
-    ],
+    plugins: [devtools_json(), inline_binary(), rr7, tailwind(), sentry],
     test: {
       setupFiles: [
         "./src/setup-tests-browser.ts",
@@ -50,7 +48,7 @@ export default defineConfig((config) => {
         screenshotFailures: false,
         instances: [{ browser: "chromium" }],
       },
-      env: loadEnv(config.mode, process.cwd(), ""),
+      env,
       globals: true,
       exclude: ["**/node_modules/**", ".claude/**", "jobs/**"],
       testTimeout: 15_000,
