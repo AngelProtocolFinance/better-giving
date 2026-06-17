@@ -54,6 +54,9 @@ export const SERVER_KEYS = [
   "QSTASH_CURRENT_SIGNING_KEY",
   "QSTASH_NEXT_SIGNING_KEY",
   "BLOB_READ_WRITE_TOKEN",
+  // vite base for content-hashed client assets: "/" locally, blob origin on
+  // deployed stages (skew protection — see vite.config.ts).
+  "ASSET_BASE_URL",
   "DATABASE_URL",
   "DATABASE_URL_UNPOOLED",
   "CRYPTO_DEPOSIT_ADDR_ETH",

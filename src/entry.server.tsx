@@ -24,17 +24,13 @@ import {
   ServerRouter,
 } from "react-router";
 import { report_error } from "@/errors/report";
+import { sentry, stage } from "$/env";
 
-// SENTRY_DSN: set in vercel project env (server-side, no VITE_ prefix).
 // only report from prod — preview/dev noise drowns out real signal.
-// VERCEL_ENV: auto-injected by vercel ("production" | "preview" | "development").
-// STAGE: project-defined fallback for non-vercel envs.
-const env = process.env.VERCEL_ENV ?? process.env.STAGE;
-const dsn = process.env.SENTRY_DSN;
-if (dsn && env === "production") {
+if (stage === "production") {
   Sentry.init({
-    dsn,
-    environment: env,
+    dsn: sentry.dsn,
+    environment: stage,
     sendDefaultPii: false,
     tracesSampleRate: 0,
   });
@@ -42,13 +38,29 @@ if (dsn && env === "production") {
 
 export const streamTimeout = 5_000;
 
-// vercel skew protection — pins client to the deployment that served its assets.
-// both vars are auto-injected by vercel when skew protection is enabled on the project.
+// skew protection has two layers:
+//   1. content-hashed client assets are served from a deploy-independent
+//      origin (vercel blob — see vite.config.ts `base` +
+//      utils/upload-client-assets.ts), so cached html from a rotated-out
+//      deployment never 404s on its js/css/images.
+//   2. .data loader/action requests are pinned to the serving deployment via
+//      the __vdpl cookie (below). vercel's edge reads it and routes the
+//      request to the matching deployment within the skew retention window.
+//      cookies — unlike custom headers — are sent on <link rel=prefetch>
+//      requests too, so this also covers <Link prefetch> .data prefetches.
+//
+// tradeoffs:
+//   - first response of a cold session sets the cookie, so it's not
+//     cdn-cacheable. subsequent responses in the same session skip set-cookie
+//     and stay cacheable.
+//   - a NEW cold visitor served a previously-cached html (no set-cookie on
+//     the cached response) won't receive __vdpl. their .data requests aren't
+//     pinned until they get a fresh uncached html response. this gap only
+//     matters in the few-second window during an active deploy.
 // docs: https://vercel.com/docs/skew-protection
 const vercel_deployment_id = process.env.VERCEL_DEPLOYMENT_ID;
 const vercel_skew_protection_enabled =
   process.env.VERCEL_SKEW_PROTECTION_ENABLED === "1";
-
 const vdpl_cookie = createCookie("__vdpl", {
   path: "/",
   httpOnly: true,
@@ -70,16 +82,9 @@ export default async function handle_request(
     });
   }
 
-  // __vdpl cookie pins subsequent client requests (assets, data) to this
-  // exact deployment, preventing version skew during rollouts. vercel's
-  // edge reads the cookie and routes accordingly.
-  // docs: https://vercel.com/docs/skew-protection#with-other-frameworks
-  //
-  // set unconditionally — set-cookie kills cdn caching on these responses,
-  // but the alternative is /assets/* 404 storms after every deploy when
-  // cached html references content-hashed assets from the previous
-  // deployment. proper fix tracked in vercel/vercel#16604 (inject `?dpl=`
-  // into asset urls so the cookie isn't needed).
+  // only set when missing or stale — every set-cookie kills cdn caching of
+  // the response, so re-emitting on already-pinned sessions would gut html
+  // caching.
   if (vercel_skew_protection_enabled && vercel_deployment_id) {
     const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
     if (existing !== vercel_deployment_id) {
