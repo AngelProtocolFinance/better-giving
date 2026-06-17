@@ -16,6 +16,7 @@ import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
 import {
   type AppLoadContext,
+  createCookie,
   type EntryContext,
   ServerRouter,
 } from "react-router";
@@ -34,16 +35,35 @@ if (stage === "production") {
 
 export const streamTimeout = 5_000;
 
-// skew protection is handled by serving content-hashed client assets from a
-// deploy-independent origin (vercel blob — see vite.config.ts base +
-// utils/upload-client-assets.ts), so cached html from a rotated-out deployment
-// never 404s on assets. no deployment-pinning cookie is set, which keeps html
-// responses cdn-cacheable.
+// skew protection has two layers:
+//   1. content-hashed client assets are served from a deploy-independent
+//      origin (vercel blob — see vite.config.ts `base` +
+//      utils/upload-client-assets.ts), so cached html from a rotated-out
+//      deployment never 404s on its js/css/images.
+//   2. .data loader/action requests are pinned to the serving deployment via
+//      the __vdpl cookie (below). vercel's edge reads it and routes the
+//      request to the matching deployment within the skew retention window.
+//      cookies — unlike custom headers — are sent on <link rel=prefetch>
+//      requests too, so this also covers <Link prefetch> .data prefetches.
 //
-// tradeoff: .data loader requests are NOT pinned to the serving deployment, so
-// this only holds while loader response contracts stay backward-compatible
-// across deploys. document-navigation skew is still handled by vercel's default
-// detect-and-reload. docs: https://vercel.com/docs/skew-protection
+// tradeoffs:
+//   - first response of a cold session sets the cookie, so it's not
+//     cdn-cacheable. subsequent responses in the same session skip set-cookie
+//     and stay cacheable.
+//   - a NEW cold visitor served a previously-cached html (no set-cookie on
+//     the cached response) won't receive __vdpl. their .data requests aren't
+//     pinned until they get a fresh uncached html response. this gap only
+//     matters in the few-second window during an active deploy.
+// docs: https://vercel.com/docs/skew-protection
+const vercel_deployment_id = process.env.VERCEL_DEPLOYMENT_ID;
+const vercel_skew_protection_enabled =
+  process.env.VERCEL_SKEW_PROTECTION_ENABLED === "1";
+const vdpl_cookie = createCookie("__vdpl", {
+  path: "/",
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+});
 
 export default async function handle_request(
   request: Request,
@@ -57,6 +77,19 @@ export default async function handle_request(
       status: response_status_code,
       headers: response_headers,
     });
+  }
+
+  // only set when missing or stale — every set-cookie kills cdn caching of
+  // the response, so re-emitting on already-pinned sessions would gut html
+  // caching.
+  if (vercel_skew_protection_enabled && vercel_deployment_id) {
+    const existing = await vdpl_cookie.parse(request.headers.get("cookie"));
+    if (existing !== vercel_deployment_id) {
+      response_headers.append(
+        "set-cookie",
+        await vdpl_cookie.serialize(vercel_deployment_id)
+      );
+    }
   }
 
   return new Promise((resolve, reject) => {
