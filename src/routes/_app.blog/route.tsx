@@ -73,7 +73,7 @@ const Cards = (props: { posts: IPostListItem[] }) =>
     <NavLink
       key={post._id}
       to={post.slug.current}
-      className="grid [&:is(.pending)]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-clip bg-muted hover:bg-secondary border border-ring/20 group"
+      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-clip bg-muted hover:bg-secondary border border-ring/20 group"
     >
       {post.image?.asset ? (
         <img
