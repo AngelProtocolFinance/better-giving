@@ -24,7 +24,7 @@ export function Milestone(props: Props) {
       date: toYYYMMDD(new Date(props.date)),
       title: props.title,
       media: props.media ?? "",
-      description: { value: props.description_rich },
+      description: { value: props.description_pt },
     },
     resolver: valibotResolver(schema),
   });
@@ -56,7 +56,7 @@ export function Milestone(props: Props) {
             disabled={isSubmitting}
             onSubmit={handleSubmit((fv) => {
               const update: IMilestoneUpdate = {
-                description_rich: fv.description.value,
+                description_pt: fv.description.value,
                 title: fv.title,
                 date: new Date(fv.date).toISOString(),
                 ...(fv.media && { media: fv.media }),

@@ -140,7 +140,7 @@ async function seed_fund(
     .current!.db.insert(fund_table)
     .values({
       name: "Test Fund",
-      description_rich: "desc",
+      description_pt: "desc",
       banner: "https://img.co/banner.png",
       logo: "https://img.co/logo.png",
       active: true,

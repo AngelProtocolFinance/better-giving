@@ -44,7 +44,7 @@ export function use_edit_npo(df: DirtyFields, npo_id: number) {
       }
 
       if (df.overview) {
-        update.overview_rich = fv.overview.value;
+        update.overview_pt = fv.overview.value;
         update.overview_v2 = to_text(fv.overview.value);
       }
       if (df.url) update.url = fv.url;

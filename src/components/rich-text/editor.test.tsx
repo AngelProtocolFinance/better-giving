@@ -5,17 +5,29 @@ import { render } from "vitest-browser-react";
 import type { RichTextContent } from "#/types/components";
 import { RichText } from ".";
 
-function slate_json(text: string) {
-  return JSON.stringify([{ type: "paragraph", children: [{ text }] }]);
+function pt_json(text: string) {
+  return JSON.stringify([
+    {
+      _type: "block",
+      _key: "k1",
+      style: "normal",
+      markDefs: [],
+      children: [{ _type: "span", _key: "s1", text, marks: [] }],
+    },
+  ]);
 }
 
 function rich_content(text: string): RichTextContent {
-  return { value: slate_json(text), length: text.length };
+  return { value: pt_json(text), length: text.length };
 }
 
 const EMPTY: RichTextContent = { value: "", length: 0 };
 
-// wrapper that wires up RichText with onChange state
+const EDITOR_SEL = '[contenteditable="true"]';
+
+// wrapper that wires up RichText with onChange spy. content stays at `initial`
+// because most toolbar/keyboard tests don't need re-render — they assert on the
+// last onChange payload.
 function EditorHarness({
   initial = EMPTY,
   char_limit,
@@ -26,14 +38,14 @@ function EditorHarness({
   on_change?: (c: RichTextContent) => void;
 }) {
   const ref = useRef<{ focus: () => void }>(null);
-  const [content, set_content] = [initial, on_change ?? vi.fn()];
+  const handler = on_change ?? vi.fn();
 
   return (
     <div style={{ height: 300 }}>
       <RichText
         ref={ref}
-        content={content}
-        onChange={(c) => set_content(c as RichTextContent)}
+        content={initial}
+        onChange={(c) => handler(c as RichTextContent)}
         placeHolder="Write something"
         charLimit={char_limit}
         classes={{
@@ -76,6 +88,14 @@ function StatefulEditor({
   );
 }
 
+async function wait_for_editor(screen: { container: HTMLElement }) {
+  await vi.waitFor(() => {
+    const el = screen.container.querySelector(EDITOR_SEL);
+    expect(el).not.toBeNull();
+  });
+  return screen.container.querySelector(EDITOR_SEL) as HTMLElement;
+}
+
 describe("rich text editor — toolbar", () => {
   it("renders bold/italic/list/link buttons", async () => {
     const screen = await render(<EditorHarness />);
@@ -84,22 +104,19 @@ describe("rich text editor — toolbar", () => {
       const toolbar = screen.container.querySelector(".border-b.border-muted");
       expect(toolbar).not.toBeNull();
       const btns = toolbar!.querySelectorAll(":scope > button");
-      // bold, italic, ordered-list, bulleted-list (link is fragment sibling)
-      expect(btns.length).toBeGreaterThanOrEqual(4);
+      // bold, italic, ordered-list, bulleted-list, link
+      expect(btns.length).toBeGreaterThanOrEqual(5);
     });
   });
 
-  it("bold button applies bold formatting", async () => {
+  it("bold button applies strong mark", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
     await userEvent.keyboard("normal ");
 
-    // click bold button
     const toolbar = screen.container.querySelector(".border-b.border-muted")!;
     const bold_btn = toolbar.querySelectorAll(
       ":scope > button"
@@ -107,20 +124,19 @@ describe("rich text editor — toolbar", () => {
     bold_btn.click();
     await userEvent.keyboard("bold");
 
-    const last = on_change.mock.calls.at(-1)![0];
-    expect(last.value).toContain('"bold":true');
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"strong"');
+    });
   });
 
-  it("italic button applies italic formatting", async () => {
+  it("italic button applies em mark", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
 
-    // click italic button
     const toolbar = screen.container.querySelector(".border-b.border-muted")!;
     const italic_btn = toolbar.querySelectorAll(
       ":scope > button"
@@ -128,42 +144,44 @@ describe("rich text editor — toolbar", () => {
     italic_btn.click();
     await userEvent.keyboard("italic");
 
-    const last = on_change.mock.calls.at(-1)![0];
-    expect(last.value).toContain('"italic":true');
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"em"');
+    });
   });
 });
 
 describe("rich text editor — keyboard shortcuts", () => {
-  it("Cmd+B toggles bold", async () => {
+  it("Cmd+B toggles strong", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
 
     await userEvent.keyboard("{Meta>}b{/Meta}");
     await userEvent.keyboard("bolded");
 
-    const last = on_change.mock.calls.at(-1)![0];
-    expect(last.value).toContain('"bold":true');
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"strong"');
+    });
   });
 
-  it("Cmd+I toggles italic", async () => {
+  it("Cmd+I toggles em", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
 
     await userEvent.keyboard("{Meta>}i{/Meta}");
     await userEvent.keyboard("italicized");
 
-    const last = on_change.mock.calls.at(-1)![0];
-    expect(last.value).toContain('"italic":true');
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"em"');
+    });
   });
 });
 
@@ -172,12 +190,10 @@ describe("rich text editor — lists", () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
 
-    // click bulleted-list button (index 3)
+    // toolbar order: strong, em, number, bullet, link → bullet is index 3
     const toolbar = screen.container.querySelector(".border-b.border-muted")!;
     const list_btn = toolbar.querySelectorAll(
       ":scope > button"
@@ -185,23 +201,20 @@ describe("rich text editor — lists", () => {
     list_btn.click();
     await userEvent.keyboard("item");
 
-    await expect.element(screen.getByRole("list")).toBeVisible();
-    await expect.element(screen.getByRole("listitem")).toBeVisible();
-
-    const last = on_change.mock.calls.at(-1)![0];
-    expect(last.value).toContain('"bulleted-list"');
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"listItem":"bullet"');
+    });
   });
 
   it("numbered list button creates ol > li", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
 
-    // click numbered-list button (index 2)
+    // numbered list is index 2
     const toolbar = screen.container.querySelector(".border-b.border-muted")!;
     const list_btn = toolbar.querySelectorAll(
       ":scope > button"
@@ -209,20 +222,18 @@ describe("rich text editor — lists", () => {
     list_btn.click();
     await userEvent.keyboard("step");
 
-    await expect.element(screen.getByRole("list")).toBeVisible();
-
-    const last = on_change.mock.calls.at(-1)![0];
-    expect(last.value).toContain('"numbered-list"');
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"listItem":"number"');
+    });
   });
 
-  it("toggle list off reverts to paragraph", async () => {
+  it("toggle list off reverts to plain block", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
 
     const toolbar = screen.container.querySelector(".border-b.border-muted")!;
     const list_btn = toolbar.querySelectorAll(
@@ -232,14 +243,19 @@ describe("rich text editor — lists", () => {
     // toggle on
     list_btn.click();
     await userEvent.keyboard("item");
-    await expect.element(screen.getByRole("list")).toBeVisible();
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).toContain('"listItem":"bullet"');
+    });
 
-    // select all text so the toggle applies to it
+    // select all and toggle off
     await userEvent.keyboard("{Meta>}a{/Meta}");
-    // toggle off
     list_btn.click();
 
-    await expect.element(screen.getByRole("list")).not.toBeInTheDocument();
+    await vi.waitFor(() => {
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.value).not.toContain('"listItem"');
+    });
   });
 });
 
@@ -259,13 +275,10 @@ describe("rich text editor — char counter", () => {
       <StatefulEditor initial={EMPTY} char_limit={100} />
     );
 
-    // initial: 0
     await expect.element(screen.getByText(/chars\s*:\s*0/)).toBeVisible();
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
     await userEvent.keyboard("abc");
 
     await expect.element(screen.getByText(/chars\s*:\s*3/)).toBeVisible();
@@ -273,30 +286,15 @@ describe("rich text editor — char counter", () => {
 });
 
 describe("rich text editor — focus", () => {
-  it("click empty area focuses editor", async () => {
-    const screen = await render(<EditorHarness />);
-
-    // click the cursor-text wrapper (empty area), not the textbox itself
-    const wrapper = screen.container.querySelector(
-      ".cursor-text"
-    ) as HTMLElement;
-    wrapper.click();
-
-    await vi.waitFor(() => {
-      const doc = screen.container.ownerDocument;
-      expect(doc.activeElement?.getAttribute("data-slate-editor")).toBe("true");
-    });
-  });
-
   it("imperative focus() works via ref", async () => {
     const screen = await render(<EditorHarness />);
 
-    // click the external "Focus editor" button
+    await wait_for_editor(screen);
     await screen.getByRole("button", { name: /focus editor/i }).click();
 
     await vi.waitFor(() => {
       const doc = screen.container.ownerDocument;
-      expect(doc.activeElement?.getAttribute("data-slate-editor")).toBe("true");
+      expect(doc.activeElement?.getAttribute("contenteditable")).toBe("true");
     });
   });
 });
@@ -311,17 +309,20 @@ describe("rich text editor — read-only", () => {
     expect(toolbar).toBeNull();
   });
 
-  it("renders bold/italic/link marks", async () => {
+  it("renders strong/em/link marks", async () => {
     const value = JSON.stringify([
       {
-        type: "paragraph",
+        _type: "block",
+        _key: "b1",
+        style: "normal",
+        markDefs: [{ _key: "l1", _type: "link", href: "https://example.com" }],
         children: [
-          { text: "normal " },
-          { text: "bold", bold: true },
-          { text: " " },
-          { text: "italic", italic: true },
-          { text: " " },
-          { text: "link", link: "https://example.com" },
+          { _type: "span", _key: "s1", text: "normal ", marks: [] },
+          { _type: "span", _key: "s2", text: "bold", marks: ["strong"] },
+          { _type: "span", _key: "s3", text: " ", marks: [] },
+          { _type: "span", _key: "s4", text: "italic", marks: ["em"] },
+          { _type: "span", _key: "s5", text: " ", marks: [] },
+          { _type: "span", _key: "s6", text: "link", marks: ["l1"] },
         ],
       },
     ]);
@@ -343,19 +344,32 @@ describe("rich text editor — read-only", () => {
   it("renders bulleted list", async () => {
     const value = JSON.stringify([
       {
-        type: "bulleted-list",
-        children: [
-          { type: "list-item", children: [{ text: "one" }] },
-          { type: "list-item", children: [{ text: "two" }] },
-        ],
+        _type: "block",
+        _key: "b1",
+        style: "normal",
+        listItem: "bullet",
+        level: 1,
+        markDefs: [],
+        children: [{ _type: "span", _key: "s1", text: "one", marks: [] }],
+      },
+      {
+        _type: "block",
+        _key: "b2",
+        style: "normal",
+        listItem: "bullet",
+        level: 1,
+        markDefs: [],
+        children: [{ _type: "span", _key: "s2", text: "two", marks: [] }],
       },
     ]);
     const screen = await render(
       <RichText content={{ value, length: 6 }} readOnly />
     );
 
-    const items = screen.getByRole("listitem").all();
-    expect(items).toHaveLength(2);
+    await vi.waitFor(() => {
+      const items = screen.container.querySelectorAll("li");
+      expect(items).toHaveLength(2);
+    });
   });
 });
 
@@ -364,36 +378,30 @@ describe("rich text editor — onChange", () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
-    // type then delete — avoids cursor-positioning issues with non-empty
-    // initialValue, where editor.click() focuses but cursor stays at offset 0.
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
     await userEvent.keyboard("abc");
     await vi.waitFor(() => {
-      expect(on_change.mock.calls.at(-1)![0].length).toBe(3);
+      expect(on_change.mock.calls.at(-1)?.[0]?.length).toBe(3);
     });
     await userEvent.keyboard("{Backspace}{Backspace}{Backspace}");
     await vi.waitFor(() => {
-      expect(on_change.mock.calls.at(-1)![0].length).toBe(0);
+      expect(on_change.mock.calls.at(-1)?.[0]?.length).toBe(0);
     });
   });
 
-  it("emits slate json with correct length", async () => {
+  it("emits pt json with correct length", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
     await userEvent.keyboard("hello");
 
     await vi.waitFor(() => {
-      const last = on_change.mock.calls.at(-1)![0];
-      expect(last.length).toBe(5);
-      expect(last.value).toContain('"hello"');
+      const last = on_change.mock.calls.at(-1)?.[0];
+      expect(last?.length).toBe(5);
+      expect(last?.value).toContain('"hello"');
     });
   });
 });

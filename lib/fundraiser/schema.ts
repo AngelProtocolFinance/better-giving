@@ -38,7 +38,7 @@ const npo_owner = optional(pipe(number(), integer(), minValue(1)));
 
 const fund_new = object({
   name: pipe($, nonEmpty("required")),
-  description_rich: pipe($, nonEmpty("required")),
+  description_pt: pipe($, nonEmpty("required")),
   banner: pipe($, url()),
   logo: pipe($, url()),
   /** endowment ids */
@@ -74,7 +74,7 @@ const fund_new = object({
 export const fund_update = partial(
   pick(fund_new, [
     "name",
-    "description_rich",
+    "description_pt",
     "banner",
     "logo",
     "published",

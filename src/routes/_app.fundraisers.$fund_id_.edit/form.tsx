@@ -46,7 +46,7 @@ export function Form({
     if (df.target) update.target = to_target(target);
 
     if (df.name) update.name = fv.name;
-    if (df.description) update.description_rich = fv.description.value;
+    if (df.description) update.description_pt = fv.description.value;
     if (df.slug) update.slug = fv.slug;
     if (df.videos) update.videos = fv.videos.map((v) => v.url);
     if (df.increments) update.increments = fv.increments;

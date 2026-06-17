@@ -38,7 +38,7 @@ export const action = async (x: Route.ActionArgs) => {
   //new program
   const new_id = await npo_program_put(id, {
     title: "New Program",
-    description_rich: "Program description",
+    description_pt: "Program description",
     milestones: [],
   });
 

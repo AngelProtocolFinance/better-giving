@@ -24,7 +24,7 @@ function Program(props: IProgramDb) {
       <div className="p-5">
         <p className="text-lg font-bold mb-3 block">{props.title}</p>
         <RichText
-          content={{ value: props.description_rich ?? "" }}
+          content={{ value: props.description_pt ?? "" }}
           readOnly
           classes={{ field: "overflow-hidden h-32" }}
         />

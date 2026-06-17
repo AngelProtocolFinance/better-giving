@@ -12,7 +12,7 @@ export function Card({
   logo,
   banner,
   id,
-  description_rich,
+  description_pt,
   donation_total_usd,
   target,
 }: IFundItem) {
@@ -46,7 +46,7 @@ export function Card({
           </h3>
 
           <p className="peer text-sm line-clamp-3 mb-4">
-            {to_text(description_rich ?? undefined)}
+            {to_text(description_pt ?? undefined)}
           </p>
 
           <Target target={to_target(target)} progress={donation_total_usd} />

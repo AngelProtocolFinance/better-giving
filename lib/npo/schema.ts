@@ -90,7 +90,7 @@ const npo = v.object({
   name: $req,
   endow_designation: org_designation,
   overview_v2: v.optional($),
-  overview_rich: v.optional($),
+  overview_pt: v.optional($),
   tagline: v.optional(v.pipe($, v.maxLength(tagline_max_chars))),
   image: v.optional(_url),
   logo: v.optional(_url),
@@ -170,7 +170,7 @@ export const milestone_id = v.pipe($, v.uuid());
 const milestone_new = v.object({
   date: v.pipe($, v.isoTimestamp()),
   title: $,
-  description_rich: $,
+  description_pt: $,
   media: v.optional(_url),
 });
 
@@ -187,7 +187,7 @@ export interface IMilestone extends v.InferOutput<typeof milestone> {}
 
 const program_new = v.object({
   title: $,
-  description_rich: $,
+  description_pt: $,
   banner: v.optional(_url),
   /** null unsets target */
   target_raise: v.nullish(amnt),

@@ -122,7 +122,7 @@ export const action: ActionFunction = async ({ request }) => {
     published: false,
     npo_owner: npo_owner || undefined,
     name: d.name,
-    description_rich: d.description.value,
+    description_pt: d.description.value,
     banner: d.banner,
     logo: d.logo,
     videos: d.videos.map((v) => v.url),
