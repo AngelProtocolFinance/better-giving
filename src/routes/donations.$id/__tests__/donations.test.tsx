@@ -180,6 +180,7 @@ async function seed_npo() {
       registration_number: "REG001",
       name: "Test NPO",
       endow_designation: "Charity",
+      overview_pt: "[]",
       hq_country: "United States",
       published: true,
       active: true,

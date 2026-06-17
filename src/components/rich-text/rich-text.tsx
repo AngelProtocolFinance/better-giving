@@ -1,5 +1,5 @@
 import { PortableText } from "@portabletext/react";
-import { lazy, type Ref, Suspense } from "react";
+import { lazy, type Ref, Suspense, useEffect, useState } from "react";
 import { unpack } from "#/helpers/unpack";
 import { ContentLoader } from "../content-loader";
 import { to_document } from "./helpers";
@@ -8,6 +8,15 @@ import type { Props } from "./types";
 
 const Editor = lazy(() => import("./editor"));
 
+// @portabletext/editor calls useSyncExternalStore without getServerSnapshot;
+// it cannot SSR. gate the lazy import behind a client-mount check so the
+// fallback (not the editor) renders on the server.
+function use_is_client() {
+  const [c, set_c] = useState(false);
+  useEffect(() => set_c(true), []);
+  return c;
+}
+
 type El = Pick<HTMLDivElement, "focus">;
 export function RichText({
   classes,
@@ -15,6 +24,13 @@ export function RichText({
   ...props
 }: Props & { ref?: Ref<El> }) {
   const style = unpack(classes);
+  const is_client = use_is_client();
+
+  const fallback = Array(10)
+    .fill(null)
+    .map((_, index) => (
+      <ContentLoader key={index} className="mb-3 h-5 w-full" />
+    ));
 
   return (
     <div className={style.container}>
@@ -28,16 +44,12 @@ export function RichText({
             value={to_document(props.content.value)}
             components={pt_components}
           />
-        ) : (
-          <Suspense
-            fallback={Array(10)
-              .fill(null)
-              .map((_, index) => (
-                <ContentLoader key={index} className="mb-3 h-5 w-full" />
-              ))}
-          >
+        ) : is_client ? (
+          <Suspense fallback={fallback}>
             <Editor classes={classes} ref={ref} {...props} />
           </Suspense>
+        ) : (
+          fallback
         )}
         {!props.readOnly && (
           <span

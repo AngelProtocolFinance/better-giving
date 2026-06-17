@@ -20,6 +20,8 @@ export const pt_components: PortableTextComponents = {
   },
   list: {
     bullet: ({ children }) => <ul className="list-disc pl-6">{children}</ul>,
-    number: ({ children }) => <ol className="list-decimal pl-6">{children}</ol>,
+    number: ({ children }) => (
+      <ol className="list-decimal pl-10">{children}</ol>
+    ),
   },
 };

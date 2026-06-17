@@ -89,6 +89,7 @@ beforeAll(async () => {
       registration_number: "REG001",
       name: "NPO 1",
       endow_designation: "Charity",
+      overview_pt: "[]",
       hq_country: "US",
       tagline: "tagline",
       image: "img",

@@ -86,6 +86,7 @@ async function seed_npo() {
       registration_number: `EIN-${counter}`,
       name: `NPO ${counter}`,
       endow_designation: "Charity",
+      overview_pt: "[]",
       hq_country: "United States",
     })
     .returning();

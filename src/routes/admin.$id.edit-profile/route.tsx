@@ -36,7 +36,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
     endow_designation: endow.endow_designation,
     hq_country: endow.hq_country,
     active_in_countries: endow.active_in_countries,
-    overview: to_content(endow.overview_pt ?? undefined),
+    overview: to_content(endow.overview_pt),
   };
 
   return (

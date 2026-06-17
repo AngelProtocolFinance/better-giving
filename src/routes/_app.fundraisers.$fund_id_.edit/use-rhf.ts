@@ -22,7 +22,7 @@ export function use_rhf(init: IFund) {
     resolver: valibotResolver(schema),
     values: {
       name: init.name,
-      description: to_content(init.description_pt ?? undefined),
+      description: to_content(init.description_pt),
       slug: init.slug ?? "",
       target:
         init.target === "0"

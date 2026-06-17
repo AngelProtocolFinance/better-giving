@@ -90,7 +90,7 @@ const npo = v.object({
   name: $req,
   endow_designation: org_designation,
   overview_v2: v.optional($),
-  overview_pt: v.optional($),
+  overview_pt: $,
   tagline: v.optional(v.pipe($, v.maxLength(tagline_max_chars))),
   image: v.optional(_url),
   logo: v.optional(_url),

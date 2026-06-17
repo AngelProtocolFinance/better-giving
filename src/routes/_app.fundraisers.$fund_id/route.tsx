@@ -25,7 +25,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d, location: l }) => {
   if (!d) return [];
   return metas({
     title: `${d.name} - ${app_name}`,
-    description: to_text(d.description_pt ?? undefined).slice(0, 140),
+    description: to_text(d.description_pt).slice(0, 140),
     name: d.name,
     image: d.banner || flying_character,
     url: `${base_url}/${l.pathname}`,
@@ -110,7 +110,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
             )}
             <RichText
               content={{
-                value: fund.description_pt ?? "",
+                value: fund.description_pt,
               }}
               classes={{
                 field: "",

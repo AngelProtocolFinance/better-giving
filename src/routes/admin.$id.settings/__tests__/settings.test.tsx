@@ -57,6 +57,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   registration_number: "EIN-SETTINGS",
   name: "Settings Test NPO",
   endow_designation: "Charity",
+  overview_pt: "[]",
   hq_country: "United States",
   published: false,
   active: true,

@@ -105,6 +105,7 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     ...ecfr,
     social_media_urls: {},
     sdgs: [],
+    overview_pt: "[]",
     published: false,
     hide_bg_tip: false,
     donor_address_required: false,

@@ -46,7 +46,7 @@ export function Card({
           </h3>
 
           <p className="peer text-sm line-clamp-3 mb-4">
-            {to_text(description_pt ?? undefined)}
+            {to_text(description_pt)}
           </p>
 
           <Target target={to_target(target)} progress={donation_total_usd} />
