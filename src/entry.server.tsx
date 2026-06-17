@@ -42,10 +42,10 @@ export const streamTimeout = 5_000;
 //      origin (vercel blob — see vite.config.ts `base` +
 //      utils/upload-client-assets.ts), so cached html from a rotated-out
 //      deployment never 404s on its js/css/images.
-//   2. no .data pinning — loader/action contracts are kept additive-only
-//      (see .claude/CLAUDE.md > Skew Protection) so old js hitting a newer
-//      deployment's loaders is safe without per-request deployment pinning.
-//      keeps html cdn-cacheable (no set-cookie).
+//   2. no .data pinning — loader/action contracts are kept additive-only so
+//      old js hitting a newer deployment's loaders is safe without
+//      per-request deployment pinning. keeps html cdn-cacheable (no
+//      set-cookie).
 // docs: https://vercel.com/docs/skew-protection
 
 export default async function handle_request(
