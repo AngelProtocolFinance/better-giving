@@ -5,9 +5,12 @@
 //   - streamTimeout?: number — abort renderToPipeableStream after N ms
 //   - handleError?: (error, { request, params, context }) => void — fires on loader/action throws
 // runs on the vercel node runtime; full process.env is available (no VITE_ prefix needed).
+// vercel auto-injects: VERCEL_ENV, VERCEL_DEPLOYMENT_ID, VERCEL_SKEW_PROTECTION_ENABLED, VERCEL_GIT_COMMIT_SHA.
 // docs:
 //   rr entry.server:   https://reactrouter.com/api/framework-conventions/entry.server.tsx
 //   sentry server:     https://docs.sentry.io/platforms/javascript/guides/react-router/
+//   vercel skew prot:  https://vercel.com/docs/skew-protection
+//   vercel system env: https://vercel.com/docs/environment-variables/system-environment-variables
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import * as Sentry from "@sentry/react-router";
