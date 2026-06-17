@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { head, put } from "@vercel/blob";
+import { BlobNotFoundError, head, put } from "@vercel/blob";
 
 // mirror content-hashed client assets to vercel blob so html cached from a
 // rotated-out deployment can still load its assets from a deploy-independent
@@ -20,7 +20,15 @@ const CONCURRENCY = 12;
 const IMMUTABLE_MAX_AGE = 31_536_000; // 1y — hashed assets never change
 
 export async function upload_client_assets(asset_base_url: string) {
-  const origin = new URL(asset_base_url).origin;
+  const url = new URL(asset_base_url);
+  // subpaths would desync upload paths from the urls vite bakes into the
+  // manifest (uploads land at origin/assets/x, html points at origin/prefix/assets/x).
+  if (url.pathname !== "/") {
+    throw new Error(
+      `ASSET_BASE_URL must have no path component, got: ${asset_base_url}`
+    );
+  }
+  const origin = url.origin;
 
   const entries = await readdir(ASSETS_DIR, {
     recursive: true,
@@ -62,7 +70,8 @@ async function blob_exists(url: string): Promise<boolean> {
   try {
     await head(url);
     return true;
-  } catch {
-    return false;
+  } catch (err) {
+    if (err instanceof BlobNotFoundError) return false;
+    throw err;
   }
 }
