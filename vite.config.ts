@@ -12,8 +12,9 @@ export default defineConfig((config) => {
   const env = check_env(config.mode);
   const is_test = !!env.VITEST;
   // vite base for content-hashed client assets: "/" locally, blob origin on
-  // deployed stages (skew protection).
-  const asset_base = env.ASSET_BASE_URL;
+  // deployed stages (skew protection). vite concatenates `base + filename` for
+  // module urls in the ssr manifest, so missing trailing slash → malformed urls.
+  const asset_base = env.ASSET_BASE_URL.replace(/\/?$/, "/");
   const rr7 = !is_test && reactRouter();
   // vercel sets VERCEL_GIT_COMMIT_SHA on deploys; not part of the check_env list
   // since sentry uploads only run on vercel (where SENTRY_AUTH_TOKEN is set).
