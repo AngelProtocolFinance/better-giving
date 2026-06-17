@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { posts } from "#/api/get/wp-posts";
-import { Media } from "#/components/media";
+import { posts } from "#/api/get/posts";
+import { urlFor } from "#/api/sanity";
 import { metas } from "#/helpers/seo";
-import type { IPost, IPostsPage } from "#/types/wordpress";
+import type { IPostListItem, IPostsPage } from "#/types/post";
 import type { Route } from "./+types/route";
 
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
@@ -45,7 +45,7 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 content-start xl:container xl:mx-auto px-5 min-h-screen pb-6">
-      <h1 className="font-bold uppercase col-span-full text-2xl lg:text-3xl break-words mt-6">
+      <h1 className="font-bold uppercase col-span-full text-2xl lg:text-3xl wrap-break-word mt-6">
         Posts
       </h1>
 
@@ -68,33 +68,27 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
   );
 }
 
-const Cards = (props: { posts: IPost[] }) =>
-  props.posts.map((post, _index) => (
+const Cards = (props: { posts: IPostListItem[] }) =>
+  props.posts.map((post) => (
     <NavLink
-      key={post.slug}
-      to={post.slug}
-      className="grid [&:is(.pending)]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-clip bg-muted hover:bg-secondary border border-ring/20 group"
+      key={post._id}
+      to={post.slug.current}
+      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-clip bg-muted hover:bg-secondary border border-ring/20 group"
     >
-      <Media
-        sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
-        id={post.featured_media}
-        classes="w-full"
-      />
+      {post.image?.asset ? (
+        <img
+          src={urlFor(post.image).width(600).height(360).url()}
+          alt={post.image.alt ?? post.title}
+          className="w-full aspect-5/3 object-cover"
+        />
+      ) : (
+        <div className="w-full aspect-5/3 bg-secondary" />
+      )}
       <div className="flex flex-col p-4 gap-3">
-        <h2
-          className="text-pretty group-has-[:hover]:text-primary"
-          // biome-ignore lint: trusted html
-          dangerouslySetInnerHTML={{
-            __html: post.title.rendered,
-          }}
-        />
-        <p
-          className="text-muted-fg line-clamp-4"
-          // biome-ignore lint: trusted html
-          dangerouslySetInnerHTML={{
-            __html: post.excerpt.rendered,
-          }}
-        />
+        <h2 className="text-pretty group-has-[:hover]:text-primary">
+          {post.title}
+        </h2>
+        <p className="text-muted-fg line-clamp-4">{post.excerpt}</p>
       </div>
     </NavLink>
   ));
