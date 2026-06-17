@@ -8,7 +8,6 @@ import { HttpResponse, http } from "msw";
 import { setupWorker } from "msw/browser";
 import { afterEach, beforeAll } from "vitest";
 import { handlers as programsHandlers } from "#/services/aws/programs/mock";
-import { wp_base_url } from "./api/wp";
 import { handlers as apiHandlers } from "./services/api/mock";
 
 const qstash_url = import.meta.env.QSTASH_URL;
@@ -16,7 +15,12 @@ const qstash_url = import.meta.env.QSTASH_URL;
 export const mswWorker = setupWorker(
   ...programsHandlers,
   ...apiHandlers,
-  http.get(`${wp_base_url}/wp-json/wp/v2/posts`, () => HttpResponse.json([])),
+  http.get("https://5820hdyj.api.sanity.io/*", () =>
+    HttpResponse.json({ result: [] })
+  ),
+  http.get("https://5820hdyj.apicdn.sanity.io/*", () =>
+    HttpResponse.json({ result: [] })
+  ),
   // nowpayments token logos rendered in crypto checkout
   http.get(
     "https://nowpayments.io/*",

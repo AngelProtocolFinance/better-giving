@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef } from "react";
 import use_swr from "swr/immutable";
-import { posts } from "#/api/get/wp-posts";
+import { posts } from "#/api/get/posts";
 import { use_drag_scroll } from "#/hooks/use-drag-scroll";
 import { BlogCard, Skeleton } from "./blog-card";
 
