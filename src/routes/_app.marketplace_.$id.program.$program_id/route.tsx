@@ -16,7 +16,7 @@ function Page({ loaderData: prog }: Route.ComponentProps) {
     <div className="order-4 lg:col-span-2 w-full h-full grid items-start grid-rows-[auto_auto] gap-8 lg:grid-rows-1 lg:grid-cols-[1fr_auto]">
       <Container title={prog.title} expanded>
         <RichText
-          content={{ value: prog.description_rich ?? "" }}
+          content={{ value: prog.description_pt ?? "" }}
           readOnly
           classes={{ container: "m-6" }}
         />

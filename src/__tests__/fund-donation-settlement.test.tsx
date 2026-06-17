@@ -251,7 +251,7 @@ async function seed() {
   await test_db.current!.db.insert(funds).values({
     id: FUND_ID,
     name: "Test Fund",
-    description_rich: "integration test fund",
+    description_pt: "integration test fund",
     banner: "https://img.co/banner.png",
     logo: "https://img.co/logo.png",
     npo_owner: npo_a_id,

@@ -1,6 +1,9 @@
+import { PortableText } from "@portabletext/react";
 import { lazy, type Ref, Suspense } from "react";
 import { unpack } from "#/helpers/unpack";
 import { ContentLoader } from "../content-loader";
+import { to_document } from "./helpers";
+import { pt_components } from "./pt-components";
 import type { Props } from "./types";
 
 const Editor = lazy(() => import("./editor"));
@@ -20,15 +23,22 @@ export function RichText({
         aria-disabled={props.disabled}
         className={`relative has-focus-within:outline-2 has-focus-within:outline-ring ${style.field}`}
       >
-        <Suspense
-          fallback={Array(10)
-            .fill(null)
-            .map((_, index) => (
-              <ContentLoader key={index} className="mb-3 h-5 w-full" />
-            ))}
-        >
-          {<Editor classes={classes} ref={ref} {...props} />}
-        </Suspense>
+        {props.readOnly ? (
+          <PortableText
+            value={to_document(props.content.value)}
+            components={pt_components}
+          />
+        ) : (
+          <Suspense
+            fallback={Array(10)
+              .fill(null)
+              .map((_, index) => (
+                <ContentLoader key={index} className="mb-3 h-5 w-full" />
+              ))}
+          >
+            <Editor classes={classes} ref={ref} {...props} />
+          </Suspense>
+        )}
         {!props.readOnly && (
           <span
             className={`absolute top-4 right-4 text-xs uppercase ${

@@ -27,7 +27,7 @@ export interface IFundItem
   extends Pick<
       IFundNew,
       | "name"
-      | "description_rich"
+      | "description_pt"
       | "logo"
       | "banner"
       | "published"

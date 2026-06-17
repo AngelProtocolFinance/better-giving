@@ -74,7 +74,7 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   image: "https://example.com/banner.jpg",
   logo: "https://example.com/logo.jpg",
   card_img: "https://example.com/card.jpg",
-  overview_rich: "Test charity overview text.",
+  overview_pt: "Test charity overview text.",
   overview_v2: "Test charity overview text.",
   active_in_countries: [],
   published: false,

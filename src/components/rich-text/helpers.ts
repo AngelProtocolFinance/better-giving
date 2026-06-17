@@ -1,57 +1,37 @@
-import type { Descendant, Node } from "slate";
+import type { PortableTextBlock } from "@portabletext/editor";
+import { toPlainText } from "@portabletext/toolkit";
 import type { RichTextContent } from "#/types/components";
-import "./slate-types";
 
-const EMPTY_DOC: Descendant[] = [
-  { type: "paragraph", children: [{ text: "" }] },
-];
+const EMPTY_DOC: PortableTextBlock[] = [];
 
-/** parse stored json → Slate document */
-export function to_document(json: string): Descendant[] {
+/** parse stored json → portable text blocks */
+export function to_document(json: string | undefined): PortableTextBlock[] {
   if (!json) return EMPTY_DOC;
   try {
     const parsed: unknown = JSON.parse(json);
-    // slate json: array of elements with `type` and `children`
     if (
       Array.isArray(parsed) &&
-      parsed.length > 0 &&
-      typeof parsed[0].type === "string" &&
-      Array.isArray(parsed[0].children)
+      parsed.every(
+        (b) => b && typeof b === "object" && (b as any)._type === "block"
+      )
     ) {
-      return parsed as Descendant[];
+      return parsed as PortableTextBlock[];
     }
-    // delta json ({ops:[...]} or [{insert:...}]) or other — treat as plain text
-    // the backfill script handles proper delta→slate conversion
-    return [{ type: "paragraph", children: [{ text: json }] }];
+    return EMPTY_DOC;
   } catch {
-    // plain string fallback
-    return [{ type: "paragraph", children: [{ text: json }] }];
+    return EMPTY_DOC;
   }
 }
 
 export function to_content(json: string | undefined): RichTextContent {
-  const text = slate_to_text(json);
   return {
-    length: text.length,
+    length: to_text(json).length,
     value: json || "",
   };
 }
 
-/** extract plain text from Slate JSON */
+/** extract plain text from PT json */
 export function to_text(json: string | undefined): string {
-  return slate_to_text(json);
-}
-
-function slate_to_text(json: string | undefined): string {
-  if (!json) return "";
   const doc = to_document(json);
-  return doc.map(extract_text).join("\n").trim();
-}
-
-function extract_text(node: Node): string {
-  if ("text" in node) return node.text;
-  if ("children" in node) {
-    return (node.children as Node[]).map(extract_text).join("");
-  }
-  return "";
+  return toPlainText(doc);
 }

@@ -44,7 +44,7 @@ export function OrgCard({ classes = "", program, ...props }: Props) {
         )}
         {program && (
           <p className="text-muted-fg text-sm w-full line-clamp-2">
-            {props.tagline || to_text(program.description_rich ?? undefined)}
+            {props.tagline || to_text(program.description_pt ?? undefined)}
           </p>
         )}
       </div>

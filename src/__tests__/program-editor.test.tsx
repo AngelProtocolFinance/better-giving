@@ -107,14 +107,14 @@ async function seed_program(
   overrides: Partial<Omit<typeof programs.$inferInsert, "npo_id">> = {}
 ) {
   const desc =
-    overrides.description_rich ?? "Providing clean water to communities";
+    overrides.description_pt ?? "Providing clean water to communities";
   const [row] = await test_db
     .current!.db.insert(programs)
     .values({
       id: crypto.randomUUID(),
       npo_id,
       title: "Clean Water Initiative",
-      description_rich: desc,
+      description_pt: desc,
       description_v2: overrides.description_v2 ?? desc,
       banner: "https://example.com/banner.jpg",
       target_raise: 50000,
@@ -137,7 +137,7 @@ async function seed_milestone(
       program_id,
       date: new Date("2025-06-15").toISOString(),
       title: "Phase 1 Complete",
-      description_rich: overrides.description_rich ?? "First well installed",
+      description_pt: overrides.description_pt ?? "First well installed",
       description_v2: overrides.description_v2 ?? "First well installed",
       ...overrides,
     })
@@ -480,7 +480,7 @@ describe("program editor -- edit milestone", () => {
       intent: "edit-milestone",
       "milestone-id": ms.id,
       title: "Phase 1 Finished",
-      description_rich: ms.description_rich,
+      description_pt: ms.description_pt,
       date: ms.date!,
     });
 
@@ -506,7 +506,7 @@ describe("program editor -- edit milestone", () => {
       intent: "edit-milestone",
       "milestone-id": ms.id,
       title: ms.title,
-      description_rich: ms.description_rich,
+      description_pt: ms.description_pt,
       date: new_date,
     });
 
@@ -588,15 +588,34 @@ describe("program editor -- validation", () => {
 
 // --- rich text editor ---
 
-function slate_json(text: string) {
-  return JSON.stringify([{ type: "paragraph", children: [{ text }] }]);
+function pt_json(text: string) {
+  return JSON.stringify([
+    {
+      _type: "block",
+      _key: "k1",
+      style: "normal",
+      markDefs: [],
+      children: [{ _type: "span", _key: "s1", text, marks: [] }],
+    },
+  ]);
+}
+
+async function wait_for_editor(screen: { container: HTMLElement }) {
+  await vi.waitFor(() => {
+    expect(
+      screen.container.querySelector('[contenteditable="true"]')
+    ).not.toBeNull();
+  });
+  return screen.container.querySelector(
+    '[contenteditable="true"]'
+  ) as HTMLElement;
 }
 
 describe("program editor -- rich text description", () => {
   it("shows seeded description text in editor", async () => {
     const npo = await seed_npo();
-    const desc = slate_json("Water project details");
-    const prog = await seed_program(npo.id, { description_rich: desc });
+    const desc = pt_json("Water project details");
+    const prog = await seed_program(npo.id, { description_pt: desc });
 
     const screen = await render_editor(npo.id, prog.id);
 
@@ -607,17 +626,14 @@ describe("program editor -- rich text description", () => {
 
   it("edit description -> save -> profile updated", async () => {
     const npo = await seed_npo();
-    const desc = slate_json("Old description");
-    const prog = await seed_program(npo.id, { description_rich: desc });
+    const desc = pt_json("Old description");
+    const prog = await seed_program(npo.id, { description_pt: desc });
 
     let screen = await render_editor(npo.id, prog.id);
     await expect.element(screen.getByText("Old description")).toBeVisible();
 
-    // click slate editor, select all, type new text
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
     await userEvent.keyboard("{Meta>}a{/Meta}");
     await userEvent.keyboard("New description text");
 
@@ -638,18 +654,22 @@ describe("program editor -- rich text description", () => {
 
   it("empty description blocks submission", async () => {
     const npo = await seed_npo();
-    const desc = slate_json("will delete");
-    const prog = await seed_program(npo.id, { description_rich: desc });
+    const desc = pt_json("will delete");
+    const prog = await seed_program(npo.id, { description_pt: desc });
 
     const screen = await render_editor(npo.id, prog.id);
     await expect.element(screen.getByText("will delete")).toBeVisible();
 
-    // clear description
-    const editor = screen.container.querySelector(
-      "[data-slate-editor]"
-    ) as HTMLElement;
-    editor.click();
-    await userEvent.keyboard("{Meta>}a{/Meta}{Backspace}");
+    const editor = await wait_for_editor(screen);
+    await userEvent.click(editor);
+    // select all of the editable, then delete — Cmd+A is unreliable when the
+    // initial caret isn't at offset 0 in pt-editor.
+    const sel = editor.ownerDocument.getSelection();
+    sel?.removeAllRanges();
+    const range = editor.ownerDocument.createRange();
+    range.selectNodeContents(editor);
+    sel?.addRange(range);
+    await userEvent.keyboard("{Backspace}");
 
     const save_btns = screen.getByRole("button", { name: /save changes/i });
     await save_btns.nth(0).click();
@@ -662,11 +682,17 @@ describe("program editor -- rich text description", () => {
     const npo = await seed_npo();
     const formatted = JSON.stringify([
       {
-        type: "paragraph",
-        children: [{ text: "normal " }, { text: "bold text", bold: true }],
+        _type: "block",
+        _key: "b1",
+        style: "normal",
+        markDefs: [],
+        children: [
+          { _type: "span", _key: "s1", text: "normal ", marks: [] },
+          { _type: "span", _key: "s2", text: "bold text", marks: ["strong"] },
+        ],
       },
     ]);
-    const prog = await seed_program(npo.id, { description_rich: formatted });
+    const prog = await seed_program(npo.id, { description_pt: formatted });
 
     const screen = await render_program_profile(npo.id, prog.id);
 

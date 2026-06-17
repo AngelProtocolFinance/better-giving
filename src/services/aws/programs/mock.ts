@@ -5,13 +5,13 @@ const mock_programs: IProgram[] = [
   {
     id: "program-1",
     title: "Program 1",
-    description_rich: "Description for Program 1",
+    description_pt: "Description for Program 1",
     milestones: [],
   },
   {
     id: "program-2",
     title: "Program 2",
-    description_rich: "Description for Program 2",
+    description_pt: "Description for Program 2",
     milestones: [],
   },
 ];

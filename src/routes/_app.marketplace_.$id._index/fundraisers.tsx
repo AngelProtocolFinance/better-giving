@@ -40,7 +40,7 @@ function Fund(props: IFundItem) {
         {props.name}
       </Link>
       <p className="text-muted-fg text-sm line-clamp-3">
-        {to_text(props.description_rich ?? undefined)}
+        {to_text(props.description_pt ?? undefined)}
       </p>
       <Target
         classes="col-span-full mt-4"

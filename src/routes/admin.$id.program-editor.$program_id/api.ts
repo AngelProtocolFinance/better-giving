@@ -40,7 +40,7 @@ export const action = async (x: Route.ActionArgs) => {
   if (intent === "add-milestone") {
     await milestone_put(pid, {
       title: `Milestone ${p["next-milestone-num"]}`,
-      description_rich: "milestone description",
+      description_pt: "",
       date: new Date().toISOString(),
     });
     return dataWithSuccess(null, "Milestone added");

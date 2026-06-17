@@ -598,7 +598,7 @@ describe("Integration — loader", () => {
     await test_db.current!.db.insert(funds).values({
       id: fund_id,
       name: "Test Fund",
-      description_rich: "A test fund",
+      description_pt: "A test fund",
       banner: "banner.webp",
       logo: "logo.webp",
       creator_id,
@@ -1030,7 +1030,7 @@ describe("Integration — action", () => {
     await test_db.current!.db.insert(funds).values({
       id: fund_id,
       name: "Test Fund",
-      description_rich: "A test fund",
+      description_pt: "A test fund",
       banner: "banner.webp",
       logo: "logo.webp",
       creator_id,
@@ -1093,7 +1093,7 @@ describe("Integration — action", () => {
     await test_db.current!.db.insert(funds).values({
       id: fund_id,
       name: "Test Fund",
-      description_rich: "A test fund",
+      description_pt: "A test fund",
       banner: "banner.webp",
       logo: "logo.webp",
       creator_id,

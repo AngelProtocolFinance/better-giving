@@ -58,7 +58,7 @@ function fund_seed(): Omit<typeof funds.$inferInsert, "id"> & {
 } {
   return {
     name: "Test Fund",
-    description_rich: "A test fundraiser",
+    description_pt: "A test fundraiser",
     banner: "https://example.com/banner.jpg",
     logo: "https://example.com/logo.jpg",
     members: [npo_id],
@@ -169,8 +169,8 @@ function render_funds(entry = "/fundraisers") {
 
 describe("funds — basic listing", () => {
   it("renders active+published funds with names and descriptions", async () => {
-    await seed_fund({ name: "Alpha Fund", description_rich: "Alpha desc" });
-    await seed_fund({ name: "Beta Fund", description_rich: "Beta desc" });
+    await seed_fund({ name: "Alpha Fund", description_pt: "Alpha desc" });
+    await seed_fund({ name: "Beta Fund", description_pt: "Beta desc" });
     const screen = await render_funds();
 
     await expect.element(screen.getByText("Alpha Fund")).toBeInTheDocument();
@@ -213,11 +213,11 @@ describe("funds — search", () => {
   it("filters by typing in search bar", async () => {
     await seed_fund({
       name: "Ocean Cleanup",
-      description_rich: "Save the seas",
+      description_pt: "Save the seas",
     });
     await seed_fund({
       name: "Forest Restoration",
-      description_rich: "Plant trees",
+      description_pt: "Plant trees",
     });
     const screen = await render_funds();
 

@@ -21,7 +21,7 @@ export function ProgramInfo(props: IProgram) {
     values: {
       title: props.title,
       image: props.banner ?? "",
-      description: { value: props.description_rich },
+      description: { value: props.description_pt },
       target_raise: props.target_raise?.toString() ?? "",
     },
     resolver: valibotResolver(schema),

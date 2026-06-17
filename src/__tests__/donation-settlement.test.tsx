@@ -230,7 +230,7 @@ async function seed() {
     id: PROGRAM_ID,
     npo_id: npo_id,
     title: "Test Program",
-    description_rich: "integration test program",
+    description_pt: "integration test program",
     target_raise: 500,
     total_donations: 0,
     created_at: now,

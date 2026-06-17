@@ -85,7 +85,7 @@ async function seed_program(npo_id: number, title: string) {
     id,
     npo_id,
     title,
-    description_rich: "{}",
+    description_pt: "{}",
     created_at: new Date().toISOString(),
   });
   return id;

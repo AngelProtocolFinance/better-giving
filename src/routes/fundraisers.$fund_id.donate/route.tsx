@@ -44,7 +44,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
             id={fund.id}
             progress={fund.donation_total_usd}
             name={fund.name}
-            tagline={fund.description_rich ?? undefined}
+            tagline={fund.description_pt ?? undefined}
             logo={fund.logo || flying_character}
             classes="col-start-1 row-start-1"
             target={fund.target ?? "0"}

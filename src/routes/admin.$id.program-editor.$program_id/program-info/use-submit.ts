@@ -12,7 +12,7 @@ export default function useSubmit(
     const update: IProgramUpdate = {};
     if (df.image) update.banner = fv.image;
     if (df.description) {
-      update.description_rich = fv.description.value;
+      update.description_pt = fv.description.value;
     }
     if (df.title) update.title = fv.title;
     if (df.target_raise) {

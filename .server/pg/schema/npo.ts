@@ -40,6 +40,7 @@ export const npos = pgTable(
       .notNull(),
     overview_v2: text("overview_v2"),
     overview_rich: text("overview_rich"),
+    overview_pt: text("overview_pt"),
     tagline: text("tagline"),
     image: text("image"),
     logo: text("logo"),

@@ -51,8 +51,8 @@ export async function npo_program_put(
       id: pid,
       npo_id,
       title: prog.title,
-      description_rich: prog.description_rich,
-      description_v2: to_text(prog.description_rich),
+      description_pt: prog.description_pt,
+      description_v2: to_text(prog.description_pt),
       banner: prog.banner,
       target_raise: prog.target_raise,
       total_donations: 0,
@@ -66,8 +66,8 @@ export async function npo_program_put(
           program_id: pid,
           date: new Date(m.date).toISOString(),
           title: m.title,
-          description_rich: m.description_rich,
-          description_v2: to_text(m.description_rich),
+          description_pt: m.description_pt,
+          description_v2: to_text(m.description_pt),
           media: m.media,
         }))
       );
@@ -89,11 +89,11 @@ export async function npo_program_update(
   prog_id: string,
   update: IProgramUpdate
 ) {
-  const { description_rich, ...rest } = update;
-  const desc_cols = description_rich
+  const { description_pt, ...rest } = update;
+  const desc_cols = description_pt
     ? {
-        description_rich,
-        description_v2: to_text(description_rich),
+        description_pt,
+        description_v2: to_text(description_pt),
       }
     : {};
   await db
@@ -138,8 +138,8 @@ export async function milestone_put(
     program_id: prog_id,
     date: new Date(content.date).toISOString(),
     title: content.title,
-    description_rich: content.description_rich,
-    description_v2: to_text(content.description_rich),
+    description_pt: content.description_pt,
+    description_v2: to_text(content.description_pt),
     media: content.media,
   });
   return mid;
@@ -150,11 +150,11 @@ export async function milestone_update(
   mid: string,
   update: IMilestoneUpdate
 ) {
-  const { description_rich, ...rest } = update;
-  const desc_cols = description_rich
+  const { description_pt, ...rest } = update;
+  const desc_cols = description_pt
     ? {
-        description_rich,
-        description_v2: to_text(description_rich),
+        description_pt,
+        description_v2: to_text(description_pt),
       }
     : {};
   await db

@@ -1,216 +1,200 @@
-import { BoldIcon, ItalicIcon, ListIcon, ListOrderedIcon } from "lucide-react";
-import { type Ref, useCallback, useImperativeHandle, useMemo } from "react";
-import type { Descendant } from "slate";
-import { createEditor, Editor } from "slate";
-import { withHistory } from "slate-history";
 import {
-  Editable,
-  ReactEditor,
-  type RenderElementProps,
-  type RenderLeafProps,
-  Slate,
-  useSlate,
-  withReact,
-} from "slate-react";
+  EditorProvider,
+  type PortableTextBlock,
+  PortableTextEditable,
+  type RenderDecoratorFunction,
+  type RenderListItemFunction,
+  type RenderStyleFunction,
+  useEditor,
+  useEditorSelector,
+} from "@portabletext/editor";
+import { EventListenerPlugin } from "@portabletext/editor/plugins";
+import * as selectors from "@portabletext/editor/selectors";
+import { toPlainText } from "@portabletext/toolkit";
 import {
-  handle_backspace_in_list,
-  is_block_active,
-  is_mark_active,
-  toggle_block,
-  toggle_mark,
-} from "./editor-utils";
+  BoldIcon,
+  ItalicIcon,
+  LinkIcon,
+  ListIcon,
+  ListOrderedIcon,
+} from "lucide-react";
+import { type Ref, useImperativeHandle, useState } from "react";
 import { to_document } from "./helpers";
-import { LinkButton } from "./link-popover";
-import type { CustomElement, CustomText } from "./slate-types";
-import "./slate-types";
+import { pt_schema } from "./schema";
 import type { Editable as EditableProps, Props } from "./types";
-
-type MarkFormat = keyof Omit<CustomText, "text">;
-type BlockType = CustomElement["type"];
 
 type El = Pick<HTMLDivElement, "focus">;
 
-function SlateEditor({ ref, ...props }: Props & { ref?: Ref<El> }) {
-  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
-
-  const content_value = props.content.value;
-  const initial = useMemo(() => to_document(content_value), [content_value]);
-
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      try {
-        ReactEditor.focus(editor);
-      } catch {}
-    },
-  }));
-
-  const on_change = props.readOnly ? undefined : props.onChange;
-  const handle_change = useCallback(
-    (value: Descendant[]) => {
-      if (!on_change) return;
-      const text = editor.children
-        .map((_, i) => Editor.string(editor, [i]))
-        .join("\n");
-      const length = text.length;
-
-      on_change({
-        value: length <= 0 ? "" : JSON.stringify(value),
-        length,
-      });
-    },
-    [editor, on_change]
-  );
-
-  const render_element = useCallback(
-    (p: RenderElementProps) => <RenderElement {...p} />,
-    []
-  );
-  const render_leaf = useCallback(
-    (p: RenderLeafProps) => <RenderLeaf {...p} />,
-    []
-  );
-
-  const focus_editor = useCallback(() => {
-    try {
-      ReactEditor.focus(editor);
-    } catch {}
-  }, [editor]);
-
+function PtEditor({ ref, ...props }: Props & { ref?: Ref<El> }) {
+  // readOnly is rendered upstream via PortableText; this module only mounts in edit mode.
   return (
-    <Slate editor={editor} initialValue={initial} onChange={handle_change}>
-      {/* single wrapper: fills grid 1fr row, click-to-focus on empty space */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: click-to-focus wrapper */}
-      <div
-        style={{ fontFamily: "inherit", fontSize: "inherit" }}
-        className="row-span-full w-full flex flex-col cursor-text"
-        role="presentation"
-        onClick={props.readOnly ? undefined : focus_editor}
-      >
-        {!props.readOnly && <Toolbar />}
-        <Editable
-          readOnly={props.readOnly}
-          placeholder={
-            props.readOnly ? undefined : (props as EditableProps).placeHolder
-          }
-          renderElement={render_element}
-          renderLeaf={render_leaf}
-          className="outline-none mt-2 flex-1"
-          onKeyDown={(event) => {
-            if (event.key === "Backspace" && handle_backspace_in_list(editor)) {
-              event.preventDefault();
-              return;
-            }
-            if (!event.ctrlKey && !event.metaKey) return;
-            switch (event.key) {
-              case "b":
-                event.preventDefault();
-                toggle_mark(editor, "bold");
-                break;
-              case "i":
-                event.preventDefault();
-                toggle_mark(editor, "italic");
-                break;
-            }
-          }}
-        />
-      </div>
-    </Slate>
+    <EditableShell
+      {...(props as EditableProps)}
+      content={props.content}
+      classes={props.classes}
+      ref={ref}
+    />
   );
 }
 
-export default SlateEditor;
+function EditableShell({
+  ref,
+  ...props
+}: EditableProps & {
+  content: Props["content"];
+  classes?: Props["classes"];
+  ref?: Ref<El>;
+}) {
+  const [initial] = useState(() => to_document(props.content.value));
+  return (
+    <EditorProvider
+      initialConfig={{ schemaDefinition: pt_schema, initialValue: initial }}
+    >
+      <EventListenerPlugin
+        on={(event) => {
+          if (event.type === "mutation") {
+            const value =
+              (event.value as PortableTextBlock[] | undefined) ?? [];
+            const text = toPlainText(value);
+            props.onChange({
+              value: text.length <= 0 ? "" : JSON.stringify(value),
+              length: text.length,
+            });
+          }
+        }}
+      />
+      <FocusBridge fwdRef={ref} />
+      <Toolbar />
+      <PortableTextEditable
+        className="outline-none mt-2 flex-1"
+        placeholder={props.placeHolder}
+        renderStyle={render_style}
+        renderDecorator={render_decorator}
+        renderBlock={(p) => <div>{p.children}</div>}
+        renderListItem={render_list_item}
+        renderAnnotation={(p) =>
+          p.schemaType.name === "link" ? (
+            <a
+              href={(p.value as { href?: string } | undefined)?.href}
+              className="text-primary underline"
+            >
+              {p.children}
+            </a>
+          ) : (
+            <>{p.children}</>
+          )
+        }
+      />
+    </EditorProvider>
+  );
+}
+
+function FocusBridge({ fwdRef }: { fwdRef?: Ref<El> }) {
+  const editor = useEditor();
+  useImperativeHandle(fwdRef, () => ({
+    focus: () => editor.send({ type: "focus" }),
+  }));
+  return null;
+}
+
+const render_style: RenderStyleFunction = (p) => <>{p.children}</>;
+
+const render_decorator: RenderDecoratorFunction = (p) => {
+  if (p.value === "strong") return <strong>{p.children}</strong>;
+  if (p.value === "em") return <em>{p.children}</em>;
+  return <>{p.children}</>;
+};
+
+const render_list_item: RenderListItemFunction = (p) => {
+  const cls = p.value === "number" ? "list-decimal pl-6" : "list-disc pl-6";
+  return <li className={cls}>{p.children}</li>;
+};
 
 function Toolbar() {
+  const editor = useEditor();
   return (
     <div className="flex items-center gap-0.5 pb-2 border-b border-muted">
-      <MarkButton format="bold" icon={<BoldIcon size={16} />} />
-      <MarkButton format="italic" icon={<ItalicIcon size={16} />} />
-      <BlockButton type="numbered-list" icon={<ListOrderedIcon size={16} />} />
-      <BlockButton type="bulleted-list" icon={<ListIcon size={16} />} />
-      <LinkButton />
+      <DecoratorBtn name="strong" icon={<BoldIcon size={16} />} />
+      <DecoratorBtn name="em" icon={<ItalicIcon size={16} />} />
+      <ListBtn name="number" icon={<ListOrderedIcon size={16} />} />
+      <ListBtn name="bullet" icon={<ListIcon size={16} />} />
+      <button
+        type="button"
+        className="p-1.5 rounded cursor-pointer text-muted-fg hover:text-fg"
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={() => {
+          const annotation = selectors.isActiveAnnotation("link")(
+            editor.getSnapshot()
+          );
+          if (annotation) {
+            editor.send({
+              type: "annotation.remove",
+              annotation: { name: "link" },
+            });
+            editor.send({ type: "focus" });
+            return;
+          }
+          const href = window.prompt("URL");
+          if (!href) return;
+          editor.send({
+            type: "annotation.add",
+            annotation: { name: "link", value: { href } },
+          });
+          editor.send({ type: "focus" });
+        }}
+      >
+        <LinkIcon size={16} />
+      </button>
     </div>
   );
 }
 
-interface IMarkButton {
-  format: MarkFormat;
+function DecoratorBtn({
+  name,
+  icon,
+}: {
+  name: "strong" | "em";
   icon: React.ReactNode;
-}
-
-function MarkButton({ format, icon }: IMarkButton) {
-  const editor = useSlate();
-  const active = is_mark_active(editor, format);
+}) {
+  const editor = useEditor();
+  const active = useEditorSelector(editor, selectors.isActiveDecorator(name));
   return (
     <button
       type="button"
       className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-muted-fg hover:text-fg"}`}
       onPointerDown={(e) => e.preventDefault()}
-      onClick={() => toggle_mark(editor, format)}
+      onClick={() => {
+        editor.send({ type: "decorator.toggle", decorator: name });
+        editor.send({ type: "focus" });
+      }}
     >
       {icon}
     </button>
   );
 }
 
-interface IBlockButton {
-  type: BlockType;
+function ListBtn({
+  name,
+  icon,
+}: {
+  name: "bullet" | "number";
   icon: React.ReactNode;
-}
-
-function BlockButton({ type, icon }: IBlockButton) {
-  const editor = useSlate();
-  const active = is_block_active(editor, type);
+}) {
+  const editor = useEditor();
+  const active = useEditorSelector(editor, selectors.isActiveListItem(name));
   return (
     <button
       type="button"
       className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-muted-fg hover:text-fg"}`}
       onPointerDown={(e) => e.preventDefault()}
-      onClick={() => toggle_block(editor, type)}
+      onClick={() => {
+        editor.send({ type: "list item.toggle", listItem: name });
+        editor.send({ type: "focus" });
+      }}
     >
       {icon}
     </button>
   );
 }
 
-function RenderElement({ attributes, children, element }: RenderElementProps) {
-  switch (element.type) {
-    case "numbered-list":
-      return (
-        <ol {...attributes} className="list-decimal pl-6">
-          {children}
-        </ol>
-      );
-    case "bulleted-list":
-      return (
-        <ul {...attributes} className="list-disc pl-6">
-          {children}
-        </ul>
-      );
-    case "list-item":
-      return <li {...attributes}>{children}</li>;
-    default:
-      return <p {...attributes}>{children}</p>;
-  }
-}
-
-function RenderLeaf({ attributes, children, leaf }: RenderLeafProps) {
-  if (leaf.bold) {
-    children = <strong>{children}</strong>;
-  }
-  if (leaf.italic) {
-    children = <em>{children}</em>;
-  }
-  if (leaf.link) {
-    children = (
-      <a
-        href={leaf.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary underline"
-      >
-        {children}
-      </a>
-    );
-  }
-  return <span {...attributes}>{children}</span>;
-}
+export default PtEditor;

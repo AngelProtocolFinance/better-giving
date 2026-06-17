@@ -151,7 +151,7 @@ export async function fund_put(tx: DbOrTx, data: IFund) {
   const { target, members, ...rest } = data;
   await tx.insert(funds).values({
     ...rest,
-    description_v2: to_text(rest.description_rich),
+    description_v2: to_text(rest.description_pt),
     ...from_target(target),
   });
   if (members.length > 0) {
@@ -168,11 +168,11 @@ export async function fund_update(
   id: string,
   update: IFundUpdate
 ): Promise<Record<string, unknown>> {
-  const { target, description_rich, ...rest } = update;
-  const desc_cols = description_rich
+  const { target, description_pt, ...rest } = update;
+  const desc_cols = description_pt
     ? {
-        description_rich,
-        description_v2: to_text(description_rich),
+        description_pt,
+        description_v2: to_text(description_pt),
       }
     : {};
   const [row] = await db
@@ -223,7 +223,7 @@ function to_fund_item(r: {
 const fund_select = {
   id: funds.id,
   name: funds.name,
-  description_rich: funds.description_rich,
+  description_pt: funds.description_pt,
   logo: funds.logo,
   banner: funds.banner,
   published: funds.published,
