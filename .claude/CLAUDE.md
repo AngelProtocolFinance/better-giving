@@ -74,3 +74,9 @@ Three-layer structure:
 - biome enforces `useImportType` (warn) and `noUnusedImports` (warn) — use `import type` where possible
 - formatter: spaces (not tabs), es5 trailing commas
 - build output dir is `build/`, not `dist/`
+
+## Skew Protection
+
+- assets durable via vercel blob (vite `base` + `utils/upload-client-assets.ts`); no `.data` pinning (no `__vdpl` cookie, no header/query patch)
+- keep loader/action contracts **additive-only** so old js hitting newer deploys is safe — never rename/remove response fields, request params, or routes; add new fields with safe defaults
+- removed routes need server-side redirects to avoid old `<Link to>` 404s
