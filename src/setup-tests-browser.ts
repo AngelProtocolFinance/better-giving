@@ -16,10 +16,10 @@ export const mswWorker = setupWorker(
   ...programsHandlers,
   ...apiHandlers,
   http.get("https://5820hdyj.api.sanity.io/*", () =>
-    HttpResponse.json({ result: [] })
+    HttpResponse.json({ result: { items: [], total: 0 } })
   ),
   http.get("https://5820hdyj.apicdn.sanity.io/*", () =>
-    HttpResponse.json({ result: [] })
+    HttpResponse.json({ result: { items: [], total: 0 } })
   ),
   // nowpayments token logos rendered in crypto checkout
   http.get(
