@@ -9,6 +9,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
@@ -317,6 +318,53 @@ describe("edit profile — organization fields", () => {
       .element(profile.getByText("Test Charity").first())
       .toBeVisible();
     await expect.element(profile.getByText(/canada/i).first()).toBeVisible();
+  });
+
+  it("hq_country combo: clear → required error blocks submit; refill → submit succeeds", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // tagline edit makes the form dirty so submit is enabled
+    await screen.getByLabelText(/tagline/i).fill("New tagline");
+
+    const country_input = screen.getByPlaceholder("Select a country");
+    await expect.element(country_input).toHaveDisplayValue("United States");
+
+    // click the X clear button — combo row has 2 buttons: trigger (flag) then X
+    const combo_row = (country_input.element() as HTMLInputElement)
+      .parentElement!;
+    const buttons = page.elementLocator(combo_row).getByRole("button");
+    await buttons.nth(1).click();
+
+    // submit empty → required error renders, form does not persist
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await expect.element(screen.getByText(/required/i).first()).toBeVisible();
+
+    const reloaded = await npo_get(npo.id);
+    expect(reloaded?.hq_country).toBe("United States"); // unchanged
+    expect(reloaded?.tagline).toBe("Helping the world"); // unchanged
+
+    // refill via filter + select → submit succeeds
+    await country_input.fill("Fran");
+    await expect
+      .element(screen.getByRole("option", { name: /France/i }))
+      .toBeVisible();
+    await screen.getByRole("option", { name: /France/i }).click();
+
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await expect
+      .element(screen.getByPlaceholder("Select a country"))
+      .toHaveDisplayValue("France");
+    await expect
+      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .toBeDisabled();
+
+    const persisted = await npo_get(npo.id);
+    expect(persisted?.hq_country).toBe("France");
+    expect(persisted?.tagline).toBe("New tagline");
   });
 });
 
