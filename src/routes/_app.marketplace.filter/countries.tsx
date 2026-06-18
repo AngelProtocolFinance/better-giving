@@ -39,7 +39,7 @@ export default function Countries() {
       value={pcountries}
       onValueChange={(e) => handle_change(e.value)}
       onInputValueChange={(e) => set_query(e.inputValue)}
-      positioning={{ placement: "bottom", gap: 4 }}
+      positioning={{ placement: "bottom", gutter: 4 }}
       openOnClick
     >
       <div ref={container_ref} className="relative">

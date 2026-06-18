@@ -57,7 +57,7 @@ export function NpoSelector(p: Props) {
         if (e.reason !== "input-change") return;
         debounced_q_change(e.inputValue);
       }}
-      positioning={{ placement: "bottom", gap: 8 }}
+      positioning={{ placement: "bottom", gutter: 8 }}
       openOnClick
     >
       <Combobox.Label data-required={p.required} className="label mb-1 w-fit">

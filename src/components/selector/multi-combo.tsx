@@ -65,7 +65,7 @@ export function MultiCombo<T extends string>({
         onValueChange={(e) => props.on_change(e.value as T[])}
         onOpenChange={(e) => set_is_open(e.open)}
         onInputValueChange={(e) => set_query(e.inputValue)}
-        positioning={{ placement: "bottom", gap: 8 }}
+        positioning={{ placement: "bottom", gutter: 8 }}
         openOnClick
       >
         <div className={`${cls.container}`}>

@@ -112,7 +112,7 @@ export function EndowmentSelector(props: Props) {
           set_search_q(e.inputValue);
           fire_search(e.inputValue);
         }}
-        positioning={{ placement: "bottom", gap: 4 }}
+        positioning={{ placement: "bottom", gutter: 4 }}
         openOnClick
       >
         <Combobox.Label className="block text-sm font-medium mb-2 w-fit">

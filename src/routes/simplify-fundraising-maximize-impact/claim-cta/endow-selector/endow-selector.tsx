@@ -66,7 +66,7 @@ export function EndowSelector(props: Props) {
         set_search_text(e.inputValue);
       }}
       onOpenChange={(e) => set_is_open(e.open)}
-      positioning={{ placement: "bottom", gap: 8 }}
+      positioning={{ placement: "bottom", gutter: 8 }}
       openOnClick
     >
       <Combobox.Control className="relative bg-card rounded">

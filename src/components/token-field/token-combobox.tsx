@@ -47,7 +47,7 @@ type SearchState<T> =
 const popup_classes =
   "w-56 border p-1 max-h-60 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-(--form-primary) scrollbar-track-(--form-secondary) rounded bg-muted shadow-lg focus:outline-hidden";
 
-const positioning = { gap: 8, placement: "bottom-start" as const };
+const positioning = { gutter: 8, placement: "bottom-start" as const };
 
 function results_of<T>(state: SearchState<T>): T[] {
   return state.status === "ok" ? state.data : [];

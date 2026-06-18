@@ -103,7 +103,7 @@ export function CurrencySelector<T extends CurrencyOption>({
           // restore selected label when popup closes without a new pick
           if (!e.open) set_input_value(display_value);
         }}
-        positioning={{ placement: "bottom", gap: 4 }}
+        positioning={{ placement: "bottom", gutter: 4 }}
         openOnClick
         disabled={disabled}
       >
