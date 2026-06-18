@@ -8,7 +8,6 @@ import {
   it,
   vi,
 } from "vitest";
-import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
@@ -158,20 +157,18 @@ describe("user creates donation form", () => {
 
     const screen = await render_page();
 
-    // dispatch directly to bypass dialog's inert overlay
+    // dialog overlay intercepts playwright clicks; dispatch directly
     const combo = screen
       .getByRole("combobox", { name: /nonprofit/i })
-      .element() as HTMLElement;
-    combo.dispatchEvent(
-      new MouseEvent("mousedown", { bubbles: true, cancelable: true })
-    );
+      .element() as HTMLInputElement;
+    combo.focus();
+    combo.click();
 
-    // options render in a portal outside the dialog — use page-level locators
     await expect
-      .element(page.getByRole("option", { name: "Save the Whales" }))
+      .element(screen.getByRole("option", { name: "Save the Whales" }))
       .toBeVisible();
     await expect
-      .element(page.getByRole("option", { name: "Plant a Tree" }))
+      .element(screen.getByRole("option", { name: "Plant a Tree" }))
       .toBeVisible();
   });
 

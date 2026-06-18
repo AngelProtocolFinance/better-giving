@@ -1,4 +1,3 @@
-import { Field as BaseField } from "@base-ui/react/field";
 import { useController } from "react-hook-form";
 import { useFetcher, useNavigation, useSearchParams } from "react-router";
 import { useRemixForm } from "remix-hook-form";
@@ -52,25 +51,22 @@ export function Form({ classes = "", ...p }: Props) {
       autoSave="off"
     >
       {p.npos?.opts && (
-        <BaseField.Root>
-          <BaseField.Label data-required className="label mb-1">
-            Select nonprofit
-          </BaseField.Label>
-          <NpoSelector
-            q={q}
-            on_q_change={(q) => {
-              if (q) f.submit({ q }, { method: "GET" });
-            }}
-            value={p.npos.value}
-            on_change={(opt) => {
-              set_search((s) => {
-                s.set("npo_id", opt.id.toString());
-                return s;
-              });
-            }}
-            opts={opts}
-          />
-        </BaseField.Root>
+        <NpoSelector
+          label="Select nonprofit"
+          required
+          q={q}
+          on_q_change={(q) => {
+            if (q) f.submit({ q }, { method: "GET" });
+          }}
+          value={p.npos.value}
+          on_change={(opt) => {
+            set_search((s) => {
+              s.set("npo_id", opt.id.toString());
+              return s;
+            });
+          }}
+          opts={opts}
+        />
       )}
 
       {p.programs.length > 0 && (
