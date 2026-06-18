@@ -186,12 +186,18 @@ describe("Crypto form: initial load", () => {
     //inputs amount but not selected token
     await expect.element(screen.getByText(/select token/i)).toBeVisible();
 
-    //user selects token
+    //user selects token: open, type query → triggers async search, select filtered option
     await screen.getByRole("combobox").click();
     await expect.element(screen.getByRole("option")).toBeVisible();
 
-    //user clicks first option
-    await screen.getByRole("option").first().click();
+    await screen.getByRole("combobox").fill("BT");
+    await expect
+      .element(screen.getByRole("option", { name: /BTC/ }))
+      .toBeVisible();
+    await screen.getByRole("option", { name: /BTC/ }).click();
+
+    // after select, input reflects the chosen symbol (itemToStringLabel)
+    await expect.element(screen.getByRole("combobox")).toHaveValue("BTC");
 
     // Submit to trigger validation - amount (0.5) is less than min (1)
     await screen.getByRole("button", { name: /continue/i }).click();

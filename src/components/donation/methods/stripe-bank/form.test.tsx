@@ -175,6 +175,43 @@ describe("Bank transfer form", () => {
     don_set_mock.mockReset();
   });
 
+  test("user changes currency to CAD, sync filter narrows options, value persists", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form type="stripe_bank" step="form" />);
+
+    await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
+
+    await screen.getByRole("combobox").click();
+    // stripe-bank narrows to USD/CAD only — EUR/GBP filtered out at form level
+    await expect
+      .element(screen.getByRole("option", { name: "CAD" }))
+      .toBeVisible();
+    expect(screen.getByRole("option", { name: "EUR" }).query()).toBeNull();
+
+    // sync client-side filter via Combobox.useFilter
+    await screen.getByRole("combobox").fill("CA");
+    await expect
+      .element(screen.getByRole("option", { name: "CAD" }))
+      .toBeVisible();
+    expect(screen.getByRole("option", { name: "USD" }).query()).toBeNull();
+
+    await screen.getByRole("option", { name: "CAD" }).click();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("CAD");
+
+    await screen.getByPlaceholder(/enter amount/i).fill("10");
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    don_set_mock.mockReset();
+  });
+
   test("fee info line visible", async () => {
     const init: Init = {
       base_url: "",

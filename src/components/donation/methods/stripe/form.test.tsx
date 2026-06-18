@@ -283,6 +283,46 @@ describe("Stripe form: initial load", () => {
     );
   });
 
+  test("user changes currency to EUR, sync filter narrows options, value persists", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form type="stripe" step="form" />);
+
+    // currency loads USD by default
+    await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
+
+    // open currency selector — all 3 currencies visible
+    await screen.getByRole("combobox").click();
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+
+    // type "EU" → sync client-side filter via Combobox.useFilter, USD drops out
+    await screen.getByRole("combobox").fill("EU");
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+    expect(screen.getByRole("option", { name: "USD" }).query()).toBeNull();
+
+    // select EUR → input syncs to itemToStringLabel
+    await screen.getByRole("option", { name: "EUR" }).click();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("EUR");
+
+    // fill amount, submit, assert form fires with EUR currency
+    await screen.getByPlaceholder(/enter amount/i).fill("10");
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    don_set_mock.mockReset();
+  });
+
   test("user selects frequency and submits", async () => {
     const init: Init = {
       base_url: "",

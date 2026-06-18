@@ -137,12 +137,18 @@ describe("Stocks form: initial load", () => {
     //ticker not selected
     await expect.element(screen.getByText(/select ticker/i)).toBeVisible();
 
-    //user selects ticker
+    //user selects ticker: open, type query → triggers async search, select filtered option
     await screen.getByRole("combobox").click();
     await expect.element(screen.getByRole("option")).toBeVisible();
 
-    //user clicks first option
-    await screen.getByRole("option").first().click();
+    await screen.getByRole("combobox").fill("AAP");
+    await expect
+      .element(screen.getByRole("option", { name: /AAPL/ }))
+      .toBeVisible();
+    await screen.getByRole("option", { name: /AAPL/ }).click();
+
+    // after select, input reflects the chosen symbol (itemToStringLabel)
+    await expect.element(screen.getByRole("combobox")).toHaveValue("AAPL");
 
     // Submit to trigger validation - amount (0.5) is less than min (1)
     await screen.getByRole("button", { name: /continue/i }).click();
