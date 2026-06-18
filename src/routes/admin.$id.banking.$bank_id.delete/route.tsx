@@ -62,7 +62,7 @@ function Content({ isDefault, isWithHeir }: Props) {
         <NavLink
           to=".."
           aria-disabled={isSubmitting}
-          className="[&:is(.pending)]:text-muted-fg border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg"
+          className="[.pending]:text-muted-fg border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg"
         >
           <X className="size-4.5 sm:size-6" />
         </NavLink>

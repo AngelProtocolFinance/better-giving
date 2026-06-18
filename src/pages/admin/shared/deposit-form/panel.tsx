@@ -72,7 +72,7 @@ export function Panel({
   const memo = `${npo_name}+${npo_id}+${account_code}`;
 
   return (
-    <Dialog.Content className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-[680px] max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
+    <Dialog.Content className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-170 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
       {/* Header */}
       <div className="p-6 md:p-8 border-b relative">
         <h2 className="text-2xl font-bold mb-2">Deposit Funds</h2>
@@ -235,7 +235,7 @@ function MemoSection({ memo, account_type, classes = "" }: MemoSectionProps) {
 function InfoRow({ label, value, copyable = true }: InfoRowProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-      <span className="text-sm text-muted-fg min-w-[140px]">{label}</span>
+      <span className="text-sm text-muted-fg min-w-35">{label}</span>
       <div className="flex-1 flex items-center gap-2">
         <span className="text-sm font-semibold text-pretty flex-1">
           {value}

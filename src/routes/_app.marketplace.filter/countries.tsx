@@ -62,7 +62,7 @@ export default function Countries() {
         </Combobox.Control>
         <Portal container={container_ref}>
           <Combobox.Positioner>
-            <Combobox.Content className="rounded text-sm border z-10 bg-popover w-(--reference-width) max-h-[10rem] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+            <Combobox.Content className="rounded text-sm border z-10 bg-popover w-(--reference-width) max-h-40 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
               {filtered.length > 0 ? (
                 filtered.map((name) => (
                   <Combobox.Item
@@ -101,7 +101,7 @@ function SelectedOption({ selected, onChange, option }: SelectedProps) {
 
   return (
     <div className="flex gap-2 items-center text-xs pt-1 pb-[.3rem] px-2 bg-muted border rounded">
-      <span className="max-w-[200px] truncate">{option}</span>
+      <span className="max-w-50 truncate">{option}</span>
       <button
         type="button"
         onClick={(e) => {
