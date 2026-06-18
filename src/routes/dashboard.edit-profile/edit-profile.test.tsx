@@ -202,6 +202,24 @@ describe("dashboard edit-profile", () => {
     await expect.element(screen.getByText(/exceeds file size/i)).toBeVisible();
   });
 
+  it("currency input restores selected label when closed after clear", async () => {
+    const screen = await render_page();
+
+    const combo = screen.getByRole("combobox", { name: /default currency/i });
+    await expect.element(combo).toHaveDisplayValue("USD");
+
+    // open, clear, dismiss without picking a new value
+    await combo.click();
+    await combo.fill("");
+    // close popup via Escape so onOpenChange(false) fires
+    (combo.element() as HTMLInputElement).focus();
+    (combo.element() as HTMLInputElement).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+
+    await expect.element(combo).toHaveDisplayValue("USD");
+  });
+
   it("text field edit + submit sends only dirty fields", async () => {
     const screen = await render_page();
 

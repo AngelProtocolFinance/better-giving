@@ -81,7 +81,7 @@ export function CurrencySelector<T extends CurrencyOption>({
   return (
     <Field.Root disabled={disabled} className={style.container}>
       <Field.Label
-        className={`${style.label} label mb-2`}
+        className={`${style.label} label mb-2 w-fit`}
         data-required={props.required}
         aria-required={props.required}
       >
@@ -100,6 +100,8 @@ export function CurrencySelector<T extends CurrencyOption>({
         }}
         onOpenChange={(e) => {
           set_is_open(e.open);
+          // restore selected label when popup closes without a new pick
+          if (!e.open) set_input_value(display_value);
         }}
         positioning={{ placement: "bottom", gap: 4 }}
         openOnClick
@@ -126,7 +128,7 @@ export function CurrencySelector<T extends CurrencyOption>({
           <Portal>
             <Combobox.Positioner>
               <Combobox.Content
-                className={`${style.options ?? ""} z-50 w-(--reference-width) border bg-popover text-popover-fg shadow-lg rounded max-h-52 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border outline-ring`}
+                className={`${style.options ?? ""} z-50 text-sm w-(--reference-width) border bg-popover text-popover-fg shadow-lg rounded max-h-52 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border outline-ring`}
               >
                 {is_search && items.length === 0 && (
                   <div className="p-2 text-sm text-muted-fg">

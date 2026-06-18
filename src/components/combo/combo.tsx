@@ -113,7 +113,7 @@ export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
       {!is_inline && (
         <Field.Label
           data-required={props.required}
-          className={`${cls.label} label empty:hidden mb-2`}
+          className={`${cls.label} label empty:hidden mb-2 w-fit`}
         >
           {props.label}
         </Field.Label>
