@@ -1,9 +1,12 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox, createListCollection } from "@ark-ui/react/combobox";
+import { useFilter } from "@ark-ui/react/locale";
+import { Portal } from "@ark-ui/react/portal";
 import { Check, Search, X } from "lucide-react";
 import {
   type PropsWithChildren,
   type ReactNode,
   type Ref,
+  useMemo,
   useState,
 } from "react";
 import { unpack } from "#/helpers/unpack";
@@ -33,35 +36,42 @@ export function MultiCombo<T extends string>({
   ...props
 }: Props<T> & { ref?: Ref<HTMLInputElement> }) {
   const cls = unpack(props.classes);
+  const { contains } = useFilter({ sensitivity: "base" });
   const [query, set_query] = useState("");
   const [is_open, set_is_open] = useState(false);
-  const filteredOptions =
-    props.searchable && query
-      ? props.options.filter((o) =>
-          o.toLowerCase().includes(query.toLowerCase())
-        )
+
+  const filtered = useMemo(() => {
+    return props.searchable && query
+      ? props.options.filter((o) => contains(o, query))
       : props.options;
+  }, [props.searchable, props.options, query, contains]);
 
-  const optionsAvailable = !query || filteredOptions.length > 0;
-
+  const options_available = !query || filtered.length > 0;
   const is_all_selected = props.values.length === props.options.length;
+
+  const collection = useMemo(
+    () => createListCollection({ items: filtered as string[] }),
+    [filtered]
+  );
 
   return (
     <>
       <Combobox.Root
         multiple
-        items={filteredOptions}
-        filter={null}
+        collection={collection}
         disabled={props.disabled}
-        value={props.values}
-        onValueChange={props.on_change}
-        onOpenChange={(open) => set_is_open(open)}
-        onInputValueChange={(q) => set_query(q)}
-        itemToStringLabel={(v) => v}
+        value={props.values as string[]}
+        inputValue={query}
+        onValueChange={(e) => props.on_change(e.value as T[])}
+        onOpenChange={(e) => set_is_open(e.open)}
+        onInputValueChange={(e) => set_query(e.inputValue)}
+        positioning={{ placement: "bottom", gap: 8 }}
+        closeOnSelect
+        openOnClick
       >
         <div className={`${cls.container}`}>
           <FocusableInput ref={ref} />
-          <Combobox.InputGroup
+          <Combobox.Control
             aria-invalid={!!props.error}
             aria-disabled={props.disabled}
             className={`${cls.button} ${styles.selectorButton} relative flex-wrap gap-2 focus-within:outline-2 outline-ring aria-invalid:border-destructive p-1 pr-10`}
@@ -83,7 +93,7 @@ export function MultiCombo<T extends string>({
                   <Combobox.Input className="appearance-none bg-transparent first:pl-3 focus:outline-hidden h-10" />
                 </div>
               ) : (
-                //this will receive focus if search input is not rendered
+                // focus trap when search input is hidden
                 <input
                   aria-disabled={true}
                   className="w-0 h-0 appearance-none"
@@ -93,13 +103,13 @@ export function MultiCombo<T extends string>({
             <Combobox.Trigger className="absolute right-2 top-3 shrink-0">
               <DrawerIcon is_open={is_open} size={20} className="" />
             </Combobox.Trigger>
-          </Combobox.InputGroup>
-          <Combobox.Portal>
-            <Combobox.Positioner side="bottom" sideOffset={8} className="z-50">
-              <Combobox.Popup
-                className={`${cls.options} rounded border bg-popover text-popover-fg w-(--anchor-width) max-h-[10rem] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border`}
+          </Combobox.Control>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content
+                className={`${cls.options} z-50 rounded border bg-popover text-popover-fg w-(--reference-width) max-h-[10rem] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border`}
               >
-                {optionsAvailable && (
+                {options_available && (
                   <div className="flex justify-between p-4">
                     {is_all_selected ? (
                       <Action on_click={() => props.on_change([])}>
@@ -114,29 +124,27 @@ export function MultiCombo<T extends string>({
                   </div>
                 )}
 
-                <Combobox.List>
-                  {optionsAvailable &&
-                    filteredOptions.map((o) => (
-                      <Combobox.Item
-                        key={o}
-                        value={o}
-                        className={`${cls.option} selector-opt flex items-center justify-between`}
-                      >
-                        {props.option_disp(o)}
-                        {props.values.includes(o) && (
-                          <Check size={16} className="text-primary shrink-0" />
-                        )}
-                      </Combobox.Item>
-                    ))}
-                </Combobox.List>
-                {!optionsAvailable && (
+                {options_available &&
+                  filtered.map((o) => (
+                    <Combobox.Item
+                      key={o}
+                      item={o}
+                      className={`${cls.option} selector-opt flex items-center justify-between data-[state=checked]:bg-(--form-secondary) data-highlighted:bg-(--form-secondary)`}
+                    >
+                      {props.option_disp(o as T)}
+                      {props.values.includes(o as T) && (
+                        <Check size={16} className="text-primary shrink-0" />
+                      )}
+                    </Combobox.Item>
+                  ))}
+                {!options_available && (
                   <p className="text-muted-fg text-sm px-4 py-2">
                     No options found
                   </p>
                 )}
-              </Combobox.Popup>
+              </Combobox.Content>
             </Combobox.Positioner>
-          </Combobox.Portal>
+          </Portal>
         </div>
         <p className="field-err mt-1 empty:hidden">{props.error}</p>
       </Combobox.Root>
