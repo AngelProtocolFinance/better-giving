@@ -1,7 +1,8 @@
-import { Combobox } from "@base-ui/react/combobox";
-import { Field } from "@base-ui/react/field";
+import { Combobox, createListCollection } from "@ark-ui/react/combobox";
+import { Field } from "@ark-ui/react/field";
+import { Portal } from "@ark-ui/react/portal";
 import { LoaderCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { unpack } from "#/helpers/unpack";
 import {
   type CurrencyOption,
@@ -9,7 +10,6 @@ import {
   type QueryState,
 } from "#/types/components";
 import { DrawerIcon } from "../icon";
-import { CurrencyOptions } from "./currency-options";
 
 type Classes = {
   combobox?: string;
@@ -29,20 +29,31 @@ type Props<T extends CurrencyOption> = {
   onChange: (currency: T) => void;
 };
 
+const to_label = (v: CurrencyOption) =>
+  "name" in v ? `${v.code.toUpperCase()} - ${v.name}` : v.code.toUpperCase();
+
 export function CurrencySelector<T extends CurrencyOption>({
   currencies,
   ...props
 }: Props<T>) {
-  const [query, set_query] = useState("");
+  const display_value = to_label(props.value);
+  const [input_value, set_input_value] = useState(display_value);
   const [is_open, set_is_open] = useState(false);
+
+  // sync displayed text when external value changes
+  useEffect(() => {
+    set_input_value(display_value);
+  }, [display_value]);
 
   const is_currency_loading = is_query(currencies) && currencies.is_loading;
   const is_currency_error = is_query(currencies) && currencies.is_error;
 
+  const is_search = input_value !== "" && input_value !== display_value;
+
   const items = useMemo(() => {
     const list = is_query(currencies) ? (currencies.data ?? []) : currencies;
-    if (!query) return list;
-    const q = query.toLowerCase().replace(/\s+/g, "");
+    if (!is_search) return list;
+    const q = input_value.toLowerCase().replace(/\s+/g, "");
     return list.filter((c) => {
       const matches_code = c.code.toLowerCase().includes(q);
       const matches_name = ("name" in c ? c.name : undefined)
@@ -51,15 +62,24 @@ export function CurrencySelector<T extends CurrencyOption>({
         .includes(q);
       return matches_code || matches_name || false;
     });
-  }, [currencies, query]);
+  }, [currencies, input_value, is_search]);
+
+  const collection = useMemo(
+    () =>
+      createListCollection({
+        items: items as CurrencyOption[],
+        itemToValue: (c) => c.code,
+        itemToString: to_label,
+      }),
+    [items]
+  );
 
   const style = unpack(props.classes);
+  const disabled =
+    props.disabled || is_currency_loading || is_currency_error || false;
 
   return (
-    <Field.Root
-      disabled={props.disabled || is_currency_loading || is_currency_error}
-      className={style.container}
-    >
+    <Field.Root disabled={disabled} className={style.container}>
       <Field.Label
         className={`${style.label} label mb-2`}
         data-required={props.required}
@@ -68,23 +88,24 @@ export function CurrencySelector<T extends CurrencyOption>({
         {props.label}
       </Field.Label>
       <Combobox.Root
-        items={items}
-        filter={null}
-        value={props.value}
-        onValueChange={(val) => val && props.onChange(val)}
-        onInputValueChange={(q) => set_query(q)}
-        onOpenChange={(open) => {
-          set_is_open(open);
-          if (open) set_query("");
+        collection={collection}
+        value={props.value ? [props.value.code] : []}
+        inputValue={input_value}
+        onValueChange={(e) => {
+          const next = e.items[0] as T | undefined;
+          if (next) props.onChange(next);
         }}
-        itemToStringLabel={(v) =>
-          "name" in v
-            ? `${v.code.toUpperCase()} - ${v.name}`
-            : v.code.toUpperCase()
-        }
-        disabled={props.disabled || is_currency_loading || is_currency_error}
+        onInputValueChange={(e) => {
+          if (e.reason === "input-change") set_input_value(e.inputValue);
+        }}
+        onOpenChange={(e) => {
+          set_is_open(e.open);
+        }}
+        positioning={{ placement: "bottom", gap: 4 }}
+        openOnClick
+        disabled={disabled}
       >
-        <div className={`relative ${style.combobox}`}>
+        <Combobox.Control className={`relative ${style.combobox}`}>
           <Combobox.Input
             className={`h-full field-input ${style.input}`}
             spellCheck={false}
@@ -102,12 +123,29 @@ export function CurrencySelector<T extends CurrencyOption>({
             )}
           </Combobox.Trigger>
 
-          <CurrencyOptions
-            query={query}
-            items={items}
-            classes={style.options}
-          />
-        </div>
+          <Portal>
+            <Combobox.Positioner>
+              <Combobox.Content
+                className={`${style.options ?? ""} z-50 w-(--reference-width) border bg-popover text-popover-fg shadow-lg rounded max-h-52 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border outline-ring`}
+              >
+                {is_search && items.length === 0 && (
+                  <div className="p-2 text-sm text-muted-fg">
+                    {input_value} not found
+                  </div>
+                )}
+                {items.map((c) => (
+                  <Combobox.Item
+                    key={c.code}
+                    item={c}
+                    className="flex items-center gap-2 p-2 truncate data-[state=checked]:bg-(--form-secondary) data-highlighted:bg-(--form-secondary) hover:bg-(--form-secondary)"
+                  >
+                    {to_label(c)}
+                  </Combobox.Item>
+                ))}
+              </Combobox.Content>
+            </Combobox.Positioner>
+          </Portal>
+        </Combobox.Control>
       </Combobox.Root>
     </Field.Root>
   );
