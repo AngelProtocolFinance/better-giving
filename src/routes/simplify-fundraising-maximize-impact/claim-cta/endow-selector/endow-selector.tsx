@@ -94,7 +94,7 @@ export function EndowSelector(props: Props) {
 
         <Portal>
           <Combobox.Positioner>
-            <Combobox.Content className="w-(--reference-width) z-10 bg-popover text-popover-fg shadow-lg rounded overflow-y-scroll overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border max-h-60">
+            <Combobox.Content className="w-80 max-w-[calc(100vw-2rem)] z-10 bg-popover text-popover-fg shadow-lg rounded overflow-y-scroll overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border max-h-60">
               <QueryLoader
                 queryState={{
                   is_loading: endows.isLoading || is_debouncing,
