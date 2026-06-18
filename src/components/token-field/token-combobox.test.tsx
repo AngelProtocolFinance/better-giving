@@ -1,4 +1,4 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox } from "@ark-ui/react/combobox";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { TokenCombobox, TokenComboboxSync } from "./token-combobox";
@@ -17,7 +17,7 @@ const currencies: Currency[] = [
 ];
 
 const opt_disp = (t: Currency) => (
-  <Combobox.Item key={t.code} value={t}>
+  <Combobox.Item key={t.code} item={t}>
     {t.label}
   </Combobox.Item>
 );

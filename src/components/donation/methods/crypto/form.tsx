@@ -1,4 +1,4 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox } from "@ark-ui/react/combobox";
 import { chains, type IToken, is_custom } from "@better-giving/crypto";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
@@ -62,8 +62,8 @@ export function Form(props: TMethodState<"crypto">) {
       opt_disp={(t) => (
         <Combobox.Item
           key={t.code}
-          className="w-full grid grid-cols-[auto_1fr_auto] items-center gap-x-2 p-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-selected:font-semibold"
-          value={t}
+          className="w-full grid grid-cols-[auto_1fr_auto] items-center gap-x-2 p-2 hover:bg-form-secondary data-[highlighted]:bg-form-secondary data-[state=checked]:font-semibold"
+          item={t}
         >
           <img
             src={logo_url(t.logo, is_custom(t.id))}
