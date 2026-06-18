@@ -282,7 +282,9 @@ describe("edit profile — organization fields", () => {
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
     // change designation: click select trigger, pick new
-    await screen.getByText(/organization designation/i).click();
+    await screen
+      .getByRole("combobox", { name: /organization designation/i })
+      .click();
     await expect
       .element(screen.getByRole("option", { name: "University" }))
       .toBeVisible();

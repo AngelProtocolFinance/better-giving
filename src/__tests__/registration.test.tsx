@@ -412,12 +412,12 @@ describe("E2E: US path (501c3)", () => {
     await screen.getByLabelText(/organization name/i).fill("Test Org");
 
     // select role
-    await screen.getByText(/what's your role/i).click();
+    await screen.getByRole("combobox", { name: /what's your role/i }).click();
     await expect.element(screen.getByText("CEO")).toBeVisible();
     await screen.getByText("CEO").click();
 
     // select referral method
-    await screen.getByText(/how did you find/i).click();
+    await screen.getByRole("combobox", { name: /how did you find/i }).click();
     await expect.element(screen.getByText("Search engines")).toBeVisible();
     await screen.getByText("Search engines").click();
 
@@ -442,7 +442,7 @@ describe("E2E: US path (501c3)", () => {
       .click();
 
     // select designation
-    await screen.getByText(/designation/i).click();
+    await screen.getByRole("combobox", { name: /designation/i }).click();
     await expect.element(screen.getByText("Charity")).toBeVisible();
     await screen.getByText("Charity").click();
 
@@ -547,11 +547,11 @@ describe("E2E: non-US path (FSA)", () => {
     await screen.getByLabelText(/phone number/i).fill("9876543210");
     await screen.getByLabelText(/organization name/i).fill("Global Aid");
 
-    await screen.getByText(/what's your role/i).click();
+    await screen.getByRole("combobox", { name: /what's your role/i }).click();
     await expect.element(screen.getByText("CEO")).toBeVisible();
     await screen.getByText("CEO").click();
 
-    await screen.getByText(/how did you find/i).click();
+    await screen.getByRole("combobox", { name: /how did you find/i }).click();
     await expect.element(screen.getByText("Search engines")).toBeVisible();
     await screen.getByText("Search engines").click();
 
@@ -574,7 +574,7 @@ describe("E2E: non-US path (FSA)", () => {
       .nth(0)
       .click();
 
-    await screen.getByText(/designation/i).click();
+    await screen.getByRole("combobox", { name: /designation/i }).click();
     await expect.element(screen.getByText("Charity")).toBeVisible();
     await screen.getByText("Charity").click();
 
