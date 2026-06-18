@@ -320,6 +320,27 @@ describe("admin disables a form", () => {
     await expect.element(screen.getByText("gala-2026")).toBeInTheDocument();
   });
 
+  it("closes dialog without submitting on Escape", async () => {
+    const npo = await seed_npo();
+    await seed_form(npo.id, { tag: "esc-dismiss" });
+
+    const screen = await render_page(npo.id);
+
+    await expect.element(screen.getByText("esc-dismiss")).toBeVisible();
+    await screen.getByRole("link", { name: "Disable" }).click();
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+    // dispatch Escape on document; base-ui/ark dialog both listen at document level
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Disable" }))
+      .toBeInTheDocument();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("closes dialog without submitting on Cancel", async () => {
     const npo = await seed_npo();
     await seed_form(npo.id, { tag: "keep-active" });
