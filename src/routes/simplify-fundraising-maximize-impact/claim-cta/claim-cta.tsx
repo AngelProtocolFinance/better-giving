@@ -14,7 +14,7 @@ export function ClaimCta({ classes = "" }) {
       <Link
         to={`${href("/register/welcome")}?claim=${endow?.registration_number}`}
         aria-disabled={!endow?.id}
-        className="btn btn-primary h-full flex items-center text-sm font-bold rounded px-6 py-2 aria-disabled:bg-muted-fg aria-disabled:text-muted-fg"
+        className="btn btn-primary h-full flex items-center text-sm font-bold rounded px-6 py-2 aria-disabled:bg-muted aria-disabled:text-muted-fg"
       >
         Get Started
       </Link>
