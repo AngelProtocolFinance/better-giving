@@ -1,27 +1,32 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox, createListCollection } from "@ark-ui/react/combobox";
+import { useFilter } from "@ark-ui/react/locale";
+import { Portal } from "@ark-ui/react/portal";
 import { SearchIcon, X } from "lucide-react";
-import { type RefObject, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import countries from "#/assets/countries/all.json";
 import { toParsed, toRaw } from "#/pages/marketplace/helpers";
 
 export default function Countries() {
-  const [params, setParams] = useSearchParams();
+  const [params, set_params] = useSearchParams();
   const { countries: pcountries = [], ...p } = toParsed(params);
 
-  const [searchText, setSearchText] = useState("");
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [query, set_query] = useState("");
   const container_ref = useRef<HTMLDivElement>(null);
 
-  const filteredOptions = useMemo(
-    () =>
-      countries
-        .map((c) => c.name)
-        .filter((c) => c.toLowerCase().includes(searchText.toLowerCase())),
-    [searchText]
+  const filtered = useMemo(() => {
+    const names = countries.map((c) => c.name);
+    return query ? names.filter((n) => contains(n, query)) : names;
+  }, [query, contains]);
+
+  const collection = useMemo(
+    () => createListCollection({ items: filtered }),
+    [filtered]
   );
 
-  function handleChange(values: string[]) {
-    setParams(toRaw({ ...p, countries: values }), {
+  function handle_change(values: string[]) {
+    set_params(toRaw({ ...p, countries: values }), {
       replace: true,
       preventScrollReset: true,
     });
@@ -30,22 +35,22 @@ export default function Countries() {
   return (
     <Combobox.Root
       multiple
-      items={filteredOptions}
-      filter={null}
+      collection={collection}
       value={pcountries}
-      onValueChange={handleChange}
-      onInputValueChange={(q) => setSearchText(q)}
-      itemToStringLabel={(v) => v}
+      onValueChange={(e) => handle_change(e.value)}
+      onInputValueChange={(e) => set_query(e.inputValue)}
+      positioning={{ placement: "bottom", gap: 4 }}
+      openOnClick
     >
       <div ref={container_ref} className="relative">
-        <Combobox.InputGroup className="flex items-center field-input justify-between p-1 focus-within:border-ring">
+        <Combobox.Control className="flex items-center field-input justify-between p-1 focus-within:border-ring">
           <div className="flex flex-wrap gap-2 h-full">
             {pcountries.map((opt) => (
               <SelectedOption
                 key={opt}
                 option={opt}
                 selected={pcountries}
-                onChange={handleChange}
+                onChange={handle_change}
               />
             ))}
 
@@ -54,31 +59,28 @@ export default function Countries() {
               <Combobox.Input className="appearance-none bg-transparent focus:outline-hidden" />
             </div>
           </div>
-        </Combobox.InputGroup>
-        <Combobox.Portal container={container_ref as RefObject<HTMLDivElement>}>
-          <Combobox.Positioner side="bottom" sideOffset={4}>
-            <Combobox.Popup className="rounded text-sm border z-10 bg-popover w-(--anchor-width) max-h-[10rem] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-              {filteredOptions.length > 0 && (
-                <Combobox.List>
-                  {filteredOptions.map((name) => (
-                    <Combobox.Item
-                      key={name}
-                      value={name}
-                      className={optionStyle}
-                    >
-                      {name}
-                    </Combobox.Item>
-                  ))}
-                </Combobox.List>
-              )}
-              {filteredOptions.length === 0 && (
+        </Combobox.Control>
+        <Portal container={container_ref}>
+          <Combobox.Positioner>
+            <Combobox.Content className="rounded text-sm border z-10 bg-popover w-(--reference-width) max-h-[10rem] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+              {filtered.length > 0 ? (
+                filtered.map((name) => (
+                  <Combobox.Item
+                    key={name}
+                    item={name}
+                    className={option_style}
+                  >
+                    {name}
+                  </Combobox.Item>
+                ))
+              ) : (
                 <p className="text-muted-fg text-sm px-4 py-2">
                   No options found
                 </p>
               )}
-            </Combobox.Popup>
+            </Combobox.Content>
           </Combobox.Positioner>
-        </Combobox.Portal>
+        </Portal>
       </div>
     </Combobox.Root>
   );
@@ -90,11 +92,11 @@ type SelectedProps = {
   onChange(value: string[]): void;
 };
 
-const optionStyle =
-  "px-4 py-2 text-sm data-selected:bg-secondary hover:bg-accent";
+const option_style =
+  "px-4 py-2 text-sm data-[state=checked]:bg-secondary data-highlighted:bg-accent hover:bg-accent";
 
 function SelectedOption({ selected, onChange, option }: SelectedProps) {
-  const handleRemove = (value: string) =>
+  const handle_remove = (value: string) =>
     onChange(selected.filter((s) => s !== value));
 
   return (
@@ -104,7 +106,7 @@ function SelectedOption({ selected, onChange, option }: SelectedProps) {
         type="button"
         onClick={(e) => {
           e.preventDefault();
-          handleRemove(option);
+          handle_remove(option);
         }}
       >
         <X size={18} />
