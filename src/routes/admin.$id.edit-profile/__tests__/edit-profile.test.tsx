@@ -366,6 +366,30 @@ describe("edit profile — organization fields", () => {
     expect(persisted?.hq_country).toBe("France");
     expect(persisted?.tagline).toBe("New tagline");
   });
+
+  it("hq_country combo: clear button refocuses input and reopens dropdown", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    const country_input = screen.getByPlaceholder("Select a country");
+    await expect.element(country_input).toHaveDisplayValue("United States");
+
+    // before clear: dropdown closed (no options rendered)
+    expect(screen.getByRole("option").query()).toBeNull();
+
+    // click the X clear button — combo row has 2 buttons: trigger (flag) then X
+    const combo_row = (country_input.element() as HTMLInputElement)
+      .parentElement!;
+    const buttons = page.elementLocator(combo_row).getByRole("button");
+    await buttons.nth(1).click();
+
+    // input cleared + focused + dropdown re-opens with options
+    await expect.element(country_input).toHaveDisplayValue("");
+    expect(document.activeElement).toBe(country_input.element());
+    await expect
+      .element(screen.getByRole("option", { name: /Afghanistan/i }))
+      .toBeVisible();
+  });
 });
 
 describe("edit profile — active countries (multi-combo)", () => {

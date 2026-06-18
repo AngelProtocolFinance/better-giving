@@ -54,6 +54,7 @@ Three-layer structure:
 - casing: `snake_case` (vars/fns), `PascalCase` (classes/components), `SCREAMING_SNAKE_CASE` (constants), `kebab-case` (filenames)
 - component props: declare a named interface (`IFoo`) — no inline type literals in params
 - always use `pnpm` — never `npx`, `npm`, `yarn`; for local bins prefer `pnpm <bin>` (or `pnpm exec`), for one-shots `pnpm dlx`
+- pin deps to exact versions — `pnpm add <pkg> --save-exact` (no `^`/`~` ranges)
 - one-off scripts (e.g. `scripts/`, `jobs/`): run with `bun`
 
 ## UI
