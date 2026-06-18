@@ -448,6 +448,11 @@ describe("edit profile — active countries (multi-combo)", () => {
     // refill single + submit → DB persists array
     await multi_input.fill("Cana");
     await screen.getByRole("option", { name: /^Canada$/i }).click();
+    // popup stays open after multi-select; dismiss before clicking submit
+    (multi_input.element() as HTMLInputElement).focus();
+    (multi_input.element() as HTMLInputElement).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
     await screen.getByRole("button", { name: /submit changes/i }).click();
 
     await vi.waitFor(async () => {
