@@ -84,7 +84,7 @@ export function Form(props: TMethodState<"stocks">) {
       opt_disp={(t) => (
         <Combobox.Item
           key={t.symbol}
-          className="w-full text-left text-xs p-2 grid grid-cols-[1fr_auto] items-center gap-x-2 hover:bg-form-secondary data-[highlighted]:bg-form-secondary data-[state=checked]:font-semibold"
+          className="w-full text-left text-xs p-2 grid grid-cols-[1fr_auto] items-center gap-x-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
           item={t}
         >
           <div className="space-y-0.5">

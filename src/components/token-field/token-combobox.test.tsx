@@ -91,6 +91,18 @@ describe("TokenComboboxSync", () => {
     await combo.fill("");
     expect(screen.getByRole("option").elements().length).toBe(5);
   });
+
+  test("no match shows 'not found' status", async () => {
+    const { props } = setup();
+    const screen = await render(<TokenComboboxSync {...props} />);
+
+    const combo = screen.getByRole("combobox");
+    await combo.click();
+    await combo.fill("xxxx");
+
+    expect(screen.getByRole("option").query()).toBeNull();
+    await expect.element(screen.getByText("xxxx not found")).toBeVisible();
+  });
 });
 
 describe("TokenCombobox (async)", () => {

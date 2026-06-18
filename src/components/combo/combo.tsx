@@ -198,7 +198,7 @@ export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
                 )}
                 {filtered.map((v) => (
                   <Combobox.Item
-                    className="data-[state=checked]:bg-form-secondary data-[highlighted]:bg-form-secondary hover:bg-form-secondary flex items-center gap-2 p-2 text-sm"
+                    className="data-[state=checked]:bg-form-secondary data-highlighted:bg-form-secondary hover:bg-form-secondary flex items-center gap-2 p-2 text-sm"
                     key={v}
                     item={v}
                   >

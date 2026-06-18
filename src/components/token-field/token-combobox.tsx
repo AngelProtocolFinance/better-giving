@@ -45,7 +45,9 @@ type SearchState<T> =
   | { status: "ok"; data: T[] };
 
 const popup_classes =
-  "w-(--reference-width) border p-1 max-h-60 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-(--form-primary) scrollbar-track-(--form-secondary) rounded bg-muted shadow-lg focus:outline-hidden";
+  "w-56 border p-1 max-h-60 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-(--form-primary) scrollbar-track-(--form-secondary) rounded bg-muted shadow-lg focus:outline-hidden";
+
+const positioning = { gap: 8, placement: "bottom-start" as const };
 
 function results_of<T>(state: SearchState<T>): T[] {
   return state.status === "ok" ? state.data : [];
@@ -111,6 +113,7 @@ export function TokenCombobox<T>(props: ITokenCombobox<T>) {
 
   return (
     <Combobox.Root<T>
+      className="flex"
       collection={collection}
       disabled={props.disabled}
       value={selected_key ? [selected_key] : []}
@@ -144,9 +147,10 @@ export function TokenCombobox<T>(props: ITokenCombobox<T>) {
 
         fire_search(next_q);
       }}
+      positioning={positioning}
       openOnClick
     >
-      <Combobox.Control className={`${s.container} relative flex`}>
+      <Combobox.Control className={`${s.container} relative flex h-full`}>
         <Combobox.Input
           placeholder={props.input_placeholder}
           className="w-full text-left text-sm focus:outline-hidden bg-transparent px-4"
@@ -206,6 +210,7 @@ export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
 
   return (
     <Combobox.Root<T>
+      className="flex"
       collection={collection}
       disabled={props.disabled}
       value={selected_key ? [selected_key] : []}
@@ -215,10 +220,14 @@ export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
       }}
       inputValue={input_value}
       onOpenChange={(e) => set_is_open(e.open)}
-      onInputValueChange={(e) => set_input_value(e.inputValue)}
+      onInputValueChange={(e) => {
+        // only react to typing; useEffect syncs input from selected display
+        if (e.reason === "input-change") set_input_value(e.inputValue);
+      }}
+      positioning={positioning}
       openOnClick
     >
-      <Combobox.Control className={`${s.container} relative flex`}>
+      <Combobox.Control className={`${s.container} relative flex h-full`}>
         <Combobox.Input
           placeholder={props.input_placeholder}
           className="w-full text-left text-sm focus:outline-hidden bg-transparent px-4"
@@ -231,7 +240,11 @@ export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
       <Portal>
         <Combobox.Positioner>
           <Combobox.Content style={props.opts_styles} className={popup_classes}>
-            {visible.map((opt) => props.opt_disp(opt))}
+            {visible.length === 0 ? (
+              <p className="p-2 text-sm text-muted-fg">{filter_q} not found</p>
+            ) : (
+              visible.map((opt) => props.opt_disp(opt))
+            )}
           </Combobox.Content>
         </Combobox.Positioner>
       </Portal>

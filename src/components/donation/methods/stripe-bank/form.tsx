@@ -68,7 +68,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
       opt_disp={(t) => (
         <Combobox.Item
           key={t.code}
-          className="w-full text-sm grid grid-cols-[1fr_auto] items-center p-2 hover:bg-(--form-secondary) data-[highlighted]:bg-(--form-secondary) data-[state=checked]:font-semibold"
+          className="w-full text-sm grid grid-cols-[1fr_auto] items-center p-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
           item={t}
         >
           {t.code}

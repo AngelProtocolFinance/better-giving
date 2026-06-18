@@ -62,7 +62,7 @@ export function Form(props: TMethodState<"crypto">) {
       opt_disp={(t) => (
         <Combobox.Item
           key={t.code}
-          className="w-full grid grid-cols-[auto_1fr_auto] items-center gap-x-2 p-2 hover:bg-form-secondary data-[highlighted]:bg-form-secondary data-[state=checked]:font-semibold"
+          className="w-full grid grid-cols-[auto_1fr_auto] items-center gap-x-2 p-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
           item={t}
         >
           <img
