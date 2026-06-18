@@ -368,6 +368,71 @@ describe("edit profile — organization fields", () => {
   });
 });
 
+describe("edit profile — active countries (multi-combo)", () => {
+  it("filter → select multiple, deselect all, refill → DB persists array", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // anchor on the "Active countries" Label and scope into its sibling section
+    const label_el = screen
+      .getByText("Active countries", { exact: true })
+      .element() as HTMLElement;
+    const multi_section = label_el.nextElementSibling as HTMLElement;
+    const scoped = page.elementLocator(multi_section);
+    const multi_input = scoped.getByRole("combobox");
+
+    // open + filter via typing
+    await multi_input.click();
+    await multi_input.fill("Cana");
+    await expect
+      .element(screen.getByRole("option", { name: /^Canada$/i }))
+      .toBeVisible();
+    // filter narrows — Brazil is filtered out
+    expect(
+      screen.getByRole("option", { name: /^Brazil$/i }).query()
+    ).toBeNull();
+    await screen.getByRole("option", { name: /^Canada$/i }).click();
+
+    // chip rendered in the multi-combo section (scoped — popup options share the text)
+    await expect
+      .element(scoped.getByText("Canada", { exact: true }))
+      .toBeVisible();
+
+    // filter + select second value
+    await multi_input.fill("Fran");
+    await screen.getByRole("option", { name: /^France$/i }).click();
+    await expect
+      .element(scoped.getByText("France", { exact: true }))
+      .toBeVisible();
+
+    // Reset clears all chips. Portaled popup may render offscreen — native click bypasses viewport check
+    await multi_input.click();
+    await multi_input.fill("");
+    (
+      screen.getByRole("button", { name: /^reset$/i }).element() as HTMLElement
+    ).click();
+    // chips live in multi_section; options are portaled out — scope assertions to the section
+    await expect
+      .element(scoped.getByText("Canada", { exact: true }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(scoped.getByText("France", { exact: true }))
+      .not.toBeInTheDocument();
+
+    // refill single + submit → DB persists array
+    await multi_input.fill("Cana");
+    await screen.getByRole("option", { name: /^Canada$/i }).click();
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await vi.waitFor(async () => {
+      const reloaded = await npo_get(npo.id);
+      expect(reloaded?.active_in_countries).toEqual(["Canada"]);
+    });
+  });
+});
+
 describe("edit profile — social media", () => {
   it("adds social URLs → DB + profile", async () => {
     const npo = await seed_npo();
