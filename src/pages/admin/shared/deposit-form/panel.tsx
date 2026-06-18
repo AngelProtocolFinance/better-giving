@@ -1,4 +1,4 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { Check, X } from "lucide-react";
@@ -72,7 +72,7 @@ export function Panel({
   const memo = `${npo_name}+${npo_id}+${account_code}`;
 
   return (
-    <Dialog.Popup className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-[680px] max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
+    <Dialog.Content className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-[680px] max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
       {/* Header */}
       <div className="p-6 md:p-8 border-b relative">
         <h2 className="text-2xl font-bold mb-2">Deposit Funds</h2>
@@ -141,7 +141,7 @@ export function Panel({
           for specific instructions.
         </p>
       </div>
-    </Dialog.Popup>
+    </Dialog.Content>
   );
 }
 

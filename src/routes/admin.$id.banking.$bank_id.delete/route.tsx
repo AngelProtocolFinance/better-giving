@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { CircleAlert, X } from "lucide-react";
 import {
   NavLink,
@@ -24,14 +25,17 @@ export default function DeletePrompt() {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { preventScrollReset: true, replace: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { preventScrollReset: true, replace: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Content isDefault={isDefault} isWithHeir={isWithHeir} />
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Content isDefault={isDefault} isWithHeir={isWithHeir} />
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }
@@ -50,7 +54,7 @@ function Content({ isDefault, isWithHeir }: Props) {
         : [true, "Are you sure you want to delete this payment method?"];
 
   return (
-    <Dialog.Popup className="z-50 fixed-center grid content-start justify-items-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
+    <Dialog.Content className="z-50 fixed-center grid content-start justify-items-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
       <div className="relative w-full">
         <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
           Delete payout method
@@ -89,6 +93,6 @@ function Content({ isDefault, isWithHeir }: Props) {
           </button>
         </fetcher.Form>
       )}
-    </Dialog.Popup>
+    </Dialog.Content>
   );
 }

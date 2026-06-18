@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { Field } from "@base-ui/react/field";
 import { Switch } from "@base-ui/react/switch";
 import { useState } from "react";
@@ -17,14 +18,17 @@ export default function AllocationEdit() {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { replace: true, preventScrollReset: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { replace: true, preventScrollReset: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Content {...(data?.endow.allocation ?? default_allocation)} />
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Content {...(data?.endow.allocation ?? default_allocation)} />
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }
@@ -39,7 +43,7 @@ function Content(props: IAllocation) {
   const is_loading = fetcher.state !== "idle";
 
   return (
-    <Dialog.Popup className="z-50 fixed-center grid gap-y-4 bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded p-6 max-h-[90dvh] overflow-y-scroll scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+    <Dialog.Content className="z-50 fixed-center grid gap-y-4 bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded p-6 max-h-[90dvh] overflow-y-scroll scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
       <h4>Choose allocation</h4>
 
       <AllocationOptions
@@ -83,6 +87,6 @@ function Content(props: IAllocation) {
       >
         {is_loading ? "Updating.." : "Save"}
       </button>
-    </Dialog.Popup>
+    </Dialog.Content>
   );
 }

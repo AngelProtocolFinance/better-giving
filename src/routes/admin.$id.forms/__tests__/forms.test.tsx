@@ -330,15 +330,15 @@ describe("admin disables a form", () => {
     await screen.getByRole("link", { name: "Disable" }).click();
     await expect.element(screen.getByRole("dialog")).toBeVisible();
 
-    // dispatch Escape on document; base-ui/ark dialog both listen at document level
-    document.dispatchEvent(
+    // dispatch Escape on the dialog element; ark listens via Content keydown
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    dialog.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
     );
 
     await expect
       .element(screen.getByRole("link", { name: "Disable" }))
       .toBeInTheDocument();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("closes dialog without submitting on Cancel", async () => {

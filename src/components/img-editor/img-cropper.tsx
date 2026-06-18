@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { Save } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { Cropper, type ICropperHandle } from "./cropper";
@@ -41,32 +42,36 @@ export function ImgCropper({
   return (
     <Dialog.Root
       open={is_open}
-      onOpenChange={(open) => {
-        if (!open) onClose();
+      onOpenChange={(e) => {
+        if (!e.open) onClose();
       }}
+      lazyMount
+      unmountOnExit
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Popup className="z-50 fixed-center border-2 rounded overflow-hidden">
-          <div className="bg-card flex items-center justify-end gap-2 p-1">
-            <button
-              type="button"
-              className="hover:text-primary"
-              onClick={handle_save}
-            >
-              <Save size={22} />
-            </button>
-          </div>
-          <div style={content_style}>
-            <Cropper
-              src={src}
-              aspect={aspect}
-              rounded={rounded}
-              ref={cropper_ref}
-            />
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Dialog.Content className="z-50 fixed-center border-2 rounded overflow-hidden">
+            <div className="bg-card flex items-center justify-end gap-2 p-1">
+              <button
+                type="button"
+                className="hover:text-primary"
+                onClick={handle_save}
+              >
+                <Save size={22} />
+              </button>
+            </div>
+            <div style={content_style}>
+              <Cropper
+                src={src}
+                aspect={aspect}
+                rounded={rounded}
+                ref={cropper_ref}
+              />
+            </div>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }

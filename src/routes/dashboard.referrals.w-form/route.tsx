@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { useNavigate } from "react-router";
 import { ExtLink } from "#/components/ext-link";
 import type { Route } from "./+types/route";
@@ -13,21 +14,24 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { replace: true, preventScrollReset: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { replace: true, preventScrollReset: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Content {...data} />
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Content {...data} />
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }
 
 function Content(props: LoaderData) {
   return (
-    <Dialog.Popup className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6">
+    <Dialog.Content className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold mb-2">Tax Forms Required</h2>
         <p className="text-muted-fg">
@@ -56,6 +60,6 @@ function Content(props: LoaderData) {
           </div>
         </ExtLink>
       </div>
-    </Dialog.Popup>
+    </Dialog.Content>
   );
 }

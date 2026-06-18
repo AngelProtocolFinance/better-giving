@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { ChevronRight, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { Link, useFetcher, useNavigate } from "react-router";
@@ -15,16 +16,19 @@ export function Prompt(props: Props) {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { preventScrollReset: true, replace: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { preventScrollReset: true, replace: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Popup className="z-50 fixed-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
-          <Content {...props} />
-        </Dialog.Popup>
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Dialog.Content className="z-50 fixed-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
+            <Content {...props} />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }

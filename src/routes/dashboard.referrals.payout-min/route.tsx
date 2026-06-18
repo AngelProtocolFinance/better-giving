@@ -1,5 +1,6 @@
+import { Dialog } from "@ark-ui/react/dialog";
 import { Field } from "@ark-ui/react/field";
-import { Dialog } from "@base-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { useFetcher, useNavigate, useSearchParams } from "react-router";
@@ -25,14 +26,17 @@ export default function Page({ loaderData: user }: Route.ComponentProps) {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { replace: true, preventScrollReset: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { replace: true, preventScrollReset: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Content prev={+min} />
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Content prev={+min} />
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }
@@ -63,39 +67,37 @@ function Content(props: IContent) {
   });
 
   return (
-    <Dialog.Popup
-      render={
-        <form
-          onSubmit={handleSubmit(async ({ amount }) => {
-            fetcher.submit(amount, { method: "put", encType: "text/plain" });
-          })}
-        />
-      }
-      className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6"
-    >
-      <h4 className="mb-2">Payout threshold</h4>
-
-      <Field.Root className="grid my-4">
-        <Field.Label className="mb-1">
-          Amount
-          <span className="text-destructive"> *</span>
-        </Field.Label>
-        <input
-          placeholder="e.g. $ 100"
-          {...register("amount")}
-          className="px-4 py-3 rounded outline-ring border"
-        />
-        <span className="text-destructive text-xs text-right empty:hidden mt-1">
-          {errors.amount?.message}
-        </span>
-      </Field.Root>
-      <button
-        type="submit"
-        disabled={fetcher.state !== "idle" || !isDirty}
-        className="text-sm btn-primary rounded px-4 py-2 font-bold"
+    <Dialog.Content asChild>
+      <form
+        onSubmit={handleSubmit(async ({ amount }) => {
+          fetcher.submit(amount, { method: "put", encType: "text/plain" });
+        })}
+        className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6"
       >
-        {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
-      </button>
-    </Dialog.Popup>
+        <h4 className="mb-2">Payout threshold</h4>
+
+        <Field.Root className="grid my-4">
+          <Field.Label className="mb-1">
+            Amount
+            <span className="text-destructive"> *</span>
+          </Field.Label>
+          <input
+            placeholder="e.g. $ 100"
+            {...register("amount")}
+            className="px-4 py-3 rounded outline-ring border"
+          />
+          <span className="text-destructive text-xs text-right empty:hidden mt-1">
+            {errors.amount?.message}
+          </span>
+        </Field.Root>
+        <button
+          type="submit"
+          disabled={fetcher.state !== "idle" || !isDirty}
+          className="text-sm btn-primary rounded px-4 py-2 font-bold"
+        >
+          {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
+        </button>
+      </form>
+    </Dialog.Content>
   );
 }
