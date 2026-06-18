@@ -1,4 +1,4 @@
-import { Field } from "@base-ui/react/field";
+import { Field } from "@ark-ui/react/field";
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 interface Props {
@@ -36,10 +36,10 @@ interface IInput2
 
 export function Input2({ className = "", ref, ...props }: IInput2) {
   return (
-    <Field.Control
+    <Field.Input
       {...props}
       placeholder=""
-      className="peer w-full py-3.5 text-sm rounded border bg-input px-4 transition-colors outline-ring data-[field=invalid]:border-destructive"
+      className="peer w-full py-3.5 text-sm rounded border bg-input px-4 transition-colors outline-ring data-invalid:border-destructive"
       ref={ref}
     />
   );
