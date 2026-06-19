@@ -460,7 +460,10 @@ export async function action({ request }: Route.ActionArgs) {
           subs_id,
           sub,
           don,
-          from_email: don.from_email,
+          // use the subscriber email directly: if SALE.COMPLETED races ahead of
+          // BILLING.SUBSCRIPTION.ACTIVATED, don.from_email is still the
+          // placeholder, and sub_put's onConflictDoNothing would freeze it in.
+          from_email: email,
         });
         if (typeof subs_db === "string")
           return new Response(`paypal sale.completed: ${subs_db}`, {
