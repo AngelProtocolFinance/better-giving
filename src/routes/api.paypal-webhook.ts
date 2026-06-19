@@ -41,6 +41,56 @@ const to_interval = (from: TIntervalFrom): TInterval => {
   }
 };
 
+// builds an ISub from a paypal subscription resource + donation context.
+// returns a string error message on missing data, else the record.
+async function build_sub_record(args: {
+  subs_id: string;
+  sub: Subs;
+  don: IDonation;
+  from_email: string;
+  create_time?: string;
+  update_time?: string;
+}): Promise<ISub | string> {
+  const { subs_id, sub, don, from_email } = args;
+  const create_time =
+    args.create_time ?? sub.create_time ?? new Date().toISOString();
+  const update_time =
+    args.update_time ?? sub.update_time ?? new Date().toISOString();
+
+  if (!sub.plan_id) return "missing subscription plan id";
+  const plan = await paypal.get_plan(sub.plan_id);
+  if (!plan) return "plan not found";
+  const cycle = plan.billing_cycles?.[0];
+  if (!cycle) return "missing plan billing cycle";
+  const interval = cycle.frequency?.interval_unit;
+  const interval_count = cycle.frequency?.interval_count || 1;
+  if (!interval) return "missing plan frequency interval unit";
+  const next_billing = sub.billing_info?.next_billing_time;
+  if (!next_billing) return "missing next billing time";
+  if (!plan.product_id) return "missing plan product id";
+
+  const total = don.amount.base + don.amount.tip + don.amount.fee_allowance;
+  const total_usd = total / don.upusd;
+  return {
+    id: subs_id,
+    created_at: new Date(create_time).toISOString(),
+    updated_at: new Date(update_time).toISOString(),
+    interval: to_interval(interval),
+    interval_count,
+    next_billing: new Date(next_billing).toISOString(),
+    amount: total,
+    amount_usd: total_usd,
+    currency: don.currency,
+    product_id: plan.product_id,
+    to_npo_id: don.to_type === "npo" ? Number(don.to_id) : null,
+    to_fund_id: don.to_type === "fund" ? don.to_id : null,
+    to_name: don.to_name,
+    platform: "paypal",
+    status: "active",
+    from_id: from_email,
+  };
+}
+
 interface IAddress {
   address_line_1?: string;
   address_line_2?: string;
@@ -184,34 +234,7 @@ export async function action({ request }: Route.ActionArgs) {
           custom_id: don_id,
           create_time = new Date().toISOString(),
           update_time = new Date().toISOString(),
-          ...s
         } = ev.resource as Subs;
-
-        if (!s.plan_id)
-          return new Response("missing subscription plan id", { status: 400 });
-        const plan = await paypal.get_plan(s.plan_id);
-        if (!plan) return new Response("plan not found", { status: 400 });
-
-        const cycle = plan.billing_cycles?.[0];
-        if (!cycle) {
-          return new Response("missing plan billing cycle", { status: 400 });
-        }
-
-        const interval = cycle.frequency?.interval_unit;
-        const interval_count = cycle.frequency?.interval_count || 1;
-        if (!interval) {
-          return new Response("missing plan frequency interval unit", {
-            status: 400,
-          });
-        }
-        const next_billing = s.billing_info?.next_billing_time;
-        if (!next_billing) {
-          return new Response("missing next billing time", { status: 400 });
-        }
-        if (!s.quantity)
-          return new Response("missing subscription qty", { status: 400 });
-        if (!plan.product_id)
-          return new Response("missing plan product id", { status: 400 });
 
         if (!don_id) return new Response("missing don id", { status: 400 });
         const don = await donation_get(don_id);
@@ -234,27 +257,16 @@ export async function action({ request }: Route.ActionArgs) {
         if (!subs_id)
           return new Response("missing subscription id", { status: 400 });
 
-        const total =
-          don.amount.base + don.amount.tip + don.amount.fee_allowance;
-        const total_usd = total / don.upusd;
-        const subs_db: ISub = {
-          id: subs_id,
-          created_at: new Date(create_time).toISOString(),
-          updated_at: new Date(update_time).toISOString(),
-          interval: to_interval(interval),
-          interval_count,
-          next_billing: new Date(next_billing).toISOString(),
-          amount: total,
-          amount_usd: total_usd,
-          currency: don.currency,
-          product_id: plan.product_id,
-          to_npo_id: don.to_type === "npo" ? Number(don.to_id) : null,
-          to_fund_id: don.to_type === "fund" ? don.to_id : null,
-          to_name: don.to_name,
-          platform: "paypal",
-          status: "active",
-          from_id: updated_don.from_email,
-        };
+        const subs_db = await build_sub_record({
+          subs_id,
+          sub: ev.resource as Subs,
+          don,
+          from_email: updated_don.from_email,
+          create_time,
+          update_time,
+        });
+        if (typeof subs_db === "string")
+          return new Response(subs_db, { status: 400 });
 
         await sub_put(db, subs_db);
         return new Response(`created subscription record ${subs_id}`, {
@@ -442,6 +454,18 @@ export async function action({ request }: Route.ActionArgs) {
           const don = await donation_update(tx, don_id, {
             ...donor,
           });
+          // upsert subscription row before referencing its FK on the donation;
+          // BILLING.SUBSCRIPTION.ACTIVATED may not have landed yet (paypal does
+          // not guarantee webhook ordering).
+          const subs_db = await build_sub_record({
+            subs_id,
+            sub,
+            don,
+            from_email: don.from_email,
+          });
+          if (typeof subs_db === "string")
+            throw new Error(`paypal sale.completed: ${subs_db}`);
+          await sub_put(tx, subs_db);
           const sttl_record = {
             id: sale_id,
             date: create_date,
