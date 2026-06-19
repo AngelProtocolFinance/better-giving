@@ -1,4 +1,5 @@
-import { Popover } from "@base-ui/react/popover";
+import { Popover } from "@ark-ui/react/popover";
+import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { FilterIcon } from "lucide-react";
 import { useState } from "react";
@@ -69,7 +70,11 @@ export function Filter({ classes = "", isDisabled }: Props) {
 
   return (
     <div className={`${classes} flex relative items-center`}>
-      <Popover.Root open={open} onOpenChange={set_open}>
+      <Popover.Root
+        open={open}
+        onOpenChange={(e) => set_open(e.open)}
+        positioning={{ placement: "bottom", gutter: 4 }}
+      >
         <Popover.Trigger
           disabled={isDisabled}
           className="w-full flex justify-center items-center p-3 rounded bg-primary text-primary-fg lg:text-muted-fg lg:bg-input lg:w-[22.3rem] lg:justify-between disabled:bg-muted-fg disabled:text-muted-fg lg:disabled:bg-muted lg:border"
@@ -79,57 +84,60 @@ export function Filter({ classes = "", isDisabled }: Props) {
           <DrawerIcon is_open={open} className="hidden lg:inline" size={21} />
         </Popover.Trigger>
 
-        <Popover.Portal>
-          <Popover.Positioner side="bottom" sideOffset={4}>
-            <Popover.Popup
-              render={
-                <form
-                  onSubmit={handleSubmit(submit)}
-                  onReset={(e) => {
-                    e.preventDefault();
-                    reset();
-                    setParams({ status: "under-review" });
-                    set_open(false);
+        <Portal>
+          <Popover.Positioner>
+            <Popover.Content
+              asChild
+              className="grid content-start gap-4 w-(--reference-width) rounded border bg-popover text-popover-fg origin-(--transform-origin) transition-[opacity,scale] duration-150 data-[state=closed]:opacity-0 data-[state=closed]:scale-90"
+            >
+              <form
+                onSubmit={handleSubmit(submit)}
+                onReset={(e) => {
+                  e.preventDefault();
+                  reset();
+                  setParams({ status: "under-review" });
+                  set_open(false);
+                }}
+              >
+                <Field
+                  {...register("endowment_id")}
+                  label="Endowment ID"
+                  classes="mx-6 mt-4"
+                  error={errors.endowment_id?.message}
+                />
+
+                <Select
+                  ref={stat.ref}
+                  value={stat.value ?? ""}
+                  onChange={stat.onChange}
+                  label="Application Status"
+                  options={Object.keys(statuses)}
+                  option_disp={(s) => (statuses as any)[s]}
+                  classes={{
+                    button: "",
+                    options: "text-sm",
+                    container: "px-5",
                   }}
                 />
-              }
-              className="grid content-start gap-4 w-[var(--anchor-width)] rounded border bg-popover text-popover-fg origin-[var(--transform-origin)] transition-[opacity,scale] duration-150 data-[starting-style]:opacity-0 data-[starting-style]:scale-90 data-[ending-style]:opacity-0 data-[ending-style]:scale-90"
-            >
-              <Field
-                {...register("endowment_id")}
-                label="Endowment ID"
-                classes="mx-6 mt-4"
-                error={errors.endowment_id?.message}
-              />
 
-              <Select
-                ref={stat.ref}
-                value={stat.value ?? ""}
-                onChange={stat.onChange}
-                label="Application Status"
-                options={Object.keys(statuses)}
-                option_disp={(s) => (statuses as any)[s]}
-                classes={{
-                  button: "",
-                  options: "text-sm",
-                  container: "px-5",
-                }}
-              />
-
-              <div className="flex gap-x-4 items-center justify-between p-6 lg:mt-2 bg-muted border-t">
-                <button type="reset" className="text-primary underline text-sm">
-                  Reset filters
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn btn-primary px-6 py-2 rounded text-xs font-bold"
-                >
-                  Apply filters
-                </button>
-              </div>
-            </Popover.Popup>
+                <div className="flex gap-x-4 items-center justify-between p-6 lg:mt-2 bg-muted border-t">
+                  <button
+                    type="reset"
+                    className="text-primary underline text-sm"
+                  >
+                    Reset filters
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn btn-primary px-6 py-2 rounded text-xs font-bold"
+                  >
+                    Apply filters
+                  </button>
+                </div>
+              </form>
+            </Popover.Content>
           </Popover.Positioner>
-        </Popover.Portal>
+        </Portal>
       </Popover.Root>
     </div>
   );

@@ -1,4 +1,5 @@
-import { Popover } from "@base-ui/react/popover";
+import { Popover } from "@ark-ui/react/popover";
+import { Portal } from "@ark-ui/react/portal";
 import { FilterIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
@@ -37,7 +38,11 @@ export function Filter({ classes = "", isDisabled }: Props) {
 
   return (
     <div className={`${classes} flex relative items-center`}>
-      <Popover.Root open={open} onOpenChange={set_open}>
+      <Popover.Root
+        open={open}
+        onOpenChange={(e) => set_open(e.open)}
+        positioning={{ placement: "bottom", gutter: 4 }}
+      >
         <Popover.Trigger
           disabled={isDisabled}
           className="w-full flex justify-center items-center p-3 rounded bg-primary text-primary-fg lg:text-muted-fg lg:bg-input lg:border lg:w-[22.3rem] lg:justify-between disabled:bg-muted-fg disabled:text-muted-fg lg:disabled:bg-muted"
@@ -47,15 +52,15 @@ export function Filter({ classes = "", isDisabled }: Props) {
           <DrawerIcon is_open={open} className="hidden lg:inline" size={21} />
         </Popover.Trigger>
 
-        <Popover.Portal>
-          <Popover.Positioner side="bottom" sideOffset={4}>
+        <Portal>
+          <Popover.Positioner>
             <Form
               params={parsed}
               onSubmit={onSubmit}
               onReset={() => setParams({ status: "02" })}
             />
           </Popover.Positioner>
-        </Popover.Portal>
+        </Portal>
       </Popover.Root>
     </div>
   );

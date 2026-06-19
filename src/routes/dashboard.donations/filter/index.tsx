@@ -1,4 +1,5 @@
-import { Popover } from "@base-ui/react/popover";
+import { Popover } from "@ark-ui/react/popover";
+import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { Filter as FilterIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -54,7 +55,11 @@ export function Filter({ classes = "", isDisabled }: Props) {
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={set_open}>
+    <Popover.Root
+      open={open}
+      onOpenChange={(e) => set_open(e.open)}
+      positioning={{ placement: "bottom", gutter: 4 }}
+    >
       <div className={`${classes} flex relative items-center`}>
         <Popover.Trigger
           disabled={isDisabled}
@@ -66,65 +71,65 @@ export function Filter({ classes = "", isDisabled }: Props) {
         </Popover.Trigger>
       </div>
 
-      <Popover.Portal>
-        <Popover.Positioner side="bottom" sideOffset={4}>
-          <Popover.Popup
-            render={
-              <form
-                onSubmit={handleSubmit(submit, (err) => {
-                  console.error(err);
-                })}
-                onReset={() => {
-                  const p = new URLSearchParams(params);
-                  p.delete("startDate");
-                  p.delete("endDate");
-                  setParams(p);
-                }}
-              />
-            }
-            className="max-@5xl:fixed max-@5xl:inset-x-0 max-@5xl:top-0 z-40 grid content-start gap-4 w-[var(--anchor-width)] rounded border bg-popover text-popover-fg pb-6 @5xl:pb-0 shadow-lg @5xl:shadow-xs origin-[var(--transform-origin)] transition-[opacity,scale] duration-150 data-[starting-style]:opacity-0 data-[starting-style]:scale-90 data-[ending-style]:opacity-0 data-[ending-style]:scale-90"
+      <Portal>
+        <Popover.Positioner>
+          <Popover.Content
+            asChild
+            className="max-@5xl:fixed max-@5xl:inset-x-0 max-@5xl:top-0 z-40 grid content-start gap-4 w-(--reference-width) rounded border bg-popover text-popover-fg pb-6 @5xl:pb-0 shadow-lg @5xl:shadow-xs origin-(--transform-origin) transition-[opacity,scale] duration-150 data-[state=closed]:opacity-0 data-[state=closed]:scale-90"
           >
-            <div className="@5xl:hidden relative text-xl px-4 py-3 -mb-4 font-bold uppercase">
-              <span className="text-primary">Filters</span>
-              <Popover.Close className="absolute top-1/2 -translate-y-1/2 right-2">
-                <XIcon size={33} />
-              </Popover.Close>
-            </div>
+            <form
+              onSubmit={handleSubmit(submit, (err) => {
+                console.error(err);
+              })}
+              onReset={() => {
+                const p = new URLSearchParams(params);
+                p.delete("startDate");
+                p.delete("endDate");
+                setParams(p);
+              }}
+            >
+              <div className="@5xl:hidden relative text-xl px-4 py-3 -mb-4 font-bold uppercase">
+                <span className="text-primary">Filters</span>
+                <Popover.CloseTrigger className="absolute top-1/2 -translate-y-1/2 right-2">
+                  <XIcon size={33} />
+                </Popover.CloseTrigger>
+              </div>
 
-            <div className="grid gap-x-[1.125rem] grid-cols-2 px-4 @5xl:px-6 @5xl:pt-6">
-              <p className="col-span-full text-sm mb-2">Date</p>
-              <Field
-                label=""
-                type="date"
-                {...register("start_date")}
-                error={errors.start_date?.message}
-              />
-              <Field
-                label=""
-                type="date"
-                {...register("end_date")}
-                error={errors.end_date?.message}
-              />
-            </div>
+              <div className="grid gap-x-4.5 grid-cols-2 px-4 @5xl:px-6 @5xl:pt-6">
+                <p className="col-span-full text-sm mb-2">Date</p>
+                <Field
+                  label=""
+                  type="date"
+                  {...register("start_date")}
+                  error={errors.start_date?.message}
+                />
+                <Field
+                  label=""
+                  type="date"
+                  {...register("end_date")}
+                  error={errors.end_date?.message}
+                />
+              </div>
 
-            <div className="row-start-2 flex gap-x-4 items-center justify-between px-4 py-3 p-6 @5xl:mt-2 bg-muted border-y @5xl:border-t">
-              <h3 className="uppercase @5xl:hidden">Filter by</h3>
-              <button
-                type="reset"
-                className="text-primary underline text-sm ml-auto @5xl:ml-0"
-              >
-                Reset filters
-              </button>
-              <button
-                type="submit"
-                className="btn btn btn-primary px-6 py-2 rounded text-xs font-bold"
-              >
-                Submit
-              </button>
-            </div>
-          </Popover.Popup>
+              <div className="row-start-2 flex gap-x-4 items-center justify-between px-4 py-3 p-6 @5xl:mt-2 bg-muted border-y @5xl:border-t">
+                <h3 className="uppercase @5xl:hidden">Filter by</h3>
+                <button
+                  type="reset"
+                  className="text-primary underline text-sm ml-auto @5xl:ml-0"
+                >
+                  Reset filters
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn btn-primary px-6 py-2 rounded text-xs font-bold"
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </Popover.Content>
         </Popover.Positioner>
-      </Popover.Portal>
+      </Portal>
     </Popover.Root>
   );
 }
