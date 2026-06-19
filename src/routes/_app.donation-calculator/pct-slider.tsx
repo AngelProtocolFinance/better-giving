@@ -1,4 +1,4 @@
-import { Slider } from "@base-ui/react/slider";
+import { Slider } from "@ark-ui/react/slider";
 import { CircleHelpIcon } from "lucide-react";
 import { Arrow, Content, Tooltip } from "#/components/tooltip";
 
@@ -33,17 +33,15 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
         <div className="flex-1">
           <Slider.Root
             className="relative flex w-full touch-none select-none items-center"
-            value={p.value}
+            value={[p.value]}
             max={p.range[1]}
             min={p.range[0]}
             step={0.001}
-            onValueChange={(val) =>
-              p.onChange(typeof val === "number" ? val : val[0])
-            }
+            onValueChange={(e) => p.onChange(e.value[0])}
           >
             <Slider.Control className="flex w-full items-center">
               <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
-                <Slider.Indicator className="absolute h-full bg-primary" />
+                <Slider.Range className="absolute h-full bg-primary" />
               </Slider.Track>
               <Slider.Thumb
                 index={0}
