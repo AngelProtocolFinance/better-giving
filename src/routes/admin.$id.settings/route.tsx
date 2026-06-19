@@ -26,7 +26,7 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
             <Tabs.Trigger
               key={tab.id}
               value={tab.id}
-              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus:outline-none border-transparent text-muted-fg hover:text-fg data-[selected]:border-primary data-[selected]:text-primary"
+              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus:outline-none border-transparent text-muted-fg hover:text-fg data-selected:border-primary data-selected:text-primary"
             >
               {tab.name}
             </Tabs.Trigger>

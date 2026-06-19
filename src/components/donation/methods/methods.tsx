@@ -97,7 +97,7 @@ export function DonateMethods(props: TDonation) {
             <span className="text-left text-sm">
               {methods[tab].name}
               {tab === "stripe_bank" && (
-                <span className="block text-[10px] leading-none font-medium text-primary">
+                <span className="block text-2xs leading-none font-medium text-primary">
                   Lowest fee
                 </span>
               )}

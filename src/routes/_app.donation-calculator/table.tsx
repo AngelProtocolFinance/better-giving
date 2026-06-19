@@ -63,7 +63,7 @@ export function Table({ classes = "", ...v }: Props) {
             <Tabs.Trigger
               key={p.value}
               value={p.label}
-              className="flex-1 py-2.5 font-medium leading-5 focus:outline-none text-fg hover:text-primary data-[selected]:border-b-2 data-[selected]:border-primary data-[selected]:text-primary"
+              className="flex-1 py-2.5 font-medium leading-5 focus:outline-none text-fg hover:text-primary data-selected:border-b-2 data-selected:border-primary data-selected:text-primary"
             >
               {p.label}
             </Tabs.Trigger>
