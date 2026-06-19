@@ -1,5 +1,4 @@
 import { Field } from "@ark-ui/react/field";
-import { Input } from "@base-ui/react/input";
 import { CircleHelpIcon } from "lucide-react";
 import { MaskedInput } from "#/components/form";
 import { mask, unmask } from "#/components/form/masks/dollar";
@@ -68,7 +67,7 @@ export function Form1({ classes = "", state, setState }: Props) {
 
       <Field.Root className="mt-6">
         <div className="flex items-center gap-2">
-          <Input
+          <Field.Input
             checked={state.processingFeeCovered}
             onChange={(e) => {
               setState({
@@ -112,7 +111,7 @@ export function Form1({ classes = "", state, setState }: Props) {
         {methodsArr.map((m) => {
           return (
             <Field.Root key={m} className="flex items-center gap-2">
-              <Input
+              <Field.Input
                 type="checkbox"
                 className="checkbox"
                 checked={state.donMethods.includes(m)}

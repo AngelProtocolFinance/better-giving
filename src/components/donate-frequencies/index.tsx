@@ -1,6 +1,5 @@
+import { Field } from "@ark-ui/react/field";
 import { Fieldset } from "@ark-ui/react/fieldset";
-import { Field } from "@base-ui/react/field";
-import { Input } from "@base-ui/react/input";
 import type { Ref } from "react";
 
 interface Props {
@@ -31,7 +30,7 @@ export function DonateFrequencies({
           key={idx}
           className="border p-2 rounded accent-primary grid grid-cols-subgrid col-span-2"
         >
-          <Input
+          <Field.Input
             type="checkbox"
             className="checkbox"
             checked={p.value[idx] || false}
