@@ -1,4 +1,4 @@
-import { Collapsible } from "@base-ui/react/collapsible";
+import { Collapsible } from "@ark-ui/react/collapsible";
 import {
   BrainIcon,
   CheckIcon,
@@ -26,7 +26,7 @@ export function Explainer({ classes = "" }) {
 
   return (
     <div className={`w-full ${classes}`}>
-      <Collapsible.Root open={open} onOpenChange={set_open}>
+      <Collapsible.Root open={open} onOpenChange={(e) => set_open(e.open)}>
         <div className="flex items-center gap-x-1 mb-1 relative">
           <LightBulbIcon
             className="max-md:hidden text-primary shrink-0 absolute -left-6"
@@ -40,10 +40,7 @@ export function Explainer({ classes = "" }) {
           of the contributions made by donors to support {app_name} — for the
           next 3 years.
         </p>
-        <Collapsible.Panel
-          keepMounted
-          className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-300 ease-out data-ending-style:h-0 data-starting-style:h-0"
-        >
+        <Collapsible.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
           <div className="flex items-start gap-3 mt-4 max-w-4xl relative">
             <BrainIcon
               size={18}
@@ -98,7 +95,7 @@ export function Explainer({ classes = "" }) {
               Referral FAQ
             </ExtLink>
           </div>
-        </Collapsible.Panel>
+        </Collapsible.Content>
 
         <Collapsible.Trigger
           className={`flex items-center justify-center text-primary ${open ? "mt-4" : "mt-2"}`}
