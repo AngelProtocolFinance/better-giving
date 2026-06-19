@@ -7,6 +7,14 @@ pre-commit:
     type-check:
       glob: "*.{ts,tsx}"
       run: pnpm tsc-files {staged_files}
+    # block re-introduction of @base-ui/react (replaced by @ark-ui/react)
+    base-ui-guard:
+      glob: "*.{ts,tsx}"
+      run: |
+        if grep -l "@base-ui/react" {staged_files} 2>/dev/null; then
+          echo "ERROR: @base-ui/react was removed during ark-ui migration — use @ark-ui/react"
+          exit 1
+        fi
     # block commit if plaintext env is newer than its .gpg — forces re-encryption
     env-check:
       glob: "scripts/env/content/*.ts"
