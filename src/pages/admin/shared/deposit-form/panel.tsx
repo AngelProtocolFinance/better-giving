@@ -1,6 +1,5 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Radio } from "@base-ui/react/radio";
-import { RadioGroup } from "@base-ui/react/radio-group";
+import { RadioGroup } from "@ark-ui/react/radio-group";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { Copier } from "#/components/copier";
@@ -153,36 +152,38 @@ function AccountSelector({
   return (
     <div className={classes}>
       <p className="label mb-2">Deposit to</p>
-      <RadioGroup
+      <RadioGroup.Root
         value={value}
-        onValueChange={onChange}
+        onValueChange={(e) => onChange(e.value as AccountType)}
         className="grid grid-cols-2 gap-3"
       >
-        <Radio.Root
+        <RadioGroup.Item
           value={"savings" satisfies AccountType}
-          className="group border rounded p-4 data-checked:border-primary data-checked:bg-accent transition-colors flex items-center justify-between"
+          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-accent transition-colors flex items-center justify-between"
         >
-          <span className="text-sm font-medium group-data-checked:text-primary">
+          <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
             Savings account
-          </span>
+          </RadioGroup.ItemText>
           <Check
             size={18}
-            className="text-transparent group-data-checked:text-primary"
+            className="text-transparent group-data-[state=checked]:text-primary"
           />
-        </Radio.Root>
-        <Radio.Root
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+        <RadioGroup.Item
           value={"investments" satisfies AccountType}
-          className="group border rounded p-4 data-checked:border-primary data-checked:bg-accent transition-colors flex items-center justify-between"
+          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-accent transition-colors flex items-center justify-between"
         >
-          <span className="text-sm font-medium group-data-checked:text-primary">
+          <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
             Investments account
-          </span>
+          </RadioGroup.ItemText>
           <Check
             size={18}
-            className="text-transparent group-data-checked:text-primary"
+            className="text-transparent group-data-[state=checked]:text-primary"
           />
-        </Radio.Root>
-      </RadioGroup>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+      </RadioGroup.Root>
     </div>
   );
 }

@@ -1,5 +1,4 @@
-import { Radio } from "@base-ui/react/radio";
-import { RadioGroup } from "@base-ui/react/radio-group";
+import { RadioGroup } from "@ark-ui/react/radio-group";
 import { CircleHelp } from "lucide-react";
 import { Arrow, Content, Tooltip } from "../tooltip";
 import type { TargetType } from "./types";
@@ -17,22 +16,22 @@ interface Props {
 }
 export function GoalSelector(props: Props) {
   return (
-    <RadioGroup
+    <RadioGroup.Root
       value={props.value}
-      onValueChange={props.onChange}
+      onValueChange={(e) => props.onChange(e.value as TargetType)}
       aria-label="Fundraiser Goal"
       className={`${props.classes ?? ""} grid gap-y-2`}
     >
       {Object.entries(options).map(([value, label]) => (
-        // biome-ignore lint/a11y/noLabelWithoutControl: wraps Radio.Root
-        <label key={value} className="flex items-center gap-2">
-          <Radio.Root
-            value={value}
-            className="group flex size-5 items-center justify-center rounded-full border bg-input data-checked:bg-primary"
-          >
-            <span className="invisible size-2 rounded-full bg-card group-data-checked:visible" />
-          </Radio.Root>
-          <span className="text-sm">
+        <RadioGroup.Item
+          key={value}
+          value={value}
+          className="flex items-center gap-2"
+        >
+          <RadioGroup.ItemControl className="group flex size-5 items-center justify-center rounded-full border bg-input data-[state=checked]:bg-primary">
+            <span className="invisible size-2 rounded-full bg-card group-data-[state=checked]:visible" />
+          </RadioGroup.ItemControl>
+          <RadioGroup.ItemText className="text-sm">
             {label}{" "}
             {value === "smart" && (
               <Tooltip
@@ -48,9 +47,10 @@ export function GoalSelector(props: Props) {
                 <CircleHelp size={14} className="relative inline" />
               </Tooltip>
             )}
-          </span>
-        </label>
+          </RadioGroup.ItemText>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
       ))}
-    </RadioGroup>
+    </RadioGroup.Root>
   );
 }

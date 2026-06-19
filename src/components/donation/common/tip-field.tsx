@@ -1,6 +1,5 @@
+import { RadioGroup } from "@ark-ui/react/radio-group";
 import { Field } from "@base-ui/react/field";
-import { Radio } from "@base-ui/react/radio";
-import { RadioGroup } from "@base-ui/react/radio-group";
 import { Switch } from "@base-ui/react/switch";
 import { PencilIcon } from "lucide-react";
 import type { ReactElement } from "react";
@@ -37,36 +36,42 @@ export function TipField({ classes = "", ...p }: Props) {
           Support free fundraising tools
         </Field.Label>
       </Field.Root>
-      <RadioGroup
+      <RadioGroup.Root
         className="flex gap-x-1"
         value={p.tip_format}
-        onValueChange={p.tip_format_changed}
+        onValueChange={(e) => p.tip_format_changed(e.value as TTipFormat)}
       >
-        <Radio.Root
-          className="text-xs outline outline-form-secondary hover:not-data-checked:bg-form-secondary data-checked:outline-none data-checked:bg-form-secondary data-checked:text-form-primary data-checked:pointer-events-none select-none px-2 py-1 rounded"
+        <RadioGroup.Item
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
           value={"10" satisfies TTipFormat}
         >
-          10%
-        </Radio.Root>
-        <Radio.Root
-          className="text-xs outline outline-form-secondary hover:not-data-checked:bg-form-secondary data-checked:outline-none data-checked:bg-form-secondary data-checked:text-form-primary data-checked:pointer-events-none select-none px-2 py-1 rounded"
+          <RadioGroup.ItemText>10%</RadioGroup.ItemText>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+        <RadioGroup.Item
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
           value={"15" satisfies TTipFormat}
         >
-          15%
-        </Radio.Root>
-        <Radio.Root
-          className="text-xs outline outline-form-secondary hover:not-data-checked:bg-form-secondary data-checked:outline-none data-checked:bg-form-secondary data-checked:text-form-primary data-checked:pointer-events-none select-none px-2 py-1 rounded"
+          <RadioGroup.ItemText>15%</RadioGroup.ItemText>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+        <RadioGroup.Item
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
           value={"20" satisfies TTipFormat}
         >
-          20%
-        </Radio.Root>
-        <Radio.Root
-          className="text-xs outline outline-form-secondary hover:not-data-checked:bg-form-secondary data-checked:outline-none data-checked:bg-form-secondary data-checked:text-form-primary data-checked:pointer-events-none select-none px-2 py-1 rounded flex-center"
+          <RadioGroup.ItemText>20%</RadioGroup.ItemText>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+        <RadioGroup.Item
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded flex-center"
           value={"custom" satisfies TTipFormat}
         >
-          <PencilIcon className="inline-block size-3 " />
-        </Radio.Root>
-      </RadioGroup>
+          <RadioGroup.ItemText>
+            <PencilIcon className="inline-block size-3 " />
+          </RadioGroup.ItemText>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+      </RadioGroup.Root>
       {p.tip_format === "none" && (
         <p className="text-warning text-xs w-full">
           Please consider helping keep <BgTxtLogoLink /> free for everyone, as a

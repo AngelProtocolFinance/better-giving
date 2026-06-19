@@ -1,11 +1,9 @@
-import { Fieldset } from "@base-ui/react/fieldset";
-import { Radio } from "@base-ui/react/radio";
-import { RadioGroup } from "@base-ui/react/radio-group";
+import { RadioGroup } from "@ark-ui/react/radio-group";
 import type { TFrequency } from "@/schemas";
 import { freqs_default } from "./constants";
 
 const opt_style =
-  "group text-sm rounded px-4 py-2 border flex items-center justify-center @md/frequency:justify-start hover:not-data-checked:bg-(--form-secondary) data-checked:bg-(--form-primary) data-checked:text-primary-fg data-checked:border-none select-none";
+  "group text-sm rounded px-4 py-2 border flex items-center justify-center @md/frequency:justify-start hover:not-data-[state=checked]:bg-(--form-secondary) data-[state=checked]:bg-(--form-primary) data-[state=checked]:text-primary-fg data-[state=checked]:border-none select-none";
 
 const freqs_disp = {
   "one-time": "Once",
@@ -37,20 +35,22 @@ export function Frequency({
 }: Props) {
   return (
     <div className="@container/frequency">
-      <Fieldset.Root
-        render={<RadioGroup value={value} onValueChange={onChange} />}
+      <RadioGroup.Root
+        value={value}
+        onValueChange={(e) => onChange(e.value as TFrequency)}
       >
-        <Fieldset.Legend className="mb-1 label">
+        <RadioGroup.Label className="mb-1 label">
           Frequency <span className="text-destructive">*</span>
-        </Fieldset.Legend>
+        </RadioGroup.Label>
         <div className="grid grid-cols-2 gap-2 @md/frequency:flex">
           {opts.map((f) => (
-            <Radio.Root key={f} value={f} className={opt_style}>
-              Give {freqs_disp[f]}
-            </Radio.Root>
+            <RadioGroup.Item key={f} value={f} className={opt_style}>
+              <RadioGroup.ItemText>Give {freqs_disp[f]}</RadioGroup.ItemText>
+              <RadioGroup.ItemHiddenInput />
+            </RadioGroup.Item>
           ))}
         </div>
-      </Fieldset.Root>
+      </RadioGroup.Root>
       {error && <p className="field-err text-left mt-1">{error}</p>}
       <p className="text-muted-fg text-sm my-2">
         <span className="font-medium text-sm">Recurring donations</span> help
