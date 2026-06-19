@@ -60,7 +60,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             </Select.Trigger>
             <Portal>
               <Select.Positioner>
-                <Select.Content className="rounded-xs border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) transition-[opacity,scale] duration-150 data-[state=closed]:opacity-0 data-[state=closed]:scale-90">
+                <Select.Content className="rounded-xs border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
                   {OPTIONS.map((val) => (
                     <Select.Item
                       key={val || "all"}

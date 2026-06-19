@@ -29,7 +29,7 @@ export default function FAQ({ classes = "", endowId }: Props) {
                 className="shrink-0 group-data-[state=open]:rotate-180"
               />
             </Accordion.ItemTrigger>
-            <Accordion.ItemContent className="overflow-hidden">
+            <Accordion.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
               <div className="text-sm grid gap-3 text-muted-fg mb-6">
                 {faq.paragraphs.map((p, idx) => (
                   <Fragment key={idx}>{p}</Fragment>

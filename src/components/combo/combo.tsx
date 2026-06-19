@@ -60,7 +60,7 @@ interface InlineProps extends BaseProps {
 type Props = TriggerProps | InlineProps;
 
 const popup_cls =
-  "bg-popover text-popover-fg w-(--reference-width) max-h-60 overflow-y-auto overscroll-contain rounded shadow-2xl/20 origin-(--transform-origin) transition-[opacity,scale] duration-150 data-[state=closed]:opacity-0 data-[state=closed]:scale-90";
+  "bg-popover text-popover-fg w-(--reference-width) max-h-60 overflow-y-auto overscroll-contain rounded shadow-2xl/20 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out";
 
 export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
   const cls = unpack(props.classes);

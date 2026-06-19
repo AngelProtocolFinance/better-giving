@@ -86,6 +86,8 @@ export function DonateMethods(props: TDonation) {
       data-testid="donate-methods"
       className="grid @xl/steps:grid-cols-[auto_1fr]"
       defaultValue={tabs[tab_idx_found === -1 ? 0 : tab_idx_found]}
+      lazyMount
+      unmountOnExit
     >
       <Label className="p-4 pb-0 col-span-full @xl/steps:hidden font-bold">
         Payment method

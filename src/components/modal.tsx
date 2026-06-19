@@ -18,10 +18,10 @@ export function Modal(props: Props) {
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50 transition-opacity duration-200 data-[state=closed]:opacity-0" />
+        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
-            className={`z-50 transition-[opacity,scale] duration-200 data-[state=closed]:opacity-0 data-[state=closed]:scale-95 ${props.classes}`}
+            className={`z-50 data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${props.classes}`}
           >
             {props.children}
           </Dialog.Content>

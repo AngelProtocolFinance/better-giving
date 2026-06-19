@@ -75,7 +75,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
         <Popover.Positioner>
           <Popover.Content
             asChild
-            className="max-@5xl:fixed max-@5xl:inset-x-0 max-@5xl:top-0 z-40 grid content-start gap-4 w-(--reference-width) rounded border bg-popover text-popover-fg pb-6 @5xl:pb-0 shadow-lg @5xl:shadow-xs origin-(--transform-origin) transition-[opacity,scale] duration-150 data-[state=closed]:opacity-0 data-[state=closed]:scale-90"
+            className="max-@5xl:fixed max-@5xl:inset-x-0 max-@5xl:top-0 z-40 grid content-start gap-4 w-(--reference-width) rounded border bg-popover text-popover-fg pb-6 @5xl:pb-0 shadow-lg @5xl:shadow-xs origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out"
           >
             <form
               onSubmit={handleSubmit(submit, (err) => {

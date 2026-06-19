@@ -85,7 +85,7 @@ export function Select<T extends string>({
       <Portal>
         <ArkSelect.Positioner>
           <ArkSelect.Content
-            className={`${cls.options} rounded-xs border bg-popover text-popover-fg w-(--reference-width) max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border z-10 origin-(--transform-origin) transition-[opacity,scale] duration-150 data-[state=closed]:opacity-0 data-[state=closed]:scale-90`}
+            className={`${cls.options} rounded-xs border bg-popover text-popover-fg w-(--reference-width) max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out`}
           >
             {props.options.map((v) => (
               <ArkSelect.Item

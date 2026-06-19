@@ -67,7 +67,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
-            <Menu.Content className="z-10 grid grid-cols-2 w-max p-3 rounded bg-popover text-popover-fg shadow-xl shadow-black/5 transition duration-200 ease-out data-[state=closed]:scale-95 data-[state=closed]:opacity-0">
+            <Menu.Content className="z-10 grid grid-cols-2 w-max p-3 rounded bg-popover text-popover-fg shadow-xl shadow-black/5 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
               {menuItems.map((item) => (
                 <Menu.Item key={item.name} value={item.name} asChild>
                   <a

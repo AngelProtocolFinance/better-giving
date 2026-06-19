@@ -58,7 +58,7 @@ export function NavDropdown({ user, auth_links, classes = "" }: Props) {
         <Menu.Positioner className="z-40">
           <Menu.Content
             asChild
-            className="relative grid grid-cols-[auto_1fr] isolate z-40 rounded bg-popover drop-shadow-2xl origin-top transition duration-100 ease-out data-[state=closed]:scale-95 data-[state=closed]:opacity-0"
+            className="relative grid grid-cols-[auto_1fr] isolate z-40 rounded bg-popover drop-shadow-2xl origin-top data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out"
           >
             <nav>
               <div className="self-start">
