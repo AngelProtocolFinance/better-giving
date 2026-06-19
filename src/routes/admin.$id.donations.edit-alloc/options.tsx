@@ -10,7 +10,7 @@ export function AllocationOptions(props: Props) {
   return (
     <RadioGroup.Root
       value={to_alloc_opt_value(props.value)}
-      onValueChange={(e) => props.onChange(to_alloc(e.value))}
+      onValueChange={(e) => e.value && props.onChange(to_alloc(e.value))}
       className="grid grid-cols-[auto_1fr] gap-y-2"
     >
       {alloc_opts.map((option) => (

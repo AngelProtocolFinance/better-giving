@@ -1,4 +1,4 @@
-import { Menu } from "@base-ui/react/menu";
+import { Menu } from "@ark-ui/react/menu";
 import { href, NavLink } from "react-router";
 import type { INpoBookmark, IUserNpo2 } from "#/types/user";
 import { Image } from "../../image";
@@ -33,16 +33,19 @@ type LinkProps = {
 };
 const _Link = (props: LinkProps) => (
   <Menu.Item
-    render={<NavLink to={props.to} />}
+    value={`endow-${props.id}`}
+    asChild
     className="hover:text-primary text-sm grid grid-cols-subgrid col-span-2 items-center"
   >
-    <Image
-      loading="lazy"
-      src={props.logo}
-      className="object-cover aspect-square rounded-full"
-      height={20}
-      width={20}
-    />
-    <span className="">{props.name ?? `Endowment: ${props.id}`}</span>
+    <NavLink to={props.to}>
+      <Image
+        loading="lazy"
+        src={props.logo}
+        className="object-cover aspect-square rounded-full"
+        height={20}
+        width={20}
+      />
+      <span className="">{props.name ?? `Endowment: ${props.id}`}</span>
+    </NavLink>
   </Menu.Item>
 );
