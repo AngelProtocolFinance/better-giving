@@ -47,7 +47,9 @@ describe("Bank transfer form", () => {
 
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     await expect
@@ -56,7 +58,7 @@ describe("Bank transfer form", () => {
 
     await expect
       .element(
-        screen.getByRole("switch", {
+        screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
         })
       )

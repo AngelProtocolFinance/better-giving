@@ -39,7 +39,9 @@ describe("DAF form: initial load", () => {
     //tip enabled by default
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     // tip enabled and defaulted to 15%
@@ -50,7 +52,7 @@ describe("DAF form: initial load", () => {
     //fee coverage disabled by default
     await expect
       .element(
-        screen.getByRole("switch", {
+        screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
         })
       )
@@ -88,7 +90,9 @@ describe("DAF form: initial load", () => {
       .toHaveValue("100");
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     await expect
@@ -97,7 +101,7 @@ describe("DAF form: initial load", () => {
 
     await expect
       .element(
-        screen.getByRole("switch", {
+        screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
         })
       )

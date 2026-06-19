@@ -1,6 +1,5 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
-import { Field } from "@base-ui/react/field";
-import { Switch } from "@base-ui/react/switch";
+import { Switch } from "@ark-ui/react/switch";
 import { PencilIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { base_url } from "#/constants/env";
@@ -21,21 +20,22 @@ export function TipField({ classes = "", ...p }: Props) {
     <div
       className={`${classes} flex has-[input:not([type=radio]):focus-within]:border-b-form-primary items-center py-1 border-y justify-between flex-wrap gap-x-3 gap-y-1`}
     >
-      <Field.Root className="group gap-x-1 flex items-center text-sm justify-self-start">
-        <Switch.Root
-          checked={p.checked}
-          onCheckedChange={p.checked_changed}
-          className="group relative text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-checked:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50"
-        >
+      <Switch.Root
+        checked={p.checked}
+        onCheckedChange={(e) => p.checked_changed(e.checked)}
+        className="group gap-x-1 flex items-center text-sm justify-self-start"
+      >
+        <Switch.Control className="group relative text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
           <Switch.Thumb
             aria-hidden="true"
-            className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-checked:translate-x-3.5"
+            className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
           />
-        </Switch.Root>
-        <Field.Label className="whitespace-nowrap">
+        </Switch.Control>
+        <Switch.Label className="whitespace-nowrap">
           Support free fundraising tools
-        </Field.Label>
-      </Field.Root>
+        </Switch.Label>
+        <Switch.HiddenInput />
+      </Switch.Root>
       <RadioGroup.Root
         className="flex gap-x-1"
         value={p.tip_format}

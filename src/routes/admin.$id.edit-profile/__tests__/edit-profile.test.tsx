@@ -516,7 +516,11 @@ describe("edit profile — published toggle", () => {
       .toBeVisible();
 
     // click toggle — dispatch via JS (element below fold, not visible to Playwright)
-    (screen.getByRole("switch").element() as HTMLElement).click();
+    (
+      screen
+        .getByRole("checkbox", { name: /publish profile/i })
+        .element() as HTMLElement
+    ).click();
 
     // ui updates
     await expect
