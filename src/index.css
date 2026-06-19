@@ -239,14 +239,3 @@
     }
   }
 }
-
-@layer base {
-  *,
-  ::after,
-  ::before,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--border);
-    outline-color: var(--ring);
-  }
-}
