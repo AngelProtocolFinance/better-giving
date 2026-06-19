@@ -1,5 +1,5 @@
+import { QrCode } from "@ark-ui/react/qr-code";
 import { type IToken, is_custom } from "@better-giving/crypto";
-import { QRCodeSVG } from "qrcode.react";
 import { logo_url } from "@/constants/common";
 import { Copier } from "../../../copier";
 
@@ -13,17 +13,24 @@ interface Props {
 export function PayQr({ classes = "", ...props }: Props) {
   return (
     <div className={`${classes} grid justify-items-center`}>
-      <QRCodeSVG
-        imageSettings={{
-          src: logo_url(props.token.logo, is_custom(props.token.id)),
-          height: 20,
-          width: 20,
-          excavate: true,
-        }}
+      <QrCode.Root
         value={props.recipient}
-        className="mb-3.5"
-        size={192}
-      />
+        pixelSize={192}
+        className="mb-3.5 relative bg-white w-fit"
+        style={{ color: "#000" }}
+      >
+        <QrCode.Frame className="w-48 h-48 fill-current">
+          <QrCode.Pattern />
+        </QrCode.Frame>
+        <QrCode.Overlay className="bg-white p-0.5">
+          <img
+            src={logo_url(props.token.logo, is_custom(props.token.id))}
+            alt=""
+            width={20}
+            height={20}
+          />
+        </QrCode.Overlay>
+      </QrCode.Root>
       <p className="text-sm mb-4">{props.recipient}</p>
       <Copier
         text={props.recipient}
