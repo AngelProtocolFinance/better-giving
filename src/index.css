@@ -185,6 +185,9 @@
   --animate-popup-out: popup-out 150ms ease-in;
   --animate-accordion-down: accordion-down 300ms ease-out;
   --animate-accordion-up: accordion-up 300ms ease-out;
+  /* ark marquee: vars (--marquee-duration/delay/loop-count) provided by machine */
+  --animate-marquee-y: marqueeY var(--marquee-duration) linear
+    var(--marquee-delay) var(--marquee-loop-count);
 
   @keyframes overlay-in {
     from {
@@ -236,6 +239,14 @@
     }
     to {
       height: 0;
+    }
+  }
+  @keyframes marqueeY {
+    from {
+      transform: translateY(0%);
+    }
+    to {
+      transform: translateY(var(--marquee-translate));
     }
   }
 }
