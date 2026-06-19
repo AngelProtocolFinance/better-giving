@@ -42,7 +42,7 @@ export function Explainer({ classes = "" }) {
         </p>
         <Collapsible.Panel
           keepMounted
-          className="h-[var(--collapsible-panel-height)] overflow-hidden transition-[height] duration-300 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0"
+          className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-300 ease-out data-ending-style:h-0 data-starting-style:h-0"
         >
           <div className="flex items-start gap-3 mt-4 max-w-4xl relative">
             <BrainIcon
@@ -65,27 +65,18 @@ export function Explainer({ classes = "" }) {
 
           <div className="mt-4 space-y-2 max-w-4xl">
             <div className="flex items-start gap-2">
-              <CheckIcon
-                size={18}
-                className="text-success flex-shrink-0 mt-0.5"
-              />
+              <CheckIcon size={18} className="text-success shrink-0 mt-0.5" />
               <p>
                 Open to all {app_name} users — including donors, nonprofit
                 staff, consultants, and fundraising pros
               </p>
             </div>
             <div className="flex items-start gap-2">
-              <CheckIcon
-                size={18}
-                className="text-success flex-shrink-0 mt-0.5"
-              />
+              <CheckIcon size={18} className="text-success shrink-0 mt-0.5" />
               <p>Share your unique referral link or code</p>
             </div>
             <div className="flex items-start gap-2">
-              <CheckIcon
-                size={18}
-                className="text-success flex-shrink-0 mt-0.5"
-              />
+              <CheckIcon size={18} className="text-success shrink-0 mt-0.5" />
               <p>Track your referrals and payouts in this dashboard</p>
             </div>
           </div>
