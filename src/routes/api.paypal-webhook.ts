@@ -450,6 +450,23 @@ export async function action({ request }: Route.ActionArgs) {
 
         const donor = donor_update(email, name, shipping_address?.address);
 
+        const don = await donation_get(don_id);
+        if (!don) return new Response("don record not found", { status: 500 });
+
+        // build the subscription record before opening the tx: build_sub_record
+        // makes an external paypal.get_plan call we don't want to hold a db
+        // connection open for.
+        const subs_db = await build_sub_record({
+          subs_id,
+          sub,
+          don,
+          from_email: don.from_email,
+        });
+        if (typeof subs_db === "string")
+          return new Response(`paypal sale.completed: ${subs_db}`, {
+            status: 400,
+          });
+
         const p = await db.transaction(async (tx) => {
           const don = await donation_update(tx, don_id, {
             ...donor,
@@ -457,14 +474,6 @@ export async function action({ request }: Route.ActionArgs) {
           // upsert subscription row before referencing its FK on the donation;
           // BILLING.SUBSCRIPTION.ACTIVATED may not have landed yet (paypal does
           // not guarantee webhook ordering).
-          const subs_db = await build_sub_record({
-            subs_id,
-            sub,
-            don,
-            from_email: don.from_email,
-          });
-          if (typeof subs_db === "string")
-            throw new Error(`paypal sale.completed: ${subs_db}`);
           await sub_put(tx, subs_db);
           const sttl_record = {
             id: sale_id,
