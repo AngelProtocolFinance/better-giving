@@ -7,6 +7,10 @@ import { $int_gte1 } from "@/schemas";
 
 const schema = v.union([fund_id, $int_gte1]);
 
+export const headers = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
 export const loader: LoaderFunction = async ({ params, request }) => {
   const p = v.safeParse(schema, params.id);
   if (p.issues) throw resp.status(400, p.issues[0].message);
