@@ -603,11 +603,11 @@ describe("payment_intent.succeeded → settlement → UI", () => {
     await expect.element(screen.getByText("Card")).toBeInTheDocument();
     // fee labels conditionally rendered (only when > 0)
     // fiscal_sponsored + hide_bg_tip → all 3 fee types show
-    await expect.element(screen.getByText("base")).toBeInTheDocument();
+    await expect.element(screen.getByText(/^base$/)).toBeInTheDocument();
     await expect
-      .element(screen.getByText("fiscal sponsorship"))
+      .element(screen.getByText(/^fiscal sponsorship$/))
       .toBeInTheDocument();
-    await expect.element(screen.getByText("processing")).toBeInTheDocument();
+    await expect.element(screen.getByText(/^processing$/)).toBeInTheDocument();
     // net amount rendered (exact value verified in DB test)
     await expect.element(screen.getByText(/\$86/)).toBeInTheDocument();
     // program attribution
