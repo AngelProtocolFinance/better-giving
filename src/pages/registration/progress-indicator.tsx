@@ -1,12 +1,17 @@
-import { type PropsWithChildren, useState } from "react";
+import { Steps } from "@ark-ui/react/steps";
+import { useState } from "react";
 import { useLocation } from "react-router";
 import { DrawerIcon } from "#/components/icon";
-import { idParamToNum } from "#/helpers/id-param-to-num";
-import {
-  SCREEN_BREAKPOINTS,
-  use_handle_screen_resize,
-} from "#/hooks/use-handle-screen-resize";
+import { id_param_to_num } from "#/helpers/id-param-to-num";
 import type { Progress } from "@/reg";
+
+const labels = [
+  "Contact Details",
+  "Organization",
+  "Nonprofit Status",
+  "Documentation",
+  "Banking",
+];
 
 type Props = {
   step: Progress["step"];
@@ -16,131 +21,60 @@ type Props = {
 export function ProgressIndicator({ step, classes = "" }: Props) {
   const { pathname } = useLocation();
   const paths = pathname.split("/");
-  const currPath = idParamToNum(paths.at(-1));
+  const curr_path = id_param_to_num(paths.at(-1));
+  const active_index = curr_path - 1;
 
-  const [isOtherStepsShown, setIsOtherStepsShown] = useState(true);
-  const [isDesktop, setDesktop] = useState(() => {
-    //handle ssr
-    if (typeof window !== "object") return false;
-    return window.innerWidth >= SCREEN_BREAKPOINTS.md;
-  });
+  // mobile expansion only; desktop renders all items via CSS regardless.
+  // avoids JS-driven `isDesktop` state which caused SSR/hydration layout flash.
+  const [is_expanded, set_expanded] = useState(false);
 
-  use_handle_screen_resize(
-    (screen: number, ref) => {
-      const isOnDesktop = screen >= SCREEN_BREAKPOINTS.md;
-      if (isOnDesktop !== ref.is_open) {
-        setIsOtherStepsShown(isOnDesktop);
-        ref.is_open = isOnDesktop;
-      }
-
-      if (ref.isDesktop !== isOnDesktop) {
-        setDesktop(isOnDesktop);
-        ref.isDesktop = isOnDesktop;
-      }
-    },
-    {
-      should_attach_listener: true,
-      should_call_onresize_onload: true,
-      debounce_time: 150,
-      ref: { is_open: isOtherStepsShown, isDesktop },
-    }
-  );
-
-  /**
-   * Steps are grouped inside an array to make it more easy to:
-   * 1. access the currently active step (step number corresponds to step index position in the array)
-   * 2. list all steps when the component is expanded
-   */
-  const steps = [
-    null, // skip 0th element so that currPath corresponds to the steps index position in the array
-    null, // skip the 1st element (Contact Details)
-    <Step isDone={step >= 2} isCurr={currPath === 2} key={2}>
-      Organization
-    </Step>,
-    <Step isDone={step >= 3} isCurr={currPath === 3} key={3}>
-      Nonprofit Status
-    </Step>,
-    <Step isDone={step >= 4} isCurr={currPath === 4} key={4}>
-      Documentation
-    </Step>,
-    <Step isDone={step >= 5} isCurr={currPath === 5} key={5}>
-      Banking
-    </Step>,
-  ];
-
-  const topStep =
-    isOtherStepsShown || currPath === 1 ? (
-      <Step isDone={currPath > 1 || step > 1} isCurr={currPath === 1}>
-        Contact Details
-      </Step>
-    ) : (
-      steps[currPath]
-    );
-
-  const children = (
-    <>
-      <div className="w-full relative">
-        {topStep}
-        <DrawerIcon
-          is_open={isOtherStepsShown}
-          size={20}
-          className="absolute top-1/2 -right-5 transform -translate-y-1/2 md:hidden"
-        />
-      </div>
-
-      {isOtherStepsShown && steps}
-    </>
-  );
-
-  const classNames = `py-4 max-md:pr-10 pl-12 md:pl-14 md:mr-14 ${classes}`;
-
-  if (isDesktop) {
-    return <div className={classNames}>{children}</div>;
-  }
+  // anchor mobile toggle button to whichever row is first-visible:
+  // expanded → row 0 (Contact); collapsed → the active row (only one shown).
+  const first_visible = is_expanded ? 0 : active_index;
 
   return (
-    <button
-      type="button"
-      className={classNames}
-      onClick={() => setIsOtherStepsShown((prev) => !prev)}
+    <div
+      style={{ "--gutter": "2.5rem" } as React.CSSProperties}
+      className={`pb-4 pt-4 md:pt-2 max-md:pr-(--gutter) pl-12 md:pl-14 md:mr-14 ${classes}`}
     >
-      {children}
-    </button>
-  );
-}
-
-type StepProps = {
-  isDone: boolean;
-  isCurr: boolean;
-  classes?: string;
-};
-function Step({
-  children,
-  isDone,
-  isCurr,
-  classes = "",
-}: PropsWithChildren<StepProps>) {
-  return (
-    <div className={`group ${classes}`}>
-      {/** line */}
-      <div
-        className={`h-5.5 border-l ${
-          isDone || isCurr ? "border-primary" : ""
-        } my-2 group-first:hidden`}
-      />
-      <div className="flex items-center">
-        {/** circle */}
-        <div
-          className={`w-4 aspect-square ${
-            isDone ? "bg-primary" : "bg-muted"
-          } rounded-full transform -translate-x-1/2`}
-        />
-        <span
-          className={`text-sm ${isCurr ? "text-primary" : "text-muted-fg"}`}
-        >
-          {children}
-        </span>
-      </div>
+      <Steps.Root
+        step={Math.min(step, 5)}
+        count={5}
+        orientation="vertical"
+        data-expanded={is_expanded || undefined}
+        className="group/root w-full"
+      >
+        <Steps.List>
+          {labels.map((label, i) => (
+            <Steps.Item
+              key={i}
+              index={i}
+              data-curr={i === active_index || undefined}
+              className="group hidden data-curr:block group-data-expanded/root:block md:block"
+            >
+              <div className="h-5.5 border-l group-data-[state=complete]:border-primary group-data-curr:border-primary my-2 group-first:hidden" />
+              <div className="flex items-center w-full">
+                <div className="w-4 aspect-square bg-muted group-data-[state=complete]:bg-primary rounded-full transform -translate-x-1/2" />
+                <span className="text-sm text-muted-fg group-data-curr:text-primary">
+                  {label}
+                </span>
+                {i === first_visible && (
+                  <button
+                    type="button"
+                    onClick={() => set_expanded((p) => !p)}
+                    style={{ marginRight: "calc(var(--gutter) * -0.5)" }}
+                    className="md:hidden ml-auto p-2 -my-2"
+                    aria-label={is_expanded ? "Collapse steps" : "Expand steps"}
+                    aria-expanded={is_expanded}
+                  >
+                    <DrawerIcon is_open={is_expanded} size={20} />
+                  </button>
+                )}
+              </div>
+            </Steps.Item>
+          ))}
+        </Steps.List>
+      </Steps.Root>
     </div>
   );
 }
