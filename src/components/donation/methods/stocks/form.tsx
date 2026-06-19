@@ -74,7 +74,7 @@ export function Form(props: TMethodState<"stocks">) {
 
   const combobox = (
     <TokenCombobox
-      classes="[&:has(:placeholder-shown)]:w-34 w-24"
+      classes="has-placeholder-shown:w-34 w-24"
       disabled={ticker_state === "loading"}
       btn_disp={(open) => btn_disp(open, ticker_state)}
       item_key={(t) => t.symbol}

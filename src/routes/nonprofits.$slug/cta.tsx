@@ -10,7 +10,7 @@ interface Props extends PageContext {
 export function Cta({ classes = "", ...props }: Props) {
   return (
     <div
-      className={`relative bg-gradient-to-br from-primary to-secondary w-full p-8 rounded shadow-inner ${classes}`}
+      className={`relative bg-linear-to-br from-primary to-secondary w-full p-8 rounded shadow-inner ${classes}`}
     >
       <h4 className="text-center  section-heading text-primary-fg mb-6">
         {props.cta.pre} Grow Together.

@@ -31,7 +31,7 @@ export function Pillars() {
   return (
     <section className="bg-primary text-white py-20 md:py-24 relative overflow-hidden">
       {/* subtle diagonal accent */}
-      <div className="absolute -top-32 -right-32 size-96 bg-white/[0.03] rotate-45 rounded-3xl" />
+      <div className="absolute -top-32 -right-32 size-96 bg-white/3 rotate-45 rounded-3xl" />
 
       <div className="xl:container xl:mx-auto px-5 md:px-10 relative">
         <motion.div

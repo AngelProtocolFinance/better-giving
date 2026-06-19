@@ -5,7 +5,7 @@ import { Image } from "#/components/image";
 export function BottomCta({ className = "" }) {
   return (
     <div
-      className={`${className} grid @5xl:grid-cols-2 bg-primary rounded @5xl:rounded ring-8 @md:ring-[1rem] ring-secondary px-10 py-12 @5xl:px-16 @5xl:py-[4.5rem]`}
+      className={`${className} grid @5xl:grid-cols-2 bg-primary rounded @5xl:rounded ring-8 @md:ring-[1rem] ring-secondary px-10 py-12 @5xl:px-16 @5xl:py-18`}
     >
       <div className="grid order-2 @5xl:order-1">
         <h4 className="text-center @5xl:text-left uppercase @md:text-lg text-primary-fg leading-normal mb-6">

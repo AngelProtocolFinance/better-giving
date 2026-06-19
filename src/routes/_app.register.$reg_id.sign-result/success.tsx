@@ -33,7 +33,7 @@ export default function Success({
       </a>
       <Link
         aria-disabled={is_loading}
-        className="w-full max-w-[26.25rem] btn btn-primary text-sm mt-4"
+        className="w-full max-w-105 btn btn-primary text-sm mt-4"
         to={`${href("/register/:reg_id", {
           reg_id: reg.id,
         })}/${next_step[step]}`}

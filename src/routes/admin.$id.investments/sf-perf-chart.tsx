@@ -46,7 +46,7 @@ export function SfPerChart(
     <Modal
       open={props.open}
       onClose={props.onClose}
-      classes="h-96 p-4 fixed-center z-20 border bg-background w-[91%] sm:w-full max-w-[39rem] rounded overflow-hidden"
+      classes="h-96 p-4 fixed-center z-20 border bg-background w-[91%] sm:w-full max-w-156 rounded overflow-hidden"
     >
       <div className="flex flex-wrap gap-y-2 justify-between">
         <h4>Investment performance</h4>

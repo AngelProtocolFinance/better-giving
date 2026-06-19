@@ -30,7 +30,7 @@ export function NotTaxExempt({ country, is_fsa_prev }: Props) {
         <NavLink
           aria-disabled={is_loading}
           to={`../${steps.org_details}`}
-          className="py-3 min-w-[8rem] btn-secondary btn text-sm"
+          className="py-3 min-w-32 btn-secondary btn text-sm"
         >
           Back
         </NavLink>
@@ -44,7 +44,7 @@ export function NotTaxExempt({ country, is_fsa_prev }: Props) {
           }}
           disabled={is_loading}
           type="button"
-          className="py-3 min-w-[8rem] btn btn-primary text-sm"
+          className="py-3 min-w-32 btn btn-primary text-sm"
         >
           <LoadText is_loading={is_loading}>Continue</LoadText>
         </button>

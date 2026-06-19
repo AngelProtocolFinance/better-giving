@@ -123,7 +123,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           charLimit={MAX_DESCRIPTION_CHAR}
           classes={{
             field:
-              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-[15rem]",
+              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
             counter: "text-muted-fg",
             error: "text-right",
           }}
@@ -196,7 +196,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           spec={img_spec([1, 1])}
           classes={{
             container: "mb-4",
-            dropzone: "aspect-1/1 w-60",
+            dropzone: "aspect-square w-60",
           }}
           error={errors.logo?.message}
         />

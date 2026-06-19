@@ -27,8 +27,8 @@ export function UserMenu({ user, classes }: Props) {
         </Link>
       </Menu.Item>
 
-      <Organizations user={user} classes="hidden [&:has(a)]:grid mb-4" />
-      <Bookmarks user={user} classes="hidden [&:has(a)]:grid mb-4" />
+      <Organizations user={user} classes="hidden has-[a]:grid mb-4" />
+      <Bookmarks user={user} classes="hidden has-[a]:grid mb-4" />
       {user.is_admin && (
         <Menu.Item
           value="platform"

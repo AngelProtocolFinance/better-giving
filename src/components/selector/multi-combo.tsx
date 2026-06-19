@@ -106,7 +106,7 @@ export function MultiCombo<T extends string>({
           <Portal>
             <Combobox.Positioner>
               <Combobox.Content
-                className={`${cls.options} z-50 rounded border bg-popover text-popover-fg w-(--reference-width) max-h-[10rem] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border`}
+                className={`${cls.options} z-50 rounded border bg-popover text-popover-fg w-(--reference-width) max-h-40 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border`}
               >
                 {options_available && (
                   <div className="flex justify-between p-4">

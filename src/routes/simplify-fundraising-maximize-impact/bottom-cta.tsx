@@ -17,7 +17,7 @@ export function BottomCta({ className = "" }) {
       </h2>
 
       <div
-        className={`${className} justify-items-center col-span-full grid w-full bg-gradient-to-br from-primary to-transparent p-6 rounded`}
+        className={`${className} justify-items-center col-span-full grid w-full bg-linear-to-br from-primary to-transparent p-6 rounded`}
       >
         <h3 className="text-center text-white @3xl:leading-snug  text-xl @sm:text-2xl mb-4 col-span-full">
           US 501(c)(3) Nonprofit?

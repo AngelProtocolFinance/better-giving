@@ -6,7 +6,7 @@ interface IVideo {
 }
 export function Video(props: IVideo) {
   return (
-    <div className="relative pt-[56.25%] aspect-16/9 rounded overflow-clip">
+    <div className="relative pt-[56.25%] aspect-video rounded overflow-clip">
       <YouTubePlayer url={props.url} />
     </div>
   );

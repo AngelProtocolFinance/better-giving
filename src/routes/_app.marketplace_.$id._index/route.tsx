@@ -63,7 +63,7 @@ export default function Page() {
           )
         }
         npo={npo}
-        classes="self-start lg:sticky lg:top-[5.5rem]"
+        classes="self-start lg:sticky lg:top-22"
         fundraisers={
           <Suspense fallback={<ContentLoader className="h-40 mt-4" />}>
             <Await resolve={funds}>

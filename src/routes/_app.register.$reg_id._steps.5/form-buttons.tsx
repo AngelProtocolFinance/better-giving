@@ -14,7 +14,7 @@ function Submit({ isSubmitting = false }) {
         <Link
           aria-disabled={isSubmitting}
           to={`../${steps.docs}`}
-          className="py-3 min-w-[8rem] btn btn-secondary text-sm"
+          className="py-3 min-w-32 btn btn-secondary text-sm"
         >
           Back
         </Link>
@@ -22,7 +22,7 @@ function Submit({ isSubmitting = false }) {
           aria-disabled={isSubmitting}
           disabled={isSubmitting}
           type="submit"
-          className="py-3 min-w-[8rem] btn btn-primary text-sm"
+          className="py-3 min-w-32 btn btn-primary text-sm"
         >
           <LoadText is_loading={isSubmitting}>Submit</LoadText>
         </button>

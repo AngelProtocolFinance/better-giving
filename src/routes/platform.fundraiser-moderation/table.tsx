@@ -31,7 +31,7 @@ export function Table({
             <td>
               <NavLink
                 to={href("/fundraisers/:fund_id", { fund_id: row.id })}
-                className="hover:text-primary [&:is(.pending)]:text-muted-fg [&:is(.pending)]:pointer-events-none"
+                className="hover:text-primary [.pending]:text-muted-fg [.pending]:pointer-events-none"
               >
                 {row.name}
               </NavLink>

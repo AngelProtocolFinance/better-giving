@@ -81,7 +81,7 @@ export function Form({
         charLimit={MAX_DESCRIPTION_CHARS}
         classes={{
           field:
-            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-[15rem]",
+            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
           counter: "text-muted-fg",
           error: "text-right",
         }}
@@ -118,7 +118,7 @@ export function Form({
           rhf.resetField("logo");
         }}
         spec={img_spec([1, 1])}
-        classes={{ dropzone: "w-80 aspect-1/1" }}
+        classes={{ dropzone: "w-80 aspect-square" }}
         error={rhf.errors.logo?.message}
       />
 

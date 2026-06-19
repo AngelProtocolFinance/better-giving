@@ -26,7 +26,7 @@ export default function SearchDropdown({ classes = "", page1, query }: Props) {
             {Object.entries(categories).map(([, v]) => (
               <NavLink
                 key={v.name}
-                className="[&:is(.pending)]:text-muted-fg [&:is(.pending)]:pointer-events-none border px-6 py-2 rounded text-sm hover:bg-secondary"
+                className="[.pending]:text-muted-fg [.pending]:pointer-events-none border px-6 py-2 rounded text-sm hover:bg-secondary"
                 to={{
                   pathname: href("/marketplace"),
                   search: new URLSearchParams({
@@ -42,7 +42,7 @@ export default function SearchDropdown({ classes = "", page1, query }: Props) {
           <TopCountries />
 
           <NavLink
-            className="text-primary [&:is(.pending)]:text-muted-fg font-medium text-lg text-center mt-8 block"
+            className="text-primary [.pending]:text-muted-fg font-medium text-lg text-center mt-8 block"
             to={href("/marketplace")}
           >
             Explore all Causes

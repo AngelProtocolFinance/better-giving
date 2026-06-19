@@ -40,7 +40,7 @@ export function Testimonials({ classes = "" }) {
     >
       <h2
         id="fm-testimonials-heading"
-        className="text-center font-bold text-3xl/tight md:text-4_5xl/tight tracking-tight"
+        className="text-center font-bold text-3xl/tight md:text-4.5xl/tight tracking-tight"
       >
         Hear What Nonprofits Have to Say!
       </h2>

@@ -56,7 +56,7 @@ export function Steps({ classes = "" }) {
     <section className={`${classes}`} aria-labelledby="fm-steps-heading">
       <h2
         id="fm-steps-heading"
-        className="font-bold text-3xl/tight md:text-4_5xl/tight tracking-tight text-center"
+        className="font-bold text-3xl/tight md:text-4.5xl/tight tracking-tight text-center"
       >
         Get Started in Three Simple Steps
       </h2>

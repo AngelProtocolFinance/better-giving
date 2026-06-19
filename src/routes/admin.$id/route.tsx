@@ -48,7 +48,7 @@ export default function AdminLayout({
 }: Route.ComponentProps) {
   return (
     <div className="grid">
-      <Header classes="sticky z-40 top-[-1px]" />
+      <Header classes="sticky z-40 -top-px" />
       <Layout
         rootRoute="/admin/:id/"
         linkGroups={linkGroups}

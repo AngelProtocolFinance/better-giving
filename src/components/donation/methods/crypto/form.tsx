@@ -52,7 +52,7 @@ export function Form(props: TMethodState<"crypto">) {
 
   const combobox = (
     <TokenCombobox
-      classes="[&:has(:placeholder-shown)]:w-34 w-24"
+      classes="has-placeholder-shown:w-34 w-24"
       disabled={token_state === "loading"}
       btn_disp={(open) => btn_disp(open, token_state)}
       item_key={(t) => t.code}

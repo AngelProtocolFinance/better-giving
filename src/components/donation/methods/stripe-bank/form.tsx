@@ -58,7 +58,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
 
   const combobox = (
     <TokenComboboxSync
-      classes="[&:has(:placeholder-shown)]:w-34 w-22"
+      classes="has-placeholder-shown:w-34 w-22"
       disabled={currency.isLoading || currency.isValidating}
       btn_disp={(open) => btn_disp(open, undefined)}
       item_key={(t) => t.code}

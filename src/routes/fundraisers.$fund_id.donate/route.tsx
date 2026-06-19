@@ -84,7 +84,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
           )}
         </div>
         <FAQ
-          classes="max-md:px-4 md:col-start-2 md:row-span-5 md:w-[18.875rem]"
+          classes="max-md:px-4 md:col-start-2 md:row-span-5 md:w-75.5"
           //TODO: endowId={1}
           endowId={1}
         />

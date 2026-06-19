@@ -61,7 +61,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         }}
         classes={{
           container: "mb-4",
-          dropzone: "w-60 aspect-1/1 rounded-full",
+          dropzone: "w-60 aspect-square rounded-full",
         }}
         error={rhf.errors.avatar?.message}
       />

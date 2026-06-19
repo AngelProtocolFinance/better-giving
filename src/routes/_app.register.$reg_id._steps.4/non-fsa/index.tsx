@@ -76,14 +76,14 @@ export function NonFsaForm(props: Props) {
         <NavLink
           aria-disabled={isSubmitting}
           to={`../${steps.fsa_inq}`}
-          className="py-3 min-w-[8rem] btn-secondary btn text-sm"
+          className="py-3 min-w-32 btn-secondary btn text-sm"
         >
           Back
         </NavLink>
         <button
           disabled={isSubmitting}
           type="submit"
-          className="py-3 min-w-[8rem] btn btn-primary text-sm"
+          className="py-3 min-w-32 btn btn-primary text-sm"
         >
           <LoadText is_loading={isSubmitting}>Continue</LoadText>
         </button>

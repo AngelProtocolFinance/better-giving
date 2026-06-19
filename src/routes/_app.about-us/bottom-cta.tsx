@@ -6,7 +6,7 @@ import { BOOK_A_DEMO } from "#/constants/urls";
 export function BottomCta({ className = "" }) {
   return (
     <div
-      className={`${className} grid md:grid-cols-[3fr_1fr] bg-linear-to-br from-primary to-secondary rounded md:rounded px-10 py-12 md:px-16 md:py-[4.5rem]`}
+      className={`${className} grid md:grid-cols-[3fr_1fr] bg-linear-to-br from-primary to-secondary rounded md:rounded px-10 py-12 md:px-16 md:py-18`}
     >
       <div className="order-2 md:order-1">
         <h4 className="text-center md:text-left uppercase [28rem]:text-lg text-primary-fg leading-normal mb-6">

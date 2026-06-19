@@ -20,7 +20,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 export default function Layout() {
   return (
     <div className="grid">
-      <Header classes="sticky z-40 top-[-1px]" />
+      <Header classes="sticky z-40 -top-px" />
       <DashboardLayout
         rootRoute={`${href("/dashboard")}/`}
         linkGroups={linkGroups}

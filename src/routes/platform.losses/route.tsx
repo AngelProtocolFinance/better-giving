@@ -38,7 +38,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             <tbody>
               {npo_losses.map((n: NpoLoss) => (
                 <tr key={n.id} className="text-sm">
-                  <td className="truncate max-w-[14rem]" title={n.name}>
+                  <td className="truncate max-w-56" title={n.name}>
                     {n.name}
                   </td>
                   <td className="text-right font-medium">

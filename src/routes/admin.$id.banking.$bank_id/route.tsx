@@ -73,7 +73,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
       >
         <NavLink
           to={"../banking"}
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-secondary"
+          className="px-4 py-1 min-w-24 text-sm btn btn-secondary"
         >
           Back
         </NavLink>
@@ -86,7 +86,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
               default: is_default.toString(),
             }).toString(),
           }}
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-destructive"
+          className="px-4 py-1 min-w-24 text-sm btn btn-destructive"
         >
           Delete
         </NavLink>
@@ -95,7 +95,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
             fetcher.state === "submitting" || is_default || !is_approved
           }
           type="submit"
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-primary"
+          className="px-4 py-1 min-w-24 text-sm btn btn-primary"
         >
           {fetcher.state === "submitting" ? "Setting..." : "Set Default"}
         </button>

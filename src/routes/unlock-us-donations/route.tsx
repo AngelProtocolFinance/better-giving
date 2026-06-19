@@ -26,7 +26,7 @@ export default function Component() {
   return (
     <main className="w-full grid content-start @container">
       <div
-        className="sticky top-[-1px] z-50 bg-card"
+        className="sticky -top-px z-50 bg-card"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(

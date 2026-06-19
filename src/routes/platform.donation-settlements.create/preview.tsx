@@ -73,7 +73,7 @@ export function Preview({
 }
 
 const tab_cls =
-  "px-3 py-1.5 text-xs font-medium focus:outline-none text-muted-fg hover:text-fg data-[selected]:text-fg data-[selected]:border-b-2 data-[selected]:border-primary flex items-center gap-1";
+  "px-3 py-1.5 text-xs font-medium focus:outline-none text-muted-fg hover:text-fg data-selected:text-fg data-selected:border-b-2 data-selected:border-primary flex items-center gap-1";
 
 function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
   return (

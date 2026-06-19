@@ -40,7 +40,7 @@ export function Investment({ classes = "" }) {
       <div className="max-w-3xl">
         <h2
           id="how-fund-works-heading"
-          className="font-bold text-3xl/tight md:text-4_5xl/tight tracking-tight"
+          className="font-bold text-3xl/tight md:text-4.5xl/tight tracking-tight"
         >
           How the Sustainability Fund Works
         </h2>

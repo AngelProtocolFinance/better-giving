@@ -19,7 +19,7 @@ export function Toolbar({ classes = "" }: { classes?: string }) {
         <FilterIcon size={16} className="mr-2" />
         <span>Filters</span>
       </NavLink>
-      <Search classes="order-first col-span-2 md:order-none md:col-span-1" />
+      <Search classes="order-first col-span-2 md:order-0 md:col-span-1" />
       {/* <Sorter /> */}
     </div>
   );

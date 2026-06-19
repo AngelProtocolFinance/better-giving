@@ -34,7 +34,7 @@ export function LogsTable({
           {items.map((l) => (
             <tr key={l.id} className="text-sm">
               <td className="whitespace-nowrap">{toPP(l.date)}</td>
-              <td className="truncate max-w-[10rem]" title={l.npo_name ?? ""}>
+              <td className="truncate max-w-40" title={l.npo_name ?? ""}>
                 {l.npo_name ?? "—"}
               </td>
               <td>{l.type}</td>

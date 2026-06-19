@@ -41,7 +41,7 @@ export default function Loaded(
       )}
       {props.status_approved_npo_id && (
         <NavLink
-          className="text-primary [&:is(.pending)]:text-muted-fg hover:underline block -mt-4 text-sm"
+          className="text-primary [.pending]:text-muted-fg hover:underline block -mt-4 text-sm"
           to={href("/marketplace/:id", {
             id: props.status_approved_npo_id.toString(),
           })}
@@ -119,7 +119,7 @@ export default function Loaded(
       <div className="flex gap-x-3 justify-self-center sm:justify-self-end">
         <NavLink
           to={href("/platform/applications")}
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-secondary"
+          className="px-4 py-1 min-w-24 text-sm btn btn-secondary"
         >
           Back
         </NavLink>
@@ -127,7 +127,7 @@ export default function Loaded(
           aria-disabled={!!prev_verdict}
           to={`rejected?org_name=${props.o_name}`}
           type="button"
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-destructive"
+          className="px-4 py-1 min-w-24 text-sm btn btn-destructive"
           preventScrollReset
         >
           Reject
@@ -136,7 +136,7 @@ export default function Loaded(
           aria-disabled={!!prev_verdict}
           to={`approved?org_name=${props.o_name}`}
           type="button"
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-success"
+          className="px-4 py-1 min-w-24 text-sm btn btn-success"
           preventScrollReset
         >
           Approve

@@ -41,7 +41,7 @@ export function LogsTable({
               <td className="text-right">${humanize(l.npo_amount)}</td>
               <td className="text-right">${humanize(l.fees_bg)}</td>
               <td className="text-right">${humanize(l.fees_processing)}</td>
-              <td className="max-w-[14rem] truncate" title={l.reason}>
+              <td className="max-w-56 truncate" title={l.reason}>
                 {l.reason}
               </td>
               <td className="font-mono text-xs">{l.donation_id}</td>

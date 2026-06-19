@@ -158,14 +158,14 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         <NavLink
           aria-disabled={fetcher.state !== "idle"}
           to={`../${steps.contact}`}
-          className="py-3 min-w-[8rem] btn btn-secondary text-sm"
+          className="py-3 min-w-32 btn btn-secondary text-sm"
         >
           Back
         </NavLink>
         <button
           disabled={fetcher.state !== "idle"}
           type="submit"
-          className="py-3 min-w-[8rem] btn btn-primary text-sm"
+          className="py-3 min-w-32 btn btn-primary text-sm"
         >
           <LoadText is_loading={fetcher.state !== "idle"}>Continue</LoadText>
         </button>

@@ -145,7 +145,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           charLimit={MAX_CHARS}
           classes={{
             field:
-              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-[15rem]",
+              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
             counter: "text-muted-fg",
             error: "text-right",
           }}
