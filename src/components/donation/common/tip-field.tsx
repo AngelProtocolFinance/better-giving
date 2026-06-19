@@ -19,7 +19,7 @@ interface Props {
 export function TipField({ classes = "", ...p }: Props) {
   return (
     <div
-      className={`${classes} flex has-[input:focus-within]:border-b-form-primary items-center py-1 border-y justify-between flex-wrap gap-x-3 gap-y-1`}
+      className={`${classes} flex has-[input:not([type=radio]):focus-within]:border-b-form-primary items-center py-1 border-y justify-between flex-wrap gap-x-3 gap-y-1`}
     >
       <Field.Root className="group gap-x-1 flex items-center text-sm justify-self-start">
         <Switch.Root

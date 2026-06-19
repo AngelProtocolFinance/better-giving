@@ -323,6 +323,37 @@ describe("Stripe form: initial load", () => {
     don_set_mock.mockReset();
   });
 
+  test("clicking a tip percent radio does not trigger amount-input focus styling", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form type="stripe" step="form" />);
+
+    // baseline: 15% checked by default
+    await expect
+      .element(screen.getByRole("radio", { name: /15%/i }))
+      .toBeChecked();
+
+    // click a different percent via its label text — focus goes to the
+    // radio's hidden input, NOT to a text/number input that would highlight
+    // the row's bottom border.
+    await screen.getByText("20%").click();
+    await expect
+      .element(screen.getByRole("radio", { name: /20%/i }))
+      .toBeChecked();
+
+    // active element must be a radio input (not text/number)
+    const active = document.activeElement as HTMLInputElement | null;
+    expect(active?.tagName).toBe("INPUT");
+    expect(active?.type).toBe("radio");
+  });
+
   test("user selects frequency and submits", async () => {
     const init: Init = {
       base_url: "",
