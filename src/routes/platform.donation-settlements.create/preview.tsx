@@ -1,4 +1,4 @@
-import { Tabs } from "@base-ui/react/tabs";
+import { Tabs } from "@ark-ui/react/tabs";
 import { CodeIcon, TableIcon } from "lucide-react";
 import { humanize } from "@/helpers/decimal";
 import type { IFormValues, ISettlementPreview } from "./types";
@@ -73,24 +73,24 @@ export function Preview({
 }
 
 const tab_cls =
-  "px-3 py-1.5 text-xs font-medium focus:outline-none text-muted-fg hover:text-fg data-[active]:text-fg data-[active]:border-b-2 data-[active]:border-primary flex items-center gap-1";
+  "px-3 py-1.5 text-xs font-medium focus:outline-none text-muted-fg hover:text-fg data-[selected]:text-fg data-[selected]:border-b-2 data-[selected]:border-primary flex items-center gap-1";
 
 function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
   return (
     <section className="mb-4">
       <Tabs.Root defaultValue="table">
         <Tabs.List className="flex border-b mb-3">
-          <Tabs.Tab value="table" className={tab_cls}>
+          <Tabs.Trigger value="table" className={tab_cls}>
             <TableIcon size={14} />
             Records
-          </Tabs.Tab>
-          <Tabs.Tab value="json" className={tab_cls}>
+          </Tabs.Trigger>
+          <Tabs.Trigger value="json" className={tab_cls}>
             <CodeIcon size={14} />
             JSON
-          </Tabs.Tab>
+          </Tabs.Trigger>
         </Tabs.List>
 
-        <Tabs.Panel value="table">
+        <Tabs.Content value="table">
           <table className="table w-full">
             <thead>
               <tr>
@@ -108,13 +108,13 @@ function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
               ))}
             </tbody>
           </table>
-        </Tabs.Panel>
+        </Tabs.Content>
 
-        <Tabs.Panel value="json">
+        <Tabs.Content value="json">
           <pre className="text-xs bg-muted rounded p-3 overflow-x-auto max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
             {JSON.stringify(preview.txs, null, 2)}
           </pre>
-        </Tabs.Panel>
+        </Tabs.Content>
       </Tabs.Root>
     </section>
   );

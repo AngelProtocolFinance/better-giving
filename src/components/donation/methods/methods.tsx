@@ -1,4 +1,4 @@
-import { Tabs } from "@base-ui/react/tabs";
+import { Tabs } from "@ark-ui/react/tabs";
 import {
   Building2,
   ChartSpline,
@@ -61,7 +61,7 @@ const methods: {
 };
 
 const tab_classes =
-  "outline outline-secondary @xl/steps:outline-none text-muted-fg data-[active]:bg-(--form-secondary) data-[active]:text-fg data-[active]:outline-none flex items-center gap-2 p-2 @xl/steps:px-3 @xl/steps:py-[1.15rem] @xl/steps:grid @xl/steps:grid-cols-subgrid @xl/steps:col-span-2 focus:outline-hidden @xl/steps:w-full rounded @xl/steps:rounded-none";
+  "outline outline-secondary @xl/steps:outline-none text-muted-fg data-[selected]:bg-(--form-secondary) data-[selected]:text-fg data-[selected]:outline-none flex items-center gap-2 p-2 @xl/steps:px-3 @xl/steps:py-[1.15rem] @xl/steps:grid @xl/steps:grid-cols-subgrid @xl/steps:col-span-2 focus:outline-hidden @xl/steps:w-full rounded @xl/steps:rounded-none";
 
 export function DonateMethods(props: TDonation) {
   const { config, method, ...fvs } = props;
@@ -92,7 +92,7 @@ export function DonateMethods(props: TDonation) {
       </Label>
       <Tabs.List className="grid @md/steps:grid-cols-2 gap-2 @xl/steps:gap-0 p-4 @xl/steps:p-0 @xl/steps:grid-cols-[auto_1fr] @[42rem]/steps:min-w-48 content-start @xl/steps:divide-y @xl/steps:divide-white @xl/steps:border-r">
         {tabs.map((tab) => (
-          <Tabs.Tab key={tab} value={tab} className={tab_classes}>
+          <Tabs.Trigger key={tab} value={tab} className={tab_classes}>
             {methods[tab].icon}
             <span className="text-left text-sm">
               {methods[tab].name}
@@ -102,7 +102,7 @@ export function DonateMethods(props: TDonation) {
                 </span>
               )}
             </span>
-          </Tabs.Tab>
+          </Tabs.Trigger>
         ))}
       </Tabs.List>
       <div className="grid p-4 @xl/steps:p-8 pt-0 @xl/steps:pt-4">
@@ -113,9 +113,9 @@ export function DonateMethods(props: TDonation) {
             step: "form",
           };
           return (
-            <Tabs.Panel key={tab} value={tab}>
+            <Tabs.Content key={tab} value={tab}>
               <Panel {...(s as any)} />
-            </Tabs.Panel>
+            </Tabs.Content>
           );
         })}
       </div>

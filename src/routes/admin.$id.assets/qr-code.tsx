@@ -1,4 +1,4 @@
-import { Tabs } from "@base-ui/react/tabs";
+import { Tabs } from "@ark-ui/react/tabs";
 import { ArrowDownToLineIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -96,23 +96,23 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
       <Tabs.Root
         className="w-96"
         defaultValue="profile"
-        onValueChange={(val) => set_selected_tab(val as QRCodeType)}
+        onValueChange={(e) => set_selected_tab(e.value as QRCodeType)}
       >
         <Tabs.List className="flex gap-2 mb-6 border-b">
           {tabs.map((tab) => (
-            <Tabs.Tab
+            <Tabs.Trigger
               key={tab.id}
               value={tab.id}
-              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus:outline-none border-transparent text-muted-fg hover:text-fg data-[active]:border-primary data-[active]:text-primary"
+              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus:outline-none border-transparent text-muted-fg hover:text-fg data-[selected]:border-primary data-[selected]:text-primary"
             >
               {tab.name}
-            </Tabs.Tab>
+            </Tabs.Trigger>
           ))}
         </Tabs.List>
 
         {/* QR Code Panel */}
         {tabs.map((tab) => (
-          <Tabs.Panel key={tab.id} value={tab.id}>
+          <Tabs.Content key={tab.id} value={tab.id}>
             <QRCodeSVG
               id="qr-code-svg"
               value={urls[tab.id]}
@@ -135,7 +135,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
               {tab.name}:{" "}
               <span className="font-mono text-xs">{urls[tab.id]}</span>
             </p>
-          </Tabs.Panel>
+          </Tabs.Content>
         ))}
 
         <div className="mt-4 flex gap-x-2 items-center justify-items-center">

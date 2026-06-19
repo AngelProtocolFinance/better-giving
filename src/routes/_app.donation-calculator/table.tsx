@@ -1,4 +1,4 @@
-import { Tabs } from "@base-ui/react/tabs";
+import { Tabs } from "@ark-ui/react/tabs";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import laira_coin from "#/assets/laira/laira-coin.webp";
@@ -57,16 +57,16 @@ export function Table({ classes = "", ...v }: Props) {
         )}
       </div>
       {/* Tabs */}
-      <Tabs.Root value={tab} onValueChange={(val) => set_tab(val as string)}>
+      <Tabs.Root value={tab} onValueChange={(e) => set_tab(e.value)}>
         <Tabs.List className="flex space-x-1 border-b mb-4">
           {periods.map((p) => (
-            <Tabs.Tab
+            <Tabs.Trigger
               key={p.value}
               value={p.label}
-              className="flex-1 py-2.5 font-medium leading-5 focus:outline-none text-fg hover:text-primary data-[active]:border-b-2 data-[active]:border-primary data-[active]:text-primary"
+              className="flex-1 py-2.5 font-medium leading-5 focus:outline-none text-fg hover:text-primary data-[selected]:border-b-2 data-[selected]:border-primary data-[selected]:text-primary"
             >
               {p.label}
-            </Tabs.Tab>
+            </Tabs.Trigger>
           ))}
         </Tabs.List>
 
@@ -74,7 +74,7 @@ export function Table({ classes = "", ...v }: Props) {
         {periods.map((p) => {
           const x = v.projection[p.value - 1];
           return (
-            <Tabs.Panel key={p.value} value={p.label}>
+            <Tabs.Content key={p.value} value={p.label}>
               <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
                 <table className="table">
                   <thead>
@@ -107,7 +107,7 @@ export function Table({ classes = "", ...v }: Props) {
                   </tbody>
                 </table>
               </div>
-            </Tabs.Panel>
+            </Tabs.Content>
           );
         })}
       </Tabs.Root>
