@@ -62,14 +62,19 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
   return (
     <div className={classes}>
       <Menu.Root positioning={{ placement: "bottom", gutter: 8 }}>
-        <Menu.Trigger className="focus:outline-none text-primary hover:text-primary transition-colors duration-200">
+        <Menu.Trigger className="focus-visible:outline-none text-primary hover:text-primary transition-colors duration-200">
           <ShareIcon size={20} />
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
             <Menu.Content className="z-10 grid grid-cols-2 w-max p-3 rounded bg-popover text-popover-fg shadow-xl shadow-black/5 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
               {menuItems.map((item) => (
-                <Menu.Item key={item.name} value={item.name} asChild>
+                <Menu.Item
+                  key={item.name}
+                  value={item.name}
+                  asChild
+                  className="focus-visible:outline-none"
+                >
                   <a
                     href={item.getShareLink({
                       orgName: p.orgName,
@@ -86,7 +91,11 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                   </a>
                 </Menu.Item>
               ))}
-              <Menu.Item value="copy-link" asChild>
+              <Menu.Item
+                value="copy-link"
+                asChild
+                className="focus-visible:outline-none"
+              >
                 <button
                   type="button"
                   onClick={() => {

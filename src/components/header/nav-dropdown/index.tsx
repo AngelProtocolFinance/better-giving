@@ -31,7 +31,7 @@ export function NavDropdown({ user, auth_links, classes = "" }: Props) {
     <Menu.Root positioning={{ placement: "bottom-end", gutter: 15 }}>
       <Menu.Trigger
         data-testid="nav_dropdown"
-        className={`group flex items-center gap-x-2 ${classes}`}
+        className={`group flex items-center gap-x-2 focus-visible:outline-none ${classes}`}
         aria-label="Navigation Menu"
       >
         {user && (

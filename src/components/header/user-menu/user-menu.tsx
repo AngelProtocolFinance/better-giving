@@ -19,7 +19,7 @@ export function UserMenu({ user, classes }: Props) {
       <Menu.Item
         value="dashboard"
         asChild
-        className="mb-6 hover:text-primary text-sm whitespace-nowrap grid grid-cols-subgrid col-span-2 items-center"
+        className="mb-6 hover:text-primary text-sm whitespace-nowrap grid grid-cols-subgrid col-span-2 items-center focus-visible:outline-none"
       >
         <Link to={href("/dashboard/donations")}>
           <UserAvatar avatar={user.avatar_url} classes="w-5" />
@@ -33,7 +33,7 @@ export function UserMenu({ user, classes }: Props) {
         <Menu.Item
           value="platform"
           asChild
-          className="hover:text-primary text-sm grid content-start grid-cols-subgrid col-span-2 items-center mt-2"
+          className="hover:text-primary text-sm grid content-start grid-cols-subgrid col-span-2 items-center mt-2 focus-visible:outline-none"
         >
           <Link to={href("/platform")}>
             <ShieldIcon size={18} />

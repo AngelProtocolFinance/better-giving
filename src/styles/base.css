@@ -35,14 +35,4 @@
       cursor: not-allowed;
     }
   }
-
-  /* ark/zag menu+popover move dom focus on highlight and restore on close;
-     state already shown via data-highlighted / data-state=open, so suppress
-     the global focus-visible outline that browser paints on those nodes */
-  [data-scope="menu"][data-part="item"]:focus-visible,
-  [data-scope="menu"][data-part="item"] :focus-visible,
-  [data-scope="menu"][data-part="trigger"]:focus-visible,
-  [data-scope="popover"][data-part="trigger"]:focus-visible {
-    outline: none;
-  }
 }

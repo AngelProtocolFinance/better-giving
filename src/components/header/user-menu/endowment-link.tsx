@@ -35,7 +35,7 @@ const _Link = (props: LinkProps) => (
   <Menu.Item
     value={`endow-${props.id}`}
     asChild
-    className="hover:text-primary text-sm grid grid-cols-subgrid col-span-2 items-center"
+    className="hover:text-primary text-sm grid grid-cols-subgrid col-span-2 items-center focus-visible:outline-none"
   >
     <NavLink to={props.to}>
       <Image

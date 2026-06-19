@@ -45,7 +45,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
       >
         <Popover.Trigger
           disabled={isDisabled}
-          className="w-full flex justify-center items-center p-3 rounded bg-primary text-primary-fg lg:text-muted-fg lg:bg-input lg:border lg:w-[22.3rem] lg:justify-between disabled:bg-muted-fg disabled:text-muted-fg lg:disabled:bg-muted"
+          className="w-full flex justify-center items-center p-3 rounded bg-primary text-primary-fg lg:text-muted-fg lg:bg-input lg:border lg:w-[22.3rem] lg:justify-between disabled:bg-muted-fg disabled:text-muted-fg lg:disabled:bg-muted focus-visible:outline-none"
         >
           <FilterIcon className="mr-1 lg:hidden" size={16} />
           <div className="font-semibold text-sm">Filter</div>

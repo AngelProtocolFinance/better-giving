@@ -14,7 +14,7 @@ export function AuthLinks({ to, classes = "" }: Props) {
       <Menu.Item value="login">
         <NavLink
           to={`${href("/login")}?redirect=${to}`}
-          className="btn btn-secondary text-sm py-2"
+          className="btn btn-secondary text-sm py-2 focus-visible:outline-none"
         >
           Log In
         </NavLink>
@@ -23,7 +23,7 @@ export function AuthLinks({ to, classes = "" }: Props) {
       <Menu.Item value="signup">
         <NavLink
           to={`${href("/signup")}?redirect=${to}`}
-          className="btn btn-primary text-sm py-2"
+          className="btn btn-primary text-sm py-2 focus-visible:outline-none"
         >
           Join Us Today!
         </NavLink>
