@@ -3,9 +3,9 @@ import type { LoaderFunction } from "react-router";
 import { resp } from "@/helpers/https";
 import { countries_query } from "$/pg/queries/country";
 
-export const headers = () => ({
-  "cache-control": "public, s-maxage=300, stale-while-revalidate=3600",
-});
+// resource route: RR returns the loader Response as-is and does not apply
+// the `headers` export, so cache-control is set on the Response.
+const cache = "public, s-maxage=300, stale-while-revalidate=3600";
 
 export const loader: LoaderFunction = async () => {
   const items = await countries_query();
@@ -26,5 +26,9 @@ export const loader: LoaderFunction = async () => {
     return b7d_v - a7d_v;
   });
 
-  return resp.json(sorted.slice(0, 10).map(({ name }) => name));
+  return resp.json(
+    sorted.slice(0, 10).map(({ name }) => name),
+    200,
+    { "cache-control": cache }
+  );
 };

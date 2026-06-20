@@ -8,15 +8,15 @@ const tickers_fuse = new Fuse<ITicker>(tickers, {
 });
 const subset = tickers.slice(0, 10);
 
-export const headers = () => ({
-  "cache-control": "public, max-age=3600, s-maxage=3600",
-});
+// resource route: RR returns the loader Response as-is and does not apply
+// the `headers` export, so cache-control is set on the Response.
+const cache = "public, max-age=3600, s-maxage=3600";
 
 export const loader: LoaderFunction = async ({ request }) => {
   const q = new URL(request.url).searchParams.get("q") || "";
 
-  if (!q) return resp.json(subset);
+  if (!q) return resp.json(subset, 200, { "cache-control": cache });
   const filtered = tickers_fuse.search(q, { limit: 10 }).map((x) => x.item);
 
-  return resp.json(filtered);
+  return resp.json(filtered, 200, { "cache-control": cache });
 };
