@@ -9,13 +9,10 @@ interface Props {
 export function UserAvatar({ classes = "", avatar }: Props) {
   return (
     <Avatar.Root
-      className={`inline-flex shrink-0 size-6 rounded-full overflow-hidden ${classes}`}
+      className={`inline-flex shrink-0 rounded-full overflow-hidden ${classes}`}
     >
       <Avatar.Fallback>
-        <CircleUserRound
-          size={24}
-          className="text-primary disabled:text-muted-fg"
-        />
+        <CircleUserRound className="size-full text-primary disabled:text-muted-fg" />
       </Avatar.Fallback>
       <Avatar.Image
         src={avatar}

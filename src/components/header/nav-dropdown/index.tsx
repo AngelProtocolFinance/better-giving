@@ -37,7 +37,7 @@ export function NavDropdown({ user, auth_links, classes = "" }: Props) {
         {user && (
           <UserAvatar
             avatar={user.avatar_url}
-            classes="peer group-data-[state=open]:invisible"
+            classes="size-6 peer group-data-[state=open]:invisible"
           />
         )}
         <div className="peer-hover:text-primary hover:text-primary group-data-[state=open]:rotate-90 transition-transform ease-in-out">
