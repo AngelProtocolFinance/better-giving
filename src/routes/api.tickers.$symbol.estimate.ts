@@ -3,9 +3,7 @@ import { resp } from "@/helpers/https";
 import { finnhub } from "$/kit/finnhub";
 import type { Route } from "./+types/api.tickers.$symbol.estimate";
 
-export const headers = () => ({
-  "cache-control": "public, s-maxage=30, stale-while-revalidate=60",
-});
+const cache = "public, s-maxage=30, stale-while-revalidate=60";
 
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const res = await finnhub((x) => {
@@ -20,5 +18,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   // https://finnhub.io/docs/api/quote
   const { pc: usdpu } = await res.json();
 
-  return resp.json({ min: BG_MIN / usdpu, usdpu } satisfies ITokenEstimate);
+  return resp.json({ min: BG_MIN / usdpu, usdpu } satisfies ITokenEstimate, 200, {
+    "cache-control": cache,
+  });
 };

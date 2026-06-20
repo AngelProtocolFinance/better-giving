@@ -5,9 +5,7 @@ import { coingecko } from "$/kit/coingecko";
 import { np } from "$/kit/nowpayments";
 import type { Route } from "./+types/api.tokens.$code.estimate";
 
-export const headers = () => ({
-  "cache-control": "public, s-maxage=30, stale-while-revalidate=60",
-});
+const cache = "public, s-maxage=30, stale-while-revalidate=60";
 
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const tkn = tokens_map[params.code];
@@ -25,7 +23,9 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       [tkn.cg_id]: { usd: usdpu },
     } = await res.json();
 
-    return resp.json({ min: 1 / usdpu, usdpu } satisfies ITokenEstimate);
+    return resp.json({ min: 1 / usdpu, usdpu } satisfies ITokenEstimate, 200, {
+      "cache-control": cache,
+    });
   }
 
   const { min, min_usd, usdpu } = await np.estimate(tkn.code);
@@ -38,5 +38,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
    - 2.5% spread in case server estimate is not the same
    */
   const adjusted = gt_bg_min * 1.03;
-  return resp.json({ min: adjusted, usdpu } satisfies ITokenEstimate);
+  return resp.json({ min: adjusted, usdpu } satisfies ITokenEstimate, 200, {
+    "cache-control": cache,
+  });
 };

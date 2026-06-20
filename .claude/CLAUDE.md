@@ -74,6 +74,7 @@ Three-layer structure:
 - biome enforces `useImportType` (warn) and `noUnusedImports` (warn) — use `import type` where possible
 - formatter: spaces (not tabs), es5 trailing commas
 - build output dir is `build/`, not `dist/`
+- resource routes (loader returns a `Response`, no component export — e.g. `api.*` endpoints) do NOT run the route `headers` export; React Router returns the loader `Response` as-is. Set `cache-control` (and any other headers) directly on the `Response` — e.g. `resp.json(x, 200, { "cache-control": ... })`. The `headers` export only applies to document routes (those with a default component).
 
 ## Skew Protection
 
