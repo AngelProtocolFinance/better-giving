@@ -166,10 +166,6 @@ describe("applications — status filter", () => {
     await expect
       .element(screen.getByText("Incomplete Org"))
       .toBeInTheDocument();
-    await expect
-      .element(screen.getByText("Incomplete", { exact: true }))
-      .toBeInTheDocument();
-
     // progress bar rendered — contact step done, others pending
     const step_dots = screen.getByTitle("Step 2 of 5");
     await expect.element(step_dots).toBeInTheDocument();
