@@ -8,8 +8,6 @@ const tickers_fuse = new Fuse<ITicker>(tickers, {
 });
 const subset = tickers.slice(0, 10);
 
-// resource route: RR returns the loader Response as-is and does not apply
-// the `headers` export, so cache-control is set on the Response.
 const cache = "public, max-age=3600, s-maxage=3600";
 
 export const loader: LoaderFunction = async ({ request }) => {

@@ -5,8 +5,6 @@ import { coingecko } from "$/kit/coingecko";
 import { np } from "$/kit/nowpayments";
 import type { Route } from "./+types/api.tokens.$code.estimate";
 
-// resource route: RR returns the loader Response as-is and does not apply
-// the `headers` export, so cache-control is set on the Response.
 const cache = "public, s-maxage=30, stale-while-revalidate=60";
 
 export const loader = async ({ params }: Route.LoaderArgs) => {

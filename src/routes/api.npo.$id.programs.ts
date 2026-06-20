@@ -4,8 +4,6 @@ import { resp } from "@/helpers/https";
 import { $int_gte1 } from "@/schemas";
 import { npo_programs } from "$/pg/queries/program";
 
-// resource route: RR returns the loader Response as-is and does not apply
-// the `headers` export, so cache-control is set on the Response.
 const cache = "public, s-maxage=60, stale-while-revalidate=300";
 
 export const loader: LoaderFunction = async ({ params }) => {

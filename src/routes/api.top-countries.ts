@@ -3,8 +3,6 @@ import type { LoaderFunction } from "react-router";
 import { resp } from "@/helpers/https";
 import { countries_query } from "$/pg/queries/country";
 
-// resource route: RR returns the loader Response as-is and does not apply
-// the `headers` export, so cache-control is set on the Response.
 const cache = "public, s-maxage=300, stale-while-revalidate=3600";
 
 export const loader: LoaderFunction = async () => {

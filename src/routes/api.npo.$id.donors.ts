@@ -7,8 +7,6 @@ import { $int_gte1 } from "@/schemas";
 
 const schema = v.union([fund_id, $int_gte1]);
 
-// resource routes return the loader Response as-is; React Router does not
-// apply the `headers` export here, so cache-control is set on the Response.
 const cache = "public, s-maxage=60, stale-while-revalidate=300";
 
 export const loader: LoaderFunction = async ({ params, request }) => {

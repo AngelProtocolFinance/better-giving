@@ -4,8 +4,6 @@ import { resp } from "@/helpers/https";
 import { reg_number } from "@/npo/schema";
 import { npo_by_regnum } from "$/pg/queries/npo";
 
-// resource routes return the loader Response as-is; React Router does not
-// apply the `headers` export here, so cache-control is set on the Response.
 const cache = "public, s-maxage=60, stale-while-revalidate=300";
 
 export const loader: LoaderFunction = async ({ params }) => {
