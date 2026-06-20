@@ -160,14 +160,14 @@ export function Form(props: TMethodState<"stripe">) {
           }}
           custom_tip={
             rhf.tip_format.value === "custom" ? (
-              <div className="relative w-full flex">
-                <span className="font-bold text-xs self-center">
+              <div className="relative w-full flex items-baseline">
+                <span className="font-bold text-2xs self-baseline text-form-primary">
                   {rhf.currency.value.code}
                 </span>
                 <input
                   {...rhf.register("tip")}
                   inputMode="decimal"
-                  className="w-full text-sm pl-2 focus:outline-none"
+                  className="w-full text-sm pl-1 focus:outline-none"
                   placeholder="Enter contribution amount"
                   aria-invalid={!!rhf.errors.tip?.message}
                 />

@@ -171,12 +171,15 @@ export function Form(props: TMethodState<"stocks">) {
           }}
           custom_tip={
             tip_format.value === "custom" ? (
-              <div className="relative w-full">
+              <div className="relative w-full flex items-baseline">
+                <span className="font-bold text-2xs self-baseline text-form-primary">
+                  {ticker.value.symbol}
+                </span>
                 <input
                   {...register("tip")}
                   type="number"
                   step="any"
-                  className="w-full text-sm pl-2 focus:outline-none"
+                  className="w-full text-sm pl-1 focus:outline-none"
                   placeholder="Enter contribution amount"
                   aria-invalid={!!errors.tip?.message}
                 />

@@ -70,12 +70,15 @@ export function Form(props: TMethodState<"daf">) {
           }}
           custom_tip={
             rhf.tip_format.value === "custom" ? (
-              <div className="relative w-full">
+              <div className="relative w-full flex items-baseline">
+                <span className="font-bold text-2xs self-baseline text-form-primary">
+                  {usd_option.code}
+                </span>
                 <input
                   {...rhf.register("tip")}
                   type="number"
                   step="any"
-                  className="w-full text-sm pl-2 focus:outline-none"
+                  className="w-full text-sm pl-1 focus:outline-none"
                   placeholder="Enter tip"
                   aria-invalid={!!rhf.errors.tip?.message}
                 />
