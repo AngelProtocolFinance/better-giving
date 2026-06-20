@@ -22,7 +22,7 @@ export function UserMenu({ user, classes }: Props) {
         className="mb-6 hover:text-primary text-sm whitespace-nowrap grid grid-cols-subgrid col-span-2 items-center focus-visible:outline-none"
       >
         <Link to={href("/dashboard/donations")}>
-          <UserAvatar avatar={user.avatar_url} classes="w-5" />
+          <UserAvatar avatar={user.avatar_url} classes="size-5" />
           <span>My Dashboard</span>
         </Link>
       </Menu.Item>
