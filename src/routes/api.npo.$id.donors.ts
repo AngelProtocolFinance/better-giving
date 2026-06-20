@@ -7,9 +7,9 @@ import { $int_gte1 } from "@/schemas";
 
 const schema = v.union([fund_id, $int_gte1]);
 
-export const headers = () => ({
-  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
-});
+// resource routes return the loader Response as-is; React Router does not
+// apply the `headers` export here, so cache-control is set on the Response.
+const cache = "public, s-maxage=60, stale-while-revalidate=300";
 
 export const loader: LoaderFunction = async ({ params, request }) => {
   const p = v.safeParse(schema, params.id);
@@ -19,7 +19,5 @@ export const loader: LoaderFunction = async ({ params, request }) => {
   const { next } = search(request);
 
   const page = await npo_donors(id.toString(), next);
-  return new Response(JSON.stringify(page), {
-    headers: { "content-type": "application/json" },
-  });
+  return resp.json(page, 200, { "cache-control": cache });
 };

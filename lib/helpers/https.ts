@@ -1,8 +1,8 @@
 class Resp {
-  json(x: object, status = 200) {
+  json(x: object, status = 200, headers?: Record<string, string>) {
     return new Response(JSON.stringify(x), {
       status,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...headers },
     });
   }
   status(status: number, text?: string): Response {
