@@ -247,6 +247,69 @@ describe("applications — sort", () => {
   });
 });
 
+describe("applications — date range filter", () => {
+  it("DateRangeField narrows table to matching applications", async () => {
+    // seed two extra status=02 rows so 3 are in scope: -365d, -180d, -3d (SEEDS)
+    await test_db.current!.db.insert(registrations).values([
+      {
+        id: "reg-pending-old",
+        r_id: "user-old",
+        status: "02",
+        o_name: "Old Org",
+        o_hq_country: "Brazil",
+        created_at: days_ago(365),
+        updated_at: days_ago(365),
+      },
+      {
+        id: "reg-pending-mid",
+        r_id: "user-mid",
+        status: "02",
+        o_name: "Mid Org",
+        o_hq_country: "Japan",
+        created_at: days_ago(180),
+        updated_at: days_ago(180),
+      },
+    ]);
+
+    const screen = await render_applications();
+
+    await expect.element(screen.getByText("Pending Org")).toBeInTheDocument();
+    await expect.element(screen.getByText("Mid Org")).toBeInTheDocument();
+    await expect.element(screen.getByText("Old Org")).toBeInTheDocument();
+
+    await screen.getByRole("button", { name: /^filter$/i }).click();
+    await expect
+      .element(screen.getByRole("button", { name: /apply filters/i }))
+      .toBeVisible();
+
+    // window [now-240d, now-120d] — only Mid Org (180d) matches
+    const start = new Date(now);
+    start.setDate(start.getDate() - 240);
+    const end = new Date(now);
+    end.setDate(end.getDate() - 120);
+    // user clicks the month segment of each date and types digits;
+    // Ark auto-advances day → year as each segment fills
+    const months = screen.getByLabelText(/month/i);
+    const type_date = async (d: Date) => {
+      await userEvent.keyboard(String(d.getMonth() + 1).padStart(2, "0"));
+      await userEvent.keyboard(String(d.getDate()).padStart(2, "0"));
+      await userEvent.keyboard(String(d.getFullYear()));
+    };
+    await months.first().click();
+    await type_date(start);
+    await months.nth(1).click();
+    await type_date(end);
+
+    await screen.getByRole("button", { name: /apply filters/i }).click();
+
+    await expect.element(screen.getByText("Mid Org")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Pending Org"))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("Old Org")).not.toBeInTheDocument();
+  });
+});
+
 describe("applications — search", () => {
   it("filters by org name when user submits search", async () => {
     await test_db.current!.db.insert(registrations).values({
