@@ -1,3 +1,4 @@
+import { FileUpload } from "@ark-ui/react/file-upload";
 import type { ReactNode, Ref } from "react";
 import { useState } from "react";
 import { uploadFile } from "#/helpers/upload-file";
@@ -18,20 +19,11 @@ type El = HTMLDivElement;
 
 export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
   const [file, setFile] = useState<File>();
-  const [drag_active, set_drag_active] = useState(false);
 
-  const handle_files = async (files: File[]) => {
+  const handle_accept = async (files: File[]) => {
     const f = files[0];
     if (!f) return;
     setFile(f);
-
-    if (!props.specs.mimeTypes.includes(f.type as any)) {
-      return props.onChange("invalid-type");
-    }
-    if (f.size > props.specs.mbLimit * 1e6) {
-      return props.onChange("exceeds-size");
-    }
-
     try {
       props.onChange("loading");
       const url = await uploadFile(f);
@@ -45,7 +37,28 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
   const disabled = props.disabled || props.value === "loading";
 
   return (
-    <div className={props.className} ref={ref}>
+    <FileUpload.Root
+      ref={ref}
+      tabIndex={-1}
+      className={`${props.className ?? ""} scroll-mt-24 outline-none`}
+      accept={props.specs.mimeTypes}
+      maxFileSize={props.specs.mbLimit * 1e6}
+      maxFiles={1}
+      disabled={disabled}
+      invalid={!!props.error}
+      onFileAccept={(d) => handle_accept(d.files)}
+      onFileReject={(d) => {
+        const f = d.files[0];
+        if (f) setFile(f.file);
+        const codes = f?.errors ?? [];
+        if (codes.includes("FILE_INVALID_TYPE")) {
+          return props.onChange("invalid-type");
+        }
+        if (codes.includes("FILE_TOO_LARGE")) {
+          return props.onChange("exceeds-size");
+        }
+      }}
+    >
       {props.label}
       <p className="text-xs text-muted-fg mb-2">
         Valid types are:{" "}
@@ -54,46 +67,21 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
           .join(", ")}
         . File should be less than {props.specs.mbLimit} MB{" "}
       </p>
-      <label
-        data-invalid={!!props.error}
-        data-drag={drag_active}
-        data-disabled={disabled}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!disabled) set_drag_active(true);
-        }}
-        onDragLeave={() => set_drag_active(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          set_drag_active(false);
-          if (disabled) return;
-          const files = Array.from(e.dataTransfer.files);
-          if (files.length) handle_files(files);
-        }}
+      <FileUpload.Dropzone
         className={`relative grid place-items-center rounded border border-dashed w-full h-45.5 cursor-pointer
-          focus-within:outline-2 data-[drag="true"]:outline-2 outline-ring
+          focus-within:outline-2 data-dragging:outline-2 outline-ring
           hover:bg-accent
-          data-[disabled="true"]:bg-muted data-[disabled="true"]:pointer-events-none data-[disabled="true"]:outline-0
-          data-[invalid="true"]:border-destructive
+          data-disabled:bg-muted data-disabled:pointer-events-none data-disabled:outline-0
+          data-invalid:border-destructive
           `}
       >
-        <input
-          type="file"
-          className="sr-only"
-          accept={props.specs.mimeTypes.join(",")}
-          disabled={disabled}
-          onChange={(e) => {
-            const files = Array.from(e.target.files ?? []);
-            if (files.length) handle_files(files);
-            e.target.value = "";
-          }}
-        />
+        <FileUpload.HiddenInput />
         <DropzoneText value={props.value || file} />
-      </label>
+      </FileUpload.Dropzone>
 
       {props.error && (
         <span className="field-err mt-1 empty:hidden">{props.error}</span>
       )}
-    </div>
+    </FileUpload.Root>
   );
 }
