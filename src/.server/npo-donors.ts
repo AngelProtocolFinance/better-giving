@@ -13,7 +13,6 @@ export const npo_donors = async (
     return { items: [], next: undefined };
   }
 
-  // donor_email is PII and must never be exposed on this public endpoint
   const items = donors.map(({ avatar_url, donor_email, ...x }) => ({
     ...x,
     photo: avatar_url ?? undefined,
