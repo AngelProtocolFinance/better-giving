@@ -17,7 +17,7 @@ export const middleware = [auth_mdlwr, admin_mdlwr];
 export default function Page() {
   return (
     <div className="grid">
-      <Header classes="sticky z-40 top-[-1px]" />
+      <Header classes="sticky z-40 -top-px" />
       <Layout
         rootRoute={`${href("/platform")}/`}
         linkGroups={link_groups}

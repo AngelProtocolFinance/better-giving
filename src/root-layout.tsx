@@ -1,17 +1,9 @@
-import { lazy, type PropsWithChildren, Suspense } from "react";
+import type { PropsWithChildren } from "react";
 import { preconnect } from "react-dom";
 import { Links, Meta, Scripts, ScrollRestoration } from "react-router";
 import { NavProgress } from "#/components/nav-progress";
 import { Toaster } from "#/components/toaster";
 import { useConsent } from "./use-consent";
-
-const TooltipProvider = lazy(() =>
-  import("@base-ui/react/tooltip").then((m) => ({
-    default: ({ children }: PropsWithChildren) => (
-      <m.Tooltip.Provider delay={50}>{children}</m.Tooltip.Provider>
-    ),
-  }))
-);
 
 export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {
   // resource hints — emitted in <head> during SSR
@@ -32,11 +24,7 @@ export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {
       </head>
       <body className="">
         <NavProgress />
-        <Suspense>
-          <TooltipProvider>
-            <Toaster>{children}</Toaster>
-          </TooltipProvider>
-        </Suspense>
+        <Toaster>{children}</Toaster>
         <ScrollRestoration />
         <Scripts />
       </body>

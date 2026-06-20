@@ -46,7 +46,7 @@ export function Footer({ classes = "" }: Props) {
             Security
           </Link>
           <Link
-            className="underline px-2 @sm/links:text-nowrap order-5 @md/links:order-none "
+            className="underline px-2 @sm/links:text-nowrap order-5 @md/links:order-0 "
             to={href("/terms-of-use")}
           >
             Terms of Use (Donors)

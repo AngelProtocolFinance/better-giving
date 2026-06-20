@@ -1,8 +1,8 @@
-import { Check, CircleCheck, Copy } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
 import { emails } from "@/constants/common";
-import { use_copier } from "../../copier/use-copier";
+import { Copier } from "../../copier";
 import { LoadText } from "../../load-text";
 import { BackBtn } from "../common/back-btn";
 import { use_donation } from "../context";
@@ -36,7 +36,6 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
     ...(props.custodian ? [`Custodian: ${props.custodian}`] : []),
   ].join("\n");
 
-  const { handle_copy, copied } = use_copier(instructions_text);
   const [status, set_status] = useState<"idle" | "loading" | "ok" | "error">(
     "idle"
   );
@@ -81,14 +80,13 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
         >
           Generate Email
         </a>
-        <button
-          type="button"
-          onClick={handle_copy}
-          className="btn btn-secondary rounded px-4 py-1.5 text-xs font-normal inline-flex items-center gap-1"
+        <Copier
+          text={instructions_text}
+          size={14}
+          classes="btn btn-secondary rounded px-4 py-1.5 text-xs font-normal inline-flex items-center gap-1"
         >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
           Copy Instructions
-        </button>
+        </Copier>
       </div>
 
       <p className="mt-6 text-sm">

@@ -1,4 +1,5 @@
-import { Menu } from "@base-ui/react/menu";
+import { Menu } from "@ark-ui/react/menu";
+import { Portal } from "@ark-ui/react/portal";
 import { LinkIcon, MailIcon, ShareIcon } from "lucide-react";
 import type React from "react";
 import facebook from "#/assets/icons/social/facebook.webp";
@@ -60,15 +61,20 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
 
   return (
     <div className={classes}>
-      <Menu.Root>
-        <Menu.Trigger className="focus:outline-none text-primary hover:text-primary transition-colors duration-200">
+      <Menu.Root positioning={{ placement: "bottom", gutter: 8 }}>
+        <Menu.Trigger className="focus-visible:outline-none text-primary hover:text-primary transition-colors duration-200">
           <ShareIcon size={20} />
         </Menu.Trigger>
-        <Menu.Portal>
-          <Menu.Positioner side="bottom" sideOffset={8}>
-            <Menu.Popup className="z-10 grid grid-cols-2 w-max p-3 rounded bg-popover text-popover-fg shadow-xl shadow-black/5 transition duration-200 ease-out data-[closed]:scale-95 data-[closed]:opacity-0">
+        <Portal>
+          <Menu.Positioner>
+            <Menu.Content className="z-10 grid grid-cols-2 w-max p-3 rounded bg-popover text-popover-fg shadow-xl shadow-black/5 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
               {menuItems.map((item) => (
-                <Menu.Item key={item.name}>
+                <Menu.Item
+                  key={item.name}
+                  value={item.name}
+                  asChild
+                  className="focus-visible:outline-none"
+                >
                   <a
                     href={item.getShareLink({
                       orgName: p.orgName,
@@ -85,7 +91,11 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                   </a>
                 </Menu.Item>
               ))}
-              <Menu.Item>
+              <Menu.Item
+                value="copy-link"
+                asChild
+                className="focus-visible:outline-none"
+              >
                 <button
                   type="button"
                   onClick={() => {
@@ -99,9 +109,9 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                   Copy Link
                 </button>
               </Menu.Item>
-            </Menu.Popup>
+            </Menu.Content>
           </Menu.Positioner>
-        </Menu.Portal>
+        </Portal>
       </Menu.Root>
     </div>
   );

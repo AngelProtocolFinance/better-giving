@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { useState } from "react";
 import { Link, useFetcher, useNavigate } from "react-router";
 import type { ILog } from "@/nav";
@@ -14,16 +15,19 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { preventScrollReset: true, replace: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { preventScrollReset: true, replace: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Popup className="z-50 fixed-center bg-popover w-[90vw] rounded overflow-hidden">
-          <Content {...data} />
-        </Dialog.Popup>
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Dialog.Content className="z-50 fixed-center bg-popover w-[90vw] rounded overflow-hidden">
+            <Content {...data} />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }

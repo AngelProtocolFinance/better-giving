@@ -1,6 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
-import { Radio } from "@base-ui/react/radio";
-import { RadioGroup } from "@base-ui/react/radio-group";
+import { Dialog } from "@ark-ui/react/dialog";
+import { RadioGroup } from "@ark-ui/react/radio-group";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { Copier } from "#/components/copier";
@@ -72,7 +71,7 @@ export function Panel({
   const memo = `${npo_name}+${npo_id}+${account_code}`;
 
   return (
-    <Dialog.Popup className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-[680px] max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
+    <Dialog.Content className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-170 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
       {/* Header */}
       <div className="p-6 md:p-8 border-b relative">
         <h2 className="text-2xl font-bold mb-2">Deposit Funds</h2>
@@ -141,7 +140,7 @@ export function Panel({
           for specific instructions.
         </p>
       </div>
-    </Dialog.Popup>
+    </Dialog.Content>
   );
 }
 
@@ -153,36 +152,38 @@ function AccountSelector({
   return (
     <div className={classes}>
       <p className="label mb-2">Deposit to</p>
-      <RadioGroup
+      <RadioGroup.Root
         value={value}
-        onValueChange={onChange}
+        onValueChange={(e) => onChange(e.value as AccountType)}
         className="grid grid-cols-2 gap-3"
       >
-        <Radio.Root
+        <RadioGroup.Item
           value={"savings" satisfies AccountType}
-          className="group border rounded p-4 data-checked:border-primary data-checked:bg-accent transition-colors flex items-center justify-between"
+          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-accent transition-colors flex items-center justify-between"
         >
-          <span className="text-sm font-medium group-data-checked:text-primary">
+          <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
             Savings account
-          </span>
+          </RadioGroup.ItemText>
           <Check
             size={18}
-            className="text-transparent group-data-checked:text-primary"
+            className="text-transparent group-data-[state=checked]:text-primary"
           />
-        </Radio.Root>
-        <Radio.Root
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+        <RadioGroup.Item
           value={"investments" satisfies AccountType}
-          className="group border rounded p-4 data-checked:border-primary data-checked:bg-accent transition-colors flex items-center justify-between"
+          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-accent transition-colors flex items-center justify-between"
         >
-          <span className="text-sm font-medium group-data-checked:text-primary">
+          <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
             Investments account
-          </span>
+          </RadioGroup.ItemText>
           <Check
             size={18}
-            className="text-transparent group-data-checked:text-primary"
+            className="text-transparent group-data-[state=checked]:text-primary"
           />
-        </Radio.Root>
-      </RadioGroup>
+          <RadioGroup.ItemHiddenInput />
+        </RadioGroup.Item>
+      </RadioGroup.Root>
     </div>
   );
 }
@@ -235,7 +236,7 @@ function MemoSection({ memo, account_type, classes = "" }: MemoSectionProps) {
 function InfoRow({ label, value, copyable = true }: InfoRowProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-      <span className="text-sm text-muted-fg min-w-[140px]">{label}</span>
+      <span className="text-sm text-muted-fg min-w-35">{label}</span>
       <div className="flex-1 flex items-center gap-2">
         <span className="text-sm font-semibold text-pretty flex-1">
           {value}

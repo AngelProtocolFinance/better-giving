@@ -1,4 +1,4 @@
-import { Slider } from "@base-ui/react/slider";
+import { Slider } from "@ark-ui/react/slider";
 import { Info } from "lucide-react";
 import { useState } from "react";
 
@@ -49,18 +49,16 @@ export function Chart({ classes = "", ...v }: Props) {
 
         <Slider.Root
           className="relative flex items-center select-none touch-none w-full h-5"
-          value={yrs}
-          onValueChange={(val) =>
-            setYears(typeof val === "number" ? val : val[0])
-          }
+          value={[yrs]}
+          onValueChange={(e) => setYears(e.value[0])}
           max={20}
           min={5}
           step={5}
-          aria-label="Years"
+          aria-label={["Years"]}
         >
           <Slider.Control className="flex w-full items-center">
             <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
-              <Slider.Indicator className="absolute h-full bg-primary" />
+              <Slider.Range className="absolute h-full bg-primary" />
             </Slider.Track>
             <Slider.Thumb
               index={0}

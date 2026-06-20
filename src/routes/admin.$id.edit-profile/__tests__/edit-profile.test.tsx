@@ -9,6 +9,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
@@ -281,7 +282,9 @@ describe("edit profile — organization fields", () => {
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
     // change designation: click select trigger, pick new
-    await screen.getByText(/organization designation/i).click();
+    await screen
+      .getByRole("combobox", { name: /organization designation/i })
+      .click();
     await expect
       .element(screen.getByRole("option", { name: "University" }))
       .toBeVisible();
@@ -317,6 +320,147 @@ describe("edit profile — organization fields", () => {
       .element(profile.getByText("Test Charity").first())
       .toBeVisible();
     await expect.element(profile.getByText(/canada/i).first()).toBeVisible();
+  });
+
+  it("hq_country combo: clear → required error blocks submit; refill → submit succeeds", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // tagline edit makes the form dirty so submit is enabled
+    await screen.getByLabelText(/tagline/i).fill("New tagline");
+
+    const country_input = screen.getByPlaceholder("Select a country");
+    await expect.element(country_input).toHaveDisplayValue("United States");
+
+    // click the X clear button — combo row has 2 buttons: trigger (flag) then X
+    const combo_row = (country_input.element() as HTMLInputElement)
+      .parentElement!;
+    const buttons = page.elementLocator(combo_row).getByRole("button");
+    await buttons.nth(1).click();
+
+    // submit empty → required error renders, form does not persist
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await expect.element(screen.getByText(/required/i).first()).toBeVisible();
+
+    const reloaded = await npo_get(npo.id);
+    expect(reloaded?.hq_country).toBe("United States"); // unchanged
+    expect(reloaded?.tagline).toBe("Helping the world"); // unchanged
+
+    // refill via filter + select → submit succeeds
+    await country_input.fill("Fran");
+    await expect
+      .element(screen.getByRole("option", { name: /France/i }))
+      .toBeVisible();
+    await screen.getByRole("option", { name: /France/i }).click();
+
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await expect
+      .element(screen.getByPlaceholder("Select a country"))
+      .toHaveDisplayValue("France");
+    await expect
+      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .toBeDisabled();
+
+    const persisted = await npo_get(npo.id);
+    expect(persisted?.hq_country).toBe("France");
+    expect(persisted?.tagline).toBe("New tagline");
+  });
+
+  it("hq_country combo: clear button refocuses input and reopens dropdown", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    const country_input = screen.getByPlaceholder("Select a country");
+    await expect.element(country_input).toHaveDisplayValue("United States");
+
+    // before clear: dropdown closed (no options rendered)
+    expect(screen.getByRole("option").query()).toBeNull();
+
+    // click the X clear button — combo row has 2 buttons: trigger (flag) then X
+    const combo_row = (country_input.element() as HTMLInputElement)
+      .parentElement!;
+    const buttons = page.elementLocator(combo_row).getByRole("button");
+    await buttons.nth(1).click();
+
+    // input cleared + focused + dropdown re-opens with options
+    await expect.element(country_input).toHaveDisplayValue("");
+    expect(document.activeElement).toBe(country_input.element());
+    await expect
+      .element(screen.getByRole("option", { name: /Afghanistan/i }))
+      .toBeVisible();
+  });
+});
+
+describe("edit profile — active countries (multi-combo)", () => {
+  it("filter → select multiple, deselect all, refill → DB persists array", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // anchor on the "Active countries" Label and scope into its sibling section
+    const label_el = screen
+      .getByText("Active countries", { exact: true })
+      .element() as HTMLElement;
+    const multi_section = label_el.nextElementSibling as HTMLElement;
+    const scoped = page.elementLocator(multi_section);
+    const multi_input = scoped.getByRole("combobox");
+
+    // open + filter via typing
+    await multi_input.click();
+    await multi_input.fill("Cana");
+    await expect
+      .element(screen.getByRole("option", { name: /^Canada$/i }))
+      .toBeVisible();
+    // filter narrows — Brazil is filtered out
+    expect(
+      screen.getByRole("option", { name: /^Brazil$/i }).query()
+    ).toBeNull();
+    await screen.getByRole("option", { name: /^Canada$/i }).click();
+
+    // chip rendered in the multi-combo section (scoped — popup options share the text)
+    await expect
+      .element(scoped.getByText("Canada", { exact: true }))
+      .toBeVisible();
+
+    // filter + select second value
+    await multi_input.fill("Fran");
+    await screen.getByRole("option", { name: /^France$/i }).click();
+    await expect
+      .element(scoped.getByText("France", { exact: true }))
+      .toBeVisible();
+
+    // Reset clears all chips. Portaled popup may render offscreen — native click bypasses viewport check
+    await multi_input.click();
+    await multi_input.fill("");
+    (
+      screen.getByRole("button", { name: /^reset$/i }).element() as HTMLElement
+    ).click();
+    // chips live in multi_section; options are portaled out — scope assertions to the section
+    await expect
+      .element(scoped.getByText("Canada", { exact: true }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(scoped.getByText("France", { exact: true }))
+      .not.toBeInTheDocument();
+
+    // refill single + submit → DB persists array
+    await multi_input.fill("Cana");
+    await screen.getByRole("option", { name: /^Canada$/i }).click();
+    // popup stays open after multi-select; dismiss before clicking submit
+    (multi_input.element() as HTMLInputElement).focus();
+    (multi_input.element() as HTMLInputElement).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await vi.waitFor(async () => {
+      const reloaded = await npo_get(npo.id);
+      expect(reloaded?.active_in_countries).toEqual(["Canada"]);
+    });
   });
 });
 
@@ -372,7 +516,11 @@ describe("edit profile — published toggle", () => {
       .toBeVisible();
 
     // click toggle — dispatch via JS (element below fold, not visible to Playwright)
-    (screen.getByRole("switch").element() as HTMLElement).click();
+    (
+      screen
+        .getByRole("checkbox", { name: /publish profile/i })
+        .element() as HTMLElement
+    ).click();
 
     // ui updates
     await expect

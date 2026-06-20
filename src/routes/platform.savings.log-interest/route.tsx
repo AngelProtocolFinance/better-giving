@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { useState } from "react";
 import { Link, useFetcher, useNavigate } from "react-router";
 import { LogForm } from "./log-form";
@@ -12,16 +13,19 @@ export default function Page() {
   return (
     <Dialog.Root
       open={true}
-      onOpenChange={(open) => {
-        if (!open) navigate("..", { preventScrollReset: true, replace: true });
+      onOpenChange={(e) => {
+        if (!e.open)
+          navigate("..", { preventScrollReset: true, replace: true });
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Popup className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-          <Content />
-        </Dialog.Popup>
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+            <Content />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }

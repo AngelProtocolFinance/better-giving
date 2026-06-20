@@ -37,7 +37,7 @@ export function TopCountries() {
             {countries.map((country) => (
               <NavLink
                 key={country}
-                className="[&:is(.pending)]:text-muted-fg [&:is(.pending)]:pointer-events-none border px-6 py-2 rounded text-sm hover:bg-secondary"
+                className="[.pending]:text-muted-fg [.pending]:pointer-events-none border px-6 py-2 rounded text-sm hover:bg-secondary"
                 to={{
                   pathname: href("/marketplace"),
                   search: new URLSearchParams({

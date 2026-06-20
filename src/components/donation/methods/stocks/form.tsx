@@ -1,4 +1,4 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox } from "@ark-ui/react/combobox";
 import type { ITicker } from "@better-giving/stocks";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { CheckIcon } from "lucide-react";
@@ -74,7 +74,7 @@ export function Form(props: TMethodState<"stocks">) {
 
   const combobox = (
     <TokenCombobox
-      classes="[&:has(:placeholder-shown)]:w-34 w-24"
+      classes="has-placeholder-shown:w-34 w-24"
       disabled={ticker_state === "loading"}
       btn_disp={(open) => btn_disp(open, ticker_state)}
       item_key={(t) => t.symbol}
@@ -84,8 +84,8 @@ export function Form(props: TMethodState<"stocks">) {
       opt_disp={(t) => (
         <Combobox.Item
           key={t.symbol}
-          className="w-full text-left text-xs p-2 grid grid-cols-[1fr_auto] items-center gap-x-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-selected:font-semibold"
-          value={t}
+          className="w-full text-left text-xs p-2 grid grid-cols-[1fr_auto] items-center gap-x-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
+          item={t}
         >
           <div className="space-y-0.5">
             <span className="font-semibold block">{t.symbol}</span>

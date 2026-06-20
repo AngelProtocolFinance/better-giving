@@ -1,8 +1,9 @@
-import { Field as BaseField } from "@base-ui/react/field";
+import { Field as BaseField } from "@ark-ui/react/field";
 import { DollarSign } from "lucide-react";
 import { useController, useFieldArray } from "react-hook-form";
 import { type LinksFunction, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
+import { DateField } from "#/components/date-field";
 import { Field, Label } from "#/components/form";
 import { GoalSelector } from "#/components/goal-selector";
 import { ImgEditor } from "#/components/img-editor";
@@ -62,6 +63,10 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
   const { field: desc } = useController({
     control,
     name: "description",
+  });
+  const { field: expiration } = useController({
+    control,
+    name: "expiration",
   });
 
   const videos = useFieldArray<Pick<FV, "videos">, "videos">({
@@ -123,7 +128,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           charLimit={MAX_DESCRIPTION_CHAR}
           classes={{
             field:
-              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-[15rem]",
+              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
             counter: "text-muted-fg",
             error: "text-right",
           }}
@@ -196,7 +201,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           spec={img_spec([1, 1])}
           classes={{
             container: "mb-4",
-            dropzone: "aspect-1/1 w-60",
+            dropzone: "aspect-square w-60",
           }}
           error={errors.logo?.message}
         />
@@ -248,13 +253,14 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           )}
         />
 
-        <Field
-          {...register("expiration")}
-          label="I want my fundraiser to end on this date "
-          type="date"
-          classes={{ input: "uppercase" }}
+        <DateField
+          classes="mt-4"
+          value={expiration.value ?? ""}
+          onChange={expiration.onChange}
+          name="expiration"
+          label="I want my fundraiser to end on this date"
           error={errors.expiration?.message}
-          required={false}
+          minToday
         />
 
         <button

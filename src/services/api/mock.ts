@@ -97,6 +97,7 @@ export const handlers = [
         { code: "USD", rate: 1, min: 1 },
         { code: "EUR", rate: 0.92, min: 0.92 },
         { code: "GBP", rate: 0.79, min: 0.79 },
+        { code: "CAD", rate: 1.37, min: 1.37 },
       ],
     };
     return HttpResponse.json(data);

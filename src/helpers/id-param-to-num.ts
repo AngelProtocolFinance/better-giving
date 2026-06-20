@@ -1,4 +1,4 @@
-export function idParamToNum(id?: string | number | null) {
+export function id_param_to_num(id?: string | number | null) {
   if (id == null) return 0;
 
   const numId = Number(id);

@@ -73,7 +73,9 @@ describe("Stripe form: initial load", () => {
     //tip enabled by default
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     // tip enabled and defaulted to 15%
@@ -84,7 +86,7 @@ describe("Stripe form: initial load", () => {
     //fee coverage disabled by default
     await expect
       .element(
-        screen.getByRole("switch", {
+        screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
         })
       )
@@ -129,7 +131,9 @@ describe("Stripe form: initial load", () => {
 
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     await expect
@@ -138,7 +142,7 @@ describe("Stripe form: initial load", () => {
 
     await expect
       .element(
-        screen.getByRole("switch", {
+        screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
         })
       )
@@ -281,6 +285,77 @@ describe("Stripe form: initial load", () => {
         document.activeElement
       )
     );
+  });
+
+  test("user changes currency to EUR, sync filter narrows options, value persists", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form type="stripe" step="form" />);
+
+    // currency loads USD by default
+    await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
+
+    // open currency selector — all 3 currencies visible
+    await screen.getByRole("combobox").click();
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+
+    // type "EU" → sync client-side filter via Combobox.useFilter, USD drops out
+    await screen.getByRole("combobox").fill("EU");
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+    expect(screen.getByRole("option", { name: "USD" }).query()).toBeNull();
+
+    // select EUR → input syncs to itemToStringLabel
+    await screen.getByRole("option", { name: "EUR" }).click();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("EUR");
+
+    // fill amount, submit, assert form fires with EUR currency
+    await screen.getByPlaceholder(/enter amount/i).fill("10");
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    don_set_mock.mockReset();
+  });
+
+  test("clicking a tip percent radio does not trigger amount-input focus styling", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+
+    const screen = await render(<Form type="stripe" step="form" />);
+
+    // baseline: 15% checked by default
+    await expect
+      .element(screen.getByRole("radio", { name: /15%/i }))
+      .toBeChecked();
+
+    // click a different percent via its label text — focus goes to the
+    // radio's hidden input, NOT to a text/number input that would highlight
+    // the row's bottom border.
+    await screen.getByText("20%").click();
+    await expect
+      .element(screen.getByRole("radio", { name: /20%/i }))
+      .toBeChecked();
+
+    // active element must be a radio input (not text/number)
+    const active = document.activeElement as HTMLInputElement | null;
+    expect(active?.tagName).toBe("INPUT");
+    expect(active?.type).toBe("radio");
   });
 
   test("user selects frequency and submits", async () => {

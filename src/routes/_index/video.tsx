@@ -62,12 +62,12 @@ export function Video() {
         <img
           src={s2}
           alt="infinity left half"
-          className="relative h-28 sm:h-52 left-[1.9rem] sm:left-[3.5rem]"
+          className="relative h-28 sm:h-52 left-[1.9rem] sm:left-14"
         />
         <img
           src={s}
           alt="infinity right half"
-          className="relative h-28 sm:h-52 right-[1.9rem] sm:right-[3.5rem]"
+          className="relative h-28 sm:h-52 right-[1.9rem] sm:right-14"
         />
       </div>
       <h2
@@ -80,7 +80,7 @@ export function Video() {
         create lasting positive change{" "}
       </p>
 
-      <div className="rounded md:rounded max-w-[69.5rem] p-4 pb-12 border justify-self-center">
+      <div className="rounded md:rounded max-w-278 p-4 pb-12 border justify-self-center">
         <div className="relative">
           <img height={600} src={videobanner} alt="donation tally" />
           <TextSurroundedHeart classes="max-xl:hidden absolute left-0 bottom-0 -translate-x-1/2 translate-y-1/2" />

@@ -20,7 +20,7 @@ export function Card({
   target,
 }: EndowmentCard) {
   return (
-    <div className="relative bg-card border rounded [&:has(.pending)]:grayscale [&:has(.pending)]:pointer-events-none  grid grid-rows-subgrid row-span-4 gap-y-0">
+    <div className="relative bg-card border rounded has-[.pending]:grayscale has-[.pending]:pointer-events-none  grid grid-rows-subgrid row-span-4 gap-y-0">
       <NavLink
         to={href("/marketplace/:id", { id: id.toString() })}
         className="grid grid-rows-subgrid row-span-4 h-full overflow-clip"

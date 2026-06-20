@@ -1,3 +1,4 @@
+import { Progress } from "@ark-ui/react/progress";
 import { useEffect, useRef, useState } from "react";
 import { useNavigation } from "react-router";
 
@@ -45,16 +46,26 @@ export function NavProgress() {
   if (phase === "idle") return null;
 
   return (
-    <div
-      className="fixed top-0 left-0 h-0.5 bg-primary z-99"
+    <Progress.Root
+      value={width}
+      className="fixed top-0 left-0 w-full h-0.5 z-99"
       style={{
-        width: `${width}%`,
         opacity: phase === "completing" ? 0 : 1,
         transition:
-          phase === "completing"
-            ? "width 0.15s ease-out, opacity 0.3s 0.1s ease-in"
-            : "width 0.3s ease-out",
+          phase === "completing" ? "opacity 0.3s 0.1s ease-in" : undefined,
       }}
-    />
+    >
+      <Progress.Track className="w-full h-full">
+        <Progress.Range
+          className="h-full bg-primary"
+          style={{
+            transition:
+              phase === "completing"
+                ? "width 0.15s ease-out"
+                : "width 0.3s ease-out",
+          }}
+        />
+      </Progress.Track>
+    </Progress.Root>
   );
 }

@@ -43,7 +43,9 @@ describe("IRA/QCD form: initial load", () => {
     //tip enabled by default
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     // tip enabled and defaulted to 15%
@@ -54,7 +56,7 @@ describe("IRA/QCD form: initial load", () => {
     // no cover_processing_fee switch for ira/qcd
     await expect
       .element(
-        screen.getByRole("switch", {
+        screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
         })
       )
@@ -97,7 +99,9 @@ describe("IRA/QCD form: initial load", () => {
 
     await expect
       .element(
-        screen.getByRole("switch", { name: /support free fundraising tools/i })
+        screen.getByRole("checkbox", {
+          name: /support free fundraising tools/i,
+        })
       )
       .toBeChecked();
     await expect

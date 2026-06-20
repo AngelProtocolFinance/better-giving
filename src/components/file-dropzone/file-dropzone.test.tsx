@@ -91,7 +91,7 @@ describe("FileDropzone", () => {
     const dt = new DataTransfer();
     dt.items.add(bad_file);
     Object.defineProperty(input, "files", { value: dt.files });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
 
     await vi.waitFor(() =>
       expect(on_change).toHaveBeenCalledWith("invalid-type")
@@ -116,7 +116,7 @@ describe("FileDropzone", () => {
     const dt = new DataTransfer();
     dt.items.add(big_file);
     Object.defineProperty(input, "files", { value: dt.files });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
 
     await vi.waitFor(() =>
       expect(on_change).toHaveBeenCalledWith("exceeds-size")
@@ -142,7 +142,7 @@ describe("FileDropzone", () => {
     const dt = new DataTransfer();
     dt.items.add(valid_file);
     Object.defineProperty(input, "files", { value: dt.files });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
 
     // first call: "loading"
     await vi.waitFor(() => expect(on_change).toHaveBeenCalledWith("loading"));
@@ -174,7 +174,7 @@ describe("FileDropzone", () => {
     const dt = new DataTransfer();
     dt.items.add(valid_file);
     Object.defineProperty(input, "files", { value: dt.files });
-    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
 
     await vi.waitFor(() => expect(on_change).toHaveBeenCalledWith("failure"));
   });
@@ -192,7 +192,7 @@ describe("FileDropzone", () => {
 
     // dropzone should have disabled data attribute
     await vi.waitFor(() => {
-      const dropzone = screen.container.querySelector('[data-disabled="true"]');
+      const dropzone = screen.container.querySelector("[data-disabled]");
       expect(dropzone).not.toBeNull();
     });
   });

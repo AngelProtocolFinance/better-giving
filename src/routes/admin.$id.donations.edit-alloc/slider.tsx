@@ -1,4 +1,4 @@
-import { Slider } from "@base-ui/react/slider";
+import { Slider } from "@ark-ui/react/slider";
 import { HandCoins, PiggyBank, Sprout } from "lucide-react";
 import type { ReactNode } from "react";
 import type { IAllocation } from "@/npo";
@@ -59,8 +59,8 @@ export function AllocationSlider({
       {/** slider */}
       <Slider.Root
         value={boundary}
-        minStepsBetweenValues={0}
-        onValueChange={(b: Boundary) => onChange(toAlloc(b))}
+        minStepsBetweenThumbs={0}
+        onValueChange={(e) => onChange(toAlloc(e.value as Boundary))}
         className="group/slider relative flex items-center select-none touch-none mt-2"
         disabled={disabled}
       >
@@ -71,7 +71,7 @@ export function AllocationSlider({
             }}
             className="shadow-inner group-aria-disabled/slider:bg-[#f5e09d] relative grow rounded-full h-2"
           >
-            <Slider.Indicator className="absolute bg-[#F5C828] group-aria-disabled/slider:bg-[#bdcc9d] rounded-full h-full" />
+            <Slider.Range className="absolute bg-[#F5C828] group-aria-disabled/slider:bg-[#bdcc9d] rounded-full h-full" />
           </Slider.Track>
           <Slider.Thumb
             index={0}

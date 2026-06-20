@@ -65,7 +65,7 @@ export function Loaded(props: LoaderData) {
           replace
           preventScrollReset
           to={href("/platform/banking-applications")}
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-secondary"
+          className="px-4 py-1 min-w-24 text-sm btn btn-secondary"
         >
           Back
         </NavLink>
@@ -74,7 +74,7 @@ export function Loaded(props: LoaderData) {
           preventScrollReset
           aria-disabled={!!prev_verdict}
           to="reject"
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-destructive"
+          className="px-4 py-1 min-w-24 text-sm btn btn-destructive"
         >
           Reject
         </NavLink>
@@ -83,7 +83,7 @@ export function Loaded(props: LoaderData) {
           preventScrollReset
           aria-disabled={!!prev_verdict}
           to="approve"
-          className="px-4 py-1 min-w-[6rem] text-sm btn btn-success"
+          className="px-4 py-1 min-w-24 text-sm btn btn-success"
         >
           Approve
         </NavLink>

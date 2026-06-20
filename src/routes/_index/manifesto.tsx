@@ -1,4 +1,4 @@
-import { Tabs } from "@base-ui/react/tabs";
+import { Tabs } from "@ark-ui/react/tabs";
 import { motion } from "motion/react";
 import alliance_member_badge from "#/assets/images/alliance-member-badge-hexagon.webp";
 import alliance_member_badge_rect from "#/assets/images/alliance-member-badge-rectangle.webp";
@@ -58,28 +58,28 @@ export function Manifesto({ classes = "" }) {
 
         <Tabs.Root className="mt-4" defaultValue="rights">
           <Tabs.List className="flex mb-2 gap-x-1">
-            <Tabs.Tab
+            <Tabs.Trigger
               value="rights"
-              className="focus:outline-none px-4 pb-2 font-bold text-lg data-active:border-primary border-b-2"
+              className="focus:outline-none px-4 pb-2 font-bold text-lg data-selected:border-primary border-b-2"
             >
               Your Rights
-            </Tabs.Tab>
-            <Tabs.Tab
+            </Tabs.Trigger>
+            <Tabs.Trigger
               value="benefits"
-              className="focus:outline-none px-4 pb-2 font-bold text-lg data-active:border-primary border-b-2"
+              className="focus:outline-none px-4 pb-2 font-bold text-lg data-selected:border-primary border-b-2"
             >
               Your Benefits
-            </Tabs.Tab>
-            <Tabs.Tab
+            </Tabs.Trigger>
+            <Tabs.Trigger
               value="part"
-              className="focus:outline-none px-4 pb-2 font-bold text-lg data-active:border-primary border-b-2"
+              className="focus:outline-none px-4 pb-2 font-bold text-lg data-selected:border-primary border-b-2"
             >
               Your Part
-            </Tabs.Tab>
+            </Tabs.Trigger>
           </Tabs.List>
 
           <div className="mt-6">
-            <Tabs.Panel value="rights" className="">
+            <Tabs.Content value="rights" className="">
               <p className="text-lg xl:text-xl mb-4 font-bold">
                 The {app_name} Manifesto — your three rights:
               </p>
@@ -99,9 +99,9 @@ export function Manifesto({ classes = "" }) {
                   terms.
                 </li>
               </ul>
-            </Tabs.Panel>
+            </Tabs.Content>
 
-            <Tabs.Panel value="benefits" className="">
+            <Tabs.Content value="benefits" className="">
               <p className="text-lg xl:text-xl mb-4 font-bold">
                 Member Benefits (always included):
               </p>
@@ -115,9 +115,9 @@ export function Manifesto({ classes = "" }) {
                 </li>
                 <li>Member Spotlights (monthly stories you can copy)</li>
               </ul>
-            </Tabs.Panel>
+            </Tabs.Content>
 
-            <Tabs.Panel
+            <Tabs.Content
               value="part"
               className="grid grid-cols-2 @container/panel"
             >
@@ -150,7 +150,7 @@ export function Manifesto({ classes = "" }) {
                   alt="Better Giving Alliance member badge (rectangle)"
                 />
               </div>
-            </Tabs.Panel>
+            </Tabs.Content>
           </div>
         </Tabs.Root>
         <div className="max-xl:hidden absolute -right-28 isolate -bottom-2">

@@ -1,7 +1,7 @@
+import { Clipboard } from "@ark-ui/react/clipboard";
 import { Check, Copy } from "lucide-react";
 import type { ReactNode } from "react";
 import { unpack } from "#/helpers/unpack";
-import { use_copier } from "./use-copier";
 
 type Classes = string | { container?: string; icon?: string };
 
@@ -12,8 +12,9 @@ type Props = {
   children?: ReactNode;
 };
 
+const copy_wait_time = 700;
+
 export function Copier({ text, classes, size, children }: Props) {
-  const { handle_copy, copied } = use_copier(text);
   const { container, icon } = unpack(classes);
   const { check = 16, copy = 16 } = size
     ? typeof size === "number"
@@ -21,25 +22,22 @@ export function Copier({ text, classes, size, children }: Props) {
       : size
     : {};
   return (
-    <button
-      className={`${container} relative`}
-      type="button"
-      onClick={handle_copy}
-    >
-      {(copied && (
-        <Check
-          className={`${icon} text-success`}
-          size={check}
-          aria-labelledby="copied"
-        />
-      )) || <Copy className={`${icon}`} size={copy} aria-labelledby="copy" />}
-      <span id="copied" className="invisible absolute">
-        Copied!
-      </span>
-      <span id="copy" className="invisible absolute">
-        Copy
-      </span>
-      {children}
-    </button>
+    <Clipboard.Root value={text} timeout={copy_wait_time} className="contents">
+      <Clipboard.Trigger className={`${container} relative`}>
+        <Clipboard.Indicator
+          className="contents"
+          copied={
+            <Check
+              className={`${icon} text-success`}
+              size={check}
+              aria-label="Copied"
+            />
+          }
+        >
+          <Copy className={`${icon}`} size={copy} aria-label="Copy" />
+        </Clipboard.Indicator>
+        {children}
+      </Clipboard.Trigger>
+    </Clipboard.Root>
   );
 }

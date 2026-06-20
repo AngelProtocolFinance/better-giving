@@ -108,7 +108,7 @@ function Prompt({ recipientName, open, set_open, url, ...social }: IPrompt) {
     <Modal
       open={open}
       onClose={() => set_open(false)}
-      classes="grid content-start fixed-center z-20 border bg-background w-[91%] sm:w-full max-w-[39rem] rounded overflow-hidden"
+      classes="grid content-start fixed-center z-20 border bg-background w-[91%] sm:w-full max-w-156 rounded overflow-hidden"
     >
       <div className="grid place-items-center relative h-16  font-bold bg-muted border-b">
         Share on {social.title}

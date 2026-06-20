@@ -1,3 +1,4 @@
+import { Avatar } from "@ark-ui/react/avatar";
 import { CircleUserRound } from "lucide-react";
 
 interface Props {
@@ -6,18 +7,18 @@ interface Props {
 }
 
 export function UserAvatar({ classes = "", avatar }: Props) {
-  return avatar ? (
-    <img
-      src={avatar}
-      className={`rounded-full ${classes}`}
-      height={24}
-      width={24}
-      alt=""
-    />
-  ) : (
-    <CircleUserRound
-      size={24}
-      className={`text-primary disabled:text-muted-fg ${classes}`}
-    />
+  return (
+    <Avatar.Root
+      className={`inline-flex shrink-0 rounded-full overflow-hidden ${classes}`}
+    >
+      <Avatar.Fallback>
+        <CircleUserRound className="size-full text-primary disabled:text-muted-fg" />
+      </Avatar.Fallback>
+      <Avatar.Image
+        src={avatar}
+        alt=""
+        className="size-full rounded-full object-cover"
+      />
+    </Avatar.Root>
   );
 }

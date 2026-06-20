@@ -8,7 +8,7 @@ const hero_img =
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden min-h-[360px] md:min-h-[420px] lg:min-h-[480px] flex items-center bg-[#1a3c5e]">
+    <section className="relative overflow-hidden min-h-90 md:min-h-105 lg:min-h-120 flex items-center bg-[#1a3c5e]">
       {/* full-bleed background image — anchor right to keep illustration visible */}
       <img
         src={hero_img}
@@ -17,7 +17,7 @@ export function Hero() {
       />
 
       {/* gradient overlay — full cover on mobile, left-to-right on desktop */}
-      <div className="absolute inset-0 bg-[#1a3c5e]/70 md:bg-transparent md:bg-gradient-to-r md:from-[#1a3c5e] md:via-[#1a3c5e]/80 md:via-35% md:to-transparent md:to-60%" />
+      <div className="absolute inset-0 bg-[#1a3c5e]/70 md:bg-transparent md:bg-linear-to-r md:from-[#1a3c5e] md:via-[#1a3c5e]/80 md:via-35% md:to-transparent md:to-60%" />
 
       <div className="xl:container xl:mx-auto px-5 md:px-10 relative py-20 md:py-28">
         <motion.div

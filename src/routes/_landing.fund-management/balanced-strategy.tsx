@@ -37,7 +37,7 @@ export function BalancedStrategy({ classes = "" }) {
       <div className="max-w-3xl">
         <h2
           id="balanced-strategy-heading"
-          className="font-bold text-3xl/tight md:text-4_5xl/tight tracking-tight"
+          className="font-bold text-3xl/tight md:text-4.5xl/tight tracking-tight"
         >
           Balanced, Diversified Investment Strategy
         </h2>

@@ -1,5 +1,5 @@
-import { Select } from "@base-ui/react/select";
-import { useState } from "react";
+import { Portal } from "@ark-ui/react/portal";
+import { createListCollection, Select } from "@ark-ui/react/select";
 import { href, Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { DrawerIcon } from "#/components/icon";
@@ -19,13 +19,16 @@ const LABELS: Record<string, string> = {
   ours: "By Us",
   others: "By Our Supporters",
 };
-const OPTIONS: [string, string][] = Object.entries(LABELS);
+const OPTIONS: string[] = Object.keys(LABELS);
+const COLLECTION = createListCollection({
+  items: OPTIONS,
+  itemToString: (v) => LABELS[v],
+});
 
 function Page({ loaderData }: Route.ComponentProps) {
   const { funds, endow, user } = loaderData;
   const [searchParams, setSearchParams] = useSearchParams();
   const creator = (searchParams.get("creator") ?? "") as Creator | "";
-  const [open, setOpen] = useState(false);
 
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
@@ -33,40 +36,43 @@ function Page({ loaderData }: Route.ComponentProps) {
         <h3 className="text-3xl font-bold">Fundraisers</h3>
         <div className="flex items-center gap-3">
           <Select.Root
-            value={creator}
-            onValueChange={(v) =>
+            collection={COLLECTION}
+            value={[creator]}
+            onValueChange={(e) => {
+              const v = e.value[0];
               setSearchParams(v ? { creator: v } : {}, {
                 preventScrollReset: true,
-              })
-            }
-            open={open}
-            onOpenChange={setOpen}
+              });
+            }}
+            positioning={{ placement: "bottom-start", gutter: 8 }}
           >
-            <Select.Trigger className="flex items-center gap-2 text-sm border rounded px-3 py-1.5 outline-ring focus:outline-2 data-[popup-open]:outline-2">
-              <Select.Value placeholder="All">
-                {() => LABELS[creator]}
-              </Select.Value>
-              <DrawerIcon is_open={open} size={16} className="shrink-0" />
+            <Select.Trigger className="flex items-center gap-2 text-sm border rounded px-3 py-1.5 outline-ring focus:outline-2 data-[state=open]:outline-2">
+              <Select.ValueText placeholder="All" />
+              <Select.Context>
+                {(api) => (
+                  <DrawerIcon
+                    is_open={api.open}
+                    size={16}
+                    className="shrink-0"
+                  />
+                )}
+              </Select.Context>
             </Select.Trigger>
-            <Select.Positioner
-              side="bottom"
-              alignItemWithTrigger={false}
-              className="relative z-10"
-            >
-              <Select.Popup className="rounded-xs border bg-popover text-popover-fg mt-2 min-w-(--anchor-width) w-max origin-[var(--transform-origin)] transition-[opacity,scale] duration-150 data-[starting-style]:opacity-0 data-[starting-style]:scale-90 data-[ending-style]:opacity-0 data-[ending-style]:scale-90">
-                <Select.List>
-                  {OPTIONS.map(([val, label]) => (
+            <Portal>
+              <Select.Positioner>
+                <Select.Content className="rounded-xs border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+                  {OPTIONS.map((val) => (
                     <Select.Item
-                      key={val}
-                      value={val}
+                      key={val || "all"}
+                      item={val}
                       className="selector-opt text-sm"
                     >
-                      <Select.ItemText>{label}</Select.ItemText>
+                      <Select.ItemText>{LABELS[val]}</Select.ItemText>
                     </Select.Item>
                   ))}
-                </Select.List>
-              </Select.Popup>
-            </Select.Positioner>
+                </Select.Content>
+              </Select.Positioner>
+            </Portal>
           </Select.Root>
           <Link
             to={{

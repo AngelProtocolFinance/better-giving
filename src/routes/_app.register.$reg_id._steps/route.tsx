@@ -11,7 +11,7 @@ export default function Layout() {
   ) as Reg$IdData;
 
   return (
-    <div className="w-full md:w-[90%] max-w-[62.5rem] [&]:has-data-[claim='true']:pt-0 pt-8 grid md:grid-cols-[auto_1fr] md:border rounded md:rounded bg-card">
+    <div className="w-full md:w-[90%] max-w-250 [&]:has-data-[claim='true']:pt-0 pt-8 grid md:grid-cols-[auto_1fr] md:border rounded md:rounded bg-card">
       {reg.claim && (
         <div
           data-claim
@@ -29,10 +29,10 @@ export default function Layout() {
       )}
       <ProgressIndicator
         step={new Progress(reg).step}
-        classes="md:min-w-[12rem] lg:min-w-[15.5rem]"
+        classes="md:min-w-48 lg:min-w-62"
       />
 
-      <div className="grid z-10 w-full px-6 py-8 md:p-0 md:pr-8 md:shadow-none shadow-[0px_4px_6px,_0px_-4px_6px] shadow-border/80 dark:shadow-background">
+      <div className="grid z-10 w-full px-6 py-8 md:p-0 md:pr-8 md:shadow-none shadow-[0px_4px_6px,0px_-4px_6px] shadow-border/80 dark:shadow-background">
         <Outlet context={user} />
       </div>
       <Reference id={reg.id} classes="col-span-full md:mt-8" />

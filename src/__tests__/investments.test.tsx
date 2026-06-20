@@ -579,7 +579,7 @@ describe("cross-page — platform admin rejects redemption", () => {
     // user sees cancelled tx, balance restored
     screen = await render_investments(npo.id);
 
-    await expect.element(screen.getByText(/cancelled/i)).toBeInTheDocument();
+    await expect.element(screen.getByText(/^cancelled$/i)).toBeInTheDocument();
     // balance restored: lock_units back to 100, price=10 → $1,000
     await expect.element(screen.getByText(/\$1,000/)).toBeInTheDocument();
   });

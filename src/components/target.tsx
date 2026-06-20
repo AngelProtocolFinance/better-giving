@@ -1,3 +1,4 @@
+import { Progress } from "@ark-ui/react/progress";
 import type { ReactNode } from "react";
 import diversity from "#/assets/icons/diversity.svg";
 import { to_usd } from "#/helpers/to-usd";
@@ -19,17 +20,20 @@ export const to_target = (target: TTarget): "smart" | number | null => {
 export function Target({ text, target, classes = "", progress }: ITarget) {
   if (target === null) return null;
   const to = target === "smart" ? smart_next(progress) : target;
-  const pct = Math.min(progress, to) / to;
+  if (!(to > 0) || Number.isNaN(progress)) return null;
 
   return (
     <div className={classes}>
       {text}
-      <div className="h-1.5 w-full rounded-full bg-success/10 shadow-inner">
-        <div
-          style={{ width: `${pct * 100}%` }}
-          className="h-full rounded-full bg-success shadow-xs"
-        />
-      </div>
+      <Progress.Root
+        value={Math.min(progress, to)}
+        max={to}
+        className="h-1.5 w-full"
+      >
+        <Progress.Track className="h-full w-full rounded-full bg-success/10 shadow-inner">
+          <Progress.Range className="h-full rounded-full bg-success shadow-xs" />
+        </Progress.Track>
+      </Progress.Root>
       <div className="flex items-center justify-between mt-1">
         <p className="flex items-center gap-x-1 text-sm text-muted-fg">
           <span className="font-medium">{to_usd(progress)}</span>
@@ -47,7 +51,7 @@ export function Target({ text, target, classes = "", progress }: ITarget) {
 Target.Inline = ({ text, target, classes = "", progress }: ITarget) => {
   if (target === null) return null;
   const to = target === "smart" ? smart_next(progress) : target;
-  const pct = Math.min(progress, to) / to;
+  if (!(to > 0) || Number.isNaN(progress)) return null;
 
   return (
     <div className={`flex items-center gap-x-3 ${classes}`}>
@@ -56,12 +60,15 @@ Target.Inline = ({ text, target, classes = "", progress }: ITarget) => {
         <span className="font-medium">{to_usd(progress)}</span>
         <span className="text-xs">Raised</span>
       </p>
-      <div className="h-1.5 flex-1 rounded-full bg-success/10 shadow-inner">
-        <div
-          style={{ width: `${pct * 100}%` }}
-          className="h-full rounded-full bg-success shadow-xs"
-        />
-      </div>
+      <Progress.Root
+        value={Math.min(progress, to)}
+        max={to}
+        className="h-1.5 flex-1"
+      >
+        <Progress.Track className="h-full w-full rounded-full bg-success/10 shadow-inner">
+          <Progress.Range className="h-full rounded-full bg-success shadow-xs" />
+        </Progress.Track>
+      </Progress.Root>
       <p className="flex items-center gap-x-1 text-sm text-muted-fg whitespace-nowrap">
         <span className="font-medium">{to_usd(to)}</span>
         <span className="text-xs">Goal</span>

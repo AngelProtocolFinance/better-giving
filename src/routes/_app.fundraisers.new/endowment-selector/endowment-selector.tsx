@@ -1,5 +1,5 @@
-import { Combobox } from "@base-ui/react/combobox";
-import { Field } from "@base-ui/react/field";
+import { Combobox, createListCollection } from "@ark-ui/react/combobox";
+import { Portal } from "@ark-ui/react/portal";
 import { Check, Search, X } from "lucide-react";
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
@@ -50,11 +50,21 @@ export function EndowmentSelector(props: Props) {
 
   const search_results = search.status === "ok" ? search.data : [];
 
-  // merge selected values so base-ui keeps them registered
+  // merge selected values so ark keeps them registered in the collection
   const items = useMemo(() => {
     const ids = new Set(search_results.map((r) => r.id));
     return [...search_results, ...props.values.filter((v) => !ids.has(v.id))];
   }, [search_results, props.values]);
+
+  const collection = useMemo(
+    () =>
+      createListCollection({
+        items,
+        itemToValue: (i) => i.id.toString(),
+        itemToString: (i) => i.name,
+      }),
+    [items]
+  );
 
   function fire_search(q: string) {
     const controller = new AbortController();
@@ -83,36 +93,33 @@ export function EndowmentSelector(props: Props) {
   }
 
   return (
-    <Field.Root className={props.classes ?? "relative"}>
-      <Field.Label className="block text-sm font-medium mb-2">
-        I want to raise funds for … <span className="text-destructive">*</span>
-      </Field.Label>
-      <Combobox.Root<EndowOption, true>
+    <div className={props.classes ?? "relative"}>
+      <Combobox.Root
         multiple
         disabled={props.disabled}
-        value={props.values}
-        onValueChange={(v) => {
-          if (!v) return;
-          props.onChange(v);
-          //something is added
-          if (v.length > props.values.length) {
-            set_search_q("");
-          }
+        collection={collection}
+        value={props.values.map((v) => v.id.toString())}
+        onValueChange={(e) => {
+          const next = e.items as EndowOption[];
+          props.onChange(next);
+          if (next.length > props.values.length) set_search_q("");
         }}
-        onOpenChange={(open) => {
-          if (open && search_results.length === 0) fire_search("");
+        onOpenChange={(e) => {
+          if (e.open && search_results.length === 0) fire_search("");
         }}
-        onInputValueChange={(next_q, { reason }) => {
-          set_search_q(next_q);
-          if (reason === "item-press") return;
-          fire_search(next_q);
+        onInputValueChange={(e) => {
+          if (e.reason !== "input-change") return;
+          set_search_q(e.inputValue);
+          fire_search(e.inputValue);
         }}
-        items={items}
-        filter={null}
-        itemToStringLabel={(v) => v.name}
-        isItemEqualToValue={(a, b) => a?.id === b?.id}
+        positioning={{ placement: "bottom", gutter: 4 }}
+        openOnClick
       >
-        <Combobox.InputGroup
+        <Combobox.Label className="block text-sm font-medium mb-2 w-fit">
+          I want to raise funds for …{" "}
+          <span className="text-destructive">*</span>
+        </Combobox.Label>
+        <Combobox.Control
           aria-invalid={!!props.error}
           aria-disabled={props.disabled}
           className="field-input text-sm flex flex-wrap items-center gap-2 min-h-12 focus-within:outline-2 outline-ring aria-invalid:border-destructive p-1"
@@ -141,28 +148,19 @@ export function EndowmentSelector(props: Props) {
             className="appearance-none bg-transparent focus:outline-hidden h-10 min-w-30 flex-1"
             ref={props.ref}
           />
-        </Combobox.InputGroup>
+        </Combobox.Control>
 
-        <Combobox.Portal>
-          <Combobox.Positioner
-            side="bottom"
-            sideOffset={4}
-            className="z-10"
-            positionMethod="fixed"
-          >
-            <Combobox.Popup
-              style={{ width: "var(--anchor-width)" }}
-              className="bg-popover text-popover-fg text-sm border max-h-40 scrollbar-thin scrollbar-thumb-ring scrollbar-track-border overflow-y-auto rounded shadow-xl shadow-black/5"
-            >
+        <Portal>
+          <Combobox.Positioner>
+            <Combobox.Content className="z-10 w-(--reference-width) bg-popover text-popover-fg text-sm border max-h-40 scrollbar-thin scrollbar-thumb-ring scrollbar-track-border overflow-y-auto rounded shadow-xl shadow-black/5">
               {get_status() ? (
                 <p className="p-2 text-sm text-muted-fg">{get_status()}</p>
-              ) : null}
-              <Combobox.List>
-                {items.map((item) => (
+              ) : (
+                items.map((item) => (
                   <Combobox.Item
                     key={item.id}
-                    value={item}
-                    className="flex gap-x-2 p-2 items-center data-selected:text-primary hover:bg-secondary select-none cursor-default"
+                    item={item}
+                    className="flex gap-x-2 p-2 items-center data-[state=checked]:text-primary data-highlighted:bg-secondary hover:bg-secondary select-none cursor-default"
                   >
                     <Combobox.ItemIndicator className="w-5">
                       <Check size={16} />
@@ -170,18 +168,18 @@ export function EndowmentSelector(props: Props) {
                     <Image src={item.logo} className="w-8" />
                     <span>{item.name}</span>
                   </Combobox.Item>
-                ))}
-              </Combobox.List>
-            </Combobox.Popup>
+                ))
+              )}
+            </Combobox.Content>
           </Combobox.Positioner>
-        </Combobox.Portal>
+        </Portal>
       </Combobox.Root>
       <p className="field-err mt-1 empty:hidden">{props.error}</p>
-      <Field.Description className="text-sm text-muted-fg mt-1">
+      <p className="text-sm text-muted-fg mt-1">
         You may include more than one nonprofit in a joint fundraiser, if those
         nonprofits have opted in to fundraising functionality. Raised funds will
         be split equally between the nonprofits.
-      </Field.Description>
-    </Field.Root>
+      </p>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import { AlertTriangleIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { useFetcher, useNavigate } from "react-router";
 import { humanize } from "@/helpers/decimal";
@@ -15,16 +16,18 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   return (
     <Dialog.Root
       open
-      onOpenChange={(open) => {
-        if (!open) close();
+      onOpenChange={(e) => {
+        if (!e.open) close();
       }}
     >
-      <Dialog.Portal>
+      <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Popup className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-          <Content data={loaderData} on_close={close} />
-        </Dialog.Popup>
-      </Dialog.Portal>
+        <Dialog.Positioner className="contents">
+          <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+            <Content data={loaderData} on_close={close} />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }

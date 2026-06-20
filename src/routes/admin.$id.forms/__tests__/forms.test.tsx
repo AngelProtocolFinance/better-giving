@@ -280,6 +280,24 @@ describe("admin filters forms", () => {
       .toBeVisible();
   });
 
+  it("filters via StatusFilter dropdown — pick Inactive updates list", async () => {
+    const npo = await seed_npo();
+    await seed_form(npo.id, { tag: "is-active" });
+    await seed_form(npo.id, { tag: "is-inactive", status: "inactive" });
+
+    const screen = await render_page(npo.id);
+
+    await expect.element(screen.getByText("is-active")).toBeVisible();
+    await expect.element(screen.getByText("is-inactive")).toBeInTheDocument();
+
+    // open StatusFilter (single combobox on the page) and pick Inactive
+    await screen.getByRole("combobox").click();
+    await screen.getByRole("option", { name: "Inactive" }).click();
+
+    await expect.element(screen.getByText("is-inactive")).toBeVisible();
+    await expect.element(screen.getByText("is-active")).not.toBeInTheDocument();
+  });
+
   it("shows empty table when no forms exist", async () => {
     const npo = await seed_npo();
     const screen = await render_page(npo.id);
@@ -318,6 +336,27 @@ describe("admin disables a form", () => {
       .element(screen.getByRole("link", { name: "Disable" }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText("gala-2026")).toBeInTheDocument();
+  });
+
+  it("closes dialog without submitting on Escape", async () => {
+    const npo = await seed_npo();
+    await seed_form(npo.id, { tag: "esc-dismiss" });
+
+    const screen = await render_page(npo.id);
+
+    await expect.element(screen.getByText("esc-dismiss")).toBeVisible();
+    await screen.getByRole("link", { name: "Disable" }).click();
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+    // dispatch Escape on the dialog element; ark listens via Content keydown
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Disable" }))
+      .toBeInTheDocument();
   });
 
   it("closes dialog without submitting on Cancel", async () => {

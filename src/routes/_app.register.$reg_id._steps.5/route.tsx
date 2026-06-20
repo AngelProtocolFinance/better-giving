@@ -62,13 +62,13 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         <div className="grid grid-cols-2 sm:flex gap-2 w-full mt-auto">
           <NavLink
             to={`../${steps.docs}`}
-            className="py-3 min-w-[8rem] btn btn-secondary text-sm"
+            className="py-3 min-w-32 btn btn-secondary text-sm"
           >
             Back
           </NavLink>
           <NavLink
             to={`../${steps.summary}`}
-            className="py-3 min-w-[8rem] btn btn-primary text-sm"
+            className="py-3 min-w-32 btn btn-primary text-sm"
           >
             Continue
           </NavLink>

@@ -26,7 +26,7 @@ export const links: LinksFunction = () => [
 export default function Page() {
   return (
     <div className="grid pb-4">
-      <Header classes="sticky z-40 top-[-1px]" />
+      <Header classes="sticky z-40 -top-px" />
       <Hero />
       <Partners classes="xl:container xl:mx-auto px-5" />
 

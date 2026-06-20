@@ -9,7 +9,7 @@ export function DropzoneText({ value }: Props) {
   if (value == null || value === "") {
     return (
       <div className="grid justify-items-center text-sm text-muted-fg select-none">
-        <ArrowUpFromLine size={20} className="mb-[1.125rem]" />
+        <ArrowUpFromLine size={20} className="mb-4.5" />
         <p className="font-semibold mb-1">Upload file</p>
         <span>Click to Browse or Drag &amp; Drop</span>
       </div>

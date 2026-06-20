@@ -1,4 +1,5 @@
-import { Dialog } from "@base-ui/react/dialog";
+import { Dialog } from "@ark-ui/react/dialog";
+import { Portal } from "@ark-ui/react/portal";
 import type { PropsWithChildren } from "react";
 
 interface Props extends PropsWithChildren {
@@ -10,18 +11,22 @@ export function Modal(props: Props) {
   return (
     <Dialog.Root
       open={props.open}
-      onOpenChange={(open) => {
-        if (!open) props.onClose();
+      onOpenChange={(e) => {
+        if (!e.open) props.onClose();
       }}
+      lazyMount
+      unmountOnExit
     >
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
-        <Dialog.Popup
-          className={`z-50 origin-[var(--transform-origin)] transition-[opacity,scale] duration-200 data-[starting-style]:opacity-0 data-[starting-style]:scale-95 data-[ending-style]:opacity-0 data-[ending-style]:scale-95 ${props.classes}`}
-        >
-          {props.children}
-        </Dialog.Popup>
-      </Dialog.Portal>
+      <Portal>
+        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
+        <Dialog.Positioner className="contents">
+          <Dialog.Content
+            className={`z-50 data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${props.classes}`}
+          >
+            {props.children}
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
     </Dialog.Root>
   );
 }

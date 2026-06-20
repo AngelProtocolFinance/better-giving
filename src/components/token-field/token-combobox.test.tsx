@@ -1,4 +1,4 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox } from "@ark-ui/react/combobox";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { TokenCombobox, TokenComboboxSync } from "./token-combobox";
@@ -17,7 +17,7 @@ const currencies: Currency[] = [
 ];
 
 const opt_disp = (t: Currency) => (
-  <Combobox.Item key={t.code} value={t}>
+  <Combobox.Item key={t.code} item={t}>
     {t.label}
   </Combobox.Item>
 );
@@ -90,6 +90,18 @@ describe("TokenComboboxSync", () => {
     // clear filter
     await combo.fill("");
     expect(screen.getByRole("option").elements().length).toBe(5);
+  });
+
+  test("no match shows 'not found' status", async () => {
+    const { props } = setup();
+    const screen = await render(<TokenComboboxSync {...props} />);
+
+    const combo = screen.getByRole("combobox");
+    await combo.click();
+    await combo.fill("xxxx");
+
+    expect(screen.getByRole("option").query()).toBeNull();
+    await expect.element(screen.getByText("xxxx not found")).toBeVisible();
   });
 });
 

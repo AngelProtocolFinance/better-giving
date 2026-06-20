@@ -1,6 +1,6 @@
-import { Tabs } from "@base-ui/react/tabs";
+import { QrCode as Ark } from "@ark-ui/react/qr-code";
+import { Tabs } from "@ark-ui/react/tabs";
 import { ArrowDownToLineIcon } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
 import org_building from "#/assets/icons/org-building.svg";
 
@@ -96,46 +96,50 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
       <Tabs.Root
         className="w-96"
         defaultValue="profile"
-        onValueChange={(val) => set_selected_tab(val as QRCodeType)}
+        onValueChange={(e) => set_selected_tab(e.value as QRCodeType)}
       >
         <Tabs.List className="flex gap-2 mb-6 border-b">
           {tabs.map((tab) => (
-            <Tabs.Tab
+            <Tabs.Trigger
               key={tab.id}
               value={tab.id}
-              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus:outline-none border-transparent text-muted-fg hover:text-fg data-[active]:border-primary data-[active]:text-primary"
+              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus:outline-none border-transparent text-muted-fg hover:text-fg data-selected:border-primary data-selected:text-primary"
             >
               {tab.name}
-            </Tabs.Tab>
+            </Tabs.Trigger>
           ))}
         </Tabs.List>
 
         {/* QR Code Panel */}
         {tabs.map((tab) => (
-          <Tabs.Panel key={tab.id} value={tab.id}>
-            <QRCodeSVG
-              id="qr-code-svg"
+          <Tabs.Content key={tab.id} value={tab.id}>
+            <Ark.Root
               value={urls[tab.id]}
-              size={256}
-              fgColor={color}
-              bgColor="#ffffff"
-              level="H"
-              imageSettings={
-                show_logo
-                  ? {
-                      src: logo || org_building,
-                      height: 48,
-                      width: 48,
-                      excavate: true,
-                    }
-                  : undefined
-              }
-            />
+              pixelSize={256}
+              encoding={{ ecc: "H" }}
+              ids={{ frame: "qr-code-svg" }}
+              className="relative bg-white w-fit"
+              style={{ color }}
+            >
+              <Ark.Frame className="w-64 h-64 fill-current">
+                <Ark.Pattern />
+              </Ark.Frame>
+              {show_logo && (
+                <Ark.Overlay className="bg-white p-1">
+                  <img
+                    src={logo || org_building}
+                    alt=""
+                    width={48}
+                    height={48}
+                  />
+                </Ark.Overlay>
+              )}
+            </Ark.Root>
             <p className="text-sm text-muted-fg mt-1">
               {tab.name}:{" "}
               <span className="font-mono text-xs">{urls[tab.id]}</span>
             </p>
-          </Tabs.Panel>
+          </Tabs.Content>
         ))}
 
         <div className="mt-4 flex gap-x-2 items-center justify-items-center">

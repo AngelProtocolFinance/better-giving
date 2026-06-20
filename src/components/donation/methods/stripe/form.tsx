@@ -1,4 +1,4 @@
-import { Combobox } from "@base-ui/react/combobox";
+import { Combobox } from "@ark-ui/react/combobox";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
@@ -57,7 +57,7 @@ export function Form(props: TMethodState<"stripe">) {
 
   const combobox = (
     <TokenComboboxSync
-      classes="[&:has(:placeholder-shown)]:w-34 w-22"
+      classes="has-placeholder-shown:w-34 w-22"
       disabled={currency.isLoading || currency.isValidating}
       btn_disp={(open) => btn_disp(open, undefined)}
       item_key={(t) => t.code}
@@ -67,8 +67,8 @@ export function Form(props: TMethodState<"stripe">) {
       opt_disp={(t) => (
         <Combobox.Item
           key={t.code}
-          className="w-full text-sm grid grid-cols-[1fr_auto] items-center p-2 hover:bg-(--form-secondary) data-[highlighted]:bg-(--form-secondary) data-[selected]:font-semibold"
-          value={t}
+          className="w-full text-sm grid grid-cols-[1fr_auto] items-center p-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
+          item={t}
         >
           {t.code}
           <Combobox.ItemIndicator className="text-muted-fg">

@@ -1,4 +1,4 @@
-import { Accordion } from "@base-ui/react/accordion";
+import { Accordion } from "@ark-ui/react/accordion";
 import { ArrowRight } from "lucide-react";
 import { Fragment } from "react";
 import { ExtLink } from "#/components/ext-link";
@@ -11,36 +11,31 @@ export function FAQ({ classes = "" }) {
       <h2 className="col-span-full text-center text-3xl md:text-4xl leading-snug mb-10">
         Frequently Asked Questions
       </h2>
-      <Accordion.Root className="divide-y divide-border">
+      <Accordion.Root collapsible className="divide-y divide-border">
         {faqs.map((faq) => (
           <Accordion.Item
             key={faq.id}
             value={String(faq.id)}
             className="group p-4"
           >
-            <Accordion.Header>
-              <Accordion.Trigger className="flex items-center justify-between gap-2 w-full">
-                {/* font-normal: override h3 inherited bold from base.css */}
-                <span className="text-left font-normal group-data-open:font-semibold">
-                  {faq.question}
-                </span>
-                <DrawerIcon
-                  size={18}
-                  is_open={false}
-                  className="shrink-0 group-data-open:rotate-180"
-                />
-              </Accordion.Trigger>
-            </Accordion.Header>
-            <Accordion.Panel
-              keepMounted
-              className="h-[var(--accordion-panel-height)] overflow-hidden transition-[height] duration-300 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0"
-            >
+            <Accordion.ItemTrigger className="flex items-center justify-between gap-2 w-full">
+              {/* font-normal: override h3 inherited bold from base.css */}
+              <span className="text-left font-normal group-data-[state=open]:font-semibold">
+                {faq.question}
+              </span>
+              <DrawerIcon
+                size={18}
+                is_open={false}
+                className="shrink-0 group-data-[state=open]:rotate-180"
+              />
+            </Accordion.ItemTrigger>
+            <Accordion.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
               <div className="grid gap-3 text-muted-fg mt-4">
                 {faq.paragraphs.map((p, idx) => (
                   <Fragment key={idx}>{p}</Fragment>
                 ))}
               </div>
-            </Accordion.Panel>
+            </Accordion.ItemContent>
           </Accordion.Item>
         ))}
       </Accordion.Root>

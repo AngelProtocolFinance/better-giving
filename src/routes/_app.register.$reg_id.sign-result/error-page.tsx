@@ -20,12 +20,12 @@ export default function ErrorPage(props: ErrorQueryParams) {
         value={props.signerEid}
         type="submit"
         disabled={isRedirecting}
-        className="w-full max-w-[26.25rem] btn btn-primary text-sm mt-6"
+        className="w-full max-w-105 btn btn-primary text-sm mt-6"
       >
         Retry
       </button>
       <Link
-        className="w-full max-w-[26.25rem] btn-secondary btn text-sm mt-4"
+        className="w-full max-w-105 btn-secondary btn text-sm mt-4"
         to={href("/register/resume")}
         aria-disabled={isRedirecting}
       >

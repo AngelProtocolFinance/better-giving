@@ -83,10 +83,9 @@ export function SettleForm({
         </div>
 
         <div>
-          <Label required className="mb-1">
-            Nonprofit
-          </Label>
           <NpoSelector
+            label="Nonprofit"
+            required
             q={q}
             on_q_change={(q) => {
               npo_fetcher.submit(q ? { query: q } : {}, {

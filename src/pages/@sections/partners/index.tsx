@@ -1,3 +1,4 @@
+import { Marquee } from "@ark-ui/react/marquee";
 import { motion } from "motion/react";
 import { static_url } from "#/constants/urls";
 import { Stats } from "./stats";
@@ -35,29 +36,19 @@ export function Partners({
         {of_what}
       </motion.h2>
 
-      <div className="justify-self-center relative overflow-hidden h-100">
-        <div className="absolute inset-0 pointer-events-none z-10">
-          <div className="absolute top-0 left-0 right-0 h-16 bg-linear-to-b from-background to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-background to-transparent" />
-        </div>
-        <motion.div
-          style={{ y: 0 }}
-          animate={{ y: "-50%" }}
-          transition={{
-            type: "tween",
-            duration: 60,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "linear",
-          }}
-        >
-          {[...Array(2)].map((_, set_idx) => (
-            <div
-              key={set_idx}
-              className="flex flex-wrap gap-8 py-4 justify-center"
-            >
+      <Marquee.Root
+        side="top"
+        speed={15}
+        autoFill
+        pauseOnInteraction
+        className="group justify-self-center relative w-full h-100"
+      >
+        <Marquee.Viewport className="w-full h-full overflow-hidden">
+          <Marquee.Content className="animate-marquee-y group-data-paused:[animation-play-state:paused] motion-reduce:animate-none">
+            <Marquee.Item className="flex flex-wrap gap-8 py-4 justify-center">
               {partners.map((partner) => (
                 <img
-                  key={`${set_idx}-${partner.id}`}
+                  key={partner.id}
                   src={partner.url}
                   alt={`Partner ${partner.id}`}
                   width={80}
@@ -67,10 +58,18 @@ export function Partners({
                   decoding="async"
                 />
               ))}
-            </div>
-          ))}
-        </motion.div>
-      </div>
+            </Marquee.Item>
+          </Marquee.Content>
+        </Marquee.Viewport>
+        <Marquee.Edge
+          side="top"
+          className="absolute top-0 left-0 right-0 h-16 z-10 pointer-events-none bg-linear-to-b from-background to-transparent"
+        />
+        <Marquee.Edge
+          side="bottom"
+          className="absolute bottom-0 left-0 right-0 h-16 z-10 pointer-events-none bg-linear-to-t from-background to-transparent"
+        />
+      </Marquee.Root>
       <Stats classes="mt-16" />
     </section>
   );

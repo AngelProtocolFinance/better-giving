@@ -17,7 +17,7 @@ export function Card({
   target,
 }: IFundItem) {
   return (
-    <div className="relative [&:has(.pending)]:grayscale [&:has(.pending)]:pointer-events-none grid grid-rows-subgrid row-span-4">
+    <div className="relative has-[.pending]:grayscale has-[.pending]:pointer-events-none grid grid-rows-subgrid row-span-4">
       <NavLink
         to={href("/fundraisers/:fund_id", { fund_id: id })}
         className="grid grid-rows-subgrid row-span-4 h-full overflow-clip rounded border hover:border-primary"

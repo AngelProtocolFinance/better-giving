@@ -13,7 +13,7 @@ export function Media({ media }: { media: IMedia[] }) {
 
 function Medium(props: IMedia) {
   return (
-    <div className="relative pt-[56.25%] aspect-16/9 rounded overflow-clip">
+    <div className="relative pt-[56.25%] aspect-video rounded overflow-clip">
       <YouTubePlayer url={props.url} />
     </div>
   );

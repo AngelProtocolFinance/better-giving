@@ -4,7 +4,7 @@ import { href, Link } from "react-router";
 export function Bottom({ classes = "" }) {
   return (
     <section
-      className={`${classes} grid bg-gradient-to-tl from-secondary to-primary rounded md:py-20 md:px-6 p-6`}
+      className={`${classes} grid bg-linear-to-tl from-secondary to-primary rounded md:py-20 md:px-6 p-6`}
     >
       <h2 className="text-2xl/tight md:text-3xl/tight text-center mb-4 text-primary-fg">
         Join Us - Start Making an Impact Today!

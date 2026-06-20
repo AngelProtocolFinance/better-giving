@@ -1,4 +1,4 @@
-import { Collapsible } from "@base-ui/react/collapsible";
+import { Collapsible } from "@ark-ui/react/collapsible";
 import { CheckCircle2Icon, ChevronDownIcon, StarIcon } from "lucide-react";
 import { useRef } from "react";
 import { href, Link, NavLink } from "react-router";
@@ -35,7 +35,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
   const confetti_fired = useRef(false);
 
   return (
-    <div className="grid content-start justify-items-center max-w-[35rem] mx-auto px-4 py-8 scroll-mt-6">
+    <div className="grid content-start justify-items-center max-w-140 mx-auto px-4 py-8 scroll-mt-6">
       <div
         className="mb-6 justify-self-center"
         ref={(node) => {
@@ -53,10 +53,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         Make your donation even more impactful
       </p>
       {!widget_version && (
-        <Collapsible.Root
-          render={<div />}
-          className="w-full border bg-card divide-y divide-border rounded overflow-hidden"
-        >
+        <Collapsible.Root className="w-full border bg-card divide-y divide-border rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
             <CheckCircle2Icon
               className={
@@ -75,18 +72,15 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 ? " fundraiser page"
                 : `${data.to_name.toLowerCase().endsWith("s") ? "'" : "'s"} profile.`}
             </span>
-            <ChevronDownIcon className="ml-auto size-5 group-data-panel-open:rotate-180 transition-transform ease-in-out" />
+            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
           </Collapsible.Trigger>
-          <Collapsible.Panel className="p-4">
+          <Collapsible.Content className="p-4">
             <PublicMsgForm init={data.from_public_msg_to_npo} />
-          </Collapsible.Panel>
+          </Collapsible.Content>
         </Collapsible.Root>
       )}
       {data.to_type !== "fund" ? (
-        <Collapsible.Root
-          render={<div />}
-          className="w-full border bg-card divide-y divide-border rounded overflow-hidden mt-2"
-        >
+        <Collapsible.Root className="w-full border bg-card divide-y divide-border rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
             <CheckCircle2Icon
               className={
@@ -107,18 +101,15 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               </span>
             )}
 
-            <ChevronDownIcon className="ml-auto size-5 group-data-panel-open:rotate-180 transition-transform ease-in-out" />
+            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
           </Collapsible.Trigger>
-          <Collapsible.Panel className="p-4">
+          <Collapsible.Content className="p-4">
             <PrivateMsgForm init={data.from_private_msg_to_npo} />
-          </Collapsible.Panel>
+          </Collapsible.Content>
         </Collapsible.Root>
       ) : null}
       {data.to_type !== "fund" && (
-        <Collapsible.Root
-          render={<div />}
-          className="w-full border bg-card divide-y divide-border rounded overflow-hidden mt-2"
-        >
+        <Collapsible.Root className="w-full border bg-card divide-y divide-border rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
             <CheckCircle2Icon
               className={
@@ -129,25 +120,21 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             <span className="text-sm font-semibold">
               Dedicate your donation
             </span>
-            <ChevronDownIcon className="ml-auto size-5 group-data-panel-open:rotate-180 transition-transform ease-in-out" />
+            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
           </Collapsible.Trigger>
-          <Collapsible.Panel className="p-4">
+          <Collapsible.Content className="p-4">
             <TributeForm init={data.tribute} />
-          </Collapsible.Panel>
+          </Collapsible.Content>
         </Collapsible.Root>
       )}
       {!widget_version && (
-        <Collapsible.Root
-          render={<div />}
-          defaultOpen
-          className="mt-2 w-full border bg-card divide-y divide-border rounded overflow-hidden"
-        >
+        <Collapsible.Root className="mt-2 w-full border bg-card divide-y divide-border rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
             <StarIcon className="stroke-warning fill-warning" size={14} />
             <span className="text-sm font-semibold">Spread the word!</span>
-            <ChevronDownIcon className="ml-auto size-5 group-data-panel-open:rotate-180 transition-transform ease-in-out" />
+            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
           </Collapsible.Trigger>
-          <Collapsible.Panel className="p-4">
+          <Collapsible.Content className="p-4">
             <p className="text-muted-fg">
               Encourage your friends to join in and contribute, making a
               collective impact through donations.
@@ -166,7 +153,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 />
               ))}
             </div>
-          </Collapsible.Panel>
+          </Collapsible.Content>
         </Collapsible.Root>
       )}{" "}
       {widget_version && (
@@ -176,7 +163,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               ? href("/forms/:id", { id: data.form_id })
               : href("/donate-widget/:id", { id: data.to_id })
           }
-          className="mt-4 btn btn-secondary w-full [&:is(.pending)]:text-muted-fg"
+          className="mt-4 btn btn-secondary w-full [.pending]:text-muted-fg"
         >
           Go Back
         </NavLink>
@@ -184,7 +171,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       {!widget_version && (
         <NavLink
           to={href("/dashboard/donations")}
-          className="mt-4 btn btn-primary w-full [&:is(.pending)]:text-muted-fg"
+          className="mt-4 btn btn-primary w-full [.pending]:text-muted-fg"
         >
           My donations
         </NavLink>

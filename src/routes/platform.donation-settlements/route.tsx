@@ -90,19 +90,19 @@ function Row({ settlement: c }: { settlement: ISettlementRow }) {
         {format(new Date(c.created_at), "MMM d, yyyy")}
       </td>
       <td className="whitespace-nowrap">{via_name(c.via)}</td>
-      <td className="truncate max-w-[10rem]" title={c.donor_name ?? ""}>
+      <td className="truncate max-w-40" title={c.donor_name ?? ""}>
         {c.donor_name ?? "—"}
       </td>
-      <td className="truncate max-w-[12rem]" title={c.donor_email ?? ""}>
+      <td className="truncate max-w-48" title={c.donor_email ?? ""}>
         {c.donor_email ?? "—"}
       </td>
-      <td className="truncate max-w-[10rem]" title={c.npo_name ?? ""}>
+      <td className="truncate max-w-40" title={c.npo_name ?? ""}>
         {c.npo_name ?? "—"}
       </td>
       <td className="font-medium">
         {c.net != null ? `$${humanize(c.net)}` : "—"}
       </td>
-      <td className="truncate max-w-[12rem]" title={c.reference ?? ""}>
+      <td className="truncate max-w-48" title={c.reference ?? ""}>
         {c.reference ?? "—"}
       </td>
     </tr>
