@@ -3,9 +3,10 @@ import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { Filter as FilterIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useController, useForm } from "react-hook-form";
 import { useSearchParams } from "react-router";
-import { Field, toYYYMMDD } from "#/components/form";
+import { DateRangeField } from "#/components/date-range-field";
+import { toYYYMMDD } from "#/components/form";
 import { DrawerIcon } from "#/components/icon";
 import { weeksAgo } from "#/helpers/weeks-ago";
 import { search } from "@/helpers/https";
@@ -23,7 +24,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
   const { startDate: s, endDate: e } = search(params);
 
   const {
-    register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<FV>({
@@ -36,6 +37,9 @@ export function Filter({ classes = "", isDisabled }: Props) {
       end_date: toYYYMMDD(e ? new Date(e) : new Date()),
     },
   });
+
+  const { field: start } = useController({ name: "start_date", control });
+  const { field: end } = useController({ name: "end_date", control });
 
   async function submit({ start_date: a, end_date: b }: FV) {
     const p = new URLSearchParams(params);
@@ -95,19 +99,15 @@ export function Filter({ classes = "", isDisabled }: Props) {
                 </Popover.CloseTrigger>
               </div>
 
-              <div className="grid gap-x-4.5 grid-cols-2 px-4 @5xl:px-6 @5xl:pt-6">
-                <p className="col-span-full text-sm mb-2">Date</p>
-                <Field
-                  label=""
-                  type="date"
-                  {...register("start_date")}
-                  error={errors.start_date?.message}
-                />
-                <Field
-                  label=""
-                  type="date"
-                  {...register("end_date")}
-                  error={errors.end_date?.message}
+              <div className="px-4 @5xl:px-6 @5xl:pt-6">
+                <DateRangeField
+                  startValue={start.value ?? ""}
+                  endValue={end.value ?? ""}
+                  onChange={(s, e) => {
+                    start.onChange(s);
+                    end.onChange(e);
+                  }}
+                  error={errors.start_date?.message ?? errors.end_date?.message}
                 />
               </div>
 

@@ -3,7 +3,8 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { FC } from "react";
 import { useController, useForm } from "react-hook-form";
 import { Combo } from "#/components/combo";
-import { Field, toYYYMMDD } from "#/components/form";
+import { DateRangeField } from "#/components/date-range-field";
+import { toYYYMMDD } from "#/components/form";
 import { DrawerIcon } from "#/components/icon";
 import { Select } from "#/components/selector/select";
 import { countries, country_names } from "#/constants/countries";
@@ -19,7 +20,6 @@ type Props = {
 
 export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
   const {
-    register,
     control,
     handleSubmit,
     reset,
@@ -38,6 +38,8 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
 
   const { field: country } = useController({ name: "country", control });
   const { field: stat } = useController({ name: "status", control });
+  const { field: start } = useController({ name: "start_date", control });
+  const { field: end } = useController({ name: "end_date", control });
 
   return (
     <Popover.Content
@@ -84,21 +86,16 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
             }}
           />
 
-          <div className="grid gap-x-4.5 grid-cols-2 mt-4">
-            <p className="col-span-full text-sm mb-2">Date</p>
-            <Field
-              {...register("start_date")}
-              label=""
-              type="date"
-              error={errors.start_date?.message}
-            />
-            <Field
-              {...register("end_date")}
-              label=""
-              type="date"
-              error={errors.end_date?.message}
-            />
-          </div>
+          <DateRangeField
+            classes="mt-4"
+            startValue={start.value ?? ""}
+            endValue={end.value ?? ""}
+            onChange={(s, e) => {
+              start.onChange(s);
+              end.onChange(e);
+            }}
+            error={errors.start_date?.message ?? errors.end_date?.message}
+          />
 
           <Select
             value={stat.value}
