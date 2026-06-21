@@ -111,13 +111,12 @@ describe("calc_settlement_plan", () => {
     const tip_log = plan.revenue_logs.find((r) => r.type === "tip");
     expect(tip_log?.gross).toBe(5);
     const tip_msg = plan.msgs.find((m) => m.id === "tip-received");
-    expect(tip_msg).toBeDefined();
     expect((tip_msg!.payload as { id: string }).id).toBe(tip_log!.id);
   });
 
   test("active referrer → commission = 30% of (tip + base + fsa)", () => {
     const plan = calc_settlement_plan(
-      make_input(),
+      make_input({ ps: parts({ sttl: amt(100, 10) }) }),
       make_ctx({
         hide_bg_tip: true,
         fiscal_sponsored: true,
@@ -125,11 +124,13 @@ describe("calc_settlement_plan", () => {
         referrer_expiry: "2099-01-01T00:00:00.000Z",
       })
     );
+    const tip_gross = plan.revenue_logs.find((r) => r.type === "tip")!.gross;
     const expected_commission =
-      (plan.dist.fees.base + plan.dist.fees.fsa) * 0.3;
+      (tip_gross + plan.dist.fees.base + plan.dist.fees.fsa) * 0.3;
     expect(plan.commission?.amount).toBeCloseTo(expected_commission);
     expect(plan.commission?.referrer_user).toBe("u-1");
     expect(plan.dist.referrer?.id).toBe("u-1");
+    expect(plan.dist.referrer?.cf_from_tip).toBeCloseTo(tip_gross * 0.3);
   });
 
   test("expired referrer → no commission, no dist.referrer", () => {

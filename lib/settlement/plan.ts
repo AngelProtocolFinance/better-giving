@@ -176,28 +176,30 @@ export function calc_settlement_plan(
   };
 
   const revenue_logs: IRevenueLog[] = [];
-  if (tip > 0) {
-    revenue_logs.push({
-      id: crypto.randomUUID(),
-      status: "final",
-      date: i.sttl.date,
-      donation_id: id,
-      npo_id: ctx.id,
-      fund_id: null,
-      npo_name: ctx.name,
-      type: "tip",
-      gross: tip,
-      commission: cf_from_tip,
-      revenue: tip - cf_from_tip,
-      type_tip: {
-        denom: i.tx.currency,
-        input: i.ps.amnt.tip,
-        input_usd: i.ps.amnt_usd.tip,
-        pf: i.ps.sttl_fee.tip,
-        fa_excess: tip_fa_excess,
-      },
-    });
-  }
+  const tip_log: IRevenueLog | null =
+    tip > 0
+      ? {
+          id: crypto.randomUUID(),
+          status: "final",
+          date: i.sttl.date,
+          donation_id: id,
+          npo_id: ctx.id,
+          fund_id: null,
+          npo_name: ctx.name,
+          type: "tip",
+          gross: tip,
+          commission: cf_from_tip,
+          revenue: tip - cf_from_tip,
+          type_tip: {
+            denom: i.tx.currency,
+            input: i.ps.amnt.tip,
+            input_usd: i.ps.amnt_usd.tip,
+            pf: i.ps.sttl_fee.tip,
+            fa_excess: tip_fa_excess,
+          },
+        }
+      : null;
+  if (tip_log) revenue_logs.push(tip_log);
   if (pcfs.base > 0) {
     revenue_logs.push({
       id: crypto.randomUUID(),
@@ -258,14 +260,14 @@ export function calc_settlement_plan(
   const balance_txs: IBalanceTx[] = [];
   const msgs: IMsg[] = [];
 
-  if (tip > 0) {
+  if (tip_log) {
     msgs.push(
       tip_received.to_msg({
-        id: revenue_logs[0].id,
-        date: revenue_logs[0].date,
+        id: tip_log.id,
+        date: tip_log.date,
         npo_name: ctx.name,
         npo_id: ctx.id,
-        type_tip: revenue_logs[0].type_tip!,
+        type_tip: tip_log.type_tip!,
       })
     );
   }
