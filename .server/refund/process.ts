@@ -32,8 +32,12 @@ export interface RefundResult {
   applied: number;
 }
 
-/** dists with these refund_status values are skipped (already processed or previously failed) */
-const SKIP_STATUSES = new Set(["completed", "loss", "failed"]);
+// dists already terminally processed (completed or settled-with-loss) are
+// skipped defensively. failed dists are intentionally NOT skipped — they're
+// the retry target. dists_for_refund already filters dist.status="settled",
+// so completed/loss should never reach here in practice; the skip is defense
+// against inconsistent rows.
+const SKIP_STATUSES = new Set(["completed", "loss"]);
 
 /** project a rich DistRefundGraph + fetched npo/nav into the pure calc inputs */
 function project_inputs(
