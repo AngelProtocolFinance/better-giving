@@ -348,25 +348,6 @@
     }
   }
 
-  .tooltip-arrow {
-    display: flex;
-    &[data-side="top"] {
-      bottom: -8px;
-      rotate: 180deg;
-    }
-    &[data-side="bottom"] {
-      top: -8px;
-    }
-    &[data-side="left"] {
-      right: -13px;
-      rotate: 90deg;
-    }
-    &[data-side="right"] {
-      left: -13px;
-      rotate: -90deg;
-    }
-  }
-
   /* When input is focused, apply floating styles even if placeholder shown */
   input:focus + .label-floating {
     left: 0;

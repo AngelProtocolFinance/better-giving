@@ -1,14 +1,13 @@
 import { Portal } from "@ark-ui/react/portal";
 import { Tooltip as ArkTooltip } from "@ark-ui/react/tooltip";
 import { type ComponentProps, type ReactNode, useState } from "react";
-import { ArrowSvg } from "./arrow-svg";
 
+// kept as a no-op for back-compat: arrow is now rendered by `Tooltip` itself
+// as a sibling of `Content` inside `Positioner` (the only structure ark-ui
+// will position via popper). callers can leave `<Arrow />` in place; it
+// renders nothing.
 export function Arrow() {
-  return (
-    <ArkTooltip.Arrow className="tooltip-arrow">
-      <ArrowSvg />
-    </ArkTooltip.Arrow>
-  );
+  return null;
 }
 
 const popup_anim =
@@ -36,13 +35,22 @@ export function Tooltip(props: Props) {
       onOpenChange={(e) => set_open(e.open)}
       openDelay={50}
       closeOnClick={false}
-      positioning={{ gutter: 8 }}
+      // unmount positioner (and arrow) once content's exit animation ends,
+      // otherwise the arrow lingers after content hides.
+      lazyMount
+      unmountOnExit
+      positioning={{ gutter: 4 }}
     >
       <ArkTooltip.Trigger onClick={() => set_open(true)} asChild>
         {props.children}
       </ArkTooltip.Trigger>
       <Portal>
-        <ArkTooltip.Positioner>{props.tip}</ArkTooltip.Positioner>
+        <ArkTooltip.Positioner className="[--arrow-size:10px] [--arrow-background:var(--popover)]">
+          <ArkTooltip.Arrow>
+            <ArkTooltip.ArrowTip className="border-l border-t border-border" />
+          </ArkTooltip.Arrow>
+          {props.tip}
+        </ArkTooltip.Positioner>
       </Portal>
     </ArkTooltip.Root>
   );

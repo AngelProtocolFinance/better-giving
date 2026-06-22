@@ -1,14 +1,11 @@
 import { HoverCard as Ark } from "@ark-ui/react/hover-card";
 import { Portal } from "@ark-ui/react/portal";
 import type { ComponentProps, ReactNode } from "react";
-import { ArrowSvg } from "./arrow-svg";
 
+// no-op: arrow rendered by `HoverCard` as a sibling of `Content` inside
+// `Positioner` (see tooltip.tsx for the same pattern).
 export function Arrow() {
-  return (
-    <Ark.Arrow className="tooltip-arrow">
-      <ArrowSvg />
-    </Ark.Arrow>
-  );
+  return null;
 }
 
 const popup_anim =
@@ -31,11 +28,18 @@ export function HoverCard(props: Props) {
     <Ark.Root
       openDelay={100}
       closeDelay={200}
-      positioning={{ gutter: 5, overflowPadding: 16 }}
+      lazyMount
+      unmountOnExit
+      positioning={{ gutter: 4, overflowPadding: 16 }}
     >
       <Ark.Trigger asChild>{props.children}</Ark.Trigger>
       <Portal>
-        <Ark.Positioner>{props.tip}</Ark.Positioner>
+        <Ark.Positioner className="[--arrow-size:10px] [--arrow-background:var(--popover)]">
+          <Ark.Arrow>
+            <Ark.ArrowTip className="border-l border-t border-border" />
+          </Ark.Arrow>
+          {props.tip}
+        </Ark.Positioner>
       </Portal>
     </Ark.Root>
   );
