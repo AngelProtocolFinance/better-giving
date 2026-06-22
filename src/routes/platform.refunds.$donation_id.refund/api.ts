@@ -172,6 +172,16 @@ export const action = async ({ params }: Route.ActionArgs) => {
     alert_from: "refund-action",
   });
 
+  // if any dist reversal failed, skip stripe + sub cancel so the donor isn't
+  // refunded until the failed dist is investigated. admin retries via the
+  // already-refunded 400 will bounce; failed dists must be fixed first.
+  if (result.failures.length > 0) {
+    return dataWithError(
+      { ok: false, failures: result.failures },
+      `Refund partial: ${result.failures.length} dist(s) failed`
+    );
+  }
+
   // stripe refund — manual route only
   if (intent_id) {
     await stripe.refunds.create({ payment_intent: intent_id });
@@ -189,11 +199,5 @@ export const action = async ({ params }: Route.ActionArgs) => {
     }
   }
 
-  if (result.failures.length > 0) {
-    return dataWithError(
-      { ok: false, failures: result.failures },
-      `Refund partial: ${result.failures.length} dist(s) failed`
-    );
-  }
   return dataWithSuccess({ ok: true }, "Refund processed");
 };
