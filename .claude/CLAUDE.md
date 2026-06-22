@@ -15,6 +15,8 @@ All via `pnpm`:
 - `#/` → `src/`
 - `@/` → `lib/`
 - `$/` → `.server/`
+- inside `lib/` and `.server/`, use relative paths (`../foo`) for siblings — `@/` and `$/` are for cross-layer imports only. `lib/` stays portable; `.server/` stays coherent.
+- inside `src/`, use `#/` freely — routes are deeply nested (filesystem-routed) and `../../../components/foo` is worse than `#/components/foo`. Reserve relative paths for tight co-located groups (a route folder importing its own `./api`, `./schema`).
 
 ## Architecture
 

@@ -1,10 +1,10 @@
 import type { IDonationSettled, IParent, TToType } from "@/donations";
 import { amnt_sum, partition } from "@/donations/helpers";
+import { shared_parts } from "@/settlement/plan";
 import type { IInput, IParts, ISource, ISttlmnt } from "@/types/donation-dist";
 import { form_get } from "$/pg/queries/form";
 import { nav_ltd } from "$/pg/queries/nav";
 import { npos_batch_get } from "$/pg/queries/npo";
-import { shared } from "$/settlement/helpers";
 
 export const partition_destinations = async (b: IDonationSettled) => {
   const {
@@ -72,7 +72,7 @@ export const partition_destinations = async (b: IDonationSettled) => {
       .map((m) => m.id.toString());
     const n = active_members.length;
     if (n === 0) return { destinations };
-    const member_ps = shared(ps, n);
+    const member_ps = shared_parts(ps, n);
     for (const m of active_members) {
       const i: IInput = {
         id: +m,

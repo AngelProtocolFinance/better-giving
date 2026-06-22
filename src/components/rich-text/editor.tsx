@@ -81,7 +81,7 @@ function EditableShell({
               {p.children}
             </a>
           ) : (
-            <>{p.children}</>
+            p.children
           )
         }
       />

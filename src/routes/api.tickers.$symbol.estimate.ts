@@ -18,7 +18,11 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   // https://finnhub.io/docs/api/quote
   const { pc: usdpu } = await res.json();
 
-  return resp.json({ min: BG_MIN / usdpu, usdpu } satisfies ITokenEstimate, 200, {
-    "cache-control": cache,
-  });
+  return resp.json(
+    { min: BG_MIN / usdpu, usdpu } satisfies ITokenEstimate,
+    200,
+    {
+      "cache-control": cache,
+    }
+  );
 };
