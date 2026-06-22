@@ -1,4 +1,4 @@
-import { dataWithSuccess } from "#/.server/toast";
+import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { str_id } from "#/helpers/stripe";
 import * as sub_deactivated from "@/queue/msgs/sub-deactivated";
 import { enqueue } from "$/kit/queue";
@@ -120,6 +120,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       form_id: don.form_id ?? null,
       program_id: don.program?.id ?? null,
       sub_id: subscription_id,
+      strict: false,
     });
     const p: RefundPreview = plan.preview;
     previews.push({
@@ -165,7 +166,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
   const intent_id = sttl?.sttl_id ?? null;
   const sub_id = await lookup_subscription_id(intent_id);
 
-  await process_refund(donation_id, graphs, {
+  const result = await process_refund(donation_id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
     alert_from: "refund-action",
@@ -188,5 +189,11 @@ export const action = async ({ params }: Route.ActionArgs) => {
     }
   }
 
+  if (result.failures.length > 0) {
+    return dataWithError(
+      { ok: false, failures: result.failures },
+      `Refund partial: ${result.failures.length} dist(s) failed`
+    );
+  }
   return dataWithSuccess({ ok: true }, "Refund processed");
 };

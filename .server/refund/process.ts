@@ -66,13 +66,20 @@ function project_inputs(
   };
 }
 
-/** loader-side: produce the plan for one dist (fetches npo+nav, calc only — no writes) */
+/**
+ * fetch npo + nav and produce the plan for one dist (calc only — no writes).
+ * strict=true throws if the npo row is missing — used by the apply path so a
+ * missing npo surfaces as a dist-failure (sentry) rather than a spurious loss.
+ * loader callers pass strict=false to preserve preview rendering when an npo
+ * row is unexpectedly absent.
+ */
 export async function load_refund_plan(
   g: DistRefundGraph,
   ctx: {
     form_id: string | null;
     program_id: string | null;
     sub_id: string | null;
+    strict: boolean;
   }
 ): Promise<RefundPlan> {
   const npo_id = g.dist.to_id ?? 0;
@@ -84,6 +91,9 @@ export async function load_refund_plan(
     npo_get(npo_id),
     needs_nav ? nav_ltd() : undefined,
   ]);
+  if (ctx.strict && !npo_item) {
+    throw new Error(`npo:${npo_id} not found`);
+  }
   const bal = {
     liq: npo_item?.liq ?? 0,
     lock_units: npo_item?.lock_units ?? 0,
@@ -122,6 +132,7 @@ export async function process_refund(
         form_id: ctx.form_id,
         program_id: ctx.program_id,
         sub_id: null, // not used during apply; sub cancel is route-owned
+        strict: true,
       });
 
       const loss = await db.transaction((tx) => apply_refund_plan(tx, plan));
