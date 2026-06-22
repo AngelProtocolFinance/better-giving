@@ -10,3 +10,8 @@ export type {
   IStripeIntentReturn,
   ITribute,
 } from "./schema";
+export {
+  calc_donation_settle,
+  type SettleInputs,
+  type SettleResult,
+} from "./settle";

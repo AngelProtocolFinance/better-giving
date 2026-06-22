@@ -7,12 +7,15 @@ import type {
   Subs,
   WebhookEvent,
 } from "@better-giving/paypal";
-import type { IDonation, IDonationSettled, IDonationUpdate } from "@/donations";
+import {
+  calc_donation_settle,
+  type IDonation,
+  type IDonationSettled,
+  type IDonationUpdate,
+} from "@/donations";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
 import { report_error, report_resp } from "@/errors/report";
 import { to_full } from "@/helpers/name";
-import * as don_sttl_dist from "@/queue/msgs/don-sttl-dist";
-import * as don_sttl_receipt from "@/queue/msgs/don-sttl-receipt";
 import type { ISub, TInterval } from "@/subscriptions";
 import { paypal as paypal_env } from "$/env";
 import { paypal } from "$/kit/paypal";
@@ -378,18 +381,24 @@ export async function action({ request }: Route.ActionArgs) {
           currency: "USD",
           fee: settled.fee,
           net: settled.net,
-        } as const;
+        };
 
-        const payload = await db.transaction(async (tx) => {
-          return donation_update(tx, don_id, {
-            status: "settled",
-            settlement: sttl_record,
-          });
+        const prior = await donation_get(don_id);
+        if (!prior)
+          return new Response(`donation not found: ${don_id}`, { status: 500 });
+        const result = calc_donation_settle({
+          kind: "one-time",
+          order_id: don_id,
+          prior,
+          settlement: sttl_record,
         });
-        await enqueue(
-          don_sttl_dist.to_msg(payload as IDonationSettled),
-          don_sttl_receipt.to_msg(payload)
+        if (result.op !== "update")
+          throw new Error("unexpected put for paypal capture");
+
+        const payload = await db.transaction((tx) =>
+          donation_update(tx, result.order_id, result.patch)
         );
+        await enqueue(...result.msgs);
 
         console.info(`donation settled: ${payload.id}`);
         return Response.json({ id: payload.id });
@@ -470,49 +479,48 @@ export async function action({ request }: Route.ActionArgs) {
             status: 400,
           });
 
+        const sttl_record = {
+          id: sale_id,
+          date: create_date,
+          currency: cur,
+          fee: settled.fee,
+          net: settled.net,
+        };
+
         const p = await db.transaction(async (tx) => {
-          const don = await donation_update(tx, don_id, {
-            ...donor,
-          });
+          const don = await donation_update(tx, don_id, { ...donor });
           // upsert subscription row before referencing its FK on the donation;
           // BILLING.SUBSCRIPTION.ACTIVATED may not have landed yet (paypal does
           // not guarantee webhook ordering).
           await sub_put(tx, subs_db);
-          const sttl_record = {
-            id: sale_id,
-            date: create_date,
-            currency: cur,
-            fee: settled.fee,
-            net: settled.net,
-          } as const;
 
-          if (!don.settlement) {
-            // first settlement
-            return donation_update(tx, don_id, {
-              status: "settled",
-              settlement: sttl_record,
-              subscription_id: subs_id,
-            });
-          }
+          const result = don.settlement
+            ? calc_donation_settle({
+                kind: "rebill",
+                order_id: don_id,
+                prior: don as IDonationSettled,
+                settlement: sttl_record,
+                subs_id,
+                new_id: crypto.randomUUID(),
+              })
+            : calc_donation_settle({
+                kind: "first-recurring",
+                order_id: don_id,
+                prior: don,
+                settlement: sttl_record,
+                subs_id,
+              });
 
-          // recurring rebill — persist a new donation record
-          const rebill: IDonation = {
-            ...don,
-            id: crypto.randomUUID(),
-            id_v1: undefined,
-            created_at: create_date,
-            updated_at: create_date,
-            settlement: sttl_record,
-            subscription_id: subs_id,
-          };
-          return donation_put(tx, rebill);
+          return result.op === "update"
+            ? {
+                row: await donation_update(tx, result.order_id, result.patch),
+                msgs: result.msgs,
+              }
+            : { row: await donation_put(tx, result.row), msgs: result.msgs };
         });
-        await enqueue(
-          don_sttl_dist.to_msg(p as IDonationSettled),
-          don_sttl_receipt.to_msg(p)
-        );
+        await enqueue(...p.msgs);
 
-        return Response.json({ id: p.id });
+        return Response.json({ id: p.row.id });
       }
     }
     console.info(JSON.stringify(ev, null, 2));

@@ -1,17 +1,15 @@
 import crypto from "node:crypto";
-import type {
-  ChariotMetadata,
-  IDonationSettled,
-  ISettlement,
+import {
+  type ChariotMetadata,
+  calc_donation_settle,
+  type ISettlement,
 } from "@/donations";
 import { report_resp } from "@/errors/report";
-import * as don_sttl_dist from "@/queue/msgs/don-sttl-dist";
-import * as don_sttl_receipt from "@/queue/msgs/don-sttl-receipt";
 import { chariot as chariot_env } from "$/env";
 import { chariot } from "$/kit/chariot";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { donation_update } from "$/pg/queries/donation";
+import { donation_get, donation_update } from "$/pg/queries/donation";
 import type { Route } from "./+types/api.chariot-webhook";
 
 export async function action({ request }: Route.ActionArgs) {
@@ -62,16 +60,22 @@ export async function action({ request }: Route.ActionArgs) {
       currency: "USD",
     };
 
-    const order = await db.transaction(async (tx) => {
-      return donation_update(tx, don_id, {
-        status: "settled",
-        settlement,
-      });
+    const prior = await donation_get(don_id);
+    if (!prior)
+      return new Response(`donation not found: ${don_id}`, { status: 500 });
+    const result = calc_donation_settle({
+      kind: "one-time",
+      order_id: don_id,
+      prior,
+      settlement,
     });
-    await enqueue(
-      don_sttl_dist.to_msg(order as IDonationSettled),
-      don_sttl_receipt.to_msg(order)
+    if (result.op !== "update")
+      throw new Error("unexpected put for chariot one-time");
+
+    const order = await db.transaction((tx) =>
+      donation_update(tx, result.order_id, result.patch)
     );
+    await enqueue(...result.msgs);
 
     return Response.json({ id: order.id });
   } catch (err) {

@@ -1,12 +1,10 @@
 import { tokens_map } from "@better-giving/crypto";
-import type { IDonationSettled, ISettlement } from "@/donations";
+import { calc_donation_settle, type ISettlement } from "@/donations";
 import type { NP } from "@/nowpayments/types";
-import * as don_sttl_dist from "@/queue/msgs/don-sttl-dist";
-import * as don_sttl_receipt from "@/queue/msgs/don-sttl-receipt";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { donation_update } from "$/pg/queries/donation";
+import { donation_get, donation_update } from "$/pg/queries/donation";
 
 /**
  * fees, outcomes, are all denominated in the same currency
@@ -29,16 +27,22 @@ export const handle_settled = async (payment: NP.PaymentPayload) => {
     currency: outcome_token.code,
   };
 
-  const order = await db.transaction(async (tx) => {
-    return donation_update(tx, payment.order_id, {
-      status: "settled",
-      settlement,
-    });
+  const prior = await donation_get(payment.order_id);
+  if (!prior) throw new Error(`donation not found: ${payment.order_id}`);
+
+  const result = calc_donation_settle({
+    kind: "one-time",
+    order_id: payment.order_id,
+    prior,
+    settlement,
   });
-  await enqueue(
-    don_sttl_dist.to_msg(order as IDonationSettled),
-    don_sttl_receipt.to_msg(order)
+  if (result.op !== "update")
+    throw new Error("unexpected put for nowpayments one-time");
+
+  const order = await db.transaction((tx) =>
+    donation_update(tx, result.order_id, result.patch)
   );
+  await enqueue(...result.msgs);
 
   return { id: order.id };
 };
