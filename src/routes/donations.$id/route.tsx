@@ -55,7 +55,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       {!widget_version && (
         <Collapsible.Root className="w-full border bg-card rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
-            <span className="h-[1lh] flex items-center shrink-0">
+            <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
                 className={
                   data.from_public_msg_to_npo
@@ -74,7 +74,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 ? " fundraiser page"
                 : `${data.to_name.toLowerCase().endsWith("s") ? "'" : "'s"} profile.`}
             </span>
-            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+            <span className="ml-auto h-lh flex items-center shrink-0">
               <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
             </span>
           </Collapsible.Trigger>
@@ -86,7 +86,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       {data.to_type !== "fund" ? (
         <Collapsible.Root className="w-full border bg-card rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
-            <span className="h-[1lh] flex items-center shrink-0">
+            <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
                 className={
                   data.from_private_msg_to_npo
@@ -107,7 +107,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               </span>
             )}
 
-            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+            <span className="ml-auto h-lh flex items-center shrink-0">
               <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
             </span>
           </Collapsible.Trigger>
@@ -119,7 +119,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       {data.to_type !== "fund" && (
         <Collapsible.Root className="w-full border bg-card rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
-            <span className="h-[1lh] flex items-center shrink-0">
+            <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
                 className={
                   data.tribute ? "stroke-success" : "stroke-muted-fg fill-muted"
@@ -130,7 +130,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             <span className="text-sm font-semibold">
               Dedicate your donation
             </span>
-            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+            <span className="ml-auto h-lh flex items-center shrink-0">
               <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
             </span>
           </Collapsible.Trigger>
@@ -142,11 +142,11 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       {!widget_version && (
         <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
-            <span className="h-[1lh] flex items-center shrink-0">
+            <span className="h-lh flex items-center shrink-0">
               <StarIcon className="stroke-warning fill-warning" size={14} />
             </span>
             <span className="text-sm font-semibold">Spread the word!</span>
-            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+            <span className="ml-auto h-lh flex items-center shrink-0">
               <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
             </span>
           </Collapsible.Trigger>
