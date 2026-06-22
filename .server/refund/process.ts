@@ -2,7 +2,11 @@ import { report_error } from "@/errors/report";
 import { stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
-import { type DistRefundGraph, dist_refund_update } from "../pg/queries/dist";
+import {
+  type DistRefundGraph,
+  dist_refund_update,
+  donation_has_refund_loss,
+} from "../pg/queries/dist";
 import { donation_update } from "../pg/queries/donation";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
@@ -155,7 +159,11 @@ export async function process_refund(
     }
   }
 
-  const has_loss = loss_msgs.length > 0;
+  // factor in losses from prior partial runs — current loss_msgs only sees
+  // dists processed this invocation; siblings already marked
+  // refund_status="loss" from a prior attempt won't reappear.
+  const has_loss =
+    loss_msgs.length > 0 || (await donation_has_refund_loss(donation_id));
 
   // only finalize the donation status when every dist was applied. with
   // failures present the dists are in mixed states (some "completed",
