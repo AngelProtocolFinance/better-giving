@@ -23,7 +23,11 @@ export class BalanceTxnNotReadyError extends Error {
 const ATTEMPTS = 3;
 const DELAY_MS = 3000;
 
-export async function settled_fn(id: string, attempt = 1): Promise<Settled> {
+export function settled_fn(id: string): Promise<Settled> {
+  return poll(id, 1);
+}
+
+async function poll(id: string, attempt: number): Promise<Settled> {
   const { latest_charge: lc } = await stripe.paymentIntents.retrieve(id, {
     expand: ["latest_charge.balance_transaction"],
   });
@@ -41,5 +45,5 @@ export async function settled_fn(id: string, attempt = 1): Promise<Settled> {
   if (attempt >= ATTEMPTS) throw new BalanceTxnNotReadyError(id);
 
   await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
-  return settled_fn(id, attempt + 1);
+  return poll(id, attempt + 1);
 }
