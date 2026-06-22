@@ -16,7 +16,18 @@ export class BalanceTxnNotReadyError extends Error {
   }
 }
 
-export async function settled_fn(id: string): Promise<Settled> {
+// capture_method=automatic_async (stripe default for many flows) delays
+// balance_transaction by 1-3s even for plain usd cards. fx-converted charges
+// can take much longer. poll briefly to absorb the common case; throw on
+// exhaustion so route.ts can 503 + let stripe redeliver for the long tail.
+const ATTEMPTS = 3;
+const DELAY_MS = 3000;
+
+export function settled_fn(id: string): Promise<Settled> {
+  return poll(id, 1);
+}
+
+async function poll(id: string, attempt: number): Promise<Settled> {
   const { latest_charge: lc } = await stripe.paymentIntents.retrieve(id, {
     expand: ["latest_charge.balance_transaction"],
   });
@@ -31,5 +42,8 @@ export async function settled_fn(id: string): Promise<Settled> {
     return { net: net / 100, fee: fee / 100 };
   }
 
-  throw new BalanceTxnNotReadyError(id);
+  if (attempt >= ATTEMPTS) throw new BalanceTxnNotReadyError(id);
+
+  await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+  return poll(id, attempt + 1);
 }

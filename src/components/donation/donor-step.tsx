@@ -143,10 +143,9 @@ function AddressFields({
 
   return (
     <Fieldset.Root className="grid gap-4 mt-2">
-      <Fieldset.Legend className="label -mb-2">Your address</Fieldset.Legend>
+      <Fieldset.Legend className="label mb-3">Your address</Fieldset.Legend>
       <Field2
         required
-        classes="mt-2"
         label="Street"
         input={<Input2 {...register("address.street")} />}
         error={errors.address?.street?.message}
