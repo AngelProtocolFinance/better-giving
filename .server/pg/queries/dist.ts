@@ -275,6 +275,20 @@ export async function dists_for_refund(
   return results;
 }
 
+/** true when any sibling dist for this donation already settled with a loss */
+export async function donation_has_refund_loss(
+  donation_id: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: dists.id })
+    .from(dists)
+    .where(
+      and(eq(dists.donation_id, donation_id), eq(dists.refund_status, "loss"))
+    )
+    .limit(1);
+  return !!row;
+}
+
 export async function dist_refund_update(
   db: DbOrTx,
   id: string,
@@ -283,9 +297,13 @@ export async function dist_refund_update(
     refund_error?: string;
   }
 ) {
+  // failed dists keep status="settled" so they remain eligible for retry
+  // (dists_for_refund filters status="settled"). completed/loss flip to
+  // refunded (preserves prior behavior).
+  const status = data.refund_status === "failed" ? undefined : "refunded";
   await db
     .update(dists)
-    .set({ status: "refunded", ...data })
+    .set({ ...(status && { status }), ...data })
     .where(eq(dists.id, id));
 }
 
