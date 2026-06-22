@@ -16,6 +16,7 @@ import {
 } from "./handlers";
 import { handle_intent_succeeded } from "./handlers/intent-suceeded";
 import { handle_subscription_created } from "./handlers/subscription-created";
+import { BalanceTxnNotReadyError } from "./helpers/settled";
 
 /**
  * webhook signing logic inspired by stripe-node,
@@ -94,6 +95,12 @@ export async function action({ request }: Route.ActionArgs) {
 
     return new Response("Received", { status: 200 });
   } catch (err) {
+    // fx-converted charges: balance_transaction not yet populated. 5xx so
+    // stripe redelivers on its own backoff schedule, by which time it'll be
+    // ready. don't report — expected transient state.
+    if (err instanceof BalanceTxnNotReadyError) {
+      return new Response(err.message, { status: 503 });
+    }
     const error_message = err instanceof Error ? err.message : String(err);
     report_error(err);
     return new Response(error_message, { status: 400 });
