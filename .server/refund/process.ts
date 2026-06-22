@@ -156,9 +156,18 @@ export async function process_refund(
   }
 
   const has_loss = loss_msgs.length > 0;
-  await donation_update(db, donation_id, {
-    status: has_loss ? "refunded_loss" : "refunded",
-  });
+
+  // only finalize the donation status when every dist was applied. with
+  // failures present the dists are in mixed states (some "completed",
+  // some "failed") and the donation must stay reversible so admin can
+  // retry once the failed dists are fixed. webhook path gets the same
+  // semantics: a partial failure leaves the row in "settled" and a future
+  // retry (manual or replayed event) can complete the refund.
+  if (failures.length === 0) {
+    await donation_update(db, donation_id, {
+      status: has_loss ? "refunded_loss" : "refunded",
+    });
+  }
 
   // losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
   if (loss_msgs.length > 0) {
