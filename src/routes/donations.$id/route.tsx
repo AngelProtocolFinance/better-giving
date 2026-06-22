@@ -53,16 +53,18 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         Make your donation even more impactful
       </p>
       {!widget_version && (
-        <Collapsible.Root className="w-full border bg-card divide-y divide-border rounded overflow-hidden">
-          <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
-            <CheckCircle2Icon
-              className={
-                data.from_public_msg_to_npo
-                  ? "stroke-success"
-                  : "stroke-muted-fg fill-muted"
-              }
-              size={16}
-            />
+        <Collapsible.Root className="w-full border bg-card rounded overflow-hidden">
+          <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
+            <span className="h-[1lh] flex items-center shrink-0">
+              <CheckCircle2Icon
+                className={
+                  data.from_public_msg_to_npo
+                    ? "stroke-success"
+                    : "stroke-muted-fg fill-muted"
+                }
+                size={16}
+              />
+            </span>
             <span className="text-sm font-semibold">
               Share a message in{" "}
               <NavLink to={data.profile_url} className="text-primary">
@@ -72,24 +74,28 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 ? " fundraiser page"
                 : `${data.to_name.toLowerCase().endsWith("s") ? "'" : "'s"} profile.`}
             </span>
-            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            </span>
           </Collapsible.Trigger>
-          <Collapsible.Content className="p-4">
+          <Collapsible.Content className="p-4 border-t">
             <PublicMsgForm init={data.from_public_msg_to_npo} />
           </Collapsible.Content>
         </Collapsible.Root>
       )}
       {data.to_type !== "fund" ? (
-        <Collapsible.Root className="w-full border bg-card divide-y divide-border rounded overflow-hidden mt-2">
-          <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
-            <CheckCircle2Icon
-              className={
-                data.from_private_msg_to_npo
-                  ? "stroke-success"
-                  : "stroke-muted-fg fill-muted"
-              }
-              size={16}
-            />
+        <Collapsible.Root className="w-full border bg-card rounded overflow-hidden mt-2">
+          <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
+            <span className="h-[1lh] flex items-center shrink-0">
+              <CheckCircle2Icon
+                className={
+                  data.from_private_msg_to_npo
+                    ? "stroke-success"
+                    : "stroke-muted-fg fill-muted"
+                }
+                size={16}
+              />
+            </span>
             {widget_version ? (
               <span className="text-sm font-semibold">Leave us a message</span>
             ) : (
@@ -101,40 +107,50 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               </span>
             )}
 
-            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            </span>
           </Collapsible.Trigger>
-          <Collapsible.Content className="p-4">
+          <Collapsible.Content className="p-4 border-t">
             <PrivateMsgForm init={data.from_private_msg_to_npo} />
           </Collapsible.Content>
         </Collapsible.Root>
       ) : null}
       {data.to_type !== "fund" && (
-        <Collapsible.Root className="w-full border bg-card divide-y divide-border rounded overflow-hidden mt-2">
-          <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
-            <CheckCircle2Icon
-              className={
-                data.tribute ? "stroke-success" : "stroke-muted-fg fill-muted"
-              }
-              size={16}
-            />
+        <Collapsible.Root className="w-full border bg-card rounded overflow-hidden mt-2">
+          <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
+            <span className="h-[1lh] flex items-center shrink-0">
+              <CheckCircle2Icon
+                className={
+                  data.tribute ? "stroke-success" : "stroke-muted-fg fill-muted"
+                }
+                size={16}
+              />
+            </span>
             <span className="text-sm font-semibold">
               Dedicate your donation
             </span>
-            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            </span>
           </Collapsible.Trigger>
-          <Collapsible.Content className="p-4">
+          <Collapsible.Content className="p-4 border-t">
             <TributeForm init={data.tribute} />
           </Collapsible.Content>
         </Collapsible.Root>
       )}
       {!widget_version && (
-        <Collapsible.Root className="mt-2 w-full border bg-card divide-y divide-border rounded overflow-hidden">
-          <Collapsible.Trigger className="group flex w-full items-center gap-x-2 p-4">
-            <StarIcon className="stroke-warning fill-warning" size={14} />
+        <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">
+          <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
+            <span className="h-[1lh] flex items-center shrink-0">
+              <StarIcon className="stroke-warning fill-warning" size={14} />
+            </span>
             <span className="text-sm font-semibold">Spread the word!</span>
-            <ChevronDownIcon className="ml-auto size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            <span className="ml-auto h-[1lh] flex items-center shrink-0">
+              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            </span>
           </Collapsible.Trigger>
-          <Collapsible.Content className="p-4">
+          <Collapsible.Content className="p-4 border-t">
             <p className="text-muted-fg">
               Encourage your friends to join in and contribute, making a
               collective impact through donations.
