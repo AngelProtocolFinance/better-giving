@@ -84,5 +84,5 @@ export const action: ActionFunction = async ({ request }) => {
   if (result instanceof Response) return result;
 
   const json_with_cookie = json_with_cookie_fn(expiry_per_intent);
-  return json_with_cookie(result.body, result.don_id);
+  return await json_with_cookie(result.body, result.don_id);
 };
