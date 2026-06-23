@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-import { type Kind, msg } from "./registry";
+import { KINDS, type Kind, msg } from "./registry";
 
 // frozen for reg-updated, which embeds Date.now() in its dedupe key.
 const FROZEN_MS = 1_700_000_000_000;
@@ -49,25 +49,9 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     expect(m.id).toBe(kind);
   });
 
-  test("covers every Kind", () => {
-    const expected_kinds: Kind[] = [
-      "banking-approved",
-      "banking-default",
-      "banking-new",
-      "banking-rejected",
-      "don-dist",
-      "don-sttl-dist",
-      "don-sttl-receipt",
-      "fund-member-removed",
-      "invite-email",
-      "lock-tx-created",
-      "reg-created",
-      "reg-updated",
-      "sub-deactivated",
-      "tip-received",
-    ];
+  test("rows cover every registered Kind", () => {
     const covered = new Set(rows.map(([k]) => k));
-    for (const k of expected_kinds) expect(covered.has(k)).toBe(true);
-    expect(covered.size).toBe(expected_kinds.length);
+    for (const k of KINDS) expect(covered.has(k)).toBe(true);
+    expect(covered.size).toBe(KINDS.length);
   });
 });

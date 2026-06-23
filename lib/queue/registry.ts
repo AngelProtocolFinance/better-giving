@@ -137,3 +137,8 @@ export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({
   payload,
   dedupe: (dedupe[kind] as (p: MsgInput<K>) => string)(payload),
 });
+
+// runtime enumeration of every Kind, sourced from the dedupe map (which is
+// itself exhaustiveness-enforced by `{ [K in Kind]: ... }`). use in tests
+// instead of hand-maintained kind lists.
+export const KINDS = Object.keys(dedupe) as Kind[];
