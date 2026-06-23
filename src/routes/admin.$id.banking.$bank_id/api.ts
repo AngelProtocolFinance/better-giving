@@ -2,7 +2,7 @@ import * as v from "valibot";
 import { admin_ctx } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
 import { resp } from "@/helpers/https";
-import * as banking_default from "@/queue/msgs/banking-default";
+import { msg } from "@/queue";
 import { $int_gte1 } from "@/schemas";
 import { enqueue } from "$/kit/queue";
 import { wise } from "$/kit/wise";
@@ -34,6 +34,6 @@ export const default_action = async (args: Route.ActionArgs) => {
   if (!x) return { status: 404, statusText: `Bank:${bank_id} not found` };
 
   await bapp_set_default(bank_id.toString(), npo_id);
-  await enqueue(banking_default.to_msg({ npo_id }));
+  await enqueue(msg("banking-default", { npo_id }));
   return dataWithSuccess(null, "Payout method set as default");
 };

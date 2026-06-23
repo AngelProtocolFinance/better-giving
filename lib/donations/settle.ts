@@ -1,5 +1,4 @@
-import * as don_sttl_dist from "../queue/msgs/don-sttl-dist";
-import * as don_sttl_receipt from "../queue/msgs/don-sttl-receipt";
+import { msg } from "../queue";
 import type { IMsg } from "../queue/types";
 import type {
   IDonation,
@@ -65,7 +64,7 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
     return {
       op: "put",
       row,
-      msgs: [don_sttl_dist.to_msg(row), don_sttl_receipt.to_msg(row)],
+      msgs: [msg("don-sttl-dist", row), msg("don-sttl-receipt", row)],
     };
   }
 
@@ -81,6 +80,6 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
     op: "update",
     order_id: i.order_id,
     patch,
-    msgs: [don_sttl_dist.to_msg(projected), don_sttl_receipt.to_msg(projected)],
+    msgs: [msg("don-sttl-dist", projected), msg("don-sttl-receipt", projected)],
   };
 }

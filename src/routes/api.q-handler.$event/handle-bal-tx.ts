@@ -2,12 +2,12 @@ import { fnd_mgmt_lock_tx as email } from "@better-giving/react-emails";
 import { emails } from "@/constants/common";
 import { to_pretty_utc } from "@/helpers/date";
 import { rd } from "@/helpers/decimal";
-import type { Payload as LockTxPayload } from "@/queue/msgs/lock-tx-created";
+import type { ILockTxCreatedPayload } from "@/queue";
 import { send_email } from "$/email";
 import { npo_get } from "$/pg/queries/npo";
 
 // emitter already filters for lock account, non-dividend, non-refund
-export async function handle_lock_tx_created(data: LockTxPayload) {
+export async function handle_lock_tx_created(data: ILockTxCreatedPayload) {
   const change = Number(data.bal_end) - Number(data.bal_begin);
   if (change === 0) return;
 

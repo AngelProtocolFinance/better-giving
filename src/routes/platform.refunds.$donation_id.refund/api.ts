@@ -1,6 +1,6 @@
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { str_id } from "#/helpers/stripe";
-import * as sub_deactivated from "@/queue/msgs/sub-deactivated";
+import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
@@ -195,7 +195,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
       updated_at: new Date().toISOString(),
     });
     if (row && prev_status === "active") {
-      await enqueue(sub_deactivated.to_msg(row));
+      await enqueue(msg("sub-deactivated", row));
     }
   }
 

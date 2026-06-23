@@ -2,8 +2,7 @@ import { addYears } from "date-fns";
 import { eq } from "drizzle-orm";
 import { referral_id } from "#/helpers/referral";
 import type { IBapp } from "@/banking";
-import * as banking_new from "@/queue/msgs/banking-new";
-import * as reg_updated from "@/queue/msgs/reg-updated";
+import { msg } from "@/queue";
 import type { Progress } from "@/reg";
 import { enqueue } from "$/kit/queue";
 import { wise } from "$/kit/wise";
@@ -93,7 +92,7 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
       });
       await npo_update(tx, id, ecfr);
     });
-    await enqueue(banking_new.to_msg({ npo_id: id }), reg_updated.to_msg(r));
+    await enqueue(msg("banking-new", { npo_id: id }), msg("reg-updated", r));
     return id;
   }
 
@@ -135,6 +134,6 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     return id;
   });
 
-  await enqueue(banking_new.to_msg({ npo_id: npo_id }), reg_updated.to_msg(r));
+  await enqueue(msg("banking-new", { npo_id }), msg("reg-updated", r));
   return npo_id;
 };

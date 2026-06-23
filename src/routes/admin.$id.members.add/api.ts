@@ -2,7 +2,7 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { getValidatedFormData } from "remix-hook-form";
 import { admin_ctx, user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
-import * as invite_email from "@/queue/msgs/invite-email";
+import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { npo_get } from "$/pg/queries/npo";
@@ -30,7 +30,7 @@ export const add_action = async (x: Route.ActionArgs) => {
     invitor: user.email,
   };
   await npo_admin_tx(db, id, invite, user.id);
-  await enqueue(invite_email.to_msg(invite));
+  await enqueue(msg("invite-email", invite));
 
   return redirectWithSuccess("..", "Member invited");
 };

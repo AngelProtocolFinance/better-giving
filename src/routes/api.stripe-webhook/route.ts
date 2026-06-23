@@ -1,5 +1,5 @@
 import { report_error } from "@/errors/report";
-import * as sub_deactivated from "@/queue/msgs/sub-deactivated";
+import { msg } from "@/queue";
 import type { ISubUpdate } from "@/subscriptions";
 import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
@@ -77,7 +77,7 @@ export async function action({ request }: Route.ActionArgs) {
         };
         const { row, prev_status } = await sub_update(db, sub.id, update);
         if (row && prev_status === "active" && row.status === "inactive") {
-          await enqueue(sub_deactivated.to_msg(row));
+          await enqueue(msg("sub-deactivated", row));
         }
         console.info(
           `Updated subscription ${sub.id} next_billing to ${period_end}`

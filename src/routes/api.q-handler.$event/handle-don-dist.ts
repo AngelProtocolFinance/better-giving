@@ -4,7 +4,7 @@ import { emails } from "@/constants/common";
 import { via_name } from "@/donations/helpers";
 import { report_error } from "@/errors/report";
 import { to_amount } from "@/helpers/email";
-import type { Payload as DonDistPayload } from "@/queue/msgs/don-dist";
+import type { IDonDistPayload } from "@/queue";
 import type { TFrequency } from "@/schemas";
 import { send_email } from "$/email";
 import {
@@ -54,7 +54,7 @@ async function update_country_metrics(
   console.info(`${r.npo}:${country_key} +${r.inc_amount}`);
 }
 
-export async function handle_don_dist(db: DbOrTx, r: DonDistPayload) {
+export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   await update_country_metrics(db, {
     npo: r.to_id,
     date: r.sttl_date,
@@ -131,7 +131,7 @@ interface Payload {
   form_tag: string | undefined;
 }
 
-async function trigger_webhooks(r: DonDistPayload) {
+async function trigger_webhooks(r: IDonDistPayload) {
   const is_recurring = r.frequency ? r.frequency !== "one-time" : false;
 
   const payload: Payload = {

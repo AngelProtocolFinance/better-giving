@@ -1,11 +1,11 @@
 import { fund_opt_out_notif } from "@better-giving/react-emails";
 import { report_error } from "@/errors/report";
-import type { Payload as FundMemberRemovedPayload } from "@/queue/msgs/fund-member-removed";
+import type { IFundMemberRemovedPayload } from "@/queue";
 import { send_email } from "$/email";
 import { npo_get } from "$/pg/queries/npo";
 
 export async function handle_fund_member_removed(
-  data: FundMemberRemovedPayload
+  data: IFundMemberRemovedPayload
 ) {
   for (const npo_id of data.removed_npo_ids) {
     const npo = await npo_get(npo_id);

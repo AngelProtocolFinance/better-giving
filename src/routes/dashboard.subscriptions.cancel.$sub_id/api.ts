@@ -1,7 +1,7 @@
 import { data } from "react-router";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
-import * as sub_deactivated from "@/queue/msgs/sub-deactivated";
+import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { sub_get, sub_update } from "$/pg/queries/subscription";
@@ -33,7 +33,7 @@ export const action = async ({
     updated_at: new Date().toISOString(),
   });
   if (row && prev_status === "active") {
-    await enqueue(sub_deactivated.to_msg(row));
+    await enqueue(msg("sub-deactivated", row));
   }
   return redirectWithSuccess("..", "Subscription cancelled");
 };

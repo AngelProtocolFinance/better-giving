@@ -2,7 +2,7 @@ import { type ActionFunction, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { resp } from "@/helpers/https";
-import * as reg_updated from "@/queue/msgs/reg-updated";
+import { msg } from "@/queue";
 import { Progress } from "@/reg/progress";
 import { reg_id, reg_update as reg_update_schema } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
@@ -71,7 +71,7 @@ export const update_action =
     }
 
     const updated = await reg_update(db, rid, attrs);
-    if (updated) await enqueue(reg_updated.to_msg(updated));
+    if (updated) await enqueue(msg("reg-updated", updated));
 
     if (prog.step === 6) return redirect(`../${6}`);
     return redirect(`../${next}`);

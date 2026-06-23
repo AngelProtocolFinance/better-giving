@@ -1,8 +1,8 @@
-import type { Payload as SubPayload } from "@/queue/msgs/sub-deactivated";
+import type { ISubDeactivatedPayload } from "@/queue";
 import { paypal } from "$/kit/paypal";
 import { stripe } from "$/kit/stripe";
 
-export async function handle_sub_deactivated(data: SubPayload) {
+export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {
   if (data.platform === "stripe") {
     await stripe.subscriptions.cancel(data.id, {
       cancellation_details: {
