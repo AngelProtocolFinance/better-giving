@@ -141,11 +141,11 @@ async function fill_form_and_preview(
   await expect
     .element(screen.getByRole("option", { name: "Zebra Wildlife Trust" }))
     .not.toBeInTheDocument();
-  (
-    screen
-      .getByRole("option", { name: "Freegan Food Foundation" })
-      .element() as HTMLElement
-  ).click();
+  // playwright pointer click (not native DOM .click) — the option is portaled
+  // outside the dialog, and ark ui's combobox selects via the pointer path
+  // (pointerdown → item-press); a bare click() skips that and intermittently
+  // no-ops, leaving the npo field empty and blocking the preview.
+  await screen.getByRole("option", { name: "Freegan Food Foundation" }).click();
 
   if (opts.donor_name) {
     await screen.getByPlaceholder("Anonymous").fill(opts.donor_name);
