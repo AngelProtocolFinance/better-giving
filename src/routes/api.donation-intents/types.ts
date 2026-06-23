@@ -1,0 +1,18 @@
+import type { IDonor, IFrom, ITo } from "@/donations";
+import type { IDonationIntent } from "@/donations/schema";
+
+export interface Ctx {
+  to: ITo;
+  from: IFrom;
+  donor: IDonor;
+  via: IDonationIntent["via"];
+  via_extra: IDonationIntent["via_extra"];
+  intent: Omit<IDonationIntent, "via" | "via_extra" | "to_id" | "donor">;
+}
+
+export interface IntentResult {
+  don_id: string;
+  body: Record<string, any>;
+}
+
+export type Provider = (ctx: Ctx) => Promise<Response | IntentResult>;
