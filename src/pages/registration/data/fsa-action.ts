@@ -4,7 +4,7 @@ import { get_session, to_auth } from "#/.server/auth";
 import { gen_fsa_signing_url } from "#/.server/registration/gen-fsa-signing-url";
 import { reg_id_from_signer_eid } from "#/.server/registration/helpers";
 import { resp } from "@/helpers/https";
-import * as reg_updated from "@/queue/msgs/reg-updated";
+import { msg } from "@/queue";
 import type { IFsaSigner } from "@/reg";
 import { Progress } from "@/reg/progress";
 import { fsa_docs_or_signer, type IFsaDocs, reg_id } from "@/reg/schema";
@@ -64,7 +64,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       status: "01",
       o_fsa_signing_url: url,
     });
-    if (u1) await enqueue(reg_updated.to_msg(u1));
+    if (u1) await enqueue(msg("reg-updated", u1));
 
     return redirect(url);
   }
@@ -98,7 +98,7 @@ export const action: ActionFunction = async ({ request, params }) => {
     status: "01",
     o_fsa_signing_url: url,
   });
-  if (u2) await enqueue(reg_updated.to_msg(u2));
+  if (u2) await enqueue(msg("reg-updated", u2));
 
   return redirect(url);
 };

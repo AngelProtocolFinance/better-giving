@@ -9,9 +9,7 @@ import type {
 } from "../donations";
 import type { IAllocation } from "../npo";
 import type { IPayout } from "../payouts";
-import * as don_dist from "../queue/msgs/don-dist";
-import * as lock_tx_created from "../queue/msgs/lock-tx-created";
-import * as tip_received from "../queue/msgs/tip-received";
+import { msg } from "../queue";
 import type { IMsg } from "../queue/types";
 import type { ICommission } from "../referrals";
 import type { IRevenueLog } from "../revenue";
@@ -262,7 +260,7 @@ export function calc_settlement_plan(
 
   if (tip_log) {
     msgs.push(
-      tip_received.to_msg({
+      msg("tip-received", {
         id: tip_log.id,
         date: tip_log.date,
         npo_name: ctx.name,
@@ -308,7 +306,7 @@ export function calc_settlement_plan(
       };
       balance_txs.push(lock_tx);
       msgs.push(
-        lock_tx_created.to_msg({
+        msg("lock-tx-created", {
           npo_id: lock_tx.npo_id,
           account: lock_tx.account,
           account_other: lock_tx.account_other!,
@@ -354,7 +352,7 @@ export function calc_settlement_plan(
       : null;
 
   msgs.push(
-    don_dist.to_msg({
+    msg("don-dist", {
       id: don.id,
       date_created: don.created_at,
       amount: don.amount.base,

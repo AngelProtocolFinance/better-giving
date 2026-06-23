@@ -1,7 +1,7 @@
 import { type ActionFunction, redirect } from "react-router";
 import { literal, object, safeParse, variant } from "valibot";
 import { resp } from "@/helpers/https";
-import * as reg_updated from "@/queue/msgs/reg-updated";
+import { msg } from "@/queue";
 import { Progress } from "@/reg/progress";
 import { reg_id } from "@/reg/schema";
 import { $ } from "@/schemas";
@@ -51,7 +51,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       status: "04",
       status_rejected_reason: verdict.reason,
     });
-    if (updated) await enqueue(reg_updated.to_msg(updated));
+    if (updated) await enqueue(msg("reg-updated", updated));
     return redirect("../success");
   }
   const npo = await npo_new(r);

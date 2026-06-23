@@ -6,7 +6,7 @@ import type { AuthUser } from "#/types/auth";
 import type { IFundItem } from "@/fundraiser";
 import { fund_id } from "@/fundraiser/schema";
 import { resp } from "@/helpers/https";
-import * as fund_member_removed from "@/queue/msgs/fund-member-removed";
+import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import {
   fund_get_or_slug,
@@ -58,7 +58,7 @@ export const action = async (x: Route.ActionArgs) => {
 
   const members = await fund_members_get(fund.id);
   const removed = await fund_member_remove(fund.id, id, members.length === 1);
-  if (removed) await enqueue(fund_member_removed.to_msg(removed));
+  if (removed) await enqueue(msg("fund-member-removed", removed));
 
   return dataWithSuccess(
     null,

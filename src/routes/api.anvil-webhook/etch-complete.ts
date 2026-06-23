@@ -1,4 +1,4 @@
-import * as reg_updated from "@/queue/msgs/reg-updated";
+import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { reg_get, reg_update } from "$/pg/queries/registration";
@@ -21,6 +21,6 @@ export const etch_complete = async (
     o_fsa_signed_doc_url: fsa_url,
     status: "01",
   });
-  if (updated) await enqueue(reg_updated.to_msg(updated));
+  if (updated) await enqueue(msg("reg-updated", updated));
   return fsa_url;
 };

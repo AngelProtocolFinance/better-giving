@@ -4,7 +4,7 @@ import { get_session, to_auth } from "#/.server/auth";
 import { reg_cookie } from "#/.server/cookie";
 import { is_claimed } from "#/.server/registration/helpers";
 import { resp, search } from "@/helpers/https";
-import * as reg_created from "@/queue/msgs/reg-created";
+import { msg } from "@/queue";
 import type { INpoClaim, IRegNew } from "@/reg";
 import { reg_new } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
@@ -61,7 +61,7 @@ export const new_application: ActionFunction = async ({ request }) => {
   }
 
   const id = await reg_put(parsed);
-  await enqueue(reg_created.to_msg({ id, r_id: parsed.r_id }));
+  await enqueue(msg("reg-created", { id, r_id: parsed.r_id }));
   cookie.reference = id;
 
   return redirect(href("/register/:reg_id/1", { reg_id: id }), {

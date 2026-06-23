@@ -7,8 +7,7 @@ import { redirectWithSuccess } from "#/.server/toast";
 import type { IBapp, IUpdate } from "@/banking";
 import { update } from "@/banking/schema";
 import { resp } from "@/helpers/https";
-import * as banking_approved from "@/queue/msgs/banking-approved";
-import * as banking_rejected from "@/queue/msgs/banking-rejected";
+import { msg } from "@/queue";
 import { $int_gte1 } from "@/schemas";
 import type { V2RecipientAccount } from "@/wise";
 import { enqueue } from "$/kit/queue";
@@ -57,7 +56,7 @@ export const action: ActionFunction = async ({ params, request }) => {
       status: new_status,
     });
     if (prev?.status === "under-review") {
-      await enqueue(banking_approved.to_msg({ npo_id: x.npo_id }));
+      await enqueue(msg("banking-approved", { npo_id: x.npo_id }));
     }
   } else {
     const prev = await bapp_update_status(bank_id.toString(), {
@@ -65,7 +64,7 @@ export const action: ActionFunction = async ({ params, request }) => {
       rejection_reason: fv.data.reason,
     });
     if (prev?.status === "under-review") {
-      await enqueue(banking_rejected.to_msg({ npo_id: x.npo_id }));
+      await enqueue(msg("banking-rejected", { npo_id: x.npo_id }));
     }
   }
   return redirectWithSuccess("../success", "Application updated");

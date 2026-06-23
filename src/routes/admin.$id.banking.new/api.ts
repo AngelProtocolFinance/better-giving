@@ -4,7 +4,7 @@ import { redirectWithSuccess } from "#/.server/toast";
 import { routes } from "#/pages/admin/routes";
 import { new_bank as schema } from "@/banking/schema";
 import { resp } from "@/helpers/https";
-import * as banking_new from "@/queue/msgs/banking-new";
+import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { bapp_put, npo_bapp_count } from "$/pg/queries/banking";
@@ -27,7 +27,7 @@ export const action: ActionFunction = async (args) => {
     status: "under-review",
     date_created: new Date().toISOString(),
   });
-  await enqueue(banking_new.to_msg({ npo_id: x.endowmentID }));
+  await enqueue(msg("banking-new", { npo_id: x.endowmentID }));
 
   return redirectWithSuccess(
     `../${routes.banking}`,

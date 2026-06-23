@@ -3,7 +3,7 @@ import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
 import { resp } from "@/helpers/https";
-import * as reg_updated from "@/queue/msgs/reg-updated";
+import { msg } from "@/queue";
 import { Progress } from "@/reg/progress";
 import { reg_id } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
@@ -33,7 +33,7 @@ export const submit_action: ActionFunction = async ({ request, params }) => {
     status: "02",
     status_rejected_reason: null,
   });
-  if (updated) await enqueue(reg_updated.to_msg(updated));
+  if (updated) await enqueue(msg("reg-updated", updated));
 
   return dataWithSuccess(
     null,
