@@ -66,6 +66,7 @@ vi.mock("#/.server/toast", async () => {
   const { redirect } = await import("react-router");
   return {
     dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
+    dataWithError: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
     redirectWithSuccess: vi.fn((url: string, _msg: string) => redirect(url)),
   };
 });
