@@ -9,7 +9,7 @@ import {
   text,
   unique,
 } from "drizzle-orm/pg-core";
-import type { IAllocation } from "@/npo/schema";
+import type { IAllocation } from "@/donations";
 import { numeric_as_number, timestamptz } from "./columns";
 import { donations } from "./donation";
 import { npos } from "./npo";

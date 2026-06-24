@@ -6,7 +6,7 @@ import { useFetcher, useNavigate } from "react-router";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
 import type { EndowmentUpdate } from "#/services/types";
 import { default_allocation } from "@/constants/common";
-import type { IAllocation } from "@/npo";
+import type { IAllocation } from "@/donations";
 import { alloc_opts, to_alloc_opt_value } from "./common";
 import { AllocationOptions } from "./options";
 import { AllocationSlider } from "./slider";

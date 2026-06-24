@@ -2,7 +2,7 @@ import type { Except } from "type-fest";
 import type { TFrequency } from "../schemas";
 import type { IBalanceDeltas, IFees } from "../types/donation";
 import type { Ensure } from "../types/utils";
-import type { IAmount, IProgram, ITribute } from "./schema";
+import type { IAllocation, IAmount, IProgram, ITribute } from "./schema";
 
 export type TToType = "npo" | "fund";
 
@@ -80,12 +80,6 @@ export interface IParent {
   to_id: string;
   to_name: string;
   to_members: string[];
-}
-
-export interface IAllocation {
-  liq: number;
-  lock: number;
-  cash: number;
 }
 
 export interface IToSettings {

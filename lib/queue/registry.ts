@@ -1,9 +1,19 @@
-import type { IFromAddress } from "../donation";
-import type { TDonationSource } from "../donation/schema";
-import type { IDonation, IDonationSettled } from "../donations";
+import type {
+  IDonation,
+  IDonationSettled,
+  TDonationSource,
+} from "../donations";
 import type { IReg } from "../reg/schema";
 import type { TFrequency } from "../schemas";
 import type { IMsg } from "./types";
+
+interface IFromAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zip?: string;
+}
 
 // dedupe keys ship to qstash and gate at-most-once delivery — preserve
 // existing strings verbatim. reg-updated intentionally embeds Date.now(),

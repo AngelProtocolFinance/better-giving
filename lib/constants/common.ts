@@ -1,4 +1,4 @@
-import type { IAllocation } from "../donation/schema";
+import type { IAllocation } from "../donations/schema";
 import type { IIncrement } from "../schemas";
 
 export const MIN_DONATION_USD = 2;

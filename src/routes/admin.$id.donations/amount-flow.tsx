@@ -4,8 +4,8 @@ import {
   PiggyBankIcon,
   SproutIcon,
 } from "lucide-react";
+import type { IAllocation } from "@/donations";
 import { humanize } from "@/helpers/decimal";
-import type { IAllocation } from "@/npo";
 
 interface Props {
   total: number;

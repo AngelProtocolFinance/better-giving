@@ -1,6 +1,5 @@
 export type * from "./interfaces";
 export type {
-  IAllocation,
   IMediaSearchObj,
   IMediaUpdate,
   IMilestone,

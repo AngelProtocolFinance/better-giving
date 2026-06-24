@@ -1,6 +1,6 @@
 import { safeParse } from "valibot";
 import { user_ctx } from "#/.server/auth";
-import { page_opts } from "@/donation/schema";
+import { page_opts } from "@/donations/schema";
 import { resp, search } from "@/helpers/https";
 import { user_donations_page } from "$/pg/queries/donation";
 import type { Route } from "./+types/route";

@@ -11,7 +11,8 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import type { IAllocation, ISocialMediaUrls } from "@/npo/schema";
+import type { IAllocation } from "@/donations";
+import type { ISocialMediaUrls } from "@/npo/schema";
 import type {
   DonateMethodId,
   IIncrement,
