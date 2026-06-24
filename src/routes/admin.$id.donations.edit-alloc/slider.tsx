@@ -1,7 +1,7 @@
 import { Slider } from "@ark-ui/react/slider";
 import { HandCoins, PiggyBank, Sprout } from "lucide-react";
 import type { ReactNode } from "react";
-import type { IAllocation } from "@/npo";
+import type { IAllocation } from "@/donations";
 
 interface Props {
   disabled?: boolean;

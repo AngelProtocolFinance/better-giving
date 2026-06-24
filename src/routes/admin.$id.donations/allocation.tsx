@@ -2,7 +2,7 @@ import { CircleHelp, HandCoins, Pencil, PiggyBank, Sprout } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import { Arrow, Content, Tooltip } from "#/components/tooltip";
-import type { IAllocation } from "@/npo";
+import type { IAllocation } from "@/donations";
 
 interface Props {
   allocation: IAllocation;

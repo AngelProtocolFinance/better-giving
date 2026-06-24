@@ -1,5 +1,5 @@
+import type { IAllocation } from "@/donations";
 import { via_name } from "@/donations/helpers";
-import type { IAllocation } from "@/npo";
 import type { INpoDonation } from "$/pg/queries/dist";
 
 export interface IFees {

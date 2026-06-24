@@ -1,5 +1,5 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
-import type { IAllocation } from "@/npo";
+import type { IAllocation } from "@/donations";
 import { alloc_opts, to_alloc, to_alloc_opt_value } from "./common";
 
 interface Props {

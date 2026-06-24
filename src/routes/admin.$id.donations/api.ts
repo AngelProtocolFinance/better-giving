@@ -1,7 +1,7 @@
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
 import { endowUpdate } from "#/pages/admin/endow-update-action";
-import { donations_search } from "@/donation/schema";
+import { donations_search } from "@/donations/schema";
 import { resp, search } from "@/helpers/https";
 import { npo_donations } from "$/pg/queries/dist";
 import type { Route } from "./+types/route";

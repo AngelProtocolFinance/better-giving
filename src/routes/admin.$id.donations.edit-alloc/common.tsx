@@ -1,5 +1,5 @@
 import { Banknote, Sprout, Trees, TrendingUp, Zap } from "lucide-react";
-import type { IAllocation } from "@/npo";
+import type { IAllocation } from "@/donations";
 
 export function to_alloc(input: string): IAllocation {
   const [a, b, c] = input.split("-").map((str) => Number.parseInt(str, 10));

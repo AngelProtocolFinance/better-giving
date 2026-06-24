@@ -2,12 +2,12 @@ import type { IBalanceTx } from "../balance-txs";
 import { fees } from "../constants";
 import { default_allocation } from "../constants/common";
 import type {
+  IAllocation,
   IDonation,
   IDonationDist,
   IToSettings,
   TToType,
 } from "../donations";
-import type { IAllocation } from "../npo";
 import type { IPayout } from "../payouts";
 import { msg } from "../queue";
 import type { IMsg } from "../queue/types";

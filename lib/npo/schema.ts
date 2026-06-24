@@ -25,6 +25,7 @@ export {
 } from "../schemas";
 
 import * as v from "valibot";
+import { allocation } from "../donations/schema";
 
 export const min_payout_amount = 50;
 
@@ -46,18 +47,6 @@ const csv_strs = v.pipe(
   v.transform((x) => x.split(",")),
   v.filterItems((x) => x.length > 0)
 );
-
-const pct = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100));
-const allocation = v.pipe(
-  v.object({
-    cash: pct,
-    liq: pct,
-    lock: pct,
-  }),
-  v.check((x) => x.cash + x.liq + x.lock === 100, "must total to 100")
-);
-
-export interface IAllocation extends v.InferOutput<typeof allocation> {}
 
 export const reg_number = v.pipe(
   $,

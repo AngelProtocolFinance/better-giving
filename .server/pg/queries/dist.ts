@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import type { IBalanceTx } from "@/balance-txs";
-import type { IDonationsSearch, IPageOpts } from "@/donation";
+import type { IDonationsSearch, IPageOpts } from "@/donations";
 import type { IAddr } from "@/types/donation";
 import { db } from "../db";
 import { bal_txs } from "../schema/bal-tx";
