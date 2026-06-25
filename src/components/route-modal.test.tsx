@@ -59,6 +59,8 @@ describe("RouteModal", () => {
     );
     await expect.element(screen.getByText("modal body")).toBeVisible();
     await userEvent.keyboard("{Escape}");
-    await expect.element(screen.getByText("parent route")).toBeVisible();
+    await expect
+      .element(screen.getByText("modal body"))
+      .not.toBeInTheDocument();
   });
 });
