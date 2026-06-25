@@ -30,7 +30,7 @@ Three-layer structure:
 
 - **Framework**: React Router v7 (SSR, framework mode)
 - **DB**: PostgreSQL via drizzle-orm (neon in prod, local pg in dev); DynamoDB + dynamodb-toolbox v2 (legacy, migrating)
-- **Validation**: valibot (preferred), zod also present
+- **Validation**: valibot
 - **Forms**: react-hook-form + remix-hook-form
 - **UI**: Tailwind v4, Base UI, Lucide icons, Motion
 - **Linter/Formatter**: Biome (not ESLint/Prettier)
