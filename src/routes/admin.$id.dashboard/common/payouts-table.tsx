@@ -1,10 +1,10 @@
 import { format } from "date-fns";
 import { ArrowRightIcon } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
+import { PayoutStatus } from "#/components/payout-status";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { IPayout } from "@/payouts";
-import { payout_status_config, payout_status_label } from "@/payouts/helpers";
 import { desc } from "./desc";
 
 export interface IPayoutsTable extends IPaginator<IPayout> {}
@@ -38,37 +38,29 @@ export function PayoutsTable({
               </td>
             </tr>
           )}
-          {items.map((payout, idx) => {
-            const cfg = payout_status_config(payout.type);
-            return (
-              <tr key={idx}>
-                <td className="w-8">
-                  <ArrowRightIcon size={14} className="inline stroke-success" />
-                </td>
-                <td>
-                  <span
-                    className={
-                      payout.type === "refunded"
-                        ? "line-through text-destructive"
-                        : ""
-                    }
-                  >
-                    ${humanize(payout.amount)}
-                  </span>
-                </td>
-                <td>{desc(payout)}</td>
-                <td>{format(payout.date, "PP")}</td>
-                <td>
-                  <span
-                    className={`inline-flex items-center gap-2 text-xs font-medium ${cfg.text}`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                    {payout_status_label(payout.type)}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
+          {items.map((payout, idx) => (
+            <tr key={idx}>
+              <td className="w-8">
+                <ArrowRightIcon size={14} className="inline stroke-success" />
+              </td>
+              <td>
+                <span
+                  className={
+                    payout.type === "refunded"
+                      ? "line-through text-destructive"
+                      : ""
+                  }
+                >
+                  ${humanize(payout.amount)}
+                </span>
+              </td>
+              <td>{desc(payout)}</td>
+              <td>{format(payout.date, "PP")}</td>
+              <td>
+                <PayoutStatus type={payout.type} />
+              </td>
+            </tr>
+          ))}
         </tbody>
         {load_next && (
           <LoadMoreRow
