@@ -1,10 +1,10 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Field } from "@ark-ui/react/field";
-import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
-import { useFetcher, useNavigate, useSearchParams } from "react-router";
+import { useFetcher, useSearchParams } from "react-router";
 import * as v from "valibot";
+import { RouteModal } from "#/components/route-modal";
 import { config } from "#/pages/user-dashboard/referrals/config";
 import { search } from "@/helpers/https";
 import { $req } from "@/schemas";
@@ -19,25 +19,13 @@ export { action, loader } from "./api";
 
 export default function Page({ loaderData: user }: Route.ComponentProps) {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const { pay_min = "50" } = user;
   const { min = pay_min } = search(params);
 
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { replace: true, preventScrollReset: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content prev={+min} />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content prev={+min} />
+    </RouteModal>
   );
 }
 

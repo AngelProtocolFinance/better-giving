@@ -1,12 +1,7 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { CircleAlert, X } from "lucide-react";
-import {
-  NavLink,
-  useFetcher,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
+import { NavLink, useFetcher, useSearchParams } from "react-router";
+import { RouteModal } from "#/components/route-modal";
 import { search } from "@/helpers/https";
 
 type Props = {
@@ -21,22 +16,10 @@ export default function DeletePrompt() {
   const { default: d, with_heir } = search(params);
   const isDefault = d === "true";
   const isWithHeir = with_heir === "true";
-  const navigate = useNavigate();
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { preventScrollReset: true, replace: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content isDefault={isDefault} isWithHeir={isWithHeir} />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content isDefault={isDefault} isWithHeir={isWithHeir} />
+    </RouteModal>
   );
 }
 

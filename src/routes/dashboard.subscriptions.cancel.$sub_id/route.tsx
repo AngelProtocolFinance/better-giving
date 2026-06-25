@@ -1,11 +1,11 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { object } from "valibot";
 import { Field } from "#/components/form";
+import { RouteModal } from "#/components/route-modal";
 import { $req } from "@/schemas";
 import type { Route } from "./+types/route";
 
@@ -98,22 +98,9 @@ function Content({ recipient_name }: { recipient_name: string }) {
 export default function CancelPrompt({
   loaderData: { recipient_name },
 }: Route.ComponentProps) {
-  const navigate = useNavigate();
-
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { preventScrollReset: true, replace: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content recipient_name={recipient_name} />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content recipient_name={recipient_name} />
+    </RouteModal>
   );
 }

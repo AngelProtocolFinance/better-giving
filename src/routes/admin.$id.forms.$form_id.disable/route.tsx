@@ -1,9 +1,9 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { CircleAlert } from "lucide-react";
-import { NavLink, useFetcher, useNavigate, useParams } from "react-router";
+import { NavLink, useFetcher, useParams } from "react-router";
 import { admin_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
+import { RouteModal } from "#/components/route-modal";
 import { resp } from "@/helpers/https";
 import { form_get, form_update } from "$/pg/queries/form";
 
@@ -27,22 +27,10 @@ export const action = async (x: {
 };
 
 export default function DisablePrompt() {
-  const navigate = useNavigate();
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { preventScrollReset: true, replace: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content />
+    </RouteModal>
   );
 }
 

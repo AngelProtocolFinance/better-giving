@@ -1,8 +1,8 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useFetcher, useNavigate } from "react-router";
+import { RouteModal } from "#/components/route-modal";
 import type { Route } from "./+types/route";
 import type { action, loader } from "./api";
 import { SettleForm } from "./form";
@@ -28,21 +28,11 @@ export default function Page(_: Route.ComponentProps) {
     navigate("..", { preventScrollReset: true, replace: true });
 
   return (
-    <Dialog.Root
-      open
-      onOpenChange={(e) => {
-        if (!e.open) close();
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-            <Content on_close={close} />
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <Content on_close={close} />
+      </Dialog.Content>
+    </RouteModal>
   );
 }
 

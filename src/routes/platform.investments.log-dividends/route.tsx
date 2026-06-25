@@ -1,7 +1,7 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { useState } from "react";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { Link, useFetcher } from "react-router";
+import { RouteModal } from "#/components/route-modal";
 import { LogForm } from "./log-form";
 import { Review } from "./review";
 import type { State } from "./types";
@@ -9,24 +9,12 @@ import type { State } from "./types";
 export { action } from "./api";
 
 export default function Page() {
-  const navigate = useNavigate();
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { preventScrollReset: true, replace: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-            <Content />
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <Content />
+      </Dialog.Content>
+    </RouteModal>
   );
 }
 

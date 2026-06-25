@@ -1,8 +1,8 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { Switch } from "@ark-ui/react/switch";
 import { useState } from "react";
-import { useFetcher, useNavigate } from "react-router";
+import { useFetcher } from "react-router";
+import { RouteModal } from "#/components/route-modal";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
 import type { EndowmentUpdate } from "#/services/types";
 import { default_allocation } from "@/constants/common";
@@ -13,22 +13,10 @@ import { AllocationSlider } from "./slider";
 
 export default function AllocationEdit() {
   const data = use_admin_data();
-  const navigate = useNavigate();
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { replace: true, preventScrollReset: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content {...(data?.endow.allocation ?? default_allocation)} />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content {...(data?.endow.allocation ?? default_allocation)} />
+    </RouteModal>
   );
 }
 
