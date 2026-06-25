@@ -173,15 +173,15 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
       btn_container.id = "paypal-button-container";
       container_ref.current.appendChild(btn_container);
 
-      buttons_instance = paypal.Buttons(opts);
       try {
+        buttons_instance = paypal.Buttons(opts);
         await buttons_instance.render("#paypal-button-container");
       } catch (err) {
-        // paypal's zoid internals throw "Expected window to be same domain"
-        // when the iframe's contentWindow is treated as cross-origin (strict
-        // sandboxing, extensions, proxies, csp). nothing we can fix here —
-        // surface a fallback message instead of paging the team.
-        console.warn("paypal render failed", err);
+        // paypal.Buttons() can throw when browser extensions override navigator
+        // APIs (e.g. navigator.languages) and those overrides contain bugs.
+        // render() can throw for cross-origin iframe / CSP / sandboxing reasons.
+        // Neither is fixable on our end — surface a friendly fallback instead.
+        console.warn("paypal init/render failed", err);
         if (!mounted) return;
         on_error_ref.current(
           "PayPal failed to load — please try another payment method."
