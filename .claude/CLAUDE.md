@@ -34,15 +34,15 @@ Three-layer structure:
 - **Forms**: react-hook-form + remix-hook-form
 - **UI**: Tailwind v4, Ark UI, Lucide icons, Motion
 - **Linter/Formatter**: Biome (not ESLint/Prettier)
-- **Testing**: Vitest + jsdom + Testing Library + MSW
+- **Testing**: Vitest browser mode (playwright/chromium) + vitest-browser-react + MSW
 - **Pre-commit**: Lefthook (biome check, tsc-files, vitest related)
 - **Deploy**: Vercel
 
 ## Testing
 
-- setup file: `src/setup-tests.ts`
+- setup files: `src/setup-tests-browser.ts`, `src/__tests__/mocks/payment.tsx`
 - config in `vite.config.ts` under `test`
-- environment: jsdom, globals enabled
+- environment: vitest browser mode, headless chromium via playwright; globals enabled
 - `.claude/**` excluded from test runs
 - when running vitest on changed files, use `--bail 1 --changed` to fail fast and scope to changes only
 
