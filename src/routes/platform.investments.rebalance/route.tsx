@@ -1,7 +1,7 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { useState } from "react";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { Link, useFetcher } from "react-router";
+import { RouteModal } from "#/components/route-modal";
 import type { ILog } from "@/nav";
 import type { Route } from "./+types/route";
 import { RebalanceForm } from "./form";
@@ -11,24 +11,12 @@ import type { State } from "./types";
 export { action, loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {
-  const navigate = useNavigate();
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { preventScrollReset: true, replace: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Dialog.Content className="z-50 fixed-center bg-popover w-[90vw] rounded overflow-hidden">
-            <Content {...data} />
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Dialog.Content className="z-50 fixed-center bg-popover w-[90vw] rounded overflow-hidden">
+        <Content {...data} />
+      </Dialog.Content>
+    </RouteModal>
   );
 }
 

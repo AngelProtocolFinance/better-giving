@@ -1,7 +1,6 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
-import { useNavigate } from "react-router";
 import { ExtLink } from "#/components/ext-link";
+import { RouteModal } from "#/components/route-modal";
 import type { Route } from "./+types/route";
 import type { LoaderData } from "./api";
 
@@ -9,23 +8,10 @@ export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {
-  const navigate = useNavigate();
-
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { replace: true, preventScrollReset: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content {...data} />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content {...data} />
+    </RouteModal>
   );
 }
 

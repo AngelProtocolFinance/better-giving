@@ -1,18 +1,12 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { ChevronRight, CircleAlert, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useForm } from "react-hook-form";
-import {
-  Link,
-  useFetcher,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router";
+import { Link, useFetcher, useParams, useSearchParams } from "react-router";
 import { nonEmpty, object, pipe, string, trim } from "valibot";
 import { Field } from "#/components/form";
+import { RouteModal } from "#/components/route-modal";
 
 function Content() {
   const { verdict } = useParams();
@@ -136,22 +130,10 @@ function Content() {
 }
 
 export default function Prompt() {
-  const navigate = useNavigate();
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { preventScrollReset: true, replace: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content />
+    </RouteModal>
   );
 }
 

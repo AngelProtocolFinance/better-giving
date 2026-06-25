@@ -1,10 +1,10 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Portal } from "@ark-ui/react/portal";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
-import { useFetcher, useNavigate, useSearchParams } from "react-router";
+import { useFetcher, useSearchParams } from "react-router";
 import * as v from "valibot";
 import { Field } from "#/components/form";
+import { RouteModal } from "#/components/route-modal";
 import { endowUpdate } from "#/pages/admin/endow-update-action";
 import { search } from "@/helpers/https";
 import type { INpoUpdate } from "@/npo";
@@ -27,23 +27,11 @@ export const amount = v.pipe(
 export default function PayoutMin() {
   const [params] = useSearchParams();
   const { min = min_payout_amount } = search(params);
-  const navigate = useNavigate();
 
   return (
-    <Dialog.Root
-      open={true}
-      onOpenChange={(e) => {
-        if (!e.open)
-          navigate("..", { replace: true, preventScrollReset: true });
-      }}
-    >
-      <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">
-          <Content prev={+min} />
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
+    <RouteModal>
+      <Content prev={+min} />
+    </RouteModal>
   );
 }
 
