@@ -1,6 +1,8 @@
+import { MIN_DONATION_USD } from "@/constants/common";
 import type { ChariotMetadata, IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
+import { resp } from "@/helpers/https";
 import { chariot } from "$/kit/chariot";
 import { db } from "$/pg/db";
 import { donation_put } from "$/pg/queries/donation";
@@ -13,6 +15,10 @@ export const chariot_intent: Provider = async ({
   via_extra,
   intent,
 }) => {
+  // chariot is usd-only; upusd = 1 so base_usd === intent.amount.base
+  if (intent.amount.base < MIN_DONATION_USD)
+    return resp.status(400, "less than min");
+
   const to_pay = amnt_sum(intent.amount);
   const grant = await chariot.create_grant({
     workflowSessionId: via_extra,
