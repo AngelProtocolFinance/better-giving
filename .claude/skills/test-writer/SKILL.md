@@ -141,6 +141,19 @@ for (let i = 0; i < val.length; i++) {
 }
 ```
 
+### Ark UI dialog Escape race
+
+Ark UI's dismissable layer (zag-js) attaches its document-level `keydown` listener via a deferred `requestAnimationFrame`. A single `userEvent.keyboard("{Escape}")` fired right after render races that registration — flaky pass/fail. Retry the dispatch inside `vi.waitFor` until the modal actually unmounts:
+
+```tsx
+await vi.waitFor(() => {
+  document.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+  );
+  expect(document.body).not.toHaveTextContent("modal body");
+});
+```
+
 ### Base UI dialog/modal overlay blocking clicks
 
 Base UI adds `<div data-base-ui-inert="">` overlay that Playwright detects as intercepting pointer events. For buttons/links inside dialogs, use native DOM click with `as HTMLElement` cast (`.element()` returns `SVGElement | HTMLElement`):

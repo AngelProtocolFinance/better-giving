@@ -1,7 +1,6 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { createRoutesStub, Outlet } from "react-router";
-import { describe, expect, test } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { RouteModal } from "./route-modal";
 
@@ -58,9 +57,13 @@ describe("RouteModal", () => {
       />
     );
     await expect.element(screen.getByText("modal body")).toBeVisible();
-    await userEvent.keyboard("{Escape}");
-    await expect
-      .element(screen.getByText("modal body"))
-      .not.toBeInTheDocument();
+    // ark dismissable layer attaches its document-level escape listener via
+    // a deferred raf, so retry the keydown until the modal actually unmounts.
+    await vi.waitFor(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+      expect(document.body).not.toHaveTextContent("modal body");
+    });
   });
 });
