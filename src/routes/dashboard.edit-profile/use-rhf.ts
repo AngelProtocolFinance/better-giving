@@ -23,19 +23,19 @@ export function use_rhf(props: LoaderData) {
   } = useForm({
     resolver: valibotResolver(schema),
     values: {
-      firstName: props.db_user.first_name ?? "",
-      lastName: props.db_user.last_name ?? "",
-      avatar: props.db_user.avatar_url ?? "",
+      first_name: props.db_user.first_name ?? "",
+      last_name: props.db_user.last_name ?? "",
+      avatar_url: props.db_user.avatar_url ?? "",
     },
   });
 
-  const { field: avatar } = useController<FV, "avatar">({
+  const { field: avatar_url } = useController<FV, "avatar_url">({
     control,
-    name: "avatar",
+    name: "avatar_url",
   });
 
   return {
-    avatar,
+    avatar_url,
     register,
     handleSubmit,
     resetField,
