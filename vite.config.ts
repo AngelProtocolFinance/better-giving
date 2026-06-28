@@ -28,12 +28,6 @@ export default defineConfig((config) => {
         project: env.SENTRY_PROJECT,
         authToken: env.SENTRY_AUTH_TOKEN,
         release: { name: env.VERCEL_GIT_COMMIT_SHA },
-        // build sets `sourcemap: "hidden"`, so sentry keeps it and (unlike the
-        // case where it auto-enables maps) does NOT delete them after upload.
-        // delete them ourselves: they're uploaded to sentry here, have no
-        // sourceMappingURL comment so no browser fetches them, and otherwise
-        // bloat the deployment + the blob mirror (utils/upload-client-assets).
-        sourcemaps: { filesToDeleteAfterUpload: "./**/*.map" },
       },
       config
     );
