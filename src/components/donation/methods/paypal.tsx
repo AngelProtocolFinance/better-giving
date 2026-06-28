@@ -1,11 +1,12 @@
-import type {
-  PayPalButtonOnApprove,
-  PayPalButtonsComponent,
-  PayPalButtonsComponentOptions,
-} from "@paypal/paypal-js";
+import {
+  type Components,
+  loadCoreSdkScript,
+  type PayPalV6Namespace,
+  type SdkInstance,
+} from "@paypal/paypal-js/sdk-v6";
 import { useEffect, useRef } from "react";
 import { href } from "react-router";
-import { paypal_client_id } from "#/constants/env";
+import { paypal_client_id, stage } from "#/constants/env";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
 import { report_error } from "@/errors/report";
 import { use_donation } from "../context";
@@ -17,6 +18,43 @@ interface Props extends IPayPalExpress {
   classes?: string;
 }
 
+// v6 environment — required by loadCoreSdkScript (no silent sandbox default)
+const PP_ENV: "production" | "sandbox" =
+  stage === "production" ? "production" : "sandbox";
+
+const COMPONENTS = [
+  "paypal-payments",
+  "paypal-subscriptions",
+  "venmo-payments",
+] as const satisfies readonly Components[];
+type Sdk = SdkInstance<typeof COMPONENTS>;
+
+// cache the namespace + sdk instance across mounts. v6 no longer carries
+// currency in the script URL, so we don't re-init when currency changes.
+let _ns: Promise<PayPalV6Namespace | null> | null = null;
+let _sdk: Promise<Sdk> | null = null;
+const get_sdk = (): Promise<Sdk> => {
+  if (_sdk) return _sdk;
+  if (!_ns) _ns = loadCoreSdkScript({ environment: PP_ENV });
+  const sdk = _ns.then((ns) => {
+    if (!ns) throw new Error("paypal v6 namespace failed to load");
+    return ns.createInstance({
+      clientId: paypal_client_id,
+      components: COMPONENTS,
+    });
+  });
+  // reset on failure so the next mount can retry — a transient network
+  // / csp blip at first load shouldn't poison the page for the whole session.
+  sdk.catch(() => {
+    if (_sdk === sdk) {
+      _sdk = null;
+      _ns = null;
+    }
+  });
+  _sdk = sdk;
+  return sdk;
+};
+
 export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
   const { don } = use_donation();
   const container_ref = useRef<HTMLDivElement>(null);
@@ -24,7 +62,8 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
   const { currency, frequency, is_partial } = p;
   const is_recurring = frequency !== "one-time";
 
-  // refs for values read at call-time so the effect only re-runs on SDK config changes
+  // refs for values read at call-time so the effect only re-runs on flow-shape
+  // changes (currency / one-time vs recurring), not on every form field edit.
   const props_ref = useRef(p);
   props_ref.current = p;
   const don_ref = useRef(don);
@@ -34,25 +73,36 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
 
   useEffect(() => {
     let mounted = true;
-    let buttons_instance: PayPalButtonsComponent | null = null;
+    let cleanup: (() => void) | null = null;
 
     const init = async () => {
-      const { loadScript } = await import("@paypal/paypal-js");
-      const paypal = await loadScript({
-        clientId: paypal_client_id,
-        currency,
-        disableFunding: ["card", "paylater"],
-        enableFunding: is_recurring ? ["paypal"] : ["venmo", "paypal"],
-        vault: is_recurring,
-        intent: is_recurring ? "subscription" : "capture",
+      const sdk = await get_sdk();
+      if (!mounted || !container_ref.current) return;
+
+      // v6 eligibility check replaces v5 enable/disable-funding URL params
+      const methods = await sdk.findEligibleMethods({
+        currencyCode: currency,
+        paymentFlow: is_recurring ? "RECURRING_PAYMENT" : "ONE_TIME_PAYMENT",
       });
+      if (!mounted || !container_ref.current) return;
 
-      if (!mounted || !paypal?.Buttons || !container_ref.current) return;
+      const pp_eligible = methods.isEligible("paypal");
+      // venmo is us-only and one-time only (no subscription support)
+      const vm_eligible = !is_recurring && methods.isEligible("venmo");
 
-      // tracks don_id from intent creation for server-side capture
-      let don_id_ref = "";
+      if (!pp_eligible && !vm_eligible) {
+        return on_error_ref.current(
+          `PayPal not available for ${currency.toUpperCase()}`
+        );
+      }
 
-      const create_intent = async (): Promise<string> => {
+      // returns both ids so each click can capture its own (no shared mutable
+      // state — a rapid double-click must not let intent B's don_id overwrite
+      // intent A's and silently misroute capture).
+      const create_intent = async (): Promise<{
+        tx_id: string;
+        don_id: string;
+      }> => {
         const { amnt, tip, fee_allowance, frequency } = props_ref.current;
         const d = don_ref.current;
         const intent: IDonationIntent = {
@@ -74,8 +124,7 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         });
         if (!res.ok) throw res;
         const { tx_id, don_id } = await res.json();
-        don_id_ref = don_id ?? "";
-        return tx_id;
+        return { tx_id, don_id: don_id ?? "" };
       };
 
       const build_redirect_url = (
@@ -102,10 +151,7 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         return url.toString();
       };
 
-      const handle_redirect = (
-        url: string,
-        actions: { redirect: (url: string) => void }
-      ) => {
+      const do_redirect = (url: string) => {
         const d = don_ref.current;
         if (window.self !== window.top) {
           window.parent.postMessage(
@@ -113,19 +159,34 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
             "*"
           );
         } else {
-          actions.redirect(url);
+          window.location.assign(url);
         }
       };
 
-      const on_approve: PayPalButtonOnApprove = async (data, actions) => {
-        if (actions.order) {
+      const on_session_error = (err: unknown) => {
+        // session.start can fail for CSP / popup-blocked / network reasons.
+        // surface a friendly fallback so donor can try another method.
+        console.warn("paypal session error", err);
+        on_error_ref.current(
+          "PayPal failed — please try another payment method."
+        );
+      };
+
+      // one-time approval: PATCH our server to capture, then redirect.
+      // works for both paypal and venmo (server reads payment_source.{paypal|venmo}).
+      // own try/catch — paypal v6 may not forward post-approval rejections to
+      // session onError, and silent failure here means a donor authorized a
+      // real payment with no confirmation. always surface something.
+      // don_id is captured per-click via the intent promise, not shared state.
+      const handle_one_time_approve = async (
+        don_id: string,
+        order_id: string
+      ) => {
+        try {
           const res = await fetch(href("/api/donation-intents"), {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order_id: data.orderID,
-              don_id: don_id_ref,
-            }),
+            body: JSON.stringify({ order_id, don_id }),
           });
           if (!res.ok) return on_error_ref.current("Failed to capture payment");
 
@@ -136,70 +197,113 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
           if (!onhold_id)
             return on_error_ref.current("Missing order information");
 
-          const extra_params: Record<string, string> = {
-            payment_method: ps_id,
-          };
-          if (ps?.name?.full_name) extra_params.donor_name = ps.name.full_name;
-
-          const url = build_redirect_url(onhold_id, extra_params);
-          return handle_redirect(url, actions);
+          const extra: Record<string, string> = { payment_method: ps_id };
+          if (ps?.name?.full_name) extra.donor_name = ps.name.full_name;
+          do_redirect(build_redirect_url(onhold_id, extra));
+        } catch (err) {
+          report_error(err);
+          on_error_ref.current(
+            "Failed to capture payment — please contact support."
+          );
         }
+      };
 
-        if (actions.subscription) {
-          const sub = await actions.subscription.get();
-          if ("custom_id" in sub) {
-            const url = build_redirect_url(sub.custom_id as string, {
-              payment_method: "paypal",
+      const mounted_btns: HTMLElement[] = [];
+
+      if (pp_eligible) {
+        const btn = document.createElement("paypal-button");
+        btn.className = "paypal-gold w-full";
+        btn.addEventListener("click", () => {
+          // each click owns its intent_promise — no shared mutable don_id.
+          const intent_promise = create_intent();
+          if (is_recurring) {
+            const session = sdk.createPayPalSubscriptionPaymentSession({
+              onApprove: async () => {
+                try {
+                  // server set custom_id=don.id on subscription; donation row
+                  // enriched from BILLING.SUBSCRIPTION.ACTIVATED webhook.
+                  const { don_id } = await intent_promise;
+                  do_redirect(
+                    build_redirect_url(don_id, { payment_method: "paypal" })
+                  );
+                } catch (err) {
+                  report_error(err);
+                  on_error_ref.current(
+                    "Subscription failed — please contact support."
+                  );
+                }
+              },
+              onError: on_session_error,
             });
-            return handle_redirect(url, actions);
+            session
+              .start(
+                { presentationMode: "auto" },
+                intent_promise.then(({ tx_id }) => ({ subscriptionId: tx_id }))
+              )
+              .catch(on_session_error);
+          } else {
+            const session = sdk.createPayPalOneTimePaymentSession({
+              onApprove: async ({ orderId }) => {
+                const { don_id } = await intent_promise;
+                await handle_one_time_approve(don_id, orderId);
+              },
+              onError: on_session_error,
+            });
+            session
+              .start(
+                { presentationMode: "auto" },
+                intent_promise.then(({ tx_id }) => ({ orderId: tx_id }))
+              )
+              .catch(on_session_error);
           }
-        }
+        });
+        container_ref.current.appendChild(btn);
+        mounted_btns.push(btn);
+      }
+
+      if (vm_eligible) {
+        const btn = document.createElement("venmo-button");
+        btn.className = "venmo-blue w-full";
+        btn.addEventListener("click", () => {
+          const intent_promise = create_intent();
+          const session = sdk.createVenmoOneTimePaymentSession({
+            onApprove: async ({ orderId }) => {
+              const { don_id } = await intent_promise;
+              await handle_one_time_approve(don_id, orderId);
+            },
+            onError: on_session_error,
+          });
+          session
+            .start(
+              { presentationMode: "auto" },
+              intent_promise.then(({ tx_id }) => ({ orderId: tx_id }))
+            )
+            .catch(on_session_error);
+        });
+        container_ref.current.appendChild(btn);
+        mounted_btns.push(btn);
+      }
+
+      cleanup = () => {
+        for (const b of mounted_btns) b.remove();
       };
+    };
 
-      const opts: PayPalButtonsComponentOptions = {
-        onApprove: on_approve,
-        style: {
-          layout: "vertical",
-          shape: "rect",
-          borderRadius: 4,
-          tagline: false,
-        },
-        ...(is_recurring
-          ? { createSubscription: create_intent }
-          : { createOrder: create_intent }),
-      };
-
-      const btn_container = document.createElement("div");
-      btn_container.id = "paypal-button-container";
-      container_ref.current.appendChild(btn_container);
-
-      try {
-        buttons_instance = paypal.Buttons(opts);
-        await buttons_instance.render("#paypal-button-container");
-      } catch (err) {
-        // paypal.Buttons() can throw when browser extensions override navigator
-        // APIs (e.g. navigator.languages) and those overrides contain bugs.
-        // render() can throw for cross-origin iframe / CSP / sandboxing reasons.
-        // Neither is fixable on our end — surface a friendly fallback instead.
-        console.warn("paypal init/render failed", err);
-        if (!mounted) return;
+    init().catch((err) => {
+      // loadCoreSdkScript / createInstance / findEligibleMethods can fail for
+      // CSP / extension / network reasons. surface a friendly fallback.
+      report_error(err);
+      if (mounted) {
         on_error_ref.current(
           "PayPal failed to load — please try another payment method."
         );
       }
-    };
-
-    init().catch(report_error);
+    });
 
     return () => {
       mounted = false;
-      if (buttons_instance) {
-        buttons_instance.close().catch(() => {});
-      }
-      const btn_container = document.getElementById("paypal-button-container");
-      btn_container?.remove();
+      cleanup?.();
     };
-    // only re-init when SDK config changes (currency/recurring affect the loaded script)
   }, [currency, is_recurring]);
 
   return (
@@ -214,7 +318,11 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
       )}
       <div
         ref={container_ref}
-        className={is_partial ? "pointer-events-none" : ""}
+        className={`flex flex-col gap-2 ${is_partial ? "pointer-events-none" : ""}`}
+        style={{
+          // v6 web component css vars per docs
+          ["--paypal-button-border-radius" as string]: "4px",
+        }}
       />
     </div>
   );

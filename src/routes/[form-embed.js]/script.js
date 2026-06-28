@@ -59,7 +59,11 @@
     iframe.allow = "payment";
 
     // add sandbox attribute for security (adjust permissions as needed)
-    iframe.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups";
+    // allow-popups-to-escape-sandbox: required so paypal popup window
+    // (login/approval) doesn't inherit our sandbox flags — otherwise
+    // cookies/storage on paypal.com may break inside the popup.
+    iframe.sandbox =
+      "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox";
 
     // set title for accessibility
     iframe.title = `Form ${form_id}`;
