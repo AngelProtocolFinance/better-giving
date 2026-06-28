@@ -96,10 +96,13 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         );
       }
 
-      // tracks don_id from intent creation for server-side capture
-      let don_id_ref = "";
-
-      const create_intent = async (): Promise<string> => {
+      // returns both ids so each click can capture its own (no shared mutable
+      // state — a rapid double-click must not let intent B's don_id overwrite
+      // intent A's and silently misroute capture).
+      const create_intent = async (): Promise<{
+        tx_id: string;
+        don_id: string;
+      }> => {
         const { amnt, tip, fee_allowance, frequency } = props_ref.current;
         const d = don_ref.current;
         const intent: IDonationIntent = {
@@ -121,8 +124,7 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         });
         if (!res.ok) throw res;
         const { tx_id, don_id } = await res.json();
-        don_id_ref = don_id ?? "";
-        return tx_id;
+        return { tx_id, don_id: don_id ?? "" };
       };
 
       const build_redirect_url = (
@@ -170,20 +172,21 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         );
       };
 
-      // shared one-time approval: PATCH our server to capture, then redirect.
-      // works for both paypal and venmo (server reads payment_source.{paypal|venmo})
+      // one-time approval: PATCH our server to capture, then redirect.
+      // works for both paypal and venmo (server reads payment_source.{paypal|venmo}).
       // own try/catch — paypal v6 may not forward post-approval rejections to
       // session onError, and silent failure here means a donor authorized a
       // real payment with no confirmation. always surface something.
-      const on_one_time_approve = async (data: { orderId: string }) => {
+      // don_id is captured per-click via the intent promise, not shared state.
+      const handle_one_time_approve = async (
+        don_id: string,
+        order_id: string
+      ) => {
         try {
           const res = await fetch(href("/api/donation-intents"), {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order_id: data.orderId,
-              don_id: don_id_ref,
-            }),
+            body: JSON.stringify({ order_id, don_id }),
           });
           if (!res.ok) return on_error_ref.current("Failed to capture payment");
 
@@ -211,32 +214,45 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         const btn = document.createElement("paypal-button");
         btn.className = "paypal-gold w-full";
         btn.addEventListener("click", () => {
+          // each click owns its intent_promise — no shared mutable don_id.
+          const intent_promise = create_intent();
           if (is_recurring) {
             const session = sdk.createPayPalSubscriptionPaymentSession({
               onApprove: async () => {
-                // server set custom_id=don.id on subscription; donation row
-                // enriched from BILLING.SUBSCRIPTION.ACTIVATED webhook.
-                do_redirect(
-                  build_redirect_url(don_id_ref, { payment_method: "paypal" })
-                );
+                try {
+                  // server set custom_id=don.id on subscription; donation row
+                  // enriched from BILLING.SUBSCRIPTION.ACTIVATED webhook.
+                  const { don_id } = await intent_promise;
+                  do_redirect(
+                    build_redirect_url(don_id, { payment_method: "paypal" })
+                  );
+                } catch (err) {
+                  report_error(err);
+                  on_error_ref.current(
+                    "Subscription failed — please contact support."
+                  );
+                }
               },
               onError: on_session_error,
             });
             session
               .start(
                 { presentationMode: "auto" },
-                create_intent().then((subscriptionId) => ({ subscriptionId }))
+                intent_promise.then(({ tx_id }) => ({ subscriptionId: tx_id }))
               )
               .catch(on_session_error);
           } else {
             const session = sdk.createPayPalOneTimePaymentSession({
-              onApprove: on_one_time_approve,
+              onApprove: async ({ orderId }) => {
+                const { don_id } = await intent_promise;
+                await handle_one_time_approve(don_id, orderId);
+              },
               onError: on_session_error,
             });
             session
               .start(
                 { presentationMode: "auto" },
-                create_intent().then((orderId) => ({ orderId }))
+                intent_promise.then(({ tx_id }) => ({ orderId: tx_id }))
               )
               .catch(on_session_error);
           }
@@ -249,14 +265,18 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
         const btn = document.createElement("venmo-button");
         btn.className = "venmo-blue w-full";
         btn.addEventListener("click", () => {
+          const intent_promise = create_intent();
           const session = sdk.createVenmoOneTimePaymentSession({
-            onApprove: on_one_time_approve,
+            onApprove: async ({ orderId }) => {
+              const { don_id } = await intent_promise;
+              await handle_one_time_approve(don_id, orderId);
+            },
             onError: on_session_error,
           });
           session
             .start(
               { presentationMode: "auto" },
-              create_intent().then((orderId) => ({ orderId }))
+              intent_promise.then(({ tx_id }) => ({ orderId: tx_id }))
             )
             .catch(on_session_error);
         });
