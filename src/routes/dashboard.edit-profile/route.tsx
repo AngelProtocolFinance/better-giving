@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { CurrencySelector } from "#/components/currency-selector";
 import { Field, Form, Label } from "#/components/form";
 import { ImgEditor } from "#/components/img-editor";
 import { use_user } from "#/hooks/use-user";
@@ -34,7 +33,6 @@ function Page({ loaderData: data }: Route.ComponentProps) {
 
         if (df.firstName) update.first_name = fv.firstName;
         if (df.lastName) update.last_name = fv.lastName;
-        if (df.prefCurrency) update.pref_currency = fv.prefCurrency.code;
         if (df.avatar) update.avatar_url = fv.avatar;
 
         fetcher.submit(update, {
@@ -64,15 +62,6 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           dropzone: "w-60 aspect-square rounded-full",
         }}
         error={rhf.errors.avatar?.message}
-      />
-
-      <CurrencySelector
-        currencies={data.all}
-        label="Default currency"
-        onChange={rhf.prefCurrency.onChange}
-        value={rhf.prefCurrency.value}
-        classes={{ container: "mt-16" }}
-        required
       />
 
       <Field
