@@ -1,8 +1,7 @@
-import {
-  type Components,
-  loadCoreSdkScript,
-  type PayPalV6Namespace,
-  type SdkInstance,
+import type {
+  Components,
+  PayPalV6Namespace,
+  SdkInstance,
 } from "@paypal/paypal-js/sdk-v6";
 import { useEffect, useRef } from "react";
 import { href } from "react-router";
@@ -35,7 +34,15 @@ let _ns: Promise<PayPalV6Namespace | null> | null = null;
 let _sdk: Promise<Sdk> | null = null;
 const get_sdk = (): Promise<Sdk> => {
   if (_sdk) return _sdk;
-  if (!_ns) _ns = loadCoreSdkScript({ environment: PP_ENV });
+  // dynamic import: @vercel/nft mis-traces the `./sdk-v6` subpath (its
+  // package.json `exports` only declares `import`, no `default`/`require`),
+  // so a static SSR import resolves to the v5 entry on Vercel and crashes
+  // the function with "does not provide an export named 'loadCoreSdkScript'".
+  // browser bundle is unaffected; only the SSR graph needs this gated.
+  if (!_ns)
+    _ns = import("@paypal/paypal-js/sdk-v6").then((m) =>
+      m.loadCoreSdkScript({ environment: PP_ENV })
+    );
   const sdk = _ns.then((ns) => {
     if (!ns) throw new Error("paypal v6 namespace failed to load");
     return ns.createInstance({
