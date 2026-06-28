@@ -36,14 +36,23 @@ let _sdk: Promise<Sdk> | null = null;
 const get_sdk = (): Promise<Sdk> => {
   if (_sdk) return _sdk;
   if (!_ns) _ns = loadCoreSdkScript({ environment: PP_ENV });
-  _sdk = _ns.then((ns) => {
+  const sdk = _ns.then((ns) => {
     if (!ns) throw new Error("paypal v6 namespace failed to load");
     return ns.createInstance({
       clientId: paypal_client_id,
       components: COMPONENTS,
     });
   });
-  return _sdk;
+  // reset on failure so the next mount can retry — a transient network
+  // / csp blip at first load shouldn't poison the page for the whole session.
+  sdk.catch(() => {
+    if (_sdk === sdk) {
+      _sdk = null;
+      _ns = null;
+    }
+  });
+  _sdk = sdk;
+  return sdk;
 };
 
 export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
@@ -163,27 +172,37 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
 
       // shared one-time approval: PATCH our server to capture, then redirect.
       // works for both paypal and venmo (server reads payment_source.{paypal|venmo})
+      // own try/catch — paypal v6 may not forward post-approval rejections to
+      // session onError, and silent failure here means a donor authorized a
+      // real payment with no confirmation. always surface something.
       const on_one_time_approve = async (data: { orderId: string }) => {
-        const res = await fetch(href("/api/donation-intents"), {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            order_id: data.orderId,
-            don_id: don_id_ref,
-          }),
-        });
-        if (!res.ok) return on_error_ref.current("Failed to capture payment");
+        try {
+          const res = await fetch(href("/api/donation-intents"), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order_id: data.orderId,
+              don_id: don_id_ref,
+            }),
+          });
+          if (!res.ok) return on_error_ref.current("Failed to capture payment");
 
-        const { purchase_units, payment_source = {} } = await res.json();
-        const ps_id = Object.keys(payment_source)[0] || "paypal";
-        const ps = payment_source.paypal || payment_source.venmo;
-        const onhold_id = purchase_units?.[0]?.custom_id;
-        if (!onhold_id)
-          return on_error_ref.current("Missing order information");
+          const { purchase_units, payment_source = {} } = await res.json();
+          const ps_id = Object.keys(payment_source)[0] || "paypal";
+          const ps = payment_source.paypal || payment_source.venmo;
+          const onhold_id = purchase_units?.[0]?.custom_id;
+          if (!onhold_id)
+            return on_error_ref.current("Missing order information");
 
-        const extra: Record<string, string> = { payment_method: ps_id };
-        if (ps?.name?.full_name) extra.donor_name = ps.name.full_name;
-        do_redirect(build_redirect_url(onhold_id, extra));
+          const extra: Record<string, string> = { payment_method: ps_id };
+          if (ps?.name?.full_name) extra.donor_name = ps.name.full_name;
+          do_redirect(build_redirect_url(onhold_id, extra));
+        } catch (err) {
+          report_error(err);
+          on_error_ref.current(
+            "Failed to capture payment — please contact support."
+          );
+        }
       };
 
       const mounted_btns: HTMLElement[] = [];
