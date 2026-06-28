@@ -23,26 +23,19 @@ export function use_rhf(props: LoaderData) {
   } = useForm({
     resolver: valibotResolver(schema),
     values: {
-      prefCurrency: props.pref || { code: "usd", min: 1, rate: 1 },
-      firstName: props.db_user.first_name ?? "",
-      lastName: props.db_user.last_name ?? "",
-      avatar: props.db_user.avatar_url ?? "",
+      first_name: props.db_user.first_name ?? "",
+      last_name: props.db_user.last_name ?? "",
+      avatar_url: props.db_user.avatar_url ?? "",
     },
   });
 
-  const { field: prefCurrency } = useController<FV, "prefCurrency">({
+  const { field: avatar_url } = useController<FV, "avatar_url">({
     control,
-    name: "prefCurrency",
-  });
-
-  const { field: avatar } = useController<FV, "avatar">({
-    control,
-    name: "avatar",
+    name: "avatar_url",
   });
 
   return {
-    prefCurrency,
-    avatar,
+    avatar_url,
     register,
     handleSubmit,
     resetField,

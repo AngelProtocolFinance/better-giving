@@ -59,13 +59,7 @@ const MOCK_LOADER = {
     first_name: "Jane",
     last_name: "Doe",
     avatar_url: "",
-    pref_currency: "usd",
   } as any,
-  pref: { code: "usd", min: 1, rate: 1 },
-  all: [
-    { code: "usd", min: 1, rate: 1 },
-    { code: "eur", min: 1, rate: 0.85 },
-  ],
 };
 
 const action_spy = vi.hoisted(() => vi.fn());
@@ -200,24 +194,6 @@ describe("dashboard edit-profile", () => {
     select_file(input, file);
 
     await expect.element(screen.getByText(/exceeds file size/i)).toBeVisible();
-  });
-
-  it("currency input restores selected label when closed after clear", async () => {
-    const screen = await render_page();
-
-    const combo = screen.getByRole("combobox", { name: /default currency/i });
-    await expect.element(combo).toHaveDisplayValue("USD");
-
-    // open, clear, dismiss without picking a new value
-    await combo.click();
-    await combo.fill("");
-    // close popup via Escape so onOpenChange(false) fires
-    (combo.element() as HTMLInputElement).focus();
-    (combo.element() as HTMLInputElement).dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
-    );
-
-    await expect.element(combo).toHaveDisplayValue("USD");
   });
 
   it("text field edit + submit sends only dirty fields", async () => {
