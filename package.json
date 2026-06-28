@@ -48,7 +48,7 @@
     "@hookform/resolvers": "3.9.0",
     "@hubspot/api-client": "13.5.0",
     "@neondatabase/serverless": "1.1.0",
-    "@paypal/paypal-js": "9.7.0",
+    "@paypal/paypal-js": "10.0.1",
     "@pdf-lib/fontkit": "1.1.1",
     "@portabletext/editor": "7.5.2",
     "@portabletext/react": "6.2.0",

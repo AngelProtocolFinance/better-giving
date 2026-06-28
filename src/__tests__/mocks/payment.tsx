@@ -13,8 +13,9 @@ vi.mock("@stripe/react-stripe-js", () => ({
   useStripe: () => null,
   useElements: () => null,
 }));
-vi.mock("@paypal/paypal-js", () => ({
-  loadScript: () => Promise.resolve(null),
+// v6: returning null short-circuits sdk init in tests
+vi.mock("@paypal/paypal-js/sdk-v6", () => ({
+  loadCoreSdkScript: () => Promise.resolve(null),
 }));
 // recharts uses CJS internally; vi.mock must cover every named export
 // the component tree might import, otherwise browser ESM validation fails.

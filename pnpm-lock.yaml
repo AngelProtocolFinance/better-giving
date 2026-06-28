@@ -54,8 +54,8 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@paypal/paypal-js':
-        specifier: 9.7.0
-        version: 9.7.0
+        specifier: 10.0.1
+        version: 10.0.1
       '@pdf-lib/fontkit':
         specifier: 1.1.1
         version: 1.1.1
@@ -1604,8 +1604,8 @@ packages:
   '@oxc-project/types@0.128.0':
     resolution: {integrity: sha512-huv1Y/LzBJkBVHt3OlC7u0zHBW9qXf1FdD7sGmc1rXc2P1mTwHssYv7jyGx5KAACSCH+9B3Bhn6Z9luHRvf7pQ==}
 
-  '@paypal/paypal-js@9.7.0':
-    resolution: {integrity: sha512-eUQVZWTEhXhaPsYDmfUaOeV5zfeLUn7kCE7/BXm6uAtMhUoK0S7uPtUzosqfH1vZgjfUSyTzghDJtYxXyRRZig==}
+  '@paypal/paypal-js@10.0.1':
+    resolution: {integrity: sha512-tVv2p5Wf4YyI3BNa2dx5uRIM0iWi5Ci8dn1yUjwAml7Q+axmyTH5maWkCUBktD6Gmw/AjPBv4lRbkHFZyfH8uQ==}
 
   '@pdf-lib/fontkit@1.1.1':
     resolution: {integrity: sha512-KjMd7grNapIWS/Dm0gvfHEilSyAmeLvrEGVcqLGi0VYebuqqzTbgF29efCx7tvx+IEbG3zQciRSWl3GkUSvjZg==}
@@ -6241,7 +6241,7 @@ snapshots:
 
   '@oxc-project/types@0.128.0': {}
 
-  '@paypal/paypal-js@9.7.0':
+  '@paypal/paypal-js@10.0.1':
     dependencies:
       promise-polyfill: 8.3.0
 
