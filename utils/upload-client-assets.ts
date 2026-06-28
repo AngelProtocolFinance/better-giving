@@ -14,6 +14,13 @@ import { BlobNotFoundError, head, put } from "@vercel/blob";
 // (favicon, /icons/*) are referenced via literal origin paths, never get the
 // blob base, and stay on the deployment — so they're intentionally excluded.
 //
+// .map sourcemaps are skipped: the build emits them with `sourcemap: "hidden"`
+// (vite.config.ts), so no `sourceMappingURL` comment is written and a browser
+// never fetches them — only sentry consumes them, and sentryOnBuildEnd already
+// uploads them out-of-band. they're as numerous as the js chunks and larger,
+// and churn on every content-hash change, so mirroring them to blob is pure
+// waste — the bulk of the per-deploy re-upload volume.
+//
 // reads BLOB_READ_WRITE_TOKEN from env (via @vercel/blob). caller passes the
 // asset base url; it must point at the same blob store BLOB_READ_WRITE_TOKEN
 // writes to, or the baked asset urls won't resolve.
@@ -27,7 +34,7 @@ export async function upload_client_assets(asset_base_url: string) {
     withFileTypes: true,
   });
   const rel_paths = entries
-    .filter((e) => e.isFile())
+    .filter((e) => e.isFile() && !e.name.endsWith(".map"))
     .map((e) => path.relative(ASSETS_DIR, path.join(e.parentPath, e.name)));
 
   let uploaded = 0;
