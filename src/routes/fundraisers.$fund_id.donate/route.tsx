@@ -33,7 +33,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
         <DappLogo classes="h-12" />
         <Link
           to={href("/fundraisers/:fund_id", { fund_id: fund.id })}
-          className="font-semibold  hover:text-primary"
+          className="font-semibold hover:text-primary"
         >
           Cancel
         </Link>
@@ -88,7 +88,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
           //TODO: endowId={1}
           endowId={1}
         />
-        <p className="max-md:px-4 mb-4 max-mbcol-start-1 text-sm leading-normal text-left text-muted-fg">
+        <p className="max-md:px-4 mb-4 max-md:col-start-1 text-sm leading-normal text-left text-muted-fg">
           <span className="block mb-0.5">
             Need help? See{" "}
             <Link to="./#faqs" className="hover:underline font-medium">
