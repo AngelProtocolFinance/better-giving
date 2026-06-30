@@ -123,8 +123,8 @@ function ListItem(props: TListItem & { index: number }) {
         alt={props.image.alt}
         className="mb-4"
       />
-      <h4 className="text-center  font-medium text-2xl px-8">{props.title1}</h4>
-      <h5 className="py-4 text-center font-medium  text-lg @6xl:text-xl border-b-[3px] border-primary mb-7 px-8">
+      <h4 className="text-center font-medium text-2xl px-8">{props.title1}</h4>
+      <h5 className="py-4 text-center font-medium text-lg @6xl:text-xl border-b-[3px] border-primary mb-7 px-8">
         {props.title2}
       </h5>
       <p className="text-center text-lg @6xl:text-xl">{props.description}</p>
