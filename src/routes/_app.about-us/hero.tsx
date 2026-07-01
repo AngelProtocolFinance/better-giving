@@ -6,10 +6,10 @@ import laira_yellow from "#/assets/laira/laira-yellow.webp";
 export function Hero({ classes = "" }) {
   return (
     <section className={`${classes} grid pb-48 pt-32`}>
-      <p className="text-primary text-sm md:text-lg  uppercase font-bold text-center mb-5 tracking-wider">
+      <p className="text-primary text-sm md:text-lg uppercase font-bold text-center mb-5 tracking-wider">
         No nonprofit left behind
       </p>
-      <h1 className="mx-auto text-3xl/tight md:text-4xl/tight lg:text-4.5xl/tight text-center text-balance   mb-10 mt-4 px-6">
+      <h1 className="mx-auto text-3xl/tight md:text-4xl/tight lg:text-4.5xl/tight text-center text-balance mb-10 mt-4 px-6">
         Nonprofits deserve a more inclusive and sustainable model of
         philanthropy
       </h1>
