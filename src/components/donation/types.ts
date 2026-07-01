@@ -149,7 +149,7 @@ type TipFv = v.InferOutput<typeof tip_fv>;
 
 export const tip_fv_init: TipFv = {
   tip: "",
-  tip_format: "15",
+  tip_format: "none",
 };
 
 const is_tip_valid = (input: TipFv) => {

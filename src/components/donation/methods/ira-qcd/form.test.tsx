@@ -40,18 +40,18 @@ describe("IRA/QCD form: initial load", () => {
       .element(screen.getByPlaceholder(/e\.g\. Fidelity, Schwab, Vanguard/i))
       .toHaveValue("");
 
-    //tip enabled by default
+    //tip disabled by default — no preselection (ncn compliance)
     await expect
       .element(
         screen.getByRole("checkbox", {
           name: /support free fundraising tools/i,
         })
       )
-      .toBeChecked();
-    // tip enabled and defaulted to 15%
+      .not.toBeChecked();
+    // no tip percent preselected on load
     await expect
       .element(screen.getByRole("radio", { name: /15%/i }))
-      .toBeChecked();
+      .not.toBeChecked();
 
     // no cover_processing_fee switch for ira/qcd
     await expect

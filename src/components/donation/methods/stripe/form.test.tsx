@@ -70,18 +70,18 @@ describe("Stripe form: initial load", () => {
     await expect
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("");
-    //tip enabled by default
+    //tip disabled by default — no preselection (ncn compliance)
     await expect
       .element(
         screen.getByRole("checkbox", {
           name: /support free fundraising tools/i,
         })
       )
-      .toBeChecked();
-    // tip enabled and defaulted to 15%
+      .not.toBeChecked();
+    // no tip percent preselected on load
     await expect
       .element(screen.getByRole("radio", { name: /15%/i }))
-      .toBeChecked();
+      .not.toBeChecked();
 
     //fee coverage disabled by default
     await expect
@@ -339,10 +339,10 @@ describe("Stripe form: initial load", () => {
 
     const screen = await render(<Form type="stripe" step="form" />);
 
-    // baseline: 15% checked by default
+    // baseline: no tip percent preselected on load
     await expect
       .element(screen.getByRole("radio", { name: /15%/i }))
-      .toBeChecked();
+      .not.toBeChecked();
 
     // click a different percent via its label text — focus goes to the
     // radio's hidden input, NOT to a text/number input that would highlight
