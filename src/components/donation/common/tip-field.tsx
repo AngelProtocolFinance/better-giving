@@ -30,11 +30,15 @@ interface Props {
 export function TipField({ classes = "", ...p }: Props) {
   // fire the nudge once per mount, on the first empty→settled transition while
   // the tip is still off; prefilled amounts (restored/config) don't trip it.
-  // `play` is set-once so the thumb hop runs a single burst.
+  // `play` gates the hop and is reset once it ends, so toggling off later never
+  // remounts ThumbWiggle and replays it; `fired` guards against re-arming.
   const [play, set_play] = useState(false);
   // transient window while the thumb hops — tints the thumb, then closes
   const [nudging, set_nudging] = useState(false);
-  const end_nudge = useCallback(() => set_nudging(false), []);
+  const end_nudge = useCallback(() => {
+    set_play(false);
+    set_nudging(false);
+  }, []);
   const fired = useRef(false);
   const prev_nudge = useRef(p.nudge);
   useEffect(() => {
@@ -50,6 +54,16 @@ export function TipField({ classes = "", ...p }: Props) {
     prev_nudge.current = p.nudge;
   }, [p.nudge, p.checked]);
 
+  // turning the tip on cancels any pending/running hop (and marks it spent),
+  // so a later off-toggle doesn't fire the nudge again
+  useEffect(() => {
+    if (p.checked) {
+      fired.current = true;
+      set_play(false);
+      set_nudging(false);
+    }
+  }, [p.checked]);
+
   return (
     <div
       className={`${classes} flex has-[input:not([type=radio]):focus-within]:border-b-form-primary items-center py-1 border-y justify-between flex-wrap gap-x-3 gap-y-1`}
@@ -59,13 +73,15 @@ export function TipField({ classes = "", ...p }: Props) {
         onCheckedChange={(e) => p.checked_changed(e.checked)}
         className="group gap-x-1 flex items-center text-sm justify-self-start"
       >
-        <Switch.Control className="group text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
-          {/* affordance nudge — hops the thumb toward on and back once, with a
-              primary border while hopping, after the donor settles the amount */}
+        {/* affordance nudge — hops the thumb toward on and back once, tinting
+            the track secondary while hopping, after the donor settles the amount */}
+        <Switch.Control
+          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50 ${nudging && !p.checked ? "bg-form-secondary" : "bg-muted"}`}
+        >
           <ThumbWiggle play={play && !p.checked} on_done={end_nudge}>
             <Switch.Thumb
               aria-hidden="true"
-              className={`pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card border-2 transition ease-in-out group-data-[state=checked]:translate-x-3.5 ${nudging && !p.checked ? "border-form-primary" : "border-transparent"}`}
+              className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
             />
           </ThumbWiggle>
         </Switch.Control>
