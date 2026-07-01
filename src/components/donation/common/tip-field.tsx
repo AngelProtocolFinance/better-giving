@@ -47,6 +47,7 @@ export function TipField({ classes = "", ...p }: Props) {
         className="flex gap-x-1"
         value={p.tip_format}
         onValueChange={(e) => p.tip_format_changed(e.value as TTipFormat)}
+        aria-label="Contribution amount"
       >
         <RadioGroup.Item
           className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
@@ -72,9 +73,10 @@ export function TipField({ classes = "", ...p }: Props) {
         <RadioGroup.Item
           className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded flex-center"
           value={"custom" satisfies TTipFormat}
+          aria-label="Custom amount"
         >
           <RadioGroup.ItemText>
-            <PencilIcon className="inline-block size-3 " />
+            <PencilIcon aria-hidden className="inline-block size-3 " />
           </RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>
