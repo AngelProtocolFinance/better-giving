@@ -5,6 +5,7 @@ import type { ReactElement } from "react";
 import { base_url } from "#/constants/env";
 import { ExtLink } from "../../ext-link";
 import type { TTipFormat } from "../types";
+import { CometBorder } from "./comet-border";
 
 interface Props {
   classes?: string;
@@ -25,12 +26,18 @@ export function TipField({ classes = "", ...p }: Props) {
         onCheckedChange={(e) => p.checked_changed(e.checked)}
         className="group gap-x-1 flex items-center text-sm justify-self-start"
       >
-        <Switch.Control className="group relative text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
-          <Switch.Thumb
-            aria-hidden="true"
-            className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
-          />
-        </Switch.Control>
+        {/* relative wrapper sized to the pill so the comet's inset-0 overlay
+            rides the visible border box (Control's p-1 would shrink it) */}
+        <span className="relative inline-flex">
+          <Switch.Control className="group text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
+            <Switch.Thumb
+              aria-hidden="true"
+              className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
+            />
+          </Switch.Control>
+          {/* comet drop — draws attention while the tip toggle is off */}
+          {!p.checked && <CometBorder />}
+        </span>
         <Switch.Label className="whitespace-nowrap font-medium">
           Support free fundraising tools
         </Switch.Label>
