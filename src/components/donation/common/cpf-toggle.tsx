@@ -19,7 +19,7 @@ export function CpfToggle({ classes = "", checked, checked_changed }: Props) {
           className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-input transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
         />
       </Switch.Control>
-      <Switch.Label className="whitespace-nowrap">
+      <Switch.Label className="whitespace-nowrap font-medium">
         Cover 3rd party processing fees
       </Switch.Label>
       <Switch.HiddenInput />

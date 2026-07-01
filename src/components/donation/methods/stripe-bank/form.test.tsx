@@ -45,16 +45,18 @@ describe("Bank transfer form", () => {
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("");
 
+    // tip disabled by default — no preselection (ncn compliance)
     await expect
       .element(
         screen.getByRole("checkbox", {
           name: /support free fundraising tools/i,
         })
       )
-      .toBeChecked();
+      .not.toBeChecked();
+    // no tip percent preselected on load
     await expect
       .element(screen.getByRole("radio", { name: /15%/i }))
-      .toBeChecked();
+      .not.toBeChecked();
 
     await expect
       .element(

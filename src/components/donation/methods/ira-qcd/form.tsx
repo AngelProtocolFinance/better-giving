@@ -22,7 +22,7 @@ export function Form(props: TMethodState<"ira_qcd">) {
   const initial: FV = {
     amount: "",
     tip: "",
-    tip_format: hide_tip ? "none" : "15",
+    tip_format: "none",
     custodian: "",
   };
 

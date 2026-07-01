@@ -8,11 +8,11 @@ import {
   type CryptoDonationDetails as FV,
 } from "../../types";
 
-export function use_rhf(init: FV | undefined, hide_bg_tip: boolean) {
+export function use_rhf(init: FV | undefined) {
   const initial: FV = {
     token: init_token_option,
     tip: "",
-    tip_format: hide_bg_tip ? "none" : "15",
+    tip_format: "none",
     cover_processing_fee: false,
   };
 

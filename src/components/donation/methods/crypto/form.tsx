@@ -48,7 +48,7 @@ export function Form(props: TMethodState<"crypto">) {
     setValue,
     getValues,
     register,
-  } = use_rhf(props.fv, don.recipient.hide_bg_tip ?? false);
+  } = use_rhf(props.fv);
 
   const combobox = (
     <TokenCombobox

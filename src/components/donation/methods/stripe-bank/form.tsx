@@ -30,7 +30,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
     frequency: "one-time",
     tip: "",
     cover_processing_fee: false,
-    tip_format: don.recipient.hide_bg_tip ? "none" : "15",
+    tip_format: "none",
   };
 
   const rhf = use_rhf(fv);

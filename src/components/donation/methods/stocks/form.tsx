@@ -45,7 +45,7 @@ export function Form(props: TMethodState<"stocks">) {
   const initial: FV = {
     ticker: init_ticker_option,
     tip: "",
-    tip_format: don.recipient.hide_bg_tip ? "none" : "15",
+    tip_format: "none",
   };
 
   const {

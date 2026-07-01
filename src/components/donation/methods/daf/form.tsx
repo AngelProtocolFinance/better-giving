@@ -10,7 +10,7 @@ import { use_rhf } from "./use-rhf";
 
 export function Form(props: TMethodState<"daf">) {
   const { don_set, don } = use_donation();
-  const rhf = use_rhf(props.fv, don.recipient.hide_bg_tip ?? false);
+  const rhf = use_rhf(props.fv);
 
   return (
     <FormContainer

@@ -31,7 +31,7 @@ export function TipField({ classes = "", ...p }: Props) {
             className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
           />
         </Switch.Control>
-        <Switch.Label className="whitespace-nowrap">
+        <Switch.Label className="whitespace-nowrap font-medium">
           Support free fundraising tools
         </Switch.Label>
         <Switch.HiddenInput />
@@ -73,16 +73,17 @@ export function TipField({ classes = "", ...p }: Props) {
         </RadioGroup.Item>
       </RadioGroup.Root>
       {p.tip_format === "none" && (
-        <p className="text-warning text-xs w-full">
-          Please consider helping keep <BgTxtLogoLink /> free for everyone, as a
-          nonprofit we charge no platform fees and rely on your support.
+        <p className="text-warning text-sm w-full">
+          <BgTxtLogoLink /> is a nonprofit and charges no platform fees. A small
+          optional contribution — separate from any payment processing fee —
+          helps keep this free for every nonprofit.
         </p>
       )}
       {p.tip_format !== "none" && (
-        <p className="text-xs w-full">
-          <BgTxtLogoLink /> provide this platform free of charge so nonprofits
-          everywhere can receive 100% of their gifts. You can help us keep it
-          that way by making a small, tax-deductible contribution.
+        <p className="text-sm w-full">
+          Your contribution to <BgTxtLogoLink /> is separate from payment
+          processing fees and goes directly to keeping this platform free for
+          nonprofits. Thank you.
         </p>
       )}
       {p.custom_tip}
