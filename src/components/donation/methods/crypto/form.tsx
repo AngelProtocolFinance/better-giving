@@ -147,6 +147,7 @@ export function Form(props: TMethodState<"crypto">) {
       {don.recipient.hide_bg_tip ? null : (
         <TipField
           classes="mt-2"
+          nudge={!!token.value.amount}
           checked={tip_format.value !== "none"}
           checked_changed={(checked) => {
             if (checked) {

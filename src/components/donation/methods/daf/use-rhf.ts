@@ -23,6 +23,7 @@ export function use_rhf(init: FV | undefined) {
     trigger,
     setValue,
     setFocus,
+    watch,
     formState: { isSubmitting, errors },
   } = useForm<FV>({
     defaultValues: init || initial,
@@ -54,6 +55,7 @@ export function use_rhf(init: FV | undefined) {
     setValue,
     getValues,
     setFocus,
+    watch,
     cpf,
     tip_format,
     //utils

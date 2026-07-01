@@ -42,6 +42,7 @@ export function Form(props: TMethodState<"daf">) {
       {don.recipient.hide_bg_tip ? null : (
         <TipField
           classes="mt-2"
+          nudge={!!rhf.watch("amount")}
           checked={rhf.tip_format.value !== "none"}
           checked_changed={(checked) => {
             if (checked) {

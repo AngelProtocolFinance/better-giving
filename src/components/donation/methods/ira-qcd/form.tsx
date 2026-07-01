@@ -34,6 +34,7 @@ export function Form(props: TMethodState<"ira_qcd">) {
     trigger,
     setValue,
     setFocus,
+    watch,
     formState: { isSubmitting, errors },
   } = useForm<FV>({
     defaultValues: props.fv || initial,
@@ -87,6 +88,7 @@ export function Form(props: TMethodState<"ira_qcd">) {
       {hide_tip ? null : (
         <TipField
           classes="mt-2"
+          nudge={!!watch("amount")}
           checked={tip_format.value !== "none"}
           checked_changed={(checked) => {
             if (checked) {

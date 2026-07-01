@@ -1,11 +1,20 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
 import { Switch } from "@ark-ui/react/switch";
 import { PencilIcon } from "lucide-react";
-import type { ReactElement } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { base_url } from "#/constants/env";
 import { ExtLink } from "../../ext-link";
 import type { TTipFormat } from "../types";
-import { CometBorder } from "./comet-border";
+import { ThumbWiggle } from "./thumb-wiggle";
+
+// delay after the amount settles before the nudge fires, ms
+const NUDGE_DELAY = 500;
 
 interface Props {
   classes?: string;
@@ -14,9 +23,33 @@ interface Props {
   tip_format: TTipFormat;
   tip_format_changed: (format: TTipFormat) => void;
   custom_tip: ReactElement | undefined;
+  // donor has settled the amount (+currency); arms the one-time thumb nudge
+  nudge: boolean;
 }
 
 export function TipField({ classes = "", ...p }: Props) {
+  // fire the nudge once per mount, on the first empty→settled transition while
+  // the tip is still off; prefilled amounts (restored/config) don't trip it.
+  // `play` is set-once so the thumb hop runs a single burst.
+  const [play, set_play] = useState(false);
+  // transient window while the thumb hops — tints the thumb, then closes
+  const [nudging, set_nudging] = useState(false);
+  const end_nudge = useCallback(() => set_nudging(false), []);
+  const fired = useRef(false);
+  const prev_nudge = useRef(p.nudge);
+  useEffect(() => {
+    if (!fired.current && p.nudge && !prev_nudge.current && !p.checked) {
+      fired.current = true;
+      // small beat after the amount settles so the nudge reads as a reaction
+      const t = setTimeout(() => {
+        set_play(true);
+        set_nudging(true);
+      }, NUDGE_DELAY);
+      return () => clearTimeout(t);
+    }
+    prev_nudge.current = p.nudge;
+  }, [p.nudge, p.checked]);
+
   return (
     <div
       className={`${classes} flex has-[input:not([type=radio]):focus-within]:border-b-form-primary items-center py-1 border-y justify-between flex-wrap gap-x-3 gap-y-1`}
@@ -26,19 +59,19 @@ export function TipField({ classes = "", ...p }: Props) {
         onCheckedChange={(e) => p.checked_changed(e.checked)}
         className="group gap-x-1 flex items-center text-sm justify-self-start"
       >
-        {/* relative wrapper sized to the pill so the comet's inset-0 overlay
-            rides the visible border box (Control's p-1 would shrink it) */}
-        <span className="relative inline-flex">
-          <Switch.Control className="group text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
+        <Switch.Control className="group text-xs flex items-center h-lh w-8 rounded-full bg-muted p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
+          {/* affordance nudge — hops the thumb toward on and back once, with a
+              primary border while hopping, after the donor settles the amount */}
+          <ThumbWiggle play={play && !p.checked} on_done={end_nudge}>
             <Switch.Thumb
               aria-hidden="true"
-              className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
+              className={`pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card border-2 transition ease-in-out group-data-[state=checked]:translate-x-3.5 ${nudging && !p.checked ? "border-form-primary" : "border-transparent"}`}
             />
-          </Switch.Control>
-          {/* comet drop — draws attention while the tip toggle is off */}
-          {!p.checked && <CometBorder />}
-        </span>
-        <Switch.Label className="whitespace-nowrap font-medium">
+          </ThumbWiggle>
+        </Switch.Control>
+        <Switch.Label
+          className={`whitespace-nowrap font-medium ${p.checked ? "" : "text-muted-fg"}`}
+        >
           Support free fundraising tools
         </Switch.Label>
         <Switch.HiddenInput />
@@ -82,7 +115,7 @@ export function TipField({ classes = "", ...p }: Props) {
         </RadioGroup.Item>
       </RadioGroup.Root>
       {p.tip_format === "none" && (
-        <p className="text-warning text-sm w-full">
+        <p className="text-muted-fg text-sm w-full">
           <BgTxtLogoLink /> is a nonprofit and charges no platform fees. A small
           optional contribution — separate from any payment processing fee —
           helps keep this free for every nonprofit.
