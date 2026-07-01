@@ -30,25 +30,18 @@ interface Props {
 export function TipField({ classes = "", ...p }: Props) {
   // fire the nudge once per mount, on the first empty→settled transition while
   // the tip is still off; prefilled amounts (restored/config) don't trip it.
-  // `play` gates the hop and is reset once it ends, so toggling off later never
-  // remounts ThumbWiggle and replays it; `fired` guards against re-arming.
+  // `play` drives both the thumb hop and the track tint, and is reset once the
+  // hop ends so toggling off later never remounts ThumbWiggle and replays it;
+  // `fired` guards against re-arming.
   const [play, set_play] = useState(false);
-  // transient window while the thumb hops — tints the thumb, then closes
-  const [nudging, set_nudging] = useState(false);
-  const end_nudge = useCallback(() => {
-    set_play(false);
-    set_nudging(false);
-  }, []);
+  const end_nudge = useCallback(() => set_play(false), []);
   const fired = useRef(false);
   const prev_nudge = useRef(p.nudge);
   useEffect(() => {
     if (!fired.current && p.nudge && !prev_nudge.current && !p.checked) {
       fired.current = true;
       // small beat after the amount settles so the nudge reads as a reaction
-      const t = setTimeout(() => {
-        set_play(true);
-        set_nudging(true);
-      }, NUDGE_DELAY);
+      const t = setTimeout(() => set_play(true), NUDGE_DELAY);
       return () => clearTimeout(t);
     }
     prev_nudge.current = p.nudge;
@@ -60,7 +53,6 @@ export function TipField({ classes = "", ...p }: Props) {
     if (p.checked) {
       fired.current = true;
       set_play(false);
-      set_nudging(false);
     }
   }, [p.checked]);
 
@@ -76,7 +68,7 @@ export function TipField({ classes = "", ...p }: Props) {
         {/* affordance nudge — hops the thumb toward on and back once, tinting
             the track secondary while hopping, after the donor settles the amount */}
         <Switch.Control
-          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50 ${nudging && !p.checked ? "bg-form-secondary" : "bg-muted"}`}
+          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50 ${play && !p.checked ? "bg-form-secondary" : "bg-muted"}`}
         >
           <ThumbWiggle play={play && !p.checked} on_done={end_nudge}>
             <Switch.Thumb
