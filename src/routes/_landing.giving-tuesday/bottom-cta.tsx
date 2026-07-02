@@ -21,7 +21,7 @@ export function BottomCta({ className = "" }) {
           Join us today!
         </Link>
         <Link
-          to={href("/nonprofit")}
+          to={href("/product")}
           className="btn btn-secondary font-bold rounded px-8 py-3 md:px-10 md:py-4"
         >
           Learn How It Works

@@ -8,7 +8,6 @@ import {
   LibraryIcon,
   MegaphoneIcon,
   MenuIcon,
-  PackageIcon,
   PanelsTopLeftIcon,
   SproutIcon,
   TagIcon,
@@ -85,22 +84,10 @@ export function NavDropdown({ user, auth_links, classes = "" }: Props) {
                     </NavLink>
                   </Menu.Item>
                   <Menu.Item
-                    value="nonprofit"
-                    className="col-span-2 grid grid-cols-subgrid"
-                  >
-                    <NavLink to={href("/nonprofit")} className={styler}>
-                      <PackageIcon
-                        size={18}
-                        className="shrink-0 group-hover:-rotate-12 transition-transform group-hover:stroke-primary"
-                      />
-                      <span>Product</span>
-                    </NavLink>
-                  </Menu.Item>
-                  <Menu.Item
                     value="donation-forms"
                     className="col-span-2 grid grid-cols-subgrid"
                   >
-                    <NavLink to={href("/donation-forms")} className={styler}>
+                    <NavLink to={href("/product")} className={styler}>
                       <PanelsTopLeftIcon
                         size={18}
                         className="shrink-0 group-hover:-rotate-12 transition-transform group-hover:stroke-primary"
