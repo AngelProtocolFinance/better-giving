@@ -6,13 +6,13 @@ const pillars = [
     title: "Raise more today",
     body: "A high-converting, brandable form that lives on your site. Fewer clicks, express checkout, recurring giving built in.",
     cta: "Explore the product",
-    to: href("/nonprofit"),
+    to: href("/product"),
   },
   {
     title: "Accept every kind of gift",
     body: "Card, bank, PayPal, wallets, stock, DAF, IRA, and crypto — one flow, one integration, no extra portals.",
     cta: "See every gift type",
-    to: href("/nonprofit"),
+    to: href("/product"),
   },
   {
     title: "Grow what you raise",

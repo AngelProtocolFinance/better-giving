@@ -16,7 +16,7 @@ interface SitemapUrl {
 // Static URLs based on your route configuration
 const staticUrls: SitemapUrl[] = [
   { url: "/", changeFrequency: "daily", priority: 1.0 },
-  { url: "/nonprofit", changeFrequency: "weekly", priority: 0.8 },
+  { url: "/product", changeFrequency: "weekly", priority: 0.8 },
   { url: "/fund-management", changeFrequency: "weekly", priority: 0.8 },
   { url: "/fiscal-sponsorship", changeFrequency: "weekly", priority: 0.8 },
   { url: "/open-source", changeFrequency: "weekly", priority: 0.7 },
