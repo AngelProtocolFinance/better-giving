@@ -46,7 +46,7 @@ export default function Component() {
 
       <Top classes="xl:container xl:mx-auto px-10 bg-transparent mt-16 mb-28" />
 
-      <Footer classes="xl:container xl:mx-auto px-10" />
+      <Footer />
     </main>
   );
 }

@@ -13,6 +13,8 @@ export const DEV_DOCS_BASE_URL = "https://developer.better.giving";
 export const BOOK_A_DEMO =
   "https://meetings-eu1.hubspot.com/chauncey-st-john/better-giving-nonprofit-demo";
 export const INTERCOM_HELP = "https://intercom.help/better-giving/en";
+export const GITHUB_REPO =
+  "https://github.com/AngelProtocolFinance/better-giving";
 
 export const socials = {
   facebook: "https://www.facebook.com/BetterGivingFB/",
