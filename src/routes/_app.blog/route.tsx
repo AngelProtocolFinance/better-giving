@@ -4,6 +4,7 @@ import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
 import { metas } from "#/helpers/seo";
+import { CtaBand } from "#/pages/@sections/cta-band";
 import type { IPostListItem, IPostsPage } from "#/types/post";
 import type { Route } from "./+types/route";
 
@@ -44,27 +45,43 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
   const nextPage = data ? data.nextPageNum : firstPage.nextPageNum;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 content-start xl:container xl:mx-auto px-5 min-h-screen pb-6">
-      <h1 className="font-bold uppercase col-span-full text-2xl lg:text-3xl wrap-break-word mt-6">
-        Posts
-      </h1>
+    <main>
+      <section className="px-6 pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
+        <p className="pre-heading">Blog &amp; Resources</p>
+        <h1 className="hero-heading max-w-3xl mx-auto mt-3">
+          Knowledge to empower your nonprofit
+        </h1>
+        <p className="section-body text-muted-fg max-w-2xl mx-auto mt-4">
+          Practical guides on fundraising, fund growth, and the admin work
+          nobody warned you about.
+        </p>
+      </section>
 
-      <Cards posts={posts} />
-      {nextPage && (
-        <button
-          type="button"
-          className="col-span-full btn btn-primary rounded justify-self-center px-4 py-2 text-sm  mt-6"
-          onClick={() => {
-            const copy = new URLSearchParams(params);
-            copy.set("page", nextPage.toString());
-            load(`?${copy.toString()}`);
-          }}
-          disabled={state !== "idle"}
-        >
-          Load more
-        </button>
-      )}
-    </div>
+      <section className="bg-accent px-6 py-20">
+        <div className="max-w-6xl mx-auto grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
+          <Cards posts={posts} />
+        </div>
+        {nextPage && (
+          <button
+            type="button"
+            className="btn btn-primary mx-auto mt-12 px-7 py-3.5"
+            onClick={() => {
+              const copy = new URLSearchParams(params);
+              copy.set("page", nextPage.toString());
+              load(`?${copy.toString()}`);
+            }}
+            disabled={state !== "idle"}
+          >
+            Load more
+          </button>
+        )}
+      </section>
+
+      <CtaBand
+        title="Put these ideas to work"
+        subtitle="Join free forever — set up your donation form and start raising more this quarter."
+      />
+    </main>
   );
 }
 
@@ -73,7 +90,7 @@ const Cards = (props: { posts: IPostListItem[] }) =>
     <NavLink
       key={post._id}
       to={post.slug.current}
-      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-clip bg-muted hover:bg-secondary border border-ring/20 group"
+      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded-lg overflow-hidden bg-card border border-border hover:shadow-lg transition-shadow group"
     >
       {post.image?.asset ? (
         <img
@@ -84,11 +101,15 @@ const Cards = (props: { posts: IPostListItem[] }) =>
       ) : (
         <div className="w-full aspect-video bg-secondary" />
       )}
-      <div className="flex flex-col p-4 gap-3">
-        <h2 className="text-pretty group-has-[:hover]:text-primary">
+      <div className="flex flex-col p-6 gap-3">
+        <h2 className="text-lg font-bold text-pretty group-has-[:hover]:text-primary">
           {post.title}
         </h2>
-        <p className="text-muted-fg line-clamp-4">{post.excerpt}</p>
+        {post.excerpt && (
+          <p className="text-muted-fg line-clamp-4 text-pretty">
+            {post.excerpt}
+          </p>
+        )}
       </div>
     </NavLink>
   ));

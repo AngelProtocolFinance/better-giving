@@ -1,137 +1,68 @@
-import {
-  BarChart2,
-  CreditCard,
-  Database,
-  FileText,
-  Gift,
-  Globe,
-  MousePointer,
-  Paintbrush,
-  QrCode,
-  RefreshCcw,
-  Shapes,
-  Target,
-  UserCircle,
-} from "lucide-react";
-import type { ReactNode } from "react";
+const features = [
+  {
+    title: "Recurring donations",
+    body: "Stabilize revenue with automated monthly giving.",
+  },
+  {
+    title: "Customizable & embeddable",
+    body: "Your brand colors, your wording, on your website.",
+  },
+  {
+    title: "Global donor access",
+    body: "Localized, multi-currency giving worldwide.",
+  },
+  {
+    title: "Goal-tracking progress bars",
+    body: "Show real-time progress to motivate donors.",
+  },
+  {
+    title: "Peer-to-peer fundraising",
+    body: "Every supporter can crowdfund on your behalf.",
+  },
+  {
+    title: "Dedication gifts",
+    body: "Donors dedicate gifts to someone special.",
+  },
+  {
+    title: "Donors cover processing fees",
+    body: "95% of donors opt to cover fees, so you receive 100%.",
+  },
+  {
+    title: "Program-specific giving",
+    body: "Let donors fund the programs they care about.",
+  },
+  {
+    title: "Automated receipts & reporting",
+    body: "Branded tax receipts and reporting, handled for you.",
+  },
+] as const;
 
-interface IFeature {
-  id: number;
-  title: string;
-  icon: ReactNode;
-  body: string;
+interface IFeatures {
+  classes?: string;
 }
-const features: IFeature[] = [
-  {
-    id: 1,
-    title: "Recurring Donations",
-    icon: <RefreshCcw className="text-primary" />,
-    body: "Stabilize revenue – Ensure predictable, ongoing support with automated recurring donations.",
-  },
-  {
-    id: 2,
-    title: "Multiple Donation Types",
-    icon: <Shapes className="text-primary" />,
-    body: "Flexible contributions – Accept cash, credit, crypto, stock, and donor-advised funds (DAFs).",
-  },
-  {
-    id: 3,
-    title: "Global Donor Access",
-    icon: <Globe className="text-primary" />,
-    body: "Expand reach – Accept donations worldwide with localized multi-currency support.",
-  },
-  {
-    id: 4,
-    title: "Customizable & Embeddable Forms",
-    icon: <Paintbrush className="text-primary" />,
-    body: "Seamless branding – Embed fully branded, customizable forms directly on your website.",
-  },
-  {
-    id: 5,
-    title: "Goal Tracking Progress Bars",
-    icon: <BarChart2 className="text-primary" />,
-    body: "Boost engagement – Show real-time progress with progress bars to motivate donors.",
-  },
-  {
-    id: 6,
-    title: "Scan to Donate",
-    icon: <QrCode className="text-primary" />,
-    body: "Quick giving – Enable easy donations via QR codes for mobile and event fundraising.",
-  },
-  {
-    id: 7,
-    title: "Dedication Gifts",
-    icon: <Gift className="text-primary" />,
-    body: "Personalize giving – Let donors dedicate their gifts to someone special, adding a personal touch.",
-  },
-  {
-    id: 8,
-    title: "Donors Covering Processing Fees",
-    icon: <CreditCard className="text-primary" />,
-    body: "Full donations – 95% of donors choose to cover transaction fees so nonprofits receive 100% of the gift.",
-  },
-  {
-    id: 9,
-    title: "Program-Specific Fundraising",
-    icon: <Target className="text-primary" />,
-    body: "Targeted giving – Let donors fund specific programs or initiatives aligned with their interests.",
-  },
-  {
-    id: 10,
-    title: "Donor Information Access",
-    icon: <Database className="text-primary" />,
-    body: "Actionable insights – Access complete donor data for personalized outreach and retention.",
-  },
-  {
-    id: 11,
-    title: "Conversion-Optimized UI/UX",
-    icon: <MousePointer className="text-primary" />,
-    body: "Maximize donations – An intuitive, user-friendly interface increases completed donations.",
-  },
-  {
-    id: 12,
-    title: "Dedicated Fundraising Profile",
-    icon: <UserCircle className="text-primary" />,
-    body: "Boost visibility – Create a dedicated profile to showcase your campaigns and engage donors.",
-  },
-  {
-    id: 13,
-    title: "Automated Tax Reporting & Receipts",
-    icon: <FileText className="text-primary" />,
-    body: "Simplify compliance – We handle tax receipts and reporting, reducing your administrative burden.",
-  },
-];
 
-export function Features({ classes = "" }) {
+export function Features({ classes = "" }: IFeatures) {
   return (
-    <div className={`${classes} grid @xl:grid-cols-2 @4xl:grid-cols-3 gap-4`}>
-      <h4 className="text-lg  text-primary uppercase -mb-4 col-span-full text-center @4xl:text-left">
-        Features
-      </h4>
-      <div className="row-span-2 col-span-full @4xl:col-span-2 pb-8">
-        <h3 className="text-2xl @4xl:text-3xl mb-4 text-center @4xl:text-left">
+    <section className={classes} aria-labelledby="features-heading">
+      <div className="max-w-6xl mx-auto">
+        <h2
+          id="features-heading"
+          className="section-heading text-center max-w-2xl mx-auto"
+        >
           Smarter tools for seamless fundraising
-        </h3>
-        <p className="text-lg text-center @4xl:text-left">
-          Raise funds, grow donations, and secure financial stability—all with
-          no platform fees.
-        </p>
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-11">
+          {features.map((f) => (
+            <div
+              key={f.title}
+              className="bg-card rounded-lg px-6.5 py-6 shadow-md shadow-primary/5"
+            >
+              <span className="block font-bold mb-1.5">{f.title}</span>
+              <span className="text-sm/normal text-muted-fg">{f.body}</span>
+            </div>
+          ))}
+        </div>
       </div>
-      {features.map((f) => (
-        <Feature key={f.id} {...f} />
-      ))}
-    </div>
-  );
-}
-
-function Feature(props: IFeature) {
-  return (
-    <div className="p-4 border rounded grid grid-rows-subgrid row-span-2">
-      <div className="flex items-center gap-x-2">
-        {props.icon}
-        <p className="font-bold text-sm ">{props.title}</p>
-      </div>
-      <p>{props.body}</p>
-    </div>
+    </section>
   );
 }
