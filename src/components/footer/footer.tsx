@@ -12,7 +12,7 @@ import { NewsletterForm } from "./newsletter-form";
 type Props = { classes?: string };
 
 const platform = [
-  { label: "Product", to: href("/nonprofit") },
+  { label: "Product", to: href("/product") },
   { label: "Fund Management", to: href("/fund-management") },
   { label: "Fiscal Sponsorship", to: href("/fiscal-sponsorship") },
   { label: "Open Source", to: href("/open-source") },

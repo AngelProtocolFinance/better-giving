@@ -57,16 +57,16 @@ export function Hero({ classes = "" }: IHero) {
               </span>
             ))}
           </div>
-          <div className="flex flex-wrap items-center gap-3.5 mt-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3.5 mt-2 w-full sm:w-auto">
             <Link
               to={href("/register/welcome")}
-              className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25"
+              className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25 w-full sm:w-auto"
             >
               Join free forever
             </Link>
             <ExtLink
               href={BOOK_A_DEMO}
-              className="btn btn-secondary px-6 py-3.5"
+              className="btn btn-secondary px-6 py-3.5 w-full sm:w-auto"
             >
               Book a demo
             </ExtLink>
