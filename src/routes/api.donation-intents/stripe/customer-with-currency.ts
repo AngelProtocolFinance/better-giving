@@ -20,7 +20,8 @@ export async function customer_with_currency(
     });
 
     actives.push(...result.data.filter((x) => !x.deleted));
-    if (result.next_page) next_page = result.next_page;
+    // must reassign unconditionally; keeping a stale cursor loops forever
+    next_page = result.next_page ?? undefined;
   } while (next_page);
 
   const with_currency = actives.find(
