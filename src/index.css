@@ -188,6 +188,8 @@
   /* ark marquee: vars (--marquee-duration/delay/loop-count) provided by machine */
   --animate-marquee-y: marqueeY var(--marquee-duration) linear
     var(--marquee-delay) var(--marquee-loop-count);
+  --animate-marquee-x: marqueeX var(--marquee-duration) linear
+    var(--marquee-delay) var(--marquee-loop-count);
 
   @keyframes overlay-in {
     from {
@@ -247,6 +249,14 @@
     }
     to {
       transform: translateY(var(--marquee-translate));
+    }
+  }
+  @keyframes marqueeX {
+    from {
+      transform: translateX(0%);
+    }
+    to {
+      transform: translateX(var(--marquee-translate));
     }
   }
 }

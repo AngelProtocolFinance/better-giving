@@ -2,13 +2,16 @@ import { Menu } from "@ark-ui/react/menu";
 import { Portal } from "@ark-ui/react/portal";
 import {
   BadgeCheck,
+  CodeIcon,
   GlobeIcon,
   LayoutGrid,
   LibraryIcon,
   MegaphoneIcon,
   MenuIcon,
+  PackageIcon,
   PanelsTopLeftIcon,
   SproutIcon,
+  TagIcon,
   UsersIcon,
   XIcon,
 } from "lucide-react";
@@ -82,6 +85,18 @@ export function NavDropdown({ user, auth_links, classes = "" }: Props) {
                     </NavLink>
                   </Menu.Item>
                   <Menu.Item
+                    value="nonprofit"
+                    className="col-span-2 grid grid-cols-subgrid"
+                  >
+                    <NavLink to={href("/nonprofit")} className={styler}>
+                      <PackageIcon
+                        size={18}
+                        className="shrink-0 group-hover:-rotate-12 transition-transform group-hover:stroke-primary"
+                      />
+                      <span>Product</span>
+                    </NavLink>
+                  </Menu.Item>
+                  <Menu.Item
                     value="donation-forms"
                     className="col-span-2 grid grid-cols-subgrid"
                   >
@@ -118,6 +133,30 @@ export function NavDropdown({ user, auth_links, classes = "" }: Props) {
                         className="shrink-0 group-hover:-rotate-12 transition-transform group-hover:stroke-primary"
                       />
                       <span>Fiscal Sponsorship</span>
+                    </NavLink>
+                  </Menu.Item>
+                  <Menu.Item
+                    value="pricing"
+                    className="col-span-2 grid grid-cols-subgrid"
+                  >
+                    <NavLink to={href("/pricing")} className={styler}>
+                      <TagIcon
+                        size={18}
+                        className="shrink-0 group-hover:-rotate-12 transition-transform group-hover:stroke-primary"
+                      />
+                      <span>Pricing</span>
+                    </NavLink>
+                  </Menu.Item>
+                  <Menu.Item
+                    value="open-source"
+                    className="col-span-2 grid grid-cols-subgrid"
+                  >
+                    <NavLink to={href("/open-source")} className={styler}>
+                      <CodeIcon
+                        size={18}
+                        className="shrink-0 group-hover:-rotate-12 transition-transform group-hover:stroke-primary"
+                      />
+                      <span>Open Source</span>
                     </NavLink>
                   </Menu.Item>
 

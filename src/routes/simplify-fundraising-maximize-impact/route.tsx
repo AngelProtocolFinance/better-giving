@@ -67,7 +67,7 @@ export default function Component() {
       <div className="my-20 xl:my-40">
         <BottomCta className="max-w-4xl w-full justify-self-center px-10" />
       </div>
-      <Footer classes="xl:container xl:mx-auto px-10" />
+      <Footer />
     </main>
   );
 }
