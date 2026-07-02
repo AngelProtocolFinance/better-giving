@@ -48,7 +48,7 @@ export function Form(props: TMethodState<"crypto">) {
     setValue,
     getValues,
     register,
-  } = use_rhf(props.fv, don.recipient.hide_bg_tip ?? false);
+  } = use_rhf(props.fv);
 
   const combobox = (
     <TokenCombobox
@@ -147,6 +147,7 @@ export function Form(props: TMethodState<"crypto">) {
       {don.recipient.hide_bg_tip ? null : (
         <TipField
           classes="mt-2"
+          nudge={!!token.value.amount}
           checked={tip_format.value !== "none"}
           checked_changed={(checked) => {
             if (checked) {
