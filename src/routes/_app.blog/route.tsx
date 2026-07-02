@@ -77,12 +77,12 @@ const Cards = (props: { posts: IPostListItem[] }) =>
     >
       {post.image?.asset ? (
         <img
-          src={urlFor(post.image).width(600).height(360).url()}
+          src={urlFor(post.image).width(1024).height(576).url()}
           alt={post.image.alt ?? post.title}
-          className="w-full aspect-5/3 object-cover"
+          className="w-full aspect-video object-cover"
         />
       ) : (
-        <div className="w-full aspect-5/3 bg-secondary" />
+        <div className="w-full aspect-video bg-secondary" />
       )}
       <div className="flex flex-col p-4 gap-3">
         <h2 className="text-pretty group-has-[:hover]:text-primary">
