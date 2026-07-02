@@ -1,9 +1,11 @@
 import { LoaderCircleIcon } from "lucide-react";
 import { useLocation } from "react-router";
-import { AuthBtns, AuthLinks, NavDropdown } from "#/components/header";
 import { DappLogo } from "#/components/image";
 import { auth_routes } from "#/constants/routes";
 import { use_user } from "#/hooks/use-user";
+import { AuthBtns } from "./auth-btns";
+import { NavDropdown } from "./nav-dropdown";
+import { AuthLinks } from "./nav-dropdown/auth-links";
 
 type Props = { classes?: string };
 

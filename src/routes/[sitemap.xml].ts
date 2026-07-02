@@ -17,8 +17,12 @@ interface SitemapUrl {
 const staticUrls: SitemapUrl[] = [
   { url: "/", changeFrequency: "daily", priority: 1.0 },
   { url: "/nonprofit", changeFrequency: "weekly", priority: 0.8 },
+  { url: "/fund-management", changeFrequency: "weekly", priority: 0.8 },
+  { url: "/fiscal-sponsorship", changeFrequency: "weekly", priority: 0.8 },
+  { url: "/open-source", changeFrequency: "weekly", priority: 0.7 },
+  { url: "/pricing", changeFrequency: "weekly", priority: 0.7 },
   { url: "/donor", changeFrequency: "weekly", priority: 0.8 },
-  { url: "/about", changeFrequency: "monthly", priority: 0.7 },
+  { url: "/about-us", changeFrequency: "monthly", priority: 0.7 },
   { url: "/blog", changeFrequency: "daily", priority: 0.8 },
   { url: "/marketplace", changeFrequency: "daily", priority: 0.9 },
   { url: "/fundraisers", changeFrequency: "daily", priority: 0.9 },

@@ -62,7 +62,7 @@ export default function Component() {
       <div className="bg-linear-to-bl from-lilac/50 via-transparent to-transparent mb-40 px-10">
         <BottomCta className="max-w-2xl xl:max-w-4xl mx-auto" />
       </div>
-      <Footer classes="xl:container xl:mx-auto px-10" />
+      <Footer />
     </main>
   );
 }

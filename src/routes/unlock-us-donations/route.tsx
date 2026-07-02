@@ -59,7 +59,7 @@ export default function Component() {
       <Scenarios />
       <BottomCta />
 
-      <Footer classes="xl:container xl:mx-auto px-5 md:px-10" />
+      <Footer />
     </main>
   );
 }
