@@ -1,42 +1,102 @@
 import { href, Link } from "react-router";
-import banner from "#/assets/images/bg-banner.webp";
-import { app_name } from "#/constants/env";
+import donation_form from "#/assets/images/donation-form.png";
+import laira_heart from "#/assets/laira/laira-heart.webp";
+import { ExtLink } from "#/components/ext-link";
+import { Image } from "#/components/image";
+import { BOOK_A_DEMO } from "#/constants/urls";
 
-export const Hero = ({ classes = "" }) => {
+const gift_types = [
+  "Card",
+  "Bank / ACH",
+  "PayPal",
+  "Apple / Google Pay",
+  "Stock",
+  "DAF",
+  "IRA",
+  "Crypto",
+] as const;
+
+interface IHero {
+  classes?: string;
+}
+
+export function Hero({ classes = "" }: IHero) {
   return (
-    <section
-      className={`${classes} relative grid pt-36 pb-48 sm:pb-96`}
-      aria-label="Hero section"
+    <div
+      className={`${classes} bg-linear-to-b from-background to-accent px-6 pt-16 pb-18`}
     >
-      <img
-        src={banner}
-        alt=""
-        aria-hidden="true"
-        fetchPriority="high"
-        className="absolute inset-0 -z-10 w-full h-full object-cover object-[center_-10%] xl:object-[center_bottom]"
-        style={{
-          maskImage: "linear-gradient(to bottom, black 30%, transparent)",
-        }}
-      />
-      <p className="pre-heading uppercase text-center mb-5 tracking-wider">
-        By a nonprofit, for nonprofits
-      </p>
-      <h1 className="mx-auto capitalize hero-heading text-center mb-8 px-6 ">
-        Raise more this quarter, <br /> Grow funds together
-      </h1>
-      <p className="px-6 font-medium max-w-5xl mx-auto max-md:block md:text-2xl text-center sm:text-balance min-h-20 md:min-h-16">
-        When you sign up, you're a {app_name} Member, no extra steps, no fees.
-        Our high-converting donation flow lifts completed gifts and monthly
-        donors. Savings and a pooled Sustainability Fund build reserves over
-        time.
-      </p>
+      <div className="max-w-6xl mx-auto grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,33rem)] items-center">
+        <div className="grid gap-5 justify-items-start">
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs font-bold bg-secondary text-secondary-fg border border-border rounded-full px-4 py-2">
+              Built by and for nonprofits
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-secondary text-secondary-fg border border-border rounded-full px-4 py-2">
+              <span className="size-2 rounded-full bg-warning" aria-hidden />
+              Open source
+            </span>
+          </div>
+          <h1 className="hero-heading">
+            Every way to give.
+            <br />
+            One form. <span className="text-primary">Free forever.</span>
+          </h1>
+          <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
+            Card, Bank, PayPal, Wallets, Stock, DAF, IRA, Crypto — one
+            brandable, embeddable donation form with $0 platform fees. Run by a
+            volunteer-driven 501(c)(3), with open-source code you can verify
+            yourself.
+          </p>
+          <div className="flex flex-wrap gap-2 max-w-lg">
+            {gift_types.map((g) => (
+              <span
+                key={g}
+                className="text-xs font-medium bg-secondary text-secondary-fg rounded-full px-3.5 py-1.5"
+              >
+                {g}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3.5 mt-2">
+            <Link
+              to={href("/register/welcome")}
+              className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25"
+            >
+              Join free forever
+            </Link>
+            <ExtLink
+              href={BOOK_A_DEMO}
+              className="btn btn-secondary px-6 py-3.5"
+            >
+              Book a demo
+            </ExtLink>
+          </div>
+          <p className="text-sm text-muted-fg">
+            No platform fees, ever — we're funded by optional donor
+            contributions at checkout.
+          </p>
+        </div>
 
-      <Link
-        to={href("/register/welcome")}
-        className="justify-self-center mt-8 btn btn-primary items-center font-bold inline-flex px-10 py-3 gap-1 rounded text-lg"
-      >
-        Join us today!
-      </Link>
-    </section>
+        <div className="relative max-lg:justify-self-center">
+          <div
+            className="absolute size-50 bg-secondary rounded-full -top-8 -right-4"
+            aria-hidden
+          />
+          <div className="relative bg-card border border-border rounded-lg shadow-2xl shadow-primary/15 overflow-hidden -rotate-1">
+            <img
+              src={donation_form}
+              alt="Better Giving embeddable donation form"
+              className="block w-full h-auto"
+            />
+          </div>
+          <Image
+            src={laira_heart}
+            width={150}
+            alt="Laira holding a heart"
+            className="absolute -bottom-9 -left-8 rotate-3 max-lg:hidden"
+          />
+        </div>
+      </div>
+    </div>
   );
-};
+}

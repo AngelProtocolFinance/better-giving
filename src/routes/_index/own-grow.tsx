@@ -1,0 +1,82 @@
+import { ArrowRight } from "lucide-react";
+import { href, Link } from "react-router";
+import laira_presentation from "#/assets/laira/laira-presentation.webp";
+import laira_shaking_hands from "#/assets/laira/laira-shaking-hands-x2.webp";
+import { Image } from "#/components/image";
+
+interface IOwnGrow {
+  classes?: string;
+}
+
+export function OwnGrow({ classes = "" }: IOwnGrow) {
+  return (
+    <section className={classes} aria-labelledby="own-grow-heading">
+      <div className="max-w-6xl mx-auto">
+        <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
+          Why we're different
+        </p>
+        <h2
+          id="own-grow-heading"
+          className="section-heading text-center mt-3 max-w-2xl mx-auto"
+        >
+          Own it. Grow it.
+        </h2>
+        <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
+          Most platforms move your money and keep the keys. We built the
+          opposite: infrastructure you can own, and reserves that grow.
+        </p>
+        <div className="grid gap-6 md:grid-cols-2 mt-12">
+          <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
+            <Image
+              src={laira_shaking_hands}
+              width={120}
+              alt="Two Lairas shaking hands"
+            />
+            <h3 className="text-2xl font-bold">Own it.</h3>
+            <p className="text-base/relaxed text-muted-fg">
+              Our whole stack is open source — trust you can verify in code, not
+              just promises. You own the donor relationship, your data exports
+              freely, and if you ever want full independence, you can self-host
+              the donation form and own your own gateway. And there's no
+              lock-in, including your recurring donors: our{" "}
+              <strong className="text-fg">
+                Recurring-Donor Portability Guarantee
+              </strong>{" "}
+              means if you ever leave, we actively help migrate your recurring
+              donors to your new platform — free, no exit toll.
+            </p>
+            <Link
+              to={href("/open-source")}
+              className="inline-flex items-center gap-1.5 font-bold text-sm text-primary hover:underline mt-auto"
+            >
+              Explore the open source
+              <ArrowRight className="size-4" />
+            </Link>
+          </div>
+          <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
+            <Image
+              src={laira_presentation}
+              width={120}
+              alt="Laira presenting a growth chart"
+            />
+            <h3 className="text-2xl font-bold">Grow it.</h3>
+            <p className="text-base/relaxed text-muted-fg">
+              We don't just move money — we help you keep and grow it. Route any
+              share of what you raise into FDIC-insured savings (~3–4%) or a
+              professionally managed Sustainability Fund, and turn this
+              quarter's gifts into next decade's reserves. No setup, AUM, or
+              performance fees.
+            </p>
+            <Link
+              to={href("/fund-management")}
+              className="inline-flex items-center gap-1.5 font-bold text-sm text-primary hover:underline mt-auto"
+            >
+              See fund management
+              <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
