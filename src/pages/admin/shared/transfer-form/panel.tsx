@@ -63,7 +63,7 @@ export function Panel(props: Props) {
               onClick={() =>
                 source.onChange(source.value === "liq" ? "lock" : "liq")
               }
-              className="relative p-6 border-t hover:outline hover:outline-primary outline-primary  shadow-xl shadow-black/10 rounded-full group"
+              className="relative p-6 border-t hover:outline hover:outline-primary outline-primary shadow-xl shadow-black/10 rounded-full group"
             >
               <div className="absolute-center">
                 <MoveLeft
@@ -99,7 +99,7 @@ export function Panel(props: Props) {
         />
 
         {source.value && (
-          <div className="text-sm text-warning bg-warning/10  rounded p-2 mt-4">
+          <div className="text-sm text-warning bg-warning/10 rounded p-2 mt-4">
             <InfoIcon className="inline relative bottom-px" size={15} /> This
             operation is irreversible.{" "}
             {source.value === "liq"
