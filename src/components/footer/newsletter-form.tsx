@@ -19,6 +19,7 @@ export function NewsletterForm() {
       <div className="flex gap-2">
         <input
           {...register("email")}
+          aria-label="Email address"
           className="min-w-0 flex-1 rounded-sm bg-primary-fg/10 border border-primary-fg/20 px-3.5 py-3 text-sm text-primary-fg placeholder:text-primary-fg/50 outline-ring"
           placeholder="you@nonprofit.org"
           disabled={isSubmitting}

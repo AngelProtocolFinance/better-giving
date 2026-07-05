@@ -18,24 +18,24 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Fund Management | ${app_name}`,
     description:
-      "Grant, save, or invest each donation your way — free high-yield savings and a Sustainability Fund with no setup, AUM, or performance fees.",
+      "Grant, save, or invest each donation your way. Free high-yield savings and a Sustainability Fund with no setup, AUM, or performance fees.",
   });
 
 const split_steps = [
   {
     n: "1",
     title: "Choose your split",
-    body: "e.g. 80% granted to your bank, 15% savings, 5% Sustainability Fund — whatever fits your needs.",
+    body: "e.g. 80% granted to your bank, 15% savings, 5% Sustainability Fund. Whatever fits your needs.",
   },
   {
     n: "2",
     title: "Donations route automatically",
-    body: "Every gift — card, stock, crypto, DAF — follows your split with no extra admin.",
+    body: "Every gift (card, stock, crypto, DAF) follows your split with no extra admin.",
   },
   {
     n: "3",
     title: "Watch reserves build",
-    body: "Track balances in your dashboard and withdraw anytime — payouts within 5 working days.",
+    body: "Track balances in your dashboard and withdraw anytime. Payouts within 5 working days.",
   },
 ] as const;
 
@@ -71,7 +71,7 @@ export default function Page() {
               </ExtLink>
             </div>
             <p className="text-sm text-muted-fg">
-              No setup, AUM, or performance fees — 100% of growth is yours.
+              No setup, AUM, or performance fees. 100% of growth is yours.
             </p>
           </div>
           <Image
@@ -118,7 +118,7 @@ export default function Page() {
 
       <CtaBand
         title="Start building your reserve today"
-        subtitle="Free savings and fund management — no setup, AUM, or performance fees. 100% of growth goes to your mission."
+        subtitle="Free savings and fund management. No setup, AUM, or performance fees. 100% of growth goes to your mission."
       />
     </main>
   );

@@ -42,7 +42,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               <div>
                 <span className="font-bold">High-yield savings</span>
                 <p className="mt-0.5 text-sm/normal text-muted-fg">
-                  FDIC-insured, ~3–4% yield, accessible anytime. Electronic
+                  FDIC-insured, ~3-4% yield, accessible anytime. Electronic
                   payouts within 5 working days.
                 </p>
               </div>

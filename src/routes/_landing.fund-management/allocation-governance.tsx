@@ -24,7 +24,7 @@ const pillars = [
   {
     icon: <span className="text-base font-bold leading-none">$0</span>,
     title: "No fees of any kind",
-    body: "No setup, AUM, or performance fees — unheard of in fund management. The commons covers it.",
+    body: "No setup, AUM, or performance fees. Unheard of in fund management. The commons covers it.",
   },
   {
     icon: <ArrowLeftRight className="size-5" />,

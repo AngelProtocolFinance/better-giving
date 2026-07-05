@@ -9,7 +9,7 @@ const steps = [
     alt: "Laira holding the number 1",
     step: "Step 1",
     title: "Sign up",
-    body: "Register free in minutes. No fees, no contracts — you're a Member from day one.",
+    body: "Register free in minutes. No fees, no contracts. You're a Member from day one.",
   },
   {
     img: laira2,
@@ -23,7 +23,7 @@ const steps = [
     alt: "Laira holding the number 3",
     step: "Step 3",
     title: "Grow",
-    body: "Get payouts within 5 working days — or route a share into savings and the Sustainability Fund.",
+    body: "Get payouts within 5 working days, or route a share into savings and the Sustainability Fund.",
   },
 ] as const;
 

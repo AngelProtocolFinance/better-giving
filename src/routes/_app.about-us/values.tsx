@@ -5,15 +5,15 @@ import { guidestar } from "#/constants/urls";
 const values = [
   {
     title: "Integrity",
-    body: "Radical transparency — open code, open books, and a public Candid/GuideStar profile.",
+    body: "Radical transparency: open code, open books, and a public Candid/GuideStar profile.",
   },
   {
     title: "Sustainability",
-    body: "Long-term financial health — for your organization, and for the commons itself.",
+    body: "Long-term financial health, for your organization, and for the commons itself.",
   },
   {
     title: "Inclusivity",
-    body: "All nonprofits, any size, anywhere — the same tools on the same terms.",
+    body: "All nonprofits, any size, anywhere: the same tools on the same terms.",
   },
 ] as const;
 

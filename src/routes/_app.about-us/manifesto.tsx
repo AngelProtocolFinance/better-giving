@@ -2,17 +2,17 @@ const rights = [
   {
     num: "01",
     title: "Financial self-sufficiency",
-    body: "Grow durable reserves and access the tools of long-term stability — not perpetual dependence on the next grant cycle.",
+    body: "Grow durable reserves and access the tools of long-term stability, not perpetual dependence on the next grant cycle.",
   },
   {
     num: "02",
     title: "Equal opportunity",
-    body: "Fair access to modern fundraising and finance — regardless of size, location, or cause.",
+    body: "Fair access to modern fundraising and finance, regardless of size, location, or cause.",
   },
   {
     num: "03",
     title: "Organizational autonomy",
-    body: "Independence to allocate funds and reduce admin drag on your terms — with no lock-in, ever.",
+    body: "Independence to allocate funds and reduce admin drag on your terms, with no lock-in, ever.",
   },
 ] as const;
 

@@ -1,5 +1,3 @@
-import { ArrowRight } from "lucide-react";
-import { href, Link } from "react-router";
 import laira_presentation from "#/assets/laira/laira-presentation.webp";
 import laira_shaking_hands from "#/assets/laira/laira-shaking-hands-x2.webp";
 import { Image } from "#/components/image";
@@ -34,7 +32,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
             />
             <h3 className="text-2xl font-bold">Own it.</h3>
             <p className="text-base/relaxed text-muted-fg">
-              Our whole stack is open source — trust you can verify in code, not
+              Our whole stack is open source: trust you can verify in code, not
               just promises. You own the donor relationship, your data exports
               freely, and if you ever want full independence, you can self-host
               the donation form and own your own gateway. And there's no
@@ -43,15 +41,8 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
                 Recurring-Donor Portability Guarantee
               </strong>{" "}
               means if you ever leave, we actively help migrate your recurring
-              donors to your new platform — free, no exit toll.
+              donors to your new platform, free, no exit toll.
             </p>
-            <Link
-              to={href("/open-source")}
-              className="inline-flex items-center gap-1.5 font-bold text-sm text-primary hover:underline mt-auto"
-            >
-              Explore the open source
-              <ArrowRight className="size-4" />
-            </Link>
           </div>
           <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
             <Image
@@ -61,19 +52,12 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
             />
             <h3 className="text-2xl font-bold">Grow it.</h3>
             <p className="text-base/relaxed text-muted-fg">
-              We don't just move money — we help you keep and grow it. Route any
-              share of what you raise into FDIC-insured savings (~3–4%) or a
+              We don't just move money. We help you keep and grow it. Route any
+              share of what you raise into FDIC-insured savings (~3-4%) or a
               professionally managed Sustainability Fund, and turn this
               quarter's gifts into next decade's reserves. No setup, AUM, or
               performance fees.
             </p>
-            <Link
-              to={href("/fund-management")}
-              className="inline-flex items-center gap-1.5 font-bold text-sm text-primary hover:underline mt-auto"
-            >
-              See fund management
-              <ArrowRight className="size-4" />
-            </Link>
           </div>
         </div>
       </div>

@@ -15,7 +15,7 @@ export const headers: Route.HeadersFunction = () => ({
 export const meta: Route.MetaFunction = () =>
   metas({
     title: `Fiscal Sponsorship | ${app_name}`,
-    description: `As a U.S. 501(c)(3), ${app_name} accepts tax-deductible gifts and grants on your behalf — reach U.S. donors and foundations without your own 501(c)(3), for a 2.9% fee.`,
+    description: `As a U.S. 501(c)(3), ${app_name} accepts tax-deductible gifts and grants on your behalf. Reach U.S. donors and foundations without your own 501(c)(3), for a 2.9% fee.`,
   });
 
 // striped bar mirrors the donut pattern in _mkt._index/grow-funds: tokens via css vars
@@ -30,11 +30,11 @@ const market_bar_bg = `repeating-linear-gradient(
 const audiences = [
   {
     title: "Organizations outside the U.S.",
-    body: "Grassroots and established nonprofits abroad often can't access IRS tax-exempt status — which shuts them out of U.S. donors and foundation grants. We bridge that gap: your U.S. supporters give tax-deductibly, we handle the legal and tax complexity, and grant the funds to you.",
+    body: "Grassroots and established nonprofits abroad often can't access IRS tax-exempt status, which shuts them out of U.S. donors and foundation grants. We bridge that gap: your U.S. supporters give tax-deductibly, we handle the legal and tax complexity, and grant the funds to you.",
   },
   {
     title: "U.S. groups without a 501(c)(3)",
-    body: "New projects and community initiatives can start accepting tax-deductible donations right away — no incorporation, no year-long IRS wait. When you're ready to stand on your own, your donors and data go with you.",
+    body: "New projects and community initiatives can start accepting tax-deductible donations right away: no incorporation, no year-long IRS wait. When you're ready to stand on your own, your donors and data go with you.",
   },
 ] as const;
 
@@ -45,11 +45,11 @@ const steps = [
   },
   {
     title: "We receive gifts on your behalf",
-    body: "Donors give through your branded form — every gift type — with automatic U.S. tax receipts.",
+    body: "Donors give through your branded form (every gift type) with automatic U.S. tax receipts.",
   },
   {
     title: "We grant funds to you",
-    body: "Electronic payouts within 5 working days — or grow a share in savings and the Sustainability Fund.",
+    body: "Electronic payouts within 5 working days, or grow a share in savings and the Sustainability Fund.",
   },
 ] as const;
 
@@ -67,7 +67,7 @@ export default function Page() {
             </h1>
             <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
               As a U.S. 501(c)(3), Better Giving accepts tax-deductible gifts
-              and grants on your behalf — so organizations abroad, or without
+              and grants on your behalf, so organizations abroad, or without
               their own 501(c)(3), can reach U.S. donors and foundations without
               incorporating.
             </p>
@@ -76,7 +76,7 @@ export default function Page() {
                 to={href("/register/welcome")}
                 className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25"
               >
-                Apply — it takes minutes
+                Apply in minutes
               </Link>
               <ExtLink
                 href={BOOK_A_DEMO}
@@ -98,11 +98,11 @@ export default function Page() {
       <div className="px-6 py-22">
         <div className="max-w-5xl mx-auto">
           <h2 className="section-heading text-center max-w-2xl mx-auto text-pretty">
-            2.9% — the lowest sponsorship fee we know of
+            2.9%, the lowest sponsorship fee we know of
           </h2>
           <p className="mt-3.5 text-muted-fg text-center max-w-xl mx-auto text-pretty">
-            Typical fiscal sponsors charge 4–10%. Ours covers the real costs of
-            compliance and granting — and we're working to make it
+            Typical fiscal sponsors charge 4-10%. Ours covers the real costs of
+            compliance and granting, and we're working to make it
             donor-coverable, so you'd keep 100%.
           </p>
           <div className="grid gap-4 mt-11">
@@ -122,7 +122,7 @@ export default function Page() {
                   className="w-[70%] h-9.5 rounded-lg"
                   style={{ background: market_bar_bg }}
                 />
-                <span className="text-lg font-bold text-muted-fg">4–10%</span>
+                <span className="text-lg font-bold text-muted-fg">4-10%</span>
               </div>
             </div>
           </div>

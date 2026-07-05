@@ -3,7 +3,7 @@ import { href, Link } from "react-router";
 
 interface ICheck {
   children: React.ReactNode;
-  /** on-navy featured card uses warning accent */
+  /** on-navy featured card uses success accent for contrast */
   dark?: boolean;
 }
 
@@ -11,7 +11,7 @@ function Check({ children, dark }: ICheck) {
   return (
     <span className="flex gap-2.5 text-sm/normal">
       <CheckIcon
-        className={`flex-none size-4 mt-0.5 ${dark ? "text-warning" : "text-primary"}`}
+        className={`flex-none size-4 mt-0.5 ${dark ? "text-success" : "text-primary"}`}
         strokeWidth={3}
         aria-hidden
       />
@@ -36,7 +36,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
             $0
             <span className="text-base font-normal text-primary-fg/80">
               {" "}
-              — all features included
+              (all features included)
             </span>
           </span>
           <div className="grid gap-2 text-primary-fg/90">
@@ -45,8 +45,8 @@ export function PriceCards({ classes = "" }: IPriceCards) {
               Recurring giving, peer-to-peer, receipts &amp; reporting
             </Check>
             <Check dark>
-              High-yield savings &amp; Sustainability Fund — no setup, AUM, or
-              performance fees
+              High-yield savings &amp; Sustainability Fund, with no setup, AUM,
+              or performance fees
             </Check>
             <Check dark>Full donor data, exports, portability guarantee</Check>
           </div>
@@ -73,7 +73,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
             </Check>
             <Check>Compliance, receipts &amp; granting handled</Check>
             <Check>
-              Market rate is 4–10% — and we're working to make ours
+              Market rate is 4-10%, and we're working to make ours
               donor-coverable
             </Check>
           </div>
@@ -91,12 +91,12 @@ export function PriceCards({ classes = "" }: IPriceCards) {
             $0
             <span className="text-base font-normal text-muted-fg">
               {" "}
-              — open-source software
+              (open-source software)
             </span>
           </span>
           <div className="grid gap-2">
             <Check>Run the donation form on your own infrastructure</Check>
-            <Check>Your own gateway — you pay only its processing costs</Check>
+            <Check>Your own gateway: you pay only its processing costs</Check>
             <Check>Total ownership of tokens, data &amp; donors</Check>
           </div>
           <Link to={href("/open-source")} className="btn btn-secondary mt-auto">

@@ -27,7 +27,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
           Every way to give, in one flow
         </h2>
         <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
-          Stop turning donors away. One integration covers everything — no extra
+          Stop turning donors away. One integration covers everything. No extra
           portals, no added admin. Non-cash gifts are liquidated for you and
           granted as cash.
         </p>

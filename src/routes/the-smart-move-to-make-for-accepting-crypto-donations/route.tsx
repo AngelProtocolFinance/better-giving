@@ -16,7 +16,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: "The Smart Move to Make for Accepting Crypto Donations",
     description:
-      "Better Giving ensures 100% of your donations go toward your mission—no hidden fees, no unnecessary costs, just seamless crypto, stock, and DAF giving.",
+      "Better Giving ensures 100% of your donations go toward your mission, no hidden fees, no unnecessary costs, just simple crypto, stock, and DAF giving.",
   });
 export default function Component() {
   return (

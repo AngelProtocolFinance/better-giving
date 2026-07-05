@@ -2,7 +2,7 @@ const promises = [
   {
     n: "1",
     title: "Your data belongs to you",
-    body: "Every record — full giving history — exportable anytime via CSV or API, free.",
+    body: "Every record, full giving history, exportable anytime via CSV or API, free.",
   },
   {
     n: "2",
@@ -17,7 +17,7 @@ const promises = [
   {
     n: "4",
     title: "Or own it from day one",
-    body: "Self-host the open-source form with your own gateway — your tokens never leave your control.",
+    body: "Self-host the open-source form with your own gateway: your tokens never leave your control.",
   },
 ] as const;
 
@@ -36,11 +36,11 @@ export function Portability({ classes = "" }: IPortability) {
           id="portability-heading"
           className="section-heading text-center mt-3 max-w-3xl mx-auto"
         >
-          Your donors are yours — including your recurring donors
+          Your donors are yours, including your recurring donors
         </h2>
         <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
           Most platforms let you export a spreadsheet, but hold your monthly
-          card-on-file donors hostage. We make the opposite promise — the{" "}
+          card-on-file donors hostage. We make the opposite promise, the{" "}
           <strong className="text-fg">
             Recurring-Donor Portability Guarantee
           </strong>
@@ -61,8 +61,8 @@ export function Portability({ classes = "" }: IPortability) {
           Honest fine print: whether a stored card credential can transfer
           directly depends on card-network rules, PCI-DSS, and your new
           processor. Where a direct transfer isn't permitted, we hand over the
-          full recurring-gift schedule and support a re-authorization campaign —
-          we will never be the obstacle. Invoke it anytime:{" "}
+          full recurring-gift schedule and support a re-authorization campaign.
+          We will never be the obstacle. Invoke it anytime:{" "}
           <a
             href="mailto:support@better.giving"
             className="font-bold text-primary hover:underline"

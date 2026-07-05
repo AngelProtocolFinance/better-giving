@@ -19,15 +19,15 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
             </span>
             <h3 className="text-2xl font-bold">High-yield savings</h3>
             <span className="text-4xl font-bold text-primary">
-              ~3–4%{" "}
+              ~3-4%{" "}
               <span className="text-base font-normal text-muted-fg">
                 annual yield
               </span>
             </span>
             <p className="text-sm/relaxed text-muted-fg">
               FDIC-insured and accessible anytime. A reliable way to build
-              reserves while funds stay safe and liquid — with electronic
-              payouts within 5 working days whenever you need them.
+              reserves while funds stay safe and liquid, with electronic payouts
+              within 5 working days whenever you need them.
             </p>
           </div>
           <div className="bg-primary rounded-lg p-9 grid gap-3.5 content-start">
@@ -45,7 +45,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
             </span>
             <p className="text-sm/relaxed text-primary-fg/80">
               A professionally managed, pooled investment fund designed for
-              long-term stability — your path to an endowment-style reserve,
+              long-term stability: your path to an endowment-style reserve,
               whatever your size. DAF gifts can route straight into it.
             </p>
           </div>

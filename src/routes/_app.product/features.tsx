@@ -49,7 +49,7 @@ export function Features({ classes = "" }: IFeatures) {
           id="features-heading"
           className="section-heading text-center max-w-2xl mx-auto"
         >
-          Smarter tools for seamless fundraising
+          Smarter tools for simpler fundraising
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-11">
           {features.map((f) => (

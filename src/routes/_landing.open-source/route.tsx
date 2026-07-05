@@ -24,17 +24,17 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Open Source | ${app_name}`,
     description:
-      "Every part of Better Giving is public code — verify how donations are handled, self-host the form, and help keep the commons free.",
+      "Every part of Better Giving is public code: verify how donations are handled, self-host the form, and help keep the commons free.",
   });
 
 const why = [
   {
     title: "Verify, don't trust",
-    body: "Anyone — your board, your auditor, your most skeptical donor — can inspect exactly how donations are processed, routed, and receipted.",
+    body: "Anyone (your board, your auditor, your most skeptical donor) can inspect exactly how donations are processed, routed, and receipted.",
   },
   {
     title: "Own your independence",
-    body: "Self-host the donation form with your own payment gateway and merchant account. Your donor tokens never leave your control — nothing to migrate, ever.",
+    body: "Self-host the donation form with your own payment gateway and merchant account. Your donor tokens never leave your control. Nothing to migrate, ever.",
   },
   {
     title: "A commons that outlives us",
@@ -53,9 +53,9 @@ export default function Page() {
             </p>
             <h1 className="hero-heading text-primary-fg">Trust you can read</h1>
             <p className="text-lg/relaxed text-primary-fg/80 max-w-lg text-pretty">
-              Every part of Better Giving is public code — the donation form,
-              the platform, all of it. When software moves money for your
-              mission, "trust us" isn't enough. Verify us instead.
+              Every part of Better Giving is public code: the donation form, the
+              platform, all of it. When software moves money for your mission,
+              "trust us" isn't enough. Verify us instead.
             </p>
             <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
               <ExtLink
@@ -75,10 +75,10 @@ export default function Page() {
           </div>
           <TerminalCard label="AngelProtocolFinance / better-giving">
             <TermCmd>
-              git clone github.com/AngelProtocolFinance/better-giving
+              git clone https://github.com/AngelProtocolFinance/better-giving
             </TermCmd>
-            <TermComment>the whole platform — forms, flows, funds</TermComment>
-            <TermCmd>npm install &amp;&amp; npm run dev</TermCmd>
+            <TermComment>the whole platform: forms, flows, funds</TermComment>
+            <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
             <TermComment>your form, your gateway, your donors</TermComment>
             <TermOk>ready on localhost:3000</TermOk>
           </TerminalCard>
@@ -117,7 +117,7 @@ export default function Page() {
           <h2 className="section-heading">How the commons stays free</h2>
           <p className="text-muted-fg leading-relaxed max-w-2xl text-pretty">
             Better Giving is volunteer-driven and funded entirely by optional
-            donor contributions at checkout — always opt-in, never pre-selected.
+            donor contributions at checkout. Always opt-in, never pre-selected.
             No platform fees, no investors, no gated features. Members who share
             the tools also share the responsibility of keeping them free for
             everyone. Want to contribute code, docs, or time? The repo is open.
@@ -134,7 +134,7 @@ export default function Page() {
 
       <CtaBand
         title="Verify us. Then join us."
-        subtitle="Read the code, kick the tires, and set up your form in an afternoon — free forever either way."
+        subtitle="Read the code, kick the tires, and set up your form in an afternoon. Free forever either way."
       />
     </main>
   );

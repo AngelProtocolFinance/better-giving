@@ -29,7 +29,7 @@ export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
             <strong>
               Why? Because we can't afford to take you for granted.
             </strong>{" "}
-            At {app_name} you're not another customer — you're a trusted member.
+            At {app_name} you're not another customer. You're a trusted member.
           </p>
         </div>
         <Image

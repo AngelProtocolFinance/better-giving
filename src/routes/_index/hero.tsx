@@ -31,8 +31,7 @@ export function Hero({ classes = "" }: IHero) {
             <span className="text-xs font-bold bg-secondary text-secondary-fg border border-border rounded-full px-4 py-2">
               Built by and for nonprofits
             </span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-secondary text-secondary-fg border border-border rounded-full px-4 py-2">
-              <span className="size-2 rounded-full bg-warning" aria-hidden />
+            <span className="text-xs font-bold bg-secondary text-secondary-fg border border-border rounded-full px-4 py-2">
               Open source
             </span>
           </div>
@@ -42,10 +41,9 @@ export function Hero({ classes = "" }: IHero) {
             One form. <span className="text-primary">Free forever.</span>
           </h1>
           <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
-            Card, Bank, PayPal, Wallets, Stock, DAF, IRA, Crypto — one
-            brandable, embeddable donation form with $0 platform fees. Run by a
-            volunteer-driven 501(c)(3), with open-source code you can verify
-            yourself.
+            One brandable, embeddable donation form with $0 platform fees. Run
+            by a volunteer-driven 501(c)(3), with open-source code you can
+            verify yourself.
           </p>
           <div className="flex flex-wrap gap-2 max-w-lg">
             {gift_types.map((g) => (
@@ -72,8 +70,8 @@ export function Hero({ classes = "" }: IHero) {
             </ExtLink>
           </div>
           <p className="text-sm text-muted-fg">
-            No platform fees, ever — we're funded by optional donor
-            contributions at checkout.
+            No platform fees, ever. We're funded by optional donor contributions
+            at checkout.
           </p>
         </div>
 

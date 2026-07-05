@@ -12,7 +12,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Pricing | ${app_name}`,
     description:
-      "Free forever for nonprofits — $0 platform fees, no contracts. Sustained by optional donor contributions at checkout, always opt-in.",
+      "Free forever for nonprofits. $0 platform fees, no contracts. Sustained by optional donor contributions at checkout, always opt-in.",
   });
 
 export default function Page() {
@@ -27,7 +27,7 @@ export default function Page() {
         </h1>
         <p className="mt-4.5 text-lg text-muted-fg max-w-2xl mx-auto text-pretty">
           Not free-then-paid. Not free-with-gated-features. We're a nonprofit
-          like you — we grant out 100% of donations and never take a cut.
+          like you. We grant out 100% of donations and never take a cut.
         </p>
       </div>
 
@@ -37,7 +37,7 @@ export default function Page() {
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
           <h2 className="section-heading">So who pays for all this?</h2>
           <p className="text-muted-fg leading-relaxed max-w-2xl text-pretty">
-            Donors do — voluntarily. At checkout, donors can add an optional
+            Donors do, voluntarily. At checkout, donors can add an optional
             contribution to Better Giving. It's always{" "}
             <strong className="text-fg">opt-in and never pre-selected</strong>.
             That, plus our volunteers, keeps the commons free for every
@@ -50,7 +50,7 @@ export default function Page() {
                 Prefer no contribution ask on your form?
               </strong>{" "}
               You can opt out of the donor-contribution model in favor of a
-              simple 1.5% platform fee — your choice, always.
+              simple 1.5% platform fee, your choice, always.
             </p>
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function Page() {
 
       <CtaBand
         title="Keep every dollar working for your mission"
-        subtitle="No platform fees, no fund fees, no surprises — just free tools built by a fellow nonprofit."
+        subtitle="No platform fees, no fund fees, no surprises. Just free tools built by a fellow nonprofit."
       />
     </main>
   );
