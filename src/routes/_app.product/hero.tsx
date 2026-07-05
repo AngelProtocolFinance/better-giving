@@ -18,13 +18,13 @@ export function Hero({ classes = "" }: IHero) {
             Product
           </p>
           <h1 className="hero-heading">
-            One form that turns visitors into donors — and donors into monthly
+            One form that turns visitors into donors, and donors into monthly
             givers
           </h1>
           <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
             Brandable, embeddable, and conversion-optimized: fewer clicks,
-            express checkout, recurring giving, and every gift type — in one
-            flow on your own website.
+            express checkout, recurring giving, and every gift type, in one flow
+            on your own website.
           </p>
           <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
             <Link

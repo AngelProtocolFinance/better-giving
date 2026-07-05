@@ -15,7 +15,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `About Us | ${app_name}`,
     description:
-      "Since 2021, we've helped 180+ nonprofits worldwide raise over $6M — with free tools, shared growth, and a simple belief: the organizations doing the work should keep the money.",
+      "Since 2021, we've helped 180+ nonprofits worldwide raise over $6M, with free tools, shared growth, and a simple belief: the organizations doing the work should keep the money.",
   });
 
 export default function Page() {
@@ -29,7 +29,7 @@ export default function Page() {
           A nonprofit whose mission is your mission's money
         </h1>
         <p className="mt-4.5 text-lg text-muted-fg max-w-2xl mx-auto text-pretty">
-          Since 2021, we've helped 180+ nonprofits worldwide raise over $6M —
+          Since 2021, we've helped 180+ nonprofits worldwide raise over $6M,
           with free tools, shared growth, and a simple belief: the organizations
           doing the work should keep the money.
         </p>
@@ -44,12 +44,12 @@ export default function Page() {
             “
           </span>
           <p className="text-2xl md:text-3xl/normal font-medium text-primary-fg text-pretty">
-            We believe a new model of philanthropy is possible — not based on
+            We believe a new model of philanthropy is possible, not based on
             scarcity and dependence, but on abundance and financial
             self-sufficiency.
           </p>
           <span className="text-primary-fg/80">
-            Chauncey St. John — Founder &amp; Executive Director
+            Chauncey St. John - Founder &amp; Executive Director
           </span>
         </div>
       </div>

@@ -36,7 +36,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
         </h2>
         <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
           Most members choose the managed platform for convenience. The
-          self-hosted path exists so that choice is always yours — and always
+          self-hosted path exists so that choice is always yours, and always
           will be.
         </p>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
@@ -46,7 +46,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
             </span>
             <h3 className="text-2xl font-bold">Managed platform</h3>
             <div className="grid gap-2">
-              <Item>Live in an afternoon — no engineers needed</Item>
+              <Item>Live in an afternoon, no engineers needed</Item>
               <Item>
                 We handle receipts, reporting, 990 simplification, PCI scope
               </Item>
@@ -72,11 +72,11 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
             <div className="grid gap-2">
               <Item>Run the form on your own infrastructure</Item>
               <Item>
-                Your own gateway &amp; merchant account — zero intermediary
+                Your own gateway &amp; merchant account, zero intermediary
               </Item>
               <Item>Recurring-donor tokens yours from day one</Item>
               <Item>
-                Free software — you pay only your gateway's processing costs
+                Free software: you pay only your gateway's processing costs
               </Item>
               <Item con>
                 You handle receipts, compliance &amp; ops yourself

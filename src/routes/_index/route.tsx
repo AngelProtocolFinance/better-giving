@@ -39,8 +39,8 @@ export default function Page() {
           <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
         </div>
         <CtaBand
-          title="Join the commons. It's free — forever."
-          subtitle="Set up your donation form in minutes. No fees, no contracts, no lock-in — just more of every dollar working for your mission."
+          title="Join the commons. It's free, forever."
+          subtitle="Set up your donation form in minutes. No fees, no contracts, no lock-in. Just more of every dollar working for your mission."
         />
       </main>
       <Footer />

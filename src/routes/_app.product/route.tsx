@@ -16,7 +16,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `Product | ${app_name}`,
     description:
-      "One brandable, embeddable donation form — every gift type, express checkout, recurring giving, and $0 platform fees.",
+      "One brandable, embeddable donation form: every gift type, express checkout, recurring giving, and $0 platform fees.",
   });
 
 export default function Page() {
@@ -29,7 +29,7 @@ export default function Page() {
       <Portability classes="px-6 py-24" />
       <CtaBand
         title="Raise more, starting this quarter"
-        subtitle="Set up the form in an afternoon. Free forever, no lock-in — and your donors stay yours."
+        subtitle="Set up the form in an afternoon. Free forever, no lock-in, and your donors stay yours."
       />
     </main>
   );

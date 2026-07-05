@@ -79,7 +79,7 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
 
       <CtaBand
         title="Put these ideas to work"
-        subtitle="Join free forever — set up your donation form and start raising more this quarter."
+        subtitle="Join free forever. Set up your donation form and start raising more this quarter."
       />
     </main>
   );

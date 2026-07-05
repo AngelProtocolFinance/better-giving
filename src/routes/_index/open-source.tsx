@@ -9,9 +9,9 @@ import {
 } from "#/pages/@sections/terminal-card";
 
 const points = [
-  "Verify, don't just trust — the full stack is public",
-  "Self-host the form and own your gateway — zero intermediary",
-  "Member-powered — the community keeps the commons free",
+  "Verify, don't just trust: the full stack is public",
+  "Self-host the form and own your gateway: zero intermediary",
+  "Member-powered: the community keeps the commons free",
 ] as const;
 
 interface IOpenSource {
@@ -33,7 +33,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
             Don't take our word for it. Read the code.
           </h2>
           <p className="text-primary-fg/80 leading-relaxed text-pretty">
-            Every part of Better Giving is public — the donation form, the
+            Every part of Better Giving is public: the donation form, the
             platform, all of it. That means trust is verifiable, not just
             promised. Most nonprofits use our managed platform for convenience;
             those who want full independence can self-host the form and own
@@ -43,7 +43,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
             {points.map((p) => (
               <span key={p} className="flex items-center gap-2.5">
                 <span
-                  className="flex-none size-5.5 rounded-full bg-warning text-warning-fg grid place-items-center"
+                  className="flex-none size-5.5 rounded-full bg-success text-success-fg grid place-items-center"
                   aria-hidden
                 >
                   <Check className="size-3.5" strokeWidth={3} />
@@ -62,9 +62,9 @@ export function OpenSource({ classes = "" }: IOpenSource) {
         </div>
 
         <TerminalCard label="better-giving / donation-form">
-          <TermCmd>git clone github.com/better-giving/…</TermCmd>
+          <TermCmd>git clone https://github.com/better-giving/…</TermCmd>
           <TermComment>brandable, embeddable donation form</TermComment>
-          <TermCmd>npm install &amp;&amp; npm run dev</TermCmd>
+          <TermCmd>pnpm install &amp;&amp; pnpm dev</TermCmd>
           <TermComment>your form, your gateway, your donors</TermComment>
           <TermOk>ready on localhost:3000</TermOk>
         </TerminalCard>
