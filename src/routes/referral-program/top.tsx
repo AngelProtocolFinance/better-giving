@@ -21,11 +21,7 @@ export function Top({ classes = "" }) {
       </p>
       <div className="flex items-baseline justify-self-center mt-4">
         <div className="relative bottom-6">
-          <Image
-            src={laira_yellow}
-            width={100}
-            className="z-10  rotate-z-360"
-          />
+          <Image src={laira_yellow} width={100} className="z-10 rotate-z-360" />
           {/** shadow */}
           <svg
             className="absolute -bottom-3 z-0"
