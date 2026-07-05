@@ -137,13 +137,16 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
             {/* Icon */}
             <item.Icon className={item.class} size={icon_size} />
             {/* Amount */}
-            <div className="text-sm" style={{ fontSize: `${font_size}px` }}>
+            <div
+              className="text-sm shrink-0"
+              style={{ fontSize: `${font_size}px` }}
+            >
               ${humanize(item.amount)}
             </div>
             {/* Optional text */}
             {item.text && (
               <div
-                className="text-muted-fg"
+                className="text-muted-fg whitespace-nowrap"
                 style={{ fontSize: `${font_size * 0.75}px` }}
               >
                 - {item.text}

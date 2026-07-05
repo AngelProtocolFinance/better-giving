@@ -12,7 +12,9 @@ import type { IRow } from "./helpers";
 export function Row(props: IRow) {
   return (
     <>
-      <td>{props.date ? toPP(props.date) : "--"}</td>
+      <td className="whitespace-nowrap">
+        {props.date ? toPP(props.date) : "--"}
+      </td>
       <td>
         {props.program_id ? (
           <Link
@@ -31,9 +33,9 @@ export function Row(props: IRow) {
       <td>
         {props.donation_origin === "bg-widget" ? (
           <div>
-            <span>Donation Form</span>
-            <span className="text-xs mt-0.5 flex items-center gap-1">
-              <TagIcon size={13} />
+            <span className="whitespace-nowrap">Donation Form</span>
+            <span className="text-xs mt-0.5 flex items-center gap-1 whitespace-nowrap">
+              <TagIcon size={13} className="shrink-0" />
               {props.donation_origin_tag || props.donation_origin_id}
             </span>
           </div>
