@@ -87,6 +87,6 @@ export async function action({ request }: Route.ActionArgs) {
 
     return new Response("Donation settled");
   } catch (err) {
-    return report_resp(err, "Unknown error occured");
+    return report_resp(err, "Unknown error occurred");
   }
 }
