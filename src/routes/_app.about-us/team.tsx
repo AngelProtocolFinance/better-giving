@@ -208,7 +208,7 @@ function Member({ bio: [tagline, ...more], ...props }: IMember) {
                 ))
               : null}
             <button
-              className="text-muted-fg  hover:text-fg mt-2 block max-md:mx-auto"
+              className="text-muted-fg hover:text-fg mt-2 block max-md:mx-auto"
               type="button"
               onClick={() => setExpanded(!expanded)}
             >
