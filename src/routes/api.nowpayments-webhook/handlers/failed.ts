@@ -15,7 +15,7 @@ export async function handle_failed(payment: NP.PaymentPayload) {
   const failure_reason =
     payment.actually_paid < pay.min
       ? `Paid amount: ${payment.actually_paid} ${payment.pay_currency} is less than the minimum processing amount: ${pay.min} ${payment.pay_currency}`
-      : "Unknown error occured";
+      : "Unknown error occurred";
 
   const order = await donation_get(payment.order_id);
   if (!order) {
