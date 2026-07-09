@@ -56,8 +56,8 @@ export default function Referrals() {
             </Link>
           )}
           {!is_loading && session?.signed_in && (
-            <Link to={href("/dashboard")}>
-              <UserAvatar avatar={session.avatar_url} classes="size-10" />
+            <Link to={href("/dashboard")} className="contents">
+              <UserAvatar avatar={session.avatar_url} classes="size-7" />
             </Link>
           )}
         </div>

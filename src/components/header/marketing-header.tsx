@@ -48,8 +48,8 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
         {/* fixed cta/avatar slot: anon->avatar swap doesn't shift the nav */}
         <div className="hidden min-[75rem]:flex items-center justify-end gap-3">
           {is_signed_in ? (
-            <Link to={href("/dashboard")}>
-              <UserAvatar avatar={session?.avatar_url} classes="size-9" />
+            <Link to={href("/dashboard")} className="contents">
+              <UserAvatar avatar={session?.avatar_url} classes="size-7" />
             </Link>
           ) : (
             <>
@@ -86,7 +86,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             type="button"
             aria-label="Close navigation menu"
             onClick={close}
-            className="min-[75rem]:hidden absolute inset-x-0 top-full h-[100dvh] cursor-default bg-fg/40 backdrop-blur-sm"
+            className="min-[75rem]:hidden absolute inset-x-0 top-full h-dvh cursor-default bg-fg/40 backdrop-blur-sm"
           />
           <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-popover border-b border-secondary shadow-lg">
             <nav aria-label="Marketing" className="grid gap-1 p-4">
