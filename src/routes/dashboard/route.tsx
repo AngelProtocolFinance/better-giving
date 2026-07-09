@@ -1,10 +1,11 @@
 import { href } from "react-router";
 import { auth_mdlwr, user_ctx } from "#/.server/auth";
 import { Footer } from "#/components/footer";
+import { AppHeader } from "#/components/header";
 import { metas } from "#/helpers/seo";
 import { Layout as DashboardLayout } from "#/layout/dashboard";
 import type { Route } from "./+types/route";
-import { Header } from "./header";
+import { AccountHub } from "./account-hub";
 import { linkGroups } from "./routes";
 
 export { ErrorBoundary } from "#/components/error";
@@ -20,14 +21,13 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 export default function Layout() {
   return (
     <div className="grid">
-      <Header classes="sticky z-40 -top-px" />
+      <AppHeader classes="sticky z-40 -top-px" />
       <DashboardLayout
         rootRoute={`${href("/dashboard")}/`}
         linkGroups={linkGroups}
-        //dummy header
-        sidebarHeader={<div className="h-5" />}
+        sidebarHeader={<AccountHub />}
       />
-      <Footer classes="mt-8" />
+      <Footer variant="minimal" classes="mt-8" />
     </div>
   );
 }

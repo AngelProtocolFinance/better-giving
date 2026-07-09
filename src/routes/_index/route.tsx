@@ -1,7 +1,7 @@
 import type { LinksFunction } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
 import { Footer } from "#/components/footer";
-import { Header } from "#/components/header";
+import { MarketingHeader } from "#/components/header";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import { FAQ } from "#/pages/@sections/faq";
 import { PartnersStrip } from "#/pages/@sections/partners/strip";
@@ -24,7 +24,7 @@ export const links: LinksFunction = () => [
 export default function Page() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] min-h-dvh">
-      <Header classes="sticky z-40 -top-px" />
+      <MarketingHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
         <TrustBar />

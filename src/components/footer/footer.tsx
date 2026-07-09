@@ -9,7 +9,7 @@ import {
 import { ExtLink } from "../ext-link";
 import { NewsletterForm } from "./newsletter-form";
 
-type Props = { classes?: string };
+type Props = { classes?: string; variant?: "full" | "minimal" };
 
 const platform = [
   { label: "Product", to: href("/product") },
@@ -32,7 +32,59 @@ const social_links = [
 
 const link_cls = "text-sm text-primary-fg/75 hover:text-primary-fg";
 
-export function Footer({ classes = "" }: Props) {
+export function Footer({ classes = "", variant = "full" }: Props) {
+  // minimal: logged-in operator surfaces (dashboard/platform/admin) + npo profile.
+  // logo + one quiet socials row + legal bar; no nav/newsletter/mission/seal/perf-disclaimer.
+  if (variant === "minimal") {
+    return (
+      <footer
+        className={`${classes} bg-primary border-t border-primary-fg/10 px-6 md:px-12 py-8`}
+      >
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-5">
+          <Link to={href("/")} title="Go to Home page">
+            <img src={logo_white} alt="Better Giving" className="w-32 h-auto" />
+          </Link>
+          <div className="flex flex-wrap gap-x-3.5 gap-y-1">
+            {social_links.map((s) => (
+              <ExtLink
+                key={s.label}
+                href={s.url}
+                className="text-xs font-medium text-primary-fg/75 hover:text-primary-fg"
+              >
+                {s.label}
+              </ExtLink>
+            ))}
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto mt-6 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
+          <span className="text-xs text-primary-fg/60">
+            © {new Date().getFullYear()} Better Giving.
+          </span>
+          <span className="flex gap-4">
+            <Link
+              to={href("/privacy-policy")}
+              className="text-xs text-primary-fg/60 hover:text-primary-fg"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to={href("/security-policy")}
+              className="text-xs text-primary-fg/60 hover:text-primary-fg"
+            >
+              Security
+            </Link>
+            <Link
+              to={href("/terms-of-use")}
+              className="text-xs text-primary-fg/60 hover:text-primary-fg"
+            >
+              Terms of Use
+            </Link>
+          </span>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer
       className={`${classes} bg-primary border-t border-primary-fg/10 px-6 md:px-12 pt-16 pb-10`}
