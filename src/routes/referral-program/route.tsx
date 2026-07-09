@@ -3,7 +3,7 @@ import { Footer } from "#/components/footer";
 import { UserAvatar } from "#/components/header/user-avatar";
 import { DappLogo } from "#/components/image";
 import { metas } from "#/helpers/seo";
-import { use_user } from "#/hooks/use-user";
+import { use_session } from "#/hooks/use-session";
 import type { Route } from "./+types/route";
 import { Bottom } from "./bottom";
 import { Faq } from "./faq";
@@ -23,7 +23,7 @@ export const meta: Route.MetaFunction = () =>
   });
 
 export default function Referrals() {
-  const { user } = use_user();
+  const { session, is_loading } = use_session();
   return (
     <div className="w-full grid content-start pb-16 @container">
       <div
@@ -43,7 +43,8 @@ export default function Referrals() {
       >
         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 xl:container xl:mx-auto px-5 py-2">
           <DappLogo classes="h-12" />
-          {user !== "loading" && !user && (
+          {/* wait for session so the wide cta doesn't flash then shift to the avatar */}
+          {!is_loading && !session?.signed_in && (
             <Link
               to={{
                 pathname: href("/signup"),
@@ -54,9 +55,9 @@ export default function Referrals() {
               Sign up
             </Link>
           )}
-          {user !== "loading" && user && (
-            <Link to={href("/dashboard/donations")}>
-              <UserAvatar avatar={user.avatar_url} classes="size-10" />
+          {!is_loading && session?.signed_in && (
+            <Link to={href("/dashboard")}>
+              <UserAvatar avatar={session.avatar_url} classes="size-10" />
             </Link>
           )}
         </div>

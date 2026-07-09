@@ -3,7 +3,7 @@ import { useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { Field, Form, Label } from "#/components/form";
 import { ImgEditor } from "#/components/img-editor";
-import { use_user } from "#/hooks/use-user";
+import { use_session } from "#/hooks/use-session";
 import type { Route } from "./+types/route";
 import { avatar_spec, use_rhf } from "./use-rhf";
 
@@ -13,7 +13,7 @@ export { ErrorBoundary } from "#/components/error";
 
 export default CacheRoute(Page);
 function Page({ loaderData: data }: Route.ComponentProps) {
-  const { revalidate } = use_user();
+  const { revalidate } = use_session();
   const fetcher = useFetcher();
   useEffect(() => {
     if (fetcher.data !== undefined) revalidate();
