@@ -1,7 +1,6 @@
 import type { LinksFunction } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
-import { Footer } from "#/components/footer";
-import { MarketingHeader } from "#/components/header";
+import { PublicFooter, PublicHeader } from "#/components/chrome/public-chrome";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import { FAQ } from "#/pages/@sections/faq";
 import { PartnersStrip } from "#/pages/@sections/partners/strip";
@@ -24,7 +23,7 @@ export const links: LinksFunction = () => [
 export default function Page() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] min-h-dvh">
-      <MarketingHeader classes="sticky z-40 -top-px" />
+      <PublicHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
         <TrustBar />
@@ -43,7 +42,7 @@ export default function Page() {
           subtitle="Set up your donation form in minutes. No fees, no contracts, no lock-in. Just more of every dollar working for your mission."
         />
       </main>
-      <Footer />
+      <PublicFooter />
     </div>
   );
 }

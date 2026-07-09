@@ -52,7 +52,7 @@ export default function Page() {
               Open Source
             </p>
             <h1 className="hero-heading text-primary-fg">Trust you can read</h1>
-            <p className="text-lg/relaxed text-primary-fg/80 max-w-lg text-pretty">
+            <p className="text-lg/relaxed text-primary-fg/90 max-w-lg text-pretty">
               Every part of Better Giving is public code: the donation form, the
               platform, all of it. When software moves money for your mission,
               "trust us" isn't enough. Verify us instead.

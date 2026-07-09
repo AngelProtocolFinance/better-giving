@@ -33,7 +33,7 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
                   key={p.id}
                   src={p.url}
                   alt=""
-                  className="h-13 w-auto object-contain"
+                  className="h-13 w-auto object-contain grayscale opacity-60 transition group-hover:opacity-90"
                   loading="lazy"
                   decoding="async"
                 />
@@ -43,11 +43,11 @@ export function PartnersStrip({ classes = "" }: IPartnersStrip) {
         </Marquee.Viewport>
         <Marquee.Edge
           side="start"
-          className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-linear-to-r from-background to-transparent"
+          className="absolute left-0 top-0 bottom-0 w-24 z-10 pointer-events-none bg-linear-to-r from-background to-transparent"
         />
         <Marquee.Edge
           side="end"
-          className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-linear-to-l from-background to-transparent"
+          className="absolute right-0 top-0 bottom-0 w-24 z-10 pointer-events-none bg-linear-to-l from-background to-transparent"
         />
       </Marquee.Root>
     </section>

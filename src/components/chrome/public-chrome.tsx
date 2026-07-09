@@ -2,23 +2,58 @@ import { useLocation } from "react-router";
 import { Footer } from "#/components/footer";
 import { AppHeader, MarketingHeader } from "#/components/header";
 
-type Chrome = "marketing" | "minimal" | "bare";
+export type Chrome = "marketing" | "minimal" | "bare";
 
-// single source of truth for public chrome intent buckets:
-//   bare      — auth funnel (login/signup/register); logo-only, no footer
-//   minimal   — transactional/browse (marketplace/fundraisers/funds/profile/
-//               forms); logo + auth-aware avatar
-//   marketing — everything else (about-us, blog, product, donor, resources,
-//               donation-calculator, wp-plugin, zapier-integration, privacy/
-//               security/terms, fund-management, fiscal-sponsorship, pricing,
-//               open-source, donation-forms, giving-tuesday); full marketing
-//               nav + footer
+// single source of truth for public chrome intent buckets. keyed by the first
+// path segment of every public route (routes under `_app.*` / `_landing.*` /
+// `_index`). the drift test in `public-chrome.test.tsx` enumerates the actual
+// route table and fails if any public top-level segment is missing here — so a
+// new route becomes a red test, not a silent marketing misbucket.
+//
+//   bare      — auth funnel; logo-only, no footer
+//   minimal   — transactional/browse; logo + auth-aware avatar
+//   marketing — informational/landing; full marketing nav + footer
+export const CHROME_BY_SEGMENT: Record<string, Chrome> = {
+  // bare — auth funnel
+  login: "bare",
+  signup: "bare",
+  register: "bare",
+
+  // minimal — transactional / browse
+  //
+  // note: `funds` and `profile` are redirect-only resource routes (route.ts,
+  // no component) — they never mount the layout, so they carry no chrome entry.
+  marketplace: "minimal",
+  fundraisers: "minimal",
+  forms: "minimal",
+
+  // marketing — informational / landing
+  "about-us": "marketing",
+  blog: "marketing",
+  product: "marketing",
+  donor: "marketing",
+  resources: "marketing",
+  "donation-calculator": "marketing",
+  "wp-plugin": "marketing",
+  "zapier-integration": "marketing",
+  "privacy-policy": "marketing",
+  "security-policy": "marketing",
+  "terms-of-use": "marketing",
+  "terms-of-use-npo": "marketing",
+  "terms-of-use-referrals": "marketing",
+  "terms-of-use-sms": "marketing",
+  "donation-forms": "marketing",
+  "fiscal-sponsorship": "marketing",
+  "fund-management": "marketing",
+  "giving-tuesday": "marketing",
+  "open-source": "marketing",
+  pricing: "marketing",
+};
+
 export function chrome_for(pathname: string): Chrome {
-  if (/^\/(login|signup|register)(\/|$)/.test(pathname)) return "bare";
-  if (/^\/(marketplace|fundraisers|funds|profile|forms)(\/|$)/.test(pathname)) {
-    return "minimal";
-  }
-  return "marketing";
+  const segment = pathname.replace(/^\/+/, "").split("/")[0];
+  // "/" (empty segment) and any unmapped segment resolve to marketing chrome.
+  return CHROME_BY_SEGMENT[segment] ?? "marketing";
 }
 
 interface IPublicHeader {

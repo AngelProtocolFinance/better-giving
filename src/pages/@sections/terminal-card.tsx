@@ -42,7 +42,7 @@ export function TermCmd({ children }: ITermLine) {
 }
 
 export function TermComment({ children }: ITermLine) {
-  return <p className="text-primary-fg/50"># {children}</p>;
+  return <p className="text-primary-fg/70"># {children}</p>;
 }
 
 export function TermOk({ children }: ITermLine) {

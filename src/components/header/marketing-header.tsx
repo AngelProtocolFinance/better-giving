@@ -81,12 +81,12 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
 
       {open && (
         <>
-          {/* click-away catcher below the header bar */}
+          {/* click-away catcher + scrim below the header bar */}
           <button
             type="button"
             aria-label="Close navigation menu"
             onClick={close}
-            className="min-[75rem]:hidden absolute inset-x-0 top-full h-[100dvh] cursor-default"
+            className="min-[75rem]:hidden absolute inset-x-0 top-full h-[100dvh] cursor-default bg-fg/40 backdrop-blur-sm"
           />
           <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-popover border-b border-secondary shadow-lg">
             <nav aria-label="Marketing" className="grid gap-1 p-4">

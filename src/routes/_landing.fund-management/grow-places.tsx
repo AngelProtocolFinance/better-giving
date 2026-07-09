@@ -39,11 +39,11 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
             </h3>
             <span className="text-4xl font-bold text-warning">
               ~11%{" "}
-              <span className="text-base font-normal text-primary-fg/80">
+              <span className="text-base font-normal text-primary-fg/90">
                 avg. annual return, past 5 yrs*
               </span>
             </span>
-            <p className="text-sm/relaxed text-primary-fg/80">
+            <p className="text-sm/relaxed text-primary-fg/90">
               A professionally managed, pooled investment fund designed for
               long-term stability: your path to an endowment-style reserve,
               whatever your size. DAF gifts can route straight into it.

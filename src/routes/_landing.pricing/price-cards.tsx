@@ -34,7 +34,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
           </span>
           <span className="text-5xl font-bold">
             $0
-            <span className="text-base font-normal text-primary-fg/80">
+            <span className="text-base font-normal text-primary-fg/90">
               {" "}
               (all features included)
             </span>
