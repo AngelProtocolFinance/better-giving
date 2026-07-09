@@ -66,8 +66,8 @@ function AuthSlot({ variant, signed_in, avatar, is_loading, to }: IAuthSlot) {
   return (
     <div className="flex-none flex items-center justify-end w-48">
       {!is_loading && signed_in && (
-        <Link to={href("/dashboard")}>
-          <UserAvatar avatar={avatar} classes="size-10" />
+        <Link to={href("/dashboard")} className="contents">
+          <UserAvatar avatar={avatar} classes="size-7" />
         </Link>
       )}
       {/* loading: render nothing visible; correct control appears when SWR resolves */}
