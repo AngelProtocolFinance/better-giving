@@ -21,8 +21,12 @@ vi.mock("remix-client-cache", () => ({
   createClientLoaderCache: () => undefined,
 }));
 
-vi.mock("#/hooks/use-user", () => ({
-  use_user: () => ({ user: undefined, revalidate: vi.fn() }),
+vi.mock("#/hooks/use-session", () => ({
+  use_session: () => ({
+    session: undefined,
+    is_loading: false,
+    revalidate: vi.fn(),
+  }),
 }));
 
 // mock cropper — it requires canvas and stylesheet

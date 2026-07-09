@@ -2,7 +2,7 @@ import { MenuIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { href, Link, NavLink } from "react-router";
 import { DappLogo } from "#/components/image";
-import { use_user } from "#/hooks/use-user";
+import { use_session } from "#/hooks/use-session";
 import { UserAvatar } from "./user-avatar";
 
 const links = [
@@ -22,12 +22,12 @@ interface IMarketingHeader {
 }
 
 export function MarketingHeader({ classes = "" }: IMarketingHeader) {
-  const { user } = use_user();
+  const { session } = use_session();
   const [open, set_open] = useState(false);
   const close = () => set_open(false);
 
-  // optimistic-anon: treat "loading" as anon so CTAs render immediately
-  const is_signed_in = !!user && user !== "loading";
+  // optimistic-anon: treat loading as anon so CTAs render immediately
+  const is_signed_in = !!session?.signed_in;
 
   return (
     <header
@@ -48,8 +48,8 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
         {/* fixed cta/avatar slot: anon->avatar swap doesn't shift the nav */}
         <div className="hidden min-[75rem]:flex items-center justify-end gap-3">
           {is_signed_in ? (
-            <Link to={href("/dashboard/donations")}>
-              <UserAvatar avatar={user.avatar_url} classes="size-10" />
+            <Link to={href("/dashboard")}>
+              <UserAvatar avatar={session?.avatar_url} classes="size-9" />
             </Link>
           ) : (
             <>
@@ -105,7 +105,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
               <div className="my-2 h-px bg-border" />
               {is_signed_in ? (
                 <Link
-                  to={href("/dashboard/donations")}
+                  to={href("/dashboard")}
                   onClick={close}
                   className="rounded px-4 py-2.5 text-sm font-medium hover:bg-secondary text-fg"
                 >

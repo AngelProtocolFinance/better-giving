@@ -3,6 +3,7 @@ import {
   CircleDollarSign,
   CircleUserRound,
   Heart,
+  HomeIcon,
   MegaphoneIcon,
   RefreshCw,
   Settings,
@@ -23,6 +24,16 @@ export const routes = {
 export const linkGroups: LinkGroup[] = [
   {
     links: [
+      {
+        title: "Home",
+        to: routes.index,
+        // exact match so subroutes don't keep Home highlighted
+        end: true,
+        icon: {
+          fn: HomeIcon,
+          size: 22,
+        },
+      },
       {
         title: "My Donations",
         to: routes.donations,
