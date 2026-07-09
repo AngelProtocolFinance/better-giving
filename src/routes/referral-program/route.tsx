@@ -1,6 +1,6 @@
 import { href, Link } from "react-router";
 import { Footer } from "#/components/footer";
-import { NavDropdown } from "#/components/header";
+import { UserAvatar } from "#/components/header/user-avatar";
 import { DappLogo } from "#/components/image";
 import { metas } from "#/helpers/seo";
 import { use_user } from "#/hooks/use-user";
@@ -55,7 +55,9 @@ export default function Referrals() {
             </Link>
           )}
           {user !== "loading" && user && (
-            <NavDropdown auth_links={undefined} user={user} />
+            <Link to={href("/dashboard/donations")}>
+              <UserAvatar avatar={user.avatar_url} classes="size-10" />
+            </Link>
           )}
         </div>
       </div>

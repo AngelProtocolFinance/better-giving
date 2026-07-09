@@ -1,3 +1,4 @@
+import { Footer } from "#/components/footer";
 import { DappLogo } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
@@ -25,7 +26,6 @@ import { religious_organizations } from "./contexts/religious-organizations";
 import { Cta } from "./cta";
 import { Faq } from "./faq";
 import { Features } from "./features";
-import { Footer } from "./footer";
 import { Hero } from "./hero";
 import type { PageContext } from "./types";
 
@@ -116,7 +116,7 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
       <div className="xl:container mx-auto max-sm:px-10 px-24 my-10 xl:my-20">
         <Cta {...ctx} />
       </div>
-      <Footer />
+      <Footer variant="minimal" />
     </main>
   );
 }

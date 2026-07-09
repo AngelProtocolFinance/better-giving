@@ -9,7 +9,7 @@ export function AuthBtns({ classes = "", to }: Props) {
     <div className={`${classes} flex items-center gap-x-4`}>
       <Link
         to={`${href("/login")}?redirect=${to}`}
-        className="font-semibold aria-disabled:text-muted-fg hover:underline"
+        className="btn-secondary font-semibold text-nowrap px-6 py-2 rounded"
       >
         Log In
       </Link>

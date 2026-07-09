@@ -5,12 +5,12 @@ import {
   user_ctx,
 } from "#/.server/auth";
 import { Footer } from "#/components/footer";
+import { AppHeader } from "#/components/header";
 import { metas } from "#/helpers/seo";
 import { Layout } from "#/layout/dashboard";
 import { npo_get } from "$/pg/queries/npo";
 import type { Route } from "./+types/route";
 import { linkGroups } from "./constants";
-import { Header } from "./header";
 import { Loader as SidebarHeader } from "./sidebar-header";
 import type { LoaderData } from "./types";
 
@@ -48,13 +48,13 @@ export default function AdminLayout({
 }: Route.ComponentProps) {
   return (
     <div className="grid">
-      <Header classes="sticky z-40 -top-px" />
+      <AppHeader classes="sticky z-40 -top-px" />
       <Layout
         rootRoute="/admin/:id/"
         linkGroups={linkGroups}
         sidebarHeader={<SidebarHeader {...data.endow} />}
       />
-      <Footer />
+      <Footer variant="minimal" />
     </div>
   );
 }
