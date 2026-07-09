@@ -1,9 +1,13 @@
 import type { LinksFunction } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
 import { PublicFooter, PublicHeader } from "#/components/chrome/public-chrome";
+import { app_name, base_url } from "#/constants/env";
+import { socials } from "#/constants/urls";
+import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import { FAQ } from "#/pages/@sections/faq";
 import { PartnersStrip } from "#/pages/@sections/partners/strip";
+import type { Route } from "./+types/route";
 import { home_faqs } from "./faqs";
 import { GrowFunds } from "./grow-funds";
 import { Hero } from "./hero";
@@ -15,6 +19,39 @@ import { Testimonials } from "./testimonials";
 import { TrustBar } from "./trust-bar";
 
 export { headers, loader } from "./api";
+
+const organization = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: app_name,
+  url: base_url,
+  logo: `${base_url}/logo.png`,
+  sameAs: [
+    socials.linkedin,
+    socials.facebook,
+    socials.x,
+    socials.youtube,
+    socials.instagram,
+  ],
+};
+
+const website = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: app_name,
+  url: base_url,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${base_url}/marketplace?query={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
+
+export const meta: Route.MetaFunction = () =>
+  metas({ jsonld: [organization, website] });
 
 export const links: LinksFunction = () => [
   { rel: "preload", href: donation_form, as: "image", fetchPriority: "high" },

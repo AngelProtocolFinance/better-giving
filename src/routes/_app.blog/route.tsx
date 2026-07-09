@@ -3,6 +3,7 @@ import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
+import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { IPostListItem, IPostsPage } from "#/types/post";
@@ -28,7 +29,14 @@ export const headers: Route.HeadersFunction = () => ({
 });
 
 export const meta: Route.MetaFunction = () =>
-  metas({ title: "Blog - Better Giving", description: "Checkout the latest" });
+  metas({
+    title: "Blog | Better Giving",
+    description:
+      "Practical guides on nonprofit fundraising, fund growth, and donation strategy from the Better Giving team.",
+    // ?page=N is infinite-scroll pagination; canonicalize every page to /blog
+    canonical: `${base_url}/blog`,
+    url: `${base_url}/blog`,
+  });
 
 export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Posts);

@@ -15,12 +15,29 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>({});
 export const links: Route.LinksFunction = () => [...richtext_styles];
 export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   if (!d) return [];
+  const npo_url = `${base_url}/marketplace/${d.npo.id}`;
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: base_url },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Marketplace",
+        item: `${base_url}/marketplace`,
+      },
+      { "@type": "ListItem", position: 3, name: d.npo.name, item: npo_url },
+    ],
+  };
   return metas({
     title: `${d.npo.name} - ${app_name}`,
     description: d.npo.tagline?.slice(0, 140),
     name: d.npo.name,
     image: d.npo.image || flying_character,
-    url: `${base_url}/profile/${d.npo.id}`,
+    // canonical route is /marketplace/:id (every internal href uses it)
+    url: npo_url,
+    jsonld: breadcrumbs,
   });
 };
 export { ErrorBoundary } from "#/components/error";

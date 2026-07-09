@@ -4,11 +4,18 @@ import { ExtLink } from "#/components/ext-link";
 import { Image } from "#/components/image";
 
 import { app_name } from "#/constants/env";
+import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
 });
+
+export const meta: Route.MetaFunction = () =>
+  metas({
+    title: `WordPress Plugin | ${app_name}`,
+    description: `Add ${app_name}'s free, no-fee donation form to any WordPress site. Install the plugin, embed the form, and start accepting card, crypto, stock, and DAF gifts.`,
+  });
 
 export default function WpPlugin() {
   return (

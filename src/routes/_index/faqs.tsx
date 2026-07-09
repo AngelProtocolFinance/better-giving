@@ -1,4 +1,5 @@
 // home faq copy is final per design handoff — distinct from #/pages/@sections/faq data
+// faqpage json-ld deferred: answers are jsx nodes, schema requires plain-text acceptedAnswer.text
 export const home_faqs = [
   {
     id: 0,
