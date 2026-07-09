@@ -28,7 +28,7 @@ export function MembershipAdvantage({ classes = "" }: IMembershipAdvantage) {
           >
             We do the admin. You keep the relationships.
           </h2>
-          <p className="text-primary-fg/80 leading-relaxed text-pretty">
+          <p className="text-primary-fg/90 leading-relaxed text-pretty">
             On the managed platform, donations flow through Better Giving as a
             single 501(c)(3) grantor and are granted out to you, which makes
             your back office dramatically simpler, while you still receive full

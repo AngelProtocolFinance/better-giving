@@ -32,7 +32,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
           >
             Don't take our word for it. Read the code.
           </h2>
-          <p className="text-primary-fg/80 leading-relaxed text-pretty">
+          <p className="text-primary-fg/90 leading-relaxed text-pretty">
             Every part of Better Giving is public: the donation form, the
             platform, all of it. That means trust is verifiable, not just
             promised. Most nonprofits use our managed platform for convenience;

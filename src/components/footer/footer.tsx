@@ -30,7 +30,7 @@ const social_links = [
   { label: "Instagram", url: socials.instagram },
 ] as const;
 
-const link_cls = "text-sm text-primary-fg/75 hover:text-primary-fg";
+const link_cls = "text-sm text-primary-fg/90 hover:text-primary-fg";
 
 export function Footer({ classes = "", variant = "full" }: Props) {
   // minimal: logged-in operator surfaces (dashboard/platform/admin) + npo profile.
@@ -49,7 +49,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
               <ExtLink
                 key={s.label}
                 href={s.url}
-                className="text-xs font-medium text-primary-fg/75 hover:text-primary-fg"
+                className="text-xs font-medium text-primary-fg/90 hover:text-primary-fg"
               >
                 {s.label}
               </ExtLink>
@@ -57,25 +57,25 @@ export function Footer({ classes = "", variant = "full" }: Props) {
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-6 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
-          <span className="text-xs text-primary-fg/60">
+          <span className="text-xs text-primary-fg/90">
             © {new Date().getFullYear()} Better Giving.
           </span>
           <span className="flex gap-4">
             <Link
               to={href("/privacy-policy")}
-              className="text-xs text-primary-fg/60 hover:text-primary-fg"
+              className="text-xs text-primary-fg/90 hover:text-primary-fg"
             >
               Privacy Policy
             </Link>
             <Link
               to={href("/security-policy")}
-              className="text-xs text-primary-fg/60 hover:text-primary-fg"
+              className="text-xs text-primary-fg/90 hover:text-primary-fg"
             >
               Security
             </Link>
             <Link
               to={href("/terms-of-use")}
-              className="text-xs text-primary-fg/60 hover:text-primary-fg"
+              className="text-xs text-primary-fg/90 hover:text-primary-fg"
             >
               Terms of Use
             </Link>
@@ -94,11 +94,11 @@ export function Footer({ classes = "", variant = "full" }: Props) {
           <Link to={href("/")} title="Go to Home page">
             <img src={logo_white} alt="Better Giving" className="w-36 h-auto" />
           </Link>
-          <p className="text-sm/relaxed text-primary-fg/75 max-w-70 text-pretty">
+          <p className="text-sm/relaxed text-primary-fg/90 max-w-70 text-pretty">
             A member-powered, open-source fundraising and financial commons for
             nonprofits.
           </p>
-          <p className="text-xs/relaxed text-primary-fg/60">
+          <p className="text-xs/relaxed text-primary-fg/90">
             Better Giving is a 501(c)(3) nonprofit.
             <br />
             EIN 87-3758939
@@ -154,7 +154,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
               <ExtLink
                 key={s.label}
                 href={s.url}
-                className="text-xs font-medium text-primary-fg/75 hover:text-primary-fg"
+                className="text-xs font-medium text-primary-fg/90 hover:text-primary-fg"
               >
                 {s.label}
               </ExtLink>
@@ -164,7 +164,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
       </div>
 
       <div className="max-w-6xl mx-auto mt-10 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
-        <span className="text-xs/relaxed text-primary-fg/60 text-pretty">
+        <span className="text-xs/relaxed text-primary-fg/90 text-pretty">
           Past performance of the Sustainability Fund is not indicative of
           future results; all investments carry risk. ©{" "}
           {new Date().getFullYear()} Better Giving.

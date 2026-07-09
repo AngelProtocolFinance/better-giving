@@ -69,7 +69,7 @@ export function Pillars({ classes = "" }: IPillars) {
             <span className="text-xl font-bold">
               Open source &amp; member-powered
             </span>
-            <p className="text-sm/relaxed text-primary-fg/80">
+            <p className="text-sm/relaxed text-primary-fg/90">
               The entire stack is public code. Verify how we work, self-host if
               you want, and help keep the commons free for every nonprofit.
             </p>

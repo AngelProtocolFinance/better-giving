@@ -24,7 +24,7 @@ export function CtaBand({ title, subtitle, classes = "" }: ICtaBand) {
       <h2 className="section-heading text-primary-fg max-w-2xl mx-auto">
         {title}
       </h2>
-      <p className="mt-4 text-lg text-primary-fg/80 max-w-xl mx-auto text-pretty">
+      <p className="mt-4 text-lg text-primary-fg/90 max-w-xl mx-auto text-pretty">
         {subtitle}
       </p>
       <div className="flex flex-wrap justify-center gap-3.5 mt-8">

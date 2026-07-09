@@ -48,7 +48,7 @@ export default function Page() {
             scarcity and dependence, but on abundance and financial
             self-sufficiency.
           </p>
-          <span className="text-primary-fg/80">
+          <span className="text-primary-fg/90">
             Chauncey St. John - Founder &amp; Executive Director
           </span>
         </div>
