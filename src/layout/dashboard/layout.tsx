@@ -27,7 +27,7 @@ export function Layout({
         sidebarHeader={sidebarHeader}
       />
       {/** views */}
-      <div className="@container min-h-screen">
+      <div className="@container min-h-[100dvh]">
         <Outlet />
       </div>
     </div>

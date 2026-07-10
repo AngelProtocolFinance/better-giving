@@ -16,6 +16,8 @@ export interface IPostListItem {
 export interface IPost extends Omit<IPostListItem, "authorName"> {
   body?: unknown[];
   author?: { name: string; image?: ISanityImage };
+  // sanity system field; used as schema.org dateModified for BlogPosting json-ld.
+  _updatedAt?: string;
 }
 
 export interface IPostsPage {

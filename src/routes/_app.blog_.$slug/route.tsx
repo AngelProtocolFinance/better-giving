@@ -2,6 +2,7 @@ import { PortableText, type PortableTextComponents } from "@portabletext/react";
 import { ChevronLeft } from "lucide-react";
 import { href, Link } from "react-router";
 import { sanity, urlFor } from "#/api/sanity";
+import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { IPost } from "#/types/post";
 import type { Route } from "./+types/route";
@@ -9,7 +10,7 @@ import type { Route } from "./+types/route";
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 
 const Q = `*[_type=="post" && slug.current==$slug][0]{
-  _id, title, slug, publishedAt, excerpt, image, body,
+  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,
   author->{name, image}
 }`;
 
@@ -25,7 +26,52 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   if (!d) return [];
-  return metas({ title: d.title });
+  const post_url = `${base_url}/blog/${d.slug.current}`;
+  const image_url = d.image?.asset
+    ? urlFor(d.image).width(1200).height(630).url()
+    : undefined;
+
+  const blog_posting: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: d.title,
+    datePublished: d.publishedAt,
+    mainEntityOfPage: { "@type": "WebPage", "@id": post_url },
+    publisher: {
+      "@type": "Organization",
+      name: app_name,
+      logo: { "@type": "ImageObject", url: `${base_url}/logo.png` },
+    },
+  };
+  if (d.excerpt) blog_posting.description = d.excerpt;
+  if (image_url) blog_posting.image = image_url;
+  if (d._updatedAt) blog_posting.dateModified = d._updatedAt;
+  if (d.author?.name)
+    blog_posting.author = { "@type": "Person", name: d.author.name };
+
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: base_url },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Blog",
+        item: `${base_url}/blog`,
+      },
+      { "@type": "ListItem", position: 3, name: d.title, item: post_url },
+    ],
+  };
+
+  return metas({
+    title: `${d.title} | Better Giving Blog`,
+    description: d.excerpt || undefined,
+    image: image_url,
+    type: "article",
+    url: post_url,
+    jsonld: [blog_posting, breadcrumbs],
+  });
 };
 
 export { ErrorBoundary } from "#/components/error";

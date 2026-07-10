@@ -16,7 +16,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: "The Smart Move to Make for Accepting Crypto Donations",
     description:
-      "Better Giving ensures 100% of your donations go toward your mission—no hidden fees, no unnecessary costs, just seamless crypto, stock, and DAF giving.",
+      "Better Giving ensures 100% of your donations go toward your mission, no hidden fees, no unnecessary costs, just simple crypto, stock, and DAF giving.",
   });
 export default function Component() {
   return (
@@ -62,7 +62,7 @@ export default function Component() {
       <div className="bg-linear-to-bl from-lilac/50 via-transparent to-transparent mb-40 px-10">
         <BottomCta className="max-w-2xl xl:max-w-4xl mx-auto" />
       </div>
-      <Footer classes="xl:container xl:mx-auto px-10" />
+      <Footer />
     </main>
   );
 }

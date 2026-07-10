@@ -165,7 +165,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           Philanthropy for Everyone
         </h3>
         <p className="text-center max-sm:text-sm mt-2">
-          Log in to support 18000+ causes or register and manage your nonprofit.
+          Log in to support great causes or register and manage your nonprofit.
         </p>
         <RmxForm disabled={is_submitting} method="POST" className="contents">
           <button
