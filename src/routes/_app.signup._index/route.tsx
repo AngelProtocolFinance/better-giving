@@ -62,7 +62,7 @@ const context: { [id: string]: Context } = {
   fallback: {
     title: "Philanthropy for Everyone",
     description:
-      "Sign up to support 18000+ causes or register and manage your nonprofit.",
+      "Sign up to support great causes or register and manage your nonprofit.",
     terms: [
       { to: href("/terms-of-use"), title: "Terms of Use (Donors)" },
       { to: href("/terms-of-use-npo"), title: "Terms of Use (Nonprofits)" },
@@ -110,7 +110,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           <button
             name="intent"
             value="oauth"
-            className="flex-center btn-secondary rounded gap-2 h-12 sm:h-[52px] mt-6 border-[0.8px]"
+            className="flex-center btn-secondary rounded gap-2 h-12 sm:h-13 mt-6 border-[0.8px]"
             type="submit"
           >
             <Image src={googleIcon} height={18} width={18} />
@@ -168,7 +168,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           disabled={is_submitting}
           form={form_id}
           type="submit"
-          className="flex-center btn-primary h-12 sm:h-[52px] rounded sm:text-lg font-bold w-full my-8"
+          className="flex-center btn-primary h-12 sm:h-13 rounded sm:text-lg font-bold w-full my-8"
         >
           {is_submitting ? "Submitting..." : "Sign Up"}
         </button>

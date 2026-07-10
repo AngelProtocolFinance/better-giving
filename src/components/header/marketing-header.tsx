@@ -6,7 +6,7 @@ import { use_session } from "#/hooks/use-session";
 import { UserAvatar } from "./user-avatar";
 
 const links = [
-  { label: "Product", to: href("/product") },
+  { label: "Donation Processing", to: href("/product") },
   { label: "Fund Management", to: href("/fund-management") },
   { label: "Fiscal Sponsorship", to: href("/fiscal-sponsorship") },
   { label: "Open Source", to: href("/open-source") },

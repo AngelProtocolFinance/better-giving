@@ -15,7 +15,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: `About Us | ${app_name}`,
     description:
-      "Since 2021, we've helped 180+ nonprofits worldwide raise over $6M, with free tools, shared growth, and a simple belief: the organizations doing the work should keep the money.",
+      "Since 2021, we've helped 210+ nonprofits worldwide raise over $6M, with free tools, shared growth, and a simple belief: the organizations doing the work should keep the money.",
   });
 
 export default function Page() {
@@ -29,7 +29,7 @@ export default function Page() {
           A nonprofit whose mission is your mission's money
         </h1>
         <p className="mt-4.5 text-lg text-muted-fg max-w-2xl mx-auto text-pretty">
-          Since 2021, we've helped 180+ nonprofits worldwide raise over $6M,
+          Since 2021, we've helped 210+ nonprofits worldwide raise over $6M,
           with free tools, shared growth, and a simple belief: the organizations
           doing the work should keep the money.
         </p>

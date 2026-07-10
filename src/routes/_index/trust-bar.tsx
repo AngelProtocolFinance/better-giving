@@ -1,5 +1,5 @@
 const stats = [
-  { value: "180+", label: "nonprofits worldwide" },
+  { value: "210+", label: "nonprofits worldwide" },
   { value: "$6M+", label: "raised for partners" },
   { value: "$0", label: "platform or fund fees" },
   { value: "2021", label: "serving nonprofits since" },

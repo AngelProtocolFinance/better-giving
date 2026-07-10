@@ -11,7 +11,7 @@ export const items: Item[] = [
   {
     title: "How is it really free?",
     description:
-      "A: We're a nonprofit. Our mission is helping other nonprofits succeed. No platform fees, ever. Donors optionally cover small credit card fees (95% do).",
+      "A: We're a nonprofit. Our mission is helping other nonprofits succeed. No platform fees, ever. Donors optionally cover small credit card fees (most do).",
   },
   {
     title: "Is our money safe?",

@@ -41,8 +41,8 @@ export default function Page() {
             contribution to Better Giving. It's always{" "}
             <strong className="text-fg">opt-in and never pre-selected</strong>.
             That, plus our volunteers, keeps the commons free for every
-            nonprofit. And third-party processing fees? 95% of donors choose to
-            cover them, so you typically receive 100% of every gift.
+            nonprofit. And third-party processing fees? Most donors choose to
+            cover them, so the vast majority of every gift reaches you.
           </p>
           <div className="bg-accent border border-border rounded-lg px-7 py-5 max-w-xl">
             <p className="text-sm/relaxed text-muted-fg text-pretty">

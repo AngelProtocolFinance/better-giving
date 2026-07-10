@@ -177,7 +177,7 @@ export default function Page() {
 
       <CtaBand
         title="Open the door to U.S. giving"
-        subtitle="Join the 180+ organizations worldwide raising tax-deductible U.S. donations through Better Giving."
+        subtitle="Join the 210+ organizations worldwide raising tax-deductible U.S. donations through Better Giving."
       />
     </main>
   );

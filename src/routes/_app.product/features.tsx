@@ -25,7 +25,7 @@ const features = [
   },
   {
     title: "Donors cover processing fees",
-    body: "95% of donors opt to cover fees, so you receive 100%.",
+    body: "Most donors opt to cover fees, so more of every gift reaches you.",
   },
   {
     title: "Program-specific giving",
