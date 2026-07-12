@@ -33,7 +33,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <CircleHelp size={16} className="text-muted-fg ml-1" />
         </Tooltip>
       </div>
-      <p className="text-xl  font-semibold bg-card border p-4 rounded">
+      <p className="text-xl font-semibold bg-card border p-4 rounded">
         ${humanize(bal_liq)}
       </p>
       <div className="flex items-center gap-4 mt-4">
