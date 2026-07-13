@@ -17,7 +17,7 @@ export function Payout({ classes = "", ...p }: Props) {
     <div className={`${classes}`}>
       <div className="flex items-center justify-between mb-1">
         <div className="space-x-1 mb-1">
-          <span className="text-xs uppercase  text-shadow-white text-shadow">
+          <span className="text-xs uppercase text-shadow-white text-shadow">
             total
           </span>
           <span className="font-bold text-shadow-white text-shadow">
