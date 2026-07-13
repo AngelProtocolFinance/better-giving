@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router";
 import useSWR from "swr";
 
 interface Session {
@@ -16,6 +18,17 @@ export function use_session() {
     isLoading: is_loading,
     mutate,
   } = useSWR<Session | undefined>("/api/session", fetcher);
+
+  // login/logout are server redirects that set the session cookie but land on
+  // routes under the same layout — the header never unmounts, so SWR keeps its
+  // stale in-memory session. revalidate on every settled navigation (keyed on
+  // location.key) so cookie changes are reflected without a manual refresh.
+  // swr dedupes within dedupingInterval, so rapid nav won't storm the probe.
+  const { key } = useLocation();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: swr mutate is stable per key; run only on navigation
+  useEffect(() => {
+    mutate();
+  }, [key]);
 
   /** revalidate session from server (e.g. after avatar change) */
   function revalidate() {
