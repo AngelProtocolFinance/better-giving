@@ -31,7 +31,7 @@ function normalize(err: unknown): unknown {
     }
     return wrapped;
   }
-  return new Error(JSON.stringify(err));
+  return new Error(err === undefined ? "(undefined error)" : String(err));
 }
 
 export function report_error(
