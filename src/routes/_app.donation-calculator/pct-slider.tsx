@@ -50,7 +50,7 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
             </Slider.Control>
           </Slider.Root>
         </div>
-        <div className="text-right  font-semibold">
+        <div className="text-right font-semibold">
           {(p.value * 100).toFixed(1)}%
         </div>
       </div>
