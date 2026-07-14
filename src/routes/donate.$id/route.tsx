@@ -35,7 +35,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <DappLogo classes="h-12" />
         <Link
           to={href("/marketplace/:id", { id: endow.id.toString() })}
-          className="font-semibold  hover:text-primary"
+          className="font-semibold hover:text-primary"
         >
           Cancel
         </Link>
