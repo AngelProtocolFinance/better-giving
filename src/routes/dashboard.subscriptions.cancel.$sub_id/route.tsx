@@ -70,7 +70,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
           />
         </div>
 
-        <div className="p-4 grid grid-cols-2 gap-4 w-full  sm:text-right bg-muted border-t">
+        <div className="p-4 grid grid-cols-2 gap-4 w-full sm:text-right bg-muted border-t">
           <Dialog.CloseTrigger asChild>
             <Link
               to={".."}
