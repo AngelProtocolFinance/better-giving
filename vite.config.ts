@@ -34,7 +34,7 @@ export default defineConfig((config) => {
   return {
     base: asset_base,
     build: { outDir: "build", target: "es2022", sourcemap: "hidden" },
-    server: { port: 4200, allowedHosts: [".ngrok-free.app"] },
+    server: { port: 4200, strictPort: true, allowedHosts: [".ngrok-free.app"] },
     resolve: { tsconfigPaths: true },
     plugins: [devtools_json(), inline_binary(), rr7, tailwind(), sentry],
     test: {
