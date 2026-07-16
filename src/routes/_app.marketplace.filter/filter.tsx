@@ -30,7 +30,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
             className={`${classes} z-50 fixed-center isolate w-full max-w-[95vw] max-h-[95vh] sm:max-w-md overflow-y-auto scrollbar-gutter-stable scrollbar-thin scrollbar-thumb-ring scrollbar-track-border border bg-background rounded`}
           >
             <div className="bg-muted flex items-center p-4 border-b">
-              <p className="font-bold  uppercase mr-auto">Filters</p>
+              <p className="font-bold uppercase mr-auto">Filters</p>
               <button
                 type="button"
                 title="Reset all filters to their default values."
@@ -55,7 +55,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
             </div>
 
             <div className="px-4 py-4">
-              <p className="font-bold text-xs  uppercase block mb-2">
+              <p className="font-bold text-xs uppercase block mb-2">
                 Countries
               </p>
               <Countries />
