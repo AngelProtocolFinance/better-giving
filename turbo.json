@@ -1,6 +1,14 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalPassThroughEnv": ["VERCEL", "VERCEL_ENV", "CI"],
+  "globalPassThroughEnv": [
+    "VERCEL",
+    "VERCEL_ENV",
+    "CI",
+    "SENTRY_VERCEL_LOG_DRAIN_URL",
+    "SENTRY_OTLP_TRACES_URL",
+    "SENTRY_PUBLIC_KEY",
+    "SANITY_READ_TOKEN"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
