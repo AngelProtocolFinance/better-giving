@@ -1,6 +1,7 @@
 packages:
   - platform
   - blog
+  - packages/types/*
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - '@tailwindcss/oxide'

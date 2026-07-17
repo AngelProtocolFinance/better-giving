@@ -1,3 +1,4 @@
+import type { POSTS_QUERY_RESULT } from "blog-types";
 import { useEffect, useState } from "react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
@@ -7,7 +8,6 @@ import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { IPostsPage } from "#/types/post";
-import type { POSTS_QUERY_RESULT } from "#/types/sanity.types";
 import type { Route } from "./+types/route";
 
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();

@@ -298,7 +298,7 @@ export type AllSanitySchemaTypes =
   | SanityImageAsset
   | Geopoint;
 
-// Source: ../platform/src/api/get/posts.ts
+// Source: queries.ts
 // Variable: POSTS_QUERY
 // Query: {  "items": *[_type=="post" && defined(slug.current)] | order(publishedAt desc)[$from...$to]{    _id, title, slug, publishedAt, excerpt, image{asset, hotspot, crop, alt}, "authorName": author->name  },  "total": count(*[_type=="post" && defined(slug.current)])}
 export type POSTS_QUERY_RESULT = {
@@ -319,7 +319,7 @@ export type POSTS_QUERY_RESULT = {
   total: number;
 };
 
-// Source: ../platform/src/routes/_app.blog_.$slug/route.tsx
+// Source: queries.ts
 // Variable: POST_QUERY
 // Query: *[_type=="post" && slug.current==$slug][0]{  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,  author->{name, image}}
 export type POST_QUERY_RESULT = {

@@ -1,5 +1,5 @@
 import { PortableText, type PortableTextComponents } from "@portabletext/react";
-import { defineQuery } from "groq";
+import { POST_QUERY } from "blog-types";
 import { ChevronLeft } from "lucide-react";
 import { href, Link } from "react-router";
 import { sanity, urlFor } from "#/api/sanity";
@@ -8,11 +8,6 @@ import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
-
-const POST_QUERY = defineQuery(`*[_type=="post" && slug.current==$slug][0]{
-  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,
-  author->{name, image}
-}`);
 
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const post = await sanity.fetch(POST_QUERY, { slug: params.slug });

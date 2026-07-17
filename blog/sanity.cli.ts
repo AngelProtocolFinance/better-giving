@@ -13,10 +13,15 @@ export default defineCliConfig({
     autoUpdates: true,
   },
   typegen: {
-    // consumer's groq lives in platform; paths resolve relative to blog cwd
-    path: "../platform/src/**/*.{ts,tsx}",
+    // strictly unidirectional: blog -> blog-types -> platform. blog owns the
+    // groq (./queries.ts) and the schema (schema.json); typegen scans ONLY blog
+    // and emits the result types + @sanity/client overload into the shared
+    // `blog-types` package's generated `types.ts`. the query STRINGS are
+    // separately copied into the package (see the `typegen` npm script) so
+    // platform can run them without importing blog. paths resolve to blog cwd.
+    path: "./queries.ts",
     schema: "./schema.json",
-    generates: "../platform/src/types/sanity.types.ts",
+    generates: "../packages/types/blog/types.ts",
     overloadClientMethods: true,
   },
 });

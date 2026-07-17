@@ -1,0 +1,18 @@
+{
+  "name": "blog-types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "peerDependencies": {
+    "@sanity/client": "7.22.1",
+    "groq": "6.5.0"
+  },
+  "devDependencies": {
+    "@sanity/client": "7.22.1",
+    "groq": "6.5.0"
+  }
+}
