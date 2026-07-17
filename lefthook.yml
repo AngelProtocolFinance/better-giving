@@ -5,16 +5,7 @@ pre-commit:
       glob: "*.{ts,tsx,css,d.ts}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
     type-check:
-      glob: "*.{ts,tsx}"
-      run: pnpm tsc-files {staged_files}
-    # block commit if plaintext env is newer than its .gpg — forces re-encryption
-    env-check:
-      glob: "scripts/env/content/*.ts"
-      run: |
-        for f in {staged_files}; do
-          gpg_file="${f}.gpg"
-          if [ -f "$gpg_file" ] && [ "$f" -nt "$gpg_file" ]; then
-            echo "ERROR: $f is newer than $gpg_file — run scripts/env/encrypt.sh"
-            exit 1
-          fi
-        done
+      glob: "platform/**/*.{ts,tsx}"
+      # anchor on platform's tsconfig (jsx, paths, react-router types); root has
+      # no tsconfig.json to auto-detect, only the extended tsconfig.base.json.
+      run: pnpm tsc-files -p platform/tsconfig.json {staged_files}

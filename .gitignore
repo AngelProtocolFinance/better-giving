@@ -1,19 +1,19 @@
 # custom
 notes
-scripts/settle-cheque/*.json
+platform/scripts/settle-cheque/*.json
 .claude/worktrees/
 
 # dependencies
-/node_modules
+node_modules
 
 # testing
-/coverage
+coverage
 .vitest-attachments
 __screenshots__
 codecov-report.json
 
 # build
-/build
+build
 
 # env
 .env
@@ -26,6 +26,9 @@ codecov-report.json
 # framework
 .vercel
 .react-router
+
+# turborepo
+.turbo
 
 # others
 .DS_Store

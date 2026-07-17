@@ -60,7 +60,7 @@ describe("chrome_for", () => {
 describe("chrome seam drift", () => {
   // the load-bearing assertion: every public component route's top-level
   // segment MUST be classified intentionally in CHROME_BY_SEGMENT. adding
-  // `src/routes/_app.newthing/route.tsx` without a "newthing" entry fails HERE
+  // `platform/src/routes/_app.newthing/route.tsx` without a "newthing" entry fails HERE
   // (listing the segment as unclassified) instead of silently rendering
   // marketing chrome in prod.
   const public_segments = Array.from(
