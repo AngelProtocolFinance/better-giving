@@ -6,6 +6,7 @@ import { sanity, urlFor } from "#/api/sanity";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
+import { PostCta } from "./post-cta";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 
@@ -135,6 +136,8 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
           <PortableText value={post.body} components={ptComponents} />
         )}
       </div>
+
+      {post.cta && <PostCta cta={post.cta} />}
     </div>
   );
 }

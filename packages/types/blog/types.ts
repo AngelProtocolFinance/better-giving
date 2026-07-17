@@ -321,7 +321,7 @@ export type POSTS_QUERY_RESULT = {
 
 // Source: queries.ts
 // Variable: POST_QUERY
-// Query: *[_type=="post" && slug.current==$slug][0]{  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,  author->{name, image}}
+// Query: *[_type=="post" && slug.current==$slug][0]{  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,  author->{name, image},  cta->{eyebrow, heading, body, image, link1, link2}}
 export type POST_QUERY_RESULT = {
   _id: string;
   title: string;
@@ -386,6 +386,27 @@ export type POST_QUERY_RESULT = {
       _type: "image";
     } | null;
   };
+  cta: {
+    eyebrow: string | null;
+    heading: string;
+    body: string | null;
+    image: {
+      asset?: SanityImageAssetReference;
+      media?: unknown;
+      hotspot?: SanityImageHotspot;
+      crop?: SanityImageCrop;
+      alt?: string;
+      _type: "image";
+    } | null;
+    link1: {
+      label: string;
+      href: string;
+    } | null;
+    link2: {
+      label?: string;
+      href?: string;
+    } | null;
+  } | null;
 } | null;
 
 // Query TypeMap
@@ -393,6 +414,6 @@ import "@sanity/client";
 declare module "@sanity/client" {
   interface SanityQueries {
     '{\n  "items": *[_type=="post" && defined(slug.current)] | order(publishedAt desc)[$from...$to]{\n    _id, title, slug, publishedAt, excerpt, image{asset, hotspot, crop, alt}, "authorName": author->name\n  },\n  "total": count(*[_type=="post" && defined(slug.current)])\n}': POSTS_QUERY_RESULT;
-    '*[_type=="post" && slug.current==$slug][0]{\n  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,\n  author->{name, image}\n}': POST_QUERY_RESULT;
+    '*[_type=="post" && slug.current==$slug][0]{\n  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,\n  author->{name, image},\n  cta->{eyebrow, heading, body, image, link1, link2}\n}': POST_QUERY_RESULT;
   }
 }
