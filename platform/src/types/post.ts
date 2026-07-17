@@ -1,27 +1,8 @@
-export interface ISanityImage {
-  asset?: { _ref: string };
-  alt?: string;
-}
+import type { POSTS_QUERY_RESULT } from "#/types/sanity.types";
 
-export interface IPostListItem {
-  _id: string;
-  title: string;
-  slug: { current: string };
-  publishedAt: string;
-  excerpt?: string;
-  image?: ISanityImage;
-  authorName?: string;
-}
-
-export interface IPost extends Omit<IPostListItem, "authorName"> {
-  body?: unknown[];
-  author?: { name: string; image?: ISanityImage };
-  // sanity system field; used as schema.org dateModified for BlogPosting json-ld.
-  _updatedAt?: string;
-}
-
+// frontend view-model over the typegen'd list query; not a query result itself.
 export interface IPostsPage {
-  posts: IPostListItem[];
+  posts: POSTS_QUERY_RESULT["items"];
   pageNum: number;
   nextPageNum?: number;
 }

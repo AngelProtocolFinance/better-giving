@@ -1,0 +1,31 @@
+{
+  "name": "blog",
+  "private": true,
+  "version": "1.0.0",
+  "main": "package.json",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "sanity build",
+    "deploy": "pnpm run schema && pnpm run typegen && sanity deploy",
+    "deploy-graphql": "sanity graphql deploy",
+    "dev": "sanity dev",
+    "start": "sanity start",
+    "format": "biome check --write .",
+    "lint": "biome check .",
+    "schema": "DO_NOT_TRACK=1 sanity schema extract --enforce-required-fields",
+    "typegen": "DO_NOT_TRACK=1 sanity typegen generate"
+  },
+  "keywords": [
+    "sanity"
+  ],
+  "dependencies": {
+    "@sanity/vision": "6.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "sanity": "6.1.0",
+    "styled-components": "6.4.2"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17"
+  }
+}

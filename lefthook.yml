@@ -1,5 +1,34 @@
 pre-commit:
   commands:
+    # fast drift guards — schema.json + sanity.types.ts are committed artifacts,
+    # regenerated OUT of band, never in this hook. the hook only FLAGS staleness
+    # (pure git, no work) so a schema edit can't ship without its derived files.
+    # regen is deliberately manual/deploy-time because the vite `schema extract`
+    # step spins for minutes under lefthook (re-bundles all of sanity):
+    #   pnpm --filter blog schema    -> schema.json   (slow vite extract)
+    #   pnpm --filter blog typegen   -> sanity.types.ts (fast generate)
+    # blog's `deploy` runs both before shipping, so the deployed schema and the
+    # committed types stay in lockstep.
+    schema-drift:
+      glob:
+        - "blog/schemaTypes/**"
+        - "blog/sanity.config.ts"
+      run: |
+        if ! git diff --cached --name-only | grep -qx 'blog/schema.json'; then
+          echo "✖ schemaTypes changed but blog/schema.json is stale."
+          echo "  run: pnpm --filter blog schema && pnpm --filter blog typegen"
+          echo "  then stage blog/schema.json + platform/src/types/sanity.types.ts"
+          exit 1
+        fi
+    types-drift:
+      glob:
+        - "blog/schema.json"
+      run: |
+        if ! git diff --cached --name-only | grep -qx 'platform/src/types/sanity.types.ts'; then
+          echo "✖ blog/schema.json changed but platform/src/types/sanity.types.ts is stale."
+          echo "  run: pnpm --filter blog typegen  (then stage the result)"
+          exit 1
+        fi
     check:
       stage_fixed: true
       glob: "*.{ts,tsx,css,d.ts}"
@@ -9,3 +38,8 @@ pre-commit:
       # anchor on platform's tsconfig (jsx, paths, react-router types); root has
       # no tsconfig.json to auto-detect, only the extended tsconfig.base.json.
       run: pnpm tsc-files -p platform/tsconfig.json {staged_files}
+    type-check-blog:
+      glob: "blog/**/*.{ts,tsx}"
+      # anchor on blog's tsconfig (sanity jsx=preserve, dom lib); separate from
+      # platform since each member has its own tsconfig.
+      run: pnpm tsc-files -p blog/tsconfig.json {staged_files}

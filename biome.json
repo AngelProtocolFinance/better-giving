@@ -8,7 +8,10 @@
       "!platform/public/scripts/**/*",
       "!platform/src/scripts/**/*.json",
       "!platform/.server/pg/migrations",
-      "!platform/public/mockServiceWorker.js"
+      "!platform/public/mockServiceWorker.js",
+      "!platform/src/types/sanity.types.ts",
+      "!blog/.sanity",
+      "!blog/dist"
     ]
   },
   "linter": {

@@ -7,7 +7,9 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "format": "turbo run format",
-    "dev": "turbo run dev --filter=better-giving",
+    "typegen": "turbo run typegen",
+    "dev": "turbo run dev --filter=platform",
+    "dev:blog": "turbo run dev --filter=blog",
     "prepare": "lefthook install",
     "branches": "git branch --sort=-committerdate --format='%(refname:short) %(committerdate:relative)' | head -20"
   },

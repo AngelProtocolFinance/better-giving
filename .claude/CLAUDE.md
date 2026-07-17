@@ -12,7 +12,7 @@ Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code; eac
 
 Run from repo root; turbo delegates into members:
 
-- `pnpm dev` — `turbo run dev --filter=better-giving` (mprocs: app + ngrok + qstash)
+- `pnpm dev` — `turbo run dev --filter=platform` (mprocs: app + ngrok + qstash)
 - `pnpm build` — `turbo run build`
 - `pnpm test` — `turbo run test`
 - `pnpm lint` — `turbo run lint`

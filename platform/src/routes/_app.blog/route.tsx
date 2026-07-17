@@ -6,7 +6,8 @@ import { urlFor } from "#/api/sanity";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
-import type { IPostListItem, IPostsPage } from "#/types/post";
+import type { IPostsPage } from "#/types/post";
+import type { POSTS_QUERY_RESULT } from "#/types/sanity.types";
 import type { Route } from "./+types/route";
 
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
@@ -42,8 +43,10 @@ export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Posts);
 function Posts({ loaderData: firstPage }: Route.ComponentProps) {
   const [params] = useSearchParams();
-  const { data, state, load } = useFetcher<IPostsPage>();
-  const [posts, setPosts] = useState(firstPage.posts);
+  const { data, state, load } = useFetcher<typeof loader>();
+  // seed from firstPage; both firstPage.posts and data.posts are the loader's
+  // serialized post shape, so appends stay type-compatible.
+  const [posts, setPosts] = useState<typeof firstPage.posts>(firstPage.posts);
 
   useEffect(() => {
     if (state !== "idle" || !data) return;
@@ -93,7 +96,7 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
   );
 }
 
-const Cards = (props: { posts: IPostListItem[] }) =>
+const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
   props.posts.map((post) => (
     <NavLink
       key={post._id}
