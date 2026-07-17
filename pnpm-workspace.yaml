@@ -1,3 +1,5 @@
+packages:
+  - platform
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - '@tailwindcss/oxide'

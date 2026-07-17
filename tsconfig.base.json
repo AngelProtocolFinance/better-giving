@@ -1,0 +1,20 @@
+{
+  // repo-wide typescript baseline. workspace packages extend this and layer on
+  // their own env (lib), jsx, path aliases, and includes. holds shared policy
+  // only — strictness, module/target, emit — never package-specific config.
+  // named *.base.json so tsc never opens it as a standalone (input-less) project.
+  "compilerOptions": {
+    "module": "preserve",
+    "target": "es2024",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true
+  }
+}

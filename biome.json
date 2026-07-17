@@ -4,11 +4,11 @@
   "files": {
     "includes": [
       "**",
-      "!package.json",
-      "!public/scripts/**/*",
-      "!src/scripts/**/*.json",
-      "!.server/pg/migrations",
-      "!public/mockServiceWorker.js"
+      "!**/package.json",
+      "!platform/public/scripts/**/*",
+      "!platform/src/scripts/**/*.json",
+      "!platform/.server/pg/migrations",
+      "!platform/public/mockServiceWorker.js"
     ]
   },
   "linter": {
