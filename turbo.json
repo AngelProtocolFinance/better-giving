@@ -12,7 +12,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["build/**", ".react-router/**"],
+      "outputs": ["build/**", ".react-router/**", "dist/**"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "env": [
         "STAGE",
@@ -93,6 +93,12 @@
       "persistent": true
     },
     "lint": {},
+    "format": {
+      "cache": false
+    },
+    "typegen": {
+      "cache": false
+    },
     "test": {
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"]
     }

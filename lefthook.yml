@@ -1,11 +1,23 @@
 pre-commit:
   commands:
+    # blog-types (schema.json, types.ts, queries.ts) are committed artifacts,
+    # regenerated manually out of band: pnpm --filter blog schema && typegen.
+    # no drift guard — forgetting to regen just ships stale types until the next run.
     check:
       stage_fixed: true
       glob: "*.{ts,tsx,css,d.ts}"
       run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
     type-check:
-      glob: "platform/**/*.{ts,tsx}"
+      glob:
+        - "platform/**/*.{ts,tsx}"
+        # blog-types has no standalone tsconfig — its query overloads only mean
+        # anything in platform's program, so check it under platform's config.
+        - "packages/types/blog/**/*.ts"
       # anchor on platform's tsconfig (jsx, paths, react-router types); root has
       # no tsconfig.json to auto-detect, only the extended tsconfig.base.json.
       run: pnpm tsc-files -p platform/tsconfig.json {staged_files}
+    type-check-blog:
+      glob: "blog/**/*.{ts,tsx}"
+      # anchor on blog's tsconfig (sanity jsx=preserve, dom lib); separate from
+      # platform since each member has its own tsconfig.
+      run: pnpm tsc-files -p blog/tsconfig.json {staged_files}

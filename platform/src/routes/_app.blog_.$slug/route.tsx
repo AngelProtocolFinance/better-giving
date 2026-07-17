@@ -1,21 +1,17 @@
 import { PortableText, type PortableTextComponents } from "@portabletext/react";
+import { POST_QUERY } from "blog-types";
 import { ChevronLeft } from "lucide-react";
 import { href, Link } from "react-router";
 import { sanity, urlFor } from "#/api/sanity";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
-import type { IPost } from "#/types/post";
 import type { Route } from "./+types/route";
+import { PostCta } from "./post-cta";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 
-const Q = `*[_type=="post" && slug.current==$slug][0]{
-  _id, title, slug, publishedAt, _updatedAt, excerpt, image, body,
-  author->{name, image}
-}`;
-
 export const loader = async ({ params }: Route.LoaderArgs) => {
-  const post = await sanity.fetch<IPost | null>(Q, { slug: params.slug });
+  const post = await sanity.fetch(POST_QUERY, { slug: params.slug });
   if (!post) throw new Response("Not Found", { status: 404 });
   return post;
 };
@@ -140,6 +136,8 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
           <PortableText value={post.body} components={ptComponents} />
         )}
       </div>
+
+      {post.cta && <PostCta cta={post.cta} />}
     </div>
   );
 }

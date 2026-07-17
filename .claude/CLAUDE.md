@@ -6,13 +6,16 @@ Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code; eac
 
 - **root** — `turbo.json` (task graph), `tsconfig.base.json` (repo-wide TS policy), `biome.json`, `lefthook.yml`, `pnpm-workspace.yaml`. No app code.
 - **`platform/`** — the web app (workspace member, package `better-giving`). All app code, deps, and its own `tsconfig.json` (extends `../tsconfig.base.json`). See `platform/CLAUDE.md`.
-- workspace members declared in `pnpm-workspace.yaml` (`packages: [platform]`). Add a member there + give it a `package.json` and `tsconfig.json` that extends the base.
+- **`blog/`** — Sanity Studio (workspace member, package `blog`). Content source + schema for platform's `/blog`. See `blog/CLAUDE.md`. **After any schema/query change, regen types + deploy — see `blog/CLAUDE.md`.**
+- **`packages/types/blog/`** — internal package `blog-types`: blog's generated types + copied groq queries + hand-authored project coords, consumed by platform. blog produces, platform consumes; platform never imports blog directly.
+- workspace members declared in `pnpm-workspace.yaml` (`packages: [platform, blog, packages/types/*]`). Add a member there + give it a `package.json` and `tsconfig.json` that extends the base.
 
 ## Commands
 
 Run from repo root; turbo delegates into members:
 
-- `pnpm dev` — `turbo run dev --filter=better-giving` (mprocs: app + ngrok + qstash)
+- `pnpm dev` — `turbo run dev --filter=platform` (mprocs: app + ngrok + qstash)
+- `pnpm dev:blog` — local Sanity Studio (or `pnpm --filter blog dev`)
 - `pnpm build` — `turbo run build`
 - `pnpm test` — `turbo run test`
 - `pnpm lint` — `turbo run lint`
