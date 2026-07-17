@@ -1,7 +1,7 @@
-import {
-  type Components,
-  loadCoreSdkScript,
-  type SdkInstance,
+import type {
+  Components,
+  PayPalV6Namespace,
+  SdkInstance,
 } from "@paypal/paypal-js/sdk-v6";
 import { useEffect, useRef } from "react";
 import { href } from "react-router";
@@ -30,12 +30,20 @@ type Sdk = SdkInstance<typeof COMPONENTS>;
 
 // cache the namespace + sdk instance across mounts. v6 no longer carries
 // currency in the script URL, so we don't re-init when currency changes.
+let _ns: Promise<PayPalV6Namespace | null> | null = null;
 let _sdk: Promise<Sdk> | null = null;
 const get_sdk = (): Promise<Sdk> => {
   if (_sdk) return _sdk;
-  // namespace loads lazily (get_sdk is only called from the client effect) and
-  // is cached across mounts via _sdk.
-  const sdk = loadCoreSdkScript({ environment: PP_ENV }).then((ns) => {
+  // dynamic import: @vercel/nft still mis-traces the `./sdk-v6` subpath and
+  // resolves a static SSR import to the v5 entry on Vercel — even on 10.0.3,
+  // which added the `default` export condition (that bump did NOT fix it; see
+  // the reverted #61). crashes the function with "does not provide an export
+  // named 'loadCoreSdkScript'". browser bundle is fine; only SSR needs gating.
+  if (!_ns)
+    _ns = import("@paypal/paypal-js/sdk-v6").then((m) =>
+      m.loadCoreSdkScript({ environment: PP_ENV })
+    );
+  const sdk = _ns.then((ns) => {
     if (!ns) throw new Error("paypal v6 namespace failed to load");
     return ns.createInstance({
       clientId: paypal_client_id,
@@ -47,6 +55,7 @@ const get_sdk = (): Promise<Sdk> => {
   sdk.catch(() => {
     if (_sdk === sdk) {
       _sdk = null;
+      _ns = null;
     }
   });
   _sdk = sdk;
