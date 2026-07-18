@@ -1,0 +1,11 @@
+{
+  // extends the repo baseline; only this member's env (dom lib) and jsx
+  // (react-jsx — react-email/platform's bundler compiles jsx, tsc type-checks) live here.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "es2024"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src", "emails"],
+  "exclude": ["node_modules", "dist"]
+}

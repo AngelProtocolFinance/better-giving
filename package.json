@@ -10,6 +10,7 @@
     "typegen": "turbo run typegen",
     "dev": "turbo run dev --filter=platform",
     "dev:blog": "turbo run dev --filter=blog",
+    "dev:emails": "turbo run dev --filter=emails",
     "prepare": "lefthook install",
     "branches": "git branch --sort=-committerdate --format='%(refname:short) %(committerdate:relative)' | head -20"
   },

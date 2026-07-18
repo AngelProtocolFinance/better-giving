@@ -1,4 +1,4 @@
-import { donation_microdeposit_action as email } from "@better-giving/react-emails";
+import { donation_microdeposit_action as email } from "emails";
 import type Stripe from "stripe";
 import { str_id } from "#/helpers/stripe";
 import { send_email } from "$/email";

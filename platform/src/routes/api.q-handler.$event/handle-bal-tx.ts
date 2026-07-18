@@ -1,4 +1,4 @@
-import { fnd_mgmt_lock_tx as email } from "@better-giving/react-emails";
+import { fnd_mgmt_lock_tx as email } from "emails";
 import { emails } from "@/constants/common";
 import { to_pretty_utc } from "@/helpers/date";
 import { rd } from "@/helpers/decimal";

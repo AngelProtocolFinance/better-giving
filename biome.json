@@ -11,7 +11,8 @@
       "!platform/public/mockServiceWorker.js",
       "!platform/src/types/sanity.types.ts",
       "!blog/.sanity",
-      "!blog/dist"
+      "!blog/dist",
+      "!emails/.react-email"
     ]
   },
   "linter": {

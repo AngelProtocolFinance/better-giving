@@ -94,7 +94,7 @@ vi.mock("#/.server/toast", () => ({
   getToast: vi.fn(),
 }));
 
-vi.mock("@better-giving/react-emails", () => ({
+vi.mock("emails", () => ({
   cognito_signup: { template: () => ({ node: null }) },
   reset_password: { template: () => ({ node: null, subject: "Reset" }) },
 }));

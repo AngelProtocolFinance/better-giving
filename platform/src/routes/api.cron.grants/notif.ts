@@ -1,5 +1,5 @@
-import type { grants_schedule } from "@better-giving/react-emails";
-import { grants_schedule as gs } from "@better-giving/react-emails";
+import type { grants_schedule } from "emails";
+import { grants_schedule as gs } from "emails";
 import { emails } from "@/constants/common";
 import { report_error } from "@/errors/report";
 import { min_payout_amount } from "@/npo/schema";

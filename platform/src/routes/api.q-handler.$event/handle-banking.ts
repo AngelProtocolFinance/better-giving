@@ -1,4 +1,4 @@
-import { banking } from "@better-giving/react-emails";
+import { banking } from "emails";
 import type { IBankingPayload } from "@/queue";
 import { send_email } from "$/email";
 import { npo_admins } from "$/pg/queries/user";

@@ -1,5 +1,5 @@
-import { donation_nonprofit_notif } from "@better-giving/react-emails";
 import { getWeek } from "date-fns";
+import { donation_nonprofit_notif } from "emails";
 import { emails } from "@/constants/common";
 import { via_name } from "@/donations/helpers";
 import { report_error } from "@/errors/report";

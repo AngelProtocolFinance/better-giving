@@ -1,4 +1,4 @@
-import { admin_endow_admin_new } from "@better-giving/react-emails";
+import { admin_endow_admin_new } from "emails";
 import type { IInviteEmailPayload } from "@/queue";
 import { send_email } from "$/email";
 

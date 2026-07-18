@@ -21,3 +21,8 @@ pre-commit:
       # anchor on blog's tsconfig (sanity jsx=preserve, dom lib); separate from
       # platform since each member has its own tsconfig.
       run: pnpm tsc-files -p blog/tsconfig.json {staged_files}
+    type-check-emails:
+      glob: "emails/**/*.{ts,tsx}"
+      # anchor on emails' tsconfig (jsx=react-jsx, dom lib); separate from
+      # platform since each member has its own tsconfig.
+      run: pnpm tsc-files -p emails/tsconfig.json {staged_files}

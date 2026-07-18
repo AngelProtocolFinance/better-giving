@@ -1,6 +1,7 @@
 packages:
   - platform
   - blog
+  - emails
   - packages/types/*
 onlyBuiltDependencies:
   - '@biomejs/biome'

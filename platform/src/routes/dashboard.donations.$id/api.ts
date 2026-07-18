@@ -1,9 +1,9 @@
+import { valibotResolver } from "@hookform/resolvers/valibot";
 import {
   donation_receipt as dr,
   type IDonation as IDon,
   type IDonor,
-} from "@better-giving/react-emails";
-import { valibotResolver } from "@hookform/resolvers/valibot";
+} from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";

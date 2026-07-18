@@ -1,4 +1,4 @@
-import { donation_error as email } from "@better-giving/react-emails";
+import { donation_error as email } from "emails";
 import type { NP } from "@/nowpayments/types";
 import { send_email } from "$/email";
 import { np } from "$/kit/nowpayments";

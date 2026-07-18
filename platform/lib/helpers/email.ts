@@ -1,4 +1,4 @@
-import type { IAmount } from "@better-giving/react-emails";
+import type { IAmount } from "emails";
 import { rd_vdec, rd2num, usdpu } from "./decimal/utils";
 
 export const to_amount = (

@@ -1,4 +1,4 @@
-import { tip_notif } from "@better-giving/react-emails";
+import { tip_notif } from "emails";
 import { emails } from "@/constants/common";
 import { to_amount } from "@/helpers/email";
 import type { ITipReceivedPayload } from "@/queue";

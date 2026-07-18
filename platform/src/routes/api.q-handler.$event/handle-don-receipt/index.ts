@@ -1,7 +1,7 @@
 import {
   donation_private_message as dpm,
   donation_tribute_notif as dtn,
-} from "@better-giving/react-emails";
+} from "emails";
 import type { IDonation } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";

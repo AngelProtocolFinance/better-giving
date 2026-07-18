@@ -1,4 +1,4 @@
-import { fund_opt_out_notif } from "@better-giving/react-emails";
+import { fund_opt_out_notif } from "emails";
 import { report_error } from "@/errors/report";
 import type { IFundMemberRemovedPayload } from "@/queue";
 import { send_email } from "$/email";

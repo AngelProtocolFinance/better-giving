@@ -1,10 +1,10 @@
 import { dash } from "@better-auth/infra";
-import { cognito_signup, reset_password } from "@better-giving/react-emails";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { admin } from "better-auth/plugins/admin";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { eq, sql } from "drizzle-orm";
+import { cognito_signup, reset_password } from "emails";
 import { referral_id } from "#/helpers/referral";
 import { send_email } from "$/email";
 import { app, base_url, better_auth, google } from "$/env";

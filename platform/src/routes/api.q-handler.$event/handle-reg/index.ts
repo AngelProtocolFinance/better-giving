@@ -2,7 +2,7 @@ import {
   registration_approved,
   registration_new,
   registration_rejected,
-} from "@better-giving/react-emails";
+} from "emails";
 import type { CompanyProperties, ContactProperties } from "@/hubspot";
 import { Progress } from "@/reg/progress";
 import type { IReg } from "@/reg/schema";

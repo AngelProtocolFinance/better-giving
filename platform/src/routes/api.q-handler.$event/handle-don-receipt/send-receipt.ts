@@ -1,8 +1,4 @@
-import {
-  donation_receipt,
-  type IDonation as IDon,
-  type IDonor,
-} from "@better-giving/react-emails";
+import { donation_receipt, type IDonation as IDon, type IDonor } from "emails";
 import type { IDonation } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";

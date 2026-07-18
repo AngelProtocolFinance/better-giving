@@ -1,4 +1,4 @@
-import { donation_error as email } from "@better-giving/react-emails";
+import { donation_error as email } from "emails";
 import type Stripe from "stripe";
 import type { IMetadata } from "@/stripe";
 import { send_email } from "$/email";

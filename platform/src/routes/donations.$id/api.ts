@@ -1,8 +1,8 @@
+import { valibotResolver } from "@hookform/resolvers/valibot";
 import {
   donation_private_message as dpm,
   donation_tribute_notif as dtn,
-} from "@better-giving/react-emails";
-import { valibotResolver } from "@hookform/resolvers/valibot";
+} from "emails";
 import { href } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { get_session, to_auth } from "#/.server/auth";

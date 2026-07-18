@@ -1,4 +1,4 @@
-import { donation_transfer_notif } from "@better-giving/react-emails";
+import { donation_transfer_notif } from "emails";
 import type { ActionFunction } from "react-router";
 import * as v from "valibot";
 import { get_session } from "#/.server/auth";
