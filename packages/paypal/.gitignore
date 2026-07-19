@@ -1,0 +1,5 @@
+# build output (tsc)
+dist/
+
+# downloaded specs (refreshed by `generate`; src/generated is committed source)
+specs/
