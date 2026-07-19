@@ -5,13 +5,14 @@
     "includes": [
       "**",
       "!**/package.json",
-      "!platform/public/scripts/**/*",
-      "!platform/src/scripts/**/*.json",
-      "!platform/.server/pg/migrations",
-      "!platform/public/mockServiceWorker.js",
-      "!platform/src/types/sanity.types.ts",
-      "!blog/.sanity",
-      "!blog/dist"
+      "!apps/platform/public/scripts/**/*",
+      "!apps/platform/src/scripts/**/*.json",
+      "!apps/platform/.server/pg/migrations",
+      "!apps/platform/public/mockServiceWorker.js",
+      "!apps/platform/src/types/sanity.types.ts",
+      "!apps/blog/.sanity",
+      "!apps/blog/dist",
+      "!apps/emails-preview/.react-email"
     ]
   },
   "linter": {

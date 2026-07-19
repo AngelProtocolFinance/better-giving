@@ -1,6 +1,6 @@
 # custom
 notes
-platform/scripts/settle-cheque/*.json
+apps/platform/scripts/settle-cheque/*.json
 .claude/worktrees/
 
 # dependencies

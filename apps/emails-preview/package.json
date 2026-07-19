@@ -1,0 +1,27 @@
+{
+  "name": "emails-preview",
+  "private": true,
+  "description": "React Email preview site for Better Giving templates",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "email dev --dir emails --port 3001",
+    "build": "email build --dir emails",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "emails": "workspace:*"
+  },
+  "devDependencies": {
+    "@react-email/ui": "6.9.0",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-email": "6.9.0",
+    "typescript": "5.9.2"
+  }
+}
