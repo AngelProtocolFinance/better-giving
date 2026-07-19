@@ -3,28 +3,32 @@ import existing_symbols from "../generated/symbols.json" with { type: "json" };
 import type { ITokensMap } from "../types";
 import { custom_tokens } from "./custom.mts";
 import {
+  get_raw_tokens,
   get_tokens,
   process_tokens,
   to_processed,
   write_json,
 } from "./helpers.mts";
 
-const tokens = await get_tokens("v1");
-
 /// CHECK FOR NEW CHAINS ///
-const new_chains: string[] = [];
-const new_symbols: string[] = [];
-for (const token of tokens) {
-  if (!(existing_symbols as any)[token.code]) {
-    console.log(token);
-    new_symbols.push(token.code);
-  }
-
-  if (!(existing_chains as any)[token.network]) {
-    console.log(token);
-    new_chains.push(token.network);
-  }
-}
+// detect over the *raw* list, before get_tokens filters/probes — else a new
+// code/network is missed whenever its token is disabled, not conversion-ready,
+// or fails the min-amount probe, yet outputs still regenerate without it.
+const raw = await get_raw_tokens("v1");
+const new_chains = [
+  ...new Set(
+    raw
+      .filter((t) => t.network && !(existing_chains as any)[t.network])
+      .map((t) => t.network)
+  ),
+];
+const new_symbols = [
+  ...new Set(
+    raw
+      .filter((t) => t.code && !(existing_symbols as any)[t.code])
+      .map((t) => t.code)
+  ),
+];
 
 if (new_chains.length > 0) {
   console.log({ new_chains });
@@ -34,6 +38,8 @@ if (new_symbols.length > 0) {
   console.log({ new_symbols });
   throw "New tokens found. add them before proceeding";
 }
+
+const tokens = await get_tokens("v1");
 
 /// generate tokens list ///
 const list_id = process_tokens(

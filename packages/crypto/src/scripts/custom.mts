@@ -31,7 +31,7 @@ export const custom_tokens: IToken[] = [
     precision: 18,
     logo: "/icons/currencies/reef.png",
     network: "eth",
-    color: "##000",
+    color: "#000",
     cg_id: "reef",
   },
   {

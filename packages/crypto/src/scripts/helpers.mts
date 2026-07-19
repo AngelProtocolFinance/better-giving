@@ -11,11 +11,14 @@ import { base_url } from "./env.mts";
 const keyv = new Keyv();
 export type Filtered = TEnsure<IRawToken, "network">;
 
-export const get_tokens = async (
+// the unfiltered upstream list. new-chain/symbol detection runs over this so a
+// new code/network still surfaces when its token is disabled, not
+// conversion-ready, or fails the min-amount probe (all of which drop it from
+// get_tokens' filtered result).
+export const get_raw_tokens = async (
   ver: "staging" | "v1"
-): Promise<Filtered[]> => {
+): Promise<IRawToken[]> => {
   const base = `${base_url}/${ver}`;
-
   let tokens: IRawToken[] = (await keyv.get("tokens")) || [];
   if (tokens.length === 0) {
     tokens = await fetch(`${base}/crypto/v1/full-currencies`)
@@ -23,8 +26,22 @@ export const get_tokens = async (
       .then((data: any) => data.currencies);
     await keyv.set("tokens", tokens);
   }
+  return tokens;
+};
+
+export const get_tokens = async (
+  ver: "staging" | "v1"
+): Promise<Filtered[]> => {
+  const base = `${base_url}/${ver}`;
+  const tokens = await get_raw_tokens(ver);
 
   const filtered: Filtered[] = [];
+  // tokens reaching the probe are already enabled + conversion-ready per
+  // upstream flags, so a probe failure here is anomalous (transient outage,
+  // not a legit exclusion). collect and abort after the loop: the generated
+  // json is committed source, and overwriting it with a partial fetch would
+  // silently drop valid currencies.
+  const probe_errors: string[] = [];
   for (const t of tokens) {
     if (!t.enable || !t.network || !t.available_for_to_conversion) {
       console.log(
@@ -48,8 +65,12 @@ export const get_tokens = async (
       if ("code" in token) throw token;
       filtered.push(t as Filtered);
     } catch (err) {
-      console.error(ver, err);
+      console.error(ver, t.code, err);
+      probe_errors.push(t.code);
     }
+  }
+  if (probe_errors.length > 0) {
+    throw `min-amount probe failed for ${probe_errors.length} token(s): ${probe_errors.join(", ")}. aborting so committed token json isn't overwritten with partial data.`;
   }
   console.log("total tokens filtered", filtered.length);
   return filtered.toSorted((a, b) => a.priority - b.priority);
