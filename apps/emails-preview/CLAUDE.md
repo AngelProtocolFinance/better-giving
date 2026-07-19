@@ -21,7 +21,7 @@ React Email preview site, workspace member `emails-preview` (private, app). Rend
 
 `vercel.json`: `framework: nextjs`, `buildCommand` runs `build` then copies react-email's generated `.react-email/.next` up so `outputDirectory: ".next"` resolves. No `installCommand` — Vercel auto-detects pnpm and installs at the workspace root, which creates the `emails` `workspace:*` symlink.
 
-`buildCommand` is prefixed `npm_config_prod=false` on purpose: `email build` generates the `.react-email` app (package name `ui`) whose own build script needs `cross-env` (a devDependency), and react-email installs that app during the build. vercel sets `NODE_ENV=production`, so pnpm would skip devDeps and `cross-env` goes missing (`cross-env: command not found`) — the flag forces devDeps in.
+`buildCommand` is prefixed `npm_config_include=dev` on purpose: `email build` generates the `.react-email` app (package name `ui`) whose own build script needs `cross-env` (a devDependency), and react-email installs that app during the build **with npm** (its `-p/--packageManager` defaults to `npm`; we don't pass `-p`). vercel sets `NODE_ENV=production`, so npm omits devDeps and `cross-env` goes missing (`cross-env: command not found`) — `npm_config_include=dev` (npm's key, overrides the production omit) forces devDeps back in. note: it's an npm knob, not pnpm's — pnpm only runs the outer `build` script.
 
 ## Coding style
 
