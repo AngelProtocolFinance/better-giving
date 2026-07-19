@@ -31,3 +31,7 @@ pre-commit:
       # anchor on emails-preview' tsconfig (jsx=react-jsx, dom lib); separate
       # from emails since each member has its own tsconfig.
       run: pnpm tsc-files -p apps/emails-preview/tsconfig.json {staged_files}
+    # no type-check-paypal-sdk hook: src/ imports from build-generated,
+    # gitignored generated/ modules absent pre-commit, so tsc-files on staged
+    # src/*.ts would fail on missing imports. type-safety is enforced by the
+    # package's build in turbo/ci; biome check above still covers staged files.

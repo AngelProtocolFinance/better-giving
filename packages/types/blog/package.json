@@ -7,6 +7,10 @@
   "exports": {
     ".": "./index.ts"
   },
+  "scripts": {
+    "lint": "biome lint .",
+    "format": "biome check --write ."
+  },
   "peerDependencies": {
     "@sanity/client": "7.22.1",
     "groq": "6.5.0"

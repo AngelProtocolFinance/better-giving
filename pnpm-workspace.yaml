@@ -1,9 +1,11 @@
 packages:
   - apps/*
   - packages/emails
+  - packages/paypal-sdk
   - packages/types/*
 onlyBuiltDependencies:
   - '@biomejs/biome'
+  - '@openapitools/openapi-generator-cli'
   - '@tailwindcss/oxide'
   - esbuild
   - lefthook

@@ -12,7 +12,10 @@
       "!apps/platform/src/types/sanity.types.ts",
       "!apps/blog/.sanity",
       "!apps/blog/dist",
-      "!apps/emails-preview/.react-email"
+      "!apps/emails-preview/.react-email",
+      "!packages/paypal-sdk/generated",
+      "!packages/paypal-sdk/dist",
+      "!packages/paypal-sdk/specs"
     ]
   },
   "linter": {
