@@ -19,9 +19,7 @@ React Email preview site, workspace member `emails-preview` (private, app). Rend
 
 ## Deploy
 
-`vercel.json`: `framework: nextjs`, `buildCommand` runs `build` then copies react-email's generated `.react-email` app up so `outputDirectory: ".next"` resolves. No `installCommand` — Vercel auto-detects pnpm and installs at the workspace root, which creates the `emails` `workspace:*` symlink.
-
-`rm -rf ./node_modules` runs before the `cp`: pnpm's install leaves symlinked `node_modules` here, and `cp -rn .react-email/. ./` would crash trying to overwrite a symlink (e.g. `node_modules/react`) with react-email's real npm-installed dir. clearing it first lets the copy bring `.react-email`'s complete, version-matched deps up cleanly (the app was already built against them).
+`vercel.json`: `framework: nextjs`, `buildCommand` runs `build`, and `outputDirectory` points **straight at `.react-email/.next`** (react-email's official Vercel deploy path — do NOT copy `.next` up to the root). `email build` produces a real server-mode Next build inside `.react-email/`; letting Vercel's `@vercel/next` builder ingest that directory in place is what works. Copying it to the root instead makes the builder try to re-process a `.next` it didn't build and it ENOENTs on its own `routes-manifest-deterministic.json` artifact. No `installCommand` — Vercel auto-detects pnpm and installs at the workspace root, which creates the `emails` `workspace:*` symlink.
 
 `buildCommand` is prefixed `npm_config_include=dev` on purpose: `email build` generates the `.react-email` app (package name `ui`) whose own build script needs `cross-env` (a devDependency), and react-email installs that app during the build **with npm** (its `-p/--packageManager` defaults to `npm`; we don't pass `-p`). vercel sets `NODE_ENV=production`, so npm omits devDeps and `cross-env` goes missing (`cross-env: command not found`) — `npm_config_include=dev` (npm's key, overrides the production omit) forces devDeps back in. note: it's an npm knob, not pnpm's — pnpm only runs the outer `build` script.
 
