@@ -1,0 +1,1742 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PayPal Payments API",
+    "version": "1.0",
+    "description": "Use the Payments REST API to create, execute, and manage payments. This API is deprecated - migrate to v2 Payments or Checkout Orders API.",
+    "contact": {
+      "name": "PayPal Developer",
+      "url": "https://developer.paypal.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api-m.paypal.com",
+      "description": "Live Server"
+    },
+    {
+      "url": "https://api-m.sandbox.paypal.com",
+      "description": "Sandbox Server"
+    }
+  ],
+  "security": [
+    {
+      "OAuth2": ["https://uri.paypal.com/services/payments"]
+    }
+  ],
+  "paths": {
+    "/v1/payments/payment": {
+      "post": {
+        "summary": "Create payment",
+        "description": "Creates a sale, an authorized payment to be captured later, or an order. To create a payment, specify the payment method, payment and payer information, redirect URLs, and the payment transactions in the JSON request body. Include the intent to sale, authorize, or order.",
+        "operationId": "payment.create",
+        "tags": ["payments"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/payment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List payments",
+        "description": "Lists payments that were created by the create payment call and are in any state. The list shows the payments that are made to the merchant who makes the call.",
+        "operationId": "payment.list",
+        "tags": ["payments"],
+        "parameters": [
+          {
+            "name": "count",
+            "in": "query",
+            "description": "Number of items to return",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "maximum": 20
+            }
+          },
+          {
+            "name": "start_id",
+            "in": "query",
+            "description": "Resource ID that indicates the starting resource to return",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_index",
+            "in": "query",
+            "description": "Start index of the resources to return",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "Resource creation time as ISO8601 date-time format that indicates the start of a range of results",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "description": "Resource creation time as ISO8601 date-time format that indicates the end of a range of results",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "description": "Sort based on create_time or update_time",
+            "schema": {
+              "type": "string",
+              "enum": ["create_time", "update_time"]
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "description": "Sort order",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/payment_history"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/payment/{payment_id}": {
+      "get": {
+        "summary": "Show payment details",
+        "description": "Shows details for a payment, by ID, that is in any state. The payment can be created but not yet approved, approved but not yet executed, executed, or in a failed state.",
+        "operationId": "payment.get",
+        "tags": ["payments"],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "description": "Payment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/payment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update payment",
+        "description": "Updates a payment, by ID. Use this call to update the amount and shipping address for a payment that has an approved payment_method of PayPal and is in the created state.",
+        "operationId": "payment.update",
+        "tags": ["payments"],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "description": "Payment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/patch"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/payment"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/payment/{payment_id}/execute": {
+      "post": {
+        "summary": "Execute approved PayPal payment",
+        "description": "Executes a PayPal payment that the payer has approved. You can optionally update transaction information when you execute a payment.",
+        "operationId": "payment.execute",
+        "tags": ["payments"],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "description": "Payment ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["payer_id"],
+                "properties": {
+                  "payer_id": {
+                    "type": "string",
+                    "description": "The ID of the payer, passed in the return_url by PayPal."
+                  },
+                  "transactions": {
+                    "type": "array",
+                    "description": "Transactional details including the amount and item details.",
+                    "items": {
+                      "$ref": "#/components/schemas/transaction"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment executed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/payment"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/sale/{sale_id}": {
+      "get": {
+        "summary": "Show sale details",
+        "description": "Shows details for a sale, by ID. Returns only sales that were created through the REST API.",
+        "operationId": "sale.get",
+        "tags": ["sales"],
+        "parameters": [
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "description": "Sale ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sale details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/sale"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sale not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/sale/{sale_id}/refund": {
+      "post": {
+        "summary": "Refund sale",
+        "description": "Refunds a completed payment. Include an amount object in the JSON request body only for partial refunds. If the amount object is not included, the refund is for the full payment amount.",
+        "operationId": "sale.refund",
+        "tags": ["sales"],
+        "parameters": [
+          {
+            "name": "sale_id",
+            "in": "path",
+            "required": true,
+            "description": "Sale ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "$ref": "#/components/schemas/amount"
+                  },
+                  "invoice_number": {
+                    "type": "string",
+                    "description": "Invoice number for tracking purposes"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Reason for the refund"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Refund created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/refund"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/authorization/{authorization_id}": {
+      "get": {
+        "summary": "Show authorization details",
+        "description": "Shows details for an authorization, by ID.",
+        "operationId": "authorization.get",
+        "tags": ["authorizations"],
+        "parameters": [
+          {
+            "name": "authorization_id",
+            "in": "path",
+            "required": true,
+            "description": "Authorization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/authorization"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/authorization/{authorization_id}/capture": {
+      "post": {
+        "summary": "Capture authorization",
+        "description": "Captures and processes an authorization. To use this call, the original payment must have the intent set to authorize.",
+        "operationId": "authorization.capture",
+        "tags": ["authorizations"],
+        "parameters": [
+          {
+            "name": "authorization_id",
+            "in": "path",
+            "required": true,
+            "description": "Authorization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "$ref": "#/components/schemas/amount"
+                  },
+                  "is_final_capture": {
+                    "type": "boolean",
+                    "description": "Indicates whether to release all remaining funds held by the authorization"
+                  },
+                  "invoice_number": {
+                    "type": "string",
+                    "description": "Invoice number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Authorization captured successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/capture"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/authorization/{authorization_id}/void": {
+      "post": {
+        "summary": "Void authorization",
+        "description": "Voids, or cancels, an authorization. To use this call, the original payment must have intent set to authorize.",
+        "operationId": "authorization.void",
+        "tags": ["authorizations"],
+        "parameters": [
+          {
+            "name": "authorization_id",
+            "in": "path",
+            "required": true,
+            "description": "Authorization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization voided successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/authorization"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/authorization/{authorization_id}/reauthorize": {
+      "post": {
+        "summary": "Reauthorize payment",
+        "description": "Reauthorizes a PayPal account payment. A reauthorization triggers a new three-hour honor period and places the authorized amount on the customer's card for up to 29 days. To use this call, the original payment must have intent set to authorize.",
+        "operationId": "authorization.reauthorize",
+        "tags": ["authorizations"],
+        "parameters": [
+          {
+            "name": "authorization_id",
+            "in": "path",
+            "required": true,
+            "description": "Authorization ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "$ref": "#/components/schemas/amount"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reauthorization successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/authorization"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/capture/{capture_id}": {
+      "get": {
+        "summary": "Show capture details",
+        "description": "Shows details for a captured payment, by ID.",
+        "operationId": "capture.get",
+        "tags": ["captures"],
+        "parameters": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "required": true,
+            "description": "Capture ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capture details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/capture"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/capture/{capture_id}/refund": {
+      "post": {
+        "summary": "Refund captured payment",
+        "description": "Refunds a captured payment, by ID. Include an amount object in the JSON request body for partial refunds.",
+        "operationId": "capture.refund",
+        "tags": ["captures"],
+        "parameters": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "required": true,
+            "description": "Capture ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "$ref": "#/components/schemas/amount"
+                  },
+                  "invoice_number": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Refund created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/refund"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/payments/refund/{refund_id}": {
+      "get": {
+        "summary": "Show refund details",
+        "description": "Shows details for a refund, by ID.",
+        "operationId": "refund.get",
+        "tags": ["refunds"],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "description": "Refund ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/refund"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "OAuth2 client credentials flow",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://api-m.paypal.com/v1/oauth2/token",
+            "scopes": {
+              "https://uri.paypal.com/services/payments": "Manage payments"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "payment": {
+        "type": "object",
+        "description": "Payment object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Payment ID",
+            "readOnly": true
+          },
+          "intent": {
+            "type": "string",
+            "description": "Payment intent",
+            "enum": ["sale", "authorize", "order"]
+          },
+          "payer": {
+            "$ref": "#/components/schemas/payer"
+          },
+          "transactions": {
+            "type": "array",
+            "description": "Array of transactions",
+            "items": {
+              "$ref": "#/components/schemas/transaction"
+            }
+          },
+          "state": {
+            "type": "string",
+            "description": "Payment state",
+            "enum": ["created", "approved", "failed", "canceled", "expired"],
+            "readOnly": true
+          },
+          "experience_profile_id": {
+            "type": "string",
+            "description": "PayPal payment experience profile ID"
+          },
+          "note_to_payer": {
+            "type": "string",
+            "description": "Free-form field for merchant notes to payer"
+          },
+          "redirect_urls": {
+            "$ref": "#/components/schemas/redirect_urls"
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Payment creation time",
+            "readOnly": true
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Payment update time",
+            "readOnly": true
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      },
+      "payer": {
+        "type": "object",
+        "description": "Payer information",
+        "required": ["payment_method"],
+        "properties": {
+          "payment_method": {
+            "type": "string",
+            "description": "Payment method",
+            "enum": ["paypal", "credit_card"]
+          },
+          "status": {
+            "type": "string",
+            "description": "Payer status",
+            "enum": ["VERIFIED", "UNVERIFIED"],
+            "readOnly": true
+          },
+          "payer_info": {
+            "$ref": "#/components/schemas/payer_info"
+          },
+          "funding_instruments": {
+            "type": "array",
+            "description": "Array of funding instruments",
+            "items": {
+              "$ref": "#/components/schemas/funding_instrument"
+            }
+          }
+        }
+      },
+      "payer_info": {
+        "type": "object",
+        "description": "Payer information",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address"
+          },
+          "first_name": {
+            "type": "string",
+            "description": "First name"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "Last name"
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "PayPal account ID",
+            "readOnly": true
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number"
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/address"
+          },
+          "billing_address": {
+            "$ref": "#/components/schemas/address"
+          },
+          "country_code": {
+            "type": "string",
+            "description": "Two-letter country code"
+          }
+        }
+      },
+      "funding_instrument": {
+        "type": "object",
+        "description": "Funding instrument",
+        "properties": {
+          "credit_card": {
+            "$ref": "#/components/schemas/credit_card"
+          },
+          "credit_card_token": {
+            "$ref": "#/components/schemas/credit_card_token"
+          }
+        }
+      },
+      "credit_card": {
+        "type": "object",
+        "description": "Credit card information",
+        "required": ["number", "type", "expire_month", "expire_year"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Credit card ID",
+            "readOnly": true
+          },
+          "number": {
+            "type": "string",
+            "description": "Credit card number"
+          },
+          "type": {
+            "type": "string",
+            "description": "Credit card type",
+            "enum": ["visa", "mastercard", "discover", "amex"]
+          },
+          "expire_month": {
+            "type": "integer",
+            "description": "Expiration month (1-12)"
+          },
+          "expire_year": {
+            "type": "integer",
+            "description": "Expiration year (4 digits)"
+          },
+          "cvv2": {
+            "type": "string",
+            "description": "Card validation code"
+          },
+          "first_name": {
+            "type": "string",
+            "description": "Cardholder first name"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "Cardholder last name"
+          },
+          "billing_address": {
+            "$ref": "#/components/schemas/address"
+          }
+        }
+      },
+      "credit_card_token": {
+        "type": "object",
+        "description": "Credit card token",
+        "required": ["credit_card_id"],
+        "properties": {
+          "credit_card_id": {
+            "type": "string",
+            "description": "Credit card ID"
+          },
+          "payer_id": {
+            "type": "string",
+            "description": "Payer ID"
+          }
+        }
+      },
+      "transaction": {
+        "type": "object",
+        "description": "Transaction",
+        "required": ["amount"],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/amount"
+          },
+          "payee": {
+            "$ref": "#/components/schemas/payee"
+          },
+          "description": {
+            "type": "string",
+            "description": "Transaction description"
+          },
+          "note_to_payee": {
+            "type": "string",
+            "description": "Note to the recipient of the funds"
+          },
+          "custom": {
+            "type": "string",
+            "description": "Free-form field for client's use"
+          },
+          "invoice_number": {
+            "type": "string",
+            "description": "Invoice number"
+          },
+          "soft_descriptor": {
+            "type": "string",
+            "description": "Soft descriptor"
+          },
+          "payment_options": {
+            "$ref": "#/components/schemas/payment_options"
+          },
+          "item_list": {
+            "$ref": "#/components/schemas/item_list"
+          },
+          "notify_url": {
+            "type": "string",
+            "description": "URL to send IPN messages"
+          },
+          "related_resources": {
+            "type": "array",
+            "description": "Related resources",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/related_resource"
+            }
+          }
+        }
+      },
+      "amount": {
+        "type": "object",
+        "description": "Amount",
+        "required": ["currency", "total"],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "3-letter currency code",
+            "example": "USD"
+          },
+          "total": {
+            "type": "string",
+            "description": "Total amount",
+            "pattern": "^[0-9]+\\.[0-9]{2}$",
+            "example": "100.00"
+          },
+          "details": {
+            "$ref": "#/components/schemas/amount_details"
+          }
+        }
+      },
+      "amount_details": {
+        "type": "object",
+        "description": "Amount breakdown",
+        "properties": {
+          "subtotal": {
+            "type": "string",
+            "description": "Subtotal amount"
+          },
+          "tax": {
+            "type": "string",
+            "description": "Tax amount"
+          },
+          "shipping": {
+            "type": "string",
+            "description": "Shipping amount"
+          },
+          "handling_fee": {
+            "type": "string",
+            "description": "Handling fee"
+          },
+          "shipping_discount": {
+            "type": "string",
+            "description": "Shipping discount"
+          },
+          "insurance": {
+            "type": "string",
+            "description": "Insurance amount"
+          },
+          "gift_wrap": {
+            "type": "string",
+            "description": "Gift wrap amount"
+          }
+        }
+      },
+      "payee": {
+        "type": "object",
+        "description": "Payee information",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Payee email"
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "Merchant ID"
+          }
+        }
+      },
+      "item_list": {
+        "type": "object",
+        "description": "List of items",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Array of items",
+            "items": {
+              "$ref": "#/components/schemas/item"
+            }
+          },
+          "shipping_address": {
+            "$ref": "#/components/schemas/address"
+          }
+        }
+      },
+      "item": {
+        "type": "object",
+        "description": "Item details",
+        "required": ["name", "quantity", "price", "currency"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Item description"
+          },
+          "quantity": {
+            "type": "string",
+            "description": "Item quantity"
+          },
+          "price": {
+            "type": "string",
+            "description": "Item price"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency code"
+          },
+          "tax": {
+            "type": "string",
+            "description": "Item tax"
+          },
+          "sku": {
+            "type": "string",
+            "description": "Stock keeping unit"
+          }
+        }
+      },
+      "address": {
+        "type": "object",
+        "description": "Address",
+        "properties": {
+          "line1": {
+            "type": "string",
+            "description": "Address line 1"
+          },
+          "line2": {
+            "type": "string",
+            "description": "Address line 2"
+          },
+          "city": {
+            "type": "string",
+            "description": "City"
+          },
+          "state": {
+            "type": "string",
+            "description": "State or province"
+          },
+          "postal_code": {
+            "type": "string",
+            "description": "Postal code"
+          },
+          "country_code": {
+            "type": "string",
+            "description": "Two-letter country code"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number"
+          },
+          "recipient_name": {
+            "type": "string",
+            "description": "Recipient name"
+          }
+        }
+      },
+      "payment_options": {
+        "type": "object",
+        "description": "Payment options",
+        "properties": {
+          "allowed_payment_method": {
+            "type": "string",
+            "description": "Payment method type",
+            "enum": ["UNRESTRICTED", "INSTANT_FUNDING_SOURCE", "IMMEDIATE_PAY"]
+          }
+        }
+      },
+      "redirect_urls": {
+        "type": "object",
+        "description": "Redirect URLs",
+        "required": ["return_url", "cancel_url"],
+        "properties": {
+          "return_url": {
+            "type": "string",
+            "description": "URL to redirect after payer approval"
+          },
+          "cancel_url": {
+            "type": "string",
+            "description": "URL to redirect after payer cancellation"
+          }
+        }
+      },
+      "related_resource": {
+        "type": "object",
+        "description": "Related resource",
+        "properties": {
+          "sale": {
+            "$ref": "#/components/schemas/sale"
+          },
+          "authorization": {
+            "$ref": "#/components/schemas/authorization"
+          },
+          "order": {
+            "$ref": "#/components/schemas/order"
+          },
+          "capture": {
+            "$ref": "#/components/schemas/capture"
+          },
+          "refund": {
+            "$ref": "#/components/schemas/refund"
+          }
+        }
+      },
+      "sale": {
+        "type": "object",
+        "description": "Sale transaction",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Sale ID",
+            "readOnly": true
+          },
+          "purchase_unit_reference_id": {
+            "type": "string",
+            "description": "Reference ID for purchase unit",
+            "readOnly": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/amount"
+          },
+          "payment_mode": {
+            "type": "string",
+            "description": "Payment mode",
+            "enum": [
+              "INSTANT_TRANSFER",
+              "MANUAL_BANK_TRANSFER",
+              "DELAYED_TRANSFER",
+              "ECHECK"
+            ],
+            "readOnly": true
+          },
+          "state": {
+            "type": "string",
+            "description": "Sale state",
+            "enum": [
+              "pending",
+              "completed",
+              "refunded",
+              "partially_refunded",
+              "denied"
+            ],
+            "readOnly": true
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "Reason code for pending state",
+            "readOnly": true
+          },
+          "protection_eligibility": {
+            "type": "string",
+            "description": "Protection eligibility",
+            "enum": ["ELIGIBLE", "PARTIALLY_ELIGIBLE", "INELIGIBLE"],
+            "readOnly": true
+          },
+          "protection_eligibility_type": {
+            "type": "string",
+            "description": "Protection eligibility type",
+            "readOnly": true
+          },
+          "clearing_time": {
+            "type": "string",
+            "description": "Expected clearing time",
+            "readOnly": true
+          },
+          "transaction_fee": {
+            "$ref": "#/components/schemas/currency"
+          },
+          "receivable_amount": {
+            "$ref": "#/components/schemas/currency"
+          },
+          "exchange_rate": {
+            "type": "string",
+            "description": "Exchange rate",
+            "readOnly": true
+          },
+          "fmf_details": {
+            "$ref": "#/components/schemas/fmf_details"
+          },
+          "receipt_id": {
+            "type": "string",
+            "description": "Receipt ID",
+            "readOnly": true
+          },
+          "parent_payment": {
+            "type": "string",
+            "description": "Parent payment ID",
+            "readOnly": true
+          },
+          "processor_response": {
+            "$ref": "#/components/schemas/processor_response"
+          },
+          "billing_agreement_id": {
+            "type": "string",
+            "description": "Billing agreement ID",
+            "readOnly": true
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "readOnly": true
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Update time",
+            "readOnly": true
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      },
+      "authorization": {
+        "type": "object",
+        "description": "Authorization",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Authorization ID",
+            "readOnly": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/amount"
+          },
+          "payment_mode": {
+            "type": "string",
+            "description": "Payment mode",
+            "readOnly": true
+          },
+          "state": {
+            "type": "string",
+            "description": "Authorization state",
+            "enum": [
+              "pending",
+              "authorized",
+              "partially_captured",
+              "captured",
+              "expired",
+              "voided"
+            ],
+            "readOnly": true
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "Reason code",
+            "readOnly": true
+          },
+          "protection_eligibility": {
+            "type": "string",
+            "description": "Protection eligibility",
+            "readOnly": true
+          },
+          "protection_eligibility_type": {
+            "type": "string",
+            "description": "Protection eligibility type",
+            "readOnly": true
+          },
+          "fmf_details": {
+            "$ref": "#/components/schemas/fmf_details"
+          },
+          "parent_payment": {
+            "type": "string",
+            "description": "Parent payment ID",
+            "readOnly": true
+          },
+          "processor_response": {
+            "$ref": "#/components/schemas/processor_response"
+          },
+          "valid_until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Authorization expiration time",
+            "readOnly": true
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "readOnly": true
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Update time",
+            "readOnly": true
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      },
+      "order": {
+        "type": "object",
+        "description": "Order",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Order ID",
+            "readOnly": true
+          },
+          "purchase_unit_reference_id": {
+            "type": "string",
+            "description": "Reference ID",
+            "readOnly": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/amount"
+          },
+          "payment_mode": {
+            "type": "string",
+            "description": "Payment mode",
+            "readOnly": true
+          },
+          "state": {
+            "type": "string",
+            "description": "Order state",
+            "enum": [
+              "pending",
+              "completed",
+              "refunded",
+              "partially_refunded",
+              "voided"
+            ],
+            "readOnly": true
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "Reason code",
+            "readOnly": true
+          },
+          "protection_eligibility": {
+            "type": "string",
+            "description": "Protection eligibility",
+            "readOnly": true
+          },
+          "parent_payment": {
+            "type": "string",
+            "description": "Parent payment ID",
+            "readOnly": true
+          },
+          "fmf_details": {
+            "$ref": "#/components/schemas/fmf_details"
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "readOnly": true
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Update time",
+            "readOnly": true
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      },
+      "capture": {
+        "type": "object",
+        "description": "Capture",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Capture ID",
+            "readOnly": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/amount"
+          },
+          "is_final_capture": {
+            "type": "boolean",
+            "description": "Indicates final capture"
+          },
+          "state": {
+            "type": "string",
+            "description": "Capture state",
+            "enum": [
+              "pending",
+              "completed",
+              "refunded",
+              "partially_refunded",
+              "denied"
+            ],
+            "readOnly": true
+          },
+          "reason_code": {
+            "type": "string",
+            "description": "Reason code",
+            "readOnly": true
+          },
+          "parent_payment": {
+            "type": "string",
+            "description": "Parent payment ID",
+            "readOnly": true
+          },
+          "invoice_number": {
+            "type": "string",
+            "description": "Invoice number"
+          },
+          "transaction_fee": {
+            "$ref": "#/components/schemas/currency"
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "readOnly": true
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Update time",
+            "readOnly": true
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      },
+      "refund": {
+        "type": "object",
+        "description": "Refund",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Refund ID",
+            "readOnly": true
+          },
+          "amount": {
+            "$ref": "#/components/schemas/amount"
+          },
+          "state": {
+            "type": "string",
+            "description": "Refund state",
+            "enum": ["pending", "completed", "cancelled", "failed"],
+            "readOnly": true
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for refund"
+          },
+          "invoice_number": {
+            "type": "string",
+            "description": "Invoice number"
+          },
+          "sale_id": {
+            "type": "string",
+            "description": "Sale ID being refunded",
+            "readOnly": true
+          },
+          "capture_id": {
+            "type": "string",
+            "description": "Capture ID being refunded",
+            "readOnly": true
+          },
+          "parent_payment": {
+            "type": "string",
+            "description": "Parent payment ID",
+            "readOnly": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Refund description"
+          },
+          "create_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "readOnly": true
+          },
+          "update_time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Update time",
+            "readOnly": true
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "readOnly": true,
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      },
+      "currency": {
+        "type": "object",
+        "description": "Currency amount",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Currency code"
+          },
+          "value": {
+            "type": "string",
+            "description": "Amount value"
+          }
+        }
+      },
+      "fmf_details": {
+        "type": "object",
+        "description": "Fraud Management Filter details",
+        "properties": {
+          "filter_type": {
+            "type": "string",
+            "description": "Filter type"
+          },
+          "filter_id": {
+            "type": "string",
+            "description": "Filter ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Filter name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Filter description"
+          }
+        }
+      },
+      "processor_response": {
+        "type": "object",
+        "description": "Processor response",
+        "properties": {
+          "response_code": {
+            "type": "string",
+            "description": "Response code"
+          },
+          "avs_code": {
+            "type": "string",
+            "description": "Address Verification System response code"
+          },
+          "cvv_code": {
+            "type": "string",
+            "description": "CVV response code"
+          },
+          "advice_code": {
+            "type": "string",
+            "description": "Advice code"
+          },
+          "eci_submitted": {
+            "type": "string",
+            "description": "Electronic Commerce Indicator submitted"
+          },
+          "vpas": {
+            "type": "string",
+            "description": "Visa Payer Authentication Service status"
+          }
+        }
+      },
+      "payment_history": {
+        "type": "object",
+        "description": "Payment history",
+        "properties": {
+          "payments": {
+            "type": "array",
+            "description": "Array of payments",
+            "items": {
+              "$ref": "#/components/schemas/payment"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of items in this page"
+          },
+          "next_id": {
+            "type": "string",
+            "description": "ID for next page"
+          }
+        }
+      },
+      "patch": {
+        "type": "object",
+        "description": "JSON Patch operation",
+        "required": ["op", "path"],
+        "properties": {
+          "op": {
+            "type": "string",
+            "description": "Operation",
+            "enum": ["add", "remove", "replace", "move", "copy", "test"]
+          },
+          "path": {
+            "type": "string",
+            "description": "JSON Pointer to target location"
+          },
+          "value": {
+            "description": "New value"
+          },
+          "from": {
+            "type": "string",
+            "description": "JSON Pointer for move/copy operations"
+          }
+        }
+      },
+      "link": {
+        "type": "object",
+        "description": "HATEOAS link",
+        "properties": {
+          "href": {
+            "type": "string",
+            "description": "Target URL"
+          },
+          "rel": {
+            "type": "string",
+            "description": "Link relation"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method",
+            "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"]
+          }
+        }
+      },
+      "error": {
+        "type": "object",
+        "description": "Error response",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Error name"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "debug_id": {
+            "type": "string",
+            "description": "Debug ID for PayPal support"
+          },
+          "details": {
+            "type": "array",
+            "description": "Error details",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Field that caused error"
+                },
+                "issue": {
+                  "type": "string",
+                  "description": "Issue description"
+                }
+              }
+            }
+          },
+          "links": {
+            "type": "array",
+            "description": "HATEOAS links",
+            "items": {
+              "$ref": "#/components/schemas/link"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "payments",
+      "description": "Payment operations"
+    },
+    {
+      "name": "sales",
+      "description": "Sale operations"
+    },
+    {
+      "name": "authorizations",
+      "description": "Authorization operations"
+    },
+    {
+      "name": "captures",
+      "description": "Capture operations"
+    },
+    {
+      "name": "refunds",
+      "description": "Refund operations"
+    }
+  ]
+}

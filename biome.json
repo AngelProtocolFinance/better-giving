@@ -19,9 +19,9 @@
       "!apps/blog/.sanity",
       "!apps/blog/dist",
       "!apps/emails-preview/.react-email",
-      "!packages/paypal-sdk/generated",
-      "!packages/paypal-sdk/dist",
-      "!packages/paypal-sdk/specs",
+      "!packages/paypal/src/generated",
+      "!packages/paypal/dist",
+      "!packages/paypal/specs",
       "!packages/crypto/dist",
       "!packages/crypto/src/generated/tokens"
     ]

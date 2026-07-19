@@ -2,14 +2,13 @@ packages:
   - apps/*
   - packages/crypto
   - packages/emails
-  - packages/paypal-sdk
+  - packages/paypal
   - packages/types/*
 catalog:
   typescript: 5.9.2
   '@types/node': 24.0.4
 onlyBuiltDependencies:
   - '@biomejs/biome'
-  - '@openapitools/openapi-generator-cli'
   - '@tailwindcss/oxide'
   - esbuild
   - lefthook

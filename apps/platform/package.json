@@ -36,7 +36,7 @@
     "@better-auth/infra": "0.3.2",
     "@better-giving/chariot": "1.0.0",
     "@better-giving/crypto": "workspace:*",
-    "@better-giving/paypal": "1.5.1",
+    "@better-giving/paypal": "workspace:*",
     "@better-giving/stocks": "1.0.2",
     "@fontsource-variable/quicksand": "5.2.10",
     "@fontsource/gochi-hand": "5.2.8",

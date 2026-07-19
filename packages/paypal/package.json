@@ -1,0 +1,41 @@
+{
+  "name": "@better-giving/paypal",
+  "version": "1.5.1",
+  "private": true,
+  "description": "TypeScript type definitions generated from PayPal OpenAPI specifications",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "generate": "tsx scripts/download-specs.ts && tsx scripts/generate-types.ts",
+    "clean": "rm -rf dist specs",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "keywords": [
+    "paypal",
+    "typescript",
+    "types",
+    "openapi",
+    "rest-api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "24.0.4",
+    "openapi-typescript": "7.4.4",
+    "tsx": "4.19.2",
+    "typescript": "5.9.2"
+  }
+}
