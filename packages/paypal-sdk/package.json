@@ -70,7 +70,7 @@
     "generate": "node scripts/generate-sdk.js && node scripts/fix-generated.js",
     "build": "pnpm run clean && pnpm run generate && tsc",
     "clean": "rm -rf generated dist",
-    "lint": "biome lint .",
+    "lint": "biome check .",
     "format": "biome check --write ."
   },
   "sideEffects": false,

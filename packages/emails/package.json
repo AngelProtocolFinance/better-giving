@@ -12,7 +12,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint .",
+    "lint": "biome check .",
     "format": "biome check --write ."
   },
   "peerDependencies": {

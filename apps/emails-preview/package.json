@@ -10,7 +10,7 @@
     "dev": "email dev --dir emails --port 3001",
     "build": "email build --dir emails",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint .",
+    "lint": "biome check .",
     "format": "biome check --write ."
   },
   "dependencies": {
