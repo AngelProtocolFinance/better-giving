@@ -3,6 +3,7 @@ packages:
   - packages/crypto
   - packages/emails
   - packages/paypal
+  - packages/stocks
   - packages/types/*
 catalog:
   typescript: 5.9.2
