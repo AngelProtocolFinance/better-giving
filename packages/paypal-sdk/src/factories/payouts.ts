@@ -1,10 +1,8 @@
 import * as payouts_module from "../../generated/payouts/index.js";
 import type { PayPalClient } from "../client.js";
+import { apply_client } from "../configure.js";
 
-export const create_payouts_service = (client: PayPalClient) => {
-  payouts_module.OpenAPI.BASE = client.get_base_url();
-  payouts_module.OpenAPI.TOKEN = async () => await client.get_access_token();
-  return payouts_module;
-};
+export const create_payouts_service = (client: PayPalClient) =>
+  apply_client(payouts_module, client);
 
 export type PayoutsService = typeof payouts_module;

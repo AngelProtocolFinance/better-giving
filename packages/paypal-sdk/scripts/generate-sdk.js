@@ -85,7 +85,10 @@ async function generateAll() {
       });
       console.log(`✅ ${api.name} generated successfully\n`);
     } catch (error) {
+      // fail the whole build — don't write export maps advertising subpaths whose
+      // generated/<api>/index.ts is missing or incomplete
       console.error(`❌ Error generating ${api.name}:`, error.message);
+      throw error;
     }
   }
 

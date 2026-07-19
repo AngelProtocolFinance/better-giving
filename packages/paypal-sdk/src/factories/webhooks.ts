@@ -1,10 +1,8 @@
 import * as webhooks_module from "../../generated/webhooks/index.js";
 import type { PayPalClient } from "../client.js";
+import { apply_client } from "../configure.js";
 
-export const create_webhooks_service = (client: PayPalClient) => {
-  webhooks_module.OpenAPI.BASE = client.get_base_url();
-  webhooks_module.OpenAPI.TOKEN = async () => await client.get_access_token();
-  return webhooks_module;
-};
+export const create_webhooks_service = (client: PayPalClient) =>
+  apply_client(webhooks_module, client);
 
 export type WebhooksService = typeof webhooks_module;
