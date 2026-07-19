@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npm_config_include=dev pnpm run build",
-  "outputDirectory": ".react-email/.next"
+  "buildCommand": "npm_config_include=dev pnpm run build && cp -a .react-email/.next ./.next"
 }
