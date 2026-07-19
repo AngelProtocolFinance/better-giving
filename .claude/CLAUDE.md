@@ -24,8 +24,8 @@ Run from repo root; turbo delegates into members:
 - `pnpm dev:emails-preview` — local react-email preview server (or `pnpm --filter emails-preview dev`)
 - `pnpm build` — `turbo run build`
 - `pnpm test` — `turbo run test`
-- `pnpm lint` — `turbo run lint`
-- `pnpm format` — `turbo run format`
+- `pnpm lint` — `biome check .` (single root pass, not turbo — see Tooling → Biome)
+- `pnpm format` — `biome check --write .` (single root pass)
 
 Invoke a member binary from anywhere: `pnpm --filter <pkg> exec <bin>`.
 
@@ -33,7 +33,7 @@ Invoke a member binary from anywhere: `pnpm --filter <pkg> exec <bin>`.
 
 - lefthook, biome, turbo, and `tsconfig.base.json` live at root — repo-wide, not per-package.
 - **TS topology**: root `tsconfig.base.json` holds shared policy (strict, module/target, `noEmit`); each member's `tsconfig.json` extends it and layers on env/jsx/aliases/includes. Root has no `tsconfig.json` (only the base, which tsc never opens standalone) — lefthook `type-check` anchors on `apps/platform/tsconfig.json`. **Exception: `packages/paypal-sdk`** is a build package — its `tsconfig.json` is standalone (does not extend the base) so it can emit `dist/`; it has no pre-commit `type-check` hook (its `src/` imports gitignored generated code, absent pre-commit — type safety enforced by the build in turbo/CI).
-- **Biome**: single root `biome.json` governs all members (upward traversal finds it for every file).
+- **Biome**: single root `biome.json` governs all members (upward traversal finds it for every file). Lint/format run as **one root pass** (`biome check .`) — not fanned out through turbo — so root-level files (`turbo.json`, `tsconfig.base.json`, etc.) and every member are covered at once. VCS integration is on (`vcs.useIgnoreFile`), so `.gitignore`d artifacts (`dist`, `build`, `.turbo`, `.react-router`, `coverage`, …) drop out automatically; the `files.includes` list only adds excludes VCS can't infer. `**/package.json` is excluded (biome would collapse hand-maintained arrays). Per-member `lint`/`format` scripts (scoped to `.`) exist for granular `--filter` runs and inherit the same root config. Turbo still owns `build`/`test`.
 - **Shared dep versions**: repo-wide `typescript`/`@types/node` versions live in the `pnpm-workspace.yaml` `catalog:` — members reference `"catalog:"`, not a pinned version. Node is pinned via root `.nvmrc` (`24`) + root `package.json` `engines.node` (source of truth; per-member `engines` don't inherit under pnpm and are just informational).
 - **Pre-commit**: lefthook runs biome check, tsc-files, and related vitest — don't skip with `--no-verify`.
 

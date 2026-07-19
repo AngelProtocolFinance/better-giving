@@ -7,9 +7,9 @@
     "start": "react-router-serve build/server/index.js",
     "build": "react-router build",
     "postbuild": "drizzle-kit migrate",
-    "format": "biome check --write src .server lib jobs",
+    "format": "biome check --write .",
     "format-unsafe": "biome check --write --unsafe src",
-    "lint": "biome check ./src",
+    "lint": "biome check .",
     "dev": "bash ./scripts/dev.sh",
     "test": "vitest --run --bail 1",
     "coverage": "vitest --run --coverage --bail 1"

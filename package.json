@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "biome check .",
     "test": "turbo run test",
-    "format": "turbo run format",
+    "format": "biome check --write .",
     "typegen": "turbo run typegen",
     "dev": "turbo run dev --filter=platform",
     "dev:blog": "turbo run dev --filter=blog",

@@ -11,8 +11,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "lint": "biome lint src",
-    "format": "biome check --write src",
+    "lint": "biome lint .",
+    "format": "biome check --write .",
     "generate-tokens": "node --env-file=.env ./src/scripts/generate-tokens.mts"
   },
   "devDependencies": {

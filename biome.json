@@ -1,6 +1,11 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "**",
@@ -10,6 +15,7 @@
       "!apps/platform/.server/pg/migrations",
       "!apps/platform/public/mockServiceWorker.js",
       "!apps/platform/src/types/sanity.types.ts",
+      "!apps/platform/public/.well-known",
       "!apps/blog/.sanity",
       "!apps/blog/dist",
       "!apps/emails-preview/.react-email",
