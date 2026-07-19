@@ -12,7 +12,13 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["build/**", ".react-router/**", "dist/**", ".react-email/**"],
+      "outputs": [
+        "build/**",
+        ".react-router/**",
+        "dist/**",
+        "generated/**",
+        ".react-email/**"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "env": [
         "STAGE",
