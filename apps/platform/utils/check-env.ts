@@ -46,7 +46,11 @@ export function check_env(mode: string) {
     }
   }
 
-  return env as Record<ServerKey | ClientKey, string> & {
+  // STAGE/VITE_STAGE narrowed to the validated union (checked above) so the
+  // returned view satisfies test.env's Partial<ProcessEnv> in vite.config.ts.
+  return env as unknown as Record<ServerKey | ClientKey, string> & {
+    STAGE: "staging" | "production" | "local";
+    VITE_STAGE: "staging" | "production" | "local";
     VERCEL_GIT_COMMIT_SHA?: string;
     VITEST?: string;
   };

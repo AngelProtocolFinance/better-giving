@@ -22,7 +22,8 @@
     "./.server/**/*.ts",
     "./.server/**/*.tsx",
     "./plugins/**/*.ts",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "vite.config.ts"
   ],
   "exclude": ["./src/scripts/**/*"]
 }

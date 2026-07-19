@@ -265,6 +265,7 @@ export function calc_settlement_plan(
         date: tip_log.date,
         npo_name: ctx.name,
         npo_id: ctx.id,
+        is_recurring: don.frequency !== "one-time",
         type_tip: tip_log.type_tip!,
       })
     );

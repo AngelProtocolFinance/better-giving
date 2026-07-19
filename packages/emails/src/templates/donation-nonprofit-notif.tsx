@@ -82,6 +82,6 @@ export const template = (data: IData) => {
     node: <Jsx {...data} />,
     subject: data.claimed
       ? `Donation to ${data.to_name}`
-      : `Donation to Unclaimed NPO: ${data.to_id} ${data.to_name}`,
+      : `Donation to Unclaimed NPO: ${data.to_name}`,
   };
 };

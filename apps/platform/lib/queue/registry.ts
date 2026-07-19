@@ -85,6 +85,7 @@ export interface ITipReceivedPayload {
   date: string;
   npo_name: string;
   npo_id: number;
+  is_recurring: boolean;
   type_tip: {
     input: number;
     denom: string;

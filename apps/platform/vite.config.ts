@@ -31,12 +31,16 @@ export default defineConfig((config) => {
       },
       config
     );
+  const plugins = [devtools_json(), inline_binary(), rr7, tailwind(), sentry];
   return {
     base: asset_base,
     build: { outDir: "build", target: "es2022", sourcemap: "hidden" },
+    // `emails` exports raw .tsx (no build step); bundle it into the ssr build so
+    // node never tries to import untranspiled tsx at runtime (api/auth email paths).
+    ssr: { noExternal: ["emails"] },
     server: { port: 4200, strictPort: true, allowedHosts: [".ngrok-free.app"] },
     resolve: { tsconfigPaths: true },
-    plugins: [devtools_json(), inline_binary(), rr7, tailwind(), sentry],
+    plugins,
     test: {
       setupFiles: [
         "./src/setup-tests-browser.ts",

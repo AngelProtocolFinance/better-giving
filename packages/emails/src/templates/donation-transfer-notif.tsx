@@ -35,6 +35,7 @@ function Jsx(d: IData) {
         value={d.type === "stocks" ? "Stock Donation" : "IRA/QCD Donation"}
       />
       <KeyValue label="Recipient" value={d.recipient_name} />
+      <KeyValue label="Recipient URL" value={d.recipient_url} />
       {is_stocks(d.type, d.details) ? (
         <>
           <KeyValue label="Ticker" value={d.details.ticker} />

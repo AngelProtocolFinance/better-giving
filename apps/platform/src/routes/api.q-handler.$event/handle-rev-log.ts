@@ -16,6 +16,7 @@ export async function handle_tip_received(data: ITipReceivedPayload) {
     ),
     to_name: data.npo_name,
     to_id: data.npo_id.toString(),
+    is_recurring: data.is_recurring,
   });
 
   const res = await send_email({

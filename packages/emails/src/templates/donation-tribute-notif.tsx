@@ -22,13 +22,11 @@ function Jsx(d: IData) {
       <Text>Dear {d.notif_to_full_name},</Text>
 
       <Text>
-        {d.from_msg || (
-          <>
-            This is to inform you that {from_display} has just made a donation
-            to {d.to_name} for {format_amount(d.amount)}
-          </>
-        )}
+        This is to inform you that {from_display} has just made a donation to{" "}
+        {d.to_name} for {format_amount(d.amount)}
       </Text>
+
+      {d.from_msg && <Text>{d.from_msg}</Text>}
     </PublicLayout>
   );
 }
