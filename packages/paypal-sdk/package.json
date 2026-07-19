@@ -1,6 +1,5 @@
 {
   "name": "@better-giving/paypal-sdk",
-  "version": "2.1.0",
   "private": true,
   "description": "TypeScript SDK for PayPal REST APIs generated from official OpenAPI specifications",
   "type": "module",
@@ -67,9 +66,6 @@
       "import": "./dist/generated/transactions/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "generate": "node scripts/generate-sdk.js && node scripts/fix-generated.js",
     "build": "pnpm run clean && pnpm run generate && tsc",
@@ -77,13 +73,12 @@
     "lint": "biome lint src scripts",
     "format": "biome check --write src scripts"
   },
-  "license": "MIT",
   "sideEffects": false,
   "devDependencies": {
     "@openapitools/openapi-generator-cli": "2.14.0",
-    "@types/node": "24.0.4",
+    "@types/node": "catalog:",
     "form-data": "4.0.5",
     "openapi-typescript-codegen": "0.29.0",
-    "typescript": "5.9.2"
+    "typescript": "catalog:"
   }
 }

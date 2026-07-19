@@ -15,7 +15,9 @@
       "!apps/emails-preview/.react-email",
       "!packages/paypal-sdk/generated",
       "!packages/paypal-sdk/dist",
-      "!packages/paypal-sdk/specs"
+      "!packages/paypal-sdk/specs",
+      "!packages/crypto/dist",
+      "!packages/crypto/src/generated/tokens"
     ]
   },
   "linter": {

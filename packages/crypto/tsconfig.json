@@ -1,0 +1,10 @@
+{
+  // type-check only (noEmit, module:preserve from base) — tsup owns emit.
+  // resolveJsonModule for the committed src/generated/**.json imports (base
+  // already sets it; kept here as intent).
+  // allowImportingTsExtensions: scripts/*.ts import siblings with explicit .ts
+  // extensions so `node` (native TS) can resolve them when running generate-tokens.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "allowImportingTsExtensions": true },
+  "include": ["src"]
+}
