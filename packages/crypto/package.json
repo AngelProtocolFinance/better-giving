@@ -1,0 +1,23 @@
+{
+  "name": "@better-giving/crypto",
+  "private": true,
+  "description": "Crypto token + chain data library (NOWPayments-derived), built via tsup",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "generate-tokens": "node --env-file=.env ./src/scripts/generate-tokens.mts"
+  },
+  "devDependencies": {
+    "keyv": "5.3.1",
+    "tsup": "8.2.4",
+    "typescript": "catalog:"
+  }
+}

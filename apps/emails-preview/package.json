@@ -10,8 +10,8 @@
     "dev": "email dev --dir emails --port 3001",
     "build": "email build --dir emails",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint emails",
-    "format": "biome check --write emails"
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "emails": "workspace:*"
@@ -24,6 +24,6 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-email": "6.9.0",
-    "typescript": "5.9.2"
+    "typescript": "catalog:"
   }
 }

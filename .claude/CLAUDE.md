@@ -10,9 +10,10 @@ Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code; eac
 - **`apps/emails-preview/`** — react-email preview site (workspace member, package `emails-preview`, private, app). Depends on `emails` via `workspace:*`; renders each template as a preview entry (`email dev`/`email build`). Deployed as its **own Vercel project** (Root Directory = `apps/emails-preview`), independent of platform. See `apps/emails-preview/CLAUDE.md`.
 - **`packages/emails/`** — React Email templates as a source package (internal package `emails`, private). Pure React component lib (`src/` only); consumed by platform via `workspace:*` — exports raw `.ts`/`.tsx` (`exports: "./src/index.ts"`), no build step / no `dist/`, platform's compiler transpiles it. Not deployable on its own. See `packages/emails/CLAUDE.md`.
 - **`packages/types/blog/`** — internal package `blog-types`: blog's generated types + copied groq queries + hand-authored project coords, consumed by platform. blog produces, platform consumes; platform never imports blog directly.
-- **`packages/paypal-sdk/`** — internal package `@better-giving/paypal-sdk` (private): a **built** codegen SDK for PayPal REST APIs. OpenAPI specs → `generate` → `tsc` → `dist/` (both gitignored). The lone member that emits + ships `dist/` and does NOT extend `tsconfig.base.json` (base is `noEmit`). See `packages/paypal-sdk/CLAUDE.md`.
+- **`packages/paypal-sdk/`** — internal package `@better-giving/paypal-sdk` (private): a **built** codegen SDK for PayPal REST APIs. OpenAPI specs → `generate` → `tsc` → `dist/` (both gitignored). Emits + ships `dist/`, and the lone member that does NOT extend `tsconfig.base.json` (it emits via raw `tsc`; base is `noEmit`). See `packages/paypal-sdk/CLAUDE.md`.
+- **`packages/crypto/`** — internal package `@better-giving/crypto` (private): a **built** crypto token + chain data lib, zero runtime deps. Built via **tsup** → `dist/index.mjs` + `.d.ts` (gitignored). Consumed by platform via `workspace:*`. `src/generated/**` JSON is committed source (occasional `generate-tokens` maintenance script), NOT a build artifact. Unlike paypal-sdk it **extends `tsconfig.base.json`** — tsup owns emit, so its tsconfig stays type-check-only (base policy). See `packages/crypto/CLAUDE.md`.
 - **`apps/` = deployable apps** (`platform`, `blog`, `emails-preview`); **`packages/` = internal libraries** consumed via `workspace:*`.
-- workspace members declared in `pnpm-workspace.yaml` (`packages: [apps/*, packages/emails, packages/paypal-sdk, packages/types/*]`). Add a member there + give it a `package.json` and `tsconfig.json` that extends the base (paypal-sdk is the exception — it emits, so it stands alone).
+- workspace members declared in `pnpm-workspace.yaml` (`packages: [apps/*, packages/crypto, packages/emails, packages/paypal-sdk, packages/types/*]`). Add a member there + give it a `package.json` and `tsconfig.json` that extends the base (paypal-sdk is the exception — it emits via raw tsc, so it stands alone; crypto also emits but via tsup, so it still extends the base).
 
 ## Commands
 
@@ -23,8 +24,8 @@ Run from repo root; turbo delegates into members:
 - `pnpm dev:emails-preview` — local react-email preview server (or `pnpm --filter emails-preview dev`)
 - `pnpm build` — `turbo run build`
 - `pnpm test` — `turbo run test`
-- `pnpm lint` — `turbo run lint`
-- `pnpm format` — `turbo run format`
+- `pnpm lint` — `biome check .` (single root pass, not turbo — see Tooling → Biome)
+- `pnpm format` — `biome check --write .` (single root pass)
 
 Invoke a member binary from anywhere: `pnpm --filter <pkg> exec <bin>`.
 
@@ -32,7 +33,8 @@ Invoke a member binary from anywhere: `pnpm --filter <pkg> exec <bin>`.
 
 - lefthook, biome, turbo, and `tsconfig.base.json` live at root — repo-wide, not per-package.
 - **TS topology**: root `tsconfig.base.json` holds shared policy (strict, module/target, `noEmit`); each member's `tsconfig.json` extends it and layers on env/jsx/aliases/includes. Root has no `tsconfig.json` (only the base, which tsc never opens standalone) — lefthook `type-check` anchors on `apps/platform/tsconfig.json`. **Exception: `packages/paypal-sdk`** is a build package — its `tsconfig.json` is standalone (does not extend the base) so it can emit `dist/`; it has no pre-commit `type-check` hook (its `src/` imports gitignored generated code, absent pre-commit — type safety enforced by the build in turbo/CI).
-- **Biome**: single root `biome.json` governs all members (upward traversal finds it for every file).
+- **Biome**: single root `biome.json` governs all members (upward traversal finds it for every file). Lint/format run as **one root pass** (`biome check .`) — not fanned out through turbo — so root-level files (`turbo.json`, `tsconfig.base.json`, etc.) and every member are covered at once. VCS integration is on (`vcs.useIgnoreFile`), so `.gitignore`d artifacts (`dist`, `build`, `.turbo`, `.react-router`, `coverage`, …) drop out automatically; the `files.includes` list only adds excludes VCS can't infer. `**/package.json` is excluded (biome would collapse hand-maintained arrays). Per-member `lint`/`format` scripts (scoped to `.`) exist for granular `--filter` runs and inherit the same root config. This is a **deliberate exception** to the turbo-delegator rule — biome is a single repo-aware binary, so a global pass beats per-package fan-out (which also can't reach root-level files); `turbo.json` intentionally defines **no** `lint`/`format` task. Turbo still owns `build`/`test`/`dev`/`typegen`.
+- **Shared dep versions**: repo-wide `typescript`/`@types/node` versions live in the `pnpm-workspace.yaml` `catalog:` — members reference `"catalog:"`, not a pinned version. Node is pinned via root `.nvmrc` (`24`) + root `package.json` `engines.node` (source of truth; per-member `engines` don't inherit under pnpm and are just informational).
 - **Pre-commit**: lefthook runs biome check, tsc-files, and related vitest — don't skip with `--no-verify`.
 
 ## Package management

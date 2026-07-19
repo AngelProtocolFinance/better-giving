@@ -12,8 +12,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint src",
-    "format": "biome check --write src"
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -23,6 +23,6 @@
     "@types/react": "19.2.17",
     "react": "19.2.6",
     "react-email": "6.9.0",
-    "typescript": "5.9.2"
+    "typescript": "catalog:"
   }
 }

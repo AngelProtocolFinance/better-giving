@@ -22,7 +22,7 @@ Internal package (`private`), a **built** TypeScript SDK for PayPal REST APIs, g
 ## Conventions
 
 - **No pre-commit `type-check`** (see root CLAUDE.md): `src/` imports gitignored `generated/` code that's absent pre-commit, so tsc can't run staged. Biome check covers staged files; type safety is enforced by the build in turbo/CI. After changing `src/` or a spec, run `pnpm --filter @better-giving/paypal-sdk build` yourself to type-check.
-- **Biome** governs `src/` + `scripts/` only (`lint`/`format` scripts scope to them); `generated/`, `dist/`, `specs/` are excluded in root `biome.json`.
+- **Biome** governs the whole member, incl. the root `index.ts` barrel (root `pnpm lint`/`format` run one `biome check .` over the repo; this member's own `lint`/`format` scripts scope to `.`); `generated/`, `dist/`, `specs/` are excluded in root `biome.json`.
 - pin deps exact (repo-wide rule). `@openapitools/openapi-generator-cli` has a postinstall → listed in root `onlyBuiltDependencies`.
 - adding a PayPal API: drop its spec in `specs/openapi/`, add a `factories/<api>.ts`, export from `src/index.ts` + root `index.ts`, add a subpath to `exports`, then `build`.
 - **publishing is stripped** — private member, no changesets/release infra. If it ever needs to publish standalone again, restore `publishConfig`/changesets from git history.
