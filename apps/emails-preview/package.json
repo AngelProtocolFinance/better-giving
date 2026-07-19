@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "email dev --dir emails --port 3001",
     "build": "email build --dir emails",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint emails",
+    "format": "biome check --write emails"
   },
   "dependencies": {
     "emails": "workspace:*"
