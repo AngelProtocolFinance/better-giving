@@ -10,7 +10,9 @@ interface ICaptureInput {
 }
 
 export const capture_order = async ({ order_id, don_id }: ICaptureInput) => {
-  const capture = await paypal.capture_order(order_id);
+  // order_id is stable per intent — use it as the idempotency key so a retry
+  // after a timeout returns the original capture instead of duplicating it
+  const capture = await paypal.capture_order(order_id, `capture-${order_id}`);
 
   const ps = capture.payment_source?.paypal || capture.payment_source?.venmo;
   if (ps?.email_address) {

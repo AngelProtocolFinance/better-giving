@@ -85,9 +85,13 @@ export class PayPalSDK {
 
   /**
    * create an order
+   *
+   * pass request_id to make creation idempotent: on a retry after a timeout,
+   * paypal returns the original order instead of creating a duplicate.
    */
   async create_order(
-    order_data: CreateOrderRequest
+    order_data: CreateOrderRequest,
+    request_id?: string
   ): Promise<CreateOrderResponse> {
     const token = await this.get_access_token();
 
@@ -98,6 +102,7 @@ export class PayPalSDK {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          ...(request_id && { "PayPal-Request-Id": request_id }),
         },
         body: JSON.stringify(order_data),
       }
@@ -136,8 +141,14 @@ export class PayPalSDK {
 
   /**
    * capture an order by ID
+   *
+   * pass request_id to make the capture idempotent: on a retry after a
+   * timeout, paypal returns the original capture instead of a duplicate.
    */
-  async capture_order(order_id: string): Promise<CaptureOrderResponse> {
+  async capture_order(
+    order_id: string,
+    request_id?: string
+  ): Promise<CaptureOrderResponse> {
     const token = await this.get_access_token();
 
     const path = capture_order_path.replace("{id}", order_id);
@@ -147,6 +158,7 @@ export class PayPalSDK {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         Prefer: "return=representation",
+        ...(request_id && { "PayPal-Request-Id": request_id }),
       },
     });
 
@@ -188,8 +200,14 @@ export class PayPalSDK {
 
   /**
    * create a billing plan
+   *
+   * pass request_id to make creation idempotent: on a retry after a timeout,
+   * paypal returns the original plan instead of creating a duplicate.
    */
-  async create_plan(plan_data: CreatePlanRequest): Promise<CreatePlanResponse> {
+  async create_plan(
+    plan_data: CreatePlanRequest,
+    request_id?: string
+  ): Promise<CreatePlanResponse> {
     const token = await this.get_access_token();
 
     const response = await globalThis.fetch(
@@ -199,6 +217,7 @@ export class PayPalSDK {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          ...(request_id && { "PayPal-Request-Id": request_id }),
         },
         body: JSON.stringify(plan_data),
       }
@@ -291,9 +310,13 @@ export class PayPalSDK {
 
   /**
    * create a subscription
+   *
+   * pass request_id to make creation idempotent: on a retry after a timeout,
+   * paypal returns the original subscription instead of creating a duplicate.
    */
   async create_subscription(
-    subscription_data: CreateSubscriptionRequest
+    subscription_data: CreateSubscriptionRequest,
+    request_id?: string
   ): Promise<CreateSubscriptionResponse> {
     const token = await this.get_access_token();
 
@@ -304,6 +327,7 @@ export class PayPalSDK {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          ...(request_id && { "PayPal-Request-Id": request_id }),
         },
         body: JSON.stringify(subscription_data),
       }

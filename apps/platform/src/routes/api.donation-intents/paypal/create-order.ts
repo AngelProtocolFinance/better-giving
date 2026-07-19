@@ -75,10 +75,15 @@ export const create_order = async ({
       };
     }
   }
-  const { id = "invalid id" } = await paypal.create_order({
-    intent: "CAPTURE",
-    purchase_units: [p],
-  });
+  // order_id is stable per intent — use it as the idempotency key so a retry
+  // after a timeout returns the original order instead of a duplicate
+  const { id = "invalid id" } = await paypal.create_order(
+    {
+      intent: "CAPTURE",
+      purchase_units: [p],
+    },
+    `order-${order_id}`
+  );
 
   return id;
 };

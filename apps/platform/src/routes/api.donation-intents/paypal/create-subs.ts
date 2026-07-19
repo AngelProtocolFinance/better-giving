@@ -20,13 +20,18 @@ export const create_subs = async (i: IInput): Promise<string> => {
   const total = i.base + i.tip + i.fee_allowance;
   const plan_id = plans[i.freq][i.currency];
 
-  const { id = "invalid subs id" } = await paypal.create_subscription({
-    custom_id: i.order_id,
-    plan_id: plan_id,
-    quantity: rd(total, 0),
-    auto_renewal: true,
-    start_time: addMinutes(new Date(), 5).toISOString(),
-  });
+  // order_id is stable per intent — use it as the idempotency key so a retry
+  // after a timeout returns the original subscription instead of a duplicate
+  const { id = "invalid subs id" } = await paypal.create_subscription(
+    {
+      custom_id: i.order_id,
+      plan_id: plan_id,
+      quantity: rd(total, 0),
+      auto_renewal: true,
+      start_time: addMinutes(new Date(), 5).toISOString(),
+    },
+    `subs-${i.order_id}`
+  );
 
   return id;
 };
