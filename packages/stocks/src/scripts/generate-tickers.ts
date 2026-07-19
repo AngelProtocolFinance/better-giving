@@ -33,10 +33,10 @@ const stream = fs.createWriteStream(tickers_file, { flags: "w" });
 stream.write("[\n");
 for (let index = 0; index < data.length; index++) {
   const ticker = data[index];
-  const line = `  {"symbol": "${ticker.symbol}", "name": "${ticker.description.replace(
-    /"/g,
-    '\\"'
-  )}"}`;
+  const line = `  ${JSON.stringify({
+    symbol: ticker.symbol,
+    name: ticker.description,
+  })}`;
   stream.write(line);
   if (index < data.length - 1) {
     stream.write(",\n");
@@ -50,7 +50,11 @@ for (let index = 0; index < data.length; index++) {
   }
 }
 stream.write("]\n");
-stream.end();
+await new Promise<void>((resolve, reject) => {
+  stream.on("finish", resolve);
+  stream.on("error", reject);
+  stream.end();
+});
 
 // write meta file with generation date
 fs.writeFileSync(

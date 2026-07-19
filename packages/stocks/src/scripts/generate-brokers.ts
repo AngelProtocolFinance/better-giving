@@ -20,11 +20,12 @@ import { join } from "node:path";
 
 function get_previous_month_url(): string {
   const now = new Date();
-  const year = now.getUTCFullYear();
+  let year = now.getUTCFullYear();
   let month = now.getUTCMonth(); // 0-indexed, current month
 
   // get previous month
   if (month === 0) {
+    year -= 1;
     month = 11; // december of previous year
   } else {
     month = month - 1;
