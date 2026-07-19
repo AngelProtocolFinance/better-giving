@@ -1,10 +1,6 @@
-interface Amount {
-  value: number;
-  currency: string;
-  value_usd: number;
-}
+import type { IAmount } from "./types";
 
-export function format_amount(amount: Amount): string {
+export function format_amount(amount: IAmount): string {
   // usd shown with fixed 2-decimal cents; non-usd denoms keep their pre-rounded
   // precision (crypto amounts must not be forced to 2 decimals).
   const value =
