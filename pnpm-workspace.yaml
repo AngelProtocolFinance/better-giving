@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - packages/brand
   - packages/chariot
   - packages/crypto
   - packages/emails
