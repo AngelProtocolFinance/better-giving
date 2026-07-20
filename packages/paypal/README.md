@@ -9,14 +9,6 @@ TypeScript type definitions automatically generated from [PayPal's official Open
 - **Comprehensive**: Covers 13 PayPal APIs including Orders, Payments, Subscriptions, and more
 - **Tree-shakeable**: Import only the types you need
 
-## Installation
-
-```bash
-npm install @better-giving/paypal
-# or
-pnpm add @better-giving/paypal
-```
-
 ## Available Modules
 
 This package provides TypeScript types for the following PayPal APIs:
@@ -144,29 +136,12 @@ pnpm build
 
 This project uses the TypeScript compiler (tsc) for compiling source code and generating type declarations.
 
-## Publishing
-
-To publish a new version:
-
-```bash
-# Login to npm registry (first time only)
-npm login
-
-# Update version in package.json
-npm version patch  # or minor, or major
-
-# Publish to npm registry
-npm publish --access public
-```
-
 ## Updating Types
 
-To update the types when PayPal releases new API specifications:
+To update the types when PayPal releases new API specifications, regenerate the committed `src/generated/**` (then commit it):
 
 ```bash
-pnpm build
-npm version patch
-npm publish
+pnpm --filter @better-giving/paypal generate
 ```
 
 ## Type Structure

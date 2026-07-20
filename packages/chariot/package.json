@@ -1,11 +1,9 @@
 {
-  "name": "@better-giving/paypal",
+  "name": "@better-giving/chariot",
   "private": true,
-  "description": "TypeScript type definitions generated from PayPal OpenAPI specifications",
   "type": "module",
-  "engines": {
-    "node": "24.x"
-  },
+  "description": "TypeScript SDK for the Chariot API",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -14,15 +12,15 @@
   },
   "scripts": {
     "build": "tsc",
-    "generate": "tsx scripts/download-specs.ts && tsx scripts/generate-types.ts",
-    "clean": "rm -rf dist specs",
+    "generate": "tsx scripts/generate-types.ts",
+    "clean": "rm -rf dist",
     "lint": "biome check .",
     "format": "biome check --write ."
   },
   "devDependencies": {
-    "@types/node": "24.0.4",
+    "@types/node": "catalog:",
     "openapi-typescript": "7.4.4",
     "tsx": "4.19.2",
-    "typescript": "5.9.2"
+    "typescript": "catalog:"
   }
 }

@@ -48,7 +48,8 @@ async function generateTypes(specFile: string): Promise<GenerateResult> {
   try {
     // Use the CLI to generate types
     // Note: Removed --path-params-as-types to avoid TypeScript index signature conflicts
-    const command = `npx openapi-typescript "${inputPath}" -o "${outputPath}" --export-type`;
+    // pnpm exec (not npx) so the pinned workspace openapi-typescript runs — npx can fall back to a registry version and drift the committed types
+    const command = `pnpm exec openapi-typescript "${inputPath}" -o "${outputPath}" --export-type`;
 
     await execAsync(command);
 

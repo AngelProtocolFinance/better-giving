@@ -1,0 +1,33 @@
+{
+  // built member: emits dist/ via raw tsc, so it overrides the three base keys
+  // that block emit — noEmit, module:preserve, allowImportingTsExtensions. all
+  // shared policy (strict, isolatedModules, esModuleInterop, skipLibCheck,
+  // allowJs, resolveJsonModule, moduleDetection) is inherited from base.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* override base emit-blockers */
+    "module": "NodeNext",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+
+    /* strictness beyond base */
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* emit */
+    "outDir": "dist",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    /* environment (es2022 — original library target, narrower than base es2024) */
+    "target": "es2022",
+    "lib": ["es2022"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "scripts"]
+}
