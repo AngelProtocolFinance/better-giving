@@ -6,6 +6,7 @@ import type { ShikiTransformer } from "shiki";
 import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
+  esc_attr,
   PlatformGuide,
   ScriptSetupBanner,
   useEmbedMode,
@@ -30,7 +31,7 @@ export default function CustomDimensions() {
   const get_iframe_snippet = useCallback(
     (width: number, height: number) => `<iframe
   title="donation form embed"
-  src="https://better.giving/forms/${id}"
+  src="https://better.giving/forms/${esc_attr(id)}"
   allow="payment"
   width="${width}"
   height="${height}"
@@ -40,7 +41,7 @@ export default function CustomDimensions() {
 
   const get_script_snippet = useCallback(
     (width: number, height: number) => `<div
-  data-bg-form="${id}"
+  data-bg-form="${esc_attr(id)}"
   style="width: ${width}px; height: ${height}px; overflow: auto"
 ></div>`,
     [id]

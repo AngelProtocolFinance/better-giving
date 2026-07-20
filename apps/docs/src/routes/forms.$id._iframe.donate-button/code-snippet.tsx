@@ -3,6 +3,7 @@ import type { ShikiTransformer } from "shiki";
 import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
+  esc_attr,
   RADIUS_PRESETS,
   type RadiusPreset,
   ScriptSetupBanner,
@@ -53,7 +54,7 @@ function generate_iframe_code(id: string, config: DialogConfig): string {
   </form>
   <iframe
     title="donation form embed"
-    src="https://better.giving/forms/${id}"
+    src="https://better.giving/forms/${esc_attr(id)}"
     allow="payment"
     width="100%"
     height="500"
@@ -81,7 +82,7 @@ function generate_script_code(id: string, config: DialogConfig): string {
     </button>
   </form>
   <div
-    data-bg-form="${id}"
+    data-bg-form="${esc_attr(id)}"
     style="max-width: 700px; width: 90vw"
   ></div>
 </dialog>`;

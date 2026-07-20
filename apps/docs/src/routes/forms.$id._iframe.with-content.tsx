@@ -5,6 +5,7 @@ import type { ShikiTransformer } from "shiki";
 import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
+  esc_attr,
   PlatformGuide,
   ScriptSetupBanner,
   useEmbedMode,
@@ -26,7 +27,7 @@ function get_iframe_snippet(id: string) {
   <p style="text-align: center; margin-bottom: 16px;">Better Giving is a 501c3 nonprofit that provides nonprofits free fundraising tools</p>
   <iframe
     title="donation form embed"
-    src="https://better.giving/forms/${id}"
+    src="https://better.giving/forms/${esc_attr(id)}"
     allow="payment"
     width="100%"
     height="500"
@@ -40,7 +41,7 @@ function get_script_snippet(id: string) {
   <h2 style="margin-bottom: 8px">Donate To Better Giving</h2>
   <p style="color: #666; margin-bottom: 16px">Support our mission with a donation</p>
   <div
-    data-bg-form="${id}"
+    data-bg-form="${esc_attr(id)}"
     style="width: 100%"
   ></div>
 </div>`;

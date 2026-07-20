@@ -5,6 +5,7 @@ import type { ShikiTransformer } from "shiki";
 import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
+  esc_attr,
   PlatformGuide,
   ScriptSetupBanner,
   useEmbedMode,
@@ -23,7 +24,7 @@ const highlight_line = (lines: number[]): ShikiTransformer => ({
 function get_iframe_snippet(id: string) {
   return `<iframe
   title="donation form embed"
-  src="https://better.giving/forms/${id}"
+  src="https://better.giving/forms/${esc_attr(id)}"
   allow="payment"
   width="100%"
   height="500"
@@ -33,7 +34,7 @@ function get_iframe_snippet(id: string) {
 
 function get_script_snippet(id: string) {
   return `<div
-  data-bg-form="${id}"
+  data-bg-form="${esc_attr(id)}"
   style="max-width: 700px; width: 100%; border: 1px solid lightgray"
 ></div>`;
 }
