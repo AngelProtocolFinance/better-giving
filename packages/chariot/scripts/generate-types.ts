@@ -21,7 +21,8 @@ async function generateTypes(): Promise<void> {
   console.log("Generating types for Chariot API...");
 
   try {
-    const command = `npx openapi-typescript "${inputPath}" -o "${outputPath}" --export-type`;
+    // pnpm exec (not npx) so the pinned workspace openapi-typescript runs — npx can fall back to a registry version and drift the committed types
+    const command = `pnpm exec openapi-typescript "${inputPath}" -o "${outputPath}" --export-type`;
     await execAsync(command);
     console.log("✓ Generated chariot.ts");
   } catch (error) {
