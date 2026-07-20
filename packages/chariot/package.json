@@ -1,0 +1,26 @@
+{
+  "name": "@better-giving/chariot",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript SDK for the Chariot API",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "generate": "tsx scripts/generate-types.ts",
+    "clean": "rm -rf dist",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "openapi-typescript": "7.4.4",
+    "tsx": "4.19.2",
+    "typescript": "catalog:"
+  }
+}

@@ -34,7 +34,7 @@
     "@anvilco/anvil": "3.3.2",
     "@ark-ui/react": "5.37.2",
     "@better-auth/infra": "0.3.2",
-    "@better-giving/chariot": "1.0.0",
+    "@better-giving/chariot": "workspace:*",
     "@better-giving/crypto": "workspace:*",
     "@better-giving/paypal": "workspace:*",
     "@better-giving/stocks": "workspace:*",

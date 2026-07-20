@@ -110,8 +110,8 @@ importers:
         specifier: 0.3.2
         version: 0.3.2(@better-auth/core@1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0))(better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5))(zod@4.4.3)
       '@better-giving/chariot':
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: workspace:*
+        version: link:../../packages/chariot
       '@better-giving/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
@@ -332,6 +332,21 @@ importers:
       vitest-browser-react:
         specifier: 2.2.0
         version: 2.2.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5)
+
+  packages/chariot:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.0.4
+      openapi-typescript:
+        specifier: 7.4.4
+        version: 7.4.4(typescript@5.9.2)
+      tsx:
+        specifier: 4.19.2
+        version: 4.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.2
 
   packages/crypto:
     devDependencies:
@@ -1198,9 +1213,6 @@ packages:
 
   '@better-fetch/fetch@1.3.1':
     resolution: {integrity: sha512-ABkD1WhyfPZprKRQI3bhATjeiFuNWC9PXhfGWqL+sg/gKrM977oFrYkdb4msM3hgUGonr7KlOsOFT5TU2rht9g==}
-
-  '@better-giving/chariot@1.0.0':
-    resolution: {integrity: sha512-nAjcZLJu8bsZAB1Tt4ghD05J4fG4E/cWadJEAl7hTTVY+502USjVqV8gyGbJteqMD3QID9O40kihfN5u+bnCLg==}
 
   '@biomejs/biome@2.4.15':
     resolution: {integrity: sha512-j5VH3a/h/HXTKBM50MDMxRCzkeLv9S2XJcW2WgnZT1+xyisi+0bISrXR82gCX+8S9lvK0skEvHJRN+3Ktr2hlw==}
@@ -10410,8 +10422,6 @@ snapshots:
       '@noble/hashes': 2.2.0
 
   '@better-fetch/fetch@1.3.1': {}
-
-  '@better-giving/chariot@1.0.0': {}
 
   '@biomejs/biome@2.4.15':
     optionalDependencies:

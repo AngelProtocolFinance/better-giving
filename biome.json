@@ -19,6 +19,8 @@
       "!apps/blog/.sanity",
       "!apps/blog/dist",
       "!apps/emails-preview/.react-email",
+      "!packages/chariot/src/generated",
+      "!packages/chariot/dist",
       "!packages/paypal/src/generated",
       "!packages/paypal/dist",
       "!packages/paypal/specs",
