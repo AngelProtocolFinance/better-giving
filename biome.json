@@ -23,7 +23,9 @@
       "!packages/paypal/dist",
       "!packages/paypal/specs",
       "!packages/crypto/dist",
-      "!packages/crypto/src/generated/tokens"
+      "!packages/crypto/src/generated/tokens",
+      "!packages/stocks/dist",
+      "!packages/stocks/src/generated"
     ]
   },
   "linter": {

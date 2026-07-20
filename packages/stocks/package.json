@@ -1,0 +1,24 @@
+{
+  "name": "@better-giving/stocks",
+  "private": true,
+  "type": "module",
+  "description": "Stock ticker + broker-dealer data library, built via tsup",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "generate-tickers": "node --env-file=.env ./src/scripts/generate-tickers.ts",
+    "generate-brokers": "node ./src/scripts/generate-brokers.ts"
+  },
+  "devDependencies": {
+    "tsup": "8.2.4",
+    "typescript": "catalog:"
+  }
+}
