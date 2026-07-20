@@ -1,0 +1,21 @@
+{
+  "name": "@better-giving/brand",
+  "private": true,
+  "description": "Shared Better Giving brand constants (social profile urls)",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": "24.x"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

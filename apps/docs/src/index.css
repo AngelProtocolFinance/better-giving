@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "@fontsource-variable/quicksand";
+
+/* bg-docs loaded Quicksand via next/font as the --font-quicksand css var and
+   applied it on <body>. replicate the variable + the default sans mapping so
+   the whole app renders in quicksand, same as the source. keeps tailwind's
+   default color palette (neutral/blue/green/…) — the source never reset it. */
+@theme {
+  --font-quicksand: "Quicksand Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-quicksand);
+}

@@ -1,0 +1,6 @@
+{
+  // extends the repo baseline; pure-string source, no dom/jsx needed.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

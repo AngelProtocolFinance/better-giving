@@ -1,3 +1,4 @@
+import { socials as brand_socials } from "@better-giving/brand";
 import { base_url } from "./env";
 
 export const PRIVACY_POLICY = `${base_url}/privacy-policy/`;
@@ -17,11 +18,7 @@ export const GITHUB_REPO =
   "https://github.com/AngelProtocolFinance/better-giving";
 
 export const socials = {
-  facebook: "https://www.facebook.com/BetterGivingFB/",
-  instagram: "https://www.instagram.com/better.giving",
-  linkedin: "https://www.linkedin.com/company/better-giving/",
-  x: "https://x.com/BetterDotGiving",
-  youtube: "https://www.youtube.com/@BetterDotGiving",
+  ...brand_socials,
   intercom: INTERCOM_HELP,
 };
 
