@@ -44,7 +44,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           </NavLink>
           {d.tag && (
             <p className="-mb-3 mt-2 pl-2">
-              <TagIcon size={13} className="inline-block  mr-1" />
+              <TagIcon size={13} className="inline-block mr-1" />
               <span className=" text-sm">{d.tag}</span>
             </p>
           )}
