@@ -28,7 +28,7 @@ export default function Component() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-medium">{step.title}</h3>
-                <div className="mt-2  space-y-4">{step.content}</div>
+                <div className="mt-2 space-y-4">{step.content}</div>
               </div>
             </li>
           ))}
