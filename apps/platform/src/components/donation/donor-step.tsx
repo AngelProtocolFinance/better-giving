@@ -92,7 +92,7 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
       <Field
         label="Your company"
         {...register("company_name")}
-        error={errors.email?.message}
+        error={errors.company_name?.message}
         classes={{}}
         placeholder="e.g. Better Giving"
       />
