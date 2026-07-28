@@ -1,14 +1,12 @@
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
 import type { Payment } from "#/types/crypto";
-import { PROCESSING_RATES } from "@/constants/common";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
 import { ru_vdec } from "@/helpers/decimal";
-import { min_fee_allowance } from "@/helpers/donation";
 import { ContentLoader } from "../../../content-loader";
 import { QueryLoader } from "../../../query-loader";
 import { ContinueBtn } from "../../common/continue-btn";
-import { type CryptoDonationDetails, type Init, tip_val } from "../../types";
+import type { CryptoDonationDetails, Init } from "../../types";
 import { PayQr } from "./pay-qr";
 
 type Props = {
@@ -16,6 +14,8 @@ type Props = {
   fv: CryptoDonationDetails;
   donor: IDonorFv;
   init: Init;
+  fee_allowance: number;
+  tipv: number;
 };
 
 const fetcher = async (intent: IDonationIntent) =>
@@ -24,7 +24,14 @@ const fetcher = async (intent: IDonationIntent) =>
     body: JSON.stringify(intent),
   }).then<Payment>((res) => res.json());
 
-export function DirectMode({ fv, init, classes = "", donor }: Props) {
+export function DirectMode({
+  fv,
+  init,
+  classes = "",
+  donor,
+  fee_allowance,
+  tipv,
+}: Props) {
   const navigation = useNavigation();
 
   const handle_continue = () => {
@@ -64,12 +71,6 @@ export function DirectMode({ fv, init, classes = "", donor }: Props) {
     }
   };
 
-  const tipv = tip_val(fv.tip_format, fv.tip, +fv.token.amount);
-  const mfa = min_fee_allowance(
-    tipv + +fv.token.amount,
-    PROCESSING_RATES.crypto
-  );
-
   const intent: IDonationIntent = {
     via: "crypto",
     via_extra: "",
@@ -77,7 +78,7 @@ export function DirectMode({ fv, init, classes = "", donor }: Props) {
     amount: {
       base: +fv.token.amount,
       tip: tipv,
-      fee_allowance: mfa,
+      fee_allowance,
     },
     currency: fv.token.code,
     to_id: init.recipient.id,
@@ -91,7 +92,7 @@ export function DirectMode({ fv, init, classes = "", donor }: Props) {
   const { data, isLoading, error, isValidating } = use_swr(intent, fetcher);
 
   const total_disp_amnt = ru_vdec(
-    +fv.token.amount + tipv + mfa,
+    +fv.token.amount + tipv + fee_allowance,
     fv.token.usdpu,
     fv.token.precision
   );
