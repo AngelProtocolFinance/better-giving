@@ -40,7 +40,7 @@ const content: Record<
     teaser:
       "Donate directly from your IRA through a Qualified Charitable Distribution (QCD), which may provide meaningful tax advantages if eligible.",
     expanded: [
-      "If you are age 70½ or older, you can direct up to $105,000 per year from your IRA to qualified charities as a QCD. The distribution is excluded from your taxable income.",
+      "If you are age 70½ or older, you can direct up to $111,000 per year from your IRA to qualified charities as a QCD. The distribution is excluded from your taxable income.",
       "A QCD can count toward your Required Minimum Distribution (RMD) for the year, reducing your overall taxable income while supporting the causes you care about.",
     ],
     disclaimer:
