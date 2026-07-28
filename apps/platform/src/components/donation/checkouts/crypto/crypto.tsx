@@ -25,7 +25,9 @@ export function Crypto(props: CryptoDonationDetails) {
       Amount={Amount}
       amount={+t.amount}
       fee_allowance={mfa}
-      tip={tip ? { value: tipv, charity_name: don.recipient.name } : undefined}
+      tip={
+        tipv > 0 ? { value: tipv, charity_name: don.recipient.name } : undefined
+      }
       pre_split_content={
         <>
           <dl className="py-3 flex items-center justify-between border-b">
@@ -43,7 +45,14 @@ export function Crypto(props: CryptoDonationDetails) {
         </>
       }
     >
-      <DirectMode donor={don.donor} fv={props} init={don} classes="mt-4" />
+      <DirectMode
+        donor={don.donor}
+        fv={props}
+        init={don}
+        fee_allowance={mfa}
+        tipv={tipv}
+        classes="mt-4"
+      />
       <DonationTerms endowName={don.recipient.name} classes="mt-5" />
     </Summary>
   );
