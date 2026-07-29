@@ -109,3 +109,76 @@ describe("DonorStep: address required", () => {
     expect(on_change.mock.calls[0][0].address).toBeDefined();
   });
 });
+
+describe("DonorStep: employer field", () => {
+  test("asks for an employer, stays optional, and submits what was typed", async () => {
+    don_mock.value = {
+      ...base_init,
+      recipient: donation_recipient_init({ donor_address_required: false }),
+    };
+    const on_change = vi.fn();
+
+    const screen = await render(
+      <DonorStep
+        value={{
+          ...donor_fv_blank,
+          email: "john@doe.com",
+          first_name: "John",
+          last_name: "Doe",
+        }}
+        on_back={vi.fn()}
+        on_change={on_change}
+      />
+    );
+
+    // label, hint and placeholder must agree that this asks for an employer —
+    // a hint under a field still labelled "your company" is what produced the
+    // nonprofits and personal names in the prod data
+    const employer = screen.getByLabelText(/your employer/i);
+    await expect.element(employer).toBeVisible();
+    await expect
+      .element(employer)
+      .toHaveAttribute("placeholder", "e.g. Microsoft");
+    await expect
+      .element(screen.getByText(/many employers match their employees/i))
+      .toBeVisible();
+
+    // nothing here may assert an outcome — only verified employers can get a
+    // determination, so a pre-checkout claim would be false for most donors
+    await expect
+      .element(
+        screen.getByText(/your gift will be|will be doubled|we'll match/i)
+      )
+      .not.toBeInTheDocument();
+
+    await employer.fill("Microsoft");
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(on_change).toHaveBeenCalledOnce());
+    expect(on_change.mock.calls[0][0].company_name).toBe("Microsoft");
+  });
+
+  test("submits with the employer left blank", async () => {
+    don_mock.value = {
+      ...base_init,
+      recipient: donation_recipient_init({ donor_address_required: false }),
+    };
+    const on_change = vi.fn();
+
+    const screen = await render(
+      <DonorStep
+        value={{
+          ...donor_fv_blank,
+          email: "john@doe.com",
+          first_name: "John",
+          last_name: "Doe",
+        }}
+        on_back={vi.fn()}
+        on_change={on_change}
+      />
+    );
+
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(on_change).toHaveBeenCalledOnce());
+    expect(on_change.mock.calls[0][0].company_name).toBeFalsy();
+  });
+});
