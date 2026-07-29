@@ -21,7 +21,10 @@ export async function enqueue(...msgs: IMsg[]) {
       url: `${base_url}/api/q-handler/${m.id}`,
       body: m.payload,
       deduplicationId: m.dedupe,
-      retries: 0,
+      // a kind that declares no delivery config keeps the at-most-once
+      // behavior this queue has always had
+      retries: m.retries ?? 0,
+      delay: m.delay_s,
     });
     console.info(`${m.dedupe}: ${res.messageId}`);
   }

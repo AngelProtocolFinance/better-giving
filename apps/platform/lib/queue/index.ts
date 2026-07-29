@@ -12,4 +12,4 @@ export {
   msg,
   type Payloads,
 } from "./registry";
-export type { IMsg } from "./types";
+export type { IDelivery, IMsg } from "./types";

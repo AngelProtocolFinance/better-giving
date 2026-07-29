@@ -5,7 +5,7 @@ import type {
 } from "../donations";
 import type { IReg } from "../reg/schema";
 import type { TFrequency } from "../schemas";
-import type { IMsg } from "./types";
+import type { IDelivery, IMsg } from "./types";
 
 interface IFromAddress {
   street?: string;
@@ -143,10 +143,17 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "tip-received": (p) => `tip_${p.id}`,
 };
 
+// per-kind delivery config. a kind absent here keeps at-most-once,
+// deliver-now delivery — the right default for the notification emails that
+// make up the registry today, where a retry means a duplicate send. long or
+// failure-prone handlers opt into retries; scheduled follow-ups into a delay.
+const delivery: Partial<{ [K in Kind]: IDelivery }> = {};
+
 export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({
   id: kind,
   payload,
   dedupe: (dedupe[kind] as (p: MsgInput<K>) => string)(payload),
+  ...delivery[kind],
 });
 
 // runtime enumeration of every Kind, sourced from the dedupe map (which is

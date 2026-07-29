@@ -55,3 +55,16 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     expect(covered.size).toBe(KINDS.length);
   });
 });
+
+describe("msg() — delivery config", () => {
+  // every kind today sends a notification email, where a retry is a duplicate
+  // send: all take at-most-once, deliver-now delivery. a kind that opts into
+  // retries or a delay has to break this row deliberately.
+  test.each(KINDS)("%s takes the queue defaults", (kind) => {
+    // dedupe recipes only read the fields they name, so one loose fixture
+    // serves every kind.
+    const m = msg(kind, { id: "x", npo_id: 1, invitee: "a@b.c" } as never);
+    expect(m.retries).toBeUndefined();
+    expect(m.delay_s).toBeUndefined();
+  });
+});
