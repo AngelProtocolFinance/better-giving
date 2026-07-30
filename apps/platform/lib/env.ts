@@ -75,10 +75,5 @@ export const CLIENT_KEYS = [
   "VITE_CHARIOT_CONNECT_ID",
 ] as const;
 
-// gated only when STAGE === "local"; in prod these are present (vercel
-// integrations inject them) but check_env doesn't require dev to mirror.
-export const LOCAL_ONLY_KEYS = ["QSTASH_URL"] as const;
-
 export type ServerKey = (typeof SERVER_KEYS)[number];
 export type ClientKey = (typeof CLIENT_KEYS)[number];
-export type LocalOnlyKey = (typeof LOCAL_ONLY_KEYS)[number];

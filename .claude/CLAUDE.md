@@ -21,7 +21,7 @@ Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code; eac
 
 Run from repo root; turbo delegates into members:
 
-- `pnpm dev` — `turbo run dev --filter=platform` (mprocs: app + ngrok + qstash)
+- `pnpm dev` — `turbo run dev --filter=platform` (just the vite dev server on :4200)
 - `pnpm dev:blog` — local Sanity Studio (or `pnpm --filter blog dev`)
 - `pnpm dev:emails-preview` — local react-email preview server (or `pnpm --filter emails-preview dev`)
 - `pnpm build` — `turbo run build`

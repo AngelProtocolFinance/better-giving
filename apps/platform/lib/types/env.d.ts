@@ -1,8 +1,8 @@
-import type { ClientKey, LocalOnlyKey, ServerKey } from "../env";
+import type { ClientKey, ServerKey } from "../env";
 
 declare global {
   namespace NodeJS {
-    interface ProcessEnv extends Record<ServerKey | LocalOnlyKey, string> {
+    interface ProcessEnv extends Record<ServerKey, string> {
       STAGE: "staging" | "production" | "local";
     }
   }
