@@ -5,6 +5,8 @@ description: Use when the user asks to update, query, inspect, or fix database r
 
 # DB Admin
 
+**Jurisdiction: `apps/platform/`.** Every path here — `.env*`, `.server/pg/schema/`, `drizzle.config.ts`, `package.json` — is relative to `apps/platform/`; `cd apps/platform` before running anything below.
+
 ## Overview
 
 Ad-hoc PostgreSQL operations against the dev/staging or production databases via `psql`.
