@@ -1,4 +1,5 @@
 import { CircleAlert, Hourglass } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link, useFetcher } from "react-router";
 import { LoadText } from "#/components/load-text";
 import { steps } from "#/pages/registration/routes";
@@ -12,6 +13,18 @@ type Props = {
 export function EndowmentStatus({ status, classes = "" }: Props) {
   const fetcher = useFetcher({ key: "reg-sub" });
   const isSubmitting = fetcher.state !== "idle";
+  const conversion_pushed = useRef(false);
+
+  // gtm conversion, keyed to this fetcher completing — not to status "02", so a
+  // returning visitor opening an already-submitted application never re-fires it.
+  // dataLayer only exists once consent init runs (prod), hence the optional call.
+  useEffect(() => {
+    if (conversion_pushed.current) return;
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+    conversion_pushed.current = true;
+    window.dataLayer?.push({ event: "nonprofit_signup" });
+  }, [fetcher.state, fetcher.data]);
+
   if (!status || status === "01") {
     return (
       <fetcher.Form
