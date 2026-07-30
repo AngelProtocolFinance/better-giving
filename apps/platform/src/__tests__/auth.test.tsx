@@ -43,7 +43,6 @@ vi.mock("$/pg/db", () => ({
 vi.mock("$/email", () => ({
   send_email: mock_send_email,
   sender: "test <test@test.com>",
-  resend: {},
 }));
 
 vi.mock("#/.server/auth", () => ({

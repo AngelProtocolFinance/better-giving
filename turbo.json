@@ -71,7 +71,7 @@
         "DISCORD_BOT_TOKEN",
         "FINNHUB_API_KEY",
         "OPENEXCHANGE_APP_ID",
-        "RESEND_API_KEY",
+        "SMTP_PASSWORD",
         "QSTASH_TOKEN",
         "QSTASH_CURRENT_SIGNING_KEY",
         "QSTASH_NEXT_SIGNING_KEY",

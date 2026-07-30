@@ -102,15 +102,15 @@ export const qstash = {
   next_signing_key: process.env.QSTASH_NEXT_SIGNING_KEY,
 } as const;
 
-export const resend = {
-  api_key: process.env.RESEND_API_KEY,
-} as const;
-
 export const sentry = {
   dsn: process.env.SENTRY_DSN,
   auth_token: process.env.SENTRY_AUTH_TOKEN,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
+} as const;
+
+export const smtp = {
+  password: process.env.SMTP_PASSWORD,
 } as const;
 
 export const stripe = {
