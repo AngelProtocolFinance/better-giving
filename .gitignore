@@ -25,6 +25,7 @@ dist
 .env.local
 .env.test
 .env.test.local
+.env.staging
 .env.production
 .env.production.local
 .env.staging
@@ -40,3 +41,6 @@ dist
 .DS_Store
 /.vscode
 mprocs.log
+
+apps/platform/.server/pg/seed
+apps/platform/jobs
