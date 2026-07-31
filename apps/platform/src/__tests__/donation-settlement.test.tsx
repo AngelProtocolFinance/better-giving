@@ -399,14 +399,14 @@ import AdminFormsPage from "#/routes/admin.$id.forms/route";
 import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms page
 import UserFormsPage from "#/routes/dashboard.forms/route";
-import { loader as refunds_list_loader } from "#/routes/platform.refunds/api";
+import { loader as refunds_list_loader } from "#/routes/platform.donations/api";
 // platform-admin refunds pages
-import RefundsListPage from "#/routes/platform.refunds/route";
+import RefundsListPage from "#/routes/platform.donations/route";
 import {
   action as refund_action,
   loader as refund_loader,
-} from "#/routes/platform.refunds.$donation_id.refund/api";
-import RefundPage from "#/routes/platform.refunds.$donation_id.refund/route";
+} from "#/routes/platform.donations.$donation_id.refund/api";
+import RefundPage from "#/routes/platform.donations.$donation_id.refund/route";
 // platform-admin revenue pages
 import { loader as rev_loader } from "#/routes/platform.revenue/api";
 import RevenuePage from "#/routes/platform.revenue/route";

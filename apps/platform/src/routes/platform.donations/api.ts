@@ -18,6 +18,7 @@ export interface PaymentRow {
   amount_fee_allowance: number;
   currency: string;
   email: string | null;
+  company_name: string | null;
   npo_name: string | null;
   sttl_fee: number | null;
   sttl_currency: string | null;
@@ -42,6 +43,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
       amount_fee_allowance: donations.amount_fee_allowance,
       currency: donations.currency,
       email: donation_donors.email,
+      company_name: donation_donors.company_name,
       npo_name: npos.name,
       sttl_fee: donation_settlements.fee,
       sttl_currency: donation_settlements.currency,

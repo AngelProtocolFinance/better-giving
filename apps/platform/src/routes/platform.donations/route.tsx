@@ -11,7 +11,7 @@ import type { PaymentRow } from "./api";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
-export const meta: Route.MetaFunction = () => metas({ title: "Refunds" });
+export const meta: Route.MetaFunction = () => metas({ title: "Donations" });
 
 export default CacheRoute(Page);
 function Page({ loaderData: page1 }: Route.ComponentProps) {
@@ -29,7 +29,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8 w-full max-w-5xl grid content-start">
-      <h3 className="font-bold text-2xl mb-4">Refunds</h3>
+      <h3 className="font-bold text-2xl mb-4">Donations</h3>
 
       <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
         {node}
@@ -79,7 +79,7 @@ function Table({
       </tbody>
       {load_next && (
         <LoadMoreRow
-          col_span={9}
+          col_span={10}
           disabled={disabled}
           loading={loading}
           on_load_next={load_next}

@@ -7,7 +7,7 @@ import {
   LandmarkIcon,
   LineChartIcon,
   PiggyBankIcon,
-  RotateCcwIcon,
+  ReceiptIcon,
   TrendingDownIcon,
 } from "lucide-react";
 import type { LinkGroup } from "#/layout/dashboard";
@@ -57,9 +57,9 @@ export const link_groups: LinkGroup[] = [
         icon: { fn: LandmarkIcon, size: 18 },
       },
       {
-        title: "Refunds",
-        to: routes.refunds,
-        icon: { fn: RotateCcwIcon, size: 18 },
+        title: "Donations",
+        to: routes.donations,
+        icon: { fn: ReceiptIcon, size: 18 },
       },
       {
         title: "Settle Donations",

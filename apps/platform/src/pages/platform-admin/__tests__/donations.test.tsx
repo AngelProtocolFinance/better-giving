@@ -73,13 +73,13 @@ vi.mock("#/.server/toast", async () => {
 
 // --- imports (after mocks) ---
 
-import { loader } from "#/routes/platform.refunds/api";
-import ListPage from "#/routes/platform.refunds/route";
+import { loader } from "#/routes/platform.donations/api";
+import ListPage from "#/routes/platform.donations/route";
 import {
   action as refund_action,
   loader as refund_loader,
-} from "#/routes/platform.refunds.$donation_id.refund/api";
-import RefundPage from "#/routes/platform.refunds.$donation_id.refund/route";
+} from "#/routes/platform.donations.$donation_id.refund/api";
+import RefundPage from "#/routes/platform.donations.$donation_id.refund/route";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 
 // --- setup ---
@@ -253,7 +253,7 @@ describe("refunds list — settled stripe donation", () => {
 
     // list renders with donation row
     await expect
-      .element(screen.getByRole("heading", { name: /refunds/i }))
+      .element(screen.getByRole("heading", { name: /donations/i }))
       .toBeVisible();
     await expect.element(screen.getByText("Test NPO")).toBeInTheDocument();
     await expect
@@ -296,7 +296,7 @@ describe("refunds list — non-stripe donation", () => {
     const screen = await render_list();
 
     await expect
-      .element(screen.getByRole("heading", { name: /refunds/i }))
+      .element(screen.getByRole("heading", { name: /donations/i }))
       .toBeVisible();
     await expect.element(screen.getByText("Test NPO")).toBeInTheDocument();
     await expect.element(screen.getByText("N/A")).toBeInTheDocument();
@@ -320,7 +320,7 @@ describe("refunds list — filtering", () => {
     const screen = await render_list();
 
     await expect
-      .element(screen.getByRole("heading", { name: /refunds/i }))
+      .element(screen.getByRole("heading", { name: /donations/i }))
       .toBeVisible();
     // 2 rows: settled + refunded (not created)
     const rows = screen.getByRole("row");

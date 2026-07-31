@@ -5,7 +5,7 @@ export const routes = {
   redeem_requests: "redeem-requests",
   revenue: "revenue",
   savings: "savings",
-  refunds: "refunds",
+  donations: "donations",
   losses: "losses",
   donation_settlements: "donation-settlements",
   fundraiser_moderation: "fundraiser-moderation",
