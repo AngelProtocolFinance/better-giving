@@ -1,3 +1,4 @@
+import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { Hr, Link, Text } from "react-email";
 import { KeyValue } from "../components/key-value";
 import { PublicLayout } from "../components/public-layout";
@@ -47,6 +48,13 @@ function Jsx(d: IData) {
         Giving services, just direct them to our{" "}
         <Link href={`${DAPP_URL}/register`}>registration page</Link> so they can
         sign up and start to collect donations.
+      </Text>
+      <Text>
+        Many employers match their employees' charitable donations, but the
+        match only happens if the employee files a short form with them. If
+        yours has a matching program, everything that form asks for — our legal
+        name, EIN and address, and this donation's details — is on your{" "}
+        <Link href={`${DAPP_URL}/donations/${d.id}`}>donation page</Link>.
       </Text>
       <Text>
         Thank you once again for your incredible support. We look forward to
@@ -99,11 +107,11 @@ function Jsx(d: IData) {
           lineHeight: 1.4,
         }}
       >
-        {APP_NAME} is a US 501(c)(3) tax-exempt nonprofit with EIN 87-3758939.
-        No goods or services are provided to you in exchange for your gift, so
-        the full amount you paid qualifies as a charitable contribution for US
-        tax purposes. {APP_NAME} then grants the donation to the chosen
-        nonprofit on your behalf.
+        {LEGAL_NAME} ({APP_NAME}) is a US 501(c)(3) tax-exempt nonprofit with
+        EIN {EIN}, {ADDRESS}. No goods or services are provided to you in
+        exchange for your gift, so the full amount you paid qualifies as a
+        charitable contribution for US tax purposes. {APP_NAME} then grants the
+        donation to the chosen nonprofit on your behalf.
       </Text>
     </PublicLayout>
   );
