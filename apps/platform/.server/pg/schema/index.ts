@@ -8,6 +8,7 @@ export * from "./donation-message";
 export * from "./form";
 export * from "./fund";
 export * from "./liquid";
+export * from "./match";
 export * from "./nav";
 export * from "./npo";
 export * from "./payout";
