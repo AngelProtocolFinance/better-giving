@@ -40,6 +40,57 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
   );
 }
 
+/**
+ * every stamp on the donation's match event, in lifecycle order.
+ *
+ * read-only, and there is no action here. nothing about a match is ours to
+ * approve — no employer is resolved, no programme is known, and the sends are
+ * claimed by the handlers themselves — so a button would only re-drive work
+ * that is already at-most-once by construction.
+ *
+ * this is also the only reader `send_failed_kind` has: a mail the provider
+ * refused is otherwise recorded and invisible, answerable only by hand-written
+ * sql.
+ */
+function Match({ payment: c }: { payment: PaymentRow }) {
+  const stamps = [
+    ["pack", c.match_pack_sent_at],
+    ["chased", c.match_chased_at],
+    ["filed", c.match_submitted_at],
+  ] as const;
+  const reached = stamps.filter(([, at]) => at);
+
+  return (
+    <div className="flex flex-col items-start gap-0.5 min-w-32">
+      <span
+        className="text-xs font-medium truncate max-w-40"
+        title={c.company_name ?? ""}
+      >
+        {/* donor-entered and never resolved — there is no employer row behind
+            this string, so it is shown exactly as typed */}
+        {c.company_name || <span className="text-muted-fg">No employer</span>}
+      </span>
+      {reached.length > 0 && (
+        <span className="text-xs text-muted-fg">
+          {reached
+            .map(([label, at]) => `${label} ${format(new Date(at!), "MMM d")}`)
+            .join(" · ")}
+        </span>
+      )}
+      {c.match_voided_at && (
+        <span className="text-xs text-muted-fg">
+          voided · {c.match_void_reason}
+        </span>
+      )}
+      {c.match_send_failed_kind && (
+        <span className="text-destructive text-xs font-semibold">
+          {c.match_send_failed_kind} mail refused
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface ITableProps extends IPaginator<PaymentRow> {
   empty_msg?: string;
 }
@@ -63,13 +114,14 @@ function Table({
           <th>Fee Cover</th>
           <th>Fee</th>
           <th>Method</th>
+          <th>Match</th>
           <th />
         </tr>
       </thead>
       <tbody>
         {items.length === 0 ? (
           <tr>
-            <td colSpan={9} className="text-center text-muted-fg py-8">
+            <td colSpan={10} className="text-center text-muted-fg py-8">
               {empty_msg}
             </td>
           </tr>
@@ -128,6 +180,9 @@ function Row({ payment: c }: { payment: PaymentRow }) {
         )}
       </td>
       <td>{method}</td>
+      <td>
+        <Match payment={c} />
+      </td>
       <td>
         {c.status === "refunded" || c.status === "refunded_loss" ? (
           <span className="text-destructive text-xs font-semibold">
