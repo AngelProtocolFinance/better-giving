@@ -9,7 +9,7 @@ import { from_full } from "@/helpers/name";
 import type { IDonMatchChasePayload } from "@/queue";
 import { send_email } from "$/email";
 import { donation_get } from "$/pg/queries/donation";
-import { claim_match_chase } from "$/pg/queries/match";
+import { claim_match_chase, mark_match_send_failed } from "$/pg/queries/match";
 
 /**
  * the one reminder to file, three days after the pack.
@@ -68,9 +68,17 @@ export async function handle_don_match_chase(p: IDonMatchChasePayload) {
   const res = await send_email({ node, subject, to: [don.from_email] });
 
   // `send_email` never throws — a provider refusal comes back as `data: null`.
-  // logged rather than rethrown: the stamp is already burnt, so a retry would
-  // find the claim lost and mail nothing anyway.
+  // recorded rather than rethrown: `chased_at` is already burnt and the chase
+  // is at-most-once, so nothing sends this again and the row would otherwise
+  // read as reminded. no rollback — re-arming the claim is how a donor gets
+  // chased twice.
+  //
+  // caught for the same reason the pack's is: this kind has no retries, so a
+  // throw here writes nothing and never comes back.
   if (!res.data) {
+    await mark_match_send_failed(don.id, "chase").catch((err) =>
+      console.error("match send failure not recorded:", don.id, err)
+    );
     console.error("match chase NOT sent:", don.id, res.error);
     return;
   }

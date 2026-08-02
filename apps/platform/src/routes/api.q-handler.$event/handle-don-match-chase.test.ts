@@ -214,3 +214,32 @@ describe("handle_don_match_chase — suppression", () => {
     expect(rows[0]!.chased_at).toBeNull();
   });
 });
+
+describe("handle_don_match_chase — a refused send", () => {
+  // `send_email` never throws; a provider refusal comes back like this
+  const refused = { data: null, error: new Error("550 mailbox unavailable") };
+
+  test("is recorded, since the stamp already reads as chased", async () => {
+    const { payload } = await seed();
+    send_email.mockResolvedValueOnce(refused as never);
+
+    await expect(handle_don_match_chase(payload)).resolves.toBeUndefined();
+
+    const rows = await events();
+    // both stamps stand: the chase is at-most-once, so rolling `chased_at` back
+    // to recover this mail is how a donor gets chased twice
+    expect(rows[0]!.chased_at).not.toBeNull();
+    expect(rows[0]!.send_failed_at).not.toBeNull();
+    expect(rows[0]!.send_failed_kind).toBe("chase");
+  });
+
+  test("a chase that lands records nothing", async () => {
+    const { payload } = await seed();
+
+    await handle_don_match_chase(payload);
+
+    const rows = await events();
+    expect(rows[0]!.send_failed_at).toBeNull();
+    expect(rows[0]!.send_failed_kind).toBeNull();
+  });
+});

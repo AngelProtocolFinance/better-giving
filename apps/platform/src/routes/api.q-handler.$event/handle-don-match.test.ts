@@ -266,3 +266,34 @@ describe("handle_don_match — what the pack carries", () => {
     expect(data.amount.value).toBe(50);
   });
 });
+
+describe("handle_don_match — a refused send", () => {
+  // `send_email` never throws; a provider refusal comes back like this
+  const refused = { data: null, error: new Error("550 mailbox unavailable") };
+
+  test("is recorded, and arms no chase", async () => {
+    const { payload } = await seed_donation();
+    send_email.mockResolvedValueOnce(refused as never);
+
+    await expect(handle_don_match(payload)).resolves.toBeUndefined();
+
+    const rows = await events();
+    // `pack_sent_at` stands — nothing re-drives this, so the row would read as
+    // sent with no trace of the loss
+    expect(rows[0]!.pack_sent_at).not.toBeNull();
+    expect(rows[0]!.send_failed_at).not.toBeNull();
+    expect(rows[0]!.send_failed_kind).toBe("pack");
+    // asking "did you file yet?" about mail that never arrived is the harm
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
+  test("a pack that lands records nothing", async () => {
+    const { payload } = await seed_donation();
+
+    await handle_don_match(payload);
+
+    const rows = await events();
+    expect(rows[0]!.send_failed_at).toBeNull();
+    expect(rows[0]!.send_failed_kind).toBeNull();
+  });
+});

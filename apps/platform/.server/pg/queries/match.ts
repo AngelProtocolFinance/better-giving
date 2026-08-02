@@ -149,6 +149,34 @@ export async function claim_match_chase(
   return row ?? null;
 }
 
+/**
+ * record that a mail was handed to the provider and refused.
+ *
+ * the counterpart to the claims above, and deliberately not one of them: there
+ * is nothing to win here. the stamp was burnt before the mail was handed over,
+ * the provider refused, and at-most-once means no retry is coming — so this
+ * update asserts nothing beyond the donation and cannot lose a race. rolling
+ * the stamp back instead would reopen the double-send window every claim in
+ * this module is shaped to keep closed.
+ *
+ * a triage signal, not an audit log. one stamp per row, last failure winning,
+ * so it answers "did this event lose a mail", never "is one owed now".
+ */
+export async function mark_match_send_failed(
+  donation_id: string,
+  kind: "pack" | "chase",
+  db: DbOrTx = _db
+): Promise<MatchEvent | null> {
+  const now = new Date().toISOString();
+  const [row] = await db
+    .update(donation_match_events)
+    .set({ send_failed_at: now, send_failed_kind: kind, updated_at: now })
+    .where(eq(donation_match_events.donation_id, donation_id))
+    .returning();
+
+  return row ?? null;
+}
+
 /** the event row for a donation, if the workflow was ever entered for it */
 export async function match_event_get(
   donation_id: string,
