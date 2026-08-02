@@ -18,6 +18,7 @@ import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { resp } from "@/helpers/https";
 import { from_full } from "@/helpers/name";
+import { is_gift_returned } from "@/match";
 import { msg } from "@/queue";
 import { send_email } from "$/email";
 import { enqueue } from "$/kit/queue";
@@ -64,6 +65,9 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
     // the donor said so; nothing else could tell us. additive field — an older
     // bundle that doesn't read it is unaffected.
     match_filed: !!match?.submitted_at,
+    // one flag, decided in one place: a refund can reach this screen either as
+    // a voided event or as a donation that never had one.
+    match_voided: is_gift_returned(don.status, match?.voided_at),
   };
 };
 
@@ -173,6 +177,8 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
     // and emits the same message itself, so a pack for a gift that never
     // completed is impossible rather than merely unlikely. the two paths share
     // a dedupe key, so a donor who arrives here after settling gets one pack.
+    // a refunded donation is not paid either, so it takes the same silent
+    // branch — nothing is queued for a gift that went back.
     if (is_paid(don.status)) {
       await enqueue(
         msg("don-match", { id: don.id, from_company_name: p.company_name })

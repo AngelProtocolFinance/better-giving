@@ -54,32 +54,38 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       <p className="mb-4 font-bold text-sm mt-8 text-primary text-center">
         Make your donation even more impactful
       </p>
-      <Collapsible.Root
-        // nothing on record: open it, a donor shouldn't have to discover the
-        // one action on this page with a consequence beyond the screen
-        defaultOpen={!data.from_company_name}
-        className="w-full border bg-card rounded overflow-hidden mb-2"
-      >
-        <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
-          <span className="h-lh flex items-center shrink-0">
-            <CheckCircle2Icon
-              className={
-                data.from_company_name
-                  ? "stroke-success"
-                  : "stroke-muted-fg fill-muted"
-              }
-              size={16}
-            />
-          </span>
-          <span className="text-sm font-semibold">Tell us where you work</span>
-          <span className="ml-auto h-lh flex items-center shrink-0">
-            <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
-          </span>
-        </Collapsible.Trigger>
-        <Collapsible.Content className="p-4 border-t">
-          <EmployerForm init={data.from_company_name} />
-        </Collapsible.Content>
-      </Collapsible.Root>
+      {/* asking a donor whose gift went back where they work would promise an
+          email that the void gate will never send */}
+      {!data.match_voided && (
+        <Collapsible.Root
+          // nothing on record: open it, a donor shouldn't have to discover the
+          // one action on this page with a consequence beyond the screen
+          defaultOpen={!data.from_company_name}
+          className="w-full border bg-card rounded overflow-hidden mb-2"
+        >
+          <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
+            <span className="h-lh flex items-center shrink-0">
+              <CheckCircle2Icon
+                className={
+                  data.from_company_name
+                    ? "stroke-success"
+                    : "stroke-muted-fg fill-muted"
+                }
+                size={16}
+              />
+            </span>
+            <span className="text-sm font-semibold">
+              Tell us where you work
+            </span>
+            <span className="ml-auto h-lh flex items-center shrink-0">
+              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
+            </span>
+          </Collapsible.Trigger>
+          <Collapsible.Content className="p-4 border-t">
+            <EmployerForm init={data.from_company_name} />
+          </Collapsible.Content>
+        </Collapsible.Root>
+      )}
       {!widget_version && (
         <Collapsible.Root className="w-full border bg-card rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
@@ -174,6 +180,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         currency={data.currency}
         record_url={data.donate_thanks_url}
         filed={data.match_filed}
+        voided={data.match_voided}
       />
       {!widget_version && (
         <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">

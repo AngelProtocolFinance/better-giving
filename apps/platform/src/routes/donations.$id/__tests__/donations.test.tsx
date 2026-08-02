@@ -405,6 +405,48 @@ describe("Page — rendering", () => {
   });
 });
 
+describe("Page — a refunded donation", () => {
+  it("prints no filing paperwork for money that went back", async () => {
+    const screen = await render_page(
+      make_loader_data({ status: "refunded", match_voided: true })
+    );
+
+    await expect
+      .element(screen.getByText(/this donation was refunded/i))
+      .toBeVisible();
+    // walking a donor into filing a claim against a gift we no longer hold is
+    // the harm this branch exists to prevent
+    await expect.element(screen.getByText(EIN)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("tells a donor who already filed that the claim no longer applies", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        status: "refunded",
+        match_voided: true,
+        match_filed: true,
+      })
+    );
+
+    await expect.element(screen.getByText(/no longer applies/i)).toBeVisible();
+  });
+
+  it("asks nothing about an employer", async () => {
+    // the void gate would refuse the pack, so the field would be promising an
+    // email that never comes
+    const screen = await render_page(
+      make_loader_data({ status: "refunded", match_voided: true })
+    );
+
+    await expect
+      .element(screen.getByText(/tell us where you work/i))
+      .not.toBeInTheDocument();
+  });
+});
+
 describe("Page — filing details", () => {
   it("shows the recipient's legal name, EIN and address", async () => {
     const screen = await render_page(make_loader_data());

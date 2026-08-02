@@ -18,6 +18,8 @@ interface IFilingDetails {
   record_url: string;
   /** the donor already told us they filed; self-reported, never confirmed */
   filed?: boolean;
+  /** the gift went back to the donor — there is nothing left to file for */
+  voided?: boolean;
   classes?: string;
 }
 
@@ -29,6 +31,34 @@ interface IFilingDetails {
  * employer's programme; we have no employer data and make no promises about one.
  */
 export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
+  // a returned gift is not matchable, and printing the paperwork for one would
+  // walk a donor into filing a claim against money we no longer hold. the
+  // panel says so and asks nothing — the employer is never mentioned, because
+  // we still know nothing about them.
+  if (p.voided) {
+    return (
+      <section
+        className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+      >
+        <div className="flex items-start gap-x-2 p-4">
+          <span className="h-lh flex items-center shrink-0">
+            <BuildingIcon className="stroke-muted-fg" size={16} />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">
+              This donation was refunded
+            </h3>
+            <p className="text-sm text-muted-fg mt-1">
+              {p.filed
+                ? "You told us you filed a matching-gift claim for it. Since the gift went back to you, that claim no longer applies — let your employer know if they haven't already closed it."
+                : "There's nothing to file with an employer for a gift that's been returned. If you give again, the details will be here."}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       className={`w-full border bg-card rounded overflow-hidden ${classes}`}
