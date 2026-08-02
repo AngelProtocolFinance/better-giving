@@ -15,6 +15,9 @@
     "lint": "biome check .",
     "format": "biome check --write ."
   },
+  "dependencies": {
+    "@better-giving/brand": "workspace:*"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-email": "^6.0.0"

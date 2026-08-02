@@ -1,7 +1,7 @@
 {
   "name": "@better-giving/brand",
   "private": true,
-  "description": "Shared Better Giving brand constants (social profile urls)",
+  "description": "Shared Better Giving brand constants (legal identity, social profile urls)",
   "type": "module",
   "sideEffects": false,
   "engines": {
