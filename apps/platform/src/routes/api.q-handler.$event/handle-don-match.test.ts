@@ -45,6 +45,12 @@ const send_email = vi.hoisted(() =>
 );
 vi.mock("$/email", () => ({ send_email, sender: "test@test.com" }));
 
+// the chase is armed through qstash, which has no local stand-in; the message
+// this hands it is the contract, and `msg()` is left real so a drifting dedupe
+// key or delay shows up here rather than in production.
+const schedule = vi.hoisted(() => vi.fn(async (..._m: any[]) => {}));
+vi.mock("$/kit/queue", () => ({ schedule }));
+
 // --- imports (after mocks) ---
 
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
@@ -143,6 +149,44 @@ describe("handle_don_match — first delivery", () => {
     expect(send_email).toHaveBeenCalledTimes(1);
     const sent = send_email.mock.calls[0]![0];
     expect(sent.to).toEqual(["donor@test.com"]);
+  });
+});
+
+describe("handle_don_match — arming the chase", () => {
+  test("schedules the T+3d chase once the pack is out", async () => {
+    const { id, payload } = await seed_donation();
+
+    await handle_don_match(payload);
+
+    expect(schedule).toHaveBeenCalledTimes(1);
+    const m = schedule.mock.calls[0]![0];
+    expect(m.id).toBe("don-match-chase");
+    // the donation id alone — the event is found through it, and nothing else
+    // carried here would still be true three days from now
+    expect(m.payload).toEqual({ id });
+    // scheduled, never enqueued: three days at the head of the FIFO queue would
+    // stall every notification behind it
+    expect(m.delay_s).toBe(3 * 24 * 60 * 60);
+  });
+
+  test("arms it after the send, so an unsent pack is never chased", async () => {
+    const { payload } = await seed_donation();
+
+    await handle_don_match(payload);
+
+    expect(send_email.mock.invocationCallOrder[0]!).toBeLessThan(
+      schedule.mock.invocationCallOrder[0]!
+    );
+  });
+
+  test("a delivery that lost the pack claim arms no chase", async () => {
+    const { payload } = await seed_donation();
+
+    await handle_don_match(payload);
+    await handle_don_match(payload);
+
+    // the redelivery mailed nothing, so it has no reminder to arm either
+    expect(schedule).toHaveBeenCalledTimes(1);
   });
 });
 

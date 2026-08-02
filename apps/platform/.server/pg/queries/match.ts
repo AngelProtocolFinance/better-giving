@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db as _db } from "../db";
 import { donation_match_events, type MatchEvent } from "../schema/match";
 import type { DbOrTx } from "./helpers";
@@ -102,6 +102,45 @@ export async function claim_submitted(
     .where(
       and(
         eq(donation_match_events.donation_id, donation_id),
+        isNull(donation_match_events.submitted_at)
+      )
+    )
+    .returning();
+
+  return row ?? null;
+}
+
+/**
+ * claim the right to send this donation's one reminder to file.
+ *
+ * every condition the chase depends on is asserted here rather than read first
+ * and checked after, because three days pass between arming the message and its
+ * delivery and any of them can turn over in that window: the pack must actually
+ * have gone out (`pack_sent_at`), the donor must not already have told us they
+ * filed (`submitted_at` — the suppression this whole message exists to respect),
+ * and no earlier delivery may have chased them (`chased_at`, which is the
+ * send-once gate). one statement, so none of them can change between the check
+ * and the write.
+ *
+ * a null return is the ordinary outcome, not a failure: it is what "no chase is
+ * owed" looks like, whichever of the three said so.
+ *
+ * suppressing a voided donation is one line here: add
+ * `isNull(donation_match_events.voided_at)` to the `and(...)`.
+ */
+export async function claim_match_chase(
+  donation_id: string,
+  db: DbOrTx = _db
+): Promise<MatchEvent | null> {
+  const now = new Date().toISOString();
+  const [row] = await db
+    .update(donation_match_events)
+    .set({ chased_at: now, updated_at: now })
+    .where(
+      and(
+        eq(donation_match_events.donation_id, donation_id),
+        isNotNull(donation_match_events.pack_sent_at),
+        isNull(donation_match_events.chased_at),
         isNull(donation_match_events.submitted_at)
       )
     )

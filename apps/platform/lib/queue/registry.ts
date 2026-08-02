@@ -46,6 +46,19 @@ export interface IDonMatchPayload {
   from_company_name: string;
 }
 
+export interface IDonMatchChasePayload {
+  /**
+   * donation the chase is about — and, by itself, the event it is about:
+   * `donation_id` is unique on the event table, so there is nothing else to
+   * name. no token and no event id ride along because nothing carried here
+   * would still be trustworthy on arrival — days pass between arming and
+   * delivery, and the handler re-reads the donation and the event at fire time
+   * rather than believing a payload written before the donor had a chance to
+   * file.
+   */
+  id: string;
+}
+
 export interface IBankingPayload {
   npo_id: number;
   bank_summary?: string;
@@ -107,6 +120,7 @@ export type Payloads = {
   "banking-rejected": IBankingPayload;
   "don-dist": IDonDistPayload;
   "don-match": IDonMatchPayload;
+  "don-match-chase": IDonMatchChasePayload;
   "don-sttl-dist": IDonationSettled;
   "don-sttl-receipt": IDonation;
   "fund-member-removed": IFundMemberRemovedPayload;
@@ -140,6 +154,7 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "banking-rejected": (p) => `banking.rejected_${p.npo_id}`,
   "don-dist": (p) => `don.dist_${p.id}_${p.to_id}`,
   "don-match": (p) => `don.match_${p.id}`,
+  "don-match-chase": (p) => `don.match-chase_${p.id}`,
   "don-sttl-dist": (p) => `don.sttl-dist_${p.id}`,
   "don-sttl-receipt": (p) => `don.sttl-receipt_${p.id}`,
   "fund-member-removed": (p) => `fund.removed_${p.fund_id}_${p.creator_id}`,
@@ -164,6 +179,13 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   // claim and returns without mailing. a transient failure must not be what
   // costs a donor their match.
   "don-match": { retries: 3 },
+  // the one reminder to file. three days is long enough that the pack has
+  // dropped out of view and short enough to still land inside most filing
+  // windows. a delay this long cannot ride the FIFO queue — it would sit at the
+  // head of it for three days with every other notification stuck behind — so
+  // this kind must be sent through `schedule` in `.server/kit/queue.ts`, never
+  // `enqueue`.
+  "don-match-chase": { delay_s: 3 * 24 * 60 * 60 },
 };
 
 export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({

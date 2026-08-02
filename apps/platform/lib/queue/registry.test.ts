@@ -24,6 +24,7 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ["banking-rejected", { npo_id: 42 }, "banking.rejected_42"],
     ["don-dist", { id: "d1", to_id: 7 }, "don.dist_d1_7"],
     ["don-match", { id: "d4" }, "don.match_d4"],
+    ["don-match-chase", { id: "d4" }, "don.match-chase_d4"],
     ["don-sttl-dist", { id: "d2" }, "don.sttl-dist_d2"],
     ["don-sttl-receipt", { id: "d3" }, "don.sttl-receipt_d3"],
     [
@@ -68,6 +69,10 @@ describe("msg() — delivery config", () => {
     // UPDATE, so a retry of a delivery that already mailed loses the claim and
     // returns without sending.
     "don-match": { retries: 3 },
+    // the only delayed kind. its handler's send-once gate is a single
+    // conditional UPDATE too, so the days of drift between arming and delivery
+    // cannot turn into a second reminder.
+    "don-match-chase": { delay_s: 3 * 24 * 60 * 60 },
   };
 
   test.each(KINDS)("%s", (kind) => {

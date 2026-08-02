@@ -1,4 +1,5 @@
-import type { IDonMatchPayload } from "@/queue";
+import { type IDonMatchPayload, msg } from "@/queue";
+import { schedule } from "$/kit/queue";
 import { donation_get } from "$/pg/queries/donation";
 import { claim_pack_send, open_match_event } from "$/pg/queries/match";
 import { send_match_pack } from "./send-match-pack";
@@ -36,4 +37,9 @@ export async function handle_don_match(p: IDonMatchPayload) {
   if (!claimed) return;
 
   await send_match_pack(don, p.from_company_name);
+
+  // armed after the send, so a pack that never went out is never chased about.
+  // scheduled rather than enqueued — a delay this long cannot sit at the head of
+  // the FIFO queue. a failure here costs the reminder, not the pack.
+  await schedule(msg("don-match-chase", { id: don.id }));
 }

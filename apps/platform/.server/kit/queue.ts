@@ -24,9 +24,36 @@ export async function enqueue(...msgs: IMsg[]) {
       // a kind that declares no delivery config keeps the at-most-once
       // behavior this queue has always had
       retries: m.retries ?? 0,
-      delay: m.delay_s,
     });
     console.info(`${m.dedupe}: ${res.messageId}`);
+  }
+}
+
+/**
+ * a message that fires later, delivered on its own rather than through the queue.
+ *
+ * published, not enqueued: the shared queue is FIFO and delivers one message at
+ * a time, waiting for each to succeed or fail before starting the next, so a
+ * message parked at its head for days stalls every notification behind it —
+ * which is why qstash documents `delay` on publish and not on enqueue. these
+ * have no ordering relationship to anything anyway: each is a standalone timer
+ * against one db row, and the handler re-reads that row at fire time rather
+ * than trusting the payload.
+ *
+ * qstash's dedupe window is ~10 minutes, far shorter than the delays here, so
+ * `dedupe` does not protect the far end. a scheduled kind's handler owns its own
+ * send-once gate.
+ */
+export async function schedule(...msgs: IMsg[]) {
+  for (const m of msgs) {
+    const res = await client.publishJSON({
+      url: `${base_url}/api/q-handler/${m.id}`,
+      body: m.payload,
+      deduplicationId: m.dedupe,
+      retries: m.retries ?? 0,
+      delay: m.delay_s,
+    });
+    console.info(`${m.dedupe}: scheduled ${res.messageId} in ${m.delay_s}s`);
   }
 }
 

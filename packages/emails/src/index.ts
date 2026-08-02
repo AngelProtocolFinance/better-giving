@@ -10,6 +10,7 @@ export * as cognito_signup from "./templates/cognito-signup";
 // Donation
 export * as donation_donor_notif from "./templates/donation-donor-notif";
 export * as donation_error from "./templates/donation-error";
+export * as donation_match_chase from "./templates/donation-match-chase";
 export * as donation_match_filed_notif from "./templates/donation-match-filed-notif";
 export * as donation_match_pack from "./templates/donation-match-pack";
 export * as donation_microdeposit_action from "./templates/donation-microdeposit-action";
