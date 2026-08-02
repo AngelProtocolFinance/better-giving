@@ -297,3 +297,24 @@ describe("handle_don_match — a refused send", () => {
     expect(rows[0]!.send_failed_kind).toBeNull();
   });
 });
+
+describe("handle_don_match — a voided event", () => {
+  test("sends nothing, because the money went back", async () => {
+    const { id, payload } = await seed_donation();
+    // the refund landed while the message was already in the queue
+    await test_db.current!.db.insert(donation_match_events).values({
+      id: `evt-void-${id}`,
+      donation_id: id,
+      voided_at: "2026-01-04T00:00:00Z",
+      void_reason: "refunded",
+    });
+
+    await expect(handle_don_match(payload)).resolves.toBeUndefined();
+
+    const rows = await events();
+    expect(send_email).not.toHaveBeenCalled();
+    expect(rows[0]!.pack_sent_at).toBeNull();
+    // nothing to chase about either
+    expect(schedule).not.toHaveBeenCalled();
+  });
+});

@@ -53,9 +53,11 @@ export async function open_match_event(
  * a null return is the ordinary outcome for a redelivery — the claim was lost,
  * the pack already went out — not a failure.
  *
- * suppressing a voided donation is one line here: add
- * `isNull(donation_match_events.voided_at)` to the `and(...)`. the gate is
- * deliberately shaped so that later commit changes nothing else.
+ * a refunded donation wins nothing here: `voided_at IS NULL` sits in the same
+ * WHERE, so a message already in flight when the refund landed fires, claims
+ * nothing and mails nothing. no handler branches on it — this is a gate that
+ * already asserts its own predicates, and a check written handler-side would
+ * have to be written again in every caller, including the ones not yet built.
  */
 export async function claim_pack_send(
   donation_id: string,
@@ -68,7 +70,8 @@ export async function claim_pack_send(
     .where(
       and(
         eq(donation_match_events.donation_id, donation_id),
-        isNull(donation_match_events.pack_sent_at)
+        isNull(donation_match_events.pack_sent_at),
+        isNull(donation_match_events.voided_at)
       )
     )
     .returning();
@@ -88,8 +91,10 @@ export async function claim_pack_send(
  * a null return is the ordinary outcome for the loser: already filed, not an
  * error.
  *
- * suppressing a voided donation is one line here: add
- * `isNull(donation_match_events.voided_at)` to the `and(...)`.
+ * deliberately not gated on `voided_at`, unlike every send claim in this file.
+ * this is not a send — it is the donor telling us something, and a donor who
+ * filed and was then refunded is exactly the row worth keeping. suppressing it
+ * would erase the sequence the refund heads-up reads.
  */
 export async function claim_submitted(
   donation_id: string,
@@ -125,8 +130,11 @@ export async function claim_submitted(
  * a null return is the ordinary outcome, not a failure: it is what "no chase is
  * owed" looks like, whichever of the three said so.
  *
- * suppressing a voided donation is one line here: add
- * `isNull(donation_match_events.voided_at)` to the `and(...)`.
+ * a fourth condition joins them for the same reason, and this is the clearest
+ * case for gating in the WHERE at all: the chase is published to qstash at pack
+ * time, three days out, and once a refund lands there is no recalling it. the
+ * message *will* be delivered — the only place left to stop the mail is the
+ * claim, which fires, wins nothing, and sends nothing.
  */
 export async function claim_match_chase(
   donation_id: string,
@@ -141,7 +149,8 @@ export async function claim_match_chase(
         eq(donation_match_events.donation_id, donation_id),
         isNotNull(donation_match_events.pack_sent_at),
         isNull(donation_match_events.chased_at),
-        isNull(donation_match_events.submitted_at)
+        isNull(donation_match_events.submitted_at),
+        isNull(donation_match_events.voided_at)
       )
     )
     .returning();

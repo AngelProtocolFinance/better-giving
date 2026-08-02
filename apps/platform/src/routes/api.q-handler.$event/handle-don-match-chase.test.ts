@@ -84,6 +84,8 @@ async function seed(o?: {
     pack_sent_at: string | null;
     chased_at: string | null;
     submitted_at: string | null;
+    voided_at: string | null;
+    void_reason: "refunded" | "refunded_loss" | null;
   }>;
 }) {
   counter++;
@@ -241,5 +243,24 @@ describe("handle_don_match_chase — a refused send", () => {
     const rows = await events();
     expect(rows[0]!.send_failed_at).toBeNull();
     expect(rows[0]!.send_failed_kind).toBeNull();
+  });
+});
+
+describe("handle_don_match_chase — a voided event", () => {
+  test("is not chased, and the message cannot be recalled to stop it", async () => {
+    // this is the case the WHERE gate exists for: the chase was published three
+    // days ago and qstash will deliver it whatever happened since
+    const { payload } = await seed({
+      stamps: {
+        voided_at: "2026-01-04T00:00:00Z",
+        void_reason: "refunded" as const,
+      },
+    });
+
+    await expect(handle_don_match_chase(payload)).resolves.toBeUndefined();
+
+    const rows = await events();
+    expect(send_email).not.toHaveBeenCalled();
+    expect(rows[0]!.chased_at).toBeNull();
   });
 });
