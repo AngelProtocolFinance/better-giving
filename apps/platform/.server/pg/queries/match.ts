@@ -1,5 +1,6 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db as _db } from "../db";
+import { donation_donors, donations } from "../schema/donation";
 import { donation_match_events, type MatchEvent } from "../schema/match";
 import type { DbOrTx } from "./helpers";
 
@@ -235,4 +236,97 @@ export async function match_event_get(
     .limit(1);
 
   return row ?? null;
+}
+
+export interface IMatchFunnel {
+  /**
+   * donations whose money landed, in the window — the denominator for
+   * `with_employer`.
+   *
+   * scoped to the terminal money-landed statuses, `settled` *and* both refunded
+   * ones. not `settled` alone, which is the tempting narrowing and the wrong
+   * one: a refund flips the donation's status out of `settled`, so that window
+   * removes the donation from the numerator and the denominator of every stage
+   * at the same instant. the funnel then reads as though the donation never
+   * happened rather than as though it was reversed — and `voided` below, which
+   * is the honest way to say the latter, could never be non-zero.
+   *
+   * not unfiltered either. `created`, `intent`, `expired`, `failed` and
+   * `cancelled` all live in this table, and admitting them would make this a
+   * count of checkout attempts rather than of donations.
+   */
+  donations: number;
+  /** …of those, how many arrived with an employer name the donor volunteered */
+  with_employer: number;
+  /** filing packs that went out */
+  pack_sent: number;
+  /** packs that went unanswered long enough to earn the T+3d reminder */
+  chased: number;
+  /** donors who came back and said they filed — self-reported, never confirmed */
+  submitted: number;
+  /**
+   * events where a mail was handed to the provider and refused. the stamp is
+   * burnt before the send, so every one of these is *already counted* in
+   * `pack_sent` or `chased` above — a subtrahend on those stages, not a stage
+   * of its own. one stamp per row, last failure winning, so this counts events
+   * that lost a mail rather than mails lost.
+   */
+  send_failed: number;
+  /**
+   * events whose donation was refunded. like `send_failed`, a subtrahend on
+   * whatever stages the event had already reached rather than a stage of its
+   * own — the money went back, but the pack really was sent and the donor
+   * really may have filed, and the void stamps beside those so that history
+   * survives. counted here so a refund reads as "this happened and was
+   * reversed" instead of vanishing from numerator and denominator at once,
+   * which reads as "it never happened" — a silent lie rather than a
+   * measurement.
+   */
+  voided: number;
+}
+
+/**
+ * the employer-matching funnel, read off the event rows themselves.
+ *
+ * every stage is the presence of its own stamp, which is the same fact the
+ * send gates claim on — so a funnel counted from them cannot drift from what
+ * actually happened. there is no state column to disagree with.
+ *
+ * two of the fields are not stages. `send_failed` and `voided` are named
+ * subtrahends on the stages above them: both describe rows already counted
+ * there, and folding either into a stage — or filtering it out — would make
+ * the funnel read as though those donations never happened.
+ */
+export async function match_funnel(
+  since?: string,
+  db: DbOrTx = _db
+): Promise<IMatchFunnel> {
+  const from = since ? sql`and d.created_at >= ${since}` : sql``;
+  const n = (e: ReturnType<typeof sql>) =>
+    sql<number>`count(*) filter (where ${e})::int`;
+
+  const { rows } = await db.execute(sql`
+    select
+      count(*)::int as donations,
+      -- what the donor typed, not an employer anything resolved: a name is all
+      -- this feature has ever had, and whitespace-only input is not one
+      ${n(sql`nullif(btrim(dd.company_name), '') is not null`)} as with_employer,
+      ${n(sql`e.pack_sent_at is not null`)} as pack_sent,
+      ${n(sql`e.chased_at is not null`)} as chased,
+      ${n(sql`e.submitted_at is not null`)} as submitted,
+      ${n(sql`e.send_failed_at is not null`)} as send_failed,
+      ${n(sql`e.voided_at is not null`)} as voided
+    from ${donations} d
+    left join ${donation_donors} dd on dd.donation_id = d.id
+    left join ${donation_match_events} e on e.donation_id = d.id
+    -- the terminal money-landed statuses, not settled alone. re-narrowing this
+    -- to settled is the tempting edit and the wrong one: a refund flips the
+    -- status, so that window deletes the donation from the numerator and the
+    -- denominator of every stage at the same instant, and the funnel reads as
+    -- though it never happened instead of as though it was reversed. the
+    -- never-paid statuses stay out — they are checkout attempts, not donations.
+    where d.status in ('settled','refunded','refunded_loss') ${from}
+  `);
+
+  return rows[0] as unknown as IMatchFunnel;
 }
