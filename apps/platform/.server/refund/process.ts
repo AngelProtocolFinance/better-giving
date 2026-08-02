@@ -8,6 +8,7 @@ import {
   donation_has_refund_loss,
 } from "../pg/queries/dist";
 import { donation_update } from "../pg/queries/donation";
+import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
 import { apply_refund_plan } from "./apply";
@@ -175,9 +176,25 @@ export async function process_refund(
   // retry once the failed dists are fixed. webhook path gets the same
   // semantics: a partial failure leaves the row in "settled" and a future
   // retry (manual or replayed event) can complete the refund.
+  //
+  // the status flip and the match void go together in one transaction because
+  // a void that fails silently is worse than no void at all: every suppression
+  // downstream keys off `voided_at`, so a missed stamp means the T+3d chase
+  // still fires at a donor whose money already went home. the transaction makes
+  // that failure loud — it rolls back, the donation stays "settled" with its
+  // dists already "completed", which is exactly the mixed,
+  // reversible-and-retryable state the paragraph above already documents. a
+  // replayed `charge.refunded` skips the completed dists via SKIP_STATUSES and
+  // retries the pair.
+  //
+  // one write site covers both refund entry points: the `charge.refunded`
+  // webhook, and the admin refund action, which calls process_refund itself and
+  // whose resulting webhook short-circuits before reaching here.
   if (failures.length === 0) {
-    await donation_update(db, donation_id, {
-      status: has_loss ? "refunded_loss" : "refunded",
+    const status = has_loss ? "refunded_loss" : "refunded";
+    await db.transaction(async (tx) => {
+      await donation_update(tx, donation_id, { status });
+      await void_match_event(tx, donation_id, status);
     });
   }
 

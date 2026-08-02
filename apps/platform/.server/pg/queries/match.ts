@@ -177,6 +177,43 @@ export async function mark_match_send_failed(
   return row ?? null;
 }
 
+/**
+ * stamp an event void — the donation went back to the donor, so nothing
+ * further is owed on it.
+ *
+ * a donation that never entered the workflow has no row to stamp and returns
+ * null, which is not an error: most donations have no event at all.
+ *
+ * takes the handle first and undefaulted, unlike every function above it. the
+ * only caller runs inside the refund's transaction, and a defaulted parameter
+ * is precisely how such a write silently escapes the transaction it was meant
+ * to be atomic with — the mistake would type-check.
+ *
+ * `voided_at IS NULL` is the idempotency gate. a replayed `charge.refunded`
+ * re-enters this write, and without the guard the stamp would jump forward to
+ * the replay's clock, losing when the donation was actually reversed — the one
+ * thing the timestamp is there to say. the no-op returns null.
+ */
+export async function void_match_event(
+  db: DbOrTx,
+  donation_id: string,
+  reason: "refunded" | "refunded_loss"
+): Promise<MatchEvent | null> {
+  const now = new Date().toISOString();
+  const [row] = await db
+    .update(donation_match_events)
+    .set({ voided_at: now, void_reason: reason, updated_at: now })
+    .where(
+      and(
+        eq(donation_match_events.donation_id, donation_id),
+        isNull(donation_match_events.voided_at)
+      )
+    )
+    .returning();
+
+  return row ?? null;
+}
+
 /** the event row for a donation, if the workflow was ever entered for it */
 export async function match_event_get(
   donation_id: string,
