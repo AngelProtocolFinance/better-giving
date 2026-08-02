@@ -31,6 +31,7 @@ const to_auth_mock = vi.hoisted(() =>
   vi.fn(() => new Response(null, { status: 302 }))
 );
 const cookie_parse_mock = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const enqueue_mock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -46,6 +47,8 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
+
+vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
 vi.mock("#/.server/auth", () => ({
   get_session: get_session_mock,
@@ -161,6 +164,7 @@ beforeEach(async () => {
   get_session_mock.mockReset();
   to_auth_mock.mockClear();
   cookie_parse_mock.mockReset().mockResolvedValue({});
+  enqueue_mock.mockClear();
 
   // clean tables in correct FK order
   await test_db.current!.db.delete(donation_messages);
@@ -1181,6 +1185,45 @@ describe("Integration — action", () => {
       action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
     );
     expect(after.from_company_name).toBe("Acme Corp");
+  });
+
+  it("employer: queues the filing pack for a paid donation", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+
+    expect(enqueue_mock).toHaveBeenCalledTimes(1);
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      id: "don-match",
+      dedupe: `don.match_${DON_ID}`,
+      payload: { id: DON_ID, from_company_name: "Acme Corp" },
+    });
+  });
+
+  it("employer: queues nothing for a donation that hasn't been paid", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "intent" });
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+
+    // the name is still recorded — settlement picks it up and emits the same
+    // message itself, so an abandoned intent can never produce a pack
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   // --- fund guard ---

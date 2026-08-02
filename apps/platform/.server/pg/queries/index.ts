@@ -9,6 +9,7 @@ export * from "./form";
 export * from "./fund";
 export * from "./helpers";
 export * from "./liquid";
+export * from "./match";
 export * from "./nav";
 export * from "./npo";
 export * from "./npo-media";

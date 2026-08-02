@@ -10,6 +10,7 @@ import {
   handle_banking_set_default,
 } from "./handle-banking";
 import { handle_don_dist } from "./handle-don-dist";
+import { handle_don_match } from "./handle-don-match";
 import { handle_don_receipt } from "./handle-don-receipt";
 import { handle_don_sttl_dist } from "./handle-don-sttl-dist";
 import { handle_fund_member_removed } from "./handle-fund";
@@ -24,6 +25,7 @@ const handlers: Handlers = {
   "banking-new": handle_banking_new_account,
   "banking-rejected": handle_banking_rejected,
   "don-dist": (p) => handle_don_dist(db, p),
+  "don-match": handle_don_match,
   "don-sttl-dist": handle_don_sttl_dist,
   "don-sttl-receipt": handle_don_receipt,
   "fund-member-removed": handle_fund_member_removed,

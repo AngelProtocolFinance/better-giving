@@ -39,6 +39,13 @@ export interface IDonDistPayload {
   form?: { id: string; tag?: string };
 }
 
+export interface IDonMatchPayload {
+  /** donation the match event attaches to */
+  id: string;
+  /** employer as the donor typed it — echoed back in the pack, never resolved */
+  from_company_name: string;
+}
+
 export interface IBankingPayload {
   npo_id: number;
   bank_summary?: string;
@@ -99,6 +106,7 @@ export type Payloads = {
   "banking-new": IBankingPayload;
   "banking-rejected": IBankingPayload;
   "don-dist": IDonDistPayload;
+  "don-match": IDonMatchPayload;
   "don-sttl-dist": IDonationSettled;
   "don-sttl-receipt": IDonation;
   "fund-member-removed": IFundMemberRemovedPayload;
@@ -131,6 +139,7 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "banking-new": (p) => `banking.new_${p.npo_id}`,
   "banking-rejected": (p) => `banking.rejected_${p.npo_id}`,
   "don-dist": (p) => `don.dist_${p.id}_${p.to_id}`,
+  "don-match": (p) => `don.match_${p.id}`,
   "don-sttl-dist": (p) => `don.sttl-dist_${p.id}`,
   "don-sttl-receipt": (p) => `don.sttl-receipt_${p.id}`,
   "fund-member-removed": (p) => `fund.removed_${p.fund_id}_${p.creator_id}`,
@@ -147,7 +156,15 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
 // deliver-now delivery — the right default for the notification emails that
 // make up the registry today, where a retry means a duplicate send. long or
 // failure-prone handlers opt into retries; scheduled follow-ups into a delay.
-const delivery: Partial<{ [K in Kind]: IDelivery }> = {};
+const delivery: Partial<{ [K in Kind]: IDelivery }> = {
+  // the exception the comment above describes. this handler reads the donation
+  // and writes an event row before it mails anything, so its failure modes are
+  // transient db ones rather than duplicate sends — and the pack send is gated
+  // by a claim query, so a retry of a delivery that already sent loses the
+  // claim and returns without mailing. a transient failure must not be what
+  // costs a donor their match.
+  "don-match": { retries: 3 },
+};
 
 export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({
   id: kind,

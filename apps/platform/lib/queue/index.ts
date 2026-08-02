@@ -2,6 +2,7 @@ export {
   type Handlers,
   type IBankingPayload,
   type IDonDistPayload,
+  type IDonMatchPayload,
   type IFundMemberRemovedPayload,
   type IInviteEmailPayload,
   type ILockTxCreatedPayload,

@@ -16,7 +16,9 @@ import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { resp } from "@/helpers/https";
 import { from_full } from "@/helpers/name";
+import { msg } from "@/queue";
 import { send_email } from "$/email";
+import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { donation_get, donation_update } from "$/pg/queries/donation";
 import { donation_message_put } from "$/pg/queries/donation-message";
@@ -146,6 +148,20 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
     // per-donation, like every other field on this screen — there is no donor
     // entity to hang an employer off, so a later donation asks again.
     await donation_update(db, don.id, { from_company_name: p.company_name });
+
+    // unpaid donations enqueue nothing: settlement reads the name we just wrote
+    // and emits the same message itself, so a pack for a gift that never
+    // completed is impossible rather than merely unlikely. the two paths share
+    // a dedupe key, so a donor who arrives here after settling gets one pack.
+    if (is_paid(don.status)) {
+      await enqueue(
+        msg("don-match", { id: don.id, from_company_name: p.company_name })
+      );
+      return dataWithSuccess(
+        null,
+        "Thanks! We're emailing you what to file with them."
+      );
+    }
     return dataWithSuccess(
       null,
       "Thanks! We've noted your employer on this donation."
