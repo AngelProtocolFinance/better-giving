@@ -57,7 +57,14 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
 
   const don = await donation_get(params.id);
   if (!don) throw resp.status(404, "donation not found");
-  if (don.to_type === "fund" && p.type !== "public_msg") {
+  // employer capture is not recipient-shaped — a fund donation reaches the same
+  // nonprofits and is just as matchable, so it is allowed here alongside the
+  // public message.
+  if (
+    don.to_type === "fund" &&
+    p.type !== "public_msg" &&
+    p.type !== "employer"
+  ) {
     throw resp.status(
       400,
       "cannot add tribute or private messages to fund donations"
@@ -134,6 +141,15 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
       });
     });
     return dataWithSuccess(null, "Your message is posted.");
+  }
+  if (p.type === "employer" && !don.from_company_name) {
+    // per-donation, like every other field on this screen — there is no donor
+    // entity to hang an employer off, so a later donation asks again.
+    await donation_update(db, don.id, { from_company_name: p.company_name });
+    return dataWithSuccess(
+      null,
+      "Thanks! We've noted your employer on this donation."
+    );
   }
   if (
     p.type === "private_msg" &&

@@ -442,6 +442,87 @@ describe("Page — filing details", () => {
   });
 });
 
+describe("Page — employer capture", () => {
+  it("opens with an empty field when no employer is on record", async () => {
+    const screen = await render_page(make_loader_data());
+
+    await expect
+      .element(screen.getByText(/tell us where you work/i))
+      .toBeVisible();
+    // defaultOpen — a donor with nothing on record shouldn't have to find it
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+  });
+
+  it("shows the recorded employer instead of a field, collapsed", async () => {
+    const screen = await render_page(
+      make_loader_data({ from_company_name: "Acme Corp" })
+    );
+
+    // collapsed: nothing from the panel is on screen until the donor asks
+    await expect.element(screen.getByText("Acme Corp")).not.toBeVisible();
+
+    await screen.getByText(/tell us where you work/i).click();
+    await expect.element(screen.getByText("Acme Corp")).toBeVisible();
+    // no input to overwrite it with — the action ignores a second submit
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .not.toBeInTheDocument();
+  });
+
+  it("marks the trigger done when an employer is on record", async () => {
+    const screen = await render_page(
+      make_loader_data({ from_company_name: "Acme Corp" })
+    );
+    await vi.waitFor(() => {
+      const trigger = screen
+        .getByText(/tell us where you work/i)
+        .element() as HTMLElement;
+      const svg = trigger.closest("button")?.querySelector("svg");
+      expect(svg?.classList.contains("stroke-success")).toBe(true);
+    });
+  });
+
+  // a fund donation reaches the same nonprofits and is just as matchable, so
+  // unlike its neighbours this card is not recipient-gated
+  it("shows for a fund donation", async () => {
+    const screen = await render_page(make_loader_data({ to_type: "fund" }));
+
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+  });
+
+  it("submits type=employer with the typed name", async () => {
+    const submitted: Record<string, string> = {};
+    const Stub = createRoutesStub([
+      {
+        path: "/donations/:id",
+        Component: Page,
+        loader: () => make_loader_data(),
+        action: async ({ request }) => {
+          const fd = await request.formData();
+          for (const [k, v] of fd.entries()) submitted[k] = String(v);
+          return null;
+        },
+      },
+    ]);
+    const screen = await render(
+      <Stub initialEntries={[`/donations/${DON_ID}`]} />
+    );
+
+    await screen.getByLabelText(/where do you work/i).fill("Acme Corp");
+    await screen.getByRole("button", { name: /save/i }).click();
+
+    // remix-hook-form json-encodes each field; the action decodes it again
+    await vi.waitFor(() => {
+      expect(JSON.parse(submitted.type!)).toBe("employer");
+      expect(JSON.parse(submitted.company_name!)).toBe("Acme Corp");
+    });
+  });
+});
+
 describe("PublicMsgForm", () => {
   function render_form(init?: string) {
     const Stub = createRoutesStub([
@@ -1060,6 +1141,48 @@ describe("Integration — action", () => {
       .toBeDisabled();
   });
 
+  // --- employer flow ---
+
+  it("employer: records the name against the donation", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id);
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const result = await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+    expect(result).toHaveProperty("toast");
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
+  });
+
+  it("employer: a second submit does not overwrite the first", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id);
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Other Inc" })
+      )
+    );
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
+  });
+
   // --- fund guard ---
 
   it("fund donation: rejects tribute and private_msg at action level", async () => {
@@ -1123,6 +1246,66 @@ describe("Integration — action", () => {
         action_args(make_action_request({ type: "private_msg", msg: "Hello" }))
       )
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("fund donation: accepts employer capture", async () => {
+    const fund_id = globalThis.crypto.randomUUID();
+    const date = new Date().toISOString();
+
+    const creator_id = globalThis.crypto.randomUUID();
+    await test_db.current!.db.insert(user).values({
+      id: creator_id,
+      name: "Fund Creator",
+      email: `creator-${creator_id.slice(0, 8)}@test.com`,
+      first_name: "Fund",
+      last_name: "Creator",
+    });
+    await test_db.current!.db.insert(funds).values({
+      id: fund_id,
+      name: "Test Fund",
+      description_pt: "A test fund",
+      banner: "banner.webp",
+      logo: "logo.webp",
+      creator_id,
+    });
+    await test_db.current!.db.insert(donations).values({
+      id: DON_ID,
+      upusd: 1,
+      status: "confirmed",
+      amount_base: 50,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe:card",
+      created_at: date,
+      updated_at: date,
+    });
+    await test_db.current!.db.insert(donation_recipients).values({
+      donation_id: DON_ID,
+      fund_id,
+      name: "Test Fund",
+      type: "fund",
+    });
+    await test_db.current!.db.insert(donation_donors).values({
+      donation_id: DON_ID,
+      email: DONOR_EMAIL,
+    });
+
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const result = await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+    expect(result).toHaveProperty("toast");
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
   });
 
   it("fund donation: submitting public msg via UI succeeds", async () => {
