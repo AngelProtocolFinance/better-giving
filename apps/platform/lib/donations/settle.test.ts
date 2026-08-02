@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { IDonation, IDonationSettled, ISettlement } from "./interfaces";
-import { calc_donation_settle } from "./settle";
+import { calc_donation_settle, type SettleResult } from "./settle";
 
 const sttl = (overrides: Partial<ISettlement> = {}): ISettlement => ({
   id: "sttl-1",
@@ -92,6 +92,71 @@ describe("calc_donation_settle - one-time", () => {
     ]);
     expect(r.msgs[0].dedupe).toBe("don.sttl-dist_don-xyz");
     expect(r.msgs[1].dedupe).toBe("don.sttl-receipt_don-xyz");
+  });
+});
+
+describe("calc_donation_settle - don-match", () => {
+  const settle = (overrides: Partial<IDonation>, kind = "one-time" as const) =>
+    calc_donation_settle({
+      kind,
+      order_id: "don-1",
+      prior: make_don(overrides),
+      settlement: sttl(),
+    });
+
+  const match = (r: SettleResult) => r.msgs.find((m) => m.id === "don-match");
+
+  test("emitted when the donor named an employer", () => {
+    const r = settle({ id: "don-xyz", from_company_name: "Acme Inc" });
+    const m = match(r);
+    expect(m?.dedupe).toBe("don.match_don-xyz");
+    expect(m?.payload).toEqual({
+      id: "don-xyz",
+      from_company_name: "Acme Inc",
+    });
+  });
+
+  test("retries so a transient handler failure is re-driven", () => {
+    expect(match(settle({ from_company_name: "Acme" }))?.retries).toBe(3);
+  });
+
+  test("skipped when no employer was given", () => {
+    expect(match(settle({}))).toBeUndefined();
+  });
+
+  test("skipped when the employer normalizes away entirely", () => {
+    // punctuation-only input names nobody, so there is nothing to address
+    expect(match(settle({ from_company_name: " -- " }))).toBeUndefined();
+  });
+
+  test("junk that survives normalization is still emitted", () => {
+    expect(match(settle({ from_company_name: "n/a" }))).toBeDefined();
+  });
+
+  test("emitted for the first charge of a subscription", () => {
+    const r = calc_donation_settle({
+      kind: "first-recurring",
+      order_id: "don-1",
+      prior: make_don({ frequency: "monthly", from_company_name: "Acme" }),
+      settlement: sttl(),
+      subs_id: "sub_123",
+    });
+    expect(match(r)).toBeDefined();
+  });
+
+  test("never emitted for a rebill", () => {
+    const r = calc_donation_settle({
+      kind: "rebill",
+      order_id: "don-1",
+      prior: {
+        ...make_don({ frequency: "monthly", from_company_name: "Acme" }),
+        settlement: sttl({ id: "sttl-old" }),
+      },
+      settlement: sttl({ id: "sttl-new" }),
+      subs_id: "sub_new",
+      new_id: "new-uuid",
+    });
+    expect(match(r)).toBeUndefined();
   });
 });
 

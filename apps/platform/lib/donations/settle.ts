@@ -1,3 +1,4 @@
+import { normalize_employer } from "../match";
 import { msg } from "../queue";
 import type { IMsg } from "../queue/types";
 import type {
@@ -64,6 +65,9 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
     return {
       op: "put",
       row,
+      // no don-match: rebills are deliberately excluded from employer matching
+      // (v1 policy — no monthly filing packs for subscribers). the first charge
+      // of the subscription already produced one.
       msgs: [msg("don-sttl-dist", row), msg("don-sttl-receipt", row)],
     };
   }
@@ -76,10 +80,22 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
   };
   // settlement is always set above, so the merged row is IDonationSettled.
   const projected = { ...i.prior, ...patch } as IDonationSettled;
-  return {
-    op: "update",
-    order_id: i.order_id,
-    patch,
-    msgs: [msg("don-sttl-dist", projected), msg("don-sttl-receipt", projected)],
-  };
+
+  const msgs: IMsg[] = [
+    msg("don-sttl-dist", projected),
+    msg("don-sttl-receipt", projected),
+  ];
+  // normalized only to decide whether a name was given at all: input that is
+  // punctuation alone leaves nothing to address a pack about, so it never
+  // becomes a queued message. junk that survives ("n/a") is left alone — the
+  // pack is addressed to the donor and asserts nothing about the employer, so
+  // the worst case is one email that names a company nobody works for.
+  const employer = projected.from_company_name ?? "";
+  if (normalize_employer(employer)) {
+    msgs.push(
+      msg("don-match", { id: projected.id, from_company_name: employer })
+    );
+  }
+
+  return { op: "update", order_id: i.order_id, patch, msgs };
 }
