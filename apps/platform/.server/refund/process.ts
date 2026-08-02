@@ -1,4 +1,7 @@
+import { donation_match_refund_notif as dmr } from "emails";
+import { emails } from "@/constants/common";
 import { report_error } from "@/errors/report";
+import { to_amount } from "@/helpers/email";
 import { stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
@@ -7,10 +10,11 @@ import {
   dist_refund_update,
   donation_has_refund_loss,
 } from "../pg/queries/dist";
-import { donation_update } from "../pg/queries/donation";
+import { donation_get, donation_update } from "../pg/queries/donation";
 import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
+import type { MatchEvent } from "../pg/schema/match";
 import { apply_refund_plan } from "./apply";
 import {
   calc_refund_plan,
@@ -192,10 +196,24 @@ export async function process_refund(
   // whose resulting webhook short-circuits before reaching here.
   if (failures.length === 0) {
     const status = has_loss ? "refunded_loss" : "refunded";
-    await db.transaction(async (tx) => {
+    const voided = await db.transaction(async (tx) => {
       await donation_update(tx, donation_id, { status });
-      await void_match_event(tx, donation_id, status);
+      return void_match_event(tx, donation_id, status);
     });
+
+    // deliberately after the commit, never inside it: a send from within the
+    // transaction either holds the row locks across a provider round-trip or
+    // announces a void that then rolls back. the whole thing is caught, because
+    // by here the money is already back — a heads-up that failed to send is a
+    // missing notice, not a failed refund, and surfacing it as one would send an
+    // admin to retry dists that are already reversed.
+    if (voided?.submitted_at) {
+      try {
+        await notify_filed_claim_refunded(voided, status);
+      } catch (err) {
+        report_error(err, { donation_id, event_id: voided.id });
+      }
+    }
   }
 
   // losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
@@ -209,4 +227,59 @@ export async function process_refund(
   }
 
   return { failures, loss_msgs, has_loss, applied };
+}
+
+/**
+ * tell the team a refund landed on a claim the donor had already filed.
+ *
+ * internal, and only internal. the claim names Better Giving, so the employer's
+ * verification and any payment come here — the beneficiary has nothing to
+ * answer, and the donor asked for their own money back, which is not something
+ * to write to them about. what is left is ours: a claim that may still be open
+ * against a donation that no longer exists.
+ *
+ * best-effort by construction. every read here is a second round-trip taken
+ * after the refund has committed, so a missing donation row or a refused send
+ * costs a notice and nothing else.
+ */
+async function notify_filed_claim_refunded(
+  ev: MatchEvent,
+  reason: "refunded" | "refunded_loss"
+) {
+  const don = await donation_get(ev.donation_id);
+  if (!don) return;
+
+  const { node, subject } = dmr.template({
+    to_name: don.to_name,
+    donor_name: don.from_name || "A donor",
+    donor_email: don.from_email,
+    // the donor's own input, unresolved — the same string every other surface
+    // in this workflow echoes back
+    employer_name: don.from_company_name || "their employer",
+    donation: {
+      id: don.id,
+      amount: to_amount(
+        don.amount.base,
+        don.amount.base / don.upusd,
+        don.currency
+      ),
+    },
+    // both fallbacks satisfy nullable columns rather than paths that run: the
+    // caller only gets here when `submitted_at` is set, and the row came back
+    // from the same statement that stamped `voided_at`.
+    filed_at: ev.submitted_at ?? ev.created_at,
+    refunded_at: ev.voided_at ?? new Date().toISOString(),
+    void_reason: reason,
+  });
+
+  // imported here rather than at the top: `../email` pulls in nodemailer, which
+  // cannot be evaluated outside node, and this module is reached statically by
+  // the refund route — a top-level import would make every consumer of that
+  // route mock the mailer just to load it.
+  const { send_email } = await import("../email");
+  const res = await send_email({ node, subject, to: [emails.hi] });
+
+  // send_email swallows provider errors into its return, so a refusal is
+  // reported here or it is lost entirely
+  if (!res.data) report_error(res.error, { donation_id: don.id });
 }

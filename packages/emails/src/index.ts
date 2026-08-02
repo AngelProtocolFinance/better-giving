@@ -13,6 +13,7 @@ export * as donation_error from "./templates/donation-error";
 export * as donation_match_chase from "./templates/donation-match-chase";
 export * as donation_match_filed_notif from "./templates/donation-match-filed-notif";
 export * as donation_match_pack from "./templates/donation-match-pack";
+export * as donation_match_refund_notif from "./templates/donation-match-refund-notif";
 export * as donation_microdeposit_action from "./templates/donation-microdeposit-action";
 export * as donation_nonprofit_notif from "./templates/donation-nonprofit-notif";
 export * as donation_private_message from "./templates/donation-private-message";
