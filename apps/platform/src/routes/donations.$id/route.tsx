@@ -9,6 +9,7 @@ import { Image } from "#/components/image";
 import { confetti } from "#/helpers/confetti";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
+import { FilingDetails } from "./filing-details";
 import { PrivateMsgForm } from "./private-msg-form";
 import { PublicMsgForm } from "./public-msg-form";
 import { ShareBtn, socials } from "./share";
@@ -139,6 +140,13 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           </Collapsible.Content>
         </Collapsible.Root>
       )}
+      <FilingDetails
+        classes="mt-2"
+        date={data.created_at}
+        amount={data.amount.base}
+        currency={data.currency}
+        record_url={data.donate_thanks_url}
+      />
       {!widget_version && (
         <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">

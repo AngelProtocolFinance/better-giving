@@ -71,6 +71,7 @@ vi.mock("#/helpers/confetti", () => ({
 
 // --- imports after mocks ---
 
+import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { npo_donors } from "#/.server/npo-donors";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 import { PrivateMsgForm } from "../private-msg-form";
@@ -393,6 +394,51 @@ describe("Page — rendering", () => {
       const svg = trigger.closest("button")?.querySelector("svg");
       expect(svg?.classList.contains("stroke-success")).toBe(true);
     });
+  });
+});
+
+describe("Page — filing details", () => {
+  it("shows the recipient's legal name, EIN and address", async () => {
+    const screen = await render_page(make_loader_data());
+
+    await expect.element(screen.getByText(LEGAL_NAME)).toBeVisible();
+    await expect.element(screen.getByText(EIN)).toBeVisible();
+    await expect.element(screen.getByText(ADDRESS)).toBeVisible();
+  });
+
+  it("shows this donation's own date, amount and record url", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        // an instant that is already the 15th in UTC but still the 14th in the
+        // americas — the receipt stamps UTC, so the panel must too or the two
+        // documents an employer compares disagree on the gift's date
+        created_at: "2025-03-15T03:00:00Z",
+        amount: { base: 250, tip: 10, fee_allowance: 0 },
+        currency: "usd",
+      })
+    );
+
+    await expect.element(screen.getByText("Mar 15, 2025")).toBeVisible();
+    await expect.element(screen.getByText("250.00 USD")).toBeVisible();
+    await expect
+      .element(screen.getByText(`http://localhost/donations/${DON_ID}`))
+      .toBeVisible();
+  });
+
+  // the payload is ours and employer-independent — every donor gets it, whether
+  // or not they named a company, and whichever surface they donated from
+  it.each([
+    ["no employer named", {}],
+    ["employer named", { from_company_name: "Acme Corp" }],
+    ["fund donation", { to_type: "fund" as const }],
+    ["widget donation", { source: "bg-widget" }],
+  ])("shows for %s", async (_, overrides) => {
+    const screen = await render_page(make_loader_data(overrides));
+
+    await expect
+      .element(screen.getByText(/ask your employer to match this gift/i))
+      .toBeVisible();
+    await expect.element(screen.getByText(EIN)).toBeVisible();
   });
 });
 

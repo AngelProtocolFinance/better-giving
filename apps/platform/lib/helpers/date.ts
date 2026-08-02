@@ -26,6 +26,18 @@ export const iso_date = (formatter: typeof endOfDay, required?: "required") =>
     );
   });
 
+/**
+ * calendar day in UTC. the receipt is stamped server-side, so a donation made
+ * late in a western evening already reads as the next day there — formatting
+ * the same instant in the donor's own zone would print a different date than
+ * the document their employer verifies the claim against.
+ */
+export const to_utc_day = (date: string | Date) =>
+  new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(date));
+
 export const to_pretty_utc = (date: string | Date) =>
   `${format(new Date(date), "yyyy-MM-dd HH:mm:ss")} (UTC)`;
 
