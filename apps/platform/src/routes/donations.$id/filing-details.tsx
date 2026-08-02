@@ -1,9 +1,12 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
-import { BuildingIcon } from "lucide-react";
+import { BuildingIcon, CheckCircle2Icon } from "lucide-react";
 import type { ReactNode } from "react";
+import { Form, useFetcher } from "react-router";
+import { useRemixForm } from "remix-hook-form";
 import { Copier } from "#/components/copier";
 import { to_utc_day } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
+import type { IFiledFv } from "./schema";
 
 interface IFilingDetails {
   /** iso date the donation was made */
@@ -13,6 +16,8 @@ interface IFilingDetails {
   currency: string;
   /** public url of this donation page — the donor's record of the gift */
   record_url: string;
+  /** the donor already told us they filed; self-reported, never confirmed */
+  filed?: boolean;
   classes?: string;
 }
 
@@ -60,7 +65,64 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
         Not sure where to file? Check your employer's giving portal, or forward
         these details to your HR team.
       </p>
+      <div className="p-4 border-t">
+        <FiledBtn filed={p.filed} />
+      </div>
     </section>
+  );
+}
+
+interface IFiledBtn {
+  filed?: boolean;
+}
+
+/**
+ * the donor telling us they filed — the only signal we will ever get. employers
+ * verify a gift with the charity, they never report back, so nothing else can
+ * mark this.
+ *
+ * a POST and nothing else. the filing pack mails a link to this page, and
+ * corporate mail security prefetches inbound urls before the recipient ever
+ * opens them — a GET link, or a stamp written on load, would file claims for
+ * donors who never clicked.
+ */
+function FiledBtn({ filed }: IFiledBtn) {
+  const fetcher = useFetcher({ key: "donation" });
+  const { handleSubmit } = useRemixForm<IFiledFv>({
+    fetcher,
+    defaultValues: { type: "filed" },
+  });
+
+  if (filed) {
+    return (
+      <p className="flex items-start gap-x-2 text-sm">
+        <span className="h-lh flex items-center shrink-0">
+          <CheckCircle2Icon className="stroke-success" size={16} />
+        </span>
+        <span>
+          <span className="font-semibold">You told us you filed this.</span>{" "}
+          <span className="text-muted-fg">
+            We'll expect your employer's verification request and answer it.
+          </span>
+        </span>
+      </p>
+    );
+  }
+
+  return (
+    <Form onSubmit={handleSubmit} method="POST" className="grid">
+      <p className="text-sm text-muted-fg">
+        Filed it already? Tell us, so we know to expect your employer's
+        verification request.
+      </p>
+      <button
+        disabled={fetcher.state !== "idle"}
+        type="submit"
+        className="btn btn-secondary text-sm px-4 py-2 rounded mt-4 justify-self-end"
+      >
+        I filed this with my employer
+      </button>
+    </Form>
   );
 }
 

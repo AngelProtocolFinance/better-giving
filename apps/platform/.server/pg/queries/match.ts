@@ -75,3 +75,51 @@ export async function claim_pack_send(
 
   return row ?? null;
 }
+
+/**
+ * claim the donor's "I filed it" for this donation.
+ *
+ * the same one-statement gate as the pack send, for the same reason: the stamp
+ * is the guard and the record at once, so a double-submit — a refresh, a
+ * double-click, a retried POST — cannot both come back holding it, and only the
+ * winner mails us. this is self-reported and never confirmed by an employer, so
+ * the stamp is the only thing that will ever say a claim was filed.
+ *
+ * a null return is the ordinary outcome for the loser: already filed, not an
+ * error.
+ *
+ * suppressing a voided donation is one line here: add
+ * `isNull(donation_match_events.voided_at)` to the `and(...)`.
+ */
+export async function claim_submitted(
+  donation_id: string,
+  db: DbOrTx = _db
+): Promise<MatchEvent | null> {
+  const now = new Date().toISOString();
+  const [row] = await db
+    .update(donation_match_events)
+    .set({ submitted_at: now, updated_at: now })
+    .where(
+      and(
+        eq(donation_match_events.donation_id, donation_id),
+        isNull(donation_match_events.submitted_at)
+      )
+    )
+    .returning();
+
+  return row ?? null;
+}
+
+/** the event row for a donation, if the workflow was ever entered for it */
+export async function match_event_get(
+  donation_id: string,
+  db: DbOrTx = _db
+): Promise<MatchEvent | null> {
+  const [row] = await db
+    .select()
+    .from(donation_match_events)
+    .where(eq(donation_match_events.donation_id, donation_id))
+    .limit(1);
+
+  return row ?? null;
+}

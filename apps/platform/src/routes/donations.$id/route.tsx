@@ -173,6 +173,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         amount={data.amount.base}
         currency={data.currency}
         record_url={data.donate_thanks_url}
+        filed={data.match_filed}
       />
       {!widget_version && (
         <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">
