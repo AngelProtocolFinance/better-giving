@@ -6,10 +6,17 @@ import { company_name_max_length, type IEmployerFv } from "./schema";
 interface IEmployerForm {
   /** employer already recorded against this donation, if any */
   init?: string;
+  /** the donor already said they filed — changes why we ask, not whether */
+  filed?: boolean;
 }
 
 /**
  * employer capture — a labelled text input and a button, nothing else.
+ *
+ * lives inside the filing panel rather than beside it. the two were once
+ * separate cards, and a donor reading the page met the same subject twice: a
+ * collapsible asking where they work, then an open panel about matching that
+ * never mentioned the answer. one is the low-effort path through the other.
  *
  * checkout collects a usable employer on a fraction of a percent of donations,
  * so nearly every donor arrives here with nothing on record. this screen is
@@ -22,7 +29,7 @@ interface IEmployerForm {
  * a list would be an assertion we cannot make. worse, a donor who scans one and
  * does not find their employer reads that as "they don't match".
  */
-export function EmployerForm({ init }: IEmployerForm) {
+export function EmployerForm({ init, filed }: IEmployerForm) {
   const fetcher = useFetcher({ key: "donation" });
   const {
     handleSubmit,
@@ -50,8 +57,14 @@ export function EmployerForm({ init }: IEmployerForm) {
         {...register("company_name")}
         label="Where do you work?"
         // conditional on purpose: we hold nothing about any employer, so the
-        // copy promises our own paperwork, never their programme
-        sub="If your employer runs a matching gift program, we'll email you what to file."
+        // copy promises our own paperwork, never their programme. once they've
+        // filed there is no pack left to offer, but the name is worth more than
+        // ever — their employer's verification request is coming to us.
+        sub={
+          filed
+            ? "So we know whose verification request to expect."
+            : "If your employer runs a matching gift program, we'll email you what to file."
+        }
         placeholder="e.g. Apple"
         maxLength={company_name_max_length}
         required

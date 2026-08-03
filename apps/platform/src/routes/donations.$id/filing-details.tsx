@@ -6,6 +6,7 @@ import { useRemixForm } from "remix-hook-form";
 import { Copier } from "#/components/copier";
 import { to_utc_day } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
+import { EmployerForm } from "./employer-form";
 import type { IFiledFv } from "./schema";
 
 interface IFilingDetails {
@@ -16,6 +17,8 @@ interface IFilingDetails {
   currency: string;
   /** public url of this donation page — the donor's record of the gift */
   record_url: string;
+  /** employer already recorded against this donation, if any */
+  employer?: string;
   /** the donor already told us they filed; self-reported, never confirmed */
   filed?: boolean;
   /** the gift went back to the donor — there is nothing left to file for */
@@ -29,12 +32,19 @@ interface IFilingDetails {
  * date and amount, so it's identical for everyone and independent of which
  * employer — if any — the donor works for. asserts nothing about any specific
  * employer's programme; we have no employer data and make no promises about one.
+ *
+ * the whole matching subject lives here, capture included. everything on the
+ * panel is one thought — here is what to file, tell us where you work and we'll
+ * send it, tell us when you've filed — so it is one card, not a collapsible
+ * asking for an employer above a panel that never mentions the answer.
  */
 export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
   // a returned gift is not matchable, and printing the paperwork for one would
   // walk a donor into filing a claim against money we no longer hold. the
-  // panel says so and asks nothing — the employer is never mentioned, because
-  // we still know nothing about them.
+  // panel says so and asks nothing — no paperwork, and no employer field:
+  // the void gate refuses the pack, so asking would promise an email that is
+  // never sent. the employer is never named back either, because we still know
+  // nothing about them.
   if (p.voided) {
     return (
       <section
@@ -77,6 +87,12 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
             so these are the details the form will ask for.
           </p>
         </div>
+      </div>
+      {/* above the table, not below it: the table is six rows and a donor who
+          scrolls past it has left the page. this is the cheaper of the two
+          paths out of here and the only one that reaches them later. */}
+      <div className="p-4 border-t">
+        <EmployerForm init={p.employer} filed={p.filed} />
       </div>
       <dl className="grid sm:grid-cols-[auto_auto_1fr] border-t">
         <Row label="Recipient legal name" value={LEGAL_NAME} />

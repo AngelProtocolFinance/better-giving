@@ -442,8 +442,22 @@ describe("Page — a refunded donation", () => {
     );
 
     await expect
-      .element(screen.getByText(/tell us where you work/i))
+      .element(screen.getByLabelText(/where do you work/i))
       .not.toBeInTheDocument();
+  });
+
+  it("names no employer back, even one already on record", async () => {
+    // nothing about the panel's voided branch mentions an employer; the gift is
+    // gone and who they work for has no bearing left
+    const screen = await render_page(
+      make_loader_data({
+        status: "refunded",
+        match_voided: true,
+        from_company_name: "Acme Corp",
+      })
+    );
+
+    await expect.element(screen.getByText("Acme Corp")).not.toBeInTheDocument();
   });
 });
 
@@ -520,27 +534,33 @@ describe("Page — filing details", () => {
 });
 
 describe("Page — employer capture", () => {
-  it("opens with an empty field when no employer is on record", async () => {
+  it("asks inside the filing panel, not in a card of its own", async () => {
     const screen = await render_page(make_loader_data());
 
-    await expect
-      .element(screen.getByText(/tell us where you work/i))
-      .toBeVisible();
-    // defaultOpen — a donor with nothing on record shouldn't have to find it
+    // one card, one subject. the field and the paperwork it offers to email
+    // must share a section, or the donor meets matching twice on one page.
+    const heading = screen
+      .getByText(/ask your employer to match this gift/i)
+      .element();
+    const input = screen.getByLabelText(/where do you work/i).element();
+    expect(heading.closest("section")).toBe(input.closest("section"));
+  });
+
+  it("shows the field without anything to expand first", async () => {
+    const screen = await render_page(make_loader_data());
+
+    // no collapsible: the one action here with a consequence beyond the screen
+    // is not something a donor should have to discover
     await expect
       .element(screen.getByLabelText(/where do you work/i))
       .toBeVisible();
   });
 
-  it("shows the recorded employer instead of a field, collapsed", async () => {
+  it("shows the recorded employer instead of a field", async () => {
     const screen = await render_page(
       make_loader_data({ from_company_name: "Acme Corp" })
     );
 
-    // collapsed: nothing from the panel is on screen until the donor asks
-    await expect.element(screen.getByText("Acme Corp")).not.toBeVisible();
-
-    await screen.getByText(/tell us where you work/i).click();
     await expect.element(screen.getByText("Acme Corp")).toBeVisible();
     // no input to overwrite it with — the action ignores a second submit
     await expect
@@ -548,17 +568,17 @@ describe("Page — employer capture", () => {
       .not.toBeInTheDocument();
   });
 
-  it("marks the trigger done when an employer is on record", async () => {
-    const screen = await render_page(
-      make_loader_data({ from_company_name: "Acme Corp" })
-    );
-    await vi.waitFor(() => {
-      const trigger = screen
-        .getByText(/tell us where you work/i)
-        .element() as HTMLElement;
-      const svg = trigger.closest("button")?.querySelector("svg");
-      expect(svg?.classList.contains("stroke-success")).toBe(true);
-    });
+  it("keeps asking after the donor says they filed", async () => {
+    const screen = await render_page(make_loader_data({ match_filed: true }));
+
+    // there is no pack left to offer, but the name is worth more than ever —
+    // the employer's verification request is coming to us
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/verification request to expect/i))
+      .toBeVisible();
   });
 
   // a fund donation reaches the same nonprofits and is just as matchable, so

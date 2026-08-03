@@ -9,7 +9,6 @@ import { Image } from "#/components/image";
 import { confetti } from "#/helpers/confetti";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
-import { EmployerForm } from "./employer-form";
 import { FilingDetails } from "./filing-details";
 import { PrivateMsgForm } from "./private-msg-form";
 import { PublicMsgForm } from "./public-msg-form";
@@ -54,38 +53,6 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       <p className="mb-4 font-bold text-sm mt-8 text-primary text-center">
         Make your donation even more impactful
       </p>
-      {/* asking a donor whose gift went back where they work would promise an
-          email that the void gate will never send */}
-      {!data.match_voided && (
-        <Collapsible.Root
-          // nothing on record: open it, a donor shouldn't have to discover the
-          // one action on this page with a consequence beyond the screen
-          defaultOpen={!data.from_company_name}
-          className="w-full border bg-card rounded overflow-hidden mb-2"
-        >
-          <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
-            <span className="h-lh flex items-center shrink-0">
-              <CheckCircle2Icon
-                className={
-                  data.from_company_name
-                    ? "stroke-success"
-                    : "stroke-muted-fg fill-muted"
-                }
-                size={16}
-              />
-            </span>
-            <span className="text-sm font-semibold">
-              Tell us where you work
-            </span>
-            <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform ease-in-out" />
-            </span>
-          </Collapsible.Trigger>
-          <Collapsible.Content className="p-4 border-t">
-            <EmployerForm init={data.from_company_name} />
-          </Collapsible.Content>
-        </Collapsible.Root>
-      )}
       {!widget_version && (
         <Collapsible.Root className="w-full border bg-card rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
@@ -173,12 +140,16 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           </Collapsible.Content>
         </Collapsible.Root>
       )}
+      {/* the whole matching subject, capture included — not a peer of the
+          collapsibles above, which are all "give the nonprofit something
+          extra". this one is between the donor and their employer. */}
       <FilingDetails
         classes="mt-2"
         date={data.created_at}
         amount={data.amount.base}
         currency={data.currency}
         record_url={data.donate_thanks_url}
+        employer={data.from_company_name}
         filed={data.match_filed}
         voided={data.match_voided}
       />
