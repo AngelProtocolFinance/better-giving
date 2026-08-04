@@ -4,7 +4,7 @@ import { shared_parts } from "@/settlement/plan";
 import type { IInput, IParts, ISource, ISttlmnt } from "@/types/donation-dist";
 import { form_get } from "$/pg/queries/form";
 import { nav_ltd } from "$/pg/queries/nav";
-import { npos_batch_get } from "$/pg/queries/npo";
+import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 
 export const partition_destinations = async (b: IDonationSettled) => {
   const {
@@ -88,17 +88,29 @@ export const partition_destinations = async (b: IDonationSettled) => {
       destinations.push(i);
     }
   } else if (parent_to_type === "npo") {
-    const i: IInput = {
-      id: +parent_to_id,
-      ps,
-      sttl,
-      prnt,
-      tx,
-      source,
-      program,
-      nav_price,
-    };
-    destinations.push(i);
+    // an inactive npo is not a destination, same as an inactive fund member
+    // above. `settle_npo` skips it too, but only after the caller has counted
+    // it — and a caller that counts a destination it never gets has no way to
+    // tell "settled" from "recorded against nobody".
+    //
+    // a *missing* npo still comes through, so `settle_npo` throws on it as it
+    // always has: absent and inactive are different problems.
+    const npo = await npo_get(+parent_to_id);
+    if (npo && npo.active === false) {
+      console.warn(`npo:${parent_to_id} inactive, skipping settlement`);
+    } else {
+      const i: IInput = {
+        id: +parent_to_id,
+        ps,
+        sttl,
+        prnt,
+        tx,
+        source,
+        program,
+        nav_price,
+      };
+      destinations.push(i);
+    }
   }
 
   return { destinations };
