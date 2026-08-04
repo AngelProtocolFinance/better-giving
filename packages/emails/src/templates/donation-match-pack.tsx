@@ -2,7 +2,7 @@ import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { Hr, Link, Text } from "react-email";
 import { KeyValue } from "../components/key-value";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL } from "../constants";
+import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
 import { format_amount } from "../helpers";
 import type { IDonation, IDonor } from "../types";
 
@@ -79,6 +79,26 @@ function Jsx(d: IData) {
         form asks which charity you gave to, use {APP_NAME}'s details above —
         that's the record an employer verifies against.
       </Text>
+
+      <Hr />
+      {/* remittance, kept apart from the form fields above: those map 1:1 to
+          what an employer's form asks, and an employer who pays us directly
+          asks something else entirely. check and mail only — no bank details,
+          which have no business in an inbox or on the public donation page. */}
+      <h2 style={{ fontSize: 16, marginTop: 20 }}>
+        If your employer sends the match directly
+      </h2>
+      <Text>
+        Most employers pay through their giving platform, which already holds
+        our details. If yours mails a check or transfers the funds itself, this
+        is what they need.
+      </Text>
+      <KeyValue label="Make checks payable to" value={LEGAL_NAME} />
+      <KeyValue label="Mail to" value={ADDRESS} />
+      {/* the only thing tying an arriving payment back to the gift it matches —
+          an employer's check names the employer, never the donor */}
+      <KeyValue label="Reference" value={`Donation ${d.id}`} />
+      <KeyValue label="Employer questions" value={EMAILS.hi} />
 
       <Hr />
       {/* the donor is the only one who can tell us a claim was filed —
