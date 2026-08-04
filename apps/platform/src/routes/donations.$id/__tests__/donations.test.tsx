@@ -78,6 +78,7 @@ vi.mock("#/helpers/confetti", () => ({
 
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { npo_donors } from "#/.server/npo-donors";
+import { emails } from "@/constants/common";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 import { PrivateMsgForm } from "../private-msg-form";
 import { PublicMsgForm } from "../public-msg-form";
@@ -422,6 +423,26 @@ describe("Page — a refunded donation", () => {
       .not.toBeInTheDocument();
   });
 
+  it("prints no remittance details for money that went back", async () => {
+    const screen = await render_page(
+      make_loader_data({ status: "refunded", match_voided: true })
+    );
+
+    // an employer who mailed a check against a returned gift would be sending
+    // money we hold nothing to match, and quoting a reference for a gift we
+    // already gave back
+    await expect
+      .element(screen.getByText(/if your employer sends the match directly/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(`Donation ${DON_ID}`))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/^make checks payable to$/i))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(emails.hi)).not.toBeInTheDocument();
+  });
+
   it("tells a donor who already filed that the claim no longer applies", async () => {
     const screen = await render_page(
       make_loader_data({
@@ -461,13 +482,92 @@ describe("Page — a refunded donation", () => {
   });
 });
 
+describe("Page — a matched donation", () => {
+  it("confirms the match instead of printing the paperwork again", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        from_company_name: "Acme Corp",
+        match_arrived: { amount: 250, currency: "USD" },
+      })
+    );
+
+    await expect
+      .element(screen.getByText(/acme corp matched this gift/i))
+      .toBeVisible();
+    // the paperwork has done its job; printing it beside a completed match
+    // invites the donor to file a second claim for the same gift
+    await expect
+      .element(screen.getByText(/^ein \(tax id\)$/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/^make checks payable to$/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("names the amount that arrived and the nonprofit it went to", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        to_name: "Test NPO",
+        from_company_name: "Acme Corp",
+        // the employer's own row is born-settled in usd; the panel prints what
+        // actually arrived, not the donor's gift
+        match_arrived: { amount: 250, currency: "usd" },
+      })
+    );
+
+    await expect
+      .element(screen.getByText(/250\.00 USD reached Test NPO/i))
+      .toBeVisible();
+  });
+
+  it("falls back to a nameless employer when none was captured", async () => {
+    // capture is optional and money can arrive for a donor who never named
+    // anyone — an admin recording a cheque needs no help from the donor
+    const screen = await render_page(
+      make_loader_data({ match_arrived: { amount: 100, currency: "USD" } })
+    );
+
+    await expect
+      .element(screen.getByText(/your employer matched this gift/i))
+      .toBeVisible();
+  });
+
+  it("still shows the refund when a matched gift was later returned", async () => {
+    // the arrival claim gates on `voided_at`, but voiding gates on nothing, so
+    // this pair is reachable — and a returned gift is the more urgent of the
+    // two things to tell a donor
+    const screen = await render_page(
+      make_loader_data({
+        status: "refunded",
+        match_voided: true,
+        from_company_name: "Acme Corp",
+        match_arrived: { amount: 250, currency: "USD" },
+      })
+    );
+
+    await expect
+      .element(screen.getByText(/this donation was refunded/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/matched this gift/i))
+      .not.toBeInTheDocument();
+  });
+});
+
 describe("Page — filing details", () => {
   it("shows the recipient's legal name, EIN and address", async () => {
     const screen = await render_page(make_loader_data());
 
-    await expect.element(screen.getByText(LEGAL_NAME)).toBeVisible();
-    await expect.element(screen.getByText(EIN)).toBeVisible();
-    await expect.element(screen.getByText(ADDRESS)).toBeVisible();
+    // the remittance block prints the same name and address again, so each
+    // assertion names the identity row it belongs to
+    await vi.waitFor(() => {
+      expect(row_value(screen, /^recipient legal name$/i)).toBe(LEGAL_NAME);
+      expect(row_value(screen, /^ein \(tax id\)$/i)).toBe(EIN);
+      expect(row_value(screen, /^mailing address$/i)).toBe(ADDRESS);
+    });
   });
 
   it("shows this donation's own date, amount and record url", async () => {
@@ -486,6 +586,40 @@ describe("Page — filing details", () => {
     await expect.element(screen.getByText("250.00 USD")).toBeVisible();
     await expect
       .element(screen.getByText(`http://localhost/donations/${DON_ID}`))
+      .toBeVisible();
+  });
+
+  // the grid lays each row out as dt, an aria-hidden divider, then dd
+  function row_value(
+    screen: Awaited<ReturnType<typeof render_page>>,
+    label: RegExp
+  ) {
+    const dt = screen.getByText(label).element();
+    return dt.nextElementSibling?.nextElementSibling?.textContent;
+  }
+
+  it("shows an employer paying us directly where to send it and what to quote", async () => {
+    const screen = await render_page(make_loader_data());
+
+    await expect
+      .element(screen.getByText(/if your employer sends the match directly/i))
+      .toBeVisible();
+    await vi.waitFor(() => {
+      expect(row_value(screen, /^make checks payable to$/i)).toBe(LEGAL_NAME);
+      expect(row_value(screen, /^mail to$/i)).toBe(ADDRESS);
+      // the only thing that ties an arriving payment back to the gift it matches
+      expect(row_value(screen, /^reference$/i)).toBe(`Donation ${DON_ID}`);
+      expect(row_value(screen, /^employer questions$/i)).toBe(emails.hi);
+    });
+  });
+
+  it("shows this donation's own id", async () => {
+    const screen = await render_page(make_loader_data());
+
+    // the pack email prints a transaction id and the page did not — a donor
+    // copying from the screen had no reference to hand their employer
+    await expect
+      .element(screen.getByText(DON_ID, { exact: true }))
       .toBeVisible();
   });
 
@@ -805,6 +939,61 @@ describe("Integration — loader", () => {
     expect(result.donate_url).toContain("/donate/");
     expect(result.profile_url).toContain("/marketplace/");
     expect(result.donate_thanks_url).toContain(`/donations/${DON_ID}`);
+  });
+
+  it("matched: reports the amount off the employer's own donation row", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+
+    // the employer's payment is a second, born-settled donation row — the only
+    // place the amount that actually arrived is written. the donor's own row
+    // still holds the donor's own gift, which is a different number.
+    const match_don_id = "don-employer-001";
+    const now = new Date().toISOString();
+    await test_db.current!.db.insert(donations).values({
+      id: match_don_id,
+      upusd: 1,
+      status: "settled",
+      amount_base: 400,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "match",
+      created_at: now,
+      updated_at: now,
+    });
+    await test_db.current!.db.insert(donation_match_events).values({
+      id: globalThis.crypto.randomUUID(),
+      donation_id: DON_ID,
+      matched_donation_id: match_don_id,
+      matched_at: now,
+    });
+
+    const result = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+
+    expect(result.match_arrived).toEqual({ amount: 400, currency: "USD" });
+  });
+
+  it("unmatched: reports no arrival for an event that only got as far as filed", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+    await test_db.current!.db.insert(donation_match_events).values({
+      id: globalThis.crypto.randomUUID(),
+      donation_id: DON_ID,
+      submitted_at: new Date().toISOString(),
+    });
+
+    const result = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+
+    // the donor said they filed; no employer money has landed
+    expect(result.match_filed).toBe(true);
+    expect(result.match_arrived).toBeUndefined();
   });
 
   it("fund: returns donate-fund and fundraisers URLs", async () => {

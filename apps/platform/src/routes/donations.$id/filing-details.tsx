@@ -4,12 +4,15 @@ import type { ReactNode } from "react";
 import { Form, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { Copier } from "#/components/copier";
+import { emails } from "@/constants/common";
 import { to_utc_day } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
 import { EmployerForm } from "./employer-form";
 import type { IFiledFv } from "./schema";
 
 interface IFilingDetails {
+  /** the donation row's own id — the reference an arriving match is tied to */
+  id: string;
   /** iso date the donation was made */
   date: string;
   /** donation amount, in `currency` */
@@ -17,8 +20,15 @@ interface IFilingDetails {
   currency: string;
   /** public url of this donation page — the donor's record of the gift */
   record_url: string;
+  /** the nonprofit this gift went to — where an arriving match went too */
+  recipient: string;
   /** employer already recorded against this donation, if any */
   employer?: string;
+  /**
+   * the employer's match landed: the amount that actually arrived, read off the
+   * employer's own donation row. undefined until money is recorded against it.
+   */
+  matched?: { amount: number; currency: string };
   /** the donor already told us they filed; self-reported, never confirmed */
   filed?: boolean;
   /** the gift went back to the donor — there is nothing left to file for */
@@ -69,6 +79,39 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
     );
   }
 
+  // second, never first: a refund can land *after* a match arrived — the
+  // arrival claim gates on `voided_at`, but voiding gates on nothing — and a
+  // gift that went back is the more urgent of the two things to tell a donor.
+  // ordering these the other way would confirm a match on money we returned.
+  if (p.matched) {
+    return (
+      <section
+        className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+      >
+        <div className="flex items-start gap-x-2 p-4">
+          <span className="h-lh flex items-center shrink-0">
+            <CheckCircle2Icon className="stroke-success" size={16} />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">
+              {p.employer
+                ? `${p.employer} matched this gift`
+                : "Your employer matched this gift"}
+            </h3>
+            {/* the paperwork is gone rather than merely marked done: a donor
+                reading filing details beside a completed match has every reason
+                to file again, and the second claim is the one that bounces. */}
+            <p className="text-sm text-muted-fg mt-1">
+              A matching gift of {humanize(p.matched.amount)}{" "}
+              {p.matched.currency.toUpperCase()} reached {p.recipient}. There's
+              nothing left to file — thank you for asking them.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       className={`w-full border bg-card rounded overflow-hidden ${classes}`}
@@ -88,7 +131,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
           </p>
         </div>
       </div>
-      {/* above the table, not below it: the table is six rows and a donor who
+      {/* above the table, not below it: the table is seven rows and a donor who
           scrolls past it has left the page. this is the cheaper of the two
           paths out of here and the only one that reaches them later. */}
       <div className="p-4 border-t">
@@ -103,13 +146,37 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
           label="Donation amount"
           value={`${humanize(p.amount)} ${p.currency.toUpperCase()}`}
         />
+        <Row label="Donation ID" value={p.id} />
         <Row label="Record of this gift" value={p.record_url} last>
           <span className="break-all">{p.record_url}</span>
         </Row>
       </dl>
+      {/* remittance, kept apart from the identity rows above: those map 1:1 to what
+          an employer's form asks, and an employer who pays us directly asks
+          something else entirely. no bank details — this page is public to
+          anyone holding its url, so check and mail only. */}
+      <div className="p-4 border-t">
+        <h3 className="text-sm font-semibold">
+          If your employer sends the match directly
+        </h3>
+        <p className="text-sm text-muted-fg mt-1">
+          Most employers pay through their giving platform, which already holds
+          our details. If yours mails a check or transfers the funds itself,
+          this is what they need.
+        </p>
+      </div>
+      <dl className="grid sm:grid-cols-[auto_auto_1fr] border-t">
+        <Row label="Make checks payable to" value={LEGAL_NAME} />
+        <Row label="Mail to" value={ADDRESS} />
+        {/* the only thing tying an arriving payment back to the gift it
+            matches — an employer's check names the employer, never the donor */}
+        <Row label="Reference" value={`Donation ${p.id}`} />
+        <Row label="Employer questions" value={emails.hi} last />
+      </dl>
       <p className="text-sm text-muted-fg p-4 border-t">
         Not sure where to file? Check your employer's giving portal, or forward
-        these details to your HR team.
+        these details to your HR team. They can reach us at {emails.hi} with any
+        questions.
       </p>
       <div className="p-4 border-t">
         <FiledBtn filed={p.filed} />

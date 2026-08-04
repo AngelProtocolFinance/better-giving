@@ -145,13 +145,19 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           extra". this one is between the donor and their employer. */}
       <FilingDetails
         classes="mt-2"
+        // the row's own id, not `params.id` — `donation_get` also resolves
+        // legacy v1 ids, and the reference an employer quotes must be the
+        // former or an arriving payment ties back to nothing
+        id={data.id}
         date={data.created_at}
         amount={data.amount.base}
         currency={data.currency}
         record_url={data.donate_thanks_url}
+        recipient={data.to_name}
         employer={data.from_company_name}
         filed={data.match_filed}
         voided={data.match_voided}
+        matched={data.match_arrived}
       />
       {!widget_version && (
         <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">

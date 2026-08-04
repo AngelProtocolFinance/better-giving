@@ -57,6 +57,16 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
   // legacy v1 ids, and the event's foreign key points at the former.
   const match = await match_event_get(don.id);
 
+  // the employer's own donation row — the only place the amount that actually
+  // arrived is written. read behind the stamp, never on the ordinary path: this
+  // loader runs on every view of the page and all but a handful of them will
+  // never have a match. the pair is written together under a both-or-neither
+  // check, so the second test costs nothing and keeps this off an assertion.
+  const matched_don =
+    match?.matched_at && match.matched_donation_id
+      ? await donation_get(match.matched_donation_id)
+      : null;
+
   return {
     ...don,
     donate_url,
@@ -68,6 +78,14 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
     // one flag, decided in one place: a refund can reach this screen either as
     // a voided event or as a donation that never had one.
     match_voided: is_gift_returned(don.status, match?.voided_at),
+    // undefined until an employer's money is recorded against the gift. flat
+    // and additive, like the two flags above — an older bundle that doesn't
+    // read it still renders the panel it always did.
+    match_arrived: matched_don
+      ? // the base amount, not the tip: a match is a settled row born with
+        // `tip: 0`, and the base is the money the employer actually sent
+        { amount: matched_don.amount.base, currency: matched_don.currency }
+      : undefined,
   };
 };
 
