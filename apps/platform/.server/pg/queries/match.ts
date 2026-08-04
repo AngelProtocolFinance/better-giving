@@ -160,6 +160,64 @@ export async function claim_match_chase(
 }
 
 /**
+ * claim the arrival of the employer's matching gift for a donation.
+ *
+ * `matched_donation_id` is the *employer's* new born-settled donation row;
+ * `donation_id` stays the donor's original gift, the one this event was opened
+ * for. passing them the other way round points the event at the wrong money and
+ * nothing downstream would notice.
+ *
+ * opens the event first rather than requiring one, and that composition is the
+ * whole reason this is one function: money can arrive for a donation that never
+ * entered the workflow — the donor named no employer, filed nothing, and an
+ * employer paid anyway — and a caller left to compose the two would read the
+ * null from an unopened row as "already matched" and report success for a write
+ * that never happened. both statements run on the handle it is given, so the
+ * open rolls back with the claim.
+ *
+ * the claim itself is the same one-statement gate as the sends above.
+ * `matched_at IS NULL` makes a resubmitted form a no-op instead of moving the
+ * arrival forward to the second attempt's clock — when the employer's money
+ * landed is the one thing the stamp is there to say.
+ *
+ * `voided_at IS NULL` joins it: the donor's gift went back, so there is nothing
+ * left for an employer to match, and attaching one would leave a refunded
+ * donation reading as a completed match. a null return here is not the ordinary
+ * outcome it is for the send claims — nothing retries this — so the caller is
+ * expected to surface it rather than swallow it.
+ *
+ * takes the handle first and undefaulted for the reason `void_match_event`
+ * does: the only caller runs inside the settlement's transaction, alongside the
+ * donation insert and the npo credit, and a defaulted parameter is precisely
+ * how such a write escapes it while still type-checking. `now` is passed in for
+ * the same reason — the caller stamps the employer's donation row with it, and
+ * two clocks read microseconds apart would put the money and its record at
+ * different instants.
+ */
+export async function claim_match_arrival(
+  db: DbOrTx,
+  donation_id: string,
+  matched_donation_id: string,
+  now: string
+): Promise<MatchEvent | null> {
+  await open_match_event(donation_id, db);
+
+  const [row] = await db
+    .update(donation_match_events)
+    .set({ matched_donation_id, matched_at: now, updated_at: now })
+    .where(
+      and(
+        eq(donation_match_events.donation_id, donation_id),
+        isNull(donation_match_events.matched_at),
+        isNull(donation_match_events.voided_at)
+      )
+    )
+    .returning();
+
+  return row ?? null;
+}
+
+/**
  * record that a mail was handed to the provider and refused.
  *
  * the counterpart to the claims above, and deliberately not one of them: there
@@ -265,6 +323,16 @@ export interface IMatchFunnel {
   /** donors who came back and said they filed — self-reported, never confirmed */
   submitted: number;
   /**
+   * the terminal stage: an employer's matching gift actually landed. the only
+   * stage in this funnel backed by money rather than by a mail we sent or a
+   * claim the donor made, and the only one an employer can be said to have
+   * confirmed.
+   *
+   * a stage, not a subtrahend — unlike the two below it, this is a row that
+   * went further, not one that lost something on the way.
+   */
+  matched: number;
+  /**
    * events where a mail was handed to the provider and refused. the stamp is
    * burnt before the send, so every one of these is *already counted* in
    * `pack_sent` or `chased` above — a subtrahend on those stages, not a stage
@@ -314,6 +382,7 @@ export async function match_funnel(
       ${n(sql`e.pack_sent_at is not null`)} as pack_sent,
       ${n(sql`e.chased_at is not null`)} as chased,
       ${n(sql`e.submitted_at is not null`)} as submitted,
+      ${n(sql`e.matched_at is not null`)} as matched,
       ${n(sql`e.send_failed_at is not null`)} as send_failed,
       ${n(sql`e.voided_at is not null`)} as voided
     from ${donations} d
@@ -325,7 +394,13 @@ export async function match_funnel(
     -- denominator of every stage at the same instant, and the funnel reads as
     -- though it never happened instead of as though it was reversed. the
     -- never-paid statuses stay out — they are checkout attempts, not donations.
-    where d.status in ('settled','refunded','refunded_loss') ${from}
+    where d.status in ('settled','refunded','refunded_loss')
+      -- the employer's own gift is a settled donation row too, and it is not a
+      -- gift anyone was asked to match. leaving it in adds one donation to the
+      -- denominator for every success, so the funnel would read worse the
+      -- better the feature works.
+      and d.via <> 'match'
+      ${from}
   `);
 
   return rows[0] as unknown as IMatchFunnel;

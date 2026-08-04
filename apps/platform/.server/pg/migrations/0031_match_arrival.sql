@@ -1,0 +1,4 @@
+ALTER TABLE "donation_match_events" ADD COLUMN "matched_donation_id" text;--> statement-breakpoint
+ALTER TABLE "donation_match_events" ADD COLUMN "matched_at" timestamptz;--> statement-breakpoint
+ALTER TABLE "donation_match_events" ADD CONSTRAINT "donation_match_events_matched_donation_id_donations_id_fk" FOREIGN KEY ("matched_donation_id") REFERENCES "public"."donations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "donation_match_events" ADD CONSTRAINT "donation_match_events_matched_pair_check" CHECK (("donation_match_events"."matched_at" IS NULL) = ("donation_match_events"."matched_donation_id" IS NULL));

@@ -37,6 +37,19 @@ export const donation_match_events = pgTable(
     // and a row whose next send succeeds keeps the old stamp — so it answers
     // "a mail was lost here", never "this event is broken now".
     send_failed_kind: text("send_failed_kind").$type<"pack" | "chase">(),
+    // the *employer's* gift, not the donor's. `donation_id` above is the
+    // original donation this event was opened for and never changes; this is a
+    // second, born-settled donation row written when the employer's cheque
+    // lands. reading one for the other inverts the whole workflow — the event
+    // hangs off the gift that earned the match, and points at the match.
+    matched_donation_id: text("matched_donation_id").references(
+      () => donations.id,
+      { onDelete: "cascade" }
+    ),
+    // when the employer's money landed. the terminal stage: the donor filed, an
+    // employer paid, and this is the only stamp in the table backed by money
+    // rather than by a mail we sent or a claim the donor made.
+    matched_at: timestamptz("matched_at"),
     // the donation went back to the donor, so nothing further is owed here:
     // no chase, no pack. every downstream gate reads this, not `void_reason`.
     voided_at: timestamptz("voided_at"),
@@ -58,6 +71,14 @@ export const donation_match_events = pgTable(
     check(
       "donation_match_events_send_failed_pair_check",
       sql`(${t.send_failed_at} IS NULL) = (${t.send_failed_kind} IS NULL)`
+    ),
+    // both or neither, as above. a bare timestamp claims money arrived with
+    // nothing to audit it against, and a bare donation id is a match nobody can
+    // date — and `matched_at` is what every read of this stage gates on, so the
+    // id alone would be invisible.
+    check(
+      "donation_match_events_matched_pair_check",
+      sql`(${t.matched_at} IS NULL) = (${t.matched_donation_id} IS NULL)`
     ),
     check(
       "donation_match_events_void_reason_check",

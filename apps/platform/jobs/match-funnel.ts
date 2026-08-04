@@ -34,7 +34,12 @@ console.info(
   `  chased              ${f.chased}  ${pct(f.chased, f.pack_sent)} of packs went unanswered 3d`
 );
 console.info(
-  `  filed               ${f.submitted}  ${pct(f.submitted, f.pack_sent)} of packs\n`
+  `  filed               ${f.submitted}  ${pct(f.submitted, f.pack_sent)} of packs`
+);
+// the terminal stage, and the only one an employer confirmed — against filings,
+// not against packs: an employer can only pay a claim that was actually filed
+console.info(
+  `  matched             ${f.matched}  ${pct(f.matched, f.submitted)} of filings paid\n`
 );
 // not a stage — every one of these is already counted in the send stages above,
 // because the stamp is burnt before the mail leaves. read it as how much of what

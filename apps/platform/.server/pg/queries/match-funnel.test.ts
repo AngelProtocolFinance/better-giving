@@ -98,6 +98,25 @@ async function seed(o?: {
   return id;
 }
 
+/** the employer's gift — a second, born-settled donation row */
+async function seed_match() {
+  counter++;
+  const id = `match-${counter}`;
+  await test_db.db.insert(donations).values({
+    id,
+    upusd: 1,
+    status: "settled",
+    amount_base: 50,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "match",
+  });
+  return id;
+}
+
 const funnel = () => match_funnel(undefined, as_db(test_db.db));
 
 describe("match_funnel — the denominator", () => {
@@ -164,6 +183,35 @@ describe("match_funnel — the stages", () => {
     expect(f.submitted).toBe(1);
   });
 
+  test("an employer's money is the terminal stage", async () => {
+    const match_id = await seed_match();
+    await seed({
+      company_name: "Acme Inc",
+      stamps: {
+        pack_sent_at: "2026-07-01T00:00:00.000Z",
+        submitted_at: "2026-07-02T00:00:00.000Z",
+        matched_donation_id: match_id,
+        matched_at: "2026-07-20T00:00:00.000Z",
+      },
+    });
+    // filed, and the employer never paid
+    await seed({
+      company_name: "Globex",
+      stamps: {
+        pack_sent_at: "2026-07-01T00:00:00.000Z",
+        submitted_at: "2026-07-02T00:00:00.000Z",
+      },
+    });
+
+    const f = await funnel();
+    expect(f.submitted).toBe(2);
+    expect(f.matched).toBe(1);
+    // the employer's own settled row is not a gift anyone was asked to match:
+    // counting it would add a donation to the denominator for every success and
+    // make the funnel read worse the better the feature works
+    expect(f.donations).toBe(2);
+  });
+
   test("a donation with no event sits at with_employer and goes no further", async () => {
     await seed({ company_name: "Acme Inc" });
 
@@ -210,5 +258,25 @@ describe("match_funnel — the subtrahends", () => {
     expect(f.pack_sent).toBe(1);
     expect(f.submitted).toBe(1);
     expect(f.voided).toBe(1);
+  });
+
+  test("a refunded gift stays a subtrahend rather than reaching the terminal stage", async () => {
+    await seed({
+      status: "refunded",
+      company_name: "Acme Inc",
+      stamps: {
+        pack_sent_at: "2026-07-01T00:00:00.000Z",
+        submitted_at: "2026-07-02T00:00:00.000Z",
+        voided_at: "2026-07-08T00:00:00.000Z",
+        void_reason: "refunded",
+      },
+    });
+
+    const f = await funnel();
+    // the arrival claim refuses a voided event, so this can never carry a match
+    // — and the void stays what says so, without touching the stages it reached
+    expect(f.matched).toBe(0);
+    expect(f.voided).toBe(1);
+    expect(f.submitted).toBe(1);
   });
 });
