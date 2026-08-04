@@ -1,5 +1,5 @@
 {
-  "id": "e3d446ce-d42b-4d70-b3c9-8a80e6978267",
+  "id": "0103c8d7-b3fc-44e5-aaf7-906f6c2aee66",
   "prevId": "bd748c9b-02f8-42ea-96c5-18e37633bef4",
   "version": "7",
   "dialect": "postgresql",
@@ -2889,6 +2889,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "matched_donation_id": {
+          "name": "matched_donation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "matched_at": {
+          "name": "matched_at",
+          "type": "timestamptz",
+          "primaryKey": false,
+          "notNull": false
+        },
         "voided_at": {
           "name": "voided_at",
           "type": "timestamptz",
@@ -2946,6 +2958,19 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "donation_match_events_matched_donation_id_donations_id_fk": {
+          "name": "donation_match_events_matched_donation_id_donations_id_fk",
+          "tableFrom": "donation_match_events",
+          "tableTo": "donations",
+          "columnsFrom": [
+            "matched_donation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2959,6 +2984,10 @@
         "donation_match_events_send_failed_pair_check": {
           "name": "donation_match_events_send_failed_pair_check",
           "value": "(\"donation_match_events\".\"send_failed_at\" IS NULL) = (\"donation_match_events\".\"send_failed_kind\" IS NULL)"
+        },
+        "donation_match_events_matched_pair_check": {
+          "name": "donation_match_events_matched_pair_check",
+          "value": "(\"donation_match_events\".\"matched_at\" IS NULL) = (\"donation_match_events\".\"matched_donation_id\" IS NULL)"
         },
         "donation_match_events_void_reason_check": {
           "name": "donation_match_events_void_reason_check",
