@@ -1,7 +1,9 @@
 import * as v from "valibot";
 import { partition_destinations } from "#/routes/api.q-handler.$event/partition-destinations";
 import type { IDonation, IDonationSettled } from "@/donations";
+import type { IMsg } from "@/queue/types";
 import type { IInput, IParts } from "@/types/donation-dist";
+import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { donation_get, donation_put } from "$/pg/queries/donation";
 import { claim_match_arrival, match_event_get } from "$/pg/queries/match";
@@ -429,19 +431,30 @@ export const action = async ({ request }: Route.ActionArgs) => {
     return { ok: false as const, error: no_destinations_msg(gift!) };
   }
 
+  /**
+   * the notifications the settlement owes, carried out of the transaction.
+   *
+   * returned from the callback rather than pushed into an outer array: on the
+   * refusal path the callback throws, so there is no committed value to read
+   * and nothing can be sent about money that rolled back.
+   */
   let matched: MatchEvent | null;
+  let msgs: IMsg[];
   try {
-    matched = await db.transaction(async (tx) => {
+    ({ matched, msgs } = await db.transaction(async (tx) => {
       await donation_put(tx, parent_don);
-      for (const i of inputs) await settle_npo(tx, i);
-      if (!gift) return null;
+      const msgs: IMsg[] = [];
+      // every destination's msgs, not just the last: a fund's match settles
+      // several nonprofits and each is owed its own `don-dist`
+      for (const i of inputs) msgs.push(...(await settle_npo(tx, i)).msgs);
+      if (!gift) return { matched: null, msgs };
       // last, because the stamp points at the employer's row and that row has to
       // exist first. same `now` and same handle as the money: two clocks would
       // date the arrival differently from the gift recording it.
       const row = await claim_match_arrival(tx, gift.id, parent_id, now);
       if (!row) throw new MatchRefusedError();
-      return row;
-    });
+      return { matched: row, msgs };
+    }));
   } catch (err) {
     if (!(err instanceof MatchRefusedError)) throw err;
     // the claim gates on two things and says which by way of the row it left
@@ -465,6 +478,28 @@ export const action = async ({ request }: Route.ActionArgs) => {
   // not the donor, we hold no address or consent for them, and the gift is not
   // theirs to deduct. that is deliberate; it is not an omission to fix.
   if (matched && gift) await send_match_arrived(gift, parsed.net);
+
+  /**
+   * the same handover the queue path makes after settling a nonprofit: without
+   * it a manually settled npo is never mailed, no country metric moves and no
+   * webhook fires, for money already in its balance.
+   *
+   * swallowed, unlike the queue path where a throw means qstash redelivers.
+   * this rail has no retry and the money is committed, so a qstash outage would
+   * otherwise show the admin a failure for a settlement that worked and invite
+   * them to re-key a payment already recorded. logged loudly instead — the
+   * missing notification is recoverable by hand, a double settlement is not.
+   *
+   * `send_match_arrived` above needs no such wrapper: `send_email` never
+   * throws, and it already logs its own provider refusals.
+   */
+  if (msgs.length) {
+    try {
+      await enqueue(...msgs);
+    } catch (err) {
+      console.error("settlement msgs NOT enqueued:", sttl_id, err);
+    }
+  }
 
   return { ok: true as const };
 };

@@ -53,6 +53,13 @@ const send_email = vi.hoisted(() =>
 );
 vi.mock("$/email", () => ({ send_email, sender: "test@test.com" }));
 
+// the other faked seam: `enqueue` is a live qstash call, and constructing its
+// client at import time already needs credentials this suite has none of. what
+// the route has to be shown doing is handing the msgs over at all — the queue's
+// own behaviour is not under test here.
+const enqueue = vi.hoisted(() => vi.fn(async (..._msgs: unknown[]) => {}));
+vi.mock("$/kit/queue", () => ({ enqueue }));
+
 // --- imports (after mocks) ---
 
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
@@ -355,6 +362,9 @@ describe("settlement create — a match the gift can't take", () => {
     const rows = await dons();
     expect(rows.filter((d) => d.via === "match")).toHaveLength(1);
     expect(send_email).not.toHaveBeenCalled();
+    // and the nonprofit hears nothing either: the msgs the rolled-back
+    // `settle_npo` produced would announce a distribution that no longer exists
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   test("a refunded gift is refused, and says so in its own words", async () => {
@@ -371,6 +381,7 @@ describe("settlement create — a match the gift can't take", () => {
     });
     expect((await dons()).filter((d) => d.via === "match")).toHaveLength(0);
     expect(send_email).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   test("an id that resolves to nothing is refused before anything is written", async () => {
@@ -602,6 +613,77 @@ describe("settlement preview — a load that resolves to nothing says why", () =
     ]);
     // the field every bundle before this one reads still carries a preview
     expect(res.preview).toBe(res.previews[0]);
+  });
+});
+
+/** every msg handed to the queue across the whole action, kind-filtered */
+const enqueued = (id: string) =>
+  enqueue.mock.calls.flat().filter((m): m is { id: string; payload: any } => {
+    return !!m && typeof m === "object" && (m as { id?: string }).id === id;
+  });
+
+describe("settlement create — the nonprofit is told about the money", () => {
+  test("a match enqueues a don-dist naming the gift's nonprofit", async () => {
+    const gift = await seed_gift();
+
+    const res = await settle({ from: "match", for_donation_id: gift });
+
+    expect(res).toEqual({ ok: true });
+
+    // `don-dist` is what mails the nonprofit, moves country metrics and fires
+    // webhooks — a settled npo whose msgs were dropped is a recipient that
+    // never hears about money already sitting in its balance
+    const msgs = enqueued("don-dist");
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]!.payload.to_id).toBe(npo_id);
+    expect(msgs[0]!.payload.net).toBeCloseTo(50, 6);
+  });
+
+  test("a fund match enqueues one don-dist per active member", async () => {
+    const { id: gift } = await seed_fund_gift([npo_id, other_npo_id]);
+
+    const res = await settle({
+      from: "match",
+      for_donation_id: gift,
+      npo_id: "",
+    });
+
+    expect(res).toEqual({ ok: true });
+
+    // one msg per settled destination — collecting only the last loop's msgs
+    // would leave every member but one unnotified
+    const msgs = enqueued("don-dist");
+    expect(msgs.map((m) => m.payload.to_id).sort()).toEqual(
+      [npo_id, other_npo_id].sort()
+    );
+    expect(msgs.map((m) => m.payload.net)).toEqual([25, 25]);
+  });
+
+  test.each([
+    "cheque",
+    "daf",
+  ] as const)("%s enqueues too — the notification is not a match feature", async (from) => {
+    const res = await settle({ from, net: "250" });
+
+    expect(res).toEqual({ ok: true });
+
+    const msgs = enqueued("don-dist");
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]!.payload.to_id).toBe(npo_id);
+    expect(msgs[0]!.payload.net).toBeCloseTo(250, 6);
+  });
+
+  test("a queue that refuses does not fail a settlement already committed", async () => {
+    enqueue.mockRejectedValueOnce(new Error("qstash down"));
+    const gift = await seed_gift();
+
+    const res = await settle({ from: "match", for_donation_id: gift });
+
+    // the money is written and the stamp is burned; there is no retry on this
+    // rail, so an error here would send the admin to re-key a recorded payment
+    expect(res).toEqual({ ok: true });
+    expect((await dons()).filter((d) => d.via === "match")).toHaveLength(1);
+    expect(await dist_rows()).toHaveLength(1);
   });
 });
 
