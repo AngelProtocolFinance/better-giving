@@ -9,6 +9,12 @@ import {
   vi,
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
+import {
+  donation_donors,
+  donation_recipients,
+  donations,
+} from "$/pg/schema/donation";
+import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite-browser";
 
@@ -28,6 +34,17 @@ vi.mock("$/pg/db", () => ({
     }
   ),
 }));
+
+// the create action mails the donor when an employer's match attaches, which
+// drags nodemailer into the browser bundle; stubbed here so the module graph
+// stays loadable and the send stays observable
+const send_email = vi.hoisted(() =>
+  vi.fn(async (_i: { node: any; to: string[]; subject: string }) => ({
+    data: { id: "email-1", response: "250 ok" },
+    error: null,
+  }))
+);
+vi.mock("$/email", () => ({ send_email, sender: "test@test.com" }));
 
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
@@ -49,6 +66,7 @@ import ListPage from "../route";
 // --- setup ---
 
 const npo_id = { value: 0 };
+const GIFT_ID = "gift-for-match";
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -72,6 +90,32 @@ beforeAll(async () => {
     ])
     .returning({ id: npos.id });
   npo_id.value = rows[0].id;
+
+  // a donor gift for the employer-match flow to attach to
+  await test_db.current.db.insert(donations).values({
+    id: GIFT_ID,
+    upusd: 1,
+    status: "settled",
+    amount_base: 200,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+  });
+  await test_db.current.db.insert(donation_recipients).values({
+    donation_id: GIFT_ID,
+    npo_id: npo_id.value,
+    name: "Freegan Food Foundation",
+    type: "npo",
+  });
+  await test_db.current.db.insert(donation_donors).values({
+    donation_id: GIFT_ID,
+    email: "ada@test.com",
+    name: "Ada Lovelace",
+    company_name: "Northwind Traders",
+  });
 }, 30_000);
 
 afterAll(async () => {
@@ -118,10 +162,11 @@ function render_app(initial = "/platform/donation-settlements") {
 async function fill_form_and_preview(
   screen: Awaited<ReturnType<typeof render>>,
   opts: {
-    from?: "cheque" | "daf";
+    from?: "cheque" | "daf" | "match";
     donor_name?: string;
     net: string;
     reference: string;
+    for_donation_id?: string;
   }
 ) {
   if (opts.from) {
@@ -154,6 +199,12 @@ async function fill_form_and_preview(
   await screen
     .getByPlaceholder("e.g. Fidelity deposit #123")
     .fill(opts.reference);
+
+  if (opts.for_donation_id) {
+    await screen
+      .getByPlaceholder("e.g. 7c3f9a2e-...")
+      .fill(opts.for_donation_id);
+  }
 
   // click preview
   const preview_btn = screen.getByRole("button", { name: /preview/i });
@@ -325,6 +376,51 @@ describe("settle donation — full flow", () => {
       .element(screen.getByRole("cell", { name: "DAF", exact: true }))
       .toBeVisible();
     await expect.element(screen.getByText("DAF grant #555")).toBeVisible();
+  });
+
+  // the field only exists for a match, and only reaches the action if the
+  // confirm step carries it — the two places this wiring can silently drop it
+  it("settles an employer match against a donor's gift", async () => {
+    const screen = await render_app();
+
+    (
+      screen.getByRole("link", { name: /new/i }).element() as HTMLElement
+    ).click();
+
+    // hidden until the source is an employer's payment
+    await expect
+      .element(screen.getByPlaceholder("e.g. 7c3f9a2e-..."))
+      .not.toBeInTheDocument();
+
+    await fill_form_and_preview(screen, {
+      from: "match",
+      // the action ignores this for an attached match — the payer's name comes
+      // off the gift's employer — but the shared schema still wants it non-empty
+      donor_name: "Northwind Traders",
+      net: "200",
+      reference: "Northwind cheque #4412",
+      for_donation_id: GIFT_ID,
+    });
+
+    (
+      screen.getByRole("button", { name: /confirm/i }).element() as HTMLElement
+    ).click();
+
+    await new Promise((r) => setTimeout(r, 2500));
+    await expect
+      .element(screen.getByText("Settlement created"), { timeout: 10_000 })
+      .toBeInTheDocument();
+
+    // the arrival is stamped on the donor's gift, pointing at the employer's row
+    const [evt] = await test_db
+      .current!.db.select()
+      .from(donation_match_events);
+    expect(evt!.donation_id).toBe(GIFT_ID);
+    expect(evt!.matched_at).not.toBeNull();
+
+    // and the donor hears about it — at their address, not the employer's
+    expect(send_email).toHaveBeenCalledTimes(1);
+    expect(send_email.mock.calls[0]![0].to).toEqual(["ada@test.com"]);
   });
 
   // regression: selecting an npo option must populate the combobox input

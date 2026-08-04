@@ -13,7 +13,8 @@ const LABELS: Record<string, string> = {
 
 interface IPreviewProps {
   form: IFormValues;
-  preview: ISettlementPreview;
+  /** one per destination — a gift to a fund settles across its nonprofits */
+  previews: ISettlementPreview[];
   submitting: boolean;
   error: string | null;
   on_back: () => void;
@@ -22,12 +23,13 @@ interface IPreviewProps {
 
 export function Preview({
   form,
-  preview,
+  previews,
   submitting,
   error,
   on_back,
   on_confirm,
 }: IPreviewProps) {
+  const single = previews.length === 1 ? previews[0] : undefined;
   return (
     <div>
       <div className="p-6 sm:p-8">
@@ -40,14 +42,26 @@ export function Preview({
 
         {/* donation */}
         <RecordSection title="Donation">
-          <KV label="NPO" value={preview.npo_name} />
+          <KV label="NPO" value={previews.map((p) => p.npo_name).join(", ")} />
           <KV label="Donor" value={form.donor_name || "Anonymous"} />
           <KV label="Email" value={form.donor_email} />
           <KV label="Reference" value={form.reference} />
         </RecordSection>
 
-        {/* records */}
-        <RecordsTabs preview={preview} />
+        {/* records — one set per destination, headed by name once there is
+            more than one to tell apart */}
+        {single ? (
+          <RecordsTabs preview={single} />
+        ) : (
+          previews.map((p, idx) => (
+            <div key={idx}>
+              <h4 className="text-xs font-semibold text-muted-fg uppercase tracking-wide mb-2">
+                {p.npo_name}
+              </h4>
+              <RecordsTabs preview={p} />
+            </div>
+          ))
+        )}
       </div>
 
       <div className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full bg-muted border-t">
