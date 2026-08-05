@@ -151,6 +151,16 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
           <span className="break-all">{p.record_url}</span>
         </Row>
       </dl>
+      {/* the beneficiary named alongside our own details, same wording as the
+          filing pack email: a donor who thinks of the gift as going to the
+          nonprofit reads a form full of Better Giving's details as wrong and
+          stops. the second sentence answers the question that raises — where a
+          match ends up — before it costs us the filing. */}
+      <p className="text-xs text-muted-fg p-4 border-t">
+        {LEGAL_NAME} granted your gift on to {p.recipient}, and a match works
+        the same way: your employer pays {LEGAL_NAME}, and we forward it on to{" "}
+        {p.recipient}.
+      </p>
       {/* remittance, kept apart from the identity rows above: those map 1:1 to what
           an employer's form asks, and an employer who pays us directly asks
           something else entirely. no bank details — this page is public to

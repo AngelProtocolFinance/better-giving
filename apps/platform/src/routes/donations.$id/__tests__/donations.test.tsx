@@ -419,7 +419,7 @@ describe("Page — a refunded donation", () => {
     // the harm this branch exists to prevent
     await expect.element(screen.getByText(EIN)).not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .element(screen.getByRole("button", { name: /i've filed this/i }))
       .not.toBeInTheDocument();
   });
 
@@ -503,7 +503,7 @@ describe("Page — a matched donation", () => {
       .element(screen.getByText(/^make checks payable to$/i))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .element(screen.getByRole("button", { name: /i've filed this/i }))
       .not.toBeInTheDocument();
   });
 
@@ -642,7 +642,7 @@ describe("Page — filing details", () => {
   it("offers a submit button, never a link, when nothing is filed", async () => {
     const screen = await render_page(make_loader_data());
 
-    const btn = screen.getByRole("button", { name: /i filed this/i });
+    const btn = screen.getByRole("button", { name: /i've filed this/i });
     await expect.element(btn).toBeVisible();
     // a POST, not a GET: corporate mail security prefetches inbound urls, and a
     // prefetch must not be able to mark a claim filed
@@ -662,7 +662,7 @@ describe("Page — filing details", () => {
       .element(screen.getByText(/you told us you filed this/i))
       .toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .element(screen.getByRole("button", { name: /i've filed this/i }))
       .not.toBeInTheDocument();
   });
 });

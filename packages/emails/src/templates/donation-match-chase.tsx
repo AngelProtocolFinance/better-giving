@@ -54,7 +54,9 @@ function Jsx(d: IData) {
       >
         {LEGAL_NAME} ({APP_NAME}) is the US 501(c)(3) that received your gift
         and issued your receipt, then grants it on to {d.to_name}. Wherever the
-        form asks which charity you gave to, use {APP_NAME}'s details above.
+        form asks which charity you gave to, use {APP_NAME}'s details above — a
+        match {d.employer_name} sends reaches {d.to_name} the same way, through
+        us.
       </Text>
 
       <Hr />
