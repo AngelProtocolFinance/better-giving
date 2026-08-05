@@ -233,7 +233,7 @@ function FiledBtn({ filed }: IFiledBtn) {
         type="submit"
         className="btn btn-secondary text-sm px-4 py-2 rounded mt-4 justify-self-end"
       >
-        I filed this with my employer
+        I've filed this with my employer
       </button>
     </Form>
   );
