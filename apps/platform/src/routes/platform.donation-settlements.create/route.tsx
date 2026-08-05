@@ -20,6 +20,7 @@ const defaults: IFormValues = {
   donor_email: "settlement@better.giving",
   net: "",
   reference: "",
+  for_donation_id: "",
 };
 
 export default function Page(_: Route.ComponentProps) {
@@ -50,27 +51,37 @@ function Content({ on_close }: { on_close: () => void }) {
     if (step === "preview" && submit_fetcher.data?.ok) set_step("done");
   }, [step, submit_fetcher.data]);
 
-  // transition to preview when preview data arrives
+  // transition to preview when preview data arrives. a load that completed with
+  // nothing to show keeps the admin on the form, where the loader's reason is
+  // rendered — the alternative is a button that silently does nothing.
   useEffect(() => {
-    if (
-      awaiting_preview.current &&
-      preview_fetcher.state === "idle" &&
-      preview_fetcher.data?.preview
-    ) {
-      awaiting_preview.current = false;
-      set_step("preview");
-    }
+    if (!awaiting_preview.current || preview_fetcher.state !== "idle") return;
+    if (!preview_fetcher.data) return;
+    awaiting_preview.current = false;
+    if (preview_fetcher.data.preview) set_step("preview");
   }, [preview_fetcher.data, preview_fetcher.state]);
 
+  // a match that names a gift takes its recipient from that gift, so the
+  // nonprofit may legitimately be unset — the loader resolves it from the id
   const handle_preview = (values: IFormValues) => {
     set_form(values);
+    const for_donation_id =
+      values.from === "match" ? values.for_donation_id.trim() : "";
     const params = new URLSearchParams({
-      npo_id: values.npo!.id.toString(),
+      npo_id: values.npo?.id.toString() ?? "",
       net: values.net,
+      ...(for_donation_id ? { for_donation_id } : {}),
     });
     awaiting_preview.current = true;
     preview_fetcher.load(`?${params}`);
   };
+
+  const previews = preview_fetcher.data?.previews ?? [];
+  // what the money actually reached, falling back to the admin's pick only when
+  // nothing resolved — naming a nonprofit that received none of it is worse
+  // than naming none at all
+  const recipients =
+    previews.map((p) => p.npo_name).join(", ") || (form.npo?.name ?? "");
 
   if (step === "done") {
     return (
@@ -78,7 +89,7 @@ function Content({ on_close }: { on_close: () => void }) {
         <CheckCircle2Icon className="mx-auto mb-3 text-success" size={40} />
         <h3 className="text-lg font-bold mb-1">Settlement created</h3>
         <p className="text-sm text-muted-fg mb-4">
-          Settlement for ${form.net} to {form.npo?.name} has been recorded.
+          Settlement for ${form.net} to {recipients} has been recorded.
         </p>
         <button
           type="button"
@@ -92,13 +103,11 @@ function Content({ on_close }: { on_close: () => void }) {
   }
 
   if (step === "preview") {
-    const npo = form.npo;
-    const preview = preview_fetcher.data?.preview;
-    if (!npo || !preview) return null;
+    if (!previews.length) return null;
     return (
       <Preview
         form={form}
-        preview={preview}
+        previews={previews}
         submitting={submitting}
         error={
           submit_fetcher.data && !submit_fetcher.data.ok
@@ -110,11 +119,12 @@ function Content({ on_close }: { on_close: () => void }) {
           submit_fetcher.submit(
             {
               from: form.from,
-              npo_id: npo.id.toString(),
+              npo_id: form.npo?.id.toString() ?? "",
               donor_name: form.donor_name || "",
               donor_email: form.donor_email,
               net: form.net,
               reference: form.reference,
+              for_donation_id: form.for_donation_id,
             },
             { method: "post" }
           )
@@ -127,6 +137,9 @@ function Content({ on_close }: { on_close: () => void }) {
     <SettleForm
       defaults={form}
       loading={loading_preview}
+      // why the last load came back with nothing; a load still in flight has
+      // not failed yet, so it says nothing
+      error={loading_preview ? null : (preview_fetcher.data?.error ?? null)}
       on_preview={handle_preview}
       on_close={on_close}
     />

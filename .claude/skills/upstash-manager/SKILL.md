@@ -6,6 +6,8 @@ user_invocable: true
 
 # Upstash QStash Manager
 
+**Jurisdiction: `apps/platform/`.** Creds come from `apps/platform/.env` (or that project's Vercel env); the cron routes below are `apps/platform/src/routes/`.
+
 ## Auth
 
 Two separate auth mechanisms:

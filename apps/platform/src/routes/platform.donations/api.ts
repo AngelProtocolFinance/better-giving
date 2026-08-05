@@ -7,6 +7,7 @@ import {
   donation_settlements,
   donations,
 } from "$/pg/schema/donation";
+import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import type { Route } from "./+types/route";
 
@@ -18,12 +19,21 @@ export interface PaymentRow {
   amount_fee_allowance: number;
   currency: string;
   email: string | null;
+  company_name: string | null;
   npo_name: string | null;
   sttl_fee: number | null;
   sttl_currency: string | null;
   via: string;
   created_at: string;
   status: string;
+  /** every stamp on the donation's match event; all null when it has none */
+  match_pack_sent_at: string | null;
+  match_chased_at: string | null;
+  match_submitted_at: string | null;
+  match_voided_at: string | null;
+  match_void_reason: string | null;
+  /** a mail this event lost — the only reader `send_failed_kind` has ever had */
+  match_send_failed_kind: string | null;
 }
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
@@ -42,15 +52,29 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
       amount_fee_allowance: donations.amount_fee_allowance,
       currency: donations.currency,
       email: donation_donors.email,
+      company_name: donation_donors.company_name,
       npo_name: npos.name,
       sttl_fee: donation_settlements.fee,
       sttl_currency: donation_settlements.currency,
       via: donations.via,
       created_at: donations.created_at,
       status: donations.status,
+      match_pack_sent_at: donation_match_events.pack_sent_at,
+      match_chased_at: donation_match_events.chased_at,
+      match_submitted_at: donation_match_events.submitted_at,
+      match_voided_at: donation_match_events.voided_at,
+      match_void_reason: donation_match_events.void_reason,
+      match_send_failed_kind: donation_match_events.send_failed_kind,
     })
     .from(donations)
     .leftJoin(donation_donors, eq(donations.id, donation_donors.donation_id))
+    // left: most donations have no match event, and they must still list — the
+    // stamps read empty rather than dropping the row from the refund surface
+    // this page already was.
+    .leftJoin(
+      donation_match_events,
+      eq(donations.id, donation_match_events.donation_id)
+    )
     .leftJoin(
       donation_recipients,
       eq(donations.id, donation_recipients.donation_id)
@@ -62,7 +86,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     )
     .where(
       and(
-        inArray(donations.status, ["settled", "refunded"]),
+        inArray(donations.status, ["settled", "refunded", "refunded_loss"]),
         decoded ? sql`${donations.created_at} < ${decoded}` : undefined
       )
     )

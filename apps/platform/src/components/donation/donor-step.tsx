@@ -90,11 +90,17 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
       </Fieldset.Root>
 
       <Field
-        label="Your company"
+        label="Your employer"
+        // promises the email, not a verdict — a match determination is only
+        // deliverable for verified employers, so anything stronger is false
+        // for most donors
+        sub="Many employers match their employees' donations. Add yours and we'll email you what to do next."
         {...register("company_name")}
         error={errors.company_name?.message}
         classes={{}}
-        placeholder="e.g. Better Giving"
+        // a real employer, never Better Giving — naming the platform's own
+        // nonprofit is what taught donors to enter who they represent
+        placeholder="e.g. Microsoft"
       />
 
       {don.recipient.donor_address_required && (

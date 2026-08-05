@@ -96,7 +96,6 @@ export const paypal = {
 } as const;
 
 export const qstash = {
-  url: process.env.QSTASH_URL,
   token: process.env.QSTASH_TOKEN,
   current_signing_key: process.env.QSTASH_CURRENT_SIGNING_KEY,
   next_signing_key: process.env.QSTASH_NEXT_SIGNING_KEY,

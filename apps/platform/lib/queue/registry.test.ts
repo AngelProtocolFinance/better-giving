@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { KINDS, type Kind, msg } from "./registry";
+import type { IDelivery } from "./types";
 
 // frozen for reg-updated, which embeds Date.now() in its dedupe key.
 const FROZEN_MS = 1_700_000_000_000;
@@ -22,6 +23,8 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ["banking-new", { npo_id: 42 }, "banking.new_42"],
     ["banking-rejected", { npo_id: 42 }, "banking.rejected_42"],
     ["don-dist", { id: "d1", to_id: 7 }, "don.dist_d1_7"],
+    ["don-match", { id: "d4" }, "don.match_d4"],
+    ["don-match-chase", { id: "d4" }, "don.match-chase_d4"],
     ["don-sttl-dist", { id: "d2" }, "don.sttl-dist_d2"],
     ["don-sttl-receipt", { id: "d3" }, "don.sttl-receipt_d3"],
     [
@@ -53,5 +56,31 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     const covered = new Set(rows.map(([k]) => k));
     for (const k of KINDS) expect(covered.has(k)).toBe(true);
     expect(covered.size).toBe(KINDS.length);
+  });
+});
+
+describe("msg() — delivery config", () => {
+  // the notification kinds send an email as their first act, where a retry is
+  // a duplicate send: they take at-most-once, deliver-now delivery, and get no
+  // row here. a kind opting into retries or a delay has to be listed
+  // deliberately, with a reason a retry cannot reach the donor twice.
+  const opted_in: Partial<Record<Kind, IDelivery>> = {
+    // idempotent by construction: `claim_pack_send` is a single conditional
+    // UPDATE, so a retry of a delivery that already mailed loses the claim and
+    // returns without sending.
+    "don-match": { retries: 3 },
+    // the only delayed kind. its handler's send-once gate is a single
+    // conditional UPDATE too, so the days of drift between arming and delivery
+    // cannot turn into a second reminder.
+    "don-match-chase": { delay_s: 3 * 24 * 60 * 60 },
+  };
+
+  test.each(KINDS)("%s", (kind) => {
+    // dedupe recipes only read the fields they name, so one loose fixture
+    // serves every kind.
+    const m = msg(kind, { id: "x", npo_id: 1, invitee: "a@b.c" } as never);
+    const want = opted_in[kind] ?? {};
+    expect(m.retries).toBe(want.retries);
+    expect(m.delay_s).toBe(want.delay_s);
   });
 });

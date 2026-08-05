@@ -27,6 +27,7 @@ dist
 .env.test.local
 .env.production
 .env.production.local
+.env.staging
 
 # framework
 .vercel

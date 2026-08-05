@@ -2,6 +2,8 @@ export {
   type Handlers,
   type IBankingPayload,
   type IDonDistPayload,
+  type IDonMatchChasePayload,
+  type IDonMatchPayload,
   type IFundMemberRemovedPayload,
   type IInviteEmailPayload,
   type ILockTxCreatedPayload,
@@ -12,4 +14,4 @@ export {
   msg,
   type Payloads,
 } from "./registry";
-export type { IMsg } from "./types";
+export type { IDelivery, IMsg } from "./types";

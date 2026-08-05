@@ -1,12 +1,14 @@
 ---
 name: test-writer
-description: "Use when writing, modifying, or reviewing component tests, integration tests, or route tests in this React Router v7 web app. Triggers on *.test.tsx, *.test.ts files."
+description: "Use when writing, modifying, or reviewing component tests, integration tests, or route tests in the apps/platform React Router v7 web app. Triggers on *.test.tsx, *.test.ts files."
 globs:
-  - "src/**/*.test.tsx"
-  - "src/**/*.test.ts"
+  - "apps/platform/src/**/*.test.tsx"
+  - "apps/platform/src/**/*.test.ts"
 ---
 
 # Test Writer — Vitest Browser Mode
+
+**Jurisdiction: `apps/platform/`.** Every path in this skill is relative to `apps/platform/`; run the commands from there (`pnpm --filter platform exec …` from the repo root works too).
 
 Tests run in **real headless Chromium** via `@vitest/browser` + Playwright. Render with `vitest-browser-react`. No jsdom, no happy-dom, no `@testing-library/*`.
 
@@ -18,6 +20,7 @@ Config: `vite.config.ts` → `test.browser`.
 Always use `--bail 1` to fail fast on first error:
 
 ```bash
+# from apps/platform/
 pnpm vitest run --bail 1 src/path/to/test.test.tsx
 ```
 

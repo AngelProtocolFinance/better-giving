@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import {
   afterAll,
@@ -18,6 +19,7 @@ import {
 } from "$/pg/schema/donation";
 import { donation_messages } from "$/pg/schema/donation-message";
 import { funds } from "$/pg/schema/fund";
+import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { TestDb } from "$/pg/test-utils/pglite-browser";
@@ -31,6 +33,7 @@ const to_auth_mock = vi.hoisted(() =>
   vi.fn(() => new Response(null, { status: 302 }))
 );
 const cookie_parse_mock = vi.hoisted(() => vi.fn().mockResolvedValue({}));
+const enqueue_mock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -46,6 +49,8 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
+
+vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
 vi.mock("#/.server/auth", () => ({
   get_session: get_session_mock,
@@ -71,7 +76,9 @@ vi.mock("#/helpers/confetti", () => ({
 
 // --- imports after mocks ---
 
+import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { npo_donors } from "#/.server/npo-donors";
+import { emails } from "@/constants/common";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 import { PrivateMsgForm } from "../private-msg-form";
 import { PublicMsgForm } from "../public-msg-form";
@@ -108,6 +115,7 @@ function make_loader_data(overrides: Record<string, any> = {}) {
     form_id: undefined,
     created_at: "2025-01-01T00:00:00Z",
     updated_at: "2025-01-01T00:00:00Z",
+    match_filed: false,
     donate_url: "http://localhost/donate/123",
     donate_thanks_url: `http://localhost/donations/${DON_ID}`,
     profile_url: "http://localhost/marketplace/123",
@@ -160,8 +168,10 @@ beforeEach(async () => {
   get_session_mock.mockReset();
   to_auth_mock.mockClear();
   cookie_parse_mock.mockReset().mockResolvedValue({});
+  enqueue_mock.mockClear();
 
   // clean tables in correct FK order
+  await test_db.current!.db.delete(donation_match_events);
   await test_db.current!.db.delete(donation_messages);
   await test_db.current!.db.delete(donation_tributes);
   await test_db.current!.db.delete(donation_donors);
@@ -396,6 +406,354 @@ describe("Page — rendering", () => {
   });
 });
 
+describe("Page — a refunded donation", () => {
+  it("prints no filing paperwork for money that went back", async () => {
+    const screen = await render_page(
+      make_loader_data({ status: "refunded", match_voided: true })
+    );
+
+    await expect
+      .element(screen.getByText(/this donation was refunded/i))
+      .toBeVisible();
+    // walking a donor into filing a claim against a gift we no longer hold is
+    // the harm this branch exists to prevent
+    await expect.element(screen.getByText(EIN)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("prints no remittance details for money that went back", async () => {
+    const screen = await render_page(
+      make_loader_data({ status: "refunded", match_voided: true })
+    );
+
+    // an employer who mailed a check against a returned gift would be sending
+    // money we hold nothing to match, and quoting a reference for a gift we
+    // already gave back
+    await expect
+      .element(screen.getByText(/if your employer sends the match directly/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(`Donation ${DON_ID}`))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/^make checks payable to$/i))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText(emails.hi)).not.toBeInTheDocument();
+  });
+
+  it("tells a donor who already filed that the claim no longer applies", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        status: "refunded",
+        match_voided: true,
+        match_filed: true,
+      })
+    );
+
+    await expect.element(screen.getByText(/no longer applies/i)).toBeVisible();
+  });
+
+  it("asks nothing about an employer", async () => {
+    // the void gate would refuse the pack, so the field would be promising an
+    // email that never comes
+    const screen = await render_page(
+      make_loader_data({ status: "refunded", match_voided: true })
+    );
+
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .not.toBeInTheDocument();
+  });
+
+  it("names no employer back, even one already on record", async () => {
+    // nothing about the panel's voided branch mentions an employer; the gift is
+    // gone and who they work for has no bearing left
+    const screen = await render_page(
+      make_loader_data({
+        status: "refunded",
+        match_voided: true,
+        from_company_name: "Acme Corp",
+      })
+    );
+
+    await expect.element(screen.getByText("Acme Corp")).not.toBeInTheDocument();
+  });
+});
+
+describe("Page — a matched donation", () => {
+  it("confirms the match instead of printing the paperwork again", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        from_company_name: "Acme Corp",
+        match_arrived: { amount: 250, currency: "USD" },
+      })
+    );
+
+    await expect
+      .element(screen.getByText(/acme corp matched this gift/i))
+      .toBeVisible();
+    // the paperwork has done its job; printing it beside a completed match
+    // invites the donor to file a second claim for the same gift
+    await expect
+      .element(screen.getByText(/^ein \(tax id\)$/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/^make checks payable to$/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("names the amount that arrived and the nonprofit it went to", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        to_name: "Test NPO",
+        from_company_name: "Acme Corp",
+        // the employer's own row is born-settled in usd; the panel prints what
+        // actually arrived, not the donor's gift
+        match_arrived: { amount: 250, currency: "usd" },
+      })
+    );
+
+    await expect
+      .element(screen.getByText(/250\.00 USD reached Test NPO/i))
+      .toBeVisible();
+  });
+
+  it("falls back to a nameless employer when none was captured", async () => {
+    // capture is optional and money can arrive for a donor who never named
+    // anyone — an admin recording a cheque needs no help from the donor
+    const screen = await render_page(
+      make_loader_data({ match_arrived: { amount: 100, currency: "USD" } })
+    );
+
+    await expect
+      .element(screen.getByText(/your employer matched this gift/i))
+      .toBeVisible();
+  });
+
+  it("still shows the refund when a matched gift was later returned", async () => {
+    // the arrival claim gates on `voided_at`, but voiding gates on nothing, so
+    // this pair is reachable — and a returned gift is the more urgent of the
+    // two things to tell a donor
+    const screen = await render_page(
+      make_loader_data({
+        status: "refunded",
+        match_voided: true,
+        from_company_name: "Acme Corp",
+        match_arrived: { amount: 250, currency: "USD" },
+      })
+    );
+
+    await expect
+      .element(screen.getByText(/this donation was refunded/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/matched this gift/i))
+      .not.toBeInTheDocument();
+  });
+});
+
+describe("Page — filing details", () => {
+  it("shows the recipient's legal name, EIN and address", async () => {
+    const screen = await render_page(make_loader_data());
+
+    // the remittance block prints the same name and address again, so each
+    // assertion names the identity row it belongs to
+    await vi.waitFor(() => {
+      expect(row_value(screen, /^recipient legal name$/i)).toBe(LEGAL_NAME);
+      expect(row_value(screen, /^ein \(tax id\)$/i)).toBe(EIN);
+      expect(row_value(screen, /^mailing address$/i)).toBe(ADDRESS);
+    });
+  });
+
+  it("shows this donation's own date, amount and record url", async () => {
+    const screen = await render_page(
+      make_loader_data({
+        // an instant that is already the 15th in UTC but still the 14th in the
+        // americas — the receipt stamps UTC, so the panel must too or the two
+        // documents an employer compares disagree on the gift's date
+        created_at: "2025-03-15T03:00:00Z",
+        amount: { base: 250, tip: 10, fee_allowance: 0 },
+        currency: "usd",
+      })
+    );
+
+    await expect.element(screen.getByText("Mar 15, 2025")).toBeVisible();
+    await expect.element(screen.getByText("250.00 USD")).toBeVisible();
+    await expect
+      .element(screen.getByText(`http://localhost/donations/${DON_ID}`))
+      .toBeVisible();
+  });
+
+  // the grid lays each row out as dt, an aria-hidden divider, then dd
+  function row_value(
+    screen: Awaited<ReturnType<typeof render_page>>,
+    label: RegExp
+  ) {
+    const dt = screen.getByText(label).element();
+    return dt.nextElementSibling?.nextElementSibling?.textContent;
+  }
+
+  it("shows an employer paying us directly where to send it and what to quote", async () => {
+    const screen = await render_page(make_loader_data());
+
+    await expect
+      .element(screen.getByText(/if your employer sends the match directly/i))
+      .toBeVisible();
+    await vi.waitFor(() => {
+      expect(row_value(screen, /^make checks payable to$/i)).toBe(LEGAL_NAME);
+      expect(row_value(screen, /^mail to$/i)).toBe(ADDRESS);
+      // the only thing that ties an arriving payment back to the gift it matches
+      expect(row_value(screen, /^reference$/i)).toBe(`Donation ${DON_ID}`);
+      expect(row_value(screen, /^employer questions$/i)).toBe(emails.hi);
+    });
+  });
+
+  it("shows this donation's own id", async () => {
+    const screen = await render_page(make_loader_data());
+
+    // the pack email prints a transaction id and the page did not — a donor
+    // copying from the screen had no reference to hand their employer
+    await expect
+      .element(screen.getByText(DON_ID, { exact: true }))
+      .toBeVisible();
+  });
+
+  // the payload is ours and employer-independent — every donor gets it, whether
+  // or not they named a company, and whichever surface they donated from
+  it.each([
+    ["no employer named", {}],
+    ["employer named", { from_company_name: "Acme Corp" }],
+    ["fund donation", { to_type: "fund" as const }],
+    ["widget donation", { source: "bg-widget" }],
+  ])("shows for %s", async (_, overrides) => {
+    const screen = await render_page(make_loader_data(overrides));
+
+    await expect
+      .element(screen.getByText(/ask your employer to match this gift/i))
+      .toBeVisible();
+    await expect.element(screen.getByText(EIN)).toBeVisible();
+  });
+
+  it("offers a submit button, never a link, when nothing is filed", async () => {
+    const screen = await render_page(make_loader_data());
+
+    const btn = screen.getByRole("button", { name: /i filed this/i });
+    await expect.element(btn).toBeVisible();
+    // a POST, not a GET: corporate mail security prefetches inbound urls, and a
+    // prefetch must not be able to mark a claim filed
+    await vi.waitFor(() => {
+      const el = btn.element() as HTMLButtonElement;
+      expect(el.getAttribute("type")).toBe("submit");
+      expect(el.closest("form")?.getAttribute("method")?.toLowerCase()).toBe(
+        "post"
+      );
+    });
+  });
+
+  it("shows the confirmation instead of the button once filed", async () => {
+    const screen = await render_page(make_loader_data({ match_filed: true }));
+
+    await expect
+      .element(screen.getByText(/you told us you filed this/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /i filed this/i }))
+      .not.toBeInTheDocument();
+  });
+});
+
+describe("Page — employer capture", () => {
+  it("asks inside the filing panel, not in a card of its own", async () => {
+    const screen = await render_page(make_loader_data());
+
+    // one card, one subject. the field and the paperwork it offers to email
+    // must share a section, or the donor meets matching twice on one page.
+    const heading = screen
+      .getByText(/ask your employer to match this gift/i)
+      .element();
+    const input = screen.getByLabelText(/where do you work/i).element();
+    expect(heading.closest("section")).toBe(input.closest("section"));
+  });
+
+  it("shows the field without anything to expand first", async () => {
+    const screen = await render_page(make_loader_data());
+
+    // no collapsible: the one action here with a consequence beyond the screen
+    // is not something a donor should have to discover
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+  });
+
+  it("shows the recorded employer instead of a field", async () => {
+    const screen = await render_page(
+      make_loader_data({ from_company_name: "Acme Corp" })
+    );
+
+    await expect.element(screen.getByText("Acme Corp")).toBeVisible();
+    // no input to overwrite it with — the action ignores a second submit
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .not.toBeInTheDocument();
+  });
+
+  it("keeps asking after the donor says they filed", async () => {
+    const screen = await render_page(make_loader_data({ match_filed: true }));
+
+    // there is no pack left to offer, but the name is worth more than ever —
+    // the employer's verification request is coming to us
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/verification request to expect/i))
+      .toBeVisible();
+  });
+
+  // a fund donation reaches the same nonprofits and is just as matchable, so
+  // unlike its neighbours this card is not recipient-gated
+  it("shows for a fund donation", async () => {
+    const screen = await render_page(make_loader_data({ to_type: "fund" }));
+
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+  });
+
+  it("submits type=employer with the typed name", async () => {
+    const submitted: Record<string, string> = {};
+    const Stub = createRoutesStub([
+      {
+        path: "/donations/:id",
+        Component: Page,
+        loader: () => make_loader_data(),
+        action: async ({ request }) => {
+          const fd = await request.formData();
+          for (const [k, v] of fd.entries()) submitted[k] = String(v);
+          return null;
+        },
+      },
+    ]);
+    const screen = await render(
+      <Stub initialEntries={[`/donations/${DON_ID}`]} />
+    );
+
+    await screen.getByLabelText(/where do you work/i).fill("Acme Corp");
+    await screen.getByRole("button", { name: /save/i }).click();
+
+    // remix-hook-form json-encodes each field; the action decodes it again
+    await vi.waitFor(() => {
+      expect(JSON.parse(submitted.type!)).toBe("employer");
+      expect(JSON.parse(submitted.company_name!)).toBe("Acme Corp");
+    });
+  });
+});
+
 describe("PublicMsgForm", () => {
   function render_form(init?: string) {
     const Stub = createRoutesStub([
@@ -581,6 +939,61 @@ describe("Integration — loader", () => {
     expect(result.donate_url).toContain("/donate/");
     expect(result.profile_url).toContain("/marketplace/");
     expect(result.donate_thanks_url).toContain(`/donations/${DON_ID}`);
+  });
+
+  it("matched: reports the amount off the employer's own donation row", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+
+    // the employer's payment is a second, born-settled donation row — the only
+    // place the amount that actually arrived is written. the donor's own row
+    // still holds the donor's own gift, which is a different number.
+    const match_don_id = "don-employer-001";
+    const now = new Date().toISOString();
+    await test_db.current!.db.insert(donations).values({
+      id: match_don_id,
+      upusd: 1,
+      status: "settled",
+      amount_base: 400,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "match",
+      created_at: now,
+      updated_at: now,
+    });
+    await test_db.current!.db.insert(donation_match_events).values({
+      id: globalThis.crypto.randomUUID(),
+      donation_id: DON_ID,
+      matched_donation_id: match_don_id,
+      matched_at: now,
+    });
+
+    const result = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+
+    expect(result.match_arrived).toEqual({ amount: 400, currency: "USD" });
+  });
+
+  it("unmatched: reports no arrival for an event that only got as far as filed", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+    await test_db.current!.db.insert(donation_match_events).values({
+      id: globalThis.crypto.randomUUID(),
+      donation_id: DON_ID,
+      submitted_at: new Date().toISOString(),
+    });
+
+    const result = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+
+    // the donor said they filed; no employer money has landed
+    expect(result.match_filed).toBe(true);
+    expect(result.match_arrived).toBeUndefined();
   });
 
   it("fund: returns donate-fund and fundraisers URLs", async () => {
@@ -1014,6 +1427,195 @@ describe("Integration — action", () => {
       .toBeDisabled();
   });
 
+  // --- employer flow ---
+
+  it("employer: records the name against the donation", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id);
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const result = await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+    expect(result).toHaveProperty("toast");
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
+  });
+
+  it("employer: a second submit does not overwrite the first", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id);
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Other Inc" })
+      )
+    );
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
+  });
+
+  it("employer: queues the filing pack for a paid donation", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+
+    expect(enqueue_mock).toHaveBeenCalledTimes(1);
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      id: "don-match",
+      dedupe: `don.match_${DON_ID}`,
+      payload: { id: DON_ID, from_company_name: "Acme Corp" },
+    });
+  });
+
+  it("employer: queues nothing for a donation that hasn't been paid", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "intent" });
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+
+    // the name is still recorded — settlement picks it up and emits the same
+    // message itself, so an abandoned intent can never produce a pack
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  // --- filed flow ---
+
+  // a donor who never named an employer has no event row, so the branch has to
+  // open one before it can claim — the button is on the universal panel
+  async function match_event(donation_id = DON_ID) {
+    const [row] = await test_db
+      .current!.db.select()
+      .from(donation_match_events)
+      .where(eq(donation_match_events.donation_id, donation_id));
+    return row;
+  }
+
+  it("filed: stamps the claim and mails the heads-up once", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const result = await action(
+      action_args(make_action_request({ type: "filed" }))
+    );
+    expect(result).toHaveProperty("toast");
+
+    expect((await match_event())?.submitted_at).not.toBeNull();
+    expect(send_email_mock).toHaveBeenCalledOnce();
+    // never the beneficiary nonprofit — we are the filing entity, so we are the
+    // ones an employer verifies with
+    expect(send_email_mock.mock.calls[0][0].to).toEqual(["hi@better.giving"]);
+  });
+
+  it("filed: a second submit mails nothing and keeps the first stamp", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, { status: "settled" });
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await action(action_args(make_action_request({ type: "filed" })));
+    const first = (await match_event())?.submitted_at;
+
+    const again = await action(
+      action_args(make_action_request({ type: "filed" }))
+    );
+
+    // the donor sees the same thing either way — they did the same thing
+    expect(again).toHaveProperty("toast");
+    expect((await match_event())?.submitted_at).toBe(first);
+    expect(send_email_mock).toHaveBeenCalledOnce();
+  });
+
+  // a fund donation reaches the same nonprofits and is just as matchable, so
+  // the claim is not recipient-gated any more than employer capture is
+  it("filed: accepted for a fund donation", async () => {
+    const fund_id = globalThis.crypto.randomUUID();
+    const date = new Date().toISOString();
+
+    const creator_id = globalThis.crypto.randomUUID();
+    await test_db.current!.db.insert(user).values({
+      id: creator_id,
+      name: "Fund Creator",
+      email: `creator-${creator_id.slice(0, 8)}@test.com`,
+      first_name: "Fund",
+      last_name: "Creator",
+    });
+    await test_db.current!.db.insert(funds).values({
+      id: fund_id,
+      name: "Test Fund",
+      description_pt: "A test fund",
+      banner: "banner.webp",
+      logo: "logo.webp",
+      creator_id,
+    });
+    await test_db.current!.db.insert(donations).values({
+      id: DON_ID,
+      upusd: 1,
+      status: "confirmed",
+      amount_base: 50,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe:card",
+      created_at: date,
+      updated_at: date,
+    });
+    await test_db.current!.db.insert(donation_recipients).values({
+      donation_id: DON_ID,
+      fund_id,
+      name: "Test Fund",
+      type: "fund",
+    });
+    await test_db.current!.db.insert(donation_donors).values({
+      donation_id: DON_ID,
+      email: DONOR_EMAIL,
+    });
+
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const result = await action(
+      action_args(make_action_request({ type: "filed" }))
+    );
+    expect(result).toHaveProperty("toast");
+    expect((await match_event())?.submitted_at).not.toBeNull();
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.match_filed).toBe(true);
+  });
+
   // --- fund guard ---
 
   it("fund donation: rejects tribute and private_msg at action level", async () => {
@@ -1077,6 +1679,66 @@ describe("Integration — action", () => {
         action_args(make_action_request({ type: "private_msg", msg: "Hello" }))
       )
     ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("fund donation: accepts employer capture", async () => {
+    const fund_id = globalThis.crypto.randomUUID();
+    const date = new Date().toISOString();
+
+    const creator_id = globalThis.crypto.randomUUID();
+    await test_db.current!.db.insert(user).values({
+      id: creator_id,
+      name: "Fund Creator",
+      email: `creator-${creator_id.slice(0, 8)}@test.com`,
+      first_name: "Fund",
+      last_name: "Creator",
+    });
+    await test_db.current!.db.insert(funds).values({
+      id: fund_id,
+      name: "Test Fund",
+      description_pt: "A test fund",
+      banner: "banner.webp",
+      logo: "logo.webp",
+      creator_id,
+    });
+    await test_db.current!.db.insert(donations).values({
+      id: DON_ID,
+      upusd: 1,
+      status: "confirmed",
+      amount_base: 50,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe:card",
+      created_at: date,
+      updated_at: date,
+    });
+    await test_db.current!.db.insert(donation_recipients).values({
+      donation_id: DON_ID,
+      fund_id,
+      name: "Test Fund",
+      type: "fund",
+    });
+    await test_db.current!.db.insert(donation_donors).values({
+      donation_id: DON_ID,
+      email: DONOR_EMAIL,
+    });
+
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const result = await action(
+      action_args(
+        make_action_request({ type: "employer", company_name: "Acme Corp" })
+      )
+    );
+    expect(result).toHaveProperty("toast");
+
+    const after = await loader(
+      action_args(new Request(`http://localhost/donations/${DON_ID}`)) as any
+    );
+    expect(after.from_company_name).toBe("Acme Corp");
   });
 
   it("fund donation: submitting public msg via UI succeeds", async () => {

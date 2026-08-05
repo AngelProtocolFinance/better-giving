@@ -2,15 +2,13 @@ import { loadEnv } from "vite";
 import {
   CLIENT_KEYS,
   type ClientKey,
-  LOCAL_ONLY_KEYS,
-  type LocalOnlyKey,
   SERVER_KEYS,
   type ServerKey,
 } from "../lib/env";
 
 const STAGES = ["staging", "production", "local"];
 
-type RequiredKey = ServerKey | ClientKey | LocalOnlyKey;
+type RequiredKey = ServerKey | ClientKey;
 
 // keys allowed to be "" as an opt-out signal. SENTRY_AUTH_TOKEN gates sourcemap
 // upload in vite.config.ts — empty = skip upload locally.
@@ -25,11 +23,7 @@ export function check_env(mode: string) {
   const env = { ...process.env, ...loadEnv(mode, process.cwd(), "") };
   Object.assign(process.env, env);
 
-  const required = [
-    ...SERVER_KEYS,
-    ...CLIENT_KEYS,
-    ...(env.STAGE === "local" ? LOCAL_ONLY_KEYS : []),
-  ];
+  const required = [...SERVER_KEYS, ...CLIENT_KEYS];
   const missing = required.filter((k) =>
     OPT_OUT_KEYS.includes(k) ? env[k] === undefined : !env[k]
   );

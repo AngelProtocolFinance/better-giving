@@ -1,0 +1,66 @@
+import { type IDonMatchPayload, msg } from "@/queue";
+import { schedule } from "$/kit/queue";
+import { donation_get } from "$/pg/queries/donation";
+import {
+  claim_pack_send,
+  mark_match_send_failed,
+  open_match_event,
+} from "$/pg/queries/match";
+import { send_match_pack } from "./send-match-pack";
+
+/**
+ * mail the filing pack to a donor who named an employer.
+ *
+ * no employer is resolved and no branch is taken on who they named: we hold no
+ * data about any employer's matching program, so a donor who typed anything
+ * non-empty gets the one pack, and the pack tells them where the real terms
+ * live. the payload having reached here is the whole eligibility test.
+ *
+ * the donation is read *before* the event is opened, so a transient read
+ * failure costs a retry rather than the donor's mail — see the claim below for
+ * why anything that throws after it is expensive.
+ */
+export async function handle_don_match(p: IDonMatchPayload) {
+  const don = await donation_get(p.id);
+  if (!don) throw new Error(`donation not found: ${p.id}`);
+
+  // `donation_get` also resolves legacy v1 ids; every write below keys off the
+  // row's own id, which is what the event's foreign key points at.
+  await open_match_event(don.id);
+
+  // the stamp is burnt before the send, deliberately. two concurrent
+  // deliveries both reaching the send would both mail the donor, and there is
+  // no unsend — so the claim goes first and the loser stops here. the price is
+  // that a provider refusal costs the donor that mail: nothing re-drives it,
+  // because from the stamp's point of view it was already sent. that loss is
+  // recorded below rather than recovered.
+  const claimed = await claim_pack_send(don.id);
+
+  // not an error: this is a redelivery of a message whose pack already went
+  // out, and qstash needs a 200 for it or it will keep retrying.
+  if (!claimed) return;
+
+  const res = await send_match_pack(don, p.from_company_name);
+
+  // tested on `data`, not `error`, which is typed `unknown` and so cannot
+  // narrow. the stamp is already burnt and nothing comes back for it, so the
+  // only moves left are to make the loss findable and to leave the chase
+  // unarmed — "did you file yet?" about a pack that never arrived is worse
+  // than the silence.
+  //
+  // caught, because the write can fail to the same infra blip that refused the
+  // mail, and this kind's retries are no-ops once the stamp has moved: a throw
+  // here would lose the record for good. `send_match_pack` already logged the
+  // refusal, which is the fallback record.
+  if (!res.data) {
+    await mark_match_send_failed(don.id, "pack").catch((err) =>
+      console.error("match send failure not recorded:", don.id, err)
+    );
+    return;
+  }
+
+  // armed after the send, so a pack that never went out is never chased about.
+  // scheduled rather than enqueued — a delay this long cannot sit at the head of
+  // the FIFO queue. a failure here costs the reminder, not the pack.
+  await schedule(msg("don-match-chase", { id: don.id }));
+}

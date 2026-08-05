@@ -35,7 +35,7 @@ Three-layer structure:
 - setup files: `src/setup-tests-browser.ts`, `src/__tests__/mocks/payment.tsx`
 - config in `vite.config.ts` under `test`
 - environment: vitest browser mode, headless chromium via playwright; globals enabled
-- `.claude/**` excluded from test runs
+- `.claude/**` is in vitest's `exclude` (defensive — Claude config lives in the root `.claude/`, not here)
 - when running vitest on changed files, use `--bail 1 --changed` to fail fast and scope to changes only
 
 ## Code Style

@@ -17,6 +17,7 @@ import {
   donation_settlements,
   donations,
 } from "$/pg/schema/donation";
+import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import { rev_logs } from "$/pg/schema/revenue";
 import type { TestDb } from "$/pg/test-utils/pglite-browser";
@@ -73,13 +74,13 @@ vi.mock("#/.server/toast", async () => {
 
 // --- imports (after mocks) ---
 
-import { loader } from "#/routes/platform.refunds/api";
-import ListPage from "#/routes/platform.refunds/route";
+import { loader } from "#/routes/platform.donations/api";
+import ListPage from "#/routes/platform.donations/route";
 import {
   action as refund_action,
   loader as refund_loader,
-} from "#/routes/platform.refunds.$donation_id.refund/api";
-import RefundPage from "#/routes/platform.refunds.$donation_id.refund/route";
+} from "#/routes/platform.donations.$donation_id.refund/api";
+import RefundPage from "#/routes/platform.donations.$donation_id.refund/route";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 
 // --- setup ---
@@ -103,6 +104,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await test_db.current!.db.delete(donation_match_events);
   await test_db.current!.db.delete(rev_logs);
   await test_db.current!.db.delete(bal_txs);
   await test_db.current!.db.delete(dists);
@@ -137,6 +139,8 @@ async function seed_donation(
   overrides?: {
     donation?: Partial<typeof donations.$inferInsert>;
     via?: string;
+    company_name?: string;
+    match?: Partial<typeof donation_match_events.$inferInsert>;
   }
 ) {
   counter++;
@@ -171,7 +175,16 @@ async function seed_donation(
     donation_id: don_id,
     email: "donor@test.com",
     name: "Test Donor",
+    company_name: overrides?.company_name,
   });
+
+  if (overrides?.match) {
+    await test_db.current!.db.insert(donation_match_events).values({
+      id: `evt-${counter}`,
+      donation_id: don_id,
+      ...overrides.match,
+    });
+  }
 
   return don_id;
 }
@@ -253,7 +266,7 @@ describe("refunds list — settled stripe donation", () => {
 
     // list renders with donation row
     await expect
-      .element(screen.getByRole("heading", { name: /refunds/i }))
+      .element(screen.getByRole("heading", { name: /donations/i }))
       .toBeVisible();
     await expect.element(screen.getByText("Test NPO")).toBeInTheDocument();
     await expect
@@ -296,7 +309,7 @@ describe("refunds list — non-stripe donation", () => {
     const screen = await render_list();
 
     await expect
-      .element(screen.getByRole("heading", { name: /refunds/i }))
+      .element(screen.getByRole("heading", { name: /donations/i }))
       .toBeVisible();
     await expect.element(screen.getByText("Test NPO")).toBeInTheDocument();
     await expect.element(screen.getByText("N/A")).toBeInTheDocument();
@@ -320,7 +333,7 @@ describe("refunds list — filtering", () => {
     const screen = await render_list();
 
     await expect
-      .element(screen.getByRole("heading", { name: /refunds/i }))
+      .element(screen.getByRole("heading", { name: /donations/i }))
       .toBeVisible();
     // 2 rows: settled + refunded (not created)
     const rows = screen.getByRole("row");
@@ -332,6 +345,85 @@ describe("refunds list — filtering", () => {
       .element(screen.getByRole("link", { name: /refund/i }))
       .toBeInTheDocument();
     await expect.element(screen.getByText("Refunded")).toBeInTheDocument();
+  });
+});
+
+describe("donations list — the match column", () => {
+  it("reads empty for a donation that never entered the workflow", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, npo.name);
+
+    const screen = await render_list();
+
+    await expect.element(screen.getByText("No employer")).toBeVisible();
+  });
+
+  it("shows the employer as typed, and the stamps in lifecycle order", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, npo.name, {
+      company_name: "Acme Inc",
+      match: {
+        pack_sent_at: "2026-07-01T00:00:00.000Z",
+        chased_at: "2026-07-04T00:00:00.000Z",
+        submitted_at: "2026-07-05T00:00:00.000Z",
+      },
+    });
+
+    const screen = await render_list();
+
+    await expect.element(screen.getByText("Acme Inc")).toBeVisible();
+    await expect
+      .element(screen.getByText(/pack Jul 1 · chased Jul 4 · filed Jul 5/i))
+      .toBeVisible();
+  });
+
+  it("surfaces a refused mail, which nothing else reads", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, npo.name, {
+      company_name: "Acme Inc",
+      match: {
+        pack_sent_at: "2026-07-01T00:00:00.000Z",
+        send_failed_at: "2026-07-01T00:00:01.000Z",
+        send_failed_kind: "pack",
+      },
+    });
+
+    const screen = await render_list();
+
+    await expect.element(screen.getByText(/pack mail refused/i)).toBeVisible();
+  });
+
+  it("names the void reason on a refunded donation", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, npo.name, {
+      donation: { status: "refunded_loss" },
+      company_name: "Acme Inc",
+      match: {
+        pack_sent_at: "2026-07-01T00:00:00.000Z",
+        voided_at: "2026-07-08T00:00:00.000Z",
+        void_reason: "refunded_loss",
+      },
+    });
+
+    const screen = await render_list();
+
+    await expect
+      .element(screen.getByText(/voided · refunded_loss/i))
+      .toBeVisible();
+  });
+
+  it("offers no action — nothing about a match is ours to approve", async () => {
+    const npo = await seed_npo();
+    await seed_donation(npo.id, npo.name, {
+      company_name: "Acme Inc",
+      match: { pack_sent_at: "2026-07-01T00:00:00.000Z" },
+    });
+
+    const screen = await render_list();
+
+    await expect
+      .element(screen.getByRole("button", { name: /re-drive|verify/i }))
+      .not.toBeInTheDocument();
   });
 });
 

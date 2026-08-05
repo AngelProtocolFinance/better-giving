@@ -11,7 +11,7 @@ import type { PaymentRow } from "./api";
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
-export const meta: Route.MetaFunction = () => metas({ title: "Refunds" });
+export const meta: Route.MetaFunction = () => metas({ title: "Donations" });
 
 export default CacheRoute(Page);
 function Page({ loaderData: page1 }: Route.ComponentProps) {
@@ -29,13 +29,64 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8 w-full max-w-5xl grid content-start">
-      <h3 className="font-bold text-2xl mb-4">Refunds</h3>
+      <h3 className="font-bold text-2xl mb-4">Donations</h3>
 
       <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
         {node}
       </div>
 
       <Outlet />
+    </div>
+  );
+}
+
+/**
+ * every stamp on the donation's match event, in lifecycle order.
+ *
+ * read-only, and there is no action here. nothing about a match is ours to
+ * approve — no employer is resolved, no programme is known, and the sends are
+ * claimed by the handlers themselves — so a button would only re-drive work
+ * that is already at-most-once by construction.
+ *
+ * this is also the only reader `send_failed_kind` has: a mail the provider
+ * refused is otherwise recorded and invisible, answerable only by hand-written
+ * sql.
+ */
+function Match({ payment: c }: { payment: PaymentRow }) {
+  const stamps = [
+    ["pack", c.match_pack_sent_at],
+    ["chased", c.match_chased_at],
+    ["filed", c.match_submitted_at],
+  ] as const;
+  const reached = stamps.filter(([, at]) => at);
+
+  return (
+    <div className="flex flex-col items-start gap-0.5 min-w-32">
+      <span
+        className="text-xs font-medium truncate max-w-40"
+        title={c.company_name ?? ""}
+      >
+        {/* donor-entered and never resolved — there is no employer row behind
+            this string, so it is shown exactly as typed */}
+        {c.company_name || <span className="text-muted-fg">No employer</span>}
+      </span>
+      {reached.length > 0 && (
+        <span className="text-xs text-muted-fg">
+          {reached
+            .map(([label, at]) => `${label} ${format(new Date(at!), "MMM d")}`)
+            .join(" · ")}
+        </span>
+      )}
+      {c.match_voided_at && (
+        <span className="text-xs text-muted-fg">
+          voided · {c.match_void_reason}
+        </span>
+      )}
+      {c.match_send_failed_kind && (
+        <span className="text-destructive text-xs font-semibold">
+          {c.match_send_failed_kind} mail refused
+        </span>
+      )}
     </div>
   );
 }
@@ -63,13 +114,14 @@ function Table({
           <th>Fee Cover</th>
           <th>Fee</th>
           <th>Method</th>
+          <th>Match</th>
           <th />
         </tr>
       </thead>
       <tbody>
         {items.length === 0 ? (
           <tr>
-            <td colSpan={9} className="text-center text-muted-fg py-8">
+            <td colSpan={10} className="text-center text-muted-fg py-8">
               {empty_msg}
             </td>
           </tr>
@@ -79,7 +131,7 @@ function Table({
       </tbody>
       {load_next && (
         <LoadMoreRow
-          col_span={9}
+          col_span={10}
           disabled={disabled}
           loading={loading}
           on_load_next={load_next}
@@ -128,6 +180,9 @@ function Row({ payment: c }: { payment: PaymentRow }) {
         )}
       </td>
       <td>{method}</td>
+      <td>
+        <Match payment={c} />
+      </td>
       <td>
         {c.status === "refunded" || c.status === "refunded_loss" ? (
           <span className="text-destructive text-xs font-semibold">

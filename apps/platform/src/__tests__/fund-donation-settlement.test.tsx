@@ -100,12 +100,12 @@ import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms — for form ltd verification
 import UserFormsPage from "#/routes/dashboard.forms/route";
 // platform-admin refunds pages
-import RefundsListPage from "#/routes/platform.refunds/route";
+import RefundsListPage from "#/routes/platform.donations/route";
 import {
   action as refund_action,
   loader as refund_loader,
-} from "#/routes/platform.refunds.$donation_id.refund/api";
-import RefundDialog from "#/routes/platform.refunds.$donation_id.refund/route";
+} from "#/routes/platform.donations.$donation_id.refund/api";
+import RefundDialog from "#/routes/platform.donations.$donation_id.refund/route";
 import type { IDonation } from "@/donations";
 import { user_ctx } from "$/auth/test-utils";
 import { stripe } from "$/kit/stripe";

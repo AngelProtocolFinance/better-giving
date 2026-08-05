@@ -5,6 +5,8 @@ description: Manage Chariot DAF webhook subscriptions — list, create, enable, 
 
 # Chariot Webhook Management
 
+**Jurisdiction: `apps/platform/`.** `.env` and the route paths below live under `apps/platform/`.
+
 ## Overview
 
 CRUD operations on Chariot event subscriptions (webhooks) via their REST API.
