@@ -13,6 +13,14 @@ import type { IPayPalExpress } from "./stripe/use-rhf";
 
 interface Props extends IPayPalExpress {
   on_error: (msg: string) => void;
+  /**
+   * the block can't be offered at all — sdk failed to load, or no funding
+   * method is eligible for this currency/flow. raised before the donor has
+   * touched anything, so the caller decides whether it's worth interrupting
+   * them. falls back to `on_error` when the caller doesn't handle it.
+   * everything that goes wrong *during* a payment stays on `on_error`.
+   */
+  on_unavailable?: (msg: string) => void;
   validate: () => Promise<boolean>;
   classes?: string;
 }
@@ -62,7 +70,13 @@ const get_sdk = (): Promise<Sdk> => {
   return sdk;
 };
 
-export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
+export function Paypal({
+  classes = "",
+  on_error,
+  on_unavailable,
+  validate,
+  ...p
+}: Props) {
   const { don } = use_donation();
   const container_ref = useRef<HTMLDivElement>(null);
 
@@ -77,6 +91,8 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
   don_ref.current = don;
   const on_error_ref = useRef(on_error);
   on_error_ref.current = on_error;
+  const on_unavailable_ref = useRef(on_unavailable ?? on_error);
+  on_unavailable_ref.current = on_unavailable ?? on_error;
 
   useEffect(() => {
     let mounted = true;
@@ -98,7 +114,7 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
       const vm_eligible = !is_recurring && methods.isEligible("venmo");
 
       if (!pp_eligible && !vm_eligible) {
-        return on_error_ref.current(
+        return on_unavailable_ref.current(
           `PayPal not available for ${currency.toUpperCase()}`
         );
       }
@@ -301,7 +317,7 @@ export function Paypal({ classes = "", on_error, validate, ...p }: Props) {
       // CSP / extension / network reasons. surface a friendly fallback.
       report_error(err);
       if (mounted) {
-        on_error_ref.current(
+        on_unavailable_ref.current(
           "PayPal failed to load — please try another payment method."
         );
       }

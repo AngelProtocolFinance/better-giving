@@ -20,6 +20,7 @@ type Components = {
   user: IUser | undefined;
   program: IProgram | undefined;
   base_url: string;
+  hide_unavailable_express?: boolean;
 };
 
 type InitState = {
@@ -59,6 +60,7 @@ function init_state({
   mode,
   user,
   program,
+  hide_unavailable_express,
 }: Components): TDonation {
   const init: Init = {
     base_url,
@@ -68,6 +70,7 @@ function init_state({
     mode,
     user,
     program,
+    hide_unavailable_express,
   };
 
   const donor_init_prefilled = user

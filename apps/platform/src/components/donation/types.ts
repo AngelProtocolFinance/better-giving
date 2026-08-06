@@ -320,6 +320,15 @@ export type Init = {
   config: Config | null;
   user?: IUser;
   base_url: string;
+  /**
+   * for mounts the visitor didn't come to donate on (a marketing page carrying
+   * the form): when an express rail can't be offered at all — sdk blocked by an
+   * adblocker/csp, no funding method eligible for the currency — drop the block
+   * instead of announcing it in a modal over the page they were reading.
+   * defaults to the donate-page behavior, which announces it. a payment that
+   * fails **mid-flight** always announces itself, on every mount.
+   */
+  hide_unavailable_express?: boolean;
 };
 
 export type TMethod =
