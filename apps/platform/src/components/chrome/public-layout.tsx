@@ -1,12 +1,43 @@
-import { Outlet } from "react-router";
-import { PublicFooter, PublicHeader } from "./public-chrome";
+import { href, Outlet, useLocation } from "react-router";
+import { AnnouncementBanner, BANNER_POST_SLUG } from "./announcement-banner";
+import { chrome_for, PublicFooter, PublicHeader } from "./public-chrome";
+
+// the post the banner links to — the bar must not sit above the article it
+// points at. derived from the component's own slug through the typed route
+// helper, so a rename can't leave the two copies pointing at different urls.
+const BANNER_TARGET = href("/blog/:slug", { slug: BANNER_POST_SLUG });
 
 // shared shell for the pathless public layout wrappers (`_app`, `_landing`).
 // header/footer resolve their intent bucket from the pathname via the chrome
 // seam (see public-chrome.tsx).
 export function PublicLayout() {
+  const { pathname } = useLocation();
+  const banner =
+    chrome_for(pathname) === "marketing" &&
+    pathname.replace(/\/+$/, "") !== BANNER_TARGET;
+
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[4rem_minmax(calc(100dvh-4rem),1fr)_auto]">
+    // the row template tracks whether the banner renders: grid auto-placement
+    // fills tracks in child order, so a fixed 4-track template with the banner
+    // gated off would slide the header into the banner's row and the outlet
+    // into the 4rem header row.
+    //
+    // the `4rem` / `calc(100dvh-4rem)` values are deliberately left as they
+    // are, and that is a trade-off, not a no-op: the fold reference they encode
+    // excludes the banner, so while the bar is visible the minimum document
+    // height is `banner_h + 100dvh` and a short marketing page that used to end
+    // exactly at the fold now carries the banner's height as dead scroll below
+    // the footer. `_index` doesn't share it — its `main` is `1fr` under
+    // `min-h-dvh`, so the banner comes out of the main track instead of adding
+    // to it.
+    <div
+      className={`grid grid-cols-[minmax(0,1fr)] ${
+        banner
+          ? "grid-rows-[auto_4rem_minmax(calc(100dvh-4rem),1fr)_auto]"
+          : "grid-rows-[4rem_minmax(calc(100dvh-4rem),1fr)_auto]"
+      }`}
+    >
+      {banner && <AnnouncementBanner />}
       <PublicHeader classes="sticky z-40 -top-px" />
       <Outlet />
       <PublicFooter />

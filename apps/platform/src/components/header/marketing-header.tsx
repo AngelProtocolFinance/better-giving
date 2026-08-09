@@ -81,12 +81,17 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
 
       {open && (
         <>
-          {/* click-away catcher + scrim below the header bar */}
+          {/* click-away catcher + scrim below the header bar. height is a
+              viewport minus the header's own box (`100%` resolves against the
+              containing block, i.e. this header) so the scrim ends exactly at
+              the fold when the header is stuck — `h-dvh` from `top-full`
+              overhangs by the header height, and by the announcement banner's
+              height too while the bar is visible and the page is unscrolled. */}
           <button
             type="button"
             aria-label="Close navigation menu"
             onClick={close}
-            className="min-[75rem]:hidden absolute inset-x-0 top-full h-dvh cursor-default bg-fg/40 backdrop-blur-sm"
+            className="min-[75rem]:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-fg/40 backdrop-blur-sm"
           />
           <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-popover border-b border-secondary shadow-lg">
             <nav aria-label="Marketing" className="grid gap-1 p-4">

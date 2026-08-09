@@ -1,5 +1,6 @@
 import type { LinksFunction } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
+import { AnnouncementBanner } from "#/components/chrome/announcement-banner";
 import { PublicFooter, PublicHeader } from "#/components/chrome/public-chrome";
 import { app_name, base_url } from "#/constants/env";
 import { socials } from "#/constants/urls";
@@ -59,7 +60,10 @@ export const links: LinksFunction = () => [
 
 export default function Page() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] min-h-dvh">
+    <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_1fr_auto] min-h-dvh">
+      {/* "/" is always marketing chrome and is never the post the banner links
+          to, so it needs no gate. */}
+      <AnnouncementBanner />
       <PublicHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
