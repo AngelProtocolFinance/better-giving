@@ -2,10 +2,19 @@ import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import type { Route } from "./+types/route";
+import { Donate } from "./donate";
 import { Manifesto } from "./manifesto";
 import { UnderdogLetter } from "./underdog-letter";
 import { Values } from "./values";
 import { Volunteer } from "./volunteer";
+
+// origin only — the donation band's post-payment return url must land on the
+// host the donor is on (preview/dev/prod), not the build-time VITE_BASE_URL.
+// user-independent by design: no session, no cookies, nothing per-visitor, so
+// the s-maxage below still holds.
+export const loader = ({ request }: Route.LoaderArgs) => ({
+  base_url: new URL(request.url).origin,
+});
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -18,7 +27,7 @@ export const meta: Route.MetaFunction = () =>
       "Since 2021, we've helped 210+ nonprofits worldwide raise over $6M, with free tools, shared growth, and a simple belief: the organizations doing the work should keep the money.",
   });
 
-export default function Page() {
+export default function Page({ loaderData }: Route.ComponentProps) {
   return (
     <main>
       <div className="bg-linear-to-b from-background to-accent px-6 pt-18 pb-18 text-center">
@@ -63,6 +72,8 @@ export default function Page() {
         title="Build the commons with us"
         subtitle="Join as a member, contribute as a volunteer, or just read the code. Every door is open."
       />
+
+      <Donate base_url={loaderData.base_url} classes="bg-accent px-6 py-22" />
     </main>
   );
 }

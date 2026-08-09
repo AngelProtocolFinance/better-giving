@@ -15,15 +15,34 @@ import { report_error } from "@/errors/report";
 import { use_donation } from "../../../context";
 import type { IStripeExpress } from "../use-rhf";
 
+/** the element never came up. same copy for both ways that happens: stripe.js
+ * itself was blocked (no element to fail), or the element loaded and failed. */
+export const LOAD_FAILED =
+  "Express checkout failed to load — please try another payment method.";
+
 export interface IContentExternal
   extends Omit<IStripeExpress, "items" | "is_partial"> {
   classes?: string;
   on_error: (msg: string) => void;
+  /**
+   * the block can't be offered at all — the element failed to load (adblock,
+   * csp, a network drop). raised before the donor has touched anything, so the
+   * caller decides whether it's worth interrupting them. falls back to
+   * `on_error` when the caller doesn't handle it. everything that goes wrong
+   * *during* a payment stays on `on_error`.
+   */
+  on_unavailable?: (msg: string) => void;
 }
 export interface IContent extends IContentExternal {
   on_click: ExpressCheckoutElementProps["onClick"];
 }
-export function Content({ classes = "", on_click, on_error, ...x }: IContent) {
+export function Content({
+  classes = "",
+  on_click,
+  on_error,
+  on_unavailable,
+  ...x
+}: IContent) {
   const { don } = use_donation();
   const elements = useElements();
   const stripe = useStripe();
@@ -137,6 +156,12 @@ export function Content({ classes = "", on_click, on_error, ...x }: IContent) {
       className={classes}
       onConfirm={on_confirm}
       onClick={on_click}
+      onLoadError={(ev) => {
+        // pre-interaction: the element never came up, so nothing has been paid
+        // and no donor action is waiting on an answer.
+        report_error(ev.error);
+        (on_unavailable ?? on_error)(LOAD_FAILED);
+      }}
       options={{
         layout: { overflow: "never" },
         buttonTheme: {

@@ -19,8 +19,23 @@ import { Paypal } from "../paypal";
 import { ExpressCheckout } from "./express-checkout";
 import { use_rhf } from "./use-rhf";
 
+interface IUnavailable {
+  /** the flow shape the rail reported unavailable for */
+  flow: string;
+  /** what to tell the donor in the block's place */
+  msg: string;
+}
+
 export function Form(props: TMethodState<"stripe">) {
   const [prompt, set_prompt] = useState<IPrompt>();
+  // the paypal flow shape reported unavailable, if any, and why. keyed by flow
+  // rather than a boolean so switching currency or frequency re-offers the
+  // block instead of hiding it for the rest of the mount.
+  const [pp_unavailable, set_pp_unavailable] = useState<IUnavailable>();
+  // same for the stripe rail, tracked separately: the two rails fail
+  // independently (paypal adblocked while apple/google pay is fine, or the
+  // reverse), so one going quiet must never take the other down with it.
+  const [sx_unavailable, set_sx_unavailable] = useState<IUnavailable>();
   const { don_set, don } = use_donation();
 
   const fv = props.fv || {
@@ -54,6 +69,32 @@ export function Form(props: TMethodState<"stripe">) {
   const opts = currency.data?.all || [];
 
   const freqs = freqs_shown(don.config?.freq_opts);
+
+  const pp_flow = rhf.paypal_express
+    ? `${rhf.paypal_express.currency}-${rhf.paypal_express.frequency}`
+    : "";
+
+  const sx_flow = rhf.stripe_express
+    ? `${rhf.stripe_express.currency}-${rhf.stripe_express.frequency}`
+    : "";
+
+  /**
+   * what stands where an express block would have been. a rail that can't be
+   * offered is never a modal: the failure is usually persistent (an adblocked
+   * sdk fails the same way on every retry), and a prompt unmounts the rail,
+   * whose remount re-fails and re-prompts — on /donate/:id that leaves the
+   * donor unable to reach the other tabs. where nobody came to donate, it just
+   * isn't offered; where they did, say so quietly and leave the page alone.
+   */
+  const unavailable = (u: IUnavailable | undefined, flow: string) => {
+    if (u?.flow !== flow) return null;
+    if (don.hide_unavailable_express) return null;
+    return (
+      <p role="status" className="mt-4 text-xs text-muted-fg">
+        {u.msg}
+      </p>
+    );
+  };
 
   const combobox = (
     <TokenComboboxSync
@@ -186,11 +227,15 @@ export function Form(props: TMethodState<"stripe">) {
         checked={rhf.cpf.value}
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
-      {rhf.stripe_express && !prompt && (
+      {rhf.stripe_express && !prompt && sx_unavailable?.flow !== sx_flow && (
         <ExpressCheckout
           on_error={(msg) =>
             set_prompt({ type: "error", children: <p>{msg}</p> })
           }
+          // nothing has been paid yet and no donor action is pending: record
+          // it and let `unavailable` decide what stands in the block's place.
+          // never a prompt — see the note there.
+          on_unavailable={(msg) => set_sx_unavailable({ flow: sx_flow, msg })}
           validate={async () => {
             const valid = await rhf.trigger(["amount", "frequency"]);
             if (!valid) rhf.setFocus("amount");
@@ -200,7 +245,8 @@ export function Form(props: TMethodState<"stripe">) {
           {...rhf.stripe_express}
         />
       )}
-      {rhf.paypal_express && !prompt && (
+      {!prompt && unavailable(sx_unavailable, sx_flow)}
+      {rhf.paypal_express && !prompt && pp_unavailable?.flow !== pp_flow && (
         <Paypal
           {...rhf.paypal_express}
           validate={async () => {
@@ -209,8 +255,10 @@ export function Form(props: TMethodState<"stripe">) {
             return valid;
           }}
           on_error={(x) => set_prompt({ type: "error", children: x })}
+          on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
         />
       )}
+      {!prompt && unavailable(pp_unavailable, pp_flow)}
 
       <button
         disabled={

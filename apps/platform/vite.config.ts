@@ -77,7 +77,13 @@ export default defineConfig((config) => {
           "src/routes/_index/**",
 
           // marketing / informational
-          "src/routes/_app.about-us/**",
+          // about-us is excluded file-by-file: donate.tsx carries a live
+          // donation mount and route.tsx a loader (base_url from the request
+          // origin) — both are covered; the rest is static copy
+          "src/routes/_app.about-us/manifesto.tsx",
+          "src/routes/_app.about-us/values.tsx",
+          "src/routes/_app.about-us/volunteer.tsx",
+          "src/routes/_app.about-us/underdog-letter.tsx",
           "src/routes/_app.nonprofit/**",
           "src/routes/_app.donor/**",
           "src/routes/_app.blog/**",
@@ -103,7 +109,11 @@ export default defineConfig((config) => {
           "src/routes/_app.terms-of-use-sms/**",
 
           // static display components (no logic)
-          "src/components/footer/**",
+          // footer is excluded file-by-file: footer.tsx branches on variant and
+          // is covered; the rest is markup
+          "src/components/footer/index.ts",
+          "src/components/footer/newsletter-form.tsx",
+          "src/components/footer/socials.tsx",
           "src/components/header/**",
           "src/components/video/**",
           "src/components/referrals/**",

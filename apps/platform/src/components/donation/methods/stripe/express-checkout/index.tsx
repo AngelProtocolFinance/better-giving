@@ -1,8 +1,10 @@
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
-import { stripe_promise } from "../../../common/stripe";
+import { useEffect, useRef } from "react";
+import { report_error } from "@/errors/report";
+import { stripe_load, stripe_promise } from "../../../common/stripe";
 import type { IStripeExpress } from "../use-rhf";
-import { Content, type IContentExternal } from "./content";
+import { Content, type IContentExternal, LOAD_FAILED } from "./content";
 
 interface Props extends IStripeExpress, IContentExternal {
   validate: () => Promise<boolean>;
@@ -15,6 +17,27 @@ export function ExpressCheckout({
   ...p
 }: Props) {
   const c = p.currency.toLowerCase();
+
+  // read at call time so the effect stays mount-only
+  const degrade_ref = useRef(p.on_unavailable ?? p.on_error);
+  degrade_ref.current = p.on_unavailable ?? p.on_error;
+
+  useEffect(() => {
+    let mounted = true;
+    stripe_load.then((r) => {
+      if (!mounted || r.ok) return;
+      // stripe.js never came up, so the element below is never created and its
+      // onLoadError can't fire — without this the donor gets an empty div and
+      // nothing reaches sentry. pre-interaction: nothing has been paid and no
+      // donor action is waiting on an answer.
+      report_error(r.err);
+      degrade_ref.current(LOAD_FAILED);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const opts: StripeElementsOptions =
     p.frequency !== "one-time"
       ? { mode: "setup", currency: c }

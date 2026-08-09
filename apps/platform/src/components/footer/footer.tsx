@@ -130,6 +130,10 @@ export function Footer({ classes = "", variant = "full" }: Props) {
           <Link to={href("/about-us")} className={link_cls}>
             About &amp; Mission
           </Link>
+          {/* better giving's own npo row */}
+          <Link to={href("/donate/:id", { id: "1" })} className={link_cls}>
+            Donate
+          </Link>
           <Link to={href("/blog")} className={link_cls}>
             Blog &amp; Resources
           </Link>
