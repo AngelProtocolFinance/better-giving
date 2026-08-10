@@ -48,6 +48,10 @@ vi.mock("$/email", () => ({ send_email, sender: "test@test.com" }));
 // it can fail too. everything else in the module stays real — the claim this
 // suite turns on is a live UPDATE.
 const fail_release = vi.hoisted(() => ({ current: false }));
+// the write that records the mails as away is the one standing between the
+// donor and a second tax receipt, so how many times it fails is the variable
+// this suite turns on.
+const fail_stamp = vi.hoisted(() => ({ times: 0 }));
 vi.mock("$/pg/queries/donation", async (orig) => {
   const real = await orig<typeof import("$/pg/queries/donation")>();
   return {
@@ -56,6 +60,11 @@ vi.mock("$/pg/queries/donation", async (orig) => {
       ...args: Parameters<typeof real.release_receipt_send>
     ) => {
       if (!fail_release.current) return real.release_receipt_send(...args);
+      return Promise.reject(new Error("pg unavailable"));
+    },
+    mark_receipt_sent: (...args: Parameters<typeof real.mark_receipt_sent>) => {
+      if (fail_stamp.times <= 0) return real.mark_receipt_sent(...args);
+      fail_stamp.times--;
       return Promise.reject(new Error("pg unavailable"));
     },
   };
@@ -86,6 +95,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   fail_release.current = false;
+  fail_stamp.times = 0;
   const db = test_db.current!.db;
   await db.delete(donation_donors);
   await db.delete(donation_recipients);
@@ -238,6 +248,19 @@ describe("handle_don_receipt - a holder that never comes back", () => {
       .where(eq(donations.id, DON_ID));
   };
 
+  /** age out the claim without touching whatever the sends already recorded */
+  const expire_claim = async () => {
+    const db = test_db.current!.db;
+    await db
+      .update(donations)
+      .set({
+        receipt_claimed_at: new Date(
+          Date.now() - RECEIPT_LEASE_MS - 60_000
+        ).toISOString(),
+      })
+      .where(eq(donations.id, DON_ID));
+  };
+
   test("a stale claim is reclaimed so the donor still gets the receipt", async () => {
     await abandon_claim(RECEIPT_LEASE_MS + 60_000);
 
@@ -259,16 +282,35 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     expect(send_email).not.toHaveBeenCalled();
   });
 
+  test("a blip on the sent stamp does not cost the donor a second receipt", async () => {
+    fail_stamp.times = 2;
+
+    // the mails are already away at this point. losing the write that records
+    // it would leave the row claimed-but-not-sent, and the lease expiry would
+    // then hand a redelivery the right to mail a second receipt under a fresh
+    // tax id — the exact duplicate the claim exists to prevent.
+    await handle_don_receipt(don());
+    await expire_claim();
+    await handle_don_receipt(don());
+
+    expect(send_email).toHaveBeenCalledOnce();
+  });
+
+  test("a sent stamp that never lands is reported and rethrown", async () => {
+    fail_stamp.times = 99;
+
+    await expect(handle_don_receipt(don())).rejects.toThrow("pg unavailable");
+
+    // receipts went out that the donation row does not know about. it stays
+    // claimed rather than released — releasing is what would invite the
+    // duplicate — so the report is the only thing that says so.
+    expect(send_email).toHaveBeenCalledOnce();
+    expect(report_error).toHaveBeenCalledOnce();
+  });
+
   test("an expired claim over receipts that did go out never re-sends", async () => {
     await handle_don_receipt(don());
-    await test_db
-      .current!.db.update(donations)
-      .set({
-        receipt_claimed_at: new Date(
-          Date.now() - RECEIPT_LEASE_MS - 60_000
-        ).toISOString(),
-      })
-      .where(eq(donations.id, DON_ID));
+    await expire_claim();
 
     // only the claim expires. the sent stamp is the permanent half, and it is
     // the reason an expiry can never mail a second receipt for one gift.

@@ -1,5 +1,5 @@
 import { donation_receipt, type IDonation as IDon, type IDonor } from "emails";
-import type { IDonation } from "@/donations";
+import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { send_email } from "$/email";
@@ -8,9 +8,11 @@ import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 
 export const send_receipt = async (d: IDonation) => {
   const { base, tip } = d.amount;
+  // derived from the donation, so a resend carries the number the donor
+  // already has. chariot receipts are issued by the daf, not by us.
   const receipt_id = d.via.startsWith("chariot")
     ? undefined
-    : crypto.randomUUID();
+    : await tax_receipt_id(d.id);
   const donor: IDonor = {
     first_name: d.from_name?.split(" ")[0] ?? "Donor",
     full_name: d.from_name ?? "Valued Donor",

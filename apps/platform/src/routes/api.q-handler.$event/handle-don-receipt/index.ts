@@ -41,11 +41,10 @@ export async function handle_don_receipt(don: IDonation) {
   // what the lease does not cover: `sends` is several mails and the release is
   // all-or-nothing, so a failure partway through gives back the right to send
   // the ones that already went. a tipped npo donation or a multi-member fund
-  // that dies on mail #3 re-sends #1 and #2 on the retry, the receipt among
-  // them under a fresh tax id. it is still strictly better than the state
-  // before it, where every redelivery re-sent everything; closing the rest
-  // means making the receipt number deterministic per donation, which is
-  // tracked separately.
+  // that dies on mail #3 re-sends #1 and #2 on the retry. the receipt among
+  // them carries the same number it did the first time — `tax_receipt_id` is
+  // derived from the donation — so what is left is a duplicate email, not a
+  // second tax document the donor cannot reconcile against the first.
   try {
     await sends(don);
   } catch (e) {
@@ -65,7 +64,36 @@ export async function handle_don_receipt(don: IDonation) {
   // right to re-mail receipts that already went out, under a fresh tax id.
   // left here it throws with the lease still held, so nothing re-sends until
   // the expiry, and the mails that did go out stay sent exactly once.
-  await mark_receipt_sent(don.id);
+  await stamp_sent(don.id);
+}
+
+/**
+ * the mails are away and there is no unsend, so this write is the only thing
+ * between the donor and a second tax receipt once the lease expires.
+ *
+ * it is retried rather than attempted once because the whole exposure is a
+ * transient db blip: smtp offers no idempotency key to dedupe a re-send
+ * against, so nothing downstream can absorb one. a db that refuses all three
+ * attempts is one where the redelivery cannot claim the row either, which is
+ * the failure that closes itself.
+ *
+ * it still throws when it cannot write. the lease is left held on the way out
+ * — releasing here is what would hand the next delivery the right to re-mail
+ * — so the row stays claimed until it expires and the report is what says a
+ * receipt went out that the donation does not know about.
+ */
+async function stamp_sent(donation_id: string, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      return await mark_receipt_sent(donation_id);
+    } catch (e) {
+      if (i === attempts) {
+        report_error(e, { donation_id, during: "receipt sent stamp" });
+        throw e;
+      }
+      await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1)));
+    }
+  }
 }
 
 async function sends(don: IDonation) {

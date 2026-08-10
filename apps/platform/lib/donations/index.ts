@@ -1,4 +1,5 @@
 export type * from "./interfaces";
+export { tax_receipt_id } from "./receipt-id";
 export type {
   IAllocation,
   IAmount,
