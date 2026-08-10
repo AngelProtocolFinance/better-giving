@@ -17,9 +17,15 @@ const ira_qcd_details = v.object({
   custodian: v.optional(v.string()),
 });
 
-// dedup window: ignore identical notifications within 5 minutes
+// best-effort, per-instance guard — not a global 5-minute dedup window. the app
+// deploys as vercel serverless functions, so every concurrent instance holds
+// its own map: this only collapses a rapid double-submit that lands on the same
+// warm instance, and a retry routed to another instance still sends a
+// duplicate. accepted trade-off — these notifications go to the internal team,
+// so an occasional duplicate is cheaper than a shared store on this path.
 const DEDUP_TTL = 5 * 60 * 1000;
-const seen = new Map<string, number>();
+// exported for tests
+export const seen = new Map<string, number>();
 
 const schema = v.variant("type", [
   v.object({
@@ -48,6 +54,12 @@ export const action: ActionFunction = async ({ request }) => {
   const last = seen.get(key);
   if (last && now - last < DEDUP_TTL) {
     return Response.json({ ok: true });
+  }
+  // prune on write so a long-lived warm instance's map doesn't grow with every
+  // notification it has ever seen. age-based only — it reclaims keys once the
+  // window passes, not against a burst of distinct payloads inside one window.
+  for (const [k, t] of seen) {
+    if (now - t >= DEDUP_TTL) seen.delete(k);
   }
   seen.set(key, now);
 

@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { report_error } from "@/errors/report";
 import { msg } from "@/queue";
 import type { ISubUpdate } from "@/subscriptions";
@@ -28,13 +29,16 @@ export async function action({ request }: Route.ActionArgs) {
     return new Response("missing signature header", { status: 403 });
 
   const body = await request.text();
-  const stripe_event = stripe.webhooks.constructEvent(
-    body,
-    signature,
-    stripe_env.webhook_secret
-  );
 
   try {
+    // inside the try: constructEvent throws on a bad signature, and that must
+    // land in the catch below (reported + 4xx) instead of escaping as a 500.
+    const stripe_event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      stripe_env.webhook_secret
+    );
+
     switch (stripe_event.type) {
       case "payment_intent.succeeded":
         await handle_intent_succeeded(stripe_event.data);
@@ -100,6 +104,19 @@ export async function action({ request }: Route.ActionArgs) {
     // ready. don't report — expected transient state.
     if (err instanceof BalanceTxnNotReadyError) {
       return new Response(err.message, { status: 503 });
+    }
+    // a signature that doesn't verify is a config problem (wrong
+    // STRIPE_WEBHOOK_SECRET, body mutated before it reached us), not a bad
+    // event. permanent, so 400 — retries can't fix it — but still reported so
+    // a mis-set secret is visible instead of looking like no traffic.
+    if (err instanceof Stripe.errors.StripeSignatureVerificationError) {
+      report_error(err);
+      return new Response(
+        `stripe signature verification failed: ${err.message}`,
+        {
+          status: 400,
+        }
+      );
     }
     const error_message = err instanceof Error ? err.message : String(err);
     report_error(err);

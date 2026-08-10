@@ -171,8 +171,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
         </h3>
         <p className="text-sm text-muted-fg mt-1">
           Most employers pay through their giving platform, which already holds
-          our details. If yours mails a check or transfers the funds itself,
-          this is what they need.
+          our details. If yours mails a check instead, this is what they need.
         </p>
       </div>
       <dl className="grid sm:grid-cols-[auto_auto_1fr] border-t">

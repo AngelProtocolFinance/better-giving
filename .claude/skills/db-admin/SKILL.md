@@ -49,10 +49,15 @@ shell expands `$DATABASE_URL` before `env` sets it, so psql gets an empty string
 and falls back to a local socket ("database `<username>` does not exist").
 
 **dev and staging are currently the same neon branch** — `.env` and
-`.env.staging` hold byte-identical `DATABASE_URL` values (verified 2026-07-29).
+`.env.staging` hold byte-identical `DATABASE_URL` values. Re-check with:
+
+```bash
+diff <(grep -m1 '^DATABASE_URL=' .env) <(grep -m1 '^DATABASE_URL=' .env.staging)
+```
+
 A migration or backfill "tested on staging" is therefore not isolated from dev,
 and dev data is what staging deploys read. Treat them as one environment until
-a separate branch exists. There is no localhost postgres.
+a separate branch exists.
 
 ## Quick Reference
 
@@ -70,9 +75,13 @@ Schema files: `.server/pg/schema/` (drizzle). Read the relevant file for column 
 
 - **`DATABASE_URL`** → the target for that env file. runtime + `psql` + backfills.
 - **`DATABASE_URL_UNPOOLED`** → unpooled connection read by `drizzle.config.ts` (drizzle-kit needs a non-pooled URL for DDL). Present in `.env` and `.env.staging`; **absent from `.env.production`** — running drizzle-kit against prod from a laptop has no configured URL, which is deliberate: prod DDL goes through the deploy, not by hand.
-- **`NEON_DATABASE_URL` no longer exists.** It used to hold prod inside `.env`; prod now lives in `.env.production` under `DATABASE_URL`. Backfill scripts that guarded on `DATABASE_URL === NEON_DATABASE_URL` must be re-guarded against the `.env.production` value (still behind an explicit `--prod` flag).
+- **Prod is `.env.production`'s own `DATABASE_URL`.** No variable inside another env file names prod, so a script cannot detect its own target — a guard written that way passes silently and runs. There is no `--env` flag on any runner here (bun/node take `--env-file`, drizzle-kit takes `--config`). Name the file at the call site — that act is the acknowledgement:
 
-There is no local-postgres target — `wsproxy` / docker-compose has been removed.
+  ```bash
+  DATABASE_URL="$(grep -m1 '^DATABASE_URL=' .env.production | cut -d= -f2- | tr -d '"')" bun jobs/<job>.ts
+  ```
+
+  Note bun auto-loads `.env`, so a job run with no explicit `DATABASE_URL` hits **dev**, silently.
 
 ### How migrations actually reach each env
 
@@ -86,18 +95,19 @@ Locally, `drizzle-kit generate` produces the committed artifact; `drizzle-kit pu
 ### Safe migration workflow (multi-phase)
 
 1. **column addition** — add new nullable column only (no FK, no rename, no drop). edit schema → `drizzle-kit push` (against `.env` = neon dev) → `drizzle-kit generate` (migration artifact) → commit to CI
-2. **data migration / backfill** — backfill new column from old, clean orphan rows. run against dev first, then prod (`--prod` flag + the `.env.production` `DATABASE_URL`)
-3. **code changes + schema enforcement** — separate branch/PR: rename refs in codebase, add FK constraints, drop old column. verify on neon dev + preview CI, then merge
+2. **data migration / backfill** — backfill new column from old, clean orphan rows. run against dev first, then prod by passing `.env.production`'s `DATABASE_URL` inline (see the env var conventions above)
+3. **code changes + schema enforcement** — rename refs in codebase, add FK constraints, drop old column. **phase 2's backfill must have run against prod before this migration merges** — `postbuild: drizzle-kit migrate` applies every pending migration in one deploy, so a `SET NOT NULL` that ships alongside its own `ADD COLUMN` fails on unbackfilled rows and takes the deploy with it. verify on neon dev + preview CI, then merge
 
 ### Notes
 
 - dev uses `drizzle-kit push` (not migrate) — but migration journal must stay in sync; always also run `drizzle-kit generate` to produce the artifact CI will apply to prod
-- when testing a new migration, run `drizzle-kit migrate` against neon dev first. `drizzle.config.ts` reads `DATABASE_URL_UNPOOLED` from the process env, and the same quoting hazard applies — pass it inline:
+- `push` applies DDL without a journal entry, and dev and staging are one branch — so a pushed change leaves the shared branch ahead of the journal, and the next staging deploy's `postbuild` re-applies it
+- drizzle-kit auto-loads `.env`, so a bare `pnpm exec drizzle-kit migrate` targets dev. to target another file, pass the value inline:
   ```bash
-  DATABASE_URL_UNPOOLED="$(grep -m1 '^DATABASE_URL_UNPOOLED=' .env | cut -d= -f2- | tr -d '"')" pnpm exec drizzle-kit migrate
+  DATABASE_URL_UNPOOLED="$(grep -m1 '^DATABASE_URL_UNPOOLED=' .env.staging | cut -d= -f2- | tr -d '"')" pnpm exec drizzle-kit migrate
   ```
 - if the migration runner fails silently, run the `.sql` file directly via `psql -f` to see the actual error
-- **data migrations**: run against neon dev first to catch constraint violations (e.g. check constraints on rows with null new-columns), then prod with explicit prod-ack flag
+- **data migrations**: run against neon dev first to catch constraint violations (e.g. check constraints on rows with null new-columns)
 
 ## Rules
 
@@ -105,5 +115,4 @@ Locally, `drizzle-kit generate` produces the committed artifact; `drizzle-kit pu
 2. Always `RETURNING` on mutations
 3. **Production writes**: show SQL, wait for explicit user approval before executing
 4. Look up schema in `.server/pg/schema/` when unsure of columns
-5. **Migration config**: `drizzle.config.ts` reads `DATABASE_URL_UNPOOLED` from the process env — whichever env file you fed it. Default (nothing exported) is `.env` = dev.
-6. **Name the target before you run.** All three files use the key `DATABASE_URL`, so the filename is the only thing distinguishing dev from prod. State which file a command reads before executing it.
+5. **State which env file a command reads before executing it.**

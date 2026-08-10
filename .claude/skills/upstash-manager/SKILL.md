@@ -1,231 +1,79 @@
 ---
 name: upstash-manager
-description: Manage and debug QStash — schedules (crons), queues, DLQ, event logs. List, create, delete, pause, resume, trigger schedules. Inspect queue lag, view delivery events, check and replay dead letters.
+description: Use when the user asks to inspect or fix QStash — "queue is stuck", "check the DLQ", "why didn't the cron fire", "replay that message", schedules/crons, queue lag, delivery events
 user_invocable: true
 ---
 
 # Upstash QStash Manager
 
-**Jurisdiction: `apps/platform/`.** Creds come from `apps/platform/.env` (or that project's Vercel env); the cron routes below are `apps/platform/src/routes/`.
+**Jurisdiction: `apps/platform/`.** Creds come from `apps/platform/.env` (or that project's Vercel env); the routes below are `apps/platform/src/routes/`.
 
 ## Auth
 
-Two separate auth mechanisms:
+Two separate mechanisms.
 
-**Management API** (`api.upstash.com`) — creds in `.env` as `UPSTASH_EMAIL` / `UPSTASH_API_KEY`:
+**Management API** (`api.upstash.com`) — `UPSTASH_EMAIL` / `UPSTASH_API_KEY`:
 
 ```sh
-curl -s -H "Authorization: Basic $(echo -n 'EMAIL:API_KEY' | base64)" \
+UPSTASH_AUTH="$(grep -m1 '^UPSTASH_EMAIL=' .env | cut -d= -f2-):$(grep -m1 '^UPSTASH_API_KEY=' .env | cut -d= -f2-)"
+curl -s -H "Authorization: Basic $(printf %s "$UPSTASH_AUTH" | base64)" \
   "https://api.upstash.com/v2/..."
 ```
 
-**QStash API** (`qstash.upstash.io/v2`) — token in `.env` as `UPSTASH_QSTASH_TOKEN`:
+**QStash API** (`qstash.upstash.io/v2`) — `.env` holds two tokens and they are not interchangeable: `QSTASH_TOKEN` is the **local dev-server placeholder** (what the app reads), `UPSTASH_QSTASH_TOKEN` is the **cloud** token. Load the cloud one under the name the commands below use, or every call 401s:
 
 ```sh
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/..."
+QSTASH_TOKEN="$(grep -m1 '^UPSTASH_QSTASH_TOKEN=' .env | cut -d= -f2-)"
+curl -s -H "Authorization: Bearer $QSTASH_TOKEN" "https://qstash.upstash.io/v2/..."
 ```
 
 ## Conventions
 
-- schedule IDs prefixed: `better-giving-{stage}-{name}`
-- queue names prefixed: `better-giving-{stage}-{suffix}`
-- production destination: `https://better.giving`
-- preview destination: `https://test.better.giving`
+- schedule IDs: `better-giving-{stage}-{name}`
+- queue names: `${APP_SLUG}-${STAGE}-q` and `-don-dist-q`, computed at `.server/kit/queue.ts:12-17`. Local `.env` is `STAGE=staging`, so a laptop run touches the **staging** pair — never assume `production-`.
+- production destination `https://better.giving`, preview `https://test.better.giving`
 
-## Current resources
+## Destination URLs — mapping an event back to code
 
-### Schedules (crons)
+The one thing the API can't tell you.
 
-| name | cron | route |
-|------|------|-------|
-| savings-snapshot | `0 0 * * *` | `/api/cron/savings-snapshot` |
-| nav-update | `0 6 * * *` | `/api/cron/nav-update` |
-| currencies | `0 */6 * * *` | `/api/cron/currencies` |
-| commissions | `0 0 1 * *` | `/api/cron/commissions` |
-| grants | `0 0 */3 * *` | `/api/cron/grants` |
+- `/api/q-handler/{kind}` — every queued and scheduled message. `{kind}` is a key of `Payloads` in `lib/queue/registry.ts`; that file holds the payload shape, the dedupe key, and the per-kind retry/delay config.
+- `/api/q-don-dist/{npo_id}` — donation distribution fan-out (`don_dist`, `.server/kit/queue.ts:60`).
+- `/api/cron/{name}` — scheduled crons.
+- `/api/cron/grants-execute` shows up in events with **no matching schedule**: the `grants` cron publishes it with a 24h delay (`src/routes/api.cron.grants/route.ts:10-14`).
 
-### Queues
-
-| name | purpose |
-|------|---------|
-| `better-giving-production-q` | main dispatch queue (parallelism: 1) |
-| `better-giving-production-don-dist-q` | donation distribution fan-out (parallelism: 1) |
-
----
-
-## Schedules API
-
-### List
+## The API calls this skill actually uses
 
 ```sh
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/schedules"
+# schedules — source of truth for cron expressions and destinations
+curl -s -H "Authorization: Bearer $QSTASH_TOKEN" "https://qstash.upstash.io/v2/schedules"
+
+# queues — name, parallelism, lag, paused
+curl -s -H "Authorization: Bearer $QSTASH_TOKEN" "https://qstash.upstash.io/v2/queues"
+
+# failures — state is one of CREATED, ACTIVE, DELIVERED, ERROR, RETRY, FAILED
+curl -s -H "Authorization: Bearer $QSTASH_TOKEN" "https://qstash.upstash.io/v2/events?state=ERROR"
+
+# dead letters
+curl -s -H "Authorization: Bearer $QSTASH_TOKEN" "https://qstash.upstash.io/v2/dlq"
 ```
 
-### Create
+Event bodies are base64: `echo "$BODY" | base64 -d | python3 -m json.tool`.
 
-```sh
-curl -s -X POST "https://qstash.upstash.io/v2/schedules/$DESTINATION_URL" \
-  -H "Authorization: Bearer $QSTASH_TOKEN" \
-  -H "Upstash-Cron: $CRON_EXPRESSION" \
-  -H "Upstash-Schedule-Id: $SCHEDULE_ID"
-```
-
-### Get / Delete / Pause / Resume
-
-```sh
-# get
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/schedules/$SCHEDULE_ID"
-
-# delete
-curl -s -X DELETE -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/schedules/$SCHEDULE_ID"
-
-# pause
-curl -s -X PATCH -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/schedules/$SCHEDULE_ID/pause"
-
-# resume
-curl -s -X PATCH -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/schedules/$SCHEDULE_ID/resume"
-```
-
----
-
-## Queues API
-
-### List queues
-
-```sh
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/queues"
-```
-
-Shows `name`, `parallelism`, `lag`, `paused` for each queue.
-
-### Get queue
-
-```sh
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/queues/$QUEUE_NAME"
-```
-
-### Create / Update queue
-
-```sh
-curl -s -X POST "https://qstash.upstash.io/v2/queues" \
-  -H "Authorization: Bearer $QSTASH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"queueName": "$QUEUE_NAME", "parallelism": 1}'
-```
-
-### Pause / Resume queue
-
-```sh
-# pause
-curl -s -X POST "https://qstash.upstash.io/v2/queues/$QUEUE_NAME/pause" \
-  -H "Authorization: Bearer $QSTASH_TOKEN"
-
-# resume
-curl -s -X POST "https://qstash.upstash.io/v2/queues/$QUEUE_NAME/resume" \
-  -H "Authorization: Bearer $QSTASH_TOKEN"
-```
-
-### Delete queue
-
-```sh
-curl -s -X DELETE -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/queues/$QUEUE_NAME"
-```
-
----
-
-## Publish (one-shot trigger)
-
-```sh
-# direct publish
-curl -s -X POST "https://qstash.upstash.io/v2/publish/$DESTINATION_URL" \
-  -H "Authorization: Bearer $QSTASH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '$BODY'
-
-# publish to queue
-curl -s -X POST "https://qstash.upstash.io/v2/enqueue/$QUEUE_NAME/$DESTINATION_URL" \
-  -H "Authorization: Bearer $QSTASH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '$BODY'
-```
-
----
-
-## Events / Logs
-
-### List recent events
-
-```sh
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/events"
-```
-
-Returns `events[]` with: `time`, `messageId`, `state`, `url`, `queueName`, `responseStatus`, `duration`, `body` (base64).
-
-### Filter events
-
-```sh
-# by state: CREATED, ACTIVE, DELIVERED, ERROR, RETRY, FAILED
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/events?state=ERROR"
-
-# by message ID
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/events?messageId=$MSG_ID"
-
-# by queue
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/events?queueName=$QUEUE_NAME"
-```
-
-### Decode event body
-
-Event bodies are base64-encoded. Decode with:
-
-```sh
-echo "$BASE64_BODY" | base64 -d | python3 -m json.tool
-```
-
----
-
-## Dead Letter Queue (DLQ)
-
-### List DLQ messages
-
-```sh
-curl -s -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/dlq"
-```
-
-### Delete from DLQ
-
-```sh
-# single message
-curl -s -X DELETE -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/dlq/$DLQ_ID"
-
-# purge all
-curl -s -X DELETE -H "Authorization: Bearer $QSTASH_TOKEN" \
-  "https://qstash.upstash.io/v2/dlq"
-```
-
----
+Everything else — create/pause/resume/delete a schedule or queue, publish, enqueue, DLQ delete — is plain Upstash REST at the same base URL with the same bearer header; read <https://upstash.com/docs/qstash/api> rather than a copy here.
 
 ## Debugging workflow
 
-1. **pull token** from Vercel env
-2. **check queues** — look for non-zero `lag` (messages stuck)
-3. **check events** — filter by `state=ERROR` or `state=FAILED` to find failures
-4. **decode body** of failed messages to understand payload
+1. **load the cloud token** (see Auth — not `QSTASH_TOKEN` from `.env`)
+2. **check queues** — non-zero `lag` means messages are stuck
+3. **check events** — `state=ERROR` / `state=FAILED`
+4. **decode the body**, and map the `url` back to code via the section above
 5. **check DLQ** — messages that exhausted retries land here
-6. **replay** — re-publish the decoded body to the same destination URL
-7. **check schedules** — verify crons are active and pointing to correct URLs
+6. **replay only after checking the kind.** Every kind is at-most-once unless it appears in the `delivery` map in `lib/queue/registry.ts`, because a retry means a duplicate send; the dedupe window is ~10 min, so it will not stop a replay of anything old enough to be in the DLQ. Read the handler first and confirm it re-reads its db row and gates its own send. **Never replay `don-dist` — it moves money** (`retries: 0` is deliberate).
+7. **check schedules** — crons active, pointing at the right destination
+
+## Rules
+
+1. **List before you mutate.** Names and IDs are stage-prefixed and easy to hit in the wrong stage.
+2. **Destructive calls against production wait for explicit user approval** — delete/pause a schedule or queue, and above all `DELETE /v2/dlq`, which purges every dead letter in the account across **both** stages.
+3. **Any replay is a destructive call** — see step 6.

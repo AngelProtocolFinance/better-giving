@@ -2,8 +2,8 @@
 name: test-writer
 description: "Use when writing, modifying, or reviewing component tests, integration tests, or route tests in the apps/platform React Router v7 web app. Triggers on *.test.tsx, *.test.ts files."
 globs:
-  - "apps/platform/src/**/*.test.tsx"
-  - "apps/platform/src/**/*.test.ts"
+  - "apps/platform/{src,lib,.server}/**/*.test.tsx"
+  - "apps/platform/{src,lib,.server}/**/*.test.ts"
 ---
 
 # Test Writer — Vitest Browser Mode
@@ -12,8 +12,10 @@ globs:
 
 Tests run in **real headless Chromium** via `@vitest/browser` + Playwright. Render with `vitest-browser-react`. No jsdom, no happy-dom, no `@testing-library/*`.
 
-Setup: `src/setup-tests-browser.ts` (MSW worker, qstash capture).
-Config: `vite.config.ts` → `test.browser`.
+Setup is **two** files: `src/setup-tests-browser.ts` (process.env polyfill, MSW worker, qstash capture) and `src/__tests__/mocks/payment.tsx` (global payment-provider mocks — where a stripe/paypal mock you didn't write comes from).
+Config: `vite.config.ts` → `test.browser`. Env comes from `.env.test`.
+
+Tests live under `src/`, `lib/` and `.server/` — 13 of them are outside `src/`.
 
 ## Running Tests
 
@@ -23,6 +25,10 @@ Always use `--bail 1` to fail fast on first error:
 # from apps/platform/
 pnpm vitest run --bail 1 src/path/to/test.test.tsx
 ```
+
+Every test file imports `{ describe, expect, test, vi }` from `"vitest"` explicitly despite `globals: true` — line 1 of any new file.
+
+`fileParallelism: false` and `testTimeout: 15_000` (`vite.config.ts`), so files run one at a time and a slow flow needs no custom timeout until it passes 15s. A **second concurrent vitest run dies** with `Port NNNNN is already in use` — pass `--browser.api.port=<free port>` when running one alongside another.
 
 ## Rendering
 
@@ -133,7 +139,15 @@ await userEvent.type(element, "text{Enter}");
 
 ### Combobox pattern
 
-Browser mode treats combobox as non-editable — `clear()` throws. Use click + backspace loop:
+`clear()` then `fill()` works on the editable comboboxes here — `src/components/donation/donor-step.test.tsx:103-105` does exactly that against the country field:
+
+```tsx
+await screen.getByRole("combobox", { name: /country/i }).clear();
+await screen.getByRole("combobox", { name: /country/i }).fill("Canada");
+await screen.getByRole("option", { name: /canada/i }).click();
+```
+
+If a specific combobox is genuinely non-editable and `clear()` throws on it, fall back to click + backspace loop — and name that component here when you find one:
 
 ```tsx
 const combo = screen.getByRole("combobox");
@@ -157,12 +171,12 @@ await vi.waitFor(() => {
 });
 ```
 
-### Base UI dialog/modal overlay blocking clicks
+### Dialog backdrop blocking clicks
 
-Base UI adds `<div data-base-ui-inert="">` overlay that Playwright detects as intercepting pointer events. For buttons/links inside dialogs, use native DOM click with `as HTMLElement` cast (`.element()` returns `SVGElement | HTMLElement`):
+Modals are **Ark UI** — `src/components/route-modal.tsx` renders `Dialog.Backdrop` as a `fixed inset-0 z-50` layer, which Playwright's actionability check reads as intercepting pointer events. (Several in-repo test comments call this a "base-ui inert overlay"; Base UI is not a dependency — the attribution is wrong, the technique is right.) For buttons/links inside dialogs, use native DOM click with an `as HTMLElement` cast (`.element()` returns `SVGElement | HTMLElement`):
 
 ```tsx
-// playwright click blocked by overlay:
+// playwright click blocked by the backdrop:
 await screen.getByRole("button", { name: /proceed/i }).click(); // TimeoutError!
 
 // fix: native DOM click bypasses actionability checks
@@ -295,7 +309,7 @@ const screen = await render(<Component />);
 
 ### DB mock (integration tests)
 
-Proxy-based mock defers property access until `beforeAll` creates the PGLite instance:
+Proxy-based mock defers property access until `beforeAll` creates the PGLite instance. Paths below are for a test in `src/`; from a test **inside `.server/`** use the relative sibling path instead (`../pg/db`, `../pg/test-utils/pglite-browser`) — see `apps/platform/CLAUDE.md`.
 
 ```tsx
 import type { TestDb } from "$/pg/test-utils/pglite-browser";
@@ -319,9 +333,19 @@ beforeAll(async () => {
 
 Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). The polyfill in `setup-tests-browser.ts` populates `globalThis.process.env` from `import.meta.env` so module-load `process.env.X` reads work in chromium; the test-writer typically still mocks the queue itself to assert enqueued payloads:
 
+`$/kit/queue` has **no `queue` export** — its exports are flat and named (`receiver`, `client`, `enqueue`, `schedule`, `don_dist`, `verify_qstash`). Mock the ones the SUT imports:
+
 ```tsx
+vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
+
+// a route that pulls the whole module needs the rest stubbed too
 vi.mock("$/kit/queue", () => ({
-  queue: { enqueue: vi.fn() },
+  receiver: {},
+  client: {},
+  enqueue: vi.fn(),
+  schedule: vi.fn(),
+  don_dist: vi.fn(),
+  verify_qstash: vi.fn(),
 }));
 ```
 
@@ -329,11 +353,17 @@ vi.mock("$/kit/queue", () => ({
 
 Global handlers in `src/setup-tests-browser.ts` via `setupWorker` (not `setupServer`).
 
+Override per test with `mswWorker.use(handler)` — `setup-tests-browser.ts:67-68` calls `resetHandlers()` in `afterEach`, so overrides don't leak:
+
 ```tsx
 import { mswWorker } from "#/setup-tests-browser";
 
-// override per-test (note: mswWorker.use() is unreliable in browser mode)
-// prefer fetch spies or hook mocks for per-test overrides:
+mswWorker.use(don_intents_error_handler);
+```
+
+Reach for a fetch spy only when the call bypasses MSW (`src/__tests__/registration.test.tsx:221` is the in-repo case):
+
+```tsx
 vi.spyOn(globalThis, "fetch").mockImplementationOnce(() =>
   Promise.resolve(Response.json({ error: "slug taken" }, { status: 400 }))
 );
@@ -353,7 +383,7 @@ expect(events).toContainEqual(
 
 ## Integration Test Principles
 
-**Assert via UI, not DB.** The rendered page IS the proof. Direct DB queries are redundant.
+**Assert via UI, not DB** — in route/page integration tests, the rendered page IS the proof and a direct DB query is redundant. Query-level tests under `.server/pg/queries/` assert rows directly; that's their job.
 
 **After submit**: wait for loader revalidation:
 ```tsx
@@ -387,7 +417,7 @@ it("user sees balance, transfers, balances update", async () => {
 });
 ```
 
-**Cross-page flows are highest-value.** Act on page A, `screen.unmount()`, render page B, assert.
+**Cross-page flows are highest-value.** Act on page A, `await cleanup()`, render page B, assert.
 
 ## Common Mistakes
 
@@ -402,13 +432,13 @@ it("user sees balance, transfers, balances update", async () => {
 | `waitFor(() => getBy*())` | `await expect.element(getBy*()).toBeVisible()` |
 | `expect(el).toBeInTheDocument()` | `await expect.element(locator).toBeInTheDocument()` |
 | `user.type(input, "text")` | `input.fill("text")` (use `type` only for special keys) |
-| `user.clear(combobox)` | click + backspace loop (browser treats combobox as non-editable) |
+| `user.clear(combobox)` | `combobox.clear()` then `.fill()` directly on the locator |
 | `screen.unmount()` between renders | `await cleanup()` from `vitest-browser-react` — `unmount` leaves stale container divs |
-| click inside Base UI dialog times out | `(locator.element() as HTMLElement).click()` — native DOM click bypasses `data-base-ui-inert` overlay |
+| click inside an Ark UI dialog times out | `(locator.element() as HTMLElement).click()` — native DOM click bypasses the `Dialog.Backdrop` overlay |
 | `.parentElement` on a locator | `(locator.element() as HTMLElement).parentElement` — `.element()` returns `SVGElement \| HTMLElement`, cast when needed |
 | `.element().click()` TS error | `.element()` returns `SVGElement \| HTMLElement`; cast to `HTMLElement` for `.click()`, `.closest()`, etc. |
 | `.not.toBeInTheDocument({ timeout })` | `toBeInTheDocument()` accepts 0 args — put timeout on `expect.element(loc, { timeout })` instead |
 | `.map(fn)` on `.elements()` type error | `.elements()` returns `(SVGElement \| HTMLElement)[]` — widen callback param to `Element` or cast |
-| `mswWorker.use()` for per-test overrides | `vi.spyOn(globalThis, "fetch")` or mock hooks directly |
-| querying DB directly after submit | assert via revalidated UI |
+| `vi.mock("$/kit/queue", () => ({ queue: {…} }))` | no `queue` export — mock the flat named exports (`enqueue`, `don_dist`, …) |
+| querying DB directly after a route submit | assert via revalidated UI (query-level tests under `.server/pg/queries/` are the exception) |
 | `import "node:crypto"` / `Buffer` | `globalThis.crypto.randomUUID()` / `btoa()`/`atob()` |

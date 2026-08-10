@@ -24,7 +24,7 @@ Three-layer structure:
 ## Stack
 
 - **Framework**: React Router v7 (SSR, framework mode)
-- **DB**: PostgreSQL via drizzle-orm (neon in prod, local pg in dev); DynamoDB + dynamodb-toolbox v2 (legacy, migrating)
+- **DB**: PostgreSQL via drizzle-orm (neon everywhere — dev/staging share one branch, prod is its own); DynamoDB + dynamodb-toolbox v2 (legacy, migrating)
 - **Validation**: valibot
 - **Forms**: react-hook-form + remix-hook-form
 - **UI**: Tailwind v4, Ark UI, Lucide icons, Motion
