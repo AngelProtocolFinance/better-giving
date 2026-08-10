@@ -10,6 +10,7 @@ import { from_full } from "@/helpers/name";
 import { send_email } from "$/email";
 import {
   claim_receipt_send,
+  mark_receipt_sent,
   release_receipt_send,
 } from "$/pg/queries/donation";
 import { npo_admins } from "$/pg/queries/user";
@@ -26,12 +27,16 @@ export async function handle_don_receipt(don: IDonation) {
   // qstash needs a 200 for it or it will keep retrying.
   if (!(await claim_receipt_send(don.id))) return;
 
-  // the claim is a lease. it is taken before the sends so nothing concurrent
-  // can mail the donor twice, and given back if any of them throws — a
-  // provider refusal on one mail must not permanently consume the right to
-  // send the rest. do not "simplify" the release away: without it the first
-  // transient resend failure costs the donor the receipt for good, with the
-  // stamp asserting it was sent.
+  // the claim is a lease, and the "sent" stamp below is what ends it. it is
+  // taken before the sends so nothing concurrent can mail the donor twice, and
+  // given back if any of them throws — a provider refusal on one mail must not
+  // permanently consume the right to send the rest. do not "simplify" the
+  // release away, and do not move the stamp back up to the claim: either one
+  // makes the first transient failure cost the donor their receipt for good,
+  // with the row asserting it was sent.
+  //
+  // a holder that cannot reach the release at all — a function killed
+  // mid-send — is covered by the claim's own expiry, not by anything here.
   //
   // what the lease does not cover: `sends` is several mails and the release is
   // all-or-nothing, so a failure partway through gives back the right to send
@@ -47,14 +52,20 @@ export async function handle_don_receipt(don: IDonation) {
     // the release is best-effort and the send failure is the one that has to
     // survive: letting a db error thrown here replace it puts the wrong
     // exception in sentry and loses the reason the donor never got the
-    // receipt. reported separately because the lease then stays burnt — that
-    // donation's receipt is unsendable by any redelivery, which is not
-    // something to find out later.
+    // receipt. reported separately because the lease then stays held until it
+    // expires, which delays every later attempt at this donation's receipt.
     await release_receipt_send(don.id).catch((re) =>
       report_error(re, { donation_id: don.id, during: "receipt lease release" })
     );
     throw e;
   }
+
+  // outside the try on purpose. inside it, a db failure on this write would
+  // land in the catch and *release* the lease — handing the next delivery the
+  // right to re-mail receipts that already went out, under a fresh tax id.
+  // left here it throws with the lease still held, so nothing re-sends until
+  // the expiry, and the mails that did go out stay sent exactly once.
+  await mark_receipt_sent(don.id);
 }
 
 async function sends(don: IDonation) {

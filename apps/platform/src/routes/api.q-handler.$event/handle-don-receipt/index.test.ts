@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -65,6 +66,7 @@ vi.mock("@/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 
+import { RECEIPT_LEASE_MS } from "$/pg/queries/donation";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 import { handle_don_receipt } from ".";
 
@@ -216,8 +218,62 @@ describe("handle_don_receipt - a send that fails", () => {
 
     await expect(handle_don_receipt(don())).rejects.toThrow();
 
-    // the lease stayed burnt, so this donation's receipt is now unsendable by
-    // any redelivery — losing that silently is how it stays unnoticed.
+    // the lease stays held until it expires, so nothing mails this donation's
+    // receipt for the length of the lease — losing that silently is how it
+    // stays unnoticed until a donor asks where their receipt is.
     expect(report_error).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handle_don_receipt - a holder that never comes back", () => {
+  /** what a function killed mid-send leaves behind: claimed, never sent */
+  const abandon_claim = async (age_ms: number) => {
+    const db = test_db.current!.db;
+    await db
+      .update(donations)
+      .set({
+        receipt_claimed_at: new Date(Date.now() - age_ms).toISOString(),
+        receipt_sent_at: null,
+      })
+      .where(eq(donations.id, DON_ID));
+  };
+
+  test("a stale claim is reclaimed so the donor still gets the receipt", async () => {
+    await abandon_claim(RECEIPT_LEASE_MS + 60_000);
+
+    // nothing released this one — the worker holding it was killed between the
+    // claim and the sends, so there is no throw and no catch. without the
+    // expiry the donor's receipt is lost for good.
+    await handle_don_receipt(don());
+
+    expect(send_email).toHaveBeenCalledOnce();
+  });
+
+  test("a claim still inside its lease is left alone", async () => {
+    await abandon_claim(60_000);
+
+    // a send in progress, not a dead one. mailing over it is the duplicate the
+    // claim exists to prevent.
+    await handle_don_receipt(don());
+
+    expect(send_email).not.toHaveBeenCalled();
+  });
+
+  test("an expired claim over receipts that did go out never re-sends", async () => {
+    await handle_don_receipt(don());
+    await test_db
+      .current!.db.update(donations)
+      .set({
+        receipt_claimed_at: new Date(
+          Date.now() - RECEIPT_LEASE_MS - 60_000
+        ).toISOString(),
+      })
+      .where(eq(donations.id, DON_ID));
+
+    // only the claim expires. the sent stamp is the permanent half, and it is
+    // the reason an expiry can never mail a second receipt for one gift.
+    await handle_don_receipt(don());
+
+    expect(send_email).toHaveBeenCalledOnce();
   });
 });

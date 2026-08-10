@@ -44,9 +44,18 @@ export const donations = pgTable(
     program_id: text("program_id"),
     program_name: text("program_name"),
     subscription_id: text("subscription_id").references(() => subscriptions.id),
-    // burnt by the claim that gates the receipt mails. the queue delivers
-    // at-least-once, and a receipt carries a tax id minted at send time, so a
-    // redelivery would hand the donor a second number for one gift.
+    // the receipt mails are gated by a two-stamp lease. `claimed` is taken
+    // before the sends and `sent` written after them, because one column
+    // cannot answer both "is someone mailing this right now" and "did the mail
+    // go out" — and a worker killed between the two would leave a single stamp
+    // asserting a receipt that was never sent, with nothing able to tell the
+    // difference later.
+    //
+    // `claimed` alone is therefore reclaimable once it is stale; `sent` never
+    // is. the queue delivers at-least-once and a receipt carries a tax id
+    // minted at send time, so a redelivery past a real send would hand the
+    // donor a second number for one gift.
+    receipt_claimed_at: timestamptz("receipt_claimed_at"),
     receipt_sent_at: timestamptz("receipt_sent_at"),
     created_at: timestamptz_now("created_at"),
     updated_at: timestamptz_now("updated_at"),
