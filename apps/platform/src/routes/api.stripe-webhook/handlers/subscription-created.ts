@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { str_id } from "#/helpers/stripe";
+import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
 import type { IMetadata } from "@/stripe";
@@ -8,14 +9,18 @@ import { db } from "$/pg/db";
 import { donation_get } from "$/pg/queries/donation";
 import { sub_put } from "$/pg/queries/subscription";
 
-export async function handle_subscription_created({
-  object: sub,
-}: Stripe.CustomerSubscriptionCreatedEvent.Data) {
-  const { order_id } = sub.metadata as IMetadata;
-
-  const order = await donation_get(order_id);
-  if (!order) throw new Error(`Order not found for id:${order_id}`);
-
+/**
+ * project a stripe subscription + the order it came from into our row.
+ *
+ * shared with the setup-intent handler, which creates the subscription and so
+ * holds the same object this event carries. two definitions would let the row
+ * this event writes and the row that handler writes disagree, and `sub_put` is
+ * a no-op for whichever of them lands second.
+ */
+export function to_sub_record(
+  sub: Stripe.Subscription,
+  order: IDonation
+): ISub {
   const { price: p } = sub.items.data[0];
 
   if (!p.recurring) {
@@ -26,7 +31,7 @@ export async function handle_subscription_created({
   const total = amnt_sum(order.amount);
   const total_usd = total / order.upusd;
 
-  const record: ISub = {
+  return {
     id: sub.id,
     created_at: new Date(sub.created * 1000).toISOString(),
     updated_at: new Date(sub.created * 1000).toISOString(),
@@ -46,7 +51,16 @@ export async function handle_subscription_created({
     status: "active",
     from_id: order.from_email,
   };
+}
 
-  await sub_put(db, record);
+export async function handle_subscription_created({
+  object: sub,
+}: Stripe.CustomerSubscriptionCreatedEvent.Data) {
+  const { order_id } = sub.metadata as IMetadata;
+
+  const order = await donation_get(order_id);
+  if (!order) throw new Error(`Order not found for id:${order_id}`);
+
+  await sub_put(db, to_sub_record(sub, order));
   console.info(`Created subscription record ${sub.id}`);
 }

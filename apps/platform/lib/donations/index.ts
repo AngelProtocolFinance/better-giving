@@ -17,6 +17,8 @@ export type {
 } from "./schema";
 export {
   calc_donation_settle,
+  is_reversed,
   type SettleInputs,
   type SettleResult,
+  settle_msgs,
 } from "./settle";

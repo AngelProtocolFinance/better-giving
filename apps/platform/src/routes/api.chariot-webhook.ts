@@ -69,6 +69,9 @@ export async function action({ request }: Route.ActionArgs) {
       prior,
       settlement,
     });
+    // the refund already reversed this donation; a 2xx so chariot stops
+    // redelivering rather than a throw that reads as a broken endpoint.
+    if (result.op === "noop") return Response.json({ id: don_id });
     if (result.op !== "update")
       throw new Error("unexpected put for chariot one-time");
 
