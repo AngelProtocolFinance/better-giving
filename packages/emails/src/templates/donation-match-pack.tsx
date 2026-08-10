@@ -91,8 +91,7 @@ function Jsx(d: IData) {
       </h2>
       <Text>
         Most employers pay through their giving platform, which already holds
-        our details. If yours mails a check or transfers the funds itself, this
-        is what they need.
+        our details. If yours mails a check instead, this is what they need.
       </Text>
       <KeyValue label="Make checks payable to" value={LEGAL_NAME} />
       <KeyValue label="Mail to" value={ADDRESS} />

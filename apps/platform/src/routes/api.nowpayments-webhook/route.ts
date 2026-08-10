@@ -14,28 +14,32 @@ export async function action({ request }: Route.ActionArgs) {
   const sig = request.headers.get("x-nowpayments-sig");
   if (!sig) return new Response("invalid request", { status: 400 });
 
-  /// hash payload ///
   const body = await request.text();
-  const payment: NP.PaymentPayload = JSON.parse(body || "{}");
-
-  const payment_sorted: any = {};
-  for (const [k, v] of Object.entries(payment).toSorted(([a], [b]) =>
-    a.localeCompare(b)
-  )) {
-    payment_sorted[k] = v;
-  }
-
-  const hmac = crypto.createHmac("sha512", nowpayments.ipn_secret);
-  hmac.update(JSON.stringify(payment_sorted));
-  const payload_sig = hmac.digest("hex");
-
-  if (payload_sig !== sig) {
-    return new Response("invalid request", { status: 400 });
-  }
-
-  const status = payment.payment_status;
 
   try {
+    /// hash payload ///
+    // inside the try: a malformed body throws here, and that must land in the
+    // catch below (reported, with a response) instead of escaping unhandled
+    // into a generic framework 500 that never reaches sentry.
+    const payment: NP.PaymentPayload = JSON.parse(body || "{}");
+
+    const payment_sorted: any = {};
+    for (const [k, v] of Object.entries(payment).toSorted(([a], [b]) =>
+      a.localeCompare(b)
+    )) {
+      payment_sorted[k] = v;
+    }
+
+    const hmac = crypto.createHmac("sha512", nowpayments.ipn_secret);
+    hmac.update(JSON.stringify(payment_sorted));
+    const payload_sig = hmac.digest("hex");
+
+    if (payload_sig !== sig) {
+      return new Response("invalid request", { status: 400 });
+    }
+
+    const status = payment.payment_status;
+
     if (
       // can be considered `pending`
       status === "sending" ||
