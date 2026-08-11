@@ -9,9 +9,11 @@ import {
   type Ref,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { unpack } from "#/helpers/unpack";
+import { use_dialog_container } from "../use-dialog-container";
 
 type El = HTMLInputElement;
 
@@ -64,6 +66,8 @@ const popup_cls =
 
 export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
   const cls = unpack(props.classes);
+  const ctrl_ref = useRef<HTMLDivElement>(null);
+  const dialog = use_dialog_container(ctrl_ref);
   const { contains } = useFilter({ sensitivity: "base" });
   const display_value = props.value || "";
   const [input_value, set_input_value] = useState(display_value);
@@ -130,6 +134,7 @@ export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
         openOnClick
       >
         <Combobox.Control
+          ref={ctrl_ref}
           className={`relative ${is_inline ? "group/combo" : ""}`}
         >
           {!is_inline && props.btn_disp && (
@@ -187,7 +192,7 @@ export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
             </Combobox.Context>
           )}
 
-          <Portal>
+          <Portal container={dialog}>
             <Combobox.Positioner>
               <Combobox.Content
                 style={is_inline ? props.options_style : undefined}
