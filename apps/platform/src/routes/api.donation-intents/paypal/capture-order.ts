@@ -22,8 +22,10 @@ export const capture_order = async ({ order_id, don_id }: ICaptureInput) => {
 
     update.from_email = ps.email_address;
 
-    const fn = to_full(name?.given_name, name?.surname);
-    if (fn) update.from_name = fn;
+    // guard the raw parts — to_full defaults to "Anonymous", which would
+    // clobber the form-entered name recorded at intent time
+    if (name?.given_name || name?.surname)
+      update.from_name = to_full(name.given_name, name.surname);
 
     const street = [addr?.address_line_1, addr?.address_line_2]
       .filter(Boolean)
