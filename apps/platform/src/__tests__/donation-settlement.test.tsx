@@ -62,6 +62,7 @@ vi.mock("$/kit/discord", () => ({
 
 vi.mock("@/errors/report", () => ({
   report_error: vi.fn(),
+  report_degraded: vi.fn(),
   report_null: vi.fn(() => null),
   report_undefined: vi.fn(() => undefined),
   report_msg: vi.fn((_, m: string) => m),

@@ -11,7 +11,7 @@ import type {
   IDonorAddressFv,
   IStripeIntentReturn,
 } from "@/donations";
-import { report_error } from "@/errors/report";
+import { report_degraded, report_error } from "@/errors/report";
 import { use_donation } from "../../../context";
 import type { IStripeExpress } from "../use-rhf";
 
@@ -159,7 +159,16 @@ export function Content({
       onLoadError={(ev) => {
         // pre-interaction: the element never came up, so nothing has been paid
         // and no donor action is waiting on an answer.
-        report_error(ev.error);
+        //
+        // two unrelated failures arrive here. `api_connection_error` is
+        // stripe's own code for "the browser could not reach us" — the donor's
+        // network, nothing to fix. anything else is the request we sent, and an
+        // amount stripe rejects for the currency lands here too, so it has to
+        // stay loud.
+        const kind = (ev.error as { type?: string } | undefined)?.type;
+        const report =
+          kind === "api_connection_error" ? report_degraded : report_error;
+        report(ev.error);
         (on_unavailable ?? on_error)(LOAD_FAILED);
       }}
       options={{

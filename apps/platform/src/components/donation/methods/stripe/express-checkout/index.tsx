@@ -1,7 +1,7 @@
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { useEffect, useRef } from "react";
-import { report_error } from "@/errors/report";
+import { report_degraded } from "@/errors/report";
 import { stripe_load, stripe_promise } from "../../../common/stripe";
 import type { IStripeExpress } from "../use-rhf";
 import { Content, type IContentExternal, LOAD_FAILED } from "./content";
@@ -29,8 +29,9 @@ export function ExpressCheckout({
       // stripe.js never came up, so the element below is never created and its
       // onLoadError can't fire — without this the donor gets an empty div and
       // nothing reaches sentry. pre-interaction: nothing has been paid and no
-      // donor action is waiting on an answer.
-      report_error(r.err);
+      // donor action is waiting on an answer. js.stripe.com is unreachable from
+      // the donor's browser by the time this fires, so it's degraded, not ours.
+      report_degraded(r.err);
       degrade_ref.current(LOAD_FAILED);
     });
     return () => {

@@ -17,15 +17,22 @@ import { ExpressCheckout } from ".";
 // awaits `stripe_promise` before the component mounts, so if common/stripe.ts
 // left it unhandled, the rejection below would surface as a test-run error.
 const blocked = vi.hoisted(() => new Error("Failed to load Stripe.js"));
+const script = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("@stripe/stripe-js", () => ({
-  loadStripe: () => Promise.reject(blocked),
+  loadStripe: () => {
+    script.calls++;
+    return Promise.reject(blocked);
+  },
 }));
 
 const reported = vi.hoisted(() => [] as unknown[]);
 vi.mock("@/errors/report", async (orig) => ({
   ...(await orig<typeof import("@/errors/report")>()),
   report_error: (e: unknown) => {
-    reported.push(e);
+    reported.push(["error", e]);
+  },
+  report_degraded: (e: unknown) => {
+    reported.push(["degraded", e]);
   },
 }));
 
@@ -78,8 +85,12 @@ describe("stripe.js itself never loads", () => {
     await vi.waitFor(() => expect(on_unavailable).toHaveBeenCalledOnce());
     expect(on_unavailable).toHaveBeenCalledWith(load_failed);
     expect(on_error).not.toHaveBeenCalled();
-    // observable: without this the donor gets an empty div and nobody hears
-    expect(reported).toContain(blocked);
+    // observable: without this the donor gets an empty div and nobody hears.
+    // degraded, not error — js.stripe.com is unreachable from this browser and
+    // there is nothing here to fix
+    expect(reported).toEqual([["degraded", blocked]]);
+    // asked twice before giving up
+    expect(script.calls).toBe(2);
   });
 
   test("still surfaces through on_error when the caller doesn't handle it", async () => {

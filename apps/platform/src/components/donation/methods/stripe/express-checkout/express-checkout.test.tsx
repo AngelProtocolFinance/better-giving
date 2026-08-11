@@ -18,7 +18,20 @@ import { ExpressCheckout } from ".";
 // prove: that stripe really emits `loaderror` for an adblocked element, or
 // that any of this survives a real <Elements> — both are stripe's behavior,
 // stubbed out here.
-const el = vi.hoisted(() => ({ load_error: false }));
+const el = vi.hoisted(() => ({
+  load_error: false,
+  error: { message: "element iframe blocked" } as Record<string, unknown>,
+}));
+const reported = vi.hoisted(() => [] as [string, unknown][]);
+vi.mock("@/errors/report", async (orig) => ({
+  ...(await orig<typeof import("@/errors/report")>()),
+  report_error: (e: unknown) => {
+    reported.push(["error", e]);
+  },
+  report_degraded: (e: unknown) => {
+    reported.push(["degraded", e]);
+  },
+}));
 const stripe = vi.hoisted(() => ({ value: null as any }));
 const elements = vi.hoisted(() => ({ value: null as any }));
 
@@ -38,10 +51,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
     // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design, per the note above
     useEffect(() => {
       if (el.load_error) {
-        onLoadError({
-          elementType: "expressCheckout",
-          error: { message: "element iframe blocked" },
-        });
+        onLoadError({ elementType: "expressCheckout", error: el.error });
       }
     }, []);
     return (
@@ -121,6 +131,8 @@ describe("stripe express: an element that reports a load error", () => {
   });
   afterEach(() => {
     el.load_error = false;
+    el.error = { message: "element iframe blocked" };
+    reported.length = 0;
     vi.restoreAllMocks();
   });
 
@@ -134,6 +146,28 @@ describe("stripe express: an element that reports a load error", () => {
     await vi.waitFor(() => expect(on_unavailable).toHaveBeenCalledOnce());
     expect(on_unavailable).toHaveBeenCalledWith(load_failed);
     expect(on_error).not.toHaveBeenCalled();
+  });
+
+  test("a donor who can't reach stripe is not an application defect", async () => {
+    // stripe's own code for it. nothing in this repo is broken, and these
+    // outnumber real defects enough to bury them if they page the same way
+    el.load_error = true;
+    el.error = { type: "api_connection_error", message: "network" };
+    const Stub = mount({ on_error: vi.fn(), on_unavailable: vi.fn() });
+    await render(<Stub />);
+
+    await vi.waitFor(() => expect(reported).toHaveLength(1));
+    expect(reported[0]![0]).toBe("degraded");
+  });
+
+  test("anything else stays a defect — an amount stripe rejects lands here too", async () => {
+    el.load_error = true;
+    el.error = { type: "validation_error", message: "Amount must be at least" };
+    const Stub = mount({ on_error: vi.fn(), on_unavailable: vi.fn() });
+    await render(<Stub />);
+
+    await vi.waitFor(() => expect(reported).toHaveLength(1));
+    expect(reported[0]![0]).toBe("error");
   });
 
   test("still surfaces through on_error when the caller doesn't handle it", async () => {

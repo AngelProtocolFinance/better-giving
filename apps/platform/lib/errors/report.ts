@@ -34,18 +34,46 @@ function normalize(err: unknown): unknown {
   return new Error(err === undefined ? "(undefined error)" : String(err));
 }
 
-export function report_error(
+function capture(
   error: unknown,
+  level: "error" | "warning",
   context?: Record<string, unknown>
 ): void {
-  console.error(error, context);
+  if (level === "error") console.error(error, context);
+  else console.warn(error, context);
   if (is_user_error(error)) return;
   // preserve the original non-Error value as extra context so opaque objects aren't lost.
   const extra =
     error instanceof Error || error instanceof Response
       ? context
       : { ...context, original_error: error };
-  Sentry.captureException(normalize(error), extra ? { extra } : undefined);
+  Sentry.captureException(normalize(error), {
+    level,
+    ...(extra ? { extra } : {}),
+  });
+}
+
+export function report_error(
+  error: unknown,
+  context?: Record<string, unknown>
+): void {
+  capture(error, "error", context);
+}
+
+/**
+ * a third party we don't control was unreachable from the visitor's browser —
+ * a blocked script, a dropped fetch, an sdk that never came up. nothing in this
+ * repo is broken when one fires, and they outnumber real defects by orders of
+ * magnitude, so they're kept at warning level: `level:error` stays a list of
+ * our own bugs, while a provider outage is still visible as a rate change.
+ *
+ * only for failures already handled — the caller must have degraded the ui.
+ */
+export function report_degraded(
+  error: unknown,
+  context?: Record<string, unknown>
+): void {
+  capture(error, "warning", context);
 }
 
 // .catch-friendly variants that report + return a value.
