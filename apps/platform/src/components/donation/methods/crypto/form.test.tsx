@@ -259,8 +259,7 @@ describe("Crypto form: initial load", () => {
     await screen.getByRole("button", { name: /continue/i }).click();
     await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
 
-    // the switch and the radios now reach the same state for the same choice —
-    // the format carries it, `tip` stays empty, and the charge derives
+    // the format carries the choice, `tip` stays empty, and the charge derives
     const next = don_set_mock.mock.calls[0]![0]({});
     const submitted: CryptoDonationDetails = next.crypto.fv;
     expect(submitted.tip_format).toBe("15");

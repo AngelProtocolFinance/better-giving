@@ -35,14 +35,8 @@ interface Params {
  * is unreadable by construction and goes stale the moment the donor edits the
  * amount, token or currency — nothing recomputes it.
  *
- * shared across the six rails because they carried a byte-identical copy of
- * this and had already drifted apart once: the radio handler stored a computed
- * string while switch-on left it empty, so the same choice reached the form as
- * two different states depending on which control the donor used.
- *
- * a stored string was never what any consumer should read. the crypto summary
- * omitting a tip the checkout collected was that mistake made once, in a
- * consumer that gated on `fv.tip` instead of `tip_val`.
+ * shared across the six rails so one choice reaches the form as one state, no
+ * matter which control the donor used to make it.
  */
 export function tip_handlers(p: Params) {
   const checked_changed = (checked: boolean) => {

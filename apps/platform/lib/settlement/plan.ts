@@ -282,9 +282,7 @@ export function calc_settlement_plan(
       const purchased_units = net_alloc.lock / i.nav_price;
 
       // new investments are allocated to cash portion and rebalanced later.
-      // load-bearing: distinct per call so batch settlements get distinct
-      // ordering timestamps — `new Date()` could not actually promise that, a
-      // fund's members being stamped back to back inside one transaction
+      // load-bearing: distinct per call so batch settlements get distinct ordering timestamps
       nav_log_entry = {
         reason: `npo:${don.to_id} donation allocation to lock`,
         date: nav_log_date(),

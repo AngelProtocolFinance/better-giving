@@ -19,9 +19,6 @@ let last_ms = 0;
  * - a fund refund loops `load_refund_plan` per distribution, each stamping its
  *   own `now`
  *
- * neither is exotic; both were only unseen because the default allocation is
- * 100% cash, which writes no nav log at all.
- *
  * so real time when it has moved on, and the last stamp plus a millisecond when
  * it hasn't. within one process that is a guarantee. two processes settling
  * concurrently can still land on the same millisecond — that residual needs the

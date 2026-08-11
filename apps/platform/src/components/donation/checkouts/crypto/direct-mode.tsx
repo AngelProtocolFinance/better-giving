@@ -29,9 +29,7 @@ const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   // deliberate — the client validates `base` against a cached minimum while
   // the server checks `base + tip + fee_allowance` against a freshly fetched
   // one, so an amount within a percent of the minimum can pass here and fail
-  // there. what wasn't deliberate is that it arrived as "failed to load
-  // donation address": every failure was fed to `res.json()`, and the plain
-  // text body threw a parse error the donor could do nothing with.
+  // there.
   //
   // 4xx from this route is short donor-facing text — most usefully the token's
   // actual minimum. 5xx is an unhandled throw whose body is a framework error
