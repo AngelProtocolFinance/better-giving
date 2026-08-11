@@ -556,6 +556,52 @@ describe("settlement create — a match for a gift whose nonprofit went inactive
   });
 });
 
+describe("settlement create — a nonprofit picked in the form that went inactive", () => {
+  const deactivate = () =>
+    test_db
+      .current!.db.update(npos)
+      .set({ active: false })
+      .where(eq(npos.id, npo_id));
+
+  test("is refused rather than recorded against nobody", async () => {
+    await deactivate();
+
+    const res = await settle({ from: "cheque" });
+
+    // the selector only ever offers active nonprofits, so this one deactivated
+    // while the form was open. `settle_npo` skips the write, so without this
+    // check the cheque is banked, no distribution exists behind it and the
+    // admin is told it worked
+    expect(res).toEqual({
+      ok: false,
+      error:
+        "Freegan Food Foundation is no longer active — there is nowhere to settle this",
+    });
+    expect(await dons()).toHaveLength(0);
+    expect(await dist_rows()).toHaveLength(0);
+  });
+
+  test("previews no records for it either", async () => {
+    await deactivate();
+
+    const res = await preview({ net: "50", npo_id: npo_id.toString() });
+
+    expect(res).toEqual({
+      preview: null,
+      previews: [],
+      error:
+        "Freegan Food Foundation is no longer active — there is nowhere to settle this",
+    });
+  });
+
+  test("an active nonprofit is unaffected", async () => {
+    const res = await settle({ from: "cheque" });
+
+    expect(res).toEqual({ ok: true });
+    expect(await dist_rows()).toHaveLength(1);
+  });
+});
+
 describe("settlement preview — a load that resolves to nothing says why", () => {
   test("an id that resolves to no gift", async () => {
     const res = await preview({ net: "50", for_donation_id: "no-such-gift" });

@@ -170,11 +170,19 @@ export const tip_val = (
   return pct * amount;
 };
 
+/**
+ * the inverse of `tip_val`: recover a format from an amount already charged.
+ * `value` is the tip, `base` the amount it was taken from.
+ *
+ * a recognised percentage pairs with `tip: ""` — the same convention
+ * `tip_handlers` follows, since `tip_val` derives percentage tips and never
+ * reads the string.
+ */
 export const tip_from_val = (
   value: number,
   base: number
 ): { tip_format: TTipFormat; tip: string } => {
-  const pct = base / value;
+  const pct = value / base;
   if (Math.abs(pct - 0.15) < 0.001) return { tip_format: "15", tip: "" };
   if (Math.abs(pct - 0.2) < 0.001) return { tip_format: "20", tip: "" };
   if (Math.abs(pct - 0.1) < 0.001) return { tip_format: "10", tip: "" };
