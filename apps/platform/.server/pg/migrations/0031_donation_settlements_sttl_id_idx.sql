@@ -1,0 +1,1 @@
+CREATE INDEX "donation_settlements_sttl_id_idx" ON "donation_settlements" USING btree ("sttl_id");

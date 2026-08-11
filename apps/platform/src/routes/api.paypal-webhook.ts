@@ -392,6 +392,10 @@ export async function action({ request }: Route.ActionArgs) {
           prior,
           settlement: sttl_record,
         });
+        // the refund already reversed this donation; a 2xx so paypal stops
+        // redelivering rather than a throw that reads as a broken endpoint.
+        if (result.op === "noop")
+          return Response.json({ id: don_id }, { status: 200 });
         if (result.op !== "update")
           throw new Error("unexpected put for paypal capture");
 
@@ -511,6 +515,10 @@ export async function action({ request }: Route.ActionArgs) {
                 subs_id,
               });
 
+          // noop reaches here only from the first-recurring branch — a rebill
+          // clones the order row rather than settling it, so it never yields
+          // one. the order row it would have settled is already reversed.
+          if (result.op === "noop") return { row: don, msgs: [] };
           return result.op === "update"
             ? {
                 row: await donation_update(tx, result.order_id, result.patch),

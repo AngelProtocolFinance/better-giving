@@ -218,6 +218,27 @@
       "when": 1785854135637,
       "tag": "0030_donation_match_events",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786372481775,
+      "tag": "0031_donation_settlements_sttl_id_idx",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786372613822,
+      "tag": "0032_donations_receipt_sent_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1786377798689,
+      "tag": "0033_donations_receipt_claimed_at",
+      "breakpoints": true
     }
   ]
 }

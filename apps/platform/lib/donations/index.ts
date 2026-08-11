@@ -1,4 +1,5 @@
 export type * from "./interfaces";
+export { tax_receipt_id } from "./receipt-id";
 export type {
   IAllocation,
   IAmount,
@@ -17,6 +18,8 @@ export type {
 } from "./schema";
 export {
   calc_donation_settle,
+  is_reversed,
   type SettleInputs,
   type SettleResult,
+  settle_msgs,
 } from "./settle";

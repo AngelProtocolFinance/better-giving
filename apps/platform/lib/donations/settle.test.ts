@@ -160,6 +160,76 @@ describe("calc_donation_settle - don-match", () => {
   });
 });
 
+describe("calc_donation_settle - already reversed", () => {
+  test("a refunded donation is not flipped back to settled", () => {
+    const r = calc_donation_settle({
+      kind: "one-time",
+      order_id: "don-1",
+      prior: make_don({ status: "refunded" }),
+      settlement: sttl(),
+    });
+    expect(r.op).toBe("noop");
+  });
+
+  test("refunded_loss is reversed too", () => {
+    const r = calc_donation_settle({
+      kind: "one-time",
+      order_id: "don-1",
+      prior: make_don({ status: "refunded_loss" }),
+      settlement: sttl(),
+    });
+    expect(r.op).toBe("noop");
+  });
+
+  test("emits no dist or receipt msgs", () => {
+    const r = calc_donation_settle({
+      kind: "first-recurring",
+      order_id: "don-1",
+      prior: make_don({ status: "refunded", from_company_name: "Acme" }),
+      settlement: sttl(),
+      subs_id: "sub_123",
+    });
+    // the redelivery that reaches here already paid out once; re-queueing
+    // would mail a second receipt for money that went back
+    expect(r.msgs).toEqual([]);
+  });
+
+  test("a rebill is not blocked by the order row's status", () => {
+    // prior is the order row, not the period being settled: a refunded first
+    // charge does not mean this month's charge failed
+    const r = calc_donation_settle({
+      kind: "rebill",
+      order_id: "don-1",
+      prior: {
+        ...make_don({ status: "refunded", frequency: "monthly" }),
+        settlement: sttl({ id: "sttl-old" }),
+      },
+      settlement: sttl({ id: "sttl-new" }),
+      subs_id: "sub_new",
+      new_id: "new-uuid",
+    });
+    expect(r.op).toBe("put");
+  });
+
+  test("a rebill on a refunded order is written settled, not refunded", () => {
+    const r = calc_donation_settle({
+      kind: "rebill",
+      order_id: "don-1",
+      prior: {
+        ...make_don({ status: "refunded", frequency: "monthly" }),
+        settlement: sttl({ id: "sttl-old" }),
+      },
+      settlement: sttl({ id: "sttl-new" }),
+      subs_id: "sub_new",
+      new_id: "new-uuid",
+    });
+    if (r.op !== "put") throw new Error("expected put");
+    // the clone distributes and pays out; carrying the order row's "refunded"
+    // over would have the dist and the donation disagree about the same money
+    expect(r.row.status).toBe("settled");
+  });
+});
+
 describe("calc_donation_settle - first-recurring", () => {
   test("patch includes subscription_id", () => {
     const r = calc_donation_settle({

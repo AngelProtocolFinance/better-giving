@@ -1,5 +1,6 @@
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { IDonation, IDonationUpdate, IDonsFromOpts } from "@/donations";
+import { report_error } from "@/errors/report";
 import { db } from "../db";
 import {
   donation_donors,
@@ -743,13 +744,179 @@ export async function donation_settlement_get(
   return row;
 }
 
-/** check if a settlement with this sttl_id already exists (idempotency guard) */
-export async function settlement_exists(sttl_id: string): Promise<boolean> {
-  const [row] = await db
+/**
+ * check if a settlement with this sttl_id already exists (idempotency guard).
+ *
+ * the handle is what lets this be read inside the transaction holding the order
+ * row's write lock — but no caller passes one today. paypal's two call sites
+ * are the only ones, and both read on the default handle, outside any
+ * transaction: two concurrent deliveries of the same capture or sale both see
+ * "no settlement" and both go on to write one. that race is paypal's live
+ * state, not a hypothetical the parameter prevents.
+ *
+ * kept because closing it is exactly "pass the tx", the shape the stripe
+ * handler already uses for `donation_by_sttl_id` below.
+ */
+export async function settlement_exists(
+  sttl_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
     .select({ donation_id: donation_settlements.donation_id })
     .from(donation_settlements)
     .where(eq(donation_settlements.sttl_id, sttl_id));
   return !!row;
+}
+
+/**
+ * the donation a settlement id was recorded against.
+ *
+ * the counterpart to `settlement_exists` for a caller that has to act on the
+ * row rather than just bail: a settle handler whose guard fired needs the
+ * donation the earlier delivery wrote so it can recompute that delivery's
+ * queue messages, because the enqueue sits outside the transaction and may
+ * never have happened. takes a handle so it can be read inside the tx holding
+ * the order row's write lock, which is where the stripe handler calls it.
+ *
+ * ordered and capped rather than "whatever the join returns first": sttl_id has
+ * no UNIQUE behind it, and this returns a row the caller acts on — a
+ * non-deterministic pick would flip both the donation id it recovers and the
+ * `match` flag it derives between two deliveries of the same event. the second
+ * row is fetched only to notice it: that state means a guard failed upstream
+ * and should be visible, not quietly resolved by an ORDER BY.
+ */
+export async function donation_by_sttl_id(
+  sttl_id: string,
+  tx: DbOrTx = db
+): Promise<IDonation | undefined> {
+  const rows = await tx
+    .select({ don: donations })
+    .from(donation_settlements)
+    .innerJoin(donations, eq(donations.id, donation_settlements.donation_id))
+    .where(eq(donation_settlements.sttl_id, sttl_id))
+    // oldest first: the row the first delivery wrote is the one a recovery is
+    // recovering. id breaks a tie between two rows created in the same instant.
+    .orderBy(asc(donations.created_at), asc(donations.id))
+    .limit(2);
+
+  const row = rows[0];
+  if (!row) return undefined;
+
+  if (rows.length > 1) {
+    report_error(
+      new Error(`settlement id on more than one donation: ${sttl_id}`),
+      { sttl_id, donation_id: row.don.id }
+    );
+  }
+
+  const subs = await fetch_subtables(row.don.id, tx);
+  return to_donation(
+    row.don,
+    subs.recipient,
+    subs.donor,
+    subs.settlement,
+    subs.tribute
+  );
+}
+
+/**
+ * how long a receipt-send claim is honoured before another delivery may take
+ * it. the holder is a queue handler on a serverless function whose own ceiling
+ * is minutes, so a claim older than this is not a send in progress — it is one
+ * whose worker died without reaching either stamp.
+ */
+export const RECEIPT_LEASE_MS = 15 * 60 * 1000;
+
+/**
+ * claim the right to mail this donation's receipts.
+ *
+ * one UPDATE...WHERE...RETURNING is the whole send-once gate, the same shape
+ * the filing pack uses: the stamp is both the guard and the record, so two
+ * concurrent deliveries of the same queue message cannot both come back
+ * holding it. reading the row and then writing it would leave a window between
+ * the two wide enough to mail the donor twice.
+ *
+ * false is the ordinary outcome for a redelivery — the receipts already went
+ * out, or another delivery is mailing them right now — not a failure.
+ *
+ * the claim is burnt before the send, so two deliveries racing the sends
+ * cannot both mail the donor: there is no unsend, and a receipt carries a tax
+ * id, so two of them for one gift is worse than none. it is a *lease*, not a
+ * tombstone, in both directions — a holder whose sends throw gives it back
+ * with `release_receipt_send`, and a holder that dies without giving it back
+ * loses it to the `RECEIPT_LEASE_MS` expiry here. without the expiry a killed
+ * worker takes the donor's receipt with it: `receipt_sent_at` would assert a
+ * send that never happened and no redelivery could get past it.
+ *
+ * only `receipt_claimed_at` expires. `receipt_sent_at` is written after the
+ * mails are away (`mark_receipt_sent`) and is permanent, so an expiry can only
+ * ever re-run a send that did not complete.
+ */
+export async function claim_receipt_send(
+  donation_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const now = new Date();
+  const stale = new Date(now.getTime() - RECEIPT_LEASE_MS).toISOString();
+
+  const [row] = await tx
+    .update(donations)
+    .set({ receipt_claimed_at: now.toISOString() })
+    .where(
+      and(
+        eq(donations.id, donation_id),
+        isNull(donations.receipt_sent_at),
+        or(
+          isNull(donations.receipt_claimed_at),
+          lt(donations.receipt_claimed_at, stale)
+        )
+      )
+    )
+    .returning({ id: donations.id });
+  return !!row;
+}
+
+/**
+ * give back a receipt-send claim whose sends did not complete.
+ *
+ * the other half of the lease `claim_receipt_send` takes out. the expiry there
+ * is the backstop for a holder that cannot run at all; this is the fast path
+ * for one that can, so the next delivery does not have to wait out
+ * `RECEIPT_LEASE_MS` after a transient provider refusal.
+ *
+ * only the holder calls this, and only on the way out of a throw. the
+ * `receipt_sent_at` guard is what keeps it honest: a release that arrives
+ * after the sends completed — a late throw, a duplicate handler — must not
+ * hand a second delivery the right to mail a receipt that already went.
+ */
+export async function release_receipt_send(
+  donation_id: string,
+  tx: DbOrTx = db
+): Promise<void> {
+  await tx
+    .update(donations)
+    .set({ receipt_claimed_at: null })
+    .where(
+      and(eq(donations.id, donation_id), isNull(donations.receipt_sent_at))
+    );
+}
+
+/**
+ * record that this donation's receipts are away.
+ *
+ * the permanent half of the pair: `receipt_claimed_at` says someone is mailing,
+ * this says the mail went. nothing clears it, and every later claim attempt
+ * stops on it — including one whose lease had expired, which is the case the
+ * two stamps exist to tell apart.
+ */
+export async function mark_receipt_sent(
+  donation_id: string,
+  tx: DbOrTx = db
+): Promise<void> {
+  await tx
+    .update(donations)
+    .set({ receipt_sent_at: new Date().toISOString() })
+    .where(eq(donations.id, donation_id));
 }
 
 export async function donation_tribute_get(

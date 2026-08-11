@@ -36,6 +36,9 @@ export const handle_settled = async (payment: NP.PaymentPayload) => {
     prior,
     settlement,
   });
+  // the refund already reversed this donation; nothing to write, and no throw
+  // — nowpayments reads a 5xx as an endpoint to keep retrying.
+  if (result.op === "noop") return { id: prior.id };
   if (result.op !== "update")
     throw new Error("unexpected put for nowpayments one-time");
 

@@ -7,7 +7,7 @@ import {
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
-import type { IDonation } from "@/donations";
+import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { resp } from "@/helpers/https";
@@ -88,9 +88,12 @@ export const action = async ({
 /** send one receipt per npo dist + tip, mirroring on-don-success-donor/send-receipt.ts */
 async function send_receipts(d: IDonation, donor: IDonor) {
   const { base, tip } = d.amount;
+  // the same derivation the queue handler uses, and the reason this path is
+  // safe to run at all: a support resend now reissues the number the donor
+  // already holds instead of minting a second one for the same gift.
   const receipt_id = d.via.startsWith("chariot")
     ? undefined
-    : crypto.randomUUID();
+    : await tax_receipt_id(d.id);
 
   // tip receipt (donation to Better Giving)
   if (tip > 0) {

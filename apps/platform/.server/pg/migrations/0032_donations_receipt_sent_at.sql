@@ -1,0 +1,1 @@
+ALTER TABLE "donations" ADD COLUMN "receipt_sent_at" timestamptz;

@@ -42,7 +42,64 @@ export type SettleResult =
       op: "put";
       row: IDonationSettled;
       msgs: IMsg[];
+    }
+  | {
+      op: "noop";
+      order_id: string;
+      msgs: IMsg[];
     };
+
+/** statuses that mean the money went back — settling over one is never right */
+const reversed = new Set<IDonation["status"]>(["refunded", "refunded_loss"]);
+
+/**
+ * has a refund already taken this donation's money back?
+ *
+ * the same test `calc_donation_settle` applies before it writes, exported for
+ * the recovery path a provider handler's idempotency guard sends down: that
+ * path never reaches `calc_donation_settle`, so without this it would recompute
+ * a dist and a receipt for a gift the donor was already refunded.
+ */
+export function is_reversed(status: IDonation["status"]): boolean {
+  return reversed.has(status);
+}
+
+/**
+ * the queue messages a settled donation row produces.
+ *
+ * one definition, two callers: `calc_donation_settle` below computes them for
+ * the row it is about to write, and a provider handler whose idempotency guard
+ * fired computes them again for the row a previous delivery already wrote —
+ * the enqueue happens after the commit, so a delivery can leave a settled
+ * donation whose msgs never went out, and the redelivery is the only thing
+ * left that can send them. every kind here absorbs a duplicate downstream, so
+ * re-sending is cheap and dropping is not.
+ *
+ * `match` is the caller's call rather than something read off the row: it is
+ * false for a rebill and true for the charge that opened the subscription, and
+ * nothing on the row itself distinguishes the two.
+ */
+export function settle_msgs(
+  row: IDonationSettled,
+  opts: { match: boolean }
+): IMsg[] {
+  const msgs: IMsg[] = [
+    msg("don-sttl-dist", row),
+    msg("don-sttl-receipt", row),
+  ];
+  if (!opts.match) return msgs;
+
+  // normalized only to decide whether a name was given at all: input that is
+  // punctuation alone leaves nothing to address a pack about, so it never
+  // becomes a queued message. junk that survives ("n/a") is left alone — the
+  // pack is addressed to the donor and asserts nothing about the employer, so
+  // the worst case is one email that names a company nobody works for.
+  const employer = row.from_company_name ?? "";
+  if (normalize_employer(employer)) {
+    msgs.push(msg("don-match", { id: row.id, from_company_name: employer }));
+  }
+  return msgs;
+}
 
 /**
  * decide the donation-row write + queue messages that result from a
@@ -56,6 +113,11 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
       ...i.prior,
       id: i.new_id,
       id_v1: undefined,
+      // the clone carries its own outcome, never the order row's. a refunded
+      // first charge does not make this month's cleared charge refunded, and a
+      // row that says so while still distributing has the donation and the
+      // dist disagreeing about the same money.
+      status: "settled",
       created_at: i.settlement.date,
       updated_at: i.settlement.date,
       settlement: i.settlement,
@@ -68,8 +130,17 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
       // no don-match: rebills are deliberately excluded from employer matching
       // (v1 policy — no monthly filing packs for subscribers). the first charge
       // of the subscription already produced one.
-      msgs: [msg("don-sttl-dist", row), msg("don-sttl-receipt", row)],
+      msgs: settle_msgs(row, { match: false }),
     };
+  }
+
+  // a redelivered settle event lands on the donation the refund already
+  // reversed. writing "settled" over it would contradict the dist row, which
+  // stays "refunded", and re-mail a receipt for money the donor got back.
+  // rebills are exempt: their prior is the order row, not the row being
+  // settled, so its status says nothing about the charge that just cleared.
+  if (is_reversed(i.prior.status)) {
+    return { op: "noop", order_id: i.order_id, msgs: [] };
   }
 
   const patch: IDonationUpdate = {
@@ -81,21 +152,10 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
   // settlement is always set above, so the merged row is IDonationSettled.
   const projected = { ...i.prior, ...patch } as IDonationSettled;
 
-  const msgs: IMsg[] = [
-    msg("don-sttl-dist", projected),
-    msg("don-sttl-receipt", projected),
-  ];
-  // normalized only to decide whether a name was given at all: input that is
-  // punctuation alone leaves nothing to address a pack about, so it never
-  // becomes a queued message. junk that survives ("n/a") is left alone — the
-  // pack is addressed to the donor and asserts nothing about the employer, so
-  // the worst case is one email that names a company nobody works for.
-  const employer = projected.from_company_name ?? "";
-  if (normalize_employer(employer)) {
-    msgs.push(
-      msg("don-match", { id: projected.id, from_company_name: employer })
-    );
-  }
-
-  return { op: "update", order_id: i.order_id, patch, msgs };
+  return {
+    op: "update",
+    order_id: i.order_id,
+    patch,
+    msgs: settle_msgs(projected, { match: true }),
+  };
 }
