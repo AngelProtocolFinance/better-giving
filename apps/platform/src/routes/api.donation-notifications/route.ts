@@ -1,10 +1,13 @@
 import { donation_transfer_notif } from "emails";
-import type { ActionFunction } from "react-router";
+import { type ActionFunction, href } from "react-router";
 import * as v from "valibot";
 import { get_session } from "#/.server/auth";
+import { to_fn } from "#/.server/donation-recipient";
 import { emails } from "@/constants/common";
+import { to_id } from "@/donations/schema";
 import { report_null } from "@/errors/report";
 import { send_email } from "$/email";
+import { base_url } from "$/env";
 
 const stocks_details = v.object({
   ticker: v.string(),
@@ -27,17 +30,23 @@ const DEDUP_TTL = 5 * 60 * 1000;
 // exported for tests
 export const seen = new Map<string, number>();
 
+// the caller names *which* recipient, never what the recipient is called or
+// where it lives. this route is unauthenticated by necessity — the stocks and
+// ira/qcd rails record no donation to bind a caller to, and anonymous donors
+// are real — so every field it does accept ends up in a mail to the whole team
+// under the platform's own sender. a caller-supplied `recipient_url` in that
+// mail is a phishing link wearing our provenance; a caller-supplied
+// `recipient_name` is a fabricated recipient. both are derivable from the id,
+// so neither is asked for.
 const schema = v.variant("type", [
   v.object({
     type: v.literal("stocks"),
-    recipient_name: v.string(),
-    recipient_url: v.string(),
+    recipient_id: to_id,
     details: stocks_details,
   }),
   v.object({
     type: v.literal("ira_qcd"),
-    recipient_name: v.string(),
-    recipient_url: v.string(),
+    recipient_id: to_id,
     details: ira_qcd_details,
   }),
 ]);
@@ -49,7 +58,20 @@ export const action: ActionFunction = async ({ request }) => {
     return Response.json({ ok: false }, { status: 400 });
   }
 
-  const key = JSON.stringify(result.output);
+  const data = result.output;
+
+  // resolves against the live record, so an id naming nothing — or naming a
+  // deactivated npo, which `to_fn` also refuses — never reaches an inbox. the
+  // team's notification is then about a recipient that exists.
+  const to = await to_fn(data.recipient_id);
+  if (!to) {
+    return Response.json({ ok: false }, { status: 400 });
+  }
+
+  // after the lookup, so the map records what was mailed rather than what was
+  // asked for — a rejected id must not hold a key that then suppresses the
+  // same notification once the recipient resolves.
+  const key = JSON.stringify(data);
   const now = Date.now();
   const last = seen.get(key);
   if (last && now - last < DEDUP_TTL) {
@@ -63,14 +85,18 @@ export const action: ActionFunction = async ({ request }) => {
   }
   seen.set(key, now);
 
+  const path =
+    to.to_type === "fund"
+      ? href("/fundraisers/:fund_id", { fund_id: to.to_id })
+      : href("/marketplace/:id", { id: to.to_id });
+
   const { user } = await get_session(request);
   const donor_email = user?.email ?? "Anonymous";
-  const data = result.output;
 
   const { node, subject } = donation_transfer_notif.template({
     type: data.type,
-    recipient_name: data.recipient_name,
-    recipient_url: data.recipient_url,
+    recipient_name: to.to_name,
+    recipient_url: `${base_url}${path}`,
     donor_email,
     details: data.details,
   });

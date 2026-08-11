@@ -69,20 +69,26 @@ export async function handle_don_receipt(don: IDonation) {
 
 /**
  * the mails are away and there is no unsend, so this write is the only thing
- * between the donor and a second tax receipt once the lease expires.
+ * between the donor and a repeat of them once the lease expires.
  *
  * it is retried rather than attempted once because the whole exposure is a
- * transient db blip: smtp offers no idempotency key to dedupe a re-send
- * against, so nothing downstream can absorb one. a db that refuses all three
- * attempts is one where the redelivery cannot claim the row either, which is
- * the failure that closes itself.
+ * transient db failure: smtp offers no idempotency key to dedupe a re-send
+ * against, so nothing downstream can absorb one, and there is no atomic step
+ * that covers "the mail left" and "the row knows" together. a db that refuses
+ * every attempt is one where the redelivery cannot claim the row either, which
+ * is the failure that closes itself.
+ *
+ * the span is sized against the failure this db actually has: the neon
+ * websocket pool drops connections and the next query opens a fresh one, so
+ * what has to be outlasted is a reconnect, not a blip. five attempts over
+ * ~3.7s, well inside the function's budget.
  *
  * it still throws when it cannot write. the lease is left held on the way out
  * — releasing here is what would hand the next delivery the right to re-mail
  * — so the row stays claimed until it expires and the report is what says a
  * receipt went out that the donation does not know about.
  */
-async function stamp_sent(donation_id: string, attempts = 3) {
+async function stamp_sent(donation_id: string, attempts = 5) {
   for (let i = 1; ; i++) {
     try {
       return await mark_receipt_sent(donation_id);
@@ -91,7 +97,9 @@ async function stamp_sent(donation_id: string, attempts = 3) {
         report_error(e, { donation_id, during: "receipt sent stamp" });
         throw e;
       }
-      await new Promise((r) => setTimeout(r, 200 * 2 ** (i - 1)));
+      await new Promise((r) =>
+        setTimeout(r, Math.min(250 * 2 ** (i - 1), 2e3))
+      );
     }
   }
 }

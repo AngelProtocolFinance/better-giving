@@ -283,7 +283,9 @@ describe("handle_don_receipt - a holder that never comes back", () => {
   });
 
   test("a blip on the sent stamp does not cost the donor a second receipt", async () => {
-    fail_stamp.times = 2;
+    // a neon pool reconnect, not a one-off: the retry span exists to outlast
+    // several failed attempts, so failing fewer than that proves nothing
+    fail_stamp.times = 4;
 
     // the mails are already away at this point. losing the write that records
     // it would leave the row claimed-but-not-sent, and the lease expiry would

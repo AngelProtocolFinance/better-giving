@@ -116,8 +116,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   type: "ira_qcd",
-                  recipient_name: name,
-                  recipient_url: url,
+                  recipient_id: id,
                   details: {
                     amount: String(total),
                     ...(props.custodian ? { custodian: props.custodian } : {}),

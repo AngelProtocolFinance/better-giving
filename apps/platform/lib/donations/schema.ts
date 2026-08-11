@@ -180,7 +180,7 @@ const program = v.object({
 
 export interface IProgram extends v.InferOutput<typeof program> {}
 
-const to_id = v.union([$int_gte1, uuid]);
+export const to_id = v.union([$int_gte1, uuid]);
 
 export const from_msg_max_length = 250;
 const tribute_notif = v.object({
