@@ -46,6 +46,20 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("USD")(0.004)).toBe(0);
   });
 
+  test("scaling is exact for every 2-decimal amount", () => {
+    // 0.29 * 100 is 28.999999999999996 in binary floating point, so truncating
+    // the product charged a cent short on roughly one amount in twenty
+    expect(to_atomic_c("USD")(0.29)).toBe(29);
+    expect(to_atomic_c("USD")(1.13)).toBe(113);
+    expect(to_atomic_c("USD")(2.01)).toBe(201);
+
+    const short: number[] = [];
+    for (let cents = 1; cents <= 20_000; cents++) {
+      if (to_atomic_c("USD")(cents / 100) !== cents) short.push(cents / 100);
+    }
+    expect(short).toEqual([]);
+  });
+
   test("handles large amounts", () => {
     expect(to_atomic_c("USD")(1000000)).toBe(100000000);
     expect(to_atomic_c("EUR")(999999.99)).toBe(99999999);
@@ -120,6 +134,33 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("HUF")(10.6)).toBe(1000); // rounds down to 10
     expect(to_atomic_c("TWD")(100.4)).toBe(10000); // rounds down to 100
     expect(to_atomic_c("TWD")(100.6)).toBe(10000); // rounds down to 100
+  });
+
+  test("handles three-decimal currencies", () => {
+    // the atomic unit is a thousandth, so 10.50 KWD is 10500 fils
+    expect(to_atomic_c("KWD")(10.5)).toBe(10500);
+    expect(to_atomic_c("TND")(2.92)).toBe(2920);
+    expect(to_atomic_c("BHD")(1)).toBe(1000);
+    expect(to_atomic_c("JOD")(100)).toBe(100000);
+    expect(to_atomic_c("OMR")(0.01)).toBe(10);
+  });
+
+  test("three-decimal amounts are always a multiple of 10", () => {
+    // stripe rejects one that is not
+    const uncharged: number[] = [];
+    for (const c of ["BHD", "JOD", "KWD", "OMR", "TND"]) {
+      for (let cents = 1; cents <= 5000; cents++) {
+        const atomic = to_atomic_c(c)(cents / 100);
+        if (atomic % 10 !== 0 || atomic !== cents * 10) uncharged.push(cents);
+      }
+    }
+    expect(uncharged).toEqual([]);
+  });
+
+  test("three-decimal currencies cannot charge a lone thousandth", () => {
+    // the amount has to end in 0, so the third decimal is dropped
+    expect(to_atomic_c("KWD")(10.509)).toBe(10500);
+    expect(to_atomic_c("KWD")(10.501)).toBe(10500);
   });
 });
 
