@@ -5,6 +5,7 @@ import {
   type CryptoDonationDetails,
   donation_recipient_init,
   type Init,
+  tip_val,
 } from "../../types";
 import { Form } from "./form";
 
@@ -221,5 +222,50 @@ describe("Crypto form: initial load", () => {
 
     //form submitted successfully, navigates to donor step
     await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+  });
+
+  test("turning the tip on submits a state that derives the tip", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+    don_set_mock.mockReset();
+
+    const fv: CryptoDonationDetails = {
+      token: { ...mock_tokens[0], amount: "100", min: 1, usdpu: 1 },
+      cover_processing_fee: false,
+      tip: "",
+      tip_format: "none",
+    };
+
+    const screen = await render(<Form fv={fv} type="crypto" step="form" />);
+
+    // native click on the switch's hidden input — the visible control sits
+    // below the fold of the form's own scroll container, which playwright's
+    // actionability check won't resolve
+    const sw = screen.getByRole("checkbox", {
+      name: /support free fundraising tools/i,
+    });
+    (sw.element() as HTMLInputElement).click();
+
+    await expect
+      .element(screen.getByRole("radio", { name: /15%/i }))
+      .toBeChecked();
+
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+
+    // the format carries the choice, `tip` stays empty, and the charge derives
+    const next = don_set_mock.mock.calls[0]![0]({});
+    const submitted: CryptoDonationDetails = next.crypto.fv;
+    expect(submitted.tip_format).toBe("15");
+    expect(submitted.tip).toBe("");
+    expect(
+      tip_val(submitted.tip_format, submitted.tip, +submitted.token.amount)
+    ).toBe(15);
   });
 });

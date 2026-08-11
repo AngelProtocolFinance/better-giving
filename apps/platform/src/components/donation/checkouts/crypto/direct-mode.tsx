@@ -18,11 +18,25 @@ type Props = {
   tipv: number;
 };
 
-const fetcher = async (intent: IDonationIntent) =>
-  fetch(href("/api/donation-intents"), {
+const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
+  const res = await fetch(href("/api/donation-intents"), {
     method: "POST",
     body: JSON.stringify(intent),
-  }).then<Payment>((res) => res.json());
+  });
+  if (res.ok) return res.json();
+
+  // the 400 the intent route answers a below-minimum donation with is
+  // deliberate — the client validates `base` against a cached minimum while
+  // the server checks `base + tip + fee_allowance` against a freshly fetched
+  // one, so an amount within a percent of the minimum can pass here and fail
+  // there.
+  //
+  // 4xx from this route is short donor-facing text — most usefully the token's
+  // actual minimum. 5xx is an unhandled throw whose body is a framework error
+  // page, so it keeps the generic message.
+  const txt = res.status < 500 ? (await res.text().catch(() => "")).trim() : "";
+  throw new Error(txt);
+};
 
 export function DirectMode({
   fv,
@@ -113,7 +127,10 @@ export function DirectMode({
         }}
         messages={{
           loading: <ContentLoader className="size-48 rounded" />,
-          error: "Failed to load donation address",
+          error:
+            error instanceof Error && error.message
+              ? error.message
+              : "Failed to load donation address",
         }}
       >
         {(payment) => (
