@@ -2,12 +2,12 @@ import { describe, expect, test, vi } from "vitest";
 import type { TTipFormat } from "../types";
 import { tip_handlers } from "./tip-handlers";
 
-const setup = (opts?: { amount?: number }) => {
+const setup = (opts?: { amount?: number; format?: TTipFormat }) => {
   const amount = opts?.amount ?? 100;
   const onChange = vi.fn();
   const set_value = vi.fn();
   const set_focus = vi.fn();
-  const format = { value: "none" as TTipFormat, onChange };
+  const format = { value: opts?.format ?? ("none" as TTipFormat), onChange };
 
   const handlers = tip_handlers({
     format,
@@ -20,16 +20,15 @@ const setup = (opts?: { amount?: number }) => {
 };
 
 describe("tip_handlers", () => {
-  test("switching the tip on stores the string as well as the format", () => {
+  test("switching the tip on selects a percentage and leaves the string empty", () => {
     const t = setup();
 
     t.checked_changed(true);
 
-    // the bug this exists to prevent: format moved, string left empty. every
-    // other path wrote both, so `fv.tip` read as "no tip" on the default
-    // tipping path while `tip_val` derived and charged 15%.
+    // "" is the correct value on a percentage format, not a missing one:
+    // `tip_val` derives `pct * amount` and never reads the string.
     expect(t.onChange).toHaveBeenCalledWith("15");
-    expect(t.set_value).toHaveBeenCalledWith("15.00");
+    expect(t.set_value).toHaveBeenCalledWith("");
   });
 
   test("switching the tip off clears both", () => {
@@ -41,13 +40,15 @@ describe("tip_handlers", () => {
     expect(t.set_value).toHaveBeenCalledWith("");
   });
 
-  test("picking a percentage stores that percentage of the amount", async () => {
+  test("picking a percentage clears the string rather than storing one", async () => {
     const t = setup();
 
     await t.tip_format_changed("20");
 
+    // a percentage-derived string stored here is unreadable by construction
+    // and goes stale as soon as the amount changes — nothing recomputes it.
     expect(t.onChange).toHaveBeenCalledWith("20");
-    expect(t.set_value).toHaveBeenCalledWith("20.00");
+    expect(t.set_value).toHaveBeenCalledWith("");
   });
 
   test("picking none clears the string", async () => {
@@ -58,24 +59,33 @@ describe("tip_handlers", () => {
     expect(t.set_value).toHaveBeenCalledWith("");
   });
 
-  test("picking custom focuses the field and leaves the string alone", async () => {
-    const t = setup();
+  test("picking custom seeds the field from the percentage being left", async () => {
+    const t = setup({ format: "20" });
 
     await t.tip_format_changed("custom");
 
-    // the donor is about to type over it; clearing first makes the field flash
+    // computed at the moment the string starts being read, so it reflects the
+    // amount as it stands now
+    expect(t.set_value).toHaveBeenCalledWith("20.00");
     expect(t.set_focus).toHaveBeenCalledOnce();
-    expect(t.set_value).not.toHaveBeenCalled();
   });
 
-  test("switching on before an amount is entered stores nothing", () => {
-    const t = setup({ amount: 0 });
+  test("picking custom from no tip at all seeds nothing", async () => {
+    const t = setup({ format: "none" });
 
-    t.checked_changed(true);
+    await t.tip_format_changed("custom");
 
-    // consistent, not desynced: there is no amount to take a percentage of, so
-    // there is no tip for either field to describe yet
-    expect(t.onChange).toHaveBeenCalledWith("15");
     expect(t.set_value).toHaveBeenCalledWith("");
+    expect(t.set_focus).toHaveBeenCalledOnce();
+  });
+
+  test("picking custom before an amount is entered seeds nothing", async () => {
+    const t = setup({ amount: 0, format: "15" });
+
+    await t.tip_format_changed("custom");
+
+    // there is no amount to take a percentage of, so there is nothing to seed
+    expect(t.set_value).toHaveBeenCalledWith("");
+    expect(t.set_focus).toHaveBeenCalledOnce();
   });
 });

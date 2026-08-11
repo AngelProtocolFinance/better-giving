@@ -5,6 +5,7 @@ import {
   type CryptoDonationDetails,
   donation_recipient_init,
   type Init,
+  tip_val,
 } from "../../types";
 import { Form } from "./form";
 
@@ -223,7 +224,7 @@ describe("Crypto form: initial load", () => {
     await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
   });
 
-  test("turning the tip on carries a tip string into the submitted form", async () => {
+  test("turning the tip on submits a state that derives the tip", async () => {
     const init: Init = {
       base_url: "",
       source: "bg-marketplace",
@@ -258,11 +259,14 @@ describe("Crypto form: initial load", () => {
     await screen.getByRole("button", { name: /continue/i }).click();
     await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
 
-    // the switch is the only path that used to move the format without the
-    // string, so a reader going through `fv.tip` rather than `tip_val` saw no
-    // tip while 15% was being charged
+    // the switch and the radios now reach the same state for the same choice —
+    // the format carries it, `tip` stays empty, and the charge derives
     const next = don_set_mock.mock.calls[0]![0]({});
-    expect(next.crypto.fv.tip_format).toBe("15");
-    expect(+next.crypto.fv.tip).toBe(15);
+    const submitted: CryptoDonationDetails = next.crypto.fv;
+    expect(submitted.tip_format).toBe("15");
+    expect(submitted.tip).toBe("");
+    expect(
+      tip_val(submitted.tip_format, submitted.tip, +submitted.token.amount)
+    ).toBe(15);
   });
 });
