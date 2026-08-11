@@ -7,7 +7,8 @@ import { useEffect, useRef } from "react";
 import { href } from "react-router";
 import { paypal_client_id, stage } from "#/constants/env";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
-import { report_error } from "@/errors/report";
+import { report_degraded, report_error } from "@/errors/report";
+import { retry_once } from "../common/retry";
 import { use_donation } from "../context";
 import type { IPayPalExpress } from "./stripe/use-rhf";
 
@@ -99,14 +100,20 @@ export function Paypal({
     let cleanup: (() => void) | null = null;
 
     const init = async () => {
-      const sdk = await get_sdk();
+      // get_sdk clears its cache on failure, so the second call re-runs the
+      // whole chain — chunk import, script tag, createInstance — rather than
+      // handing back the first attempt's rejection. same for loadCoreSdkScript,
+      // which only reuses a <script> still marked pending.
+      const sdk = await retry_once(get_sdk);
       if (!mounted || !container_ref.current) return;
 
       // v6 eligibility check replaces v5 enable/disable-funding URL params
-      const methods = await sdk.findEligibleMethods({
-        currencyCode: currency,
-        paymentFlow: is_recurring ? "RECURRING_PAYMENT" : "ONE_TIME_PAYMENT",
-      });
+      const methods = await retry_once(() =>
+        sdk.findEligibleMethods({
+          currencyCode: currency,
+          paymentFlow: is_recurring ? "RECURRING_PAYMENT" : "ONE_TIME_PAYMENT",
+        })
+      );
       if (!mounted || !container_ref.current) return;
 
       const pp_eligible = methods.isEligible("paypal");
@@ -314,8 +321,11 @@ export function Paypal({
 
     init().catch((err) => {
       // loadCoreSdkScript / createInstance / findEligibleMethods can fail for
-      // CSP / extension / network reasons. surface a friendly fallback.
-      report_error(err);
+      // CSP / extension / network reasons. surface a friendly fallback. the sdk
+      // discards the upstream cause, so a donor who can't reach paypal.com and
+      // a paypal incident are indistinguishable here — degraded either way, and
+      // an incident shows up as a rate change rather than one loud event.
+      report_degraded(err);
       if (mounted) {
         on_unavailable_ref.current(
           "PayPal failed to load — please try another payment method."

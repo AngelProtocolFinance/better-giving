@@ -1,7 +1,14 @@
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { stripe_pk } from "#/constants/env";
+import { retry_once } from "./retry";
 
-export const stripe_promise = loadStripe(stripe_pk);
+/**
+ * asking twice is safe: stripe-js clears its own memoized promise when the
+ * script errors and drops the failed <script> before re-injecting, so the
+ * second call is a real second fetch rather than the first one's cached
+ * rejection.
+ */
+export const stripe_promise = retry_once(() => loadStripe(stripe_pk));
 
 export type TStripeLoad = { ok: true } | { ok: false; err: unknown };
 
