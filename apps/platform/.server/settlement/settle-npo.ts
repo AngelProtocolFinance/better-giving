@@ -1,3 +1,4 @@
+import { report_error } from "@/errors/report";
 import { calc_settlement_plan } from "@/settlement/plan";
 import type { IInput } from "@/types/donation-dist";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
@@ -16,7 +17,32 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   const npo = await npo_get(+i.id, db);
   if (!npo) throw new Error(`npo:${i.id} not found`);
   if (npo.active === false) {
-    console.warn(`npo:${i.id} inactive, skipping settlement`);
+    // the destinations are resolved before the transaction opens and this
+    // re-reads inside it, so a member that deactivates in that gap lands here.
+    // the donor's money is already banked; the parent donation records the full
+    // net while the distributions behind it sum to less, and this share is
+    // settled to nobody.
+    //
+    // the decision is to leave it undistributed rather than throw. throwing
+    // would roll the transaction back and 500 the queue handler, which retries
+    // — and the recipient is not coming back inside a retry window, so the gift
+    // would sit in a redelivery loop instead of reaching the other members of
+    // the fund.
+    //
+    // nor does the share need moving anywhere: it is already sitting in better
+    // giving's own stripe balance, which is where an undistributed share stays.
+    // so there is nothing to book and no ledger to invent — the only thing that
+    // was missing is someone knowing, which is why this reports rather than
+    // warns. re-granting it is a manual decision about a recipient that no
+    // longer exists, and that is not a decision this path can make.
+    //
+    // unchanged and separate: an admin picking an inactive npo directly in the
+    // settlement form reaches the same place, and wants refusing at the
+    // selector instead of arriving here.
+    report_error(
+      new Error(`npo:${i.id} inactive at settlement, share not distributed`),
+      { npo_id: i.id, donation_id: i.prnt.id, during: "settle_npo" }
+    );
     return { msgs: [], txs: [] };
   }
 
