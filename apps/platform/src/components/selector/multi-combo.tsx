@@ -7,10 +7,12 @@ import {
   type ReactNode,
   type Ref,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { unpack } from "#/helpers/unpack";
 import { DrawerIcon } from "../icon";
+import { use_dialog_container } from "../use-dialog-container";
 
 import { styles } from "./constants";
 import { FocusableInput } from "./focusable-input";
@@ -36,6 +38,8 @@ export function MultiCombo<T extends string>({
   ...props
 }: Props<T> & { ref?: Ref<HTMLInputElement> }) {
   const cls = unpack(props.classes);
+  const ctrl_ref = useRef<HTMLDivElement>(null);
+  const dialog = use_dialog_container(ctrl_ref);
   const { contains } = useFilter({ sensitivity: "base" });
   const [query, set_query] = useState("");
   const [is_open, set_is_open] = useState(false);
@@ -71,6 +75,7 @@ export function MultiCombo<T extends string>({
         <div className={`${cls.container}`}>
           <FocusableInput ref={ref} />
           <Combobox.Control
+            ref={ctrl_ref}
             aria-invalid={!!props.error}
             aria-disabled={props.disabled}
             className={`${cls.button} ${styles.selectorButton} relative flex-wrap gap-2 focus-within:outline-2 outline-ring aria-invalid:border-destructive p-1 pr-10`}
@@ -103,7 +108,7 @@ export function MultiCombo<T extends string>({
               <DrawerIcon is_open={is_open} size={20} className="" />
             </Combobox.Trigger>
           </Combobox.Control>
-          <Portal>
+          <Portal container={dialog}>
             <Combobox.Positioner>
               <Combobox.Content
                 className={`${cls.options} z-50 rounded border bg-popover text-popover-fg w-(--reference-width) max-h-40 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-ring scrollbar-track-border`}

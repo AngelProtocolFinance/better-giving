@@ -12,6 +12,7 @@ import {
 } from "react";
 import { unpack } from "#/helpers/unpack";
 import { DrawerIcon } from "../icon";
+import { use_dialog_container } from "../use-dialog-container";
 import type { BaseProps } from "./types";
 
 export interface Props<T extends string> extends BaseProps {
@@ -41,6 +42,8 @@ export function Select<T extends string>({
     [props.options]
   );
 
+  const dialog = use_dialog_container(btn_ref);
+
   return (
     <ArkSelect.Root
       collection={collection}
@@ -53,6 +56,10 @@ export function Select<T extends string>({
         if (v != null) props.onChange(v as T);
       }}
       positioning={{ placement: "bottom-start", gutter: 8 }}
+      // when the popup does portal to body, mounting it on open keeps it out of
+      // the aria-hidden sweep a dialog runs over body children as it opens
+      lazyMount
+      unmountOnExit
       className={cls.container}
     >
       <ArkSelect.Label
@@ -82,10 +89,10 @@ export function Select<T extends string>({
           </ArkSelect.Context>
         </ArkSelect.Trigger>
       </ArkSelect.Control>
-      <Portal>
+      <Portal container={dialog}>
         <ArkSelect.Positioner>
           <ArkSelect.Content
-            className={`${cls.options} rounded-xs border bg-popover text-popover-fg w-(--reference-width) max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out`}
+            className={`${cls.options} rounded-xs border bg-popover text-popover-fg w-(--reference-width) max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border z-50 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out`}
           >
             {props.options.map((v) => (
               <ArkSelect.Item

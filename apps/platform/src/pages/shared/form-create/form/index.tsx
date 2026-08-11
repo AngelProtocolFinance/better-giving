@@ -73,7 +73,9 @@ export function Form({ classes = "", ...p }: Props) {
         <Select
           label="Select program"
           required={false}
-          value={prog.value ?? ""}
+          // "" is the empty form value, not an option — keep the placeholder
+          value={prog.value || undefined}
+          placeholder="Select a program"
           onChange={prog.onChange}
           options={p.programs.map((x) => x.id)}
           error={errors.program?.message}

@@ -181,6 +181,30 @@ describe("user creates donation form", () => {
     await expect.element(screen.getByText(/select program/i)).toBeVisible();
   });
 
+  it("program options are visible and selectable inside the dialog", async () => {
+    const npo = await seed_npo({ name: "Org with Programs" });
+    await seed_program(npo.id, "Youth Initiative");
+
+    const screen = await render_page(`?npo_id=${npo.id}`);
+
+    // dialog overlay intercepts playwright clicks; dispatch directly
+    const trigger = screen
+      .getByRole("combobox", { name: /select program/i })
+      .element() as HTMLButtonElement;
+    trigger.focus();
+    trigger.click();
+
+    const opt = screen.getByRole("option", { name: "Youth Initiative" });
+    // popup must mount inside the dialog — portaled to body it is aria-hidden
+    // by the dialog and painted under its backdrop
+    await expect.element(opt).toBeVisible();
+    await opt.click();
+
+    await expect
+      .element(screen.getByRole("combobox", { name: /select program/i }))
+      .toHaveTextContent("Youth Initiative");
+  });
+
   it("hides program selector when npo has no programs", async () => {
     await seed_npo({ name: "Org without Programs" });
 
