@@ -190,6 +190,17 @@ const no_destinations_msg = (gift: {
 const not_found_msg = (id: string) => `Donation ${id} not found`;
 
 /**
+ * read from both steps, for the same reason `no_destinations_msg` is.
+ *
+ * the selector only ever lists active nonprofits, so one reaching here
+ * deactivated while the form was open. it has to be refused rather than passed
+ * on: `settle_npo` treats an inactive nonprofit as a no-op, so the settlement
+ * would record the money against nobody and report success.
+ */
+const inactive_npo_msg = (npo: { name: string }) =>
+  `${npo.name} is no longer active — there is nowhere to settle this`;
+
+/**
  * a fund gift already names its recipient, so a nonprofit picked beside it is a
  * mis-keyed form — the same reading the npo case takes of a nonprofit that
  * disagrees with the gift's. dropping it instead would leave that nonprofit's
@@ -270,6 +281,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   const nav = await nav_ltd();
   const npo = await npo_get(npo_id);
   if (!npo) return none("NPO not found");
+  if (npo.active === false) return none(inactive_npo_msg(npo));
 
   const input = build_input(
     npo_id,
@@ -359,6 +371,13 @@ export const action = async ({ request }: Route.ActionArgs) => {
   const npo = npo_id == null ? undefined : await npo_get(npo_id);
   if (npo_id != null && !npo) {
     return { ok: false as const, error: "NPO not found" };
+  }
+  // only the directly picked nonprofit needs this. a gift's recipient goes
+  // through `partition_destinations`, which drops inactive npos and fund
+  // members alike, and the empty result it leaves is refused below with the
+  // sentence that explains the match.
+  if (!gift && npo?.active === false) {
+    return { ok: false as const, error: inactive_npo_msg(npo) };
   }
 
   const now = new Date().toISOString();
