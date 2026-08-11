@@ -30,6 +30,9 @@ const make_inputs = (overrides: Partial<RefundInputs> = {}): RefundInputs => ({
 
 const make_ctx = (overrides: Partial<RefundCtx> = {}): RefundCtx => ({
   now: "2026-06-22T00:00:00.000Z",
+  // deliberately not `now` — the nav log's stamp is minted separately so two
+  // distributions of one fund refund can't collide on the nav_logs primary key
+  nav_date: "2026-06-22T00:00:00.001Z",
   form_id: null,
   program_id: null,
   ...overrides,

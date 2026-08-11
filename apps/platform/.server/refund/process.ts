@@ -2,6 +2,7 @@ import { donation_match_refund_notif as dmr } from "emails";
 import { emails } from "@/constants/common";
 import { report_error } from "@/errors/report";
 import { to_amount } from "@/helpers/email";
+import { nav_log_date } from "@/nav";
 import { stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
@@ -121,6 +122,7 @@ export async function load_refund_plan(
   );
   const plan_ctx: RefundCtx = {
     now: new Date().toISOString(),
+    nav_date: nav_log_date(),
     form_id: ctx.form_id,
     program_id: ctx.program_id,
   };

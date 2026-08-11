@@ -8,6 +8,7 @@ import type {
   IToSettings,
   TToType,
 } from "../donations";
+import { nav_log_date } from "../nav/log-date";
 import type { IPayout } from "../payouts";
 import { msg } from "../queue";
 import type { IMsg } from "../queue/types";
@@ -281,10 +282,12 @@ export function calc_settlement_plan(
       const purchased_units = net_alloc.lock / i.nav_price;
 
       // new investments are allocated to cash portion and rebalanced later.
-      // load-bearing: distinct per call so batch settlements get distinct ordering timestamps
+      // load-bearing: distinct per call so batch settlements get distinct
+      // ordering timestamps — `new Date()` could not actually promise that, a
+      // fund's members being stamped back to back inside one transaction
       nav_log_entry = {
         reason: `npo:${don.to_id} donation allocation to lock`,
-        date: new Date().toISOString(),
+        date: nav_log_date(),
         cash_delta: net_alloc.lock,
         holder_deltas: [{ npo_id: ctx.id, units_delta: purchased_units }],
       };

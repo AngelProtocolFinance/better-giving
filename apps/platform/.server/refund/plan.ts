@@ -34,6 +34,13 @@ export interface RefundInputs {
 
 export interface RefundCtx {
   now: string;
+  /**
+   * separate from `now` because `nav_logs.date` is that table's primary key,
+   * and a fund refund plans one distribution at a time — two of them reaching
+   * `new Date()` inside the same millisecond would collide. the caller mints
+   * this through `nav_log_date`; everything else here can share `now`.
+   */
+  nav_date: string;
   form_id: string | null;
   program_id: string | null;
 }
@@ -89,7 +96,7 @@ export function calc_refund_plan(
   ctx: RefundCtx
 ): RefundPlan {
   const { dist, payout, commission, rev_log_ids, bal, nav, sub_id } = inputs;
-  const { now, form_id, program_id } = ctx;
+  const { now, nav_date, form_id, program_id } = ctx;
 
   // derive balance deltas from allocation percentages
   const bd = {
@@ -266,7 +273,7 @@ export function calc_refund_plan(
         kind: "nav_log",
         entry: {
           reason: `refund npo:${dist.to_id}`,
-          date: now,
+          date: nav_date,
           cash_delta: -bd.lock,
           holder_deltas: [
             { npo_id: dist.to_id, units_delta: -refund_lock_units },
