@@ -122,8 +122,7 @@ export function Stocks(props: StocksDonationDetails) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   type: "stocks",
-                  recipient_name: name,
-                  recipient_url: url,
+                  recipient_id: id,
                   details: {
                     ticker: props.ticker.symbol,
                     shares: String(shares),
