@@ -17,6 +17,7 @@ import { CpfToggle } from "../../common/cpf-toggle";
 import { Incrementers } from "../../common/incrementers";
 import { MethodBenefits } from "../../common/method-benefits";
 import { TipField } from "../../common/tip-field";
+import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
 import { type TMethodState, to_step } from "../../types";
 import { use_rhf } from "./use-rhf";
@@ -49,6 +50,17 @@ export function Form(props: TMethodState<"crypto">) {
     getValues,
     register,
   } = use_rhf(props.fv);
+
+  const tip = tip_handlers({
+    format: tip_format,
+    set_value: (v) => setValue("tip", v),
+    set_focus: () => setFocus("tip"),
+    str: (pct) => {
+      const tkn = getValues("token");
+      if (!tkn.amount) return "";
+      return ru_vdec((pct / 100) * +tkn.amount, tkn.usdpu, tkn.precision);
+    },
+  });
 
   const combobox = (
     <TokenCombobox
@@ -149,31 +161,9 @@ export function Form(props: TMethodState<"crypto">) {
           classes="mt-2"
           nudge={!!token.value.amount}
           checked={tip_format.value !== "none"}
-          checked_changed={(checked) => {
-            if (checked) {
-              tip_format.onChange("15");
-            } else {
-              tip_format.onChange("none");
-              setValue("tip", "");
-            }
-          }}
+          checked_changed={tip.checked_changed}
           tip_format={tip_format.value}
-          tip_format_changed={async (format) => {
-            tip_format.onChange(format);
-            if (format === "none") {
-              return setValue("tip", "");
-            }
-            if (format === "custom") {
-              await new Promise((r) => setTimeout(r, 50));
-              return setFocus("tip");
-            }
-
-            const tkn = getValues("token");
-            if (!tkn.amount) return setValue("tip", "");
-
-            const v = (+format / 100) * +tkn.amount;
-            setValue("tip", ru_vdec(v, tkn.usdpu, tkn.precision));
-          }}
+          tip_format_changed={tip.tip_format_changed}
           custom_tip={
             tip_format.value === "custom" ? (
               <div className="relative w-full flex items-baseline">

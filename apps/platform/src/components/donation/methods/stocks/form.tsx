@@ -18,6 +18,7 @@ import {
 import { init_ticker_option } from "../../common/constants";
 import { MethodBenefits } from "../../common/method-benefits";
 import { TipField } from "../../common/tip-field";
+import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
 import {
   type StocksDonationDetails as FV,
@@ -70,6 +71,17 @@ export function Form(props: TMethodState<"stocks">) {
   const { field: tip_format } = useController({
     name: "tip_format",
     control,
+  });
+
+  const tip = tip_handlers({
+    format: tip_format,
+    set_value: (v) => setValue("tip", v),
+    set_focus: () => setFocus("tip"),
+    str: (pct) => {
+      const amnt = getValues("ticker.amount");
+      if (!amnt) return "";
+      return ru_vdec((pct / 100) * +amnt, 1);
+    },
   });
 
   const combobox = (
@@ -145,31 +157,9 @@ export function Form(props: TMethodState<"stocks">) {
           classes="mt-2"
           nudge={!!ticker.value.amount}
           checked={tip_format.value !== "none"}
-          checked_changed={(checked) => {
-            if (checked) {
-              tip_format.onChange("15");
-            } else {
-              tip_format.onChange("none");
-              setValue("tip", "");
-            }
-          }}
+          checked_changed={tip.checked_changed}
           tip_format={tip_format.value}
-          tip_format_changed={async (format) => {
-            tip_format.onChange(format);
-            if (format === "none") {
-              return setValue("tip", "");
-            }
-            if (format === "custom") {
-              await new Promise((r) => setTimeout(r, 50));
-              return setFocus("tip");
-            }
-
-            const amnt = getValues("ticker.amount");
-            if (!amnt) return setValue("tip", "");
-
-            const v = (+format / 100) * +amnt;
-            setValue("tip", ru_vdec(v, 1));
-          }}
+          tip_format_changed={tip.tip_format_changed}
           custom_tip={
             tip_format.value === "custom" ? (
               <div className="relative w-full flex items-baseline">
