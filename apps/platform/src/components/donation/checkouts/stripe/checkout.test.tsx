@@ -1,13 +1,32 @@
 import type { Stripe, StripeError } from "@stripe/stripe-js";
 import { type ReactNode, useEffect } from "react";
 import { createRoutesStub } from "react-router";
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 import { render } from "vitest-browser-react";
 import { don_intents_error_handler } from "#/services/api/mock";
 import { mswWorker } from "#/setup-tests-browser";
 import type { Config } from "../../types";
 import { type StripeDonationDetails, tip_fv_init } from "../../types";
 import { StripeCheckout as Checkout } from "./checkout";
+
+// what reached sentry, in order. `error_prompt` funnels everything through
+// `report_error`, so this is the only way to tell a paged defect apart from a
+// prompt the donor simply reads and corrects.
+const reported = vi.hoisted(() => [] as unknown[]);
+vi.mock("@/errors/report", async (orig) => ({
+  ...(await orig<typeof import("@/errors/report")>()),
+  report_error: (e: unknown) => {
+    reported.push(e);
+  },
+}));
 
 const don_set_mock = vi.hoisted(() => vi.fn());
 const don_mock = vi.hoisted(() => ({
@@ -72,6 +91,9 @@ describe("stripe checkout", () => {
   afterAll(() => {
     console.error = og_error;
   });
+  afterEach(() => {
+    reported.length = 0;
+  });
 
   test("failed to get client secret", async () => {
     // suppress jsdom's reportException noise from error boundary
@@ -131,6 +153,31 @@ describe("stripe checkout", () => {
     await donateBtn.click();
     const errorModal = screen.getByRole("dialog");
     await expect.element(errorModal).toHaveTextContent(/invalid card/i);
+
+    // a wrong cvc is the donor's to fix, not ours. it must not page.
+    expect(reported).toHaveLength(0);
+  });
+
+  test("a rejected amount is the donor's to fix too", async () => {
+    const Stub = stb(<Checkout {...fv} tip_format="20" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    const err: StripeError = {
+      type: "validation_error",
+      message: "Amount must be at least $1.00",
+    };
+
+    if (fv.frequency === "one-time") {
+      confirm_payment_mock.mockResolvedValueOnce({ error: err });
+    } else confirm_setup_mock.mockResolvedValueOnce({ error: err });
+
+    await donateBtn.click();
+    const errorModal = screen.getByRole("dialog");
+    await expect.element(errorModal).toHaveTextContent(/must be at least/i);
+
+    expect(reported).toHaveLength(0);
   });
 
   test("unexpected error", async () => {
@@ -154,6 +201,10 @@ describe("stripe checkout", () => {
     const genericError =
       "An unexpected error occurred while processing payment and has been reported. Please get in touch with hi@better.giving if the problem persists.";
     await expect.element(errorModal).toHaveTextContent(genericError);
+
+    // the other half of the rule — quieting card errors must not quiet these.
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBe(err);
   });
 
   test("form_id included in intent", async () => {
