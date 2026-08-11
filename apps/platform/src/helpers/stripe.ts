@@ -23,6 +23,20 @@ const spec: Record<string, [number, number]> = {
   HUF: [0, 2],
   TWD: [0, 2],
   UGX: [0, 2],
+  /**
+   * three-decimal currencies, whose atomic unit is 1/1000.
+   * https://docs.stripe.com/currencies#three-decimal
+   *
+   * stripe additionally requires the amount to be a multiple of 10 — the last
+   * digit must be 0 — so the precision is held at 2 and scaled by 10^3, which
+   * makes that true by construction instead of by a rounding rule. the donor
+   * loses nothing: a millime is worth about a thousandth of a dollar.
+   */
+  BHD: [2, 3],
+  JOD: [2, 3],
+  KWD: [2, 3],
+  OMR: [2, 3],
+  TND: [2, 3],
 };
 
 export const to_atomic = (
@@ -30,7 +44,12 @@ export const to_atomic = (
   [precision, atomic_units]: [number, number]
 ): number => {
   const rounded = rd2num(amount, precision);
-  return Math.trunc(rounded * 10 ** atomic_units);
+  // scale by rounding, not truncating. `rd2num` has already cut the amount to
+  // `precision` decimals and every spec scales by at least that many places, so
+  // the exact product is a whole number of atomic units and rounding recovers
+  // it. truncating instead keeps whatever the binary multiply lost: 0.29 * 100
+  // is 28.999999999999996, which trunc reads as 28 cents.
+  return Math.round(rounded * 10 ** atomic_units);
 };
 
 export const to_atomic_c = (currency: string) => {
