@@ -38,10 +38,16 @@ export interface IContentExternal
    */
   on_unavailable?: (msg: string) => void;
   /**
+   * the wallet charge went through. raised the moment it does, before the trip
+   * to the thank-you page is even attempted — that trip can take up to nine
+   * seconds to fail, and the rail may not be able to take a second payment
+   * during any of it.
+   */
+  on_paid?: (dest: IDonationDest) => void;
+  /**
    * the wallet payment went through but the browser never left for the
    * thank-you page. not an error — the money moved — so it's the caller's job
-   * to say so, hand the donor the destination this passes back, and stop
-   * offering to take the payment again.
+   * to say so and hand the donor the destination this passes back.
    */
   on_stuck?: (dest: IDonationDest) => void;
 }
@@ -53,6 +59,7 @@ export function Content({
   on_click,
   on_error,
   on_unavailable,
+  on_paid,
   on_stuck,
   ...x
 }: IContent) {
@@ -160,6 +167,12 @@ export function Content({
         ev.paymentFailed({ reason: "fail" });
         return on_error(error.message || GENERIC_ERROR_MESSAGE);
       }
+
+      // charged. said before the redirect is attempted, not after it gives up:
+      // the sheet closes when this handler returns and the donor is back on a
+      // form that still looks untouched, which is exactly when they reach for
+      // the button again.
+      on_paid?.(dest);
 
       redirect({
         dest,

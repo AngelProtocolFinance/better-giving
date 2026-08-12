@@ -8,12 +8,17 @@ import { Content, type IContentExternal, LOAD_FAILED } from "./content";
 
 interface Props extends IStripeExpress, IContentExternal {
   validate: () => Promise<boolean>;
+  /** this donor has already been charged on one of the rails. the element
+   * stays mounted — tearing it down while its sheet may still be open is the
+   * failure this whole flow exists to avoid — but it stops opening. */
+  paid?: boolean;
 }
 
 export function ExpressCheckout({
   classes = "",
   items,
   validate,
+  paid,
   ...p
 }: Props) {
   const c = p.currency.toLowerCase();
@@ -49,6 +54,11 @@ export function ExpressCheckout({
       <Content
         classes={classes}
         on_click={async ({ resolve, reject }) => {
+          // the sheet only opens on `resolve`, so this is where a second
+          // payment is refused — no dom trick, and nothing already open is
+          // touched.
+          if (paid) return reject();
+
           const valid = await validate();
           if (!valid) return reject();
 
