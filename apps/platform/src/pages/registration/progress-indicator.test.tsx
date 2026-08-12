@@ -24,6 +24,11 @@ async function render_at(
       .map((el) => el.textContent?.trim())
       .filter(Boolean),
     current: screen.container.querySelector("[data-curr]")?.textContent?.trim(),
+    // rows are display:none below md, so read the mark off the dom rather
+    // than off visibility — the shading is what it drives
+    complete: [...screen.container.querySelectorAll("[data-part='item']")].map(
+      (el) => el.hasAttribute("data-complete")
+    ),
   };
 }
 
@@ -76,5 +81,34 @@ describe("ProgressIndicator", () => {
     expect((await render_at(1, "501c3", 1)).current).toContain(
       "Contact Details"
     );
+  });
+
+  it("shades the steps behind the current one", async () => {
+    expect((await render_at(2, "501c3", 2)).complete).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it("shades the agreement once an international org is past it", async () => {
+    expect((await render_at(4, "other", 4)).complete).toEqual([
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  // the recorded step can sit ahead of the page being viewed
+  it("keeps later steps shaded when an applicant walks back", async () => {
+    expect((await render_at(2, "501c3", 4)).complete).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
   });
 });
