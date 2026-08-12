@@ -87,6 +87,21 @@ describe("stripe payment_intent.payment_failed → donor email", () => {
     expect(send_email_mock).toHaveBeenCalledOnce();
   });
 
+  // a name column that is present but blank, and one that leads with
+  // whitespace: both used to reach the template as "Hi ,"
+  it.each([
+    ["", "Donor"],
+    ["   ", "Donor"],
+    ["  Ada Lovelace", "Ada"],
+  ])("greets %j as %j", async (from_name, expected) => {
+    donation_get_mock.mockResolvedValue(order({ from_name }));
+
+    await handle_intent_failed(failed({ order_id: ORDER_ID }));
+
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.donor_first_name).toBe(expected);
+  });
+
   it("takes the order id off the invoice when a subscription rebill fails", async () => {
     invoice_payments_list_mock.mockResolvedValue(
       subs_invoice({ order_id: ORDER_ID })

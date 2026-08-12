@@ -37,7 +37,8 @@ export async function handle_intent_failed(
 
   const x: email.IData = {
     recipient_name: order.to_name,
-    donor_first_name: order.from_name?.split(" ")[0] ?? "Donor",
+    // `??` would let a blank or space-led name through as an empty greeting
+    donor_first_name: order.from_name?.trim().split(/\s+/)[0] || "Donor",
     error_message: `Payment Intent ID ${data.object.id} failed due to: ${
       err?.message ?? "Stripe error"
     }`,

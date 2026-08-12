@@ -20,7 +20,7 @@ export async function handle_setup_intent_failed(
 
   const x: email.IData = {
     recipient_name: order.to_name,
-    donor_first_name: order.from_name?.split(" ")[0] ?? "Donor",
+    donor_first_name: order.from_name?.trim().split(/\s+/)[0] || "Donor",
     error_message: message,
   };
   const { node, subject } = email.template(x);
