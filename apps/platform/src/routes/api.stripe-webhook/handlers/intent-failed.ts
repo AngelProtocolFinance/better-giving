@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import type { IMetadata } from "@/stripe";
 import { send_email } from "$/email";
 import { stripe } from "$/kit/stripe";
+import { donation_get } from "$/pg/queries/donation";
 
 /** sends an email to donor as to why the payment failed */
 export async function handle_intent_failed(
@@ -27,14 +28,22 @@ export async function handle_intent_failed(
     return pi.metadata as unknown as IMetadata;
   })(data.object);
 
+  // stripe metadata carries the order id and nothing else — the donor name,
+  // donor email and recipient name it used to hold are no longer written
+  // (api.donation-intents/stripe/payment-intent.ts). the order row is where
+  // they live now, same as the setup-intent-failed sibling.
+  const order = await donation_get(meta.order_id);
+  if (!order) throw new Error(`Order ${meta.order_id} not found`);
+
   const x: email.IData = {
-    recipient_name: meta.charityName,
-    donor_first_name: meta.fullName.split(" ")[0],
+    recipient_name: order.to_name,
+    // `??` would let a blank or space-led name through as an empty greeting
+    donor_first_name: order.from_name?.trim().split(/\s+/)[0] || "Donor",
     error_message: `Payment Intent ID ${data.object.id} failed due to: ${
       err?.message ?? "Stripe error"
     }`,
   };
   const { node, subject } = email.template(x);
 
-  await send_email({ node, subject, to: [meta.email] });
+  await send_email({ node, subject, to: [order.from_email] });
 }
