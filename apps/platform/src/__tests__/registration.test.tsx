@@ -893,6 +893,68 @@ describe("E2E: changing the organization type", () => {
     expect(row.o_hq_country).toBe("United States");
   }, 40_000);
 
+  // the type stays "other" throughout — it is the country that names a
+  // different legal entity, and the old entity's papers go with it.
+  it("drops a signed agreement when an international org changes country", async () => {
+    const { id } = await seed_reg(
+      {
+        ...CONTACT_FIELDS,
+        ...ORG_FIELDS,
+        ...FSA_DOC_FIELDS,
+        ...BANKING_FIELDS,
+        o_fsa_signing_url: "https://example.com/sign",
+        o_fsa_signed_doc_url: "https://example.com/signed-fsa.pdf",
+      },
+      INTL_IDENTITY
+    );
+    const screen = await render_registration(id, "5");
+
+    await screen.getByRole("link", { name: /change/i }).click();
+
+    await screen.getByPlaceholder("Select a country").fill("Kenya");
+    await expect
+      .element(screen.getByRole("option", { name: /Kenya/i }).nth(0))
+      .toBeVisible();
+    await screen.getByRole("option", { name: /Kenya/i }).nth(0).click();
+    await screen.getByRole("button", { name: /save/i }).click();
+
+    // the agreement is unfinished again, so that is where the wizard lands
+    await expect.element(screen.getByLabelText(/legal entity/i)).toBeVisible();
+
+    const row = await get_reg(id);
+    expect(row.o_hq_country).toBe("Kenya");
+    expect(row.o_type).toBe("other");
+    expect(row.o_fsa_signing_url).toBeNull();
+    expect(row.o_fsa_signed_doc_url).toBeNull();
+    expect(row.o_legal_entity_type).toBeNull();
+    expect(row.o_proof_of_reg).toBeNull();
+  }, 40_000);
+
+  it("keeps the papers when the identity is re-submitted unchanged", async () => {
+    const { id } = await seed_reg(
+      {
+        ...CONTACT_FIELDS,
+        ...ORG_FIELDS,
+        ...FSA_DOC_FIELDS,
+        ...BANKING_FIELDS,
+        o_fsa_signing_url: "https://example.com/sign",
+        o_fsa_signed_doc_url: "https://example.com/signed-fsa.pdf",
+      },
+      INTL_IDENTITY
+    );
+    const screen = await render_registration(id, "5");
+
+    await screen.getByRole("link", { name: /change/i }).click();
+    await screen.getByRole("button", { name: /save/i }).click();
+
+    await expect.element(screen.getByText(/summary/i)).toBeVisible();
+
+    const row = await get_reg(id);
+    expect(row.o_fsa_signed_doc_url).toBe("https://example.com/signed-fsa.pdf");
+    expect(row.o_legal_entity_type).toBe(FSA_DOC_FIELDS.o_legal_entity_type);
+    expect(row.o_proof_of_reg).toBe(FSA_DOC_FIELDS.o_proof_of_reg);
+  }, 40_000);
+
   // `Progress` derives the step from the columns, so nothing has to walk the
   // applicant back — the agreement simply becomes unfinished again.
   it("falls back to the agreement when a 501(c)(3) at banking goes international", async () => {

@@ -66,6 +66,14 @@ export const change_identity = async (
    * branch's leftovers, which only a switch can strand. */
   const switched = reg.o_type !== parsed.o_type;
 
+  /* evidence is attached to a legal entity, not to an application. A type
+   * switch is only one way to name a different entity — a new registration
+   * number or a new country does it just as completely, and leaves `o_type`
+   * untouched. Re-submitting the identity unchanged strands nothing. */
+  const prev_rn =
+    reg.o_type === "501c3" ? reg.o_ein : reg.o_registration_number;
+  const replaced = switched || rn !== prev_rn || country !== reg.o_hq_country;
+
   const attrs: Record<string, unknown> =
     parsed.o_type === "501c3"
       ? {
@@ -81,7 +89,7 @@ export const change_identity = async (
           ...(switched && { o_ein: null }),
         };
 
-  if (switched) {
+  if (replaced) {
     // an agreement signed against a different legal identity is not evidence
     // for this one, in either direction.
     attrs.o_fsa_signing_url = null;
