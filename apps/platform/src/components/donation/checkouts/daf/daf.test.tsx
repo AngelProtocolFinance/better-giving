@@ -111,9 +111,8 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     const dialog = screen.getByRole("dialog");
     await expect.element(dialog).toHaveTextContent(/donation went through/i);
 
-    // dismissing it can't be what takes the receipt away — and the donor has
-    // to keep reading "your donation went through" next to a widget that is
-    // still perfectly willing to take a second grant.
+    // dismissing it can't be what takes the receipt away: the donor keeps
+    // reading "your donation went through" on the panel itself.
     await screen.getByRole("button", { name: /^done$/i }).click();
     await vi.waitFor(() =>
       expect(screen.getByRole("dialog").query()).toBeNull()
@@ -126,6 +125,10 @@ describe("daf checkout: a grant that goes through but never lands", () => {
       .toHaveAttribute("href", "https://test.example.com/donations/don_1");
 
     // never unmounted from under the donor: it owns an out-of-page session
-    expect(screen.container.querySelector("chariot-connect")).not.toBeNull();
+    const el2 = screen.container.querySelector("chariot-connect");
+    expect(el2).not.toBeNull();
+    // ...but it can't be launched again. the grant is already recommended;
+    // a second one spends the donor's fund twice.
+    expect(el2!.closest("[inert]")).not.toBeNull();
   });
 });

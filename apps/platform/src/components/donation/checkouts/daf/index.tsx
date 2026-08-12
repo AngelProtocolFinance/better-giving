@@ -38,9 +38,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
   const { don_set, don } = use_donation();
   const [prompt, set_prompt] = useState<IPrompt>();
   // where a grant that already went through ended up. the prompt saying so can
-  // be dismissed, and the chariot element stays live behind it — a donor who
-  // closes it and reads the panel as a failure is one click from granting
-  // twice. so the answer stays on the panel, not only in the modal.
+  // be dismissed, and a donor who closes it and reads the panel as a failure
+  // would otherwise be one click from granting twice — so this both keeps the
+  // answer on the panel and takes the launcher out of reach.
   const [stuck, set_stuck] = useState<IDonationDest>();
   const [script_ready, set_script_ready] = useState(false);
 
@@ -209,8 +209,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
           form_id: d.config?.id,
           parent_origin: d.config?.parent_origin,
           on_stuck: () => {
-            // the panel keeps saying it after the modal is gone — chariot's
-            // element is still live and one more grant is a real second grant
+            // the panel keeps saying it after the modal is gone, and the
+            // launcher behind it stops answering — see the container below
             set_stuck(dest);
             set_prompt_ref.current(stuck_prompt(dest));
           },
@@ -241,7 +241,19 @@ export function ChariotCheckout(props: DafDonationDetails) {
       frequency="one-time"
       tip={tipv ? { value: tipv, charity_name: don.recipient.name } : undefined}
     >
-      <div ref={container_ref}>
+      {/* the grant is through and only its trip to the receipt isn't, so the
+          launcher goes dead — one more click here is a second real grant, of
+          real money, out of the donor's fund. it goes dead in place rather
+          than away: chariot's element owns a session whose modal renders into
+          `document.body`, so unmounting it is the one move that could strand
+          a sheet the donor still has open. `inert` shuts out pointer and
+          keyboard both, and reaches into the shadow root the button lives
+          in — `pointer-events-none` would leave it tabbable. */}
+      <div
+        ref={container_ref}
+        inert={!!stuck}
+        className={stuck ? "opacity-50" : undefined}
+      >
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>
       <ContentLoader className="h-12 mt-4 block group-has-[chariot-connect]:hidden" />
