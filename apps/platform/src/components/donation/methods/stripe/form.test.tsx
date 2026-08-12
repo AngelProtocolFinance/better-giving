@@ -26,7 +26,7 @@ vi.mock("../paypal", () => ({
       if (rails.pp_out) props.on_unavailable?.("paypal is out");
     }, []);
     return (
-      <div data-testid="paypal-mock">
+      <div data-testid="paypal-mock" data-paid={props.paid ? "" : undefined}>
         {props.is_partial && (
           <button
             type="button"
@@ -45,6 +45,28 @@ vi.mock("../paypal", () => ({
           data-testid="paypal-error"
           onClick={() => props.on_error(<p>paypal died mid-payment</p>)}
         />
+        {/* its own donation, with its own receipt — the point of keeping these
+            separate from the express rail's below. */}
+        <button
+          type="button"
+          data-testid="paypal-paid"
+          onClick={() =>
+            props.on_paid?.({
+              url: "https://better.giving/donations/ord_pp",
+              is_custom: false,
+            })
+          }
+        />
+        <button
+          type="button"
+          data-testid="paypal-stuck"
+          onClick={() =>
+            props.on_stuck?.({
+              url: "https://better.giving/donations/ord_pp",
+              is_custom: false,
+            })
+          }
+        />
       </div>
     );
   },
@@ -57,7 +79,10 @@ vi.mock("./express-checkout", () => ({
       if (rails.sx_out) props.on_unavailable?.("express is out");
     }, []);
     return (
-      <div data-testid="express-mock">
+      // `paid` is what the real rail reads at its click gate to refuse a
+      // second payment; surfaced here so a test can see the refusal without
+      // reaching into stripe's own element.
+      <div data-testid="express-mock" data-paid={props.paid ? "" : undefined}>
         <button
           type="button"
           data-testid="express-checkout-btn"
@@ -73,11 +98,14 @@ vi.mock("./express-checkout", () => ({
           data-testid="express-error"
           onClick={() => props.on_error("your card was declined")}
         />
+        {/* the charge landing and the trip to the receipt failing are two
+            separate moments in the real rail, in this order — the gap between
+            them is up to nine seconds long. */}
         <button
           type="button"
-          data-testid="express-stuck"
+          data-testid="express-paid"
           onClick={() =>
-            props.on_stuck?.({
+            props.on_paid?.({
               url: "https://better.giving/donations/ord_1",
               is_custom: false,
             })
@@ -85,13 +113,24 @@ vi.mock("./express-checkout", () => ({
         />
         <button
           type="button"
+          data-testid="express-stuck"
+          onClick={() => {
+            const dest = {
+              url: "https://better.giving/donations/ord_1",
+              is_custom: false,
+            };
+            props.on_paid?.(dest);
+            props.on_stuck?.(dest);
+          }}
+        />
+        <button
+          type="button"
           data-testid="express-stuck-custom"
-          onClick={() =>
-            props.on_stuck?.({
-              url: "https://npo.org/thanks",
-              is_custom: true,
-            })
-          }
+          onClick={() => {
+            const dest = { url: "https://npo.org/thanks", is_custom: true };
+            props.on_paid?.(dest);
+            props.on_stuck?.(dest);
+          }}
         />
       </div>
     );
@@ -604,8 +643,15 @@ describe("Stripe form: an express rail that can't be offered", () => {
     );
     expect(submit?.textContent).toMatch(/continue with card/i);
     expect(submit?.disabled).toBe(true);
-    expect(screen.getByTestId("express-mock").query()).toBeNull();
-    expect(screen.getByTestId("paypal-mock").query()).toBeNull();
+    // the rails are refused, not removed: unmounting one whose sheet may still
+    // be closing is the failure this flow exists to avoid, so each keeps its
+    // own click gate shut instead.
+    expect(
+      screen.container.querySelector("[data-testid=express-mock][data-paid]")
+    ).not.toBeNull();
+    expect(
+      screen.container.querySelector("[data-testid=paypal-mock][data-paid]")
+    ).not.toBeNull();
   });
 
   test("the way to the receipt outlives the modal the donor closes", async () => {
@@ -628,6 +674,57 @@ describe("Stripe form: an express rail that can't be offered", () => {
     await expect
       .element(screen.getByRole("link", { name: /receipt/i }))
       .toHaveAttribute("href", "https://better.giving/donations/ord_1");
+  });
+
+  test("every rail is shut the moment the charge lands, not when the trip to the receipt is given up on", async () => {
+    // the gap between the two is up to nine seconds of a form that looks
+    // exactly like one nothing happened on — the donor reaches for the button
+    // again precisely here.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    await screen.getByTestId("express-paid").click();
+
+    await vi.waitFor(() => {
+      expect(
+        screen.container.querySelector("[data-testid=express-mock][data-paid]")
+      ).not.toBeNull();
+      expect(
+        screen.container.querySelector("[data-testid=paypal-mock][data-paid]")
+      ).not.toBeNull();
+    });
+    await expect
+      .element(screen.getByRole("button", { name: /continue with card/i }))
+      .toBeDisabled();
+
+    // and nothing is worded as a failure yet: the browser may still be on its
+    // way to the receipt.
+    expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
+  });
+
+  test("the way out points at the donation that needs it, not at whichever charge landed last", async () => {
+    // the click gate only refuses to *open* a rail, so a session the donor
+    // already had open when the first charge landed still completes. two
+    // donations, and only one of them lost its way to the receipt.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    // paypal lands first and is the one that never reaches its receipt...
+    await screen.getByTestId("paypal-paid").click();
+    // ...while the wallet session, opened before that, lands after it
+    await screen.getByTestId("express-paid").click();
+    await screen.getByTestId("paypal-stuck").click();
+
+    await screen.getByRole("button", { name: /^done$/i }).click();
+    await vi.waitFor(() =>
+      expect(screen.getByRole("dialog").query()).toBeNull()
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: /receipt/i }))
+      .toHaveAttribute("href", "https://better.giving/donations/ord_pp");
   });
 
   test("a merchant's own confirmation page is offered in a new tab", async () => {

@@ -25,11 +25,20 @@ interface Props extends IPayPalExpress {
    */
   on_unavailable?: (msg: string) => void;
   /**
+   * the payment went through. raised the moment it does, before the trip to
+   * the thank-you page is even attempted — that trip can take up to nine
+   * seconds to fail, and no rail may take a second payment during it.
+   */
+  on_paid?: (dest: IDonationDest) => void;
+  /**
    * the payment went through but the browser never left for the thank-you
-   * page. not an error — the money moved — so the caller says so and stops
-   * offering to take the payment again.
+   * page. not an error — the money moved — so the caller says so and hands
+   * the donor the destination this passes back.
    */
   on_stuck?: (dest: IDonationDest) => void;
+  /** this donor has already been charged on one of the rails, so the buttons
+   * stay put but no longer open a session. */
+  paid?: boolean;
   validate: () => Promise<boolean>;
   classes?: string;
 }
@@ -83,7 +92,9 @@ export function Paypal({
   classes = "",
   on_error,
   on_unavailable,
+  on_paid,
   on_stuck,
+  paid,
   validate,
   ...p
 }: Props) {
@@ -103,8 +114,14 @@ export function Paypal({
   on_error_ref.current = on_error;
   const on_unavailable_ref = useRef(on_unavailable ?? on_error);
   on_unavailable_ref.current = on_unavailable ?? on_error;
+  const on_paid_ref = useRef(on_paid);
+  on_paid_ref.current = on_paid;
   const on_stuck_ref = useRef(on_stuck);
   on_stuck_ref.current = on_stuck;
+  // read at click time: the buttons are mounted once, in an effect keyed on
+  // flow shape, so a prop change must reach them without a remount.
+  const paid_ref = useRef(paid);
+  paid_ref.current = paid;
   const redirect = use_donation_redirect();
   const redirect_ref = useRef(redirect);
   redirect_ref.current = redirect;
@@ -191,6 +208,10 @@ export function Paypal({
 
       const do_redirect = (dest: IDonationDest) => {
         const d = don_ref.current;
+        // charged. said before the redirect is attempted rather than after it
+        // gives up — the popup has closed by now and the form behind it still
+        // looks untouched.
+        on_paid_ref.current?.(dest);
         redirect_ref.current({
           dest,
           form_id: d.config?.id,
@@ -250,6 +271,9 @@ export function Paypal({
         const btn = document.createElement("paypal-button");
         btn.className = "paypal-gold w-full";
         btn.addEventListener("click", () => {
+          // already charged on some rail: no session, and — just as important
+          // — no intent created for one that will never be paid.
+          if (paid_ref.current) return;
           // each click owns its intent_promise — no shared mutable don_id.
           const intent_promise = create_intent();
           if (is_recurring) {
@@ -299,6 +323,7 @@ export function Paypal({
         const btn = document.createElement("venmo-button");
         btn.className = "venmo-blue w-full";
         btn.addEventListener("click", () => {
+          if (paid_ref.current) return;
           const intent_promise = create_intent();
           const session = sdk.createVenmoOneTimePaymentSession({
             onApprove: async ({ orderId }) => {

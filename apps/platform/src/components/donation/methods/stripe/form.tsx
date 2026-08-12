@@ -39,17 +39,23 @@ export function Form(props: TMethodState<"stripe">) {
   // independently (paypal adblocked while apple/google pay is fine, or the
   // reverse), so one going quiet must never take the other down with it.
   const [sx_unavailable, set_sx_unavailable] = useState<IUnavailable>();
-  // a donation on one of the express rails already went through and only its
-  // trip to the receipt didn't. every way to pay again comes down: a donor
-  // reading the prompt as a failure would otherwise donate twice. the
-  // destination is kept because the prompt carrying it can be dismissed, and
-  // what's left behind then is a form with every control shut and no reason
-  // given.
-  const [done, set_done] = useState<IDonationDest>();
+  // a donation on one of the express rails went through. set when the charge
+  // lands, not when the trip to the receipt is declared lost: between the two
+  // is up to nine seconds of a form that looks exactly like one nothing
+  // happened on, and every way to pay is shut for all of it. deliberately not
+  // a destination — the click gate only refuses to *open* a rail, so a session
+  // the donor already had open can still land after this, and two charges
+  // would fight over one variable.
+  const [paid, set_paid] = useState(false);
+  // ...and where the one whose trip never happened ended up. carried per
+  // failure rather than shared with `paid`, so the way out always points at
+  // the donation that actually needs it. the prompt saying so can be
+  // dismissed, so it has to survive on the form too.
+  const [stuck, set_stuck] = useState<IDonationDest>();
   const { don_set, don } = use_donation();
 
   const on_stuck = (dest: IDonationDest) => {
-    set_done(dest);
+    set_stuck(dest);
     set_prompt(stuck_prompt(dest));
   };
 
@@ -231,16 +237,19 @@ export function Form(props: TMethodState<"stripe">) {
         checked={rhf.cpf.value}
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
-      {/* neither rail is gated on `prompt`: a prompt raised mid-payment would
-          unmount the rail — the wallet element and its <Elements> wrapper, or
-          paypal's live session — while the donor's sheet or popup is still
-          open, leaving it with nothing to talk to. `done` is different: by
-          then the donation is through and nothing is waiting on an answer. */}
-      {rhf.stripe_express && !done && sx_unavailable?.flow !== sx_flow && (
+      {/* nothing here unmounts a rail to stop it being used: a prompt raised
+          mid-payment, or a `paid` that lands while the donor's sheet is still
+          closing, would take the wallet element and its <Elements> wrapper —
+          or paypal's live session — out from under them. both rails refuse a
+          second payment at their own click gate instead, where the sheet has
+          not opened yet and there is nothing to strand. */}
+      {rhf.stripe_express && sx_unavailable?.flow !== sx_flow && (
         <ExpressCheckout
+          paid={paid}
           on_error={(msg) =>
             set_prompt({ type: "error", children: <p>{msg}</p> })
           }
+          on_paid={() => set_paid(true)}
           on_stuck={on_stuck}
           // nothing has been paid yet and no donor action is pending: record
           // it and let `unavailable` decide what stands in the block's place.
@@ -251,30 +260,33 @@ export function Form(props: TMethodState<"stripe">) {
             if (!valid) rhf.setFocus("amount");
             return valid;
           }}
-          classes="mt-4"
+          classes={`mt-4 ${paid ? "opacity-50" : ""}`}
           {...rhf.stripe_express}
         />
       )}
       {!prompt && unavailable(sx_unavailable, sx_flow)}
-      {rhf.paypal_express && !done && pp_unavailable?.flow !== pp_flow && (
+      {rhf.paypal_express && pp_unavailable?.flow !== pp_flow && (
         <Paypal
           {...rhf.paypal_express}
+          classes={paid ? "opacity-50" : ""}
+          paid={paid}
           validate={async () => {
             const valid = await rhf.trigger(["amount", "frequency"]);
             if (!valid) rhf.setFocus("amount");
             return valid;
           }}
           on_error={(x) => set_prompt({ type: "error", children: x })}
+          on_paid={() => set_paid(true)}
           on_stuck={on_stuck}
           on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
         />
       )}
       {!prompt && unavailable(pp_unavailable, pp_flow)}
-      {done && <StuckMsg dest={done} classes="mt-4 text-sm text-muted-fg" />}
+      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
 
       <button
         disabled={
-          !!done ||
+          paid ||
           currency.isLoading ||
           currency.isValidating ||
           !!currency.error
