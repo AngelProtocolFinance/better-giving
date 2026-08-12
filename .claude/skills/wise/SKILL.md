@@ -1,6 +1,6 @@
 ---
 name: wise
-description: Wise (TransferWise) money movement — sandbox V2 hosts and credentials (V1 dies June 30 2026), the two independent base-URL sources in the app, recipient-account lookups behind /api/wise/*, and the grant payout quote → transfer → fund chain.
+description: Wise (TransferWise) money movement — sandbox V2 hosts and credentials (V1 dies June 30 2026), the single `WISE_API_URL` host source, recipient-account lookups behind /api/wise/*, and the grant payout quote → transfer → fund chain.
 ---
 
 # Wise
@@ -21,21 +21,20 @@ V1 is deprecated **June 30, 2026** — [migration guide](https://docs.wise.com/g
 - Ids created before that cutoff (profile, balance, account, transfer) carry over unchanged; test data created after it was **not** migrated — reseed recipients and transfers in V2 by hand.
 - mTLS certs and JWE/JWS public keys are per-environment: regenerate for V2. Webhook signature public keys are shared, no change.
 
-## Two base URLs, two sources
+## One base URL
 
-The app resolves the Wise host **twice**, and neither path reads the other:
+`WISE_API_URL` is the only source of the host, on both ends:
 
-1. `.server/kit/wise.ts` constructs `Wise` with `sandbox: stage === "staging"`; `lib/wise.ts:106-108` maps that boolean to a hardcoded host. `WISE_API_URL` is ignored here.
+1. `.server/kit/wise.ts` passes it to `Wise` as `base_url`.
 2. `src/routes/api.wise.$.ts:41` — the browser-facing proxy — fetches `${WISE_API_URL}/${path}`.
 
-Consequences to check before believing a Wise failure is a credential problem:
+Moving an environment between V1, V2 and production is therefore an env-var edit and nothing else, and the token can't end up paired with a host the other end isn't using.
 
-- **`STAGE=local` sends the class to production.** Only `"staging"` flips the sandbox flag, so local dev calls `api.wise.com` with the sandbox token in `.env` while the proxy calls the sandbox — same request, two hosts, one 401.
-- Moving to V2 means editing the hardcoded string in `lib/wise.ts` **and** `WISE_API_URL`; changing only the env var leaves every `kit/wise` call on V1.
+Until Aug 2026 the class derived its host from `stage === "staging"` instead, ignoring `WISE_API_URL` — which pinned staging to the retired V1 sandbox (500s on every `v2_account` read) and sent `STAGE=local` at **production** with a sandbox token. Both are gone with the flag; a Wise failure that looks host-shaped is now a real credential or data problem.
 
 ## Env
 
-`WISE_API_TOKEN`, `WISE_API_URL`, `WISE_PROFILE_ID`, `WISE_BALANCE_ID_USD` — declared in `.server/env.ts:121-126`, allowlisted in root `turbo.json:42-45`, documented in `.env.example:41-48`. `.env` holds sandbox credentials; production lives in Vercel (`vercel env pull`). Never pair a token with the other environment's host.
+`WISE_API_TOKEN`, `WISE_API_URL`, `WISE_PROFILE_ID`, `WISE_BALANCE_ID_USD` — declared in `.server/env.ts:121-126`, allowlisted in root `turbo.json:42-45`, documented in `.env.example:41-50`. `.env` holds sandbox credentials; production lives in Vercel (`vercel env pull`). Never pair a token with the other environment's host.
 
 Re-derive the ids after a credential swap:
 
