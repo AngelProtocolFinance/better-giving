@@ -12,11 +12,16 @@ import type {
   IDonorAddress,
 } from "@/donations/schema";
 import { min_fee_allowance } from "@/helpers/donation";
-import { to_full } from "@/helpers/name";
 import { ContentLoader } from "../../../content-loader";
 import { type IPrompt, Prompt } from "../../../prompt";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
+import { use_donation_redirect } from "../../common/redirect";
+import {
+  donation_return_url,
+  type IDonationDest,
+} from "../../common/return-url";
+import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { Summary } from "../../common/summary";
 import { use_donation } from "../../context";
 import {
@@ -32,6 +37,14 @@ const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
 export function ChariotCheckout(props: DafDonationDetails) {
   const { don_set, don } = use_donation();
   const [prompt, set_prompt] = useState<IPrompt>();
+  // where a grant that has already been recommended ended up. set the moment
+  // the money moves, not when the trip to the receipt is declared lost: what
+  // comes between is up to nine seconds of a panel that looks exactly like one
+  // nothing happened on, and the launcher may not be live for any of it.
+  const [paid, set_paid] = useState<IDonationDest>();
+  // ...and the trip never happened, so the way to the receipt has to be on the
+  // panel: the prompt carrying it can be dismissed.
+  const [stuck, set_stuck] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
   const tipv = tip_val(props.tip_format, props.tip, +props.amount);
@@ -52,6 +65,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
   mfa_ref.current = mfa;
   const set_prompt_ref = useRef(set_prompt);
   set_prompt_ref.current = set_prompt;
+  const redirect = use_donation_redirect();
+  const redirect_ref = useRef(redirect);
+  redirect_ref.current = redirect;
 
   // load chariot CDN script
   useEffect(() => {
@@ -116,6 +132,10 @@ export function ChariotCheckout(props: DafDonationDetails) {
       const d = don_ref.current;
 
       try {
+        // stays up until the browser leaves or the redirect reports it never
+        // did — this used to clear the moment the intent was recorded, which
+        // handed the donor a panel that looks untouched while the trip to the
+        // receipt was still being attempted.
         set_prompt_ref.current({
           type: "loading",
           children: "Processing payment",
@@ -179,37 +199,31 @@ export function ChariotCheckout(props: DafDonationDetails) {
         if (!res.ok) throw await res.text();
         const { id } = await res.json();
 
-        set_prompt_ref.current(undefined);
+        const dest = donation_return_url({
+          donation_id: id,
+          base_url: d.base_url,
+          success_redirect: d.config?.success_redirect,
+          amount: grant_amount,
+          currency: usd_option.code,
+          payment_method: "daf",
+          donor_name: [grantor.firstName, grantor.lastName],
+        });
 
-        const custom_redirect = d.config?.success_redirect;
-        const url = custom_redirect
-          ? new URL(custom_redirect)
-          : new URL(`${d.base_url}${href("/donations/:id", { id })}`);
+        // the grant is recommended and irreversible from here. the launcher
+        // goes dead now — every path below is us trying to reach the receipt,
+        // and none of them may leave a second grant one click away.
+        set_paid(dest);
 
-        if (custom_redirect) {
-          url.searchParams.set(
-            "donor_name",
-            to_full(grantor.firstName, grantor.lastName)
-          );
-          url.searchParams.set("donation_amount", grant_amount.toString());
-          url.searchParams.set("donation_currency", usd_option.code);
-          url.searchParams.set("payment_method", "daf");
-        }
-        const return_url = url.toString();
-
-        // redirect via postMessage if in iframe, otherwise navigate directly
-        if (window.self !== window.top) {
-          window.parent.postMessage(
-            {
-              type: "redirect",
-              redirect_url: return_url,
-              form_id: d.config?.id,
-            },
-            "*"
-          );
-        } else {
-          window.location.href = return_url;
-        }
+        redirect_ref.current({
+          dest,
+          form_id: d.config?.id,
+          parent_origin: d.config?.parent_origin,
+          on_stuck: () => {
+            // the panel keeps saying it after the modal is gone
+            set_stuck(true);
+            set_prompt_ref.current(stuck_prompt(dest));
+          },
+        });
       } catch (err) {
         set_prompt_ref.current(
           error_prompt(err, { context: "processing donation" })
@@ -236,10 +250,25 @@ export function ChariotCheckout(props: DafDonationDetails) {
       frequency="one-time"
       tip={tipv ? { value: tipv, charity_name: don.recipient.name } : undefined}
     >
-      <div ref={container_ref}>
+      {/* the grant is recommended, so the launcher goes dead — one more click
+          here is a second real grant, of real money, out of the donor's fund.
+          it goes dead in place rather than away: chariot's element owns a
+          session whose modal renders into `document.body`, so unmounting it is
+          the one move that could strand a sheet the donor still has open.
+          `inert` shuts out pointer and keyboard both, and reaches into the
+          shadow root the button lives in — `pointer-events-none` would leave
+          it tabbable. */}
+      <div
+        ref={container_ref}
+        inert={!!paid}
+        className={paid ? "opacity-50" : undefined}
+      >
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>
       <ContentLoader className="h-12 mt-4 block group-has-[chariot-connect]:hidden" />
+      {stuck && paid && (
+        <StuckMsg dest={paid} classes="mt-4 text-sm text-muted-fg" />
+      )}
       <DonationTerms
         endowName={don.recipient.name}
         classes="border-t mt-5 pt-4 "

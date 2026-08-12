@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import { useSearchParams } from "react-router";
 import { type Config, Steps, type TDonation } from "#/components/donation";
+import { parent_origin } from "#/components/donation/common/parent-origin";
 import { donor_fv_blank } from "@/donations/schema";
 import type { Route } from "./+types/route";
 
@@ -7,6 +9,13 @@ export { headers, loader } from "./api";
 
 export default function Page({ loaderData, params }: Route.ComponentProps) {
   const { recipient_details: rd, base_url, ...d } = loaderData;
+  // read off the live url rather than the loader: this response is shared-
+  // cached (`s-maxage`), and a loader-borne value is frozen into the cached
+  // payload the browser hydrates from — correct only for as long as the cdn
+  // keys its entries on the query string. read here it is re-derived in the
+  // browser, so it is this document's own embedder either way.
+  const [sp] = useSearchParams();
+  const host_origin = parent_origin(sp.get("parent_origin"));
   const init_state: TDonation = {
     base_url,
     method: d.donate_methods?.at(0) || ("stripe" as const),
@@ -29,6 +38,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       success_redirect: d.success_redirect ?? undefined,
       freq_opts: d.freq_opts ?? undefined,
       stripe: (d.defaults as any)?.stripe as Config["stripe"],
+      parent_origin: host_origin,
     },
     program: d.program_id
       ? { id: d.program_id, name: d.program_name! }
@@ -44,7 +54,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
           form_id: params.id,
           height,
         },
-        "*"
+        host_origin ?? "*"
       );
     };
 
@@ -59,7 +69,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
     return () => {
       resize_observer.disconnect();
     };
-  }, [params.id]);
+  }, [params.id, host_origin]);
 
   const steps = <Steps key={JSON.stringify(init_state)} init={init_state} />;
 

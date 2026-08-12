@@ -50,6 +50,15 @@ vi.mock("../../context", () => ({
 const confirm_payment_mock = vi.hoisted(() => vi.fn());
 const confirm_setup_mock = vi.hoisted(() => vi.fn());
 
+// leaving for the thank-you page is one shared helper with its own tests
+// (../../common/redirect.test.ts) — what's asserted here is that a completed
+// payment reaches it, and what the donor is shown when it reports back that
+// the browser never left.
+const redirect_mock = vi.hoisted(() => vi.fn());
+vi.mock("../../common/redirect", () => ({
+  use_donation_redirect: () => redirect_mock,
+}));
+
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: vi.fn(({ children }) => children),
   PaymentElement: vi.fn(({ onReady, onChange }: any) => {
@@ -205,6 +214,79 @@ describe("stripe checkout", () => {
     // the other half of the rule — quieting card errors must not quiet these.
     expect(reported).toHaveLength(1);
     expect(reported[0]).toBe(err);
+  });
+
+  test("a completed payment leaves for the thank-you page", async () => {
+    const Stub = stb(<Checkout {...fv} amount="101" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({});
+    await donateBtn.click();
+
+    // the helper owns the iframe/top-level split — this only proves the
+    // success branch hands it the donor's receipt url
+    await vi.waitFor(() => expect(redirect_mock).toHaveBeenCalledOnce());
+    expect(redirect_mock.mock.calls[0]![0]).toMatchObject({
+      dest: {
+        url: "https://test.example.com/donations/fake_order_id",
+        is_custom: false,
+      },
+    });
+  });
+
+  test("a navigation that never lands leaves an answer, not a spinner", async () => {
+    // the defect: inside a plain `<iframe src>` nothing ever cleared this and
+    // the donor watched "Processing..." forever after a payment that worked.
+    redirect_mock.mockImplementationOnce((x: { on_stuck?: () => void }) =>
+      x.on_stuck?.()
+    );
+    const Stub = stb(<Checkout {...fv} amount="102" />);
+    const screen = await render(<Stub />);
+    const donateBtn = screen.getByRole("button", { name: /donate now/i });
+    await expect.element(donateBtn).toBeVisible();
+
+    confirm_payment_mock.mockResolvedValueOnce({});
+    await donateBtn.click();
+
+    // told the truth: the money moved, so this is never worded as a failure
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog).toHaveTextContent(/donation went through/i);
+
+    // and given the way out, which is the receipt — not the donate button
+    const link = screen.getByRole("link", { name: /receipt/i });
+    await expect
+      .element(link)
+      .toHaveAttribute(
+        "href",
+        "https://test.example.com/donations/fake_order_id"
+      );
+
+    // the spinner is gone, and paying again is not what's on offer.
+    // (queried off the form, not by role — the open dialog hides everything
+    // behind it from the accessibility tree)
+    const form = screen
+      .getByTestId("stripe-checkout-form")
+      .element() as HTMLElement;
+    const submit = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.textContent).not.toMatch(/processing/i);
+    expect(submit?.disabled).toBe(true);
+
+    // the donate button never re-opens, so closing the prompt can't be what
+    // takes the receipt away with it
+    await screen.getByRole("button", { name: /^done$/i }).click();
+    await vi.waitFor(() =>
+      expect(screen.getByRole("dialog").query()).toBeNull()
+    );
+    await expect
+      .element(screen.getByRole("link", { name: /receipt/i }))
+      .toHaveAttribute(
+        "href",
+        "https://test.example.com/donations/fake_order_id"
+      );
   });
 
   test("form_id included in intent", async () => {

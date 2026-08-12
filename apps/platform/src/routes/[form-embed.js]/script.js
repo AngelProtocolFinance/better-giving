@@ -41,7 +41,14 @@
     const iframe = document.createElement("iframe");
     // generate unique ID for iframe using form_id and a unique suffix
     iframe.id = `bg-form-iframe-${form_id}-${Math.random().toString(36).slice(2, 11)}`;
-    iframe.src = `${script_origin}/forms/${form_id}`;
+    // tell the form which origin is framing it, so the messages it sends back
+    // are aimed at this page instead of broadcast to whoever can read them.
+    // both skew directions hold: a form deploy that predates the parameter
+    // ignores it, and a newer form falls back to the old wildcard when a
+    // cached copy of this script doesn't send it. the form route is
+    // shared-cached, so this splits its entry one way per embedding origin —
+    // not per page, and not per visitor.
+    iframe.src = `${script_origin}/forms/${form_id}?parent_origin=${encodeURIComponent(window.location.origin)}`;
 
     // check if user set width on container (attribute or inline style)
     const container_width =
@@ -94,6 +101,22 @@
           const url = new URL(e.data.redirect_url);
           // only allow http and https protocols for security
           if (url.protocol === "http:" || url.protocol === "https:") {
+            // tell the frame we're taking the top page there, so its own
+            // fallback stands down. left running it gives up on us after a
+            // second and a half and either loads the thank-you page a second
+            // time inside the frame, or — for a merchant's own destination,
+            // which it refuses to load in here — tells the donor they're
+            // stuck while the top page is already on its way there. purely
+            // additive: a frame that doesn't listen for this just falls back
+            // on its timer, exactly as before.
+            //
+            // ordering holds: the assignment below starts a navigation, it
+            // does not unload anything until the next document arrives, so
+            // the frame stays alive to run the task this queues on it.
+            iframe.contentWindow?.postMessage(
+              { type: "redirect_ack", form_id },
+              script_origin
+            );
             window.location.href = e.data.redirect_url;
           } else {
             console.warn("Invalid redirect URL protocol:", url.protocol);

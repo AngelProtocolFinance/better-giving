@@ -12,6 +12,11 @@ import type {
   IStripeIntentReturn,
 } from "@/donations";
 import { report_degraded, report_error } from "@/errors/report";
+import { use_donation_redirect } from "../../../common/redirect";
+import {
+  donation_return_url,
+  type IDonationDest,
+} from "../../../common/return-url";
 import { use_donation } from "../../../context";
 import type { IStripeExpress } from "../use-rhf";
 
@@ -32,6 +37,13 @@ export interface IContentExternal
    * *during* a payment stays on `on_error`.
    */
   on_unavailable?: (msg: string) => void;
+  /**
+   * the wallet payment went through but the browser never left for the
+   * thank-you page. not an error — the money moved — so it's the caller's job
+   * to say so, hand the donor the destination this passes back, and stop
+   * offering to take the payment again.
+   */
+  on_stuck?: (dest: IDonationDest) => void;
 }
 export interface IContent extends IContentExternal {
   on_click: ExpressCheckoutElementProps["onClick"];
@@ -41,23 +53,34 @@ export function Content({
   on_click,
   on_error,
   on_unavailable,
+  on_stuck,
   ...x
 }: IContent) {
   const { don } = use_donation();
   const elements = useElements();
   const stripe = useStripe();
+  const redirect = use_donation_redirect();
 
   const on_confirm: ExpressCheckoutElementProps["onConfirm"] = async (ev) => {
     if (!stripe || !elements) return;
 
     const { error: submit_err } = await elements.submit();
     if (submit_err) {
-      if (ev.paymentFailed) return ev.paymentFailed({ reason: "fail" });
+      // both, not either: the sheet has to close on a failure, and the donor
+      // needs the reason somewhere they can still read it once it has.
+      ev.paymentFailed({ reason: "fail", message: submit_err.message });
       return on_error(submit_err.message || GENERIC_ERROR_MESSAGE);
     }
 
     const { billingDetails: b, expressPaymentType } = ev;
     if (!b?.email) {
+      // the sheet is the only place a different email can be picked, so it
+      // has to hear about it — and it's the payment data that's unusable, not
+      // the address, which is the one the sheet would ask them to re-enter.
+      ev.paymentFailed({
+        reason: "invalid_payment_data",
+        message: "We need an email address to send your donation receipt.",
+      });
       return on_error("your email was not found in billing details.");
     }
     const [fn, ln] = b.name.split(" ");
@@ -93,60 +116,62 @@ export function Content({
     if (don.program) intent.program = don.program;
     if (don.config?.id) intent.form_id = don.config.id;
 
-    const res = await fetch(href("/api/donation-intents"), {
-      method: "POST",
-      body: JSON.stringify(intent),
-    });
+    // everything past here runs with the donor already authorized in the
+    // sheet, so no path out of it may be silent — a throw owes the sheet the
+    // same answer an error return does.
+    try {
+      const res = await fetch(href("/api/donation-intents"), {
+        method: "POST",
+        body: JSON.stringify(intent),
+      });
 
-    if (!res.ok) {
-      return on_error(`Failed to create donation intent: ${res.statusText}`);
-    }
-
-    const { order_id, client_secret }: IStripeIntentReturn = await res.json();
-
-    const custom_redirect = don.config?.success_redirect;
-    const url = custom_redirect
-      ? new URL(custom_redirect)
-      : new URL(`${don.base_url}${href("/donations/:id", { id: order_id })}`);
-
-    if (custom_redirect) {
-      url.searchParams.set("donor_name", `${fn} ${ln}`);
-      const to_pay =
-        intent.amount.base + intent.amount.tip + intent.amount.fee_allowance;
-      url.searchParams.set("donation_amount", to_pay.toString());
-      url.searchParams.set("donation_currency", intent.currency);
-      url.searchParams.set("payment_method", expressPaymentType);
-    }
-
-    const return_url = url.toString();
-
-    const { error } = await stripe[
-      x.frequency !== "one-time" ? "confirmSetup" : "confirmPayment"
-    ]({
-      elements,
-      clientSecret: client_secret,
-      confirmParams: { return_url },
-      redirect: "if_required",
-    });
-
-    if (error) {
-      report_error(error);
-      on_error(error.message || GENERIC_ERROR_MESSAGE);
-    } else {
-      // Payment succeeded, redirect via postMessage if in iframe
-      if (window.self !== window.top) {
-        window.parent.postMessage(
-          {
-            type: "redirect",
-            redirect_url: return_url,
-            form_id: don.config?.id,
-          },
-          "*"
-        );
-      } else {
-        // Not in iframe, redirect directly
-        window.location.href = return_url;
+      if (!res.ok) {
+        // nothing the donor can fix in the sheet, but it still has to close on
+        // a failure rather than spin on a payment that never gets confirmed
+        ev.paymentFailed({ reason: "fail" });
+        return on_error(`Failed to create donation intent: ${res.statusText}`);
       }
+
+      const { order_id, client_secret }: IStripeIntentReturn = await res.json();
+
+      // resolved before the confirm: stripe needs it for `confirmParams`
+      const dest = donation_return_url({
+        donation_id: order_id,
+        base_url: don.base_url,
+        success_redirect: don.config?.success_redirect,
+        amount:
+          intent.amount.base + intent.amount.tip + intent.amount.fee_allowance,
+        currency: intent.currency,
+        payment_method: expressPaymentType,
+        donor_name: [fn, ln],
+      });
+
+      const { error } = await stripe[
+        x.frequency !== "one-time" ? "confirmSetup" : "confirmPayment"
+      ]({
+        elements,
+        clientSecret: client_secret,
+        confirmParams: { return_url: dest.url },
+        redirect: "if_required",
+      });
+
+      if (error) {
+        report_error(error);
+        ev.paymentFailed({ reason: "fail" });
+        return on_error(error.message || GENERIC_ERROR_MESSAGE);
+      }
+
+      redirect({
+        dest,
+        form_id: don.config?.id,
+        parent_origin: don.config?.parent_origin,
+        on_stuck: () => on_stuck?.(dest),
+      });
+    } catch (err) {
+      // a rejected fetch, a body that isn't json, a throw out of stripe.js
+      report_error(err);
+      ev.paymentFailed({ reason: "fail" });
+      on_error(GENERIC_ERROR_MESSAGE);
     }
   };
 
