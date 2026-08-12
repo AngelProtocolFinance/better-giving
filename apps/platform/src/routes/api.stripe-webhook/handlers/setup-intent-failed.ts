@@ -25,5 +25,6 @@ export async function handle_setup_intent_failed(
   };
   const { node, subject } = email.template(x);
 
-  await send_email({ node, subject, to: [meta.email] });
+  // `meta` only carries the order id — the donor's address is on the order row
+  await send_email({ node, subject, to: [order.from_email] });
 }
