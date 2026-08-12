@@ -73,6 +73,26 @@ vi.mock("./express-checkout", () => ({
           data-testid="express-error"
           onClick={() => props.on_error("your card was declined")}
         />
+        <button
+          type="button"
+          data-testid="express-stuck"
+          onClick={() =>
+            props.on_stuck?.({
+              url: "https://better.giving/donations/ord_1",
+              is_custom: false,
+            })
+          }
+        />
+        <button
+          type="button"
+          data-testid="express-stuck-custom"
+          onClick={() =>
+            props.on_stuck?.({
+              url: "https://npo.org/thanks",
+              is_custom: true,
+            })
+          }
+        />
       </div>
     );
   },
@@ -542,6 +562,103 @@ describe("Stripe form: an express rail that can't be offered", () => {
     // a real modal, not a line of text the donor can scroll past: the donor
     // authorized a payment in the wallet sheet and it died — they must be told
     await expect.element(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  test("an in-flight error leaves the wallet element standing", async () => {
+    // the defect this replaces: the prompt unmounted <ExpressCheckout> — and
+    // its <Elements> wrapper — while the donor's wallet sheet was still open,
+    // so the sheet had nothing left to talk to.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    await screen.getByTestId("express-error").click();
+
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect
+      .element(screen.getByTestId("express-mock"))
+      .toBeInTheDocument();
+  });
+
+  test("a wallet payment that lands nowhere is told as a success, not a failure", async () => {
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    await screen.getByTestId("express-stuck").click();
+
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog).toHaveTextContent(/donation went through/i);
+    const link = screen.getByRole("link", { name: /receipt/i });
+    await expect
+      .element(link)
+      .toHaveAttribute("href", "https://better.giving/donations/ord_1");
+    // our own receipt is same-origin and loads right here
+    expect(link.element().getAttribute("target")).toBeNull();
+
+    // and every way to pay again is down: the donation already went through.
+    // (queried off the DOM, not by role — the open dialog hides everything
+    // behind it from the accessibility tree)
+    const submit = screen.container.querySelector<HTMLButtonElement>(
+      'button[type="submit"]'
+    );
+    expect(submit?.textContent).toMatch(/continue with card/i);
+    expect(submit?.disabled).toBe(true);
+    expect(screen.getByTestId("express-mock").query()).toBeNull();
+    expect(screen.getByTestId("paypal-mock").query()).toBeNull();
+  });
+
+  test("the way to the receipt outlives the modal the donor closes", async () => {
+    // the prompt is dismissable, and everything behind it is shut for good.
+    // closing it can't be what leaves the donor with a dead form and no
+    // reason for it — or with no way back to the receipt.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    await screen.getByTestId("express-stuck").click();
+    await screen.getByRole("button", { name: /^done$/i }).click();
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole("dialog").query()).toBeNull()
+    );
+    await expect
+      .element(screen.getByText(/donation went through/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: /receipt/i }))
+      .toHaveAttribute("href", "https://better.giving/donations/ord_1");
+  });
+
+  test("a merchant's own confirmation page is offered in a new tab", async () => {
+    // theirs may answer X-Frame-Options: DENY, and an error document in the
+    // embed would take this very message down with it
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    await screen.getByTestId("express-stuck-custom").click();
+
+    const link = screen.getByRole("link", { name: /receipt/i });
+    await expect
+      .element(link)
+      .toHaveAttribute("href", "https://npo.org/thanks");
+    await expect.element(link).toHaveAttribute("target", "_blank");
+    await expect.element(link).toHaveAttribute("rel", "noopener");
+  });
+
+  test("an in-flight paypal error leaves its rail standing too", async () => {
+    // same defect as the wallet element's: the prompt unmounted the block,
+    // and paypal's live session went with it while the donor's approval
+    // popup was still open.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    await screen.getByTestId("paypal-error").click();
+
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect.element(screen.getByTestId("paypal-mock")).toBeInTheDocument();
   });
 
   test("an in-flight paypal error prompts on the mount that shows notices too", async () => {

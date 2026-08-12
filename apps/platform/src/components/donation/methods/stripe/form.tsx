@@ -12,6 +12,8 @@ import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
 import { Frequency, freqs_shown } from "../../common/frequency";
 import { Incrementers } from "../../common/incrementers";
+import type { IDonationDest } from "../../common/return-url";
+import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
@@ -37,7 +39,19 @@ export function Form(props: TMethodState<"stripe">) {
   // independently (paypal adblocked while apple/google pay is fine, or the
   // reverse), so one going quiet must never take the other down with it.
   const [sx_unavailable, set_sx_unavailable] = useState<IUnavailable>();
+  // a donation on one of the express rails already went through and only its
+  // trip to the receipt didn't. every way to pay again comes down: a donor
+  // reading the prompt as a failure would otherwise donate twice. the
+  // destination is kept because the prompt carrying it can be dismissed, and
+  // what's left behind then is a form with every control shut and no reason
+  // given.
+  const [done, set_done] = useState<IDonationDest>();
   const { don_set, don } = use_donation();
+
+  const on_stuck = (dest: IDonationDest) => {
+    set_done(dest);
+    set_prompt(stuck_prompt(dest));
+  };
 
   const fv = props.fv || {
     amount: don.config?.stripe?.amount_usd || "",
@@ -217,11 +231,17 @@ export function Form(props: TMethodState<"stripe">) {
         checked={rhf.cpf.value}
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
-      {rhf.stripe_express && !prompt && sx_unavailable?.flow !== sx_flow && (
+      {/* neither rail is gated on `prompt`: a prompt raised mid-payment would
+          unmount the rail — the wallet element and its <Elements> wrapper, or
+          paypal's live session — while the donor's sheet or popup is still
+          open, leaving it with nothing to talk to. `done` is different: by
+          then the donation is through and nothing is waiting on an answer. */}
+      {rhf.stripe_express && !done && sx_unavailable?.flow !== sx_flow && (
         <ExpressCheckout
           on_error={(msg) =>
             set_prompt({ type: "error", children: <p>{msg}</p> })
           }
+          on_stuck={on_stuck}
           // nothing has been paid yet and no donor action is pending: record
           // it and let `unavailable` decide what stands in the block's place.
           // never a prompt — see the note there.
@@ -236,7 +256,7 @@ export function Form(props: TMethodState<"stripe">) {
         />
       )}
       {!prompt && unavailable(sx_unavailable, sx_flow)}
-      {rhf.paypal_express && !prompt && pp_unavailable?.flow !== pp_flow && (
+      {rhf.paypal_express && !done && pp_unavailable?.flow !== pp_flow && (
         <Paypal
           {...rhf.paypal_express}
           validate={async () => {
@@ -245,14 +265,19 @@ export function Form(props: TMethodState<"stripe">) {
             return valid;
           }}
           on_error={(x) => set_prompt({ type: "error", children: x })}
+          on_stuck={on_stuck}
           on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
         />
       )}
       {!prompt && unavailable(pp_unavailable, pp_flow)}
+      {done && <StuckMsg dest={done} classes="mt-4 text-sm text-muted-fg" />}
 
       <button
         disabled={
-          currency.isLoading || currency.isValidating || !!currency.error
+          !!done ||
+          currency.isLoading ||
+          currency.isValidating ||
+          !!currency.error
         }
         className="mt-auto btn btn-form-primary"
         type="submit"

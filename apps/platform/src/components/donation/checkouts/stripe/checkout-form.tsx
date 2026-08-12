@@ -4,16 +4,30 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { type FormEventHandler, useState } from "react";
-import { href } from "react-router";
 import { error_prompt, user_error_prompt } from "#/helpers/error-prompt";
 import type { IDonationIntent } from "@/donations";
 import { ErrorTrigger } from "../../../error";
 import { LoadText } from "../../../load-text";
 import { type IPrompt, Prompt } from "../../../prompt";
+import { use_donation_redirect } from "../../common/redirect";
+import {
+  donation_return_url,
+  type IDonationDest,
+} from "../../common/return-url";
+import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { use_donation } from "../../context";
 import { Loader } from "../loader";
 
-type Status = "init" | "loading" | "ready" | "submitting" | { error: unknown };
+/** `done` is a paid donation whose trip to the receipt never happened: the
+ * spinner has to stop, but the donate button must stay shut — a second click
+ * is a second donation. */
+type Status =
+  | "init"
+  | "loading"
+  | "ready"
+  | "submitting"
+  | "done"
+  | { error: unknown };
 
 interface Props extends IDonationIntent {
   order_id: string;
@@ -34,6 +48,11 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   // (it has an inherent loading animation) that's when we hide the loader ring
   // and start showing the "Back" button
   const [status, set_status] = useState<Status>("init");
+  // where the donation the donor already paid for ended up. the prompt saying
+  // so can be dismissed and the button behind it never re-opens, so the way
+  // to the receipt has to outlive it.
+  const [stuck, set_stuck] = useState<IDonationDest>();
+  const redirect = use_donation_redirect();
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
@@ -46,29 +65,23 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
 
     set_status("submitting");
 
-    const custom_redirect = don.config?.success_redirect;
-    const url = custom_redirect
-      ? new URL(custom_redirect)
-      : new URL(`${don.base_url}${href("/donations/:id", { id: order_id })}`);
-
-    if (custom_redirect) {
-      url.searchParams.set(
-        "donor_name",
-        `${donor.first_name} ${donor.last_name}`
-      );
-      const to_pay =
-        intent.amount.base + intent.amount.tip + intent.amount.fee_allowance;
-      url.searchParams.set("donation_amount", to_pay.toString());
-      url.searchParams.set("donation_currency", intent.currency);
-      url.searchParams.set("payment_method", "card");
-    }
-    const return_url = url.toString();
+    // resolved before the confirm: stripe needs it for `confirmParams`
+    const dest = donation_return_url({
+      donation_id: order_id,
+      base_url: don.base_url,
+      success_redirect: don.config?.success_redirect,
+      amount:
+        intent.amount.base + intent.amount.tip + intent.amount.fee_allowance,
+      currency: intent.currency,
+      payment_method: "card",
+      donor_name: [donor.first_name, donor.last_name],
+    });
 
     const { error } = await stripe[
       intent.frequency !== "one-time" ? "confirmSetup" : "confirmPayment"
     ]({
       elements,
-      confirmParams: { return_url },
+      confirmParams: { return_url: dest.url },
       redirect: "if_required",
     });
 
@@ -85,20 +98,16 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
       }
       set_status("ready");
     } else {
-      // Payment succeeded, redirect via postMessage if in iframe
-      if (window.self !== window.top) {
-        window.parent.postMessage(
-          {
-            type: "redirect",
-            redirect_url: return_url,
-            form_id: don.config?.id,
-          },
-          "*"
-        );
-      } else {
-        // Not in iframe, redirect directly
-        window.location.href = return_url;
-      }
+      redirect({
+        dest,
+        form_id: don.config?.id,
+        parent_origin: don.config?.parent_origin,
+        on_stuck: () => {
+          set_status("done");
+          set_stuck(dest);
+          set_prompt(stuck_prompt(dest));
+        },
+      });
     }
   };
 
@@ -145,6 +154,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
           </LoadText>
         </button>
       )}
+      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </form>
   );

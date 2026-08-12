@@ -12,11 +12,16 @@ import type {
   IDonorAddress,
 } from "@/donations/schema";
 import { min_fee_allowance } from "@/helpers/donation";
-import { to_full } from "@/helpers/name";
 import { ContentLoader } from "../../../content-loader";
 import { type IPrompt, Prompt } from "../../../prompt";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
+import { use_donation_redirect } from "../../common/redirect";
+import {
+  donation_return_url,
+  type IDonationDest,
+} from "../../common/return-url";
+import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { Summary } from "../../common/summary";
 import { use_donation } from "../../context";
 import {
@@ -32,6 +37,11 @@ const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
 export function ChariotCheckout(props: DafDonationDetails) {
   const { don_set, don } = use_donation();
   const [prompt, set_prompt] = useState<IPrompt>();
+  // where a grant that already went through ended up. the prompt saying so can
+  // be dismissed, and the chariot element stays live behind it — a donor who
+  // closes it and reads the panel as a failure is one click from granting
+  // twice. so the answer stays on the panel, not only in the modal.
+  const [stuck, set_stuck] = useState<IDonationDest>();
   const [script_ready, set_script_ready] = useState(false);
 
   const tipv = tip_val(props.tip_format, props.tip, +props.amount);
@@ -52,6 +62,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
   mfa_ref.current = mfa;
   const set_prompt_ref = useRef(set_prompt);
   set_prompt_ref.current = set_prompt;
+  const redirect = use_donation_redirect();
+  const redirect_ref = useRef(redirect);
+  redirect_ref.current = redirect;
 
   // load chariot CDN script
   useEffect(() => {
@@ -181,35 +194,27 @@ export function ChariotCheckout(props: DafDonationDetails) {
 
         set_prompt_ref.current(undefined);
 
-        const custom_redirect = d.config?.success_redirect;
-        const url = custom_redirect
-          ? new URL(custom_redirect)
-          : new URL(`${d.base_url}${href("/donations/:id", { id })}`);
+        const dest = donation_return_url({
+          donation_id: id,
+          base_url: d.base_url,
+          success_redirect: d.config?.success_redirect,
+          amount: grant_amount,
+          currency: usd_option.code,
+          payment_method: "daf",
+          donor_name: [grantor.firstName, grantor.lastName],
+        });
 
-        if (custom_redirect) {
-          url.searchParams.set(
-            "donor_name",
-            to_full(grantor.firstName, grantor.lastName)
-          );
-          url.searchParams.set("donation_amount", grant_amount.toString());
-          url.searchParams.set("donation_currency", usd_option.code);
-          url.searchParams.set("payment_method", "daf");
-        }
-        const return_url = url.toString();
-
-        // redirect via postMessage if in iframe, otherwise navigate directly
-        if (window.self !== window.top) {
-          window.parent.postMessage(
-            {
-              type: "redirect",
-              redirect_url: return_url,
-              form_id: d.config?.id,
-            },
-            "*"
-          );
-        } else {
-          window.location.href = return_url;
-        }
+        redirect_ref.current({
+          dest,
+          form_id: d.config?.id,
+          parent_origin: d.config?.parent_origin,
+          on_stuck: () => {
+            // the panel keeps saying it after the modal is gone — chariot's
+            // element is still live and one more grant is a real second grant
+            set_stuck(dest);
+            set_prompt_ref.current(stuck_prompt(dest));
+          },
+        });
       } catch (err) {
         set_prompt_ref.current(
           error_prompt(err, { context: "processing donation" })
@@ -240,6 +245,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>
       <ContentLoader className="h-12 mt-4 block group-has-[chariot-connect]:hidden" />
+      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
       <DonationTerms
         endowName={don.recipient.name}
         classes="border-t mt-5 pt-4 "

@@ -8,7 +8,9 @@ import { href } from "react-router";
 import { paypal_client_id, stage } from "#/constants/env";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
 import { report_degraded, report_error } from "@/errors/report";
+import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
+import { donation_return_url, type IDonationDest } from "../common/return-url";
 import { use_donation } from "../context";
 import type { IPayPalExpress } from "./stripe/use-rhf";
 
@@ -22,6 +24,12 @@ interface Props extends IPayPalExpress {
    * everything that goes wrong *during* a payment stays on `on_error`.
    */
   on_unavailable?: (msg: string) => void;
+  /**
+   * the payment went through but the browser never left for the thank-you
+   * page. not an error — the money moved — so the caller says so and stops
+   * offering to take the payment again.
+   */
+  on_stuck?: (dest: IDonationDest) => void;
   validate: () => Promise<boolean>;
   classes?: string;
 }
@@ -75,6 +83,7 @@ export function Paypal({
   classes = "",
   on_error,
   on_unavailable,
+  on_stuck,
   validate,
   ...p
 }: Props) {
@@ -94,6 +103,11 @@ export function Paypal({
   on_error_ref.current = on_error;
   const on_unavailable_ref = useRef(on_unavailable ?? on_error);
   on_unavailable_ref.current = on_unavailable ?? on_error;
+  const on_stuck_ref = useRef(on_stuck);
+  on_stuck_ref.current = on_stuck;
+  const redirect = use_donation_redirect();
+  const redirect_ref = useRef(redirect);
+  redirect_ref.current = redirect;
 
   useEffect(() => {
     let mounted = true;
@@ -159,38 +173,30 @@ export function Paypal({
 
       const build_redirect_url = (
         onhold_id: string,
-        extra_params?: Record<string, string>
+        payment_method: string,
+        donor_name?: string
       ) => {
         const d = don_ref.current;
         const { amnt, tip, fee_allowance } = props_ref.current;
-        const total = amnt + tip + fee_allowance;
-        const custom_redirect = d.config?.success_redirect;
-        const url = custom_redirect
-          ? new URL(custom_redirect)
-          : new URL(
-              `${d.base_url}${href("/donations/:id", { id: onhold_id })}`
-            );
-
-        if (custom_redirect) {
-          url.searchParams.set("donation_amount", total.toString());
-          url.searchParams.set("donation_currency", currency);
-          for (const [key, value] of Object.entries(extra_params ?? {})) {
-            url.searchParams.set(key, value);
-          }
-        }
-        return url.toString();
+        return donation_return_url({
+          donation_id: onhold_id,
+          base_url: d.base_url,
+          success_redirect: d.config?.success_redirect,
+          amount: amnt + tip + fee_allowance,
+          currency,
+          payment_method,
+          donor_name: [donor_name],
+        });
       };
 
-      const do_redirect = (url: string) => {
+      const do_redirect = (dest: IDonationDest) => {
         const d = don_ref.current;
-        if (window.self !== window.top) {
-          window.parent.postMessage(
-            { type: "redirect", redirect_url: url, form_id: d.config?.id },
-            "*"
-          );
-        } else {
-          window.location.assign(url);
-        }
+        redirect_ref.current({
+          dest,
+          form_id: d.config?.id,
+          parent_origin: d.config?.parent_origin,
+          on_stuck: () => on_stuck_ref.current?.(dest),
+        });
       };
 
       const on_session_error = (err: unknown) => {
@@ -227,9 +233,9 @@ export function Paypal({
           if (!onhold_id)
             return on_error_ref.current("Missing order information");
 
-          const extra: Record<string, string> = { payment_method: ps_id };
-          if (ps?.name?.full_name) extra.donor_name = ps.name.full_name;
-          do_redirect(build_redirect_url(onhold_id, extra));
+          do_redirect(
+            build_redirect_url(onhold_id, ps_id, ps?.name?.full_name)
+          );
         } catch (err) {
           report_error(err);
           on_error_ref.current(
@@ -253,9 +259,7 @@ export function Paypal({
                   // server set custom_id=don.id on subscription; donation row
                   // enriched from BILLING.SUBSCRIPTION.ACTIVATED webhook.
                   const { don_id } = await intent_promise;
-                  do_redirect(
-                    build_redirect_url(don_id, { payment_method: "paypal" })
-                  );
+                  do_redirect(build_redirect_url(don_id, "paypal"));
                 } catch (err) {
                   report_error(err);
                   on_error_ref.current(

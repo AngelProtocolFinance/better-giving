@@ -307,6 +307,10 @@ export type Config = {
   success_redirect: string | undefined;
   freq_opts: TFrequency[] | undefined;
   stripe: IStripeConfig | undefined;
+  /** origin of the page framing this form, when its embed script told us.
+   * already validated (see `common/parent-origin.ts`); absent means the
+   * wildcard every embed used before the parameter existed. */
+  parent_origin?: string;
 };
 
 export interface IProgram {

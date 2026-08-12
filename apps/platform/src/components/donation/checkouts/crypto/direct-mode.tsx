@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
 import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
 import { ru_vdec } from "@/helpers/decimal";
 import { ContentLoader } from "../../../content-loader";
+import { type IPrompt, Prompt } from "../../../prompt";
 import { QueryLoader } from "../../../query-loader";
 import { ContinueBtn } from "../../common/continue-btn";
+import { use_donation_redirect } from "../../common/redirect";
+import { donation_return_url } from "../../common/return-url";
+import { stuck_prompt } from "../../common/stuck-prompt";
 import type { CryptoDonationDetails, Init } from "../../types";
 import { PayQr } from "./pay-qr";
 
@@ -47,42 +52,32 @@ export function DirectMode({
   tipv,
 }: Props) {
   const navigation = useNavigation();
+  const [prompt, set_prompt] = useState<IPrompt>();
+  const redirect = use_donation_redirect();
 
   const handle_continue = () => {
+    // the button below is disabled until there's an order to continue with —
+    // this stays as a type guard, not as a way to fail. throwing here used to
+    // put an error boundary in front of a donor who had already sent crypto.
     const id = data?.order_id;
-    if (!id) throw new Error("No order ID found");
+    if (!id) return;
 
-    const custom_redirect = init.config?.success_redirect;
-    const url = custom_redirect
-      ? new URL(custom_redirect)
-      : new URL(`${init.base_url}${href("/donations/:id", { id })}`);
+    const dest = donation_return_url({
+      donation_id: id,
+      base_url: init.base_url,
+      success_redirect: init.config?.success_redirect,
+      amount: fv.token.amount,
+      currency: fv.token.code,
+      payment_method: "crypto",
+      donor_name: [donor.first_name, donor.last_name],
+    });
 
-    if (custom_redirect) {
-      url.searchParams.set("donation_amount", fv.token.amount);
-      url.searchParams.set("donation_currency", fv.token.code);
-      if (donor.first_name || donor.last_name) {
-        url.searchParams.set(
-          "donor_name",
-          `${donor.first_name} ${donor.last_name}`.trim()
-        );
-      }
-      url.searchParams.set("payment_method", "crypto");
-    }
-    const return_url = url.toString();
-
-    // redirect via postMessage if in iframe, otherwise navigate directly
-    if (window.self !== window.top) {
-      window.parent.postMessage(
-        {
-          type: "redirect",
-          redirect_url: return_url,
-          form_id: init.config?.id,
-        },
-        "*"
-      );
-    } else {
-      window.location.href = return_url;
-    }
+    redirect({
+      dest,
+      form_id: init.config?.id,
+      parent_origin: init.config?.parent_origin,
+      on_stuck: () => set_prompt(stuck_prompt(dest)),
+    });
   };
 
   const intent: IDonationIntent = {
@@ -155,11 +150,14 @@ export function DirectMode({
       </p>
 
       <ContinueBtn
-        disabled={!!error || isLoading || navigation.state !== "idle"}
+        disabled={
+          !data?.order_id || !!error || isLoading || navigation.state !== "idle"
+        }
         onClick={handle_continue}
         text="I have completed the payment"
         className="justify-self-stretch mt-8"
       />
+      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </div>
   );
 }

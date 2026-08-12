@@ -18,9 +18,43 @@ import { ExpressCheckout } from ".";
 // prove: that stripe really emits `loaderror` for an adblocked element, or
 // that any of this survives a real <Elements> — both are stripe's behavior,
 // stubbed out here.
+const billing_init = () => ({
+  email: "john@doe.com",
+  name: "John Doe",
+  address: {
+    line1: "1 Main St",
+    line2: "",
+    city: "Springfield",
+    state: "IL",
+    country: "US",
+    postal_code: "62701",
+  },
+});
 const el = vi.hoisted(() => ({
   load_error: false,
   error: { message: "element iframe blocked" } as Record<string, unknown>,
+  billing: {
+    email: "john@doe.com",
+    name: "John Doe",
+    address: {
+      line1: "1 Main St",
+      line2: "",
+      city: "Springfield",
+      state: "IL",
+      country: "US",
+      postal_code: "62701",
+    },
+  } as Record<string, unknown>,
+}));
+// the wallet sheet's own failure channel. every bail-out after the donor has
+// authorized owes it a call — without one the sheet spins until the donor
+// force-closes it and never learns the donation didn't happen.
+const payment_failed_mock = vi.hoisted(() => vi.fn());
+// leaving for the thank-you page is one shared helper with its own tests
+// (../../../common/redirect.test.ts)
+const redirect_mock = vi.hoisted(() => vi.fn());
+vi.mock("../../../common/redirect", () => ({
+  use_donation_redirect: () => redirect_mock,
 }));
 const reported = vi.hoisted(() => [] as [string, unknown][]);
 vi.mock("@/errors/report", async (orig) => ({
@@ -61,18 +95,8 @@ vi.mock("@stripe/react-stripe-js", () => ({
         onClick={() =>
           onConfirm({
             expressPaymentType: "apple_pay",
-            billingDetails: {
-              email: "john@doe.com",
-              name: "John Doe",
-              address: {
-                line1: "1 Main St",
-                line2: "",
-                city: "Springfield",
-                state: "IL",
-                country: "US",
-                postal_code: "62701",
-              },
-            },
+            paymentFailed: payment_failed_mock,
+            billingDetails: el.billing,
           })
         }
       />
@@ -192,6 +216,9 @@ describe("stripe express: a payment that dies mid-flight", () => {
   afterEach(() => {
     stripe.value = null;
     elements.value = null;
+    el.billing = billing_init();
+    payment_failed_mock.mockReset();
+    redirect_mock.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -238,5 +265,144 @@ describe("stripe express: a payment that dies mid-flight", () => {
       "Failed to create donation intent: Server Error"
     );
     expect(on_unavailable).not.toHaveBeenCalled();
+  });
+});
+
+describe("stripe express: the wallet sheet is told when a payment dies", () => {
+  const og_error = console.error;
+  beforeAll(() => {
+    console.error = vi.fn();
+    return () => {
+      console.error = og_error;
+    };
+  });
+  afterEach(() => {
+    stripe.value = null;
+    elements.value = null;
+    el.billing = billing_init();
+    payment_failed_mock.mockReset();
+    redirect_mock.mockReset();
+    vi.restoreAllMocks();
+  });
+
+  test("a wallet that hands back no email", async () => {
+    // google/apple pay can return details without one. only the sheet can
+    // collect a different email, so the sheet is who has to hear about it.
+    const { email: _, ...no_email } = billing_init();
+    el.billing = no_email;
+    elements.value = { submit: async () => ({}) };
+    stripe.value = { confirmPayment: async () => ({}) };
+
+    const on_error = vi.fn();
+    const Stub = mount({ on_error });
+    const screen = await render(<Stub />);
+    await screen.getByTestId("express-btn").click();
+
+    await vi.waitFor(() => expect(payment_failed_mock).toHaveBeenCalledOnce());
+    // the email is unusable payment data — not an address the sheet would
+    // send them back to re-enter
+    expect(payment_failed_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "invalid_payment_data" })
+    );
+    // and nothing was charged: the intent was never created
+    expect(redirect_mock).not.toHaveBeenCalled();
+  });
+
+  test("an intent our own server refuses", async () => {
+    elements.value = { submit: async () => ({}) };
+    stripe.value = { confirmPayment: async () => ({}) };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 500, statusText: "Server Error" })
+    );
+
+    const Stub = mount({ on_error: vi.fn() });
+    const screen = await render(<Stub />);
+    await screen.getByTestId("express-btn").click();
+
+    await vi.waitFor(() => expect(payment_failed_mock).toHaveBeenCalledOnce());
+    expect(payment_failed_mock).toHaveBeenCalledWith({ reason: "fail" });
+  });
+
+  test("a confirm that comes back declined", async () => {
+    elements.value = { submit: async () => ({}) };
+    stripe.value = {
+      confirmPayment: async () => ({
+        error: { message: "Your card was declined." },
+      }),
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ order_id: "ord_1", client_secret: "cs_1" })
+    );
+
+    const Stub = mount({ on_error: vi.fn() });
+    const screen = await render(<Stub />);
+    await screen.getByTestId("express-btn").click();
+
+    await vi.waitFor(() => expect(payment_failed_mock).toHaveBeenCalledOnce());
+    expect(payment_failed_mock).toHaveBeenCalledWith({ reason: "fail" });
+  });
+
+  test("payment details the element itself rejects", async () => {
+    // this one used to be either/or: the sheet was told and the donor was
+    // not, so a wallet that closes quietly left them staring at an unchanged
+    // form with no idea why nothing happened.
+    elements.value = {
+      submit: async () => ({
+        error: { message: "Your postal code is wrong." },
+      }),
+    };
+    stripe.value = { confirmPayment: async () => ({}) };
+
+    const on_error = vi.fn();
+    const Stub = mount({ on_error });
+    const screen = await render(<Stub />);
+    await screen.getByTestId("express-btn").click();
+
+    await vi.waitFor(() => expect(payment_failed_mock).toHaveBeenCalledOnce());
+    expect(payment_failed_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "fail" })
+    );
+    expect(on_error).toHaveBeenCalledWith("Your postal code is wrong.");
+  });
+
+  test("a request that throws instead of answering", async () => {
+    // a dropped connection rejects the fetch rather than returning !ok. the
+    // donor has already authorized in the sheet, so an unhandled throw here
+    // leaves it spinning on a payment nobody will ever confirm.
+    elements.value = { submit: async () => ({}) };
+    stripe.value = { confirmPayment: async () => ({}) };
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+
+    const on_error = vi.fn();
+    const Stub = mount({ on_error });
+    const screen = await render(<Stub />);
+    await screen.getByTestId("express-btn").click();
+
+    await vi.waitFor(() => expect(payment_failed_mock).toHaveBeenCalledOnce());
+    expect(payment_failed_mock).toHaveBeenCalledWith({ reason: "fail" });
+    expect(on_error).toHaveBeenCalledOnce();
+    expect(redirect_mock).not.toHaveBeenCalled();
+  });
+
+  test("a payment that goes through leaves for the thank-you page", async () => {
+    elements.value = { submit: async () => ({}) };
+    stripe.value = { confirmPayment: async () => ({}) };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ order_id: "ord_1", client_secret: "cs_1" })
+    );
+
+    const Stub = mount({ on_error: vi.fn() });
+    const screen = await render(<Stub />);
+    await screen.getByTestId("express-btn").click();
+
+    await vi.waitFor(() => expect(redirect_mock).toHaveBeenCalledOnce());
+    expect(redirect_mock.mock.calls[0]![0]).toMatchObject({
+      dest: {
+        url: "https://test.example.com/donations/ord_1",
+        is_custom: false,
+      },
+    });
+    // nothing failed — the sheet must not be told otherwise
+    expect(payment_failed_mock).not.toHaveBeenCalled();
   });
 });
