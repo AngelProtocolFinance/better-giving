@@ -42,15 +42,20 @@ export function Form(props: TMethodState<"stripe">) {
   // a donation on one of the express rails went through. set when the charge
   // lands, not when the trip to the receipt is declared lost: between the two
   // is up to nine seconds of a form that looks exactly like one nothing
-  // happened on, and every way to pay is shut for all of it.
-  const [paid, set_paid] = useState<IDonationDest>();
-  // ...and the trip never happened. the prompt carrying the way to the receipt
-  // can be dismissed, so what it said has to survive on the form.
-  const [stuck, set_stuck] = useState(false);
+  // happened on, and every way to pay is shut for all of it. deliberately not
+  // a destination — the click gate only refuses to *open* a rail, so a session
+  // the donor already had open can still land after this, and two charges
+  // would fight over one variable.
+  const [paid, set_paid] = useState(false);
+  // ...and where the one whose trip never happened ended up. carried per
+  // failure rather than shared with `paid`, so the way out always points at
+  // the donation that actually needs it. the prompt saying so can be
+  // dismissed, so it has to survive on the form too.
+  const [stuck, set_stuck] = useState<IDonationDest>();
   const { don_set, don } = use_donation();
 
   const on_stuck = (dest: IDonationDest) => {
-    set_stuck(true);
+    set_stuck(dest);
     set_prompt(stuck_prompt(dest));
   };
 
@@ -240,11 +245,11 @@ export function Form(props: TMethodState<"stripe">) {
           not opened yet and there is nothing to strand. */}
       {rhf.stripe_express && sx_unavailable?.flow !== sx_flow && (
         <ExpressCheckout
-          paid={!!paid}
+          paid={paid}
           on_error={(msg) =>
             set_prompt({ type: "error", children: <p>{msg}</p> })
           }
-          on_paid={set_paid}
+          on_paid={() => set_paid(true)}
           on_stuck={on_stuck}
           // nothing has been paid yet and no donor action is pending: record
           // it and let `unavailable` decide what stands in the block's place.
@@ -264,26 +269,24 @@ export function Form(props: TMethodState<"stripe">) {
         <Paypal
           {...rhf.paypal_express}
           classes={paid ? "opacity-50" : ""}
-          paid={!!paid}
+          paid={paid}
           validate={async () => {
             const valid = await rhf.trigger(["amount", "frequency"]);
             if (!valid) rhf.setFocus("amount");
             return valid;
           }}
           on_error={(x) => set_prompt({ type: "error", children: x })}
-          on_paid={set_paid}
+          on_paid={() => set_paid(true)}
           on_stuck={on_stuck}
           on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
         />
       )}
       {!prompt && unavailable(pp_unavailable, pp_flow)}
-      {stuck && paid && (
-        <StuckMsg dest={paid} classes="mt-4 text-sm text-muted-fg" />
-      )}
+      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
 
       <button
         disabled={
-          !!paid ||
+          paid ||
           currency.isLoading ||
           currency.isValidating ||
           !!currency.error

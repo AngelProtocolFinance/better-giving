@@ -45,6 +45,28 @@ vi.mock("../paypal", () => ({
           data-testid="paypal-error"
           onClick={() => props.on_error(<p>paypal died mid-payment</p>)}
         />
+        {/* its own donation, with its own receipt — the point of keeping these
+            separate from the express rail's below. */}
+        <button
+          type="button"
+          data-testid="paypal-paid"
+          onClick={() =>
+            props.on_paid?.({
+              url: "https://better.giving/donations/ord_pp",
+              is_custom: false,
+            })
+          }
+        />
+        <button
+          type="button"
+          data-testid="paypal-stuck"
+          onClick={() =>
+            props.on_stuck?.({
+              url: "https://better.giving/donations/ord_pp",
+              is_custom: false,
+            })
+          }
+        />
       </div>
     );
   },
@@ -679,6 +701,30 @@ describe("Stripe form: an express rail that can't be offered", () => {
     // and nothing is worded as a failure yet: the browser may still be on its
     // way to the receipt.
     expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
+  });
+
+  test("the way out points at the donation that needs it, not at whichever charge landed last", async () => {
+    // the click gate only refuses to *open* a rail, so a session the donor
+    // already had open when the first charge landed still completes. two
+    // donations, and only one of them lost its way to the receipt.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    // paypal lands first and is the one that never reaches its receipt...
+    await screen.getByTestId("paypal-paid").click();
+    // ...while the wallet session, opened before that, lands after it
+    await screen.getByTestId("express-paid").click();
+    await screen.getByTestId("paypal-stuck").click();
+
+    await screen.getByRole("button", { name: /^done$/i }).click();
+    await vi.waitFor(() =>
+      expect(screen.getByRole("dialog").query()).toBeNull()
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: /receipt/i }))
+      .toHaveAttribute("href", "https://better.giving/donations/ord_pp");
   });
 
   test("a merchant's own confirmation page is offered in a new tab", async () => {
