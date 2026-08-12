@@ -131,4 +131,36 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     // a second one spends the donor's fund twice.
     expect(el2!.closest("[inert]")).not.toBeNull();
   });
+
+  test("the launcher is dead from the moment the grant is recommended, not from the moment we give up on the receipt", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.json({ id: "don_1" })
+      )
+    );
+    // the redirect is still trying: it has neither landed nor reported back.
+    // this is up to nine seconds long, and it's the window a donor sits in
+    // wondering whether anything happened at all.
+    redirect_mock.mockImplementation(() => {});
+    seed_script();
+
+    const Stub = stb(<ChariotCheckout {...fv} />);
+    const screen = await render(<Stub />);
+
+    const el = await vi.waitUntil(() =>
+      screen.container.querySelector("chariot-connect")
+    );
+    el.dispatchEvent(
+      new CustomEvent("CHARIOT_SUCCESS", { detail: success_detail })
+    );
+
+    await vi.waitFor(() =>
+      expect(
+        screen.container.querySelector("chariot-connect")?.closest("[inert]")
+      ).not.toBeNull()
+    );
+
+    // and not yet worded as a failure — the browser may still be on its way
+    expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
+  });
 });

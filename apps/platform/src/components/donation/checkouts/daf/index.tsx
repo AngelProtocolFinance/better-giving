@@ -37,11 +37,14 @@ const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
 export function ChariotCheckout(props: DafDonationDetails) {
   const { don_set, don } = use_donation();
   const [prompt, set_prompt] = useState<IPrompt>();
-  // where a grant that already went through ended up. the prompt saying so can
-  // be dismissed, and a donor who closes it and reads the panel as a failure
-  // would otherwise be one click from granting twice — so this both keeps the
-  // answer on the panel and takes the launcher out of reach.
-  const [stuck, set_stuck] = useState<IDonationDest>();
+  // where a grant that has already been recommended ended up. set the moment
+  // the money moves, not when the trip to the receipt is declared lost: what
+  // comes between is up to nine seconds of a panel that looks exactly like one
+  // nothing happened on, and the launcher may not be live for any of it.
+  const [paid, set_paid] = useState<IDonationDest>();
+  // ...and the trip never happened, so the way to the receipt has to be on the
+  // panel: the prompt carrying it can be dismissed.
+  const [stuck, set_stuck] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
   const tipv = tip_val(props.tip_format, props.tip, +props.amount);
@@ -129,6 +132,10 @@ export function ChariotCheckout(props: DafDonationDetails) {
       const d = don_ref.current;
 
       try {
+        // stays up until the browser leaves or the redirect reports it never
+        // did — this used to clear the moment the intent was recorded, which
+        // handed the donor a panel that looks untouched while the trip to the
+        // receipt was still being attempted.
         set_prompt_ref.current({
           type: "loading",
           children: "Processing payment",
@@ -192,8 +199,6 @@ export function ChariotCheckout(props: DafDonationDetails) {
         if (!res.ok) throw await res.text();
         const { id } = await res.json();
 
-        set_prompt_ref.current(undefined);
-
         const dest = donation_return_url({
           donation_id: id,
           base_url: d.base_url,
@@ -204,14 +209,18 @@ export function ChariotCheckout(props: DafDonationDetails) {
           donor_name: [grantor.firstName, grantor.lastName],
         });
 
+        // the grant is recommended and irreversible from here. the launcher
+        // goes dead now — every path below is us trying to reach the receipt,
+        // and none of them may leave a second grant one click away.
+        set_paid(dest);
+
         redirect_ref.current({
           dest,
           form_id: d.config?.id,
           parent_origin: d.config?.parent_origin,
           on_stuck: () => {
-            // the panel keeps saying it after the modal is gone, and the
-            // launcher behind it stops answering — see the container below
-            set_stuck(dest);
+            // the panel keeps saying it after the modal is gone
+            set_stuck(true);
             set_prompt_ref.current(stuck_prompt(dest));
           },
         });
@@ -241,23 +250,25 @@ export function ChariotCheckout(props: DafDonationDetails) {
       frequency="one-time"
       tip={tipv ? { value: tipv, charity_name: don.recipient.name } : undefined}
     >
-      {/* the grant is through and only its trip to the receipt isn't, so the
-          launcher goes dead — one more click here is a second real grant, of
-          real money, out of the donor's fund. it goes dead in place rather
-          than away: chariot's element owns a session whose modal renders into
-          `document.body`, so unmounting it is the one move that could strand
-          a sheet the donor still has open. `inert` shuts out pointer and
-          keyboard both, and reaches into the shadow root the button lives
-          in — `pointer-events-none` would leave it tabbable. */}
+      {/* the grant is recommended, so the launcher goes dead — one more click
+          here is a second real grant, of real money, out of the donor's fund.
+          it goes dead in place rather than away: chariot's element owns a
+          session whose modal renders into `document.body`, so unmounting it is
+          the one move that could strand a sheet the donor still has open.
+          `inert` shuts out pointer and keyboard both, and reaches into the
+          shadow root the button lives in — `pointer-events-none` would leave
+          it tabbable. */}
       <div
         ref={container_ref}
-        inert={!!stuck}
-        className={stuck ? "opacity-50" : undefined}
+        inert={!!paid}
+        className={paid ? "opacity-50" : undefined}
       >
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>
       <ContentLoader className="h-12 mt-4 block group-has-[chariot-connect]:hidden" />
-      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
+      {stuck && paid && (
+        <StuckMsg dest={paid} classes="mt-4 text-sm text-muted-fg" />
+      )}
       <DonationTerms
         endowName={don.recipient.name}
         classes="border-t mt-5 pt-4 "
