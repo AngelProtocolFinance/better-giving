@@ -93,10 +93,27 @@ describe("post-donation redirect", () => {
     expect(f.posted).toHaveLength(0);
   });
 
-  test("a framed document asks the host page first, then takes itself there", () => {
+  test("a basic embed goes to the receipt without asking anyone", () => {
+    // no `parent_origin` means no `form-embed.js` built this frame, and our
+    // own receipt frames anywhere — so there is nobody to ask and no reason to
+    // wait. the grace spent here is the donor watching "Processing...".
     const f = fake_win(true);
 
     redirect_after_donation({ dest: ours, form_id: "form_1", win: f.win });
+
+    expect(f.win.location.href).toBe(ours.url);
+    expect(f.posted).toHaveLength(0);
+  });
+
+  test("a script embed asks the host page first, then takes itself there", () => {
+    const f = fake_win(true);
+
+    redirect_after_donation({
+      dest: ours,
+      form_id: "form_1",
+      parent_origin: "https://npo.org",
+      win: f.win,
+    });
 
     // the message `form-embed.js` listens for, unchanged
     expect(f.posted).toEqual([
@@ -105,7 +122,8 @@ describe("post-donation redirect", () => {
     // a script-mode host is navigating the top page right now — don't race it
     expect(f.win.location.href).toBe("about:blank");
 
-    // a plain `<iframe src>` host has no listener, so nothing came of it
+    // a host whose script is stale enough not to answer still gets the donor
+    // to the receipt, one frame down
     vi.advanceTimersByTime(PARENT_GRACE_MS);
     expect(f.win.location.href).toBe(ours.url);
   });
@@ -117,6 +135,7 @@ describe("post-donation redirect", () => {
     redirect_after_donation({
       dest: ours,
       form_id: "form_1",
+      parent_origin: "https://npo.org",
       on_stuck,
       win: f.win,
     });
@@ -136,7 +155,12 @@ describe("post-donation redirect", () => {
   test("an ack meant for a different form on the page is ignored", () => {
     const f = fake_win(true);
 
-    redirect_after_donation({ dest: ours, form_id: "form_1", win: f.win });
+    redirect_after_donation({
+      dest: ours,
+      form_id: "form_1",
+      parent_origin: "https://npo.org",
+      win: f.win,
+    });
     f.ack("form_2");
 
     vi.advanceTimersByTime(PARENT_GRACE_MS);
@@ -149,7 +173,12 @@ describe("post-donation redirect", () => {
     // came back to a form that would never move again.
     const f = fake_win(true);
 
-    redirect_after_donation({ dest: ours, form_id: "form_1", win: f.win });
+    redirect_after_donation({
+      dest: ours,
+      form_id: "form_1",
+      parent_origin: "https://npo.org",
+      win: f.win,
+    });
     f.freeze();
 
     // frozen: the browser suspends timers, and so do we
@@ -227,7 +256,7 @@ describe("post-donation redirect", () => {
     // older copy sends no origin. it has to keep working exactly as it did.
     const f = fake_win(true);
 
-    redirect_after_donation({ dest: ours, form_id: "form_1", win: f.win });
+    redirect_after_donation({ dest: theirs, form_id: "form_1", win: f.win });
 
     expect(f.targets).toEqual(["*"]);
   });
@@ -237,8 +266,10 @@ describe("post-donation redirect", () => {
     // the middle of a donation that already went through
     for (const bad of ["https://npo.org/thanks", "npo.org", "", "*"]) {
       const f = fake_win(true);
+      // a merchant destination, because that is the message worth aiming: it
+      // carries the donor's name and what they gave
       redirect_after_donation({
-        dest: ours,
+        dest: theirs,
         form_id: "form_1",
         parent_origin: bad,
         win: f.win,
@@ -254,6 +285,7 @@ describe("post-donation redirect", () => {
     const cancel = redirect_after_donation({
       dest: ours,
       form_id: "form_1",
+      parent_origin: "https://npo.org",
       on_stuck,
       win: f.win,
     });

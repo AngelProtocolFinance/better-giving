@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef } from "react";
-import { post_target } from "./parent-origin";
+import { parent_origin, post_target } from "./parent-origin";
 import type { IDonationDest } from "./return-url";
 
 /** how long the host page gets to act on the `redirect` message before the
  * frame takes itself to the thank-you page.
  *
- * a script-mode embed (`form-embed.js`) navigates the *top* page and answers
- * with an ack, which stands this fallback down. an ack is also the only thing
- * that does: a plain `<iframe src="…/forms/:id">` is an equally supported
- * embed with no listener at all, and there the message goes nowhere. an older
- * cached `form-embed.js` that predates the ack still works — it just falls
- * back on this timer, exactly as it did before. */
+ * only ever spent on a frame with someone to ask. a script-mode embed
+ * (`form-embed.js`) navigates the *top* page and answers with an ack, which
+ * stands this fallback down; an ack is the only thing that does, so an older
+ * cached copy that predates it falls back on this timer, exactly as it did
+ * before. a plain `<iframe src="…/forms/:id">` never waits it out — there is
+ * no listener there to wait for. see `ask_host`. */
 export const PARENT_GRACE_MS = 1_500;
 
 /** how long a navigation gets to commit before the donor is told it didn't.
@@ -56,8 +56,9 @@ type Phase = "host" | "nav" | "off";
  * the donor's donation went through — take them to `dest`.
  *
  * top-level, that's a plain navigation. framed, the host page is asked first
- * (script-mode embeds navigate the whole tab, which is what a merchant wants)
- * and the frame only takes itself there when no ack comes back.
+ * when there is one to ask (script-mode embeds navigate the whole tab, which
+ * is what a merchant wants) and the frame only takes itself there when no ack
+ * comes back. a basic embed has no host to ask and goes straight there.
  *
  * returns a disposer. every wait here outlives the click that started it, so
  * a caller that can unmount must hold onto it — `use_donation_redirect` does
@@ -130,7 +131,24 @@ export function redirect_after_donation(x: IRedirectAfterDonation): () => void {
   win.addEventListener("pagehide", on_hide);
   win.addEventListener("pageshow", on_show);
 
-  if (win.self === win.top) {
+  // being framed is not the same question as having someone to ask, and the
+  // two only coincide in advanced mode. `parent_origin` is set by
+  // `form-embed.js` alone, so without one no script created this frame; with
+  // our own receipt as the destination — same-origin, always framable — that
+  // leaves nobody to answer and nothing to fear, and the grace below would be
+  // spent waiting out a reply that cannot come. the donor spends it reading
+  // "Processing...".
+  //
+  // an older cached script sends no origin either, so a script embed with no
+  // `success_redirect` lands the receipt in the frame rather than the tab
+  // until that copy turns over. the frame keeps the height the form left it —
+  // the receipt route sends no `resize` — which is a worse-looking receipt,
+  // not a lost one.
+  const ask_host =
+    win.self !== win.top &&
+    (x.dest.is_custom || !!parent_origin(x.parent_origin));
+
+  if (!ask_host) {
     leave();
     return off;
   }
