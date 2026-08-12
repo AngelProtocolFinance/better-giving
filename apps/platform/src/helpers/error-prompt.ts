@@ -28,6 +28,21 @@ const generic_msg = (context?: string) =>
     context ? ` while ${context} ` : " "
   }and has been reported. Please get in touch with ${emails.hi} if the problem persists.`;
 
+/**
+ * the processor rejected what the donor typed — a bad cvc, a declined card, an
+ * amount under the currency minimum. the form shows them the message and stays
+ * usable, so nothing here is broken and nobody needs paging. `is_user_error` in
+ * `@/errors/report` already drops the 4xx server equivalent; this is the client
+ * -side half of the same rule.
+ *
+ * only for a message the donor can act on — anything we can't attribute to
+ * their input goes through `error_prompt`.
+ */
+export const user_error_prompt = (error: unknown) => ({
+  type: "error" as const,
+  children: parse_error(error),
+});
+
 export const error_prompt = (error: unknown, display?: DisplayType) => {
   report_error(error);
   const disp = display || {};

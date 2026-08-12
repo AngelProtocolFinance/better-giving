@@ -5,7 +5,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { type FormEventHandler, useState } from "react";
 import { href } from "react-router";
-import { error_prompt } from "#/helpers/error-prompt";
+import { error_prompt, user_error_prompt } from "#/helpers/error-prompt";
 import type { IDonationIntent } from "@/donations";
 import { ErrorTrigger } from "../../../error";
 import { LoadText } from "../../../load-text";
@@ -76,7 +76,10 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     // successful payments and errors. Handle both cases appropriately.
     if (error) {
       if (error.type === "card_error" || error.type === "validation_error") {
-        set_prompt(error_prompt(error.message, "parsed"));
+        // the donor's own input, echoed back to them — not a defect. see
+        // `user_error_prompt`; the stripe webhook handlers skip `card_error`
+        // for the same reason.
+        set_prompt(user_error_prompt(error.message));
       } else {
         set_prompt(error_prompt(error, { context: "processing payment" }));
       }
