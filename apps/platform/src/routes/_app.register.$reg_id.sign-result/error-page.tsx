@@ -26,7 +26,7 @@ export default function ErrorPage(props: ErrorQueryParams) {
       </button>
       <Link
         className="w-full max-w-105 btn-secondary btn text-sm mt-4"
-        to={href("/register/resume")}
+        to={href("/register")}
         aria-disabled={isRedirecting}
       >
         Back

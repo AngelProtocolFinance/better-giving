@@ -31,7 +31,7 @@ export function BottomCta() {
           </p>
 
           <Link
-            to={href("/register/welcome")}
+            to={href("/register")}
             className="btn btn-primary bg-white text-primary hover:bg-white/90 active:bg-white/80 px-10 py-3 rounded text-lg capitalize inline-flex items-center gap-2 mt-2"
           >
             Join Us Today!

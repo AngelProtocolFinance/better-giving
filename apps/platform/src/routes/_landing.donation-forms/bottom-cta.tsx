@@ -12,7 +12,7 @@ export function BottomCta({ className = "" }) {
       </h3>
       <div className="flex flex-col md:flex-row justify-center md:justify-start items-center gap-6">
         <Link
-          to={href("/register/welcome")}
+          to={href("/register")}
           className="btn btn-primary font-bold rounded px-6 py-2 md:px-10 md:py-5"
         >
           Join us today!

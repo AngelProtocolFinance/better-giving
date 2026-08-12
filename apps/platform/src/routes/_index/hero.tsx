@@ -57,7 +57,7 @@ export function Hero({ classes = "" }: IHero) {
           </div>
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3.5 mt-2 w-full sm:w-auto">
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25 w-full sm:w-auto"
             >
               Join free forever

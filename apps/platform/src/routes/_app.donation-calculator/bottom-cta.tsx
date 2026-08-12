@@ -10,7 +10,7 @@ export function BottomCta({ className = "" }) {
       <CtaCard
         className="from-primary "
         title="Ready to unlock your fundraising potential?"
-        to={{ href: href("/register/welcome"), title: "Get started" }}
+        to={{ href: href("/register"), title: "Get started" }}
         img={{
           src: laira_shake_hands,
           width: 140,

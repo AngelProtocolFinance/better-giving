@@ -3,26 +3,36 @@ import { useState } from "react";
 import { useLocation } from "react-router";
 import { DrawerIcon } from "#/components/icon";
 import { id_param_to_num } from "#/helpers/id-param-to-num";
-import type { Progress } from "@/reg";
+import type { IReg, Progress } from "@/reg";
 
-const labels = [
+const FSA_LABEL = "Fiscal Sponsorship";
+const labels_501c3 = ["Contact Details", "Organization", "Banking", "Review"];
+const labels_other = [
   "Contact Details",
   "Organization",
-  "Nonprofit Status",
-  "Documentation",
+  FSA_LABEL,
   "Banking",
+  "Review",
 ];
 
 type Props = {
   step: Progress["step"];
+  o_type: IReg["o_type"];
   classes?: string;
 };
 
-export function ProgressIndicator({ step, classes = "" }: Props) {
+export function ProgressIndicator({ step, o_type, classes = "" }: Props) {
   const { pathname } = useLocation();
   const paths = pathname.split("/");
   const curr_path = id_param_to_num(paths.at(-1));
-  const active_index = curr_path - 1;
+
+  // step numbers are the same for everyone, but a 501(c)(3) has no step 3 —
+  // so its four labels sit one position left of steps 4 and 5.
+  const is_501c3 = o_type === "501c3";
+  const labels = is_501c3 ? labels_501c3 : labels_other;
+  const pos = (n: number) => (is_501c3 && n >= 4 ? n - 1 : n);
+
+  const active_index = pos(curr_path) - 1;
 
   // mobile expansion only; desktop renders all items via CSS regardless.
   // avoids JS-driven `isDesktop` state which caused SSR/hydration layout flash.
@@ -38,8 +48,8 @@ export function ProgressIndicator({ step, classes = "" }: Props) {
       className={`pb-4 pt-4 md:pt-2 max-md:pr-(--gutter) pl-12 md:pl-14 md:mr-14 ${classes}`}
     >
       <Steps.Root
-        step={Math.min(step, 5)}
-        count={5}
+        step={Math.min(pos(step), labels.length)}
+        count={labels.length}
         orientation="vertical"
         data-expanded={is_expanded || undefined}
         className="group/root w-full"

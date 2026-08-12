@@ -6,14 +6,6 @@ export type { OrgDesignation as EndowDesignation, UnSdgNum } from "../schemas";
 import * as v from "valibot";
 import { max_date, min_date } from "./constants";
 
-const npo_claim = v.object({
-  id: v.number(),
-  name: $,
-  /** lowercase */
-  ein: v.pipe($req, v.toLowerCase()),
-});
-export interface INpoClaim extends v.InferOutput<typeof npo_claim> {}
-
 const org_roles = [
   "president",
   "vice-president",
@@ -68,11 +60,98 @@ export type TStatus = v.InferOutput<typeof status>;
  * 04 - rejected
  */
 
-export const reg_new = v.object({
+/** us ein as collected on the first screen: 9 digits, dashes/spaces tolerated
+ * on input and stripped, so what lands in `o_ein` matches what the wizard and
+ * `npos.registration_number` hold. */
+const ein_9 = v.pipe(
+  $req,
+  v.transform((x) => x.replace(/[\s-]/g, "")),
+  v.regex(/^\d{9}$/, "Enter a valid 9-digit EIN (for example 12-3456789).")
+);
+
+const org_types = ["501c3", "other"] as const;
+const org_type = v.picklist(org_types);
+export type TOrgType = v.InferOutput<typeof org_type>;
+
+/** `o_type`, the identity column it implies, and the hq country all travel as
+ * one unit: `Progress` derives the step from which columns are non-null, and
+ * `docs_ein` is `undefined` unless `o_type === "501c3"` while `org` is
+ * `undefined` without `o_hq_country` — which the wizard's org step no longer
+ * asks a US applicant for. Writing any of the three without the others caps
+ * the application at a step it can never pass, so they are never separable
+ * here. `"United States"` is what the duplicate check matches this branch on
+ * and what `npos.hq_country` stores. */
+const us_identity = {
+  o_type: v.literal("501c3"),
+  o_ein: ein_9,
+  o_hq_country: v.literal("United States"),
+} as const;
+
+const intl_identity = {
+  o_type: v.literal("other"),
+  o_hq_country: $req,
+  o_registration_number: v.pipe($req, v.toLowerCase()),
+} as const;
+
+const reg_new_base = {
   r_id: v.pipe($req, v.toLowerCase(), v.email()),
-  claim: v.optional(npo_claim),
   referrer: v.optional($req),
-});
+} as const;
+
+export const reg_new = v.variant("o_type", [
+  v.object({ ...reg_new_base, ...us_identity }),
+  v.object({ ...reg_new_base, ...intl_identity }),
+]);
+
+/** org type + identity as a form: what the first screen collects to create an
+ * application, and what the change-identity screen re-collects to correct one.
+ * flat rather than a variant so react-hook-form has one field set to register
+ * against; the branch that doesn't apply is dropped by `reg_new` on the
+ * server. */
+export const reg_start_fv = v.pipe(
+  v.object({
+    o_type: org_type,
+    // the branch that isn't showing submits nothing, so every identity field
+    // has to survive its own absence — requiredness is the partialChecks' job
+    o_ein: v.optional(
+      v.pipe(
+        $,
+        v.transform((x) => x.replace(/[\s-]/g, ""))
+      ),
+      ""
+    ),
+    o_hq_country: v.optional($, ""),
+    o_registration_number: v.optional(v.pipe($, v.toLowerCase()), ""),
+  }),
+  v.forward(
+    v.partialCheck(
+      [["o_type"], ["o_ein"]],
+      (i) => i.o_type !== "501c3" || /^\d{9}$/.test(i.o_ein),
+      "Enter a valid 9-digit EIN (for example 12-3456789)."
+    ),
+    ["o_ein"]
+  ),
+  v.forward(
+    v.partialCheck(
+      [["o_type"], ["o_hq_country"]],
+      (i) => i.o_type !== "other" || !!i.o_hq_country,
+      "Enter your country and registration number to continue."
+    ),
+    ["o_hq_country"]
+  ),
+  v.forward(
+    v.partialCheck(
+      [["o_type"], ["o_registration_number"]],
+      (i) => i.o_type !== "other" || !!i.o_registration_number,
+      "Enter your country and registration number to continue."
+    ),
+    ["o_registration_number"]
+  )
+);
+export interface IRegStartFv extends v.InferOutput<typeof reg_start_fv> {}
+
+export const reg_resume_fv = v.object({ reference: v.pipe($req, reg_id) });
+export interface IRegResumeFv extends v.InferOutput<typeof reg_resume_fv> {}
 
 export interface IRegInternal {
   id: string;
@@ -102,16 +181,8 @@ const fsa_docs = v.object({
 });
 
 export interface IFsaDocs extends v.InferOutput<typeof fsa_docs> {}
-export interface IRegNew extends v.InferOutput<typeof reg_new> {}
+export type IRegNew = v.InferOutput<typeof reg_new>;
 
-const ein = v.pipe(
-  $req,
-  v.toLowerCase(),
-  v.regex(/^[a-zA-Z0-9]+$/, "can only contain letters and numbers")
-);
-
-const org_types = ["501c3", "other"] as const;
-const org_type = v.picklist(org_types);
 export const _update_contact_fv = v.object({
   r_first_name: person_name,
   r_last_name: person_name,
@@ -182,32 +253,23 @@ const update_org = v.object({
 
 export interface IUpdateOrg extends v.InferOutput<typeof update_org> {}
 
-const update_org_type_fv = v.object({
-  o_type: org_type,
-});
-
-const update_org_type = v.object({
-  update_type: v.literal("org_type"),
-  ...v.partial(update_org_type_fv).entries,
-});
-export interface IUpdateOrgType extends v.InferOutput<typeof update_org_type> {}
+/** org type and the identity column it implies, as they sit on a stored row.
+ * Not a member of `reg_update`: `reg_update` is the wizard steps' contract,
+ * and these two are written as a unit by `reg_new` at creation and by the
+ * change-identity screen afterwards — both on `reg_start_fv`/`ein_9`. The two
+ * `update_type`s that used to carry them (`org_type`, `ein`) belonged to the
+ * steps the consolidation deleted, and the EIN they validated was any string
+ * of letters and numbers, which contradicted `ein_9`. */
+export interface IRegIdentity {
+  o_type?: TOrgType;
+  o_ein?: string;
+}
 
 const update_fsa_docs = v.object({
   update_type: v.literal("fsa-doc"),
   ...v.partial(fsa_docs).entries,
 });
 export interface IUpdateFsaDocs extends v.InferOutput<typeof update_fsa_docs> {}
-
-export const update_ein_fv = v.object({
-  o_ein: ein,
-});
-
-const update_ein = v.object({
-  update_type: v.literal("ein"),
-  ...v.partial(update_ein_fv).entries,
-  claim: v.optional(npo_claim),
-});
-export interface IUpdateEin extends v.InferOutput<typeof update_ein> {}
 
 const update_bank_fv = v.object({
   /** wise recipient id */
@@ -225,9 +287,7 @@ export interface IUpdateBank extends v.InferOutput<typeof update_bank> {}
 export const reg_update = v.variant("update_type", [
   update_contact,
   update_org,
-  update_org_type,
   update_fsa_docs,
-  update_ein,
   update_bank,
 ]);
 
@@ -238,10 +298,9 @@ type Attr<T extends { update_type: string }> = Omit<T, "update_type">;
 export interface IRegUpdateables
   extends Attr<IUpdateContact>,
     Attr<IUpdateOrg>,
-    Attr<IUpdateOrgType>,
     Attr<IUpdateFsaDocs>,
-    Attr<IUpdateEin>,
-    Attr<IUpdateBank> {
+    Attr<IUpdateBank>,
+    IRegIdentity {
   status_rejected_reason?: string;
 }
 
@@ -255,8 +314,13 @@ export interface IRegUpdateInternal {
 export interface IReg
   extends IRegUpdateables,
     IRegUpdateInternal,
-    IRegNew,
-    IRegInternal {}
+    IRegInternal {
+  /* the non-updateable half of `IRegNew`. `o_type`/`o_ein`/`o_hq_country`/
+   * `o_registration_number` are seeded at creation too, but a stored row may
+   * predate them, so they stay optional via `IRegUpdateables`. */
+  r_id: string;
+  referrer?: string;
+}
 
 export const regs_sort_key = v.picklist([
   "o_name",

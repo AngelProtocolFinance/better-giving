@@ -34,10 +34,10 @@ export function ReferralId({ classes = "", ...p }: Props) {
         <div className="flex items-center">
           <p className="text-primary truncate max-w-xs font-mono">
             {p.base_url}
-            {href("/register/welcome")}?referrer={p.referral_id}
+            {href("/register")}?referrer={p.referral_id}
           </p>
           <Copier
-            text={`${p.base_url}${href("/register/welcome")}?referrer=${p.referral_id}`}
+            text={`${p.base_url}${href("/register")}?referrer=${p.referral_id}`}
             classes={{
               container: "text-muted-fg hover:text-fg ml-2",
               icon: "size-5",

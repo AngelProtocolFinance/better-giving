@@ -5,7 +5,7 @@ import {
 } from "react-router";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
-import { routes } from "#/pages/registration/routes";
+import { routes, steps } from "#/pages/registration/routes";
 import type { Reg$IdData } from "#/pages/registration/types";
 import { resp } from "@/helpers/https";
 import { Progress } from "@/reg/progress";
@@ -48,8 +48,8 @@ export const step_loader =
 
     const r = new Progress(reg);
 
-    if (reg.status === "02" && this_step !== 6) {
-      return redirect(`../${6}`);
+    if (reg.status === "02" && this_step !== 5) {
+      return redirect(`../${steps.summary}`);
     }
 
     if (reg.status === "03") {

@@ -3,6 +3,7 @@ import {
   asc,
   desc,
   eq,
+  exists,
   getTableColumns,
   inArray,
   or,
@@ -14,6 +15,7 @@ import type { INposSearchObj } from "@/npo/schema";
 import type { IBalanceDeltas } from "@/types/donation";
 import { db } from "../db";
 import { npos } from "../schema/npo";
+import { user_npo_memberships } from "../schema/user";
 import { v_contributions } from "../schema/views";
 import { to_target } from "./fmt";
 import type { DbOrTx } from "./helpers";
@@ -88,6 +90,42 @@ export async function npo_by_regnum(
     })
     .from(npos)
     .where(and(eq(npos.registration_number, rn), eq(npos.hq_country, country)));
+  return row;
+}
+
+/**
+ * the listing a would-be registrant would collide with: same registration
+ * number + country AND at least one member behind it.
+ *
+ * deliberately not `npo_by_regnum`: that one reads `npos.claimed`, which is
+ * `NOT NULL DEFAULT true` and never set false by app code, so every imported
+ * listing reads as owned. membership is the only thing that means somebody can
+ * actually invite the registrant in. the comparison folds case and trims —
+ * registration input is lowercased on the way in while
+ * `npos.registration_number` is stored verbatim.
+ */
+export async function npo_owned_by_regnum(
+  rn: string,
+  country: string
+): Promise<{ id: number; name: string } | undefined> {
+  const [row] = await db
+    .select({ id: npos.id, name: npos.name })
+    .from(npos)
+    .where(
+      and(
+        eq(
+          sql`LOWER(BTRIM(${npos.registration_number}))`,
+          rn.trim().toLowerCase()
+        ),
+        eq(sql`LOWER(BTRIM(${npos.hq_country}))`, country.trim().toLowerCase()),
+        exists(
+          db
+            .select({ x: sql`1` })
+            .from(user_npo_memberships)
+            .where(eq(user_npo_memberships.npo_id, npos.id))
+        )
+      )
+    );
   return row;
 }
 

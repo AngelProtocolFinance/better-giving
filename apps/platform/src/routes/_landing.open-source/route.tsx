@@ -66,7 +66,7 @@ export default function Page() {
                 <ArrowRight className="size-4" />
               </ExtLink>
               <Link
-                to={href("/register/welcome")}
+                to={href("/register")}
                 className="btn rounded px-7 py-3.5 border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
               >
                 Join free forever

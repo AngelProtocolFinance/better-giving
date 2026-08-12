@@ -22,7 +22,18 @@ export async function reg_put(data: IRegNew): Promise<string> {
     id,
     r_id: data.r_id,
     status: "01" as const,
-    ...(data.claim && { claim: data.claim }),
+    // o_type travels with its identity column and hq country — see `reg_new`
+    ...(data.o_type === "501c3"
+      ? {
+          o_type: data.o_type,
+          o_ein: data.o_ein,
+          o_hq_country: data.o_hq_country,
+        }
+      : {
+          o_type: data.o_type,
+          o_hq_country: data.o_hq_country,
+          o_registration_number: data.o_registration_number,
+        }),
     ...(data.referrer && {
       rm: "referral",
       rm_referral_code: data.referrer,

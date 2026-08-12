@@ -17,7 +17,7 @@ export function BottomCta({ className = "" }) {
         </h3>
         <div className="relative max-sm:justify-self-center">
           <Link
-            to={href("/register/welcome")}
+            to={href("/register")}
             className="btn btn-primary font-bold rounded px-6 py-2 sm:px-10 sm:py-4"
           >
             Start Today

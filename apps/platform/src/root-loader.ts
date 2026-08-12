@@ -7,7 +7,7 @@ import { search } from "@/helpers/https";
 // only sets cookie when value changes to allow Vercel CDN caching
 async function append_referrer(
   referrer: string,
-  cookie_header: string
+  cookie_header: string | null
 ): Promise<string | null> {
   const rc = await reg_cookie.parse(cookie_header).then((x) => x || {});
 
@@ -31,10 +31,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { referrer } = search(url);
   const cookie_header = request.headers.get("cookie");
 
-  const rc =
-    referrer && cookie_header
-      ? await append_referrer(referrer, cookie_header)
-      : null;
+  // a first-time visitor arriving on a referral link has no cookies at all —
+  // gating on cookie_header would drop the referral before it is ever stored
+  const rc = referrer ? await append_referrer(referrer, cookie_header) : null;
 
   // getToast always commits the session (emits Set-Cookie). only call it when
   // an incoming toast cookie exists, so cold requests stay CDN-cacheable.

@@ -1,11 +1,11 @@
+import { href, Link } from "react-router";
 import laira_shake_hands_x2 from "#/assets/laira/laira-shaking-hands-x2.webp";
 import { Image } from "#/components/image";
-import { ClaimCta } from "./claim-cta";
 
 export function BottomCta({ className = "" }) {
   return (
     <div
-      id="claim-nonprofit"
+      id="register-nonprofit"
       className={`${className} grid @4xl:grid-cols-2 gap-4 content-start scroll-mt-10`}
     >
       <h4 className="col-span-full text-lg text-primary uppercase text-center">
@@ -23,10 +23,15 @@ export function BottomCta({ className = "" }) {
           US 501(c)(3) Nonprofit?
         </h3>
         <p className="text-white text-lg font-bold mb-2 text-center capitalize">
-          Claim your nonprofit
+          Register your nonprofit
         </p>
         <Image width={200} src={laira_shake_hands_x2} className="mt-4 mb-8" />
-        <ClaimCta classes="flex-col @4xl:flex-row" />
+        <Link
+          to={href("/register")}
+          className="btn btn-primary h-full flex items-center text-sm font-bold rounded px-6 py-2"
+        >
+          Get Started
+        </Link>
       </div>
     </div>
   );

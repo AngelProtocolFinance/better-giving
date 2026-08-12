@@ -1,6 +1,6 @@
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
-import { href, Link, NavLink, Outlet } from "react-router";
+import { href, NavLink, Outlet } from "react-router";
 import { ExtLink } from "#/components/ext-link";
 import type { V2RecipientAccount } from "#/types/bank-details";
 import type { IReg } from "@/reg";
@@ -16,20 +16,9 @@ export default function Loaded(
         ? "rejected"
         : null;
 
-  const claim = props.claim;
-
   return (
     <>
       <h3 className="text-lg">{props.o_name}</h3>
-      {claim && (
-        <Link
-          target="_blank"
-          className="-mt-7 justify-self-start text-sm rounded text-primary hover:underline"
-          to={href("/marketplace/:id", { id: claim.id.toString() })}
-        >
-          Claim: {claim.name}, EIN: {claim.ein}
-        </Link>
-      )}
       {prev_verdict && (
         <div
           className={`${

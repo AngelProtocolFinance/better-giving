@@ -176,7 +176,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <span className="flex-center gap-1 max-sm:text-sm">
           Already have an account?
           <Link
-            to={`${href("/login")}?redirect=${to}`}
+            to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
             className="text-primary hover:text-primary active:text-primary aria-disabled:text-muted-fg font-medium underline"
             aria-disabled={is_submitting}
           >

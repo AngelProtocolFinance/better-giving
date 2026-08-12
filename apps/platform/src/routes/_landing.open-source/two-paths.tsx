@@ -57,7 +57,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
               </Item>
             </div>
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary self-start mt-auto"
             >
               Join free forever

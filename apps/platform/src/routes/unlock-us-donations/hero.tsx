@@ -40,7 +40,7 @@ export function Hero() {
 
           <div className="flex flex-col lg:flex-row gap-3 md:gap-4 mt-2">
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary px-6 md:px-8 py-2.5 md:py-3 rounded text-sm md:text-lg text-nowrap capitalize inline-flex items-center gap-2"
             >
               Join us today!

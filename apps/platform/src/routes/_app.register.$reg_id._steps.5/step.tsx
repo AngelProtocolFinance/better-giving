@@ -1,7 +1,7 @@
 import { NavLink } from "react-router";
-import type { Progress } from "@/reg";
 
-type TStep = Exclude<Progress["step"], 6>; // exclude summary step
+/** the steps that collect something — review itself has no row */
+type TStep = 1 | 2 | 3 | 4;
 type Props = {
   disabled: boolean;
   num: TStep;
@@ -37,7 +37,6 @@ export function Step({
 const title: { [key in TStep]: string } = {
   1: "Contact Details",
   2: "Organization",
-  3: "IRC 501(c)(3)",
-  4: "Documentation",
-  5: "Banking",
+  3: "Fiscal Sponsorship Agreement",
+  4: "Banking",
 };

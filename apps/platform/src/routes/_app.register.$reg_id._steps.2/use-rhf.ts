@@ -14,7 +14,6 @@ export const use_rhf = (reg: IReg) => {
     resolver: valibotResolver(schema),
     defaultValues: {
       o_website: sans_https(reg.o_website) ?? undefined,
-      o_hq_country: reg.o_hq_country ?? "", // opt init display
       o_designation: reg.o_designation ?? ("" as any), // opt init display
       o_active_in_countries: reg.o_active_in_countries ?? [],
     },
@@ -23,10 +22,6 @@ export const use_rhf = (reg: IReg) => {
   const { field: designation } = useController({
     control,
     name: "o_designation",
-  });
-  const { field: hq_country } = useController({
-    control,
-    name: "o_hq_country",
   });
   const { field: countries } = useController({
     control,
@@ -39,7 +34,6 @@ export const use_rhf = (reg: IReg) => {
     errors,
     isDirty,
     designation,
-    hq_country,
     countries,
     dirtyFields,
   };

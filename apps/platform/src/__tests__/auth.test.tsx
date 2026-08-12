@@ -491,6 +491,28 @@ describe("signup → OTP → success", () => {
     // redirects to confirm — better-auth doesn't leak user existence
     await expect.element(screen.getByPlaceholder(/6-digit/i)).toBeVisible();
   });
+
+  it("hands the whole referral target to login after signup", async () => {
+    // to_auth copies the arrival query onto /signup, so the target can carry
+    // more than one param — every one of them must reach login intact
+    const target = "/register/welcome?utm_source=nl&referrer=ABC123";
+
+    const Stub = signup_stub();
+    const screen = await render(
+      <Stub
+        initialEntries={[
+          `/signup/success?redirect=${encodeURIComponent(target)}`,
+        ]}
+      />
+    );
+
+    const link = screen.getByRole("link", { name: /continue to sign in/i });
+    await expect.element(link).toBeVisible();
+
+    const to = (link.element() as HTMLAnchorElement).getAttribute("href") ?? "";
+    const redirect = new URL(to, BASE_URL).searchParams.get("redirect");
+    expect(redirect).toBe(target);
+  });
 });
 
 describe("login flow", () => {

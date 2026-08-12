@@ -18,7 +18,7 @@ export const meta: Route.MetaFunction = () =>
   metas({
     title: "Simplify Fundraising, Maximize Impact",
     description:
-      "Simplify Fundraising, Maximize Impact: Claim Your Better Giving Account Today",
+      "Simplify Fundraising, Maximize Impact: Register Your Nonprofit With Better Giving Today",
   });
 export default function Component() {
   return (
