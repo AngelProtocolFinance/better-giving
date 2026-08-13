@@ -100,6 +100,9 @@ export const change_identity = async (
     // about the entity that just changed.
     attrs.o_legal_entity_type = null;
     attrs.o_proof_of_reg = null;
+    // banking is deliberately not among them: `o_bank_id`/`o_bank_statement`
+    // survive the switch, so `Progress.banking` stays satisfied and step 4
+    // never re-prompts. moving the payout is the applicant's to redo there.
   }
 
   const updated = await reg_update(db, rid, attrs);
