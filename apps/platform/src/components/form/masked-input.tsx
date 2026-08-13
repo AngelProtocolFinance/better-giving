@@ -1,16 +1,25 @@
 import type { InputHTMLAttributes, ReactElement, ReactNode } from "react";
 import { useCallback, useLayoutEffect, useRef } from "react";
 import { unpack } from "#/helpers/unpack";
-import { format, unmask } from "./masks/dollar";
 import type { Classes } from "./types";
 
 type El = HTMLInputElement;
+
+interface IMask {
+  /** raw digits → display string */
+  format: (digits: string) => string;
+  /** display string → raw digits */
+  unmask: (masked: string) => string;
+}
 
 interface Base
   extends Pick<InputHTMLAttributes<El>, "placeholder" | "inputMode" | "type"> {}
 
 interface Props extends Base {
   id: string;
+  /** one of `./masks/*` — no default, so a caller can never inherit another
+   * field's formatting by omission. */
+  mask: IMask;
   placeholder?: string;
   classes?: Classes | string;
   label: string | ReactElement;
@@ -52,8 +61,8 @@ export function MaskedInput(props: Props) {
         .slice(0, cursor)
         .replace(/\D/g, "").length;
 
-      const digits = unmask(input.value);
-      const formatted = format(digits);
+      const digits = props.mask.unmask(input.value);
+      const formatted = props.mask.format(digits);
 
       // find cursor position after same number of digits in formatted value
       let pos = 0;
@@ -63,14 +72,18 @@ export function MaskedInput(props: Props) {
         if (/\d/.test(ch)) count++;
         if (count === digits_before) break;
       }
-      // if no digits matched, place cursor at end
-      if (digits_before === 0)
-        pos = formatted.indexOf("0") + 1 || formatted.length;
+      // no digits before the cursor means it belongs in front of the first
+      // one — sending it to the end makes a delete-from-the-front loop chew
+      // the value from the wrong side
+      if (digits_before === 0) {
+        const first = formatted.search(/\d/);
+        pos = first === -1 ? formatted.length : first;
+      }
 
       cursor_ref.current = pos;
       props.onChange(formatted);
     },
-    [props.onChange]
+    [props.onChange, props.mask]
   );
 
   const set_ref = useCallback(

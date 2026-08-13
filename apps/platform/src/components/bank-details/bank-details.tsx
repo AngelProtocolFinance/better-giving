@@ -5,7 +5,7 @@ import type { WiseCurrencyOption } from "#/types/components";
 import { report_error } from "@/errors/report";
 import { CurrencySelector } from "../currency-selector";
 import { MaskedInput } from "../form";
-import { mask, unmask } from "../form/masks/dollar";
+import { dollar } from "../form/masks";
 import { Separator } from "../separator";
 import { RecipientDetails } from "./recipient-details";
 import type { IFormButtons, OnSubmit } from "./types";
@@ -79,8 +79,9 @@ export function BankDetails({
             recommend using a conservative figure - Maybe $1000 per month.
           </p>
         }
-        value={mask(+amount)}
-        onChange={(amount) => setAmount(unmask(amount).toString())}
+        mask={dollar}
+        value={dollar.mask(+amount)}
+        onChange={(amount) => setAmount(dollar.unmask(amount).toString())}
         classes={{ input: "md:w-80" }}
         disabled={isSubmitting}
       />

@@ -5,7 +5,8 @@ import { useController } from "react-hook-form";
 import type { FetcherWithComponents } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { Combo } from "#/components/combo";
-import { Field } from "#/components/form";
+import { Field, MaskedInput } from "#/components/form";
+import { ein } from "#/components/form/masks";
 import { DrawerIcon } from "#/components/icon";
 import { LoadText } from "#/components/load-text";
 import {
@@ -62,12 +63,17 @@ export function IdentityForm({
   } = useRemixForm<IRegStartFv>({
     fetcher,
     resolver: valibotResolver(reg_start_fv),
+    // without it the resolver aborts the pipe on the first failing check, so
+    // an untouched international form reports the country and stays silent
+    // about the registration number until the country is fixed
+    criteriaMode: "all",
     defaultValues: values,
     submitConfig: { action, method: "post" },
   });
 
   const { field: o_type } = useController({ control, name: "o_type" });
   const { field: country } = useController({ control, name: "o_hq_country" });
+  const { field: o_ein } = useController({ control, name: "o_ein" });
   const is_us = watch("o_type") === "501c3";
 
   return (
@@ -97,8 +103,13 @@ export function IdentityForm({
         </RadioGroup.Root>
 
         {is_us ? (
-          <Field
-            {...register("o_ein")}
+          <MaskedInput
+            id="o_ein"
+            ref={o_ein.ref}
+            mask={ein}
+            value={ein.format(o_ein.value)}
+            onChange={o_ein.onChange}
+            inputMode="numeric"
             label="Employer Identification Number (EIN)"
             required
             sub="The 9-digit number the IRS issued to your organization."

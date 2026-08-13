@@ -992,8 +992,11 @@ describe("E2E: changing the organization type", () => {
     await screen.getByRole("link", { name: /change/i }).click();
 
     const ein = screen.getByLabelText(/employer identification number/i);
+    // the stored ein is bare digits; the field masks it on the way in and out
+    await expect.element(ein).toHaveValue("12-3456789");
     await ein.clear();
     await ein.fill("999888777");
+    await expect.element(ein).toHaveValue("99-9888777");
     await screen.getByRole("button", { name: /save/i }).click();
 
     await expect.element(screen.getByText(/already registered/i)).toBeVisible();
@@ -1234,6 +1237,37 @@ describe("new_application", () => {
     expect(await all_regs()).toHaveLength(0);
   });
 
+  // valibotResolver runs with abortPipeEarly unless criteriaMode is "all", so a
+  // submission surfaces one identity issue at a time — each blank field has to
+  // carry a message that stands on its own
+  it("faults a blank registration number under its own field", async () => {
+    const res = await new_application(
+      start_request(),
+      createFormData({ o_type: "other", o_hq_country: "Kenya" })
+    );
+
+    const { errors } = res as any;
+    expect(errors.o_registration_number.message).toBe(
+      "Enter your registration number."
+    );
+    expect(errors.o_hq_country).toBeUndefined();
+    expect(await all_regs()).toHaveLength(0);
+  });
+
+  it("faults a blank country under its own field", async () => {
+    const res = await new_application(
+      start_request(),
+      createFormData({ o_type: "other", o_registration_number: "KE-99" })
+    );
+
+    const { errors } = res as any;
+    expect(errors.o_hq_country.message).toBe(
+      "Select your country of registration."
+    );
+    expect(errors.o_registration_number).toBeUndefined();
+    expect(await all_regs()).toHaveLength(0);
+  });
+
   it("blocks when the identity matches an npo that has members", async () => {
     const npo = await seed_npo({ registration_number: "123456789" });
     await seed_member(npo.id);
@@ -1341,9 +1375,10 @@ describe("E2E: start screen", () => {
   it("starts a US application and lands in the wizard", async () => {
     const screen = await render_start();
 
-    await screen
-      .getByLabelText(/employer identification number/i)
-      .fill("12-3456789");
+    const ein = screen.getByLabelText(/employer identification number/i);
+    await ein.fill("12-3456789");
+    // a pasted, already-dashed ein survives the mask unchanged
+    await expect.element(ein).toHaveValue("12-3456789");
     await screen.getByRole("button", { name: /continue/i }).click();
 
     await expect.element(screen.getByText(/contact details/i)).toBeVisible();
@@ -1376,6 +1411,88 @@ describe("E2E: start screen", () => {
     expect(row.o_type).toBe("other");
     expect(row.o_hq_country).toBe("Kenya");
     expect(row.o_registration_number).toBe("ke-99");
+  }, 20_000);
+
+  it("asks only for the registration number when the country is filled", async () => {
+    const screen = await render_start();
+
+    await screen.getByText("International").click();
+    await screen.getByPlaceholder("Select a country").fill("Kenya");
+    await screen.getByRole("option", { name: /Kenya/i }).nth(0).click();
+
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    // exact: a message naming both fields would not match
+    await expect
+      .element(
+        screen.getByText("Enter your registration number.", { exact: true })
+      )
+      .toBeVisible();
+    expect(
+      screen
+        .getByText("Select your country of registration.", { exact: true })
+        .query()
+    ).toBeNull();
+  }, 20_000);
+
+  it("asks only for the country when the registration number is filled", async () => {
+    const screen = await render_start();
+
+    await screen.getByText("International").click();
+    await screen.getByLabelText(/registration number/i).fill("KE-99");
+
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    await expect
+      .element(
+        screen.getByText("Select your country of registration.", {
+          exact: true,
+        })
+      )
+      .toBeVisible();
+    expect(
+      screen
+        .getByText("Enter your registration number.", { exact: true })
+        .query()
+    ).toBeNull();
+  }, 20_000);
+
+  // truncating to 9 would hand the duplicate check an ein nobody typed
+  it("rejects an over-length ein rather than trimming it to nine", async () => {
+    const screen = await render_start();
+
+    const ein = screen.getByLabelText(/employer identification number/i);
+    await ein.fill("123456789012");
+    await expect.element(ein).toHaveValue("12-3456789012");
+
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    await expect.element(screen.getByText(/valid 9-digit EIN/i)).toBeVisible();
+    expect(await all_regs()).toHaveLength(0);
+  }, 20_000);
+
+  it("asks for both international fields when neither is filled", async () => {
+    const screen = await render_start();
+
+    await screen.getByText("International").click();
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    await expect
+      .element(
+        screen.getByText("Select your country of registration.", {
+          exact: true,
+        })
+      )
+      .toBeVisible();
+    // the number's message is the number field's own error node, not a
+    // second copy hanging off the country
+    await vi.waitFor(() =>
+      expect(
+        screen.container.querySelector("#__error_o_registration_number")
+          ?.textContent
+      ).toBe("Enter your registration number.")
+    );
+    expect(await all_regs()).toHaveLength(0);
   }, 20_000);
 
   it("shows the already-registered modal instead of starting a duplicate", async () => {
