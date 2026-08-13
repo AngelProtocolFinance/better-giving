@@ -28,10 +28,7 @@ export async function handle_intent_failed(
     return pi.metadata as unknown as IMetadata;
   })(data.object);
 
-  // stripe metadata carries the order id and nothing else — the donor name,
-  // donor email and recipient name it used to hold are no longer written
-  // (api.donation-intents/stripe/payment-intent.ts). the order row is where
-  // they live now, same as the setup-intent-failed sibling.
+  // `meta` only carries the order id — donor identity is on the order row
   const order = await donation_get(meta.order_id);
   if (!order) throw new Error(`Order ${meta.order_id} not found`);
 

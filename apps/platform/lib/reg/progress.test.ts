@@ -92,9 +92,7 @@ describe("Progress.step", () => {
     ).toBe(5);
   });
 
-  // `org` requires o_hq_country, which step 2 no longer asks for — the US
-  // branch of `reg_new` seeds it. Without that seed a 501(c)(3) never leaves
-  // step 2, and nothing else in the app reports an error.
+  // without `reg_new`'s seeded country a 501(c)(3) strands at 2, silently
   it("strands a 501(c)(3) at organization when hq country was never seeded", () => {
     const { o_hq_country: _, ...no_country } = us_identity;
     expect(new Progress(reg(no_country, contact, org, banking)).step).toBe(2);

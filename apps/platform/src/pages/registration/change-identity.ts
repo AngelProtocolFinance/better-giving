@@ -18,7 +18,7 @@ import { db } from "$/pg/db";
 import { npo_owned_by_regnum } from "$/pg/queries/npo";
 import { reg_get, reg_update } from "$/pg/queries/registration";
 
-/** Corrects the org type + identity of an application that already exists.
+/** corrects the org type + identity of an application that already exists.
  * Only ever updates — the row is the applicant's; a change of mind is not a
  * second application. */
 export const change_identity = async (
@@ -108,6 +108,9 @@ export const change_identity = async (
   /* nothing here maintains step state: `Progress` reads it off the columns, so
    * a 501(c)(3) sitting at banking that becomes international lands back on
    * the agreement on its own, and one that goes the other way skips it. */
+  // `reg_update`'s bare `.returning()` hands back the whole row, so nothing is
+  // missing for `.step` — the cast is only IReg's optionals against the
+  // columns' nulls, the same mismatch `reg_get` casts through.
   const step = new Progress(updated as unknown as IReg).step;
   return redirect(`../${step}`);
 };

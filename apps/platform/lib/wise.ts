@@ -25,9 +25,9 @@ export interface V2RecipientAccount {
 
 export interface Config {
   apiToken: string;
-  /** `WISE_API_URL`. The browser proxy already resolves the host from that one
-   * env var — a second, stage-derived guess here is how the two ends of the
-   * same app end up on different wise environments with one token. */
+  /** `WISE_API_URL` — the same host the browser proxy resolves; never derive
+   * it from stage, or the two ends of the app pair one token with different
+   * wise environments. */
   base_url: string;
 }
 

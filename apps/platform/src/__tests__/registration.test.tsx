@@ -284,7 +284,7 @@ function set_authed(email = TEST_EMAIL) {
   });
 }
 
-// the first screen now collects org type + identity, so every application
+// the first screen collects org type + identity, so every application
 // exists with one of these two shapes from the moment it is created.
 const US_IDENTITY = {
   o_type: "501c3",
@@ -340,8 +340,7 @@ const CONTACT_FIELDS = {
   rm: "search-engines",
 } as const;
 
-// step 2 no longer asks for hq country — the first screen seeds it, so what
-// the org step writes is just website + designation.
+// the org step writes website + designation; hq country is seeded earlier
 const ORG_FIELDS = {
   o_website: "https://example.com",
   o_designation: "Charity",
@@ -756,13 +755,11 @@ describe("E2E: the agreement step is closed to a 501(c)(3)", () => {
       .not.toBeInTheDocument();
   }, 30_000);
 
-  // pre-consolidation rows set o_type at the old step 3 and o_ein at the old
-  // step 4, so "501c3 with no EIN" is a real stored shape that sits AT step 3.
-  // Redirecting it forward fights step_loader sending it back — the browser
-  // ping-pongs until it gives up, which is a hard error page with no way out.
-  // Falling through to a form it cannot finish is the deliberate trade; the
-  // Change link in the chrome is what gets the row out (see "changing the
-  // organization type" below).
+  // legacy rows split o_type and o_ein across two steps, so "501c3 with no
+  // EIN" is a real stored shape sitting AT step 3. redirecting it forward
+  // fights step_loader sending it back — ping-pong into a hard error page.
+  // falling through to an unfinishable form is the trade; the Change link in
+  // the chrome is the way out (see "changing the organization type" below).
   it("does not bounce a legacy 501(c)(3) that has no EIN", async () => {
     const { id } = await seed_reg({
       ...CONTACT_FIELDS,
@@ -787,9 +784,9 @@ describe("E2E: changing the organization type", () => {
     await test_db.current!.db.delete(npos);
   });
 
-  // 3 stored rows have no o_type at all: `Progress.org_type` is undefined for
-  // them, so the agreement and the EIN branch are both closed and the wizard
-  // has nowhere to send them. The Change link is their only way out.
+  // prod rows exist with no o_type at all: `Progress.org_type` is undefined
+  // for them, so the agreement and the EIN branch are both closed and the
+  // wizard has nowhere to send them. the Change link is their only way out.
   it("gets a row with no organization type past the agreement step", async () => {
     const { id } = await seed_reg({
       ...CONTACT_FIELDS,
@@ -821,7 +818,7 @@ describe("E2E: changing the organization type", () => {
     expect(row.o_hq_country).toBe("United States");
   }, 40_000);
 
-  // 21 stored rows carry a type with no EIN under it — the same dead end,
+  // prod rows also carry a type with no EIN under it — the same dead end,
   // reached from the other side.
   it("gets a 501(c)(3) with no EIN past the agreement step", async () => {
     const { id } = await seed_reg({
@@ -1173,7 +1170,7 @@ describe("new_application", () => {
     const [row] = await all_regs();
     expect(row.o_type).toBe("501c3");
     expect(row.o_ein).toBe("123456789");
-    // step 2 stopped asking for it and `Progress.org` still requires it
+    // `Progress.org` requires hq country and no step asks for it
     expect(row.o_hq_country).toBe("United States");
     expect((res as Response).headers.get("location")).toBe(
       `/register/${row.id}/1`
@@ -1183,7 +1180,7 @@ describe("new_application", () => {
   it("leaves the application able to reach review", async () => {
     // Progress derives the step from non-null columns: `docs_ein` is undefined
     // unless o_type === "501c3", and `org` is undefined without o_hq_country.
-    // An identity written without either silently caps the application at a
+    // an identity written without either silently caps the application at a
     // step nobody can pass, with no error anywhere.
     await new_application(
       start_request(),

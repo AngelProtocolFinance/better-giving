@@ -15,7 +15,7 @@ export const identity_payload = (fv: IRegStartFv, r_id: string): IRegNew =>
         r_id,
         o_type: "501c3",
         o_ein: fv.o_ein,
-        // step 2 no longer asks for it, and `Progress.org` needs it
+        // `Progress.org` needs it; step 2 doesn't ask
         o_hq_country: "United States",
       }
     : {

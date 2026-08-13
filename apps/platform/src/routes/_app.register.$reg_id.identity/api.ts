@@ -17,7 +17,6 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   if (p.issues) throw resp.status(400, p.issues[0].message);
   const reg = await reg_get(p.output);
   if (!reg) throw resp.status(404);
-  // only owner or admin can view
   if (reg.r_id !== user.email && user.role !== "admin") {
     throw resp.status(403);
   }

@@ -55,9 +55,7 @@ export class Progress {
     return undefined;
   }
 
-  /** org identity — `o_type` and the column it implies are seeded together on
-   * the first screen, so this clears as soon as `org` does. Not a step anyone
-   * visits. */
+  /** identity seeded on screen 1 — clears with `org`; not a step anyone visits */
   get org_type() {
     const $ = this.org;
     const { o_type: ot } = this.r;
@@ -108,9 +106,8 @@ export class Progress {
     return $ && x ? { o_fsa_signed_doc_url: x, ...$ } : undefined;
   }
 
-  /** the 501(c)(3) counterpart of `fsa_signed` — the identity that lets an
-   * application cross from org details into banking. Seeded on the first
-   * screen, so it is never a step the applicant visits. */
+  /** 501(c)(3) counterpart of `fsa_signed` — seeded on screen 1, crosses org
+   * details into banking; not a step anyone visits */
   get docs_ein() {
     const $ = this.org_type;
     if (!$) return undefined;
@@ -132,13 +129,9 @@ export class Progress {
       : undefined;
   }
 
-  /**
-   * 1 contact · 2 organization · 3 fiscal-sponsorship agreement · 4 banking ·
-   * 5 review & submit. The numbers mean the same thing for everyone, but only
-   * `o_type: "other"` ever sits at 3: `docs_ein` is already satisfied by the
-   * identity the first screen seeds, so a 501(c)(3) with org details done
-   * crosses 2 → 4 without a step in between.
-   */
+  /** 1 contact · 2 org · 3 fsa agreement · 4 banking · 5 review & submit — only
+   * `o_type: "other"` ever sits at 3; the seeded identity satisfies `docs_ein`,
+   * so a 501(c)(3) crosses 2 → 4 */
   get step() {
     if (this.banking) return 5;
     if (this.docs_ein || this.fsa_signed) return 4;
@@ -146,8 +139,8 @@ export class Progress {
     if (this.contact) return 2;
     return 1;
   }
-  /** completion of the four steps that collect something, review excluded.
-   * index 2 (the agreement) is already true for a 501(c)(3). */
+  /** the four collecting steps, review excluded — index 2 (the agreement) is
+   * already true for a 501(c)(3) */
   get steps(): boolean[] {
     return [
       this.contact,

@@ -30,8 +30,6 @@ V1 is deprecated **June 30, 2026** — [migration guide](https://docs.wise.com/g
 
 Moving an environment between V1, V2 and production is therefore an env-var edit and nothing else, and the token can't end up paired with a host the other end isn't using.
 
-Until Aug 2026 the class derived its host from `stage === "staging"` instead, ignoring `WISE_API_URL` — which pinned staging to the retired V1 sandbox (500s on every `v2_account` read) and sent `STAGE=local` at **production** with a sandbox token. Both are gone with the flag; a Wise failure that looks host-shaped is now a real credential or data problem.
-
 ## Env
 
 `WISE_API_TOKEN`, `WISE_API_URL`, `WISE_PROFILE_ID`, `WISE_BALANCE_ID_USD` — declared in `.server/env.ts:121-126`, allowlisted in root `turbo.json:42-45`, documented in `.env.example:41-50`. `.env` holds sandbox credentials; production lives in Vercel (`vercel env pull`). Never pair a token with the other environment's host.

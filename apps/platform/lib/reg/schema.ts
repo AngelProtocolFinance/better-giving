@@ -76,11 +76,11 @@ export type TOrgType = v.InferOutput<typeof org_type>;
 /** `o_type`, the identity column it implies, and the hq country all travel as
  * one unit: `Progress` derives the step from which columns are non-null, and
  * `docs_ein` is `undefined` unless `o_type === "501c3"` while `org` is
- * `undefined` without `o_hq_country` — which the wizard's org step no longer
- * asks a US applicant for. Writing any of the three without the others caps
- * the application at a step it can never pass, so they are never separable
- * here. `"United States"` is what the duplicate check matches this branch on
- * and what `npos.hq_country` stores. */
+ * `undefined` without `o_hq_country` — which the org step doesn't ask a US
+ * applicant for. Writing any of the three without the others caps the
+ * application at a step it can never pass, so they are never separable here.
+ * `"United States"` is what the duplicate check matches this branch on and
+ * what `npos.hq_country` stores. */
 const us_identity = {
   o_type: v.literal("501c3"),
   o_ein: ein_9,
@@ -256,10 +256,7 @@ export interface IUpdateOrg extends v.InferOutput<typeof update_org> {}
 /** org type and the identity column it implies, as they sit on a stored row.
  * Not a member of `reg_update`: `reg_update` is the wizard steps' contract,
  * and these two are written as a unit by `reg_new` at creation and by the
- * change-identity screen afterwards — both on `reg_start_fv`/`ein_9`. The two
- * `update_type`s that used to carry them (`org_type`, `ein`) belonged to the
- * steps the consolidation deleted, and the EIN they validated was any string
- * of letters and numbers, which contradicted `ein_9`. */
+ * change-identity screen afterwards — both on `reg_start_fv`/`ein_9`. */
 export interface IRegIdentity {
   o_type?: TOrgType;
   o_ein?: string;

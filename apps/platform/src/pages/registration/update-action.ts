@@ -61,10 +61,7 @@ export const update_action =
       attrs.o_fsa_signed_doc_url = null;
     }
 
-    /* org type + identity are not a step's to write. The org step stopped
-     * asking a US applicant for a country, so the reset that used to hang off
-     * that field is gone with it; correcting an identity is the change-identity
-     * screen's job, resets included (see `change-identity.ts`). */
+    /* identity + its resets are change-identity.ts's, not a step's */
 
     const updated = await reg_update(db, rid, attrs);
     if (updated) await enqueue(msg("reg-updated", updated));
