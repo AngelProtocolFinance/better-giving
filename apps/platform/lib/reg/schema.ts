@@ -135,7 +135,7 @@ export const reg_start_fv = v.pipe(
     v.partialCheck(
       [["o_type"], ["o_hq_country"]],
       (i) => i.o_type !== "other" || !!i.o_hq_country,
-      "Enter your country and registration number to continue."
+      "Select your country of registration."
     ),
     ["o_hq_country"]
   ),
@@ -143,7 +143,7 @@ export const reg_start_fv = v.pipe(
     v.partialCheck(
       [["o_type"], ["o_registration_number"]],
       (i) => i.o_type !== "other" || !!i.o_registration_number,
-      "Enter your country and registration number to continue."
+      "Enter your registration number."
     ),
     ["o_registration_number"]
   )

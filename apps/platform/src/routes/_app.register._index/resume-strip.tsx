@@ -53,7 +53,7 @@ export function ResumeStrip({ prev, action }: Props) {
           </LoadText>
         </button>
       </div>
-      <p className="field-err text-left mt-2 empty:hidden">
+      <p className="field-err text-left mt-1 empty:hidden">
         {errors.reference?.message}
       </p>
     </fetcher.Form>
