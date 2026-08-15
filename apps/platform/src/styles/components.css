@@ -13,7 +13,6 @@
     background-color: var(--card);
     color: var(--secondary-fg);
     border: 1px solid var(--border);
-    outline-color: color-mix(in oklch, var(--border) 80%, black);
     &:active {
       background-color: color-mix(in oklch, var(--secondary) 85%, black);
     }
@@ -25,7 +24,6 @@
   .btn-ghost {
     background-color: transparent;
     color: inherit;
-    outline-color: var(--ring);
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--accent);
     }
@@ -41,7 +39,6 @@
   .btn-primary {
     background-color: var(--primary);
     color: var(--primary-fg);
-    outline-color: var(--secondary);
     &:active {
       background-color: color-mix(in oklch, var(--primary) 85%, black);
     }
@@ -53,7 +50,6 @@
   .btn-destructive {
     background-color: var(--destructive);
     color: var(--destructive-fg);
-    outline-color: color-mix(in oklch, var(--destructive) 20%, white);
     &:active {
       background-color: color-mix(in oklch, var(--destructive) 85%, black);
     }
@@ -70,7 +66,6 @@
   .btn-success {
     background-color: var(--success);
     color: var(--success-fg);
-    outline-color: color-mix(in oklch, var(--success) 20%, white);
     &:active {
       background-color: color-mix(in oklch, var(--success) 85%, black);
     }
@@ -87,7 +82,6 @@
   .btn-warning {
     background-color: var(--warning);
     color: var(--warning-fg);
-    outline-color: color-mix(in oklch, var(--warning) 20%, white);
     &:active {
       background-color: color-mix(in oklch, var(--warning) 85%, black);
     }
@@ -98,6 +92,26 @@
       background-color: var(--muted);
       color: var(--muted-fg);
       pointer-events: none;
+    }
+  }
+
+  /* one focus indicator for every variant. --ring is the only value in the
+     system that clears 3:1 (WCAG 2.4.7/1.4.11) against the page in both
+     themes; the per-variant outline colors this replaces were tints of the
+     button's own fill and were invisible against it. the offset is
+     load-bearing, not decoration: --ring == --primary, so a flush ring on
+     .btn-primary would be 1.00:1 against the button it surrounds. on a
+     --primary-filled panel, scope with the `surface-primary` utility. */
+  .btn,
+  .btn-ghost,
+  .btn-secondary,
+  .btn-success,
+  .btn-primary,
+  .btn-warning,
+  .btn-destructive {
+    &:focus-visible {
+      outline: 2px solid var(--ring);
+      outline-offset: 2px;
     }
   }
 
@@ -149,7 +163,7 @@
     );
     background-color: var(--input);
     padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
-    border: 1px solid var(--border);
+    border: 1px solid var(--input-border);
     outline-color: var(--ring);
     color: var(--fg);
 
@@ -164,7 +178,9 @@
       color: var(--muted-fg);
     }
 
-    &:invalid,
+    /* :user-invalid, never :invalid — :invalid paints every required-but-empty
+       field destructive on first paint, before the field has been touched. */
+    &:user-invalid,
     &[aria-invalid="true"] {
       @apply border-destructive;
     }
@@ -179,7 +195,7 @@
       var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
     );
     background-color: var(--input);
-    border: 1px solid var(--border);
+    border: 1px solid var(--input-border);
     color: var(--fg);
 
     &:has(input:focus) {
@@ -198,7 +214,7 @@
       color: var(--muted-fg);
     }
 
-    &:has(input:invalid),
+    &:has(input:user-invalid),
     &:has(input[aria-invalid="true"]) {
       @apply border-destructive;
     }

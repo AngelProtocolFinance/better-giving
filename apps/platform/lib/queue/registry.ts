@@ -92,6 +92,11 @@ export interface ILockTxCreatedPayload {
 export interface IRegCreatedPayload {
   id: string;
   r_id: string;
+  /** the producer could not establish that whoever started this application
+   * owns `r_id` — the lead form, where the poster is a stranger to the address.
+   * optional, and absent must keep meaning "mail them": messages enqueued
+   * before this field existed are still in flight against newer deploys. */
+  unproven?: boolean;
 }
 
 export interface ISubDeactivatedPayload {

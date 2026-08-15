@@ -14,6 +14,23 @@ export async function reg_get(id: string): Promise<IReg | undefined> {
   return row as unknown as IReg | undefined;
 }
 
+/** the applicant's own application, most recently touched first.
+ *
+ * keyed on the address the row was written under, so a caller who can only
+ * prove *who they are* — a draft grant, no session, no reference to quote —
+ * still reaches nothing but their own. an applicant with several rows is
+ * handed the one they were last working on. */
+export async function reg_latest(r_id: string): Promise<IReg | undefined> {
+  const [row] = await db
+    .select()
+    .from(registrations)
+    .where(eq(registrations.r_id, r_id))
+    .orderBy(desc(registrations.updated_at))
+    .limit(1);
+  // IReg is composed of many sub-interfaces with field shape mismatches
+  return row as unknown as IReg | undefined;
+}
+
 export async function reg_put(data: IRegNew): Promise<string> {
   const id = globalThis.crypto.randomUUID();
   const now = new Date().toISOString();
@@ -34,6 +51,7 @@ export async function reg_put(data: IRegNew): Promise<string> {
           o_hq_country: data.o_hq_country,
           o_registration_number: data.o_registration_number,
         }),
+    ...(data.o_name && { o_name: data.o_name }),
     ...(data.referrer && {
       rm: "referral",
       rm_referral_code: data.referrer,

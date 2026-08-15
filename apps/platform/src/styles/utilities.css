@@ -58,6 +58,18 @@
   }
 }
 
+/* a band or panel filled with --primary. use instead of bare `bg-primary`
+   whenever the fill contains a control: it rebinds --ring and --border for
+   everything inside, because the page-level values are drawn against the page
+   and both collapse on brand fill (--ring == --primary is 1.00:1 there).
+   same mechanism as #donation-container's --ring remap in index.css. */
+@utility surface-primary {
+  background-color: var(--primary);
+  color: var(--primary-fg);
+  --ring: var(--primary-ring);
+  --border: var(--primary-border);
+}
+
 @utility fixed-center {
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }
@@ -96,4 +108,13 @@
 
 @utility pre-heading {
   @apply text-sm md:text-lg font-bold;
+}
+
+/* the small uppercase label above a section heading — the canonical eyebrow.
+   type only: color is the caller's (text-primary / text-muted-fg /
+   text-secondary), as is any size override (text-2xs on dense surfaces).
+   distinct from pre-heading, which is the larger lead-in that is not always
+   uppercased. */
+@utility eyebrow {
+  @apply text-xs font-bold uppercase tracking-label;
 }

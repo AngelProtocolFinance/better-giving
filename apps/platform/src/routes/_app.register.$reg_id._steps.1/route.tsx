@@ -5,7 +5,12 @@ import { Field } from "#/components/form";
 import { LoadText } from "#/components/load-text";
 import { Select } from "#/components/selector/select";
 import { step_loader } from "#/pages/registration/data/step-loader";
-import { next_step, steps } from "#/pages/registration/routes";
+import {
+  GRANT_STEP,
+  GRANT_UPDATE_TYPE,
+  next_step,
+  steps,
+} from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
 import type { TRegUpdate, TRole } from "@/reg";
 import { Progress } from "@/reg/progress";
@@ -15,9 +20,13 @@ import type { FV } from "./schema";
 import { use_rhf } from "./use-rhf";
 
 export { ErrorBoundary } from "#/components/error";
-export const loader = step_loader(1);
+// the step a draft grant opens — this route, its loader gate and its action
+// all name it the same way
+export const loader = step_loader(GRANT_STEP);
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
-export const action = update_action(next_step[1]);
+export const action = update_action(next_step[GRANT_STEP], {
+  registrant: true,
+});
 
 export default CacheRoute(Page);
 function Page({ loaderData: reg }: Route.ComponentProps) {
@@ -39,7 +48,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
     }
 
     const upd8: TRegUpdate = {
-      update_type: "contact",
+      update_type: GRANT_UPDATE_TYPE,
     };
 
     if (df.r_first_name) upd8.r_first_name = fv.r_first_name;

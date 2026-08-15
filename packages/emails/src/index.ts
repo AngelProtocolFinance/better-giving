@@ -26,6 +26,8 @@ export * as fnd_mgmt_lock_tx from "./templates/fnd-mgmt-lock-tx";
 export * as fund_opt_out_notif from "./templates/fund-opt-out-notif";
 // Grants
 export * as grants_schedule from "./templates/grants-schedule";
+// Auth
+export * as login_link from "./templates/login-link";
 // Registration
 export * as registration_approved from "./templates/registration-approved";
 export * as registration_new from "./templates/registration-new";

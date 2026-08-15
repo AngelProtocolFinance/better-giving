@@ -24,6 +24,14 @@
   --text-2xs: 0.625rem;
   --text-4_5xl: 2.625rem;
 
+  /* uppercase-label tracking. tailwind's own ladder tops out at
+     tracking-widest (0.1em) and does not reach either value.
+     label: standalone uppercase label — eyebrow, section kicker, column meta.
+     badge: uppercase text inside a padded chip; tighter so the last glyph
+     doesn't crowd the chip's right padding. */
+  --tracking-label: 0.12em;
+  --tracking-badge: 0.08em;
+
   --font-quicksand: Quicksand Variable, serif;
   --font-gochi: Gochi Hand, cursive;
 }
@@ -49,13 +57,26 @@
   --accent-fg: oklch(0.208 0.04 265.8); /* #0f172a */
   --destructive: oklch(0.592 0.208 25.3); /* darkened for AA on white */
   --destructive-fg: oklch(1 0 0); /* #ffffff */
-  --success: oklch(0.541 0.145 163); /* darkened for AA on white */
+  /* AA on every surface that carries body text, not just white: 5.14:1 on
+     --card/--background, 4.69:1 on --muted, 4.64:1 on --accent. at L 0.541 it
+     cleared white by 1% (4.55:1) and failed on every tinted band (4.10:1). */
+  --success: oklch(0.513 0.145 163);
   --success-fg: oklch(1 0 0); /* #ffffff */
   --warning: oklch(0.769 0.165 70.1); /* #f59e0b */
   --warning-fg: oklch(0.279 0.074 45.6); /* dark amber — ~7.5:1 on warning bg */
+  /* dividers, panel hairlines, decorative edges. NOT a control boundary:
+     1.23:1 on --card, far under the 3:1 of WCAG 1.4.11. */
   --border: oklch(0.929 0.013 255.5); /* slate-200 #e2e8f0 */
-  --input: oklch(1 0 0); /* #ffffff */
+  --input: oklch(1 0 0); /* #ffffff — field fill, same as the page */
+  /* the boundary that identifies a control as a control. slate-500:
+     4.76:1 on --input/--card/--background, 4.34:1 on --muted. */
+  --input-border: oklch(0.554 0.046 257.4);
   --ring: oklch(0.52 0.123 247.3); /* #1e6dab */
+  /* ring + hairline for controls drawn ON a --primary fill, where --ring
+     (== --primary) is 1.00:1. see the `surface-primary` utility.
+     5.48:1 and 4.07:1 on --primary respectively. */
+  --primary-ring: var(--primary-fg);
+  --primary-border: color-mix(in oklch, var(--primary-fg) 80%, var(--primary));
 
   --form-primary: var(--primary);
   --form-secondary: var(--secondary);
@@ -94,9 +115,13 @@
   --secondary-fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
   --muted: oklch(0.279 0.037 260); /* slate-800 #1e293b */
   --muted-fg: oklch(0.711 0.035 256.8); /* #94a3b8 */
-  --accent: oklch(
-    0.4 0.08 248
-  ); /* slightly brighter than secondary for hover highlight */
+  /* in this system --accent is not hover-only: it is also the alternating
+     tinted band on the marketing pages (~14 call sites), so it is a resting
+     surface that carries de-emphasized ink. that constrains its value —
+     --muted-fg on it was 3.58:1 at L 0.4 (WCAG 1.4.3 needs 4.5:1); 4.76:1
+     at L 0.33. still a step above --card (1.46:1), so it reads as a
+     highlight; it is no longer brighter than --secondary. */
+  --accent: oklch(0.33 0.08 248);
   --accent-fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
   --destructive: oklch(0.711 0.166 22.2); /* #f87171 */
   --destructive-fg: oklch(0.258 0.089 26); /* #450a0a */
@@ -105,8 +130,16 @@
   --warning: oklch(0.837 0.164 84.4); /* #fbbf24 */
   --warning-fg: oklch(0.279 0.074 45.6); /* #451a03 */
   --border: oklch(0.372 0.039 257.3); /* #334155 */
-  --input: oklch(0.372 0.039 257.3); /* slate-700 — aligned with border */
+  /* slate-950 — field fill is the page color in both themes; the boundary,
+     not the fill, identifies the control. was slate-700, which left
+     --muted-fg placeholders at 4.04:1 (WCAG 1.4.3 needs 4.5:1); now 7.87:1. */
+  --input: oklch(0.129 0.041 264.7);
+  /* slate-400 — 7.87:1 on --input, 6.96:1 on --card */
+  --input-border: oklch(0.711 0.035 256.8);
   --ring: oklch(0.694 0.114 240.8); /* #54a5dc */
+  /* 7.26:1 and 5.72:1 on --primary */
+  --primary-ring: var(--primary-fg);
+  --primary-border: color-mix(in oklch, var(--primary-fg) 80%, var(--primary));
 
   --sidebar: oklch(0.129 0.041 264.7); /* slate-950 — match bg */
   --sidebar-fg: var(--fg);
@@ -147,7 +180,10 @@
   --color-warning-fg: var(--warning-fg);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-input-border: var(--input-border);
   --color-ring: var(--ring);
+  --color-primary-ring: var(--primary-ring);
+  --color-primary-border: var(--primary-border);
   --color-form-primary: var(--form-primary);
   --color-form-secondary: var(--form-secondary);
   --color-chart-1: var(--chart-1);

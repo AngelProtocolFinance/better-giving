@@ -96,6 +96,10 @@ const intl_identity = {
 const reg_new_base = {
   r_id: v.pipe($req, v.toLowerCase(), v.email()),
   referrer: v.optional($req),
+  /** seeded only when the entry point already collected it — the marketing
+   * lead forms ask for it, the wizard's own start screen doesn't. the contact
+   * step asks for it either way and prefills from here. */
+  o_name: v.optional($req),
 } as const;
 
 export const reg_new = v.variant("o_type", [

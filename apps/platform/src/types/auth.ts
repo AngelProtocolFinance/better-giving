@@ -29,23 +29,16 @@ export const sign_in = v.object({
 
 export type ISignIn = v.InferOutput<typeof sign_in>;
 
-const new_password = v.pipe(
-  v.string("required"),
-  v.nonEmpty("required"),
-  v.minLength(8, "must have at least 8 characters"),
-  v.regex(/[a-z]/, "must have lowercase letters"),
-  v.regex(/[A-Z]/, "must have uppercase letters"),
-  v.regex(/\d/, "must have numbers"),
-  v.regex(/[!@#$%^&*()_+{}[\]:;<>,.?~\\/-]/, "must have special characters")
-);
-
 export const sign_up = v.pipe(
   v.object({
     email,
     email_confirmation: email,
     first_name: person_name,
     last_name: person_name,
-    password: new_password,
+    // no password: signing up mails a link. better-auth strips the credential
+    // account off any still-unverified row when an email proof lands on it, so
+    // a password set here would be deleted the moment the link was clicked.
+    // one is set later through the reset-password flow instead.
     middle_name: v.optional(v.string()), // honeypot field - should remain empty
   }),
   v.forward(

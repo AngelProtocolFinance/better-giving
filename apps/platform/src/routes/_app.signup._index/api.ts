@@ -1,7 +1,8 @@
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { type ActionFunction, href, redirect } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
-import { auth, get_session } from "#/.server/auth";
+import { auth, create_unverified_user, get_session } from "#/.server/auth";
+import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignUp, sign_up } from "#/types/auth";
 import { report_undefined } from "@/errors/report";
@@ -71,29 +72,19 @@ export const action: ActionFunction = async ({ request }) => {
     } satisfies IFormInvalid<ISignUp>;
   }
 
-  const res = await auth.api.signUpEmail({
-    body: {
-      email: p.data.email.toLowerCase(),
-      password: p.data.password,
-      name: `${p.data.first_name} ${p.data.last_name}`,
-      first_name: p.data.first_name,
-      last_name: p.data.last_name,
-    },
-    asResponse: true,
+  const email = p.data.email.toLowerCase();
+  // same door the public lead form uses. a verified owner falls through to the
+  // link below, which signs them in — so the screen never differs and the form
+  // is not an account-enumeration oracle.
+  // an anonymous form: the headers carry the client ip both throttles key on,
+  // and both refuse silently so this screen stays the same either way
+  await create_unverified_user({
+    email,
+    first_name: p.data.first_name,
+    last_name: p.data.last_name,
+    headers: request.headers,
   });
 
-  if (!res.ok) {
-    const err = await res.json();
-    return {
-      receivedValues: p.receivedValues,
-      errors: {
-        email: { type: "value", message: err.message || "Signup failed" },
-      },
-    } satisfies IFormInvalid<ISignUp>;
-  }
-
-  const to = new URL(from);
-  to.pathname = `${from.pathname}/confirm`;
-  to.searchParams.set("email", p.data.email);
-  return redirect(to.toString());
+  await request_login_link({ email, redirect_to, headers: request.headers });
+  return redirect(check_email_url({ email, redirect_to }));
 };

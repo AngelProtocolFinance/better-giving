@@ -3,7 +3,7 @@ import { href, Link, type MetaDescriptor, useNavigation } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import googleIcon from "#/assets/icons/google.svg";
 import { ExtLink } from "#/components/ext-link";
-import { Input, PasswordInput, RmxForm } from "#/components/form";
+import { Input, RmxForm } from "#/components/form";
 import { Image } from "#/components/image";
 import { Separator } from "#/components/separator";
 import { app_name } from "#/constants/env";
@@ -155,14 +155,13 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
             placeholder="Confirm email"
             icon={Mail}
             error={errors.email_confirmation?.message}
-            classes={{ container: "mb-4" }}
-          />
-          <PasswordInput
-            {...register("password")}
-            placeholder="Create password"
-            error={errors.password?.message}
           />
         </RmxForm>
+
+        <p className="text-center max-sm:text-sm text-muted-fg mt-4">
+          We'll email you a link to confirm your address and sign you in — no
+          password to choose.
+        </p>
 
         <button
           disabled={is_submitting}

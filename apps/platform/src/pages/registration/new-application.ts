@@ -19,10 +19,27 @@ import { reg_put } from "$/pg/queries/registration";
 
 export type { IDuplicate };
 
-export const new_application = async (request: Request, fd: FormData) => {
-  const { user } = await get_session(request);
-  if (!user) return to_auth(request);
+/** who the application belongs to. the row's `r_id` is written *from* this, so
+ * whoever resolves it is the one asserting the applicant — there is nothing
+ * left downstream to check it against. */
+export interface IApplicant {
+  email: string;
+  role?: string | null;
+  /** the caller could not establish that the applicant owns `email` — nothing
+   * about this request proved it. required so every entry point states which
+   * it is instead of leaving it to be inferred from the account behind the
+   * address, which says nothing about who started the application. */
+  unproven: boolean;
+}
 
+/** Starts an application for an applicant the caller has already resolved.
+ * `o_name` is seeded only by entry points that collected it. */
+export const new_application_for = async (
+  request: Request,
+  fd: FormData,
+  applicant: IApplicant,
+  o_name?: string
+) => {
   const fv = await getValidatedFormData<IRegStartFv>(
     fd,
     valibotResolver(reg_start_fv)
@@ -35,7 +52,9 @@ export const new_application = async (request: Request, fd: FormData) => {
 
   const { referrer } = search(request);
 
-  const payload: IRegNew = identity_payload(fv.data, user.email);
+  const payload: IRegNew = identity_payload(fv.data, applicant.email);
+
+  if (o_name) payload.o_name = o_name;
 
   // user is registering via fresh referral link
   if (referrer) payload.referrer = referrer;
@@ -51,10 +70,6 @@ export const new_application = async (request: Request, fd: FormData) => {
   if (p.issues) return resp.status(400, p.issues[0].message);
   const parsed = p.output;
 
-  if (user.email !== parsed.r_id && user.role !== "admin") {
-    throw new Response("Unauthorized", { status: 403 });
-  }
-
   // a listing with members behind it is the only one that can invite this
   // registrant in; an unowned one is a stale seed and must not block them.
   const [rn, country] = identity_regnum(parsed);
@@ -63,10 +78,23 @@ export const new_application = async (request: Request, fd: FormData) => {
   if (owned) return { duplicate: { name: owned.name } } satisfies IDuplicate;
 
   const id = await reg_put(parsed);
-  await enqueue(msg("reg-created", { id, r_id: parsed.r_id }));
+  await enqueue(
+    msg("reg-created", {
+      id,
+      r_id: parsed.r_id,
+      unproven: applicant.unproven,
+    })
+  );
   cookie.reference = id;
 
   return redirect(href("/register/:reg_id/1", { reg_id: id }), {
     headers: { "set-cookie": await reg_cookie.serialize(cookie) },
   });
+};
+
+/** the signed-in user's own application — the wizard's start screen. */
+export const new_application = async (request: Request, fd: FormData) => {
+  const { user } = await get_session(request);
+  if (!user) return to_auth(request);
+  return new_application_for(request, fd, { ...user, unproven: false });
 };

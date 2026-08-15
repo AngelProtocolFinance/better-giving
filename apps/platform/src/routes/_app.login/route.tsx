@@ -4,6 +4,7 @@ import { Mail } from "lucide-react";
 import { href, Link, redirect, useNavigation } from "react-router";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { auth, get_session } from "#/.server/auth";
+import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
 import { ExtLink } from "#/components/ext-link";
@@ -63,53 +64,53 @@ export const action = async ({ request }: Route.ActionArgs) => {
 
     if (!res.ok) {
       const err = await res.json();
+      const email = payload.data.email.toLowerCase();
 
-      // unverified user — send fresh OTP and redirect to confirm page
-      if (err.code === "EMAIL_NOT_VERIFIED") {
-        const email = payload.data.email.toLowerCase();
-        await auth.api.sendVerificationOTP({
-          body: { email, type: "email-verification" },
+      // better-auth cannot tell these two apart — both are a user row with no
+      // credential to check a password against, so both come back as
+      // INVALID_EMAIL_OR_PASSWORD. only `emailVerified` separates them.
+      const accountless =
+        err.code === "INVALID_EMAIL_OR_PASSWORD"
+          ? await accountless_user(email)
+          : null;
+
+      // the address is unproven, whether or not a password sits on it. the link
+      // both proves it and signs them in — and prompting for a password here
+      // would be worse than useless: better-auth deletes credentials set before
+      // verification the moment the next link is used.
+      if (err.code === "EMAIL_NOT_VERIFIED" || accountless === "unverified") {
+        await request_login_link({
+          email,
+          redirect_to,
+          headers: request.headers,
         });
-        return redirect(
-          `${href("/signup/confirm")}?email=${encodeURIComponent(email)}`
-        );
+        return redirect(check_email_url({ email, redirect_to }));
       }
 
-      // migrated user: exists in user table but has zero account rows
-      if (err.code === "INVALID_EMAIL_OR_PASSWORD") {
-        const email = payload.data.email.toLowerCase();
-        const [row] = await db
-          .select({ id: userTable.id })
-          .from(userTable)
-          .where(eq(userTable.email, email));
-
-        if (row) {
-          const [acct] = await db
-            .select({ id: account.id })
-            .from(account)
-            .where(eq(account.userId, row.id));
-
-          if (!acct) {
-            const origin = new URL(request.url).origin;
-            try {
-              await auth.api.requestPasswordReset({
-                body: {
-                  email,
-                  redirectTo: `${origin}/login/reset?type=set-password&email=${encodeURIComponent(email)}`,
-                },
-              });
-            } catch {
-              // fall through to generic error if reset email fails
-            }
-
-            const reset_url = new URL(`${origin}/login/reset`);
-            reset_url.searchParams.set("type", "migrated");
-            reset_url.searchParams.set("email", email);
-            const redir = from.searchParams.get("redirect");
-            if (redir) reset_url.searchParams.set("redirect", redir);
-            return redirect(reset_url.toString());
-          }
+      // MIGRATED ONLY — a proven address that predates the migration and so
+      // carries no credential. delete this arm and `accountless_user`'s
+      // "verified" case together once that population is gone.
+      if (accountless === "verified") {
+        const origin = from.origin;
+        try {
+          await auth.api.requestPasswordReset({
+            body: {
+              email,
+              redirectTo: `${origin}/login/reset?type=set-password&email=${encodeURIComponent(email)}`,
+            },
+          });
+        } catch {
+          // the reset screen still offers a resend, so a failed mail is not a
+          // dead end — better than the generic "invalid credentials" they'd
+          // otherwise get for a password that does not exist.
         }
+
+        const reset_url = new URL(`${origin}/login/reset`);
+        reset_url.searchParams.set("type", "migrated");
+        reset_url.searchParams.set("email", email);
+        const redir = from.searchParams.get("redirect");
+        if (redir) reset_url.searchParams.set("redirect", redir);
+        return redirect(reset_url.toString());
       }
 
       return {
@@ -132,6 +133,29 @@ export const action = async ({ request }: Route.ActionArgs) => {
     return dataWithError(null, "Unknown error occurred", { status: 500 });
   }
 };
+
+/** `null` unless the address names a user row with no account row at all — no
+ * password, no social. two populations look like that and need opposite
+ * remedies, so the proof state comes back with it: an unverified row is a lead
+ * one of the marketing forms created, a verified one predates the migration.
+ * A social-only account keeps its row and is deliberately not matched here. */
+async function accountless_user(
+  email: string
+): Promise<"verified" | "unverified" | null> {
+  const [row] = await db
+    .select({ id: userTable.id, verified: userTable.emailVerified })
+    .from(userTable)
+    .where(eq(userTable.email, email));
+  if (!row) return null;
+
+  const [acct] = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(eq(account.userId, row.id));
+  if (acct) return null;
+
+  return row.verified ? "verified" : "unverified";
+}
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const { user } = await get_session(request);
