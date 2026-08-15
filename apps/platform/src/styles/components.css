@@ -163,7 +163,7 @@
     );
     background-color: var(--input);
     padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
-    border: 1px solid var(--input-border);
+    border: 1px solid var(--border);
     outline-color: var(--ring);
     color: var(--fg);
 
@@ -195,7 +195,7 @@
       var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
     );
     background-color: var(--input);
-    border: 1px solid var(--input-border);
+    border: 1px solid var(--border);
     color: var(--fg);
 
     &:has(input:focus) {

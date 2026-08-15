@@ -8,16 +8,6 @@
     outline-color: var(--ring);
   }
 
-  /* a control's edge is the only thing identifying it as a control, so it
-     carries --input-border (3:1, WCAG 1.4.11) rather than the decorative
-     --border every other element defaults to above. call-site utilities
-     (border-destructive, border-primary, …) still win — utilities layer. */
-  input,
-  textarea,
-  select {
-    border-color: var(--input-border);
-  }
-
   h1,
   h2,
   h3,

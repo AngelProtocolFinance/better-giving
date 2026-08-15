@@ -64,13 +64,11 @@
   --success-fg: oklch(1 0 0); /* #ffffff */
   --warning: oklch(0.769 0.165 70.1); /* #f59e0b */
   --warning-fg: oklch(0.279 0.074 45.6); /* dark amber — ~7.5:1 on warning bg */
-  /* dividers, panel hairlines, decorative edges. NOT a control boundary:
-     1.23:1 on --card, far under the 3:1 of WCAG 1.4.11. */
+  /* dividers, panel hairlines, and control edges alike. 1.23:1 on --card, so
+     a field's boundary is under the 3:1 of WCAG 1.4.11 — a deliberate call to
+     keep the light look; the focus ring is what a control is identified by. */
   --border: oklch(0.929 0.013 255.5); /* slate-200 #e2e8f0 */
   --input: oklch(1 0 0); /* #ffffff — field fill, same as the page */
-  /* the boundary that identifies a control as a control. slate-500:
-     4.76:1 on --input/--card/--background, 4.34:1 on --muted. */
-  --input-border: oklch(0.554 0.046 257.4);
   --ring: oklch(0.52 0.123 247.3); /* #1e6dab */
   /* ring + hairline for controls drawn ON a --primary fill, where --ring
      (== --primary) is 1.00:1. see the `surface-primary` utility.
@@ -134,8 +132,6 @@
      not the fill, identifies the control. was slate-700, which left
      --muted-fg placeholders at 4.04:1 (WCAG 1.4.3 needs 4.5:1); now 7.87:1. */
   --input: oklch(0.129 0.041 264.7);
-  /* slate-400 — 7.87:1 on --input, 6.96:1 on --card */
-  --input-border: oklch(0.711 0.035 256.8);
   --ring: oklch(0.694 0.114 240.8); /* #54a5dc */
   /* 7.26:1 and 5.72:1 on --primary */
   --primary-ring: var(--primary-fg);
@@ -180,7 +176,6 @@
   --color-warning-fg: var(--warning-fg);
   --color-border: var(--border);
   --color-input: var(--input);
-  --color-input-border: var(--input-border);
   --color-ring: var(--ring);
   --color-primary-ring: var(--primary-ring);
   --color-primary-border: var(--primary-border);
