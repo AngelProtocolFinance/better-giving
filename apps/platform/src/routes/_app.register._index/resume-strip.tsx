@@ -1,6 +1,7 @@
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
+import { use_submit_event } from "#/analytics";
 import { LoadText } from "#/components/load-text";
 import type { IRegResumeFv } from "@/reg";
 import { reg_resume_fv } from "@/reg/schema";
@@ -19,7 +20,7 @@ export function ResumeStrip({ prev, action }: Props) {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitSuccessful },
   } = useRemixForm<IRegResumeFv>({
     fetcher,
     resolver: valibotResolver(reg_resume_fv),
@@ -27,6 +28,8 @@ export function ResumeStrip({ prev, action }: Props) {
     submitData: { intent: "resume" },
     submitConfig: { action, method: "post" },
   });
+
+  use_submit_event(isSubmitSuccessful, "reg_resume");
 
   return (
     <fetcher.Form

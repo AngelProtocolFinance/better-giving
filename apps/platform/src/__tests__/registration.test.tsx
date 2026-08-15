@@ -1370,6 +1370,7 @@ describe("E2E: start screen", () => {
   beforeEach(async () => {
     await test_db.current!.db.delete(user_npo_memberships);
     await test_db.current!.db.delete(npos);
+    window.dataLayer = [];
   });
 
   it("starts a US application and lands in the wizard", async () => {
@@ -1386,6 +1387,13 @@ describe("E2E: start screen", () => {
     const [row] = await all_regs();
     expect(row.o_type).toBe("501c3");
     expect(row.o_ein).toBe("123456789");
+
+    // both forms live at /register now, so the page path can't tell starting
+    // an application apart from resuming one — the event has to
+    expect(window.dataLayer).toContainEqual({
+      event: "reg_start",
+      org_type: "501c3",
+    });
   }, 20_000);
 
   it("swaps to the international fields and writes country + registration number", async () => {
@@ -1411,6 +1419,11 @@ describe("E2E: start screen", () => {
     expect(row.o_type).toBe("other");
     expect(row.o_hq_country).toBe("Kenya");
     expect(row.o_registration_number).toBe("ke-99");
+
+    expect(window.dataLayer).toContainEqual({
+      event: "reg_start",
+      org_type: "other",
+    });
   }, 20_000);
 
   it("asks only for the registration number when the country is filled", async () => {
@@ -1519,11 +1532,17 @@ describe("E2E: start screen", () => {
     await screen.getByRole("button", { name: /continue/i }).click();
     await expect.element(screen.getByText(/valid 9-digit EIN/i)).toBeVisible();
 
+    // a submission the client rejected never reached the server, so it is not
+    // a start
+    expect(window.dataLayer).toHaveLength(0);
+
     // the resume strip is unaffected and navigates on its own
     await screen.getByLabelText(/registration reference/i).fill(id);
     await screen.getByRole("button", { name: /resume/i }).click();
 
     await expect.element(screen.getByText(/contact details/i)).toBeVisible();
+
+    expect(window.dataLayer).toEqual([{ event: "reg_resume" }]);
   }, 20_000);
 });
 

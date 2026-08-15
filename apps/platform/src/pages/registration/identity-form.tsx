@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useController } from "react-hook-form";
 import type { FetcherWithComponents } from "react-router";
 import { useRemixForm } from "remix-hook-form";
+import { use_submit_event } from "#/analytics";
 import { Combo } from "#/components/combo";
 import { Field, MaskedInput } from "#/components/form";
 import { ein } from "#/components/form/masks";
@@ -38,6 +39,10 @@ interface IIdentityForm {
   /** rendered after the form, never inside it — the first screen's resume
    * strip is a form of its own and must not nest. */
   children?: ReactNode;
+  /** dataLayer event pushed once a submission passes validation. named by the
+   * caller because this form both creates an application and corrects one;
+   * left out, nothing is tracked. */
+  event?: string;
 }
 
 /** org type and the identity it implies — the only two questions asked before
@@ -51,6 +56,7 @@ export function IdentityForm({
   submit_text,
   classes = "",
   children,
+  event,
 }: IIdentityForm) {
   const busy = fetcher.state !== "idle";
 
@@ -59,7 +65,7 @@ export function IdentityForm({
     control,
     watch,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitSuccessful },
   } = useRemixForm<IRegStartFv>({
     fetcher,
     resolver: valibotResolver(reg_start_fv),
@@ -75,6 +81,10 @@ export function IdentityForm({
   const { field: country } = useController({ control, name: "o_hq_country" });
   const { field: o_ein } = useController({ control, name: "o_ein" });
   const is_us = watch("o_type") === "501c3";
+
+  use_submit_event(isSubmitSuccessful, event, () => ({
+    org_type: o_type.value,
+  }));
 
   return (
     <>
