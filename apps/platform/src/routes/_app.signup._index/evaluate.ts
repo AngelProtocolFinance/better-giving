@@ -27,9 +27,12 @@ const SPAM_CATEGORIES = [
  * changes with what was submitted. one definition so the two cannot drift. */
 const verdict = {
   is_spam: v.pipe(v.boolean(), v.description("true=reject, false=allow")),
+  /* recorded, never gated on — `is_spam` is the whole decision. described as a
+   * plain confidence so it does not read as a threshold that some caller is
+   * about to apply. */
   spam_score: v.pipe(
     v.number(),
-    v.description("0-1, 0.9+ for obvious violations")
+    v.description("0-1 confidence in the verdict")
   ),
   category: v.pipe(
     v.optional(v.picklist([...SPAM_CATEGORIES])),
@@ -46,19 +49,21 @@ const verdict = {
   ),
 };
 
+/* optional like `category`: an approval has no field to blame, and asking for
+ * one anyway makes every clean submission pick a guilty party. */
 const person_schema = v.strictObject({
   ...verdict,
   field: v.pipe(
-    v.picklist(["first_name", "last_name", "email"]),
-    v.description("field with issue")
+    v.optional(v.picklist(["first_name", "last_name", "email"])),
+    v.description("required if is_spam=true")
   ),
 });
 
 const org_schema = v.strictObject({
   ...verdict,
   field: v.pipe(
-    v.picklist(["o_name", "email"]),
-    v.description("field with issue")
+    v.optional(v.picklist(["o_name", "email"])),
+    v.description("required if is_spam=true")
   ),
 });
 
