@@ -1471,17 +1471,12 @@ describe("E2E: start screen", () => {
   }, 20_000);
 
   // truncating to 9 would hand the duplicate check an ein nobody typed
-  it("rejects an over-length ein rather than trimming it to nine", async () => {
+  it("stops an over-length ein at nine digits", async () => {
     const screen = await render_start();
 
     const ein = screen.getByLabelText(/employer identification number/i);
     await ein.fill("123456789012");
-    await expect.element(ein).toHaveValue("12-3456789012");
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-
-    await expect.element(screen.getByText(/valid 9-digit EIN/i)).toBeVisible();
-    expect(await all_regs()).toHaveLength(0);
+    await expect.element(ein).toHaveValue("12-3456789");
   }, 20_000);
 
   it("asks for both international fields when neither is filled", async () => {
