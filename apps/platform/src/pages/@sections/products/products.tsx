@@ -26,7 +26,7 @@ export function Products({ classes = "" }) {
         </p>
 
         <Link
-          to={href("/register/welcome")}
+          to={href("/register")}
           className="btn btn-primary justify-self-center xl:justify-self-start px-10 py-3 xl:text-lg font-bold rounded"
         >
           Join us today!

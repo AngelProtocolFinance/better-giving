@@ -22,7 +22,7 @@ export function Hero({ className = "" }) {
 
         <div className="flex flex-col xl:flex-row justify-center xl:justify-start items-center gap-6">
           <Link
-            to={href("/register/welcome")}
+            to={href("/register")}
             className="btn btn-primary px-6 py-2 xl:px-10 xl:py-4 xl:text-lg font-bold rounded"
           >
             Join us today!

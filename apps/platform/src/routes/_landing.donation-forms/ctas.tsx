@@ -33,7 +33,7 @@ export function Ctas({ classes = "" }) {
           </p>
           <div className="justify-self-center md:justify-self-start">
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary inline-flex items-center px-10 py-3 font-bold rounded"
             >
               Join us today!
@@ -81,7 +81,7 @@ export function Ctas({ classes = "" }) {
           </p>
           <div className="justify-self-center md:justify-self-start">
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary inline-flex items-center px-10 py-3 font-bold rounded"
             >
               Join us today!
@@ -118,7 +118,7 @@ export function Ctas({ classes = "" }) {
           </p>
           <div className="justify-self-center md:justify-self-start">
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary inline-flex items-center px-10 py-3 font-bold rounded"
             >
               Join us today!
@@ -166,7 +166,7 @@ export function Ctas({ classes = "" }) {
           </p>
           <div className="justify-self-center md:justify-self-start">
             <Link
-              to={href("/register/welcome")}
+              to={href("/register")}
               className="btn btn-primary inline-flex items-center px-10 py-3 font-bold rounded"
             >
               Join us today!

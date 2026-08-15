@@ -91,8 +91,8 @@ import type { LoaderFunction } from "react-router";
 import { get_session } from "#/.server/auth";
 import { step_loader } from "#/pages/registration/data/step-loader";
 // registration page imports for cross-page verification
-import Dashboard from "#/routes/_app.register.$reg_id._steps.6/route";
-import { submit_action } from "#/routes/_app.register.$reg_id._steps.6/submit-action";
+import Dashboard from "#/routes/_app.register.$reg_id._steps.5/route";
+import { submit_action } from "#/routes/_app.register.$reg_id._steps.5/submit-action";
 import RegSuccess from "#/routes/_app.register.success/route";
 import type { V2RecipientAccount } from "#/types/bank-details";
 import { reg_get, reg_put } from "$/pg/queries/registration";
@@ -162,7 +162,14 @@ async function seed_user(email = TEST_EMAIL) {
 async function seed_reg(
   overrides: Partial<typeof registrations.$inferInsert> = {}
 ) {
-  const id = await reg_put({ r_id: TEST_EMAIL });
+  // the first screen collects org type + identity, so a stored application
+  // always has them
+  const id = await reg_put({
+    r_id: TEST_EMAIL,
+    o_type: "501c3",
+    o_ein: "123456789",
+    o_hq_country: "United States",
+  });
   if (Object.keys(overrides).length) {
     await test_db
       .current!.db.update(registrations)
@@ -256,9 +263,9 @@ async function render_registration(id: string) {
           path: ":reg_id",
           children: [
             {
-              path: "6",
+              path: "5",
               Component: Dashboard,
-              loader: step_loader(6) as any,
+              loader: step_loader(5) as any,
               action: submit_action as any,
             },
           ],
@@ -270,7 +277,7 @@ async function render_registration(id: string) {
       ],
     },
   ]);
-  return await render(<Stub initialEntries={[`/register/${id}/6`]} />);
+  return await render(<Stub initialEntries={[`/register/${id}/5`]} />);
 }
 
 // --- tests ---
@@ -377,7 +384,7 @@ describe("approval", () => {
     await cleanup();
     screen = await render_registration(id);
 
-    // step_loader(6) redirects approved registration to success page
+    // step_loader(5) redirects approved registration to success page
     await expect
       .element(screen.getByText(/Test Org.*account has been created/i))
       .toBeInTheDocument();

@@ -131,19 +131,16 @@ export function redirect_after_donation(x: IRedirectAfterDonation): () => void {
   win.addEventListener("pagehide", on_hide);
   win.addEventListener("pageshow", on_show);
 
-  // being framed is not the same question as having someone to ask, and the
-  // two only coincide in advanced mode. `parent_origin` is set by
-  // `form-embed.js` alone, so without one no script created this frame; with
-  // our own receipt as the destination — same-origin, always framable — that
-  // leaves nobody to answer and nothing to fear, and the grace below would be
-  // spent waiting out a reply that cannot come. the donor spends it reading
-  // "Processing...".
+  // `parent_origin` is set by `form-embed.js` alone, so without one no script
+  // is listening and the grace below would be spent on a reply that cannot
+  // come. our own receipt is same-origin and always framable, so nothing is
+  // lost by going straight there — beyond an older cached embed landing it in
+  // the frame rather than the tab, at the height the form left it (the
+  // receipt route sends no `resize`).
   //
-  // an older cached script sends no origin either, so a script embed with no
-  // `success_redirect` lands the receipt in the frame rather than the tab
-  // until that copy turns over. the frame keeps the height the form left it —
-  // the receipt route sends no `resize` — which is a worse-looking receipt,
-  // not a lost one.
+  // a merchant dest asks regardless of origin: that same cached embed sends
+  // none, and `leave` refuses to frame a custom dest, so not asking would
+  // strand the donor instead of navigating anywhere.
   const ask_host =
     win.self !== win.top &&
     (x.dest.is_custom || !!parent_origin(x.parent_origin));

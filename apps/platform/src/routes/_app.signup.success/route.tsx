@@ -16,7 +16,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
       </p>
 
       <Link
-        to={`${href("/login")}?redirect=${to}`}
+        to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
         className="flex-center mt-9 w-full btn-primary h-12 sm:h-[52px] rounded sm:text-lg font-bold"
       >
         Continue to Sign in

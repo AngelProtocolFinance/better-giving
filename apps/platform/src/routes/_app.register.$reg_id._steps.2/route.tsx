@@ -1,20 +1,15 @@
 import type { SubmitHandler } from "react-hook-form";
 import { NavLink, useFetcher, useNavigate } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Combo } from "#/components/combo";
 import { ExtLink } from "#/components/ext-link";
 import { Label, UrlInput } from "#/components/form";
-import { DrawerIcon } from "#/components/icon";
 import { LoadText } from "#/components/load-text";
 import { MultiCombo } from "#/components/selector/multi-combo";
 import { Select } from "#/components/selector/select";
-import {
-  countries as cmap,
-  country_names as cnames,
-} from "#/constants/countries";
+import { country_names as cnames } from "#/constants/countries";
 import { TERMS_OF_USE_NPO } from "#/constants/urls";
 import { step_loader } from "#/pages/registration/data/step-loader";
-import { next_step, steps } from "#/pages/registration/routes";
+import { after_org, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
 import type { TRegUpdate } from "@/reg";
 import { Progress } from "@/reg/progress";
@@ -27,7 +22,7 @@ export { ErrorBoundary } from "#/components/error";
 
 export const loader = step_loader(2);
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
-export const action = update_action(next_step[2]);
+export const action = update_action((reg) => after_org(reg.o_type));
 export default CacheRoute(Page);
 function Page({ loaderData: reg }: Route.ComponentProps) {
   const fetcher = useFetcher();
@@ -39,14 +34,13 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
     isDirty,
     handleSubmit,
     designation,
-    hq_country,
     countries,
     dirtyFields: df,
   } = use_rhf(reg);
 
   const submit: SubmitHandler<FV> = async (fv) => {
     if (!isDirty && new Progress(reg).org) {
-      return navigate(`../${steps.fsa_inq}`);
+      return navigate(`../${after_org(reg.o_type)}`);
     }
 
     const update: TRegUpdate = {
@@ -54,7 +48,6 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
     };
 
     if (df.o_website) update.o_website = fv.o_website;
-    if (df.o_hq_country) update.o_hq_country = fv.o_hq_country;
     if (df.o_designation) update.o_designation = fv.o_designation;
     if (df.o_active_in_countries)
       update.o_active_in_countries = fv.o_active_in_countries;
@@ -90,42 +83,6 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         options={org_designations as any}
         option_disp={(v) => v}
         error={errors.o_designation?.message}
-      />
-
-      <Combo
-        ref={hq_country.ref}
-        error={errors.o_hq_country?.message}
-        value={hq_country.value}
-        onChange={hq_country.onChange}
-        required
-        label="In what country is your organization registered in?"
-        //endowment claims are US-based and shoudn't be changed by claimer
-        placeholder="Select a country"
-        classes={{
-          container: "mt-6 mb-2",
-          input: "pl-12",
-        }}
-        options={reg.claim ? ["United States"] : cnames}
-        option_disp={(c) => (
-          <>
-            <span className="text-2xl">{cmap[c].flag}</span>
-            <span>{c}</span>
-          </>
-        )}
-        btn_disp={(c, open) => {
-          const flag = cmap[c]?.flag;
-          return flag ? (
-            <span data-flag className="text-2xl">
-              {flag}
-            </span>
-          ) : (
-            <DrawerIcon
-              is_open={open}
-              size={20}
-              className="justify-self-end shrink-0"
-            />
-          );
-        }}
       />
 
       <Label className="mt-6 mb-2">

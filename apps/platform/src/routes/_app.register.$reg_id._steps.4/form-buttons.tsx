@@ -1,19 +1,30 @@
 import { Link } from "react-router";
-import type { FormButtonsProps } from "#/components/bank-details/types";
+import type {
+  FormButtonsProps,
+  IFormButtons,
+} from "#/components/bank-details/types";
 import { LoadText } from "#/components/load-text";
-import { steps } from "#/pages/registration/routes";
 
-export function FormButtons(props: FormButtonsProps) {
-  return <Submit {...props} />;
-}
+/** the step behind banking depends on `o_type` (a 501(c)(3) has no agreement
+ * step), and `BankDetails` takes the buttons as a component — so the target is
+ * bound here rather than read from a route the buttons don't own. */
+export const form_buttons =
+  (back: string): IFormButtons =>
+  (props: FormButtonsProps) => <Submit {...props} back={back} />;
 
-function Submit({ isSubmitting = false }) {
+function Submit({
+  isSubmitting = false,
+  back,
+}: {
+  isSubmitting?: boolean;
+  back: string;
+}) {
   return (
     <div className="grid gap-4 mt-8">
       <div className="grid grid-cols-2 sm:flex gap-2">
         <Link
           aria-disabled={isSubmitting}
-          to={`../${steps.docs}`}
+          to={`../${back}`}
           className="py-3 min-w-32 btn btn-secondary text-sm"
         >
           Back

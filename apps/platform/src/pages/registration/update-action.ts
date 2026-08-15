@@ -1,8 +1,10 @@
 import { type ActionFunction, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
+import { steps } from "#/pages/registration/routes";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
+import type { IReg } from "@/reg";
 import { Progress } from "@/reg/progress";
 import { reg_id, reg_update as reg_update_schema } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
@@ -12,8 +14,10 @@ import { reg_get, reg_update } from "$/pg/queries/registration";
 const changed = <T extends boolean | string | number | undefined>(a: T, b: T) =>
   a != null && b != null && a !== b;
 
+/** `next` is a function where the step it hands off to depends on the
+ * application itself — org details branches on `o_type` (see `after_org`). */
 export const update_action =
-  (next: string): ActionFunction =>
+  (next: string | ((reg: IReg) => string)): ActionFunction =>
   async ({ request, params }) => {
     const { user } = await get_session(request);
     if (!user) return to_auth(request);
@@ -57,22 +61,11 @@ export const update_action =
       attrs.o_fsa_signed_doc_url = null;
     }
 
-    const country_changed_from_US =
-      update_type === "org" &&
-      changed(reg.o_hq_country, upd8.o_hq_country) &&
-      upd8.o_hq_country !== "United States";
-
-    const done_o_type = prog.org_type;
-    const done_ein = prog.docs_ein;
-    const done = done_o_type || done_ein;
-    if (done && done.o_type === "501c3" && country_changed_from_US) {
-      attrs.o_type = null;
-      attrs.o_ein = null;
-    }
+    /* identity + its resets are change-identity.ts's, not a step's */
 
     const updated = await reg_update(db, rid, attrs);
     if (updated) await enqueue(msg("reg-updated", updated));
 
-    if (prog.step === 6) return redirect(`../${6}`);
-    return redirect(`../${next}`);
+    if (prog.step === 5) return redirect(`../${steps.summary}`);
+    return redirect(`../${typeof next === "string" ? next : next(reg)}`);
   };

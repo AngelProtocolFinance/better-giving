@@ -122,7 +122,7 @@ export function FsaForm(props: Props) {
       <div className="grid grid-cols-2 sm:flex gap-2 mt-8">
         <Link
           aria-disabled={is_submitting || is_redirecting}
-          to={`../${steps.fsa_inq}`}
+          to={`../${steps.org_details}`}
           className="py-3 min-w-32 btn-secondary btn text-sm"
         >
           Back

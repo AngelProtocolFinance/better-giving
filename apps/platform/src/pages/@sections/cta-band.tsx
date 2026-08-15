@@ -28,10 +28,7 @@ export function CtaBand({ title, subtitle, classes = "" }: ICtaBand) {
         {subtitle}
       </p>
       <div className="flex flex-wrap justify-center gap-3.5 mt-8">
-        <Link
-          to={href("/register/welcome")}
-          className="btn btn-secondary px-7 py-3.5"
-        >
+        <Link to={href("/register")} className="btn btn-secondary px-7 py-3.5">
           Join free forever
         </Link>
         <ExtLink

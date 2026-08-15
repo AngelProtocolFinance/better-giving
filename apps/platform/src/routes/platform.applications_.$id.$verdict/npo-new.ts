@@ -8,7 +8,6 @@ import { enqueue } from "$/kit/queue";
 import { wise } from "$/kit/wise";
 import { db } from "$/pg/db";
 import { bapp_put } from "$/pg/queries/banking";
-import { npo_update } from "$/pg/queries/npo";
 import { reg_update } from "$/pg/queries/registration";
 import { userxnpo_put } from "$/pg/queries/user";
 import { user } from "$/pg/schema/auth";
@@ -68,33 +67,6 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     .limit(1);
   if (!registrant) throw new Error(`user not found for email ${r.r_id}`);
   const registrant_id = registrant.id;
-
-  ///////////// APPROVAL OF CLAIM /////////////
-  if (r.claim) {
-    const { id } = r.claim;
-    const wacc = await wise.v2_account(+r.o_bank_id);
-    const bank_new: IBapp = {
-      id: r.o_bank_id,
-      npo_id: id,
-      bank_statement_url: r.o_bank_statement,
-      bank_summary: wacc.longAccountSummary,
-      rejection_reason: "",
-      status: "default",
-      date_created: new Date().toISOString(),
-    };
-
-    await db.transaction(async (tx) => {
-      await bapp_put(tx, bank_new);
-      await userxnpo_put(tx, id, registrant_id);
-      await reg_update(tx, r.id, {
-        status: "03",
-        status_approved_npo_id: id,
-      });
-      await npo_update(tx, id, ecfr);
-    });
-    await enqueue(msg("banking-new", { npo_id: id }), msg("reg-updated", r));
-    return id;
-  }
 
   ///////////// APPROVAL OF NEW ENDOWMENT /////////////
   // npo_count_inc eliminated — PG IDENTITY auto-generates id

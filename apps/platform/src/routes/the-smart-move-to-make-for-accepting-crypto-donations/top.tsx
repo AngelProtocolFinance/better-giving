@@ -82,7 +82,7 @@ export const Top = ({ classes = "" }) => {
 
       <div className="mt-8 z-10 justify-self-center relative">
         <Link
-          to={href("/register/welcome")}
+          to={href("/register")}
           className="btn btn-primary ml-1 font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
         >
           Join Better Giving Today!

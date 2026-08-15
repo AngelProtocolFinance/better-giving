@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { MaskedInput } from "./masked-input";
-import { mask, unmask } from "./masks/dollar";
+import { dollar, ein } from "./masks";
 
 /** controlled wrapper — mirrors how consumers use this component */
 function Harness({ initial = 0 }: { initial?: number }) {
@@ -14,8 +14,9 @@ function Harness({ initial = 0 }: { initial?: number }) {
       <MaskedInput
         id="amount"
         label="Amount"
-        value={mask(amount)}
-        onChange={(v) => set_amount(+unmask(v))}
+        mask={dollar}
+        value={dollar.mask(amount)}
+        onChange={(v) => set_amount(+dollar.unmask(v))}
       />
       <output data-testid="raw">{amount}</output>
     </div>
@@ -41,8 +42,9 @@ function RHFHarness({ default_value = 0 }: { default_value?: number }) {
         id="rhf-amount"
         label="Donation"
         ref={ref}
-        value={mask(value)}
-        onChange={(v) => onChange(+unmask(v))}
+        mask={dollar}
+        value={dollar.mask(value)}
+        onChange={(v) => onChange(+dollar.unmask(v))}
       />
       <button type="submit">Submit</button>
       {submitted !== null && (
@@ -108,6 +110,7 @@ describe("MaskedInput", () => {
       <MaskedInput
         id="err-test"
         label="Amount"
+        mask={dollar}
         value="$ 0"
         onChange={() => {}}
         error="Required"
@@ -154,6 +157,7 @@ describe("MaskedInput", () => {
       <MaskedInput
         id="ref-test"
         label="Amount"
+        mask={dollar}
         value="$ 0"
         onChange={() => {}}
         ref={ref_spy}
@@ -161,5 +165,72 @@ describe("MaskedInput", () => {
     );
 
     expect(ref_spy).toHaveBeenCalledWith(expect.any(HTMLInputElement));
+  });
+});
+
+/** the ein field keeps the masked string in state — the schema strips the dash */
+function EinHarness({ initial = "" }: { initial?: string }) {
+  const [val, set_val] = useState(initial);
+  return (
+    <div>
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value={ein.format(val)}
+        onChange={set_val}
+      />
+      <output data-testid="raw">{val}</output>
+    </div>
+  );
+}
+
+describe("MaskedInput: ein mask", () => {
+  it("dashes typed digits after the second", async () => {
+    const screen = await render(<EinHarness />);
+    const input = screen.getByLabelText("EIN");
+
+    await userEvent.type(input.element() as HTMLElement, "12");
+    await expect.element(input).toHaveValue("12");
+
+    await userEvent.type(input.element() as HTMLElement, "3");
+    await expect.element(input).toHaveValue("12-3");
+
+    await userEvent.type(input.element() as HTMLElement, "456789");
+    await expect.element(input).toHaveValue("12-3456789");
+    await expect
+      .element(screen.getByTestId("raw"))
+      .toHaveTextContent("12-3456789");
+  });
+
+  it("keeps every digit of an over-length ein so validation can see it", async () => {
+    const screen = await render(<EinHarness />);
+    const input = screen.getByLabelText("EIN");
+
+    await input.fill("123456789012");
+
+    await expect.element(input).toHaveValue("12-3456789012");
+    await expect
+      .element(screen.getByTestId("raw"))
+      .toHaveTextContent("12-3456789012");
+  });
+
+  it("keeps an already-dashed value pasted in whole", async () => {
+    const screen = await render(<EinHarness />);
+    const input = screen.getByLabelText("EIN");
+
+    await input.fill("12-3456789");
+
+    await expect.element(input).toHaveValue("12-3456789");
+    await expect
+      .element(screen.getByTestId("raw"))
+      .toHaveTextContent("12-3456789");
+  });
+
+  it("renders a stored bare-digit ein dashed", async () => {
+    const screen = await render(<EinHarness initial="123456789" />);
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveValue("12-3456789");
   });
 });

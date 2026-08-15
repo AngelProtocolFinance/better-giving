@@ -73,7 +73,7 @@ export default function Page() {
             </p>
             <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
               <Link
-                to={href("/register/welcome")}
+                to={href("/register")}
                 className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25"
               >
                 Apply in minutes

@@ -21,7 +21,7 @@ export function Cta({ classes = "", ...props }: Props) {
       </h3>
       <div className="flex flex-col @xl:flex-row justify-center items-center gap-6 mt-10">
         <Link
-          to={href("/register/welcome")}
+          to={href("/register")}
           className="text-center btn btn-primary px-6 py-2 xl:px-10 xl:py-4 xl:text-lg font-bold rounded"
         >
           Start Today - Free

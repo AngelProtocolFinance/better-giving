@@ -91,7 +91,7 @@ export function Steps({ classes = "" }) {
         transition={{ type: "spring", delay: 0.5 }}
       >
         <Link
-          to={href("/register/welcome")}
+          to={href("/register")}
           className="btn btn-primary inline-flex items-center px-10 py-3 text-lg font-bold rounded"
         >
           Join us today!

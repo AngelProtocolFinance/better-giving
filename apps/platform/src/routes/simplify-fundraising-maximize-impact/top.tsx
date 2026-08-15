@@ -40,12 +40,12 @@ export function Top({ className = "" }) {
           <button
             type="button"
             onClick={async () => {
-              const dest = document.getElementById("claim-nonprofit");
+              const dest = document.getElementById("register-nonprofit");
               dest?.scrollIntoView({ behavior: "smooth" });
             }}
             className="btn btn-primary ml-1 font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
           >
-            Claim Your Account Now
+            Register Your Nonprofit Now
             <ArrowRight size={18} />
           </button>
           <Tooltip className="max-sm:hidden absolute left-[110%] top-3" />

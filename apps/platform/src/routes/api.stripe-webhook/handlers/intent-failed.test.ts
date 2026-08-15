@@ -31,9 +31,8 @@ const order = (patch: Record<string, unknown> = {}) => ({
 });
 
 /**
- * a payment intent as the donation-intents route creates it today: the only
- * key in `metadata` is `order_id` (see api.donation-intents/stripe/payment-intent.ts).
- * the donor name/email/charity name it used to carry are gone.
+ * a payment intent as the donation-intents route creates it: the only key in
+ * `metadata` is `order_id` (see api.donation-intents/stripe/payment-intent.ts).
  */
 const failed = (
   metadata: Record<string, string>,
@@ -87,8 +86,7 @@ describe("stripe payment_intent.payment_failed → donor email", () => {
     expect(send_email_mock).toHaveBeenCalledOnce();
   });
 
-  // a name column that is present but blank, and one that leads with
-  // whitespace: both used to reach the template as "Hi ,"
+  // blank and space-led names must not greet as "Hi ,"
   it.each([
     ["", "Donor"],
     ["   ", "Donor"],
@@ -147,8 +145,7 @@ describe("stripe setup_intent.setup_failed → donor email", () => {
       },
     }) as any;
 
-  // the same dead metadata key sent these to `undefined`. send_email swallows
-  // its own failures, so nothing surfaced — the donor just never heard back.
+  // send_email swallows its own failures — a wrong address fails silently
   it("addresses the donor from the order row, not from stripe metadata", async () => {
     await handle_setup_intent_failed(setup_failed());
 

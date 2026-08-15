@@ -1,7 +1,7 @@
 import { Field } from "@ark-ui/react/field";
 import { CircleHelpIcon } from "lucide-react";
 import { MaskedInput } from "#/components/form";
-import { mask, unmask } from "#/components/form/masks/dollar";
+import { dollar } from "#/components/form/masks";
 import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import { methods, methodsArr, type OgInput } from "#/types/donation-calculator";
 import { PctSlider } from "./pct-slider";
@@ -22,8 +22,9 @@ export function Form1({ classes = "", state, setState }: Props) {
       <MaskedInput
         id="annual-online-donations"
         inputMode="decimal"
-        value={mask(state.amnt)}
-        onChange={(x) => setState({ ...state, amnt: +unmask(x) })}
+        mask={dollar}
+        value={dollar.mask(state.amnt)}
+        onChange={(x) => setState({ ...state, amnt: +dollar.unmask(x) })}
         label="Annual Online Donations"
         placeholder="$"
         classes={{
@@ -54,8 +55,9 @@ export function Form1({ classes = "", state, setState }: Props) {
       <MaskedInput
         id="annual-platform-subscription-cost"
         inputMode="decimal"
-        value={mask(state.subsCost)}
-        onChange={(x) => setState({ ...state, subsCost: +unmask(x) })}
+        mask={dollar}
+        value={dollar.mask(state.subsCost)}
+        onChange={(x) => setState({ ...state, subsCost: +dollar.unmask(x) })}
         label="Annual Platform Subscription Cost"
         placeholder="$"
         classes={{

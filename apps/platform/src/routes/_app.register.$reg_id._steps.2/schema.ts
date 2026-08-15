@@ -1,6 +1,9 @@
-import type { InferOutput } from "valibot";
-import type { update_org_fv } from "@/reg/schema";
+import * as v from "valibot";
+import { update_org_fv } from "@/reg/schema";
 
-export { update_org_fv as schema } from "@/reg/schema";
+/** hq country is collected on the first screen and never re-asked, but it
+ * stays on the wire schema (`update_org`) so an older client's payload is
+ * still accepted. */
+export const schema = v.omit(update_org_fv, ["o_hq_country"]);
 
-export interface FV extends InferOutput<typeof update_org_fv> {}
+export interface FV extends v.InferOutput<typeof schema> {}

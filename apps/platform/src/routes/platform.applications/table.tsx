@@ -12,7 +12,7 @@ interface Props extends IPaginator<IReg> {
   empty_msg?: string;
 }
 
-const step_labels = ["Contact", "Org", "Status", "Docs", "Banking"];
+const step_labels = ["Contact", "Org", "Agreement", "Banking"];
 
 export function Table({
   items,
@@ -45,7 +45,6 @@ export function Table({
       <table className="table">
         <thead>
           <tr>
-            <th className="w-4">Type</th>
             <th>
               <HeaderButton
                 onClick={handle_sort("o_name")}
@@ -94,18 +93,13 @@ export function Table({
         <tbody>
           {items.length === 0 ? (
             <tr>
-              <td colSpan={6} className="text-center text-muted-fg py-8">
+              <td colSpan={5} className="text-center text-muted-fg py-8">
                 {empty_msg}
               </td>
             </tr>
           ) : (
             items.map((row) => (
               <tr key={row.id} className="text-sm">
-                <td>
-                  <span className="text-xs font-bold upppercase">
-                    {row.claim ? "Claim" : "New"}
-                  </span>
-                </td>
                 <td>{row.o_name}</td>
                 <td>{toPP(row.updated_at)}</td>
                 <td>{row.o_hq_country}</td>

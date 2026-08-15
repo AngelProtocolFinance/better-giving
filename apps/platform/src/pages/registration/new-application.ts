@@ -1,40 +1,41 @@
-import { type ActionFunction, href, redirect } from "react-router";
+import { valibotResolver } from "@hookform/resolvers/valibot";
+import { href, redirect } from "react-router";
+import { getValidatedFormData } from "remix-hook-form";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { reg_cookie } from "#/.server/cookie";
-import { is_claimed } from "#/.server/registration/helpers";
+import {
+  type IDuplicate,
+  identity_payload,
+  identity_regnum,
+} from "#/pages/registration/identity";
 import { resp, search } from "@/helpers/https";
 import { msg } from "@/queue";
-import type { INpoClaim, IRegNew } from "@/reg";
-import { reg_new } from "@/reg/schema";
+import type { IRegNew, IRegStartFv } from "@/reg";
+import { reg_new, reg_start_fv } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
-import { npo_by_regnum } from "$/pg/queries/npo";
+import { npo_owned_by_regnum } from "$/pg/queries/npo";
 import { reg_put } from "$/pg/queries/registration";
 
-export const new_application: ActionFunction = async ({ request }) => {
+export type { IDuplicate };
+
+export const new_application = async (request: Request, fd: FormData) => {
   const { user } = await get_session(request);
   if (!user) return to_auth(request);
+
+  const fv = await getValidatedFormData<IRegStartFv>(
+    fd,
+    valibotResolver(reg_start_fv)
+  );
+  if (fv.errors) return fv;
 
   const cookie = await reg_cookie
     .parse(request.headers.get("cookie"))
     .then((x) => x || {});
 
-  const { claim: ein, referrer } = search(request);
+  const { referrer } = search(request);
 
-  const endow = ein ? await npo_by_regnum(ein) : null;
-  const claim = endow
-    ? ({
-        id: endow.id,
-        ein: endow.registration_number,
-        name: endow.name,
-      } satisfies INpoClaim)
-    : null;
-
-  const payload: IRegNew = {
-    r_id: user.email,
-  };
-
-  if (claim) payload.claim = claim;
+  const payload: IRegNew = identity_payload(fv.data, user.email);
 
   // user is registering via fresh referral link
   if (referrer) payload.referrer = referrer;
@@ -54,11 +55,12 @@ export const new_application: ActionFunction = async ({ request }) => {
     throw new Response("Unauthorized", { status: 403 });
   }
 
-  if (parsed.claim && (await is_claimed(parsed.claim.ein))) {
-    throw new Response(`to-claim:${parsed.claim.ein} is already claimed`, {
-      status: 400,
-    });
-  }
+  // a listing with members behind it is the only one that can invite this
+  // registrant in; an unowned one is a stale seed and must not block them.
+  const [rn, country] = identity_regnum(parsed);
+
+  const owned = await npo_owned_by_regnum(rn, country);
+  if (owned) return { duplicate: { name: owned.name } } satisfies IDuplicate;
 
   const id = await reg_put(parsed);
   await enqueue(msg("reg-created", { id, r_id: parsed.r_id }));

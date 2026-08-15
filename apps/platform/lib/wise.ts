@@ -25,7 +25,10 @@ export interface V2RecipientAccount {
 
 export interface Config {
   apiToken: string;
-  sandbox?: boolean;
+  /** `WISE_API_URL` — the same host the browser proxy resolves; never derive
+   * it from stage, or the two ends of the app pair one token with different
+   * wise environments. */
+  base_url: string;
 }
 
 /** https://docs.wise.com/api-docs/api-reference/balance#get */
@@ -103,9 +106,7 @@ export class Wise {
       "content-type": "application/json",
       authorization: `Bearer ${config.apiToken}`,
     };
-    this.base_url = config.sandbox
-      ? "https://api.sandbox.transferwise.tech"
-      : "https://api.wise.com";
+    this.base_url = config.base_url;
   }
 
   private async to_json<T = unknown>(res: Response): Promise<T> {

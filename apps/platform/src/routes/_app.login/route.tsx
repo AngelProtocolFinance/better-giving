@@ -201,7 +201,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
             placeholder="Password"
           />
           <Link
-            to={`${href("/login/reset")}?redirect=${to}`}
+            to={`${href("/login/reset")}?redirect=${encodeURIComponent(to)}`}
             className="font-medium text-muted-fg hover:text-fg active:text-fg text-xs sm:text-sm justify-self-end hover:underline"
           >
             Forgot password?
@@ -218,7 +218,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <span className="flex-center gap-1 max-sm:text-sm mt-8">
           Don't have an account?
           <Link
-            to={`${href("/signup")}?redirect=${to}`}
+            to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
             className="text-primary hover:text-primary active:text-primary aria-disabled:text-muted-fg font-medium underline"
             aria-disabled={is_submitting}
           >

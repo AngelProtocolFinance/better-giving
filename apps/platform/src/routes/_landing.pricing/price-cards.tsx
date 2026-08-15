@@ -50,10 +50,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
             </Check>
             <Check dark>Full donor data, exports, portability guarantee</Check>
           </div>
-          <Link
-            to={href("/register/welcome")}
-            className="btn btn-secondary mt-auto"
-          >
+          <Link to={href("/register")} className="btn btn-secondary mt-auto">
             Join free forever
           </Link>
         </div>

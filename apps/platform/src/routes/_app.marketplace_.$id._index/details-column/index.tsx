@@ -51,10 +51,10 @@ export function DetailsColumn({
         </div>
         {npo.claimed === false && (
           <NavLink
-            to={`${href("/register/welcome")}?claim=${npo.registration_number}`}
+            to={href("/register")}
             className="max-lg:text-center block mt-4 font-medium text-primary hover:underline p-8 border rounded"
           >
-            Claim this organization
+            Register your nonprofit
           </NavLink>
         )}
         {fundraisers}

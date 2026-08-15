@@ -442,3 +442,4 @@ it("user sees balance, transfers, balances update", async () => {
 | `vi.mock("$/kit/queue", () => ({ queue: {…} }))` | no `queue` export — mock the flat named exports (`enqueue`, `don_dist`, …) |
 | querying DB directly after a route submit | assert via revalidated UI (query-level tests under `.server/pg/queries/` are the exception) |
 | `import "node:crypto"` / `Buffer` | `globalThis.crypto.randomUUID()` / `btoa()`/`atob()` |
+| asserting two field errors from one form submit | `valibotResolver` passes `abortPipeEarly: true` unless `criteriaMode: "all"` — only the **first** failing `v.check`/`v.partialCheck` in a pipe reports. Leave one field invalid per submission |

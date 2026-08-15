@@ -143,7 +143,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
           <ExtLink href={BOOK_A_DEMO} className={link_cls}>
             Book a demo
           </ExtLink>
-          <Link to={href("/register/welcome")} className={link_cls}>
+          <Link to={href("/register")} className={link_cls}>
             Sign up
           </Link>
         </nav>
