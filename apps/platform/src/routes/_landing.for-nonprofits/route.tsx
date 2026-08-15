@@ -42,14 +42,16 @@ export default function Page() {
   return (
     <main>
       <header className="border-b border-border px-6 py-14 md:py-16">
-        <Hero classes="max-w-6xl mx-auto" />
-        <CtaForm
-          classes="mx-auto mt-10 md:mt-12"
-          errors={data?.errors}
-          values={data?.values}
-          signed_in_as={data?.signed_in_as}
-          pending={nav.state === "submitting"}
-        />
+        <div className="max-w-6xl mx-auto grid gap-10 lg:gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <Hero />
+          <CtaForm
+            classes="max-lg:mx-auto lg:justify-self-end"
+            errors={data?.errors}
+            values={data?.values}
+            signed_in_as={data?.signed_in_as}
+            pending={nav.state === "submitting"}
+          />
+        </div>
       </header>
 
       <TrustStrip classes="border-b border-border px-6 py-5" />

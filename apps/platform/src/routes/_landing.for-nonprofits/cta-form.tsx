@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { ExtLink } from "#/components/ext-link";
 import { Field, MaskedInput, RmxForm } from "#/components/form";
 import { ein } from "#/components/form/masks";
 import { Honeypot } from "#/components/honeypot";
 import { LoadText } from "#/components/load-text";
+import { BOOK_A_DEMO } from "#/constants/urls";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";
 
@@ -15,8 +17,8 @@ export interface ICtaFormErrors {
 
 type Key = keyof ICtaFormErrors;
 
-/** ask order. the summary's wording and the focus move both read this, so the
- * order a failure is described in cannot drift from the order it is walked. */
+/** ask order. the focus move walks this, so a failed submit always lands on
+ * the earliest field that needs changing rather than the first one found. */
 const fields: readonly [Key, string][] = [
   ["o_name", "Nonprofit name"],
   ["o_ein", "EIN"],
@@ -70,8 +72,6 @@ export function CtaForm({
     if (first) refs.current[first]?.focus();
   }, [errors, signed_in_as]);
 
-  const marked = fields.filter(([k]) => errors?.[k]).map(([, label]) => label);
-
   return (
     <div
       className={`${classes} w-full max-w-115 bg-card border border-border rounded-lg p-6 text-left`}
@@ -102,17 +102,6 @@ export function CtaForm({
       >
         <input type="hidden" name="o_type" value="501c3" />
         <Honeypot />
-
-        {/* mounted on every render so a screen reader announces the message that
-            lands in it — an alert region added at the same time as its content
-            is unreliably announced */}
-        <div
-          role="alert"
-          className="empty:hidden text-sm/relaxed text-destructive border border-destructive rounded px-3 py-2"
-        >
-          {marked.length > 0 &&
-            `Your account wasn't created. Check ${marked.join(", ")}.`}
-        </div>
 
         <Field
           ref={(el) => {
@@ -158,6 +147,15 @@ export function CtaForm({
         <button type="submit" disabled={pending} className="btn btn-primary">
           <LoadText is_loading={pending}>Join free forever</LoadText>
         </button>
+
+        {/* the hero's copy carries this link while the two sit side by side;
+            below that the copy's whole button row is gone, so it lands here */}
+        <ExtLink
+          href={BOOK_A_DEMO}
+          className="lg:hidden text-sm font-semibold text-center"
+        >
+          Book a demo
+        </ExtLink>
       </RmxForm>
     </div>
   );

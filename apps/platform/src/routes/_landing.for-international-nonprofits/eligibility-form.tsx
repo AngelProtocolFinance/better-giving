@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Combo } from "#/components/combo";
+import { ExtLink } from "#/components/ext-link";
 import { RmxForm } from "#/components/form";
 import { Honeypot } from "#/components/honeypot";
 import { DrawerIcon } from "#/components/icon";
@@ -8,6 +9,7 @@ import {
   countries as cmap,
   country_names as cnames,
 } from "#/constants/countries";
+import { BOOK_A_DEMO } from "#/constants/urls";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";
 
@@ -20,8 +22,8 @@ export interface IEligibilityErrors {
 
 type Key = keyof IEligibilityErrors;
 
-/** ask order. the summary's wording and the focus move both read this, so the
- * order a failure is described in cannot drift from the order it is walked. */
+/** ask order. the focus move walks this, so a failed submit always lands on
+ * the earliest field that needs changing rather than the first one found. */
 const fields: readonly [Key, string][] = [
   ["o_name", "Organization name"],
   ["o_hq_country", "Country of registration"],
@@ -74,8 +76,6 @@ export function EligibilityForm({
     if (first) refs.current[first]?.focus();
   }, [errors, signed_in_as]);
 
-  const marked = fields.filter(([k]) => errors?.[k]).map(([, label]) => label);
-
   return (
     <div
       className={`${classes} bg-card border border-border rounded p-5 sm:p-6`}
@@ -84,8 +84,7 @@ export function EligibilityForm({
         Check if your organization qualifies
       </h2>
       <p className="text-sm/relaxed text-muted-fg mt-2">
-        Three fields to start. We review applications within 3 business days,
-        and you pay nothing until your first donation.
+        Three fields to start. We reply within 3 business days.
       </p>
 
       {signed_in_as && (
@@ -103,17 +102,6 @@ export function EligibilityForm({
       >
         <input type="hidden" name="o_type" value="other" />
         <Honeypot />
-
-        {/* mounted on every render so a screen reader announces the message that
-            lands in it — an alert region added at the same time as its content
-            is unreliably announced */}
-        <div
-          role="alert"
-          className="empty:hidden text-sm/relaxed text-destructive border border-destructive rounded px-3 py-2"
-        >
-          {marked.length > 0 &&
-            `Your application wasn't sent. Check ${marked.join(", ")}.`}
-        </div>
 
         <div className="grid gap-1.5">
           <label className="label" data-required="true" htmlFor="o_name">
@@ -236,15 +224,26 @@ export function EligibilityForm({
           </p>
         </div>
 
+        {/* the hero no longer carries a primary link — this is the page's only
+            one, so it takes the hero's words */}
         <button type="submit" className="btn btn-primary px-5 py-3">
           <LoadText is_loading={pending} text="Submitting...">
-            Start your application
+            Unlock U.S. donors
           </LoadText>
         </button>
 
+        {/* the hero's copy carries this link while the two sit side by side;
+            below that the copy's whole button row is gone, so it lands here */}
+        <ExtLink
+          href={BOOK_A_DEMO}
+          className="lg:hidden text-sm font-semibold text-center"
+        >
+          Book a demo
+        </ExtLink>
+
         <p className="text-xs text-muted-fg">
-          Fiscal sponsorship fee 2.9%, all-in. No setup fee, no minimum, no
-          annual contract.
+          No setup fee, no minimum, no annual contract. You pay nothing until
+          your first donation.
         </p>
       </RmxForm>
     </div>

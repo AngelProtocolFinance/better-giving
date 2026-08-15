@@ -11,7 +11,6 @@ import { Ethical } from "./ethical";
 import { FeeGap } from "./fee-gap";
 import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
-import { Languages } from "./languages";
 import { Paperwork } from "./paperwork";
 import { Quote } from "./quote";
 import { RateComparison } from "./rate-comparison";
@@ -65,12 +64,7 @@ export default function Page() {
       <FeeGap classes="bg-muted border-b border-border px-5 md:px-6 py-10 md:py-16" />
       <RateComparison classes="border-b border-border px-5 md:px-6 py-10 md:py-16" />
       <HowItWorks classes="border-b border-border px-5 md:px-6 py-10 md:py-16" />
-      <section className="bg-muted border-b border-border px-5 md:px-6 py-10 md:py-16">
-        <div className="max-w-6xl mx-auto grid gap-10 md:gap-12 md:grid-cols-2 items-start">
-          <Languages />
-          <Paperwork />
-        </div>
-      </section>
+      <Paperwork classes="bg-muted border-b border-border px-5 md:px-6 py-10 md:py-16" />
       <Ethical classes="border-b border-border px-5 md:px-6 py-10 md:py-14" />
       <Quote classes="bg-muted border-b border-border px-5 md:px-6 py-10 md:py-16" />
       <CtaBand

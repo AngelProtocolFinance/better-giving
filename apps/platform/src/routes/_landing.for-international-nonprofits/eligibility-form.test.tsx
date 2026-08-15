@@ -87,9 +87,7 @@ describe("EligibilityForm", () => {
     const action = vi.fn();
     const screen = await mount({ action });
 
-    await screen
-      .getByRole("button", { name: "Start your application" })
-      .click();
+    await screen.getByRole("button", { name: "Unlock U.S. donors" }).click();
 
     expect(action).not.toHaveBeenCalled();
     expect(
@@ -111,9 +109,7 @@ describe("EligibilityForm", () => {
     await screen.getByLabelText(/registration number/i).fill("1234567");
     await screen.getByLabelText(/work email/i).fill("hello@yamba.org");
 
-    await screen
-      .getByRole("button", { name: "Start your application" })
-      .click();
+    await screen.getByRole("button", { name: "Unlock U.S. donors" }).click();
 
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
     const fd = action.mock.calls[0]![0] as FormData;
@@ -158,9 +154,7 @@ describe("EligibilityForm", () => {
     });
 
     await screen.getByLabelText(/work email/i).fill("hello@yamba.org");
-    await screen
-      .getByRole("button", { name: "Start your application" })
-      .click();
+    await screen.getByRole("button", { name: "Unlock U.S. donors" }).click();
 
     await vi.waitFor(() => expect(action).toHaveBeenCalled());
     expect((action.mock.calls[0]![0] as FormData).get("o_hq_country")).toBe(
@@ -168,32 +162,7 @@ describe("EligibilityForm", () => {
     );
   });
 
-  /** the summary lives inside the form; the session notice sits above it */
-  const summary = (screen: Awaited<ReturnType<typeof mount>>) =>
-    screen
-      .getByLabelText("Check if your organization qualifies")
-      .getByRole("alert");
-
-  test("the summary names the failed fields in ask order", async () => {
-    const screen = await mount({
-      errors: { email: "Enter a valid email", o_name: "Required" },
-    });
-
-    await expect
-      .element(summary(screen))
-      .toHaveTextContent(
-        "Your application wasn't sent. Check Organization name, Work email."
-      );
-  });
-
-  test("the summary is mounted but hidden until a submit fails", async () => {
-    const screen = await mount();
-    // pre-mounted so the message is announced when it lands, and `empty:hidden`
-    // is what keeps an empty bordered box off the form
-    await expect.element(summary(screen)).not.toBeVisible();
-  });
-
-  test("a session mismatch takes focus and leaves the field summary empty", async () => {
+  test("a session mismatch takes focus and marks no field", async () => {
     const screen = await mount({
       signed_in_as: "jane@acme.org",
       errors: {},
@@ -207,7 +176,9 @@ describe("EligibilityForm", () => {
     expect(notice).toHaveFocus();
     expect(notice).toHaveTextContent("jane@acme.org");
 
-    await expect.element(summary(screen)).not.toBeVisible();
+    await expect
+      .element(screen.getByLabelText(/organization name/i))
+      .not.toHaveAttribute("aria-invalid", "true");
     await expect
       .element(
         screen.getByRole("link", { name: /continue with this account/i })

@@ -153,19 +153,6 @@ describe("CtaForm", () => {
     expect(p.get("email")).toBe("dev@riverside.org");
   });
 
-  it("the summary names the failed fields in ask order", async () => {
-    const { Stub } = stub({
-      errors: { email: "invalid email", o_name: "required" },
-    });
-    const screen = await render(<Stub />);
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent(
-        "Your account wasn't created. Check Nonprofit name, Work email."
-      );
-  });
-
   it("a session mismatch takes focus and marks no field", async () => {
     const { Stub } = stub({ signed_in_as: "jane@acme.org", errors: {} });
     const screen = await render(<Stub />);

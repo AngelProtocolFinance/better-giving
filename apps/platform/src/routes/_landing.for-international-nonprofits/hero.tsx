@@ -24,29 +24,31 @@ export function Hero({
   return (
     <header className={classes}>
       <div className="max-w-6xl mx-auto grid gap-8 lg:gap-12 lg:grid-cols-[1.05fr_0.95fr] items-start">
-        <div className="grid gap-5 justify-items-start">
+        {/* once the columns stack the copy sits above the form rather than
+            beside it, so it centers on its own axis instead of hugging a left
+            edge nothing else shares */}
+        <div className="grid gap-5 max-lg:justify-items-center max-lg:text-center max-lg:max-w-3xl max-lg:mx-auto lg:justify-items-start">
           <p className="eyebrow text-muted-fg">
             For international nonprofits · Fiscal sponsorship
           </p>
-          <h1 className="hero-heading max-w-2xl">
+          <h1 className="hero-heading lg:max-w-2xl">
             Unlock U.S. donors without a 501(c)(3)
           </h1>
-          <p className="section-body text-muted-fg max-w-xl">
+          <p className="section-body text-muted-fg lg:max-w-xl">
             U.S. donors give more when gifts are tax-deductible. Our fiscal
-            sponsorship makes that possible for your organization at 2.9%,
-            versus the 4-10% market rate.
+            sponsorship makes that possible at 2.9%, versus the 4-10% market
+            rate.
           </p>
-          <div className="flex flex-wrap gap-3 max-sm:w-full">
-            <Link
-              to={href("/register")}
-              className="btn btn-primary px-5 py-3 max-sm:flex-1"
-            >
+          {/* only while the form sits beside this copy. once the columns stack
+              the form is directly below, and its own submit is the primary
+              action — two "unlock U.S. donors" buttons a screen apart is one
+              too many. the demo link moves inside the form to keep that door
+              open. */}
+          <div className="max-lg:hidden flex flex-wrap gap-3">
+            <Link to={href("/register")} className="btn btn-primary px-5 py-3">
               Unlock U.S. donors
             </Link>
-            <ExtLink
-              href={BOOK_A_DEMO}
-              className="btn btn-secondary px-5 py-3 max-sm:flex-1"
-            >
+            <ExtLink href={BOOK_A_DEMO} className="btn btn-secondary px-5 py-3">
               Book a demo
             </ExtLink>
           </div>
