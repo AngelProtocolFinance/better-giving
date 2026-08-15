@@ -50,7 +50,7 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   const evl = await evaluate({
-    title: d.name,
+    name: d.name,
     description: to_text(d.description.value),
   }).catch(report_undefined);
 

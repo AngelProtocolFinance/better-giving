@@ -3,7 +3,7 @@ import { generateText, Output } from "ai";
 import * as v from "valibot";
 
 interface IFundraiser {
-  title: string;
+  name: string;
   description: string;
 }
 
@@ -29,7 +29,15 @@ const evaluation_schema = v.strictObject({
     v.optional(v.picklist([...SPAM_CATEGORIES])),
     v.description("required if is_spam=true")
   ),
-  explanation: v.pipe(v.string(), v.description("max 10 words")),
+  /* rendered under the field the organizer typed in, and the only thing they
+   * are told — so it has to name what to change. asked only for a verdict, the
+   * model writes a log line and the organizer reads an internal note. */
+  explanation: v.pipe(
+    v.string(),
+    v.description(
+      "shown to the organizer beneath the field: address them and name what to change, max 10 words"
+    )
+  ),
   field: v.pipe(
     v.picklist(["name", "description"]),
     v.description("field with violation")
@@ -38,10 +46,10 @@ const evaluation_schema = v.strictObject({
 
 type IEvaluation = v.InferOutput<typeof evaluation_schema>;
 
-const SYSTEM = `Nonprofit fundraiser moderator. Flag violations. Any language.
-SPAM: commercial/sales, scams, phishing, spam patterns, contact harvesting, illegal (drugs/weapons/terrorism), adult/hate content, impersonation.
-ALLOW: medical, charity, education, memorials, disaster relief, animals, faith-based, community.
-Strict on commercial intent. Typos≠spam. When uncertain, allow.`;
+const SYSTEM = `Nonprofit fundraiser moderator. Any language.
+SPAM: commercial/sales, scams, phishing, contact harvesting, illegal (drugs/weapons/terrorism), adult/hate content, impersonation.
+ALLOW: medical, charity, education, memorials, disaster relief, animals, faith-based, community, and appeals that name amounts, goals, deadlines or donor rewards.
+Commercial intent means selling a product or service, which is distinct from asking for donations. Rough writing and typos are fine. When uncertain, allow.`;
 
 const format = Output.object({ schema: valibotSchema(evaluation_schema) });
 
@@ -52,7 +60,7 @@ export const evaluate = async (
     model: "anthropic/claude-haiku-4.5",
     output: format,
     system: SYSTEM,
-    prompt: `Title: ${fundraiser.title}\nDesc: ${fundraiser.description}`,
+    prompt: `Name: ${fundraiser.name}\nDesc: ${fundraiser.description}`,
     temperature: 0,
     maxRetries: 1,
   });

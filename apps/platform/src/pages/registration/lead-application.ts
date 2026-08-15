@@ -14,7 +14,7 @@ import {
 } from "#/.server/auth";
 import type { IDuplicate } from "#/pages/registration/identity";
 import { new_application_for } from "#/pages/registration/new-application";
-import { evaluate } from "#/routes/_app.signup._index/evaluate";
+import { evaluate_org } from "#/routes/_app.signup._index/evaluate";
 import { report_undefined } from "@/errors/report";
 import { resp } from "@/helpers/https";
 import type { IRegStartFv } from "@/reg";
@@ -193,13 +193,9 @@ export async function lead_application(request: Request, fd: FormData) {
       : null;
   if (bucket && !consume(bucket.key, bucket.quota)) return resp.status(400);
 
-  // the screen was written for a person's name; a lead gives an organization's.
-  // its verdict on the name lands on `o_name`, the only name field here.
-  const evl = await evaluate({
-    first_name: o_name,
-    last_name: "",
-    email,
-  }).catch(report_undefined);
+  // an organization applies here, not a person — so the organization prompt,
+  // whose verdict on the name lands on `o_name`, the only name field here.
+  const evl = await evaluate_org({ o_name, email }).catch(report_undefined);
 
   if (evl?.is_spam) {
     return invalid(

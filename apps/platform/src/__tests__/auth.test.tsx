@@ -114,6 +114,7 @@ vi.mock("#/.server/cookie", () => ({
 
 vi.mock("#/routes/_app.signup._index/evaluate", () => ({
   evaluate: mock_evaluate,
+  evaluate_org: mock_evaluate,
 }));
 
 vi.mock("#/.server/toast", () => ({

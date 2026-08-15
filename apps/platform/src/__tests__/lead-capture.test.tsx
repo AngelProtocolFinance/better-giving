@@ -90,8 +90,11 @@ vi.mock("#/.server/cookie", () => ({
   },
 }));
 
+// the lead path calls the organization prompt; the person one is mocked too so
+// the module stays whole for anything else in the graph that reaches for it
 vi.mock("#/routes/_app.signup._index/evaluate", () => ({
   evaluate: mock_evaluate,
+  evaluate_org: mock_evaluate,
 }));
 
 vi.mock("emails", () => ({
