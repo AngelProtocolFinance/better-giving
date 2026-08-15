@@ -36,7 +36,7 @@ describe("check-email", () => {
 
     await expect.element(screen.getByRole("status")).toBeVisible();
     await expect.element(btn).toBeDisabled();
-    await expect.element(screen.getByText(/request another in/i)).toBeVisible();
+    await expect.element(screen.getByText(/available again in/i)).toBeVisible();
   });
 
   it("shows the address in full and offers a way out of a typo", async () => {
