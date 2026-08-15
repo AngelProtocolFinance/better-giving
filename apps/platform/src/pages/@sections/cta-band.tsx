@@ -8,12 +8,19 @@ interface ICtaBand {
   title: string;
   subtitle: string;
   classes?: string;
+  /** the ask the page has been making — audience pages name their own */
+  cta_label?: string;
 }
 
-export function CtaBand({ title, subtitle, classes = "" }: ICtaBand) {
+export function CtaBand({
+  title,
+  subtitle,
+  classes = "",
+  cta_label = "Join free forever",
+}: ICtaBand) {
   return (
     <section
-      className={`${classes} relative overflow-hidden bg-primary px-6 py-20 text-center`}
+      className={`${classes} relative overflow-hidden surface-primary px-6 py-20 text-center`}
     >
       <Image
         src={laira_cheering}
@@ -29,11 +36,11 @@ export function CtaBand({ title, subtitle, classes = "" }: ICtaBand) {
       </p>
       <div className="flex flex-wrap justify-center gap-3.5 mt-8">
         <Link to={href("/register")} className="btn btn-secondary px-7 py-3.5">
-          Join free forever
+          {cta_label}
         </Link>
         <ExtLink
           href={BOOK_A_DEMO}
-          className="btn px-7 py-3.5 border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
+          className="btn px-7 py-3.5 border-2 text-primary-fg hover:bg-primary-fg/10"
         >
           Book a demo
         </ExtLink>

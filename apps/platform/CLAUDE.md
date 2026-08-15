@@ -47,7 +47,7 @@ Three-layer structure:
 ## UI
 
 - always use the project's existing theme, design tokens, and component styles — never introduce new colors, spacing scales, or utility classes outside the system
-- Tailwind v4 `@theme` resets all default colors (`--color-*: initial`); only semantic tokens are available: `primary`, `secondary`, `muted`/`muted-fg`, `destructive`, `success`, `warning`, `accent`, `border`, `fg`, `card`, `popover` — never use raw Tailwind palette names (`gray-500`, `green`, `red`, etc.)
+- Tailwind v4 `@theme` resets all default colors (`--color-*: initial`); only semantic tokens are available: `primary`, `secondary`, `muted`/`muted-fg`, `destructive`, `success`, `warning`, `accent`, `border`, `primary-ring`, `primary-border`, `fg`, `card`, `popover` — never use raw Tailwind palette names (`gray-500`, `green`, `red`, etc.)
 - spacing/layout that affects external flow (margin, position, z-index) must be applied by the caller, not hardcoded inside the component
 
 ## Gotchas

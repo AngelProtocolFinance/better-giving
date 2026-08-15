@@ -19,7 +19,9 @@ export const resume_application = async (request: Request, fd: FormData) => {
   if (fv.errors) return fv;
 
   const reg = await reg_get(fv.data.reference);
-  if (!reg) {
+  // a reference someone else holds answers exactly as a reference nobody
+  // holds: the strip must not confirm that an id exists to whoever guesses it.
+  if (!reg || (reg.r_id !== user.email && user.role !== "admin")) {
     return {
       errors: {
         reference: {

@@ -8,6 +8,7 @@ import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";
 import { FAQ } from "#/pages/@sections/faq";
 import { PartnersStrip } from "#/pages/@sections/partners/strip";
+import { TrustBar } from "#/pages/@sections/trust-bar";
 import type { Route } from "./+types/route";
 import { home_faqs } from "./faqs";
 import { GrowFunds } from "./grow-funds";
@@ -17,7 +18,6 @@ import { OwnGrow } from "./own-grow";
 import { Pillars } from "./pillars";
 import { Steps } from "./steps";
 import { Testimonials } from "./testimonials";
-import { TrustBar } from "./trust-bar";
 
 export { headers, loader } from "./api";
 
@@ -67,7 +67,7 @@ export default function Page() {
       <PublicHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
-        <TrustBar />
+        <TrustBar classes="border-y border-border px-6 py-7" />
         <PartnersStrip classes="border-b border-secondary" />
         <Steps classes="px-6 py-22" />
         <OwnGrow classes="bg-accent px-6 py-24" />
@@ -75,7 +75,7 @@ export default function Page() {
         <GrowFunds classes="bg-accent px-6 py-24" />
         <OpenSource classes="bg-primary px-6 py-24" />
         <Testimonials classes="px-6 py-24" />
-        <div className="bg-accent px-6 pt-22">
+        <div className="bg-accent px-6 pt-22 pb-48">
           <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
         </div>
         <CtaBand

@@ -1,13 +1,32 @@
+import { redirect } from "react-router";
 import { parseFormData } from "remix-hook-form";
-import { get_session, to_auth } from "#/.server/auth";
+import { to_auth } from "#/.server/auth";
 import { reg_cookie } from "#/.server/cookie";
+import { reg_user } from "#/pages/registration/data/reg-user";
 import { new_application } from "#/pages/registration/new-application";
 import { resume_application } from "#/pages/registration/resume-application";
+import { Progress } from "@/reg/progress";
+import { reg_latest } from "$/pg/queries/registration";
 import type { Route } from "./+types/route";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
-  const { user } = await get_session(request);
-  if (!user) return to_auth(request);
+  const ru = await reg_user(request, true);
+  if (!ru) return to_auth(request);
+
+  /* a lead who closed the tab before opening the mail arrives here holding
+   * only a grant. this screen starts an application and offers to resume one
+   * by reference, and they can do neither — they have no session to start
+   * under, and no reference unless `reg_cookie` happened to survive. the row
+   * they already have is the only thing here for them, so hand it straight
+   * back.
+   *
+   * resolved from the grant's own address rather than that cookie, which is
+   * unsigned and client-writable and so decides nothing about who this is. */
+  if (ru.grant) {
+    const reg = await reg_latest(ru.user.email);
+    if (!reg) return to_auth(request);
+    return redirect(`/register/${reg.id}/${new Progress(reg).step}`);
+  }
 
   const rc = await reg_cookie
     .parse(request.headers.get("cookie"))

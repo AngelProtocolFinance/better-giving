@@ -3,7 +3,9 @@ import {
   registration_new,
   registration_rejected,
 } from "emails";
+import { auth } from "#/.server/auth/auth";
 import type { CompanyProperties, ContactProperties } from "@/hubspot";
+import type { IRegCreatedPayload } from "@/queue";
 import { Progress } from "@/reg/progress";
 import type { IReg } from "@/reg/schema";
 import { send_email } from "$/email";
@@ -17,7 +19,28 @@ import {
   update_or_create_contact,
 } from "./hubspot";
 
-export async function handle_reg_created(r: { id: string; r_id: string }) {
+export async function handle_reg_created(r: IRegCreatedPayload) {
+  // the row itself is deliberate: the lead form answers identically whether the
+  // address is known, so refusing to write one would restore the enumeration
+  // oracle. the mail is the only part a stranger actually receives, so it is
+  // the part withheld — a verified account never started this registration and
+  // must not be told it did.
+  //
+  // both halves must hold. `unproven` alone would silence the mail an ordinary
+  // applicant needs (it carries the reference id `resume_application` takes),
+  // and a verified address alone says nothing about who started this — every
+  // wizard applicant is signed in, hence verified.
+  if (r.unproven) {
+    const ctx = await auth.$context;
+    const found = await ctx.internalAdapter.findUserByEmail(
+      r.r_id.trim().toLowerCase()
+    );
+    if (found?.user.emailVerified) {
+      console.info(`reg:${r.id} registration_new skipped - verified account`);
+      return;
+    }
+  }
+
   const { node, subject } = registration_new.template({
     reference_id: r.id,
   });

@@ -16,6 +16,7 @@ import type { TestDb } from "$/pg/test-utils/pglite-browser";
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const test_auth_ref = vi.hoisted(() => ({ current: null as any }));
 const mock_send_email = vi.hoisted(() => vi.fn());
+const sent_links = vi.hoisted(() => [] as { email: string; url: string }[]);
 const mock_evaluate = vi.hoisted(() =>
   vi.fn().mockResolvedValue({
     is_spam: false,
@@ -65,6 +66,43 @@ vi.mock("#/.server/auth", () => ({
   to_auth: vi.fn(
     () => new Response(null, { status: 302, headers: { location: "/login" } })
   ),
+  create_unverified_user: vi.fn(async (input: { email: string }) => {
+    const ctx = await test_auth_ref.current.$context;
+    const email = input.email.trim().toLowerCase();
+    const found = await ctx.internalAdapter.findUserByEmail(email);
+    if (found) {
+      return found.user.emailVerified
+        ? { status: "verified" }
+        : { status: "existing", user_id: found.user.id };
+    }
+    const created = await ctx.internalAdapter.createUser({
+      email,
+      name: "",
+      first_name: "",
+      last_name: "",
+      emailVerified: false,
+    });
+    return { status: "created", user_id: created.id };
+  }),
+}));
+
+// routes reach the link helper directly, so it must run against the pglite
+// auth instance rather than the env-bound production one
+vi.mock("#/.server/auth/login-link", () => ({
+  check_email_url: (a: { email: string; stale?: boolean }) =>
+    `/check-email?email=${encodeURIComponent(a.email)}${
+      a.stale ? "&stale=1" : ""
+    }`,
+  request_login_link: vi.fn(async (a: { email: string }) => {
+    try {
+      await test_auth_ref.current.api.signInMagicLink({
+        body: { email: a.email },
+        headers: new Headers(),
+      });
+    } catch {
+      // unknown address — the screen is identical either way
+    }
+  }),
 }));
 
 vi.mock("#/.server/cookie", () => ({
@@ -76,6 +114,7 @@ vi.mock("#/.server/cookie", () => ({
 
 vi.mock("#/routes/_app.signup._index/evaluate", () => ({
   evaluate: mock_evaluate,
+  evaluate_org: mock_evaluate,
 }));
 
 vi.mock("#/.server/toast", () => ({
@@ -94,7 +133,7 @@ vi.mock("#/.server/toast", () => ({
 }));
 
 vi.mock("emails", () => ({
-  cognito_signup: { template: () => ({ node: null }) },
+  login_link: { template: () => ({ node: null, subject: "Sign in" }) },
   reset_password: { template: () => ({ node: null, subject: "Reset" }) },
 }));
 
@@ -102,11 +141,15 @@ vi.mock("emails", () => ({
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
-import { testUtils } from "better-auth/plugins";
 import { admin } from "better-auth/plugins/admin";
-import { emailOTP } from "better-auth/plugins/email-otp";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { auth_options, login_link_plugin } from "#/.server/auth/options";
 import { referral_id } from "#/helpers/referral";
+import {
+  action as check_email_action,
+  loader as check_email_loader,
+} from "#/routes/_app.check-email/api";
+import CheckEmailPage from "#/routes/_app.check-email/route";
 import LoginPage, {
   action as login_action,
   loader as login_loader,
@@ -121,11 +164,6 @@ import SignupPage, {
   action as signup_action,
   loader as signup_loader,
 } from "#/routes/_app.signup._index/route";
-import {
-  action as confirm_action,
-  loader as confirm_loader,
-} from "#/routes/_app.signup.confirm/api";
-import ConfirmPage from "#/routes/_app.signup.confirm/route";
 import SuccessPage from "#/routes/_app.signup.success/route";
 import * as schema from "$/pg/schema";
 import {
@@ -161,15 +199,13 @@ async function create_verified_user(
       last_name,
     },
   });
-
-  // getOTP returns hash when storeOTP:"hashed" — get plaintext from send_email mock
-  const otp_call = mock_send_email.mock.calls.find(
-    (c: any[]) => c[0]?.type === "otp" && c[0]?.email === email
-  );
-  if (!otp_call) throw new Error(`no OTP email sent for ${email}`);
-  await test_auth_ref.current.api.verifyEmailOTP({
-    body: { email, otp: otp_call[0].otp },
-  });
+  // flip verification directly: an email proof (link/otp) landing on an
+  // unverified row deletes its credential account by design, and these tests
+  // are about users who already have a working password.
+  await test_db
+    .current!.db.update(user_table)
+    .set({ emailVerified: true })
+    .where(eq(user_table.email, email));
 }
 
 // --- setup ---
@@ -177,73 +213,26 @@ async function create_verified_user(
 beforeAll(async () => {
   test_db.current = await create_test_db();
 
+  const deps = {
+    referral_id,
+    send_login_link: async (a: { email: string; url: string }) => {
+      sent_links.push(a);
+      mock_send_email({ type: "link", ...a });
+    },
+  };
+
   const test_auth = betterAuth({
+    ...auth_options(deps),
+    plugins: [login_link_plugin(deps), admin()],
     secret: TEST_SECRET,
     baseURL: BASE_URL,
     basePath: "/api/auth",
     database: drizzleAdapter(test_db.current.db, { provider: "pg", schema }),
-    experimental: { joins: true },
-
     emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: true,
-      minPasswordLength: 8,
+      ...auth_options(deps).emailAndPassword,
       async sendResetPassword({ user, url }) {
         mock_send_email({ type: "reset", email: user.email, url });
       },
-    },
-
-    emailVerification: { sendOnSignUp: true },
-
-    plugins: [
-      emailOTP({
-        storeOTP: "hashed",
-        otpLength: 6,
-        expiresIn: 300,
-        overrideDefaultEmailVerification: true,
-        async sendVerificationOTP({ email, otp, type }) {
-          if (type === "forget-password") return;
-          mock_send_email({ type: "otp", email, otp });
-        },
-      }),
-      admin(),
-      testUtils({ captureOTP: true }),
-    ],
-
-    session: {
-      expiresIn: 60 * 60 * 24 * 30,
-      cookieCache: { enabled: true, maxAge: 300, strategy: "jwe" },
-    },
-
-    user: {
-      additionalFields: {
-        first_name: { type: "string", required: true },
-        last_name: { type: "string", required: true },
-        referral_code: { type: "string", required: false, unique: true },
-        pref_currency: { type: "string", required: false, defaultValue: "usd" },
-        avatar_url: { type: "string", required: false },
-        pay_id: { type: "string", required: false },
-        pay_min: { type: "number", required: false, defaultValue: 0 },
-        w_form: { type: "string", required: false },
-        signup_date: { type: "string", required: false },
-      },
-    },
-
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            const code = referral_id();
-            await test_db.current!.db.execute(
-              sql`UPDATE "user" SET referral_code = ${code}, signup_date = NOW() WHERE id = ${user.id}`
-            );
-          },
-        },
-      },
-    },
-
-    advanced: {
-      database: { generateId: () => crypto.randomUUID() },
     },
   });
 
@@ -257,6 +246,7 @@ beforeEach(async () => {
   await test_db.current!.db.delete(account);
   await test_db.current!.db.delete(user_table);
   mock_send_email.mockClear();
+  sent_links.length = 0;
   mock_evaluate.mockClear();
   mock_evaluate.mockResolvedValue({
     is_spam: false,
@@ -282,10 +272,10 @@ function signup_stub() {
       loader: signup_loader,
     },
     {
-      path: "/signup/confirm",
-      Component: ConfirmPage,
-      action: confirm_action,
-      loader: confirm_loader,
+      path: "/check-email",
+      Component: CheckEmailPage,
+      action: check_email_action,
+      loader: check_email_loader,
     },
     {
       path: "/signup/success",
@@ -313,8 +303,8 @@ function login_stub() {
       loader: login_loader,
     },
     {
-      path: "/signup/confirm",
-      Component: () => <div data-testid="confirm-page">confirm</div>,
+      path: "/check-email",
+      Component: () => <div data-testid="check-email-page">check email</div>,
     },
     {
       path: "/login/reset",
@@ -348,8 +338,8 @@ function reset_stub() {
 
 // --- tests ---
 
-describe("signup → OTP → success", () => {
-  it("fills form, submits, enters OTP, sees success", async () => {
+describe("signup → verification link", () => {
+  it("fills form, submits, and is told to check the inbox", async () => {
     const Stub = signup_stub();
     const screen = await render(<Stub initialEntries={["/signup"]} />);
 
@@ -360,32 +350,19 @@ describe("signup → OTP → success", () => {
     const email_inputs = screen.getByPlaceholder(/email address/i);
     await email_inputs.nth(0).fill(TEST_EMAIL);
     await screen.getByPlaceholder(/confirm email/i).fill(TEST_EMAIL);
-    await screen.getByPlaceholder(/create password/i).fill(TEST_PW);
 
     await screen.getByRole("button", { name: "Sign Up", exact: true }).click();
 
-    // should land on confirm page with OTP input
-    await expect.element(screen.getByPlaceholder(/6-digit/i)).toBeVisible();
+    await expect.element(screen.getByText(/check your inbox/i)).toBeVisible();
 
-    // get plaintext OTP from send_email mock (getOTP returns hash with storeOTP:"hashed")
-    const otp_call = mock_send_email.mock.calls.find(
-      (c: any[]) => c[0]?.type === "otp" && c[0]?.email === TEST_EMAIL
-    );
-    expect(otp_call).toBeTruthy();
-    await screen.getByPlaceholder(/6-digit/i).fill(otp_call![0].otp);
-    await screen.getByRole("button", { name: /verify/i }).click();
-
-    // should see success page
-    await expect
-      .element(screen.getByText(/account created successfully/i))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: /continue to sign in/i }))
-      .toBeVisible();
+    // the mail carries a single-use link, never a code to retype
+    const link = sent_links.findLast((l) => l.email === TEST_EMAIL);
+    expect(link).toBeTruthy();
+    expect(link!.url).toContain("/magic-link/verify");
+    expect(link!.url).not.toMatch(/\b\d{6}\b/);
   });
 
-  it("shows error for wrong OTP", async () => {
-    // seed unverified user via API
+  it("tells a user with a dead link to request a new one", async () => {
     await test_auth_ref.current.api.signUpEmail({
       body: {
         email: TEST_EMAIL,
@@ -400,20 +377,18 @@ describe("signup → OTP → success", () => {
     const screen = await render(
       <Stub
         initialEntries={[
-          `/signup/confirm?email=${encodeURIComponent(TEST_EMAIL)}`,
+          `/check-email?email=${encodeURIComponent(TEST_EMAIL)}&stale=1`,
         ]}
       />
     );
 
-    await screen.getByPlaceholder(/6-digit/i).fill("000000");
-    await screen.getByRole("button", { name: /verify/i }).click();
-
+    await expect.element(screen.getByText(/link has expired/i)).toBeVisible();
     await expect
-      .element(screen.getByText(/invalid or expired code/i))
+      .element(screen.getByRole("button", { name: /send a new link/i }))
       .toBeVisible();
   });
 
-  it("resend OTP button sends new code", async () => {
+  it("resends a fresh link on request", async () => {
     await test_auth_ref.current.api.signUpEmail({
       body: {
         email: TEST_EMAIL,
@@ -423,23 +398,22 @@ describe("signup → OTP → success", () => {
         last_name: "Doe",
       },
     });
-    mock_send_email.mockClear();
+    sent_links.length = 0;
 
     const Stub = signup_stub();
     const screen = await render(
       <Stub
         initialEntries={[
-          `/signup/confirm?email=${encodeURIComponent(TEST_EMAIL)}`,
+          `/check-email?email=${encodeURIComponent(TEST_EMAIL)}&stale=1`,
         ]}
       />
     );
 
-    // counter starts at 30 — wait for it to reach 0 would be slow
-    // instead, test resend action directly since the button is disabled while counter > 0
-    // the resend button text is visible even when disabled
-    await expect
-      .element(screen.getByRole("button", { name: /resend code/i }))
-      .toBeVisible();
+    await screen.getByRole("button", { name: /send a new link/i }).click();
+
+    await vi.waitFor(() => {
+      expect(sent_links.some((l) => l.email === TEST_EMAIL)).toBe(true);
+    });
   });
 
   it("rejects spam signup and shows field error", async () => {
@@ -461,7 +435,6 @@ describe("signup → OTP → success", () => {
       .nth(0)
       .fill(TEST_EMAIL);
     await screen.getByPlaceholder(/confirm email/i).fill(TEST_EMAIL);
-    await screen.getByPlaceholder(/create password/i).fill(TEST_PW);
 
     await screen.getByRole("button", { name: "Sign Up", exact: true }).click();
 
@@ -470,7 +443,7 @@ describe("signup → OTP → success", () => {
       .toBeVisible();
   });
 
-  it("signup with existing verified email still shows confirm page", async () => {
+  it("signup with existing verified email still shows check-email", async () => {
     // better-auth returns 200 to avoid email enumeration
     await create_verified_user();
 
@@ -484,12 +457,11 @@ describe("signup → OTP → success", () => {
       .nth(0)
       .fill(TEST_EMAIL);
     await screen.getByPlaceholder(/confirm email/i).fill(TEST_EMAIL);
-    await screen.getByPlaceholder(/create password/i).fill(TEST_PW);
 
     await screen.getByRole("button", { name: "Sign Up", exact: true }).click();
 
-    // redirects to confirm — better-auth doesn't leak user existence
-    await expect.element(screen.getByPlaceholder(/6-digit/i)).toBeVisible();
+    // same screen either way — the flow never leaks that the user exists
+    await expect.element(screen.getByText(/check your inbox/i)).toBeVisible();
   });
 
   it("hands the whole referral target to login after signup", async () => {
@@ -542,7 +514,7 @@ describe("login flow", () => {
     await expect.element(screen.getByText(/invalid/i)).toBeVisible();
   });
 
-  it("redirects unverified user to confirm page", async () => {
+  it("mails a link when a password holder has not proven their address", async () => {
     await test_auth_ref.current.api.signUpEmail({
       body: {
         email: TEST_EMAIL,
@@ -560,14 +532,42 @@ describe("login flow", () => {
     await screen.getByPlaceholder(/password/i).fill(TEST_PW);
     await screen.getByRole("button", { name: /log in/i }).click();
 
-    await expect.element(screen.getByTestId("confirm-page")).toBeVisible();
+    await expect.element(screen.getByTestId("check-email-page")).toBeVisible();
+    expect(sent_links.findLast((l) => l.email === TEST_EMAIL)).toBeTruthy();
   });
 
-  it("redirects migrated user (no account row) to reset page", async () => {
-    // insert user directly — simulates cognito migration
-    const user_id = crypto.randomUUID();
+  it("mails a link when a passwordless lead tries to sign in", async () => {
+    // the shape every marketing lead form leaves behind: a user row, no account
+    // row of any kind, address never proven. it must not be read as migrated —
+    // a password set from that prompt is deleted by the next link they click.
     await test_db.current!.db.insert(user_table).values({
-      id: user_id,
+      id: crypto.randomUUID(),
+      name: "",
+      email: TEST_EMAIL,
+      emailVerified: false,
+      first_name: "",
+      last_name: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const Stub = login_stub();
+    const screen = await render(<Stub initialEntries={["/login"]} />);
+
+    await screen.getByPlaceholder(/email address/i).fill(TEST_EMAIL);
+    await screen.getByPlaceholder(/password/i).fill("AnyPass1!");
+    await screen.getByRole("button", { name: /log in/i }).click();
+
+    await expect.element(screen.getByTestId("check-email-page")).toBeVisible();
+    expect(sent_links.findLast((l) => l.email === TEST_EMAIL)).toBeTruthy();
+  });
+
+  it("sends a verified user with no password to set one", async () => {
+    // insert user directly — simulates cognito migration. verified is what
+    // separates them from a lead: the address is already proven, so the only
+    // thing missing is a credential.
+    await test_db.current!.db.insert(user_table).values({
+      id: crypto.randomUUID(),
       name: "Migrated User",
       email: TEST_EMAIL,
       emailVerified: true,
@@ -585,6 +585,9 @@ describe("login flow", () => {
     await screen.getByRole("button", { name: /log in/i }).click();
 
     await expect.element(screen.getByTestId("reset-page")).toBeVisible();
+    // a sign-in link here would be the wrong remedy, and would land them back
+    // on a page asking for a password they still do not have
+    expect(sent_links.findLast((l) => l.email === TEST_EMAIL)).toBeFalsy();
   });
 
   it("redirects to original page after login with ?redirect param", async () => {

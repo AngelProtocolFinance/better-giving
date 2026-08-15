@@ -30,7 +30,7 @@ export default function Page() {
       <Members classes="xl:container xl:mx-auto px-5" />
       <BottomCta className="mb-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
       <FAQ
-        classes="xl:container xl:mx-auto px-5 mt-24"
+        classes="xl:container xl:mx-auto px-5 mt-24 pb-48"
         items={[faqs[1], faqs[2], faqs[3], faqs[4]]}
       />
     </>

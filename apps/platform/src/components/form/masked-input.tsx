@@ -17,6 +17,9 @@ interface Base
 
 interface Props extends Base {
   id: string;
+  /** set it to submit the masked value with a plain form post; controller-driven
+   * callers leave it off and submit through their form library instead. */
+  name?: string;
   /** one of `./masks/*` — no default, so a caller can never inherit another
    * field's formatting by omission. */
   mask: IMask;
@@ -118,6 +121,7 @@ export function MaskedInput(props: Props) {
         type={props.type ?? "text"}
         ref={set_ref}
         id={props.id}
+        name={props.name}
         inputMode={props.inputMode}
         placeholder={props.placeholder}
         value={props.value}

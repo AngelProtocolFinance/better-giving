@@ -15,6 +15,11 @@ interface IFaq {
 interface Props {
   classes?: string;
   items: IFaq[];
+  /** eyebrow above the heading — omitted, nothing renders in its place */
+  pre_heading?: string;
+  heading?: string;
+  /** lead paragraph between the heading and the first question */
+  sub?: string;
 }
 
 export const faqs = [
@@ -271,15 +276,31 @@ export const faqs = [
 ];
 //9 4 10
 
-export function FAQ({ classes = "", items }: Props) {
+export function FAQ({
+  classes = "",
+  items,
+  pre_heading,
+  heading = "Got questions? We've got answers.",
+  sub,
+}: Props) {
   return (
-    <section className={`${classes} grid pb-48`} aria-labelledby="faq-heading">
+    <section className={`${classes} grid`} aria-labelledby="faq-heading">
+      {pre_heading && (
+        <p className="col-span-full text-center eyebrow text-primary mb-4">
+          {pre_heading}
+        </p>
+      )}
       <h2
         id="faq-heading"
         className="col-span-full text-center section-heading mb-10 border-b-0"
       >
-        Got questions? We've got answers.
+        {heading}
       </h2>
+      {sub && (
+        <p className="col-span-full text-center text-lg text-muted-fg text-pretty -mt-6 mb-10">
+          {sub}
+        </p>
+      )}
       <Accordion.Root collapsible className="divide-y divide-border">
         {items.map((faq) => (
           <Accordion.Item key={faq.id} value={String(faq.id)} className="group">

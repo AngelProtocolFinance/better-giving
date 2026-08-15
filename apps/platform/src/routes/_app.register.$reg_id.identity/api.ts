@@ -1,7 +1,8 @@
 import { redirect } from "react-router";
 import { safeParse } from "valibot";
-import { get_session, to_auth } from "#/.server/auth";
+import { to_auth } from "#/.server/auth";
 import { change_identity } from "#/pages/registration/change-identity";
+import { reg_user } from "#/pages/registration/data/reg-user";
 import { routes, steps } from "#/pages/registration/routes";
 import { resp } from "@/helpers/https";
 import type { IRegStartFv } from "@/reg";
@@ -10,9 +11,13 @@ import { reg_id } from "@/reg/schema";
 import { reg_get } from "$/pg/queries/registration";
 import type { Route } from "./+types/route";
 
+/* answers to a draft grant, like the contact step does. the identity summary
+ * offers "Change" to a lead whose address is not proven yet, and a link that
+ * lands them on /signup is the one correction they cannot make. */
 export const loader = async ({ params, request }: Route.LoaderArgs) => {
-  const { user } = await get_session(request);
-  if (!user) return to_auth(request);
+  const ru = await reg_user(request, true);
+  if (!ru) return to_auth(request);
+  const { user } = ru;
   const p = safeParse(reg_id, params.reg_id);
   if (p.issues) throw resp.status(400, p.issues[0].message);
   const reg = await reg_get(p.output);

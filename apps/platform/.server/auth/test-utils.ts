@@ -18,6 +18,13 @@ export function make_auth_mock(opts: AuthMockOpts = {}) {
   const mock: Record<string, unknown> = {
     to_auth: vi.fn(() => new Response(null, { status: 401 })),
     admin_ctx: _admin_ctx,
+    // the registration data layer imports these alongside `get_session`; a
+    // module mock has to carry every named export its subject imports or the
+    // import itself fails. no grant and no mail by default — a suite that
+    // wants either drives it through the real modules instead.
+    get_registrant: vi.fn(async () => null),
+    request_login_link: vi.fn(async () => {}),
+    check_email_url: vi.fn(() => "/check-email"),
   };
 
   if (opts.user_ctx) mock.user_ctx = _user_ctx;

@@ -2,7 +2,8 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { redirect } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { safeParse } from "valibot";
-import { get_session, to_auth } from "#/.server/auth";
+import { to_auth } from "#/.server/auth";
+import { reg_user } from "#/pages/registration/data/reg-user";
 import {
   type IDuplicate,
   identity_payload,
@@ -26,8 +27,11 @@ export const change_identity = async (
   reg_id_param: string | undefined,
   fd: FormData
 ) => {
-  const { user } = await get_session(request);
-  if (!user) return to_auth(request);
+  // opened to a draft grant for the same reason its screen is: correcting a
+  // mistyped identity is what a lead needs *before* the address is proven.
+  const ru = await reg_user(request, true);
+  if (!ru) return to_auth(request);
+  const { user } = ru;
 
   const p1 = safeParse(reg_id, reg_id_param);
   if (p1.issues) throw resp.status(400, p1.issues[0].message);

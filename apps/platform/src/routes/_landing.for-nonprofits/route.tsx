@@ -1,0 +1,92 @@
+import { href } from "react-router";
+import { useRmxForm } from "#/components/form";
+import { app_name, base_url } from "#/constants/env";
+import { metas } from "#/helpers/seo";
+import { CtaBand } from "#/pages/@sections/cta-band";
+import { FAQ } from "#/pages/@sections/faq";
+import { PartnersStrip } from "#/pages/@sections/partners/strip";
+import { TrustBar } from "#/pages/@sections/trust-bar";
+import type { ILeadInvalid } from "@/reg/lead";
+import type { Route } from "./+types/route";
+import { CtaForm } from "./cta-form";
+import { np_faqs } from "./faqs";
+import { GiftTypes } from "./gift-types";
+import { Grow } from "./grow";
+import { Hero } from "./hero";
+import { Portability } from "./portability";
+import { Proof } from "./proof";
+import { np_stats } from "./stats";
+import { TrustStrip } from "./trust-strip";
+
+export { action } from "./api";
+
+/* `meta` runs in the browser: re-exporting it from `./api` would drag that
+ * module's server-only reach into the client graph and the page would never
+ * hydrate. these two stay here, where nothing server-only is in scope. */
+export const headers: Route.HeadersFunction = () => ({
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+});
+
+export const meta: Route.MetaFunction = () =>
+  metas({
+    // explicit: `metas` defaults `url` to base_url, which would canonicalize
+    // this page into the homepage
+    url: `${base_url}${href("/for-nonprofits")}`,
+    title: `For Nonprofits | ${app_name}`,
+    description: `Free forever fundraising for U.S. 501(c)(3)s. ${app_name} takes $0 in platform fees, accepts cash, crypto, stock and DAF gifts, and lets you take your donor data with you.`,
+  });
+
+export default function Page() {
+  const { nav, data } = useRmxForm<ILeadInvalid>();
+
+  return (
+    <main>
+      <header className="border-b border-border px-6 py-14 md:py-16">
+        <div className="max-w-6xl mx-auto grid gap-10 lg:gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <Hero />
+          <CtaForm
+            classes="max-lg:mx-auto lg:justify-self-end"
+            errors={data?.errors}
+            values={data?.values}
+            signed_in_as={data?.signed_in_as}
+            pending={nav.state === "submitting"}
+          />
+        </div>
+      </header>
+
+      <TrustStrip classes="border-b border-border px-6 py-5" />
+
+      <TrustBar
+        variant="band"
+        label="Better Giving by the numbers"
+        items={np_stats}
+        classes="bg-muted border-b border-border px-6 py-12"
+      />
+
+      <PartnersStrip classes="border-b border-border" />
+
+      <Proof classes="border-b border-border px-6 py-16 md:py-20" />
+
+      <GiftTypes classes="bg-muted border-b border-border px-6 py-16 md:py-20" />
+
+      <Grow classes="border-b border-border px-6 py-16 md:py-20" />
+
+      <Portability classes="border-b border-border px-6 py-16 md:py-20" />
+
+      <div className="bg-muted border-b border-border px-6 py-16 md:py-20">
+        <FAQ
+          items={np_faqs}
+          pre_heading="Fair questions"
+          heading="So how is it actually free?"
+          sub="Skepticism is healthy. It's why our answers are verifiable, not just written here."
+          classes="max-w-3xl mx-auto"
+        />
+      </div>
+
+      <CtaBand
+        title="Fundraising that costs you nothing"
+        subtitle="210+ nonprofits worldwide. $6M+ raised. $0 platform fees, forever. And a transparency pledge you can verify in the code."
+      />
+    </main>
+  );
+}

@@ -203,16 +203,16 @@ describe("MaskedInput: ein mask", () => {
       .toHaveTextContent("12-3456789");
   });
 
-  it("keeps every digit of an over-length ein so validation can see it", async () => {
+  it("stops at nine digits", async () => {
     const screen = await render(<EinHarness />);
     const input = screen.getByLabelText("EIN");
 
     await input.fill("123456789012");
 
-    await expect.element(input).toHaveValue("12-3456789012");
+    await expect.element(input).toHaveValue("12-3456789");
     await expect
       .element(screen.getByTestId("raw"))
-      .toHaveTextContent("12-3456789012");
+      .toHaveTextContent("12-3456789");
   });
 
   it("keeps an already-dashed value pasted in whole", async () => {

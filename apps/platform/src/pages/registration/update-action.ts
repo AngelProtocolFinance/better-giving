@@ -1,7 +1,8 @@
 import { type ActionFunction, redirect } from "react-router";
 import { safeParse } from "valibot";
-import { get_session, to_auth } from "#/.server/auth";
-import { steps } from "#/pages/registration/routes";
+import { check_email_url, request_login_link, to_auth } from "#/.server/auth";
+import { reg_user } from "#/pages/registration/data/reg-user";
+import { GRANT_UPDATE_TYPE, steps } from "#/pages/registration/routes";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import type { IReg } from "@/reg";
@@ -14,13 +15,23 @@ import { reg_get, reg_update } from "$/pg/queries/registration";
 const changed = <T extends boolean | string | number | undefined>(a: T, b: T) =>
   a != null && b != null && a !== b;
 
+export interface IUpdateActionOpts {
+  /** the contact step: reachable by a draft-grant holder, whose address is not
+   * proven yet. finishing it is what asks for the proof. */
+  registrant?: boolean;
+}
+
 /** `next` is a function where the step it hands off to depends on the
  * application itself — org details branches on `o_type` (see `after_org`). */
 export const update_action =
-  (next: string | ((reg: IReg) => string)): ActionFunction =>
+  (
+    next: string | ((reg: IReg) => string),
+    opts?: IUpdateActionOpts
+  ): ActionFunction =>
   async ({ request, params }) => {
-    const { user } = await get_session(request);
-    if (!user) return to_auth(request);
+    const ru = await reg_user(request, !!opts?.registrant);
+    if (!ru) return to_auth(request);
+    const { user, grant } = ru;
 
     const p1 = safeParse(reg_id, params.reg_id);
     if (p1.issues) return resp.status(400, p1.issues[0].message);
@@ -28,6 +39,10 @@ export const update_action =
     const p2 = safeParse(reg_update_schema, await request.json());
     if (p2.issues) return resp.status(400, p2.issues[0].message);
     const upd8 = p2.output;
+
+    // the grant opens the contact step and nothing else — the later steps'
+    // fields are not its to write, whichever url the post lands on.
+    if (grant && upd8.update_type !== GRANT_UPDATE_TYPE) throw resp.status(403);
 
     const reg = await reg_get(rid);
     if (!reg) throw resp.status(404, `reg:${rid} not found`);
@@ -49,7 +64,7 @@ export const update_action =
     const done_fsa_url = prog.fsa_url;
 
     const contact_changed =
-      update_type === "contact" &&
+      update_type === GRANT_UPDATE_TYPE &&
       (changed(reg.r_first_name, upd8.r_first_name) ||
         changed(reg.r_last_name, upd8.r_last_name) ||
         changed(reg.o_name, upd8.o_name) ||
@@ -65,6 +80,18 @@ export const update_action =
 
     const updated = await reg_update(db, rid, attrs);
     if (updated) await enqueue(msg("reg-updated", updated));
+
+    /* the address is asked to prove itself here rather than at the marketing
+     * form: a lead that never finished this step is one we mailed nothing. */
+    if (grant) {
+      const to = `/register/${rid}/${steps.org_details}`;
+      await request_login_link({
+        email: user.email,
+        redirect_to: to,
+        headers: request.headers,
+      });
+      return redirect(check_email_url({ email: user.email, redirect_to: to }));
+    }
 
     if (prog.step === 5) return redirect(`../${steps.summary}`);
     return redirect(`../${typeof next === "string" ? next : next(reg)}`);

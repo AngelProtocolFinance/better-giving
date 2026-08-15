@@ -18,6 +18,7 @@ export const CHROME_BY_SEGMENT: Record<string, Chrome> = {
   login: "bare",
   signup: "bare",
   register: "bare",
+  "check-email": "bare",
 
   // minimal — transactional / browse
   //
@@ -44,6 +45,8 @@ export const CHROME_BY_SEGMENT: Record<string, Chrome> = {
   "terms-of-use-sms": "marketing",
   "donation-forms": "marketing",
   "fiscal-sponsorship": "marketing",
+  "for-nonprofits": "marketing",
+  "for-international-nonprofits": "marketing",
   "fund-management": "marketing",
   "giving-tuesday": "marketing",
   "open-source": "marketing",
