@@ -4,7 +4,7 @@ export function FeeGap({ classes = "" }) {
       <div className="max-w-6xl mx-auto">
         <p className="eyebrow text-muted-fg mb-3">The math</p>
         <h2 className="section-heading max-w-3xl">
-          On a $100,000 year, the fee gap is a staff stipend.
+          On a $100,000 year, the fee gap reaches $7,100.
         </h2>
         <p className="section-body text-muted-fg max-w-3xl mt-3 mb-9">
           Typical fiscal sponsors charge 4-10% of everything you raise. We

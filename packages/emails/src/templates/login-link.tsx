@@ -39,8 +39,8 @@ function Jsx({ url, expires_in, first_name }: IData) {
         working, request a new one.
       </Text>
       <Text>
-        If you didn't request this, you can safely ignore this email — nobody
-        can sign in without the link above.
+        If you didn't request this, you can safely ignore this email. Nobody can
+        sign in without the link above.
       </Text>
     </PublicLayout>
   );

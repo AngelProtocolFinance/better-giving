@@ -1,7 +1,7 @@
 const steps = [
   {
     title: "A U.S. donor gives through your form",
-    body: "Cards, bank, stocks, DAFs, or crypto, through your branded donation form, in your donor's language. The gift is made to Better Giving, earmarked for you.",
+    body: "Cards, bank, stocks, DAFs, or crypto, through your branded donation form. The gift is made to Better Giving, earmarked for you.",
   },
   {
     title: "Receipt, due diligence, and reporting handled",

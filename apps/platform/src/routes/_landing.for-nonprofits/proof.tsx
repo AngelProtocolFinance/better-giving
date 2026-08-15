@@ -7,7 +7,7 @@ const points = [
   },
   {
     title: "Our transparency pledge goes right to the code",
-    body: "Your board, your auditor, or your most skeptical donor can have our code audited and verify we do what we say. $0 fees, opt-in donor contributions, your data staying yours: all of it is checkable, not just claimed.",
+    body: "Your board, your auditor, or your most skeptical donor can have our code audited and verify we do what we say: $0 fees, opt-in donor contributions, your data staying yours.",
   },
   {
     title: "And if you ever want, you can take complete control",
@@ -24,8 +24,7 @@ export function Proof({ classes = "" }: IProof) {
     <section className={classes} aria-labelledby="proof-heading">
       <div className="max-w-6xl mx-auto grid gap-9 lg:gap-14 lg:grid-cols-[0.85fr_1.15fr] items-start">
         <div className="lg:sticky lg:top-24">
-          <p className="eyebrow text-primary">You can check this yourself</p>
-          <h2 id="proof-heading" className="section-heading mt-4">
+          <h2 id="proof-heading" className="section-heading">
             Others promise transparency. Ours is checkable.
           </h2>
           <p className="mt-4 text-muted-fg text-pretty">

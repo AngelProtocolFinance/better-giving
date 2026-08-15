@@ -159,7 +159,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         </RmxForm>
 
         <p className="text-center max-sm:text-sm text-muted-fg mt-4">
-          We'll email you a link to confirm your address and sign you in — no
+          We'll email you a link to confirm your address and sign you in. No
           password to choose.
         </p>
 

@@ -56,8 +56,8 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
             <h3 className="text-lg">Set up in an afternoon</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-fg text-pretty">
               Embed your form and connect your bank in an afternoon. Most
-              accounts are approved within 3 days, and tax receipts, donor
-              records, and compliance are handled automatically.
+              accounts are approved within 3 business days, and tax receipts,
+              donor records, and compliance are handled automatically.
             </p>
           </div>
         </div>

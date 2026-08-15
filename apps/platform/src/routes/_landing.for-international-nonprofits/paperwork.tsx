@@ -6,7 +6,6 @@ const items = [
   "Form 990 and IRS reporting covered",
   "Donor records and data belong to you",
   "Every payout tracked in your dashboard",
-  "Donation forms in 19 languages, right-to-left included",
 ] as const;
 
 export function Paperwork({ classes = "" }) {
