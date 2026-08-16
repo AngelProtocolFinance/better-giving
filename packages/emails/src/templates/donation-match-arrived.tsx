@@ -1,5 +1,8 @@
-import { Hr, Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
+import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
 import { format_amount } from "../helpers";
@@ -79,7 +82,12 @@ function Jsx(d: IData) {
           earns them no deduction and no receipt — said here because a donor who
           waits for one would wait forever */}
       <Text
-        style={{ marginTop: 10, fontSize: 12, color: "gray", lineHeight: 1.4 }}
+        style={{
+          marginTop: 10,
+          fontSize: 12,
+          color: email_colors.muted_fg,
+          lineHeight: 1.4,
+        }}
       >
         This is your employer's gift, not yours, so there's no receipt for you
         here — your own donation's receipt is unchanged. Anything looks wrong?
@@ -92,7 +100,7 @@ function Jsx(d: IData) {
           margin: 0,
           marginBottom: 20,
           fontWeight: 600,
-          color: "#3FA9F5",
+          color: email_colors.primary,
         }}
       >
         The {APP_NAME} Team

@@ -47,7 +47,8 @@ Three-layer structure:
 ## UI
 
 - always use the project's existing theme, design tokens, and component styles — never introduce new colors, spacing scales, or utility classes outside the system
-- Tailwind v4 `@theme` resets all default colors (`--color-*: initial`); only semantic tokens are available: `primary`, `secondary`, `muted`/`muted-fg`, `destructive`, `success`, `warning`, `accent`, `border`, `primary-ring`, `primary-border`, `fg`, `card`, `popover` — never use raw Tailwind palette names (`gray-500`, `green`, `red`, etc.)
+- Tailwind v4 `@theme` resets all default colors (`--color-*: initial`); only the semantic tokens are available — never use raw Tailwind palette names (`gray-500`, `green`, `red`, etc.). The tokens are declared in `packages/brand/src/colors.css` and mapped to utilities in `src/index.css` (`@theme inline`); **`packages/brand/design-system.md` is the ledger** — what each token is for, which are fills vs. legible text (with measured contrast), and the decisions that look like bugs. Read it before reaching for a color.
+- a tinted band is an authored surface + its own `-fg` (`destructive-subtle`/`-fg`, `warning-subtle`/`-fg`) — never `bg-<token>/10 text-<token>`, which measures ~2:1. `text-warning` is not legible at any size (2.15:1); use `text-warning-subtle-fg`.
 - spacing/layout that affects external flow (margin, position, z-index) must be applied by the caller, not hardcoded inside the component
 
 ## Gotchas

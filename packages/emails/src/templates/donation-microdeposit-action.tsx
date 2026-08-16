@@ -1,4 +1,6 @@
-import { Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
@@ -50,7 +52,7 @@ function Jsx({ from_name, to_name, verification_link }: IData) {
           margin: 0,
           marginBottom: 20,
           fontWeight: 600,
-          color: "#3FA9F5",
+          color: email_colors.primary,
         }}
       >
         The {APP_NAME} Team

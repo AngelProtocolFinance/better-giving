@@ -1,4 +1,6 @@
-import { Hr, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, EMAILS } from "../constants";
@@ -18,7 +20,9 @@ function Jsx(d: IData) {
         {format_amount(d.amount)} donation via {APP_NAME}.
       </Text>
 
-      <Text style={{ fontSize: 12, color: "gray", marginTop: 10 }}>
+      <Text
+        style={{ fontSize: 12, color: email_colors.muted_fg, marginTop: 10 }}
+      >
         Transaction ID: {d.id} • {d.date}
       </Text>
 
@@ -31,8 +35,11 @@ function Jsx(d: IData) {
         style={{
           marginTop: 4,
           padding: "12px",
-          backgroundColor: "#f5f5f5",
-          borderLeft: "3px solid #067df7",
+          backgroundColor: email_colors.accent,
+          // tinted surface carries its own ink; inheritance loses in clients
+          // that force their own text color onto an explicit background
+          color: email_colors.accent_fg,
+          borderLeft: `3px solid ${email_colors.primary}`,
           fontStyle: "italic",
         }}
       >
@@ -45,7 +52,7 @@ function Jsx(d: IData) {
         style={{
           marginTop: 10,
           fontSize: 12,
-          color: "gray",
+          color: email_colors.muted_fg,
           lineHeight: 1.4,
         }}
       >

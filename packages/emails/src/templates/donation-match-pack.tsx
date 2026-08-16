@@ -1,6 +1,9 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
-import { Hr, Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
+import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
 import { format_amount } from "../helpers";
@@ -72,7 +75,12 @@ function Jsx(d: IData) {
           of the gift as going to the nonprofit will read a form full of Better
           Giving's details as wrong and stop */}
       <Text
-        style={{ marginTop: 10, fontSize: 12, color: "gray", lineHeight: 1.4 }}
+        style={{
+          marginTop: 10,
+          fontSize: 12,
+          color: email_colors.muted_fg,
+          lineHeight: 1.4,
+        }}
       >
         {LEGAL_NAME} ({APP_NAME}) is the US 501(c)(3) that received your gift
         and issued your receipt, then grants it on to {d.to_name}. Wherever the
@@ -118,7 +126,7 @@ function Jsx(d: IData) {
           margin: 0,
           marginBottom: 20,
           fontWeight: 600,
-          color: "#3FA9F5",
+          color: email_colors.primary,
         }}
       >
         The {APP_NAME} Team

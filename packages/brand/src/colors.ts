@@ -1,0 +1,41 @@
+// GENERATED — do not hand-edit; run `pnpm --filter @better-giving/brand generate-colors`.
+// hex twin of colors.css's light (:root) palette, for consumers that can't read
+// oklch() or CSS custom properties — currently the transactional email templates.
+// no dark mode, no var()/color-mix() aliases: just the literal oklch() tokens,
+// converted. keys are the css token name with hyphens as underscores.
+// colors.test.ts asserts this never drifts from colors.css — keep them in lockstep.
+export const colors = {
+  background: "#ffffff",
+  fg: "#0f172a",
+  card: "#ffffff",
+  card_fg: "#0f172a",
+  popover: "#ffffff",
+  popover_fg: "#0f172a",
+  primary: "#1d6dab",
+  primary_fg: "#ffffff",
+  secondary: "#e4effa",
+  secondary_fg: "#0f172a",
+  muted: "#f1f5f9",
+  muted_fg: "#475569",
+  accent: "#ebf5fd",
+  accent_fg: "#0f172a",
+  destructive: "#df3236",
+  destructive_fg: "#ffffff",
+  destructive_subtle: "#fdebe9",
+  destructive_subtle_fg: "#c2272c",
+  success: "#007f4e",
+  success_fg: "#ffffff",
+  warning: "#f59e09",
+  warning_fg: "#451a03",
+  warning_subtle: "#fdeddb",
+  warning_subtle_fg: "#995600",
+  border: "#e2e8f0",
+  input: "#ffffff",
+  ring: "#1d6dab",
+  sidebar: "#ffffff",
+  chart_1: "#f54900",
+  chart_2: "#009689",
+  chart_3: "#104e64",
+  chart_4: "#ffb900",
+  chart_5: "#fe9a00",
+};

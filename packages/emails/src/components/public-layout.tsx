@@ -1,6 +1,9 @@
+import { EIN, LEGAL_NAME } from "@better-giving/brand";
+import { email_colors } from "@better-giving/brand/email";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Body, Container, Head, Hr, Html, Section, Text } from "react-email";
+import { Body, Container, Head, Html, Section, Text } from "react-email";
 import { APP_NAME } from "../constants";
+import { Hr } from "./hr";
 import { SocialLinks } from "./social-links";
 
 export type PublicLayoutProps = PropsWithChildren<{
@@ -21,7 +24,10 @@ export function PublicLayout({
       <Body
         style={{
           fontFamily: "sans-serif",
-          backgroundColor: "#fff",
+          backgroundColor: email_colors.background,
+          // explicit ink: clients that force dark mode invert inherited text
+          // while still honouring an explicit background — white on white.
+          color: email_colors.fg,
         }}
       >
         <Container style={{ padding: 16 }}>
@@ -32,7 +38,13 @@ export function PublicLayout({
                 <Text style={{ margin: 0 }}>
                   {type === "fund" ? "Best" : "Warm"} regards,
                 </Text>
-                <Text style={{ margin: 0, fontWeight: 600, color: "#3FA9F5" }}>
+                <Text
+                  style={{
+                    margin: 0,
+                    fontWeight: 600,
+                    color: email_colors.primary,
+                  }}
+                >
                   The {APP_NAME} Team
                 </Text>
               </>
@@ -54,11 +66,11 @@ export function PublicLayout({
               margin: 0,
               marginTop: 4,
               fontSize: 13,
-              color: "gray",
+              color: email_colors.muted_fg,
             }}
           >
-            Better Giving Inc. | EIN: 87-3758939 | Copyright 2025 All Rights
-            reserved.
+            {LEGAL_NAME} | EIN: {EIN} | Copyright {new Date().getUTCFullYear()}{" "}
+            All Rights reserved.
           </Text>
           {bottom_content}
         </Container>

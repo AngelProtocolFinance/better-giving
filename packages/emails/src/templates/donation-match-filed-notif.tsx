@@ -1,5 +1,7 @@
-import { Hr, Link, Text } from "react-email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
+import { Link } from "../components/link";
 import { PlatformLayout } from "../components/platform-layout";
 import { DAPP_URL } from "../constants";
 import { format_amount } from "../helpers";
