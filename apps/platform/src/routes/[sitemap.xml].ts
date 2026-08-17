@@ -33,6 +33,11 @@ const staticUrls: SitemapUrl[] = [
   { url: "/giving-tuesday", changeFrequency: "monthly", priority: 0.6 },
   { url: "/about-us", changeFrequency: "monthly", priority: 0.7 },
   { url: "/resources", changeFrequency: "monthly", priority: 0.6 },
+  {
+    url: "/ethical-fundraising-platform-checklist",
+    changeFrequency: "monthly",
+    priority: 0.6,
+  },
   { url: "/blog", changeFrequency: "daily", priority: 0.8 },
   { url: "/marketplace", changeFrequency: "daily", priority: 0.9 },
   { url: "/fundraisers", changeFrequency: "daily", priority: 0.9 },

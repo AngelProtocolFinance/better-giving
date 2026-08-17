@@ -30,15 +30,21 @@ export function PublicLayout() {
     // the footer. `_index` doesn't share it — its `main` is `1fr` under
     // `min-h-dvh`, so the banner comes out of the main track instead of adding
     // to it.
+    // `print:block` drops the grid on paper. viewport units resolve against the
+    // page box when printing, so the `100dvh` minimum would reserve a full
+    // sheet for the outlet whatever it contains — a page of white before the
+    // content on anything printed from these routes.
     <div
-      className={`grid grid-cols-[minmax(0,1fr)] ${
+      className={`grid grid-cols-[minmax(0,1fr)] print:block ${
         banner
           ? "grid-rows-[auto_4rem_minmax(calc(100dvh-4rem),1fr)_auto]"
           : "grid-rows-[4rem_minmax(calc(100dvh-4rem),1fr)_auto]"
       }`}
     >
       {banner && <AnnouncementBanner />}
-      <PublicHeader classes="sticky z-40 -top-px" />
+      {/* site navigation is not part of any printed document. sticky is worse
+          than useless on paper: it lands the bar mid-sheet, in flow. */}
+      <PublicHeader classes="sticky z-40 -top-px print:hidden" />
       <Outlet />
       <PublicFooter />
     </div>

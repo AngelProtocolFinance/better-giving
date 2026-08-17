@@ -53,7 +53,7 @@ export function AnnouncementBanner() {
     <aside
       aria-label="Announcement"
       data-banner="ncnp-endorsement"
-      className="bg-primary text-primary-fg"
+      className="bg-primary text-primary-fg print:hidden"
     >
       {/* the row is full-bleed, bounded by the gutter rather than a
           max-width: capping the column made the sentence wrap with the bar

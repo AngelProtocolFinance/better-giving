@@ -44,6 +44,7 @@ export const CHROME_BY_SEGMENT: Record<string, Chrome> = {
   "terms-of-use-referrals": "marketing",
   "terms-of-use-sms": "marketing",
   "donation-forms": "marketing",
+  "ethical-fundraising-platform-checklist": "marketing",
   "fiscal-sponsorship": "marketing",
   "for-nonprofits": "marketing",
   "for-international-nonprofits": "marketing",
@@ -77,7 +78,10 @@ export function PublicFooter() {
   const { pathname } = useLocation();
   const chrome = chrome_for(pathname);
 
-  if (chrome === "marketing") return <Footer />;
-  if (chrome === "minimal") return <Footer variant="minimal" />;
+  // nav, socials and newsletter signup are chrome, not document — see the
+  // matching print rules in public-layout.
+  if (chrome === "marketing") return <Footer classes="print:hidden" />;
+  if (chrome === "minimal")
+    return <Footer variant="minimal" classes="print:hidden" />;
   return null;
 }
