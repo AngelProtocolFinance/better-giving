@@ -1,3 +1,4 @@
+import { email_colors } from "@better-giving/brand/email";
 import { Text } from "react-email";
 import { PlatformLayout } from "../components/platform-layout";
 
@@ -18,16 +19,19 @@ export interface IData {
 }
 
 const th: React.CSSProperties = {
-  border: "1px solid #ddd",
+  border: `1px solid ${email_colors.border}`,
   padding: "8px 12px",
   textAlign: "left",
-  backgroundColor: "#f4f4f4",
+  backgroundColor: email_colors.muted,
+  // tinted surface carries its own ink; inheritance loses in clients that
+  // force their own text color onto an explicit background
+  color: email_colors.fg,
   fontWeight: 600,
   fontSize: 13,
 };
 
 const td: React.CSSProperties = {
-  border: "1px solid #ddd",
+  border: `1px solid ${email_colors.border}`,
   padding: "8px 12px",
   fontSize: 13,
 };
@@ -56,7 +60,7 @@ function Jsx({
       <Text
         style={{
           margin: "4px 0",
-          color: low_balance ? "#dc2626" : undefined,
+          color: low_balance ? email_colors.destructive : undefined,
         }}
       >
         Wise USD balance: <strong>${wise_usd_balance.toLocaleString()}</strong>
@@ -82,7 +86,11 @@ function Jsx({
           {rows.map((r) => (
             <tr
               key={r.id}
-              style={r.effect === "skipped" ? { color: "#9ca3af" } : undefined}
+              style={
+                r.effect === "skipped"
+                  ? { color: email_colors.muted_fg }
+                  : undefined
+              }
             >
               <td style={td}>{r.id}</td>
               <td style={td}>{r.name}</td>

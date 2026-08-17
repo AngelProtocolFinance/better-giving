@@ -1,6 +1,9 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
-import { Hr, Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
+import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL } from "../constants";
 import { format_amount } from "../helpers";
@@ -66,7 +69,7 @@ function Jsx(d: IData) {
           margin: 0,
           marginBottom: 20,
           fontWeight: 600,
-          color: "#3FA9F5",
+          color: email_colors.primary,
         }}
       >
         The {APP_NAME} Team
@@ -103,7 +106,7 @@ function Jsx(d: IData) {
         style={{
           marginTop: 10,
           fontSize: 12,
-          color: "gray",
+          color: email_colors.muted_fg,
           lineHeight: 1.4,
         }}
       >

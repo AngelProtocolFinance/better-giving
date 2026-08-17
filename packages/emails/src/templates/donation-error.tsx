@@ -1,3 +1,4 @@
+import { email_colors } from "@better-giving/brand/email";
 import { Text } from "react-email";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
@@ -14,7 +15,14 @@ function Jsx({ donor_first_name, recipient_name, error_message }: IData) {
     <PublicLayout type="donation">
       <Text>Hi {donor_first_name},</Text>
       <Text>We were unable to process your donation to {recipient_name}.</Text>
-      <Text style={{ background: "#FFF0F0", padding: "20px", color: "red" }}>
+      <Text
+        style={{
+          background: email_colors.destructive_subtle,
+          padding: "20px",
+          // the subtle pair: email_colors.destructive only measures 3.92:1 on this fill
+          color: email_colors.destructive_subtle_fg,
+        }}
+      >
         {error_message}
       </Text>
       <Text>
@@ -29,7 +37,7 @@ function Jsx({ donor_first_name, recipient_name, error_message }: IData) {
           margin: 0,
           marginBottom: 20,
           fontWeight: 600,
-          color: "#3FA9F5",
+          color: email_colors.primary,
         }}
       >
         The {APP_NAME} Team

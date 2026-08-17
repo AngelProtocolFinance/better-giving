@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-email";
+import { Link } from "./link";
 
 export interface MailToProps {
   email: string;

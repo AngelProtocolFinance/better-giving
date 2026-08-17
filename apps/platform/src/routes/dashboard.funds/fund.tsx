@@ -24,7 +24,7 @@ export const Fund = (props: IFundRow) => {
           classes={{
             container: "px-3 py-1 rounded-full text-xs",
             active: "",
-            inactive: "bg-destructive/10 text-destructive",
+            inactive: "bg-destructive-subtle text-destructive-subtle-fg",
             expired: "bg-muted text-muted-fg",
             completed: "bg-success/10 text-success",
           }}

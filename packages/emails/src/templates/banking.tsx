@@ -1,4 +1,6 @@
-import { Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
@@ -29,7 +31,13 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
   return (
     <PublicLayout
       bottom_content={
-        <Text style={{ textAlign: "center", fontSize: 12, color: "gray" }}>
+        <Text
+          style={{
+            textAlign: "center",
+            fontSize: 12,
+            color: email_colors.muted_fg,
+          }}
+        >
           Getting too many emails?{" "}
           <Link href={`${DAPP_URL}/dashboard/settings`}>
             Manage your preferences
@@ -46,7 +54,9 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
       </Text>
 
       {action === "rejected" && rejection_reason && (
-        <Text style={{ color: "red" }}>Reason: {rejection_reason}</Text>
+        <Text style={{ color: email_colors.destructive }}>
+          Reason: {rejection_reason}
+        </Text>
       )}
       {action !== "default" && (
         <Text style={{ marginTop: 4 }}>

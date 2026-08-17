@@ -1,4 +1,5 @@
-import { Link, Text } from "react-email";
+import { Text } from "react-email";
+import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL } from "../constants";
 

@@ -1,5 +1,8 @@
-import { Hr, Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
+import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
 import { DAPP_URL, EMAILS } from "../constants";
@@ -19,7 +22,13 @@ function Jsx(d: IData) {
     <PublicLayout
       type="donation"
       bottom_content={
-        <Text style={{ textAlign: "center", fontSize: 12, color: "gray" }}>
+        <Text
+          style={{
+            textAlign: "center",
+            fontSize: 12,
+            color: email_colors.muted_fg,
+          }}
+        >
           Getting too many emails?{" "}
           <Link href={`${DAPP_URL}/dashboard/settings`}>
             Manage your preferences
@@ -65,7 +74,7 @@ function Jsx(d: IData) {
         style={{
           marginTop: 10,
           fontSize: 12,
-          color: "gray",
+          color: email_colors.muted_fg,
           lineHeight: 1.4,
         }}
       >

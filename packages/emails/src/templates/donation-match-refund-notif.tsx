@@ -1,6 +1,9 @@
 import { LEGAL_NAME } from "@better-giving/brand";
-import { Hr, Link, Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Text } from "react-email";
+import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
+import { Link } from "../components/link";
 import { PlatformLayout } from "../components/platform-layout";
 import { APP_NAME, DAPP_URL } from "../constants";
 import { format_amount, format_gap } from "../helpers";
@@ -95,7 +98,12 @@ function Jsx(d: IData) {
           about whether the employer runs a program at all. the claim may never
           have existed — which is a reason to ask, not to assume either way */}
       <Text
-        style={{ marginTop: 10, fontSize: 12, color: "gray", lineHeight: 1.4 }}
+        style={{
+          marginTop: 10,
+          fontSize: 12,
+          color: email_colors.muted_fg,
+          lineHeight: 1.4,
+        }}
       >
         Filing is self-reported: the donor pressed "I filed this" on their
         donation page. Nothing here confirms {d.employer_name} received a claim,

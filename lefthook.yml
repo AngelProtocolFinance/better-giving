@@ -34,3 +34,13 @@ pre-commit:
     # no type-check-paypal / type-check-crypto hooks: built-member convention —
     # these emit dist/ via their own build, and type-safety is enforced there in
     # turbo/ci. biome check above still covers their staged files.
+    type-check-brand:
+      glob: "packages/brand/**/*.{ts,tsx}"
+      # anchor on brand's tsconfig (extends the base, no dom/jsx); separate
+      # from platform since each member has its own tsconfig.
+      run: pnpm tsc-files -p packages/brand/tsconfig.json {staged_files}
+    test-brand:
+      # colors.ts mirrors colors.css by hand-run generation, not a build step —
+      # this is the only thing enforcing they stay in lockstep at commit time.
+      glob: "packages/brand/**/*.{ts,css}"
+      run: pnpm --filter @better-giving/brand test

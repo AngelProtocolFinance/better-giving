@@ -1,38 +1,25 @@
-import { Link, Section } from "react-email";
+import { socials } from "@better-giving/brand";
+import { Section } from "react-email";
+import { Link } from "./link";
 
-const socials = [
-  {
-    href: "https://www.linkedin.com/company/better-giving/",
-    label: "LinkedIn",
-  },
-  {
-    href: "https://www.facebook.com/BetterGivingFB/",
-    label: "Facebook",
-  },
-  {
-    href: "https://x.com/BetterDotGiving",
-    label: "X",
-  },
-  {
-    href: "https://www.youtube.com/@BetterDotGiving",
-    label: "Youtube",
-  },
-  {
-    href: "https://www.instagram.com/better.giving",
-    label: "Instagram",
-  },
+// `socials` is keyed, not ordered — the display order is spelled out here.
+const links = [
+  { href: socials.linkedin, label: "LinkedIn" },
+  { href: socials.facebook, label: "Facebook" },
+  { href: socials.x, label: "X" },
+  { href: socials.youtube, label: "Youtube" },
+  { href: socials.instagram, label: "Instagram" },
 ] as const;
 
 export function SocialLinks() {
   return (
     <Section style={{ textAlign: "center", paddingTop: 10 }}>
-      {socials.map((social, i) => (
+      {links.map((social, i) => (
         <Link
           key={social.label}
           href={social.href}
           style={{
-            marginRight: i < socials.length - 1 ? 15 : 0,
-            color: "#3FA9F5",
+            marginRight: i < links.length - 1 ? 15 : 0,
             textDecoration: "none",
             fontSize: 14,
           }}
