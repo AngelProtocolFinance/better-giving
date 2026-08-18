@@ -9,6 +9,7 @@
     "start": "sanity start",
     "format": "biome check --write .",
     "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
     "schema": "DO_NOT_TRACK=1 sanity schema extract --enforce-required-fields",
     "typegen": "DO_NOT_TRACK=1 sanity typegen generate && cp ./queries.ts ../../packages/types/blog/queries.ts"
   },

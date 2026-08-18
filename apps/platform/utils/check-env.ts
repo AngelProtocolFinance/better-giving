@@ -17,31 +17,38 @@ const OPT_OUT_KEYS: readonly RequiredKey[] = ["SENTRY_AUTH_TOKEN"] as const;
 // validates required env keys, merges loaded .env values into process.env (so
 // runtime code via process.env still works), and returns a typed view for the
 // vite config factory to read from instead of process.env.
-export function check_env(mode: string) {
+//
+// `validate` stands the throw down for commands that load the vite config
+// without ever needing real values — the merge and the typed view still happen,
+// only the assertions are skipped. defaults on so a new caller fails loud.
+export function check_env(mode: string, validate = true) {
   // loadEnv pulls all keys (no prefix filter) from .env, .env.[mode],
   // .env.[mode].local, etc. — matches what vite/vitest see at runtime.
   const env = { ...process.env, ...loadEnv(mode, process.cwd(), "") };
   Object.assign(process.env, env);
 
-  const required = [...SERVER_KEYS, ...CLIENT_KEYS];
-  const missing = required.filter((k) =>
-    OPT_OUT_KEYS.includes(k) ? env[k] === undefined : !env[k]
-  );
-  if (missing.length) {
-    throw new Error(
-      `missing env vars (${missing.length}):\n  - ${missing.join("\n  - ")}`
+  if (validate) {
+    const required = [...SERVER_KEYS, ...CLIENT_KEYS];
+    const missing = required.filter((k) =>
+      OPT_OUT_KEYS.includes(k) ? env[k] === undefined : !env[k]
     );
-  }
+    if (missing.length) {
+      throw new Error(
+        `missing env vars (${missing.length}):\n  - ${missing.join("\n  - ")}`
+      );
+    }
 
-  for (const k of ["STAGE", "VITE_STAGE"] as const) {
-    const v = env[k];
-    if (!v || !STAGES.includes(v)) {
-      throw new Error(`${k}=${v} must be one of ${STAGES.join(",")}`);
+    for (const k of ["STAGE", "VITE_STAGE"] as const) {
+      const v = env[k];
+      if (!v || !STAGES.includes(v)) {
+        throw new Error(`${k}=${v} must be one of ${STAGES.join(",")}`);
+      }
     }
   }
 
   // STAGE/VITE_STAGE narrowed to the validated union (checked above) so the
   // returned view satisfies test.env's Partial<ProcessEnv> in vite.config.ts.
+  // sound only where validate ran — the callers that skip it don't read stage.
   return env as unknown as Record<ServerKey | ClientKey, string> & {
     STAGE: "staging" | "production" | "local";
     VITE_STAGE: "staging" | "production" | "local";

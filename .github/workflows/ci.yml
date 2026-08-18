@@ -1,0 +1,85 @@
+name: CI
+
+# push (main, staging) + pull_request only. no other events, no `paths:`/
+# `paths-ignore:` on the triggers or `if:` on the jobs below — a workflow run
+# that gets skipped produces no check run at all, and vercel's own docs don't
+# say how a missing check is treated. every job here must fire on every push
+# and every PR, unconditionally, so vercel always has a check run to read.
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+
+# no concurrency/cancel-in-progress block. whether vercel treats a cancelled
+# check as pass or fail is unverified, and runners are free on this public
+# repo — a redundant run is cheaper than an ambiguous gate.
+permissions:
+  contents: read
+
+# no `vercel/repository-dispatch/actions/status@v1` step, though vercel's
+# dashboard suggests one. that action exists to stamp a commit status back
+# onto the sha for workflows triggered by `repository_dispatch`, which has no
+# sha of its own; per vercel's docs it "is not required and you can depend on
+# the check directly" otherwise. this workflow is push/pull_request-triggered,
+# so each job already produces its own check run on the right commit. the
+# action is also actively worse here — it maps a cancelled/skipped/null
+# conclusion to success, so a job that never ran would report green.
+
+jobs:
+  # job name below ("checks") is the identifier vercel's deployment checks
+  # match on — renaming it silently breaks any gate configured against it.
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # single root pass, not fanned through turbo — see .claude/CLAUDE.md
+      # tooling → biome.
+      - run: pnpm lint
+
+      # dependsOn: ["^build"] in turbo.json builds paypal/chariot/crypto/
+      # stocks (the dist/-exporting deps platform's typecheck resolves types
+      # from) — never platform/docs/emails-preview's own `build`, which
+      # vercel already runs on every push. don't add `turbo run build` here.
+      - run: pnpm typecheck
+
+  # reports independently of `checks`, so it can gate promotion on its own
+  # once vercel's dashboard lists it as required. slower than `checks` —
+  # the full browser suite, not a type pass.
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # vitest runs platform's suite in browser mode (@vitest/browser-playwright,
+      # chromium) — needs a real chromium binary on the runner. playwright's
+      # own CI docs advise against caching ~/.cache/ms-playwright: restore
+      # time is comparable to download time, and --with-deps' apt packages
+      # aren't cacheable anyway. so just install on every run.
+      - run: pnpm --filter platform exec playwright install --with-deps chromium
+
+      # no env block: apps/platform/.env.test is committed throwaway filler and
+      # vitest loads it, so a clean checkout already has every value the suite
+      # reads. the env guard also stands down under vitest (see
+      # apps/platform/vite.config.ts), so nothing here needs real credentials.
+      - run: pnpm test
