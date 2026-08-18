@@ -2,6 +2,7 @@ import type { grants_schedule } from "emails";
 import { grants_schedule as gs } from "emails";
 import { emails } from "@/constants/common";
 import { report_error } from "@/errors/report";
+import { group_by } from "@/helpers/array";
 import { min_payout_amount } from "@/npo/schema";
 import { send_email } from "$/email";
 import { wise as wise_env } from "$/env";
@@ -25,7 +26,7 @@ export async function index() {
       return;
     }
 
-    const by_npo = Object.groupBy(grants, (g) => g.npo_id);
+    const by_npo = group_by(grants, (g) => g.npo_id);
 
     const rows: grants_schedule.IData["rows"] = [];
     let total_grant = 0;

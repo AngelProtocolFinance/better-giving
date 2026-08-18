@@ -9,7 +9,12 @@
       "@/*": ["lib/*"],
       "$/*": [".server/*"]
     },
-    "lib": ["dom", "dom.iterable", "es2024"],
+    // es2022 matches vite's build.target — esbuild lowers syntax but never
+    // library methods, so anything newer would typecheck and then throw in a
+    // browser at that floor. es2023.intl is the one deliberate exception:
+    // Intl.NumberFormat's roundingMode (lib/helpers/decimal) is an options-bag
+    // key, which older engines ignore rather than throw on.
+    "lib": ["dom", "dom.iterable", "es2022", "es2023.intl"],
     "jsx": "react-jsx",
     "types": ["vite/client", "@react-router/node"],
     "rootDirs": [".", "./.react-router/types"]

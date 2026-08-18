@@ -24,7 +24,7 @@ export async function action({ request }: Route.ActionArgs) {
     const payment: NP.PaymentPayload = JSON.parse(body || "{}");
 
     const payment_sorted: any = {};
-    for (const [k, v] of Object.entries(payment).toSorted(([a], [b]) =>
+    for (const [k, v] of Object.entries(payment).sort(([a], [b]) =>
       a.localeCompare(b)
     )) {
       payment_sorted[k] = v;

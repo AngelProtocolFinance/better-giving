@@ -3,7 +3,7 @@
   // (preserve — sanity's bundler compiles jsx, tsc is type-check only) live here.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "es2024"],
+    "lib": ["dom", "dom.iterable", "es2022"],
     "jsx": "preserve"
   },
   "include": ["**/*.ts", "**/*.tsx"],

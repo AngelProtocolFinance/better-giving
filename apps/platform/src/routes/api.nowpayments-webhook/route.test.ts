@@ -57,7 +57,7 @@ const invoke = async (request: Request): Promise<Response> =>
 // order signs the same
 const sign = (payload: Record<string, unknown>): string => {
   const sorted: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(payload).toSorted(([a], [b]) =>
+  for (const [k, v] of Object.entries(payload).sort(([a], [b]) =>
     a.localeCompare(b)
   )) {
     sorted[k] = v;

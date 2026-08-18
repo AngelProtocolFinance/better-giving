@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { report_error } from "@/errors/report";
+import { group_by } from "@/helpers/array";
 import type { IPayout, IPendingStatus } from "@/payouts";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
@@ -35,7 +36,7 @@ export async function index(event?: IInput) {
       return { statusCode: 200, body: "No grants to process" };
     }
 
-    const by_npo = Object.groupBy(grants, (g) => g.npo_id);
+    const by_npo = group_by(grants, (g) => g.npo_id);
     const target_npo = event?.npo_id?.toString();
 
     for (const [npo, items = []] of Object.entries(by_npo).filter(
