@@ -8,6 +8,7 @@
     "test": "turbo run test",
     "format": "biome check --write .",
     "typegen": "turbo run typegen",
+    "typecheck": "turbo run typecheck",
     "dev": "turbo run dev --filter=platform",
     "dev:blog": "turbo run dev --filter=blog",
     "dev:emails-preview": "turbo run dev --filter=emails-preview",

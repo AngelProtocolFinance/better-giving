@@ -23,7 +23,8 @@
     "declaration": true,
     "declarationMap": true,
 
-    /* environment (es2022 — original library target, narrower than base es2024) */
+    /* environment (target matches base; lib pinned to es2022 to drop the default
+       full lib, which would pull in DOM — these are server-only SDKs) */
     "target": "es2022",
     "lib": ["es2022"],
     "types": ["node"]

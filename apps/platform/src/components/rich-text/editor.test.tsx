@@ -25,6 +25,14 @@ const EMPTY: RichTextContent = { value: "", length: 0 };
 
 const EDITOR_SEL = '[contenteditable="true"]';
 
+// @portabletext/editor resolves its `mod+b`/`mod+i` shortcuts against
+// `IS_MAC = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)` — cmd on apple,
+// ctrl everywhere else. mirroring that check here keeps the same assertion
+// meaningful on a mac dev machine and on a linux ci runner.
+const MOD = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+  ? "Meta"
+  : "Control";
+
 // wrapper that wires up RichText with onChange spy. content stays at `initial`
 // because most toolbar/keyboard tests don't need re-render — they assert on the
 // last onChange payload.
@@ -152,14 +160,14 @@ describe("rich text editor — toolbar", () => {
 });
 
 describe("rich text editor — keyboard shortcuts", () => {
-  it("Cmd+B toggles strong", async () => {
+  it("mod+B toggles strong", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
     const editor = await wait_for_editor(screen);
     await userEvent.click(editor);
 
-    await userEvent.keyboard("{Meta>}b{/Meta}");
+    await userEvent.keyboard(`{${MOD}>}b{/${MOD}}`);
     await userEvent.keyboard("bolded");
 
     await vi.waitFor(() => {
@@ -168,14 +176,14 @@ describe("rich text editor — keyboard shortcuts", () => {
     });
   });
 
-  it("Cmd+I toggles em", async () => {
+  it("mod+I toggles em", async () => {
     const on_change = vi.fn();
     const screen = await render(<EditorHarness on_change={on_change} />);
 
     const editor = await wait_for_editor(screen);
     await userEvent.click(editor);
 
-    await userEvent.keyboard("{Meta>}i{/Meta}");
+    await userEvent.keyboard(`{${MOD}>}i{/${MOD}}`);
     await userEvent.keyboard("italicized");
 
     await vi.waitFor(() => {

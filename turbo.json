@@ -1,5 +1,8 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  // every member extends this; $TURBO_DEFAULT$ is package-scoped so changes
+  // here wouldn't otherwise invalidate anything.
+  "globalDependencies": ["tsconfig.base.json"],
   "globalPassThroughEnv": [
     "VERCEL",
     "VERCEL_ENV",
@@ -102,7 +105,18 @@
       "cache": false
     },
     "test": {
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
+      // both come from the committed apps/platform/.env.test (covered by
+      // inputs above), so ci needs nothing extra. declared here anyway because
+      // turbo strips any env var not listed, which would silently drop a
+      // real-env override of either one.
+      "env": ["VITE_BASE_URL", "APP_SESSION_SECRET"]
+    },
+    "typecheck": {
+      // paypal/chariot/crypto/stocks resolve their types from dist/.
+      "dependsOn": ["^build"]
+      // no outputs: tsc --noEmit produces no cacheable artifact.
     }
   }
 }

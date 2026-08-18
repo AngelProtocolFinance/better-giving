@@ -20,10 +20,11 @@ dist
 # sanity
 .sanity
 
-# env
+# env — real credentials only. .env.test is committed instead: it holds
+# throwaway filler, nothing that opens anything. personal overrides go in
+# .env.test.local, which vite loads at higher precedence.
 .env
 .env.local
-.env.test
 .env.test.local
 .env.staging
 .env.production

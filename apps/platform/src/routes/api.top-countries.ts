@@ -9,7 +9,7 @@ export const loader: LoaderFunction = async () => {
   const items = await countries_query();
 
   const latest_weeknum = getISOWeek(items[0].updated_at!);
-  const sorted = items.toSorted((a, b) => {
+  const sorted = [...items].sort((a, b) => {
     const a7d_v =
       getISOWeek(a.updated_at!) < latest_weeknum
         ? 0

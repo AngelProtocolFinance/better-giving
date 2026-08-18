@@ -31,7 +31,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   const { logs_intr, logs_intr_next, logs_bal, logs_bal_next } = loaderData;
   const ltd = logs_bal.at(0);
 
-  const line_data = logs_bal.toReversed().map((x) => {
+  const line_data = [...logs_bal].reverse().map((x) => {
     const { date, total } = x;
     return {
       date: format(new Date(date), "yyyy-MM-dd"),

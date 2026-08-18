@@ -18,7 +18,7 @@
     "generate-brokers": "node ./src/scripts/generate-brokers.ts"
   },
   "devDependencies": {
-    "tsup": "8.2.4",
+    "tsup": "8.5.1",
     "typescript": "catalog:"
   }
 }

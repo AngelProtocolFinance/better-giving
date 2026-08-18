@@ -398,7 +398,7 @@ export async function npo_series(id: number, opts?: INpoSeriesOpts) {
     holder_rows.map((h) => [h.date!, h.units ?? 0])
   );
 
-  return series_page.items.toReversed().map((i) => {
+  return [...series_page.items].reverse().map((i) => {
     const d = String(i.date);
     const units = units_by_date.get(d) || 0;
     const price = i.price;

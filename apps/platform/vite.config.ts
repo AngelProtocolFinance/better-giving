@@ -9,8 +9,21 @@ import { inline_binary } from "./plugins/inline-binary";
 import { check_env } from "./utils/check-env";
 
 export default defineConfig((config) => {
-  const env = check_env(config.mode);
-  const is_test = !!env.VITEST;
+  // vitest sets VITEST in the process before this config is loaded.
+  const is_test = !!process.env.VITEST;
+  // `react-router typegen` loads this config too, and its ConfigEnv is
+  // byte-identical to `react-router build`'s (command "build", mode
+  // "production") — argv is the only thing that tells them apart. it can't be
+  // spoofed by a deploy env the way an opt-out flag could.
+  const is_typegen = process.argv.includes("typegen");
+  // neither run needs real credentials, so the guard stands down for both.
+  // typegen is the one that would otherwise break a clean checkout: it loads
+  // this config at mode "production", and .env.production is gitignored, so ci
+  // has no values for a run that only reads the route graph. vitest does find
+  // values (.env.test is committed filler) — standing down just keeps the suite
+  // from depending on the guard. dev and build still hard-fail on a missing
+  // key, which is the guard's whole point.
+  const env = check_env(config.mode, !is_test && !is_typegen);
   // vite base for content-hashed client assets: "/" locally, blob origin on
   // deployed stages (skew protection). MUST end in "/" — vite concatenates
   // `base + filename` for ssr-manifest module urls.

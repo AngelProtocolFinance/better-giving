@@ -1,0 +1,119 @@
+name: CI
+
+# push (main) + pull_request only. no other events, no `paths:`/`paths-ignore:`
+# on the triggers or `if:` on the jobs below — a workflow run that gets skipped
+# produces no check run at all, and vercel's own docs don't say how a missing
+# check is treated. every job here must fire on every push and every PR, so
+# vercel always has a check run to read.
+#
+# `staging` is deliberately NOT in the push list. it carries an open pr to main,
+# so a push to it already fires `pull_request` — listing it here too ran every
+# job twice on one commit (`checks (push)` next to `checks (pull_request)`),
+# doubling billed runner minutes for a second copy of the same result. the
+# trade is real and accepted: a push to a branch with no open pr — staging
+# included — now gets no run at all.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# no concurrency/cancel-in-progress block. whether vercel treats a cancelled
+# check as pass or fail is unverified, so a cancelled run risks reading as a
+# pass on a commit nothing actually checked. the blacksmith runners below bill
+# by the minute, so a redundant run is no longer free — it's still cheaper than
+# an ambiguous gate.
+permissions:
+  contents: read
+
+# turborepo remote cache (vercel-hosted). workflow-level so both jobs share it.
+# TURBO_TOKEN is a vercel access token scoped to the better-giving team; TURBO_TEAM
+# is that team's slug. neither is required for the run to succeed — with the token
+# absent or unreadable turbo silently falls back to its local cache, which is what
+# happens on a fork pr, where github withholds secrets by design. the cache is
+# keyed on task inputs, so what ci pulls here is what vercel's own build pushed
+# for the same commit: paypal/chariot/crypto/stocks `build`, which `typecheck`
+# and `test` both depend on via ^build.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+# third-party actions are pinned to a full commit sha, not a major tag. a tag is
+# mutable — whoever controls the upstream repo can retarget v7 at new code, and
+# it runs here with the checkout and the token, with no diff in this repo to
+# review. the trailing `# vX.Y.Z` is the tag that sha was, for readability only;
+# bumping means resolving the new tag to a sha, not editing that comment.
+
+# no `vercel/repository-dispatch/actions/status@v1` step, though vercel's
+# dashboard suggests one. that action exists to stamp a commit status back
+# onto the sha for workflows triggered by `repository_dispatch`, which has no
+# sha of its own; per vercel's docs it "is not required and you can depend on
+# the check directly" otherwise. this workflow is push/pull_request-triggered,
+# so each job already produces its own check run on the right commit. the
+# action is also actively worse here — it maps a cancelled/skipped/null
+# conclusion to success, so a job that never ran would report green.
+
+# jobs run on blacksmith (blacksmith.sh) rather than github-hosted runners —
+# the app is installed on the org, and the label is the whole integration.
+# 4vcpu/16gb matches what `ubuntu-latest` gives a public repo, so this is a
+# swap of where the job runs, not of what it gets. no action swaps either:
+# blacksmith proxies the standard cache actions to its own colocated cache, so
+# setup-node's `cache: pnpm` is accelerated as-is and adds no dependency to pin.
+
+jobs:
+  # job name below ("checks") is the identifier vercel's deployment checks
+  # match on — renaming it silently breaks any gate configured against it.
+  checks:
+    name: checks
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # single root pass, not fanned through turbo — see .claude/CLAUDE.md
+      # tooling → biome.
+      - run: pnpm lint
+
+      # dependsOn: ["^build"] in turbo.json builds paypal/chariot/crypto/
+      # stocks (the dist/-exporting deps platform's typecheck resolves types
+      # from) — never platform/docs/emails-preview's own `build`, which
+      # vercel already runs on every push. don't add `turbo run build` here.
+      - run: pnpm typecheck
+
+  # reports independently of `checks`, so it can gate promotion on its own
+  # once vercel's dashboard lists it as required. slower than `checks` —
+  # the full browser suite, not a type pass.
+  test:
+    name: test
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # vitest runs platform's suite in browser mode (@vitest/browser-playwright,
+      # chromium) — needs a real chromium binary on the runner. playwright's
+      # own CI docs advise against caching ~/.cache/ms-playwright: restore
+      # time is comparable to download time, and --with-deps' apt packages
+      # aren't cacheable anyway. so just install on every run.
+      - run: pnpm --filter platform exec playwright install --with-deps chromium
+
+      # no env block: apps/platform/.env.test is committed throwaway filler and
+      # vitest loads it, so a clean checkout already has every value the suite
+      # reads. the env guard also stands down under vitest (see
+      # apps/platform/vite.config.ts), so nothing here needs real credentials.
+      - run: pnpm test

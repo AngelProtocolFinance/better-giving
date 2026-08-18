@@ -3,7 +3,7 @@
   // (react-jsx — react-email/platform's bundler compiles jsx, tsc type-checks) live here.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "es2024"],
+    "lib": ["dom", "dom.iterable", "es2022"],
     "jsx": "react-jsx"
   },
   "include": ["src"],

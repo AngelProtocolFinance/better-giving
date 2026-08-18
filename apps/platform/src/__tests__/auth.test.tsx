@@ -356,7 +356,7 @@ describe("signup → verification link", () => {
     await expect.element(screen.getByText(/check your inbox/i)).toBeVisible();
 
     // the mail carries a single-use link, never a code to retype
-    const link = sent_links.findLast((l) => l.email === TEST_EMAIL);
+    const link = sent_links.filter((l) => l.email === TEST_EMAIL).at(-1);
     expect(link).toBeTruthy();
     expect(link!.url).toContain("/magic-link/verify");
     expect(link!.url).not.toMatch(/\b\d{6}\b/);
@@ -533,7 +533,9 @@ describe("login flow", () => {
     await screen.getByRole("button", { name: /log in/i }).click();
 
     await expect.element(screen.getByTestId("check-email-page")).toBeVisible();
-    expect(sent_links.findLast((l) => l.email === TEST_EMAIL)).toBeTruthy();
+    expect(
+      sent_links.filter((l) => l.email === TEST_EMAIL).at(-1)
+    ).toBeTruthy();
   });
 
   it("mails a link when a passwordless lead tries to sign in", async () => {
@@ -559,7 +561,9 @@ describe("login flow", () => {
     await screen.getByRole("button", { name: /log in/i }).click();
 
     await expect.element(screen.getByTestId("check-email-page")).toBeVisible();
-    expect(sent_links.findLast((l) => l.email === TEST_EMAIL)).toBeTruthy();
+    expect(
+      sent_links.filter((l) => l.email === TEST_EMAIL).at(-1)
+    ).toBeTruthy();
   });
 
   it("sends a verified user with no password to set one", async () => {
@@ -587,7 +591,7 @@ describe("login flow", () => {
     await expect.element(screen.getByTestId("reset-page")).toBeVisible();
     // a sign-in link here would be the wrong remedy, and would land them back
     // on a page asking for a password they still do not have
-    expect(sent_links.findLast((l) => l.email === TEST_EMAIL)).toBeFalsy();
+    expect(sent_links.filter((l) => l.email === TEST_EMAIL).at(-1)).toBeFalsy();
   });
 
   it("redirects to original page after login with ?redirect param", async () => {
