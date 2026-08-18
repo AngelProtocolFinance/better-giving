@@ -1,13 +1,20 @@
 name: CI
 
-# push (main, staging) + pull_request only. no other events, no `paths:`/
-# `paths-ignore:` on the triggers or `if:` on the jobs below — a workflow run
-# that gets skipped produces no check run at all, and vercel's own docs don't
-# say how a missing check is treated. every job here must fire on every push
-# and every PR, unconditionally, so vercel always has a check run to read.
+# push (main) + pull_request only. no other events, no `paths:`/`paths-ignore:`
+# on the triggers or `if:` on the jobs below — a workflow run that gets skipped
+# produces no check run at all, and vercel's own docs don't say how a missing
+# check is treated. every job here must fire on every push and every PR, so
+# vercel always has a check run to read.
+#
+# `staging` is deliberately NOT in the push list. it carries an open pr to main,
+# so a push to it already fires `pull_request` — listing it here too ran every
+# job twice on one commit (`checks (push)` next to `checks (pull_request)`),
+# doubling billed runner minutes for a second copy of the same result. the
+# trade is real and accepted: a push to a branch with no open pr — staging
+# included — now gets no run at all.
 on:
   push:
-    branches: [main, staging]
+    branches: [main]
   pull_request:
 
 # no concurrency/cancel-in-progress block. whether vercel treats a cancelled
@@ -17,6 +24,18 @@ on:
 # an ambiguous gate.
 permissions:
   contents: read
+
+# turborepo remote cache (vercel-hosted). workflow-level so both jobs share it.
+# TURBO_TOKEN is a vercel access token scoped to the better-giving team; TURBO_TEAM
+# is that team's slug. neither is required for the run to succeed — with the token
+# absent or unreadable turbo silently falls back to its local cache, which is what
+# happens on a fork pr, where github withholds secrets by design. the cache is
+# keyed on task inputs, so what ci pulls here is what vercel's own build pushed
+# for the same commit: paypal/chariot/crypto/stocks `build`, which `typecheck`
+# and `test` both depend on via ^build.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 # third-party actions are pinned to a full commit sha, not a major tag. a tag is
 # mutable — whoever controls the upstream repo can retarget v7 at new code, and
