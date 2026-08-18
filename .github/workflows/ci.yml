@@ -11,10 +11,18 @@ on:
   pull_request:
 
 # no concurrency/cancel-in-progress block. whether vercel treats a cancelled
-# check as pass or fail is unverified, and runners are free on this public
-# repo — a redundant run is cheaper than an ambiguous gate.
+# check as pass or fail is unverified, so a cancelled run risks reading as a
+# pass on a commit nothing actually checked. the blacksmith runners below bill
+# by the minute, so a redundant run is no longer free — it's still cheaper than
+# an ambiguous gate.
 permissions:
   contents: read
+
+# third-party actions are pinned to a full commit sha, not a major tag. a tag is
+# mutable — whoever controls the upstream repo can retarget v7 at new code, and
+# it runs here with the checkout and the token, with no diff in this repo to
+# review. the trailing `# vX.Y.Z` is the tag that sha was, for readability only;
+# bumping means resolving the new tag to a sha, not editing that comment.
 
 # no `vercel/repository-dispatch/actions/status@v1` step, though vercel's
 # dashboard suggests one. that action exists to stamp a commit status back
@@ -25,18 +33,25 @@ permissions:
 # action is also actively worse here — it maps a cancelled/skipped/null
 # conclusion to success, so a job that never ran would report green.
 
+# jobs run on blacksmith (blacksmith.sh) rather than github-hosted runners —
+# the app is installed on the org, and the label is the whole integration.
+# 4vcpu/16gb matches what `ubuntu-latest` gives a public repo, so this is a
+# swap of where the job runs, not of what it gets. no action swaps either:
+# blacksmith proxies the standard cache actions to its own colocated cache, so
+# setup-node's `cache: pnpm` is accelerated as-is and adds no dependency to pin.
+
 jobs:
   # job name below ("checks") is the identifier vercel's deployment checks
   # match on — renaming it silently breaks any gate configured against it.
   checks:
     name: checks
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -58,13 +73,13 @@ jobs:
   # the full browser suite, not a type pass.
   test:
     name: test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
