@@ -71,8 +71,9 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
     label: opt.text,
   });
 
-  // a query source with nothing in it yet has nothing to offer; leaving the
-  // control open would present an empty list as if it were the answer.
+  // a query source still loading, or one that failed, has nothing to offer;
+  // leaving the control open would present an empty list as if it were the
+  // answer.
   const disabled = p.disabled || src.loading || !!src.error;
   const side = p.adornment_side ?? "end";
   const has_clear = !!p.clearable && p.value != null;

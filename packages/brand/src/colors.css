@@ -3,11 +3,10 @@
    and `colors.ts` mirrors it as hex for the email templates
    (mail clients strip stylesheets and don't support oklch()).
 
-   the palette is light-only as of 2026-08-19. a `.dark` set existed but was
-   unreachable in the shipped product — no theme toggle, `.dark` never applied
-   to any element, no prefers-color-scheme query — so it doubled the cost of
-   every palette change for no user-visible benefit and was deleted. this is a
-   decision, not an oversight: don't re-derive a dark half without a product
+   the palette is light-only: the product ships no theme toggle, never applies
+   `.dark` to any element, and has no prefers-color-scheme query — a dark half
+   would double the cost of every palette change for no user-visible benefit.
+   this is a decision, not an oversight: don't derive one without a product
    decision to ship dark mode first. see design-system.md. */
 
 /* semantic design tokens — shadcn convention */
@@ -29,9 +28,9 @@
      pixels you don't control. this carries --primary-fg at 11.27:1, and that
      headroom is the point: a primary-deep/70 scrim over a pure-white photo
      region still measures 4.67:1 for white text, where 65% is 4.07:1 and fails.
-     the 70% is a measured floor, not a taste value. ink is --primary-fg; no
-     -deep-fg was minted, because a second name for #ffffff is a drift trap the
-     test can't catch. same brand hue as --primary (247.3), lower L and C. */
+     the 70% is a measured floor, not a taste value. ink is --primary-fg; there
+     is no -deep-fg, because a second name for #ffffff is a drift trap the test
+     can't catch. same brand hue as --primary (247.3), lower L and C. */
   --primary-deep: oklch(0.349 0.072 247.3);
   --secondary: oklch(0.947 0.019 248.1); /* #e4effa */
   --secondary-fg: oklch(0.208 0.04 265.8); /* #0f172a */
@@ -75,7 +74,8 @@
      bands: a confirmation panel, status pill, or row carrying success copy
      rather than a filled control. --success itself is a FILL here and must
      never be painted on it — it is 5.06:1 on white but only ~4.4:1 on this
-     tint, which is the `bg-success/10 text-success` band this replaces.
+     tint, the same miss `bg-success/10 text-success` measures (4.41:1);
+     neither is legible here.
      --success-subtle-fg is a darkened green authored for the tint.
      literal oklch(), not color-mix(), so it mirrors into colors.ts for email —
      matching --destructive-subtle / --warning-subtle, which are also literals.

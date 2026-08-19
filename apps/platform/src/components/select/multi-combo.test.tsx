@@ -25,9 +25,9 @@ function Harness(p: { on_change?: (v: string[]) => void; initial?: string[] }) {
 }
 
 describe("MultiCombo", () => {
-  // the control used to carry two focus hacks — a tabIndex=-1 `FocusableInput`
-  // for the RHF ref and a bare tabbable `<input>` standing in for the hidden
-  // search box. both are gone; this is what has to still hold.
+  // the control exposes exactly one tab stop and no stand-in inputs: a stray
+  // tabbable element or a tabIndex=-1 ref holder would both pass a render
+  // check and fail here.
   test("tab reaches the control, arrows + enter select", async () => {
     const on_change = vi.fn();
     const screen = await render(<Harness on_change={on_change} />);

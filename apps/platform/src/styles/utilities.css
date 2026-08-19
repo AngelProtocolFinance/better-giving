@@ -1,11 +1,12 @@
-/* `rounded` is the repo's one radius — ~519 call sites, and the only radius
-   name in app code. tailwind v4 ships it as a hardcoded 0.25rem with no theme
-   variable behind it (only the suffixed `rounded-xs|sm|md|lg|...` read
+/* `rounded` is the repo's one radius name in app code — `rounded-full` and
+   `rounded-none` aside, which v4 emits from literals. tailwind v4 ships it as
+   a hardcoded 0.25rem with no theme variable behind it (only the suffixed
+   `rounded-xs|sm|md|lg|...` read
    `--radius-*`), so the bare utility would not follow `--radius` if that ever
    moved. rebinding it here is the documented way to customize a built-in
    utility, and makes the name the app already uses the single source.
-   `rounded-sm`/`-xs` stay as tailwind defines them — they read `--radius-*`,
-   which `index.css` already derives from `--radius`. */
+   `rounded-sm`/`-xs` are not the escape hatch they look like: the `--radius-*`
+   scale they read is reset to `initial` in index.css, so they fail to compile. */
 @utility rounded {
   border-radius: var(--radius);
 }
@@ -108,6 +109,20 @@
   min-block-size: var(--btn-size);
 }
 
+/* the fourth tier, and the only one whose height is not its own: a button that
+   sits BESIDE a form control and has to match it — the show/copy buttons next
+   to an api-key field. --field-size is declared in styles/components.css and is
+   what `.field-input` pins itself to, so this tracks the field by construction
+   rather than by a copied number. everything else mirrors btn-md. */
+@utility btn-field {
+  --btn-size: var(--field-size);
+  padding-block: calc(var(--spacing) * 2) /* 8px */;
+  padding-inline: calc(var(--spacing) * 6) /* 24px */;
+  font-size: var(--text-sm) /* 0.875rem = 14px */;
+  line-height: var(--tw-leading, var(--text-sm--line-height) /* 20px */);
+  min-block-size: var(--btn-size);
+}
+
 /* square icon-only shape. a modifier, not a fourth tier: it composes with all
    three sizes (`btn-sm btn-icon`, `btn btn-icon`, `btn-lg btn-icon`) and takes
    its side from the tier's own height, published as --btn-size. must stay AFTER
@@ -116,11 +131,18 @@
    loses to this regardless of order. inline-size and min-inline-size are both
    set so the square survives being a flex item that could otherwise shrink.
    the button has no text node, so every call site MUST carry an aria-label.
-   radius is inherited from .btn (var(--radius)) — do not add a second one. */
+   radius is inherited from .btn (var(--radius)) — do not add a second one.
+   block-size is definite, not a min: a flex row defaults to align-items:stretch,
+   and a min-block-size does not stop it — only a definite size wins over
+   stretch, so beside a taller control the square survives. it also
+   leaves the item at cross-start, so a row mixing this with a taller control
+   needs `items-center` on the CONTAINER — alignment is external flow and stays
+   the caller's, per the layout rule in CLAUDE.md. */
 @utility btn-icon {
   padding-inline: 0;
   inline-size: var(--btn-size);
   min-inline-size: var(--btn-size);
+  block-size: var(--btn-size);
 }
 
 /** page components */
@@ -133,8 +155,9 @@
 @utility btn-form-primary {
   background-color: var(--form-primary);
   color: var(--primary-fg);
-  /* --secondary was a near-white tint at 1.17:1 against the page. --ring is
-     remapped to --form-primary inside #donation-container, so the ring follows
+  /* --ring, not --secondary: --secondary is a near-white tint at 1.17:1
+     against the page. --ring is remapped to --form-primary inside
+     #donation-container, so the ring follows
      the host org's brand rather than pinning a value that may collide with an
      unknown host page. */
   &:focus-visible {

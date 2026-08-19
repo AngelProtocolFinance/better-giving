@@ -1,7 +1,6 @@
 /**
  * one popup / option / status vocabulary for every select and combobox.
  *
- * five implementations styled the same popup five ways before this existed.
  * what lives here is the shared shell; what stays at a call site is genuinely
  * per-host — the popup's width, and the scrollbar theming the embedded donation
  * form drives from its tenant accents.
@@ -22,9 +21,9 @@ export const popup_scrollbar_cls =
   "scrollbar-thin scrollbar-thumb-ring scrollbar-track-border";
 
 /**
- * popup enter/exit. deliberately not folded into `popup_cls`: only two of the
- * five popups animate today, none of them guards `prefers-reduced-motion`, and
- * an exit animation moves when ark fires `onExitComplete`. unifying it is a
+ * popup enter/exit. deliberately not folded into `popup_cls`: not every popup
+ * animates, none of the ones that do guards `prefers-reduced-motion`, and an
+ * exit animation only moves when ark fires `onExitComplete`. unifying it is a
  * design-system call, not a class collapse.
  */
 export const popup_motion_cls =

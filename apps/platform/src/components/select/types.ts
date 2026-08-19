@@ -5,7 +5,7 @@ export interface Opt<T> {
   /**
    * stable id; default: identity for `T extends string`.
    *
-   * named `item_key`, not the spec's `key`: `key` is reserved in JSX, so React
+   * named `item_key`, not the conventional `key`: `key` is reserved in JSX, so React
    * strips it from props before the component ever sees it and the default
    * silently takes over — `String(v)` on an object, at every call site with a
    * non-string option type.
@@ -15,7 +15,7 @@ export interface Opt<T> {
    * input display text + typeahead + accessible name (ark's `itemToString`);
    * default: identity for `T extends string`.
    *
-   * named `item_text` rather than the spec's `label`: every component takes
+   * named `item_text` rather than the conventional `label`: every component takes
    * `FieldProps & Opt<T>`, and `FieldProps.label` is the FIELD's label — the
    * two collide in that intersection and neither is usable after it.
    */
@@ -43,10 +43,10 @@ export type Source<T> = StaticSource<T> | QuerySource<T> | AsyncSource<T>;
 /**
  * the arms `internal/use-source` resolves today.
  *
- * `AsyncSource` is deliberately absent from the components' `options` prop
- * until the async pickers migrate: an abort/loading/error state machine that
- * nothing exercises is the worst kind of code to inherit. adding the arm is
- * then a type error at every call site that needs it, not a silent hole.
+ * `AsyncSource` is deliberately absent from the components' `options` prop: an
+ * abort/loading/error state machine that nothing exercises is the worst kind of
+ * code to inherit. adding the arm when a call site needs it is then a type
+ * error there, not a silent hole.
  */
 export type SyncSource<T> = StaticSource<T> | QuerySource<T>;
 

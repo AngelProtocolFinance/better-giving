@@ -15,8 +15,7 @@ interface Args<T> {
  *
  * zag resolves a value's display text through the collection
  * (`collection.stringifyMany`), so a selected item that a filter dropped has no
- * label left to show — the input goes blank and never comes back. this is the
- * "Rehydrate" case, hand-rolled three different ways before it lived here.
+ * label left to show — the input goes blank and never comes back.
  *
  * the rehydrated item is returned in `rows` as well as the collection, not just
  * the collection: an entry zag can arrow onto but the popup never renders would

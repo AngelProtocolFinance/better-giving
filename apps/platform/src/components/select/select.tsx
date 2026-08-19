@@ -16,8 +16,8 @@ import { option_cls } from "./classes";
 import { Popup } from "./internal/popup";
 import type { FieldProps } from "./types";
 
-/** `button` is `FieldProps["classes"].control` under its pre-seam name. the
-    rename lands with the call sites; this file is a body swap. */
+/** call sites of `Select` name the control class `button`; it is the same slot
+    as `FieldProps["classes"].control` on the shared interface. */
 type Classes = Omit<NonNullable<FieldProps["classes"]>, "control"> & {
   button?: string;
 };

@@ -80,7 +80,7 @@ export function BankDetails({
         item_text={to_label}
         filter={matches}
         // the full list is the point here — a payout currency is picked from
-        // what wise supports, not from a head of ten
+        // what wise supports, not from the default RESULT_LIMIT of 10 rows
         limit={Number.POSITIVE_INFINITY}
         label="Select your bank account currency:"
         required

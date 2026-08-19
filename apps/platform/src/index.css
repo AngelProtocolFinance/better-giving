@@ -110,9 +110,10 @@
   --color-sidebar-ring: var(--sidebar-ring);
   /* the radius ladder is closed, the same way --color-* is. this repo has ONE
      corner: `rounded`, bound to --radius by @utility in styles/utilities.css.
-     the seven steps here were fractions of it (1.6px / 2.4px / 3.2px …), so
-     every use was a near-sharp corner nobody chose on purpose — 34 of them had
-     accumulated. resetting the scale makes `rounded-sm` and friends fail to
+     the seven steps this scale would define are fractions and multiples of
+     that one value (1.6px / 2.4px / 3.2px …) — near-sharp corners nobody picks
+     on purpose, and they accumulate silently. resetting the scale makes
+     `rounded-sm` and friends fail to
      compile instead of drifting silently. `rounded-full` and `rounded-none`
      are unaffected: v4 emits those from literals, not from this scale. */
   --radius-*: initial;

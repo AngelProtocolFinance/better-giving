@@ -1,10 +1,23 @@
 /** Layer 1 components */
+
+/* the height of a form control, declared once so it is reachable.
+   `.field-input` composes to exactly this out of padding + line-height +
+   border (14 + 20 + 14 + 2) — arithmetic nothing else can match without
+   copying the number. `btn-field` in styles/utilities.css reads the same var,
+   so a button sitting beside a field cannot drift from it.
+   `.field-input` pins itself to it below, which is a no-op today and the point:
+   change this and the field follows, instead of the arithmetic silently
+   disagreeing. */
+:root {
+  --field-size: calc(var(--spacing) * 12.5) /* 50px */;
+}
+
 @layer components {
   /* bare .btn is the md tier of the size scale — py-2 / px-6 / text-sm / 36px.
      the other two tiers (btn-sm, btn-lg) and btn-md live in utilities.css as
      @utility so they are variant-capable (`xl:btn-lg`) and win this layer.
-     radius is var(--radius) (4px): the only integer step on the ladder, and a
-     fractional corner shows against .btn-secondary's faint 1px border. */
+     radius is var(--radius) (4px) — the repo's one corner; a fractional
+     corner shows against .btn-secondary's faint 1px border. */
   .btn {
     display: flex;
     justify-content: center;
@@ -178,6 +191,7 @@
     );
     background-color: var(--input);
     padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
+    min-block-size: var(--field-size);
     border: 1px solid var(--border);
     outline-color: var(--ring);
     color: var(--fg);
