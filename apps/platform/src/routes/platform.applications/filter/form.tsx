@@ -2,11 +2,10 @@ import { Popover } from "@ark-ui/react/popover";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { FC } from "react";
 import { useController, useForm } from "react-hook-form";
-import { Combo } from "#/components/combo";
 import { DateRangeField } from "#/components/date-range-field";
 import { toYYYMMDD } from "#/components/form";
 import { DrawerIcon } from "#/components/icon";
-import { Select } from "#/components/selector/select";
+import { Combo, Select } from "#/components/select";
 import { countries, country_names } from "#/constants/countries";
 import type { IRegsSearchObj } from "@/reg";
 import { statuses } from "./constants";
@@ -58,30 +57,25 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
       >
         <div className="px-6 pt-6">
           <Combo
-            value={country.value}
-            onChange={country.onChange}
+            value={country.value || undefined}
+            on_change={(c) => country.onChange(c ?? "")}
             label="Country"
             placeholder="Select a country"
             options={country_names}
-            classes={{ input: "pl-12" }}
-            option_disp={(c) => (
+            clearable
+            render={(c) => (
               <>
                 <span className="text-2xl">{countries[c].flag}</span>
                 <span>{c}</span>
               </>
             )}
-            btn_disp={(c, open) => {
-              const flag = countries[c]?.flag;
+            adornment_side="start"
+            adornment={(open) => {
+              const flag = countries[country.value]?.flag;
               return flag ? (
-                <span data-flag className="text-2xl">
-                  {flag}
-                </span>
+                <span className="text-2xl">{flag}</span>
               ) : (
-                <DrawerIcon
-                  is_open={open}
-                  size={20}
-                  className="justify-self-end shrink-0"
-                />
+                <DrawerIcon is_open={open} size={20} />
               );
             }}
           />
@@ -117,7 +111,7 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
           </button>
           <button
             type="submit"
-            className="btn btn btn-primary px-6 py-2 rounded text-xs font-bold"
+            className="btn btn btn-primary rounded font-bold"
           >
             Apply filters
           </button>

@@ -75,18 +75,14 @@ function Content({ recipient_name }: { recipient_name: string }) {
             <Link
               to={".."}
               aria-disabled={busy}
-              className="btn-secondary btn text-sm px-8 py-2"
+              className="btn-secondary btn"
               preventScrollReset
               replace
             >
               Keep your support
             </Link>
           </Dialog.CloseTrigger>
-          <button
-            disabled={busy}
-            type="submit"
-            className="btn btn-destructive px-8 py-2 text-sm"
-          >
+          <button disabled={busy} type="submit" className="btn btn-destructive">
             {busy ? "Canceling..." : "Cancel"}
           </button>
         </div>

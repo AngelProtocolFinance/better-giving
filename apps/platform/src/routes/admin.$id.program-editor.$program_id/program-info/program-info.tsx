@@ -93,7 +93,7 @@ export function ProgramInfo(props: IProgram) {
             !isDirty || is_loading || isSubmitting || image.value === "loading"
           }
           type="submit"
-          className="@lg:justify-self-end btn btn-primary py-2 text-sm"
+          className="@lg:justify-self-end btn btn-primary"
         >
           {is_loading || isSubmitting ? "Saving..." : "Save changes"}
         </button>

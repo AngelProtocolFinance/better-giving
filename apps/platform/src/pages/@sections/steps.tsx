@@ -92,13 +92,13 @@ export function Steps({ classes = "" }) {
       >
         <Link
           to={href("/register")}
-          className="btn btn-primary inline-flex items-center px-10 py-3 text-lg font-bold rounded"
+          className="btn btn-lg btn-primary inline-flex items-center font-bold rounded"
         >
           Join us today!
         </Link>
         <Link
           to={BOOK_A_DEMO}
-          className="btn btn-secondary inline-flex items-center px-10 py-3 text-lg font-bold rounded"
+          className="btn btn-lg btn-secondary inline-flex items-center font-bold rounded"
         >
           Book a Demo
         </Link>

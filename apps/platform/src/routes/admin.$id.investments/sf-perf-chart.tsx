@@ -53,14 +53,14 @@ export function SfPerChart(
         <div className="flex gap-x-2 items-center">
           <button
             type="button"
-            className=" btn-primary text-xs px-2 py-1 rounded pointer-events-none"
+            className="btn btn-sm btn-primary rounded pointer-events-none"
           >
             3 months
           </button>
           <button
             disabled
             type="button"
-            className=" btn-secondary text-xs px-2 py-1 rounded"
+            className="btn btn-sm btn-secondary rounded"
           >
             1 year
           </button>

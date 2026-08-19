@@ -3,7 +3,7 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { InfoIcon } from "lucide-react";
 import { useController, useForm } from "react-hook-form";
 import { Field } from "#/components/form";
-import { Select } from "#/components/selector";
+import { Select } from "#/components/select";
 import { humanize } from "@/helpers/decimal";
 import { type Props, type Schema, type Source, schema, sources } from "./types";
 
@@ -66,7 +66,7 @@ export function Panel(props: Props) {
         />
 
         {source.value && (
-          <div className="text-sm text-warning bg-warning/10 rounded p-2 mt-4">
+          <div className="text-sm text-warning-subtle-fg bg-warning-subtle rounded p-2 mt-4">
             <InfoIcon className="inline relative bottom-px" size={15} /> This
             operation is irreversible. Withdrawing from{" "}
             {source.value === "liq"
@@ -80,7 +80,7 @@ export function Panel(props: Props) {
         <button
           type="submit"
           disabled={props.is_submitting || !isDirty}
-          className="text-sm btn-primary rounded p-4 font-bold mt-8"
+          className="btn btn-md btn-primary rounded mt-8"
         >
           {props.is_submitting ? "Submitting..." : "Submit"}
         </button>

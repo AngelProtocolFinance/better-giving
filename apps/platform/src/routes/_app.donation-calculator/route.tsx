@@ -60,7 +60,7 @@ export default function Page() {
         </h2>
         <Link
           reloadDocument
-          className="col-start-2 justify-self-end mb-2 btn-primary px-4 py-1 rounded text-sm"
+          className="col-start-2 justify-self-end mb-2 btn btn-primary rounded"
           to={{
             pathname: "../donation-calculator-export",
             search: new URLSearchParams(params).toString(),

@@ -61,7 +61,7 @@ export function Card({
         />
         <NavLink
           to={href("/donate-fund/:fund_id", { fund_id: id })}
-          className="btn btn-primary px-4 py-1 rounded text-sm"
+          className="btn btn-primary rounded"
         >
           Donate
         </NavLink>

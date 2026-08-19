@@ -76,10 +76,12 @@ export function ProbSol({ className = "" }) {
         </h1>
         <p className="mb-10 text-lg @6xl:text-xl text-center @6xl:text-left">
           Many donation platforms{" "}
-          <span className="text-warning">take a cut of your funds</span>, limit
-          the types of donations you can accept, or require complicated
+          <span className="text-warning-subtle-fg">
+            take a cut of your funds
+          </span>
+          , limit the types of donations you can accept, or require complicated
           onboarding—
-          <span className="text-warning">
+          <span className="text-warning-subtle-fg">
             hurting your nonprofit’s ability to maximize impact.
           </span>
         </p>

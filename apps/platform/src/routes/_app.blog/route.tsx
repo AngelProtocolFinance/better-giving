@@ -75,7 +75,7 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
         {nextPage && (
           <button
             type="button"
-            className="btn btn-primary mx-auto mt-12 px-7 py-3.5"
+            className="btn btn-lg btn-primary mx-auto mt-12"
             onClick={() => {
               const copy = new URLSearchParams(params);
               copy.set("page", nextPage.toString());
@@ -101,7 +101,7 @@ const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
     <NavLink
       key={post._id}
       to={post.slug.current}
-      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded-lg overflow-hidden bg-card border border-border hover:shadow-lg transition-shadow group"
+      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-card border border-border hover:shadow-lg transition-shadow group"
     >
       {post.image?.asset ? (
         <img

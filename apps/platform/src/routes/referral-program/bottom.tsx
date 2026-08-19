@@ -16,7 +16,7 @@ export function Bottom({ classes = "" }) {
       </p>
       <Link
         to={`${href("/signup")}?redirect=${href("/dashboard/referrals")}`}
-        className="btn btn-primary text-balance justify-self-center w-fit mx-auto font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
+        className="btn btn-lg btn-primary text-balance justify-self-center w-fit mx-auto font-bold inline-flex items-center gap-1 rounded"
       >
         Get Your Referral Link Now
         <ArrowRight size={18} className="shrink-0" />

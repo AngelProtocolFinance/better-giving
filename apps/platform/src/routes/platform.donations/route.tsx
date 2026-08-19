@@ -193,7 +193,7 @@ function Row({ payment: c }: { payment: PaymentRow }) {
             to={`${c.donation_id}/refund`}
             preventScrollReset
             replace
-            className="btn-secondary btn text-xs px-2 py-0.5"
+            className="btn-secondary btn btn-sm"
           >
             Refund
           </NavLink>

@@ -11,7 +11,7 @@ import icon7 from "./icons/Icon7_wb.webp";
 import { sf } from "./sf-benefits";
 import type { Benefit } from "./types";
 
-const colors = ["bg-[#EDFCE2]", "bg-lilac", "bg-[#FCF6E2]", "bg-[#EDF2FE]"];
+const colors = ["bg-mint", "bg-lilac", "bg-cream", "bg-sky"];
 
 const donors: Benefit[] = [
   {

@@ -66,7 +66,7 @@ function EditableShell({
       <FocusBridge fwdRef={ref} />
       <Toolbar />
       <PortableTextEditable
-        className="outline-none mt-2 flex-1"
+        className="mt-2 flex-1 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
         placeholder={props.placeHolder}
         renderStyle={render_style}
         renderDecorator={render_decorator}

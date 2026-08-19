@@ -44,7 +44,7 @@ export default function Page() {
             nonprofit. And third-party processing fees? Most donors choose to
             cover them, so the vast majority of every gift reaches you.
           </p>
-          <div className="bg-accent border border-border rounded-lg px-7 py-5 max-w-xl">
+          <div className="bg-accent border border-border rounded px-7 py-5 max-w-xl">
             <p className="text-sm/relaxed text-muted-fg text-pretty">
               <strong className="text-fg">
                 Prefer no contribution ask on your form?

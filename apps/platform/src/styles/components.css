@@ -1,12 +1,24 @@
 /** Layer 1 components */
 @layer components {
+  /* bare .btn is the md tier of the size scale — py-2 / px-6 / text-sm / 36px.
+     the other two tiers (btn-sm, btn-lg) and btn-md live in utilities.css as
+     @utility so they are variant-capable (`xl:btn-lg`) and win this layer.
+     radius is var(--radius) (4px): the only integer step on the ladder, and a
+     fractional corner shows against .btn-secondary's faint 1px border. */
   .btn {
     display: flex;
     justify-content: center;
     align-items: center;
     font-weight: 700;
-    padding: calc(var(--spacing) * 3);
-    border-radius: var(--radius-sm);
+    /* published for btn-icon, which squares a button on its tier's own height.
+       bare .btn carries no tier class, so the md value has to live here too. */
+    --btn-size: calc(var(--spacing) * 9) /* 36px */;
+    padding-block: calc(var(--spacing) * 2);
+    padding-inline: calc(var(--spacing) * 6);
+    font-size: var(--text-sm) /* 0.875rem = 14px */;
+    line-height: var(--tw-leading, var(--text-sm--line-height));
+    min-block-size: var(--btn-size);
+    border-radius: var(--radius);
   }
 
   .btn-secondary {
@@ -103,6 +115,9 @@
      .btn-primary would be 1.00:1 against the button it surrounds. on a
      --primary-filled panel, scope with the `surface-primary` utility. */
   .btn,
+  .btn-sm,
+  .btn-md,
+  .btn-lg,
   .btn-ghost,
   .btn-secondary,
   .btn-success,
@@ -155,7 +170,7 @@
 
   .field-input {
     width: 100%;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     font-size: var(--text-sm) /* 0.875rem = 14px */;
     line-height: var(
       --tw-leading,
@@ -188,7 +203,7 @@
 
   .field-input-container {
     width: 100%;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
     font-size: var(--text-sm) /* 0.875rem = 14px */;
     line-height: var(
       --tw-leading,
@@ -239,19 +254,6 @@
     &:hover {
       background-color: var(--accent);
     }
-  }
-  .selector-opts {
-    border-radius: var(--radius-xs);
-    border: 1px solid var(--border);
-    background-color: var(--popover);
-    color: var(--popover-fg);
-    position: absolute;
-    top: 100%;
-    margin-top: calc(var(--spacing) * 2);
-    z-index: 10;
-    width: 100%;
-    max-height: 10rem;
-    overflow-y: auto;
   }
 
   .label {

@@ -51,7 +51,7 @@ function Fund(props: IFundItem) {
         to={href("/fundraisers/:fund_id/donate", {
           fund_id: props.id,
         })}
-        className="btn btn-primary text-xs w-full col-span-full mt-4"
+        className="btn btn-primary w-full col-span-full mt-4"
       >
         Donate
       </NavLink>

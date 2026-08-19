@@ -18,7 +18,7 @@ function Program(props: IProgramDb) {
     <div className="border rounded relative group overflow-hidden">
       <Link
         to={`program/${props.id}`}
-        className="absolute inset-0 group-hover:border group-hover:border-primary dark:group-hover:border-primary"
+        className="absolute inset-0 group-hover:border group-hover:border-primary"
       />
       <Image src={props.banner} className="h-64 w-full object-cover" />
       <div className="p-5">

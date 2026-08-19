@@ -7,7 +7,11 @@ interface IConfig {
 }
 
 const configs: Record<PayoutStatusType["type"], IConfig> = {
-  pending: { text: "text-warning", dot: "bg-warning", label: "Pending" },
+  pending: {
+    text: "text-warning-subtle-fg",
+    dot: "bg-warning",
+    label: "Pending",
+  },
   settled: { text: "text-success", dot: "bg-success", label: "Settled" },
   error: { text: "text-destructive", dot: "bg-destructive", label: "Error" },
   refunded: {

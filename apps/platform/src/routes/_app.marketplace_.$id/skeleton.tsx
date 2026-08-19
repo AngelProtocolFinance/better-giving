@@ -34,7 +34,7 @@ function Logo({ className = "" }) {
     <div
       className={`h-0 relative flex max-lg:justify-center items-center ${className}`}
     >
-      <div className="size-40 sm:size-44 rounded-full bg-secondary dark:bg-primary" />
+      <div className="size-40 sm:size-44 rounded-full bg-secondary" />
     </div>
   );
 }

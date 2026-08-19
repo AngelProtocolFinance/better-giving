@@ -2,7 +2,7 @@ import { useController } from "react-hook-form";
 import { useFetcher, useNavigation, useSearchParams } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { Field } from "#/components/form";
-import { Select } from "#/components/selector";
+import { Select } from "#/components/select";
 import type { ILoaderData } from "../api";
 import type { FV } from "../schema";
 import { NpoSelector } from "./npo-selector";
@@ -100,7 +100,7 @@ export function Form({ classes = "", ...p }: Props) {
       />
 
       <button
-        className="col-span-full btn btn-primary text-sm"
+        className="col-span-full btn btn-primary"
         disabled={f.state !== "idle" || nav.state !== "idle"}
         type="submit"
       >

@@ -91,28 +91,28 @@ export function TipField({ classes = "", ...p }: Props) {
         aria-label="Contribution amount"
       >
         <RadioGroup.Item
-          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
           value={"10" satisfies TTipFormat}
         >
           <RadioGroup.ItemText>10%</RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>
         <RadioGroup.Item
-          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
           value={"15" satisfies TTipFormat}
         >
           <RadioGroup.ItemText>15%</RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>
         <RadioGroup.Item
-          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded"
           value={"20" satisfies TTipFormat}
         >
           <RadioGroup.ItemText>20%</RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>
         <RadioGroup.Item
-          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-[state=checked]:outline-none data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded flex-center"
+          className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded flex-center"
           value={"custom" satisfies TTipFormat}
           aria-label="Custom amount"
         >

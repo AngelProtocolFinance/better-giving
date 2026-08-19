@@ -38,15 +38,10 @@ export function Loader({ name, logo = flying_character }: IEndow) {
             {list.map((org) => {
               const is_current = org.id.toString() === current_id;
               return (
-                <Menu.Item
-                  key={org.id}
-                  value={org.id.toString()}
-                  asChild
-                  className="focus-visible:outline-none"
-                >
+                <Menu.Item key={org.id} value={org.id.toString()} asChild>
                   <Link
                     to={href("/admin/:id", { id: org.id.toString() })}
-                    className="hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg flex items-center gap-2 px-2 py-2 rounded text-muted-fg hover:text-fg"
+                    className="hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 flex items-center gap-2 px-2 py-2 rounded text-muted-fg hover:text-fg"
                   >
                     <Image
                       src={org.logo || flying_character}
@@ -60,14 +55,10 @@ export function Loader({ name, logo = flying_character }: IEndow) {
                 </Menu.Item>
               );
             })}
-            <Menu.Item
-              value="register"
-              asChild
-              className="focus-visible:outline-none"
-            >
+            <Menu.Item value="register" asChild>
               <Link
                 to={href("/register")}
-                className="hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg border-t mt-1 flex items-center gap-2 px-2 py-2 rounded text-muted-fg hover:text-fg"
+                className="hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t mt-1 flex items-center gap-2 px-2 py-2 rounded text-muted-fg hover:text-fg"
               >
                 <PlusIcon size={16} className="shrink-0" />
                 <span className="text-sm">Register another org</span>

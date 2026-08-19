@@ -80,7 +80,7 @@ export function Earnings({
             <div className="mt-4">
               <p className="text-sm text-muted-fg">Payout threshold</p>
               <div className="flex gap-x-1 items-center">
-                <p className="font-semibold text-warning">
+                <p className="font-semibold text-warning-subtle-fg">
                   ${humanize(payout_min)}
                 </p>
                 <Link
@@ -99,10 +99,7 @@ export function Earnings({
               <p className="text-sm text-muted-fg">Payout method</p>
               <div className="flex gap-x-2 items-center">
                 <p className="text-sm">{payout.longAccountSummary}</p>
-                <Link
-                  to="payout"
-                  className="text-xs btn-primary px-3 py-1 rounded"
-                >
+                <Link to="payout" className="btn btn-sm btn-primary rounded">
                   Change
                 </Link>
               </div>
@@ -111,7 +108,7 @@ export function Earnings({
             <div className="flex items-center gap-x-2">
               <Link
                 to={w_form ? "payout" : "w-form"}
-                className="mt-2 inline-block text-sm rounded px-4 py-2 btn-primary"
+                className="btn btn-primary mt-2 rounded"
               >
                 Setup Payout Method
               </Link>

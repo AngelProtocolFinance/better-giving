@@ -34,7 +34,7 @@ export function MigratedInfo(props: Props) {
 
       <Link
         to={`${href("/login")}?redirect=${props.to}`}
-        className="flex-center mt-6 w-full btn-primary h-12 sm:h-[52px] rounded sm:text-lg font-bold"
+        className="btn btn-lg btn-primary mt-6 w-full rounded"
       >
         Back to Sign In
       </Link>

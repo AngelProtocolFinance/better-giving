@@ -74,14 +74,11 @@ export default function Page() {
             <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
               <Link
                 to={href("/register")}
-                className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25"
+                className="btn btn-lg btn-primary shadow-lg shadow-primary/25"
               >
                 Apply in minutes
               </Link>
-              <ExtLink
-                href={BOOK_A_DEMO}
-                className="btn btn-secondary px-6 py-3.5"
-              >
+              <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
                 Book a demo
               </ExtLink>
             </div>
@@ -109,7 +106,7 @@ export default function Page() {
             <div className="grid sm:grid-cols-[220px_1fr] gap-x-4.5 gap-y-1.5 items-center">
               <span className="font-bold sm:text-right">Better Giving</span>
               <div className="flex items-center gap-3">
-                <div className="w-[29%] h-9.5 rounded-lg bg-primary" />
+                <div className="w-[29%] h-9.5 rounded bg-primary" />
                 <span className="text-lg font-bold">2.9%</span>
               </div>
             </div>
@@ -119,7 +116,7 @@ export default function Page() {
               </span>
               <div className="flex items-center gap-3">
                 <div
-                  className="w-[70%] h-9.5 rounded-lg"
+                  className="w-[70%] h-9.5 rounded"
                   style={{ background: market_bar_bg }}
                 />
                 <span className="text-lg font-bold text-muted-fg">4-10%</span>
@@ -138,7 +135,7 @@ export default function Page() {
             {audiences.map((a) => (
               <div
                 key={a.title}
-                className="bg-card border border-border rounded-lg p-8 shadow-lg shadow-primary/5 grid gap-2.5 content-start"
+                className="bg-card border border-border rounded p-8 shadow-lg shadow-primary/5 grid gap-2.5 content-start"
               >
                 <span className="text-xl font-bold">{a.title}</span>
                 <p className="text-sm/relaxed text-muted-fg">{a.body}</p>

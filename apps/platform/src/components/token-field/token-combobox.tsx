@@ -3,6 +3,13 @@ import { useFilter } from "@ark-ui/react/locale";
 import { Portal } from "@ark-ui/react/portal";
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { unpack } from "#/helpers/unpack";
+import {
+  drawer_trigger_cls,
+  popup_cls,
+  RESULT_LIMIT,
+  status_cls,
+  status_text,
+} from "../select/classes";
 
 interface Classes {
   container?: string;
@@ -44,8 +51,9 @@ type SearchState<T> =
   | { status: "error"; msg: string }
   | { status: "ok"; data: T[] };
 
-const popup_classes =
-  "w-56 border p-1 max-h-60 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-(--form-primary) scrollbar-track-(--form-secondary) rounded bg-muted shadow-lg focus:outline-hidden";
+// the scrollbar is the one part of the shell the embed themes itself: these
+// are tenant accents re-applied to the portaled popup, not app tokens.
+const popup_classes = `${popup_cls} w-56 p-1 scrollbar-thin scrollbar-thumb-(--form-primary) scrollbar-track-(--form-secondary) focus:outline-hidden`;
 
 const positioning = { gutter: 8, placement: "bottom-start" as const };
 
@@ -97,16 +105,16 @@ export function TokenCombobox<T>(props: ITokenCombobox<T>) {
       })
       .catch(() => {
         if (controller.signal.aborted) return;
-        set_search({ status: "error", msg: "Failed to load options" });
+        set_search({ status: "error", msg: status_text.error });
       });
   }
 
   function get_status() {
-    if (search.status === "loading") return "Searching…";
+    if (search.status === "loading") return status_text.loading;
     if (search.status === "error") return search.msg;
     const trimmed = search_q.trim();
     if (trimmed === "" || search_results.length > 0) return null;
-    return `${trimmed} not found`;
+    return status_text.no_match(trimmed);
   }
 
   const selected_key = props.item_key(props.value);
@@ -155,7 +163,7 @@ export function TokenCombobox<T>(props: ITokenCombobox<T>) {
           placeholder={props.input_placeholder}
           className="w-full text-left text-sm focus:outline-hidden bg-transparent px-4"
         />
-        <Combobox.Trigger className="absolute right-4 top-1/2 -translate-y-1/2">
+        <Combobox.Trigger className={drawer_trigger_cls}>
           {props.btn_disp(is_open)}
         </Combobox.Trigger>
       </Combobox.Control>
@@ -163,9 +171,7 @@ export function TokenCombobox<T>(props: ITokenCombobox<T>) {
       <Portal>
         <Combobox.Positioner>
           <Combobox.Content style={props.opts_styles} className={popup_classes}>
-            {get_status() ? (
-              <p className="p-2 text-sm text-muted-fg">{get_status()}</p>
-            ) : null}
+            {get_status() ? <p className={status_cls}>{get_status()}</p> : null}
             {items.map((opt) => props.opt_disp(opt))}
           </Combobox.Content>
         </Combobox.Positioner>
@@ -192,7 +198,7 @@ export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
 
   // show first 10 when no query, otherwise filter
   const visible = useMemo(() => {
-    if (!filter_q) return props.items.slice(0, 10);
+    if (!filter_q) return props.items.slice(0, RESULT_LIMIT);
     return props.items.filter((v) => contains(props.item_label(v), filter_q));
   }, [props.items, filter_q, contains, props.item_label]);
 
@@ -232,7 +238,7 @@ export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
           placeholder={props.input_placeholder}
           className="w-full text-left text-sm focus:outline-hidden bg-transparent px-4"
         />
-        <Combobox.Trigger className="absolute right-4 top-1/2 -translate-y-1/2">
+        <Combobox.Trigger className={drawer_trigger_cls}>
           {props.btn_disp(is_open)}
         </Combobox.Trigger>
       </Combobox.Control>
@@ -241,7 +247,7 @@ export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
         <Combobox.Positioner>
           <Combobox.Content style={props.opts_styles} className={popup_classes}>
             {visible.length === 0 ? (
-              <p className="p-2 text-sm text-muted-fg">{filter_q} not found</p>
+              <p className={status_cls}>{status_text.no_match(filter_q)}</p>
             ) : (
               visible.map((opt) => props.opt_disp(opt))
             )}

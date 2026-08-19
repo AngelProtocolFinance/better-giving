@@ -44,7 +44,7 @@ export function DetailsColumn({
           {target}
           <NavLink
             to={href("/donate/:id", { id: npo.id.toString() })}
-            className="w-full btn btn-primary h-12 px-6 lg:text-sm"
+            className="w-full btn btn-primary"
           >
             Donate now
           </NavLink>

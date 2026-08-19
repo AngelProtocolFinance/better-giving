@@ -123,14 +123,14 @@ export function FsaForm(props: Props) {
         <Link
           aria-disabled={is_submitting || is_redirecting}
           to={`../${steps.org_details}`}
-          className="py-3 min-w-32 btn-secondary btn text-sm"
+          className="min-w-32 btn-secondary btn"
         >
           Back
         </Link>
         <button
           disabled={is_submitting || is_redirecting || is_uploading}
           type="submit"
-          className="py-3 min-w-32 btn btn-primary text-sm"
+          className="min-w-32 btn btn-primary"
         >
           <LoadText
             is_loading={is_submitting || is_redirecting}

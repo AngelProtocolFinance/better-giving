@@ -62,19 +62,14 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
   return (
     <div className={classes}>
       <Menu.Root positioning={{ placement: "bottom", gutter: 8 }}>
-        <Menu.Trigger className="focus-visible:outline-none text-primary hover:text-primary transition-colors duration-200">
+        <Menu.Trigger className="focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 rounded text-primary hover:text-primary transition-colors duration-200">
           <ShareIcon size={20} />
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
             <Menu.Content className="z-10 grid grid-cols-2 w-max p-3 rounded bg-popover text-popover-fg shadow-xl shadow-black/5 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
               {menuItems.map((item) => (
-                <Menu.Item
-                  key={item.name}
-                  value={item.name}
-                  asChild
-                  className="focus-visible:outline-none"
-                >
+                <Menu.Item key={item.name} value={item.name} asChild>
                   <a
                     href={item.getShareLink({
                       orgName: p.orgName,
@@ -83,7 +78,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={
-                      "hover:bg-muted flex items-center gap-3 px-3 py-2 rounded text-muted-fg hover:text-fg"
+                      "hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 flex items-center gap-3 px-3 py-2 rounded text-muted-fg hover:text-fg"
                     }
                   >
                     {item.icon}
@@ -91,18 +86,14 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                   </a>
                 </Menu.Item>
               ))}
-              <Menu.Item
-                value="copy-link"
-                asChild
-                className="focus-visible:outline-none"
-              >
+              <Menu.Item value="copy-link" asChild>
                 <button
                   type="button"
                   onClick={() => {
                     navigator.clipboard.writeText(p.url);
                   }}
                   className={
-                    "hover:bg-muted border-t text-sm col-span-full flex items-center gap-3 w-full px-3 py-2 rounded hover:text-fg"
+                    "hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t text-sm col-span-full flex items-center gap-3 w-full px-3 py-2 rounded hover:text-fg"
                   }
                 >
                   <LinkIcon size={16} />

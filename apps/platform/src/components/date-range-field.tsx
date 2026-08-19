@@ -65,14 +65,14 @@ function SegGroup({ index, invalid }: { index: number; invalid: boolean }) {
   return (
     <DateInput.SegmentGroup
       index={index}
-      className="flex-1 min-w-0 flex items-center gap-0.5 px-2 py-3.5 rounded-sm border border-border bg-input text-sm text-fg data-invalid:border-destructive focus-within:outline focus-within:outline-ring"
+      className="flex-1 min-w-0 flex items-center gap-0.5 px-2 py-3.5 rounded border border-border bg-input text-sm text-fg data-invalid:border-destructive focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-2"
       data-invalid={invalid || undefined}
     >
       <DateInput.SegmentContext>
         {(seg: DateValue | unknown) => (
           <DateInput.Segment
             segment={seg as any}
-            className="px-0.5 rounded-sm focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-muted-fg tabular-nums"
+            className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-muted-fg tabular-nums"
           />
         )}
       </DateInput.SegmentContext>

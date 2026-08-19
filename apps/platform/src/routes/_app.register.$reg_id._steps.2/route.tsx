@@ -4,8 +4,7 @@ import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { ExtLink } from "#/components/ext-link";
 import { Label, UrlInput } from "#/components/form";
 import { LoadText } from "#/components/load-text";
-import { MultiCombo } from "#/components/selector/multi-combo";
-import { Select } from "#/components/selector/select";
+import { MultiCombo, Select } from "#/components/select";
 import { country_names as cnames } from "#/constants/countries";
 import { TERMS_OF_USE_NPO } from "#/constants/urls";
 import { step_loader } from "#/pages/registration/data/step-loader";
@@ -89,13 +88,11 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         Select the countries your organization is active in
       </Label>
       <MultiCombo
-        searchable
         values={countries.value ?? []}
         on_change={countries.onChange}
         on_reset={() => countries.onChange([])}
         classes={{ options: "text-sm" }}
         options={cnames}
-        option_disp={(c) => c}
         error={errors.o_active_in_countries?.message}
         ref={countries.ref}
       />
@@ -115,14 +112,14 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         <NavLink
           aria-disabled={fetcher.state !== "idle"}
           to={`../${steps.contact}`}
-          className="py-3 min-w-32 btn btn-secondary text-sm"
+          className="min-w-32 btn btn-secondary"
         >
           Back
         </NavLink>
         <button
           disabled={fetcher.state !== "idle"}
           type="submit"
-          className="py-3 min-w-32 btn btn-primary text-sm"
+          className="min-w-32 btn btn-primary"
         >
           <LoadText is_loading={fetcher.state !== "idle"}>Continue</LoadText>
         </button>

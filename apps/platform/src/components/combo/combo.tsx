@@ -13,6 +13,15 @@ import {
   useState,
 } from "react";
 import { unpack } from "#/helpers/unpack";
+import {
+  option_cls,
+  popup_cls,
+  popup_motion_cls,
+  popup_scrollbar_cls,
+  RESULT_LIMIT,
+  status_cls,
+  status_text,
+} from "../select/classes";
 import { use_dialog_container } from "../use-dialog-container";
 
 type El = HTMLInputElement;
@@ -61,9 +70,6 @@ interface InlineProps extends BaseProps {
 
 type Props = TriggerProps | InlineProps;
 
-const popup_cls =
-  "bg-popover text-popover-fg w-(--reference-width) max-h-60 overflow-y-auto overscroll-contain rounded shadow-2xl/20 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out";
-
 export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
   const cls = unpack(props.classes);
   const ctrl_ref = useRef<HTMLDivElement>(null);
@@ -87,15 +93,17 @@ export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
 
   const filtered = useMemo(() => {
     let base = is_search
-      ? props.options.filter((o) => contains(o, input_value)).slice(0, 5)
-      : props.options.slice(0, 5);
+      ? props.options
+          .filter((o) => contains(o, input_value))
+          .slice(0, RESULT_LIMIT)
+      : props.options.slice(0, RESULT_LIMIT);
 
     if (allow_custom && is_search) {
-      base = [input_value].concat(base).slice(0, 5);
+      base = [input_value].concat(base).slice(0, RESULT_LIMIT);
     }
     // ensure currently-selected value is in collection so Ark can resolve it
     if (display_value && !base.includes(display_value)) {
-      base = [display_value, ...base].slice(0, 5);
+      base = [display_value, ...base].slice(0, RESULT_LIMIT);
     }
     return base;
   }, [
@@ -196,17 +204,15 @@ export function Combo({ ref, ...props }: Props & { ref?: Ref<El> }) {
             <Combobox.Positioner>
               <Combobox.Content
                 style={is_inline ? props.options_style : undefined}
-                className={`${popup_cls} ${is_inline ? "z-10" : "z-50"}`}
+                className={`${popup_cls} ${popup_scrollbar_cls} ${popup_motion_cls} w-(--reference-width)`}
               >
                 {is_search && filtered.length === 0 && (
-                  <div className="p-2 text-sm">{input_value} not found</div>
+                  <p className={status_cls}>
+                    {status_text.no_match(input_value)}
+                  </p>
                 )}
                 {filtered.map((v) => (
-                  <Combobox.Item
-                    className="data-[state=checked]:bg-form-secondary data-highlighted:bg-form-secondary hover:bg-form-secondary flex items-center gap-2 p-2 text-sm"
-                    key={v}
-                    item={v}
-                  >
+                  <Combobox.Item className={option_cls} key={v} item={v}>
                     {props.option_disp(v)}
                   </Combobox.Item>
                 ))}

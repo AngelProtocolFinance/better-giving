@@ -16,8 +16,6 @@
 
 @plugin "@tailwindcss/typography";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme {
   --color-\*: initial;
   --color-transparent: transparent;
@@ -27,8 +25,19 @@
   --color-black: #000101;
 
   --color-white: #ffffff;
+
+  /* decorative marketing washes — NOT the semantic palette. flat grounds behind
+     marketing copy; --fg is the only ink any of them carries (peach 14.58:1,
+     lilac 14.26:1, mint 16.68:1, cream 16.51:1, sky 15.92:1). named by hue, not
+     by role, so nobody reads one as a system surface. never in product UI — a
+     dashboard, form, table or badge takes the semantic set from
+     packages/brand/src/colors.css. a wash that needs a second ink has stopped
+     being decorative and is a mint request against that palette instead. */
   --color-peach: #fde3d8;
   --color-lilac: #eae2fc;
+  --color-mint: #edfce2;
+  --color-cream: #fcf6e2;
+  --color-sky: #edf2fe;
 
   --text-2xs: 0.625rem;
   --text-4_5xl: 2.625rem;
@@ -59,6 +68,7 @@
   --color-popover-fg: var(--popover-fg);
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
+  --color-primary-deep: var(--primary-deep);
   --color-secondary: var(--secondary);
   --color-secondary-fg: var(--secondary-fg);
   --color-muted: var(--muted);
@@ -69,8 +79,11 @@
   --color-destructive-fg: var(--destructive-fg);
   --color-destructive-subtle: var(--destructive-subtle);
   --color-destructive-subtle-fg: var(--destructive-subtle-fg);
+  --color-destructive-subtle-active: var(--destructive-subtle-active);
   --color-success: var(--success);
   --color-success-fg: var(--success-fg);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-subtle-fg: var(--success-subtle-fg);
   --color-warning: var(--warning);
   --color-warning-fg: var(--warning-fg);
   --color-warning-subtle: var(--warning-subtle);
@@ -95,13 +108,14 @@
   --color-sidebar-accent-fg: var(--sidebar-accent-fg);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --radius-xs: calc(var(--radius) * 0.4);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
+  /* the radius ladder is closed, the same way --color-* is. this repo has ONE
+     corner: `rounded`, bound to --radius by @utility in styles/utilities.css.
+     the seven steps here were fractions of it (1.6px / 2.4px / 3.2px …), so
+     every use was a near-sharp corner nobody chose on purpose — 34 of them had
+     accumulated. resetting the scale makes `rounded-sm` and friends fail to
+     compile instead of drifting silently. `rounded-full` and `rounded-none`
+     are unaffected: v4 emits those from literals, not from this scale. */
+  --radius-*: initial;
 
   /*
    * ark overlay/accordion animations.

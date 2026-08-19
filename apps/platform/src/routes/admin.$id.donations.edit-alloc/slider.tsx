@@ -66,12 +66,16 @@ export function AllocationSlider({
       >
         <Slider.Control className="flex w-full items-center">
           <Slider.Track
-            style={{
-              backgroundImage: `linear-gradient(to right, #F9FBFA 0%, #F9FBFA ${boundary[0]}%, #96C82D ${boundary[0]}%, #96C82D 100%)`,
-            }}
-            className="shadow-inner group-aria-disabled/slider:bg-[#f5e09d] relative grow rounded-full h-2"
+            style={
+              disabled
+                ? undefined
+                : {
+                    backgroundImage: `linear-gradient(to right, var(--muted) 0%, var(--muted) ${boundary[0]}%, var(--success) ${boundary[0]}%, var(--success) 100%)`,
+                  }
+            }
+            className="shadow-inner bg-muted group-aria-disabled/slider:bg-muted relative grow rounded-full h-2"
           >
-            <Slider.Range className="absolute bg-[#F5C828] group-aria-disabled/slider:bg-[#bdcc9d] rounded-full h-full" />
+            <Slider.Range className="absolute bg-warning group-aria-disabled/slider:bg-muted rounded-full h-full" />
           </Slider.Track>
           <Slider.Thumb
             index={0}

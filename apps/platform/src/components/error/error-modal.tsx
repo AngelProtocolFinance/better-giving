@@ -37,7 +37,7 @@ export function ErrorModal() {
         <button
           onClick={() => window.location.reload()}
           type="button"
-          className="inline-block btn btn-primary px-8 py-2 max-sm:w-full"
+          className="inline-block btn btn-primary max-sm:w-full"
         >
           Ok
         </button>

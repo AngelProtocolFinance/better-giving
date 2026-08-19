@@ -49,7 +49,7 @@ export function ResumeStrip({ prev, action }: Props) {
         <button
           type="submit"
           disabled={busy}
-          className="btn btn-secondary text-sm whitespace-nowrap"
+          className="btn btn-secondary whitespace-nowrap"
         >
           <LoadText is_loading={busy} text="Resuming...">
             Resume

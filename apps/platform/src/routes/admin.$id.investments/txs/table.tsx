@@ -77,7 +77,7 @@ export function Table({
                 {r.status === "cancelled" ? (
                   <span className="text-destructive">Cancelled</span>
                 ) : r.status === "pending" ? (
-                  <span className="text-warning">Pending</span>
+                  <span className="text-warning-subtle-fg">Pending</span>
                 ) : (
                   <span className="text-success">Final</span>
                 )}

@@ -28,9 +28,9 @@ export function Table({ classes = "", ...v }: Props) {
       <div
         className={`${
           p.total > 0
-            ? "bg-success/10"
+            ? "bg-success-subtle"
             : p.total < 0
-              ? "bg-destructive/10"
+              ? "bg-destructive-subtle"
               : "bg-muted"
         } p-4 @md:p-6 rounded @md:flex items-center gap-4 mb-2`}
       >
@@ -46,7 +46,9 @@ export function Table({ classes = "", ...v }: Props) {
           <p className="sm:text-lg font-bold text-balance">
             {tab} Savings & Investment Impact
           </p>
-          <Usd classes="text-lg font-bold">{p.total}</Usd>
+          <Usd tinted classes="text-lg font-bold">
+            {p.total}
+          </Usd>
         </div>
         {p.total > 0 && (
           <Image
@@ -63,7 +65,7 @@ export function Table({ classes = "", ...v }: Props) {
             <Tabs.Trigger
               key={p.value}
               value={p.label}
-              className="flex-1 py-2.5 font-medium leading-5 focus:outline-none text-fg hover:text-primary data-selected:border-b-2 data-selected:border-primary data-selected:text-primary"
+              className="flex-1 py-2.5 font-medium leading-5 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-fg hover:text-primary data-selected:border-b-2 data-selected:border-primary data-selected:text-primary"
             >
               {p.label}
             </Tabs.Trigger>

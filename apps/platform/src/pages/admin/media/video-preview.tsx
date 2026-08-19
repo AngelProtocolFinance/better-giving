@@ -24,7 +24,7 @@ export function VideoPreview(props: IMedia) {
           <Star
             size={19}
             className={`${
-              props.featured ? "fill-[#FFA500] text-[#FFA500]" : ""
+              props.featured ? "fill-warning" : ""
             } group-disabled:text-muted-fg group-disabled:fill-muted-fg`}
           />
         </CRUDBtn>

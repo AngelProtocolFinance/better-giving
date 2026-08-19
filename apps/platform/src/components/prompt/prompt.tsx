@@ -41,7 +41,7 @@ export function Prompt({
         <button
           onClick={close}
           type="button"
-          className="inline-block btn btn-primary px-8 py-2 max-sm:w-full"
+          className="inline-block btn btn-primary max-sm:w-full"
         >
           {type === "success" ? "Done" : "Ok"}
         </button>

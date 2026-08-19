@@ -26,7 +26,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           to="create"
           preventScrollReset
           replace
-          className="btn btn-primary text-sm px-3 py-1 flex items-center gap-1"
+          className="btn btn-primary flex items-center gap-1"
         >
           <PlusIcon size={16} />
           New
@@ -63,14 +63,14 @@ function Page({ loaderData }: Route.ComponentProps) {
 
       <div className="flex items-center gap-4 mt-4">
         {prev_cursor && (
-          <NavLink to="." className="btn-secondary btn text-xs px-3 py-1">
+          <NavLink to="." className="btn-secondary btn btn-sm">
             First page
           </NavLink>
         )}
         {has_more && next_cursor && (
           <NavLink
             to={`?cursor=${next_cursor}`}
-            className="btn-secondary btn text-xs px-3 py-1 ml-auto"
+            className="btn-secondary btn btn-sm ml-auto"
           >
             Next
           </NavLink>

@@ -90,9 +90,11 @@ const steps = [
           </a>{" "}
           and navigate to the API section to find your API key.
         </p>
-        <div className="p-4 bg-warning/10 border-l-4 border-warning rounded-r">
-          <h4 className="text-sm font-medium text-warning">Important</h4>
-          <p className="mt-1 text-sm text-warning">
+        <div className="p-4 bg-warning-subtle border-l-4 border-warning rounded-r">
+          <h4 className="text-sm font-medium text-warning-subtle-fg">
+            Important
+          </h4>
+          <p className="mt-1 text-sm text-warning-subtle-fg">
             Keep your API key secure. Do not share it with anyone who
             shouldn&apos;t have access to your Better Giving account.
           </p>
@@ -146,7 +148,7 @@ const steps = [
         </p>
         <button
           type="button"
-          className="mt-2 px-4 py-2 btn btn-primary rounded w-full sm:w-auto"
+          className="mt-2 btn btn-primary rounded w-full sm:w-auto"
         >
           Continue
         </button>

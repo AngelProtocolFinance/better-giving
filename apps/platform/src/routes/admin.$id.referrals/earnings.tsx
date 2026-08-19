@@ -78,7 +78,7 @@ export function Earnings({
             <div className="mt-4">
               <p className="text-sm text-muted-fg">Payout threshold</p>
               <div className="flex gap-x-1 items-center">
-                <p className="font-semibold text-warning">
+                <p className="font-semibold text-warning-subtle-fg">
                   ${humanize(payout_min)}
                 </p>
               </div>

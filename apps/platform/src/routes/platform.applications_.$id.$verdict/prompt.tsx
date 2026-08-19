@@ -110,7 +110,7 @@ function Content() {
             to={".."}
             aria-disabled={fetcher.state === "submitting"}
             type="button"
-            className="btn-secondary btn text-sm px-8 py-2"
+            className="btn-secondary btn"
             preventScrollReset
             replace
           >
@@ -119,7 +119,7 @@ function Content() {
           <button
             disabled={fetcher.state !== "idle"}
             type="submit"
-            className="btn btn-primary px-8 py-2 text-sm"
+            className="btn btn-primary"
           >
             Submit
           </button>

@@ -8,7 +8,7 @@ import { useSearchParams } from "react-router";
 import * as v from "valibot";
 import { Field } from "#/components/form";
 import { DrawerIcon } from "#/components/icon";
-import { Select } from "#/components/selector/select";
+import { Select } from "#/components/select";
 import { statuses } from "./constants";
 
 type Props = {
@@ -129,7 +129,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
                   </button>
                   <button
                     type="submit"
-                    className="btn btn btn-primary px-6 py-2 rounded text-xs font-bold"
+                    className="btn btn btn-primary rounded font-bold"
                   >
                     Apply filters
                   </button>

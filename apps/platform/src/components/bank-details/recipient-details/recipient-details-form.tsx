@@ -2,6 +2,7 @@ import { ErrorMessage } from "@hookform/error-message";
 import { useState } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
+import { Select } from "#/components/select";
 import { error_prompt } from "#/helpers/error-prompt";
 import type {
   CreateRecipientRequest,
@@ -13,7 +14,6 @@ import { report_error } from "@/errors/report";
 import { FileDropzone, type FileOutput, fileOutput } from "../../file-dropzone";
 import { Form, Label } from "../../form";
 import { type IPrompt, Prompt } from "../../prompt";
-import { Select } from "../../selector/select";
 import type { IFormButtons, OnSubmit } from "../types";
 import { use_requirements } from "./use-requirements";
 

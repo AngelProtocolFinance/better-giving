@@ -25,7 +25,7 @@ function Submit({
         <Link
           aria-disabled={isSubmitting}
           to={`../${back}`}
-          className="py-3 min-w-32 btn btn-secondary text-sm"
+          className="min-w-32 btn btn-secondary"
         >
           Back
         </Link>
@@ -33,7 +33,7 @@ function Submit({
           aria-disabled={isSubmitting}
           disabled={isSubmitting}
           type="submit"
-          className="py-3 min-w-32 btn btn-primary text-sm"
+          className="min-w-32 btn btn-primary"
         >
           <LoadText is_loading={isSubmitting}>Submit</LoadText>
         </button>

@@ -58,7 +58,7 @@ export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
   return (
     <ImageCropper.RootProvider
       value={cropper}
-      className="relative w-full h-full bg-gray-900 overflow-hidden touch-none select-none"
+      className="relative w-full h-full bg-black overflow-hidden touch-none select-none"
     >
       <ImageCropper.Viewport className="relative w-full h-full">
         <ImageCropper.Image
@@ -67,7 +67,7 @@ export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
           className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
         />
         <ImageCropper.Selection
-          className="box-content border border-white/40 outline-none cursor-move data-[shape=circle]:rounded-full data-dragging:cursor-grabbing"
+          className="box-content border border-white/40 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 cursor-move data-[shape=circle]:rounded-full data-dragging:cursor-grabbing"
           style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)" }}
         >
           {/* rule-of-thirds grid */}

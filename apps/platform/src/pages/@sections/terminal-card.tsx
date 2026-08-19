@@ -9,7 +9,7 @@ interface ITerminalCard {
 export function TerminalCard({ label, classes = "", children }: ITerminalCard) {
   return (
     <div
-      className={`${classes} bg-black/25 border border-primary-fg/15 rounded-lg overflow-hidden shadow-2xl`}
+      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden shadow-2xl`}
     >
       <div className="flex items-center gap-2 px-4.5 py-3.5 border-b border-primary-fg/10">
         <span className="size-3 rounded-full bg-primary-fg/25" />

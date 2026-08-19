@@ -204,18 +204,10 @@ export function DonationFormTab(p: Props) {
       </div>
 
       <div className="flex gap-3 mt-8">
-        <button
-          type="reset"
-          className="px-6 btn-secondary btn text-sm"
-          disabled={!isDirty}
-        >
+        <button type="reset" className="btn-secondary btn" disabled={!isDirty}>
           Reset changes
         </button>
-        <button
-          type="submit"
-          className="px-6 btn btn-primary text-sm"
-          disabled={!isDirty}
-        >
+        <button type="submit" className="btn btn-primary" disabled={!isDirty}>
           Submit changes
         </button>
       </div>

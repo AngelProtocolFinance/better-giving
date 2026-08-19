@@ -59,14 +59,14 @@ function Content() {
         <NavLink
           to=".."
           aria-disabled={isSubmitting}
-          className="btn-secondary btn text-sm px-8 py-2"
+          className="btn-secondary btn"
         >
           Cancel
         </NavLink>
         <button
           disabled={isSubmitting}
           type="submit"
-          className="btn btn-destructive px-8 py-2 text-sm"
+          className="btn btn-destructive"
         >
           Proceed
         </button>

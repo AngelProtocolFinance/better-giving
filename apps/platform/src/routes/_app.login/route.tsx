@@ -196,7 +196,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
             name="intent"
             value="oauth"
             type="submit"
-            className="flex-center btn-secondary btn rounded gap-2 h-12 sm:h-13 mt-6"
+            className="btn btn-secondary rounded gap-2 mt-6"
           >
             <Image src={googleIcon} height={18} width={18} />
             <span className="font-semibold">Continue with Google</span>
@@ -235,7 +235,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           disabled={is_submitting}
           form={form_id}
           type="submit"
-          className="flex-center btn-primary h-12 sm:h-13 rounded sm:text-lg font-bold w-full mt-4"
+          className="btn btn-lg btn-primary rounded w-full mt-4"
         >
           Log In
         </button>

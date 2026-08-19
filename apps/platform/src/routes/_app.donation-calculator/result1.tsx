@@ -101,7 +101,7 @@ export function Result1({ classes = "", ...v }: Props) {
       </div>
 
       <div
-        className={`${v.advantage > 0 ? "bg-success/10" : v.advantage < 0 ? "bg-destructive/10" : "bg-muted"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
+        className={`${v.advantage > 0 ? "bg-success-subtle" : v.advantage < 0 ? "bg-destructive-subtle" : "bg-muted"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
       >
         {v.advantage > 0 ? (
           <TrendingUp size={40} className="size-8 sm:size-10 text-success" />
@@ -115,7 +115,9 @@ export function Result1({ classes = "", ...v }: Props) {
           <p className="sm:text-lg font-bold text-balance">
             Annual Donation Processing Impact
           </p>
-          <Usd classes="text-lg font-bold">{v.advantage}</Usd>
+          <Usd tinted classes="text-lg font-bold">
+            {v.advantage}
+          </Usd>
         </div>
         {v.advantage > 0 && (
           <Image

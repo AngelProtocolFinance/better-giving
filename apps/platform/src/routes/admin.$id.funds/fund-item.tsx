@@ -33,7 +33,7 @@ export const FundItem = (props: Props) => {
             active: "",
             inactive: "bg-destructive-subtle text-destructive-subtle-fg",
             expired: "bg-muted text-muted-fg",
-            completed: "bg-success/10 text-success",
+            completed: "bg-success-subtle text-success-subtle-fg",
           }}
         />
       </div>
@@ -87,7 +87,7 @@ export const FundItem = (props: Props) => {
         )}
         <NavLink
           aria-disabled={!status.active}
-          className={`btn btn btn-primary rounded text-xs px-6 py-2 ${
+          className={`btn btn btn-primary rounded ${
             props.isEditor ? "" : "invisible"
           }`}
           to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}

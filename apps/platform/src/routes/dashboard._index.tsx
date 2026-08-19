@@ -63,7 +63,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           <button
             type="submit"
             aria-label="Log Out"
-            className="flex items-center gap-x-2 text-sm text-muted-fg transition-colors hover:text-destructive focus-visible:outline-2 focus-visible:outline-ring rounded-sm"
+            className="flex items-center gap-x-2 text-sm text-muted-fg transition-colors hover:text-destructive focus-visible:outline-2 focus-visible:outline-ring rounded"
           >
             <LogOutIcon size={18} className="shrink-0" />
             <span className="max-sm:sr-only">Log Out</span>
@@ -75,7 +75,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
       {d.is_admin && (
         <Link
           to={href("/platform")}
-          className="flex items-center gap-x-3 bg-card border border-border rounded-sm p-3 mb-8 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+          className="flex items-center gap-x-3 bg-card border border-border rounded p-3 mb-8 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
         >
           <span className="size-8 rounded-full bg-primary/10 text-primary grid place-items-center shrink-0">
             <ShieldIcon size={18} />
@@ -97,7 +97,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
             <Link
               key={org.id}
               to={href("/admin/:id", { id: org.id.toString() })}
-              className="flex items-center gap-x-3 bg-card border border-border rounded-sm p-3 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+              className="flex items-center gap-x-3 bg-card border border-border rounded p-3 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
             >
               <Image
                 loading="lazy"
@@ -111,7 +111,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           ))}
           <Link
             to={href("/register")}
-            className="flex items-center gap-x-3 border border-dashed border-border rounded-sm p-3 text-muted-fg transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex items-center gap-x-3 border border-dashed border-border rounded p-3 text-muted-fg transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
           >
             {/* placeholder slot sized to match the org logos */}
             <span className="size-8 rounded-full bg-muted grid place-items-center shrink-0">
@@ -159,7 +159,7 @@ function FavoriteCard({ fav }: { fav: IFavorite }) {
     <div className="relative">
       <Link
         to={href("/marketplace/:id", { id: fav.id.toString() })}
-        className="flex items-center gap-x-3 bg-card border border-border rounded-sm p-3 pr-11 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex items-center gap-x-3 bg-card border border-border rounded p-3 pr-11 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
       >
         <Image
           loading="lazy"
@@ -179,7 +179,7 @@ function FavoriteCard({ fav }: { fav: IFavorite }) {
         <button
           type="submit"
           aria-label={`Remove ${fav.name} from favorites`}
-          className="grid place-items-center size-7 rounded-full text-muted-fg transition-colors hover:bg-muted hover:text-destructive focus-visible:outline-2 focus-visible:outline-ring"
+          className="grid place-items-center size-7 rounded-full text-muted-fg transition-colors hover:bg-muted hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring"
         >
           <XIcon size={16} />
         </button>

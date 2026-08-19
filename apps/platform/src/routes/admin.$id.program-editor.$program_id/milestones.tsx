@@ -35,7 +35,7 @@ export function Milestones({ programId, milestones }: Props) {
               { method: "POST", action: ".", encType: "application/json" }
             )
           }
-          className="btn-secondary btn text-sm w-full @md:w-52 py-2"
+          className="btn-secondary btn w-full @md:w-52"
         >
           <Plus className="mr-2" size={16} />
           <span>

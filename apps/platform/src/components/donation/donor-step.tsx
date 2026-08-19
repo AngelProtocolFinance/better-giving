@@ -11,7 +11,7 @@ import { states } from "#/constants/us-states";
 import { donor_fv, type IDonorFv as FV } from "@/donations/schema";
 import { Combo } from "../combo";
 import { Field } from "../form";
-import { Field2, Input2 } from "../form/field-2";
+import { FloatingField, FloatingInput } from "../form/floating-field";
 import { BackBtn } from "./common/back-btn";
 import { use_donation } from "./context";
 
@@ -38,6 +38,11 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
   const opts_style: Record<string, string | undefined> = {
     "--form-primary": don.config?.accent_primary,
     "--form-secondary": don.config?.accent_secondary,
+    // the option row's highlight is --accent (the semantic token for a
+    // selected/highlighted row). re-point it at the tenant accent here, the
+    // same move #donation-container makes for --ring — the popup is portaled
+    // out of the container, so it inherits neither.
+    "--accent": don.config?.accent_secondary,
   };
 
   return (
@@ -75,16 +80,16 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
             as would appear in your tax receipt and donation record.
           </span>
         </Fieldset.Legend>
-        <Field2
+        <FloatingField
           required
           label="First name"
-          input={<Input2 {...register("first_name")} />}
+          input={<FloatingInput {...register("first_name")} />}
           error={errors.first_name?.message}
         />
-        <Field2
+        <FloatingField
           required
           label="Last name"
-          input={<Input2 {...register("last_name")} />}
+          input={<FloatingInput {...register("last_name")} />}
           error={errors.last_name?.message}
         />
       </Fieldset.Root>
@@ -150,22 +155,22 @@ function AddressFields({
   return (
     <Fieldset.Root className="grid gap-4 mt-2">
       <Fieldset.Legend className="label mb-3">Your address</Fieldset.Legend>
-      <Field2
+      <FloatingField
         required
         label="Street"
-        input={<Input2 {...register("address.street")} />}
+        input={<FloatingInput {...register("address.street")} />}
         error={errors.address?.street?.message}
       />
-      <Field2
+      <FloatingField
         required
         label="City"
-        input={<Input2 {...register("address.city")} />}
+        input={<FloatingInput {...register("address.city")} />}
         error={errors.address?.city?.message}
       />
-      <Field2
+      <FloatingField
         required
         label="Zip code"
-        input={<Input2 {...register("address.zip_code")} />}
+        input={<FloatingInput {...register("address.zip_code")} />}
         error={errors.address?.zip_code?.message}
       />
 

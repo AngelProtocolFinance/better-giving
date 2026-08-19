@@ -69,7 +69,7 @@ export function Preview({
           type="button"
           disabled={submitting}
           onClick={on_back}
-          className="btn-secondary btn text-sm px-8 py-2"
+          className="btn-secondary btn"
         >
           Back
         </button>
@@ -77,7 +77,7 @@ export function Preview({
           type="button"
           disabled={submitting}
           onClick={on_confirm}
-          className="btn btn-primary px-8 py-2 text-sm"
+          className="btn btn-primary"
         >
           {submitting ? "Settling..." : "Confirm"}
         </button>
@@ -87,7 +87,7 @@ export function Preview({
 }
 
 const tab_cls =
-  "px-3 py-1.5 text-xs font-medium focus:outline-none text-muted-fg hover:text-fg data-selected:text-fg data-selected:border-b-2 data-selected:border-primary flex items-center gap-1";
+  "px-3 py-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-muted-fg hover:text-fg data-selected:text-fg data-selected:border-b-2 data-selected:border-primary flex items-center gap-1";
 
 function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
   return (

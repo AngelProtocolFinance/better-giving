@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Combo } from "#/components/combo";
 import { ExtLink } from "#/components/ext-link";
 import { RmxForm } from "#/components/form";
 import { Honeypot } from "#/components/honeypot";
 import { DrawerIcon } from "#/components/icon";
 import { LoadText } from "#/components/load-text";
+import { Combo } from "#/components/select";
 import {
   countries as cmap,
   country_names as cnames,
@@ -132,32 +132,27 @@ export function EligibilityForm({
           ref={(el) => {
             refs.current.o_hq_country = el;
           }}
-          value={country}
-          onChange={set_country}
-          onReset={() => set_country("")}
+          value={country || undefined}
+          on_change={(c) => set_country(c ?? "")}
+          on_reset={() => set_country("")}
           required
+          clearable
           label="Country of registration"
           placeholder="Select a country"
-          classes={{ input: "pl-12" }}
           options={cnames}
-          option_disp={(c) => (
+          render={(c) => (
             <>
               <span className="text-2xl">{cmap[c].flag}</span>
               <span>{c}</span>
             </>
           )}
-          btn_disp={(c, open) => {
-            const flag = cmap[c]?.flag;
+          adornment_side="start"
+          adornment={(open) => {
+            const flag = cmap[country]?.flag;
             return flag ? (
-              <span data-flag className="text-2xl">
-                {flag}
-              </span>
+              <span className="text-2xl">{flag}</span>
             ) : (
-              <DrawerIcon
-                is_open={open}
-                size={20}
-                className="justify-self-end shrink-0"
-              />
+              <DrawerIcon is_open={open} size={20} />
             );
           }}
           error={errors?.o_hq_country}
@@ -226,7 +221,7 @@ export function EligibilityForm({
 
         {/* the hero no longer carries a primary link — this is the page's only
             one, so it takes the hero's words */}
-        <button type="submit" className="btn btn-primary px-5 py-3">
+        <button type="submit" className="btn btn-lg btn-primary">
           <LoadText is_loading={pending} text="Submitting...">
             Unlock U.S. donors
           </LoadText>

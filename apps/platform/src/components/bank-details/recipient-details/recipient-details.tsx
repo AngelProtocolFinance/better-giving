@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
+import { Select } from "#/components/select";
 import { Label } from "../../form";
-import { Select } from "../../selector/select";
 import { Info, LoadingStatus } from "../../status";
 import type { IFormButtons, OnSubmit } from "../types";
 import { RecipientDetailsForm } from "./recipient-details-form";

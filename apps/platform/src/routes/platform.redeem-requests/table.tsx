@@ -47,13 +47,13 @@ export function Table({
                   <div className="flex items-center gap-x-2">
                     <NavLink
                       to={`${r.id}/approve`}
-                      className="btn-success text-xs font-bold px-2 py-1 rounded"
+                      className="btn btn-sm btn-success rounded"
                     >
                       Approve
                     </NavLink>
                     <NavLink
                       to={`${r.id}/reject`}
-                      className="btn-destructive text-xs font-bold px-2 py-1 rounded"
+                      className="btn btn-sm btn-destructive rounded"
                     >
                       Reject
                     </NavLink>

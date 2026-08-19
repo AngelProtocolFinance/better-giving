@@ -126,24 +126,18 @@ export function Loaded({ classes = "", ...props }: Props) {
         />
       </div>
       <div className="flex items-center gap-4 mt-4">
-        <NavLink
-          to="deposit"
-          className="btn-success rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
-        >
+        <NavLink to="deposit" className="btn btn-md btn-success rounded gap-2">
           <ArrowUpFromLineIcon size={16} />
           Deposit
         </NavLink>
         <NavLink
           to="withdraw"
-          className="btn-secondary rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
+          className="btn btn-md btn-secondary rounded gap-2"
         >
           <ArrowDownToLineIcon size={16} />
           Withdraw
         </NavLink>
-        <NavLink
-          to="transfer"
-          className="btn-warning rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
-        >
+        <NavLink to="transfer" className="btn btn-md btn-warning rounded gap-2">
           <ArrowLeftRightIcon size={16} />
           Transfer
         </NavLink>

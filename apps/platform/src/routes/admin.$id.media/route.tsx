@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Select } from "#/components/selector";
+import { Select } from "#/components/select";
 import { use_table } from "#/hooks/use-table";
 import { List, NoVideo } from "#/pages/admin/media/list";
 import type { Route } from "./+types/route";
@@ -55,10 +55,7 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
               }}
             />
           </div>
-          <NavLink
-            to="new"
-            className="btn-secondary btn text-sm px-8 py-2 gap-1"
-          >
+          <NavLink to="new" className="btn-secondary btn gap-1">
             <Plus size={16} />
             <span>Add Video</span>
           </NavLink>

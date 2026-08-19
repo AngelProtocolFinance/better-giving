@@ -27,7 +27,7 @@ export function Display({ apiKey, classes = "" }: Props) {
         <button
           type="button"
           onClick={() => showKey(!keyShown)}
-          className="p-2 btn-secondary"
+          className="btn btn-sm btn-icon btn-secondary"
           aria-label={keyShown ? "Hide API Key" : "Show API Key"}
         >
           {keyShown ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -35,7 +35,7 @@ export function Display({ apiKey, classes = "" }: Props) {
         <button
           type="button"
           onClick={copyToClipboard}
-          className="p-2 rounded btn-secondary"
+          className="btn btn-sm btn-icon btn-secondary"
           aria-label="Copy API Key"
         >
           {copied ? (

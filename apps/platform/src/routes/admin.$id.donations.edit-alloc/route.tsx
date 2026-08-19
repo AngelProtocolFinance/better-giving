@@ -46,7 +46,7 @@ function Content(props: IAllocation) {
         onCheckedChange={(e) => set_is_custom(e.checked)}
         className="flex items-center gap-x-2 mt-4"
       >
-        <Switch.Control className="group relative flex h-6 w-10 rounded-full bg-muted p-1 transition-colors duration-200 ease-in-out focus:outline-hidden data-focus-visible:outline-1 data-focus-visible:outline-white data-[state=checked]:bg-primary shadow-inner">
+        <Switch.Control className="group relative flex h-6 w-10 rounded-full bg-muted p-1 transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 data-[state=checked]:bg-primary shadow-inner">
           <Switch.Thumb className="pointer-events-none inline-block size-4 translate-x-0 rounded-full bg-card ring-0 shadow-lg transition duration-200 ease-in-out group-data-[state=checked]:translate-x-4" />
         </Switch.Control>
         <Switch.Label>Set custom allocation</Switch.Label>
@@ -63,7 +63,7 @@ function Content(props: IAllocation) {
       <button
         disabled={is_loading}
         type="button"
-        className="btn btn btn-primary px-4 py-2 text-sm mt-4 rounded"
+        className="btn btn btn-primary mt-4 rounded"
         onClick={async () => {
           const update: EndowmentUpdate = { allocation: alloc };
           fetcher.submit(update, {

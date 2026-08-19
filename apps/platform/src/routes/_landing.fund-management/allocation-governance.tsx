@@ -41,7 +41,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
   return (
     <section className={classes} aria-labelledby="governance-heading">
       <div className="max-w-6xl mx-auto grid gap-14 lg:grid-cols-2 items-center">
-        <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
+        <div className="bg-card rounded p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
           <span className="text-lg font-bold">Target allocation</span>
           <div
             className="size-55 rounded-full grid place-items-center"
@@ -64,7 +64,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
             {allocation.map((a) => (
               <span key={a.label} className="flex items-center gap-2">
                 <span
-                  className={`size-3 rounded-sm ${a.swatch} inline-block`}
+                  className={`size-3 rounded ${a.swatch} inline-block`}
                   aria-hidden
                 />
                 {a.pct} {a.label}
@@ -84,10 +84,10 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
             {pillars.map((p) => (
               <div
                 key={p.title}
-                className="flex gap-3.5 items-start bg-card border border-border rounded-lg px-5 py-4.5"
+                className="flex gap-3.5 items-start bg-card border border-border rounded px-5 py-4.5"
               >
                 <span
-                  className="flex-none size-9.5 rounded-md bg-secondary grid place-items-center font-bold"
+                  className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                   aria-hidden
                 >
                   {p.icon}

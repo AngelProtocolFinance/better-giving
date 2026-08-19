@@ -76,14 +76,10 @@ function Content(props: IProps) {
       </div>
 
       <div className="mt-4 p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t">
-        <Link to=".." className="btn-secondary btn text-sm px-8 py-2">
+        <Link to=".." className="btn-secondary btn">
           Cancel
         </Link>
-        <button
-          disabled={!isDirty}
-          type="submit"
-          className="btn btn-primary px-8 py-2 text-sm"
-        >
+        <button disabled={!isDirty} type="submit" className="btn btn-primary">
           Continue
         </button>
       </div>

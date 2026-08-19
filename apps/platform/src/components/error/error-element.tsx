@@ -78,17 +78,14 @@ export function ErrorElement() {
           </p>
           <div className="flex gap-3 mt-8">
             {config.action === "back" ? (
-              <NavLink
-                to={back_path}
-                className="btn btn-primary text-sm px-8 py-2 rounded"
-              >
+              <NavLink to={back_path} className="btn btn-primary rounded">
                 Go back
               </NavLink>
             ) : (
               <button
                 type="button"
                 onClick={() => revalidator.revalidate()}
-                className="btn btn-primary text-sm px-8 py-2 rounded"
+                className="btn btn-primary rounded"
               >
                 Try again
               </button>
@@ -120,14 +117,11 @@ export function ErrorElement() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="btn btn-primary text-sm px-8 py-2 rounded"
+          className="btn btn-primary rounded"
         >
           Reload
         </button>
-        <NavLink
-          to={back_path}
-          className="btn btn-secondary text-sm px-8 py-2 rounded"
-        >
+        <NavLink to={back_path} className="btn btn-secondary rounded">
           Go back
         </NavLink>
       </div>

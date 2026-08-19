@@ -68,7 +68,7 @@ function Funds({ loaderData: page1 }: Route.ComponentProps) {
           </div>
           <NavLink
             to={href("/fundraisers/new")}
-            className="btn btn-primary text-sm rounded px-6"
+            className="btn btn-primary rounded"
           >
             Create Fundraiser
           </NavLink>

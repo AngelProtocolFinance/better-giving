@@ -59,14 +59,11 @@ export default function Page() {
             <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
               <Link
                 to={href("/register")}
-                className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25"
+                className="btn btn-lg btn-primary shadow-lg shadow-primary/25"
               >
                 Join free forever
               </Link>
-              <ExtLink
-                href={BOOK_A_DEMO}
-                className="btn btn-secondary px-6 py-3.5"
-              >
+              <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
                 Book a demo
               </ExtLink>
             </div>

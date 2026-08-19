@@ -87,7 +87,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
           {can_cancel ? (
             <Link
               to={`cancel/${s.id}`}
-              className="inline-block px-2 py-1 rounded text-xs font-bold uppercase text-destructive hover:bg-destructive/10 active:bg-destructive/20"
+              className="inline-block px-2 py-1 rounded text-xs font-bold uppercase text-destructive-subtle-fg hover:bg-destructive-subtle active:bg-destructive-subtle-active"
             >
               Cancel
             </Link>

@@ -91,7 +91,7 @@ export function TributeForm({ classes = "", init }: Props) {
           fetcher.state !== "idle" || (!!init?.full_name && !!init.notif)
         }
         type="submit"
-        className="btn btn-primary text-sm px-4 py-2 rounded mt-4 justify-self-end"
+        className="btn btn-primary rounded mt-4 justify-self-end"
       >
         Submit
       </button>

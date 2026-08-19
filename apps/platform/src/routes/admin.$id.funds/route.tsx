@@ -60,7 +60,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             </Select.Trigger>
             <Portal>
               <Select.Positioner>
-                <Select.Content className="rounded-xs border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+                <Select.Content className="rounded border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
                   {OPTIONS.map((val) => (
                     <Select.Item
                       key={val || "all"}
@@ -79,7 +79,7 @@ function Page({ loaderData }: Route.ComponentProps) {
               pathname: href("/fundraisers/new"),
               search: `npo=${endow.id}`,
             }}
-            className="btn btn-primary text-sm px-4 py-1.5 rounded"
+            className="btn btn-primary rounded"
           >
             + Create
           </Link>

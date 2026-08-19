@@ -1,11 +1,13 @@
+import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { app_name } from "#/constants/env";
 import { use_debouncer } from "#/hooks/use-debouncer";
 import type { WiseCurrencyOption } from "#/types/components";
 import { report_error } from "@/errors/report";
-import { CurrencySelector } from "../currency-selector";
 import { MaskedInput } from "../form";
 import { dollar } from "../form/masks";
+import { DrawerIcon } from "../icon";
+import { Combo } from "../select";
 import { Separator } from "../separator";
 import { RecipientDetails } from "./recipient-details";
 import type { IFormButtons, OnSubmit } from "./types";
@@ -15,6 +17,13 @@ import { use_currencies } from "./use-currencies";
  * Denominated in USD
  */
 const DEFAULT_EXPECTED_MONTHLY_DONATIONS_AMOUNT = "1000";
+
+const to_label = (c: WiseCurrencyOption) =>
+  `${c.code.toUpperCase()} - ${c.name}`;
+
+/** "hong kong dollar" has to find "HongKong", and "usd" has to find the code. */
+const strip = (s: string) => s.toLowerCase().replace(/\s+/g, "");
+const matches = (text: string, q: string) => strip(text).includes(strip(q));
 
 type Props = {
   FormButtons: IFormButtons;
@@ -59,14 +68,35 @@ export function BankDetails({
 
   return (
     <div className="grid gap-6">
-      <CurrencySelector
-        currencies={currencies}
-        onChange={(c) => setCurrency(c)}
+      <Combo
         value={currency}
-        classes={{ combobox: "w-full md:w-80", options: "text-sm" }}
-        disabled={isSubmitting || is_loading}
+        on_change={(c) => c && setCurrency(c)}
+        options={{
+          items: currencies.data ?? [],
+          loading: currencies.is_loading,
+          error: currencies.is_error ? "Failed to load currencies" : undefined,
+        }}
+        item_key={(c) => c.code}
+        item_text={to_label}
+        filter={matches}
+        // the full list is the point here — a payout currency is picked from
+        // what wise supports, not from a head of ten
+        limit={Number.POSITIVE_INFINITY}
         label="Select your bank account currency:"
         required
+        disabled={isSubmitting || is_loading}
+        classes={{ control: "w-full md:w-80" }}
+        adornment={(open, state) =>
+          state === "loading" ? (
+            <LoaderCircle className="text-muted-fg animate-spin" size={20} />
+          ) : (
+            <DrawerIcon
+              is_open={open}
+              size={20}
+              className={state === "error" ? "text-destructive" : ""}
+            />
+          )
+        }
       />
       <MaskedInput
         id="expected-monthly-donations"

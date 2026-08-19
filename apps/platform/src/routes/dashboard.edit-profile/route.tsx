@@ -83,14 +83,14 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       <div className="flex gap-3 mt-8">
         <button
           type="reset"
-          className="px-6 btn-secondary btn text-sm"
+          className="btn-secondary btn"
           disabled={!rhf.isDirty}
         >
           Reset changes
         </button>
         <button
           type="submit"
-          className="px-6 btn btn-primary text-sm"
+          className="btn btn-primary"
           disabled={!rhf.isDirty || rhf.avatar_url.value === "loading"}
         >
           Submit changes

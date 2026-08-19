@@ -49,13 +49,13 @@ export function Scenarios() {
           {scenarios.map((scenario, i) => (
             <motion.div
               key={scenario.title}
-              className="bg-card border border-border rounded-lg p-6 grid content-start gap-3"
+              className="bg-card border border-border rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
-              <div className="size-12 rounded-lg bg-primary/10 flex-center text-primary">
+              <div className="size-12 rounded bg-primary/10 flex-center text-primary">
                 <scenario.icon size={24} />
               </div>
               <h3 className="text-xl font-bold">{scenario.title}</h3>

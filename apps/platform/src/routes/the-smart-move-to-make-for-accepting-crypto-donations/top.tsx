@@ -83,7 +83,7 @@ export const Top = ({ classes = "" }) => {
       <div className="mt-8 z-10 justify-self-center relative">
         <Link
           to={href("/register")}
-          className="btn btn-primary ml-1 font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
+          className="btn btn-lg btn-primary ml-1 font-bold inline-flex items-center gap-1 rounded"
         >
           Join Better Giving Today!
           <ArrowRight size={18} />

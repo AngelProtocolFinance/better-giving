@@ -1,3 +1,36 @@
+/* `rounded` is the repo's one radius — ~519 call sites, and the only radius
+   name in app code. tailwind v4 ships it as a hardcoded 0.25rem with no theme
+   variable behind it (only the suffixed `rounded-xs|sm|md|lg|...` read
+   `--radius-*`), so the bare utility would not follow `--radius` if that ever
+   moved. rebinding it here is the documented way to customize a built-in
+   utility, and makes the name the app already uses the single source.
+   `rounded-sm`/`-xs` stay as tailwind defines them — they read `--radius-*`,
+   which `index.css` already derives from `--radius`. */
+@utility rounded {
+  border-radius: var(--radius);
+}
+
+/* side-specific corners at the same one radius. v4 derives `rounded-b`/`-r`
+   from the --radius-* scale, and that scale is reset to `initial` in index.css
+   so a stray `rounded-sm` can't compile — which takes these down with it
+   unless they're bound here too. same value, same rule, just two corners. */
+@utility rounded-t {
+  border-start-start-radius: var(--radius);
+  border-start-end-radius: var(--radius);
+}
+@utility rounded-b {
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}
+@utility rounded-l {
+  border-start-start-radius: var(--radius);
+  border-end-start-radius: var(--radius);
+}
+@utility rounded-r {
+  border-start-end-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}
+
 @utility date-input {
   &::-webkit-calendar-picker-indicator {
     @apply absolute w-full opacity-0;
@@ -35,17 +68,79 @@
   }
 }
 
+/* button size scale. authored as @utility, not @layer components, for two
+   reasons: only @utility classes are variant-capable, and 11+ call sites switch
+   size responsively (`xl:btn-lg`); and the utilities layer beats .btn's
+   components layer regardless of source order. bare .btn is the md tier —
+   btn-md is a name only, so a button can step *down* (`btn-lg md:btn-md`).
+   heights are the natural content box; the pin stops an icon-only button or a
+   line-height change from shrinking the control below its tier. */
+
+@utility btn-sm {
+  --btn-size: calc(var(--spacing) * 6) /* 24px */;
+  padding-block: calc(var(--spacing) * 1) /* 4px */;
+  padding-inline: calc(var(--spacing) * 3) /* 12px */;
+  font-size: var(--text-xs) /* 0.75rem = 12px */;
+  line-height: var(--tw-leading, var(--text-xs--line-height) /* 1rem = 16px */);
+  /* 4 + 16 + 4 = exactly 24px, zero natural headroom — the pin, not the
+     arithmetic, is what holds WCAG 2.2 SC 2.5.8 Target Size (Minimum), AA,
+     24x24 css px. px-3 alone clears the width floor; pinned anyway for the
+     icon-only case. */
+  min-block-size: var(--btn-size);
+  min-inline-size: var(--btn-size);
+}
+
+@utility btn-md {
+  --btn-size: calc(var(--spacing) * 9) /* 36px */;
+  padding-block: calc(var(--spacing) * 2) /* 8px */;
+  padding-inline: calc(var(--spacing) * 6) /* 24px */;
+  font-size: var(--text-sm) /* 0.875rem = 14px */;
+  line-height: var(--tw-leading, var(--text-sm--line-height) /* 20px */);
+  min-block-size: var(--btn-size);
+}
+
+@utility btn-lg {
+  --btn-size: calc(var(--spacing) * 13) /* 52px */;
+  padding-block: calc(var(--spacing) * 3) /* 12px */;
+  padding-inline: calc(var(--spacing) * 8) /* 32px */;
+  font-size: var(--text-lg) /* 1.125rem = 18px */;
+  line-height: var(--tw-leading, var(--text-lg--line-height) /* 28px */);
+  min-block-size: var(--btn-size);
+}
+
+/* square icon-only shape. a modifier, not a fourth tier: it composes with all
+   three sizes (`btn-sm btn-icon`, `btn btn-icon`, `btn-lg btn-icon`) and takes
+   its side from the tier's own height, published as --btn-size. must stay AFTER
+   the three tiers in this file — same layer, same specificity, so source order
+   is what lets it win padding-inline. bare .btn is in the components layer and
+   loses to this regardless of order. inline-size and min-inline-size are both
+   set so the square survives being a flex item that could otherwise shrink.
+   the button has no text node, so every call site MUST carry an aria-label.
+   radius is inherited from .btn (var(--radius)) — do not add a second one. */
+@utility btn-icon {
+  padding-inline: 0;
+  inline-size: var(--btn-size);
+  min-inline-size: var(--btn-size);
+}
+
 /** page components */
 
 @utility btn-donate {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   text-transform: none;
 }
 
 @utility btn-form-primary {
   background-color: var(--form-primary);
   color: var(--primary-fg);
-  outline-color: var(--secondary);
+  /* --secondary was a near-white tint at 1.17:1 against the page. --ring is
+     remapped to --form-primary inside #donation-container, so the ring follows
+     the host org's brand rather than pinning a value that may collide with an
+     unknown host page. */
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
   &:hover:not(:disabled):not([aria-disabled="true"]) {
     background-color: color-mix(in oklch, var(--form-primary) 90%, black);
   }

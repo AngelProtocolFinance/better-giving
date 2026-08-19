@@ -18,7 +18,7 @@ function Page({ loaderData: { programs } }: Route.ComponentProps) {
         <button
           type="submit"
           disabled={nav.state !== "idle"}
-          className="btn btn-primary px-8 py-2"
+          className="btn btn-primary"
         >
           {nav.state === "submitting" ? "Creating..." : "Create Program"}
         </button>

@@ -51,7 +51,7 @@ export function Grow({ classes = "" }: IGrow) {
         </div>
 
         <div>
-          <div className="bg-card border border-border rounded-lg divide-y divide-border overflow-hidden">
+          <div className="bg-card border border-border rounded divide-y divide-border overflow-hidden">
             {accounts.map((a) => (
               <div
                 key={a.name}

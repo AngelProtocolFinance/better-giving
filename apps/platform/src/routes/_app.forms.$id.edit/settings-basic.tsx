@@ -179,7 +179,7 @@ export function SettingsBasic({
       <button
         disabled={!isDirty}
         type="submit"
-        className="mt-6 justify-self-end btn btn-primary text-sm px-4 py-2"
+        className="mt-6 justify-self-end btn btn-primary"
       >
         {isSubmitting ? "Saving.." : "Save"}
       </button>

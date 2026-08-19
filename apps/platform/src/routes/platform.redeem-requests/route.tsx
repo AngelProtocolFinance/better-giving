@@ -1,6 +1,6 @@
 import { Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Select } from "#/components/selector";
+import { Select } from "#/components/select";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
 import type { TStatus } from "@/balance-txs";

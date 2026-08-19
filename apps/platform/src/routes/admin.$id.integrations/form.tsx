@@ -8,7 +8,7 @@ export function Form() {
       <button
         type="submit"
         disabled={fetcher.state === "submitting"}
-        className="btn btn-primary rounded px-6 py-2 text-sm"
+        className="btn btn-primary rounded"
       >
         {fetcher.state === "submitting" ? "Generating..." : "Generate"}
       </button>

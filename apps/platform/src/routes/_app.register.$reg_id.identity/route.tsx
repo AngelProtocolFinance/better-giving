@@ -35,7 +35,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         >
           <NavLink
             to={`../${loaderData.step}`}
-            className="btn btn-secondary text-sm w-full mt-3"
+            className="btn btn-secondary w-full mt-3"
           >
             Cancel
           </NavLink>

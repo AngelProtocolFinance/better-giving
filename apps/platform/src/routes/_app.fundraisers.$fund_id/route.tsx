@@ -192,7 +192,7 @@ function DonateSection(props: IDonateSection) {
           ).active
         }
         to={href("/donate-fund/:fund_id", { fund_id: props.id })}
-        className={`w-full btn btn-primary px-6 py-3 text-sm ${s.link} ${s.container}`}
+        className={`w-full btn btn-primary ${s.link} ${s.container}`}
       >
         Donate now
       </NavLink>

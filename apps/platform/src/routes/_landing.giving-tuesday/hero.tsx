@@ -23,13 +23,13 @@ export function Hero({ className = "" }) {
         <div className="flex flex-col xl:flex-row justify-center xl:justify-start items-center gap-6">
           <Link
             to={href("/register")}
-            className="btn btn-primary px-6 py-2 xl:px-10 xl:py-4 xl:text-lg font-bold rounded"
+            className="btn xl:btn-lg btn-primary font-bold rounded"
           >
             Join us today!
           </Link>
           <Link
             to={BOOK_A_DEMO}
-            className="btn btn-secondary font-bold border-2 rounded px-6 py-2 xl:px-8 xl:py-4 xl:text-lg"
+            className="btn xl:btn-lg btn-secondary font-bold border-2 rounded"
           >
             Learn how it works
           </Link>

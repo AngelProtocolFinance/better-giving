@@ -44,10 +44,10 @@ export function Hero({
               too many. the demo link moves inside the form to keep that door
               open. */}
           <div className="max-lg:hidden flex flex-wrap gap-3">
-            <Link to={href("/register")} className="btn btn-primary px-5 py-3">
+            <Link to={href("/register")} className="btn btn-lg btn-primary">
               Unlock U.S. donors
             </Link>
-            <ExtLink href={BOOK_A_DEMO} className="btn btn-secondary px-5 py-3">
+            <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
               Book a demo
             </ExtLink>
           </div>
