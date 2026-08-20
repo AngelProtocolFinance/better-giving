@@ -302,3 +302,33 @@ anyway).
   Their `Arrow` exports are documented no-ops and stay unexported.
 - Component-level `.svg` imports resolve (`STORY_LOADERS` maps svg to dataurl), so
   `Target.Text`'s icon renders even though `entry.tsx` avoids asset barrels.
+
+## `extract-props.mjs` no longer beats the config for the selector trio
+
+The combobox unification moved `classes`, `options` and the `Opt<T>` accessors into
+`components/select/types.ts` (`FieldProps`, `Source<T>`, `StaticSource<T>`). The extractor
+expands only the aliases it knows by name, so for `Combo`, `MultiCombo` and `Select` it now
+emits `classes?: unknown` / `options?: unknown` — worse than what `cfg.dtsPropsFor` already
+held. It also collapses their unconstrained `T` to `string` and drops `| undefined` off
+`value`.
+
+**So do not paste `.cache/props.json` over `cfg.dtsPropsFor` wholesale.** Diff it, take the
+prop *sets* (that is what the extractor is still right about), and hand-check the three
+selector bodies against `types.ts` and each component's local `Classes` alias:
+
+- `Combo` — `FieldProps` minus `classes`, plus a local `Classes` that adds `input?`.
+  `options: Source<T>` has **three** arms: `readonly T[]`, `{items, loading?, error?}`, and
+  `{search: (q, signal) => Promise<readonly T[]>}`.
+- `MultiCombo` — full `FieldProps` + `Opt<T>`; `options: StaticSource<T>` only.
+- `Select` — `FieldProps` minus `classes`/`popup_vars`; its `Classes` renames `control` to
+  `button`. `value` is `T | undefined`, not `T`.
+
+## Scope change, 2026-08-20
+
+`CurrencySelector` is gone from the repo — the unification replaced it with `Combo`, so this
+sync deleted it remotely. `Combo` and `MultiCombo` also moved group: `components/selector/` →
+`components/select/`. `Select` stayed at `components/selector/`. The remote still carried the
+old paths, which is why the re-sync produced deletes as well as writes.
+
+`Combo`'s published contract had been stale since before the unification — it was missing
+`popup_width`, `indicator`, `allow_custom` and the async options arm entirely.
