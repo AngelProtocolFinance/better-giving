@@ -18,7 +18,30 @@ import { SelectedInputSync } from "./internal/use-selected-input";
 import { use_source } from "./internal/use-source";
 import type { FieldProps, Opt, SyncSource } from "./types";
 
-export interface Props<T> extends FieldProps, Opt<T> {
+/**
+ * `FieldProps["classes"]`, plus the one slot only a combobox can offer: the
+ * control's own box.
+ */
+type Classes = NonNullable<FieldProps["classes"]> & {
+  /**
+   * the control's input box, REPLACING the default `field-input` chrome — never
+   * appended to it. present → the caller draws the border, height, padding and
+   * whatever room the adornment needs, which is what lets this control sit
+   * inside a box its HOST already drew: the donation form's currency combobox
+   * shares one `field-input-container` with the amount input beside it, and a
+   * `field-input` here would be a box inside a box. absent → the control draws
+   * the full field box itself.
+   *
+   * the same rule `internal/field-frame` runs on `label` — a slot's presence
+   * hands ownership to the caller, whole. the two sets are never merged: they
+   * collide on every property they share, and which one wins is sheet order,
+   * not the order they were written in.
+   */
+  input?: string;
+};
+
+export interface Props<T> extends Omit<FieldProps, "classes">, Opt<T> {
+  classes?: Classes;
   value: T | undefined;
   /** `undefined` when the value is cleared — the caller decides what empty is */
   on_change: (v: T | undefined) => void;
@@ -33,14 +56,21 @@ export interface Props<T> extends FieldProps, Opt<T> {
   adornment_side?: "start" | "end";
   /** offer an X that empties the field */
   clearable?: boolean;
+  /** the popup tracks the control's width unless the host says otherwise */
+  popup_width?: string;
+  /** drawn on the selected row only — ark hides it on the rest */
+  indicator?: ReactNode;
   /**
    * the typed text is a value in its own right — ark's `allowCustomValue`.
    *
-   * only coherent when the option type IS its own text (`T extends string`):
-   * the row offered for a query is the query, and nothing can widen a string
-   * into an arbitrary `T`.
+   * only coherent when the option type IS its own text: the row offered for a
+   * query is the query, and nothing can widen a string into an arbitrary `T`.
+   * so the prop is `never` for every other option type — reaching for it there
+   * is a type error at the call site rather than a string smuggled into a
+   * collection of objects. bracketed so a union option type has to be string
+   * all the way through instead of distributing to `boolean`.
    */
-  allow_custom?: boolean;
+  allow_custom?: [T] extends [string] ? boolean : never;
   on_reset?: () => void;
   ref?: Ref<HTMLInputElement>;
 }
@@ -51,6 +81,10 @@ export interface Props<T> extends FieldProps, Opt<T> {
  * `inputValue` is deliberately NOT controlled: that is what lets zag keep the
  * displayed text in step with an externally-changed value (RHF `reset()`), and
  * `internal/use-selected-input` documents the whole contract.
+ *
+ * the chrome is the caller's the moment it says so — `classes.input` present
+ * and this draws no field box, so the control can live inside one its host
+ * already drew.
  */
 export function Combo<T>({ ref, ...p }: Props<T>) {
   const ctrl_ref = useRef<HTMLDivElement>(null);
@@ -62,6 +96,8 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
 
   const limit = p.limit ?? RESULT_LIMIT;
   const match = p.filter ?? contains;
+  // the prop's conditional type is the guard; past it this is just a flag
+  const allow_custom = p.allow_custom as boolean | undefined;
 
   const filtered = useMemo(() => {
     const base = query
@@ -71,10 +107,11 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
     // a custom value still has to be SELECTED to become the value —
     // `allowCustomValue` only stops zag reverting the text, it never emits.
     // so the query rides along as a row, unless the list already offers it.
-    if (!p.allow_custom || !query) return rows;
+    if (!allow_custom || !query) return rows;
     if (rows.some((v) => opt.key(v) === query)) return rows;
+    // sound because `allow_custom` is reachable only where `T` IS string
     return [query as T, ...rows].slice(0, limit);
-  }, [src.items, query, match, opt, limit, p.allow_custom]);
+  }, [src.items, query, match, opt, limit, allow_custom]);
 
   const selected = useMemo(() => (p.value == null ? [] : [p.value]), [p.value]);
 
@@ -91,6 +128,14 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
   const disabled = p.disabled || src.loading || !!src.error;
   const side = p.adornment_side ?? "end";
   const has_clear = !!p.clearable && p.value != null;
+
+  const input_cls =
+    p.classes?.input ??
+    `field-input w-full h-full ${
+      side === "start" && p.adornment ? "pl-12" : ""
+    } ${side === "end" && p.adornment ? "pr-12" : ""} ${
+      has_clear ? "pr-12" : ""
+    }`;
 
   return (
     <FieldFrame
@@ -116,12 +161,12 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
           set_query(e.reason === "input-change" ? e.inputValue : "")
         }
         positioning={{ placement: "bottom-start", gutter: 8 }}
-        allowCustomValue={p.allow_custom}
+        allowCustomValue={allow_custom}
         openOnClick
       >
         {/* zag guards its own revert with `not("allowCustomValue")`; the sync
             has to match it, or it deletes the text that IS the value. */}
-        {!p.allow_custom && <SelectedInputSync />}
+        {!allow_custom && <SelectedInputSync />}
         <Combobox.Control
           ref={ctrl_ref}
           className={`relative ${p.classes?.control ?? ""}`}
@@ -131,11 +176,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
             placeholder={p.placeholder}
             aria-required={p.required || undefined}
             spellCheck={false}
-            className={`field-input w-full h-full ${
-              side === "start" && p.adornment ? "pl-12" : ""
-            } ${side === "end" && p.adornment ? "pr-12" : ""} ${
-              has_clear ? "pr-12" : ""
-            }`}
+            className={input_cls}
           />
           {p.adornment && (
             <Combobox.Trigger
@@ -175,12 +216,14 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
           }}
           container={dialog}
           vars={p.popup_vars}
+          width={p.popup_width}
           classes={p.classes?.options}
         >
           <Options
             items={rows}
             item_key={opt.key}
             render={opt.render}
+            indicator={p.indicator}
             classes={p.classes?.option}
           />
           <Status

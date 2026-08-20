@@ -343,3 +343,62 @@ describe("Combo over object options", () => {
     await expect.element(combo).toHaveValue("GBP");
   });
 });
+
+/**
+ * the seam draws a full field box until a host says it owns the chrome. the
+ * embedded donation form does — its combobox is the left cell of one bordered
+ * box it shares with the amount input — and every other call site must be
+ * untouched by that.
+ */
+describe("Combo chrome", () => {
+  const classes = (el: Element) =>
+    el.className.split(/\s+/).filter(Boolean).sort();
+
+  test("classes.input replaces the field box rather than adding to it", async () => {
+    const screen = await render(
+      <Combo
+        value={undefined}
+        on_change={() => {}}
+        options={countries}
+        adornment={() => <span>drawer</span>}
+      />
+    );
+    const combo = screen.getByRole("combobox");
+    expect(classes(combo.element())).toEqual(
+      ["field-input", "w-full", "h-full", "pr-12"].sort()
+    );
+
+    await screen.rerender(
+      <Combo
+        value={undefined}
+        on_change={() => {}}
+        options={countries}
+        adornment={() => <span>drawer</span>}
+        classes={{ input: "w-full text-sm bg-transparent px-4 py-3.5" }}
+      />
+    );
+    expect(classes(combo.element())).toEqual(
+      ["w-full", "text-sm", "bg-transparent", "px-4", "py-3.5"].sort()
+    );
+  });
+
+  test("the popup tracks the control until popup_width says otherwise", async () => {
+    const screen = await render(
+      <Combo value={undefined} on_change={() => {}} options={countries} />
+    );
+    await screen.getByRole("combobox").click();
+    const popup = screen.getByRole("listbox");
+    expect(classes(popup.element())).toContain("w-(--reference-width)");
+
+    await screen.rerender(
+      <Combo
+        value={undefined}
+        on_change={() => {}}
+        options={countries}
+        popup_width="w-56"
+      />
+    );
+    expect(classes(popup.element())).toContain("w-56");
+    expect(classes(popup.element())).not.toContain("w-(--reference-width)");
+  });
+});
