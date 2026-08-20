@@ -5,8 +5,13 @@ interface IStatus {
   error?: string;
   /** what the user typed; empty string when they haven't */
   query: string;
-  /** rows the popup is about to render */
+  /** rows the query produced */
   count: number;
+  /**
+   * rows the popup is about to render — `count` plus whatever `use-collection`
+   * rehydrated. default: `count`, for a list that rehydrates nothing.
+   */
+  shown?: number;
 }
 
 /**
@@ -15,8 +20,13 @@ interface IStatus {
  *
  * `Combobox.Empty` covers only the empty case and not loading or failed, so
  * this owns all four rather than splitting them across two mechanisms.
+ *
+ * a query that matched nothing says so even while the popup still shows a
+ * rehydrated selection: that row is not an answer to what was typed. "nothing
+ * to choose from" is the stronger claim and takes the whole popup being empty.
  */
 export function Status(p: IStatus) {
+  const shown = p.shown ?? p.count;
   const msg = p.loading
     ? status_text.loading
     : (p.error ??
@@ -24,7 +34,9 @@ export function Status(p: IStatus) {
         ? null
         : p.query
           ? status_text.no_match(p.query)
-          : status_text.empty));
+          : shown > 0
+            ? null
+            : status_text.empty));
 
   if (!msg) return null;
   return <p className={status_cls}>{msg}</p>;

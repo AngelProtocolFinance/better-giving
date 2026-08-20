@@ -402,3 +402,162 @@ describe("Combo chrome", () => {
     expect(classes(popup.element())).not.toContain("w-(--reference-width)");
   });
 });
+
+/**
+ * the arm the embedded donation form's token/ticker control needs: the module
+ * runs the search itself, one request at a time, and the popup renders the same
+ * four states it renders for a list the caller already holds.
+ */
+describe("Combo over an async source", () => {
+  interface Currency {
+    code: string;
+    label: string;
+  }
+
+  const currencies: Currency[] = [
+    { code: "USD", label: "USD" },
+    { code: "EUR", label: "EUR" },
+    { code: "GBP", label: "GBP" },
+    { code: "CAD", label: "CAD" },
+    { code: "AUD", label: "AUD" },
+  ];
+
+  function setup(value: Currency | undefined = currencies[0]) {
+    const on_change = vi.fn();
+    const search =
+      vi.fn<(q: string, signal: AbortSignal) => Promise<Currency[]>>();
+    // default: the source answers every query with everything
+    search.mockResolvedValue(currencies);
+
+    return {
+      on_change,
+      search,
+      props: {
+        value,
+        on_change,
+        options: { search },
+        item_key: (t: Currency) => t.code,
+        item_text: (t: Currency) => t.label,
+        placeholder: "Search token",
+        // the adornment reads the source's state, so it doubles as the probe
+        adornment: (open: boolean, state: string) =>
+          state === "idle" ? (
+            <span>{open ? "▲" : "▼"}</span>
+          ) : (
+            <span>{state}</span>
+          ),
+      },
+    };
+  }
+
+  test("opening searches the empty query; picking a row spends no request", async () => {
+    const { props, on_change, search } = setup();
+    const screen = await render(<Combo {...props} />);
+
+    await screen.getByRole("combobox").click();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+    expect(search).toHaveBeenCalledWith("", expect.any(AbortSignal));
+    expect(screen.getByRole("option").elements().length).toBe(5);
+
+    await screen.getByRole("option", { name: "EUR" }).click();
+    expect(on_change).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "EUR" })
+    );
+    // zag reports `item-select`, and the text it leaves behind is the value,
+    // not a query — a request per selection is what this pins down
+    expect(search).toHaveBeenCalledTimes(1);
+
+    search.mockClear();
+    await screen.rerender(<Combo {...props} value={currencies[1]} />);
+    await screen.getByRole("combobox").click();
+
+    expect(search).toHaveBeenCalledWith("", expect.any(AbortSignal));
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+    expect(screen.getByRole("option").elements().length).toBe(5);
+  });
+
+  test("the source owns the matching, and names a query it answers with nothing", async () => {
+    const { props, search } = setup();
+    const screen = await render(<Combo {...props} />);
+    const combo = screen.getByRole("combobox");
+
+    await combo.click();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+
+    // a row whose text does not contain the query is still a row: the module
+    // never filters what a search returned
+    search.mockResolvedValue([currencies[2]!]);
+    await combo.fill("pound");
+    expect(search).toHaveBeenCalledWith("pound", expect.any(AbortSignal));
+    await expect
+      .element(screen.getByRole("option", { name: "GBP" }))
+      .toBeVisible();
+
+    search.mockResolvedValue([]);
+    await combo.fill("XYZ");
+    await expect.element(screen.getByText("XYZ not found")).toBeVisible();
+    // said over the rehydrated selection, which matched nothing either
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+  });
+
+  test("a search in flight says so and leaves the control usable", async () => {
+    const { props, search } = setup();
+    // never resolves: the pending state has to hold on its own
+    search.mockReturnValue(new Promise(() => {}));
+    const screen = await render(<Combo {...props} />);
+
+    await screen.getByRole("combobox").click();
+
+    await expect.element(screen.getByText("Searching…")).toBeVisible();
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    // one request in flight is not a source with nothing to offer — disabling
+    // here would take the field away mid-keystroke
+    await expect.element(screen.getByRole("combobox")).toBeEnabled();
+  });
+
+  test("a failed search says so and leaves the control usable", async () => {
+    const { props, search } = setup();
+    search.mockRejectedValue(new Error("network"));
+    const screen = await render(<Combo {...props} />);
+
+    await screen.getByRole("combobox").click();
+
+    await expect
+      .element(screen.getByText("Failed to load options"))
+      .toBeVisible();
+    await expect.element(screen.getByText("error")).toBeVisible();
+    // the way out of a failed search is typing another one
+    await expect.element(screen.getByRole("combobox")).toBeEnabled();
+  });
+
+  test("a search aborts the one before it, and so does emptying the box", async () => {
+    const { props, search } = setup();
+    const signals: AbortSignal[] = [];
+    search.mockImplementation((_q, signal) => {
+      signals.push(signal);
+      return new Promise(() => {});
+    });
+    const screen = await render(<Combo {...props} />);
+    const combo = screen.getByRole("combobox");
+
+    await combo.click();
+    await combo.fill("EU");
+    await vi.waitFor(() => expect(signals.length).toBe(2));
+    expect(signals[0]!.aborted).toBe(true);
+    expect(signals[1]!.aborted).toBe(false);
+
+    // the answer to a query the donor just deleted must not land on the list
+    // that replaced it — and deleting is not itself a search
+    await combo.fill("");
+    await vi.waitFor(() => expect(signals[1]!.aborted).toBe(true));
+    expect(search).toHaveBeenCalledTimes(2);
+  });
+});

@@ -16,7 +16,7 @@ import { Status } from "./internal/status";
 import { use_collection } from "./internal/use-collection";
 import { SelectedInputSync } from "./internal/use-selected-input";
 import { use_source } from "./internal/use-source";
-import type { FieldProps, Opt, SyncSource } from "./types";
+import type { FieldProps, Opt, Source } from "./types";
 
 /**
  * `FieldProps["classes"]`, plus the one slot only a combobox can offer: the
@@ -45,10 +45,14 @@ export interface Props<T> extends Omit<FieldProps, "classes">, Opt<T> {
   value: T | undefined;
   /** `undefined` when the value is cleared — the caller decides what empty is */
   on_change: (v: T | undefined) => void;
-  options: SyncSource<T>;
+  options: Source<T>;
   /** rows rendered from the filtered list; default `RESULT_LIMIT` */
   limit?: number;
-  /** matcher over `item_text(v)`; default `useFilter({ sensitivity: "base" }).contains` */
+  /**
+   * matcher over `item_text(v)`; default `useFilter({ sensitivity: "base" }).contains`.
+   *
+   * an `AsyncSource` does its own matching, so nothing here runs for one.
+   */
   filter?: (text: string, q: string) => boolean;
   /** the thing in the control: a flag, a spinner, the drawer chevron */
   adornment?: (open: boolean, state: "idle" | "loading" | "error") => ReactNode;
@@ -100,9 +104,10 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
   const allow_custom = p.allow_custom as boolean | undefined;
 
   const filtered = useMemo(() => {
-    const base = query
-      ? src.items.filter((v) => match(opt.text(v), query))
-      : src.items;
+    const base =
+      query && !src.searched
+        ? src.items.filter((v) => match(opt.text(v), query))
+        : src.items;
     const rows = base.slice(0, limit);
     // a custom value still has to be SELECTED to become the value —
     // `allowCustomValue` only stops zag reverting the text, it never emits.
@@ -111,7 +116,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
     if (rows.some((v) => opt.key(v) === query)) return rows;
     // sound because `allow_custom` is reachable only where `T` IS string
     return [query as T, ...rows].slice(0, limit);
-  }, [src.items, query, match, opt, limit, allow_custom]);
+  }, [src.items, src.searched, query, match, opt, limit, allow_custom]);
 
   const selected = useMemo(() => (p.value == null ? [] : [p.value]), [p.value]);
 
@@ -124,8 +129,10 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
 
   // a query source still loading, or one that failed, has nothing to offer;
   // leaving the control open would present an empty list as if it were the
-  // answer.
-  const disabled = p.disabled || src.loading || !!src.error;
+  // answer. a searched source is the opposite case — its loading IS the
+  // keystroke, and taking the input away is the one thing it must not do.
+  const disabled =
+    p.disabled || (!src.searched && (src.loading || !!src.error));
   const side = p.adornment_side ?? "end";
   const has_clear = !!p.clearable && p.value != null;
 
@@ -156,10 +163,17 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
         onValueChange={(e) => p.on_change(e.items[0])}
         // only typing narrows the list. every other reason zag reports —
         // item-select, clear-trigger, the sync below — means the text now
-        // describes the value, not a search.
-        onInputValueChange={(e) =>
-          set_query(e.reason === "input-change" ? e.inputValue : "")
-        }
+        // describes the value, not a search, and a searched source must not
+        // spend a request on one: that would be a fetch per selection.
+        onInputValueChange={(e) => {
+          const typed = e.reason === "input-change";
+          set_query(typed ? e.inputValue : "");
+          if (typed) src.on_query(e.inputValue);
+        }}
+        // a searched source has nothing until it is asked
+        onOpenChange={(e) => {
+          if (e.open) src.on_open();
+        }}
         positioning={{ placement: "bottom-start", gutter: 8 }}
         allowCustomValue={allow_custom}
         openOnClick
@@ -230,7 +244,12 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
             loading={src.loading}
             error={src.error}
             query={query}
-            count={rows.length}
+            // what the query produced, apart from what the popup ends up
+            // showing: a selection `use_collection` rehydrated is by definition
+            // a row the query did NOT match, and counting it as one hides the
+            // "not found" line behind it.
+            count={filtered.length}
+            shown={rows.length}
           />
         </Popup>
       </Combobox.Root>

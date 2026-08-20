@@ -32,7 +32,18 @@ export type QuerySource<T> = {
   loading?: boolean;
   error?: string;
 };
-/** options the module fetches itself, per keystroke. */
+/**
+ * options the module fetches itself, per keystroke.
+ *
+ * `search` OWNS the matching: it is handed the query and returns the rows for
+ * it, and nothing filters them again on this side. `/api/tokens` and
+ * `/api/tickers` are fuzzy over fields the row's own text doesn't carry — a
+ * ticker found by company name has only its symbol as `item_text` — so a
+ * second pass here would drop the rows the server just matched.
+ *
+ * the signal is aborted the moment a later search fires; a request that loses
+ * that race never reaches state.
+ */
 export type AsyncSource<T> = {
   search: (q: string, signal: AbortSignal) => Promise<readonly T[]>;
 };
@@ -41,12 +52,13 @@ export type AsyncSource<T> = {
 export type Source<T> = StaticSource<T> | QuerySource<T> | AsyncSource<T>;
 
 /**
- * the arms `internal/use-source` resolves today.
+ * the arms that need no state machine: the caller already holds the options,
+ * or already holds the query that fetches them.
  *
- * `AsyncSource` is deliberately absent from the components' `options` prop: an
- * abort/loading/error state machine that nothing exercises is the worst kind of
- * code to inherit. adding the arm when a call site needs it is then a type
- * error there, not a silent hole.
+ * kept as a name of its own because the difference is what `internal/use-source`
+ * branches on — a sync source's `loading` means the list isn't there yet and
+ * the control has nothing to offer, while an async one's means a keystroke is
+ * in flight and the control must stay usable.
  */
 export type SyncSource<T> = StaticSource<T> | QuerySource<T>;
 
