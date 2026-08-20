@@ -54,6 +54,7 @@ export function FsaForm(props: Props) {
 
       <FileDropzone
         ref={poi.ref}
+        dropzone_name="Government issued ID"
         className="mt-1"
         label={
           <Label required className="mb-2">
@@ -77,6 +78,7 @@ export function FsaForm(props: Props) {
 
       <FileDropzone
         ref={por.ref}
+        dropzone_name="Proof of registration"
         className="mt-10"
         label={
           <Label className="mb-2" required>

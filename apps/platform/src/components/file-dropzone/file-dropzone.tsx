@@ -1,6 +1,6 @@
 import { FileUpload } from "@ark-ui/react/file-upload";
 import type { ReactNode, Ref } from "react";
-import { useState } from "react";
+import { useId, useImperativeHandle, useRef, useState } from "react";
 import { uploadFile } from "#/helpers/upload-file";
 import { report_error } from "@/errors/report";
 import { DropzoneText } from "./dropzone-text";
@@ -8,6 +8,10 @@ import type { FileOutput, FileSpec } from "./types";
 
 interface Props {
   label?: ReactNode;
+  /** accessible name of the drop area, derived from the visible label at the
+   * call site. required: zag's generic "dropzone" only reads unambiguously
+   * when the form holds a single one. */
+  dropzone_name: string;
   value: FileOutput;
   onChange: (val: FileOutput) => void;
   disabled?: boolean;
@@ -15,10 +19,31 @@ interface Props {
   specs: FileSpec;
   error?: string;
 }
-type El = HTMLDivElement;
+/** what a form library gets to focus. the drop area is the control — it is
+ * `role="button"`, named, and paints the ring; the hidden input is
+ * `aria-hidden` by zag's own design and announces nothing. */
+type El = Pick<HTMLElement, "focus">;
 
 export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
   const [file, setFile] = useState<File>();
+  const root_ref = useRef<HTMLDivElement>(null);
+  const dropzone_ref = useRef<HTMLDivElement>(null);
+  const error_id = useId();
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      // the root scrolls, not the drop area: scroll-mt-24 lives there and clears
+      // the sticky header, and it carries the label the drop area is named for
+      focus: () => {
+        dropzone_ref.current?.focus({ preventScroll: true });
+        // "start", not "nearest": nearest no-ops when the field is already
+        // partly in view, which is the case scroll-mt-24 exists to correct
+        root_ref.current?.scrollIntoView({ block: "start" });
+      },
+    }),
+    []
+  );
 
   const handle_accept = async (files: File[]) => {
     const f = files[0];
@@ -38,9 +63,9 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
 
   return (
     <FileUpload.Root
-      ref={ref}
-      tabIndex={-1}
-      className={`${props.className ?? ""} scroll-mt-24 outline-none`}
+      ref={root_ref}
+      className={`${props.className ?? ""} scroll-mt-24`}
+      translations={{ dropzone: props.dropzone_name }}
       accept={props.specs.mimeTypes}
       maxFileSize={props.specs.mbLimit * 1e6}
       maxFiles={1}
@@ -68,6 +93,11 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
         . File should be less than {props.specs.mbLimit} MB{" "}
       </p>
       <FileUpload.Dropzone
+        ref={dropzone_ref}
+        // describedby, not invalid/errormessage: neither is global in ARIA 1.2
+        // and role="button" supports neither, so both were inert here. the
+        // destructive border comes from zag's data-invalid off `invalid` above.
+        aria-describedby={props.error ? error_id : undefined}
         className={`relative grid place-items-center rounded border border-dashed w-full h-45.5 cursor-pointer
           focus-within:outline-2 data-dragging:outline-2 outline-ring
           hover:bg-accent
@@ -79,9 +109,9 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
         <DropzoneText value={props.value || file} />
       </FileUpload.Dropzone>
 
-      {props.error && (
-        <span className="field-err mt-1 empty:hidden">{props.error}</span>
-      )}
+      <span id={error_id} className="field-err mt-1 empty:hidden">
+        {props.error}
+      </span>
     </FileUpload.Root>
   );
 }

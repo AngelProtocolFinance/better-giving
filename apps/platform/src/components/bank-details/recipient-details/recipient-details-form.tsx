@@ -342,8 +342,9 @@ export function RecipientDetailsForm({
 
       {verified && (
         <FileDropzone
+          dropzone_name="Bank statement"
           label={
-            <Label htmlFor="bank__statement" required className="mb-2">
+            <Label required className="mb-2">
               Bank statement
             </Label>
           }

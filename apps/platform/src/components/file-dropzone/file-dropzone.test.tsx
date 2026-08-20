@@ -1,7 +1,8 @@
+import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { FileDropzone } from "./file-dropzone";
-import type { FileSpec } from "./types";
+import type { FileOutput, FileSpec } from "./types";
 
 const upload_mock = vi.hoisted(() => vi.fn());
 vi.mock("#/helpers/upload-file", () => ({
@@ -21,7 +22,12 @@ describe("FileDropzone", () => {
   test("renders upload prompt and valid types", async () => {
     const on_change = vi.fn();
     const screen = await render(
-      <FileDropzone value="" onChange={on_change} specs={specs} />
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value=""
+        onChange={on_change}
+        specs={specs}
+      />
     );
 
     await expect.element(screen.getByText(/upload file/i)).toBeVisible();
@@ -35,7 +41,12 @@ describe("FileDropzone", () => {
   test("shows loading state when value is 'loading'", async () => {
     const on_change = vi.fn();
     const screen = await render(
-      <FileDropzone value="loading" onChange={on_change} specs={specs} />
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value="loading"
+        onChange={on_change}
+        specs={specs}
+      />
     );
 
     // loading spinner visible, upload prompt hidden
@@ -48,6 +59,7 @@ describe("FileDropzone", () => {
     const on_change = vi.fn();
     const screen = await render(
       <FileDropzone
+        dropzone_name="Supporting document"
         value="https://example.com/file.pdf"
         onChange={on_change}
         specs={specs}
@@ -63,6 +75,7 @@ describe("FileDropzone", () => {
     const on_change = vi.fn();
     const screen = await render(
       <FileDropzone
+        dropzone_name="Supporting document"
         value=""
         onChange={on_change}
         specs={specs}
@@ -76,7 +89,12 @@ describe("FileDropzone", () => {
   test("rejects invalid file type", async () => {
     const on_change = vi.fn();
     const screen = await render(
-      <FileDropzone value="" onChange={on_change} specs={specs} />
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value=""
+        onChange={on_change}
+        specs={specs}
+      />
     );
 
     const input = screen.container.querySelector(
@@ -101,7 +119,12 @@ describe("FileDropzone", () => {
   test("rejects file exceeding size limit", async () => {
     const on_change = vi.fn();
     const screen = await render(
-      <FileDropzone value="" onChange={on_change} specs={specs} />
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value=""
+        onChange={on_change}
+        specs={specs}
+      />
     );
 
     const input = screen.container.querySelector(
@@ -128,7 +151,12 @@ describe("FileDropzone", () => {
     const on_change = vi.fn();
 
     const screen = await render(
-      <FileDropzone value="" onChange={on_change} specs={specs} />
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value=""
+        onChange={on_change}
+        specs={specs}
+      />
     );
 
     const input = screen.container.querySelector(
@@ -160,7 +188,12 @@ describe("FileDropzone", () => {
     const on_change = vi.fn();
 
     const screen = await render(
-      <FileDropzone value="" onChange={on_change} specs={specs} />
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value=""
+        onChange={on_change}
+        specs={specs}
+      />
     );
 
     const input = screen.container.querySelector(
@@ -183,6 +216,7 @@ describe("FileDropzone", () => {
     const on_change = vi.fn();
     const screen = await render(
       <FileDropzone
+        dropzone_name="Supporting document"
         value=""
         onChange={on_change}
         specs={specs}
@@ -195,5 +229,67 @@ describe("FileDropzone", () => {
       const dropzone = screen.container.querySelector("[data-disabled]");
       expect(dropzone).not.toBeNull();
     });
+  });
+});
+
+/** the shape the bank-details and fsa steps use: a controller-driven dropzone
+ * whose rule fails on an empty value, so a submit exercises RHF's default
+ * focus-on-error rather than an explicit `setFocus` */
+function RHFHarness() {
+  const { control, handleSubmit } = useForm<{ bankStatement: FileOutput }>({
+    defaultValues: { bankStatement: "" },
+  });
+  const { field } = useController({
+    control,
+    name: "bankStatement",
+    rules: { validate: (v) => !!v || "required" },
+  });
+
+  return (
+    <form onSubmit={handleSubmit(() => {})}>
+      <FileDropzone
+        ref={field.ref}
+        dropzone_name="Bank statement"
+        value={field.value}
+        onChange={field.onChange}
+        specs={specs}
+      />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+
+describe("FileDropzone: focus target", () => {
+  test("failed submit focuses a control with an accessible name", async () => {
+    const screen = await render(<RHFHarness />);
+
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    await vi.waitFor(() => {
+      const active = document.activeElement;
+      expect(active?.getAttribute("data-part")).toBe("dropzone");
+      expect(active?.getAttribute("role")).toBe("button");
+      expect(active?.getAttribute("aria-label")).toBe("Bank statement");
+    });
+  });
+
+  test("points the control at its error text", async () => {
+    const screen = await render(
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value=""
+        onChange={() => {}}
+        specs={specs}
+        error="required"
+      />
+    );
+
+    const dropzone = screen.container.querySelector("[data-part='dropzone']");
+    const err_id = dropzone?.getAttribute("aria-describedby");
+    expect(err_id).toBeTruthy();
+
+    expect(
+      screen.container.querySelector(`#${CSS.escape(err_id!)}`)
+    ).toHaveTextContent("required");
   });
 });
