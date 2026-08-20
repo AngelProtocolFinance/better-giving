@@ -62,7 +62,56 @@ that bare specifier to this entry.
    (Still true after the extraction — the walk starts from the repo root, since `cfg.entry`
    puts `PKG_DIR` there.)
 
-## Prop contracts are generated, not hand-written
+## Typecheck the previews — the cheapest way to catch a stale one
+
+The previews are compiled by esbuild, which does **not** typecheck. A preview that passes a prop
+the component no longer has therefore builds, renders, and silently shows less than it should —
+`Amount` spent this whole sync rendering a currency label with no number, and the render check
+called it clean because the root wasn't empty.
+
+Catch it mechanically instead of by eye. Write a throwaway tsconfig that points `@better-giving/ui`
+at the package source and run tsc over `.design-sync/previews/*.tsx`:
+
+```jsonc
+{
+  "compilerOptions": {
+    "jsx": "react-jsx", "strict": true, "noEmit": true, "skipLibCheck": true,
+    "moduleResolution": "bundler", "types": [],
+    "baseUrl": "<repo root>",
+    "paths": {
+      "@better-giving/ui": ["packages/ui/src/index.ts"],
+      "@better-giving/ui/tooltip": ["packages/ui/src/components/tooltip.tsx"],
+      "@better-giving/ui/hover-card": ["packages/ui/src/components/hover-card.tsx"],
+      "@better-giving/ui/masks": ["packages/ui/src/components/form/masks/index.ts"],
+      "@better-giving/ui/helpers": ["packages/ui/src/helpers/index.ts"],
+      "react": ["packages/ui/node_modules/@types/react"],
+      "react/jsx-runtime": ["packages/ui/node_modules/@types/react/jsx-runtime"]
+    },
+    "typeRoots": ["<repo root>/packages/ui/node_modules/@types"]
+  },
+  "include": ["<repo root>/.design-sync/previews/*.tsx"]
+}
+```
+
+Two errors are artifacts of the ad-hoc config, not real: `Cannot find module 'lucide-react'` (it
+resolves at bundle time via `--node-modules`) and `../assets/diversity.svg` (no ambient module
+declaration). Everything else is a genuine stale prop. Run this **before** grading — it takes
+seconds and it is the only check that sees a prop the component dropped.
+
+## `extract-props.mjs` is broken for this repo since the extraction
+
+It now returns a body of just `/** ...plus the standard props inherited from … */` for **every**
+component — the declaration-site filter apparently treats `packages/ui`'s own files as external, so
+every own-prop is filtered out. Its output is strictly worse than what `cfg.dtsPropsFor` already
+holds.
+
+**Do not paste `.cache/props.json` over `cfg.dtsPropsFor`** (the pre-existing rule, now absolute).
+`dtsPropsFor` is hand-maintained: when a component's props change, hand-edit that entry. This is
+load-bearing — the `<Name>Props` body IS the contract the design agent codes against, and a stale
+one makes it misuse the component everywhere. `Amount` and `FileDropzone` were both stale on this
+sync and were corrected by hand.
+
+## How the prop contracts were originally generated
 
 `cfg.dtsPropsFor` holds all 41 bodies. They are NOT hand-authored — the converter's extractor
 only reads `.d.ts`, and platform ships none, so every body degraded to `[key: string]: unknown`.
@@ -392,3 +441,29 @@ old paths, which is why the re-sync produced deletes as well as writes.
 
 `Combo`'s published contract had been stale since before the unification — it was missing
 `popup_width`, `indicator`, `allow_custom` and the async options arm entirely.
+
+## Re-sync risks — the watch-list for the next run
+
+What can silently go stale or wrong, in rough order of how expensive it is to miss:
+
+- **`cfg.dtsPropsFor` drifting from the source.** Hand-maintained, and the extractor can no longer
+  regenerate it (above). Nothing fails loudly when it rots — the previews still render and validate
+  still exits 0; only the published contract is wrong. On every re-sync, diff the changed
+  components' props against their entries. To find which components changed since the last sync:
+  `git diff <last-sync-sha> HEAD -- packages/ui/src/components/`.
+- **Previews compiling but passing dead props.** Same silence. Run the tsc pass above.
+- **The stylesheet is a JIT build with three source scopes** (`packages/ui/src`, `.design-sync/previews`,
+  `apps/platform/src`). Narrowing any of them silently removes utilities from the published
+  vocabulary. If `.design-sync/styles-entry.css` ever moves (PR 2 relocates this directory into
+  `apps/design-sync/`), the `@source` paths must move with it, still covering all three.
+- **`.cache/styles.css` is gitignored**, so a fresh clone has no `cssEntry` until it is compiled.
+  The command is in Stylesheet. A missing one is loud (`! cssEntry: … not found — skipped`).
+- **`extraFonts` points into `apps/platform/node_modules`.** `packages/ui` declares the font *tokens*
+  but depends on neither fontsource package, so platform is the only place the files exist. A
+  platform dep bump that drops either package takes the fonts out of the bundle.
+- **`PKG_DIR` resolves to the repo root**, not `packages/ui`, because it is derived by walking up
+  from `cfg.entry`. The `cssEntry` bound is therefore satisfied by accident rather than by
+  construction — moving this directory into `apps/design-sync/` is what fixes that properly.
+- **`@types/react` symlink and the playwright symlink are per-clone**, not committed. See their
+  sections.
+- **The capture harness pins the clock to 2024-05-15.** Date previews are authored around it.

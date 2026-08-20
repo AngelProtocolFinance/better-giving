@@ -34,9 +34,14 @@ Variants: `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-destructive`, `btn-s
 from other systems (`btn-outline`, `btn-link`) have no rule and render as an unstyled element.
 Add `.pending` for the in-flight state. Disabled travels on `disabled` for `<button>` and `aria-disabled` for `<a>`.
 
+Size is a separate, three-step axis: `btn-sm` (28px), bare `btn` (36px, the default — write no size
+class), `btn-lg` (48px). Icon-only is a **modifier**, not a fourth size: `btn-icon` zeroes the
+horizontal padding and squares the control on whichever tier it accompanies — `btn-sm btn-icon`,
+`btn btn-icon`, `btn-lg btn-icon`. Always give an icon-only button an `aria-label`.
+
 The other real class names, for when you compose a control by hand rather than using a component:
 `.field-input`, `.field-input-container`, `.field-err`, `.label`, `.label-floating`,
-`.selector-btn`, `.selector-opt`, `.selector-opts`, `.table`, and the utilities `.surface-primary`,
+`.selector-btn`, `.selector-opt`, `.table`, and the utilities `.surface-primary`,
 `.eyebrow`, `.section-heading`, `.section-body`, `.hero-heading`, `.article-heading`,
 `.flex-center`, `.absolute-center`, `.overlay`.
 
@@ -61,10 +66,14 @@ which is the warning ink on *every* surface. Never pair an alpha tint with its o
 `bg-destructive-subtle text-destructive-subtle-fg`, and set the surface and its ink **on the same
 element** — a child's own color utility wins over an inherited one.
 
-Three things exist as tokens but have **no compiled utility**, because nothing in the app uses
-them yet: `bg-warning-subtle`, `bg-chart-1…5`, and `border-primary-border` / `ring-primary-ring`.
-Writing those class names produces no style. For a brand-filled panel that contains a control, use
-the `surface-primary` utility, which rebinds `--ring` and `--border` to the accessible pair for you.
+`success-subtle` (+ `-fg`) and `warning-subtle` (+ `-fg`) are authored pairs too, and `chart-1…5`
+exist for data viz. For a brand-filled panel that contains a control, use the `surface-primary`
+utility, which rebinds `--ring` and `--border` to the accessible pair for you rather than making you
+reach for `border-primary-border` / `ring-primary-ring` directly.
+
+**On a `--primary` fill, state is never carried by hue.** Every semantic ink in the palette is
+authored for light surfaces and collapses on primary (destructive 1.06:1, warning 1.04:1, success
+1.08:1). Carry state there with weight, an icon and the words instead.
 
 Dimmer text is `--muted-fg`, never `--fg` at reduced opacity.
 
@@ -74,9 +83,11 @@ Quicksand Variable for everything, weights 400/500/600/700. Gochi Hand is the ha
 used four or five times in the entire product, never decoratively. App body and controls sit at
 `text-sm`; micro-meta at `text-xs` and `text-2xs`. Tables use tabular figures.
 
-Radius is tight and derived from a 4px basis: `rounded` (4px) for buttons, inputs, cards and
-dialogs — buttons and inputs get it from their own recipe, so no `rounded*` class at the call
-site — and `rounded-xs` for option lists. Nothing is a pill.
+Radius is one value and the ladder is **closed**: `rounded` is the only corner name, everywhere —
+buttons, inputs, cards, dialogs, option lists. Buttons and inputs get it from their own recipe, so
+no `rounded*` class at the call site. `rounded-sm`, `-md`, `-lg`, `-xl`, `-xs` are reset to
+`initial` and **fail to compile** — writing one produces no rule at all, which is deliberate: it is
+how the single radius stays single. `rounded-full` and `rounded-none` still work. Nothing is a pill.
 
 **Elevation barely exists.** A card is `bg-card` + `border` + `rounded` — never a shadow. Shadow
 appears only on genuinely floating layers: toasts, tooltips, and select popups.
@@ -85,19 +96,17 @@ Focus is always a 2px `--ring` outline with `outline-offset: 2px`. Never `outlin
 
 ### A constraint worth knowing
 
-The stylesheet is compiled from the app's own source, so it contains the utilities the app
-actually uses — a large, realistic vocabulary, but not every arbitrary step. `gap-4` and `p-6`
-exist; `gap-7` and `p-11` do not. This matches the system's real spacing ladder (Tailwind's
-0.25rem basis, steps 2/3/3.5/4/5–8), so staying on the common steps keeps you both styled and
-on-system. If something renders unstyled, an off-ladder utility is the first thing to check.
+The stylesheet is compiled from real source — the components, these preview cards, and the app —
+so it holds the utilities that code actually writes, which is a large and realistic vocabulary but
+not every possible one. Tailwind v4 is just-in-time: a class nobody has written has no rule, and a
+missing utility is **silent** — no error, just a layout that quietly ignores you.
 
-Two sharper corollaries, both found the hard way while building the preview cards. The gaps are
-not symmetric between axes — `h-16` is present but `w-16` is not, so `h-16 w-16` renders a
-64px-tall box of whatever width the content happens to want. And **arbitrary values are compiled
-on demand**, so `w-[36rem]` or `grid-cols-[9rem_auto]` has no rule unless the app already writes
-that exact string; a few (`bottom-[2px]`) do exist for that reason. A missing utility is silent —
-no error, just a layout that quietly ignores you — so prefer plain flex/gap and the common steps,
-and reach for a bracket value only when the layout genuinely needs one.
+The common ladder is safe (Tailwind's 0.25rem basis: `gap-1`…`gap-8`, `p-2`…`p-8`, the standard
+`w-*`/`h-*` steps). What to watch: **arbitrary values are compiled on demand**, so `w-[36rem]` or
+`grid-cols-[9rem_auto]` has no rule unless that exact string already appears in the source — a few
+(`bottom-[2px]`) exist for that reason. Prefer plain flex/gap and the common steps, and reach for a
+bracket value only when the layout genuinely needs one. If something renders unstyled, an
+off-ladder or arbitrary utility is the first thing to check.
 
 ### Where the truth is
 
@@ -127,7 +136,7 @@ const { DsProvider, Group, Field, Select, Amount, Confirmed } = window.BetterGiv
       placeholder="Select a currency"
     />
     <div className="flex items-center justify-between border-t pt-4">
-      <Amount amount={1200} currency="usd" />
+      <Amount value="1,200.00" currency="usd" />
       <button className="btn btn-primary">Save changes</button>
     </div>
     <Confirmed>Bank account verified</Confirmed>
