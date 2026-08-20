@@ -139,6 +139,52 @@ describe("Combo", () => {
       .toBeVisible();
   });
 
+  // zag's revert guards are all `not("allowCustomValue")`, and SelectedInputSync
+  // reverts on paths zag leaves alone — mounting it here would delete the text
+  // that IS the value.
+  test("allow_custom offers the typed text and keeps it through a close", async () => {
+    const on_change = vi.fn();
+    function H() {
+      const [v, set_v] = useState<string | undefined>();
+      return (
+        <>
+          <p data-testid="outside">outside</p>
+          <Combo
+            value={v}
+            on_change={(c) => {
+              set_v(c);
+              on_change(c);
+            }}
+            options={countries}
+            allow_custom
+            adornment={() => <span>drawer</span>}
+          />
+        </>
+      );
+    }
+    const screen = await render(<H />);
+    const combo = screen.getByRole("combobox");
+
+    await combo.click();
+    await combo.fill("Ontario");
+    // `allowCustomValue` never emits a value on its own — the row does
+    await screen.getByRole("option", { name: "Ontario" }).click();
+    expect(on_change).toHaveBeenCalledWith("Ontario");
+    await expect.element(combo).toHaveValue("Ontario");
+
+    // the close zag leaves alone, and the one SelectedInputSync exists to
+    // cover — it has to leave a custom value where the donor typed it.
+    // ark names the trigger "Toggle suggestions"; it is the first button here
+    await combo.fill("Manitoba");
+    await screen.getByRole("button").first().click();
+    await expect.element(combo).toHaveValue("Manitoba");
+
+    // and zag's own revert path, guarded by `not("allowCustomValue")`
+    await combo.fill("Saskatchewan");
+    await screen.getByTestId("outside").click();
+    await expect.element(combo).toHaveValue("Saskatchewan");
+  });
+
   test("a query source disables the control while it loads or fails", async () => {
     const loading: SyncSource<string> = { items: [], loading: true };
     const screen = await render(

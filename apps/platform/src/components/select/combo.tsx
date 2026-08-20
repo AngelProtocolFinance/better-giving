@@ -33,6 +33,14 @@ export interface Props<T> extends FieldProps, Opt<T> {
   adornment_side?: "start" | "end";
   /** offer an X that empties the field */
   clearable?: boolean;
+  /**
+   * the typed text is a value in its own right — ark's `allowCustomValue`.
+   *
+   * only coherent when the option type IS its own text (`T extends string`):
+   * the row offered for a query is the query, and nothing can widen a string
+   * into an arbitrary `T`.
+   */
+  allow_custom?: boolean;
   on_reset?: () => void;
   ref?: Ref<HTMLInputElement>;
 }
@@ -59,8 +67,14 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
     const base = query
       ? src.items.filter((v) => match(opt.text(v), query))
       : src.items;
-    return base.slice(0, limit);
-  }, [src.items, query, match, opt, limit]);
+    const rows = base.slice(0, limit);
+    // a custom value still has to be SELECTED to become the value —
+    // `allowCustomValue` only stops zag reverting the text, it never emits.
+    // so the query rides along as a row, unless the list already offers it.
+    if (!p.allow_custom || !query) return rows;
+    if (rows.some((v) => opt.key(v) === query)) return rows;
+    return [query as T, ...rows].slice(0, limit);
+  }, [src.items, query, match, opt, limit, p.allow_custom]);
 
   const selected = useMemo(() => (p.value == null ? [] : [p.value]), [p.value]);
 
@@ -89,7 +103,10 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
       <Combobox.Root<T>
         collection={collection}
         disabled={disabled}
-        invalid={!!p.error}
+        // absent, not `false`, when there is no error of its own: ark spreads
+        // the caller's props over the field context and drops only undefined,
+        // so a literal false shadows an enclosing Field.Root's invalid state.
+        invalid={p.error ? true : undefined}
         value={p.value == null ? [] : [opt.key(p.value)]}
         onValueChange={(e) => p.on_change(e.items[0])}
         // only typing narrows the list. every other reason zag reports —
@@ -99,9 +116,12 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
           set_query(e.reason === "input-change" ? e.inputValue : "")
         }
         positioning={{ placement: "bottom-start", gutter: 8 }}
+        allowCustomValue={p.allow_custom}
         openOnClick
       >
-        <SelectedInputSync />
+        {/* zag guards its own revert with `not("allowCustomValue")`; the sync
+            has to match it, or it deletes the text that IS the value. */}
+        {!p.allow_custom && <SelectedInputSync />}
         <Combobox.Control
           ref={ctrl_ref}
           className={`relative ${p.classes?.control ?? ""}`}
