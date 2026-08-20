@@ -2,6 +2,27 @@
 
 Repo-specific gotchas for future syncs. Read this before re-running anything.
 
+## Where this runs from — read first
+
+Everything lives under **`apps/design-sync/`**, and every command in this file assumes that
+as the working directory. The converter resolves `.design-sync/` against the **cwd** in ~15
+places, and `PKG_DIR` by walking up from `cfg.entry` to the nearest named `package.json` — so
+running from the repo root instead silently resolves a different tree.
+
+```sh
+cd apps/design-sync        # <- every command below, including /design-sync itself
+```
+
+The skill's own re-sync detection reads `.design-sync/config.json` **relative to the cwd**, so
+a `/design-sync` started at the repo root finds no config, calls it a first-time import, and
+creates a SECOND claude.ai/design project — orphaning
+`2ae8b8b4-efb5-4845-9b62-4401e20f846a`. That is the one mistake this layout makes easy; there
+is no marker at the repo root to catch it.
+
+`--node-modules` stays `../../packages/ui/node_modules` (`lucide-react` and friends are real
+dependencies of the package, and `workspaceRoot` still derives to the repo root from it).
+`--out` goes to `ds-bundle/` inside this app, not the repo root.
+
 ## Shape
 
 `shape: "package"`. There is no Storybook and no `*.stories.*` anywhere in the repo.
@@ -54,49 +75,38 @@ that bare specifier to this entry.
    be about was `apps/platform`'s `#/`, `@/`, `$/`, and no file this sync bundles uses them any
    more. Do NOT "fix" this by setting `cfg.tsconfig`.
 
-2. **`@types/react` had to be linked at the repo root.** `lib/dts.mjs` derives node_modules from
-   the package dir and only walks *up* looking for `@types/react`; it never looks down into
-   `apps/platform/node_modules`, where pnpm actually put it. Fix, once per clone:
-   `mkdir -p node_modules/@types && ln -sfn ../../apps/platform/node_modules/@types/react node_modules/@types/react`
-   Without it every emitted `.d.ts` body collapses to `any`/empty.
-   (Still true after the extraction — the walk starts from the repo root, since `cfg.entry`
-   puts `PKG_DIR` there.)
+2. **`@types/react` used to need a symlink at the repo root — it no longer does.**
+   `lib/dts.mjs` derives node_modules from the package dir and only walks *up* looking for
+   `@types/react`. With `cfg.entry` at the repo root, `PKG_DIR` was the repo root and the walk
+   found nothing, so every emitted `.d.ts` body collapsed to `any`/empty and a hand-made
+   symlink was the fix. Since the move `PKG_DIR` is `apps/design-sync`, which **declares
+   `@types/react` itself** — the walk finds it one level up, per clone, with no manual step.
+   Same for `playwright` and the old `.ds-sync/node_modules/playwright` link (see Playwright).
+   Any leftover `node_modules/@types/react` symlink at the repo root is inert; delete it.
 
 ## Typecheck the previews — the cheapest way to catch a stale one
 
 The previews are compiled by esbuild, which does **not** typecheck. A preview that passes a prop
 the component no longer has therefore builds, renders, and silently shows less than it should —
-`Amount` spent this whole sync rendering a currency label with no number, and the render check
+`Amount` spent a whole sync rendering a currency label with no number, and the render check
 called it clean because the root wasn't empty.
 
-Catch it mechanically instead of by eye. Write a throwaway tsconfig that points `@better-giving/ui`
-at the package source and run tsc over `.design-sync/previews/*.tsx`:
+This used to be a throwaway tsconfig pasted out of this file. It is now a **real project**:
+`apps/design-sync/tsconfig.json` + a `typecheck` script, so
 
-```jsonc
-{
-  "compilerOptions": {
-    "jsx": "react-jsx", "strict": true, "noEmit": true, "skipLibCheck": true,
-    "moduleResolution": "bundler", "types": [],
-    "baseUrl": "<repo root>",
-    "paths": {
-      "@better-giving/ui": ["packages/ui/src/index.ts"],
-      "@better-giving/ui/tooltip": ["packages/ui/src/components/tooltip.tsx"],
-      "@better-giving/ui/hover-card": ["packages/ui/src/components/hover-card.tsx"],
-      "@better-giving/ui/masks": ["packages/ui/src/components/form/masks/index.ts"],
-      "@better-giving/ui/helpers": ["packages/ui/src/helpers/index.ts"],
-      "react": ["packages/ui/node_modules/@types/react"],
-      "react/jsx-runtime": ["packages/ui/node_modules/@types/react/jsx-runtime"]
-    },
-    "typeRoots": ["<repo root>/packages/ui/node_modules/@types"]
-  },
-  "include": ["<repo root>/.design-sync/previews/*.tsx"]
-}
+```sh
+pnpm --filter design-sync typecheck
 ```
 
-Two errors are artifacts of the ad-hoc config, not real: `Cannot find module 'lucide-react'` (it
-resolves at bundle time via `--node-modules`) and `../assets/diversity.svg` (no ambient module
-declaration). Everything else is a genuine stale prop. Run this **before** grading — it takes
-seconds and it is the only check that sees a prop the component dropped.
+checks every preview and `entry.tsx` against the real `@better-giving/ui` source. It runs in
+CI (the `checks` job's `turbo run typecheck` picks it up from the package's own script) and on
+commit (lefthook `type-check-design-sync`). The two errors the ad-hoc config used to produce
+are both gone: `lucide-react` is a declared dependency of this app, and `*.svg` has an ambient
+declaration in `types/assets.d.ts`.
+
+Run it **before grading** — it takes seconds and it is the only check that sees a prop the
+component dropped. Verified to bite: reinstating `<Amount amount={1200} …>` fails with
+`TS2322 ... not assignable to type 'IntrinsicAttributes & IAmount'`.
 
 ## `extract-props.mjs` is broken for this repo since the extraction
 
@@ -132,12 +142,14 @@ exist in the emitted `.d.ts`. **Re-run it whenever a component's props change.**
 
 ## Fonts
 
-`cfg.extraFonts` points at the **fontsource packages**, not at the app's build output. They
-resolve under `apps/platform/node_modules` and still do after the extraction: `packages/ui`
-declares the `--font-quicksand`/`--font-gochi` tokens but depends on neither fontsource package,
-so platform is the only place on disk they exist. `extraFonts` is bounded to the git workspace
-root (not `PKG_DIR`), so pointing across a member is legal. A non-platform consumer of
-`@better-giving/ui` gets the token and no font — worth closing if `apps/docs` adopts the system. The
+`cfg.extraFonts` points at the **fontsource packages**, not at the app's build output. It used
+to reach across into `apps/platform/node_modules` — the only place on disk they existed, since
+`packages/ui` declares the `--font-quicksand`/`--font-gochi` tokens but depends on neither
+fontsource package. Since the move this app **declares both itself**, so the paths are its own
+`node_modules/` and nothing points across a member. (`extraFonts` is bounded to the git
+workspace root rather than `PKG_DIR`, so the old cross-member form was legal, just fragile.)
+A non-platform consumer of `@better-giving/ui` still gets the token and no font — worth closing
+if `apps/docs` adopts the system. The
 compiled app CSS references `/assets/*.woff2` (absolute, root-relative) which resolve to nothing
 on disk, so the converter dropped them as dead `@font-face` blocks and shipped zero font files.
 The fontsource packages carry correct `@font-face` CSS with relative `./files/*.woff2`.
@@ -149,7 +161,7 @@ Quicksand Variable and Gochi Hand are the only two families the system uses.
 `.design-sync/styles-entry.css` (committed; the output is gitignored):
 
 ```sh
-packages/ui/node_modules/.bin/tailwindcss -i .design-sync/styles-entry.css -o .design-sync/.cache/styles.css
+pnpm --filter design-sync styles
 ```
 
 **Rebuild it whenever a component, a preview, or the app writes a utility that wasn't there
@@ -173,6 +185,23 @@ alone need, `flex-col` and `gap-4` among them.
 
 Neither applies now: nothing in this sync needs an app build, and the path is stable.
 
+**The move narrowed the vocabulary by 12 utilities, and that was a latent accident closing.**
+`@import "tailwindcss"` auto-detects sources from the entry file up to the nearest project root.
+With the entry at `<repo root>/.design-sync/` there was no `package.json` between it and the git
+root, so Tailwind was quietly scanning the **whole repo** — `apps/docs`, `packages/emails`,
+`apps/blog` included — on top of the three declared `@source` scopes. `apps/design-sync/package.json`
+now stops that walk, so the build is exactly the three scopes the entry names. What was lost:
+`antialiased`, `collapse`, `cursor-nwse-resize`, `h-3`, `invert`, `m-0`, `max-w-150`, `outline-0`,
+`outline-2`, `scroll-mt-16`, `transition-opacity`, `w-12` — none used by `packages/ui` or by any
+preview. Verified byte-identical to an absolute-path reference build, so the relative `@source`
+paths resolve to the intended dirs.
+
+The general shape of this is worth knowing: **the published vocabulary is only what these three
+scopes happen to write**, so a design that reaches for a reasonable utility nobody has used yet
+renders unstyled. The previews scope is the deliberate escape hatch — write the utility in a
+preview and it exists. A safelist (`@source inline(…)`) would be the real fix and is not one this
+file should decide.
+
 Note `packages/ui` also builds its own `dist/styles.css` (`pnpm --filter @better-giving/ui
 build`). This sync does **not** consume it — it covers only the package's own source, so it
 carries neither the previews' layout utilities nor the app's vocabulary. It exists for tooling
@@ -185,9 +214,10 @@ Check a utility before authoring against it:
 
 Chromium is already cached at `~/Library/Caches/ms-playwright/` (builds 1217 and 1234).
 The repo pins `playwright@1.59.1`, whose `browsers.json` pins chromium **1217** — so it matches
-and **no download is needed**. The validator imports `playwright` relative to `.ds-sync/`, so
-link it there once per clone:
-`ln -sfn "$PWD/node_modules/.pnpm/playwright@1.59.1/node_modules/playwright" .ds-sync/node_modules/playwright`
+and **no download is needed**. The validator imports `playwright` relative to `.ds-sync/`, which the skill now stages at
+`apps/design-sync/.ds-sync/` — node resolution walks up into `apps/design-sync/node_modules`,
+where this app **declares `playwright` itself**. The old per-clone
+`ln -sfn ... .ds-sync/node_modules/playwright` is no longer needed.
 
 ## Validator warnings (triaged)
 
@@ -446,24 +476,26 @@ old paths, which is why the re-sync produced deletes as well as writes.
 
 What can silently go stale or wrong, in rough order of how expensive it is to miss:
 
+- **Running `/design-sync` from the repo root instead of `apps/design-sync`.** The skill looks for
+  `.design-sync/config.json` relative to the cwd; not finding one, it treats the run as a first-time
+  import and creates a second project. Nothing warns. See *Where this runs from*.
 - **`cfg.dtsPropsFor` drifting from the source.** Hand-maintained, and the extractor can no longer
   regenerate it (above). Nothing fails loudly when it rots — the previews still render and validate
   still exits 0; only the published contract is wrong. On every re-sync, diff the changed
   components' props against their entries. To find which components changed since the last sync:
   `git diff <last-sync-sha> HEAD -- packages/ui/src/components/`.
-- **Previews compiling but passing dead props.** Same silence. Run the tsc pass above.
+- **Previews compiling but passing dead props.** Same silence — but now caught mechanically by
+  `pnpm --filter design-sync typecheck`, in CI and on commit.
+- **`FileDropzone` is ahead of what was published.** Its uploaded-file link moved OUT of the drop
+  area (it was a focusable anchor inside a `role="button"`), the drop area now shows the file name
+  rather than the whole url, the four machine states render as their own text instead of falling
+  through to a link, and a polite `role="status"` region announces every transition. Props are
+  unchanged, so `dtsPropsFor` is still correct — but the card, `docs/FileDropzone.md` and the
+  prompt describe the older component until the next sync ships them.
 - **The stylesheet is a JIT build with three source scopes** (`packages/ui/src`, `.design-sync/previews`,
   `apps/platform/src`). Narrowing any of them silently removes utilities from the published
-  vocabulary. If `.design-sync/styles-entry.css` ever moves (PR 2 relocates this directory into
-  `apps/design-sync/`), the `@source` paths must move with it, still covering all three.
+  vocabulary — and the auto-detected scope is now bounded by `apps/design-sync/package.json`, so
+  the whole-repo overspill is gone (see Stylesheet).
 - **`.cache/styles.css` is gitignored**, so a fresh clone has no `cssEntry` until it is compiled.
-  The command is in Stylesheet. A missing one is loud (`! cssEntry: … not found — skipped`).
-- **`extraFonts` points into `apps/platform/node_modules`.** `packages/ui` declares the font *tokens*
-  but depends on neither fontsource package, so platform is the only place the files exist. A
-  platform dep bump that drops either package takes the fonts out of the bundle.
-- **`PKG_DIR` resolves to the repo root**, not `packages/ui`, because it is derived by walking up
-  from `cfg.entry`. The `cssEntry` bound is therefore satisfied by accident rather than by
-  construction — moving this directory into `apps/design-sync/` is what fixes that properly.
-- **`@types/react` symlink and the playwright symlink are per-clone**, not committed. See their
-  sections.
+  `pnpm --filter design-sync styles`. A missing one is loud (`! cssEntry: … not found — skipped`).
 - **The capture harness pins the clock to 2024-05-15.** Date previews are authored around it.

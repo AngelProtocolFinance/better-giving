@@ -1,0 +1,32 @@
+{
+  "name": "design-sync",
+  "private": true,
+  "description": "The design-system sync: what /design-sync publishes to claude.ai/design, and the previews it publishes it from",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "styles": "tailwindcss -i .design-sync/styles-entry.css -o .design-sync/.cache/styles.css",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "dependencies": {
+    "@better-giving/ui": "workspace:*",
+    "@fontsource-variable/quicksand": "5.2.10",
+    "@fontsource/gochi-hand": "5.2.8",
+    "lucide-react": "0.562.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router": "7.16.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "playwright": "1.59.1",
+    "tailwindcss": "4.3.1",
+    "typescript": "catalog:"
+  }
+}

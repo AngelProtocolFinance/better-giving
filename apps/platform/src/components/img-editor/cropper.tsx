@@ -66,8 +66,17 @@ export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
           alt=""
           className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
         />
+        {/* the focus ring is the system's standard 2px --ring at offset 2, but
+            here it is drawn over the donor's own photograph behind the scrim,
+            so its contrast against the backdrop is whatever they uploaded and
+            can fall under the 3:1 WCAG 1.4.11 asks of a non-text indicator.
+            the selection edge goes fully opaque white on focus to pair a
+            light boundary with the dark-ish blue one: against pale imagery the
+            blue reads, against dark imagery the white does. no new token —
+            one focus color is all the closed palette has, and inventing a
+            second is a design decision, not a fix. */}
         <ImageCropper.Selection
-          className="box-content border border-white/40 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 cursor-move data-[shape=circle]:rounded-full data-dragging:cursor-grabbing"
+          className="box-content border border-white/40 focus-visible:border-white focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 cursor-move data-[shape=circle]:rounded-full data-dragging:cursor-grabbing"
           style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.5)" }}
         >
           {/* rule-of-thirds grid */}

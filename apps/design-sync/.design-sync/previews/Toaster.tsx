@@ -4,7 +4,10 @@ import { useEffect } from "react";
 // so both halves are imported from the source module here — they share one
 // module-scope toast manager, and importing `Toaster` from "@better-giving/ui" while
 // pushing through a second copy of the manager would render nothing.
-import { show_toast, Toaster } from "../../packages/ui/src/components/toaster";
+import {
+  show_toast,
+  Toaster,
+} from "../../../../packages/ui/src/components/toaster";
 
 type Toast = { type?: "success" | "error" | "info"; message: string };
 

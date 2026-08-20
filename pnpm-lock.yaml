@@ -64,6 +64,49 @@ importers:
         specifier: 19.2.17
         version: 19.2.17
 
+  apps/design-sync:
+    dependencies:
+      '@better-giving/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@fontsource-variable/quicksand':
+        specifier: 5.2.10
+        version: 5.2.10
+      '@fontsource/gochi-hand':
+        specifier: 5.2.8
+        version: 5.2.8
+      lucide-react:
+        specifier: 0.562.0
+        version: 0.562.0(react@19.2.6)
+      react:
+        specifier: 19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: 19.2.6
+        version: 19.2.6(react@19.2.6)
+      react-router:
+        specifier: 7.16.0
+        version: 7.16.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+    devDependencies:
+      '@tailwindcss/cli':
+        specifier: 4.3.1
+        version: 4.3.1
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: 19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      playwright:
+        specifier: 1.59.1
+        version: 1.59.1
+      tailwindcss:
+        specifier: 4.3.1
+        version: 4.3.1
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.2
+
   apps/docs:
     dependencies:
       '@better-giving/brand':

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
@@ -11,6 +12,22 @@ const specs: FileSpec = {
   mbLimit: 6,
   mimeTypes: ["image/jpeg", "image/png", "application/pdf"],
 };
+
+/** the shape every call site uses: `value` is state the parent owns, so the
+ * live region and the drop area actually advance through the machine's states */
+function Controlled() {
+  const [value, set_value] = useState<FileOutput>("");
+  return (
+    <FileDropzone
+      dropzone_name="Supporting document"
+      value={value}
+      onChange={set_value}
+      specs={specs}
+      upload={upload_mock}
+      report_error={report_error_mock}
+    />
+  );
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -61,12 +78,12 @@ describe("FileDropzone", () => {
       .not.toBeInTheDocument();
   });
 
-  test("shows uploaded file link when value is a URL", async () => {
+  test("shows the file name in the drop area and links to it outside", async () => {
     const on_change = vi.fn();
     const screen = await render(
       <FileDropzone
         dropzone_name="Supporting document"
-        value="https://example.com/file.pdf"
+        value="https://example.com/annual%20report.pdf"
         onChange={on_change}
         specs={specs}
         upload={upload_mock}
@@ -74,9 +91,19 @@ describe("FileDropzone", () => {
       />
     );
 
-    await expect
-      .element(screen.getByText("https://example.com/file.pdf"))
-      .toBeVisible();
+    const dropzone = screen.container.querySelector("[data-part='dropzone']");
+    // the drop area shows the decoded name, not the whole url — the url used to
+    // be both the visible text and (via the nested anchor) the button's name
+    expect(dropzone).toHaveTextContent("annual report.pdf");
+    expect(dropzone).not.toHaveTextContent("https://");
+
+    const link = screen.container.querySelector(
+      "a[href='https://example.com/annual%20report.pdf']"
+    );
+    expect(link).not.toBeNull();
+    expect(link).toHaveTextContent("View uploaded file");
+    // the whole point: a focusable link may not sit inside a role="button"
+    expect(dropzone?.contains(link!)).toBe(false);
   });
 
   test("shows error message when error prop is set", async () => {
@@ -228,6 +255,82 @@ describe("FileDropzone", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     await vi.waitFor(() => expect(on_change).toHaveBeenCalledWith("failure"));
+  });
+
+  test("stays focusable and reports busy while uploading", async () => {
+    const on_change = vi.fn();
+    const screen = await render(
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value="loading"
+        onChange={on_change}
+        specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
+      />
+    );
+
+    const dropzone = screen.container.querySelector("[data-part='dropzone']");
+    // uploading is busy, not disabled: routing it through zag's `disabled`
+    // stripped tabIndex mid-interaction and dropped focus to <body>
+    expect(dropzone?.getAttribute("tabindex")).toBe("0");
+    expect(dropzone?.getAttribute("aria-busy")).toBe("true");
+    expect(dropzone?.hasAttribute("data-disabled")).toBe(false);
+  });
+
+  test("announces a rejection and an upload in the live region", async () => {
+    upload_mock.mockResolvedValue("https://cdn.example.com/uploaded.png");
+    const screen = await render(<Controlled />);
+
+    const status = () => screen.container.querySelector("[role='status']");
+    // always mounted, empty until there is something to say — an element
+    // inserted at the same moment as its text is announced unreliably
+    expect(status()).not.toBeNull();
+    expect(status()).toHaveTextContent("");
+
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    const put = (f: File) => {
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      Object.defineProperty(input, "files", {
+        value: dt.files,
+        configurable: true,
+      });
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    put(new File(["data"], "notes.txt", { type: "text/plain" }));
+    await vi.waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Rejected notes.txt: not an accepted file type"
+      )
+    );
+
+    put(new File(["img"], "photo.png", { type: "image/png" }));
+    await vi.waitFor(() =>
+      expect(status()).toHaveTextContent("Uploaded photo.png")
+    );
+  });
+
+  test("renders each error code as text, never as a link", async () => {
+    const on_change = vi.fn();
+    const screen = await render(
+      <FileDropzone
+        dropzone_name="Supporting document"
+        value="invalid-type"
+        onChange={on_change}
+        specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
+      />
+    );
+
+    const dropzone = screen.container.querySelector("[data-part='dropzone']");
+    expect(dropzone).toHaveTextContent("Not an accepted file type");
+    // the codes used to fall through to the url branch: href="invalid-type"
+    expect(screen.container.querySelector("a")).toBeNull();
   });
 
   test("disabled state prevents interaction", async () => {

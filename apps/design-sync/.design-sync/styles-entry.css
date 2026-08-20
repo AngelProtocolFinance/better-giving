@@ -22,11 +22,10 @@
    only by invoking react-router build directly because platform's
    postbuild migrates a live database. nothing here needs an app build.
 
-   rebuild with:
-     packages/ui/node_modules/.bin/tailwindcss \
-       -i .design-sync/styles-entry.css -o .design-sync/.cache/styles.css */
+   rebuild from apps/design-sync with:
+     pnpm --filter design-sync styles */
 @import "tailwindcss";
-@import "../packages/ui/src/styles/index.css";
+@import "../../../packages/ui/src/styles/index.css";
 
 @source "./previews";
-@source "../apps/platform/src";
+@source "../../platform/src";
