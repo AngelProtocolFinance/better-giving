@@ -15,13 +15,11 @@ command that produced it. Re-run it rather than quoting it.
 
 ## The palette is light-only
 
-As of **2026-08-19** there is no dark theme. A `.dark` block existed in
-`colors.css` and was deleted: it was **unreachable in the shipped product** — no
-theme toggle, `.dark` never applied to any element, no `prefers-color-scheme`
-query anywhere — so it doubled the cost of every palette change for no
-user-visible benefit.
+There is no dark theme. The product ships no theme toggle, never applies `.dark`
+to any element, and has no `prefers-color-scheme` query anywhere — a dark half
+would double the cost of every palette change for no user-visible benefit.
 
-**This is a decision, not an oversight.** Don't re-derive a dark half because a
+**This is a decision, not an oversight.** Don't derive a dark half because a
 token "is missing one". Shipping dark mode is a product decision first; the
 palette follows it, not the other way round. Everything below is measured on the
 light values, and the light values are the only ones there are.
@@ -154,9 +152,9 @@ hole, not an invented value.
 
 ### `--destructive-subtle-active` — the pressed rung for a subtle band
 
-**Closed 2026-08-19.** A control whose *hover* is the subtle tint now has an
-authored **pressed** rung. Both obvious fallbacks fail, which is why it needed a
-token rather than a use-site derivation:
+A control whose *hover* is the subtle tint has an authored **pressed** rung.
+Both obvious fallbacks fail, which is why it takes a token rather than a
+use-site derivation:
 
 - `destructive/20` — the alpha step actually shipped at
   `routes/dashboard.subscriptions/route.tsx:90` — measures **3.36:1** with the
@@ -183,8 +181,8 @@ site is still inventing a value.
 
 ### `--success-subtle` / `-fg` — minted, and why the case was still weak
 
-**Authored 2026-08-19**, closing the last `bg-<token>/10 text-<token>` band in
-the palette. Values: surface `oklch(0.954 0.019 163)` (the same L/C the
+The band that keeps `bg-<token>/10 text-<token>` out of the success case.
+Values: surface `oklch(0.954 0.019 163)` (the same L/C the
 destructive band uses, at green's hue), ink `oklch(0.484 0.14 163)` — `--success`
 darkened until it clears the tint with the same headroom red has. **Measured: 5.02:1
 ink on `--success-subtle`, 5.70:1 on `--card`/`--background`, 5.21:1 on
@@ -233,10 +231,7 @@ combination measures 4.77:1 regardless.
 
 ### Semantic hue on a `--primary` fill — the rule, and why no token closes it
 
-**Re-decided 2026-08-19.** This section previously ruled the same sites a misuse
-and prescribed the destructive band on its own node. The ruling is replaced; two
-of its figures were wrong. Ratios below are WCAG 2.x, measured on the shipped hex
-in `colors.ts` — not on the `/* source: */` provenance comments, which is the
+Ratios below are WCAG 2.x, measured on the shipped hex in `colors.ts` — not on the `/* source: */` provenance comments, which is the
 trap the "trust the hex or the oklch" section warns about.
 
 Every semantic ink in this palette is authored **dark, for light surfaces**. On
@@ -252,7 +247,7 @@ the fill's own luminance and vanish:
 | `--destructive` | 1.21:1 | was live at `_app.marketplace_.$id/page-error.tsx`; fixed |
 | `--primary-fg` | **5.49:1** | the only legible ink on this fill |
 
-**No token was minted, and minting one would not close the gap.** An "error ink
+**There is no token for this, and minting one would not close the gap.** An "error ink
 legible on `--primary`" fixes one row of that table and leaves a green check at
 1.08:1 inside the same `<form>` — the two branches of one control held to
 different standards again. Closing the *class* with tokens means a parallel
@@ -333,8 +328,8 @@ cannot catch.
 
 ### `--primary-deep` — the dark brand ground, and the scrim
 
-**Authored 2026-08-20.** `oklch(0.349 0.072 247.3)`, rendering `#163d5e`. A
-darker, less saturated sibling of `--primary` at the same brand hue.
+`oklch(0.349 0.072 247.3)`, rendering `#163d5e` — a darker, less saturated
+sibling of `--primary` at the same brand hue.
 
 It closes a hole `--primary` genuinely could not fill. `--primary` is a *control*
 color tuned for white ink at 5.49:1 — enough for a button, not enough for a
@@ -362,7 +357,7 @@ for a control boundary, which is worth recording because `--border` deliberately
 does not (see "decisions that look like bugs"). It is the outline CTA on the
 `unlock-us-donations` hero; leave it alone.
 
-**No `--primary-deep-fg` was minted.** Its ink is `--primary-fg` (`#ffffff`),
+**There is no `--primary-deep-fg`.** Its ink is `--primary-fg` (`#ffffff`),
 already in the palette; a second name for the same value is the drift trap the
 `--warning-subtle-fg` section names, and the test cannot catch it.
 
@@ -456,8 +451,7 @@ Derived at use-site, not named tokens. `--radius` is the one radius system;
 ## Button size scale
 
 Three sizes, authored in `apps/platform/src/styles/components.css`. Every value
-is on the 4px ladder (`--spacing: 0.25rem`). Full rationale and the call-site
-migration map live in the `design-system-coherence` plan's `decisions.md`.
+is on the 4px ladder (`--spacing: 0.25rem`).
 
 | name | py | px | font-size | min-height |
 | --- | --- | --- | --- | --- |
@@ -489,9 +483,9 @@ Four rules travel with it:
 
 ### `btn-icon` — the square icon-only shape
 
-**Authored 2026-08-20.** Every tier above is padded for a text label, so an
-icon-only button inherited the tier's `padding-inline` and rendered as a wide
-rectangle around a 16px glyph — 40×24 at `btn-sm`.
+Every tier above is padded for a text label, so without this an icon-only
+button inherits the tier's `padding-inline` and renders as a wide rectangle
+around a 16px glyph — 40×24 at `btn-sm`.
 
 **It is a modifier, not a fourth size**, and that is the whole decision. Being
 icon-only is a property of the *content*, not of the tier: an icon button still
@@ -536,7 +530,7 @@ button that a caller can stretch is not a square button.
 ### Why buttons are `var(--radius)` and not `--radius-sm`
 
 Recorded because the recipe, the shipped call sites and `.design-sync/conventions.md`
-all disagreed. Counted at 2026-08-19, will drift:
+each carried a different answer. Figures drift — re-count before quoting:
 
 | call site writes | n | compiles to |
 | --- | --- | --- |
@@ -572,8 +566,8 @@ on the value but right that the two should share one; moving the fields to
 
 ## Two color layers, and the line between them
 
-**Resolved 2026-08-20**, closing the "color that lives outside this file" gap.
-The answer is not "everything moves here". There are **two declared layers**, and
+Not every color in the app lives in this file, and the answer is not "everything
+moves here". There are **two declared layers**, and
 the rule is that a color belongs to exactly one of them and is named in it.
 
 | layer | file | what belongs | email twin |
@@ -585,7 +579,7 @@ The semantic set is closed and greppable precisely because it is small. Pouring
 five pastel page-washes into it would dilute the vocabulary that makes *"is this
 value in the system"* answerable, and would force an email twin onto five values
 no email will ever render. So the decorative layer stays where it is — **but it
-is now a declared layer with a stated rule, not an accident.**
+is a declared layer with a stated rule, not an accident.**
 
 ### The decorative layer
 
@@ -643,11 +637,10 @@ exception; see the Status table.
 
 ### Raw hex still leaking into class strings
 
-`apps/platform/CLAUDE.md` forbids it outright. The enumerated set is now ruled on
-(Status table below), but **the count that has been quoted is scoped smaller than
-the problem**: the usual sweep only matches arbitrary Tailwind classes, and misses
-literals in inline `style={}`, SVG `fill=`/`stroke=` attributes and chart color
-maps. Counted 2026-08-20, will drift:
+`apps/platform/CLAUDE.md` forbids it outright. Beware a sweep scoped smaller than
+the problem: matching arbitrary Tailwind classes alone misses literals in inline
+`style={}`, SVG `fill=`/`stroke=` attributes and chart color maps. Figures drift —
+re-count before quoting:
 
 ```sh
 rg -n '#[0-9a-fA-F]{3,6}\]' apps/platform/src        # arbitrary classes only
@@ -669,9 +662,9 @@ rule has been in `CLAUDE.md` the whole time these were written.
 
 ### The allocation slider — a refusal, and why it was the easy one
 
-`routes/admin.$id.donations.edit-alloc/slider.tsx` was reported as a three-value
-unnamed scale. **It is five**: the two reported plus `#F9FBFA` and `#96C82D`, both
-inside an inline `backgroundImage` template string, which the class-scoped sweep
+`routes/admin.$id.donations.edit-alloc/slider.tsx` reads as a three-value unnamed
+scale. **It is five**: two in class strings plus `#F9FBFA` and `#96C82D`, both
+inside an inline `backgroundImage` template string, which a class-scoped sweep
 cannot see.
 
 **No mint.** The control's own legend already names all three segments in system
@@ -711,54 +704,23 @@ Unrelated to the literals, and **not** fixed here: thumb 1 is `bg-card` with a
 "decisions that look like bugs" entry deliberately keeps faint. On a draggable
 thumb that call is sharper than on a panel. Recorded, not decided.
 
-## Status
+## Adoption
 
-| token | status |
-| --- | --- |
-| the shadcn semantic set, `--success`, `--warning`, `--sidebar-*`, `--chart-*` | live |
-| `--primary-ring`, `--primary-border`, `--form-*` | live |
-| `--destructive-subtle` / `-fg` | **live, partially adopted** — two call sites, both the `inactive` state of `FundStatus` (`components/fundraiser/fund-status.tsx`): `routes/dashboard.funds/fund.tsx` and `routes/admin.$id.funds/fund-item.tsx`. Five other sites in three shapes could not take the swap — see "the rule only closes when one element carries both" |
-| `--warning-subtle` / `-fg` | **defined, zero call sites** — nothing in `apps/platform/src` references either name; only the `@theme inline` mapping in `src/index.css` does. The unmigrated warning surface is large, not small (figures below) |
-| `--success-subtle` / `-fg` | **authored and measured, zero call sites** — five `bg-success/10 text-success` sites are the migration, listed above |
-| `--destructive-subtle-active` | **authored and measured, zero call sites** — the migration is the one two-rung tint in the app, `dashboard.subscriptions/route.tsx:90` (`destructive/10` → `/20`) |
-| pressed rung for `--warning-subtle` / `--success-subtle` | **not authored** — no control hovers into either. Mint by the 94/6 rule above when one does |
-| semantic ink on a `--primary` fill | **ruled not a gap, re-decided 2026-08-19** — no token, and no token would close the class; see "semantic hue on a `--primary` fill". Four call sites to fix (`newsletter-form.tsx:37,41,42,48`), one already fixed (`page-error.tsx`), one adjacent (`grow-places.tsx:40`) |
-| `--primary-fg` alpha ladder | **open, two failures** — `/80` at 4.14:1 and `/60` at 3.04:1 carry body copy in `components/footer/`. `/90` is the floor; see the section above |
-| footer is `bg-primary`, not `surface-primary` | **open** — `components/footer/footer.tsx:41,90`. The fill contains a control, so the ledger's own rule applies: the newsletter input's `outline-ring` resolves to `--ring` == `--primary` == **1.00:1** against the footer, i.e. no visible focus indicator. `surface-primary` rebinds it to `--primary-ring` (5.48:1) and `--border` to `--primary-border` (4.07:1) for free |
-| `--primary-deep` | **authored and measured, zero call sites** — the migration is the five `#1a3c5e` literals in `routes/unlock-us-donations/hero.tsx:11,20`. Needs its `@theme inline` mapping (`--color-primary-deep`) and a `generate-colors` run in the same commit |
-| the decorative layer (`peach`, `lilac`, `mint`, `cream`, `sky`) | **ruled 2026-08-20** — marketing-only, stays in the app's `@theme`, named by hue, `--fg` measured on each. `mint`/`cream`/`sky` are new names for the three literals in `content/benefits/index.ts:14` |
-| `templates` badge ink | **ruled** — `#6b21a8` on `lilac/40` is refused, not minted: a one-off purple ink for one badge is the parallel-palette shape this file already refuses. Takes `bg-muted text-muted-fg` (6.88:1), joining its two siblings on authored pairs, and gets a marketing wash out of product UI |
-| slider track/range scale | **ruled** — no mint. `routes/admin.$id.donations.edit-alloc/slider.tsx` improvised five literals for three segments the palette already names; see below |
-| vendor brand color | **policy written 2026-08-20** — permitted inside the vendor's own mark, nowhere else. `#FF4F00` at `admin.$id.integrations/route.tsx:12` is a live **3.30:1** failure and takes `--fg` |
-| `#FFA500` featured star | **ruled, not a vendor mark** — plain CSS `orange`. Takes `fill-warning` **only**; the shipped `text-[#FFA500]` also paints the glyph's stroke at 2.15:1, and that stroke is the star's whole visible edge. Dropping `text-` puts the outline back on inherited `--fg` (17.85:1) and leaves the fill as redundant emphasis, which is why `fill-warning` is legitimate here and is **not** an instance of the warning-migration ticket below |
-| button size scale (`btn-sm` / `btn` / `btn-lg`) | **specced, not built** — see "Button size scale". The recipe still ships one fixed 12px pad and no font-size; 224 of 293 call sites override the padding, 111 override the radius |
-| `btn-icon` | **specced, not built** — the modifier plus the `--btn-size` variable each tier must publish. Two call sites, `routes/admin.$id.integrations/display.tsx:30,38`. Separately, the app has icon-only buttons that are **not `.btn` at all** — `pages/admin/media/video-preview.tsx` hand-rolls `p-1.5 rounded-full`, landing at 28×28, 31×31 and 36×36 for three buttons in one row. They clear the 24px floor but are three sizes for one shape; migrating them is the next slice, not this one |
-| button radius = `var(--radius)` | **specced, not built** — recipe is still `--radius-sm`. Exclude `.btn` call sites from the repo-wide `rounded` → `rounded-lg` sweep: those 111 want the class **deleted**, not rewritten |
-| `.field-input` radius | **open** — stays `--radius-sm` (2.4px) while buttons move to 4px; companion fix, undecided |
+Every token in `colors.css` is live and carries call sites in `apps/platform/src`;
+none is defined-but-unused. The palette is the whole contract — a name that ships
+here is a name the app paints with.
 
-Warning's call sites are a separate ticket, and they are the bulk of the
-remaining work in this system. **Counted, not measured — these drift with every
-commit; re-run the commands before quoting them.** As of this writing, in
-`apps/platform/src`:
-
-| pattern | occurrences | files |
-| --- | --- | --- |
-| `text-warning` (excluding `text-warning-fg`) | 36 | 25 |
-| `bg-warning/10` | 9 | 8 |
-| `stroke-warning` / `fill-warning` | 4 | 4 |
+Counts of call sites are deliberately absent from this file. They decay on every
+commit, and a stale number here reads as authority. When a figure is needed, take
+it from the repo:
 
 ```sh
-# from repo root. the ([^-]|$) guard keeps text-warning-fg out — that one is
-# the legitimate ink for a --warning fill, not an anti-pattern instance.
-rg -c --no-ignore-vcs 'text-warning($|[^-])' apps/platform/src
-rg -c 'bg-warning/10' apps/platform/src
-rg -c 'stroke-warning($|[^-])|fill-warning($|[^-])' apps/platform/src
+# from repo root
+rg -c 'bg-warning-subtle|text-warning-subtle-fg' apps/platform/src
 ```
 
-Every one of the 36 `text-warning` uses is illegible at 2.15:1, and the 4
-`stroke-warning` icons fail the 3:1 non-text floor wherever the icon is
-meaningful. The `bg-warning/10` bands sit in
-`platform.donations.$donation_id.refund/route.tsx`,
-`admin.$id.edit-profile/form.tsx`, `pages/admin/shared/{transfer,deposit,withdraw}-form/panel.tsx`,
-`_app.fundraisers.$fund_id_.edit/publish-banner.tsx`, `_app.zapier-integration/route.tsx`
-and `platform.investments.rebalance/form/field-cell.tsx` — eight files, nine lines.
+`text-warning` remains legitimate for a **fill or a glyph**, never for text: it is
+2.15:1 on the page and fails at any size. Text on a warning surface takes
+`--warning-subtle` + `--warning-subtle-fg`; an icon that carries meaning on its
+own still owes the 3:1 non-text floor, which `--warning` does not clear against
+white either.
