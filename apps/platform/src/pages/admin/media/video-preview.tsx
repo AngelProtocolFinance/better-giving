@@ -21,10 +21,16 @@ export function VideoPreview(props: IMedia) {
           disabled={allControlsDisabled}
           featured={props.featured}
         >
+          {/* the fill is the only visual carrier of "featured" — a meaningful
+              icon, so it takes the 3:1 floor. --warning is a fill token and
+              measures 2.15:1 on white; --warning-subtle-fg is the warning ink
+              (5.70:1). stroke matches so the whole glyph reads as one state. */}
           <Star
             size={19}
             className={`${
-              props.featured ? "fill-warning" : ""
+              props.featured
+                ? "fill-warning-subtle-fg stroke-warning-subtle-fg"
+                : ""
             } group-disabled:text-muted-fg group-disabled:fill-muted-fg`}
           />
         </CRUDBtn>
