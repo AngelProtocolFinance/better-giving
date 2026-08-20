@@ -30,8 +30,13 @@ export function Prompt({
       classes="fixed-center z-10 grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden"
     >
       <div className="flex justify-end p-4 border-b">
-        <button type="button" onClick={close} className="border p-2 rounded">
-          <X size={24} />
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Close"
+          className="btn btn-icon btn-secondary"
+        >
+          <X size={20} />
         </button>
       </div>
 

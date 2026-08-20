@@ -33,7 +33,8 @@ export function Increments({
         <p className="font-semibold text-sm">Donation increments</p>
         <button
           type="button"
-          className="font-bold text-success"
+          aria-label="Add donation increment"
+          className="glyph-btn font-bold text-success"
           onClick={() => onAdd("")}
         >
           <Plus size={17} strokeWidth={3} />
@@ -62,9 +63,11 @@ export function Increments({
                 className="grid grid-cols-subgrid col-span-3 items-center grid-rows-[auto_auto]"
               >
                 {field(idx)}
+                {/* in the tab order on purpose — a row that can be added
+                    by keyboard has to be removable by one too. */}
                 <button
-                  tabIndex={-1}
-                  className="text-destructive justify-self-start"
+                  aria-label="Remove donation increment"
+                  className="glyph-btn text-destructive justify-self-start"
                   type="button"
                   onClick={() => onRemove(idx)}
                 >

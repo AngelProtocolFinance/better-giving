@@ -14,7 +14,7 @@ function Page({ loaderData: { programs } }: Route.ComponentProps) {
   return (
     <div className="grid content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8">
       <RmxForm method="POST" className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold">Programs</h2>
+        <h1 className="text-3xl font-bold">Programs</h1>
         <button
           type="submit"
           disabled={nav.state !== "idle"}

@@ -62,7 +62,10 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
   return (
     <div className={classes}>
       <Menu.Root positioning={{ placement: "bottom", gutter: 8 }}>
-        <Menu.Trigger className="focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 rounded text-primary hover:text-primary transition-colors duration-200">
+        <Menu.Trigger
+          aria-label="Share"
+          className="glyph-btn focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 text-primary hover:text-primary transition-colors duration-200"
+        >
           <ShareIcon size={20} />
         </Menu.Trigger>
         <Portal>

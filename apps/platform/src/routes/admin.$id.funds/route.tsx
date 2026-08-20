@@ -33,7 +33,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h3 className="text-3xl font-bold">Fundraisers</h3>
+        <h1 className="text-3xl font-bold">Fundraisers</h1>
         <div className="flex items-center gap-3">
           <Select.Root
             collection={COLLECTION}

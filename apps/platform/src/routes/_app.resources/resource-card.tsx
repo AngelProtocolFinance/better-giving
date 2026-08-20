@@ -45,7 +45,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
               set_pending(false);
             }
           }}
-          className="btn btn-sm btn-primary gap-1.5 rounded"
+          className="btn btn-sm btn-primary gap-1.5"
         >
           <Download size={14} />
           {pending ? "Downloading..." : "Download"}
@@ -54,7 +54,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
           href={resource.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium border hover:bg-muted"
+          className="btn btn-sm btn-secondary gap-1.5"
         >
           <ExternalLink size={14} />
           View

@@ -145,6 +145,32 @@
   block-size: var(--btn-size);
 }
 
+/* a bare glyph acting as a button — a lucide icon with no label and no box of
+   its own. deliberately NOT a .btn modifier: that is btn-icon, and it only
+   works ON a .btn, whose 36px min-block-size, bold weight and px-6 come with
+   it. all of that is a control's chrome, wrong around a naked glyph, and it
+   pins the smallest possible target at 36px when the floor is 24. this tier
+   contributes hit area and nothing else, so color, hover and focus classes
+   stay the call site's.
+   24px is WCAG 2.2 SC 2.5.8 Target Size (Minimum), AA — the same floor btn-sm
+   pins itself to, reached here by the min alone since the glyph is always
+   smaller than the box. mins rather than definite sizes so a larger glyph
+   still grows its own target.
+   flex-shrink is baked in: these sit in flex rows beside text that would
+   otherwise squeeze the target back under the floor.
+   the button has no text node, so every call site MUST carry an aria-label
+   unless the underlying library already supplies one (zag's toast
+   CloseTrigger does). */
+@utility glyph-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-inline-size: calc(var(--spacing) * 6) /* 24px */;
+  min-block-size: calc(var(--spacing) * 6) /* 24px */;
+  border-radius: var(--radius);
+}
+
 /** page components */
 
 @utility btn-donate {

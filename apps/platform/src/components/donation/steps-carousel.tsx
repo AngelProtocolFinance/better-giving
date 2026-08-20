@@ -9,19 +9,30 @@ import result from "./screenshots/result.webp";
 const screenshots = [form, checkout, result];
 
 interface DotButtonProps {
+  idx: number;
   selected: boolean;
   on_click: () => void;
 }
 
-const DotButton: FC<DotButtonProps> = ({ selected, on_click }) => (
+/* the 8px circle is the visual; the target is the 24px box around it. the dot
+   used to be the button itself, at 8px with mx-1 either side — adjacent
+   centres 16px apart, which no amount of spacing exception rescues, since the
+   24px circle around one dot always overlaps its neighbour's. with the margin
+   gone and the box at 24px the centres land at exactly 24px, so the dots read
+   a little farther apart than they did. that is the fix, not a side effect. */
+const DotButton: FC<DotButtonProps> = ({ idx, selected, on_click }) => (
   <button
-    className={`w-2 h-2 rounded-full border-primary border mx-1 transition-all ${
-      selected ? "bg-primary" : ""
-    }`}
+    className="glyph-btn"
     type="button"
     onClick={on_click}
-    aria-label="Navigation dot"
-  />
+    aria-label={`Go to step ${idx + 1}`}
+  >
+    <span
+      className={`w-2 h-2 shrink-0 rounded-full border-primary border transition-all ${
+        selected ? "bg-primary" : ""
+      }`}
+    />
+  </button>
 );
 
 interface StepsCarouselProps {
@@ -100,6 +111,7 @@ export function StepsCarousel({
         {screenshots.map((_, i) => (
           <DotButton
             key={i}
+            idx={i}
             selected={i === idx}
             on_click={() => scroll_to(i)}
           />

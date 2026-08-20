@@ -55,7 +55,8 @@ export function ImgCropper({
             <div className="bg-card flex items-center justify-end gap-2 p-1">
               <button
                 type="button"
-                className="hover:text-primary"
+                aria-label="Save cropped image"
+                className="glyph-btn hover:text-primary"
                 onClick={handle_save}
               >
                 <Save size={22} />

@@ -260,9 +260,16 @@
     align-items: center;
     justify-content: space-between;
   }
+  /* zag's select item emits data-state="checked"|"unchecked", data-highlighted
+     and data-disabled — never data-selected. data-highlighted is the keyboard
+     equivalent of :hover, so arrow navigation has to key off it or the pointer
+     is the only way to see where you are. */
   .selector-opt {
     padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
-    &[data-selected="true"] {
+    &[data-state="checked"] {
+      background-color: var(--accent);
+    }
+    &[data-highlighted] {
       background-color: var(--accent);
     }
     &:hover {

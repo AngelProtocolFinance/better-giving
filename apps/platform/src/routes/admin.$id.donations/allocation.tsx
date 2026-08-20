@@ -13,7 +13,7 @@ export function Allocation(props: Props) {
   return (
     <div className={`grid rounded mt-4 ${props.classes ?? ""}`}>
       <div className="flex items-baseline gap-x-2 mb-1">
-        <h4 className="mb-1">Distribution</h4>
+        <h2 className="mb-1">Distribution</h2>
 
         <NavLink
           title="Edit allocation settings"

@@ -82,7 +82,7 @@ export function AnnouncementBanner() {
             type="button"
             onClick={dismiss}
             aria-label="Dismiss announcement"
-            className="shrink-0 rounded p-0.5 text-primary-fg/70 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-fg"
+            className="glyph-btn text-primary-fg/70 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-fg"
           >
             <XIcon size={16} />
           </button>

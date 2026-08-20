@@ -98,7 +98,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
                   to={l.to}
                   onClick={close}
                   className={({ isActive }) =>
-                    `rounded px-4 py-2.5 text-sm font-medium hover:bg-secondary ${isActive ? "text-primary" : "text-fg"}`
+                    `rounded px-4 py-2 text-sm font-medium hover:bg-secondary ${isActive ? "text-primary" : "text-fg"}`
                   }
                 >
                   {l.label}
@@ -109,7 +109,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
                 <Link
                   to={href("/dashboard")}
                   onClick={close}
-                  className="rounded px-4 py-2.5 text-sm font-medium hover:bg-secondary text-fg"
+                  className="rounded px-4 py-2 text-sm font-medium hover:bg-secondary text-fg"
                 >
                   My Dashboard
                 </Link>
