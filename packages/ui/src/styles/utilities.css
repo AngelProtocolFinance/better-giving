@@ -6,13 +6,13 @@
    moved. rebinding it here is the documented way to customize a built-in
    utility, and makes the name the app already uses the single source.
    `rounded-sm`/`-xs` are not the escape hatch they look like: the `--radius-*`
-   scale they read is reset to `initial` in index.css, so they fail to compile. */
+   scale they read is reset to `initial` in theme.css, so they fail to compile. */
 @utility rounded {
   border-radius: var(--radius);
 }
 
 /* side-specific corners at the same one radius. v4 derives `rounded-b`/`-r`
-   from the --radius-* scale, and that scale is reset to `initial` in index.css
+   from the --radius-* scale, and that scale is reset to `initial` in theme.css
    so a stray `rounded-sm` can't compile — which takes these down with it
    unless they're bound here too. same value, same rule, just two corners. */
 @utility rounded-t {
@@ -206,7 +206,7 @@
    whenever the fill contains a control: it rebinds --ring and --border for
    everything inside, because the page-level values are drawn against the page
    and both collapse on brand fill (--ring == --primary is 1.00:1 there).
-   same mechanism as #donation-container's --ring remap in index.css. */
+   same mechanism as #donation-container's --ring remap in platform's index.css. */
 @utility surface-primary {
   background-color: var(--primary);
   color: var(--primary-fg);

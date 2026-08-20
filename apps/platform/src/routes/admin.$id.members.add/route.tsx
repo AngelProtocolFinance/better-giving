@@ -1,8 +1,7 @@
+import { Field, Modal, RmxForm } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useNavigate, useNavigation, useRouteLoaderData } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Field, RmxForm } from "#/components/form";
-import { Modal } from "#/components/modal";
 import { type ISchema, schema } from "./schema";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";

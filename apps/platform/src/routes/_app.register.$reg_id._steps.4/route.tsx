@@ -1,9 +1,9 @@
+import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
-import { ExtLink } from "#/components/ext-link";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { before_banking, next_step, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";

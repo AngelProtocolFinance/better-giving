@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { CircleAlert, SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { NavLink, Outlet, useFetcher } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";

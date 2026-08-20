@@ -1,8 +1,8 @@
+import { ErrorStatus, LoadingStatus, Status } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 import type { ReactElement } from "react";
 import type { QueryState } from "#/types/components";
 import { report_error } from "@/errors/report";
-import { ErrorStatus, LoadingStatus, Status } from "./status";
 
 type Props<T> = {
   queryState: QueryState<T>;

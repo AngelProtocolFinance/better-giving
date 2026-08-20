@@ -1,3 +1,4 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import {
   ArrowDownToLineIcon,
   ArrowLeftRightIcon,
@@ -6,7 +7,6 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
 import { Txs } from "./txs";

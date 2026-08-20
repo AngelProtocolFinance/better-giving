@@ -1,4 +1,4 @@
-import { Modal } from "#/components/modal";
+import { Modal } from "@better-giving/ui";
 import { Sidebar } from "../sidebar";
 import type { LinkGroup } from "../types";
 

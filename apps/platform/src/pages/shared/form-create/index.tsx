@@ -1,5 +1,5 @@
+import { Modal } from "@better-giving/ui";
 import { useLoaderData, useNavigate } from "react-router";
-import { Modal } from "#/components/modal";
 import type { ILoaderData } from "./api";
 import { Form } from "./form";
 

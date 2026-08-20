@@ -1,0 +1,15 @@
+{
+  // extends the repo baseline; dom lib + react jsx since slice 2 fills src/
+  // with components — platform's compiler transpiles the .tsx, tsc only
+  // type-checks (mirrors packages/emails).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "jsx": "react-jsx",
+    // vite/client is what declares `*.svg` as a module (target.tsx imports the
+    // diversity glyph as a url) — without it tsc can't resolve the asset.
+    "types": ["vite/client"]
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

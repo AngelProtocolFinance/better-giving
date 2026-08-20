@@ -1,6 +1,6 @@
+import { to_usd } from "@better-giving/ui/helpers";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { RichText, richtext_styles } from "#/components/rich-text";
-import { to_usd } from "#/helpers/to-usd";
 import { Container } from "#/pages/marketplace/container";
 import type { Route } from "./+types/route";
 import { Milestones } from "./milestones";

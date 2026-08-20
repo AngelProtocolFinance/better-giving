@@ -1,5 +1,5 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { ExtLink } from "#/components/ext-link";
+import { ExtLink } from "@better-giving/ui";
 import { RouteModal } from "#/components/route-modal";
 import type { Route } from "./+types/route";
 import type { LoaderData } from "./api";

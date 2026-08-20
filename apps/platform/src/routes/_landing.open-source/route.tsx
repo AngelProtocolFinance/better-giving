@@ -1,8 +1,7 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { GITHUB_REPO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";

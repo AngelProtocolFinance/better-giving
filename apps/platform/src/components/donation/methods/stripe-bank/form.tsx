@@ -1,12 +1,15 @@
+import {
+  Combo,
+  Form as FieldSet,
+  type IPrompt,
+  Prompt,
+} from "@better-giving/ui";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
-import { Combo } from "#/components/select";
 import type { ICurrenciesFv } from "#/types/currency";
 import { ru_vdec } from "@/helpers/decimal";
-import { Form as FieldSet } from "../../../form";
-import { type IPrompt, Prompt } from "../../../prompt";
 import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";

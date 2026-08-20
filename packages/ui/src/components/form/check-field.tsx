@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
-import { unpack } from "#/helpers/unpack";
+import { unpack } from "../../helpers/unpack";
 import type { Classes } from "./types";
 
 type NativeProps = Omit<

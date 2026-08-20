@@ -1,5 +1,5 @@
+import { Confirmed, Info } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { Confirmed, Info } from "#/components/status";
 
 interface Props {
   published: boolean;

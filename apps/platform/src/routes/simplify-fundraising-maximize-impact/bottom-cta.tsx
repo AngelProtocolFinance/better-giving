@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_shake_hands_x2 from "#/assets/laira/laira-shaking-hands-x2.webp";
-import { Image } from "#/components/image";
 
 export function BottomCta({ className = "" }) {
   return (

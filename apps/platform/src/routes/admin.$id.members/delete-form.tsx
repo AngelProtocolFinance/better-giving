@@ -1,6 +1,6 @@
+import { show_toast } from "@better-giving/ui";
 import { LoaderCircle, Minus } from "lucide-react";
 import { useFetcher } from "react-router";
-import { show_toast } from "#/components/toaster";
 
 interface Props {
   user: string;

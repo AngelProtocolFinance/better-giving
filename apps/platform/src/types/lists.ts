@@ -21,12 +21,3 @@ export type UNSDG_NUMS =
   | 17;
 
 export type SDGGroup = 1 | 2 | 3 | 4 | 5 | 6;
-
-//https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
-type ImageSubType = "svg+xml" | "jpeg" | "png" | "webp";
-type ApplicationSubType = "pdf";
-
-export type ImageMIMEType = `image/${ImageSubType}`;
-export type ApplicationMIMEType = `application/${ApplicationSubType}`;
-
-export type MIMEType = ImageMIMEType | ApplicationMIMEType;

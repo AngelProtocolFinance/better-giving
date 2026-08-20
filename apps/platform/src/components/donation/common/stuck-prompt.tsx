@@ -1,4 +1,4 @@
-import type { IPrompt } from "../../prompt";
+import type { IPrompt } from "@better-giving/ui";
 import type { IDonationDest } from "./return-url";
 
 interface IStuckMsg {

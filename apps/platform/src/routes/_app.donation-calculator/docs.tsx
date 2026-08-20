@@ -1,6 +1,6 @@
+import { DrawerIcon } from "@better-giving/ui";
 import { Info } from "lucide-react";
 import { useState } from "react";
-import { DrawerIcon } from "#/components/icon";
 
 export function Docs({ classes = "" }) {
   const [isExpanded, setIsExpanded] = useState(false);

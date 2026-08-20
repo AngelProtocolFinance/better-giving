@@ -1,7 +1,7 @@
 import { Clipboard } from "@ark-ui/react/clipboard";
 import { Check, Copy } from "lucide-react";
 import type { ReactNode } from "react";
-import { unpack } from "#/helpers/unpack";
+import { unpack } from "../../helpers/unpack";
 
 type Classes = string | { container?: string; icon?: string };
 

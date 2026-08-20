@@ -1,9 +1,8 @@
+import { Image, Target, to_target } from "@better-giving/ui";
 import { href, NavLink } from "react-router";
 import flying_character from "#/assets/images/flying-character.webp";
-import { Image } from "#/components/image";
 import { to_text } from "#/components/rich-text";
 import { ShareButton } from "#/components/share-btn";
-import { Target, to_target } from "#/components/target";
 import { base_url } from "#/constants/env";
 import type { IFundItem } from "@/fundraiser";
 

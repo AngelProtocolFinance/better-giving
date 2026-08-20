@@ -1,3 +1,4 @@
+import { Field, Modal, RmxForm } from "@better-giving/ui";
 import { X } from "lucide-react";
 import {
   Link,
@@ -7,8 +8,6 @@ import {
   useSearchParams,
 } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Field, RmxForm } from "#/components/form";
-import { Modal } from "#/components/modal";
 import type { ISchema } from "./schema";
 
 export default function Page() {

@@ -1,12 +1,12 @@
 import { Menu } from "@ark-ui/react/menu";
 import { Portal } from "@ark-ui/react/portal";
+import { Image } from "@better-giving/ui";
 import { LinkIcon, MailIcon, ShareIcon } from "lucide-react";
 import type React from "react";
 import facebook from "#/assets/icons/social/facebook.webp";
 import instagram from "#/assets/icons/social/instagram.webp";
 import linkedin from "#/assets/icons/social/linkedin.webp";
 import x from "#/assets/icons/social/x.webp";
-import { Image } from "./image";
 
 interface IShareButton {
   orgName: string;

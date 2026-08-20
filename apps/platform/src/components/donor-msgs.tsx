@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import use_swr from "swr/immutable";
 import laira from "#/assets/laira/laira-face.png";
-import { Image } from "./image";
 
 interface Props {
   classes?: string;

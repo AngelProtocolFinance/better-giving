@@ -1,8 +1,8 @@
 import { Field } from "@ark-ui/react/field";
+import { MaskedInput } from "@better-giving/ui";
+import { dollar } from "@better-giving/ui/masks";
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelpIcon } from "lucide-react";
-import { MaskedInput } from "#/components/form";
-import { dollar } from "#/components/form/masks";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import { methods, methodsArr, type OgInput } from "#/types/donation-calculator";
 import { PctSlider } from "./pct-slider";
 

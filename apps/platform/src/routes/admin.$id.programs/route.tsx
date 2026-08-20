@@ -1,5 +1,5 @@
+import { RmxForm, useRmxForm } from "@better-giving/ui";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { RmxForm, useRmxForm } from "#/components/form";
 import type { Route } from "./+types/route";
 import { List } from "./list";
 

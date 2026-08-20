@@ -1,14 +1,13 @@
 import type { ITicker } from "@better-giving/stocks";
+import { Combo, Form as FormContainer } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { useController, useForm } from "react-hook-form";
 import { href } from "react-router";
-import { Combo } from "#/components/select";
 import type { ITokenEstimate } from "#/types/api";
 import { report_error } from "@/errors/report";
 import { ru_vdec } from "@/helpers/decimal";
-import { Form as FormContainer } from "../../../form";
 import { btn_disp, TokenField, type TTokenState } from "../../../token-field";
 import { init_ticker_option } from "../../common/constants";
 import { MethodBenefits } from "../../common/method-benefits";

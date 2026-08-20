@@ -1,3 +1,9 @@
+import { Info } from "@better-giving/ui";
+import {
+  Arrow as HoverArrow,
+  Content as HoverContent,
+} from "@better-giving/ui/hover-card";
+import { Arrow, Content } from "@better-giving/ui/tooltip";
 import {
   ArrowDownToLineIcon,
   ArrowLeftRightIcon,
@@ -5,12 +11,6 @@ import {
 } from "lucide-react";
 import { NavLink } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
-import {
-  Arrow as HoverArrow,
-  Content as HoverContent,
-} from "#/components/hover-card";
-import { Info } from "#/components/status";
-import { Arrow, Content } from "#/components/tooltip";
 import { use_admin_data } from "#/pages/admin/use-admin-data";
 import { humanize } from "@/helpers/decimal";
 import type { TickerCategory } from "@/nav/interfaces";

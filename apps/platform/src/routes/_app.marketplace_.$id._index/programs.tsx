@@ -1,5 +1,5 @@
+import { Image } from "@better-giving/ui";
 import { Link } from "react-router";
-import { Image } from "#/components/image";
 import { RichText } from "#/components/rich-text";
 import type { IProgramDb } from "@/npo";
 

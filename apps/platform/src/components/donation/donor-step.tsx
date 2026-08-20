@@ -1,4 +1,5 @@
 import { Fieldset } from "@ark-ui/react/fieldset";
+import { Combo, Field, FloatingField, FloatingInput } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import {
   type Control,
@@ -6,12 +7,9 @@ import {
   useController,
   useForm,
 } from "react-hook-form";
-import { Combo } from "#/components/select";
 import { country_names } from "#/constants/countries";
 import { states } from "#/constants/us-states";
 import { donor_fv, type IDonorFv as FV } from "@/donations/schema";
-import { Field } from "../form";
-import { FloatingField, FloatingInput } from "../form/floating-field";
 import { BackBtn } from "./common/back-btn";
 import { use_donation } from "./context";
 

@@ -1,3 +1,4 @@
+import { ExtLink } from "@better-giving/ui";
 import discordIcon from "#/assets/icons/social/discord.svg";
 import facebookIcon from "#/assets/icons/social/facebook.webp";
 import instagramIcon from "#/assets/icons/social/instagram.webp";
@@ -5,7 +6,6 @@ import linkedinIcon from "#/assets/icons/social/linkedin.webp";
 import tiktokIcon from "#/assets/icons/social/tiktok.webp";
 import xIcon from "#/assets/icons/social/x.webp";
 import youtubeIcon from "#/assets/icons/social/youtube.webp";
-import { ExtLink } from "#/components/ext-link";
 import type { INpo } from "$/pg/queries/npo";
 
 export function Socials(props: Pick<INpo, "social_media_urls">) {

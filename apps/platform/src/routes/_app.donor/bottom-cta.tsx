@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { Image } from "#/components/image";
 
 export function BottomCta({ className = "" }) {
   return (

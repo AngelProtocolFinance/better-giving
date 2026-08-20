@@ -1,12 +1,18 @@
+import {
+  ExtLink,
+  Field,
+  FileDropzone,
+  Form as Frm,
+  Label,
+  LoadText,
+} from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { Link, useFetcher, useNavigate } from "react-router";
-import { ExtLink } from "#/components/ext-link";
-import { FileDropzone } from "#/components/file-dropzone";
-import { Field, Form as Frm, Label } from "#/components/form";
-import { LoadText } from "#/components/load-text";
+import { uploadFile } from "#/helpers/upload-file";
 import { steps } from "#/pages/registration/routes";
+import { report_error } from "@/errors/report";
 import type { IFsaDocs } from "@/reg";
 import { type FV, fileSpec, type Props } from "./types";
 import { use_rhf } from "./use-rhf";
@@ -65,6 +71,8 @@ export function FsaForm(props: Props) {
         onChange={poi.onChange}
         specs={fileSpec}
         error={errors.proof_of_identity?.message}
+        upload={uploadFile}
+        report_error={report_error}
       />
 
       <Field
@@ -89,6 +97,8 @@ export function FsaForm(props: Props) {
         onChange={por.onChange}
         specs={fileSpec}
         error={errors.proof_of_reg?.message}
+        upload={uploadFile}
+        report_error={report_error}
       />
 
       <Field

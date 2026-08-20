@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface IHero {

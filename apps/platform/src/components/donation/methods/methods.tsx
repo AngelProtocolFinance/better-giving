@@ -1,4 +1,5 @@
 import { Tabs } from "@ark-ui/react/tabs";
+import { Image, Label } from "@better-giving/ui";
 import {
   Building2,
   ChartSpline,
@@ -10,8 +11,6 @@ import type React from "react";
 import type { ReactNode } from "react";
 import dafPayLogo from "#/assets/icons/dafpay.svg";
 import type { DonateMethodId } from "@/npo";
-import { Label } from "../../form";
-import { Image } from "../../image";
 import { all_method_ids } from "../common/constants";
 import type { TDonation, TMethodState } from "../types";
 import { Form as Crypto } from "./crypto";

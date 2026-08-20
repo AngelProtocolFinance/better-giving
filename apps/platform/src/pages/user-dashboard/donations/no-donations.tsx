@@ -1,5 +1,5 @@
+import { Image } from "@better-giving/ui";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { Image } from "#/components/image";
 
 interface Props {
   classes?: string;

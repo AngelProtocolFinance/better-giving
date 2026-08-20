@@ -1,5 +1,5 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { Image } from "#/components/image";
 import { benefits } from "#/content/benefits";
 
 export function Hero({ className = "" }) {

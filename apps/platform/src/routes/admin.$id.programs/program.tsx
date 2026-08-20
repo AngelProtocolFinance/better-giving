@@ -1,6 +1,5 @@
+import { Image, LoaderRing } from "@better-giving/ui";
 import { Link, useFetcher } from "react-router";
-import { Image } from "#/components/image";
-import { LoaderRing } from "#/components/loader-ring";
 import { routes } from "#/pages/admin/routes";
 import type { IProgramDb } from "@/npo";
 

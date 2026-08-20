@@ -1,9 +1,7 @@
+import { Field, LoadText, Select } from "@better-giving/ui";
 import type { SubmitHandler } from "react-hook-form";
 import { useFetcher, useNavigate } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Field } from "#/components/form";
-import { LoadText } from "#/components/load-text";
-import { Select } from "#/components/select";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import {
   GRANT_STEP,

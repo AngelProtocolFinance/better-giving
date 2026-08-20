@@ -40,6 +40,7 @@
     "@better-giving/crypto": "workspace:*",
     "@better-giving/paypal": "workspace:*",
     "@better-giving/stocks": "workspace:*",
+    "@better-giving/ui": "workspace:*",
     "@fontsource-variable/quicksand": "5.2.10",
     "@fontsource/gochi-hand": "5.2.8",
     "@hookform/error-message": "2.0.1",

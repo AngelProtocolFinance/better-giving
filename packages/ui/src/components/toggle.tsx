@@ -1,7 +1,7 @@
 import { Field } from "@ark-ui/react/field";
 import { Switch } from "@ark-ui/react/switch";
 import type { PropsWithChildren } from "react";
-import { unpack } from "#/helpers/unpack";
+import { unpack } from "../helpers/unpack";
 
 type Classes = { container?: string; label?: string; error?: string };
 

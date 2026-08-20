@@ -1,10 +1,13 @@
+import {
+  Breadcrumbs,
+  ExtLink,
+  Target,
+  to_target,
+  VerifiedIcon,
+} from "@better-giving/ui";
 import { Globe, MapPin } from "lucide-react";
 import { href, NavLink } from "react-router";
 import { BookmarkBtn } from "#/components/bookmark-btn";
-import { Breadcrumbs } from "#/components/breadcrumbs";
-import { ExtLink } from "#/components/ext-link";
-import { Target, to_target } from "#/components/target";
-import { VerifiedIcon } from "#/components/verified-icon";
 import type { INpo } from "$/pg/queries/npo";
 
 interface Props {

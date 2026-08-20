@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { useLocation } from "react-router";
 import laira_pointing from "#/assets/laira/laira-pointing.webp";
-import { Image } from "#/components/image";
 import { benefits } from "#/content/benefits";
 
 export function Top({ className = "" }) {

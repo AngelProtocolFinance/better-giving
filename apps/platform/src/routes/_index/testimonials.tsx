@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import laira_sitting from "#/assets/laira/laira-sitting.webp";
 import casd from "#/assets/partners/casd-sl.webp";
 import fora from "#/assets/partners/for-a-day-foundation.webp";
-import { Image } from "#/components/image";
 
 interface ITestimonials {
   classes?: string;

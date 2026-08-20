@@ -1,7 +1,7 @@
+import type { IPrompt } from "@better-giving/ui";
 import { useState } from "react";
 import type { FieldNamesMarkedBoolean, SubmitHandler } from "react-hook-form";
 import { useFetcher } from "react-router";
-import type { IPrompt } from "#/components/prompt";
 import { to_text } from "#/components/rich-text";
 import { error_prompt } from "#/helpers/error-prompt";
 import type { EndowmentProfileUpdate } from "#/types/npo";

@@ -7,6 +7,7 @@ packages:
   - packages/paypal
   - packages/stocks
   - packages/types/*
+  - packages/ui
 catalog:
   typescript: 5.9.2
   '@types/node': 24.0.4

@@ -1,8 +1,8 @@
+import { Info } from "@better-giving/ui";
 import { Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { safeParse } from "valibot";
 import { get_npos } from "#/.server/npos";
-import { Info } from "#/components/status";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
 import { resp, search } from "@/helpers/https";

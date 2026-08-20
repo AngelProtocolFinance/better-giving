@@ -1,5 +1,5 @@
+import { Image } from "@better-giving/ui";
 import flying_character from "#/assets/images/flying-character.webp";
-import { Image } from "#/components/image";
 
 interface Endow {
   name: string;

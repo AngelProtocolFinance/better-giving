@@ -1,10 +1,8 @@
+import { Image, Target, to_target, VerifiedIcon } from "@better-giving/ui";
 import { href, NavLink } from "react-router";
 import flying_character from "#/assets/images/flying-character.webp";
 import { BookmarkBtn } from "#/components/bookmark-btn";
-import { Image } from "#/components/image";
 import { ShareButton } from "#/components/share-btn";
-import { Target, to_target } from "#/components/target";
-import { VerifiedIcon } from "#/components/verified-icon";
 import { base_url } from "#/constants/env";
 import type { EndowmentCard } from "#/types/npo";
 

@@ -1,8 +1,8 @@
+import { LoadText } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { use_submit_event } from "#/analytics";
-import { LoadText } from "#/components/load-text";
 import type { IRegResumeFv } from "@/reg";
 import { reg_resume_fv } from "@/reg/schema";
 

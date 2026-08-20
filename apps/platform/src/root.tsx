@@ -1,6 +1,6 @@
+import { show_toast } from "@better-giving/ui";
 import { useEffect } from "react";
 import { type LinksFunction, type MetaFunction, Outlet } from "react-router";
-import { show_toast } from "#/components/toaster";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/root";
 import laira from "./assets/images/flying-character.webp";

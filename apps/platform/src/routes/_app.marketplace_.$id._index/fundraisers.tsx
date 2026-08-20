@@ -1,6 +1,6 @@
+import { Target, to_target } from "@better-giving/ui";
 import { href, Link, NavLink } from "react-router";
 import { to_text } from "#/components/rich-text";
-import { Target, to_target } from "#/components/target";
 import type { IFundItem } from "@/fundraiser";
 
 interface Props {

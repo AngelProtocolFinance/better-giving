@@ -1,5 +1,5 @@
+import { LoadText } from "@better-giving/ui";
 import type { FormButtonsProps } from "#/components/bank-details/types";
-import { LoadText } from "#/components/load-text";
 
 export function FormButtons({
   disabled = false,

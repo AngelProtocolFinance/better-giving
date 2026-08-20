@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { href, NavLink, Outlet } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import type { V2RecipientAccount } from "#/types/bank-details";
 import type { IReg } from "@/reg";
 import { Container } from "./container";

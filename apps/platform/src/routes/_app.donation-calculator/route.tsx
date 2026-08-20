@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { useState } from "react";
 import { Link } from "react-router";
 import laira_announce from "#/assets/laira/laira-announce.webp";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import {

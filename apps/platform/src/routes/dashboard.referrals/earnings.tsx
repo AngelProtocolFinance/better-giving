@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { endOfMonth, format, formatDistance } from "date-fns";
 import { ArrowRightIcon, HistoryIcon, PencilIcon } from "lucide-react";
 import { Link, Outlet } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import { config } from "#/pages/user-dashboard/referrals/config";
 import {
   EarningsHistory,

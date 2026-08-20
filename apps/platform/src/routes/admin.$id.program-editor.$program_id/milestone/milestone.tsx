@@ -1,9 +1,8 @@
 import { Collapsible } from "@ark-ui/react/collapsible";
+import { DrawerIcon, Field, Form, Label, toYYYMMDD } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useController, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { Field, Form, Label, toYYYMMDD } from "#/components/form";
-import { DrawerIcon } from "#/components/icon";
 import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
 import type { IMilestone, IMilestoneUpdate } from "@/npo";

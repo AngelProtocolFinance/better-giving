@@ -1,9 +1,9 @@
+import { Image } from "@better-giving/ui";
 import { motion } from "motion/react";
 import { href, Link } from "react-router";
 import laira1 from "#/assets/laira/laira1.webp";
 import laira2 from "#/assets/laira/laira2.webp";
 import laira3 from "#/assets/laira/laira3.webp";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { BOOK_A_DEMO } from "#/constants/urls";
 

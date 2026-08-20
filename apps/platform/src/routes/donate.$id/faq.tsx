@@ -1,8 +1,7 @@
 import { Accordion } from "@ark-ui/react/accordion";
+import { DrawerIcon, ExtLink } from "@better-giving/ui";
 import { Fragment, type PropsWithChildren } from "react";
 import { href, Link } from "react-router";
-import { ExtLink } from "#/components/ext-link";
-import { DrawerIcon } from "#/components/icon";
 
 interface Props {
   classes?: string;

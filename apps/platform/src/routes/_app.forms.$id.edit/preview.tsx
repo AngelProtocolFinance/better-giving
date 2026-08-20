@@ -1,6 +1,6 @@
+import { ExtLink } from "@better-giving/ui";
 import { ExternalLinkIcon, EyeIcon } from "lucide-react";
 import { Steps, type TDonation } from "#/components/donation";
-import { ExtLink } from "#/components/ext-link";
 import { DEV_DOCS_BASE_URL } from "#/constants/urls";
 import { donor_fv_blank } from "@/donations/schema";
 import type { ILoader } from "./api";

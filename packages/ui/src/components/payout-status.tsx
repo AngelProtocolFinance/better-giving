@@ -1,4 +1,14 @@
-import type { PayoutStatus as PayoutStatusType } from "@/payouts";
+/** the payout status vocabulary, declared here rather than imported: a design
+ * system owns no domain module. it mirrors `PayoutStatus["type"]` in the app's
+ * `lib/payouts` — if the two ever diverge, the call site stops type-checking,
+ * which is the point. */
+export type PayoutStatusType =
+  | "error"
+  | "settled"
+  | "pending"
+  | "refunded"
+  | "refunded_loss"
+  | "cancelled";
 
 interface IConfig {
   text: string;
@@ -6,7 +16,7 @@ interface IConfig {
   label: string;
 }
 
-const configs: Record<PayoutStatusType["type"], IConfig> = {
+const configs: Record<PayoutStatusType, IConfig> = {
   pending: {
     text: "text-warning-subtle-fg",
     dot: "bg-warning",
@@ -38,7 +48,7 @@ const fallback: IConfig = {
 };
 
 interface IPayoutStatus {
-  type: PayoutStatusType["type"];
+  type: PayoutStatusType;
   classes?: string;
 }
 

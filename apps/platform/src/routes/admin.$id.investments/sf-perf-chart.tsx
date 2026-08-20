@@ -1,3 +1,4 @@
+import { Modal } from "@better-giving/ui";
 import { format } from "date-fns";
 import {
   Bar,
@@ -11,7 +12,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Modal } from "#/components/modal";
 import type { INpoMetrics } from "#/types/npo-sf-metrics";
 import { humanize } from "@/helpers/decimal";
 

@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight, Check } from "lucide-react";
-import { ExtLink } from "#/components/ext-link";
 import { GITHUB_REPO } from "#/constants/urls";
 import {
   TermCmd,

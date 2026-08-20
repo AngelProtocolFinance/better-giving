@@ -1,6 +1,6 @@
+import { PasswordInput } from "@better-giving/ui";
 import { useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { PasswordInput } from "#/components/form";
 import type { IPasswordSchema } from "./schema";
 
 type Props = {

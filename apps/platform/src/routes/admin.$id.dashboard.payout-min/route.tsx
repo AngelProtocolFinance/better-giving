@@ -1,9 +1,9 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { useFetcher, useSearchParams } from "react-router";
 import * as v from "valibot";
-import { Field } from "#/components/form";
 import { RouteModal } from "#/components/route-modal";
 import { endowUpdate } from "#/pages/admin/endow-update-action";
 import { search } from "@/helpers/https";

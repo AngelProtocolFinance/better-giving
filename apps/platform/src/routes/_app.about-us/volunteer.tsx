@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import laira_cheering from "#/assets/laira/laira-cheering.webp";
-import { Image } from "#/components/image";
 
 interface IVolunteer {
   classes?: string;

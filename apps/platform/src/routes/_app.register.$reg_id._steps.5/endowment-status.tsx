@@ -1,7 +1,7 @@
+import { LoadText } from "@better-giving/ui";
 import { CircleAlert, Hourglass } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link, useFetcher } from "react-router";
-import { LoadText } from "#/components/load-text";
 import { steps } from "#/pages/registration/routes";
 import type { TStatus } from "@/reg";
 

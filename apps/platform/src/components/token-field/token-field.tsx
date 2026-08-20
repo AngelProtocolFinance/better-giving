@@ -1,5 +1,5 @@
+import { unpack } from "@better-giving/ui/helpers";
 import type { Ref } from "react";
-import { unpack } from "#/helpers/unpack";
 import { humanize } from "@/helpers/decimal";
 import type { ITokenField } from "./types";
 

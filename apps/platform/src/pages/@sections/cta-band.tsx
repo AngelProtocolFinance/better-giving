@@ -1,7 +1,6 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_cheering from "#/assets/laira/laira-cheering.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface ICtaBand {

@@ -1,6 +1,6 @@
+import { ErrorStatus } from "@better-giving/ui";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router";
-import { ErrorStatus } from "#/components/status";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";

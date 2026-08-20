@@ -1,7 +1,7 @@
+import { Info } from "@better-giving/ui";
 import { endOfMonth, format, formatDistance } from "date-fns";
 import { ArrowRightIcon, HistoryIcon } from "lucide-react";
 import { Link, Outlet } from "react-router";
-import { Info } from "#/components/status";
 import {
   EarningsHistory,
   type Props as IEarningsHistory,

@@ -1,3 +1,4 @@
+import { ExtLink } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import logo_white from "#/assets/images/bettergiving-logo-white.webp";
 import {
@@ -6,7 +7,6 @@ import {
   INTERCOM_HELP,
   socials,
 } from "#/constants/urls";
-import { ExtLink } from "../ext-link";
 import { NewsletterForm } from "./newsletter-form";
 
 type Props = { classes?: string; variant?: "full" | "minimal" };

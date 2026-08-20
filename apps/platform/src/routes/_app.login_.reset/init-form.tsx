@@ -1,8 +1,8 @@
+import { Input } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { Mail } from "lucide-react";
 import { href, Link, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Input } from "#/components/form";
 import { email_schema, type IEmailSchema } from "./schema";
 
 type Props = { to: string };

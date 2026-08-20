@@ -1,4 +1,4 @@
-import { Info } from "#/components/status";
+import { Info } from "@better-giving/ui";
 import type { IProgramDb } from "@/npo";
 import { Program } from "./program";
 

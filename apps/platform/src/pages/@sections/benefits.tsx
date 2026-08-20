@@ -1,4 +1,4 @@
-import { Image } from "#/components/image";
+import { Image } from "@better-giving/ui";
 import type { Benefit as TBenefit } from "#/content/benefits";
 
 type Props = {

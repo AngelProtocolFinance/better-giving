@@ -1,8 +1,8 @@
 import { format } from "date-fns";
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Amount } from "#/components/amount";
 import { LoadMoreRow } from "#/components/load-more-row";
+import { Money } from "#/components/money";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
 import type { IPaginator } from "#/types/components";
@@ -156,25 +156,25 @@ function Row({ payment: c }: { payment: PaymentRow }) {
         {c.npo_name ?? "—"}
       </td>
       <td className="font-medium">
-        <Amount amount={c.amount_base} currency={c.currency} />
+        <Money amount={c.amount_base} currency={c.currency} />
       </td>
       <td>
         {c.amount_tip ? (
-          <Amount amount={c.amount_tip} currency={c.currency} />
+          <Money amount={c.amount_tip} currency={c.currency} />
         ) : (
           "—"
         )}
       </td>
       <td>
         {c.amount_fee_allowance ? (
-          <Amount amount={c.amount_fee_allowance} currency={c.currency} />
+          <Money amount={c.amount_fee_allowance} currency={c.currency} />
         ) : (
           "—"
         )}
       </td>
       <td>
         {c.sttl_fee ? (
-          <Amount amount={c.sttl_fee} currency={c.sttl_currency ?? "USD"} />
+          <Money amount={c.sttl_fee} currency={c.sttl_currency ?? "USD"} />
         ) : (
           "—"
         )}

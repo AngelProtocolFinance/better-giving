@@ -1,7 +1,7 @@
+import type { ImageMIMEType } from "@better-giving/ui";
 import * as v from "valibot";
 import { type ImgSpec, img_output } from "#/components/img-editor";
 import { richtext_content } from "#/types/components";
-import type { ImageMIMEType } from "#/types/lists";
 import {
   $,
   $req,

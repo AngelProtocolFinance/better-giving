@@ -1,11 +1,10 @@
 import { Field as BaseField } from "@ark-ui/react/field";
+import { Field, Form as Frm, Increments } from "@better-giving/ui";
 import { DollarSign } from "lucide-react";
 import type { SubmitHandler } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { Field, Form as Frm } from "#/components/form";
 import { GoalSelector, to_target } from "#/components/goal-selector";
 import { ImgEditor } from "#/components/img-editor";
-import { Increments } from "#/components/increments";
 import { RichText } from "#/components/rich-text";
 import { img_spec } from "#/pages/funds/common";
 import { Videos } from "#/pages/funds/common/videos";

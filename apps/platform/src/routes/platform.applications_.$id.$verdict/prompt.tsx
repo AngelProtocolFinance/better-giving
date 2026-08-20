@@ -1,11 +1,11 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { ChevronRight, CircleAlert, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useFetcher, useParams, useSearchParams } from "react-router";
 import { nonEmpty, object, pipe, string, trim } from "valibot";
-import { Field } from "#/components/form";
 import { RouteModal } from "#/components/route-modal";
 
 function Content() {

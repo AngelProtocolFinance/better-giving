@@ -1,6 +1,6 @@
+import { Modal } from "@better-giving/ui";
 import { useState } from "react";
 import { href, useNavigate } from "react-router";
-import { Modal } from "#/components/modal";
 import { Video, videos } from "#/components/video";
 import { useHubspotDonCalculatorForm } from "#/hooks/use-hubspot-don-calculator-form";
 

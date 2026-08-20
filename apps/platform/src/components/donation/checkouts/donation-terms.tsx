@@ -1,6 +1,6 @@
+import { ExtLink } from "@better-giving/ui";
 import { app_name } from "#/constants/env";
 import { PRIVACY_POLICY, TERMS_OF_USE_DONOR } from "#/constants/urls";
-import { ExtLink } from "../../ext-link";
 
 interface Props {
   classes?: string;

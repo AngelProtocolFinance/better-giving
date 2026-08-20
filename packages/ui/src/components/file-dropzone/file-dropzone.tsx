@@ -1,8 +1,6 @@
 import { FileUpload } from "@ark-ui/react/file-upload";
 import type { ReactNode, Ref } from "react";
 import { useId, useImperativeHandle, useRef, useState } from "react";
-import { uploadFile } from "#/helpers/upload-file";
-import { report_error } from "@/errors/report";
 import { DropzoneText } from "./dropzone-text";
 import type { FileOutput, FileSpec } from "./types";
 
@@ -18,6 +16,13 @@ interface Props {
   className?: string;
   specs: FileSpec;
   error?: string;
+  /** hands the accepted file to the app's upload endpoint and resolves to the
+   * stored url. injected: the endpoint is the app's, not the design system's. */
+  upload: (file: File) => Promise<string>;
+  /** where a failed upload goes (sentry, a logger). required: `onChange("failure")`
+   * is the user-visible outcome, so without this a failed upload is silent to
+   * everyone but the donor in front of it. */
+  report_error: (err: unknown) => void;
 }
 /** what a form library gets to focus. the drop area is the control — it is
  * `role="button"`, named, and paints the ring; the hidden input is
@@ -51,10 +56,10 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
     setFile(f);
     try {
       props.onChange("loading");
-      const url = await uploadFile(f);
+      const url = await props.upload(f);
       return props.onChange(url);
     } catch (err) {
-      report_error(err);
+      props.report_error(err);
       return props.onChange("failure");
     }
   };

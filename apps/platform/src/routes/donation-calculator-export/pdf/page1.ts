@@ -1,7 +1,7 @@
+import { to_usd } from "@better-giving/ui/helpers";
 import { format } from "date-fns";
 import type { PDFDocument, PDFPage } from "pdf-lib";
 import { base_url } from "#/constants/env";
-import { to_usd } from "#/helpers/to-usd";
 import type { View } from "#/routes/_app.donation-calculator/types";
 import { methods, methodsArr } from "#/types/donation-calculator";
 import { blue, fs, gray, green, w } from "../styles";

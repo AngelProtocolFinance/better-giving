@@ -1,8 +1,8 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_coin from "#/assets/laira/laira-coin.webp";
 import laira_yellow from "#/assets/laira/laira-yellow.webp";
-import { Image } from "#/components/image";
 
 export const Top = ({ classes = "" }) => {
   return (

@@ -1,14 +1,11 @@
+import { Combo, DrawerIcon, MaskedInput, Separator } from "@better-giving/ui";
+import { dollar } from "@better-giving/ui/masks";
 import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { app_name } from "#/constants/env";
 import { use_debouncer } from "#/hooks/use-debouncer";
 import type { WiseCurrencyOption } from "#/types/components";
 import { report_error } from "@/errors/report";
-import { MaskedInput } from "../form";
-import { dollar } from "../form/masks";
-import { DrawerIcon } from "../icon";
-import { Combo } from "../select";
-import { Separator } from "../separator";
 import { RecipientDetails } from "./recipient-details";
 import type { IFormButtons, OnSubmit } from "./types";
 import { use_currencies } from "./use-currencies";

@@ -1,8 +1,8 @@
+import { HoverCard } from "@better-giving/ui/hover-card";
+import { Tooltip } from "@better-giving/ui/tooltip";
 import { ArrowRightIcon, CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
-import { HoverCard } from "#/components/hover-card";
-import { Tooltip } from "#/components/tooltip";
 
 type Props = {
   title: string;

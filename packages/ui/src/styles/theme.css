@@ -1,0 +1,173 @@
+@theme {
+  --color-\*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-inherit: inherit;
+
+  --color-black: #000101;
+
+  --color-white: #ffffff;
+
+  --text-2xs: 0.625rem;
+  --text-4_5xl: 2.625rem;
+
+  /* uppercase-label tracking. tailwind's own ladder tops out at
+     tracking-widest (0.1em) and does not reach either value.
+     label: standalone uppercase label — eyebrow, section kicker, column meta.
+     badge: uppercase text inside a padded chip; tighter so the last glyph
+     doesn't crowd the chip's right padding. */
+  --tracking-label: 0.12em;
+  --tracking-badge: 0.08em;
+
+  --font-quicksand: Quicksand Variable, sans-serif;
+  --font-gochi: Gochi Hand, cursive;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-fg: var(--fg);
+  --color-card: var(--card);
+  --color-card-fg: var(--card-fg);
+  --color-popover: var(--popover);
+  --color-popover-fg: var(--popover-fg);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-deep: var(--primary-deep);
+  --color-secondary: var(--secondary);
+  --color-secondary-fg: var(--secondary-fg);
+  --color-muted: var(--muted);
+  --color-muted-fg: var(--muted-fg);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-destructive: var(--destructive);
+  --color-destructive-fg: var(--destructive-fg);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-destructive-subtle-fg: var(--destructive-subtle-fg);
+  --color-destructive-subtle-active: var(--destructive-subtle-active);
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-subtle-fg: var(--success-subtle-fg);
+  --color-warning: var(--warning);
+  --color-warning-fg: var(--warning-fg);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-warning-subtle-fg: var(--warning-subtle-fg);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary-ring: var(--primary-ring);
+  --color-primary-border: var(--primary-border);
+  --color-form-primary: var(--form-primary);
+  --color-form-secondary: var(--form-secondary);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-fg: var(--sidebar-primary-fg);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-fg: var(--sidebar-accent-fg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  /* the radius ladder is closed, the same way --color-* is. this repo has ONE
+     corner: `rounded`, bound to --radius by @utility in styles/utilities.css.
+     the seven steps this scale would define are fractions and multiples of
+     that one value (1.6px / 2.4px / 3.2px …) — near-sharp corners nobody picks
+     on purpose, and they accumulate silently. resetting the scale makes
+     `rounded-sm` and friends fail to
+     compile instead of drifting silently. `rounded-full` and `rounded-none`
+     are unaffected: v4 emits those from literals, not from this scale. */
+  --radius-*: initial;
+
+  /*
+   * ark overlay/accordion animations.
+   * inline `transition-[...] data-[state=closed]:...` only animates exit;
+   * keyframes triggered by data-state animate both directions.
+   * usage: `data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out`.
+   * for accordion: `data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up`
+   * with `overflow-hidden` on item-content (--height is set during transitions).
+   */
+  --animate-overlay-in: overlay-in 200ms ease-out;
+  --animate-overlay-out: overlay-out 200ms ease-in;
+  --animate-popup-in: popup-in 150ms ease-out;
+  --animate-popup-out: popup-out 150ms ease-in;
+  --animate-accordion-down: accordion-down 300ms ease-out;
+  --animate-accordion-up: accordion-up 300ms ease-out;
+  /* ark marquee: vars (--marquee-duration/delay/loop-count) provided by machine */
+  --animate-marquee-y: marqueeY var(--marquee-duration) linear
+    var(--marquee-delay) var(--marquee-loop-count);
+  --animate-marquee-x: marqueeX var(--marquee-duration) linear
+    var(--marquee-delay) var(--marquee-loop-count);
+
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes overlay-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes popup-in {
+    from {
+      opacity: 0;
+      scale: 0.95;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+  @keyframes popup-out {
+    from {
+      opacity: 1;
+      scale: 1;
+    }
+    to {
+      opacity: 0;
+      scale: 0.95;
+    }
+  }
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes marqueeY {
+    from {
+      transform: translateY(0%);
+    }
+    to {
+      transform: translateY(var(--marquee-translate));
+    }
+  }
+  @keyframes marqueeX {
+    from {
+      transform: translateX(0%);
+    }
+    to {
+      transform: translateX(var(--marquee-translate));
+    }
+  }
+}

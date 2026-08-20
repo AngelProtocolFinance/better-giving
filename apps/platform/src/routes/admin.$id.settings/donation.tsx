@@ -1,8 +1,8 @@
+import { CheckField, Form as F, Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import * as v from "valibot";
-import { CheckField, Form as F, Field } from "#/components/form";
 import { $, MAX_RECEIPT_MSG_CHAR } from "@/npo/schema";
 
 const schema = v.object({

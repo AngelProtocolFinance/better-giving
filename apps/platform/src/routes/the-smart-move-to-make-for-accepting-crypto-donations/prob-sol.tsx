@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { Heart, X } from "lucide-react";
 import { Fragment } from "react";
 import laira_laptop_full from "#/assets/laira/laira-laptop-full.webp";
-import { Image } from "#/components/image";
 
 const solutions = [
   {

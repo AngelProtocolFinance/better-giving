@@ -1,9 +1,8 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
+import { DrawerIcon, Info } from "@better-giving/ui";
 import { href, Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { DrawerIcon } from "#/components/icon";
-import { Info } from "#/components/status";
 import type { Route } from "./+types/route";
 import { FundItem } from "./fund-item";
 

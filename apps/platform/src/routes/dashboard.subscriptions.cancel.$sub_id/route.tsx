@@ -1,10 +1,10 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useFetcher } from "react-router";
 import { object } from "valibot";
-import { Field } from "#/components/form";
 import { RouteModal } from "#/components/route-modal";
 import { $req } from "@/schemas";
 import type { Route } from "./+types/route";

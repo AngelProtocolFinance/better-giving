@@ -1,8 +1,8 @@
+import { Target, to_target } from "@better-giving/ui";
 import { fromUnixTime } from "date-fns";
 import { LoaderCircle, Split } from "lucide-react";
 import { href, Link, NavLink, useFetcher } from "react-router";
 import { FundCreator, FundStatus, status_fn } from "#/components/fundraiser";
-import { Target, to_target } from "#/components/target";
 import type { IFundItem } from "@/fundraiser";
 
 interface Props extends IFundItem {

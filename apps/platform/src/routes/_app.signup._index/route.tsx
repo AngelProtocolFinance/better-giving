@@ -1,11 +1,8 @@
+import { ExtLink, Image, Input, RmxForm, Separator } from "@better-giving/ui";
 import { Mail } from "lucide-react";
 import { href, Link, type MetaDescriptor, useNavigation } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import googleIcon from "#/assets/icons/google.svg";
-import { ExtLink } from "#/components/ext-link";
-import { Input, RmxForm } from "#/components/form";
-import { Image } from "#/components/image";
-import { Separator } from "#/components/separator";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { ISignUp } from "#/types/auth";

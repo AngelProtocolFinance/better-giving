@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes, ReactElement, ReactNode } from "react";
 import { useCallback, useLayoutEffect, useRef } from "react";
-import { unpack } from "#/helpers/unpack";
+import { unpack } from "../../helpers/unpack";
 import type { Classes } from "./types";
 
 type El = HTMLInputElement;

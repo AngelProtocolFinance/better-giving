@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import laira_presentation from "#/assets/laira/laira-presentation.webp";
 import laira_shaking_hands from "#/assets/laira/laira-shaking-hands-x2.webp";
-import { Image } from "#/components/image";
 
 interface IOwnGrow {
   classes?: string;

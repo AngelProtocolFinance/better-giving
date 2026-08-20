@@ -1,7 +1,7 @@
+import { ContentLoader } from "@better-giving/ui";
+import { unpack } from "@better-giving/ui/helpers";
 import { PortableText } from "@portabletext/react";
 import { lazy, type Ref, Suspense, useEffect, useState } from "react";
-import { unpack } from "#/helpers/unpack";
-import { ContentLoader } from "../content-loader";
 import { to_document } from "./helpers";
 import { pt_components } from "./pt-components";
 import type { Props } from "./types";

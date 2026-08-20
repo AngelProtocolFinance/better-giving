@@ -1,4 +1,9 @@
 import {
+  Arrow as HoverArrow,
+  HoverCard,
+  Content as HoverContent,
+} from "@better-giving/ui/hover-card";
+import {
   ArrowDownToLineIcon,
   ArrowLeftRightIcon,
   ArrowUpFromLineIcon,
@@ -7,11 +12,6 @@ import {
 import { NavLink, Outlet } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import {
-  Arrow as HoverArrow,
-  HoverCard,
-  Content as HoverContent,
-} from "#/components/hover-card";
 import { humanize } from "@/helpers/decimal";
 import type { TickerCategory } from "@/nav/interfaces";
 import { group_by_category } from "@/nav/interfaces";

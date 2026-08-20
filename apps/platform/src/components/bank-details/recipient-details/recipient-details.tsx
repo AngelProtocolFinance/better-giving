@@ -1,7 +1,5 @@
+import { Info, Label, LoadingStatus, Select } from "@better-giving/ui";
 import { memo, useState } from "react";
-import { Select } from "#/components/select";
-import { Label } from "../../form";
-import { Info, LoadingStatus } from "../../status";
 import type { IFormButtons, OnSubmit } from "../types";
 import { RecipientDetailsForm } from "./recipient-details-form";
 import { use_requirements } from "./use-requirements";

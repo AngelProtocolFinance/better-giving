@@ -1,8 +1,8 @@
+import { Image } from "@better-giving/ui";
+import { to_usd } from "@better-giving/ui/helpers";
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelpIcon, TrendingDown, TrendingUp } from "lucide-react";
 import laira_coin from "#/assets/laira/laira-coin.webp";
-import { Image } from "#/components/image";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
-import { to_usd } from "#/helpers/to-usd";
 import type { View } from "./types";
 import { Usd } from "./usd";
 

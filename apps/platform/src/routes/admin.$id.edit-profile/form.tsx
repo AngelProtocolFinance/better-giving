@@ -1,13 +1,21 @@
+import {
+  Combo,
+  Confirmed,
+  DrawerIcon,
+  Form as F,
+  Field,
+  Group,
+  Info,
+  Label,
+  MultiCombo,
+  Prompt,
+  Select,
+  Toggle,
+  UrlInput,
+} from "@better-giving/ui";
 import { href, Link, Outlet } from "react-router";
-import { Form as F, Field, Label, UrlInput } from "#/components/form";
-import { Group } from "#/components/group";
-import { DrawerIcon } from "#/components/icon";
 import { ImgEditor } from "#/components/img-editor";
-import { Prompt } from "#/components/prompt";
 import { RichText } from "#/components/rich-text";
-import { Combo, MultiCombo, Select } from "#/components/select";
-import { Confirmed, Info } from "#/components/status";
-import { Toggle } from "#/components/toggle";
 import { countries, country_names } from "#/constants/countries";
 import { emails } from "@/constants/common";
 import type { EndowDesignation } from "@/npo";

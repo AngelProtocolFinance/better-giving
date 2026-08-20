@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { href, NavLink } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import type { LoaderData } from "#/pages/platform-admin/banking-applications/api";
 
 export function Loaded(props: LoaderData) {

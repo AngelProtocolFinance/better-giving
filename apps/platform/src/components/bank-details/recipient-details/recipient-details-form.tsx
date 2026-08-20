@@ -1,9 +1,19 @@
+import {
+  FileDropzone,
+  type FileOutput,
+  Form,
+  fileOutput,
+  type IPrompt,
+  Label,
+  Prompt,
+  Select,
+} from "@better-giving/ui";
 import { ErrorMessage } from "@hookform/error-message";
 import { useState } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
-import { Select } from "#/components/select";
 import { error_prompt } from "#/helpers/error-prompt";
+import { uploadFile } from "#/helpers/upload-file";
 import type {
   CreateRecipientRequest,
   Group,
@@ -11,9 +21,6 @@ import type {
   ValidationContent,
 } from "#/types/bank-details";
 import { report_error } from "@/errors/report";
-import { FileDropzone, type FileOutput, fileOutput } from "../../file-dropzone";
-import { Form, Label } from "../../form";
-import { type IPrompt, Prompt } from "../../prompt";
 import type { IFormButtons, OnSubmit } from "../types";
 import { use_requirements } from "./use-requirements";
 
@@ -354,6 +361,8 @@ export function RecipientDetailsForm({
           value={bankStatement.value}
           onChange={bankStatement.onChange}
           error={errors.bankStatement?.message?.toString()}
+          upload={uploadFile}
+          report_error={report_error}
         />
       )}
 

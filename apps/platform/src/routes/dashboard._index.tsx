@@ -1,10 +1,10 @@
+import { Image } from "@better-giving/ui";
 import { LogOutIcon, PlusIcon, ShieldIcon, XIcon } from "lucide-react";
 import { Form, href, Link, useFetcher } from "react-router";
 import { safeParse } from "valibot";
 import { user_ctx } from "#/.server/auth";
 import { user_bookmarks, user_npos } from "#/.server/user";
 import { UserAvatar } from "#/components/header/user-avatar";
-import { Image } from "#/components/image";
 import { metas } from "#/helpers/seo";
 import { $int_gte1 } from "@/schemas";
 import { user_bookmark_del, user_get } from "$/pg/queries/user";

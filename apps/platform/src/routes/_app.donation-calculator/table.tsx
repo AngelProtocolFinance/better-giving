@@ -1,9 +1,9 @@
 import { Tabs } from "@ark-ui/react/tabs";
+import { Image } from "@better-giving/ui";
+import { to_usd } from "@better-giving/ui/helpers";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import laira_coin from "#/assets/laira/laira-coin.webp";
-import { Image } from "#/components/image";
-import { to_usd } from "#/helpers/to-usd";
 import type { View } from "./types";
 import { Usd } from "./usd";
 

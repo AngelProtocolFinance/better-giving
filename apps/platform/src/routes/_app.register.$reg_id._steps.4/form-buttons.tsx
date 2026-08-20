@@ -1,9 +1,9 @@
+import { LoadText } from "@better-giving/ui";
 import { Link } from "react-router";
 import type {
   FormButtonsProps,
   IFormButtons,
 } from "#/components/bank-details/types";
-import { LoadText } from "#/components/load-text";
 
 /** the step behind banking depends on `o_type` (a 501(c)(3) has no agreement
  * step), and `BankDetails` takes the buttons as a component — so the target is

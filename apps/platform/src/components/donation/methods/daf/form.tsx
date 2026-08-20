@@ -1,5 +1,5 @@
+import { Field, Form as FormContainer } from "@better-giving/ui";
 import { ru_vdec } from "@/helpers/decimal";
-import { Field, Form as FormContainer } from "../../../form";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
 import { Incrementers } from "../../common/incrementers";

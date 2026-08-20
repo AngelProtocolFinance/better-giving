@@ -1,8 +1,8 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { InfoIcon, MoveLeft, MoveRight } from "lucide-react";
 import { useController, useForm } from "react-hook-form";
-import { Field } from "#/components/form";
 import { humanize } from "@/helpers/decimal";
 import { type Props, type Schema, schema } from "./types";
 

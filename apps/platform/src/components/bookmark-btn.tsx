@@ -1,8 +1,8 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { Heart } from "lucide-react";
 import { useState } from "react";
 import { use_user } from "#/hooks/use-user";
 import type { INpoBookmark } from "#/types/user";
-import { Arrow, Content, Tooltip } from "./tooltip";
 
 type Props = {
   classes?: string;

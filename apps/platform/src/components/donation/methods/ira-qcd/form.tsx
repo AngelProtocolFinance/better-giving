@@ -1,7 +1,7 @@
+import { Field, Form as FormContainer } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useController, useForm } from "react-hook-form";
 import { ru_vdec } from "@/helpers/decimal";
-import { Field, Form as FormContainer } from "../../../form";
 import { usd_option } from "../../common/constants";
 import type { OnIncrement } from "../../common/incrementers";
 import { Incrementers } from "../../common/incrementers";

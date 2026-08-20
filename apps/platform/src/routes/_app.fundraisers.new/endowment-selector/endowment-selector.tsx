@@ -1,9 +1,9 @@
 import { Combobox, createListCollection } from "@ark-ui/react/combobox";
 import { Portal } from "@ark-ui/react/portal";
+import { Image } from "@better-giving/ui";
 import { Check, Search, X } from "lucide-react";
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
-import { Image } from "#/components/image";
 import type { EndowFundMembersOptionsPage } from "#/types/npo";
 import type { EndowOption } from "../schema";
 

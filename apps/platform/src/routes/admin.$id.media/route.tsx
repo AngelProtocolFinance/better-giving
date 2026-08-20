@@ -1,7 +1,7 @@
+import { Select } from "@better-giving/ui";
 import { Plus } from "lucide-react";
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Select } from "#/components/select";
 import { use_table } from "#/hooks/use-table";
 import { List, NoVideo } from "#/pages/admin/media/list";
 import type { Route } from "./+types/route";

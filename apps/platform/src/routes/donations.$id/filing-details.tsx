@@ -1,9 +1,9 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
+import { Copier } from "@better-giving/ui";
 import { BuildingIcon, CheckCircle2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Form, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Copier } from "#/components/copier";
 import { emails } from "@/constants/common";
 import { to_utc_day } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";

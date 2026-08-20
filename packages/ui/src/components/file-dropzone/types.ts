@@ -1,6 +1,6 @@
-import type { MIMEType } from "#/types/lists";
+import type { MIMEType } from "../../types/mime";
 
-export type { MIMEType } from "#/types/lists";
+export type { MIMEType } from "../../types/mime";
 
 import { nonEmpty, notValue, pipe, string } from "valibot";
 

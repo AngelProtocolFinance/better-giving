@@ -1,6 +1,6 @@
+import { Info } from "@better-giving/ui";
 import { Plus } from "lucide-react";
 import { useFetcher } from "react-router";
-import { Info } from "#/components/status";
 import type { IMilestone } from "@/npo";
 import { Milestone } from "./milestone";
 

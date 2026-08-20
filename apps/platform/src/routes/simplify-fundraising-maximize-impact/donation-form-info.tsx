@@ -1,9 +1,9 @@
+import { Image } from "@better-giving/ui";
 import laira_announce from "#/assets/laira/laira-announce.webp";
 import laira_cheering from "#/assets/laira/laira-cheering.webp";
 import laira_like from "#/assets/laira/laira-like.webp";
 import laira_presentation from "#/assets/laira/laira-presentation.webp";
 import { StepsCarousel } from "#/components/donation";
-import { Image } from "#/components/image";
 
 type TListItem = {
   title: string;

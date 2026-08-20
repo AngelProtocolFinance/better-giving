@@ -1,6 +1,6 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";

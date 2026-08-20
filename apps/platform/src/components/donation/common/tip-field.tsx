@@ -1,5 +1,6 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
 import { Switch } from "@ark-ui/react/switch";
+import { ExtLink } from "@better-giving/ui";
 import { PencilIcon } from "lucide-react";
 import {
   type ReactElement,
@@ -9,7 +10,6 @@ import {
   useState,
 } from "react";
 import { base_url } from "#/constants/env";
-import { ExtLink } from "../../ext-link";
 import type { TTipFormat } from "../types";
 import { ThumbWiggle } from "./thumb-wiggle";
 

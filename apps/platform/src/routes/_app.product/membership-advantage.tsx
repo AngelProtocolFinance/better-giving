@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { Check } from "lucide-react";
 import laira_gift from "#/assets/laira/laira-gift.webp";
-import { Image } from "#/components/image";
 
 const points = [
   "Simpler Form 990: one pooled grant instead of hundreds of records",

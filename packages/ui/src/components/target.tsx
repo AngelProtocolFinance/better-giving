@@ -1,7 +1,7 @@
 import { Progress } from "@ark-ui/react/progress";
 import type { ReactNode } from "react";
-import diversity from "#/assets/icons/diversity.svg";
-import { to_usd } from "#/helpers/to-usd";
+import diversity from "../assets/diversity.svg";
+import { to_usd } from "../helpers/to-usd";
 
 export interface ITarget {
   text?: ReactNode;

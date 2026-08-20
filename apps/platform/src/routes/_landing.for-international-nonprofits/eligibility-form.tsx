@@ -1,10 +1,12 @@
+import {
+  Combo,
+  DrawerIcon,
+  ExtLink,
+  LoadText,
+  RmxForm,
+} from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
-import { ExtLink } from "#/components/ext-link";
-import { RmxForm } from "#/components/form";
 import { Honeypot } from "#/components/honeypot";
-import { DrawerIcon } from "#/components/icon";
-import { LoadText } from "#/components/load-text";
-import { Combo } from "#/components/select";
 import {
   countries as cmap,
   country_names as cnames,

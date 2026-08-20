@@ -1,13 +1,11 @@
 import { Field as BaseField } from "@ark-ui/react/field";
+import { DateField, Field, Increments, Label } from "@better-giving/ui";
 import { DollarSign } from "lucide-react";
 import { useController, useFieldArray } from "react-hook-form";
 import { type LinksFunction, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { DateField } from "#/components/date-field";
-import { Field, Label } from "#/components/form";
 import { GoalSelector } from "#/components/goal-selector";
 import { ImgEditor } from "#/components/img-editor";
-import { Increments } from "#/components/increments";
 import { RichText, richtext_styles } from "#/components/rich-text";
 import { img_spec } from "#/pages/funds/common";
 import { Videos } from "#/pages/funds/common/videos";

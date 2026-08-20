@@ -1,7 +1,7 @@
+import { Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
-import { Modal } from "../modal";
 
 const STATUS_MESSAGES: Record<number, string> = {
   400: "The request was invalid.",

@@ -1,5 +1,5 @@
+import { Info } from "@better-giving/ui";
 import type { UseFieldArrayReturn } from "react-hook-form";
-import { Info } from "#/components/status";
 import type { FV } from "./types";
 import { VideoPreview } from "./video-preview";
 

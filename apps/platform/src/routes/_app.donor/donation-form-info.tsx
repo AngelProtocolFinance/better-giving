@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { Star } from "lucide-react";
 import { StepsCarousel } from "#/components/donation";
-import { Image } from "#/components/image";
 import { benefits } from "#/content/benefits";
 
 export function DonationFormInfo({ className = "" }) {

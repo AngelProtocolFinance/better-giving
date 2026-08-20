@@ -1,6 +1,6 @@
+import { ExtLink } from "@better-giving/ui";
 import type { POST_QUERY_RESULT } from "blog-types";
 import { urlFor } from "#/api/sanity";
-import { ExtLink } from "#/components/ext-link";
 
 // editor-picked per post, so every field past heading/link1 is optional.
 // shape defined in blog/schemaTypes/ctaType.ts.

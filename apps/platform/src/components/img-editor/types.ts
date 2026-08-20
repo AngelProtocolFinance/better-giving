@@ -1,6 +1,6 @@
+import type { ImageMIMEType } from "@better-giving/ui";
 import type { FieldValues, Path, PathValue } from "react-hook-form";
 import { notValue, pipe, string } from "valibot";
-import type { ImageMIMEType } from "#/types/lists";
 import { $req } from "@/schemas";
 
 type Classes = { container?: string; dropzone?: string };

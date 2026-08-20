@@ -1,9 +1,8 @@
+import { ContentLoader, Target, to_target } from "@better-giving/ui";
 import { Suspense } from "react";
 import { Await, useOutletContext } from "react-router";
-import { ContentLoader } from "#/components/content-loader";
 import { DonorMsgs } from "#/components/donor-msgs";
 import { RichText } from "#/components/rich-text";
-import { Target, to_target } from "#/components/target";
 import { Container } from "#/pages/marketplace/container";
 import type { Route as ParentRoute } from "../_app.marketplace_.$id/+types/route";
 import { DetailsColumn } from "./details-column";

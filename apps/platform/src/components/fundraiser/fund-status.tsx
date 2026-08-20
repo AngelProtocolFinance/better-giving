@@ -1,5 +1,5 @@
+import { unpack } from "@better-giving/ui/helpers";
 import { formatDistance } from "date-fns";
-import { unpack } from "#/helpers/unpack";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface IStatus {

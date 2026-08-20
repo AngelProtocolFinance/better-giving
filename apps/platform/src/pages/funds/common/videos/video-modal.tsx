@@ -1,9 +1,8 @@
+import { Field, Modal } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { object } from "valibot";
-import { Field } from "#/components/form";
-import { Modal } from "#/components/modal";
 import { videoUrl } from "./types";
 
 interface IVideoModal {

@@ -1,9 +1,8 @@
 import { Accordion } from "@ark-ui/react/accordion";
+import { DrawerIcon, ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import type React from "react";
 import { Fragment } from "react";
-import { ExtLink } from "#/components/ext-link";
-import { DrawerIcon } from "#/components/icon";
 import { INTERCOM_HELP } from "#/constants/urls";
 
 interface IFaq {

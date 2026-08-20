@@ -1,8 +1,8 @@
 import { chains, type IToken, is_custom } from "@better-giving/crypto";
+import { Combo } from "@better-giving/ui";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
-import { Combo } from "#/components/select";
 import type { ITokenEstimate } from "#/types/api";
 import { DONATION_INCREMENTS, logo_url } from "@/constants/common";
 import { report_error } from "@/errors/report";

@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_calling from "#/assets/laira/laira-calling.webp";
 import laira_shake_hands from "#/assets/laira/laira-shaking-hands.webp";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 export function BottomCta({ className = "" }) {

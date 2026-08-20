@@ -1,8 +1,8 @@
+import { ExtLink } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import flying_character from "#/assets/images/flying-character.webp";
 import { Steps } from "#/components/donation";
-import { ExtLink } from "#/components/ext-link";
 import { DappLogo } from "#/components/image";
 import { app_name, base_url } from "#/constants/env";
 import { INTERCOM_HELP, PRIVACY_POLICY } from "#/constants/urls";

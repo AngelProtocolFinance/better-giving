@@ -1,6 +1,6 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight, Check, Minus } from "lucide-react";
 import { href, Link } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import { GITHUB_REPO } from "#/constants/urls";
 
 interface IItem {

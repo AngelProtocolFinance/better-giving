@@ -1,7 +1,7 @@
+import { Info } from "@better-giving/ui";
 import { Plus } from "lucide-react";
 import { NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Info } from "#/components/status";
 import type { Route } from "./+types/route";
 import { Table } from "./table";
 

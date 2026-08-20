@@ -1,6 +1,6 @@
 import { Slider } from "@ark-ui/react/slider";
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelpIcon } from "lucide-react";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 
 interface ProcessingFeeSliderProps {
   label: string;

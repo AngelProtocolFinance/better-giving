@@ -1,9 +1,9 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowDownToLine } from "lucide-react";
 import { href, Link } from "react-router";
-import { Amount } from "#/components/amount";
 import { CsvExporter } from "#/components/csv-exporter";
-import { ExtLink } from "#/components/ext-link";
 import { LoadMoreRow } from "#/components/load-more-row";
+import { Money } from "#/components/money";
 import { PaymentResumer } from "#/pages/user-dashboard/donations/payment-resumer";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
@@ -105,7 +105,7 @@ export function Table({
                     )}
                   </td>
                   <td>
-                    <Amount
+                    <Money
                       classes={
                         row.status === "refunded"
                           ? "line-through text-destructive"

@@ -4,10 +4,8 @@ import { render } from "vitest-browser-react";
 import { FileDropzone } from "./file-dropzone";
 import type { FileOutput, FileSpec } from "./types";
 
-const upload_mock = vi.hoisted(() => vi.fn());
-vi.mock("#/helpers/upload-file", () => ({
-  uploadFile: upload_mock,
-}));
+const upload_mock = vi.fn<(f: File) => Promise<string>>();
+const report_error_mock = vi.fn<(err: unknown) => void>();
 
 const specs: FileSpec = {
   mbLimit: 6,
@@ -16,6 +14,10 @@ const specs: FileSpec = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // restoreAllMocks does not reset a bare vi.fn(); without this the rejecting
+  // impl set in the failure test leaks into whatever runs next.
+  upload_mock.mockReset();
+  report_error_mock.mockReset();
 });
 
 describe("FileDropzone", () => {
@@ -27,6 +29,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -46,6 +50,8 @@ describe("FileDropzone", () => {
         value="loading"
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -63,6 +69,8 @@ describe("FileDropzone", () => {
         value="https://example.com/file.pdf"
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -79,6 +87,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
         error="required"
       />
     );
@@ -94,6 +104,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -124,6 +136,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -156,6 +170,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -193,6 +209,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
     );
 
@@ -220,6 +238,8 @@ describe("FileDropzone", () => {
         value=""
         onChange={on_change}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
         disabled={true}
       />
     );
@@ -253,6 +273,8 @@ function RHFHarness() {
         value={field.value}
         onChange={field.onChange}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
       />
       <button type="submit">Submit</button>
     </form>
@@ -280,6 +302,8 @@ describe("FileDropzone: focus target", () => {
         value=""
         onChange={() => {}}
         specs={specs}
+        upload={upload_mock}
+        report_error={report_error_mock}
         error="required"
       />
     );

@@ -1,8 +1,8 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_shake_hands_x2 from "#/assets/laira/laira-shaking-hands-x2.webp";
 import laira_yellow from "#/assets/laira/laira-yellow.webp";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 
 export function Top({ classes = "" }) {

@@ -1,6 +1,6 @@
+import { Info } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Info } from "#/components/status";
 import type { Route } from "./+types/route";
 import { Fund } from "./fund";
 

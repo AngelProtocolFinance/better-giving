@@ -1,8 +1,7 @@
+import { Field, Select } from "@better-giving/ui";
 import { useController } from "react-hook-form";
 import { useFetcher, useNavigation, useSearchParams } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Field } from "#/components/form";
-import { Select } from "#/components/select";
 import type { ILoaderData } from "../api";
 import type { FV } from "../schema";
 import { NpoSelector } from "./npo-selector";

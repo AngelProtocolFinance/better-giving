@@ -1,8 +1,8 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { RadioGroup } from "@ark-ui/react/radio-group";
+import { Copier } from "@better-giving/ui";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
-import { Copier } from "#/components/copier";
 
 type AccountType = "savings" | "investments";
 

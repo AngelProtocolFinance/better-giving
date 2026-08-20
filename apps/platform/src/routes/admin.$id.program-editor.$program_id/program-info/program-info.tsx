@@ -1,7 +1,6 @@
+import { Field, Form, Group, Label } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useController, useForm } from "react-hook-form";
-import { Field, Form, Label } from "#/components/form";
-import { Group } from "#/components/group";
 import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
 import type { IProgram } from "@/npo";

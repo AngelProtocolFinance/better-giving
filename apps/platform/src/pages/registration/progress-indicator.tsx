@@ -1,7 +1,7 @@
 import { Steps } from "@ark-ui/react/steps";
+import { DrawerIcon } from "@better-giving/ui";
 import { useState } from "react";
 import { useLocation } from "react-router";
-import { DrawerIcon } from "#/components/icon";
 import { id_param_to_num } from "#/helpers/id-param-to-num";
 import type { IReg, Progress } from "@/reg";
 

@@ -1,11 +1,10 @@
+import { Field, Label } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useEffect } from "react";
 import type { Resolver } from "react-hook-form";
 import { useController, useForm, useWatch } from "react-hook-form";
 import { useFetcher } from "react-router";
 import * as v from "valibot";
-import { Field } from "#/components/form/field";
-import { Label } from "#/components/form/label";
 import { NpoSelector } from "#/pages/shared/form-create/form/npo-selector";
 import type { IFormValues, INpoOpt } from "./types";
 

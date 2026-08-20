@@ -1,5 +1,5 @@
+import { type FileSpec, fileOutput } from "@better-giving/ui";
 import * as v from "valibot";
-import { type FileSpec, fileOutput } from "#/components/file-dropzone";
 import type { IFsaDocs } from "@/reg";
 import { fsa_docs_fv } from "@/reg/schema";
 

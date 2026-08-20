@@ -1,9 +1,9 @@
 import { Menu } from "@ark-ui/react/menu";
 import { Portal } from "@ark-ui/react/portal";
+import { Image } from "@better-giving/ui";
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { href, Link, useParams } from "react-router";
 import flying_character from "#/assets/images/flying-character.webp";
-import { Image } from "#/components/image";
 import { use_user } from "#/hooks/use-user";
 
 interface IEndow {

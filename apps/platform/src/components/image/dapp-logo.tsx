@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import dapp_logo from "#/assets/images/bg-logo-503c.webp";
-import { Image } from "./image";
 
 type Props = {
   classes?: string;

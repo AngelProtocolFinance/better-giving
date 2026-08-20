@@ -1,11 +1,11 @@
 import { Collapsible } from "@ark-ui/react/collapsible";
+import { Image } from "@better-giving/ui";
 import { CheckCircle2Icon, ChevronDownIcon, StarIcon } from "lucide-react";
 import { useRef } from "react";
 import { href, Link, NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import char from "#/assets/images/celebrating-character.webp";
 import laira_gift from "#/assets/laira/laira-gift.webp";
-import { Image } from "#/components/image";
 import { confetti } from "#/helpers/confetti";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";

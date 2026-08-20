@@ -1,7 +1,7 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon, TagIcon } from "lucide-react";
 import { href, Link } from "react-router";
-import { Amount } from "#/components/amount";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
+import { Money } from "#/components/money";
 import { default_allocation } from "@/constants/common";
 import { toPP } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
@@ -45,7 +45,7 @@ export function Row(props: IRow) {
       </td>
       <td>{props.payment_method ?? "--"}</td>
       <td>
-        <Amount
+        <Money
           amount={+props.amount}
           currency={props.currency}
           amount_usd={+props.amount_usd}

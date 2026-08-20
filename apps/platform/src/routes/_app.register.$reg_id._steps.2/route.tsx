@@ -1,10 +1,14 @@
+import {
+  ExtLink,
+  Label,
+  LoadText,
+  MultiCombo,
+  Select,
+  UrlInput,
+} from "@better-giving/ui";
 import type { SubmitHandler } from "react-hook-form";
 import { NavLink, useFetcher, useNavigate } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { ExtLink } from "#/components/ext-link";
-import { Label, UrlInput } from "#/components/form";
-import { LoadText } from "#/components/load-text";
-import { MultiCombo, Select } from "#/components/select";
 import { country_names as cnames } from "#/constants/countries";
 import { TERMS_OF_USE_NPO } from "#/constants/urls";
 import { step_loader } from "#/pages/registration/data/step-loader";

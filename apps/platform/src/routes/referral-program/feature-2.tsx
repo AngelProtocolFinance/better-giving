@@ -1,9 +1,9 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_heart from "#/assets/laira/laira-heart.webp";
 import laira_laptop from "#/assets/laira/laira-laptop.webp";
 import laira_shake_hands from "#/assets/laira/laira-shaking-hands.webp";
-import { Image } from "#/components/image";
 
 type TListItem = {
   title1: string;

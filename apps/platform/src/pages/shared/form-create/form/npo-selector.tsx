@@ -1,8 +1,11 @@
 import { Combobox, createListCollection } from "@ark-ui/react/combobox";
+import {
+  DrawerIcon,
+  Info,
+  LoadingStatus,
+  ornament_end_cls,
+} from "@better-giving/ui";
 import { useMemo, useState } from "react";
-import { ornament_end_cls } from "#/components/form/ornament";
-import { DrawerIcon } from "#/components/icon";
-import { Info, LoadingStatus } from "#/components/status";
 import { use_debounce } from "#/hooks/use-debounce";
 import type { INpoOpt } from "../api";
 

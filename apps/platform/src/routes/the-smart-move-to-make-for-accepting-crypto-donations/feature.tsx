@@ -1,9 +1,9 @@
+import { Image } from "@better-giving/ui";
 import photo from "#/assets/images/bg-logo-leaf-bg.webp";
 import laira_heart from "#/assets/laira/laira-heart.webp";
 import laira_pointing from "#/assets/laira/laira-pointing.webp";
 import laira_presentation from "#/assets/laira/laira-presentation.webp";
 import laira_shake_hands from "#/assets/laira/laira-shaking-hands.webp";
-import { Image } from "#/components/image";
 
 type TListItem = {
   title1: string;

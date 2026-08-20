@@ -1,8 +1,7 @@
+import { ExtLink, Field, Form } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { InfoIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { ExtLink } from "#/components/ext-link";
-import { Field, Form } from "#/components/form";
 import { type FVAdv, schema_adv } from "./types";
 
 interface Props extends FVAdv {

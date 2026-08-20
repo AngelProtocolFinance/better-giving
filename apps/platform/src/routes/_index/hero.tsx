@@ -1,8 +1,7 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
 import laira_heart from "#/assets/laira/laira-heart.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 const gift_types = [

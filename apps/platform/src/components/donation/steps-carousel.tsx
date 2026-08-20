@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import type React from "react";
 import { type FC, useEffect, useRef, useState } from "react";
 import { use_drag_scroll } from "#/hooks/use-drag-scroll";
-import { Image } from "../image";
 import checkout from "./screenshots/checkout.webp";
 import form from "./screenshots/form.webp";
 import result from "./screenshots/result.webp";

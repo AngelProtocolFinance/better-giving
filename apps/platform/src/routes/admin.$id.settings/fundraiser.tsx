@@ -1,8 +1,8 @@
+import { CheckField, Form as F } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import * as v from "valibot";
-import { CheckField, Form as F } from "#/components/form";
 
 const schema = v.object({
   fund_opt_in: v.boolean(),

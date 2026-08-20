@@ -1,4 +1,4 @@
-import { to_usd } from "#/helpers/to-usd";
+import { to_usd } from "@better-giving/ui/helpers";
 
 interface Props {
   classes?: string;

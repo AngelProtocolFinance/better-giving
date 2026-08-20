@@ -1,6 +1,6 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelp } from "lucide-react";
-import { Arrow, Content, Tooltip } from "../tooltip";
 import type { TargetType } from "./types";
 
 const options: { [T in TargetType]: string } = {

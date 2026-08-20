@@ -1,6 +1,5 @@
-import { Image } from "#/components/image";
+import { Image, Info } from "@better-giving/ui";
 import { RichText } from "#/components/rich-text";
-import { Info } from "#/components/status";
 import { Container } from "#/pages/marketplace/container";
 import type { IMilestone } from "@/npo";
 

@@ -1,0 +1,19 @@
+/* the design system's style layer: brand color tokens, base/components/utilities,
+   and the theme mapping. imported by platform (as source, alongside its own
+   `@import "tailwindcss"`) and by ./build-entry.css (which adds that import
+   itself to compile this package's standalone artifact). never import
+   "tailwindcss" from this file — platform's compile needs to own that. */
+
+@import "@better-giving/brand/colors.css";
+@import "./base.css";
+@import "./components.css";
+@import "./utilities.css";
+@import "./theme.css";
+
+/* this package's own components live outside every consumer's tree, so
+   automatic content detection never reaches them — register the source here,
+   relative to this file, so every consumer gets it for free on import
+   instead of repeating the path against its own directory layout. must come
+   after the @import block above — @import rules must precede all other
+   at-rules in a stylesheet. */
+@source "..";

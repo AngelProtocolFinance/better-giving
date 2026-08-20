@@ -1,7 +1,7 @@
+import { CheckField, Field } from "@better-giving/ui";
 import { useState } from "react";
 import { Form, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { CheckField, Field } from "#/components/form";
 import { from_msg_max_length, type ITribute } from "@/donations/schema";
 import type { TributeFv } from "./schema";
 

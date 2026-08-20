@@ -1,6 +1,6 @@
 import type { Church } from "lucide-react";
 import type { InputHTMLAttributes } from "react";
-import { unpack } from "#/helpers/unpack";
+import { unpack } from "../../helpers/unpack";
 import type { Classes } from "./types";
 
 type El = HTMLInputElement;

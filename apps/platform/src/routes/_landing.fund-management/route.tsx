@@ -1,7 +1,6 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_presentation from "#/assets/laira/laira-presentation-hd.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";

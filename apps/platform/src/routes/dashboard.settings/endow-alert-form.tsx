@@ -1,7 +1,6 @@
+import { CheckField, Form, Info } from "@better-giving/ui";
 import { type SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { CheckField, Form } from "#/components/form";
-import { Info } from "#/components/status";
 import type { IUserNpo2 } from "#/types/user";
 import type { INpoAlertPrefUpdate } from "./schema";
 

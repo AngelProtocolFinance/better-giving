@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import logo from "#/assets/images/bg-logo.webp";
 import laira_pointing from "#/assets/laira/laira-pointing.webp";
-import { Image } from "#/components/image";
 
 export function BottomCta({ className = "" }) {
   return (

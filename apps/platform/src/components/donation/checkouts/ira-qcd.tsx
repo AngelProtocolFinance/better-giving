@@ -1,9 +1,8 @@
+import { Copier, LoadText } from "@better-giving/ui";
 import { CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
 import { emails } from "@/constants/common";
-import { Copier } from "../../copier";
-import { LoadText } from "../../load-text";
 import { BackBtn } from "../common/back-btn";
 import { use_donation } from "../context";
 import {

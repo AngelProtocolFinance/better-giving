@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
-import { ExtLink } from "#/components/ext-link";
 import { referrals_hub } from "#/constants/urls";
 
 export function Faq({ classes = "" }) {
