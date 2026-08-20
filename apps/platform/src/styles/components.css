@@ -309,8 +309,20 @@
     }
   }
 
-  /* Floating label state when input is empty (placeholder shown) */
-  input:placeholder-shown + .label-floating {
+  /* the label at rest: sitting inside the control, at input size. the raised
+     position is `.label-floating`'s own declarations above, so rest is the only
+     state that needs a rule.
+
+     keyed off the field root with `:has()` rather than an adjacent sibling: a
+     control that wraps its input in a subtree (a combobox's root → control →
+     input) has no sibling relationship to the label at all, and the recipe has
+     to reach those too.
+
+     rest and focus are mutually exclusive by construction — a focused empty
+     input still shows its placeholder, so `:not(:has(input:focus))` withholds
+     rest there and the raised declarations stand. nothing turns on which rule
+     is written last. */
+  :has(input:placeholder-shown):not(:has(input:focus)) > .label-floating {
     left: calc(var(--spacing) * 4);
     font-weight: normal;
     background-color: transparent;
@@ -378,16 +390,5 @@
         color: var(--muted-fg);
       }
     }
-  }
-
-  /* When input is focused, apply floating styles even if placeholder shown */
-  input:focus + .label-floating {
-    left: 0;
-    color: var(--ring);
-    font-weight: var(--font-weight-semibold);
-    background-color: var(--card);
-    bottom: calc(100% - 0.5lh);
-    transform: translateY(0);
-    font-size: 0.75rem;
   }
 }
