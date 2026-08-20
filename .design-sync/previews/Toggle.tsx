@@ -1,4 +1,4 @@
-import { Toggle } from "platform";
+import { Toggle } from "@better-giving/ui";
 import { useState } from "react";
 
 export const On = () => {

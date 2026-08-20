@@ -1,4 +1,4 @@
-import { LoaderRing } from "platform";
+import { LoaderRing } from "@better-giving/ui";
 
 // LoaderRing draws an SVG ring with no intrinsic size — it fills its parent, so
 // every usage pins a size, either on the svg itself (`classes="w-6"`, the real

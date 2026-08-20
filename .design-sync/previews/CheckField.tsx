@@ -1,4 +1,4 @@
-import { CheckField } from "platform";
+import { CheckField } from "@better-giving/ui";
 
 export const Basic = () => (
   <CheckField name="fund_opt_in" classes="font-medium">

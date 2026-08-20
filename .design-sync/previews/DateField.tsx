@@ -1,4 +1,4 @@
-import { DateField } from "platform";
+import { DateField } from "@better-giving/ui";
 import { useState } from "react";
 
 export const Filled = () => {

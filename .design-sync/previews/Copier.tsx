@@ -1,4 +1,4 @@
-import { Copier } from "platform";
+import { Copier } from "@better-giving/ui";
 
 // click-to-copy: `text` is what lands on the clipboard, `children` render
 // inside the trigger beside the icon. `classes` is a string (→ container) or

@@ -1,4 +1,4 @@
-import { Target } from "platform";
+import { Target } from "@better-giving/ui";
 
 // the fundraising progress bar. `progress` and `target` are whole USD amounts;
 // `to_usd` inside the component does the formatting, so pass raw numbers.

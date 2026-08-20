@@ -1,4 +1,4 @@
-import { LoadText } from "platform";
+import { LoadText } from "@better-giving/ui";
 
 // LoadText swaps its children for a spinner + progress copy while is_loading —
 // it renders no wrapper of its own, so it always sits inside a button.

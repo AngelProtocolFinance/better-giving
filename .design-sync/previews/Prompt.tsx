@@ -1,4 +1,4 @@
-import { Prompt } from "platform";
+import { Prompt } from "@better-giving/ui";
 
 // Prompt is a full-screen modal over a backdrop — it is only meaningful in its
 // open state, so every cell passes `open`. `onClose` is supplied so the default

@@ -1,4 +1,4 @@
-import { MultiCombo } from "platform";
+import { MultiCombo } from "@better-giving/ui";
 import { type ReactNode, useState } from "react";
 
 const COUNTRIES = [

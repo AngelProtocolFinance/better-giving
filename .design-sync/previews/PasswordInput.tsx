@@ -1,4 +1,4 @@
-import { PasswordInput } from "platform";
+import { PasswordInput } from "@better-giving/ui";
 
 export const Basic = () => (
   <PasswordInput name="password" placeholder="Password" />

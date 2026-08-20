@@ -1,4 +1,4 @@
-import { VerifiedIcon } from "platform";
+import { VerifiedIcon } from "@better-giving/ui";
 
 // the badge carries a "Verified" tooltip that only opens on hover, so nothing
 // extra shows in a static capture — the filled badge itself is the whole

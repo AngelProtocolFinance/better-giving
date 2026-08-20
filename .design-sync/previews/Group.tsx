@@ -1,4 +1,4 @@
-import { Field, Group, Select } from "platform";
+import { Field, Group, Select } from "@better-giving/ui";
 
 // Group is the bordered card that wraps one section of an admin form or
 // dashboard: `title` is the section heading, `description` the line under it.

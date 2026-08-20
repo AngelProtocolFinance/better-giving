@@ -1,4 +1,4 @@
-import { Combo, DrawerIcon } from "platform";
+import { Combo, DrawerIcon } from "@better-giving/ui";
 import { useState } from "react";
 
 const COUNTRIES = [

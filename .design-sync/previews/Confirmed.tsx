@@ -1,4 +1,4 @@
-import { Confirmed } from "platform";
+import { Confirmed } from "@better-giving/ui";
 
 // Confirmed is the success twin of Info: inline CircleCheck + text-success text-sm.
 

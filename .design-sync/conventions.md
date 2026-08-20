@@ -1,7 +1,7 @@
 ## Building with the Better Giving design system
 
-This is the **shipped** system, imported from the production app (`apps/platform`), not an
-idealized kit. Every component here is the real component: same props, same behavior.
+This is the **shipped** system, published as `@better-giving/ui` and consumed by the production
+app, not an idealized kit. Every component here is the real component: same props, same behavior.
 
 ### Setup
 

@@ -1,4 +1,4 @@
-import { ErrorStatus } from "platform";
+import { ErrorStatus } from "@better-giving/ui";
 
 // ErrorStatus is the failure branch of query-loader: flex row, CircleAlert, text-destructive.
 

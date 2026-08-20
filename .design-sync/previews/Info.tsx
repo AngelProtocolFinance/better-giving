@@ -1,4 +1,4 @@
-import { Info } from "platform";
+import { Info } from "@better-giving/ui";
 
 // Info is the app's empty-state / advisory line: inline CircleAlert + muted-fg text-sm.
 

@@ -1,4 +1,4 @@
-import { ImagePlaceholder } from "platform";
+import { ImagePlaceholder } from "@better-giving/ui";
 
 // stands in for an image that is missing or failed to load. It has no
 // intrinsic size — the caller's className sets the box, and the lucide glyph

@@ -3,14 +3,6 @@
 @import "@fontsource/gochi-hand";
 @import "@better-giving/ui/styles.css";
 
-/* per-embed runtime overrides driven by don.config.accent_primary — app-specific,
-   not shared brand, so they live here rather than in the brand palette. must
-   follow the @import above so --primary/--secondary are already defined. */
-:root {
-  --form-primary: var(--primary);
-  --form-secondary: var(--secondary);
-}
-
 @plugin "@tailwindcss/typography";
 
 @theme {

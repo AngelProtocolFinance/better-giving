@@ -1,4 +1,4 @@
-import { UrlInput } from "platform";
+import { UrlInput } from "@better-giving/ui";
 
 export const Basic = () => (
   <UrlInput

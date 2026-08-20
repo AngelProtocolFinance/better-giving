@@ -1,4 +1,4 @@
-import { DateRangeField } from "platform";
+import { DateRangeField } from "@better-giving/ui";
 import { useState } from "react";
 
 // maxToday defaults to true, so both ends must sit on or before the current

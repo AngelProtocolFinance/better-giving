@@ -1,4 +1,4 @@
-import { ExtLink } from "platform";
+import { ExtLink } from "@better-giving/ui";
 
 // ExtLink is a bare <a target="_blank" rel="noopener noreferrer"> — it carries
 // no styling of its own, so every real call site passes className.

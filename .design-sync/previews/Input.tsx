@@ -1,5 +1,5 @@
+import { Input } from "@better-giving/ui";
 import { Mail } from "lucide-react";
-import { Input } from "platform";
 
 export const Basic = () => <Input name="first_name" placeholder="First name" />;
 

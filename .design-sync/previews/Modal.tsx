@@ -1,4 +1,4 @@
-import { Field, Modal } from "platform";
+import { Field, Modal } from "@better-giving/ui";
 
 // Modal is always authored open here: closed it renders nothing at all.
 // It portals to document.body, so `classes` carries the positioning

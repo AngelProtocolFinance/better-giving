@@ -1,7 +1,7 @@
-import { MaskedInput } from "platform";
+import { MaskedInput } from "@better-giving/ui";
 import { useState } from "react";
 
-// mirrors apps/platform/src/components/form/masks — the masks are not part of
+// mirrors packages/ui/src/components/form/masks — the masks are not part of
 // the design-system export surface, so previews carry their own copy.
 const ein = {
   format: (digits: string) => {

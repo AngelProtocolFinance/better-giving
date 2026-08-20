@@ -1,4 +1,4 @@
-import { Tooltip } from "platform";
+import { Tooltip } from "@better-giving/ui";
 import { useEffect, useRef } from "react";
 
 // Tooltip owns its `open` state internally (no `open` prop), so a static

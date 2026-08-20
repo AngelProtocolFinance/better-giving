@@ -1,4 +1,4 @@
-import { Image } from "platform";
+import { Image } from "@better-giving/ui";
 
 // the capture environment has no network, so previews use inline SVG data URIs
 // rather than the real CDN-hosted org logos and fundraiser covers.

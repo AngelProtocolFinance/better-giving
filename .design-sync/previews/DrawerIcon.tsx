@@ -1,4 +1,4 @@
-import { DrawerIcon } from "platform";
+import { DrawerIcon } from "@better-giving/ui";
 
 // a chevron that rotates 180deg when is_open — the disclosure affordance on
 // every select trigger, combobox and expandable panel in the app.

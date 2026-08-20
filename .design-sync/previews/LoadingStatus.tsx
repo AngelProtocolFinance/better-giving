@@ -1,4 +1,4 @@
-import { LoadingStatus } from "platform";
+import { LoadingStatus } from "@better-giving/ui";
 
 // LoadingStatus is the pending branch of query-loader: flex row with a spinning
 // LoaderCircle. The spin is a CSS animation — a still capture shows one frame.

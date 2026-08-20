@@ -1,4 +1,4 @@
-import { ContentLoader } from "platform";
+import { ContentLoader } from "@better-giving/ui";
 
 // ContentLoader is a bare pulsing block — it has no intrinsic size, so every
 // usage supplies its own height/width classes.

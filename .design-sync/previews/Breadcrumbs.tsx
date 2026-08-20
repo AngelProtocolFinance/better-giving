@@ -1,4 +1,4 @@
-import { Breadcrumbs } from "platform";
+import { Breadcrumbs } from "@better-giving/ui";
 
 // items are NavLinks separated by a literal ">". The crumb whose `to` matches
 // the current location renders bold and non-clickable; every other crumb is

@@ -6,29 +6,41 @@ Repo-specific gotchas for future syncs. Read this before re-running anything.
 
 `shape: "package"`. There is no Storybook and no `*.stories.*` anywhere in the repo.
 
-The "design system" is split across two places and neither is a component library:
+The "design system" is split across two packages:
 
 - **`packages/brand`** — the token palette (`src/colors.css`, real `oklch()`, `:root` only —
   the palette is light-only, the `.dark` set was deleted 2026-08-19)
   and `design-system.md`, the token ledger. Read that ledger before touching color; it records
   measured contrast, the fill-vs-ink distinction, and several deliberate decisions that look
   like bugs.
-- **`apps/platform`** — the actual React components, under `src/components/`. It is an **app**
-  (React Router v7), not a package: no `dist/`, no barrel, build output is `build/` not `dist/`.
+- **`packages/ui`** (`@better-giving/ui`) — the components, under `src/components/`, plus the
+  CSS layer (`src/styles/`). Source-only: no `dist/` for the TS exports, consumers transpile it.
+  It does build one CSS artifact (`dist/styles.css`, gitignored) but this sync does **not**
+  consume it — see Stylesheet.
+
+**Everything moved out of `apps/platform` on 2026-08-20** (PR #109). Before that the components
+lived in the app, which is why several notes below describe app-shaped workarounds; where one is
+now obsolete it says so rather than being deleted.
 
 ## Why there is a hand-written entry (`.design-sync/entry.tsx`)
 
-The converter's fallback for a repo with no `dist/` is a synth entry that does
-`export * from` every source file. That does not work here:
+`packages/ui` now has a real barrel (`src/index.ts`), but this file stays, for two reasons
+that survive the extraction:
 
-- `tooltip.tsx` and `hover-card.tsx` **both** export `Arrow` and `Content` — the star re-exports
-  collide.
-- Directory barrels re-export siblings that drag in assets the converter has no loader for
-  (`components/image/index.ts` → `dapp-logo.tsx` → `.webp` → `No loader is configured`).
+- **`DsProvider`.** Components that call `useNavigate`/`NavLink` (`Prompt`, `Breadcrumbs`) throw
+  outside a router, so previews mount through a `MemoryRouter` the package has no business
+  shipping.
+- **The `Arrow`/`Content` collision.** `tooltip.tsx` and `hover-card.tsx` both export those two
+  names, which is exactly why the package publishes them as separate entry points
+  (`@better-giving/ui/tooltip`, `/hover-card`) rather than through the flat barrel. This file
+  re-exports them as `TooltipContent` / `HoverCardContent`.
 
 So `.design-sync/entry.tsx` is the explicit export surface: one named export per published
 component, plus `DsProvider`. **Its import paths mirror `cfg.componentSrcMap` — regenerate the
 two together**, and always point at the implementation FILE, never the directory barrel.
+
+The previews import the package by name (`from "@better-giving/ui"`); the converter resolves
+that bare specifier to this entry.
 
 ## Converter bugs worked around (not repo problems)
 
@@ -36,18 +48,19 @@ two together**, and always point at the implementation FILE, never the directory
    (`lib/bundle.mjs`) strips comments with `/\/\*[\s\S]*?\*\//g`, which also matches the `/*`
    inside `"#/*": ["src/*"]` and swallows the whole `paths` map up to the next `*/` (supplied by
    `"**/*"` in `include`). The plugin then returns `null` and every alias fails to resolve.
-   It is not needed anyway: **esbuild auto-discovers `apps/platform/tsconfig.json`** for files
-   under that tree and resolves `#/`, `@/`, `$/` natively — including directory→`index.ts`,
-   which the converter's plugin gets wrong (it tries the extensionless path first and happily
-   returns a directory, e.g. `lib/helpers/decimal/`). Only `entry.tsx` sits outside that tree,
-   which is why its imports are relative.
-   Do NOT "fix" this by setting `cfg.tsconfig`.
+   It is not needed anyway, and since the extraction it is not even close to needed:
+   **`packages/ui` declares no `paths` and its source uses no aliases at all** — every import
+   inside the package is relative or a real dependency. The alias resolution this flag used to
+   be about was `apps/platform`'s `#/`, `@/`, `$/`, and no file this sync bundles uses them any
+   more. Do NOT "fix" this by setting `cfg.tsconfig`.
 
 2. **`@types/react` had to be linked at the repo root.** `lib/dts.mjs` derives node_modules from
    the package dir and only walks *up* looking for `@types/react`; it never looks down into
    `apps/platform/node_modules`, where pnpm actually put it. Fix, once per clone:
    `mkdir -p node_modules/@types && ln -sfn ../../apps/platform/node_modules/@types/react node_modules/@types/react`
    Without it every emitted `.d.ts` body collapses to `any`/empty.
+   (Still true after the extraction — the walk starts from the repo root, since `cfg.entry`
+   puts `PKG_DIR` there.)
 
 ## Prop contracts are generated, not hand-written
 
@@ -70,7 +83,12 @@ exist in the emitted `.d.ts`. **Re-run it whenever a component's props change.**
 
 ## Fonts
 
-`cfg.extraFonts` points at the **fontsource packages**, not at the app's build output. The
+`cfg.extraFonts` points at the **fontsource packages**, not at the app's build output. They
+resolve under `apps/platform/node_modules` and still do after the extraction: `packages/ui`
+declares the `--font-quicksand`/`--font-gochi` tokens but depends on neither fontsource package,
+so platform is the only place on disk they exist. `extraFonts` is bounded to the git workspace
+root (not `PKG_DIR`), so pointing across a member is legal. A non-platform consumer of
+`@better-giving/ui` gets the token and no font — worth closing if `apps/docs` adopts the system. The
 compiled app CSS references `/assets/*.woff2` (absolute, root-relative) which resolve to nothing
 on disk, so the converter dropped them as dead `@font-face` blocks and shipped zero font files.
 The fontsource packages carry correct `@font-face` CSS with relative `./files/*.woff2`.
@@ -78,23 +96,41 @@ Quicksand Variable and Gochi Hand are the only two families the system uses.
 
 ## Stylesheet
 
-`cfg.cssEntry` points at `apps/platform/build/client/assets/index-<hash>.css` — the compiled
-Tailwind v4 output from a previous app build.
+`cfg.cssEntry` points at `.design-sync/.cache/styles.css`, compiled from
+`.design-sync/styles-entry.css` (committed; the output is gitignored):
 
-**Two things to know:**
+```sh
+packages/ui/node_modules/.bin/tailwindcss -i .design-sync/styles-entry.css -o .design-sync/.cache/styles.css
+```
 
-- **The filename is content-hashed and changes on every app build.** If the build is
-  regenerated, update `cfg.cssEntry` to the new hash or the converter skips it
-  (`! cssEntry: … not found — skipped`) and every preview renders unstyled.
-- **Do NOT run `pnpm build` for platform to refresh it.** Its `postbuild` script runs
-  `drizzle-kit migrate`, which executes migrations against a real database. The safe refresh is
-  to invoke the builder directly, which never fires the npm lifecycle hook:
-  `pnpm --filter platform exec react-router build`. That is how the current artifact
-  (`index-Bmp3PPdo.css`) was produced after the `LoaderRing` fix below.
+**Rebuild it whenever a component, a preview, or the app writes a utility that wasn't there
+before** — Tailwind v4 is JIT, so this stylesheet *is* the vocabulary the design project has.
+A utility no scanned file writes does not exist, and a design authored against it renders
+unstyled with no error. The entry scans three scopes and the file itself says why: the package's
+components (via `packages/ui/src/styles/index.css`, which carries its own `@source ".."`), the
+preview files, and `apps/platform/src` — the last so the published vocabulary stays continuous
+with what the app actually writes. Dropping the app scope costs ~65 utilities the previews
+alone need, `flex-col` and `gap-4` among them.
 
-Because Tailwind v4 is JIT, this stylesheet contains only the utilities the app actually used at
-build time. It is a large, realistic vocabulary, but a design agent inventing a utility the app
-never used will get an unstyled result. See `conventions.md` for how that is communicated.
+**This replaced the old app-build entry on 2026-08-20**, and two landmines went with it:
+
+- it used to point at `apps/platform/build/client/assets/index-<hash>.css`, a **content-hashed**
+  filename that moved on every app build — a stale value meant `! cssEntry: … not found —
+  skipped` and every preview rendering unstyled.
+- refreshing it meant building platform, and **`pnpm build` for platform runs `drizzle-kit
+  migrate` against a real database** in `postbuild` (`issues/build-runs-migrations-against-a-live-db.md`).
+  The safe invocation was `pnpm --filter platform exec react-router build`, which skips the npm
+  lifecycle hook.
+
+Neither applies now: nothing in this sync needs an app build, and the path is stable.
+
+Note `packages/ui` also builds its own `dist/styles.css` (`pnpm --filter @better-giving/ui
+build`). This sync does **not** consume it — it covers only the package's own source, so it
+carries neither the previews' layout utilities nor the app's vocabulary. It exists for tooling
+that is bounded to the package directory.
+
+Check a utility before authoring against it:
+`python3 -c "css=open('.design-sync/.cache/styles.css').read(); print([c for c in ['w-16','h-20'] if c not in css])"`
 
 ## Playwright
 
@@ -142,8 +178,8 @@ That is a real property of the system, not a gap in the sync.
 Surfaced while validating `conventions.md` against the compiled stylesheet. These are **repo**
 observations, not sync problems — recorded here rather than fixed.
 
-- **Four palette tokens have no compiled Tailwind utility**, because no call site in
-  `apps/platform/src` uses that utility form, and Tailwind v4 only emits what it sees:
+- **Four palette tokens have no compiled Tailwind utility**, because no scanned source writes
+  that utility form, and Tailwind v4 only emits what it sees:
   `bg-warning-subtle`, `bg-chart-1`…`bg-chart-5`, `border-primary-border`, `ring-primary-ring`.
   The tokens themselves are defined in `packages/brand/src/colors.css`. `bg-warning-subtle` is the
   notable one — `design-system.md` already flags `--warning-subtle`/`-fg` as "defined, zero call
@@ -185,7 +221,7 @@ observations, not sync problems — recorded here rather than fixed.
   carry the brand's usual `Nov 14, 2025` sample. Bump the fixed time if you need current dates;
   don't remove it (it's there for determinism).
 
-- **`.field-err` is `text-align: right`** (`apps/platform/src/styles/components.css`). On a
+- **`.field-err` is `text-align: right`** (`packages/ui/src/styles/components.css`). On a
   component whose root has no intrinsic width — `Toggle` is `grid grid-cols-[auto_1fr]` — the
   error message flies to the far edge, detached from its control. Previews constrain the width
   (`classes={{ container: "w-80" }}`). Controls that stretch are unaffected.
@@ -196,21 +232,23 @@ observations, not sync problems — recorded here rather than fixed.
 - **There is no network in the capture environment** — a remote image `src` never loads. Use an
   inline SVG data URI.
 
-- `lucide-react` resolves fine inside previews via `--node-modules apps/platform/node_modules`.
+- `lucide-react` resolves fine inside previews via `--node-modules packages/ui/node_modules`
+  (it is a real dependency of the package). That is the `--node-modules` value every command in
+  this file assumes since the extraction.
 
 - `.design-sync/entry.tsx` also exports `masks` (the `{format, unmask}` presets for
   `MaskedInput`), added because `mask` is a required prop with no default and the presets were
   otherwise unreachable from a design.
 
-- **Only utilities the app itself writes exist**, because `cfg.cssEntry` is the app's prebuilt
-  Tailwind output and nothing re-scans the preview files. The gaps are not symmetric between
-  axes (`h-16` is present, `w-16` is not, so `h-16 w-16` renders a 64px-tall box of whatever
-  width the content wants) and **no arbitrary value works** unless the app already writes that
-  exact string — `w-[36rem]` and `grid-cols-[9rem_auto]` are inert, while `bottom-[2px]` is
-  fine because `Info.tsx` uses it. A missing utility is silent: no error, just a layout that
-  ignores you. Also absent: `w-12`, `w-40`, `w-44`, `w-2/3`, `w-3/4`, `h-20`, `h-28`,
-  `last:border-b-0`, `btn-outline`. Check before authoring:
-  `python3 -c "css=open('apps/platform/build/client/assets/index-Bmp3PPdo.css').read(); print([c for c in ['w-16','h-20'] if c not in css])"`
+- **Only utilities some scanned file writes exist**, because `cfg.cssEntry` is a JIT Tailwind
+  build (see Stylesheet) and nothing re-scans at upload time. Since 2026-08-20 the scan covers
+  the previews themselves, so a utility you author into a preview now compiles — which was not
+  true when the entry was the app's build output. It still does **not** cover a utility invented
+  on claude.ai/design that nothing in this repo writes. Gaps are not symmetric between axes
+  (`h-16` present, `w-16` absent → `h-16 w-16` renders a 64px-tall box of whatever width the
+  content wants) and a missing utility is silent: no error, just a layout that ignores you.
+  Check before authoring:
+  `python3 -c "css=open('.design-sync/.cache/styles.css').read(); print([c for c in ['w-16','h-20'] if c not in css])"`
 
 - **Previews may compose `platform` components with each other and may import third-party
   packages.** `Group.tsx` renders `Field` and `Select` inside its panel; `Input.tsx` imports
@@ -323,7 +361,29 @@ selector bodies against `types.ts` and each component's local `Classes` alias:
 - `Select` — `FieldProps` minus `classes`/`popup_vars`; its `Classes` renames `control` to
   `button`. `value` is `T | undefined`, not `T`.
 
-## Scope change, 2026-08-20
+## Scope change, 2026-08-20 — the ui extraction
+
+The design system moved out of `apps/platform` into **`packages/ui`** (`@better-giving/ui`),
+landed on PR #109 alongside the coherence work. What changed in this directory:
+
+- `cfg.pkg` `platform` → `@better-giving/ui`; `cfg.srcDir` and all 40 `componentSrcMap` entries
+  `apps/platform/src/…` → `packages/ui/src/…`.
+- `cfg.cssEntry` off the app's hashed build output entirely — see Stylesheet.
+- `entry.tsx`'s 41 imports repointed; the 40 preview files import `"@better-giving/ui"` where
+  they used to import `"platform"`.
+- `--node-modules` is now `packages/ui/node_modules`.
+- One stale preview class fixed: `Amount.tsx` carried `rounded-xs`, which the coherence work
+  deliberately made **uncompilable** (the radius ladder is reset to `initial` so only `rounded`
+  survives). It was silently unstyled; it is `rounded` now. This is the closed ladder doing its
+  job — a preview is just another call site.
+- `--form-primary`/`--form-secondary` moved from `apps/platform/src/index.css` into
+  `packages/ui/src/styles/theme.css`. The package's own `btn-form-primary`, `form-*` color
+  utilities and `LoaderRing` reference them, so a package that doesn't define them renders those
+  surfaces with an unset var in any host that isn't platform — which the validator caught here as
+  two extra `[TOKENS_MISSING]` entries. Platform's compiled CSS is byte-identical across the move
+  (same content hash), and the per-embed override at `#donation-container` is untouched.
+
+## Scope change, 2026-08-20 — the combobox unification
 
 `CurrencySelector` is gone from the repo — the unification replaced it with `Combo`, so this
 sync deleted it remotely. `Combo` and `MultiCombo` also moved group: `components/selector/` →

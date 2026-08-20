@@ -1,4 +1,4 @@
-import { Field } from "platform";
+import { Field } from "@better-giving/ui";
 
 export const Text = () => (
   <Field

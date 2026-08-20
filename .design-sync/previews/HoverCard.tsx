@@ -1,4 +1,4 @@
-import { HoverCard } from "platform";
+import { HoverCard } from "@better-giving/ui";
 import { useEffect, useRef } from "react";
 
 // HoverCard has no `open` prop — it opens on pointer-enter (zag POINTER_ENTER)

@@ -1,4 +1,4 @@
-import { Label } from "platform";
+import { Label } from "@better-giving/ui";
 
 export const Basic = () => (
   <Label htmlFor="payout_bank">Bank account for payouts</Label>

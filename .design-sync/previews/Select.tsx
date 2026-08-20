@@ -1,4 +1,4 @@
-import { Select } from "platform";
+import { Select } from "@better-giving/ui";
 import { useState } from "react";
 
 const CURRENCIES = ["USD", "GBP", "EUR", "JPY", "AUD"];

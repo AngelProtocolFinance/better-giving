@@ -1,4 +1,4 @@
-import { FileDropzone, Label } from "platform";
+import { FileDropzone, Label } from "@better-giving/ui";
 
 const id_spec = {
   mbLimit: 6,

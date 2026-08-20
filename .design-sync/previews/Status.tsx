@@ -1,3 +1,4 @@
+import { Status } from "@better-giving/ui";
 import {
   Banknote,
   CircleAlert,
@@ -5,7 +6,6 @@ import {
   Clock,
   Landmark,
 } from "lucide-react";
-import { Status } from "platform";
 
 // Status is the base primitive the other status components wrap: it takes any
 // node as `icon` and renders `icon + <span>{children}</span>`.

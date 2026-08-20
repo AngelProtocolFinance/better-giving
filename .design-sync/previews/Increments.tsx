@@ -1,4 +1,4 @@
-import { Increments } from "platform";
+import { Increments } from "@better-giving/ui";
 import { useState } from "react";
 
 type Row = { id: string; value: string; label: string };

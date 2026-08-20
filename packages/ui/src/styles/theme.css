@@ -23,6 +23,19 @@
   --font-gochi: Gochi Hand, cursive;
 }
 
+/* the embed's two accent slots. this package references them — btn-form-primary,
+   the form-* color utilities, LoaderRing's to-(--form-primary) — so it ships the
+   defaults rather than borrowing them from a consumer: any host that isn't
+   platform would otherwise paint those surfaces with an unset var. a host
+   overrides them per embed (platform drives them from don.config.accent_primary
+   and additionally remaps --ring onto --form-primary inside #donation-container).
+   declared after the brand palette import in ./index.css, so --primary and
+   --secondary already resolve. */
+:root {
+  --form-primary: var(--primary);
+  --form-secondary: var(--secondary);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-fg: var(--fg);

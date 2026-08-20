@@ -1,4 +1,4 @@
-import { Separator } from "platform";
+import { Separator } from "@better-giving/ui";
 
 // the rules are ::before/::after that grow to fill the row, so every cell
 // constrains the width — unbounded, the label sits centred in a very wide row.
