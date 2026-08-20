@@ -37,6 +37,19 @@ type Search<T> =
 const none: readonly never[] = [];
 
 /**
+ * how long a burst of keystrokes has to stop before it counts as a query. a
+ * donor typing "USD" means one search, not three, and the two characters in
+ * front of the last one are queries nobody wants answered — they cost a
+ * request each and their answers are already stale when they land.
+ *
+ * 250ms is under the ~300ms where a wait starts being felt as one, and above
+ * the gap between characters at any real typing speed. a property of the seam,
+ * not of a call site: every async source here is a remote search over a query
+ * the donor is still composing.
+ */
+const DEBOUNCE_MS = 250;
+
+/**
  * flattens the option-source arms into the one shape the popup renders from.
  *
  * the point of the union is that a caller-owned query (SWR in a loader), a
@@ -49,10 +62,18 @@ const none: readonly never[] = [];
 export function use_source<T>(source: Source<T>): Resolved<T> & Notify {
   const [search, set_search] = useState<Search<T>>({ status: "idle" });
   const inflight = useRef<AbortController | null>(null);
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // the donation form's methods are tabs: switching away mid-search unmounts
-  // the control, and the answer has nowhere left to land.
-  useEffect(() => () => inflight.current?.abort(), []);
+  // the control, and the answer has nowhere left to land — nor does the
+  // keystroke still sitting out its pause.
+  useEffect(
+    () => () => {
+      inflight.current?.abort();
+      if (pending.current) clearTimeout(pending.current);
+    },
+    []
+  );
 
   /**
    * every fire supersedes the one before it. the responses can land in any
@@ -78,16 +99,47 @@ export function use_source<T>(source: Source<T>): Resolved<T> & Notify {
       });
   };
 
+  /**
+   * everything the last query left behind: the request still in flight and the
+   * keystroke still waiting on the timer. both are for a query the donor has
+   * already moved past, and either one landing repaints the list with rows that
+   * no longer answer what is typed.
+   */
+  const supersede = () => {
+    if (pending.current) clearTimeout(pending.current);
+    pending.current = null;
+    inflight.current?.abort();
+  };
+
   const notify: Notify = {
-    on_open: () => fire(""),
+    on_open: () => {
+      // opening is one event, not a burst, and the empty-query list is what
+      // fills the popup before anything is typed — a delay here buys nothing
+      // and shows an empty popup for the length of it.
+      supersede();
+      fire("");
+    },
     on_query: (q) => {
-      if (q) return fire(q);
-      // an emptied box is not a query for everything — it drops back to the
-      // selection alone, the way the control looks before it is ever opened.
-      // the answer to what was just deleted would otherwise land on top of it.
-      inflight.current?.abort();
-      inflight.current = null;
-      set_search({ status: "idle" });
+      // the sync arms hear the same callbacks and answer none of them; without
+      // this they'd spend a timer and a render per keystroke on dead state.
+      if (!is_async(source)) return;
+      supersede();
+      if (!q) {
+        // an emptied box is not a query for everything — it drops back to the
+        // selection alone, the way the control looks before it is ever opened.
+        // the answer to what was just deleted would otherwise land on top of it.
+        inflight.current = null;
+        return set_search({ status: "idle" });
+      }
+      // loading lands on the keystroke, not at the end of the pause: the status
+      // line reads "Searching…" from the first character, so the popup never
+      // sits showing rows that answer a query already typed past. emptying the
+      // list is the cost, and it is paid once per pause, not once per character.
+      set_search({ status: "loading" });
+      pending.current = setTimeout(() => {
+        pending.current = null;
+        fire(q);
+      }, DEBOUNCE_MS);
     },
   };
 

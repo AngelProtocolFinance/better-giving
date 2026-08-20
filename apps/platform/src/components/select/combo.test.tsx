@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { describe, expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Combo } from "./combo";
 import type { SyncSource } from "./types";
@@ -494,7 +495,10 @@ describe("Combo over an async source", () => {
     // never filters what a search returned
     search.mockResolvedValue([currencies[2]!]);
     await combo.fill("pound");
-    expect(search).toHaveBeenCalledWith("pound", expect.any(AbortSignal));
+    // the query is spent one typing pause after the keystroke, not on it
+    await vi.waitFor(() =>
+      expect(search).toHaveBeenCalledWith("pound", expect.any(AbortSignal))
+    );
     await expect
       .element(screen.getByRole("option", { name: "GBP" }))
       .toBeVisible();
@@ -559,5 +563,34 @@ describe("Combo over an async source", () => {
     await combo.fill("");
     await vi.waitFor(() => expect(signals[1]!.aborted).toBe(true));
     expect(search).toHaveBeenCalledTimes(2);
+  });
+
+  test("a burst of keystrokes spends one request, for the whole query", async () => {
+    const { props, search } = setup();
+    const screen = await render(<Combo {...props} />);
+    const combo = screen.getByRole("combobox");
+
+    await combo.click();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+    // the box opens holding the selection's text; typing would append to it
+    await combo.fill("");
+
+    search.mockClear();
+    search.mockResolvedValue([currencies[1]!]);
+    // character by character, the way it is actually typed: `fill` lands the
+    // whole string in one event and could not tell a coalesced source from one
+    // that fetches per keystroke
+    await userEvent.type(combo.element() as HTMLElement, "euro");
+
+    await vi.waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+    // and the one request is for what was typed, not for a prefix of it
+    expect(search).toHaveBeenCalledWith("euro", expect.any(AbortSignal));
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+    // nothing lands late — the four characters were one query, not four
+    expect(search).toHaveBeenCalledTimes(1);
   });
 });
