@@ -211,3 +211,135 @@ describe("Combo", () => {
     await expect.element(screen.getByRole("combobox")).toBeEnabled();
   });
 });
+
+/**
+ * the contract the embedded donation form's currency control needs: an object
+ * option type read through `item_key`/`item_text`, and an externally set value
+ * the input text has to follow (both stripe forms seed `currency` from
+ * `usd_option`, then `setValue` it from the preferred-currency fetch).
+ */
+describe("Combo over object options", () => {
+  const currencies = [
+    { code: "USD" },
+    { code: "EUR" },
+    { code: "GBP" },
+    { code: "CAD" },
+    { code: "AUD" },
+  ];
+  type Currency = (typeof currencies)[number];
+
+  function setup(value: Currency | undefined = currencies[0]) {
+    const on_change = vi.fn();
+    return {
+      on_change,
+      props: {
+        value,
+        on_change,
+        options: currencies,
+        item_key: (t: Currency) => t.code,
+        item_text: (t: Currency) => t.code,
+        placeholder: "Currency",
+        adornment: (open: boolean) => <span>{open ? "▲" : "▼"}</span>,
+      },
+    };
+  }
+
+  test("select EUR, reopen → all options visible", async () => {
+    const { props, on_change } = setup();
+    const screen = await render(<Combo {...props} />);
+
+    await screen.getByRole("combobox").click();
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+    expect(screen.getByRole("option").elements().length).toBe(5);
+
+    await screen.getByRole("option", { name: "EUR" }).click();
+    expect(on_change).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "EUR" })
+    );
+
+    // a pick is not a search: zag reports `item-select`, so the query resets
+    // and the reopened list is unfiltered again
+    await screen.rerender(<Combo {...props} value={currencies[1]} />);
+    await screen.getByRole("combobox").click();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+    expect(screen.getByRole("option").elements().length).toBe(5);
+  });
+
+  test("typing filters options, clearing restores all", async () => {
+    const { props } = setup();
+    const screen = await render(<Combo {...props} />);
+
+    const combo = screen.getByRole("combobox");
+    await combo.click();
+    expect(screen.getByRole("option").elements().length).toBe(5);
+
+    await combo.fill("EU");
+    await expect
+      .element(screen.getByRole("option", { name: "EUR" }))
+      .toBeVisible();
+    // the match, plus the selected USD rehydrated by `use_collection` — a
+    // selection the filter drops has no label left to restore the input from
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+    expect(screen.getByRole("option").elements().length).toBe(2);
+
+    await combo.fill("");
+    expect(screen.getByRole("option").elements().length).toBe(5);
+  });
+
+  test("an empty list says so; a query nothing matches names the query", async () => {
+    // nothing selected: a rehydrated selection would BE a row, and the status
+    // line only stands in where there are none
+    const { props } = setup();
+    const screen = await render(
+      <Combo {...props} value={undefined} options={[]} />
+    );
+
+    await screen.getByRole("combobox").click();
+    await expect.element(screen.getByText("No options found")).toBeVisible();
+
+    await screen.rerender(<Combo {...props} value={undefined} />);
+    const combo = screen.getByRole("combobox");
+    await combo.fill("xxxx");
+    expect(screen.getByRole("option").query()).toBeNull();
+    await expect.element(screen.getByText("xxxx not found")).toBeVisible();
+  });
+
+  // the whole reason `inputValue` stays uncontrolled — see SelectedInputSync
+  test("input text follows an externally set value", async () => {
+    function H() {
+      const { watch, setValue } = useForm<{ currency: Currency }>({
+        defaultValues: { currency: currencies[0] },
+      });
+      const { props } = setup();
+      return (
+        <>
+          <Combo
+            {...props}
+            value={watch("currency")}
+            on_change={(c) => {
+              if (c) setValue("currency", c);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => setValue("currency", currencies[2])}
+          >
+            prefer-gbp
+          </button>
+        </>
+      );
+    }
+    const screen = await render(<H />);
+    const combo = screen.getByRole("combobox");
+
+    await expect.element(combo).toHaveValue("USD");
+    await screen.getByRole("button", { name: "prefer-gbp" }).click();
+    await expect.element(combo).toHaveValue("GBP");
+  });
+});
