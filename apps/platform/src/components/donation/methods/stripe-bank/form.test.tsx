@@ -200,12 +200,16 @@ describe("Bank transfer form", () => {
       .toBeVisible();
     expect(screen.getByRole("option", { name: "EUR" }).query()).toBeNull();
 
-    // sync client-side filter via Combobox.useFilter
+    // the seam's client-side filter narrows to CAD, and the selected USD is
+    // rehydrated alongside it — a selection the query drops has no label left
+    // for the input to fall back to (`internal/use-collection`)
     await screen.getByRole("combobox").fill("CA");
     await expect
       .element(screen.getByRole("option", { name: "CAD" }))
       .toBeVisible();
-    expect(screen.getByRole("option", { name: "USD" }).query()).toBeNull();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
 
     await screen.getByRole("option", { name: "CAD" }).click();
     await expect.element(screen.getByRole("combobox")).toHaveValue("CAD");
