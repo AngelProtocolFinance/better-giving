@@ -1,12 +1,10 @@
 import { Combobox, createListCollection } from "@ark-ui/react/combobox";
-import { useFilter } from "@ark-ui/react/locale";
 import { Portal } from "@ark-ui/react/portal";
-import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactElement, useMemo, useRef, useState } from "react";
 import { unpack } from "#/helpers/unpack";
 import {
   drawer_trigger_cls,
   popup_cls,
-  RESULT_LIMIT,
   status_cls,
   status_text,
 } from "../select/classes";
@@ -21,21 +19,6 @@ interface ITokenCombobox<T> {
   value: T;
   on_change: (v: T) => void;
   on_search: (q: string, signal: AbortSignal) => Promise<T[]>;
-  item_key: (v: T) => string;
-  item_label: (v: T) => string;
-  input_placeholder: string;
-  btn_disp: (open: boolean) => ReactElement;
-  opt_disp: (v: T) => ReactElement;
-  opts_styles?: Record<string, string | undefined>;
-  classes?: Classes | string;
-}
-
-/** sync (pre-loaded) variant — no async search, uses built-in filter */
-interface ITokenComboboxSync<T> {
-  disabled?: boolean;
-  value: T;
-  on_change: (v: T) => void;
-  items: T[];
   item_key: (v: T) => string;
   item_label: (v: T) => string;
   input_placeholder: string;
@@ -173,84 +156,6 @@ export function TokenCombobox<T>(props: ITokenCombobox<T>) {
           <Combobox.Content style={props.opts_styles} className={popup_classes}>
             {get_status() ? <p className={status_cls}>{get_status()}</p> : null}
             {items.map((opt) => props.opt_disp(opt))}
-          </Combobox.Content>
-        </Combobox.Positioner>
-      </Portal>
-    </Combobox.Root>
-  );
-}
-
-/** sync variant for pre-loaded option lists (e.g. stripe currencies) */
-export function TokenComboboxSync<T>(props: ITokenComboboxSync<T>) {
-  const s = unpack(props.classes);
-  const { contains } = useFilter({ sensitivity: "base" });
-  const [is_open, set_is_open] = useState(false);
-
-  // controlled inputValue: tracks the selected label, or the user's typed query
-  const display = props.value ? props.item_label(props.value) : "";
-  const [input_value, set_input_value] = useState(display);
-  useEffect(() => {
-    set_input_value(display);
-  }, [display]);
-
-  const is_search = input_value !== "" && input_value !== display;
-  const filter_q = is_search ? input_value : "";
-
-  // show first 10 when no query, otherwise filter
-  const visible = useMemo(() => {
-    if (!filter_q) return props.items.slice(0, RESULT_LIMIT);
-    return props.items.filter((v) => contains(props.item_label(v), filter_q));
-  }, [props.items, filter_q, contains, props.item_label]);
-
-  const collection = useMemo(
-    () =>
-      createListCollection({
-        items: visible,
-        itemToValue: (v) => props.item_key(v),
-        itemToString: (v) => props.item_label(v),
-      }),
-    [visible, props.item_key, props.item_label]
-  );
-
-  const selected_key = props.item_key(props.value);
-
-  return (
-    <Combobox.Root<T>
-      className="flex"
-      collection={collection}
-      disabled={props.disabled}
-      value={selected_key ? [selected_key] : []}
-      onValueChange={(e) => {
-        const next = e.items[0];
-        if (next) props.on_change(next);
-      }}
-      inputValue={input_value}
-      onOpenChange={(e) => set_is_open(e.open)}
-      onInputValueChange={(e) => {
-        // only react to typing; useEffect syncs input from selected display
-        if (e.reason === "input-change") set_input_value(e.inputValue);
-      }}
-      positioning={positioning}
-      openOnClick
-    >
-      <Combobox.Control className={`${s.container} relative flex h-full`}>
-        <Combobox.Input
-          placeholder={props.input_placeholder}
-          className="w-full text-left text-sm focus:outline-hidden bg-transparent px-4"
-        />
-        <Combobox.Trigger className={drawer_trigger_cls}>
-          {props.btn_disp(is_open)}
-        </Combobox.Trigger>
-      </Combobox.Control>
-
-      <Portal>
-        <Combobox.Positioner>
-          <Combobox.Content style={props.opts_styles} className={popup_classes}>
-            {visible.length === 0 ? (
-              <p className={status_cls}>{status_text.no_match(filter_q)}</p>
-            ) : (
-              visible.map((opt) => props.opt_disp(opt))
-            )}
           </Combobox.Content>
         </Combobox.Positioner>
       </Portal>

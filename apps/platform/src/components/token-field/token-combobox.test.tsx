@@ -1,7 +1,7 @@
 import { Combobox } from "@ark-ui/react/combobox";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { TokenCombobox, TokenComboboxSync } from "./token-combobox";
+import { TokenCombobox } from "./token-combobox";
 
 interface Currency {
   code: string;
@@ -23,87 +23,6 @@ const opt_disp = (t: Currency) => (
 );
 
 const btn_disp = (open: boolean) => <span>{open ? "▲" : "▼"}</span>;
-
-describe("TokenComboboxSync", () => {
-  function setup(value = currencies[0]) {
-    const on_change = vi.fn();
-    return {
-      on_change,
-      props: {
-        value,
-        on_change,
-        items: currencies,
-        item_key: (t: Currency) => t.code,
-        item_label: (t: Currency) => t.label,
-        input_placeholder: "Currency",
-        btn_disp,
-        opt_disp,
-      },
-    };
-  }
-
-  test("select EUR, reopen → all options visible", async () => {
-    const { props, on_change } = setup();
-    const screen = await render(<TokenComboboxSync {...props} />);
-
-    // open dropdown
-    await screen.getByRole("combobox").click();
-    await expect
-      .element(screen.getByRole("option", { name: "EUR" }))
-      .toBeVisible();
-    expect(screen.getByRole("option").elements().length).toBe(5);
-
-    // select EUR
-    await screen.getByRole("option", { name: "EUR" }).click();
-    expect(on_change).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "EUR" })
-    );
-
-    // rerender with new value, reopen
-    await screen.rerender(
-      <TokenComboboxSync {...props} value={currencies[1]} />
-    );
-    await screen.getByRole("combobox").click();
-
-    // all options should still be visible
-    await expect
-      .element(screen.getByRole("option", { name: "USD" }))
-      .toBeVisible();
-    expect(screen.getByRole("option").elements().length).toBe(5);
-  });
-
-  test("typing filters options, clearing restores all", async () => {
-    const { props } = setup();
-    const screen = await render(<TokenComboboxSync {...props} />);
-
-    const combo = screen.getByRole("combobox");
-    await combo.click();
-    expect(screen.getByRole("option").elements().length).toBe(5);
-
-    // type to filter
-    await combo.fill("EU");
-    await expect
-      .element(screen.getByRole("option", { name: "EUR" }))
-      .toBeVisible();
-    expect(screen.getByRole("option").elements().length).toBe(1);
-
-    // clear filter
-    await combo.fill("");
-    expect(screen.getByRole("option").elements().length).toBe(5);
-  });
-
-  test("no match shows 'not found' status", async () => {
-    const { props } = setup();
-    const screen = await render(<TokenComboboxSync {...props} />);
-
-    const combo = screen.getByRole("combobox");
-    await combo.click();
-    await combo.fill("xxxx");
-
-    expect(screen.getByRole("option").query()).toBeNull();
-    await expect.element(screen.getByText("xxxx not found")).toBeVisible();
-  });
-});
 
 describe("TokenCombobox (async)", () => {
   function setup(value = currencies[0]) {
