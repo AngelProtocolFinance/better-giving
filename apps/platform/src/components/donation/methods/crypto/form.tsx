@@ -1,18 +1,13 @@
-import { Combobox } from "@ark-ui/react/combobox";
 import { chains, type IToken, is_custom } from "@better-giving/crypto";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
+import { Combo } from "#/components/select";
 import type { ITokenEstimate } from "#/types/api";
 import { DONATION_INCREMENTS, logo_url } from "@/constants/common";
 import { report_error } from "@/errors/report";
 import { ru_vdec } from "@/helpers/decimal";
-import {
-  btn_disp,
-  TokenCombobox,
-  TokenField,
-  type TTokenState,
-} from "../../../token-field";
+import { btn_disp, TokenField, type TTokenState } from "../../../token-field";
 import { CpfToggle } from "../../common/cpf-toggle";
 import { Incrementers } from "../../common/incrementers";
 import { MethodBenefits } from "../../common/method-benefits";
@@ -62,45 +57,61 @@ export function Form(props: TMethodState<"crypto">) {
     },
   });
 
+  // the popup portals to body, out of #donation-container, so it inherits none
+  // of the tenant palette — re-apply on the far side what the shell reads.
+  // --accent is the option row's highlight and --ring the scrollbar thumb;
+  // #donation-container points --ring at --form-primary for the same reason.
+  const popup_vars: Record<string, string | undefined> = {
+    "--form-primary": don.config?.accent_primary,
+    "--form-secondary": don.config?.accent_secondary,
+    "--accent": don.config?.accent_secondary,
+    "--ring": don.config?.accent_primary,
+  };
+
   const combobox = (
-    <TokenCombobox
-      classes="has-placeholder-shown:w-34 w-24"
+    <Combo
+      classes={{
+        container: "has-placeholder-shown:w-34 w-24",
+        // the box is TokenField's: this is the left cell of the
+        // field-input-container it shares with the amount input, and the focus
+        // ring is that container's too (`:has(input:focus)`) — a field box here
+        // would draw a second one inside it.
+        input: "w-full text-sm bg-transparent px-4 py-3.5 focus:outline-hidden",
+      }}
       disabled={token_state === "loading"}
-      btn_disp={(open) => btn_disp(open, token_state)}
+      // the state the seam offers is the search's. `token_state` is the
+      // estimate that follows a pick — a different fetch, and the one worth an
+      // icon: the search has no debounce, so showing it here would strobe the
+      // chevron on every keystroke.
+      adornment={(open) => btn_disp(open, token_state)}
       item_key={(t) => t.code}
-      item_label={(t) => t.symbol}
-      input_placeholder="Select token"
-      on_search={search_tokens}
-      opt_disp={(t) => (
-        <Combobox.Item
-          key={t.code}
-          className="w-full grid grid-cols-[auto_1fr_auto] items-center gap-x-2 p-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
-          item={t}
-        >
+      item_text={(t) => t.symbol}
+      placeholder="Select token"
+      // /api/tokens is fuzzy over name and network as well as the symbol, so
+      // the query is the server's to answer — nothing re-filters what it sends
+      options={{ search: search_tokens }}
+      // the control is as narrow as a symbol; the list is not
+      popup_width="w-56"
+      indicator={<CheckIcon size={14} className="text-muted-fg" />}
+      popup_vars={popup_vars}
+      render={(t) => (
+        <>
           <img
             src={logo_url(t.logo, is_custom(t.id))}
-            className="size-6 rounded-full row-span-2"
+            className="size-6 rounded-full"
             alt=""
           />
-          <span className="text-xs">{t.symbol}</span>
-          <Combobox.ItemIndicator className="text-muted-fg row-span-2">
-            <CheckIcon size={14} />
-          </Combobox.ItemIndicator>
-          <p
-            style={{ color: t.color }}
-            className="text-xs col-start-2 text-left"
-          >
-            {chains[t.network].name}
-          </p>
-        </Combobox.Item>
+          <span className="grid gap-y-0.5 text-xs">
+            <span>{t.symbol}</span>
+            <span style={{ color: t.color }}>{chains[t.network].name}</span>
+          </span>
+        </>
       )}
-      value={token.value}
-      // reapply to portaled
-      opts_styles={{
-        "--form-primary": don.config?.accent_primary,
-        "--form-secondary": don.config?.accent_secondary,
-      }}
+      // the schema has no empty token, and the seam only emits undefined from
+      // a clear trigger this control doesn't offer
+      value={token.value.code ? token.value : undefined}
       on_change={async (t) => {
+        if (!t) return;
         try {
           const current_amount = token.value.amount;
           token.onChange({ ...t, amount: current_amount });
