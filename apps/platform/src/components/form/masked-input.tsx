@@ -13,7 +13,10 @@ interface IMask {
 }
 
 interface Base
-  extends Pick<InputHTMLAttributes<El>, "placeholder" | "inputMode" | "type"> {}
+  extends Pick<
+    InputHTMLAttributes<El>,
+    "placeholder" | "inputMode" | "type" | "onBlur"
+  > {}
 
 interface Props extends Base {
   id: string;
@@ -29,6 +32,10 @@ interface Props extends Base {
   sub?: ReactNode;
   required?: boolean; // extract to disable native validation
   onChange: (val: string) => void;
+  /** refuses edits via `readOnly`, never `disabled` — a disabled input is
+   * dropped from a native form post, which would silently lose the value on a
+   * pre-hydration submit. `.field-input` paints the affordance off
+   * `[readonly]`. */
   disabled?: boolean;
   value: string;
   error?: string;
@@ -126,12 +133,13 @@ export function MaskedInput(props: Props) {
         placeholder={props.placeholder}
         value={props.value}
         aria-invalid={!!props.error}
-        aria-disabled={props.disabled}
+        readOnly={props.disabled}
         aria-errormessage={errorId}
         className={`${style.input} field-input`}
         autoComplete="off"
         spellCheck={false}
         onInput={on_input}
+        onBlur={props.onBlur}
       />
 
       <p id={errorId} className={`${style.error} field-err mt-1 empty:hidden`}>

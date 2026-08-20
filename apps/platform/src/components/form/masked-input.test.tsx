@@ -7,7 +7,13 @@ import { MaskedInput } from "./masked-input";
 import { dollar, ein } from "./masks";
 
 /** controlled wrapper — mirrors how consumers use this component */
-function Harness({ initial = 0 }: { initial?: number }) {
+function Harness({
+  initial = 0,
+  disabled,
+}: {
+  initial?: number;
+  disabled?: boolean;
+}) {
   const [amount, set_amount] = useState(initial);
   return (
     <div>
@@ -15,6 +21,7 @@ function Harness({ initial = 0 }: { initial?: number }) {
         id="amount"
         label="Amount"
         mask={dollar}
+        disabled={disabled}
         value={dollar.mask(amount)}
         onChange={(v) => set_amount(+dollar.unmask(v))}
       />
@@ -232,5 +239,86 @@ describe("MaskedInput: ein mask", () => {
     await expect
       .element(screen.getByLabelText("EIN"))
       .toHaveValue("12-3456789");
+  });
+});
+
+/** react-hook-form wrapper that subscribes to `touchedFields` */
+function BlurHarness() {
+  const {
+    control,
+    formState: { touchedFields },
+  } = useForm({ defaultValues: { ein: "" } });
+  const { field } = useController({ name: "ein", control });
+
+  return (
+    <div>
+      <MaskedInput
+        id="blur-ein"
+        label="EIN"
+        ref={field.ref}
+        mask={ein}
+        value={ein.format(field.value)}
+        onChange={field.onChange}
+        onBlur={field.onBlur}
+      />
+      <output data-testid="touched">{touchedFields.ein ? "yes" : "no"}</output>
+    </div>
+  );
+}
+
+describe("MaskedInput: disabled", () => {
+  it("refuses typing while disabled", async () => {
+    const screen = await render(<Harness initial={1000} disabled />);
+    const input = screen.getByLabelText("Amount");
+
+    // focus rather than click: the caller's disabled affordance is
+    // pointer-events:none, so a pointer would never reach the field anyway
+    (input.element() as HTMLElement).focus();
+    await userEvent.keyboard("42");
+
+    await expect.element(input).toHaveValue("$ 1,000");
+    await expect.element(screen.getByTestId("raw")).toHaveTextContent("1000");
+  });
+
+  it("still submits its value while disabled", async () => {
+    const posted: { fd?: FormData } = {};
+    const screen = await render(
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          posted.fd = new FormData(e.currentTarget);
+        }}
+      >
+        <MaskedInput
+          id="disabled-ein"
+          name="o_ein"
+          label="EIN"
+          mask={ein}
+          value={ein.format("123456789")}
+          onChange={() => {}}
+          disabled
+        />
+        <button type="submit">Submit</button>
+      </form>
+    );
+
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    await vi.waitFor(() => expect(posted.fd?.get("o_ein")).toBe("12-3456789"));
+  });
+
+  it("marks the field touched on blur", async () => {
+    const screen = await render(<BlurHarness />);
+    const input = screen.getByLabelText("EIN");
+
+    await expect.element(screen.getByTestId("touched")).toHaveTextContent("no");
+
+    const el = input.element() as HTMLElement;
+    el.focus();
+    el.blur();
+
+    await expect
+      .element(screen.getByTestId("touched"))
+      .toHaveTextContent("yes");
   });
 });

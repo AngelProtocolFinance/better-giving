@@ -119,6 +119,7 @@ export function IdentityForm({
             mask={ein}
             value={ein.format(o_ein.value)}
             onChange={o_ein.onChange}
+            onBlur={o_ein.onBlur}
             inputMode="numeric"
             label="Employer Identification Number (EIN)"
             required

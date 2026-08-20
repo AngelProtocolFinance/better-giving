@@ -201,6 +201,7 @@
     }
     /* biome-ignore lint/style/noDescendingSpecificity: unrelated to a.btn-* selectors */
     &[aria-disabled="true"],
+    &[readonly],
     &:disabled {
       pointer-events: none;
       background-color: var(--muted);
@@ -237,6 +238,7 @@
       color: var(--muted-fg);
     }
     &:has(input[aria-disabled="true"]),
+    &:has(input[readonly]),
     &:has(input:disabled) {
       pointer-events: none;
       background-color: var(--muted);
