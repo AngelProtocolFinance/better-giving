@@ -109,9 +109,15 @@ importers:
 
   apps/docs:
     dependencies:
+      '@ark-ui/react':
+        specifier: 5.37.2
+        version: 5.37.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@better-giving/brand':
         specifier: workspace:*
         version: link:../../packages/brand
+      '@better-giving/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@fontsource-variable/quicksand':
         specifier: 5.2.10
         version: 5.2.10

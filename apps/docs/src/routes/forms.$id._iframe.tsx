@@ -46,18 +46,18 @@ export default function IframeLayout() {
   return (
     <EmbedModeProvider initial_mode={initial_mode}>
       <div className="grid grid-rows-[auto_1fr] md:grid-rows-none md:grid-cols-[auto_1fr] flex-1">
-        <nav className="border-b border-neutral-200 md:border-b-0 md:border-r p-2">
+        <nav className="border-b md:border-b-0 md:border-r p-2">
           <div className="md:hidden flex items-center gap-3 px-3 py-2">
             <button
               type="button"
               onClick={() => set_is_open(!is_open)}
-              className="rounded hover:bg-neutral-50"
+              className="rounded hover:bg-accent"
               aria-label={is_open ? "Close menu" : "Open menu"}
             >
               {is_open ? <X size={18} /> : <Menu size={18} />}
             </button>
             {active_item && !is_open && (
-              <span className="text-sm font-medium text-neutral-900">
+              <span className="text-sm font-medium text-fg">
                 {active_item.label}
               </span>
             )}
@@ -82,8 +82,8 @@ export default function IframeLayout() {
                       transition-colors text-sm
                       ${
                         isActive
-                          ? "bg-neutral-100 text-neutral-900 font-medium"
-                          : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                          ? "bg-accent text-fg font-medium"
+                          : "text-muted-fg hover:bg-accent hover:text-fg"
                       }
                     `}
                   >
@@ -91,9 +91,7 @@ export default function IframeLayout() {
                       <>
                         <Icon
                           size={18}
-                          className={
-                            isActive ? "text-neutral-700" : "text-neutral-400"
-                          }
+                          className={isActive ? "text-fg" : "text-muted-fg"}
                         />
                         <span className="whitespace-nowrap">{label}</span>
                       </>

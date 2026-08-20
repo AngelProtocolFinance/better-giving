@@ -1,3 +1,4 @@
+import { ExtLink } from "@better-giving/ui";
 import { ExternalLink } from "lucide-react";
 
 const PLATFORM_GUIDES = [
@@ -46,21 +47,19 @@ const PLATFORM_GUIDES = [
 export function PlatformGuide() {
   return (
     <div className="pt-6">
-      <h3 className="text-sm font-medium text-neutral-700 mb-3">
+      <h3 className="text-sm font-medium text-fg mb-3">
         How to embed on your platform
       </h3>
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         {PLATFORM_GUIDES.map(({ name, url }) => (
-          <a
+          <ExtLink
             key={name}
             href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-neutral-900 transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-muted-fg hover:text-fg transition-colors"
           >
             {name}
-            <ExternalLink size={12} className="text-neutral-400" />
-          </a>
+            <ExternalLink size={12} className="text-muted-fg" />
+          </ExtLink>
         ))}
       </div>
     </div>

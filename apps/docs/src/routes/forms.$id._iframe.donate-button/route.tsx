@@ -21,13 +21,13 @@ export default function DonateButton() {
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-neutral-900">Donate Button</h1>
-        <p className="text-sm text-neutral-600 mt-1">
+        <h1 className="text-xl font-bold text-fg">Donate Button</h1>
+        <p className="text-sm text-muted-fg mt-1">
           Add a donate button that opens the form in a dialog when clicked.
         </p>
         <a
           href="/demo-nonprofit#donate-button"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mt-2"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
           <ArrowRight size={14} />
           See it in action on a demo page
@@ -35,9 +35,9 @@ export default function DonateButton() {
       </div>
 
       {/* Info Note */}
-      <div className="flex gap-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-        <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
-        <p className="text-blue-800">
+      <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
+        <Info size={18} className="text-primary shrink-0 mt-0.5" />
+        <p className="text-secondary-fg">
           This approach is great for call-to-action buttons, headers, or
           sidebars where you want to keep the page clean while making donations
           easily accessible.
