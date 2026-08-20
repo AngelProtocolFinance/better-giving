@@ -52,13 +52,5 @@ export const status_text = {
   empty: "No options found",
 } as const;
 
-/** the drawer chevron pinned to a single-line control's trailing edge. */
-export const drawer_trigger_cls =
-  "absolute right-4 top-1/2 -translate-y-1/2 flex items-center";
-
-/** its mirror — an ornament on the leading edge (the country flag). */
-export const adornment_start_cls =
-  "absolute left-4 top-1/2 -translate-y-1/2 flex items-center";
-
 /** rows rendered from a filtered list before the rest are cut. */
 export const RESULT_LIMIT = 10;

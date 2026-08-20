@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ornament_row_cls } from "../form/ornament";
 import { DrawerIcon } from "../icon";
 import { use_dialog_container } from "../use-dialog-container";
 import { FieldFrame } from "./internal/field-frame";
@@ -115,8 +116,11 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
             </div>
           </div>
           {/* pinned to the first tag row, not centered: this control grows with
-              the selected tags, so `top-1/2` would float the chevron mid-block. */}
-          <Combobox.Trigger className="absolute right-2 top-3 shrink-0">
+              the selected tags, so `top-1/2` would float the chevron mid-block.
+              that rules out the full-height lane every other field ornament
+              gets, so `ornament_row_cls` sizes a 24px-clearing box around the
+              glyph and leaves it pinned. */}
+          <Combobox.Trigger className={ornament_row_cls}>
             <Combobox.Context>
               {(api) => <DrawerIcon is_open={api.open} size={20} />}
             </Combobox.Context>

@@ -46,6 +46,12 @@ const none: readonly never[] = [];
  * the gap between characters at any real typing speed. a property of the seam,
  * not of a call site: every async source here is a remote search over a query
  * the donor is still composing.
+ *
+ * the timer is hand-rolled rather than `#/hooks/use-debounce` because that hook
+ * hands back only a debounced callable — nothing outside it can cancel a call
+ * already pending. `supersede()` has to clear the timer and abort the request
+ * in the same breath, and a query the donor deletes has to be dropped without
+ * ever firing.
  */
 const DEBOUNCE_MS = 250;
 

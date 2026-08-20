@@ -2,12 +2,13 @@ import { Combobox } from "@ark-ui/react/combobox";
 import { useFilter } from "@ark-ui/react/locale";
 import { X } from "lucide-react";
 import { type ReactNode, type Ref, useMemo, useRef, useState } from "react";
-import { use_dialog_container } from "../use-dialog-container";
 import {
-  adornment_start_cls,
-  drawer_trigger_cls,
-  RESULT_LIMIT,
-} from "./classes";
+  ornament_end_cls,
+  ornament_end_inboard_cls,
+  ornament_start_cls,
+} from "../form/ornament";
+import { use_dialog_container } from "../use-dialog-container";
+import { RESULT_LIMIT } from "./classes";
 import { FieldFrame } from "./internal/field-frame";
 import { use_opt } from "./internal/opt";
 import { Options } from "./internal/options";
@@ -136,13 +137,17 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
   const side = p.adornment_side ?? "end";
   const has_clear = !!p.clearable && p.value != null;
 
+  // the clear X and an end-side adornment are separate lanes, so both being
+  // present is a layout, not a collision — and the input reserves room for the
+  // lanes it actually has instead of one lane's worth either way.
+  const end_lanes =
+    (side === "end" && p.adornment ? 1 : 0) + (has_clear ? 1 : 0);
+
   const input_cls =
     p.classes?.input ??
     `field-input w-full h-full ${
       side === "start" && p.adornment ? "pl-12" : ""
-    } ${side === "end" && p.adornment ? "pr-12" : ""} ${
-      has_clear ? "pr-12" : ""
-    }`;
+    } ${end_lanes === 2 ? "pr-24" : end_lanes === 1 ? "pr-12" : ""}`;
 
   return (
     <FieldFrame
@@ -195,7 +200,11 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
           {p.adornment && (
             <Combobox.Trigger
               className={
-                side === "start" ? adornment_start_cls : drawer_trigger_cls
+                side === "start"
+                  ? ornament_start_cls
+                  : has_clear
+                    ? ornament_end_inboard_cls
+                    : ornament_end_cls
               }
             >
               <Combobox.Context>
@@ -214,7 +223,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
                     // field isn't left focused over a closed empty list
                     queueMicrotask(() => api.setOpen(true));
                   }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center disabled:text-muted-fg text-destructive hover:text-destructive active:text-destructive"
+                  className={`${ornament_end_cls} disabled:text-muted-fg text-destructive hover:text-destructive active:text-destructive`}
                 >
                   <X size={16} />
                 </Combobox.ClearTrigger>
