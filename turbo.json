@@ -20,7 +20,12 @@
         ".react-router/**",
         "dist/**",
         "generated/**",
-        ".react-email/**"
+        ".react-email/**",
+        // vercelPreset()'s build-time sidecar (docs, platform): Vercel's own
+        // post-build step reads this to detect the preset and emit a
+        // function; a cache hit that drops it silently ships a static-only
+        // deployment with no server. see .claude/CLAUDE.md Tooling.
+        ".vercel/react-router-build-result.json"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "env": [
