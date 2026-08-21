@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { CheckCircle2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useFetcher, useNavigate } from "react-router";
@@ -29,10 +28,8 @@ export default function Page(_: Route.ComponentProps) {
     navigate("..", { preventScrollReset: true, replace: true });
 
   return (
-    <RouteModal>
-      <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-        <Content on_close={close} />
-      </Dialog.Content>
+    <RouteModal size="lg" classes="bg-popover">
+      <Content on_close={close} />
     </RouteModal>
   );
 }

@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { AlertTriangleIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -14,10 +13,8 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     navigate("..", { preventScrollReset: true, replace: true });
 
   return (
-    <RouteModal>
-      <Dialog.Content className="z-50 fixed-center bg-popover w-full max-w-3xl max-h-[90vh] rounded overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-        <Content data={loaderData} on_close={close} />
-      </Dialog.Content>
+    <RouteModal size="lg" classes="bg-popover">
+      <Content data={loaderData} on_close={close} />
     </RouteModal>
   );
 }
@@ -98,7 +95,7 @@ function Content({
         </div>
       )}
 
-      <div className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full bg-muted border-t">
+      <div className="modal-actions">
         <button
           type="button"
           disabled={submitting}

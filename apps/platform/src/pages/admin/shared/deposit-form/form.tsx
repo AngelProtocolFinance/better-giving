@@ -9,7 +9,7 @@ export function Form(props: Props) {
     navigate("..", { replace: true, preventScrollReset: true });
 
   return (
-    <RouteModal>
+    <RouteModal size="md" classes="bg-popover text-popover-fg">
       <Panel {...props} onClose={close} />
     </RouteModal>
   );

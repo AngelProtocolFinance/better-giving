@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { CircleAlert } from "lucide-react";
 import { NavLink, useFetcher, useParams } from "react-router";
 import { admin_ctx } from "#/.server/auth";
@@ -28,7 +27,7 @@ export const action = async (x: {
 
 export default function DisablePrompt() {
   return (
-    <RouteModal>
+    <RouteModal classes="grid content-start justify-items-center bg-popover">
       <Content />
     </RouteModal>
   );
@@ -40,7 +39,7 @@ function Content() {
   const isSubmitting = fetcher.state !== "idle";
 
   return (
-    <Dialog.Content className="z-50 fixed-center grid content-start justify-items-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
+    <>
       <div className="relative w-full">
         <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
           Disable form
@@ -51,10 +50,7 @@ function Content() {
         Are you sure you want to disable this form? It will no longer accept
         donations.
       </div>
-      <fetcher.Form
-        method="POST"
-        className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t"
-      >
+      <fetcher.Form method="POST" className="modal-actions">
         <input type="hidden" name="form_id" value={form_id} />
         <NavLink
           to=".."
@@ -71,6 +67,6 @@ function Content() {
           Proceed
         </button>
       </fetcher.Form>
-    </Dialog.Content>
+    </>
   );
 }

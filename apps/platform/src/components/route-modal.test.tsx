@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { createRoutesStub, Outlet } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
@@ -6,10 +5,8 @@ import { RouteModal } from "./route-modal";
 
 function Modal() {
   return (
-    <RouteModal>
-      <Dialog.Content className="bg-popover p-4">
-        <p>modal body</p>
-      </Dialog.Content>
+    <RouteModal classes="bg-popover p-4">
+      <p>modal body</p>
     </RouteModal>
   );
 }

@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { RadioGroup } from "@ark-ui/react/radio-group";
 import { Copier } from "@better-giving/ui";
 import { Check, X } from "lucide-react";
@@ -71,7 +70,7 @@ export function Panel({
   const memo = `${npo_name}+${npo_id}+${account_code}`;
 
   return (
-    <Dialog.Content className="z-50 fixed-center bg-popover text-popover-fg w-[90vw] max-w-170 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border rounded">
+    <>
       {/* Header */}
       <div className="p-6 md:p-8 border-b relative">
         <h2 className="text-2xl font-bold mb-2">Deposit Funds</h2>
@@ -140,7 +139,7 @@ export function Panel({
           for specific instructions.
         </p>
       </div>
-    </Dialog.Content>
+    </>
   );
 }
 

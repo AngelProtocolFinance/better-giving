@@ -1,18 +1,28 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
+import { type ModalSize, modal_box } from "@better-giving/ui/helpers";
 import type { PropsWithChildren } from "react";
 import { useNavigate } from "react-router";
 
 interface IRouteModal extends PropsWithChildren {
   /** navigate target on close — default ".." (parent route) */
   to?: string;
+  classes?: string;
+  /** content-box geometry tier. defaults to `sm` (512px). */
+  size?: ModalSize;
 }
 
 /**
- * route-as-modal wrapper. owns Dialog.Root + Portal + Backdrop + Positioner
- * and closes by navigating up. caller renders its own <Dialog.Content>.
+ * route-as-modal wrapper. owns Dialog.Root + Portal + Backdrop + Positioner +
+ * Content and closes by navigating up. caller passes surface/layout/padding
+ * through `classes`; geometry comes from `size`.
  */
-export function RouteModal({ to = "..", children }: IRouteModal) {
+export function RouteModal({
+  to = "..",
+  size = "sm",
+  classes = "",
+  children,
+}: IRouteModal) {
   const navigate = useNavigate();
   return (
     <Dialog.Root
@@ -23,7 +33,13 @@ export function RouteModal({ to = "..", children }: IRouteModal) {
     >
       <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
-        <Dialog.Positioner className="contents">{children}</Dialog.Positioner>
+        <Dialog.Positioner className="contents">
+          <Dialog.Content
+            className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${modal_box[size]} ${classes}`}
+          >
+            {children}
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Portal>
     </Dialog.Root>
   );

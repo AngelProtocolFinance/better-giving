@@ -55,30 +55,60 @@ export default defineConfig((config) => {
     resolve: { tsconfigPaths: true },
     plugins,
     test: {
-      setupFiles: [
-        "./src/setup-tests-browser.ts",
-        "./src/__tests__/mocks/payment.tsx",
+      // two projects. `browser` runs every component and route test in
+      // headless chromium. `node` exists for the one thing browser mode cannot
+      // do: read the source tree off disk (`node:fs`), which is what the names
+      // sweeps need.
+      projects: [
+        {
+          // inherit this file's vite config (plugins, resolve, base).
+          extends: true,
+          test: {
+            name: "browser",
+            setupFiles: [
+              "./src/setup-tests-browser.ts",
+              "./src/__tests__/mocks/payment.tsx",
+            ],
+            browser: {
+              enabled: true,
+              provider: playwright(),
+              headless: true,
+              screenshotFailures: false,
+              instances: [{ browser: "chromium" }],
+              // vitest's browser api server defaults to a fixed port (63315) with
+              // strictPort effectively on, so two browser-mode vitest processes
+              // (this one + packages/ui, running concurrently under turbo) crash
+              // one of them with "Port 63315 is already in use" instead of falling
+              // back — reported upstream as a silent "no tests" run, not a visible
+              // crash. explicit strictPort:false restores vite's normal
+              // try-next-port behavior. every browser-mode package needs this.
+              api: { strictPort: false },
+            },
+            env,
+            globals: true,
+            // *.node.test.ts is the node project's; without this exclude it
+            // would also match the browser project's default include glob and
+            // run twice — once in a browser that has no `node:fs`.
+            exclude: [
+              "**/node_modules/**",
+              ".claude/**",
+              "jobs/**",
+              "**/*.node.test.ts",
+            ],
+            testTimeout: 15_000,
+            fileParallelism: false,
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: "node",
+            environment: "node",
+            include: ["src/**/*.node.test.ts"],
+            globals: true,
+          },
+        },
       ],
-      browser: {
-        enabled: true,
-        provider: playwright(),
-        headless: true,
-        screenshotFailures: false,
-        instances: [{ browser: "chromium" }],
-        // vitest's browser api server defaults to a fixed port (63315) with
-        // strictPort effectively on, so two browser-mode vitest processes
-        // (this one + packages/ui, running concurrently under turbo) crash
-        // one of them with "Port 63315 is already in use" instead of falling
-        // back — reported upstream as a silent "no tests" run, not a visible
-        // crash. explicit strictPort:false restores vite's normal
-        // try-next-port behavior. every browser-mode package needs this.
-        api: { strictPort: false },
-      },
-      env,
-      globals: true,
-      exclude: ["**/node_modules/**", ".claude/**", "jobs/**"],
-      testTimeout: 15_000,
-      fileParallelism: false,
       coverage: {
         provider: "v8",
         reporter: ["text"],

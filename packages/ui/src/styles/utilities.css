@@ -218,6 +218,13 @@
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }
 
+/* the trailing button row inside a modal content box. pure class string, no
+   structure — so it is a utility, not a component. external flow (a `mt-*`
+   above it) stays the caller's. */
+@utility modal-actions {
+  @apply p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t;
+}
+
 @utility absolute-center {
   @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }

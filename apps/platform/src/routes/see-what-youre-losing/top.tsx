@@ -51,7 +51,8 @@ export function Top({ classes = "" }) {
         </button>
         {open && (
           <Modal
-            classes="fixed-center z-10 grid bg-popover text-popover-fg w-[calc(100%-2.5rem)] max-w-4xl rounded"
+            size="lg"
+            classes="grid bg-popover text-popover-fg"
             open={open}
             onClose={() => set_open(false)}
           >

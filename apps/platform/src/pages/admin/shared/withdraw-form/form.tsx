@@ -4,7 +4,7 @@ import type { Props } from "./types";
 
 export function Form(props: Props) {
   return (
-    <RouteModal>
+    <RouteModal classes="grid bg-popover text-popover-fg p-6">
       <Panel {...props} />
     </RouteModal>
   );

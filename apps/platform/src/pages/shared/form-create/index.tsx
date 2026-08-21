@@ -18,7 +18,8 @@ export default function Page() {
           { replace: true, preventScrollReset: true }
         )
       }
-      classes="fixed-center grid z-50 isolate w-full max-w-[95vw] max-h-[95vh] sm:max-w-md overflow-y-auto scrollbar-gutter-stable scrollbar-thin scrollbar-thumb-ring scrollbar-track-border border bg-background rounded"
+      size="panel"
+      classes="grid isolate border bg-background"
     >
       <Form {...loaderData} />
     </Modal>

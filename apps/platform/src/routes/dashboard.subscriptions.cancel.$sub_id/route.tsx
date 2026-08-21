@@ -25,69 +25,67 @@ function Content({ recipient_name }: { recipient_name: string }) {
   });
 
   return (
-    <Dialog.Content asChild>
-      <form
-        onSubmit={handleSubmit((fv) =>
-          fetcher.submit(fv, { encType: "application/json", method: "POST" })
-        )}
-        className="z-50 fixed-center grid content-start justify-items-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden"
-      >
-        <div className="relative w-full">
-          <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
-            Cancel Recurring Donation
-          </p>
-          <Dialog.CloseTrigger asChild>
-            <Link
-              aria-disabled={busy}
-              preventScrollReset
-              replace
-              to=".."
-              className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg aria-disabled:pointer-events-none"
-            >
-              <X className="size-4.5 sm:size-6" />
-            </Link>
-          </Dialog.CloseTrigger>
-        </div>
-
-        <p className="px-6 pb-4 text-muted-fg mt-4">
-          <span className="block">
-            You are about to cancel your recurring donations to
-          </span>
-          <span className="font-semibold">{recipient_name}</span>. This action
-          cannot be undone. You will no longer be charged for this subscription.
+    <form
+      onSubmit={handleSubmit((fv) =>
+        fetcher.submit(fv, { encType: "application/json", method: "POST" })
+      )}
+      className="contents"
+    >
+      <div className="relative w-full">
+        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+          Cancel Recurring Donation
         </p>
+        <Dialog.CloseTrigger asChild>
+          <Link
+            aria-disabled={busy}
+            preventScrollReset
+            replace
+            to=".."
+            className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg aria-disabled:pointer-events-none"
+          >
+            <X className="size-4.5 sm:size-6" />
+          </Link>
+        </Dialog.CloseTrigger>
+      </div>
 
-        <div className="px-6 pb-4 text-center text-muted-fg" />
+      <p className="px-6 pb-4 text-muted-fg mt-4">
+        <span className="block">
+          You are about to cancel your recurring donations to
+        </span>
+        <span className="font-semibold">{recipient_name}</span>. This action
+        cannot be undone. You will no longer be charged for this subscription.
+      </p>
 
-        <div className="px-6 w-full pb-6">
-          <Field
-            {...register("reason")}
-            required
-            type="textarea"
-            label="Reason for cancellation"
-            placeholder="Please tell us why you're canceling this recurring donation..."
-            error={errors.reason?.message}
-          />
-        </div>
+      <div className="px-6 pb-4 text-center text-muted-fg" />
 
-        <div className="p-4 grid grid-cols-2 gap-4 w-full  sm:text-right bg-muted border-t">
-          <Dialog.CloseTrigger asChild>
-            <Link
-              to={".."}
-              aria-disabled={busy}
-              className="btn-secondary btn"
-              preventScrollReset
-              replace
-            >
-              Keep your support
-            </Link>
-          </Dialog.CloseTrigger>
-          <button disabled={busy} type="submit" className="btn btn-destructive">
-            {busy ? "Canceling..." : "Cancel"}
-          </button>
-        </div>
-      </form>
-    </Dialog.Content>
+      <div className="px-6 w-full pb-6">
+        <Field
+          {...register("reason")}
+          required
+          type="textarea"
+          label="Reason for cancellation"
+          placeholder="Please tell us why you're canceling this recurring donation..."
+          error={errors.reason?.message}
+        />
+      </div>
+
+      <div className="p-4 grid grid-cols-2 gap-4 w-full  sm:text-right bg-muted border-t">
+        <Dialog.CloseTrigger asChild>
+          <Link
+            to={".."}
+            aria-disabled={busy}
+            className="btn-secondary btn"
+            preventScrollReset
+            replace
+          >
+            Keep your support
+          </Link>
+        </Dialog.CloseTrigger>
+        <button disabled={busy} type="submit" className="btn btn-destructive">
+          {busy ? "Canceling..." : "Cancel"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -95,7 +93,7 @@ export default function CancelPrompt({
   loaderData: { recipient_name },
 }: Route.ComponentProps) {
   return (
-    <RouteModal>
+    <RouteModal classes="grid content-start justify-items-center bg-popover">
       <Content recipient_name={recipient_name} />
     </RouteModal>
   );

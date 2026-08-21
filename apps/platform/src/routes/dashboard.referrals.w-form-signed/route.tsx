@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { ArrowDownToLine, CircleCheck } from "lucide-react";
 import { Link, useNavigation } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -10,7 +9,7 @@ export { loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {
   return (
-    <RouteModal>
+    <RouteModal classes="grid bg-popover text-popover-fg p-6 text-center">
       <Content {...data} />
     </RouteModal>
   );
@@ -21,7 +20,7 @@ function Content(props: LoaderData) {
   const is_loading = navigation.state === "loading";
 
   return (
-    <Dialog.Content className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6 text-center">
+    <>
       <CircleCheck className="text-success mx-auto" size={70} />
       <h1 className="text-2xl uppercase text-center mt-10 mb-4">
         Tax Form submission saved!
@@ -43,6 +42,6 @@ function Content(props: LoaderData) {
       >
         Continue
       </Link>
-    </Dialog.Content>
+    </>
   );
 }
