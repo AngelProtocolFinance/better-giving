@@ -44,7 +44,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
 
   return (
     <section className="grid pb-10 bg-muted">
-      <div className="group relative xl:container xl:mx-auto px-5 grid md:grid-cols-[3fr_2fr] gap-4">
+      <div className="group relative page-wide grid md:grid-cols-[3fr_2fr] gap-4">
         <div className="self-start mt-14 ease-in-out z-10 grid gap-4 relative">
           <div className="absolute -top-8 flex items-center justify-between w-full">
             <Link
