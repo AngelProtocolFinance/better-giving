@@ -15,7 +15,7 @@ export default function Page() {
       onClose={() =>
         navigate("..", { preventScrollReset: true, replace: true })
       }
-      classes="p-6 fixed-center z-10 bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden"
+      classes="p-6 bg-popover"
     >
       <Content />
     </Modal>

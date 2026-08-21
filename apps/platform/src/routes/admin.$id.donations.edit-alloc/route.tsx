@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { Switch } from "@ark-ui/react/switch";
 import { useState } from "react";
 import { useFetcher } from "react-router";
@@ -14,7 +13,7 @@ import { AllocationSlider } from "./slider";
 export default function AllocationEdit() {
   const data = use_admin_data();
   return (
-    <RouteModal>
+    <RouteModal classes="grid gap-y-4 bg-popover p-6">
       <Content {...(data?.endow.allocation ?? default_allocation)} />
     </RouteModal>
   );
@@ -30,7 +29,7 @@ function Content(props: IAllocation) {
   const is_loading = fetcher.state !== "idle";
 
   return (
-    <Dialog.Content className="z-50 fixed-center grid gap-y-4 bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded p-6 max-h-[90dvh] overflow-y-scroll scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+    <>
       <h4>Choose allocation</h4>
 
       <AllocationOptions
@@ -75,6 +74,6 @@ function Content(props: IAllocation) {
       >
         {is_loading ? "Updating.." : "Save"}
       </button>
-    </Dialog.Content>
+    </>
   );
 }

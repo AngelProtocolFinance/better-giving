@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { CircleAlert, X } from "lucide-react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -17,7 +16,7 @@ export default function DeletePrompt() {
   const isDefault = d === "true";
   const isWithHeir = with_heir === "true";
   return (
-    <RouteModal>
+    <RouteModal classes="grid content-start justify-items-center bg-popover">
       <Content isDefault={isDefault} isWithHeir={isWithHeir} />
     </RouteModal>
   );
@@ -37,7 +36,7 @@ function Content({ isDefault, isWithHeir }: Props) {
         : [true, "Are you sure you want to delete this payment method?"];
 
   return (
-    <Dialog.Content className="z-50 fixed-center grid content-start justify-items-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
+    <>
       <div className="relative w-full">
         <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
           Delete payout method
@@ -55,10 +54,7 @@ function Content({ isDefault, isWithHeir }: Props) {
       <div className="p-6 text-center text-muted-fg">{message}</div>
 
       {canProceed && (
-        <fetcher.Form
-          method="DELETE"
-          className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t"
-        >
+        <fetcher.Form method="DELETE" className="modal-actions">
           <NavLink
             to=".."
             aria-disabled={isSubmitting}
@@ -76,6 +72,6 @@ function Content({ isDefault, isWithHeir }: Props) {
           </button>
         </fetcher.Form>
       )}
-    </Dialog.Content>
+    </>
   );
 }

@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { ExtLink } from "@better-giving/ui";
 import { RouteModal } from "#/components/route-modal";
 import type { Route } from "./+types/route";
@@ -9,7 +8,7 @@ export { action, loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {
   return (
-    <RouteModal>
+    <RouteModal classes="grid bg-popover text-popover-fg p-6">
       <Content {...data} />
     </RouteModal>
   );
@@ -17,7 +16,7 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
 
 function Content(props: LoaderData) {
   return (
-    <Dialog.Content className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6">
+    <>
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold mb-2">Tax Forms Required</h2>
         <p className="text-muted-fg">
@@ -46,6 +45,6 @@ function Content(props: LoaderData) {
           </div>
         </ExtLink>
       </div>
-    </Dialog.Content>
+    </>
   );
 }

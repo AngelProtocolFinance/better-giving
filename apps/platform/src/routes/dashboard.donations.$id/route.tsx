@@ -18,7 +18,8 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           { replace: true, preventScrollReset: true }
         )
       }
-      classes="fixed-center grid z-10 w-full max-w-[95vw] max-h-[95vh] sm:max-w-md overflow-y-auto scrollbar-gutter-stable scrollbar-thin scrollbar-thumb-ring scrollbar-track-border border bg-background rounded"
+      size="panel"
+      classes="grid border bg-background"
     >
       <Form user={loaderData} />
     </Modal>

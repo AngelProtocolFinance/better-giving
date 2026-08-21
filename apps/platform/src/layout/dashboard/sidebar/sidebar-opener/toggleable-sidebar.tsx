@@ -13,7 +13,8 @@ export function ToggleableSidebar({ linkGroups, set_open, open }: Props) {
     <Modal
       open={open}
       onClose={() => set_open(false)}
-      classes="fixed top-0 left-0 z-20 h-full"
+      size="none"
+      classes="fixed top-0 left-0 h-full"
     >
       <Sidebar
         className="overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border"

@@ -64,7 +64,7 @@ export function Preview({
         )}
       </div>
 
-      <div className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full bg-muted border-t">
+      <div className="modal-actions">
         <button
           type="button"
           disabled={submitting}

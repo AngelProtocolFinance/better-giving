@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
@@ -29,7 +28,7 @@ export default function PayoutMin() {
   const { min = min_payout_amount } = search(params);
 
   return (
-    <RouteModal>
+    <RouteModal classes="grid bg-popover text-popover-fg p-6">
       <Content prev={+min} />
     </RouteModal>
   );
@@ -48,36 +47,34 @@ function Content(props: IContent) {
   });
 
   return (
-    <Dialog.Content asChild>
-      <form
-        onSubmit={handleSubmit(async ({ amount }) => {
-          fetcher.submit({ payout_minimum: +amount } satisfies INpoUpdate, {
-            method: "PATCH",
-            encType: "application/json",
-          });
-        })}
-        className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6"
+    <form
+      onSubmit={handleSubmit(async ({ amount }) => {
+        fetcher.submit({ payout_minimum: +amount } satisfies INpoUpdate, {
+          method: "PATCH",
+          encType: "application/json",
+        });
+      })}
+      className="contents"
+    >
+      <h4 className="mb-2">Payout threshold</h4>
+
+      <Field
+        sub="Grant amount to accumulate to trigger payout"
+        required
+        label="Amount"
+        placeholder="e.g. $100"
+        {...register("amount")}
+        error={errors.amount?.message}
+        classes="mb-4"
+      />
+
+      <button
+        type="submit"
+        disabled={fetcher.state !== "idle" || !isDirty}
+        className="btn btn-md btn-primary rounded"
       >
-        <h4 className="mb-2">Payout threshold</h4>
-
-        <Field
-          sub="Grant amount to accumulate to trigger payout"
-          required
-          label="Amount"
-          placeholder="e.g. $100"
-          {...register("amount")}
-          error={errors.amount?.message}
-          classes="mb-4"
-        />
-
-        <button
-          type="submit"
-          disabled={fetcher.state !== "idle" || !isDirty}
-          className="btn btn-md btn-primary rounded"
-        >
-          {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
-        </button>
-      </form>
-    </Dialog.Content>
+        {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
+      </button>
+    </form>
   );
 }

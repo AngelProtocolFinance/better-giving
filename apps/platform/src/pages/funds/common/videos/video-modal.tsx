@@ -26,7 +26,7 @@ export function VideoModal(props: IVideoModal) {
     <Modal
       open={props.open}
       onClose={() => props.set_open(false)}
-      classes="fixed-center z-10 grid bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden"
+      classes="grid bg-popover"
     >
       <form
         className="contents"
@@ -60,7 +60,7 @@ export function VideoModal(props: IVideoModal) {
           />
         </div>
 
-        <div className="mt-4 p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t">
+        <div className="mt-4 modal-actions">
           <button
             type="button"
             className="btn-secondary btn"

@@ -21,7 +21,7 @@ export default function Page() {
       onClose={() =>
         navigate("..", { preventScrollReset: true, replace: true })
       }
-      classes="fixed-center z-10 grid bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden"
+      classes="grid bg-popover"
     >
       <Content
         action={params.media_id ? "edit" : "add"}
@@ -74,7 +74,7 @@ function Content(props: IProps) {
         />
       </div>
 
-      <div className="mt-4 p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t">
+      <div className="mt-4 modal-actions">
         <Link to=".." className="btn-secondary btn">
           Cancel
         </Link>

@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { ChevronRight, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { Link, useFetcher } from "react-router";
@@ -10,10 +9,8 @@ type Props = {
 
 export function Prompt(props: Props) {
   return (
-    <RouteModal>
-      <Dialog.Content className="z-50 fixed-center bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden">
-        <Content {...props} />
-      </Dialog.Content>
+    <RouteModal classes="bg-popover">
+      <Content {...props} />
     </RouteModal>
   );
 }
@@ -55,7 +52,7 @@ function Content({ verdict }: Props) {
         )}
       </div>
 
-      <div className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t">
+      <div className="modal-actions">
         <Link
           replace
           preventScrollReset

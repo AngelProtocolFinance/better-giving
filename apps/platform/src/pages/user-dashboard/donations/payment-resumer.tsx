@@ -62,7 +62,7 @@ function QrModal(props: IQrModal) {
     <Modal
       open={true}
       onClose={props.on_close ?? (() => {})}
-      classes="fixed-center z-10 grid bg-popover sm:w-full w-[90vw] sm:max-w-lg rounded overflow-hidden px-4 py-8"
+      classes="grid bg-popover px-4 py-8"
     >
       <h4 className="text-lg text-center mb-2">
         Donation to {props.description}

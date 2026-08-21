@@ -1,3 +1,4 @@
+import { modal_box } from "@better-giving/ui/helpers";
 import { useRef } from "react";
 import { useFetcher } from "react-router";
 
@@ -23,7 +24,7 @@ export function DeleteBtn({
       </button>
       <dialog
         ref={dialog_ref}
-        className="p-6 rounded backdrop:bg-fg/50 max-w-md fixed-center"
+        className={`p-6 backdrop:bg-fg/50 ${modal_box.panel}`}
       >
         <h2 className="text-lg font-semibold mb-2">Delete Fundraiser</h2>
         <p className="mb-4 whitespace-normal">

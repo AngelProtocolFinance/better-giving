@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { Field } from "@ark-ui/react/field";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
@@ -23,7 +22,7 @@ export default function Page({ loaderData: user }: Route.ComponentProps) {
   const { min = pay_min } = search(params);
 
   return (
-    <RouteModal>
+    <RouteModal classes="grid bg-popover text-popover-fg p-6">
       <Content prev={+min} />
     </RouteModal>
   );
@@ -55,37 +54,35 @@ function Content(props: IContent) {
   });
 
   return (
-    <Dialog.Content asChild>
-      <form
-        onSubmit={handleSubmit(async ({ amount }) => {
-          fetcher.submit(amount, { method: "put", encType: "text/plain" });
-        })}
-        className="z-50 fixed-center grid bg-popover text-popover-fg sm:w-full w-[90vw] sm:max-w-lg rounded p-6"
-      >
-        <h4 className="mb-2">Payout threshold</h4>
+    <form
+      onSubmit={handleSubmit(async ({ amount }) => {
+        fetcher.submit(amount, { method: "put", encType: "text/plain" });
+      })}
+      className="contents"
+    >
+      <h4 className="mb-2">Payout threshold</h4>
 
-        <Field.Root className="grid my-4">
-          <Field.Label className="mb-1">
-            Amount
-            <span className="text-destructive"> *</span>
-          </Field.Label>
-          <input
-            placeholder="e.g. $ 100"
-            {...register("amount")}
-            className="px-4 py-3 rounded outline-ring border"
-          />
-          <span className="text-destructive text-xs text-right empty:hidden mt-1">
-            {errors.amount?.message}
-          </span>
-        </Field.Root>
-        <button
-          type="submit"
-          disabled={fetcher.state !== "idle" || !isDirty}
-          className="btn btn-primary rounded"
-        >
-          {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
-        </button>
-      </form>
-    </Dialog.Content>
+      <Field.Root className="grid my-4">
+        <Field.Label className="mb-1">
+          Amount
+          <span className="text-destructive"> *</span>
+        </Field.Label>
+        <input
+          placeholder="e.g. $ 100"
+          {...register("amount")}
+          className="px-4 py-3 rounded outline-ring border"
+        />
+        <span className="text-destructive text-xs text-right empty:hidden mt-1">
+          {errors.amount?.message}
+        </span>
+      </Field.Root>
+      <button
+        type="submit"
+        disabled={fetcher.state !== "idle" || !isDirty}
+        className="btn btn-primary rounded"
+      >
+        {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
+      </button>
+    </form>
   );
 }

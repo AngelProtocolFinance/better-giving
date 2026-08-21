@@ -12,7 +12,8 @@ export function AlreadyRegistered({ name, onClose }: Props) {
     <Modal
       open
       onClose={onClose}
-      classes="fixed-center p-8 bg-popover text-popover-fg w-[90vw] sm:w-full sm:max-w-md rounded text-center"
+      size="panel"
+      classes="p-8 bg-popover text-popover-fg text-center"
     >
       <div className="bg-warning grid place-items-center size-14 rounded-full mx-auto mb-5">
         <CircleAlert size={28} className="text-warning-fg" />

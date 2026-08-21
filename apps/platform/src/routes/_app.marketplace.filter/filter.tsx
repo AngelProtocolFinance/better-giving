@@ -1,5 +1,6 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
+import { modal_box } from "@better-giving/ui/helpers";
 import { X } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import Categories from "./categories";
@@ -27,7 +28,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
         <Dialog.Backdrop className="fixed z-40 inset-0 bg-fg/30" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
-            className={`${classes} z-50 fixed-center isolate w-full max-w-[95vw] max-h-[95vh] sm:max-w-md overflow-y-auto scrollbar-gutter-stable scrollbar-thin scrollbar-thumb-ring scrollbar-track-border border bg-background rounded`}
+            className={`${classes} ${modal_box.panel} isolate border bg-background`}
           >
             <div className="bg-muted flex items-center p-4 border-b">
               <p className="font-bold  uppercase mr-auto">Filters</p>

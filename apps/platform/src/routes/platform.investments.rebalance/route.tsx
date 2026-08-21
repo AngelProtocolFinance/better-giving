@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/react/dialog";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -12,10 +11,8 @@ export { action, loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {
   return (
-    <RouteModal>
-      <Dialog.Content className="z-50 fixed-center bg-popover w-[90vw] rounded overflow-hidden">
-        <Content {...data} />
-      </Dialog.Content>
+    <RouteModal size="lg" classes="bg-popover">
+      <Content {...data} />
     </RouteModal>
   );
 }
@@ -35,7 +32,7 @@ function Content(props: ILog) {
       )}
       {state.type === "review" && <Review fv={state.data} ltd={props} />}
 
-      <div className="p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t">
+      <div className="modal-actions">
         {state.type === "form" ? (
           <Link
             replace
