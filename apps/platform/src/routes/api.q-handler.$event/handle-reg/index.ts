@@ -4,14 +4,16 @@ import {
   registration_rejected,
 } from "emails";
 import { auth } from "#/.server/auth/auth";
+import { mint_resume_link } from "#/.server/auth/resume-link";
 import type { CompanyProperties, ContactProperties } from "@/hubspot";
 import type { IRegCreatedPayload } from "@/queue";
 import { Progress } from "@/reg/progress";
 import type { IReg } from "@/reg/schema";
 import { send_email } from "$/email";
-import { hubspot } from "$/env";
+import { base_url, hubspot } from "$/env";
 import { bg_sales } from "$/kit/discord";
 import { wise } from "$/kit/wise";
+import { reg_get } from "$/pg/queries/registration";
 import { REFERRALS, ROLES } from "./constants";
 import {
   create_deal,
@@ -41,8 +43,30 @@ export async function handle_reg_created(r: IRegCreatedPayload) {
     }
   }
 
+  /* the reference alone is not a way back — `resume_application` only takes it
+   * from someone already signed in — so the mail carries the application
+   * itself. read at send time rather than trusted from the payload: the step is
+   * derived from the answers on the row, and the row is the only thing that
+   * knows them. a row that has since been deleted still gets a mail; the wizard
+   * is what tells them it is gone. */
+  const reg = await reg_get(r.id);
+  const to = `/register/${r.id}/${reg ? new Progress(reg).step : 1}`;
+
+  /* two audiences, one mail. an applicant who is already signed in has a
+   * session and needs no key — a plain link lands them on the step, and the
+   * wizard's own gate handles them if the session lapsed.
+   *
+   * only the unproven one gets a token, and only ever here: past the guard
+   * above, no verified account owns this address. minting for the other cohort
+   * would mail a long-lived second key to a proven account, which is the thing
+   * `draft-grant` exists to refuse. */
+  const resume_url = r.unproven
+    ? await mint_resume_link({ email: r.r_id, redirect_to: to })
+    : new URL(to, base_url).toString();
+
   const { node, subject } = registration_new.template({
     reference_id: r.id,
+    resume_url,
   });
   const res = await send_email({
     to: [r.r_id],

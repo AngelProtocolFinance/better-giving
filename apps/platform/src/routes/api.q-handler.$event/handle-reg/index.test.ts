@@ -72,9 +72,15 @@ vi.mock("#/.server/cookie", () => ({
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
+import { render } from "react-email";
 import { createFormData } from "remix-hook-form";
 import { get_session } from "#/.server/auth";
-import { auth_options, login_link_plugin } from "#/.server/auth/options";
+import {
+  auth_options,
+  LOGIN_LINK_TTL_S,
+  login_link_plugin,
+  RESUME_LINK_TTL_S,
+} from "#/.server/auth/options";
 import { create_unverified_user } from "#/.server/auth/unverified-user";
 import { referral_id } from "#/helpers/referral";
 import { new_application } from "#/pages/registration/new-application";
@@ -85,6 +91,7 @@ import {
   user as user_table,
   verification,
 } from "$/pg/schema/auth";
+import { registrations } from "$/pg/schema/registration";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 import { handle_reg_created } from ".";
 
@@ -117,7 +124,33 @@ beforeEach(async () => {
   await db.delete(session);
   await db.delete(account);
   await db.delete(user_table);
+  await db.delete(registrations);
 });
+
+/** the html the applicant actually receives — the mail is the subject here, so
+ * every assertion about it reads the rendered document rather than the props
+ * the handler happened to pass. */
+const sent_html = () => render(send_email.mock.calls[0]![0].node);
+
+const hrefs = (html: string) =>
+  [...html.matchAll(/href="([^"]+)"/g)].map((m) =>
+    m[1]!.replace(/&amp;/g, "&")
+  );
+
+/** an application row at whatever step the given answers reach */
+async function seed_reg(
+  r_id: string,
+  answers: Partial<typeof registrations.$inferInsert> = {}
+) {
+  const id = globalThis.crypto.randomUUID();
+  await test_db.current!.db.insert(registrations).values({
+    id,
+    r_id,
+    status: "01",
+    ...answers,
+  } as typeof registrations.$inferInsert);
+  return id;
+}
 
 /** an address whose owner already proved it and holds a real account */
 async function verified(email: string) {
@@ -128,6 +161,26 @@ async function verified(email: string) {
     .where(eq(user_table.email, email));
   return (created as any).user_id as string;
 }
+
+/** answers that carry a 501(c)(3) through contact and org details — `Progress`
+ * reads that as banking, step 4 */
+const mid_way = {
+  r_first_name: "Ada",
+  r_last_name: "Lovelace",
+  o_name: "Analytical Engines",
+  r_org_role: "ceo",
+  rm: "other",
+  o_website: "https://ae.org",
+  o_hq_country: "US",
+  o_designation: "charity",
+  o_type: "501c3" as const,
+  o_ein: "12-3456789",
+};
+
+const ttl_s = (at: Date) => (at.getTime() - Date.now()) / 1000;
+
+const link_in_mail = (html: string, rid: string) =>
+  hrefs(html).find((h) => h.includes(rid))!;
 
 describe("handle_reg_created", () => {
   it("does not mail a verified account a registration it never started", async () => {
@@ -175,6 +228,120 @@ describe("handle_reg_created", () => {
     await handle_reg_created({ id: "reg-4", r_id: "owner@example.org" });
 
     expect(send_email).toHaveBeenCalledOnce();
+  });
+
+  it("gives the unproven applicant a way back in, not just a reference", async () => {
+    await create_unverified_user({ email: "lead@example.org" });
+    const rid = await seed_reg("lead@example.org");
+
+    await handle_reg_created({
+      id: rid,
+      r_id: "lead@example.org",
+      unproven: true,
+    });
+
+    const html = await sent_html();
+    // the reference stays: it is the fallback for a client that strips links
+    expect(html).toContain(rid);
+    expect(hrefs(html).some((h) => h.includes(rid))).toBe(true);
+  });
+
+  it("lands the applicant on the step they left, not back at the start", async () => {
+    await create_unverified_user({ email: "lead@example.org" });
+    // contact + org details answered, and a 501(c)(3) identity — which crosses
+    // the agreement step, so `Progress` puts them on banking
+    const rid = await seed_reg("lead@example.org", mid_way);
+
+    await handle_reg_created({
+      id: rid,
+      r_id: "lead@example.org",
+      unproven: true,
+    });
+
+    // followed exactly as the mail client would: the token this handler minted
+    // has to be one better-auth's own verify endpoint accepts
+    const res: Response = await test_auth_ref.current.handler(
+      new Request(link_in_mail(await sent_html(), rid), {
+        headers: { origin: BASE_URL },
+      })
+    );
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(`${BASE_URL}/register/${rid}/4`);
+  });
+
+  it("signs in the applicant whose address was never proven", async () => {
+    await create_unverified_user({ email: "lead@example.org" });
+    const rid = await seed_reg("lead@example.org", mid_way);
+
+    await handle_reg_created({
+      id: rid,
+      r_id: "lead@example.org",
+      unproven: true,
+    });
+
+    // redeemed without a callback, so the endpoint answers with the session it
+    // made rather than a redirect — the set-cookie a browser would read is
+    // stripped from `Headers` in this environment, and this asserts the same
+    // thing without it
+    const token = new URL(
+      link_in_mail(await sent_html(), rid)
+    ).searchParams.get("token")!;
+    const out = await test_auth_ref.current.api.magicLinkVerify({
+      query: { token },
+      headers: new Headers({ origin: BASE_URL }),
+    });
+
+    expect(out.user.email).toBe("lead@example.org");
+    // following the link is the proof of the address, same as any sign-in link
+    expect(out.user.emailVerified).toBe(true);
+    expect(out.session.userId).toBe(out.user.id);
+  });
+
+  it("mails the proven applicant a plain link, never a key to their account", async () => {
+    await verified("founder@example.org");
+    const rid = await seed_reg("founder@example.org", mid_way);
+
+    await handle_reg_created({
+      id: rid,
+      r_id: "founder@example.org",
+      unproven: false,
+    });
+
+    // they already hold a session; the link is a destination, and following it
+    // can only land them on the step or bounce them through the ordinary gate
+    expect(link_in_mail(await sent_html(), rid)).toBe(
+      `${BASE_URL}/register/${rid}/4`
+    );
+    // and nothing redeemable was left sitting in a proven account's inbox
+    expect(await test_db.current!.db.select().from(verification)).toHaveLength(
+      0
+    );
+  });
+
+  it("outlives a login link without lengthening one", async () => {
+    await create_unverified_user({ email: "lead@example.org" });
+    const rid = await seed_reg("lead@example.org");
+    await handle_reg_created({
+      id: rid,
+      r_id: "lead@example.org",
+      unproven: true,
+    });
+
+    const [minted] = await test_db.current!.db.select().from(verification);
+    expect(ttl_s(minted!.expiresAt)).toBeGreaterThan(LOGIN_LINK_TTL_S);
+    expect(ttl_s(minted!.expiresAt)).toBeGreaterThan(RESUME_LINK_TTL_S - 60);
+
+    // the sign-in form mints through the plugin, which still answers to its own
+    // `expiresIn` — the welcome link's lifetime is not a global one
+    await test_db.current!.db.delete(verification);
+    await test_auth_ref.current.api.signInMagicLink({
+      body: { email: "lead@example.org" },
+      headers: new Headers(),
+    });
+    const [login] = await test_db.current!.db.select().from(verification);
+    expect(ttl_s(login!.expiresAt)).toBeLessThanOrEqual(LOGIN_LINK_TTL_S);
+    expect(ttl_s(login!.expiresAt)).toBeGreaterThan(LOGIN_LINK_TTL_S - 60);
   });
 
   it("mails the verified applicant who started it from the wizard", async () => {
