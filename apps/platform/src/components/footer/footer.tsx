@@ -33,14 +33,19 @@ const social_links = [
 const link_cls = "text-sm text-primary-fg/90 hover:text-primary-fg";
 
 export function Footer({ classes = "", variant = "full" }: Props) {
+  // the variants carry the two page-width intents, so the footer lands on the
+  // same edge as the header above it (see public-chrome.tsx). the <footer>
+  // itself paints the full-bleed band and holds the vertical rhythm only — a
+  // px-* here would stack a second gutter on the container inside it.
+  //
   // minimal: logged-in operator surfaces (dashboard/platform/admin) + npo profile.
   // logo + one quiet socials row + legal bar; no nav/newsletter/mission/seal/perf-disclaimer.
   if (variant === "minimal") {
     return (
       <footer
-        className={`${classes} surface-primary border-t border-primary-fg/10 px-6 md:px-12 py-8`}
+        className={`${classes} surface-primary border-t border-primary-fg/10 py-8`}
       >
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-5">
+        <div className="page-wide flex flex-wrap items-center justify-between gap-x-6 gap-y-5">
           <Link to={href("/")} title="Go to Home page">
             <img src={logo_white} alt="Better Giving" className="w-32 h-auto" />
           </Link>
@@ -56,7 +61,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
             ))}
           </div>
         </div>
-        <div className="max-w-6xl mx-auto mt-6 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
+        <div className="page-wide mt-6 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
           <span className="text-xs text-primary-fg/90">
             © {new Date().getFullYear()} Better Giving.
           </span>
@@ -87,9 +92,9 @@ export function Footer({ classes = "", variant = "full" }: Props) {
 
   return (
     <footer
-      className={`${classes} surface-primary border-t border-primary-fg/10 px-6 md:px-12 pt-16 pb-10`}
+      className={`${classes} surface-primary border-t border-primary-fg/10 pt-16 pb-10`}
     >
-      <div className="max-w-6xl mx-auto grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]">
+      <div className="page-narrow grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]">
         <div className="grid content-start gap-4 justify-items-start">
           <Link to={href("/")} title="Go to Home page">
             <img src={logo_white} alt="Better Giving" className="w-36 h-auto" />
@@ -167,7 +172,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
+      <div className="page-narrow mt-10 pt-5 border-t border-primary-fg/10 flex flex-wrap justify-between gap-x-6 gap-y-2.5">
         <span className="text-xs/relaxed text-primary-fg/90 text-pretty">
           Past performance of the Sustainability Fund is not indicative of
           future results; all investments carry risk. ©{" "}

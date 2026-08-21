@@ -13,6 +13,10 @@ export type Chrome = "marketing" | "minimal" | "bare";
 //   bare      — auth funnel; logo-only, no footer
 //   minimal   — transactional/browse; logo + auth-aware avatar
 //   marketing — informational/landing; full marketing nav + footer
+//
+// the bucket also carries the page-width intent, and the header and footer
+// both read it from here: marketing is `page-narrow`, minimal is `page-wide`.
+// bare has no footer and its header stays flush-wide.
 export const CHROME_BY_SEGMENT: Record<string, Chrome> = {
   // bare — auth funnel
   login: "bare",

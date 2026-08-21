@@ -33,7 +33,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
     <header
       className={`${classes} relative bg-popover/95 backdrop-blur-md border-b`}
     >
-      <div className="xl:container xl:mx-auto flex items-center justify-between gap-x-6 px-5 py-2">
+      <div className="page-narrow flex items-center justify-between gap-x-6 py-2">
         <DappLogo classes="h-12 w-auto shrink-0" />
         <nav
           aria-label="Marketing"
