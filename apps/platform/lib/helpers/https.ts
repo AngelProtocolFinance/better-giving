@@ -9,6 +9,13 @@ class Resp {
     text && console.info(`[resp] ${status} - ${text}`);
     return new Response(text, { status, statusText: text });
   }
+  /** a failure the client reads off `fetcher.data`. json, so the status
+   * survives the boundary — react-router hands a bare `Response` body to the
+   * client as text only, and `is_user_error` needs the status to keep a 4xx
+   * off sentry. */
+  fail(status: number, message: string) {
+    return this.json({ status, message }, status);
+  }
   txt(x: string, status = 200): Response {
     return new Response(x, {
       status,

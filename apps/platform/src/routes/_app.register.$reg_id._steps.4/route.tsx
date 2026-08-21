@@ -1,9 +1,10 @@
-import { ExtLink } from "@better-giving/ui";
+import { ExtLink, type IPrompt, Prompt } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
+import { submit_error_prompt } from "#/helpers/error-prompt";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { before_banking, next_step, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
@@ -20,6 +21,7 @@ export default CacheRoute(Page);
 function Page({ loaderData: reg }: Route.ComponentProps) {
   const [is_changing, set_is_changing] = useState(false);
   const fetcher = useFetcher();
+  const [prompt, set_prompt] = useState<IPrompt>();
   const back = before_banking(reg.o_type);
   // stable identity — BankDetails renders it as a component
   const FormButtons = useMemo(() => form_buttons(back), [back]);
@@ -35,6 +37,18 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
       encType: "application/json",
     });
   };
+
+  // a rejected update resolves the submit instead of throwing: the action
+  // returns a tagged failure (`resp.fail`) the client reads off `fetcher.data`,
+  // while a landed save redirects and never lands here.
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data?.message) return;
+    set_prompt(
+      submit_error_prompt(fetcher.data, {
+        context: "saving your banking details",
+      })
+    );
+  }, [fetcher.state, fetcher.data]);
 
   if (reg.o_bank_id && !is_changing) {
     return (
@@ -97,6 +111,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         onSubmit={submit}
         is_loading={fetcher.state !== "idle"}
       />
+      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </div>
   );
 }

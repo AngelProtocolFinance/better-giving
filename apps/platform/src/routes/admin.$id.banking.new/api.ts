@@ -12,11 +12,11 @@ import { bapp_put, npo_bapp_count } from "$/pg/queries/banking";
 export const action: ActionFunction = async (args) => {
   const payload = await args.request.json();
   const p = v.safeParse(schema, payload);
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) return resp.fail(400, p.issues[0].message);
   const x = p.output;
 
   const count = await npo_bapp_count(x.endowmentID);
-  if (count >= 10) return resp.status(400, "Max 10 payout methods allowed");
+  if (count >= 10) return resp.fail(400, "Max 10 payout methods allowed");
 
   await bapp_put(db, {
     id: x.wiseRecipientID,
