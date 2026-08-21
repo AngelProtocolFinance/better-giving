@@ -12,7 +12,7 @@ export const meta: Route.MetaFunction = () =>
 
 export default function TermsSms() {
   return (
-    <div className="xl:container xl:mx-auto px-5 prose lg:prose-lg py-20">
+    <div className="page-narrow prose lg:prose-lg py-20">
       <h1 className="text-center">Text-to-Give SMS Terms & Conditions</h1>
       <p>
         <strong>Last updated:</strong> January 2025

@@ -12,7 +12,7 @@ interface ITrustStrip {
 export function TrustStrip({ classes = "" }: ITrustStrip) {
   return (
     <div className={classes}>
-      <ul className="max-w-6xl mx-auto flex flex-wrap justify-center gap-x-10 gap-y-2 text-sm font-medium">
+      <ul className="page-narrow flex flex-wrap justify-center gap-x-10 gap-y-2 text-sm font-medium">
         {claims.map((c) => (
           <li key={c}>{c}</li>
         ))}

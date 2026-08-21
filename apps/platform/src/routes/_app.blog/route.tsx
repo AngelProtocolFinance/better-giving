@@ -68,8 +68,8 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
         </p>
       </section>
 
-      <section className="bg-accent px-6 py-20">
-        <div className="max-w-6xl mx-auto grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
+      <section className="bg-accent py-20">
+        <div className="page-narrow grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
           <Cards posts={posts} />
         </div>
         {nextPage && (

@@ -17,7 +17,7 @@ export const meta: Route.MetaFunction = () =>
   });
 export default function TermsNonprofits() {
   return (
-    <div className="xl:container xl:mx-auto px-5 prose lg:prose-lg py-20">
+    <div className="page-narrow prose lg:prose-lg py-20">
       <i className="text-muted-fg text-right block">
         Effective October 25, 2024
       </i>

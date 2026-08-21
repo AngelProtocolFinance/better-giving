@@ -23,10 +23,10 @@ export default function Page() {
   return (
     <main>
       <Hero />
-      <GiftTypes classes="px-6 py-22" />
-      <Features classes="bg-accent px-6 py-22" />
-      <MembershipAdvantage classes="bg-primary px-6 py-24" />
-      <Portability classes="px-6 py-24" />
+      <GiftTypes classes="py-22" />
+      <Features classes="bg-accent py-22" />
+      <MembershipAdvantage classes="bg-primary py-24" />
+      <Portability classes="py-24" />
       <CtaBand
         title="Raise more, starting this quarter"
         subtitle="Set up the form in an afternoon. Free forever, no lock-in, and your donors stay yours."

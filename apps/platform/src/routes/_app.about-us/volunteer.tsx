@@ -9,7 +9,7 @@ interface IVolunteer {
 export function Volunteer({ classes = "" }: IVolunteer) {
   return (
     <section className={classes} aria-labelledby="volunteer-heading">
-      <div className="max-w-6xl mx-auto grid gap-14 lg:grid-cols-[0.95fr_1.05fr] items-center">
+      <div className="page-narrow grid gap-14 lg:grid-cols-[0.95fr_1.05fr] items-center">
         <Image
           src={laira_cheering}
           width={340}

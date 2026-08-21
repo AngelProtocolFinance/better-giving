@@ -28,7 +28,7 @@ interface IPortability {
 export function Portability({ classes = "" }: IPortability) {
   return (
     <section className={classes} aria-labelledby="portability-heading">
-      <div className="max-w-6xl mx-auto">
+      <div className="page-narrow">
         <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
           No lock-in
         </p>

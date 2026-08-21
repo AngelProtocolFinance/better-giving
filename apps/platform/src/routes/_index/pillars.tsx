@@ -41,7 +41,7 @@ interface IPillars {
 export function Pillars({ classes = "" }: IPillars) {
   return (
     <section className={classes} aria-labelledby="pillars-heading">
-      <div className="max-w-6xl mx-auto">
+      <div className="page-narrow">
         <h2
           id="pillars-heading"
           className="section-heading text-center max-w-2xl mx-auto"

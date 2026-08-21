@@ -23,14 +23,14 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <>
-      <DonationFormInfo classes="xl:container xl:mx-auto" />
-      <Partners classes="xl:container xl:mx-auto px-5 mt-16" />
-      <Ctas classes="xl:container xl:mx-auto px-5" />
-      <Steps classes="xl:container xl:mx-auto px-5" />
-      <Members classes="xl:container xl:mx-auto px-5" />
+      <DonationFormInfo classes="page-narrow" />
+      <Partners classes="page-narrow mt-16" />
+      <Ctas classes="page-narrow" />
+      <Steps classes="page-narrow" />
+      <Members classes="page-narrow" />
       <BottomCta className="mb-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
       <FAQ
-        classes="xl:container xl:mx-auto px-5 mt-24 pb-48"
+        classes="page-narrow mt-24 pb-48"
         items={[faqs[1], faqs[2], faqs[3], faqs[4]]}
       />
     </>

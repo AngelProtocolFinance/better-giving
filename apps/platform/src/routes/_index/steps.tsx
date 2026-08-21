@@ -34,7 +34,7 @@ interface ISteps {
 export function Steps({ classes = "" }: ISteps) {
   return (
     <section className={classes} aria-labelledby="steps-heading">
-      <div className="max-w-6xl mx-auto">
+      <div className="page-narrow">
         <h2 id="steps-heading" className="section-heading text-center">
           Easy as 1-2-3
         </h2>

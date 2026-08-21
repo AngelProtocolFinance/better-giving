@@ -31,7 +31,7 @@ export default function Page() {
         </p>
       </div>
 
-      <PriceCards classes="bg-accent px-6 pt-4 pb-22" />
+      <PriceCards classes="bg-accent pt-4 pb-22" />
 
       <div className="px-6 py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">

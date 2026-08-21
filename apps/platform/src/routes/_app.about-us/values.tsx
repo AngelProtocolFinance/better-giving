@@ -24,7 +24,7 @@ interface IValues {
 export function Values({ classes = "" }: IValues) {
   return (
     <section className={classes} aria-labelledby="values-heading">
-      <div className="max-w-6xl mx-auto">
+      <div className="page-narrow">
         <h2
           id="values-heading"
           className="section-heading text-center max-w-2xl mx-auto"

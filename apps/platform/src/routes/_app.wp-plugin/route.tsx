@@ -17,7 +17,7 @@ export const meta: Route.MetaFunction = () =>
 
 export default function WpPlugin() {
   return (
-    <div className="xl:container xl:mx-auto px-5 mt-16 content-start pb-16 @container">
+    <div className="page-narrow mt-16 content-start pb-16 @container">
       <h1 className="text-center @6xl:text-left text-4xl @6xl:text-5xl @6xl:leading-tight text-pretty mb-4">
         {app_name} Wordpress plugin documentation
       </h1>

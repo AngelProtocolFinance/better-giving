@@ -63,17 +63,17 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <UnderdogLetter classes="px-6 py-24" />
-      <Manifesto classes="bg-accent px-6 py-22" />
-      <Volunteer classes="px-6 py-24" />
-      <Values classes="bg-accent px-6 py-22" />
+      <UnderdogLetter classes="py-24" />
+      <Manifesto classes="bg-accent py-22" />
+      <Volunteer classes="py-24" />
+      <Values classes="bg-accent py-22" />
 
       <CtaBand
         title="Build the commons with us"
         subtitle="Join as a member, contribute as a volunteer, or just read the code. Every door is open."
       />
 
-      <Donate base_url={loaderData.base_url} classes="bg-accent px-6 py-22" />
+      <Donate base_url={loaderData.base_url} classes="bg-accent py-22" />
     </main>
   );
 }

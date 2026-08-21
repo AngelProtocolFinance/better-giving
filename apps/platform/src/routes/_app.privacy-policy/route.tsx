@@ -11,7 +11,7 @@ export const meta: Route.MetaFunction = () =>
 
 export default function PrivacyPolicy() {
   return (
-    <div className="xl:container xl:mx-auto px-5 min-h-screen pb-6 prose pt-24">
+    <div className="page-narrow min-h-screen pb-6 prose pt-24">
       <h1 className="text-center">
         {" "}
         <strong>Privacy Policy</strong>

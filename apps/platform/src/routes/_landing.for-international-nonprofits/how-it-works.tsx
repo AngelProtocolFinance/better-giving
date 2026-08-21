@@ -16,7 +16,7 @@ const steps = [
 export function HowItWorks({ classes = "" }) {
   return (
     <section className={classes}>
-      <div className="max-w-6xl mx-auto">
+      <div className="page-narrow">
         <h2 className="section-heading">Fiscal sponsorship in three steps</h2>
         <p className="section-body text-muted-fg max-w-3xl mt-3 mb-9">
           Your donors give to Better Giving, a U.S. 501(c)(3), earmarked for

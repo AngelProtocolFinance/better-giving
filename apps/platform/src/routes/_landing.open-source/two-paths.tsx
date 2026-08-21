@@ -30,7 +30,7 @@ interface ITwoPaths {
 export function TwoPaths({ classes = "" }: ITwoPaths) {
   return (
     <div className={classes}>
-      <div className="max-w-6xl mx-auto">
+      <div className="page-narrow">
         <h2 className="section-heading text-center max-w-2xl mx-auto">
           Two ways to run it
         </h2>
