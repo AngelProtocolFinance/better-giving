@@ -1,7 +1,6 @@
+import { Image, Target, type TTarget, to_target } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { Image } from "#/components/image";
 import { to_text } from "#/components/rich-text";
-import { Target, type TTarget, to_target } from "#/components/target";
 
 type Props = {
   id: string;

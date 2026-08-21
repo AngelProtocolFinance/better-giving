@@ -1,5 +1,5 @@
+import { RmxForm, useRmxForm } from "@better-giving/ui";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { RmxForm, useRmxForm } from "#/components/form";
 import type { Route } from "./+types/route";
 import { List } from "./list";
 
@@ -14,11 +14,11 @@ function Page({ loaderData: { programs } }: Route.ComponentProps) {
   return (
     <div className="grid content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8">
       <RmxForm method="POST" className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold">Programs</h2>
+        <h1 className="text-3xl font-bold">Programs</h1>
         <button
           type="submit"
           disabled={nav.state !== "idle"}
-          className="btn btn-primary px-8 py-2"
+          className="btn btn-primary"
         >
           {nav.state === "submitting" ? "Creating..." : "Create Program"}
         </button>

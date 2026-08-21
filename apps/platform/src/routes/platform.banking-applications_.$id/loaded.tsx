@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { href, NavLink } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import type { LoaderData } from "#/pages/platform-admin/banking-applications/api";
 
 export function Loaded(props: LoaderData) {
@@ -65,7 +65,7 @@ export function Loaded(props: LoaderData) {
           replace
           preventScrollReset
           to={href("/platform/banking-applications")}
-          className="px-4 py-1 min-w-24 text-sm btn btn-secondary"
+          className="min-w-24 btn btn-secondary"
         >
           Back
         </NavLink>
@@ -74,7 +74,7 @@ export function Loaded(props: LoaderData) {
           preventScrollReset
           aria-disabled={!!prev_verdict}
           to="reject"
-          className="px-4 py-1 min-w-24 text-sm btn btn-destructive"
+          className="min-w-24 btn btn-destructive"
         >
           Reject
         </NavLink>
@@ -83,7 +83,7 @@ export function Loaded(props: LoaderData) {
           preventScrollReset
           aria-disabled={!!prev_verdict}
           to="approve"
-          className="px-4 py-1 min-w-24 text-sm btn btn-success"
+          className="min-w-24 btn btn-success"
         >
           Approve
         </NavLink>

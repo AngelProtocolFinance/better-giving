@@ -1,6 +1,6 @@
+import { Modal } from "@better-giving/ui";
 import { useState } from "react";
 import { href, useNavigate } from "react-router";
-import { Modal } from "#/components/modal";
 import { Video, videos } from "#/components/video";
 import { useHubspotDonCalculatorForm } from "#/hooks/use-hubspot-don-calculator-form";
 
@@ -45,7 +45,7 @@ export function Top({ classes = "" }) {
             set_open(true);
           }}
           type="button"
-          className="mt-8 capitalize btn btn-primary text-center lg:text-right justify-self-center lg:justify-self-end rounded py-4 px-8 w-full md:w-auto"
+          className="mt-8 capitalize btn btn-lg btn-primary text-center lg:text-right justify-self-center lg:justify-self-end rounded w-full md:w-auto"
         >
           See what you're losing
         </button>

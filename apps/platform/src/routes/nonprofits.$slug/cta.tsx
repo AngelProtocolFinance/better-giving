@@ -1,5 +1,5 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import type { PageContext } from "./types";
 
@@ -22,13 +22,13 @@ export function Cta({ classes = "", ...props }: Props) {
       <div className="flex flex-col @xl:flex-row justify-center items-center gap-6 mt-10">
         <Link
           to={href("/register")}
-          className="text-center btn btn-primary px-6 py-2 xl:px-10 xl:py-4 xl:text-lg font-bold rounded"
+          className="text-center btn xl:btn-lg btn-primary font-bold rounded"
         >
           Start Today - Free
         </Link>
         <Link
           to={BOOK_A_DEMO}
-          className="capitalize text-center btn btn-secondary font-bold rounded px-6 py-2 xl:px-8 xl:py-4 xl:text-xl"
+          className="capitalize text-center btn xl:btn-lg btn-secondary font-bold rounded"
         >
           Questions? Chat with us
         </Link>

@@ -1,8 +1,8 @@
+import { Toaster } from "@better-giving/ui";
 import type { PropsWithChildren } from "react";
 import { preconnect } from "react-dom";
 import { Links, Meta, Scripts, ScrollRestoration } from "react-router";
 import { NavProgress } from "#/components/nav-progress";
-import { Toaster } from "#/components/toaster";
 import { useConsent } from "./use-consent";
 
 export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {

@@ -1,5 +1,5 @@
-import { Combobox } from "@ark-ui/react/combobox";
 import type { ITicker } from "@better-giving/stocks";
+import { Combo, Form as FormContainer } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
@@ -8,13 +8,7 @@ import { href } from "react-router";
 import type { ITokenEstimate } from "#/types/api";
 import { report_error } from "@/errors/report";
 import { ru_vdec } from "@/helpers/decimal";
-import { Form as FormContainer } from "../../../form";
-import {
-  btn_disp,
-  TokenCombobox,
-  TokenField,
-  type TTokenState,
-} from "../../../token-field";
+import { btn_disp, TokenField, type TTokenState } from "../../../token-field";
 import { init_ticker_option } from "../../common/constants";
 import { MethodBenefits } from "../../common/method-benefits";
 import { TipField } from "../../common/tip-field";
@@ -84,37 +78,54 @@ export function Form(props: TMethodState<"stocks">) {
     },
   });
 
+  // the popup portals to body, out of #donation-container, so it inherits none
+  // of the tenant palette — re-apply on the far side what the shell reads.
+  // --accent is the option row's highlight and --ring the scrollbar thumb;
+  // #donation-container points --ring at --form-primary for the same reason.
+  const popup_vars: Record<string, string | undefined> = {
+    "--form-primary": don.config?.accent_primary,
+    "--form-secondary": don.config?.accent_secondary,
+    "--accent": don.config?.accent_secondary,
+    "--ring": don.config?.accent_primary,
+  };
+
   const combobox = (
-    <TokenCombobox
-      classes="has-placeholder-shown:w-34 w-24"
-      disabled={ticker_state === "loading"}
-      btn_disp={(open) => btn_disp(open, ticker_state)}
-      item_key={(t) => t.symbol}
-      item_label={(t) => t.symbol}
-      input_placeholder="Select ticker"
-      on_search={search_tickers}
-      opt_disp={(t) => (
-        <Combobox.Item
-          key={t.symbol}
-          className="w-full text-left text-xs p-2 grid grid-cols-[1fr_auto] items-center gap-x-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
-          item={t}
-        >
-          <div className="space-y-0.5">
-            <span className="font-semibold block">{t.symbol}</span>
-            <span className="text-xs">{t.name}</span>
-          </div>
-          <Combobox.ItemIndicator className="text-muted-fg">
-            <CheckIcon size={14} />
-          </Combobox.ItemIndicator>
-        </Combobox.Item>
-      )}
-      value={ticker.value}
-      // reapply to portaled
-      opts_styles={{
-        "--form-primary": don.config?.accent_primary,
-        "--form-secondary": don.config?.accent_secondary,
+    <Combo
+      classes={{
+        container: "has-placeholder-shown:w-34 w-24",
+        // the box is TokenField's: this is the left cell of the
+        // field-input-container it shares with the amount input, and the focus
+        // ring is that container's too (`:has(input:focus)`) — a field box here
+        // would draw a second one inside it.
+        input: "w-full text-sm bg-transparent px-4 py-3.5 focus:outline-hidden",
       }}
+      disabled={ticker_state === "loading"}
+      // the state the seam offers is the search's. `ticker_state` is the
+      // estimate that follows a pick — a different fetch, and the one worth an
+      // icon: the search has no debounce, so showing it here would strobe the
+      // chevron on every keystroke.
+      adornment={(open) => btn_disp(open, ticker_state)}
+      item_key={(t) => t.symbol}
+      item_text={(t) => t.symbol}
+      placeholder="Select ticker"
+      // /api/tickers is fuzzy over the company name as well as the symbol, so
+      // the query is the server's to answer — nothing re-filters what it sends
+      options={{ search: search_tickers }}
+      // the control is as narrow as a symbol; the list is not
+      popup_width="w-56"
+      indicator={<CheckIcon size={14} className="text-muted-fg" />}
+      popup_vars={popup_vars}
+      render={(t) => (
+        <span className="grid gap-y-0.5 text-xs">
+          <span className="font-semibold">{t.symbol}</span>
+          <span>{t.name}</span>
+        </span>
+      )}
+      // the schema has no empty ticker, and the seam only emits undefined from
+      // a clear trigger this control doesn't offer
+      value={ticker.value.symbol ? ticker.value : undefined}
       on_change={async (t) => {
+        if (!t) return;
         try {
           const current_amount = ticker.value.amount;
           ticker.onChange({ ...t, amount: current_amount });

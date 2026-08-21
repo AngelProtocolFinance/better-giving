@@ -1,9 +1,8 @@
+import { Field, Modal } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { object } from "valibot";
-import { Field } from "#/components/form";
-import { Modal } from "#/components/modal";
 import { videoUrl } from "./types";
 
 interface IVideoModal {
@@ -64,16 +63,12 @@ export function VideoModal(props: IVideoModal) {
         <div className="mt-4 p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t">
           <button
             type="button"
-            className="btn-secondary btn text-sm px-8 py-2"
+            className="btn-secondary btn"
             onClick={() => props.set_open(false)}
           >
             Cancel
           </button>
-          <button
-            disabled={!isDirty}
-            type="submit"
-            className="btn btn-primary px-8 py-2 text-sm"
-          >
+          <button disabled={!isDirty} type="submit" className="btn btn-primary">
             Continue
           </button>
         </div>

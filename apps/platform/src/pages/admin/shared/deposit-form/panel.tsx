@@ -1,8 +1,8 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { RadioGroup } from "@ark-ui/react/radio-group";
+import { Copier } from "@better-giving/ui";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
-import { Copier } from "#/components/copier";
 
 type AccountType = "savings" | "investments";
 
@@ -201,15 +201,17 @@ function MemoSection({ memo, account_type, classes = "" }: MemoSectionProps) {
   const account_label = account_type === "savings" ? "Savings" : "Investments";
   return (
     <div
-      className={`bg-warning/10 border border-warning rounded p-5 ${classes}`}
+      className={`bg-warning-subtle border border-warning rounded p-5 ${classes}`}
     >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-bold text-warning">Your Reference Memo</h3>
-        <span className="text-xs font-medium text-warning bg-warning/10 px-2 py-1 rounded">
+        <h3 className="font-bold text-warning-subtle-fg">
+          Your Reference Memo
+        </h3>
+        <span className="text-xs font-medium text-warning-subtle-fg bg-card px-2 py-1 rounded">
           {account_label}
         </span>
       </div>
-      <p className="text-sm text-warning mb-4">
+      <p className="text-sm text-warning-subtle-fg mb-4">
         You must include this code when making your transfer, or we won't be
         able to identify your deposit.
       </p>

@@ -1,7 +1,6 @@
+import { CheckField, Form, Info } from "@better-giving/ui";
 import { type SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { CheckField, Form } from "#/components/form";
-import { Info } from "#/components/status";
 import type { IUserNpo2 } from "#/types/user";
 import type { INpoAlertPrefUpdate } from "./schema";
 
@@ -88,15 +87,11 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
         <button
           disabled={!isDirty || fetcher.state === "submitting"}
           type="submit"
-          className="btn btn-primary text-sm px-6 py-2"
+          className="btn btn-primary"
         >
           {fetcher.state === "submitting" ? "updating.." : "save"}
         </button>
-        <button
-          disabled={!isDirty}
-          type="reset"
-          className="btn-secondary btn text-sm px-6 py-2"
-        >
+        <button disabled={!isDirty} type="reset" className="btn-secondary btn">
           reset
         </button>
       </div>

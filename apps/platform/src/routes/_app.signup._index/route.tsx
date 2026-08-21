@@ -1,11 +1,8 @@
+import { ExtLink, Image, Input, RmxForm, Separator } from "@better-giving/ui";
 import { Mail } from "lucide-react";
 import { href, Link, type MetaDescriptor, useNavigation } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import googleIcon from "#/assets/icons/google.svg";
-import { ExtLink } from "#/components/ext-link";
-import { Input, RmxForm } from "#/components/form";
-import { Image } from "#/components/image";
-import { Separator } from "#/components/separator";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { ISignUp } from "#/types/auth";
@@ -110,7 +107,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           <button
             name="intent"
             value="oauth"
-            className="flex-center btn-secondary rounded gap-2 h-12 sm:h-13 mt-6 border-[0.8px]"
+            className="btn btn-secondary rounded gap-2 mt-6"
             type="submit"
           >
             <Image src={googleIcon} height={18} width={18} />
@@ -167,7 +164,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           disabled={is_submitting}
           form={form_id}
           type="submit"
-          className="flex-center btn-primary h-12 sm:h-13 rounded sm:text-lg font-bold w-full my-8"
+          className="btn btn-lg btn-primary rounded w-full my-8"
         >
           {is_submitting ? "Submitting..." : "Sign Up"}
         </button>

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { colors } from "./colors.ts";
 import { oklch_to_hex } from "./oklch.ts";
 
-// drift guard: colors.ts must always agree with the light half of colors.css.
+// drift guard: colors.ts must always agree with colors.css.
 // parses :root the same way a human eye would — literal oklch() tokens only,
 // var()/color-mix() aliases and --radius fall out on their own since their
 // values don't match the oklch(...) pattern.
@@ -22,7 +22,6 @@ function sole_block(selector: string): string {
 }
 
 const root_block = sole_block(":root");
-const dark_block = sole_block("\\.dark");
 
 const css_tokens = new Map<string, string>();
 for (const m of root_block.matchAll(/--([a-z0-9-]+):\s*oklch\(([^)]+)\)/gi)) {
@@ -50,23 +49,5 @@ describe("colors.ts matches colors.css", () => {
     ...css_tokens.entries(),
   ])("%s converts to the value in colors.ts", (key, hex) => {
     expect(colors[key as keyof typeof colors]).toBe(hex);
-  });
-});
-
-describe(".dark stays in lockstep with :root", () => {
-  // --radius is the one :root token .dark intentionally doesn't redefine —
-  // corner radius is theme-invariant, not a color, so dark falls back to it.
-  const root_only = new Set(["radius"]);
-
-  it("redefines every :root token", () => {
-    const root_keys = [...root_block.matchAll(/--([a-z0-9-]+):/g)]
-      .map((m) => m[1])
-      .filter((k) => !root_only.has(k));
-    const dark_keys = [...dark_block.matchAll(/--([a-z0-9-]+):/g)].map(
-      (m) => m[1]
-    );
-    expect([...new Set(dark_keys)].sort()).toEqual(
-      [...new Set(root_keys)].sort()
-    );
   });
 });

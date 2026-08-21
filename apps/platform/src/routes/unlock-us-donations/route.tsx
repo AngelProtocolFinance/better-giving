@@ -44,7 +44,7 @@ export default function Component() {
           <DappLogo classes="h-12" />
           <Link
             to={href("/signup")}
-            className="btn btn-primary max-xl:text-sm text-nowrap px-6 py-2 rounded"
+            className="btn btn-primary text-nowrap rounded"
           >
             Sign up
           </Link>

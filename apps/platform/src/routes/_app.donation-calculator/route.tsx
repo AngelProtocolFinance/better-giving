@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { useState } from "react";
 import { Link } from "react-router";
 import laira_announce from "#/assets/laira/laira-announce.webp";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import {
@@ -60,7 +60,7 @@ export default function Page() {
         </h2>
         <Link
           reloadDocument
-          className="col-start-2 justify-self-end mb-2 btn-primary px-4 py-1 rounded text-sm"
+          className="col-start-2 justify-self-end mb-2 btn btn-primary rounded"
           to={{
             pathname: "../donation-calculator-export",
             search: new URLSearchParams(params).toString(),

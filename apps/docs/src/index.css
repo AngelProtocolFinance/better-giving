@@ -1,14 +1,32 @@
 @import "tailwindcss";
 @import "@fontsource-variable/quicksand";
+@import "@better-giving/ui/styles.css";
 
-/* bg-docs loaded Quicksand via next/font as the --font-quicksand css var and
-   applied it on <body>. replicate the variable + the default sans mapping so
-   the whole app renders in quicksand, same as the source. keeps tailwind's
-   default color palette (neutral/blue/green/…) — the source never reset it. */
+/* the fictional nonprofit's palette, for /demo-nonprofit only.
+   that page exists to show the donation form dropped into SOMEONE ELSE'S
+   website — if it were painted in Better Giving's tokens it would stop
+   demonstrating the one thing it is for. so its brand colors are declared
+   here, named after the fake org rather than after a role, so nobody reads
+   one as a system surface and reaches for it in the docs chrome.
+   the page's plain greys are NOT here: every site has greys, and the
+   semantic neutrals carry them fine.
+   the design system resets --color-* to `initial`, so these must be
+   declared to exist at all — which is the guard working, not a workaround. */
 @theme {
-  --font-quicksand: "Quicksand Variable", ui-sans-serif, system-ui, sans-serif;
-}
-
-body {
-  font-family: var(--font-quicksand);
+  --color-demo: #2563eb; /* the fake org's brand blue */
+  --color-demo-hover: #1d4ed8; /* one step down — its filled-button hover */
+  --color-demo-dark: #1e40af; /* two steps down — its hero gradient end, and
+                                 the ink a link on a pale ground hovers to */
+  --color-demo-pale: #eff6ff; /* pale brand wash */
+  --color-demo-tint: #dbeafe; /* chip/border tint over the wash */
+  --color-demo-on-dark: #dbeafe; /* copy over the brand gradient */
+  --color-demo-on-dark-dim: #bfdbfe; /* de-emphasised copy over it */
+  --color-demo-on-dark-faint: #93c5fd; /* meta over it */
+  /* the three program-card chips — arbitrary, and deliberately not our hues */
+  --color-demo-leaf: #dcfce7;
+  --color-demo-leaf-ink: #16a34a;
+  --color-demo-book: #dbeafe;
+  --color-demo-book-ink: #2563eb;
+  --color-demo-people: #f3e8ff;
+  --color-demo-people-ink: #9333ea;
 }

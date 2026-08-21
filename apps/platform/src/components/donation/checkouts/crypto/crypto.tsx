@@ -1,7 +1,7 @@
 import { chains, is_custom } from "@better-giving/crypto";
+import { Image } from "@better-giving/ui";
 import { logo_url, PROCESSING_RATES } from "@/constants/common";
 import { min_fee_allowance } from "@/helpers/donation";
-import { Image } from "../../../image";
 import { Summary } from "../../common/summary";
 import { token } from "../../common/token";
 import { use_donation } from "../../context";

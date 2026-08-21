@@ -8,7 +8,7 @@ const hero_img =
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden min-h-90 md:min-h-105 lg:min-h-120 flex items-center bg-[#1a3c5e]">
+    <section className="relative overflow-hidden min-h-90 md:min-h-105 lg:min-h-120 flex items-center bg-primary-deep">
       {/* full-bleed background image — anchor right to keep illustration visible */}
       <img
         src={hero_img}
@@ -17,7 +17,7 @@ export function Hero() {
       />
 
       {/* gradient overlay — full cover on mobile, left-to-right on desktop */}
-      <div className="absolute inset-0 bg-[#1a3c5e]/70 md:bg-transparent md:bg-linear-to-r md:from-[#1a3c5e] md:via-[#1a3c5e]/80 md:via-35% md:to-transparent md:to-60%" />
+      <div className="absolute inset-0 bg-primary-deep/70 md:bg-transparent md:bg-linear-to-r md:from-primary-deep md:via-primary-deep/80 md:via-35% md:to-transparent md:to-60%" />
 
       <div className="xl:container xl:mx-auto px-5 md:px-10 relative py-20 md:py-28">
         <motion.div
@@ -32,7 +32,7 @@ export function Hero() {
             Global Support.
           </h1>
 
-          <p className="text-base md:text-xl text-white/90 drop-shadow">
+          <p className="text-base md:text-xl text-white drop-shadow">
             Tap into $499 Billion in US donations without the cost of setting up
             a US entity. Secure grants, DAFs, and crypto gifts for your UK
             charity.
@@ -41,7 +41,7 @@ export function Hero() {
           <div className="flex flex-col lg:flex-row gap-3 md:gap-4 mt-2">
             <Link
               to={href("/register")}
-              className="btn btn-primary px-6 md:px-8 py-2.5 md:py-3 rounded text-sm md:text-lg text-nowrap capitalize inline-flex items-center gap-2"
+              className="btn md:btn-lg btn-primary rounded text-nowrap capitalize inline-flex items-center gap-2"
             >
               Join us today!
               <ArrowRight size={18} />
@@ -49,7 +49,7 @@ export function Hero() {
             <Link
               to={BOOK_A_DEMO}
               target="_blank"
-              className="btn border border-white/40 text-white hover:bg-white/10 active:bg-white/15 px-6 md:px-8 py-2.5 md:py-3 rounded text-sm md:text-lg text-nowrap capitalize backdrop-blur-sm"
+              className="btn md:btn-lg border border-white/40 text-white hover:bg-white/10 active:bg-white/15 rounded text-nowrap capitalize backdrop-blur-sm"
             >
               Or book a demo with our UK team
             </Link>

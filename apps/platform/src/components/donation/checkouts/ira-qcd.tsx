@@ -1,9 +1,8 @@
+import { Copier, LoadText } from "@better-giving/ui";
 import { CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
 import { emails } from "@/constants/common";
-import { Copier } from "../../copier";
-import { LoadText } from "../../load-text";
 import { BackBtn } from "../common/back-btn";
 import { use_donation } from "../context";
 import {
@@ -76,14 +75,14 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
       <div className="flex justify-center gap-4 mt-6">
         <a
           href={email_link(name, url, total)}
-          className="btn btn-secondary rounded px-4 py-1.5 text-xs font-normal"
+          className="btn btn-sm btn-secondary rounded font-normal"
         >
           Generate Email
         </a>
         <Copier
           text={instructions_text}
           size={14}
-          classes="btn btn-secondary rounded px-4 py-1.5 text-xs font-normal inline-flex items-center gap-1"
+          classes="btn btn-sm btn-secondary rounded font-normal inline-flex items-center gap-1"
         >
           Copy Instructions
         </Copier>
@@ -128,7 +127,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
               set_status("error");
             }
           }}
-          className="btn btn-primary rounded py-3 w-full mt-6"
+          className="btn btn-primary rounded w-full mt-6"
         >
           <LoadText is_loading={status === "loading"}>
             I've Submitted My IRA Request

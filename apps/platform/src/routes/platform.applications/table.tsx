@@ -141,14 +141,14 @@ export function Table({
 
 const dot_color: { [key in TStatus]: string } = {
   "03": "bg-success",
-  "02": "bg-amber-400",
+  "02": "bg-warning",
   "04": "bg-destructive",
   "01": "bg-muted-fg",
 };
 
 const text_color: { [key in TStatus]: string } = {
   "03": "text-success",
-  "02": "text-amber-600 dark:text-amber-400",
+  "02": "text-warning-subtle-fg",
   "04": "text-destructive",
   "01": "text-muted-fg",
 };

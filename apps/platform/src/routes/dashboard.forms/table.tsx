@@ -1,10 +1,10 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
+import { Target } from "@better-giving/ui";
+import { to_usd } from "@better-giving/ui/helpers";
 import { ChevronDownIcon, TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
 import { LoadMoreRow } from "#/components/load-more-row";
-import { Target } from "#/components/target";
-import { to_usd } from "#/helpers/to-usd";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
 import type { FormRow } from "$/pg/queries/form";
@@ -142,7 +142,9 @@ function StatusBadge({ status }: { status: string | null }) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium ${
-        is_active ? "bg-success/10 text-success" : "bg-muted text-muted-fg"
+        is_active
+          ? "bg-success-subtle text-success-subtle-fg"
+          : "bg-muted text-muted-fg"
       }`}
     >
       <span
@@ -176,7 +178,7 @@ function StatusFilter({ value }: { value: Filter }) {
       </Select.Trigger>
       <Portal>
         <Select.Positioner>
-          <Select.Content className="rounded-xs border bg-popover text-popover-fg min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
+          <Select.Content className="rounded border bg-popover text-popover-fg min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
             {FILTER_OPTS.map((v) => (
               <Select.Item key={v} item={v} className="selector-opt text-sm">
                 <Select.ItemText>{FILTER_LABEL[v]}</Select.ItemText>

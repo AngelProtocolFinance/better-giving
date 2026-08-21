@@ -1,8 +1,7 @@
+import { Image, Target, type TTarget, to_target } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import type { DonateData } from "#/api/donate-loader";
-import { Image } from "#/components/image";
 import { to_text } from "#/components/rich-text";
-import { Target, type TTarget, to_target } from "#/components/target";
 
 interface Props extends Pick<DonateData, "program"> {
   id: number;

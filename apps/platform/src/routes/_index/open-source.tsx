@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight, Check } from "lucide-react";
-import { ExtLink } from "#/components/ext-link";
 import { GITHUB_REPO } from "#/constants/urls";
 import {
   TermCmd,
@@ -54,7 +54,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
           </div>
           <ExtLink
             href={GITHUB_REPO}
-            className="btn btn-secondary gap-2 px-6 py-3.5 mt-2"
+            className="btn btn-lg btn-secondary gap-2 mt-2"
           >
             View the repository
             <ArrowRight className="size-4" />

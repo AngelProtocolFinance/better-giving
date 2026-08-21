@@ -1,12 +1,18 @@
+import {
+  ExtLink,
+  Field,
+  FileDropzone,
+  Form as Frm,
+  Label,
+  LoadText,
+} from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useState } from "react";
 import type { SubmitHandler } from "react-hook-form";
 import { Link, useFetcher, useNavigate } from "react-router";
-import { ExtLink } from "#/components/ext-link";
-import { FileDropzone } from "#/components/file-dropzone";
-import { Field, Form as Frm, Label } from "#/components/form";
-import { LoadText } from "#/components/load-text";
+import { uploadFile } from "#/helpers/upload-file";
 import { steps } from "#/pages/registration/routes";
+import { report_error } from "@/errors/report";
 import type { IFsaDocs } from "@/reg";
 import { type FV, fileSpec, type Props } from "./types";
 import { use_rhf } from "./use-rhf";
@@ -54,6 +60,7 @@ export function FsaForm(props: Props) {
 
       <FileDropzone
         ref={poi.ref}
+        dropzone_name="Government issued ID"
         className="mt-1"
         label={
           <Label required className="mb-2">
@@ -64,6 +71,8 @@ export function FsaForm(props: Props) {
         onChange={poi.onChange}
         specs={fileSpec}
         error={errors.proof_of_identity?.message}
+        upload={uploadFile}
+        report_error={report_error}
       />
 
       <Field
@@ -77,6 +86,7 @@ export function FsaForm(props: Props) {
 
       <FileDropzone
         ref={por.ref}
+        dropzone_name="Proof of registration"
         className="mt-10"
         label={
           <Label className="mb-2" required>
@@ -87,6 +97,8 @@ export function FsaForm(props: Props) {
         onChange={por.onChange}
         specs={fileSpec}
         error={errors.proof_of_reg?.message}
+        upload={uploadFile}
+        report_error={report_error}
       />
 
       <Field
@@ -123,14 +135,14 @@ export function FsaForm(props: Props) {
         <Link
           aria-disabled={is_submitting || is_redirecting}
           to={`../${steps.org_details}`}
-          className="py-3 min-w-32 btn-secondary btn text-sm"
+          className="min-w-32 btn-secondary btn"
         >
           Back
         </Link>
         <button
           disabled={is_submitting || is_redirecting || is_uploading}
           type="submit"
-          className="py-3 min-w-32 btn btn-primary text-sm"
+          className="min-w-32 btn btn-primary"
         >
           <LoadText
             is_loading={is_submitting || is_redirecting}

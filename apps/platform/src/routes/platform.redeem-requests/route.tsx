@@ -1,6 +1,6 @@
+import { Select } from "@better-giving/ui";
 import { Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Select } from "#/components/selector";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
 import type { TStatus } from "@/balance-txs";

@@ -1,15 +1,21 @@
+import {
+  Combo,
+  Confirmed,
+  DrawerIcon,
+  Form as F,
+  Field,
+  Group,
+  Info,
+  Label,
+  MultiCombo,
+  Prompt,
+  Select,
+  Toggle,
+  UrlInput,
+} from "@better-giving/ui";
 import { href, Link, Outlet } from "react-router";
-import { Combo } from "#/components/combo";
-import { Form as F, Field, Label, UrlInput } from "#/components/form";
-import { Group } from "#/components/group";
-import { DrawerIcon } from "#/components/icon";
 import { ImgEditor } from "#/components/img-editor";
-import { Prompt } from "#/components/prompt";
 import { RichText } from "#/components/rich-text";
-import { MultiCombo } from "#/components/selector/multi-combo";
-import { Select } from "#/components/selector/select";
-import { Confirmed, Info } from "#/components/status";
-import { Toggle } from "#/components/toggle";
 import { countries, country_names } from "#/constants/countries";
 import { emails } from "@/constants/common";
 import type { EndowDesignation } from "@/npo";
@@ -195,38 +201,32 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
 
         <Combo
           required
-          classes={{ input: "pl-12" }}
+          clearable
           label="Headquarters"
-          value={rhf.hqCountry.value}
-          onChange={rhf.hqCountry.onChange}
+          value={rhf.hqCountry.value || undefined}
+          on_change={(c) => rhf.hqCountry.onChange(c ?? "")}
           placeholder="Select a country"
           options={country_names}
           error={rhf.errors.hq_country?.message}
           ref={rhf.hqCountry.ref}
-          option_disp={(c) => (
+          render={(c) => (
             <>
               <span className="text-2xl">{countries[c].flag}</span>
               <span>{c}</span>
             </>
           )}
-          btn_disp={(c, open) => {
-            const flag = countries[c]?.flag;
+          adornment_side="start"
+          adornment={(open) => {
+            const flag = countries[rhf.hqCountry.value]?.flag;
             return flag ? (
-              <span data-flag className="text-2xl">
-                {flag}
-              </span>
+              <span className="text-2xl">{flag}</span>
             ) : (
-              <DrawerIcon
-                is_open={open}
-                size={20}
-                className="justify-self-end shrink-0"
-              />
+              <DrawerIcon is_open={open} size={20} />
             );
           }}
         />
         <Label className="-mb-4">Active countries</Label>
         <MultiCombo
-          searchable
           values={rhf.activityCountries.value}
           on_change={rhf.activityCountries.onChange}
           ref={rhf.activityCountries.ref}
@@ -236,7 +236,6 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             container: "bg-card",
             options: "text-sm",
           }}
-          option_disp={(c) => c}
         />
         <Field
           {...rhf.register("street_address")}
@@ -293,14 +292,14 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
       <div
         className={`flex flex-wrap justify-between items-center border rounded p-3 gap-4 ${
           rhf.published.value
-            ? "bg-success/10 border-success"
-            : "bg-warning/10 border-warning"
+            ? "bg-success-subtle border-success"
+            : "bg-warning-subtle border-warning"
         }`}
       >
         {rhf.published.value ? (
           <Confirmed>Your profile is visible in the marketplace</Confirmed>
         ) : (
-          <Info classes="text-warning">
+          <Info classes="text-warning-subtle-fg">
             Your profile is not visible in the marketplace
           </Info>
         )}
@@ -328,14 +327,14 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         <button
           disabled={!rhf.isDirty}
           type="reset"
-          className="px-6 btn-secondary btn text-sm"
+          className="btn-secondary btn"
         >
           Reset changes
         </button>
         <button
           disabled={!rhf.isDirty || isUploading}
           type="submit"
-          className="px-6 btn btn-primary text-sm"
+          className="btn btn-primary"
         >
           Submit changes
         </button>

@@ -1,11 +1,10 @@
+import { ExtLink, Modal } from "@better-giving/ui";
 import { X } from "lucide-react";
 import { useCallback, useState } from "react";
 import facebook from "#/assets/icons/social/facebook.webp";
 import linkedin from "#/assets/icons/social/linkedin.webp";
 import telegram from "#/assets/icons/social/telegram.webp";
 import x from "#/assets/icons/social/x.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Modal } from "#/components/modal";
 import { app_name } from "#/constants/env";
 
 interface SocialMedia {

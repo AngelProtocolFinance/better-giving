@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import laira1 from "#/assets/laira/laira1.webp";
 import laira2 from "#/assets/laira/laira2.webp";
 import laira3 from "#/assets/laira/laira3.webp";
-import { Image } from "#/components/image";
 
 const steps = [
   {

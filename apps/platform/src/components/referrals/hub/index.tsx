@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { Link } from "react-router";
 import img3 from "#/assets/images/man-using-laptop.png";
-import { Image } from "../../image";
 import img4 from "./diamond-logo.png";
 import img5 from "./laira-holding-folder.png";
 import img1 from "./laptop.png";

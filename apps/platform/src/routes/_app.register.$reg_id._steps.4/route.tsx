@@ -1,9 +1,9 @@
+import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
-import { ExtLink } from "#/components/ext-link";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { before_banking, next_step, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
@@ -55,7 +55,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
           <span>Bank statement</span>
         </ExtLink>
         <button
-          className="btn btn-destructive px-2 py-1 rounded text-xs mt-2 mb-8"
+          className="btn btn-sm btn-destructive rounded mt-2 mb-8"
           type="button"
           onClick={() => set_is_changing(true)}
         >
@@ -63,15 +63,12 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         </button>
 
         <div className="grid grid-cols-2 sm:flex gap-2 w-full mt-auto">
-          <NavLink
-            to={`../${back}`}
-            className="py-3 min-w-32 btn btn-secondary text-sm"
-          >
+          <NavLink to={`../${back}`} className="min-w-32 btn btn-secondary">
             Back
           </NavLink>
           <NavLink
             to={`../${steps.summary}`}
-            className="py-3 min-w-32 btn btn-primary text-sm"
+            className="min-w-32 btn btn-primary"
           >
             Continue
           </NavLink>
@@ -84,7 +81,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
     <div className="flex flex-col items-start max-sm:items-center">
       {is_changing && (
         <button
-          className="btn btn-primary px-2 py-1 rounded text-xs mt-2 mb-4"
+          className="btn btn-sm btn-primary rounded mt-2 mb-4"
           type="button"
           onClick={() => set_is_changing(false)}
         >

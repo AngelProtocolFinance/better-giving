@@ -1,8 +1,7 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
 import laira_heart from "#/assets/laira/laira-heart.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 const gift_types = [
@@ -58,13 +57,13 @@ export function Hero({ classes = "" }: IHero) {
           <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3.5 mt-2 w-full sm:w-auto">
             <Link
               to={href("/register")}
-              className="btn btn-primary px-7 py-3.5 shadow-lg shadow-primary/25 w-full sm:w-auto"
+              className="btn btn-lg btn-primary shadow-lg shadow-primary/25 w-full sm:w-auto"
             >
               Join free forever
             </Link>
             <ExtLink
               href={BOOK_A_DEMO}
-              className="btn btn-secondary px-6 py-3.5 w-full sm:w-auto"
+              className="btn btn-lg btn-secondary w-full sm:w-auto"
             >
               Book a demo
             </ExtLink>
@@ -80,7 +79,7 @@ export function Hero({ classes = "" }: IHero) {
             className="absolute size-50 bg-secondary rounded-full -top-8 -right-4"
             aria-hidden
           />
-          <div className="relative bg-card border border-border rounded-lg shadow-2xl shadow-primary/15 overflow-hidden -rotate-1">
+          <div className="relative bg-card border border-border rounded shadow-2xl shadow-primary/15 overflow-hidden -rotate-1">
             <img
               src={donation_form}
               alt="Better Giving embeddable donation form"

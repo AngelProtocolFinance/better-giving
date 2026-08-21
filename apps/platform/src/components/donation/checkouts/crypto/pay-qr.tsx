@@ -1,7 +1,7 @@
 import { QrCode } from "@ark-ui/react/qr-code";
 import { type IToken, is_custom } from "@better-giving/crypto";
+import { Copier } from "@better-giving/ui";
 import { logo_url } from "@/constants/common";
-import { Copier } from "../../../copier";
 
 interface Props {
   classes?: string;

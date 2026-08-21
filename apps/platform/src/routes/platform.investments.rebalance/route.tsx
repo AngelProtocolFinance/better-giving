@@ -42,13 +42,13 @@ function Content(props: ILog) {
             preventScrollReset
             to=".."
             aria-disabled={fetcher.state !== "idle"}
-            className="btn-secondary btn text-sm px-8 py-2"
+            className="btn-secondary btn"
           >
             Back
           </Link>
         ) : (
           <button
-            className="btn-secondary btn text-sm px-8 py-2"
+            className="btn-secondary btn"
             type="button"
             onClick={() => setState((x) => ({ ...x, type: "form" }))}
           >
@@ -68,7 +68,7 @@ function Content(props: ILog) {
                   })
               : undefined
           }
-          className="btn btn-primary px-8 py-2 text-sm"
+          className="btn btn-primary"
         >
           {state.type === "form" ? "Review" : "Submit"}
         </button>

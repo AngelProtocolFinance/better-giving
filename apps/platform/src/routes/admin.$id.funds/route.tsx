@@ -1,9 +1,8 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
+import { DrawerIcon, Info } from "@better-giving/ui";
 import { href, Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { DrawerIcon } from "#/components/icon";
-import { Info } from "#/components/status";
 import type { Route } from "./+types/route";
 import { FundItem } from "./fund-item";
 
@@ -33,7 +32,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   return (
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h3 className="text-3xl font-bold">Fundraisers</h3>
+        <h1 className="text-3xl font-bold">Fundraisers</h1>
         <div className="flex items-center gap-3">
           <Select.Root
             collection={COLLECTION}
@@ -60,7 +59,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             </Select.Trigger>
             <Portal>
               <Select.Positioner>
-                <Select.Content className="rounded-xs border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+                <Select.Content className="rounded border bg-popover text-popover-fg min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
                   {OPTIONS.map((val) => (
                     <Select.Item
                       key={val || "all"}
@@ -79,7 +78,7 @@ function Page({ loaderData }: Route.ComponentProps) {
               pathname: href("/fundraisers/new"),
               search: `npo=${endow.id}`,
             }}
-            className="btn btn-primary text-sm px-4 py-1.5 rounded"
+            className="btn btn-primary rounded"
           >
             + Create
           </Link>

@@ -1,10 +1,13 @@
+import {
+  Breadcrumbs,
+  ExtLink,
+  Target,
+  to_target,
+  VerifiedIcon,
+} from "@better-giving/ui";
 import { Globe, MapPin } from "lucide-react";
 import { href, NavLink } from "react-router";
 import { BookmarkBtn } from "#/components/bookmark-btn";
-import { Breadcrumbs } from "#/components/breadcrumbs";
-import { ExtLink } from "#/components/ext-link";
-import { Target, to_target } from "#/components/target";
-import { VerifiedIcon } from "#/components/verified-icon";
 import type { INpo } from "$/pg/queries/npo";
 
 interface Props {
@@ -49,7 +52,7 @@ export function Body({ classes = "", npo, children, program }: Props) {
             to={`${href("/donate/:id", {
               id: npo.id.toString(),
             })}${program ? `?programId=${program}` : ""}`}
-            className="btn btn-primary w-full lg:w-48 h-12 px-6 lg:text-sm"
+            className="btn btn-primary w-full lg:w-48"
           >
             Donate now
           </NavLink>

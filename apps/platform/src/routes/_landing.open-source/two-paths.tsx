@@ -1,6 +1,6 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight, Check, Minus } from "lucide-react";
 import { href, Link } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import { GITHUB_REPO } from "#/constants/urls";
 
 interface IItem {
@@ -40,7 +40,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
           will be.
         </p>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
-          <div className="bg-card rounded-lg p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
+          <div className="bg-card rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
             <span className="justify-self-start self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
               Most popular
             </span>
@@ -64,7 +64,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
             </Link>
           </div>
 
-          <div className="bg-card rounded-lg p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
+          <div className="bg-card rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
             <span className="self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
               Maximum control
             </span>

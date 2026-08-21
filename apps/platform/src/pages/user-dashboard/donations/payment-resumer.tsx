@@ -1,9 +1,7 @@
 import { tokens_map } from "@better-giving/crypto";
+import { type IPrompt, Modal, Prompt, show_toast } from "@better-giving/ui";
 import { useState } from "react";
 import { PayQr } from "#/components/donation";
-import { Modal } from "#/components/modal";
-import { type IPrompt, Prompt } from "#/components/prompt";
-import { show_toast } from "#/components/toaster";
 import { error_prompt } from "#/helpers/error-prompt";
 import type { Payment } from "#/types/crypto";
 import { ru_vdec } from "@/helpers/decimal";

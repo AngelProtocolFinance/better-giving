@@ -1,0 +1,264 @@
+/* `rounded` is the repo's one radius name in app code — `rounded-full` and
+   `rounded-none` aside, which v4 emits from literals. tailwind v4 ships it as
+   a hardcoded 0.25rem with no theme variable behind it (only the suffixed
+   `rounded-xs|sm|md|lg|...` read
+   `--radius-*`), so the bare utility would not follow `--radius` if that ever
+   moved. rebinding it here is the documented way to customize a built-in
+   utility, and makes the name the app already uses the single source.
+   `rounded-sm`/`-xs` are not the escape hatch they look like: the `--radius-*`
+   scale they read is reset to `initial` in theme.css, so they fail to compile. */
+@utility rounded {
+  border-radius: var(--radius);
+}
+
+/* side-specific corners at the same one radius. v4 derives `rounded-b`/`-r`
+   from the --radius-* scale, and that scale is reset to `initial` in theme.css
+   so a stray `rounded-sm` can't compile — which takes these down with it
+   unless they're bound here too. same value, same rule, just two corners. */
+@utility rounded-t {
+  border-start-start-radius: var(--radius);
+  border-start-end-radius: var(--radius);
+}
+@utility rounded-b {
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}
+@utility rounded-l {
+  border-start-start-radius: var(--radius);
+  border-end-start-radius: var(--radius);
+}
+@utility rounded-r {
+  border-start-end-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}
+
+@utility date-input {
+  &::-webkit-calendar-picker-indicator {
+    @apply absolute w-full opacity-0;
+  }
+}
+
+@utility field-error {
+  @apply absolute -bottom-5 right-0 text-xs text-right text-destructive;
+}
+
+@utility radio {
+  @apply flex items-center gap-4 data-[required=true]:after:ml-1 data-[required=true]:after:content-['*'] data-[required=true]:after:text-destructive;
+  & > input {
+    @apply appearance-none h-4 relative aspect-square border rounded-full before:content-[''] before:h-2.5 before:aspect-square before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full checked:before:bg-primary disabled:checked:before:bg-muted focus:outline-2 focus:outline-ring;
+  }
+}
+@utility checkbox {
+  @apply accent-primary size-4 shrink-0 focus:outline-2 focus:outline-ring disabled:accent-muted;
+}
+
+@utility overlay {
+  @apply before:content-[''] before:absolute before:inset-0 before:bg-primary/70;
+}
+
+@utility check-field {
+  @apply grid grid-cols-[auto_1fr] justify-items-start gap-x-3 items-center;
+  & > label {
+    @apply data-[required=true]:after:ml-1 data-[required=true]:after:content-['*'] data-[required=true]:after:text-destructive;
+  }
+  & > input {
+    @apply checkbox;
+  }
+  & > [data-error] {
+    @apply col-span-full text-xs text-destructive;
+  }
+}
+
+/* button size scale. authored as @utility, not @layer components, for two
+   reasons: only @utility classes are variant-capable, and 11+ call sites switch
+   size responsively (`xl:btn-lg`); and the utilities layer beats .btn's
+   components layer regardless of source order. bare .btn is the md tier —
+   btn-md is a name only, so a button can step *down* (`btn-lg md:btn-md`).
+   heights are the natural content box; the pin stops an icon-only button or a
+   line-height change from shrinking the control below its tier. */
+
+@utility btn-sm {
+  --btn-size: calc(var(--spacing) * 6) /* 24px */;
+  padding-block: calc(var(--spacing) * 1) /* 4px */;
+  padding-inline: calc(var(--spacing) * 3) /* 12px */;
+  font-size: var(--text-xs) /* 0.75rem = 12px */;
+  line-height: var(--tw-leading, var(--text-xs--line-height) /* 1rem = 16px */);
+  /* 4 + 16 + 4 = exactly 24px, zero natural headroom — the pin, not the
+     arithmetic, is what holds WCAG 2.2 SC 2.5.8 Target Size (Minimum), AA,
+     24x24 css px. px-3 alone clears the width floor; pinned anyway for the
+     icon-only case. */
+  min-block-size: var(--btn-size);
+  min-inline-size: var(--btn-size);
+}
+
+@utility btn-md {
+  --btn-size: calc(var(--spacing) * 9) /* 36px */;
+  padding-block: calc(var(--spacing) * 2) /* 8px */;
+  padding-inline: calc(var(--spacing) * 6) /* 24px */;
+  font-size: var(--text-sm) /* 0.875rem = 14px */;
+  line-height: var(--tw-leading, var(--text-sm--line-height) /* 20px */);
+  min-block-size: var(--btn-size);
+}
+
+@utility btn-lg {
+  --btn-size: calc(var(--spacing) * 13) /* 52px */;
+  padding-block: calc(var(--spacing) * 3) /* 12px */;
+  padding-inline: calc(var(--spacing) * 8) /* 32px */;
+  font-size: var(--text-lg) /* 1.125rem = 18px */;
+  line-height: var(--tw-leading, var(--text-lg--line-height) /* 28px */);
+  min-block-size: var(--btn-size);
+}
+
+/* the fourth tier, and the only one whose height is not its own: a button that
+   sits BESIDE a form control and has to match it — the show/copy buttons next
+   to an api-key field. --field-size is declared in styles/components.css and is
+   what `.field-input` pins itself to, so this tracks the field by construction
+   rather than by a copied number. everything else mirrors btn-md. */
+@utility btn-field {
+  --btn-size: var(--field-size);
+  padding-block: calc(var(--spacing) * 2) /* 8px */;
+  padding-inline: calc(var(--spacing) * 6) /* 24px */;
+  font-size: var(--text-sm) /* 0.875rem = 14px */;
+  line-height: var(--tw-leading, var(--text-sm--line-height) /* 20px */);
+  min-block-size: var(--btn-size);
+}
+
+/* square icon-only shape. a modifier, not a fourth tier: it composes with all
+   three sizes (`btn-sm btn-icon`, `btn btn-icon`, `btn-lg btn-icon`) and takes
+   its side from the tier's own height, published as --btn-size. must stay AFTER
+   the three tiers in this file — same layer, same specificity, so source order
+   is what lets it win padding-inline. bare .btn is in the components layer and
+   loses to this regardless of order. inline-size and min-inline-size are both
+   set so the square survives being a flex item that could otherwise shrink.
+   the button has no text node, so every call site MUST carry an aria-label.
+   radius is inherited from .btn (var(--radius)) — do not add a second one.
+   block-size is definite, not a min: a flex row defaults to align-items:stretch,
+   and a min-block-size does not stop it — only a definite size wins over
+   stretch, so beside a taller control the square survives. it also
+   leaves the item at cross-start, so a row mixing this with a taller control
+   needs `items-center` on the CONTAINER — alignment is external flow and stays
+   the caller's, per the layout rule in CLAUDE.md. */
+@utility btn-icon {
+  padding-inline: 0;
+  inline-size: var(--btn-size);
+  min-inline-size: var(--btn-size);
+  block-size: var(--btn-size);
+}
+
+/* a bare glyph acting as a button — a lucide icon with no label and no box of
+   its own. deliberately NOT a .btn modifier: that is btn-icon, and it only
+   works ON a .btn, whose 36px min-block-size, bold weight and px-6 come with
+   it. all of that is a control's chrome, wrong around a naked glyph, and it
+   pins the smallest possible target at 36px when the floor is 24. this tier
+   contributes hit area and nothing else, so color, hover and focus classes
+   stay the call site's.
+   24px is WCAG 2.2 SC 2.5.8 Target Size (Minimum), AA — the same floor btn-sm
+   pins itself to, reached here by the min alone since the glyph is always
+   smaller than the box. mins rather than definite sizes so a larger glyph
+   still grows its own target.
+   flex-shrink is baked in: these sit in flex rows beside text that would
+   otherwise squeeze the target back under the floor.
+   the button has no text node, so every call site MUST carry an aria-label
+   unless the underlying library already supplies one (zag's toast
+   CloseTrigger does). */
+@utility glyph-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-inline-size: calc(var(--spacing) * 6) /* 24px */;
+  min-block-size: calc(var(--spacing) * 6) /* 24px */;
+  border-radius: var(--radius);
+}
+
+/** page components */
+
+@utility btn-donate {
+  border-radius: var(--radius);
+  text-transform: none;
+}
+
+@utility btn-form-primary {
+  background-color: var(--form-primary);
+  color: var(--primary-fg);
+  /* --ring, not --secondary: --secondary is a near-white tint at 1.17:1
+     against the page. --ring is remapped to --form-primary inside
+     #donation-container, so the ring follows
+     the host org's brand rather than pinning a value that may collide with an
+     unknown host page. */
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  &:hover:not(:disabled):not([aria-disabled="true"]) {
+    background-color: color-mix(in oklch, var(--form-primary) 90%, black);
+  }
+  &:active {
+    background-color: color-mix(in oklch, var(--form-primary) 85%, black);
+  }
+  &:disabled {
+    background-color: var(--muted);
+    color: var(--muted-fg);
+  }
+}
+
+/* a band or panel filled with --primary. use instead of bare `bg-primary`
+   whenever the fill contains a control: it rebinds --ring and --border for
+   everything inside, because the page-level values are drawn against the page
+   and both collapse on brand fill (--ring == --primary is 1.00:1 there).
+   same mechanism as #donation-container's --ring remap in platform's index.css. */
+@utility surface-primary {
+  background-color: var(--primary);
+  color: var(--primary-fg);
+  --ring: var(--primary-ring);
+  --border: var(--primary-border);
+}
+
+@utility fixed-center {
+  @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
+}
+
+@utility absolute-center {
+  @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
+}
+
+@utility flex-center {
+  @apply flex items-center justify-center;
+}
+
+@utility box-delay-1 {
+  animation-delay: 300ms;
+}
+
+@utility box-delay-2 {
+  animation-delay: 600ms;
+}
+
+@utility hero-heading {
+  @apply text-3xl/tight md:text-4xl/tight lg:text-6xl/tight text-balance;
+}
+
+@utility section-heading {
+  @apply text-3xl/tight md:text-4.5xl/tight text-balance;
+}
+
+@utility section-body {
+  @apply text-lg md:text-2xl text-pretty;
+}
+
+@utility article-heading {
+  @apply text-2xl md:text-3xl text-balance;
+}
+
+@utility pre-heading {
+  @apply text-sm md:text-lg font-bold;
+}
+
+/* the small uppercase label above a section heading — the canonical eyebrow.
+   type only: color is the caller's (text-primary / text-muted-fg /
+   text-secondary), as is any size override (text-2xs on dense surfaces).
+   distinct from pre-heading, which is the larger lead-in that is not always
+   uppercased. */
+@utility eyebrow {
+  @apply text-xs font-bold uppercase tracking-label;
+}

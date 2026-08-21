@@ -1,5 +1,5 @@
+import { useRmxForm } from "@better-giving/ui";
 import { href } from "react-router";
-import { useRmxForm } from "#/components/form";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { CtaBand } from "#/pages/@sections/cta-band";

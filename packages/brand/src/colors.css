@@ -1,7 +1,13 @@
 /* better giving design-token palette. single source for color across the
-   monorepo: the platform stylesheet `@import`s this verbatim for `:root`/`.dark`,
-   and `colors.ts` mirrors its light half as hex for the email templates
-   (mail clients strip stylesheets and don't support oklch()). */
+   monorepo: the platform stylesheet `@import`s this verbatim for `:root`,
+   and `colors.ts` mirrors it as hex for the email templates
+   (mail clients strip stylesheets and don't support oklch()).
+
+   the palette is light-only: the product ships no theme toggle, never applies
+   `.dark` to any element, and has no prefers-color-scheme query — a dark half
+   would double the cost of every palette change for no user-visible benefit.
+   this is a decision, not an oversight: don't derive one without a product
+   decision to ship dark mode first. see design-system.md. */
 
 /* semantic design tokens — shadcn convention */
 
@@ -16,6 +22,16 @@
   --popover-fg: oklch(0.208 0.04 265.8); /* #0f172a */
   --primary: oklch(0.52 0.123 247.3); /* source: #1e6dab */
   --primary-fg: oklch(1 0 0); /* #ffffff */
+  /* the dark brand ground: a full-bleed marketing hero, and the scrim that puts
+     copy over a photograph. --primary is a control color tuned for white ink at
+     5.49:1 — enough for a button, not enough to survive a translucent scrim over
+     pixels you don't control. this carries --primary-fg at 11.27:1, and that
+     headroom is the point: a primary-deep/70 scrim over a pure-white photo
+     region still measures 4.67:1 for white text, where 65% is 4.07:1 and fails.
+     the 70% is a measured floor, not a taste value. ink is --primary-fg; there
+     is no -deep-fg, because a second name for #ffffff is a drift trap the test
+     can't catch. same brand hue as --primary (247.3), lower L and C. */
+  --primary-deep: oklch(0.349 0.072 247.3);
   --secondary: oklch(0.947 0.019 248.1); /* #e4effa */
   --secondary-fg: oklch(0.208 0.04 265.8); /* #0f172a */
   --muted: oklch(0.968 0.007 247.9); /* slate-100 — shadcn: 0.97 */
@@ -39,8 +55,36 @@
      measured on the shipped hex, which is what colors.ts mirrors for email. */
   --destructive-subtle: oklch(0.954 0.019 25.3);
   --destructive-subtle-fg: oklch(0.53 0.19 25.3);
+  /* pressed rung for a control whose hover is --destructive-subtle. NOT the
+     `color-mix(… 85%, black)` ladder every filled .btn uses: on a near-white
+     band, mixing toward black moves the surface AWAY from its own ink and the
+     pair fails. this deepens the tint with its own ink instead, and 6% is
+     roughly all the headroom the pair has — the ink is 5.04:1 on the resting
+     band and the floor is 4.5:1. app-only (a pressed state never reaches an
+     email), so color-mix() is deliberate: no email twin needed.
+     --destructive-subtle-fg is 4.65:1 on this surface, against a 4.5:1 floor. */
+  --destructive-subtle-active: color-mix(
+    in oklch,
+    var(--destructive-subtle) 94%,
+    var(--destructive-subtle-fg)
+  );
   --success: oklch(0.513 0.145 163);
   --success-fg: oklch(1 0 0); /* #ffffff */
+  /* de-emphasised success surface, same shape as the destructive and warning
+     bands: a confirmation panel, status pill, or row carrying success copy
+     rather than a filled control. --success itself is a FILL here and must
+     never be painted on it — it is 5.06:1 on white but only ~4.4:1 on this
+     tint, the same miss `bg-success/10 text-success` measures (4.41:1);
+     neither is legible here.
+     --success-subtle-fg is a darkened green authored for the tint.
+     literal oklch(), not color-mix(), so it mirrors into colors.ts for email —
+     matching --destructive-subtle / --warning-subtle, which are also literals.
+     --success-subtle-fg is 5.02:1 on --success-subtle, 5.70:1 on
+     --card/--background, 5.21:1 on --muted, 5.16:1 on --accent and 4.90:1 on
+     --secondary. --fg on --success-subtle is 15.71:1, so the band also takes
+     neutral body copy. */
+  --success-subtle: oklch(0.954 0.019 163);
+  --success-subtle-fg: oklch(0.484 0.14 163);
   --warning: oklch(0.769 0.165 70.1); /* source: #f59e0b */
   --warning-fg: oklch(0.279 0.074 45.6); /* dark amber — 6.97:1 on warning bg */
   /* de-emphasised warning surface: an advisory panel, banner, or row carrying
@@ -79,67 +123,4 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-}
-
-.dark {
-  --background: oklch(0.129 0.041 264.7); /* slate-950 #020617 */
-  --fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
-  --card: oklch(0.208 0.04 265.8); /* slate-900 #0f172a */
-  --card-fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
-  --popover: oklch(0.208 0.04 265.8); /* slate-900 #0f172a */
-  --popover-fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
-  --primary: oklch(0.694 0.114 240.8); /* #54a5dc */
-  --primary-fg: oklch(0.155 0.033 260.9); /* #050c1a */
-  --secondary: oklch(0.358 0.071 248.2); /* #1a3f60 */
-  --secondary-fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
-  --muted: oklch(0.279 0.037 260); /* slate-800 #1e293b */
-  --muted-fg: oklch(0.711 0.035 256.8); /* #94a3b8 */
-  /* in this system --accent is not hover-only: it is also the alternating
-     tinted band on the marketing pages (~14 call sites), so it is a resting
-     surface that carries de-emphasized ink. that constrains its value —
-     --muted-fg on it was 3.58:1 at L 0.4 (WCAG 1.4.3 needs 4.5:1); 4.76:1
-     at L 0.33. still a step above --card (1.46:1), so it reads as a
-     highlight; it is no longer brighter than --secondary. */
-  --accent: oklch(0.33 0.08 248);
-  --accent-fg: oklch(0.984 0.003 247.9); /* slate-50 #f8fafc */
-  --destructive: oklch(0.711 0.166 22.2); /* #f87171 */
-  --destructive-fg: oklch(0.258 0.089 26); /* #450a0a */
-  /* --destructive-subtle-fg is 5.74:1 on --destructive-subtle and 7.52:1 on
-     --card; --fg on --destructive-subtle is 12.99:1, so the panel also takes
-     neutral body copy. */
-  --destructive-subtle: oklch(0.31 0.075 22.2);
-  --destructive-subtle-fg: oklch(0.75 0.15 22.2);
-  --success: oklch(0.773 0.154 163.3); /* #34d399 */
-  --success-fg: oklch(0.262 0.049 172.6); /* #022c22 */
-  --warning: oklch(0.837 0.164 84.4); /* #fbbf24 */
-  --warning-fg: oklch(0.279 0.074 45.6); /* #451a03 */
-  /* --warning-subtle-fg is 8.62:1 on --warning-subtle, 11.59:1 on --card and
-     13.10:1 on --background; --fg on --warning-subtle is 12.69:1. dark's alpha
-     band happened to pass (8.85:1) — light's did not. */
-  --warning-subtle: oklch(0.31 0.06 84.4);
-  --warning-subtle-fg: oklch(0.86 0.14 84.4);
-  --border: oklch(0.372 0.039 257.3); /* #334155 */
-  /* slate-950 — field fill is the page color in both themes; the boundary,
-     not the fill, identifies the control. was slate-700, which left
-     --muted-fg placeholders at 4.04:1 (WCAG 1.4.3 needs 4.5:1); now 7.87:1. */
-  --input: oklch(0.129 0.041 264.7);
-  --ring: oklch(0.694 0.114 240.8); /* #54a5dc */
-  /* 7.26:1 and 5.72:1 on --primary */
-  --primary-ring: var(--primary-fg);
-  --primary-border: color-mix(in oklch, var(--primary-fg) 80%, var(--primary));
-
-  --sidebar: oklch(0.129 0.041 264.7); /* slate-950 — match bg */
-  --sidebar-fg: var(--fg);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-fg: var(--primary-fg);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-fg: var(--accent-fg);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
-
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
 }

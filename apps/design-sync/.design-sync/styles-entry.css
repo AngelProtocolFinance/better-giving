@@ -1,0 +1,31 @@
+/* tailwind entry for the design-sync bundle — compiled to
+   .cache/styles.css, which cfg.cssEntry points at.
+
+   this exists because the vocabulary the design project gets is whatever
+   this stylesheet contains: tailwind v4 is JIT, so a utility no scanned
+   file writes simply does not exist, and a design authored against it
+   renders unstyled with no error. three scopes are needed and no single
+   package owns all three:
+
+   - packages/ui/src — the components themselves (declared by ui's own
+     index.css, which carries `@source ".."`)
+   - ./previews — the preview files, which write layout utilities the
+     components never do (flex-col, gap-4, grid-cols-2, …)
+   - apps/platform/src — the real app's vocabulary. keeping it is what
+     makes the published system continuous with what shipped before the
+     ui extraction; without it the design project silently loses ~65
+     utilities it used to offer.
+
+   this replaces the old cfg.cssEntry, which pointed at a content-hashed
+   artifact from an app build (apps/platform/build/client/assets/
+   index-<hash>.css) — a filename that moved on every build, refreshable
+   only by invoking react-router build directly because platform's
+   postbuild migrates a live database. nothing here needs an app build.
+
+   rebuild from apps/design-sync with:
+     pnpm --filter design-sync styles */
+@import "tailwindcss";
+@import "../../../packages/ui/src/styles/index.css";
+
+@source "./previews";
+@source "../../platform/src";

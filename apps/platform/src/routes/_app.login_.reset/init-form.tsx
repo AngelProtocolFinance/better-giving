@@ -1,8 +1,8 @@
+import { Input } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { Mail } from "lucide-react";
 import { href, Link, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Input } from "#/components/form";
 import { email_schema, type IEmailSchema } from "./schema";
 
 type Props = { to: string };
@@ -42,7 +42,7 @@ export function InitForm(props: Props) {
       <button
         disabled={fetcher.state !== "idle"}
         type="submit"
-        className="mt-6 w-full h-12 sm:h-[52px] flex-center btn-primary rounded sm:text-lg font-bold"
+        className="mt-6 w-full btn btn-lg btn-primary rounded"
       >
         {fetcher.state !== "idle" ? "Sending..." : "Send Code"}
       </button>

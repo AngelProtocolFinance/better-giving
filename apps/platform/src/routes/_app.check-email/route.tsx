@@ -57,7 +57,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           <button
             type="submit"
             disabled={sending || throttled}
-            className="flex-center btn-primary h-12 sm:h-[52px] rounded sm:text-lg font-bold w-full mt-6 disabled:bg-muted disabled:text-muted-fg"
+            className="btn btn-lg btn-primary rounded w-full mt-6 disabled:bg-muted disabled:text-muted-fg"
           >
             {sending ? "Sending…" : "Send a new link"}
           </button>

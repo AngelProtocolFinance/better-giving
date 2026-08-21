@@ -163,11 +163,11 @@ vi.mock("#/.server/registration/helpers", () => ({
   reg_id_from_signer_eid: vi.fn(),
 }));
 
-// mock FileDropzone — replace drag-drop with a simple text input
-vi.mock("#/components/file-dropzone", async () => {
-  const actual = await vi.importActual<
-    typeof import("#/components/file-dropzone")
-  >("#/components/file-dropzone");
+// mock FileDropzone — replace drag-drop with a simple text input. partial mock
+// of the whole design-system barrel: the component ships from there now, and
+// every other export in it has to survive the swap.
+vi.mock("@better-giving/ui", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@better-giving/ui")>();
   return {
     ...actual,
     FileDropzone: ({ onChange, value, label, error, className, ref }: any) => (

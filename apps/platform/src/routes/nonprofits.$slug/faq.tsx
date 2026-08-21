@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight, CircleQuestionMark } from "lucide-react";
-import { ExtLink } from "#/components/ext-link";
 import { INTERCOM_HELP } from "#/constants/urls";
 
 interface Item {

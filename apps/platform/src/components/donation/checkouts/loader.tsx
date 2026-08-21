@@ -1,4 +1,4 @@
-import { LoaderRing } from "../../loader-ring";
+import { LoaderRing } from "@better-giving/ui";
 
 type Props = {
   msg?: string;

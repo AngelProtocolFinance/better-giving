@@ -1,9 +1,8 @@
+import { Group, type IPrompt, Prompt } from "@better-giving/ui";
 import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { Link, useFetcher, useParams } from "react-router";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
-import { Group } from "#/components/group";
-import { type IPrompt, Prompt } from "#/components/prompt";
 import { error_prompt } from "#/helpers/error-prompt";
 import { FormButtons } from "./form-buttons";
 

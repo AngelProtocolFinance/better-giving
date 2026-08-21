@@ -1,9 +1,9 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_heart from "#/assets/laira/laira-heart.webp";
 import laira_laptop from "#/assets/laira/laira-laptop.webp";
 import laira_shake_hands from "#/assets/laira/laira-shaking-hands.webp";
-import { Image } from "#/components/image";
 
 type TListItem = {
   title1: string;
@@ -57,7 +57,7 @@ export function Feature2({ className = "" }) {
           pathname: href("/signup"),
           search: `?redirect=${href("/dashboard/referrals")}`,
         }}
-        className="btn btn-primary mt-8 justify-self-center col-span-full ml-1 font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
+        className="btn btn-lg btn-primary mt-8 justify-self-center col-span-full ml-1 font-bold inline-flex items-center gap-1 rounded"
       >
         Get Your Link Now
         <ArrowRight size={18} />

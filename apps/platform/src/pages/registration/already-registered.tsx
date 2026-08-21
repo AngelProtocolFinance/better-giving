@@ -1,5 +1,5 @@
+import { Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
-import { Modal } from "#/components/modal";
 
 interface Props {
   /** name of the nonprofit already on the platform */

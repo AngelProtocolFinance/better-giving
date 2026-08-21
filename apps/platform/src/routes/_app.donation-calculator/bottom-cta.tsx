@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_calling from "#/assets/laira/laira-calling.webp";
 import laira_shake_hands from "#/assets/laira/laira-shaking-hands.webp";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 export function BottomCta({ className = "" }) {
@@ -47,7 +47,7 @@ export function CtaCard({ className = "", title, to, img }: ICtaCard) {
       </h3>
       <Link
         to={to.href}
-        className="btn-primary font-bold shadow-xl active:translate-x-1 rounded px-6 py-3 self-start justify-self-start"
+        className="btn btn-lg btn-primary shadow-xl active:translate-x-1 rounded self-start justify-self-start"
       >
         {to.title}
       </Link>

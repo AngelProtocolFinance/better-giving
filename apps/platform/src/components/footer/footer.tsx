@@ -1,3 +1,4 @@
+import { ExtLink } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import logo_white from "#/assets/images/bettergiving-logo-white.webp";
 import {
@@ -6,7 +7,6 @@ import {
   INTERCOM_HELP,
   socials,
 } from "#/constants/urls";
-import { ExtLink } from "../ext-link";
 import { NewsletterForm } from "./newsletter-form";
 
 type Props = { classes?: string; variant?: "full" | "minimal" };
@@ -38,7 +38,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
   if (variant === "minimal") {
     return (
       <footer
-        className={`${classes} bg-primary border-t border-primary-fg/10 px-6 md:px-12 py-8`}
+        className={`${classes} surface-primary border-t border-primary-fg/10 px-6 md:px-12 py-8`}
       >
         <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-5">
           <Link to={href("/")} title="Go to Home page">
@@ -87,7 +87,7 @@ export function Footer({ classes = "", variant = "full" }: Props) {
 
   return (
     <footer
-      className={`${classes} bg-primary border-t border-primary-fg/10 px-6 md:px-12 pt-16 pb-10`}
+      className={`${classes} surface-primary border-t border-primary-fg/10 px-6 md:px-12 pt-16 pb-10`}
     >
       <div className="max-w-6xl mx-auto grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.3fr]">
         <div className="grid content-start gap-4 justify-items-start">
@@ -176,19 +176,19 @@ export function Footer({ classes = "", variant = "full" }: Props) {
         <span className="flex gap-4">
           <Link
             to={href("/privacy-policy")}
-            className="text-xs text-primary-fg/60 hover:text-primary-fg"
+            className="text-xs text-primary-fg/90 hover:text-primary-fg"
           >
             Privacy Policy
           </Link>
           <Link
             to={href("/security-policy")}
-            className="text-xs text-primary-fg/60 hover:text-primary-fg"
+            className="text-xs text-primary-fg/90 hover:text-primary-fg"
           >
             Security
           </Link>
           <Link
             to={href("/terms-of-use")}
-            className="text-xs text-primary-fg/60 hover:text-primary-fg"
+            className="text-xs text-primary-fg/90 hover:text-primary-fg"
           >
             Terms of Use
           </Link>

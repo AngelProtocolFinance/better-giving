@@ -1,9 +1,9 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { useFetcher, useSearchParams } from "react-router";
 import * as v from "valibot";
-import { Field } from "#/components/form";
 import { RouteModal } from "#/components/route-modal";
 import { endowUpdate } from "#/pages/admin/endow-update-action";
 import { search } from "@/helpers/https";
@@ -73,7 +73,7 @@ function Content(props: IContent) {
         <button
           type="submit"
           disabled={fetcher.state !== "idle" || !isDirty}
-          className="text-sm btn-primary rounded px-4 py-2 font-bold"
+          className="btn btn-md btn-primary rounded"
         >
           {fetcher.state !== "idle" ? "Submitting..." : "Submit"}
         </button>

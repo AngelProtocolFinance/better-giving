@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { Image } from "#/components/image";
 
 export function BottomCta({ className = "" }) {
   return (
@@ -16,7 +16,7 @@ export function BottomCta({ className = "" }) {
         </h3>
         <Link
           to={href("/marketplace")}
-          className="disabled:bg-muted aria-disabled:bg-muted text-primary border border-primary enabled:hover:border-primary justify-self-center @5xl:justify-self-start btn bg-card rounded px-8 py-3 @5xl:px-12 @5xl:py-6 @5xl:text-xl"
+          className="disabled:bg-muted aria-disabled:bg-muted text-primary border border-primary enabled:hover:border-primary justify-self-center @5xl:justify-self-start btn btn-lg bg-card rounded"
         >
           Donate today
         </Link>

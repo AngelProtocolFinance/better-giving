@@ -1,6 +1,6 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon, SparklesIcon } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import { app_name } from "#/constants/env";
 import type { IPaginator } from "#/types/components";
 import type { IRow } from "./helpers";

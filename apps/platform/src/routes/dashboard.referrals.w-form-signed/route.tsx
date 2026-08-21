@@ -38,7 +38,7 @@ function Content(props: LoaderData) {
 
       <Link
         aria-disabled={is_loading}
-        className="w-full max-w-105 justify-self-center btn btn-primary text-sm mt-4"
+        className="w-full max-w-105 justify-self-center btn btn-primary mt-4"
         to="../payout"
       >
         Continue

@@ -1,9 +1,13 @@
+import {
+  ExtLink,
+  Field,
+  LoadText,
+  MaskedInput,
+  RmxForm,
+} from "@better-giving/ui";
+import { ein } from "@better-giving/ui/masks";
 import { useEffect, useRef, useState } from "react";
-import { ExtLink } from "#/components/ext-link";
-import { Field, MaskedInput, RmxForm } from "#/components/form";
-import { ein } from "#/components/form/masks";
 import { Honeypot } from "#/components/honeypot";
-import { LoadText } from "#/components/load-text";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";
@@ -74,7 +78,7 @@ export function CtaForm({
 
   return (
     <div
-      className={`${classes} w-full max-w-115 bg-card border border-border rounded-lg p-6 text-left`}
+      className={`${classes} w-full max-w-115 bg-card border border-border rounded p-6 text-left`}
     >
       <h2 className="text-xl font-bold">Create your free account</h2>
       <p className="mt-2 text-sm text-muted-fg">

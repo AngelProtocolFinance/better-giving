@@ -1,9 +1,9 @@
+import { Copier } from "@better-giving/ui";
 import { ExternalLink, Info } from "lucide-react";
 import { Resizable } from "re-resizable";
 import { useCallback, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import type { ShikiTransformer } from "shiki";
-import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
   esc_attr,
@@ -17,7 +17,7 @@ const highlight_line = (lines: number[]): ShikiTransformer => ({
   name: "highlight-line",
   line(node, line) {
     if (lines.includes(line)) {
-      node.properties.class = "bg-yellow-500/20";
+      node.properties.class = "bg-warning/20";
     }
   },
 });
@@ -65,15 +65,13 @@ export default function CustomDimensions() {
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-neutral-900">
-          Custom Dimensions
-        </h1>
-        <p className="text-sm text-neutral-600 mt-1">
+        <h1 className="text-xl font-bold text-fg">Custom Dimensions</h1>
+        <p className="text-sm text-muted-fg mt-1">
           Easily change the width and height of your embedded donation form.
         </p>
         <a
           href="/demo-nonprofit#fixed-dimensions"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mt-2"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
           <ExternalLink size={14} />
           See it in action on a demo page
@@ -81,9 +79,9 @@ export default function CustomDimensions() {
       </div>
 
       {/* Note */}
-      <div className="flex gap-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-        <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
-        <p className="text-blue-800">
+      <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
+        <Info size={18} className="text-primary shrink-0 mt-0.5" />
+        <p className="text-secondary-fg">
           The donation form content reorganizes on smaller set width and scrolls
           if it exceeds the set height.
         </p>
@@ -110,7 +108,7 @@ export default function CustomDimensions() {
         }}
         handleComponent={{
           bottomRight: (
-            <div className="w-4 h-4 bg-blue-500 hover:bg-blue-600 rounded" />
+            <div className="w-4 h-4 bg-primary hover:bg-primary-deep rounded" />
           ),
         }}
         enable={{ bottomRight: true }}
@@ -125,21 +123,24 @@ export default function CustomDimensions() {
         />
       </Resizable>
 
-      <div className="text-sm text-neutral-500">
+      <div className="text-sm text-muted-fg">
         {size.width} x {size.height}
       </div>
 
-      <div className="rounded text-sm border border-neutral-200 overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-200">
+      <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
           <EmbedModeTabs />
-          <CopyButton text={code_snippet} />
+          <Copier
+            text={code_snippet}
+            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+          />
         </div>
         <HighlightedCode
           code={code_snippet}
           lang="html"
           transformers={transformers}
           className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-neutral-600"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
         />
       </div>
 

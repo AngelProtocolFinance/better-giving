@@ -1,5 +1,5 @@
+import { Modal } from "@better-giving/ui";
 import { useNavigate } from "react-router";
-import { Modal } from "#/components/modal";
 import type { Route } from "./+types/route";
 import { Form } from "./form";
 

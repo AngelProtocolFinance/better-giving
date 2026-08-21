@@ -1,6 +1,6 @@
+import { Copier } from "@better-giving/ui";
 import { useMemo } from "react";
 import type { ShikiTransformer } from "shiki";
-import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
   esc_attr,
@@ -117,17 +117,20 @@ export function CodeSnippet({ id, config }: CodeSnippetProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded text-sm border border-neutral-200 overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-200">
+      <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
           <EmbedModeTabs />
-          <CopyButton text={code} />
+          <Copier
+            text={code}
+            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+          />
         </div>
         <HighlightedCode
           code={code}
           lang="html"
           transformers={transformers}
-          className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_.highlighted-line]:bg-amber-100"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-neutral-600"
+          className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_.highlighted-line]:bg-warning/20"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
         />
       </div>
 

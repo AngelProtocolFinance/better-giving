@@ -1,8 +1,8 @@
+import { Target } from "@better-giving/ui";
 import { ChevronLeftIcon, TagIcon } from "lucide-react";
 import { NavLink, useFetcher } from "react-router";
 import { fill } from "#/components/donate-methods";
 import { to_form_target } from "#/components/goal-selector";
-import { Target } from "#/components/target";
 import { metas } from "#/helpers/seo";
 import { to_freq_bools } from "@/helpers/donation";
 import type { FormRow } from "$/pg/queries/form";

@@ -13,13 +13,13 @@ export function BottomCta({ className = "" }) {
       <div className="flex flex-col md:flex-row justify-center md:justify-start items-center gap-6">
         <Link
           to={href("/register")}
-          className="btn btn-primary font-bold rounded px-6 py-2 md:px-10 md:py-5"
+          className="btn md:btn-lg btn-primary font-bold rounded"
         >
           Join us today!
         </Link>
         <Link
           to={BOOK_A_DEMO}
-          className="btn btn-secondary font-bold rounded px-6 py-2 md:px-10 md:py-5"
+          className="btn md:btn-lg btn-secondary font-bold rounded"
         >
           Book a Demo
         </Link>

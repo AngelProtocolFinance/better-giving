@@ -32,7 +32,7 @@ export default function Page({
   return (
     <div className="px-6 py-4 md:px-10 md:py-8">
       <div className="mb-6 flex items-end justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight">Donors</h2>
+        <h1 className="text-3xl font-bold tracking-tight">Donors</h1>
         <div className="inline-flex gap-1 rounded bg-muted p-1">
           <Tab to={base} end count={donor_total}>
             All donors

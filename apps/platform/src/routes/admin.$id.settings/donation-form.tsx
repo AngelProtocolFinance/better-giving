@@ -1,4 +1,5 @@
 import { Field as BaseField } from "@ark-ui/react/field";
+import { Form as F, Field, Increments } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { DollarSign } from "lucide-react";
 import { useController, useFieldArray, useForm } from "react-hook-form";
@@ -6,14 +7,12 @@ import { useFetcher } from "react-router";
 import * as v from "valibot";
 import { DonateFrequencies } from "#/components/donate-frequencies";
 import { DonateMethods, fill } from "#/components/donate-methods";
-import { Form as F, Field } from "#/components/form";
 import {
   GoalSelector,
   target,
   to_form_target,
   to_target,
 } from "#/components/goal-selector";
-import { Increments } from "#/components/increments";
 import { donate_method } from "#/types/components";
 import { to_freq_bools, to_freqs } from "@/helpers/donation";
 import type { DonateMethodId, INpoUpdate } from "@/npo";
@@ -204,18 +203,10 @@ export function DonationFormTab(p: Props) {
       </div>
 
       <div className="flex gap-3 mt-8">
-        <button
-          type="reset"
-          className="px-6 btn-secondary btn text-sm"
-          disabled={!isDirty}
-        >
+        <button type="reset" className="btn-secondary btn" disabled={!isDirty}>
           Reset changes
         </button>
-        <button
-          type="submit"
-          className="px-6 btn btn-primary text-sm"
-          disabled={!isDirty}
-        >
+        <button type="submit" className="btn btn-primary" disabled={!isDirty}>
           Submit changes
         </button>
       </div>

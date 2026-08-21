@@ -1,4 +1,4 @@
-import { Copier } from "#/components/copier";
+import { Copier } from "@better-giving/ui";
 
 type Props = {
   classes?: string;
@@ -15,7 +15,7 @@ export function SnippetAdv({ classes = "", form_id, base_url }: Props) {
     >
       <p className="text-sm gap-x-1 mb-1">
         Add this script just before{" "}
-        <span className="font-mono bg-card text-warning text-xs p-1 rounded">
+        <span className="font-mono bg-card text-warning-subtle-fg text-xs p-1 rounded">
           {"</body>"}
         </span>
       </p>

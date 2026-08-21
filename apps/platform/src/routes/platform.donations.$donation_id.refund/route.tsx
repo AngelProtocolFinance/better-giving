@@ -44,11 +44,7 @@ function Content({
         <p className="text-sm text-muted-fg mb-4">
           All records have been reversed and Stripe refund issued.
         </p>
-        <button
-          type="button"
-          onClick={on_close}
-          className="btn btn-primary px-8 py-2 text-sm"
-        >
+        <button type="button" onClick={on_close} className="btn btn-primary">
           Close
         </button>
       </div>
@@ -94,7 +90,7 @@ function Content({
       </div>
 
       {has_warnings && (
-        <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning/10 border border-warning flex items-center gap-2 text-sm text-warning">
+        <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning-subtle border border-warning flex items-center gap-2 text-sm text-warning-subtle-fg">
           <AlertTriangleIcon size={16} className="shrink-0" />
           <span>
             ${humanize(data.total_loss)} will be recorded as platform loss
@@ -107,7 +103,7 @@ function Content({
           type="button"
           disabled={submitting}
           onClick={on_close}
-          className="btn-secondary btn text-sm px-8 py-2"
+          className="btn-secondary btn"
         >
           Cancel
         </button>
@@ -117,7 +113,7 @@ function Content({
             submitting || data.already_refunded || has_blockers || no_dists
           }
           onClick={() => fetcher.submit(null, { method: "post" })}
-          className="btn btn-primary px-8 py-2 text-sm"
+          className="btn btn-primary"
         >
           {submitting
             ? "Refunding..."

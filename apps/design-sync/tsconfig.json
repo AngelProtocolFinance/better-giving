@@ -1,0 +1,17 @@
+{
+  // extends the repo baseline. this project exists to TYPECHECK the previews
+  // and the curated entry — nothing here is compiled by tsc (esbuild builds
+  // the bundle, and it does not typecheck). that gap is what let `Amount` go a
+  // whole sync rendering a currency label with no number: a preview passing a
+  // prop the component had dropped still built, still rendered, and still
+  // passed the render check. this is the only check that catches it, so it is
+  // a real project with a `typecheck` script rather than the throwaway
+  // tsconfig NOTES.md used to describe.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "jsx": "react-jsx"
+  },
+  "include": [".design-sync/entry.tsx", ".design-sync/previews", "types"],
+  "exclude": ["node_modules", ".design-sync/.cache", ".ds-sync", "ds-bundle"]
+}

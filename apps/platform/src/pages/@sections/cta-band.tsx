@@ -1,7 +1,6 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_cheering from "#/assets/laira/laira-cheering.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface ICtaBand {
@@ -35,12 +34,12 @@ export function CtaBand({
         {subtitle}
       </p>
       <div className="flex flex-wrap justify-center gap-3.5 mt-8">
-        <Link to={href("/register")} className="btn btn-secondary px-7 py-3.5">
+        <Link to={href("/register")} className="btn btn-lg btn-secondary">
           {cta_label}
         </Link>
         <ExtLink
           href={BOOK_A_DEMO}
-          className="btn px-7 py-3.5 border-2 text-primary-fg hover:bg-primary-fg/10"
+          className="btn btn-lg border-2 text-primary-fg hover:bg-primary-fg/10"
         >
           Book a demo
         </ExtLink>

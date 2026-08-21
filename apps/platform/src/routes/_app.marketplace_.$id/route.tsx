@@ -1,8 +1,8 @@
+import { Image } from "@better-giving/ui";
 import { Outlet } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import fallback_banner from "#/assets/images/bg-banner.webp";
 import flying_character from "#/assets/images/flying-character.webp";
-import { Image } from "#/components/image";
 import { richtext_styles } from "#/components/rich-text";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";

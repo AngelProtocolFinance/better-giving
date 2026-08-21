@@ -1,7 +1,6 @@
+import { Field, Form, Group, Label } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useController, useForm } from "react-hook-form";
-import { Field, Form, Label } from "#/components/form";
-import { Group } from "#/components/group";
 import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
 import type { IProgram } from "@/npo";
@@ -93,7 +92,7 @@ export function ProgramInfo(props: IProgram) {
             !isDirty || is_loading || isSubmitting || image.value === "loading"
           }
           type="submit"
-          className="@lg:justify-self-end btn btn-primary py-2 text-sm"
+          className="@lg:justify-self-end btn btn-primary"
         >
           {is_loading || isSubmitting ? "Saving..." : "Save changes"}
         </button>

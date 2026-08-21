@@ -1,9 +1,9 @@
+import { LoadText } from "@better-giving/ui";
 import { Link } from "react-router";
 import type {
   FormButtonsProps,
   IFormButtons,
 } from "#/components/bank-details/types";
-import { LoadText } from "#/components/load-text";
 
 /** the step behind banking depends on `o_type` (a 501(c)(3) has no agreement
  * step), and `BankDetails` takes the buttons as a component — so the target is
@@ -25,7 +25,7 @@ function Submit({
         <Link
           aria-disabled={isSubmitting}
           to={`../${back}`}
-          className="py-3 min-w-32 btn btn-secondary text-sm"
+          className="min-w-32 btn btn-secondary"
         >
           Back
         </Link>
@@ -33,7 +33,7 @@ function Submit({
           aria-disabled={isSubmitting}
           disabled={isSubmitting}
           type="submit"
-          className="py-3 min-w-32 btn btn-primary text-sm"
+          className="min-w-32 btn btn-primary"
         >
           <LoadText is_loading={isSubmitting}>Submit</LoadText>
         </button>

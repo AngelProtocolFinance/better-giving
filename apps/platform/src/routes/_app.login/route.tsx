@@ -1,3 +1,11 @@
+import {
+  ExtLink,
+  Image,
+  Input,
+  PasswordInput,
+  RmxForm,
+  Separator,
+} from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { eq } from "drizzle-orm";
 import { Mail } from "lucide-react";
@@ -7,10 +15,6 @@ import { auth, get_session } from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
-import { ExtLink } from "#/components/ext-link";
-import { Input, PasswordInput, RmxForm } from "#/components/form";
-import { Image } from "#/components/image";
-import { Separator } from "#/components/separator";
 import { metas } from "#/helpers/seo";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignIn, sign_in } from "#/types/auth";
@@ -196,7 +200,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
             name="intent"
             value="oauth"
             type="submit"
-            className="flex-center btn-secondary btn rounded gap-2 h-12 sm:h-13 mt-6"
+            className="btn btn-secondary rounded gap-2 mt-6"
           >
             <Image src={googleIcon} height={18} width={18} />
             <span className="font-semibold">Continue with Google</span>
@@ -235,7 +239,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           disabled={is_submitting}
           form={form_id}
           type="submit"
-          className="flex-center btn-primary h-12 sm:h-13 rounded sm:text-lg font-bold w-full mt-4"
+          className="btn btn-lg btn-primary rounded w-full mt-4"
         >
           Log In
         </button>

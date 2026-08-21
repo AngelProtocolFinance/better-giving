@@ -50,7 +50,7 @@ export default function Referrals() {
                 pathname: href("/signup"),
                 search: `?redirect=${href("/dashboard/referrals")}`,
               }}
-              className="btn btn-primary max-xl:text-sm text-nowrap px-6 py-2 rounded"
+              className="btn btn-primary text-nowrap rounded"
             >
               Sign up
             </Link>

@@ -1,7 +1,7 @@
+import { Select } from "@better-giving/ui";
 import { Plus } from "lucide-react";
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Select } from "#/components/selector";
 import { use_table } from "#/hooks/use-table";
 import { List, NoVideo } from "#/pages/admin/media/list";
 import type { Route } from "./+types/route";
@@ -35,11 +35,11 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
 
   return (
     <div className="grid content-start gap-y-6 @lg:gap-y-8 px-6 py-4 md:px-10 md:py-8">
-      <h3 className="text-3xl">Media</h3>
+      <h1 className="text-3xl font-bold">Media</h1>
       <div className="grid gap-y-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h4 className="text-2xl">Videos</h4>
+            <h2 className="text-2xl">Videos</h2>
             <Select
               value={filter}
               onChange={(v) => {
@@ -55,10 +55,7 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
               }}
             />
           </div>
-          <NavLink
-            to="new"
-            className="btn-secondary btn text-sm px-8 py-2 gap-1"
-          >
+          <NavLink to="new" className="btn-secondary btn gap-1">
             <Plus size={16} />
             <span>Add Video</span>
           </NavLink>

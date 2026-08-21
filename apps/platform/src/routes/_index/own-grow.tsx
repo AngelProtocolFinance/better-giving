@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import laira_presentation from "#/assets/laira/laira-presentation.webp";
 import laira_shaking_hands from "#/assets/laira/laira-shaking-hands-x2.webp";
-import { Image } from "#/components/image";
 
 interface IOwnGrow {
   classes?: string;
@@ -24,7 +24,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
           opposite: infrastructure you can own, and reserves that grow.
         </p>
         <div className="grid gap-6 md:grid-cols-2 mt-12">
-          <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
+          <div className="bg-card rounded p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
             <Image
               src={laira_shaking_hands}
               width={120}
@@ -44,7 +44,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
               donors to your new platform, free, no exit toll.
             </p>
           </div>
-          <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
+          <div className="bg-card rounded p-10 shadow-lg shadow-primary/5 flex flex-col gap-4">
             <Image
               src={laira_presentation}
               width={120}

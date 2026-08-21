@@ -7,10 +7,7 @@ interface IList extends LoaderData {}
 export function List(props: IList) {
   return (
     <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-      <NavLink
-        className="justify-self-end btn btn-primary px-4 py-1.5 text-sm gap-2 mb-2"
-        to="add"
-      >
+      <NavLink className="justify-self-end btn btn-primary gap-2 mb-2" to="add">
         <Plus size={16} />
         <span>Invite user</span>
       </NavLink>
@@ -49,7 +46,9 @@ function Loaded({ admins, classes = "", user }: LoadedProps) {
             <td>
               {member.email}
               {member.pending && (
-                <span className="ml-2 text-xs text-warning">• Pending</span>
+                <span className="ml-2 text-xs text-warning-subtle-fg">
+                  • Pending
+                </span>
               )}
             </td>
             <td>{member.first_name ?? "-"}</td>

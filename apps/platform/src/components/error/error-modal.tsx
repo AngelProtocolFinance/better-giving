@@ -1,7 +1,7 @@
+import { Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
-import { Modal } from "../modal";
 
 const STATUS_MESSAGES: Record<number, string> = {
   400: "The request was invalid.",
@@ -37,7 +37,7 @@ export function ErrorModal() {
         <button
           onClick={() => window.location.reload()}
           type="button"
-          className="inline-block btn btn-primary px-8 py-2 max-sm:w-full"
+          className="inline-block btn btn-primary max-sm:w-full"
         >
           Ok
         </button>

@@ -1,11 +1,7 @@
+import { Combo, DrawerIcon, ExtLink, Field, Select } from "@better-giving/ui";
 import { useController } from "react-hook-form";
 import { useFetcher, useParams } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Combo } from "#/components/combo";
-import { ExtLink } from "#/components/ext-link";
-import { Field } from "#/components/form";
-import { DrawerIcon } from "#/components/icon";
-import { Select } from "#/components/selector/select";
 import { countries, country_names } from "#/constants/countries";
 import { PRIVACY_POLICY, TERMS_OF_USE_DONOR } from "#/constants/urls";
 import { states } from "#/constants/us-states";
@@ -109,32 +105,27 @@ export function Form({ classes = "", user }: IForm) {
       <Combo
         label="Country"
         required
+        clearable
         ref={country.ref}
-        value={country.value}
-        onChange={country.onChange}
+        value={country.value || undefined}
+        on_change={(c) => country.onChange(c ?? "")}
         placeholder="Select a country"
         options={country_names}
-        onReset={() => resetField("us_state")}
+        on_reset={() => resetField("us_state")}
         error={errors.country?.message}
-        classes={{ input: "pl-12" }}
-        option_disp={(c) => (
+        render={(c) => (
           <>
             <span className="text-2xl">{countries[c].flag}</span>
             <span>{c}</span>
           </>
         )}
-        btn_disp={(c, open) => {
-          const flag = countries[c]?.flag;
+        adornment_side="start"
+        adornment={(open) => {
+          const flag = countries[country.value]?.flag;
           return flag ? (
-            <span data-flag className="text-2xl">
-              {flag}
-            </span>
+            <span className="text-2xl">{flag}</span>
           ) : (
-            <DrawerIcon
-              is_open={open}
-              size={20}
-              className="justify-self-end shrink-0"
-            />
+            <DrawerIcon is_open={open} size={20} />
           );
         }}
       />
@@ -185,7 +176,7 @@ export function Form({ classes = "", user }: IForm) {
       </p>
 
       <button
-        className="col-span-full btn btn-primary text-sm"
+        className="col-span-full btn btn-primary"
         disabled={fetcher.state !== "idle"}
         type="submit"
       >

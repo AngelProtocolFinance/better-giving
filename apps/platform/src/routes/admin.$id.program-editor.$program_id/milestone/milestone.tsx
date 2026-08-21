@@ -1,9 +1,8 @@
 import { Collapsible } from "@ark-ui/react/collapsible";
+import { DrawerIcon, Field, Form, Label, toYYYMMDD } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useController, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { Field, Form, Label, toYYYMMDD } from "#/components/form";
-import { DrawerIcon } from "#/components/icon";
 import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
 import type { IMilestone, IMilestoneUpdate } from "@/npo";
@@ -128,7 +127,7 @@ export function Milestone(props: Props) {
             <button
               disabled={fetcher.state !== "idle"}
               type="button"
-              className="btn btn-destructive py-2 text-sm"
+              className="btn btn-destructive"
               onClick={() => {
                 if (!window.confirm("Delete milestone?")) return;
                 fetcher.submit(
@@ -150,7 +149,7 @@ export function Milestone(props: Props) {
                 media.value === "loading"
               }
               type="submit"
-              className="btn btn-primary py-2 text-sm"
+              className="btn btn-primary"
             >
               Save changes
             </button>

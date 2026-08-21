@@ -27,7 +27,8 @@
       "!packages/crypto/dist",
       "!packages/crypto/src/generated/tokens",
       "!packages/stocks/dist",
-      "!packages/stocks/src/generated"
+      "!packages/stocks/src/generated",
+      "!packages/ui/dist"
     ]
   },
   "linter": {

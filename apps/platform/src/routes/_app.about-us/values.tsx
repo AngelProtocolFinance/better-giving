@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
-import { ExtLink } from "#/components/ext-link";
 import { guidestar } from "#/constants/urls";
 
 const values = [
@@ -35,7 +35,7 @@ export function Values({ classes = "" }: IValues) {
           {values.map((v) => (
             <div
               key={v.title}
-              className="bg-card border border-border rounded-lg p-7 grid gap-2 content-start"
+              className="bg-card border border-border rounded p-7 grid gap-2 content-start"
             >
               <span className="text-xl font-bold">{v.title}</span>
               <p className="text-sm/relaxed text-muted-fg">{v.body}</p>

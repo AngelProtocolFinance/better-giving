@@ -1,4 +1,4 @@
-import { ContentLoader } from "#/components/content-loader";
+import { ContentLoader } from "@better-giving/ui";
 
 export function Skeleton() {
   return (

@@ -25,7 +25,7 @@ export function Badge({
 }: PropsWithChildren<IBadge>) {
   return (
     <span
-      className={`${classes} ${TONES[tone]} inline-flex items-center whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-medium`}
+      className={`${classes} ${TONES[tone]} inline-flex items-center whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium`}
     >
       {children}
     </span>

@@ -1,11 +1,10 @@
 import { Field as BaseField } from "@ark-ui/react/field";
+import { Field, Form as Frm, Increments } from "@better-giving/ui";
 import { DollarSign } from "lucide-react";
 import type { SubmitHandler } from "react-hook-form";
 import { useFetcher } from "react-router";
-import { Field, Form as Frm } from "#/components/form";
 import { GoalSelector, to_target } from "#/components/goal-selector";
 import { ImgEditor } from "#/components/img-editor";
-import { Increments } from "#/components/increments";
 import { RichText } from "#/components/rich-text";
 import { img_spec } from "#/pages/funds/common";
 import { Videos } from "#/pages/funds/common/videos";
@@ -222,7 +221,7 @@ export function Form({
           }}
           disabled={is_closing_fund}
           type="button"
-          className="btn btn-destructive text-sm font-medium px-4 py-2 justify-self-end"
+          className="btn btn-destructive font-medium justify-self-end"
         >
           {is_closing_fund ? "Closing.." : "Close fund"}
         </button>
@@ -231,7 +230,7 @@ export function Form({
             !rhf.isDirty || rhf.is_uploading || is_submitting || is_uploading
           }
           type="submit"
-          className="btn btn-primary text-sm font-medium px-4 py-2 justify-self-end"
+          className="btn btn-primary font-medium justify-self-end"
         >
           {is_submitting && !is_closing_fund ? "Updating..." : "Update fund"}
         </button>

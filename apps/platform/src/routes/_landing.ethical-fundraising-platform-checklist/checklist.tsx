@@ -135,7 +135,7 @@ export function Checklist({ classes = "" }: IChecklist) {
           {/* the count above says the same thing in words */}
           <div
             aria-hidden="true"
-            className="mt-2 h-1.5 overflow-hidden rounded-sm bg-muted"
+            className="mt-2 h-1.5 overflow-hidden rounded bg-muted"
           >
             <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
           </div>

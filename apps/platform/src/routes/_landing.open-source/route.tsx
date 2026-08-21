@@ -1,8 +1,7 @@
+import { ExtLink, Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { GITHUB_REPO } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
@@ -60,14 +59,14 @@ export default function Page() {
             <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
               <ExtLink
                 href={GITHUB_REPO}
-                className="btn btn-secondary gap-2 px-7 py-3.5"
+                className="btn btn-lg btn-secondary gap-2"
               >
                 View the repository
                 <ArrowRight className="size-4" />
               </ExtLink>
               <Link
                 to={href("/register")}
-                className="btn rounded px-7 py-3.5 border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
+                className="btn btn-lg rounded border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
               >
                 Join free forever
               </Link>
@@ -94,7 +93,7 @@ export default function Page() {
             {why.map((w) => (
               <div
                 key={w.title}
-                className="bg-accent border border-border rounded-lg p-8 grid gap-2.5 content-start"
+                className="bg-accent border border-border rounded p-8 grid gap-2.5 content-start"
               >
                 <span className="text-xl font-bold">{w.title}</span>
                 <p className="text-sm/relaxed text-muted-fg">{w.body}</p>

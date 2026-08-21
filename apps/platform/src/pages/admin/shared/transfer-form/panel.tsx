@@ -1,8 +1,8 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { InfoIcon, MoveLeft, MoveRight } from "lucide-react";
 import { useController, useForm } from "react-hook-form";
-import { Field } from "#/components/form";
 import { humanize } from "@/helpers/decimal";
 import { type Props, type Schema, schema } from "./types";
 
@@ -49,7 +49,9 @@ export function Panel(props: Props) {
             <p className=" justify-self-end">
               <span className="text-muted-fg text-xs mr-1">from</span>
               {source.value === "liq" ? (
-                <span className="text-warning font-semibold">Savings</span>
+                <span className="text-warning-subtle-fg font-semibold">
+                  Savings
+                </span>
               ) : (
                 <span className="text-success font-semibold">Investments</span>
               )}
@@ -83,7 +85,9 @@ export function Panel(props: Props) {
               {source.value === "liq" ? (
                 <span className="text-success font-semibold">Investments</span>
               ) : (
-                <span className="text-warning font-semibold">Savings</span>
+                <span className="text-warning-subtle-fg font-semibold">
+                  Savings
+                </span>
               )}
             </p>
           </div>
@@ -99,7 +103,7 @@ export function Panel(props: Props) {
         />
 
         {source.value && (
-          <div className="text-sm text-warning bg-warning/10 rounded p-2 mt-4">
+          <div className="text-sm text-warning-subtle-fg bg-warning-subtle rounded p-2 mt-4">
             <InfoIcon className="inline relative bottom-px" size={15} /> This
             operation is irreversible.{" "}
             {source.value === "liq"
@@ -112,7 +116,7 @@ export function Panel(props: Props) {
         <button
           type="submit"
           disabled={props.is_submitting || !isDirty}
-          className="text-sm btn-primary rounded p-4 font-bold mt-8"
+          className="btn btn-md btn-primary rounded mt-8"
         >
           {props.is_submitting ? "Submitting..." : "Submit"}
         </button>

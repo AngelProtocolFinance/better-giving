@@ -1,3 +1,4 @@
+import { to_usd } from "@better-giving/ui/helpers";
 import {
   Area,
   AreaChart,
@@ -8,7 +9,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { to_usd } from "#/helpers/to-usd";
 
 interface Point {
   year: string;

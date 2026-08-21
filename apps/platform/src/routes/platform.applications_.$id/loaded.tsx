@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { href, NavLink, Outlet } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import type { V2RecipientAccount } from "#/types/bank-details";
 import type { IReg } from "@/reg";
 import { Container } from "./container";
@@ -108,7 +108,7 @@ export default function Loaded(
       <div className="flex gap-x-3 justify-self-center sm:justify-self-end">
         <NavLink
           to={href("/platform/applications")}
-          className="px-4 py-1 min-w-24 text-sm btn btn-secondary"
+          className="min-w-24 btn btn-secondary"
         >
           Back
         </NavLink>
@@ -116,7 +116,7 @@ export default function Loaded(
           aria-disabled={!!prev_verdict}
           to={`rejected?org_name=${props.o_name}`}
           type="button"
-          className="px-4 py-1 min-w-24 text-sm btn btn-destructive"
+          className="min-w-24 btn btn-destructive"
           preventScrollReset
         >
           Reject
@@ -125,7 +125,7 @@ export default function Loaded(
           aria-disabled={!!prev_verdict}
           to={`approved?org_name=${props.o_name}`}
           type="button"
-          className="px-4 py-1 min-w-24 text-sm btn btn-success"
+          className="min-w-24 btn btn-success"
           preventScrollReset
         >
           Approve

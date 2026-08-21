@@ -1,9 +1,7 @@
+import { Field, LoadText, Select } from "@better-giving/ui";
 import type { SubmitHandler } from "react-hook-form";
 import { useFetcher, useNavigate } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Field } from "#/components/form";
-import { LoadText } from "#/components/load-text";
-import { Select } from "#/components/selector/select";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import {
   GRANT_STEP,
@@ -175,7 +173,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
       )}
       <button
         type="submit"
-        className="mt-8 py-3 px-8 w-full sm:w-auto btn btn-primary text-sm"
+        className="mt-8 w-full sm:w-auto btn btn-primary"
         disabled={fetcher.state !== "idle"}
       >
         <LoadText is_loading={fetcher.state === "submitting"}>

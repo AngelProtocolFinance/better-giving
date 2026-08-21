@@ -1,5 +1,5 @@
+import { Copier } from "@better-giving/ui";
 import { href } from "react-router";
-import { Copier } from "../copier";
 
 interface Props {
   classes?: string;

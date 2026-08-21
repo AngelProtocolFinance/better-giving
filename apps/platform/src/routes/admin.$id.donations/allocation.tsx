@@ -1,7 +1,7 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelp, HandCoins, Pencil, PiggyBank, Sprout } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import type { IAllocation } from "@/donations";
 
 interface Props {
@@ -13,7 +13,7 @@ export function Allocation(props: Props) {
   return (
     <div className={`grid rounded mt-4 ${props.classes ?? ""}`}>
       <div className="flex items-baseline gap-x-2 mb-1">
-        <h4 className="mb-1">Distribution</h4>
+        <h2 className="mb-1">Distribution</h2>
 
         <NavLink
           title="Edit allocation settings"

@@ -16,7 +16,7 @@ export function List({ classes = "", ...props }: Props) {
           disabled={props.disabled || props.loading}
           type="button"
           onClick={props.load_next}
-          className="col-span-full btn-secondary btn text-sm py-3"
+          className="col-span-full btn-secondary btn"
         >
           {props.loading ? "Loading..." : "Load more videos"}
         </button>

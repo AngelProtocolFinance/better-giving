@@ -1,8 +1,8 @@
+import { Copier } from "@better-giving/ui";
 import { ExternalLink, Lightbulb } from "lucide-react";
 import { useMemo } from "react";
 import { useParams } from "react-router";
 import type { ShikiTransformer } from "shiki";
-import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
   esc_attr,
@@ -16,7 +16,7 @@ const highlight_line = (lines: number[]): ShikiTransformer => ({
   name: "highlight-line",
   line(node, line) {
     if (lines.includes(line)) {
-      node.properties.class = "bg-yellow-500/20";
+      node.properties.class = "bg-warning/20";
     }
   },
 });
@@ -55,14 +55,14 @@ export default function WithBorder() {
     <div className="p-4 space-y-6 w-full min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-neutral-900">With Border</h1>
-        <p className="text-sm text-neutral-600 mt-1">
+        <h1 className="text-xl font-bold text-fg">With Border</h1>
+        <p className="text-sm text-muted-fg mt-1">
           Add a border to visually separate the form from surrounding content,
           especially useful when your site has a white background.
         </p>
         <a
           href="/demo-nonprofit#with-border"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mt-2"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
           <ExternalLink size={14} />
           See it in action on a demo page
@@ -70,13 +70,16 @@ export default function WithBorder() {
       </div>
 
       {/* Tip Note */}
-      <div className="flex gap-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm">
-        <Lightbulb size={18} className="text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-amber-800">
+      <div className="flex gap-3 p-3 bg-warning-subtle rounded text-sm">
+        <Lightbulb
+          size={18}
+          className="text-warning-subtle-fg shrink-0 mt-0.5"
+        />
+        <p className="text-warning-subtle-fg">
           Use a subtle border color like{" "}
-          <code className="bg-amber-100 px-1 rounded">lightgray</code> or{" "}
-          <code className="bg-amber-100 px-1 rounded">#e5e5e5</code> to blend
-          with most designs without being too prominent.
+          <code className="bg-card px-1 rounded">lightgray</code> or{" "}
+          <code className="bg-card px-1 rounded">#e5e5e5</code> to blend with
+          most designs without being too prominent.
         </p>
       </div>
 
@@ -89,17 +92,20 @@ export default function WithBorder() {
         style={{ border: "1px solid lightgray", maxWidth: "700px" }}
       />
 
-      <div className="rounded text-sm border border-neutral-200 overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-200">
+      <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
           <EmbedModeTabs />
-          <CopyButton text={code_snippet} />
+          <Copier
+            text={code_snippet}
+            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+          />
         </div>
         <HighlightedCode
           code={code_snippet}
           lang="html"
           transformers={transformers}
           className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-neutral-600"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
         />
       </div>
 

@@ -1,5 +1,5 @@
+import { DrawerIcon } from "@better-giving/ui";
 import { CircleAlertIcon, LoaderCircleIcon } from "lucide-react";
-import { DrawerIcon } from "../icon";
 import type { TTokenState } from "./types";
 
 export const btn_disp = (open: boolean, btn: TTokenState, classes?: string) => {

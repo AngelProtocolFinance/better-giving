@@ -1,6 +1,6 @@
+import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import laira_shake_hands_x2 from "#/assets/laira/laira-shaking-hands-x2.webp";
-import { Image } from "#/components/image";
 
 export function BottomCta({ className = "" }) {
   return (
@@ -28,7 +28,7 @@ export function BottomCta({ className = "" }) {
         <Image width={200} src={laira_shake_hands_x2} className="mt-4 mb-8" />
         <Link
           to={href("/register")}
-          className="btn btn-primary h-full flex items-center text-sm font-bold rounded px-6 py-2"
+          className="btn btn-primary flex items-center font-bold rounded"
         >
           Get Started
         </Link>

@@ -1,5 +1,5 @@
+import { Image } from "@better-giving/ui";
 import laira_pulling_woman_up from "#/assets/images/laira-pulling-woman-up.webp";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 
 interface IUnderdogLetter {

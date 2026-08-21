@@ -1,8 +1,8 @@
+import { Copier } from "@better-giving/ui";
 import { ExternalLink, Info } from "lucide-react";
 import { useMemo } from "react";
 import { useParams } from "react-router";
 import type { ShikiTransformer } from "shiki";
-import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
   esc_attr,
@@ -16,7 +16,7 @@ const highlight_line = (lines: number[]): ShikiTransformer => ({
   name: "highlight-line",
   line(node, line) {
     if (lines.includes(line)) {
-      node.properties.class = "bg-yellow-500/20";
+      node.properties.class = "bg-warning/20";
     }
   },
 });
@@ -55,14 +55,14 @@ export default function FlexibleWidth() {
     <div className="p-4 space-y-6 w-full min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-neutral-900">Flexible Width</h1>
-        <p className="text-sm text-neutral-600 mt-1">
+        <h1 className="text-xl font-bold text-fg">Flexible Width</h1>
+        <p className="text-sm text-muted-fg mt-1">
           The form adapts to fill the available width of its container, making
           it responsive across different screen sizes.
         </p>
         <a
           href="/demo-nonprofit#flexible-width"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mt-2"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
           <ExternalLink size={14} />
           See it in action on a demo page
@@ -70,13 +70,12 @@ export default function FlexibleWidth() {
       </div>
 
       {/* Info Note */}
-      <div className="flex gap-3 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-        <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
-        <p className="text-blue-800">
-          Set <code className="bg-blue-100 px-1 rounded">width: 100%</code> and
-          a <code className="bg-blue-100 px-1 rounded">max-width</code> to
-          ensure the form is responsive but doesn&apos;t stretch too wide on
-          large screens.
+      <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
+        <Info size={18} className="text-primary shrink-0 mt-0.5" />
+        <p className="text-secondary-fg">
+          Set <code className="bg-card px-1 rounded">width: 100%</code> and a{" "}
+          <code className="bg-card px-1 rounded">max-width</code> to ensure the
+          form is responsive but doesn&apos;t stretch too wide on large screens.
         </p>
       </div>
 
@@ -89,17 +88,20 @@ export default function FlexibleWidth() {
         style={{ maxWidth: "700px" }}
       />
 
-      <div className="rounded text-sm border border-neutral-200 overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-200">
+      <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
           <EmbedModeTabs />
-          <CopyButton text={code_snippet} />
+          <Copier
+            text={code_snippet}
+            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+          />
         </div>
         <HighlightedCode
           code={code_snippet}
           lang="html"
           transformers={transformers}
           className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-neutral-600"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
         />
       </div>
 

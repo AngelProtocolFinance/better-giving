@@ -1,8 +1,8 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { href, Link } from "react-router";
 import laira_shake_hands_x2 from "#/assets/laira/laira-shaking-hands-x2.webp";
 import laira_yellow from "#/assets/laira/laira-yellow.webp";
-import { Image } from "#/components/image";
 import { app_name } from "#/constants/env";
 
 export function Top({ classes = "" }) {
@@ -80,7 +80,7 @@ export function Top({ classes = "" }) {
           pathname: href("/signup"),
           search: `?redirect=${href("/dashboard/referrals")}`,
         }}
-        className="btn btn-primary mt-8 justify-self-center ml-1 font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
+        className="btn btn-lg btn-primary mt-8 justify-self-center ml-1 font-bold inline-flex items-center gap-1 rounded"
       >
         Become an Affiliate
         <ArrowRight size={18} />

@@ -1,6 +1,6 @@
+import { Field } from "@better-giving/ui";
 import { Form, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Field } from "#/components/form";
 import { company_name_max_length, type IEmployerFv } from "./schema";
 
 interface IEmployerForm {
@@ -74,7 +74,7 @@ export function EmployerForm({ init, filed }: IEmployerForm) {
       <button
         disabled={fetcher.state !== "idle"}
         type="submit"
-        className="btn btn-primary text-sm px-4 py-2 rounded mt-4 justify-self-end"
+        className="btn btn-primary rounded mt-4 justify-self-end"
       >
         Save
       </button>

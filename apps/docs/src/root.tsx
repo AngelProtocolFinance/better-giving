@@ -1,4 +1,5 @@
 import { socials } from "@better-giving/brand";
+import { ExtLink } from "@better-giving/ui";
 import {
   isRouteErrorResponse,
   Link,
@@ -53,62 +54,52 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 function Header() {
   return (
-    <header className="border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+    <header className="border-b px-6 py-4 flex items-center justify-between">
       <Link to="/" className="inline-flex items-center gap-3">
         <img src={logo} alt="Better Giving" width={150} height={40} />
       </Link>
-      <span className="text-sm font-medium text-neutral-500">Developer</span>
+      <span className="text-sm font-medium text-muted-fg">Developer</span>
     </header>
   );
 }
 
 function Footer() {
   return (
-    <footer className="border-t border-neutral-200 bg-neutral-50 px-6 py-8 mt-auto">
+    <footer className="border-t bg-muted px-6 py-8 mt-auto">
       <div className="max-w-4xl mx-auto flex flex-col items-center gap-4">
         <div className="flex items-center gap-4">
-          <a
+          <ExtLink
             href={socials.linkedin}
-            target="_blank"
-            rel="noopener noreferrer"
             className="hover:scale-110 transition-transform"
           >
             <img src={linkedin} alt="LinkedIn" width={20} height={20} />
-          </a>
-          <a
+          </ExtLink>
+          <ExtLink
             href={socials.facebook}
-            target="_blank"
-            rel="noopener noreferrer"
             className="hover:scale-110 transition-transform"
           >
             <img src={facebook} alt="Facebook" width={18} height={18} />
-          </a>
-          <a
+          </ExtLink>
+          <ExtLink
             href={socials.x}
-            target="_blank"
-            rel="noopener noreferrer"
             className="hover:scale-110 transition-transform"
           >
             <img src={x} alt="X" width={15} height={15} />
-          </a>
-          <a
+          </ExtLink>
+          <ExtLink
             href={socials.youtube}
-            target="_blank"
-            rel="noopener noreferrer"
             className="hover:scale-110 transition-transform"
           >
             <img src={youtube} alt="YouTube" width={21} height={21} />
-          </a>
-          <a
+          </ExtLink>
+          <ExtLink
             href={socials.instagram}
-            target="_blank"
-            rel="noopener noreferrer"
             className="hover:scale-110 transition-transform"
           >
             <img src={instagram} alt="Instagram" width={18} height={18} />
-          </a>
+          </ExtLink>
         </div>
-        <p className="text-sm text-neutral-500 text-center">
+        <p className="text-sm text-muted-fg text-center">
           © Copyright {new Date().getFullYear()} Better Giving, a registered
           charitable 501(c)(3) (EIN 87-3758939)
         </p>
@@ -126,16 +117,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h2 className="text-xl font-semibold text-neutral-900">
-            Page not found
-          </h2>
-          <p className="text-sm text-neutral-500">
+          <h2 className="text-xl font-semibold text-fg">Page not found</h2>
+          <p className="text-sm text-muted-fg">
             The page you're looking for doesn't exist.
           </p>
-          <Link
-            to="/"
-            className="inline-block px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
+          <Link to="/" className="btn btn-primary inline-flex">
             Go home
           </Link>
         </div>
@@ -148,16 +134,14 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center space-y-4">
-        <h2 className="text-xl font-semibold text-neutral-900">
-          Something went wrong
-        </h2>
-        <p className="text-sm text-neutral-500">
+        <h2 className="text-xl font-semibold text-fg">Something went wrong</h2>
+        <p className="text-sm text-muted-fg">
           An error occurred while loading this page.
         </p>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          className="btn btn-primary"
         >
           Try again
         </button>

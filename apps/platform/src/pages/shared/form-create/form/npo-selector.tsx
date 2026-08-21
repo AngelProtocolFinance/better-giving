@@ -1,7 +1,11 @@
 import { Combobox, createListCollection } from "@ark-ui/react/combobox";
+import {
+  DrawerIcon,
+  Info,
+  LoadingStatus,
+  ornament_end_cls,
+} from "@better-giving/ui";
 import { useMemo, useState } from "react";
-import { DrawerIcon } from "#/components/icon";
-import { Info, LoadingStatus } from "#/components/status";
 import { use_debounce } from "#/hooks/use-debounce";
 import type { INpoOpt } from "../api";
 
@@ -70,7 +74,7 @@ export function NpoSelector(p: Props) {
           className="field-input w-full"
         />
 
-        <Combobox.Trigger className="absolute top-4 right-4">
+        <Combobox.Trigger className={ornament_end_cls}>
           <DrawerIcon is_open={is_open} size={20} />
         </Combobox.Trigger>
 

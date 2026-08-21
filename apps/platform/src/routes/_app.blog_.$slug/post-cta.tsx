@@ -1,6 +1,6 @@
+import { ExtLink } from "@better-giving/ui";
 import type { POST_QUERY_RESULT } from "blog-types";
 import { urlFor } from "#/api/sanity";
-import { ExtLink } from "#/components/ext-link";
 
 // editor-picked per post, so every field past heading/link1 is optional.
 // shape defined in blog/schemaTypes/ctaType.ts.
@@ -38,7 +38,7 @@ export function PostCta({ cta }: IPostCta) {
             {cta.link1 && (
               <ExtLink
                 href={cta.link1.href}
-                className="text-primary border border-primary btn bg-card rounded px-8 py-3 @5xl:px-12 @5xl:py-6 @5xl:text-xl"
+                className="text-primary border border-primary btn btn-lg bg-card rounded"
               >
                 {cta.link1.label}
               </ExtLink>
@@ -46,7 +46,7 @@ export function PostCta({ cta }: IPostCta) {
             {cta.link2?.href && cta.link2.label && (
               <ExtLink
                 href={cta.link2.href}
-                className="btn rounded px-8 py-3 @5xl:px-12 @5xl:py-6 @5xl:text-xl border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
+                className="btn btn-lg rounded border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
               >
                 {cta.link2.label}
               </ExtLink>

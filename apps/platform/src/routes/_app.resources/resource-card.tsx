@@ -3,8 +3,8 @@ import { useState } from "react";
 import { type Resource, type ResourceType, TYPE_LABELS } from "./data";
 
 const badge_styles: Record<ResourceType, string> = {
-  templates: "bg-lilac/40 text-[#6b21a8] dark:bg-lilac/20 dark:text-lilac",
-  guides: "bg-success/10 text-success dark:text-success",
+  templates: "bg-muted text-muted-fg",
+  guides: "bg-success-subtle text-success-subtle-fg",
   whitepapers: "bg-secondary text-primary",
 };
 
@@ -45,7 +45,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
               set_pending(false);
             }
           }}
-          className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium"
+          className="btn btn-sm btn-primary gap-1.5"
         >
           <Download size={14} />
           {pending ? "Downloading..." : "Download"}
@@ -54,7 +54,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
           href={resource.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium border hover:bg-muted"
+          className="btn btn-sm btn-secondary gap-1.5"
         >
           <ExternalLink size={14} />
           View

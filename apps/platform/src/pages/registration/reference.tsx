@@ -1,7 +1,7 @@
+import { DrawerIcon } from "@better-giving/ui";
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelp } from "lucide-react";
 import { useState } from "react";
-import { DrawerIcon } from "#/components/icon";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 
 type Props = {
   id: string;

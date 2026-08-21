@@ -52,7 +52,7 @@ export function Pillars({ classes = "" }: IPillars) {
           {pillars.map((p) => (
             <div
               key={p.title}
-              className="bg-secondary rounded-lg p-8 flex flex-col gap-2.5"
+              className="bg-secondary rounded p-8 flex flex-col gap-2.5"
             >
               <span className="text-xl font-bold">{p.title}</span>
               <p className="text-sm/relaxed">{p.body}</p>
@@ -65,7 +65,7 @@ export function Pillars({ classes = "" }: IPillars) {
               </Link>
             </div>
           ))}
-          <div className="bg-primary rounded-lg p-8 flex flex-col gap-2.5 text-primary-fg">
+          <div className="bg-primary rounded p-8 flex flex-col gap-2.5 text-primary-fg">
             <span className="text-xl font-bold">
               Open source &amp; member-powered
             </span>

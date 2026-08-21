@@ -1,8 +1,8 @@
+import { Image } from "@better-giving/ui";
+import { to_usd } from "@better-giving/ui/helpers";
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelpIcon, TrendingDown, TrendingUp } from "lucide-react";
 import laira_coin from "#/assets/laira/laira-coin.webp";
-import { Image } from "#/components/image";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
-import { to_usd } from "#/helpers/to-usd";
 import type { View } from "./types";
 import { Usd } from "./usd";
 
@@ -101,7 +101,7 @@ export function Result1({ classes = "", ...v }: Props) {
       </div>
 
       <div
-        className={`${v.advantage > 0 ? "bg-success/10" : v.advantage < 0 ? "bg-destructive/10" : "bg-muted"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
+        className={`${v.advantage > 0 ? "bg-success-subtle" : v.advantage < 0 ? "bg-destructive-subtle" : "bg-muted"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
       >
         {v.advantage > 0 ? (
           <TrendingUp size={40} className="size-8 sm:size-10 text-success" />
@@ -115,7 +115,9 @@ export function Result1({ classes = "", ...v }: Props) {
           <p className="sm:text-lg font-bold text-balance">
             Annual Donation Processing Impact
           </p>
-          <Usd classes="text-lg font-bold">{v.advantage}</Usd>
+          <Usd tinted classes="text-lg font-bold">
+            {v.advantage}
+          </Usd>
         </div>
         {v.advantage > 0 && (
           <Image

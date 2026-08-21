@@ -1,8 +1,8 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { Heart } from "lucide-react";
 import { useState } from "react";
 import { use_user } from "#/hooks/use-user";
 import type { INpoBookmark } from "#/types/user";
-import { Arrow, Content, Tooltip } from "./tooltip";
 
 type Props = {
   classes?: string;
@@ -50,8 +50,8 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
       <button
         type="button"
         disabled={pending}
-        aria-label="Add to favorites button"
-        className={`flex items-center gap-1 disabled:text-muted-fg ${classes}`}
+        aria-label="Add to favorites"
+        className={`glyph-btn disabled:text-muted-fg ${classes}`}
         onClick={async () => {
           set_pending(true);
           await toggle_bookmark(npo, user);

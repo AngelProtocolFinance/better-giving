@@ -1,13 +1,16 @@
-import { Combobox } from "@ark-ui/react/combobox";
+import {
+  Combo,
+  Form as FieldSet,
+  type IPrompt,
+  Prompt,
+} from "@better-giving/ui";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
 import type { ICurrenciesFv } from "#/types/currency";
 import { ru_vdec } from "@/helpers/decimal";
-import { Form as FieldSet } from "../../../form";
-import { type IPrompt, Prompt } from "../../../prompt";
-import { btn_disp, TokenComboboxSync, TokenField } from "../../../token-field";
+import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
 import { Frequency, freqs_shown } from "../../common/frequency";
@@ -128,34 +131,43 @@ export function Form(props: TMethodState<"stripe">) {
     );
   };
 
+  // the popup portals to body, out of #donation-container, so it inherits none
+  // of the tenant palette — re-apply on the far side what the shell reads.
+  // --accent is the option row's highlight and --ring the scrollbar thumb;
+  // #donation-container points --ring at --form-primary for the same reason.
+  const popup_vars: Record<string, string | undefined> = {
+    "--form-primary": don.config?.accent_primary,
+    "--form-secondary": don.config?.accent_secondary,
+    "--accent": don.config?.accent_secondary,
+    "--ring": don.config?.accent_primary,
+  };
+
   const combobox = (
-    <TokenComboboxSync
-      classes="has-placeholder-shown:w-34 w-22"
-      disabled={currency.isLoading || currency.isValidating}
-      btn_disp={(open) => btn_disp(open, undefined)}
-      item_key={(t) => t.code}
-      item_label={(t) => t.code}
-      input_placeholder="Currency"
-      items={opts}
-      opt_disp={(t) => (
-        <Combobox.Item
-          key={t.code}
-          className="w-full text-sm grid grid-cols-[1fr_auto] items-center p-2 hover:bg-form-secondary data-highlighted:bg-form-secondary data-[state=checked]:font-semibold"
-          item={t}
-        >
-          {t.code}
-          <Combobox.ItemIndicator className="text-muted-fg">
-            <CheckIcon size={14} />
-          </Combobox.ItemIndicator>
-        </Combobox.Item>
-      )}
-      value={rhf.currency.value}
-      // reapply to portaled
-      opts_styles={{
-        "--form-primary": don.config?.accent_primary,
-        "--form-secondary": don.config?.accent_secondary,
+    <Combo
+      classes={{
+        container: "has-placeholder-shown:w-34 w-22",
+        // the box is TokenField's: this is the left cell of the
+        // field-input-container it shares with the amount input, and the focus
+        // ring is that container's too (`:has(input:focus)`) — a field box here
+        // would draw a second one inside it.
+        input: "w-full text-sm bg-transparent px-4 py-3.5 focus:outline-hidden",
       }}
-      on_change={async (t) => rhf.currency.onChange(t)}
+      disabled={currency.isLoading || currency.isValidating}
+      adornment={(open) => btn_disp(open, undefined)}
+      item_key={(t) => t.code}
+      item_text={(t) => t.code}
+      placeholder="Currency"
+      options={opts}
+      // the control is as narrow as a currency code; the list is not
+      popup_width="w-56"
+      indicator={<CheckIcon size={14} className="text-muted-fg" />}
+      popup_vars={popup_vars}
+      value={rhf.currency.value}
+      // the schema has no empty currency, and the seam only emits undefined
+      // from a clear trigger this control doesn't offer
+      on_change={(t) => {
+        if (t) rhf.currency.onChange(t);
+      }}
     />
   );
 

@@ -13,7 +13,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
           Two places your money grows
         </h2>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
-          <div className="bg-accent border border-border rounded-lg p-9 grid gap-3.5 content-start">
+          <div className="bg-accent border border-border rounded p-9 grid gap-3.5 content-start">
             <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
               No market risk
             </span>
@@ -30,14 +30,14 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
               within 5 working days whenever you need them.
             </p>
           </div>
-          <div className="bg-primary rounded-lg p-9 grid gap-3.5 content-start">
+          <div className="bg-primary rounded p-9 grid gap-3.5 content-start">
             <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-primary-fg/15 text-primary-fg rounded-full px-3 py-1.5">
               Long-term growth
             </span>
             <h3 className="text-2xl font-bold text-primary-fg">
               Sustainability Fund
             </h3>
-            <span className="text-4xl font-bold text-warning">
+            <span className="text-4xl font-bold text-primary-fg">
               ~11%{" "}
               <span className="text-base font-normal text-primary-fg/90">
                 avg. annual return, past 5 yrs*

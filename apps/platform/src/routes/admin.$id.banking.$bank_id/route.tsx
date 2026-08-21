@@ -1,7 +1,7 @@
+import { ExtLink } from "@better-giving/ui";
 import { CircleAlert, SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { NavLink, Outlet, useFetcher } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import type { Route } from "./+types/route";
 
 export { ErrorBoundary } from "#/components/error";
@@ -71,10 +71,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
         method="POST"
         className="flex max-sm:flex-col gap-1 sm:gap-3 mt-4 sm:justify-self-end"
       >
-        <NavLink
-          to={"../banking"}
-          className="px-4 py-1 min-w-24 text-sm btn btn-secondary"
-        >
+        <NavLink to={"../banking"} className="min-w-24 btn btn-secondary">
           Back
         </NavLink>
         <NavLink
@@ -86,7 +83,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
               default: is_default.toString(),
             }).toString(),
           }}
-          className="px-4 py-1 min-w-24 text-sm btn btn-destructive"
+          className="min-w-24 btn btn-destructive"
         >
           Delete
         </NavLink>
@@ -95,7 +92,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
             fetcher.state === "submitting" || is_default || !is_approved
           }
           type="submit"
-          className="px-4 py-1 min-w-24 text-sm btn btn-primary"
+          className="min-w-24 btn btn-primary"
         >
           {fetcher.state === "submitting" ? "Setting..." : "Set Default"}
         </button>

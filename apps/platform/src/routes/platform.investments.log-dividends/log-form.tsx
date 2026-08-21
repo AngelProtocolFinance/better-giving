@@ -1,7 +1,7 @@
+import { Field, Form, toYYYMMDD } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { href } from "react-router";
-import { Field, Form, toYYYMMDD } from "#/components/form";
 import type { IDividendSimulComps } from "@/nav";
 import { dividend_log_fv, type IDividendLogFv as FV } from "@/nav/schemas";
 

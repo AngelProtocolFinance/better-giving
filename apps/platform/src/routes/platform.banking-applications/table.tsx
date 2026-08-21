@@ -107,14 +107,14 @@ export function Table({
 
 const dot_color: Record<TStatus, string> = {
   approved: "bg-success",
-  "under-review": "bg-amber-400",
+  "under-review": "bg-warning",
   rejected: "bg-destructive",
   default: "bg-primary",
 };
 
 const text_color: Record<TStatus, string> = {
   approved: "text-success",
-  "under-review": "text-amber-600 dark:text-amber-400",
+  "under-review": "text-warning-subtle-fg",
   rejected: "text-destructive",
   default: "text-primary",
 };

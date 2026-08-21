@@ -9,7 +9,7 @@ export function DonateButton({ classes = "", id }: Props) {
   return (
     <NavLink
       to={href("/donate/:id", { id: id.toString() })}
-      className={`${classes} btn btn-primary h-12 px-6 lg:text-sm`}
+      className={`${classes} btn btn-primary`}
     >
       Donate now
     </NavLink>

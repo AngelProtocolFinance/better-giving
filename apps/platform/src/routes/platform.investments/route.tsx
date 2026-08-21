@@ -130,7 +130,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           preventScrollReset
           to="rebalance"
-          className="btn-primary text-xs px-2 py-1 roundes-xs"
+          className="btn btn-sm btn-primary rounded"
         >
           Rebalance
         </NavLink>
@@ -138,7 +138,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           preventScrollReset
           to="log-dividends"
-          className="btn-success text-xs px-2 py-1 roundes-xs"
+          className="btn btn-sm btn-success rounded"
         >
           Dividend
         </NavLink>

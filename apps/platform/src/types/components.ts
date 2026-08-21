@@ -1,6 +1,5 @@
 //token selector
 import * as v from "valibot";
-import type { ICurrencyFv } from "#/types/currency";
 import { donate_method_id } from "@/npo/schema";
 
 //selector
@@ -16,9 +15,6 @@ const wise_currency_option = v.object({
 export interface WiseCurrencyOption
   extends v.InferOutput<typeof wise_currency_option> {}
 
-export type CurrencyOption =
-  | ICurrencyFv
-  | { name: string; code: string; rate: null };
 /**
  * Rich text strings contain not only the user input itself, but is a
  * stringified object that describes the styling of particular parts of
@@ -60,10 +56,6 @@ export interface QueryState<T> {
   is_error: boolean;
 }
 
-/** query loader */
-export function is_query<T>(val: T | QueryState<T>): val is QueryState<T> {
-  return "is_loading" in (val as any) && "is_fetching" in (val as any);
-}
 export type RichTextContent = v.InferOutput<
   ReturnType<typeof richtext_content>
 >;

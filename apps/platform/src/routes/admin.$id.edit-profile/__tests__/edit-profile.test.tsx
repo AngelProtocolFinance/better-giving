@@ -52,7 +52,7 @@ vi.mock("#/.server/funds", () => ({
 
 // --- imports (after mocks hoisted) ---
 
-import { Target, to_target } from "#/components/target";
+import { Target, to_target } from "@better-giving/ui";
 import MarketplacePage, {
   loader as marketplace_loader,
 } from "#/routes/_app.marketplace/route";

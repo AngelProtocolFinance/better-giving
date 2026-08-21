@@ -31,7 +31,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
   return (
     <div className="space-y-3">
       {/* Row 1: Color Picker | Radius Slider with value */}
-      <div className="flex items-center gap-6 text-sm text-neutral-600 border-b pb-4 border-neutral-200">
+      <div className="flex items-center gap-6 text-sm text-muted-fg border-b pb-4">
         <div className="inline-flex items-center gap-2">
           <ColorPicker
             color={config.button_bg}
@@ -44,7 +44,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
 
         <div className="inline-flex items-center gap-2">
           <span>Border radius</span>
-          <div className="inline-flex border border-neutral-200 rounded overflow-hidden">
+          <div className="inline-flex border rounded overflow-hidden">
             {(Object.keys(RADIUS_PRESETS) as RadiusPreset[]).map((preset) => (
               <button
                 key={preset}
@@ -54,8 +54,8 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
                 }
                 className={`p-1.5 transition-colors ${
                   config.button_radius === preset
-                    ? "bg-neutral-100 text-neutral-900"
-                    : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
+                    ? "bg-accent text-fg"
+                    : "text-muted-fg hover:text-fg hover:bg-accent"
                 }`}
                 title={preset}
               >
@@ -92,7 +92,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
         }}
         handleComponent={{
           bottomRight: (
-            <div className="w-3 h-3 bg-neutral-400 rounded absolute -bottom-1 -right-1 opacity-50 hover:opacity-100 transition-opacity cursor-nwse-resize" />
+            <div className="w-3 h-3 bg-muted-fg rounded absolute -bottom-1 -right-1 opacity-50 hover:opacity-100 transition-opacity cursor-nwse-resize" />
           ),
         }}
       >
@@ -110,7 +110,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
       </Resizable>
 
       {/* Row 3: Size indicator */}
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm text-muted-fg">
         {config.button_width} × {config.button_height}
       </p>
 

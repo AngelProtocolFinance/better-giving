@@ -1,5 +1,5 @@
+import { ExtLink } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { ExtLink } from "#/components/ext-link";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface IHero {
@@ -24,10 +24,10 @@ export function Hero({ classes = "" }: IHero) {
           two "join free forever" buttons a screen apart is one too many. the
           demo link moves inside the form to keep that door open. */}
       <div className="max-lg:hidden flex flex-wrap gap-3.5 mt-7">
-        <Link to={href("/register")} className="btn btn-primary px-7 py-3.5">
+        <Link to={href("/register")} className="btn btn-lg btn-primary">
           Join free forever
         </Link>
-        <ExtLink href={BOOK_A_DEMO} className="btn btn-secondary px-7 py-3.5">
+        <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
           Book a demo
         </ExtLink>
       </div>

@@ -9,13 +9,13 @@ export function AuthBtns({ classes = "", to }: Props) {
     <div className={`${classes} flex items-center gap-x-4`}>
       <Link
         to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-        className="btn-secondary font-semibold text-nowrap px-6 py-2 rounded"
+        className="btn btn-secondary text-nowrap rounded"
       >
         Log In
       </Link>
       <Link
         to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
-        className="btn-primary font-semibold text-nowrap px-6 py-2 rounded"
+        className="btn btn-primary text-nowrap rounded"
       >
         Join Us Today!
       </Link>

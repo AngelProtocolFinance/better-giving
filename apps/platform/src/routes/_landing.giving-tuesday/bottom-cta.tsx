@@ -16,13 +16,13 @@ export function BottomCta({ className = "" }) {
       <div className="flex flex-col md:flex-row justify-center items-center gap-6 mb-12">
         <Link
           to={href("/register")}
-          className="btn btn-primary font-bold rounded px-8 py-3 md:px-10 md:py-4"
+          className="btn btn-lg btn-primary font-bold rounded"
         >
           Join us today!
         </Link>
         <Link
           to={href("/product")}
-          className="btn btn-secondary font-bold rounded px-8 py-3 md:px-10 md:py-4"
+          className="btn btn-lg btn-secondary font-bold rounded"
         >
           Learn How It Works
         </Link>

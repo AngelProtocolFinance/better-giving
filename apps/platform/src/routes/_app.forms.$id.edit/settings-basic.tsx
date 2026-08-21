@@ -1,12 +1,11 @@
 import { Field as BaseField } from "@ark-ui/react/field";
+import { Field, Form, Increments } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { DollarSign } from "lucide-react";
 import { useController, useFieldArray, useForm } from "react-hook-form";
 import { DonateFrequencies } from "#/components/donate-frequencies";
 import { DonateMethods } from "#/components/donate-methods";
-import { Field, Form } from "#/components/form";
 import { GoalSelector } from "#/components/goal-selector";
-import { Increments } from "#/components/increments";
 import { bg_accent_primary, bg_accent_secondary } from "#/styles/colors";
 import { increment_label_max_chars } from "@/schemas";
 import { type FVBasic, schema_basic } from "./types";
@@ -179,7 +178,7 @@ export function SettingsBasic({
       <button
         disabled={!isDirty}
         type="submit"
-        className="mt-6 justify-self-end btn btn-primary text-sm px-4 py-2"
+        className="mt-6 justify-self-end btn btn-primary"
       >
         {isSubmitting ? "Saving.." : "Save"}
       </button>

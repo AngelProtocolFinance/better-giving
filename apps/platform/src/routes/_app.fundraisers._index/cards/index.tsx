@@ -18,7 +18,7 @@ export function Cards({ classes = "", ...props }: Props) {
       {props.load_next && (
         <button
           type="button"
-          className="col-span-full btn btn-primary rounded p-2 text-sm w-full mt-6"
+          className="col-span-full btn btn-primary rounded w-full mt-6"
           onClick={props.load_next}
           disabled={props.loading}
         >

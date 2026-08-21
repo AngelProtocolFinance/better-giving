@@ -1,7 +1,7 @@
+import { CheckField, Field } from "@better-giving/ui";
 import { useState } from "react";
 import { Form, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { CheckField, Field } from "#/components/form";
 import { from_msg_max_length, type ITribute } from "@/donations/schema";
 import type { TributeFv } from "./schema";
 
@@ -91,7 +91,7 @@ export function TributeForm({ classes = "", init }: Props) {
           fetcher.state !== "idle" || (!!init?.full_name && !!init.notif)
         }
         type="submit"
-        className="btn btn-primary text-sm px-4 py-2 rounded mt-4 justify-self-end"
+        className="btn btn-primary rounded mt-4 justify-self-end"
       >
         Submit
       </button>

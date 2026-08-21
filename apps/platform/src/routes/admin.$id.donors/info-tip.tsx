@@ -1,5 +1,5 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon } from "lucide-react";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 
 interface IProps {
   label: string;

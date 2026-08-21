@@ -1,7 +1,5 @@
+import { Copier, ExtLink, Image } from "@better-giving/ui";
 import laira_waiving from "#/assets/laira/laira-waiving.webp";
-import { Copier } from "#/components/copier";
-import { ExtLink } from "#/components/ext-link";
-import { Image } from "#/components/image";
 
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";

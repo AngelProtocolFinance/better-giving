@@ -17,7 +17,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
 
       <Link
         to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-        className="flex-center mt-9 w-full btn-primary h-12 sm:h-[52px] rounded sm:text-lg font-bold"
+        className="btn btn-lg btn-primary mt-9 w-full rounded"
       >
         Continue to Sign in
       </Link>

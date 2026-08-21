@@ -91,11 +91,7 @@ function Content({ on_close }: { on_close: () => void }) {
         <p className="text-sm text-muted-fg mb-4">
           Settlement for ${form.net} to {recipients} has been recorded.
         </p>
-        <button
-          type="button"
-          onClick={on_close}
-          className="btn btn-primary px-8 py-2 text-sm"
-        >
+        <button type="button" onClick={on_close} className="btn btn-primary">
           Close
         </button>
       </div>

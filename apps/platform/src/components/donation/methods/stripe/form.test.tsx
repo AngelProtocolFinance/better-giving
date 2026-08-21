@@ -410,12 +410,16 @@ describe("Stripe form: initial load", () => {
       .element(screen.getByRole("option", { name: "EUR" }))
       .toBeVisible();
 
-    // type "EU" → sync client-side filter via Combobox.useFilter, USD drops out
+    // type "EU" → the seam's client-side filter narrows to EUR, and the
+    // selected USD is rehydrated alongside it: a selection the query drops has
+    // no label left for the input to fall back to (`internal/use-collection`)
     await screen.getByRole("combobox").fill("EU");
     await expect
       .element(screen.getByRole("option", { name: "EUR" }))
       .toBeVisible();
-    expect(screen.getByRole("option", { name: "USD" }).query()).toBeNull();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
 
     // select EUR → input syncs to itemToStringLabel
     await screen.getByRole("option", { name: "EUR" }).click();

@@ -1,7 +1,7 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon, RefreshCw, SparklesIcon } from "lucide-react";
 import { useMemo } from "react";
-import { Amount } from "#/components/amount";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
+import { Money } from "#/components/money";
 import { app_name } from "#/constants/env";
 import { toPP } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
@@ -126,7 +126,7 @@ export function GiftsTable({ dists, subs }: IProps) {
               </td>
               <td>
                 {d.amount != null && d.amount_usd != null ? (
-                  <Amount
+                  <Money
                     amount={+d.amount}
                     currency={d.amount_denom}
                     amount_usd={+d.amount_usd}

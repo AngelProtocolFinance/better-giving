@@ -30,15 +30,16 @@ describe("FsaForm focus-on-error", () => {
 
     await screen.getByRole("button", { name: /sign/i }).click();
 
-    // RHF setFocus targets the FileDropzone Root (a focusable div via
-    // tabIndex=-1). Browser scroll-into-view + scroll-mt-24 lift it
-    // above the sticky header.
+    // focus-on-error lands on the drop area, the part that is role=button and
+    // carries the name derived from the visible label — the root announces
+    // nothing, and the hidden input is aria-hidden by zag's own design.
     await vi.waitFor(() => {
       const active = document.activeElement;
       const dropzone = screen.container.querySelectorAll(
-        "[data-scope='file-upload'][data-part='root']"
+        "[data-scope='file-upload'][data-part='dropzone']"
       )[0];
       expect(active).toBe(dropzone);
+      expect(active?.getAttribute("aria-label")).toBe("Government issued ID");
     });
   });
 });

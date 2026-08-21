@@ -1,8 +1,7 @@
+import { ExtLink, Field, Form } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { InfoIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { ExtLink } from "#/components/ext-link";
-import { Field, Form } from "#/components/form";
 import { type FVAdv, schema_adv } from "./types";
 
 interface Props extends FVAdv {
@@ -51,19 +50,19 @@ export function SettingsAdv({
           <p className="text-sm mb-2">
             The URL to redirect to after a successful donation. Donation
             information such as{" "}
-            <code className="text-xs text-warning bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
               donor_name
             </code>
             ,{" "}
-            <code className="text-xs text-warning bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
               donation_amount
             </code>
             ,{" "}
-            <code className="text-xs text-warning bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
               donation_currency
             </code>
             , and{" "}
-            <code className="text-xs text-warning bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
               payment_method
             </code>{" "}
             would be included on the{" "}
@@ -86,7 +85,7 @@ export function SettingsAdv({
       <button
         disabled={!isDirty}
         type="submit"
-        className="justify-self-end mt-6 btn btn-primary text-sm px-4 py-2"
+        className="justify-self-end mt-6 btn btn-primary"
       >
         {isSubmitting ? "Saving.." : "Save"}
       </button>

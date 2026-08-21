@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { useLocation } from "react-router";
 import laira_pointing from "#/assets/laira/laira-pointing.webp";
-import { Image } from "#/components/image";
 import { benefits } from "#/content/benefits";
 
 export function Top({ className = "" }) {
@@ -43,7 +43,7 @@ export function Top({ className = "" }) {
               const dest = document.getElementById("register-nonprofit");
               dest?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="btn btn-primary ml-1 font-bold inline-flex items-center px-10 py-3 gap-1 rounded text-lg"
+            className="btn btn-lg btn-primary ml-1 font-bold inline-flex items-center gap-1 rounded"
           >
             Register Your Nonprofit Now
             <ArrowRight size={18} />

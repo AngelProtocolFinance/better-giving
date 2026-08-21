@@ -33,7 +33,7 @@ function Page({ loaderData: d }: Route.ComponentProps) {
             Accept donations from your website today!
           </p>
         </div>
-        <NavLink to="create" className="btn btn-primary text-sm px-4 py-2">
+        <NavLink to="create" className="btn btn-primary">
           Create Form
         </NavLink>
       </div>

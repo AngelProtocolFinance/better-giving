@@ -1,6 +1,6 @@
+import { Target, to_target } from "@better-giving/ui";
 import { href, Link, NavLink } from "react-router";
 import { to_text } from "#/components/rich-text";
-import { Target, to_target } from "#/components/target";
 import type { IFundItem } from "@/fundraiser";
 
 interface Props {
@@ -51,7 +51,7 @@ function Fund(props: IFundItem) {
         to={href("/fundraisers/:fund_id/donate", {
           fund_id: props.id,
         })}
-        className="btn btn-primary text-xs w-full col-span-full mt-4"
+        className="btn btn-primary w-full col-span-full mt-4"
       >
         Donate
       </NavLink>

@@ -1,7 +1,7 @@
+import { Image } from "@better-giving/ui";
 import laira_laptop from "#/assets/laira/laira-laptop.webp";
 import laira_presentation from "#/assets/laira/laira-presentation.webp";
 import laira_shake_hands from "#/assets/laira/laira-shaking-hands.webp";
-import { Image } from "#/components/image";
 import { Video, videos } from "#/components/video/video";
 
 type TListItem = {

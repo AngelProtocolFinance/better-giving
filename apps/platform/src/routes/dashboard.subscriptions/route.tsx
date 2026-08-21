@@ -1,8 +1,8 @@
+import { Info } from "@better-giving/ui";
 import { format } from "date-fns";
 import { href, Link, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Amount } from "#/components/amount";
-import { Info } from "#/components/status";
+import { Money } from "#/components/money";
 import type { TInterval } from "@/subscriptions";
 import type { Route } from "./+types/route";
 import { SubStatus } from "./sub-status";
@@ -61,7 +61,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
           </Link>
         </td>
         <td className="text-sm">
-          <Amount
+          <Money
             amount={s.amount}
             currency={s.currency}
             amount_usd={s.amount_usd}
@@ -87,7 +87,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
           {can_cancel ? (
             <Link
               to={`cancel/${s.id}`}
-              className="inline-block px-2 py-1 rounded text-xs font-bold uppercase text-destructive hover:bg-destructive/10 active:bg-destructive/20"
+              className="inline-block px-2 py-1 rounded text-xs font-bold uppercase text-destructive-subtle-fg hover:bg-destructive-subtle active:bg-destructive-subtle-active"
             >
               Cancel
             </Link>

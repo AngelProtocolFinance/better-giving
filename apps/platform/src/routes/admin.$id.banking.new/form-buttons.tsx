@@ -1,5 +1,5 @@
+import { LoadText } from "@better-giving/ui";
 import type { FormButtonsProps } from "#/components/bank-details/types";
-import { LoadText } from "#/components/load-text";
 
 export function FormButtons({
   disabled = false,
@@ -10,7 +10,7 @@ export function FormButtons({
       <button
         disabled={disabled || isSubmitting}
         type="submit"
-        className="px-6 btn btn-primary gap-1 text-sm w-full md:w-80"
+        className="btn btn-primary gap-1 w-full md:w-80"
       >
         <LoadText is_loading={isSubmitting}>Submit</LoadText>
       </button>

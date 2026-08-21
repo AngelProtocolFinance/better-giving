@@ -52,13 +52,13 @@ export function WhyBg() {
           {cards.map((card, i) => (
             <motion.div
               key={card.title}
-              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 grid content-start gap-3"
+              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
-              <div className="size-12 rounded-lg bg-white/15 flex-center">
+              <div className="size-12 rounded bg-white/15 flex-center">
                 <card.icon size={24} />
               </div>
               <h3 className="text-xl font-bold">{card.title}</h3>

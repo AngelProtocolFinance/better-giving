@@ -1,0 +1,11 @@
+/* entry for this package's own standalone build (see package.json `build`) —
+   not part of the public export map. adds the `tailwindcss` import that
+   ./index.css deliberately withholds, so `@tailwindcss/cli` compiles a full
+   stylesheet scanned over this package's own src/.
+
+   the artifact (dist/styles.css) exists for the design-sync tooling, which is
+   bounded to the synced package's own directory and so cannot read platform's
+   hashed build output. app consumers do NOT use it — they import ./index.css
+   as source and compile it in their own tailwind pass. */
+@import "tailwindcss";
+@import "./index.css";

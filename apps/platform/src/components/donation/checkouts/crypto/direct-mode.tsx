@@ -1,11 +1,10 @@
+import { ContentLoader, type IPrompt, Prompt } from "@better-giving/ui";
 import { useState } from "react";
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
 import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
 import { ru_vdec } from "@/helpers/decimal";
-import { ContentLoader } from "../../../content-loader";
-import { type IPrompt, Prompt } from "../../../prompt";
 import { QueryLoader } from "../../../query-loader";
 import { ContinueBtn } from "../../common/continue-btn";
 import { use_donation_redirect } from "../../common/redirect";

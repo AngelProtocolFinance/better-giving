@@ -1,8 +1,8 @@
+import { Target, to_target } from "@better-giving/ui";
 import { fromUnixTime } from "date-fns";
 import { LoaderCircle, Split } from "lucide-react";
 import { href, Link, NavLink, useFetcher } from "react-router";
 import { FundCreator, FundStatus, status_fn } from "#/components/fundraiser";
-import { Target, to_target } from "#/components/target";
 import type { IFundItem } from "@/fundraiser";
 
 interface Props extends IFundItem {
@@ -33,7 +33,7 @@ export const FundItem = (props: Props) => {
             active: "",
             inactive: "bg-destructive-subtle text-destructive-subtle-fg",
             expired: "bg-muted text-muted-fg",
-            completed: "bg-success/10 text-success",
+            completed: "bg-success-subtle text-success-subtle-fg",
           }}
         />
       </div>
@@ -87,7 +87,7 @@ export const FundItem = (props: Props) => {
         )}
         <NavLink
           aria-disabled={!status.active}
-          className={`btn btn btn-primary rounded text-xs px-6 py-2 ${
+          className={`btn btn btn-primary rounded ${
             props.isEditor ? "" : "invisible"
           }`}
           to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}

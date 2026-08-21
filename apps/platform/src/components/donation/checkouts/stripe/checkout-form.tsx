@@ -1,3 +1,4 @@
+import { type IPrompt, LoadText, Prompt } from "@better-giving/ui";
 import {
   PaymentElement,
   useElements,
@@ -7,8 +8,6 @@ import { type FormEventHandler, useState } from "react";
 import { error_prompt, user_error_prompt } from "#/helpers/error-prompt";
 import type { IDonationIntent } from "@/donations";
 import { ErrorTrigger } from "../../../error";
-import { LoadText } from "../../../load-text";
-import { type IPrompt, Prompt } from "../../../prompt";
 import { use_donation_redirect } from "../../common/redirect";
 import {
   donation_return_url,

@@ -1,7 +1,7 @@
+import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { format } from "date-fns";
 import { Info } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
-import { Arrow, Content, Tooltip } from "#/components/tooltip";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { IPayout } from "@/referrals/interface";

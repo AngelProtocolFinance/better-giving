@@ -1,6 +1,6 @@
+import { Info } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Info } from "#/components/status";
 import type { Route } from "./+types/route";
 import { Fund } from "./fund";
 
@@ -24,10 +24,7 @@ function Page({ loaderData: { funds } }: Route.ComponentProps) {
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex items-center justify-between mb-2 w-full border-b pb-4">
         <h3 className="text-3xl">My Fundraisers</h3>
-        <Link
-          to={href("/fundraisers/new")}
-          className="btn btn-primary text-sm px-6 py-2 rounded"
-        >
+        <Link to={href("/fundraisers/new")} className="btn btn-primary rounded">
           Create
         </Link>
       </div>

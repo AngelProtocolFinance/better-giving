@@ -32,9 +32,9 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             Route any share of your donations into two places money grows:
           </p>
           <div className="grid gap-3.5">
-            <div className="flex gap-3.5 items-start bg-card border border-border rounded-lg px-5 py-4.5">
+            <div className="flex gap-3.5 items-start bg-card border border-border rounded px-5 py-4.5">
               <span
-                className="flex-none size-9.5 rounded-md bg-secondary grid place-items-center font-bold"
+                className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
               >
                 %
@@ -47,9 +47,9 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3.5 items-start bg-card border border-border rounded-lg px-5 py-4.5">
+            <div className="flex gap-3.5 items-start bg-card border border-border rounded px-5 py-4.5">
               <span
-                className="flex-none size-9.5 rounded-md bg-secondary grid place-items-center font-bold"
+                className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
               >
                 ↗
@@ -70,7 +70,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </p>
         </div>
 
-        <div className="bg-card rounded-lg p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
+        <div className="bg-card rounded p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
           <span className="text-lg font-bold">
             Sustainability Fund target allocation
           </span>
@@ -95,7 +95,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             {allocation.map((a) => (
               <span key={a.label} className="flex items-center gap-2">
                 <span
-                  className={`size-3 rounded-sm ${a.swatch} inline-block`}
+                  className={`size-3 rounded ${a.swatch} inline-block`}
                   aria-hidden
                 />
                 {a.pct} {a.label}

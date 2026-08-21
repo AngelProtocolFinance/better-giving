@@ -1,6 +1,5 @@
+import { Image, LoaderRing } from "@better-giving/ui";
 import { Link, useFetcher } from "react-router";
-import { Image } from "#/components/image";
-import { LoaderRing } from "#/components/loader-ring";
 import { routes } from "#/pages/admin/routes";
 import type { IProgramDb } from "@/npo";
 
@@ -35,13 +34,13 @@ export function Program(props: IProgramDb) {
             type="submit"
             name="programId"
             value={props.id}
-            className="btn-secondary btn w-24 py-2 text-sm @lg:ml-auto"
+            className="btn-secondary btn w-24 @lg:ml-auto"
           >
             delete
           </button>
           <Link
             to={`../${routes.program_editor}/${props.id}`}
-            className="btn-secondary btn w-24 py-2 text-sm"
+            className="btn-secondary btn w-24"
           >
             edit
           </Link>

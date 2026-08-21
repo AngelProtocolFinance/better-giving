@@ -1,9 +1,9 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
+import { Copier } from "@better-giving/ui";
 import { BuildingIcon, CheckCircle2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Form, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { Copier } from "#/components/copier";
 import { emails } from "@/constants/common";
 import { to_utc_day } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";
@@ -240,7 +240,7 @@ function FiledBtn({ filed }: IFiledBtn) {
       <button
         disabled={fetcher.state !== "idle"}
         type="submit"
-        className="btn btn-secondary text-sm px-4 py-2 rounded mt-4 justify-self-end"
+        className="btn btn-secondary rounded mt-4 justify-self-end"
       >
         I've filed this with my employer
       </button>

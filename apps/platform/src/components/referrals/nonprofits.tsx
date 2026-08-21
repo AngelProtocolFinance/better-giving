@@ -1,8 +1,8 @@
+import { Info } from "@better-giving/ui";
 import { format } from "date-fns";
 import { href, Link } from "react-router";
 import type { Referred } from "#/types/referrals";
 import { humanize } from "@/helpers/decimal";
-import { Info } from "../status";
 
 interface Props {
   classes?: string;

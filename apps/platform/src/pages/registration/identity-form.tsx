@@ -1,15 +1,18 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
+import {
+  Combo,
+  DrawerIcon,
+  Field,
+  LoadText,
+  MaskedInput,
+} from "@better-giving/ui";
+import { ein } from "@better-giving/ui/masks";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { ReactNode } from "react";
 import { useController } from "react-hook-form";
 import type { FetcherWithComponents } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { use_submit_event } from "#/analytics";
-import { Combo } from "#/components/combo";
-import { Field, MaskedInput } from "#/components/form";
-import { ein } from "#/components/form/masks";
-import { DrawerIcon } from "#/components/icon";
-import { LoadText } from "#/components/load-text";
 import {
   countries as cmap,
   country_names as cnames,
@@ -23,7 +26,7 @@ const org_type_opts = [
 ] as const;
 
 const seg_opt =
-  "flex-1 flex items-center justify-center text-center text-sm font-bold rounded-sm px-3 py-2.5 select-none cursor-pointer hover:not-data-[state=checked]:bg-accent data-[state=checked]:bg-primary data-[state=checked]:text-primary-fg";
+  "flex-1 flex items-center justify-center text-center text-sm font-bold rounded px-3 py-2.5 select-none cursor-pointer hover:not-data-[state=checked]:bg-accent data-[state=checked]:bg-primary data-[state=checked]:text-primary-fg";
 
 interface IIdentityForm {
   /** owned by the caller so it can read `duplicate` off `fetcher.data` and
@@ -119,6 +122,7 @@ export function IdentityForm({
             mask={ein}
             value={ein.format(o_ein.value)}
             onChange={o_ein.onChange}
+            onBlur={o_ein.onBlur}
             inputMode="numeric"
             label="Employer Identification Number (EIN)"
             required
@@ -131,31 +135,27 @@ export function IdentityForm({
           <>
             <Combo
               ref={country.ref}
-              value={country.value}
-              onChange={country.onChange}
+              value={country.value || undefined}
+              on_change={(c) => country.onChange(c ?? "")}
               required
+              clearable
               label="Country of registration"
               placeholder="Select a country"
-              classes={{ container: "mt-6", input: "pl-12" }}
+              classes={{ container: "mt-6" }}
               options={cnames}
-              option_disp={(c) => (
+              render={(c) => (
                 <>
                   <span className="text-2xl">{cmap[c].flag}</span>
                   <span>{c}</span>
                 </>
               )}
-              btn_disp={(c, open) => {
-                const flag = cmap[c]?.flag;
+              adornment_side="start"
+              adornment={(open) => {
+                const flag = cmap[country.value]?.flag;
                 return flag ? (
-                  <span data-flag className="text-2xl">
-                    {flag}
-                  </span>
+                  <span className="text-2xl">{flag}</span>
                 ) : (
-                  <DrawerIcon
-                    is_open={open}
-                    size={20}
-                    className="justify-self-end shrink-0"
-                  />
+                  <DrawerIcon is_open={open} size={20} />
                 );
               }}
               error={errors.o_hq_country?.message}
@@ -174,7 +174,7 @@ export function IdentityForm({
         <button
           type="submit"
           disabled={busy}
-          className="btn btn-primary text-sm w-full mt-6"
+          className="btn btn-primary w-full mt-6"
         >
           <LoadText is_loading={busy}>{submit_text}</LoadText>
         </button>

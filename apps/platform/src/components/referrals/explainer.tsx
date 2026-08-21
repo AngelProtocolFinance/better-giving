@@ -1,4 +1,5 @@
 import { Collapsible } from "@ark-ui/react/collapsible";
+import { DrawerIcon, ExtLink } from "@better-giving/ui";
 import {
   BrainIcon,
   CheckIcon,
@@ -10,8 +11,6 @@ import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { app_name } from "#/constants/env";
 import { referrals_hub } from "#/constants/urls";
-import { ExtLink } from "../ext-link";
-import { DrawerIcon } from "../icon";
 
 export function Explainer({ classes = "" }) {
   const [open, set_open] = useState(false);

@@ -1,4 +1,9 @@
 import {
+  Arrow as HoverArrow,
+  HoverCard,
+  Content as HoverContent,
+} from "@better-giving/ui/hover-card";
+import {
   ArrowDownToLineIcon,
   ArrowLeftRightIcon,
   ArrowUpFromLineIcon,
@@ -7,11 +12,6 @@ import {
 import { NavLink, Outlet } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import {
-  Arrow as HoverArrow,
-  HoverCard,
-  Content as HoverContent,
-} from "#/components/hover-card";
 import { humanize } from "@/helpers/decimal";
 import type { TickerCategory } from "@/nav/interfaces";
 import { group_by_category } from "@/nav/interfaces";
@@ -103,24 +103,18 @@ function Page({ loaderData }: Route.ComponentProps) {
         ${humanize(bal_lock)} <SfPerf id={id} />
       </div>
       <div className="flex items-center gap-4 mt-4">
-        <NavLink
-          to="deposit"
-          className="btn-success rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
-        >
+        <NavLink to="deposit" className="btn btn-md btn-success rounded gap-2">
           <ArrowUpFromLineIcon size={16} />
           Deposit
         </NavLink>
         <NavLink
           to="withdraw"
-          className="btn-secondary rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
+          className="btn btn-md btn-secondary rounded gap-2"
         >
           <ArrowDownToLineIcon size={16} />
           Withdraw
         </NavLink>
-        <NavLink
-          to="transfer"
-          className="btn-warning rounded px-4.5 py-2.5 text-sm flex items-center gap-2"
-        >
+        <NavLink to="transfer" className="btn btn-md btn-warning rounded gap-2">
           <ArrowLeftRightIcon size={16} />
           Transfer
         </NavLink>

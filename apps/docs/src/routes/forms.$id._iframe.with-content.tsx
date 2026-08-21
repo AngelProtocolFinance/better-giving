@@ -1,8 +1,8 @@
+import { Copier } from "@better-giving/ui";
 import { ExternalLink, Lightbulb } from "lucide-react";
 import { useMemo } from "react";
 import { useParams } from "react-router";
 import type { ShikiTransformer } from "shiki";
-import { CopyButton } from "#/components/copy-button";
 import {
   EmbedModeTabs,
   esc_attr,
@@ -16,7 +16,7 @@ const highlight_line = (lines: number[]): ShikiTransformer => ({
   name: "highlight-line",
   line(node, line) {
     if (lines.includes(line)) {
-      node.properties.class = "bg-yellow-500/20";
+      node.properties.class = "bg-warning/20";
     }
   },
 });
@@ -63,14 +63,14 @@ export default function WithContent() {
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-neutral-900">With Content</h1>
-        <p className="text-sm text-neutral-600 mt-1">
+        <h1 className="text-xl font-bold text-fg">With Content</h1>
+        <p className="text-sm text-muted-fg mt-1">
           Add custom headings, descriptions, or other content around your
           embedded form to provide context and encourage donations.
         </p>
         <a
           href="/demo-nonprofit#with-content"
-          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 mt-2"
+          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
           <ExternalLink size={14} />
           See it in action on a demo page
@@ -78,9 +78,12 @@ export default function WithContent() {
       </div>
 
       {/* Tip Note */}
-      <div className="flex gap-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm">
-        <Lightbulb size={18} className="text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-amber-800">
+      <div className="flex gap-3 p-3 bg-warning-subtle rounded text-sm">
+        <Lightbulb
+          size={18}
+          className="text-warning-subtle-fg shrink-0 mt-0.5"
+        />
+        <p className="text-warning-subtle-fg">
           Use compelling copy that explains your mission and impact. A brief
           description above the form can significantly increase conversion
           rates.
@@ -91,7 +94,7 @@ export default function WithContent() {
         <h2 className="text-2xl font-bold text-center mb-2">
           Donate To Better Giving
         </h2>
-        <p className="text-gray-600 text-center mb-4">
+        <p className="text-muted-fg text-center mb-4">
           Better Giving is a 501c3 nonprofit that provides nonprofits free
           fundraising tools
         </p>
@@ -105,17 +108,20 @@ export default function WithContent() {
         />
       </div>
 
-      <div className="rounded text-sm border border-neutral-200 overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-neutral-50 border-b border-neutral-200">
+      <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
+        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
           <EmbedModeTabs />
-          <CopyButton text={code_snippet} />
+          <Copier
+            text={code_snippet}
+            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+          />
         </div>
         <HighlightedCode
           code={code_snippet}
           lang="html"
           transformers={transformers}
           className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-neutral-600"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
         />
       </div>
 

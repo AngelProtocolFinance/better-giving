@@ -1,7 +1,7 @@
+import { Field, Form, Label } from "@better-giving/ui";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { Field, Form, Label } from "#/components/form";
 import { ImgEditor } from "#/components/img-editor";
 import { use_session } from "#/hooks/use-session";
 import type { Route } from "./+types/route";
@@ -83,14 +83,14 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       <div className="flex gap-3 mt-8">
         <button
           type="reset"
-          className="px-6 btn-secondary btn text-sm"
+          className="btn-secondary btn"
           disabled={!rhf.isDirty}
         >
           Reset changes
         </button>
         <button
           type="submit"
-          className="px-6 btn btn-primary text-sm"
+          className="btn btn-primary"
           disabled={!rhf.isDirty || rhf.avatar_url.value === "loading"}
         >
           Submit changes

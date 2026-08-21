@@ -1,10 +1,10 @@
 import { Dialog } from "@ark-ui/react/dialog";
+import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useFetcher } from "react-router";
 import { object } from "valibot";
-import { Field } from "#/components/form";
 import { RouteModal } from "#/components/route-modal";
 import { $req } from "@/schemas";
 import type { Route } from "./+types/route";
@@ -75,18 +75,14 @@ function Content({ recipient_name }: { recipient_name: string }) {
             <Link
               to={".."}
               aria-disabled={busy}
-              className="btn-secondary btn text-sm px-8 py-2"
+              className="btn-secondary btn"
               preventScrollReset
               replace
             >
               Keep your support
             </Link>
           </Dialog.CloseTrigger>
-          <button
-            disabled={busy}
-            type="submit"
-            className="btn btn-destructive px-8 py-2 text-sm"
-          >
+          <button disabled={busy} type="submit" className="btn btn-destructive">
             {busy ? "Canceling..." : "Cancel"}
           </button>
         </div>

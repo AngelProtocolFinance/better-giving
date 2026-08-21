@@ -1,3 +1,4 @@
+import { ContentLoader, type IPrompt, Prompt } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
 import { href } from "react-router";
 import { chariot_connect_id } from "#/constants/env";
@@ -12,8 +13,6 @@ import type {
   IDonorAddress,
 } from "@/donations/schema";
 import { min_fee_allowance } from "@/helpers/donation";
-import { ContentLoader } from "../../../content-loader";
-import { type IPrompt, Prompt } from "../../../prompt";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
 import { use_donation_redirect } from "../../common/redirect";
