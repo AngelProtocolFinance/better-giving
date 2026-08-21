@@ -44,16 +44,22 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
       )}
 
       <dl className="grid sm:grid-cols-[auto_auto_1fr] border rounded mt-2">
-        <Row label="Currency">{d.currency}</Row>
-        <Row label="Country">{d.country}</Row>
-        <Row label="Recipient name">{d.name.fullName}</Row>
-        <Row label="Account type">{d.type}</Row>
-        <Row label="Legal entity type">{d.legalEntityType}</Row>
-        {d.displayFields.map(({ label, value, key }) => (
-          <Row key={key} label={label}>
-            {value}
-          </Row>
-        ))}
+        {/* the wise half of the record; the row below it is our own and
+            outlives an outage */}
+        {!d.wacc_unavailable && (
+          <>
+            <Row label="Currency">{d.currency}</Row>
+            <Row label="Country">{d.country}</Row>
+            <Row label="Recipient name">{d.name?.fullName}</Row>
+            <Row label="Account type">{d.type}</Row>
+            <Row label="Legal entity type">{d.legalEntityType}</Row>
+            {d.displayFields?.map(({ label, value, key }) => (
+              <Row key={key} label={label}>
+                {value}
+              </Row>
+            ))}
+          </>
+        )}
         <Row label="Bank statement">
           <ExtLink
             href={d.ba.bank_statement_url}
@@ -67,6 +73,12 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           </ExtLink>
         </Row>
       </dl>
+      {d.wacc_unavailable && (
+        <p className="text-sm text-muted-fg mt-2">
+          Bank account details couldn't be loaded from Wise. This payout method
+          is unchanged — try again shortly.
+        </p>
+      )}
       <fetcher.Form
         method="POST"
         className="flex max-sm:flex-col gap-1 sm:gap-3 mt-4 sm:justify-self-end"

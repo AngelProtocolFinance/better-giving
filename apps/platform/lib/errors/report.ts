@@ -83,6 +83,11 @@ export function report_null(error: unknown): null {
   return null;
 }
 
+export function report_degraded_null(error: unknown): null {
+  report_degraded(error);
+  return null;
+}
+
 export function report_undefined(error: unknown): undefined {
   report_error(error);
   return undefined;

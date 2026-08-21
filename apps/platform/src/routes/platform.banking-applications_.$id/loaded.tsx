@@ -37,16 +37,22 @@ export function Loaded(props: LoaderData) {
       </div>
 
       <dl className="grid sm:grid-cols-[auto_auto_1fr] border rounded">
-        <Row label="Currency">{props.currency}</Row>
-        <Row label="Country">{props.country}</Row>
-        <Row label="Recipient name">{props.name.fullName}</Row>
-        <Row label="Account type">{props.type}</Row>
-        <Row label="Legal entity type">{props.legalEntityType}</Row>
-        {props.displayFields.map(({ label, value, key }) => (
-          <Row key={key} label={label}>
-            {value}
-          </Row>
-        ))}
+        {/* the wise half of the record; the rows below it are our own and
+            outlive an outage */}
+        {!props.wacc_unavailable && (
+          <>
+            <Row label="Currency">{props.currency}</Row>
+            <Row label="Country">{props.country}</Row>
+            <Row label="Recipient name">{props.name?.fullName}</Row>
+            <Row label="Account type">{props.type}</Row>
+            <Row label="Legal entity type">{props.legalEntityType}</Row>
+            {props.displayFields?.map(({ label, value, key }) => (
+              <Row key={key} label={label}>
+                {value}
+              </Row>
+            ))}
+          </>
+        )}
         <Row label="Bank statement">
           <ExtLink
             href={props.ba.bank_statement_url}
@@ -60,6 +66,12 @@ export function Loaded(props: LoaderData) {
           </ExtLink>
         </Row>
       </dl>
+      {props.wacc_unavailable && (
+        <p className="text-sm text-muted-fg -mt-2">
+          Bank account details couldn't be loaded from Wise, so this application
+          can't be approved right now. Everything else on it is up to date.
+        </p>
+      )}
       <div className="flex gap-x-3 justify-self-center sm:justify-self-end">
         <NavLink
           replace
@@ -81,7 +93,7 @@ export function Loaded(props: LoaderData) {
         <NavLink
           replace
           preventScrollReset
-          aria-disabled={!!prev_verdict}
+          aria-disabled={!!prev_verdict || props.wacc_unavailable}
           to="approve"
           className="min-w-24 btn btn-success"
         >

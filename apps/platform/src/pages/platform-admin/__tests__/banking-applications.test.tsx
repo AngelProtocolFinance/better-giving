@@ -78,10 +78,14 @@ vi.mock("#/.server/toast", async () => {
 
 // --- imports (after mocks hoisted) ---
 
-import { action } from "#/pages/platform-admin/banking-applications/api";
+import {
+  action,
+  loader,
+} from "#/pages/platform-admin/banking-applications/api";
 import DetailPage from "#/routes/platform.banking-applications_.$id/route";
 import ApprovePage from "#/routes/platform.banking-applications_.$id.approve/route";
 import RejectPage from "#/routes/platform.banking-applications_.$id.reject/route";
+import { wise } from "$/kit/wise";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 
 // --- setup ---
@@ -186,7 +190,69 @@ const WISE_FIXTURE = {
   ],
 };
 
+// the real loader, so a wise failure is caught where it actually happens rather
+// than simulated by a stub returning the degraded shape
+async function render_detail_live(bapp_id: string) {
+  const Stub = createRoutesStub([
+    {
+      path: "/platform/banking-applications/:id",
+      Component: DetailPage,
+      HydrateFallback: () => null,
+      loader: loader as any,
+    },
+  ]);
+  return await render(
+    <Stub initialEntries={[`/platform/banking-applications/${bapp_id}`]} />
+  );
+}
+
 // --- tests ---
+
+describe("wise outage", () => {
+  it("keeps the page up when the account can't be read", async () => {
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+    const npo = await seed_npo();
+    const bapp_id = await seed_bapp(npo.id);
+
+    const screen = await render_detail_live(bapp_id);
+
+    await expect
+      .element(screen.getByText(/couldn't be loaded from wise/i))
+      .toBeInTheDocument();
+    // the application row is ours and survives
+    await expect
+      .element(screen.getByText(new RegExp(bapp_id)))
+      .toBeInTheDocument();
+  }, 30_000);
+
+  it("still links the uploaded bank statement", async () => {
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+    const npo = await seed_npo();
+    const bapp_id = await seed_bapp(npo.id);
+
+    const screen = await render_detail_live(bapp_id);
+
+    await expect
+      .element(screen.getByText("https://example.com/stmt.pdf"))
+      .toBeInTheDocument();
+  }, 30_000);
+
+  it("blocks approve but not reject", async () => {
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+    const npo = await seed_npo();
+    const bapp_id = await seed_bapp(npo.id);
+
+    const screen = await render_detail_live(bapp_id);
+
+    // approving an account the reviewer cannot see is the defect this guards
+    await expect
+      .element(screen.getByRole("link", { name: /approve/i }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("link", { name: /reject/i }))
+      .not.toHaveAttribute("aria-disabled", "true");
+  }, 30_000);
+});
 
 describe("application detail", () => {
   it("renders bank details and action buttons", async () => {

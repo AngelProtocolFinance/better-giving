@@ -95,8 +95,10 @@ import Dashboard from "#/routes/_app.register.$reg_id._steps.5/route";
 import { submit_action } from "#/routes/_app.register.$reg_id._steps.5/submit-action";
 import RegSuccess from "#/routes/_app.register.success/route";
 import type { V2RecipientAccount } from "#/types/bank-details";
+import { wise } from "$/kit/wise";
 import { reg_get, reg_put } from "$/pg/queries/registration";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { loader as review_loader } from "../routes/platform.applications_.$id/api";
 import Page from "../routes/platform.applications_.$id/route";
 import Prompt, {
   action,
@@ -228,7 +230,7 @@ const MOCK_WACC: V2RecipientAccount = {
 const test_loader: LoaderFunction = async ({ params }) => {
   const reg = await reg_get(params.id!);
   if (!reg) throw new Response("Not found", { status: 404 });
-  return { reg, wacc: MOCK_WACC };
+  return { reg, wacc: MOCK_WACC, wacc_unavailable: false };
 };
 
 async function render_review(id: string) {
@@ -244,6 +246,24 @@ async function render_review(id: string) {
           path: "success",
           Component: () => <p>Review submitted</p>,
         },
+      ],
+    },
+  ]);
+  return await render(
+    <Stub initialEntries={[`/platform/applications/${id}`]} />
+  );
+}
+
+// the outage cases need the real loader — the flag is what it derives
+async function render_review_live(id: string) {
+  const Stub = createRoutesStub([
+    {
+      path: "/platform/applications/:id",
+      Component: Page,
+      HydrateFallback: () => null,
+      loader: review_loader as any,
+      children: [
+        { path: ":verdict", Component: Prompt, action: action as any },
       ],
     },
   ]);
@@ -423,5 +443,103 @@ describe("already decided", () => {
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
       .toHaveAttribute("aria-disabled", "true");
+  });
+});
+
+describe("wise outage", () => {
+  it("resolves the loader with a null account instead of a 500", async () => {
+    const id = await seed_reg(ALL_FIELDS);
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+
+    const d = await (review_loader as any)({ params: { id } });
+
+    expect(d.wacc).toBeNull();
+    expect(d.wacc_unavailable).toBe(true);
+    // the rest of the application is our own row and is untouched
+    expect(d.reg.o_name).toBe("Test Org");
+    expect(d.reg.o_ein).toBe("123456789");
+  });
+
+  it("renders the application with a bank-details-unavailable notice", async () => {
+    const id = await seed_reg(ALL_FIELDS);
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+
+    const Stub = createRoutesStub([
+      {
+        path: "/platform/applications/:id",
+        Component: Page,
+        HydrateFallback: () => null,
+        loader: review_loader as any,
+        ErrorBoundary: () => <p>could not load the application</p>,
+        children: [
+          { path: ":verdict", Component: Prompt, action: action as any },
+        ],
+      },
+    ]);
+    const screen = await render(
+      <Stub initialEntries={[`/platform/applications/${id}`]} />
+    );
+
+    // the nine rows off our own row still render
+    await expect.element(screen.getByText("Test Org")).toBeInTheDocument();
+    await expect.element(screen.getByText("123456789")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/couldn't be loaded from wise/i))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/could not load the application/i))
+      .not.toBeInTheDocument();
+  });
+
+  it("still shows the bank statement we hold ourselves", async () => {
+    const id = await seed_reg(ALL_FIELDS);
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+
+    const screen = await render_review_live(id);
+
+    // the artifact a reviewer cross-checks the account against is our own
+    // registration data, so the outage must not take it down
+    await expect
+      .element(screen.getByText(BANKING_FIELDS.o_bank_statement))
+      .toBeInTheDocument();
+  });
+
+  it("disables Approve, since approval reads the account", async () => {
+    const id = await seed_reg(ALL_FIELDS);
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+
+    const screen = await render_review_live(id);
+
+    await expect
+      .element(screen.getByRole("link", { name: /approve/i }))
+      .toHaveAttribute("aria-disabled", "true");
+    // rejecting never reads the account
+    await expect
+      .element(screen.getByRole("link", { name: /reject/i }))
+      .not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows no banking section at all when no account is on file", async () => {
+    const id = await seed_reg({ ...ALL_FIELDS, o_bank_id: null });
+
+    const Stub = createRoutesStub([
+      {
+        path: "/platform/applications/:id",
+        Component: Page,
+        HydrateFallback: () => null,
+        loader: review_loader as any,
+        children: [
+          { path: ":verdict", Component: Prompt, action: action as any },
+        ],
+      },
+    ]);
+    const screen = await render(
+      <Stub initialEntries={[`/platform/applications/${id}`]} />
+    );
+
+    await expect.element(screen.getByText("Test Org")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/banking details/i))
+      .not.toBeInTheDocument();
   });
 });

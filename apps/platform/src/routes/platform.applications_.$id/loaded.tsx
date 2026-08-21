@@ -7,7 +7,11 @@ import type { IReg } from "@/reg";
 import { Container } from "./container";
 
 export default function Loaded(
-  props: IReg & { bank: V2RecipientAccount | null }
+  props: IReg & {
+    bank: V2RecipientAccount | null;
+    /** wise was unreachable; the account may still exist */
+    bank_unavailable: boolean;
+  }
 ) {
   const prev_verdict =
     props.status === "03"
@@ -105,6 +109,19 @@ export default function Loaded(
           </dl>
         </Container>
       )}
+      {props.bank_unavailable && (
+        <Container title="Banking details">
+          <dl className="grid sm:grid-cols-[auto_auto_1fr]">
+            {/* our own registration data — it outlives a wise outage */}
+            <Row label="Bank statement document">
+              <DocLink url={props.o_bank_statement ?? "N/A"} />
+            </Row>
+          </dl>
+          <p className="p-3 text-sm text-muted-fg">
+            Bank account details couldn't be loaded from Wise.
+          </p>
+        </Container>
+      )}
       <div className="flex gap-x-3 justify-self-center sm:justify-self-end">
         <NavLink
           to={href("/platform/applications")}
@@ -122,7 +139,7 @@ export default function Loaded(
           Reject
         </NavLink>
         <NavLink
-          aria-disabled={!!prev_verdict}
+          aria-disabled={!!prev_verdict || props.bank_unavailable}
           to={`approved?org_name=${props.o_name}`}
           type="button"
           className="min-w-24 btn btn-success"

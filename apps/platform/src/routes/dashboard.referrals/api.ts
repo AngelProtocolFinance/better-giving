@@ -1,6 +1,7 @@
 import { user_ctx } from "#/.server/auth";
 import { referred_by } from "#/.server/referrals";
 import type { Referred } from "#/types/referrals";
+import { report_degraded_null } from "@/errors/report";
 import type { IPageKeyed } from "@/types/api";
 import type { V2RecipientAccount } from "@/wise";
 import { wise } from "$/kit/wise";
@@ -14,15 +15,21 @@ export interface LoaderData {
   referreds: Referred[];
   earnings: IPageKeyed<INpoDonation>;
   pending_total: number;
-  payout?: V2RecipientAccount;
+  payout: V2RecipientAccount | null;
   payout_ltd: number;
   payout_min?: number;
   base_url: string;
   w_form?: string;
 }
 
-function payout(id: number) {
-  return wise.v2_account(id);
+// a wise outage must not take the dashboard down with it: earnings, referreds
+// and the payout total are all ours and are most of this page. a stored id that
+// no longer parses is the same non-event — the row predates the checks in
+// `dashboard.referrals_.payout/api.ts`.
+function payout(raw: string) {
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  return wise.v2_account(id).catch(report_degraded_null);
 }
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
@@ -37,7 +44,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
       pending_earnings(referral_code),
       referred_by(referral_code),
       referrer_donations(referral_code, { limit: 4 }),
-      db_user.pay_id ? payout(+db_user.pay_id) : undefined,
+      db_user.pay_id ? payout(db_user.pay_id) : null,
       payout_ltd_get(referral_code),
     ]
   );
