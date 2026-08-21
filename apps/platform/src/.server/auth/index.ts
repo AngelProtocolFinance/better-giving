@@ -10,8 +10,13 @@ export {
   npo_admin_mdlwr,
   user_ctx,
 } from "./middleware";
-export { LOGIN_LINK_TTL_COPY, LOGIN_LINK_TTL_S } from "./options";
+export {
+  LOGIN_LINK_TTL_COPY,
+  LOGIN_LINK_TTL_S,
+  RESUME_LINK_TTL_S,
+} from "./options";
 export { client_ip, consume, type Quota } from "./rate-limit";
+export { mint_resume_link } from "./resume-link";
 export { to_auth } from "./to-auth";
 export {
   create_unverified_user,

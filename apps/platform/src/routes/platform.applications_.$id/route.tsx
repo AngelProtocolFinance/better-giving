@@ -16,12 +16,12 @@ export { ErrorBoundary } from "#/components/error";
 
 export default CacheRoute(Page);
 function Page({ loaderData }: Route.ComponentProps) {
-  const { reg, wacc } = loaderData;
+  const { reg, wacc, wacc_unavailable } = loaderData;
 
   return (
     <div className="grid content-start gap-y-4 gap-x-3 px-6 py-4 md:px-10 md:py-8 w-full">
       <h3 className="font-bold text-2xl">Application Review</h3>
-      <Loaded {...reg} bank={wacc} />
+      <Loaded {...reg} bank={wacc} bank_unavailable={wacc_unavailable} />
     </div>
   );
 }

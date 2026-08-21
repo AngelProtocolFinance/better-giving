@@ -1,6 +1,7 @@
 import * as v from "valibot";
 import { admin_ctx } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
+import { report_degraded_null } from "@/errors/report";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import { $int_gte1 } from "@/schemas";
@@ -18,8 +19,11 @@ export const loader = async (args: Route.LoaderArgs) => {
   const x = await bapp_get(bank_id.toString());
   if (!x || x.npo_id !== npo_id) return resp.status(404);
 
-  const y = await wise.v2_account(bank_id);
-  return { ...y, ba: x };
+  // a wise outage must not take the payout method down with it: its status, the
+  // uploaded bank statement, Delete and Set Default are all ours. neither action
+  // reads the account, so both stay live — the page just can't show the numbers.
+  const y = await wise.v2_account(bank_id).catch(report_degraded_null);
+  return { ...(y ?? {}), id: bank_id, ba: x, wacc_unavailable: !y };
 };
 
 export { delete_action } from "#/pages/admin/banking/delete-action";

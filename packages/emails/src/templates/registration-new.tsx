@@ -1,12 +1,17 @@
-import { Text } from "react-email";
+import { email_colors } from "@better-giving/brand/email";
+import { Button, Text } from "react-email";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME } from "../constants";
 
 export interface IData {
   reference_id: string;
+  /** back into the application, on the step it was left at. for an applicant
+   * whose address is still unproven this also signs them in — the cookie their
+   * browser holds is short-lived and does not travel to a second device. */
+  resume_url: string;
 }
 
-function Jsx({ reference_id }: IData) {
+function Jsx({ reference_id, resume_url }: IData) {
   return (
     <PublicLayout type="registration">
       <Text>Hello,</Text>
@@ -15,8 +20,25 @@ function Jsx({ reference_id }: IData) {
         Giving. We are one step closer to providing your organization with more
         reliable funding, and nothing could make us happier.
       </Text>
+      <Button
+        href={resume_url}
+        style={{
+          display: "block",
+          width: "100%",
+          textAlign: "center",
+          backgroundColor: email_colors.primary,
+          color: email_colors.primary_fg,
+          fontWeight: 600,
+          fontSize: 16,
+          padding: "14px 0",
+          borderRadius: 6,
+          margin: "24px 0",
+        }}
+      >
+        Continue your application
+      </Button>
       <Text style={{ textAlign: "center", marginBottom: 2 }}>
-        Your registration reference number is:
+        Or quote your registration reference number:
       </Text>
       <Text
         style={{

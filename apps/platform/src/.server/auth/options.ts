@@ -8,6 +8,36 @@ import * as schema from "$/pg/schema";
 export const LOGIN_LINK_TTL_S = 60 * 60;
 export const LOGIN_LINK_TTL_COPY = "1 hour";
 
+/** and how long the one carried by the welcome mail does. that mail is opened
+ * on somebody's own schedule — the next morning, after the weekend — so the
+ * login form's hour is the wrong unit for it. three days clears a lead who
+ * applies on a Friday afternoon, and expiry is no longer a dead end: a stale
+ * token lands on the check-email screen, which resends.
+ *
+ * It is a *separate* number rather than a longer `LOGIN_LINK_TTL_S` because
+ * better-auth's `expiresIn` is plugin-global — raising it would lengthen every
+ * link `/login` mints too. `../auth/resume-link` is what makes a per-link
+ * lifetime possible at all; see the note there. */
+export const RESUME_LINK_TTL_S = 60 * 60 * 24 * 3;
+
+/** how a sign-in token is keyed in the verification store.
+ *
+ * Named and shared rather than left on `storeToken: "hashed"` so the plugin and
+ * `mint_resume_link` cannot drift: minting derives the row's identifier with
+ * this, and the plugin's `/magic-link/verify` looks it up with the same call.
+ * Byte-identical to better-auth's own default hasher (SHA-256, base64url, no
+ * padding), so links already in flight at deploy still resolve. */
+export const hash_link_token = async (token: string): Promise<string> => {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(token)
+  );
+  const bytes = new Uint8Array(digest);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
+
 export interface AuthOptionDeps {
   /** renders + sends the one email that carries a login/verification link */
   send_login_link(a: { email: string; url: string }): Promise<void>;
@@ -23,7 +53,7 @@ export const login_link_plugin = (deps: AuthOptionDeps) =>
     expiresIn: LOGIN_LINK_TTL_S,
     // the stored row is what makes the link single-use; hashing it means a
     // leaked db row can't be replayed as a token.
-    storeToken: "hashed",
+    storeToken: { type: "custom-hasher", hash: hash_link_token },
     // asking for a link must never mint a user — every row comes from an
     // explicit signup or `create_unverified_user`, which are the two places
     // abuse protection actually lives.

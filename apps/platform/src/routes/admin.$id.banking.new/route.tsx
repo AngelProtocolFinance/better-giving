@@ -1,9 +1,9 @@
 import { Group, type IPrompt, Prompt } from "@better-giving/ui";
 import { ChevronLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useFetcher, useParams } from "react-router";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
-import { error_prompt } from "#/helpers/error-prompt";
+import { submit_error_prompt } from "#/helpers/error-prompt";
 import { FormButtons } from "./form-buttons";
 
 export { ErrorBoundary } from "#/components/error";
@@ -15,31 +15,37 @@ export default function Banking() {
   const [prompt, setPrompt] = useState<IPrompt>();
 
   const submit: OnSubmit = async (recipient, bankStatementUrl) => {
-    try {
-      const { id, details, currency } = recipient;
-      //creating account return V1Recipient and doesn't have longAccount summary field
-      const bankSummary = `${currency.toUpperCase()} account ending in ${
-        details.accountNumber?.slice(-4) || "0000"
-      } `;
+    const { id, details, currency } = recipient;
+    //creating account return V1Recipient and doesn't have longAccount summary field
+    const bankSummary = `${currency.toUpperCase()} account ending in ${
+      details.accountNumber?.slice(-4) || "0000"
+    } `;
 
-      fetcher.submit(
-        {
-          wiseRecipientID: id.toString(),
-          bankSummary,
-          endowmentID: +endowIdParam,
-          bankStatementFile: {
-            name: bankStatementUrl,
-            publicUrl: bankStatementUrl,
-          },
+    fetcher.submit(
+      {
+        wiseRecipientID: id.toString(),
+        bankSummary,
+        endowmentID: +endowIdParam,
+        bankStatementFile: {
+          name: bankStatementUrl,
+          publicUrl: bankStatementUrl,
         },
-        { action: ".", method: "POST", encType: "application/json" }
-      );
-    } catch (error) {
-      setPrompt(
-        error_prompt(error, { context: "submitting banking application" })
-      );
-    }
+      },
+      { action: ".", method: "POST", encType: "application/json" }
+    );
   };
+
+  // a rejected submit resolves instead of throwing: the action returns a tagged
+  // failure (`resp.fail`) the client reads off `fetcher.data`, while a landed
+  // one redirects and never lands here.
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !fetcher.data?.message) return;
+    setPrompt(
+      submit_error_prompt(fetcher.data, {
+        context: "submitting banking application",
+      })
+    );
+  }, [fetcher.state, fetcher.data]);
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8">

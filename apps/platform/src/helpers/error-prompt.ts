@@ -56,3 +56,22 @@ export const error_prompt = (error: unknown, display?: DisplayType) => {
           : generic_msg(disp.context),
   };
 };
+
+/**
+ * a tagged failure read off `fetcher.data` — `resp.fail` in `@/helpers/https`
+ * returns json so the status survives react-router's boundary, which strips a
+ * bare `Response` down to its body text.
+ *
+ * a 4xx is the user's to act on and shows its own message; anything else is
+ * ours, so it gets the generic line and is reported. same split `is_user_error`
+ * makes on the server.
+ */
+export const submit_error_prompt = (
+  data: { status?: unknown; message?: unknown },
+  display?: DisplayType
+) => {
+  const s = data.status;
+  return typeof s === "number" && s >= 400 && s < 500
+    ? user_error_prompt(data)
+    : error_prompt(data, display);
+};

@@ -65,6 +65,10 @@ export type V2RecipientAccount = {
 //FUTURE: move wise types to types/wise
 export type V1RecipientAccount = {
   id: number;
+  /** hmac proving this session created this recipient; stamped by the wise
+   * proxy, required by the payout form. absent on a recipient read back from
+   * wise rather than minted through us. */
+  bg_grant?: string;
   currency: string;
   details: {
     accountNumber?: string;

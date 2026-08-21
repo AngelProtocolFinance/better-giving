@@ -487,6 +487,33 @@ describe("payout method detail", () => {
     const btn = screen.getByRole("button", { name: /set default/i });
     await expect.element(btn).toBeDisabled();
   });
+
+  // through the real loader, so the catch is exercised where it lives
+  it("keeps the page up when wise can't be reached", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { id: "200", status: "approved" });
+    vi.mocked(wise.v2_account).mockRejectedValueOnce("wise is down");
+
+    const screen = await render_banking_app(
+      npo.id,
+      `/admin/${npo.id}/banking/200`
+    );
+
+    await expect
+      .element(screen.getByText(/couldn't be loaded from wise/i))
+      .toBeInTheDocument();
+    // the uploaded statement is ours and outlives the outage
+    await expect
+      .element(screen.getByText("https://example.com/stmt.pdf"))
+      .toBeInTheDocument();
+    // neither action reads the account, so both stay live
+    await expect
+      .element(screen.getByRole("button", { name: /set default/i }))
+      .toBeEnabled();
+    await expect
+      .element(screen.getByRole("link", { name: /delete/i }))
+      .toBeInTheDocument();
+  }, 30_000);
 });
 
 describe("set default flow", () => {

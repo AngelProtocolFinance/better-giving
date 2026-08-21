@@ -34,10 +34,10 @@ export const update_action =
     const { user, grant } = ru;
 
     const p1 = safeParse(reg_id, params.reg_id);
-    if (p1.issues) return resp.status(400, p1.issues[0].message);
+    if (p1.issues) return resp.fail(400, p1.issues[0].message);
     const rid = p1.output;
     const p2 = safeParse(reg_update_schema, await request.json());
-    if (p2.issues) return resp.status(400, p2.issues[0].message);
+    if (p2.issues) return resp.fail(400, p2.issues[0].message);
     const upd8 = p2.output;
 
     // the grant opens the contact step and nothing else — the later steps'

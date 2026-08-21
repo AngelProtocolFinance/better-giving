@@ -6,6 +6,7 @@ import { safeParse } from "valibot";
 import { redirectWithSuccess } from "#/.server/toast";
 import type { IBapp, IUpdate } from "@/banking";
 import { update } from "@/banking/schema";
+import { report_degraded_null } from "@/errors/report";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import { $int_gte1 } from "@/schemas";
@@ -18,9 +19,14 @@ import {
   npo_bapp_count,
 } from "$/pg/queries/banking";
 
-export interface LoaderData extends V2RecipientAccount {
+export type LoaderData = Partial<V2RecipientAccount> & {
   ba: IBapp;
-}
+  /** the wise account id, which is also the application's — carried separately
+   * so it still renders when wise is unreachable */
+  id: number;
+  /** wise was unreachable; the account may still exist */
+  wacc_unavailable: boolean;
+};
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   const p = safeParse($int_gte1, params.id);
@@ -30,8 +36,17 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
   const x = await bapp_get(bank_id.toString());
   if (!x) throw resp.status(404);
 
-  const y = await wise.v2_account(bank_id);
-  return { ba: x, ...y } satisfies LoaderData;
+  // a wise outage must not take the review page down with it: the application
+  // row, the uploaded bank statement and Reject are all ours. approving one the
+  // reviewer cannot see is the actual defect, so `loaded.tsx` gates Approve on
+  // this flag — same split as `platform.applications_.$id`.
+  const y = await wise.v2_account(bank_id).catch(report_degraded_null);
+  return {
+    ba: x,
+    id: bank_id,
+    ...(y ?? {}),
+    wacc_unavailable: !y,
+  } satisfies LoaderData;
 };
 
 export const action: ActionFunction = async ({ params, request }) => {

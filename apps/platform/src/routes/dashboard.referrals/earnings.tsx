@@ -14,7 +14,7 @@ interface Props {
   classes?: string;
   earnings: IEarningsHistory;
   pending_total: number;
-  payout?: V2RecipientAccount;
+  payout: V2RecipientAccount | null;
   payout_ltd: number;
   payout_min?: number;
   w_form?: string;

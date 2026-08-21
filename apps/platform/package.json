@@ -6,7 +6,8 @@
   "scripts": {
     "start": "react-router-serve build/server/index.js",
     "build": "react-router build",
-    "postbuild": "drizzle-kit migrate",
+    "postbuild": "if [ -n \"$CI\" ]; then drizzle-kit migrate; else echo 'postbuild: skipping migrations (CI unset)'; fi",
+    "migrate": "drizzle-kit migrate",
     "format": "biome check --write .",
     "format-unsafe": "biome check --write --unsafe src",
     "lint": "biome check .",
