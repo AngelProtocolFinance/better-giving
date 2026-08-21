@@ -1,6 +1,6 @@
 import { app } from "$/env";
 
-/** Proof that the signed-in user is the one who created this Wise recipient.
+/** proof that the signed-in user is the one who created this Wise recipient.
  *
  * Every recipient we create lives under a single Wise profile, so a recipient
  * id says nothing about who it belongs to — `v2_account` hands the full

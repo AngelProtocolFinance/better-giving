@@ -2,7 +2,7 @@ import { auth } from "./auth";
 import { check_email_url } from "./login-link";
 import { hash_link_token, RESUME_LINK_TTL_S } from "./options";
 
-/** A sign-in link minted for a mail rather than for a form.
+/** a sign-in link minted for a mail rather than for a form.
  *
  * `request_login_link` cannot serve this. It *sends*, and the welcome mail must
  * stay one mail; and it goes through `/sign-in/magic-link`, whose row is always

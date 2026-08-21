@@ -5,7 +5,7 @@ import { report_error } from "@/errors/report";
 import { resp } from "@/helpers/https";
 import { wise } from "$/env";
 
-/** What the bank-details form is allowed to ask Wise, and nothing else.
+/** what the bank-details form is allowed to ask Wise, and nothing else.
  *
  * This route forwards to Wise under *our* api token, so the caller's reach is
  * whatever this list says it is — an unlisted path would let a signed-in user

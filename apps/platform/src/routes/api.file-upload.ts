@@ -5,7 +5,7 @@ import { get_session } from "#/.server/auth";
 import { resp, search } from "@/helpers/https";
 import { blob as blob_env } from "$/env";
 
-/** Where user uploads live. The build mirrors content-hashed client assets into
+/** where user uploads live. The build mirrors content-hashed client assets into
  * the same blob store under `assets/` (`utils/upload-client-assets.ts`), and
  * the app's html points at them, so an upload that could pick its own pathname
  * could replace a live js chunk. One prefix, applied here, keeps the two sets

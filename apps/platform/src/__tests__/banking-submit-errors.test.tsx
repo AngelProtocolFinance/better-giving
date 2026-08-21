@@ -196,9 +196,9 @@ describe("registration step 4: banking", () => {
     expect(row.o_bank_id).toBeNull();
   }, 30_000);
 
-  // the success path redirects and unmounts the form, so this passes with the
-  // tagged-failure fix reverted too — it is not coverage of it. it guards a
-  // future re-raise off a stale `fetcher.data` after the navigation.
+  // a landed save redirects and unmounts the form, so `fetcher.data` is never
+  // read on this path — this is not coverage of the failure branch. it guards
+  // against a prompt raised off stale `fetcher.data` after the navigation.
   it("raises no prompt when the update lands", async () => {
     const id = await seed_step_4();
     const screen = await render_step_4(id);
