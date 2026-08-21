@@ -33,7 +33,7 @@ export function Pillars() {
       {/* subtle diagonal accent */}
       <div className="absolute -top-32 -right-32 size-96 bg-white/3 rotate-45 rounded" />
 
-      <div className="xl:container xl:mx-auto px-5 md:px-10 relative">
+      <div className="page-narrow relative">
         <motion.div
           className="text-center mb-14 grid gap-4"
           initial={{ opacity: 0, y: 12 }}

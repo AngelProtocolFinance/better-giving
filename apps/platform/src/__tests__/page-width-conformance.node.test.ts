@@ -64,28 +64,13 @@ describe("page width intents", () => {
     // `container` carries a nested breakpoint ladder that survives the `xl:`
     // variant, so the 96rem rung still fired — full-bleed below 1280, frozen
     // at 1240px of content to 1535, then 1496px. page-narrow/page-wide replace
-    // it, and the only files still spelling it are the six campaign landings,
-    // which migrate in their own commit for the author's eye.
-    const campaigns = [
-      "apps/platform/src/routes/referral-program/route.tsx",
-      "apps/platform/src/routes/see-what-youre-losing/route.tsx",
-      "apps/platform/src/routes/simplify-fundraising-maximize-impact/brands.tsx",
-      "apps/platform/src/routes/simplify-fundraising-maximize-impact/route.tsx",
-      "apps/platform/src/routes/the-smart-move-to-make-for-accepting-crypto-donations/brands.tsx",
-      "apps/platform/src/routes/the-smart-move-to-make-for-accepting-crypto-donations/route.tsx",
-      "apps/platform/src/routes/unlock-us-donations/borders.tsx",
-      "apps/platform/src/routes/unlock-us-donations/bottom-cta.tsx",
-      "apps/platform/src/routes/unlock-us-donations/hero.tsx",
-      "apps/platform/src/routes/unlock-us-donations/pillars.tsx",
-      "apps/platform/src/routes/unlock-us-donations/route.tsx",
-      "apps/platform/src/routes/unlock-us-donations/scenarios.tsx",
-      "apps/platform/src/routes/unlock-us-donations/testimonial.tsx",
-      "apps/platform/src/routes/unlock-us-donations/why-bg.tsx",
+    // it everywhere, so the name survives in exactly one file, and in prose.
+    const allowed = [
       // names it in prose: the rationale comment on the two intents, which
       // records the curve they replace.
       "packages/ui/src/styles/utilities.css",
     ];
-    expect(files_with("xl:container")).toEqual(campaigns);
+    expect(files_with("xl:container")).toEqual(allowed);
   });
 
   test("both intents are defined in one place", () => {

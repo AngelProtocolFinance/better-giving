@@ -41,7 +41,7 @@ export default function Referrals() {
           observer.observe(node);
         }}
       >
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 xl:container xl:mx-auto px-5 py-2">
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 page-narrow py-2">
           <DappLogo classes="h-12" />
           {/* wait for session so the wide cta doesn't flash then shift to the avatar */}
           {!is_loading && !session?.signed_in && (
@@ -67,14 +67,14 @@ export default function Referrals() {
         <Top />
       </div>
       <div className="bg-linear-to-bl from-peach/50 via-transparent via-50% to-lilac/50">
-        <Feature className="xl:container xl:mx-auto px-10" />
+        <Feature className="page-narrow" />
       </div>
       <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
-        <Feature2 className="xl:container xl:mx-auto px-10" />
+        <Feature2 className="page-narrow" />
       </div>
-      <Faq classes="xl:container xl:mx-auto px-10 mt-10" />
+      <Faq classes="page-narrow mt-10" />
 
-      <Bottom classes="xl:container xl:mx-auto px-10 mx-4 my-10 xl:my-30" />
+      <Bottom classes="page-narrow my-10 xl:my-30" />
       <Footer />
     </div>
   );

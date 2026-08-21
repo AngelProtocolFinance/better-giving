@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 export function Testimonial() {
   return (
     <section className="bg-card py-20 md:py-24">
-      <div className="xl:container xl:mx-auto px-5 md:px-10">
+      <div className="page-narrow">
         <motion.blockquote
           className="max-w-3xl mx-auto text-center grid gap-6"
           initial={{ opacity: 0, y: 12 }}

@@ -19,7 +19,7 @@ export function Hero() {
       {/* gradient overlay — full cover on mobile, left-to-right on desktop */}
       <div className="absolute inset-0 bg-primary-deep/70 md:bg-transparent md:bg-linear-to-r md:from-primary-deep md:via-primary-deep/80 md:via-35% md:to-transparent md:to-60%" />
 
-      <div className="xl:container xl:mx-auto px-5 md:px-10 relative py-20 md:py-28">
+      <div className="page-narrow relative py-20 md:py-28">
         <motion.div
           className="grid gap-5 max-w-xl"
           initial={{ opacity: 0, y: 30 }}

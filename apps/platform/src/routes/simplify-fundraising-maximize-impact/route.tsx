@@ -38,7 +38,7 @@ export default function Component() {
           observer.observe(node);
         }}
       >
-        <div className="xl:container xl:mx-auto px-10 py-4 flex justify-between gap-x-4 items-center">
+        <div className="page-narrow py-4 flex justify-between gap-x-4 items-center">
           <DappLogo classes="h-12" />
           <Link
             to={href("/signup")}
@@ -50,19 +50,19 @@ export default function Component() {
       </div>
 
       <div className="bg-linear-to-br from-50% from-transparent to-peach/50">
-        <Top className="xl:container xl:mx-auto px-10 bg-transparent" />
+        <Top className="page-narrow bg-transparent" />
       </div>
       <div className="bg-linear-to-bl via-transparent via-50% from-peach/50 to-lilac/50">
         <Brands className="my-20 xl:my-56" />
       </div>
       <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
-        <Feature className="xl:container xl:mx-auto px-10" />
+        <Feature className="page-narrow" />
       </div>
       <div className="bg-linear-to-br from-transparent via-transparent via-50% to-lilac/50">
-        <DonationFormInfo className="mt-20 xl:mt-60 xl:container xl:mx-auto px-10" />
+        <DonationFormInfo className="mt-20 xl:mt-60 page-narrow" />
       </div>
       <div className="bg-linear-to-bl from-lilac/50 via-50% via-transparent to-transparent">
-        <Testimonials classes="xl:container xl:mx-auto px-10" />
+        <Testimonials classes="page-narrow" />
       </div>
       <div className="my-20 xl:my-40">
         <BottomCta className="max-w-4xl w-full justify-self-center px-10" />
