@@ -635,8 +635,23 @@ describe("program editor -- rich text description", () => {
 
     const editor = await wait_for_editor(screen);
     await userEvent.click(editor);
-    await userEvent.keyboard("{Meta>}a{/Meta}");
+    // select all of the editable, then replace — Cmd+A is unreliable when the
+    // initial caret isn't at offset 0 in pt-editor.
+    const sel = editor.ownerDocument.getSelection();
+    sel?.removeAllRanges();
+    const range = editor.ownerDocument.createRange();
+    range.selectNodeContents(editor);
+    sel?.addRange(range);
+    await userEvent.keyboard("{Backspace}");
     await userEvent.keyboard("New description text");
+
+    // pt-editor's mutation events reach form state behind the editable's own
+    // paint — save before they land and the action writes a truncated string.
+    // the char counter renders the form value's length, so it is the gate:
+    // 20 = "New description text", and an append would overshoot it.
+    await expect
+      .element(screen.getByText(/chars\s*:\s*20\s*\/500/i))
+      .toBeVisible();
 
     const save_btns = screen.getByRole("button", { name: /save changes/i });
     await expect.element(save_btns.nth(0)).toBeEnabled();
