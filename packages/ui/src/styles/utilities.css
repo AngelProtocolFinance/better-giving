@@ -214,6 +214,40 @@
   --border: var(--primary-border);
 }
 
+/* the two page-width intents. layout is the one axis with no closed-set gate
+   behind it — `--color-*` and `--radius-*` are reset to `initial` in theme.css
+   so an off-system spelling compiles to nothing, but a made-up width compiles
+   fine and just looks slightly wrong. these names are that gate, enforced by a
+   filesystem sweep instead of by the compiler.
+
+   they replace `xl:container xl:mx-auto px-*`, which never capped where it read
+   as if it did: tailwind's `container` carries a nested breakpoint ladder that
+   survives the `xl:` variant, so the 96rem rung still fired and a page went
+   full-bleed below 1280, froze at 1240px of content to 1535, then jumped to
+   1496px. nobody chose that curve.
+
+   both are width and gutter only — no background, no vertical rhythm. the band
+   that paints a full-bleed fill is the caller's own element wrapping this one,
+   and it must not also carry a `px-*`: two gutters stack.
+
+   one gutter for both, so a narrow section and a wide one sitting in the same
+   scroll share an edge. */
+
+/* reading and marketing — legal, informational, blog, product, about-us,
+   landing. 72rem is where a paragraph stops outrunning a readable measure. */
+@utility page-narrow {
+  @apply w-full mx-auto px-5 md:px-10;
+  max-inline-size: 72rem /* 1152px */;
+}
+
+/* browse — marketplace, fundraisers index, forms. 96rem is the widest rung the
+   old curve already reached, so nothing on a browse page gets narrower; what
+   goes is the 1280-1535 plateau, which those viewports were paying 160px for. */
+@utility page-wide {
+  @apply w-full mx-auto px-5 md:px-10;
+  max-inline-size: 96rem /* 1536px */;
+}
+
 @utility fixed-center {
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }
