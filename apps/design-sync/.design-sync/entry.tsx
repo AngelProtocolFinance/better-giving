@@ -73,7 +73,16 @@ export { LoadingStatus } from "../../../packages/ui/src/components/status/loadin
 // feedback
 export { Status } from "../../../packages/ui/src/components/status/status";
 export { Target } from "../../../packages/ui/src/components/target";
-export { Toaster } from "../../../packages/ui/src/components/toaster";
+// `show_toast` rides along with `Toaster` because it is the component's only
+// way to show anything: toasts are pushed imperatively into a module-scope
+// manager, never rendered. `Toaster` alone is a mount point that can never
+// display a toast, and conventions.md documents the call — same reasoning as
+// `masks` above. lowercase, so the converter keeps it out of the component set.
+// it is public API: `packages/ui/src/index.ts` exports it too.
+export {
+  show_toast,
+  Toaster,
+} from "../../../packages/ui/src/components/toaster";
 export { Toggle } from "../../../packages/ui/src/components/toggle";
 // both source files export a `Content` that the `tip` prop must be wrapped in.
 // renamed here because the two collide in one barrel; lowercase-free names keep

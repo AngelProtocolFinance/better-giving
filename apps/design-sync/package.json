@@ -7,6 +7,7 @@
     "node": "24.x"
   },
   "scripts": {
+    "preview": "node preview.mjs",
     "styles": "tailwindcss -i .design-sync/styles-entry.css -o .design-sync/.cache/styles.css",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

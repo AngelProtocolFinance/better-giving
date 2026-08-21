@@ -60,6 +60,17 @@ So `.design-sync/entry.tsx` is the explicit export surface: one named export per
 component, plus `DsProvider`. **Its import paths mirror `cfg.componentSrcMap` — regenerate the
 two together**, and always point at the implementation FILE, never the directory barrel.
 
+**The surface is not only components.** Two lowercase exports ride along because the component
+they belong to is unusable without them, and `cfg.componentSrcMap` has no slot for a non-component:
+`masks` (the `{format, unmask}` presets — `MaskedInput`'s `mask` is required and has no default)
+and `show_toast` (the imperative half of `Toaster`; toasts are pushed into a module-scope manager,
+never rendered, so `Toaster` alone is a mount point that can never display anything). Both are
+public API of `packages/ui` — the barrel exports them — and both are lowercase, which is what
+keeps the converter from mistaking them for components. **When a component's API has a half that
+isn't a React element, check it is on this surface**: a design can only reach `window.BetterGiving`,
+so an unexported half is a documented call that does nothing. `show_toast` was exactly that until
+2026-08-21 (below).
+
 The previews import the package by name (`from "@better-giving/ui"`); the converter resolves
 that bare specifier to this entry.
 
@@ -472,6 +483,26 @@ old paths, which is why the re-sync produced deletes as well as writes.
 `Combo`'s published contract had been stale since before the unification — it was missing
 `popup_width`, `indicator`, `allow_custom` and the async options arm entirely.
 
+## Scope change, 2026-08-21 — `show_toast` reaches the export surface
+
+Validating `conventions.md` against the build turned up a name that did not resolve.
+`conventions.md` tells the design agent toasts "are pushed imperatively with `show_toast(...)`",
+but `entry.tsx` exported only `Toaster`, so `window.BetterGiving.show_toast` was **undefined**. A
+design following the documented call mounted `<Toaster>` and then nothing ever appeared — silent,
+and invisible to every mechanical gate: the bundle built, the card rendered, validate exited 0.
+The card only rendered because `Toaster.tsx` reached around the surface into the source module,
+which a design cannot do.
+
+Fixed by exporting it (see *Why there is a hand-written entry*) rather than by deleting the line
+from `conventions.md` — `show_toast` is already public API of `packages/ui`, and a `Toaster` with
+no way to push a toast is not worth publishing. `Toaster.tsx` now imports both halves from
+`"@better-giving/ui"` like every other preview, so the card exercises the same path a design takes.
+
+**The general shape:** a component whose API has a non-element half (an imperative function, a
+preset object, a hook) has a half `cfg.componentSrcMap` cannot carry, so it reaches the design only
+if `entry.tsx` names it. Nothing checks this — the gap is only visible by reading `conventions.md`
+against the bundle's export list, which is the validation pass the skill runs before upload.
+
 ## Re-sync risks — the watch-list for the next run
 
 What can silently go stale or wrong, in rough order of how expensive it is to miss:
@@ -486,12 +517,20 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
   `git diff <last-sync-sha> HEAD -- packages/ui/src/components/`.
 - **Previews compiling but passing dead props.** Same silence — but now caught mechanically by
   `pnpm --filter design-sync typecheck`, in CI and on commit.
-- **`FileDropzone` is ahead of what was published.** Its uploaded-file link moved OUT of the drop
-  area (it was a focusable anchor inside a `role="button"`), the drop area now shows the file name
-  rather than the whole url, the four machine states render as their own text instead of falling
-  through to a link, and a polite `role="status"` region announces every transition. Props are
-  unchanged, so `dtsPropsFor` is still correct — but the card, `docs/FileDropzone.md` and the
-  prompt describe the older component until the next sync ships them.
+- **A documented API half that is not on the export surface.** `show_toast` was this until
+  2026-08-21 (above) and nothing mechanical caught it. Whenever `conventions.md` or a `docs/*.md`
+  names something callable, confirm it is in the bundle's export list — that check is the whole
+  defence.
+- ~~**`FileDropzone` is ahead of what was published.**~~ **Shipped 2026-08-21.** The rework (link
+  moved out of the `role="button"` drop area, file name instead of the raw url, the four machine
+  states rendering as their own text, a polite `role="status"` region) reached the project in that
+  sync — `FileDropzone.prompt.md` was the single changed artifact. `dtsPropsFor` never drifted:
+  props are unchanged apart from `dropzone_name`, which was already in the config.
+  Worth keeping as a worked example, because the sync's own partitions did **not** flag it:
+  verification keys off the authored preview `.tsx` + config, so FileDropzone read as `unchanged`
+  and skipped re-grading, while the upload partition (sourceHashes) correctly shipped it. A
+  component rework with an untouched preview is invisible to the verification partition **by
+  design** — check the upload partition, not the verification one, to answer "did my change ship?"
 - **The stylesheet is a JIT build with three source scopes** (`packages/ui/src`, `.design-sync/previews`,
   `apps/platform/src`). Narrowing any of them silently removes utilities from the published
   vocabulary — and the auto-detected scope is now bounded by `apps/design-sync/package.json`, so

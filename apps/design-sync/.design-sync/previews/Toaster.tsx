@@ -1,13 +1,8 @@
+// both halves come from the package, which is what a design does: they share one
+// module-scope toast manager, and pushing through a second copy would render
+// nothing. `show_toast` is on the entry surface for exactly this reason.
+import { show_toast, Toaster } from "@better-giving/ui";
 import { useEffect } from "react";
-// `show_toast` is the imperative half of this component and is NOT on the
-// design-system export surface (.design-sync/entry.tsx exports only `Toaster`),
-// so both halves are imported from the source module here — they share one
-// module-scope toast manager, and importing `Toaster` from "@better-giving/ui" while
-// pushing through a second copy of the manager would render nothing.
-import {
-  show_toast,
-  Toaster,
-} from "../../../../packages/ui/src/components/toaster";
 
 type Toast = { type?: "success" | "error" | "info"; message: string };
 
