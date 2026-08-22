@@ -29,3 +29,38 @@
 
 @source "./previews";
 @source "../../platform/src";
+
+/* the markdown under apps/design-sync is prose *about* the vocabulary, not
+   source that writes it. tailwind's source detection walks up from this
+   file to the nearest package.json — apps/design-sync — and scans everything
+   under it, markdown included, so a class name quoted in NOTES.md or
+   conventions.md mints a real rule. the file that documents the system was
+   silently extending it: bg-chart-1, bg-chart-5, border-primary-border and
+   ring-primary-ring each reached the published stylesheet with no call site
+   in any component, preview or app file, and the asymmetry that leaves
+   (bg-chart-1 compiles, bg-chart-2 does not) is exactly the silent-miss trap
+   the header warns designs about. */
+@source not "../**/*.md";
+
+/* the two families the header promises that no scanned file happens to write.
+   both are intended vocabulary, not inventions: theme.css maps --color-chart-*
+   so the chart colors are registered tailwind colors, and the radius ladder
+   names square corners as one of the two escapes it still allows. they were
+   reaching the stylesheet by accident before — quoted in prose, and only in
+   the forms the prose happened to spell, which is how bg-chart-1 compiled
+   while bg-chart-2 did not. listing them makes the promise true in every
+   form a design would reach for, and keeps it true when the prose changes. */
+@source inline("rounded-none");
+@source inline("{bg,text,border,fill,stroke}-chart-{1,2,3,4,5}");
+
+/* the box ladder, listed rather than left to chance.
+   the header tells a design that the common ladder is safe, the standard
+   width and height steps included; measured against the build that was false
+   in both directions (w-16 and h-20 absent, w-20 and h-16 present), and a
+   missing utility is silent, so a design asking for a 64px box got whatever
+   width the content wanted. these are tailwind's own numeric scale — pure rem
+   arithmetic, no theme value behind them — so listing them adds no
+   vocabulary the system didn't already mean to have; it only stops the
+   published set from depending on which sizes the app happened to need. */
+@source inline("{w,h,size,min-w,min-h,max-w}-{0,px,0.5,1,1.5,2,2.5,3,3.5,4,5,6,7,8,9,10,11,12,14,16,20,24,28,32,36,40,44,48,52,56,60,64,72,80,96}");
+@source inline("{gap,gap-x,gap-y,p,px,py,pt,pr,pb,pl,m,mx,my,mt,mr,mb,ml}-{0,px,0.5,1,1.5,2,2.5,3,3.5,4,5,6,7,8,9,10,11,12,14,16,20,24}");
