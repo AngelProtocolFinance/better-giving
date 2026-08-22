@@ -96,27 +96,26 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
           observer.observe(node);
         }}
       >
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 xl:container xl:mx-auto px-5 py-2">
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 page py-2">
           <DappLogo classes="h-12" />
         </div>
       </div>
-      <Hero className="xl:container xl:mx-auto px-10" {...ctx} />
-      <Partners
-        of_what={ctx.partners}
-        classes="xl:container xl:mx-auto px-10 my-10 xl:my-20"
-      />
-      <Steps classes="xl:container xl:mx-auto px-10 my-10 xl:my-20" />
-      <Products classes="xl:container xl:mx-auto px-10 my-10 xl:my-20" />
-      <Features classes="xl:container xl:mx-auto px-10 my-10 xl:my-20" />
-      <Underdog classes="xl:container xl:mx-auto px-10 my-10 xl:my-20" />
-      <Testimonials classes="xl:container xl:mx-auto px-10 my-10 xl:my-20" />
+      <Hero className="page" {...ctx} />
+      <Partners of_what={ctx.partners} classes="page my-10 xl:my-20" />
+      <Steps classes="page my-10 xl:my-20" />
+      <Products classes="page my-10 xl:my-20" />
+      <Features classes="page my-10 xl:my-20" />
+      <Underdog classes="page my-10 xl:my-20" />
+      <Testimonials classes="page my-10 xl:my-20" />
       <div className="bg-muted pb-24">
-        <Faq classes="xl:container xl:mx-auto px-10 mt-24" />
+        <Faq classes="page mt-24" />
       </div>
-      <div className="xl:container mx-auto max-sm:px-10 px-24 my-10 xl:my-20">
+      <div className="page my-10 xl:my-20">
         <Cta {...ctx} />
       </div>
-      <Footer variant="minimal" />
+      {/* quiet chrome, but the body above it is narrow — the default width for
+          this variant is the operator surfaces' wide one. */}
+      <Footer variant="minimal" width="narrow" />
     </main>
   );
 }

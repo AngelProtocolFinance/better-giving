@@ -33,8 +33,18 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
     <header
       className={`${classes} relative bg-popover/95 backdrop-blur-md border-b`}
     >
-      <div className="xl:container xl:mx-auto flex items-center justify-between gap-x-6 px-5 py-2">
-        <DappLogo classes="h-12 w-auto shrink-0" />
+      {/* the row carries a logo, six labels and two ctas — 944px of intrinsic
+          width before a single gap. that does not fit the 72rem reading
+          measure the marketing body uses, so header chrome sits on page
+          and its edges deliberately do not line up with the body's. matches
+          app-header, which puts its own row on page too. */}
+      <div className="page flex items-center justify-between gap-x-6 py-2">
+        {/* shrink-0 belongs on the flex item, and DappLogo's own classes land
+            on the <img> inside its <a> — without this the anchor shrinks and
+            object-contain letterboxes the mark. */}
+        <div className="shrink-0">
+          <DappLogo classes="h-12 w-auto" />
+        </div>
         <nav
           aria-label="Marketing"
           className="hidden min-[75rem]:flex items-center gap-x-6"

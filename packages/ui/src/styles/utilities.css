@@ -214,6 +214,42 @@
   --border: var(--primary-border);
 }
 
+/* the page shape — one name, one width curve, one gutter. layout is the one
+   axis with no closed-set gate behind it: `--color-*` and `--radius-*` are
+   reset to `initial` in theme.css so an off-system spelling compiles to
+   nothing, but a made-up width compiles fine and just looks slightly wrong.
+   this name is that gate, enforced by a filesystem sweep instead of by the
+   compiler.
+
+   the curve is tailwind's own `container` ladder, spelled out rather than
+   inherited: full-bleed until the laptop rung, 80rem from there, 96rem on a
+   large monitor. that behaviour is right and is kept exactly — a page should
+   widen with the window. what the name buys is the gutter, which was
+   hand-spelled ~40 times as `xl:container xl:mx-auto px-*` with a different
+   value almost every time (px-5, px-10, px-24, max-sm:px-10). that spread is
+   why a header and the sections under it never shared an edge.
+
+   there is no second, narrower shape. reading measure is not a page width —
+   it is a cap on the text column itself, one level in: `max-w-3xl` on the
+   paragraph block, or `prose`, which carries its own 65ch. a page width that
+   also tried to be a reading measure just moved the whole layout in and left
+   the header behind.
+
+   width and gutter only — no background, no vertical rhythm. a band that
+   paints a full-bleed fill is the caller's own element wrapping this one, and
+   it must not also carry a `px-*`: two gutters stack. a page that alternates
+   full-bleed bands with contained ones therefore puts this on each band, never
+   hoisted onto a shared parent. */
+@utility page {
+  @apply w-full mx-auto px-5 md:px-10;
+  @media (width >= 80rem) {
+    max-inline-size: 80rem /* 1280px */;
+  }
+  @media (width >= 96rem) {
+    max-inline-size: 96rem /* 1536px */;
+  }
+}
+
 @utility fixed-center {
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }

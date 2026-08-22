@@ -22,9 +22,9 @@ interface IHero {
 export function Hero({ classes = "" }: IHero) {
   return (
     <div
-      className={`${classes} bg-linear-to-b from-background to-accent px-6 pt-16 pb-18`}
+      className={`${classes} bg-linear-to-b from-background to-accent pt-16 pb-18`}
     >
-      <div className="max-w-6xl mx-auto grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,33rem)] items-center">
+      <div className="page grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,33rem)] items-center">
         <div className="grid gap-5 justify-items-start">
           <div className="flex flex-wrap gap-2">
             <span className="text-xs font-bold bg-secondary text-secondary-fg border border-border rounded-full px-4 py-2">

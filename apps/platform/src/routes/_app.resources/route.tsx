@@ -45,7 +45,7 @@ export default function Resources() {
     <div className="w-full grid content-start pb-16">
       {/* hero */}
       <section className="bg-muted py-16">
-        <div className="xl:container xl:mx-auto px-5 grid gap-4 justify-items-center text-center">
+        <div className="page grid gap-4 justify-items-center text-center">
           <h1 className="text-3xl sm:text-4xl font-bold">Resource Hub</h1>
           <p className="text-muted-fg max-w-xl">
             Download whitepapers, case studies, product manuals, and templates
@@ -68,7 +68,7 @@ export default function Resources() {
       </section>
 
       {/* filters + grid */}
-      <div className="xl:container xl:mx-auto px-5 mt-8 grid gap-6">
+      <div className="page mt-8 grid gap-6">
         {/* filter tabs */}
         <div className="flex flex-wrap gap-2">
           <FilterTab

@@ -12,7 +12,7 @@ export const meta: Route.MetaFunction = () =>
 
 export default function SecurityPolicy() {
   return (
-    <div className="xl:container xl:mx-auto px-5 min-h-screen pb-6 prose pt-24">
+    <div className="page min-h-screen pb-6 prose pt-24">
       <h1 className="text-center">
         <strong>{app_name} Security Policy</strong>
       </h1>

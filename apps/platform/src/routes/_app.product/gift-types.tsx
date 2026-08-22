@@ -16,7 +16,7 @@ interface IGiftTypes {
 export function GiftTypes({ classes = "" }: IGiftTypes) {
   return (
     <section className={classes} aria-labelledby="gift-types-heading">
-      <div className="max-w-6xl mx-auto">
+      <div className="page">
         <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
           Payment aggregation
         </p>

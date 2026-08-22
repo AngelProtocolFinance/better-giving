@@ -49,9 +49,9 @@ function Funds({ loaderData: page1 }: Route.ComponentProps) {
   return (
     <div>
       <div className="py-6 bg-primary">
-        <Hero classes="grid isolate xl:container xl:mx-auto px-5" />
+        <Hero classes="grid isolate page" />
       </div>
-      <div className="xl:container xl:mx-auto px-5 mt-8 pb-8">
+      <div className="page mt-8 pb-8">
         <div className="grid grid-cols-[1fr_auto] gap-x-2">
           <div className="relative">
             <Search

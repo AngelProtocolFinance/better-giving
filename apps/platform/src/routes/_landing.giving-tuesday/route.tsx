@@ -22,14 +22,14 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <>
-      <Hero className="xl:container xl:mx-auto px-5" />
-      <Partners classes="xl:container xl:mx-auto px-5" />
-      <Hero2 className="xl:container xl:mx-auto px-5" />
-      <Features classes="xl:container xl:mx-auto px-5" />
-      {/* <Ctas classes="xl:container xl:mx-auto px-5" /> */}
-      <Steps classes="xl:container xl:mx-auto px-5 my-24" />
-      {/* <Testimonials classes="xl:container xl:mx-auto px-5 mt-24 py-24" /> */}
-      <Products classes="xl:container xl:mx-auto px-5 mt-12" />
+      <Hero className="page" />
+      <Partners classes="page" />
+      <Hero2 className="page" />
+      <Features classes="page" />
+      {/* <Ctas classes="page" /> */}
+      <Steps classes="page my-24" />
+      {/* <Testimonials classes="page mt-24 py-24" /> */}
+      <Products classes="page mt-12" />
       <BottomCta className="my-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
     </>
   );

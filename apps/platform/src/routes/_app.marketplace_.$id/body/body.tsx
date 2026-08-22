@@ -22,7 +22,7 @@ export function Body({ classes = "", npo, children, program }: Props) {
     <div
       className={`flex justify-center items-center w-full h-full ${classes}`}
     >
-      <div className="xl:container xl:mx-auto px-5 grid gap-8 justify-items-center w-full h-full pt-32 pb-8 lg:grid-rows-[auto_auto_1fr] lg:grid-cols-[1fr_auto] lg:justify-items-start lg:gap-16 lg:pt-6 lg:pb-20">
+      <div className="page grid gap-8 justify-items-center h-full pt-32 pb-8 lg:grid-rows-[auto_auto_1fr] lg:grid-cols-[1fr_auto] lg:justify-items-start lg:gap-16 lg:pt-6 lg:pb-20">
         <Breadcrumbs
           className="text-xs sm:text-sm lg:ml-52"
           items={[

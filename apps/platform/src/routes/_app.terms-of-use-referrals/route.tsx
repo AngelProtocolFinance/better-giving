@@ -10,7 +10,7 @@ export const meta: Route.MetaFunction = () =>
 
 export default function TermsReferrals() {
   return (
-    <div className="xl:container xl:mx-auto px-5 prose lg:prose-lg py-20">
+    <div className="page prose lg:prose-lg py-20">
       <h2 className="text-center">
         Better Giving Referral Program Terms of Use
       </h2>

@@ -23,7 +23,7 @@ export function Hero({
 }: IHero) {
   return (
     <header className={classes}>
-      <div className="max-w-6xl mx-auto grid gap-8 lg:gap-12 lg:grid-cols-[1.05fr_0.95fr] items-start">
+      <div className="page grid gap-8 lg:gap-12 lg:grid-cols-[1.05fr_0.95fr] items-start">
         {/* once the columns stack the copy sits above the form rather than
             beside it, so it centers on its own axis instead of hugging a left
             edge nothing else shares */}

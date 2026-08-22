@@ -40,7 +40,7 @@ export default function Component() {
           observer.observe(node);
         }}
       >
-        <div className="xl:container xl:mx-auto px-5 md:px-10 py-4 flex justify-between gap-x-4 items-center">
+        <div className="page py-4 flex justify-between gap-x-4 items-center">
           <DappLogo classes="h-12" />
           <Link
             to={href("/signup")}

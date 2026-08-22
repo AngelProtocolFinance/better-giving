@@ -27,7 +27,7 @@ interface IPriceCards {
 export function PriceCards({ classes = "" }: IPriceCards) {
   return (
     <div className={`${classes}`}>
-      <div className="max-w-6xl mx-auto grid gap-6 md:grid-cols-3">
+      <div className="page grid gap-6 md:grid-cols-3">
         <div className="bg-primary rounded p-8 flex flex-col gap-3.5 shadow-xl shadow-primary/20 text-primary-fg">
           <span className="text-lg font-bold">
             Fundraising &amp; fund management

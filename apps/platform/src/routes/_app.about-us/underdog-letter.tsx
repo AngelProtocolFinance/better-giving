@@ -9,7 +9,7 @@ interface IUnderdogLetter {
 export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
   return (
     <section className={classes} aria-labelledby="underdog-heading">
-      <div className="max-w-6xl mx-auto grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
+      <div className="page grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
         <div className="grid gap-4">
           <h2 id="underdog-heading" className="section-heading">
             We're not the biggest platform. So we try harder.

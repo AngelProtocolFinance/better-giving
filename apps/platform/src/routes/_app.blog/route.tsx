@@ -57,19 +57,21 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
 
   return (
     <main>
-      <section className="px-6 pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
-        <p className="pre-heading">Blog &amp; Resources</p>
-        <h1 className="hero-heading max-w-3xl mx-auto mt-3">
-          Knowledge to empower your nonprofit
-        </h1>
-        <p className="section-body text-muted-fg max-w-2xl mx-auto mt-4">
-          Practical guides on fundraising, fund growth, and the admin work
-          nobody warned you about.
-        </p>
+      <section className="pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
+        <div className="page">
+          <p className="pre-heading">Blog &amp; Resources</p>
+          <h1 className="hero-heading max-w-3xl mx-auto mt-3">
+            Knowledge to empower your nonprofit
+          </h1>
+          <p className="section-body text-muted-fg max-w-2xl mx-auto mt-4">
+            Practical guides on fundraising, fund growth, and the admin work
+            nobody warned you about.
+          </p>
+        </div>
       </section>
 
-      <section className="bg-accent px-6 py-20">
-        <div className="max-w-6xl mx-auto grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
+      <section className="bg-accent py-20">
+        <div className="page grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
           <Cards posts={posts} />
         </div>
         {nextPage && (

@@ -41,8 +41,8 @@ const split_steps = [
 export default function Page() {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-accent px-6 pt-16 pb-18">
-        <div className="max-w-6xl mx-auto grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
+      <div className="bg-linear-to-b from-background to-accent pt-16 pb-18">
+        <div className="page grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
           <div className="grid gap-5 justify-items-start">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">
               Fund Management
@@ -79,11 +79,11 @@ export default function Page() {
         </div>
       </div>
 
-      <GrowPlaces classes="px-6 py-22" />
-      <AllocationGovernance classes="bg-accent px-6 py-24" />
+      <GrowPlaces classes="py-22" />
+      <AllocationGovernance classes="bg-accent py-24" />
 
-      <section className="px-6 py-22" aria-labelledby="split-steps-heading">
-        <div className="max-w-6xl mx-auto">
+      <section className="py-22" aria-labelledby="split-steps-heading">
+        <div className="page">
           <h2
             id="split-steps-heading"
             className="section-heading text-center max-w-2xl mx-auto"

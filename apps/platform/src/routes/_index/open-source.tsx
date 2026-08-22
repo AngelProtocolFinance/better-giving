@@ -21,7 +21,7 @@ interface IOpenSource {
 export function OpenSource({ classes = "" }: IOpenSource) {
   return (
     <section className={classes} aria-labelledby="open-source-heading">
-      <div className="max-w-6xl mx-auto grid gap-14 lg:grid-cols-[1.1fr_0.9fr] items-center">
+      <div className="page grid gap-14 lg:grid-cols-[1.1fr_0.9fr] items-center">
         <div className="grid gap-4.5 justify-items-start">
           <p className="text-xs font-bold uppercase tracking-wider text-secondary">
             Open source

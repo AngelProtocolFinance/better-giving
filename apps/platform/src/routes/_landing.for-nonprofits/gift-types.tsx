@@ -14,7 +14,7 @@ interface IGiftTypes {
 export function GiftTypes({ classes = "" }: IGiftTypes) {
   return (
     <section className={classes} aria-labelledby="gift-types-heading">
-      <div className="max-w-6xl mx-auto">
+      <div className="page">
         <h2 id="gift-types-heading" className="section-heading">
           Every gift type. One free platform.
         </h2>

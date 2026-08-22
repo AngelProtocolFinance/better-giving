@@ -10,7 +10,7 @@ export const headers: Route.HeadersFunction = () => ({
 const imgSrc = "https://placehold.co/400x200";
 export default function Component() {
   return (
-    <div className="xl:container xl:mx-auto px-5">
+    <div className="page">
       <div className="p-4 sm:p-6 border-b">
         <h1 className="text-xl sm:text-2xl font-bold text-primary">
           Using the Better Giving - Zapier Integration

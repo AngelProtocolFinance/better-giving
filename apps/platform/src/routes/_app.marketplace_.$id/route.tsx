@@ -51,7 +51,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
           backgroundImage: `url('${d.npo.image || fallback_banner}')`,
         }}
       />
-      <div className="xl:container xl:mx-auto px-5 flex justify-center items-center w-full overflow-visible h-0 isolate lg:justify-start">
+      <div className="page flex justify-center items-center overflow-visible h-0 isolate lg:justify-start">
         <Image
           src={d.npo.logo || flying_character}
           className="size-48 border rounded-full object-cover bg-card"

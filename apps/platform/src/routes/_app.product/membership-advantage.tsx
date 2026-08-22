@@ -17,7 +17,7 @@ interface IMembershipAdvantage {
 export function MembershipAdvantage({ classes = "" }: IMembershipAdvantage) {
   return (
     <section className={classes} aria-labelledby="membership-heading">
-      <div className="max-w-6xl mx-auto grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
+      <div className="page grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
         <div className="grid gap-4.5">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             The membership advantage

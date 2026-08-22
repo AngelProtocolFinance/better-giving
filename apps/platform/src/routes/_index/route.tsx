@@ -67,16 +67,18 @@ export default function Page() {
       <PublicHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
-        <TrustBar classes="border-y border-border px-6 py-7" />
+        <TrustBar classes="border-y border-border py-7" />
         <PartnersStrip classes="border-b border-secondary" />
-        <Steps classes="px-6 py-22" />
-        <OwnGrow classes="bg-accent px-6 py-24" />
-        <Pillars classes="px-6 py-24" />
-        <GrowFunds classes="bg-accent px-6 py-24" />
-        <OpenSource classes="bg-primary px-6 py-24" />
-        <Testimonials classes="px-6 py-24" />
-        <div className="bg-accent px-6 pt-22 pb-48">
-          <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
+        <Steps classes="py-22" />
+        <OwnGrow classes="bg-accent py-24" />
+        <Pillars classes="py-24" />
+        <GrowFunds classes="bg-accent py-24" />
+        <OpenSource classes="bg-primary py-24" />
+        <Testimonials classes="py-24" />
+        <div className="bg-accent pt-22 pb-48">
+          <div className="page">
+            <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
+          </div>
         </div>
         <CtaBand
           title="Join the commons. It's free, forever."

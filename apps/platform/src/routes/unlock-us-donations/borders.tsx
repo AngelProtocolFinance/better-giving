@@ -30,7 +30,7 @@ const cards: ICard[] = [
 export function Borders() {
   return (
     <section className="bg-card py-20 md:py-24">
-      <div className="xl:container xl:mx-auto px-5 md:px-10">
+      <div className="page">
         <motion.h2
           className="section-heading font-bold text-center mb-14"
           initial={{ opacity: 0, y: 12 }}
