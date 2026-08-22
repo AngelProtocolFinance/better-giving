@@ -160,7 +160,7 @@ It used to point at two fontsource packages, and before that reached across into
 `apps/platform/node_modules` — the only place on disk they existed, since `packages/ui`
 declared the `--font-display`/`--font-body`/`--font-gochi` tokens but depended on none of the
 fontsource packages. This app then declared all three itself to stop pointing across a member.
-All of that is gone: as of 2026-08-22 `packages/ui` self-hosts both faces beside the tokens that
+All of that is gone: `packages/ui` self-hosts both faces beside the tokens that
 name them (committed `.woff2` in `packages/ui/src/styles/fonts/`, cut by that dir's
 `generate.sh` so Quicksand keeps its `zero` feature — see `packages/brand/design-system.md` →
 "The faces"). This app no longer declares any font dependency of its own.

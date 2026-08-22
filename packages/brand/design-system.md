@@ -746,9 +746,9 @@ one-off, and a role name would file it into the semantic set.
 
 `--font-mono` is declared explicitly in the same block, and only because the
 `--font-*` namespace is the one type namespace that stays open — closing it
-would take the three faces down with it and leave nothing to name. `font-mono`
-has 18 call sites and was otherwise resolving to Tailwind's built-in default
-stack, a value nobody in this repo chose. It is pinned to a system-mono stack and
+would take the three faces down with it and leave nothing to name. Left undeclared, `font-mono`
+resolves to Tailwind's built-in default stack — a value nobody in this repo
+chose, reached by call sites that do exist. It is pinned to a system-mono stack and
 downloads nothing: mono here carries ids, hashes and wallet addresses, never
 reading copy.
 
@@ -855,8 +855,8 @@ should not:
 - **Numeric leading is unaffected.** `leading-5` derives from `--spacing`, not
   from `--leading-*`, and still compiles to `calc(var(--spacing) * 5)`.
 
-Tracking keeps six: the four v4 steps `tight` (-0.025em, 4 sites), `wide`
-(0.025em, 8), `wider` (0.05em, 26) and `widest` (0.1em), plus the two authored
+Tracking keeps five: the three v4 steps that carry call sites — `tight`
+(-0.025em), `wide` (0.025em) and `wider` (0.05em) — plus the two authored
 uppercase-label values Tailwind's own ladder does not reach:
 
 | token | value | for |
@@ -870,7 +870,7 @@ no-op, and `widest` because retaining it as a reference point for the two
 authored values would be the same drift this reset exists to close, with a
 nicer reason attached.
 
-**One honest note on tracking**, and it is the larger one: the 34 raw
+**One honest note on tracking**, and it is the larger one: the raw
 `tracking-wide`/`tracking-wider` sites are mostly
 `text-xs font-bold uppercase tracking-wider text-primary` —
 i.e. eyebrows, which is exactly what `tracking-label` and the `eyebrow` utility
@@ -917,25 +917,25 @@ so a money column in it does not line up and **cannot be made to under this
 face**.
 
 The utility earns its line as a seam rather than as a rule that fires: it
-collapses 22 call sites into one name, so the day a face with real tabular
-figures is adopted, this is a one-line change instead of a 22-site sweep. Both
+collapses every such call site into one name, so the day a face with real
+tabular figures is adopted, this is a one-line change instead of a repo sweep. Both
 halves are written out for that reason — a seam missing half its intent is a seam
 the next person re-derives wrong.
 
 Any figure a reader compares to another — a money column, a total, a count, a
 date — takes it. Tables do **not** get it automatically.
 
-`slashed-zero` **used to** be the same category and no longer is. It sits at 4
-call sites (`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
-×3) and emitted a dead rule for as long as they existed — but the cause was not
-the typeface. Quicksand draws a dotted-zero alternate and exposes it as the
-`zero` feature; the fontsource subset was discarding it. Since the faces became
-self-hosted (see "The faces" above) the feature ships, and all 4 sites render the
-dotted zero. Confirmed in the browser, not just in the binary.
+`slashed-zero` looks like the same category and is **not**. It sits at 4 call
+sites (`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
+×3) and it works: Quicksand draws a dotted-zero alternate behind the `zero`
+feature, and the self-hosted subsets keep that feature (see "The faces" above).
 
-That is the one asymmetry between the two halves of this seam worth knowing:
-`slashed-zero` was a **delivery** problem and was fixable; `tabular-nums` is a
-**typeface** problem and is not.
+The asymmetry between the two is the thing worth carrying: a dead
+`font-variant-*` rule can have either of two causes, and they differ in whether
+anything can be done. `slashed-zero` was a **delivery** problem — the face had
+the feature and the build was discarding it — so it was fixable without touching
+the design. `tabular-nums` is a **typeface** problem, and no build can add a
+feature Quicksand does not draw.
 
 ### The limitation: closing a scale stops names, not brackets
 
@@ -965,14 +965,14 @@ should be migrated onto a step.
 `--font-gochi`. `packages/ui/src/styles/fonts.css` **loads** them, from binaries
 committed beside it in `packages/ui/src/styles/fonts/`.
 
-This used to be a hole, recorded here as one. The `@import "@fontsource-variable/…"`
-lines lived in each consumer's own entry — `apps/platform/src/index.css`,
-`apps/docs/src/index.css`, and `apps/design-sync` declaring the packages a third
-time — while the tokens naming those faces lived here. A consumer could import
+Declaration and load sit together on purpose. Split apart — the tokens here, the
+`@import` of a font package in each consumer's own entry — a consumer can import
 `@better-giving/ui/styles.css`, receive every token, load no face, and render the
-whole product in the browser's default sans with nothing failing anywhere. Three
-copies of the import, and the one package that knew the face names shipped none
-of them. Closed 2026-08-22 by moving the load next to the declaration.
+whole product in the browser's default sans with nothing failing anywhere. No
+structural gate can catch that: every conformance gate in this system works by
+making an off-system name compile to no rule, and there is no way to make a
+*missing* import fail. Keeping the two in one package is the only thing that
+does, and it costs each consumer nothing but the import it already has.
 
 **Why we subset the fonts ourselves rather than depend on fontsource.** Quicksand
 draws an alternate zero with a dot in its bowl and exposes it as the OpenType

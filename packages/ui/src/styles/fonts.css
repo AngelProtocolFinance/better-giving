@@ -1,29 +1,28 @@
-/* the faces, self-hosted, loaded where they are DECLARED.
-   this file exists because the design system used to declare --font-display,
-   --font-body and --font-gochi in ./theme.css and load none of them: the
-   `@import "@fontsource-variable/…"` lines lived in each consumer's own entry,
-   so a consumer could import @better-giving/ui/styles.css, receive every token
-   and render the whole product in the ua default with nothing failing anywhere.
-   three consumers repeated those imports; now one file owns them.
+/* the faces, loaded where they are DECLARED: ./theme.css names --font-display,
+   --font-body and --font-gochi, and this file is what makes those names resolve
+   to real glyphs. it lives here so no consumer has to load a face of its own —
+   a consumer that imports the tokens and not the faces renders the whole product
+   in the ua default with nothing failing anywhere, which is a hole no structural
+   gate can close.
 
-   the binaries in ./fonts are OUR subsets, not fontsource's, and the reason is
-   one feature. quicksand draws an alternate zero with a dot in its bowl and
-   exposes it as the opentype `zero` feature — which is what
-   `font-variant-numeric: slashed-zero` (tailwind's `slashed-zero`) asks for,
-   whatever the designer drew. fontsource subsets with the default layout-feature
-   retain list, `zero` is not in it, and the feature and its glyph were dropped
-   before the browser ever saw them. four call sites on the fee-comparison pages
-   had asked for it since they were written and silently got a plain zero.
+   the binaries in ./fonts are OUR subsets rather than a font package's, and the
+   reason is one feature. quicksand draws an alternate zero with a dot in its
+   bowl and exposes it as the opentype `zero` feature — which is what
+   `font-variant-numeric: slashed-zero` (tailwind's `slashed-zero`) asks a font
+   for, whatever the designer drew. a subsetter's default layout-feature retain
+   list does not include `zero`, so an off-the-shelf build drops the feature and
+   its glyph before the browser ever sees them, and the four call sites on the
+   fee-comparison pages that ask for it get a plain zero and no error.
    see packages/brand/design-system.md → "The faces".
 
-   regenerate with ./fonts/generate.sh — it re-derives the subsets from the
-   upstream google/fonts sources. the unicode-ranges below are fontsource's own,
-   verbatim, and the subsets are cut to the union of those ranges and the
-   codepoints fontsource shipped, so coverage cannot regress against what the
-   site served before.
+   regenerate with ./fonts/generate.sh, which re-derives the subsets from the
+   upstream google/fonts sources. the unicode-ranges below are the standard
+   google/fontsource ones verbatim; each subset is cut to the union of its range
+   and the codepoints the fontsource package shipped, so a regeneration can never
+   serve less than the site served before.
 
-   `font-display: swap` matches what fontsource set: the type is the brand, and
-   a flash of fallback beats a flash of nothing. */
+   `font-display: swap`: the type is the brand, and a flash of fallback beats a
+   flash of nothing. */
 
 /* quicksand — the display AND body face (two roles, one family; ./theme.css) */
 @font-face {

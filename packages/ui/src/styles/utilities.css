@@ -358,7 +358,7 @@
    so the family declaration changes nothing either.
 
    the utility earns its line as a seam, not as a rule that fires: it collapses
-   22 call sites into one name, so the day a face with real tabular figures is
+   every such call site into one name, so the day a face with real tabular figures is
    adopted this is a one-line change instead of a 22-site sweep. both halves
    are written out for that reason — a seam that is missing half the intent is
    a seam that gets re-derived wrong. */

@@ -1,7 +1,8 @@
 #cc-main {
-  /* follows the system body face rather than naming one: this var held a
-     literal family that no longer shipped, so the banner silently fell back
-     to the ua default. the token can't drift out of step with theme.css. */
+  /* the library's own font hook, pointed at the system token rather than at a
+     family name. a literal here is a second place the face is spelled, and a
+     wrong one degrades in silence: the banner just renders in the ua default,
+     which no build step and no test can see. */
   --cc-font-family: var(--font-body);
 
   --cc-btn-primary-bg: var(--primary);

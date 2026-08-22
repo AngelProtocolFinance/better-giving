@@ -10,18 +10,17 @@
 
   /* the size ladder is closed, the same way --color-* and --radius-* are: the
      twelve steps below are every one the three source trees use, and every
-     other name now compiles to nothing instead of drifting in. text-7xl (one
-     call site, moved to 6xl) and text-8xl/-9xl (never used) are deliberately
-     gone — a 72px/96px/128px step nobody picked is the far end of the same
-     drift the radius reset closed at the near end.
+     other name compiles to nothing rather than drifting in. text-7xl/-8xl/-9xl
+     are deliberately absent — a 72px/96px/128px step nobody picks is the far
+     end of the same drift the radius reset closes at the near end.
 
      EVERY redeclared step carries its --text-<step>--line-height companion.
      that key lives inside this namespace, so the reset drops it too, and an
      unsuffixed `text-lg` would silently lose its line-height without it. the
      values are tailwind v4's own, copied unchanged: this closes the set, it
-     does not retune it. --text-2xs and --text-4_5xl are ours and stay
-     UNPAIRED, exactly as they were — neither has ever had a default line
-     height, and pairing one now would move type that renders correctly today.
+     does not retune it. --text-2xs and --text-4_5xl are ours and are
+     deliberately UNPAIRED — neither has a default line height, and giving one
+     now would move type that renders correctly.
 
      what the reset deliberately does not reach: text-balance/-pretty/-center/
      -ellipsis are static utilities with no theme behind them, text-<color>
@@ -58,7 +57,7 @@
      and 900 have only ever rendered as bold — an inert class that would go
      live, unreviewed, the day a heavier face is adopted. thin/extralight/light
      go for the reverse reason: nothing under 400 is legible at this face's
-     low stroke contrast, and none of them has ever been reached for.
+     low stroke contrast, and none of them carries a call site.
      `font-[550]` is still arbitrary and still compiles — names close, brackets
      do not. */
   --font-weight-*: initial;
@@ -68,7 +67,8 @@
   --font-weight-bold: 700;
 
   /* the leading ladder is closed to the four multipliers in use; loose (2) is
-     dropped as unused. values are tailwind v4's own, unchanged.
+     absent, with no call site to keep it. values are tailwind v4's own,
+     unchanged.
      `leading-none` is deliberately NOT declared and is NOT lost: v4 emits it
      from a static value (line-height: 1), not from this namespace, and the
      `/none` modifier on a text-* utility is likewise a literal. numeric
@@ -88,10 +88,10 @@
      label: standalone uppercase label — eyebrow, section kicker, column meta.
      badge: uppercase text inside a padded chip; tighter so the last glyph
      doesn't crowd the chip's right padding.
-     tight (4), wide (8) and wider (26) stay because those call sites exist;
-     most of the 34 are uppercase labels that belong on `label`/`badge`, and
-     that sweep is a judgment call left for its own change. closing the
-     namespace stops the drift growing in the meantime.
+     tight, wide and wider stay because call sites exist. most of those sites
+     are uppercase labels that belong on `label`/`badge` — a per-site judgment
+     call, so that sweep is its own change; closing the namespace stops the
+     drift growing in the meantime.
      widest goes with tighter and normal: no call sites, so retaining it as a
      reference point for the two authored values would be the same drift this
      reset exists to close, just with a nicer reason attached. */
@@ -102,8 +102,8 @@
   --tracking-label: 0.12em;
   --tracking-badge: 0.08em;
 
-  /* two roles, ONE face. both resolve to Quicksand today, and the split is
-     kept anyway because it is the seam: h1-h6 and body are bound to these in
+  /* two roles, ONE face. both resolve to Quicksand, and the split exists
+     anyway because it is the seam: h1-h6 and body are bound to these in
      ./base.css, so no call site ever names a face, and adopting a second one
      is a one-line edit here rather than a forty-file sweep.
      display: every heading h1-h6, marketing and dashboard alike, plus every
