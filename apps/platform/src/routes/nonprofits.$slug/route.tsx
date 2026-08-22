@@ -113,7 +113,9 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
       <div className="page-narrow my-10 xl:my-20">
         <Cta {...ctx} />
       </div>
-      <Footer variant="minimal" />
+      {/* quiet chrome, but the body above it is narrow — the default width for
+          this variant is the operator surfaces' wide one. */}
+      <Footer variant="minimal" width="narrow" />
     </main>
   );
 }
