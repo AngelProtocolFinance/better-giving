@@ -51,10 +51,7 @@
   "provider": {
     "component": "DsProvider"
   },
-  "extraFonts": [
-    "node_modules/@fontsource-variable/quicksand/index.css",
-    "node_modules/@fontsource/gochi-hand/index.css"
-  ],
+  "extraFonts": ["../../packages/ui/src/styles/fonts.css"],
   "dtsPropsFor": {
     "Field": "  classes?: unknown;\n  tooltip?: React.ReactNode;\n  label: string | React.ReactElement<unknown, string | React.JSXElementConstructor<any>>;\n  sub?: React.ReactNode;\n  type?: unknown;\n  error?: string;\n  ref?: React.Ref<HTMLTextAreaElement | HTMLInputElement>;\n  /** ...plus the standard props inherited from @types/react */",
     "CheckField": "  classes?: unknown;\n  error?: string;\n  ref?: React.Ref<HTMLInputElement>;\n  /** ...plus the standard props inherited from @types/react */",

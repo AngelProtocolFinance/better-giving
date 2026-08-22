@@ -146,9 +146,7 @@ function TxRow({
     return (
       <tr>
         <td>Distribution</td>
-        <td className="text-right tabular-nums">
-          ${humanize(tx.net as number)}
-        </td>
+        <td className="text-right figures">${humanize(tx.net as number)}</td>
       </tr>
     );
   }
@@ -157,7 +155,7 @@ function TxRow({
     return (
       <tr>
         <td>Revenue: {LABELS[type] ?? type}</td>
-        <td className="text-right tabular-nums">
+        <td className="text-right figures">
           ${humanize(tx.revenue as number)}
         </td>
       </tr>
@@ -167,9 +165,7 @@ function TxRow({
     return (
       <tr>
         <td>Commission: {(tx.referrer_user ?? tx.referrer_npo) as string}</td>
-        <td className="text-right tabular-nums">
-          ${humanize(tx.amount as number)}
-        </td>
+        <td className="text-right figures">${humanize(tx.amount as number)}</td>
       </tr>
     );
   }
@@ -184,7 +180,7 @@ function TxRow({
             {humanize(tx.bal_end as number)}
           </span>
         </td>
-        <td className="text-right tabular-nums">
+        <td className="text-right figures">
           +${humanize(tx.amount as number)}
           {account === "lock" && (
             <span className="text-muted-fg ml-1">
@@ -200,9 +196,7 @@ function TxRow({
     return (
       <tr>
         <td>Grant</td>
-        <td className="text-right tabular-nums">
-          ${humanize(tx.amount as number)}
-        </td>
+        <td className="text-right figures">${humanize(tx.amount as number)}</td>
       </tr>
     );
   }

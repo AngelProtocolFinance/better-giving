@@ -1,6 +1,7 @@
 @import "tailwindcss";
-@import "@fontsource-variable/quicksand";
-@import "@fontsource/gochi-hand";
+/* the faces ship with the design system — packages/ui/src/styles/fonts.css
+   declares them beside the --font-* tokens that name them. an app does not
+   load a face of its own. */
 @import "@better-giving/ui/styles.css";
 
 @plugin "@tailwindcss/typography";

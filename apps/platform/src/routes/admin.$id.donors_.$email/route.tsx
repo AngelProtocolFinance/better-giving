@@ -42,7 +42,7 @@ export default function Page({
         {back_label}
       </Link>
 
-      <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
+      <h1 className="text-4xl font-bold leading-tight tracking-tight">
         {name ?? email}
       </h1>
       {name && <p className="mt-1.5 text-base text-muted-fg">{email}</p>}
@@ -132,7 +132,7 @@ function Stat({ value, label, size = "lg" }: IStatProps) {
   return (
     <span className="inline-flex items-baseline gap-2">
       <span
-        className={`font-bold leading-none tracking-tight tabular-nums ${size === "lg" ? "text-3xl" : "text-xl"}`}
+        className={`font-bold leading-none tracking-tight figures ${size === "lg" ? "text-3xl" : "text-xl"}`}
       >
         {value}
       </span>

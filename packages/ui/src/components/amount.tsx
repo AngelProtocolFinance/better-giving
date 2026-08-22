@@ -19,9 +19,9 @@ export function Amount({ value, currency, usd, chips, classes = "" }: IAmount) {
   return (
     <span className={`inline-flex items-baseline gap-x-1.5 ${classes}`}>
       <span className="text-2xs font-medium text-muted-fg">{c}</span>
-      <span className="tabular-nums">{value}</span>
+      <span className="figures">{value}</span>
       {usd != null && c !== "USD" && (
-        <span className="text-xs text-muted-fg tabular-nums">${usd}</span>
+        <span className="text-xs text-muted-fg figures">${usd}</span>
       )}
       {chips}
     </span>

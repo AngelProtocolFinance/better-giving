@@ -3,6 +3,12 @@
 Ledger for the palette in `src/colors.css`. Values live in the CSS; this file says
 what to reach for and what has already been measured, so nobody rediscovers it.
 
+Type is here too, and its values are **not** in this package — the face tokens
+and the size/weight/leading/tracking ladders sit in
+`packages/ui/src/styles/theme.css`. They are recorded here because this is the
+one file that says what a token is *for*, and a second ledger would only be a
+second place to go stale. See "One face, two roles, and four closed ladders".
+
 Contrast figures are WCAG 2.x ratios measured on the **shipped hex** (the sRGB
 round-trip of the `oklch()`), not on the raw oklch. AA body text needs 4.5:1;
 large text (≥24px, or ≥18.66px bold) and meaningful non-text need 3:1.
@@ -703,6 +709,320 @@ Unrelated to the literals, and **not** fixed here: thumb 1 is `bg-card` with a
 `--border` hairline, so at 1.23:1 it is a control identified by an edge the
 "decisions that look like bugs" entry deliberately keeps faint. On a draggable
 thumb that call is sharper than on a panel. Recorded, not decided.
+
+## One face, two roles, and four closed ladders
+
+Type is the second axis in this system to get a structural gate, after color and
+radius. The face is settled; what is new is that the *ladders* — size, weight,
+leading, tracking — are now closed sets in
+`packages/ui/src/styles/theme.css`, so a step nobody picked compiles to no rule
+at all rather than drifting in one call site at a time.
+
+### The face
+
+The product runs on **Quicksand Variable**, one family, with **Gochi Hand** as
+the handwritten aside.
+
+| token | resolves to | what takes it |
+| --- | --- | --- |
+| `--font-display` | Quicksand Variable | every heading `h1`–`h6`, marketing and dashboard alike, and every numeric figure (the `figures` utility) |
+| `--font-body` | Quicksand Variable | everything else — body copy, buttons, forms, tables, labels |
+| `--font-gochi` | Gochi Hand | the handwritten aside. Six call sites, never decoratively |
+
+**Both semantic tokens resolve to the same face, and the split is kept anyway.**
+That is not an oversight waiting to be tidied — it is the seam. `h1`–`h6` and
+`body` are bound to these tokens in `packages/ui/src/styles/base.css`, so **no
+call site anywhere names a face**; an element gets one from what it *is*. The
+consequence is that adopting a display/body pair is a one-line edit in
+`theme.css` and nothing else moves. Collapsing the two names into one would buy
+nothing and would convert that one-line edit back into a forty-file sweep.
+
+The two are named by **role**, and that is the decorative-color rule read
+backwards. "The decorative layer" above names its tokens by hue and *never* by
+role, precisely because a role name would imply the semantic set can reach for
+them. Display-vs-body is a role, so the semantic faces take role names.
+`--font-gochi` keeps its face name for the matching reason: it is the decorative
+one-off, and a role name would file it into the semantic set.
+
+`--font-mono` is declared explicitly in the same block, and only because the
+`--font-*` namespace is the one type namespace that stays open — closing it
+would take the three faces down with it and leave nothing to name. Left undeclared, `font-mono`
+resolves to Tailwind's built-in default stack — a value nobody in this repo
+chose, reached by call sites that do exist. It is pinned to a system-mono stack and
+downloads nothing: mono here carries ids, hashes and wallet addresses, never
+reading copy.
+
+### Two pairs were evaluated and rejected
+
+Both were tried end-to-end — deps, imports, PDF fonts, Stripe, embed config —
+and both were reverted. Recorded so the same ground is not walked again from
+scratch, not as a verdict on the faces themselves:
+
+- **Outfit + DM Sans.** Rejected on identity: both have **flat terminals**, and
+  the Better Giving wordmark is a rounded-terminal mark, so every heading
+  disagreed with the logo above it.
+- **Nunito + Nunito Sans.** Rejected after evaluation; the change was reverted
+  in full.
+
+The product stays on Quicksand. Anyone re-opening this should re-open it as a
+decision with a reason, not as a cleanup.
+
+### The size ladder — closed
+
+`--text-*: initial`, then twelve steps redeclared. Everything else — `text-7xl`
+and up — **fails to compile**.
+
+| step | value | call sites |
+| --- | --- | --- |
+| `text-2xs` | 0.625rem (10px) — authored, not Tailwind's | 27 |
+| `text-xs` | 0.75rem | 289 |
+| `text-sm` | 0.875rem | 603 |
+| `text-base` | 1rem | 16 |
+| `text-lg` | 1.125rem | 168 |
+| `text-xl` | 1.25rem | 140 |
+| `text-2xl` | 1.5rem | 110 |
+| `text-3xl` | 1.875rem | 56 |
+| `text-4xl` | 2.25rem | 22 |
+| `text-4.5xl` | 2.625rem — authored; `--text-4_5xl`, since v4 spells a dot as `_` | 10 |
+| `text-5xl` | 3rem | 14 |
+| `text-6xl` | 3.75rem | 2 |
+
+Counts are `.tsx`/`.ts` call sites across `apps/platform/src apps/docs/src
+packages/ui/src` at the time of writing and drift with every commit — re-run
+rather than quote:
+
+```sh
+# from repo root
+rg -o '\btext-3xl\b' apps/platform/src apps/docs/src packages/ui/src -g '*.{ts,tsx}' | wc -l
+```
+
+**`text-7xl` was retired with the ladder.** It had one call site — the oversized
+decorative quotation mark on `/about-us` — which moved to `text-6xl/none` in the
+same change. `text-8xl` and `text-9xl` (96px, 128px) never had one.
+
+**Every redeclared step carries its `--text-<step>--line-height` companion, and
+that is the trap in this whole exercise.** Tailwind v4 pairs each font-size with
+a default line-height under a companion key *inside the same namespace*, so
+`--text-*: initial` drops those too. Redeclare `--text-lg` alone and `text-lg`
+still compiles, still sets the right size, and silently stops setting a
+line-height — a regression with no error anywhere. The values are v4's own,
+copied unchanged (`calc(1.75 / 1.125)` and friends); closing the set is not a
+licence to retune it.
+
+The two authored steps, `--text-2xs` and `--text-4_5xl`, stay **unpaired**,
+exactly as they were before. Neither has ever had a default line-height, and
+pairing one now would move type that renders correctly today.
+
+What the reset deliberately does **not** reach: `text-balance`, `text-pretty`,
+`text-center`, `text-ellipsis` are static utilities with no theme behind them;
+`text-<color>` reads `--color-*`; and `text-shadow-*` is a sibling namespace v4
+explicitly exempts from this clear. All verified in the compiled stylesheet, not
+assumed.
+
+### The weight ladder — closed
+
+Four weights, and the ones that are gone are the point of it:
+
+| class | value | call sites |
+| --- | --- | --- |
+| `font-normal` | 400 | 18 |
+| `font-medium` | 500 | 180 |
+| `font-semibold` | 600 | 151 |
+| `font-bold` | 700 | 347 |
+
+`font-extrabold` and `font-black` now fail to compile. Quicksand's `wght` axis
+stops at 700, so 800 and 900 have only ever rendered *as* bold — a latent no-op
+that would have gone live, unreviewed, the day a heavier face was adopted. It had
+exactly one call site (`admin.$id.donors_.$email/route.tsx`), moved to
+`font-bold` in the same change with **zero visual difference**. `font-thin`,
+`font-extralight` and `font-light` go for the reverse reason: nothing under 400
+is legible at this face's low stroke contrast, and none has ever been reached
+for.
+
+### The leading and tracking ladders — closed
+
+Leading keeps the four named multipliers in use, at v4's own values —
+`tight` 1.25, `snug` 1.375, `normal` 1.5, `relaxed` 1.625. `loose` (2) is
+dropped as unused.
+
+Two things survive the reset and are worth knowing, because both look like they
+should not:
+
+- **`leading-none` is not declared and is not lost.** v4 emits it from a static
+  value (`line-height: 1`), not from this namespace, and the `/none` modifier on
+  a `text-*` utility is likewise a literal. Declaring `--leading-none` would be
+  redundant.
+- **Numeric leading is unaffected.** `leading-5` derives from `--spacing`, not
+  from `--leading-*`, and still compiles to `calc(var(--spacing) * 5)`.
+
+Tracking keeps five: the three v4 steps that carry call sites — `tight`
+(-0.025em), `wide` (0.025em) and `wider` (0.05em) — plus the two authored
+uppercase-label values Tailwind's own ladder does not reach:
+
+| token | value | for |
+| --- | --- | --- |
+| `--tracking-label` | 0.12em | a standalone uppercase label — eyebrow, section kicker, column meta |
+| `--tracking-badge` | 0.08em | uppercase text inside a padded chip; tighter so the last glyph doesn't crowd the chip's right padding |
+
+`tighter` (-0.05em), `normal` (0em) and `widest` (0.1em) are dropped as unused —
+`normal` especially, since it is the resting value and spelling it is always a
+no-op, and `widest` because retaining it as a reference point for the two
+authored values would be the same drift this reset exists to close, with a
+nicer reason attached.
+
+**One honest note on tracking**, and it is the larger one: the raw
+`tracking-wide`/`tracking-wider` sites are mostly
+`text-xs font-bold uppercase tracking-wider text-primary` —
+i.e. eyebrows, which is exactly what `tracking-label` and the `eyebrow` utility
+exist for. The authored names lost to the names that were merely available. That
+sweep is a judgment call per site and is deliberately **not** done here; closing
+the namespace stops the drift growing while it waits.
+
+### The named type roles
+
+Seven utilities in `packages/ui/src/styles/utilities.css` name a type role, so a
+call site picks a *role* rather than a step off the ladder. Each is size and
+wrapping only — never color, never spacing — so what the text is on the page
+stays the caller's to say.
+
+| utility | role |
+| --- | --- |
+| `hero-heading` | the one `h1` at the top of a marketing page — the largest type in the product, at most one per page |
+| `section-heading` | the `h2` opening a band further down a marketing page; one rung under the hero at every breakpoint so a section never competes with the page title |
+| `section-body` | the standfirst paragraph directly under a `section-heading` — larger than body copy because it is read as part of the heading |
+| `article-heading` | a heading inside long-form prose (blog, legal, help); divides a body of text rather than a page |
+| `pre-heading` | the lead-in line above a heading — larger than `eyebrow` and **not** uppercased, so it carries a readable phrase |
+| `eyebrow` | the small uppercase kicker above a section heading. Type only: color and any size override stay the caller's |
+| `figures` | aligned numbers — see below |
+
+These are the sanctioned way to pick a heading size. Reaching past them means
+naming a new role here, not spelling a step at the call site.
+
+### `figures` is an inert seam, and that is recorded on purpose
+
+```css
+@utility figures {
+  font-family: var(--font-display);
+  @apply tabular-nums;
+}
+```
+
+**Both halves do nothing today.** `--font-display` equals `--font-body`, so the
+family declaration changes no glyph. And `tabular-nums` emits
+`font-variant-numeric: tabular-nums` against a face that ships **no `tnum`
+feature** — measured against the binary with fontTools, not read off a specimen.
+Quicksand's digits are proportional (advance widths 588 / 363 / 549 / 519 / 506 /
+535 / 533 / 501 / 537 / 555 per 1000 upm, so a `1` is ~62% the width of a `0`),
+so a money column in it does not line up and **cannot be made to under this
+face**.
+
+The utility earns its line as a seam rather than as a rule that fires: it
+collapses every such call site into one name, so the day a face with real
+tabular figures is adopted, this is a one-line change instead of a repo sweep. Both
+halves are written out for that reason — a seam missing half its intent is a seam
+the next person re-derives wrong.
+
+Any figure a reader compares to another — a money column, a total, a count, a
+date — takes it. Tables do **not** get it automatically.
+
+`slashed-zero` looks like the same category and is **not**. It sits at 4 call
+sites (`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
+×3) and it works: Quicksand draws a dotted-zero alternate behind the `zero`
+feature, and the self-hosted subsets keep that feature (see "The faces" above).
+
+The asymmetry between the two is the thing worth carrying: a dead
+`font-variant-*` rule can have either of two causes, and they differ in whether
+anything can be done. `slashed-zero` was a **delivery** problem — the face had
+the feature and the build was discarding it — so it was fixable without touching
+the design. `tabular-nums` is a **typeface** problem, and no build can add a
+feature Quicksand does not draw.
+
+### The limitation: closing a scale stops names, not brackets
+
+This is the honest edge of the whole gate, and it is the same one `--color-*` has.
+
+`--text-*: initial` makes **`text-8xl` fail to compile**. It does nothing at all
+about **`text-[11px]`**, which compiles fine and lands off the ladder — which is
+exactly where one was found during this change, on a count badge in
+`admin.$id.donors/route.tsx`, sitting between `text-2xs` (10px) and `text-xs`
+(12px). It moved to `text-2xs`. Arbitrary values are a **review** problem, not a
+compiler problem, and nothing here closes them.
+
+There is one legitimate arbitrary use, and it is not a type step at all:
+
+| site | value | why |
+| --- | --- | --- |
+| `components/error/default-fallback.tsx:11` | `text-[2em]` | em-relative **icon** sizing — a Lucide glyph scaled against its inherited font size |
+| `routes/_app.blog_.$slug/route.tsx:105` | `text-[1em]` | same |
+
+An `em` value on an icon deliberately has no fixed size to pick off a ladder; it
+tracks whatever type it sits beside. Neither is a font-size decision and neither
+should be migrated onto a step.
+
+### The faces
+
+`packages/ui/src/styles/theme.css` declares `--font-display`, `--font-body` and
+`--font-gochi`. `packages/ui/src/styles/fonts.css` **loads** them, from binaries
+committed beside it in `packages/ui/src/styles/fonts/`.
+
+Declaration and load sit together on purpose. Split apart — the tokens here, the
+`@import` of a font package in each consumer's own entry — a consumer can import
+`@better-giving/ui/styles.css`, receive every token, load no face, and render the
+whole product in the browser's default sans with nothing failing anywhere. No
+structural gate can catch that: every conformance gate in this system works by
+making an off-system name compile to no rule, and there is no way to make a
+*missing* import fail. Keeping the two in one package is the only thing that
+does, and it costs each consumer nothing but the import it already has.
+
+**Why we subset the fonts ourselves rather than depend on fontsource.** Quicksand
+draws an alternate zero with a dot in its bowl and exposes it as the OpenType
+`zero` feature — which is exactly what `font-variant-numeric: slashed-zero`
+(Tailwind's `slashed-zero`) asks a font for, whatever the designer drew for it.
+fontsource cuts its subsets with pyftsubset's default layout-feature retain list.
+`zero` is not in that list, so the feature and its glyph were dropped before any
+browser saw them, and four call sites on the fee-comparison pages had been asking
+for a distinguishable zero since they were written and silently getting a plain
+one. Measured on the binaries, not assumed:
+
+| binary | codepoints | features | `zero` |
+| --- | --- | --- | --- |
+| `@fontsource-variable/quicksand@5.2.10`, latin | 228 | 9 | no |
+| ours, latin | 237 | 10 | **yes** |
+| upstream `google/fonts` Quicksand[wght].ttf | 694 | 17 | yes |
+
+Each subset is cut to the **union** of fontsource's declared `unicode-range` and
+the coverage the committed binary beside the script already has, so coverage
+cannot regress against what the site served before — it went up in two of three
+subsets and held level in the third, while total bytes fell. That floor is read
+from the shipped bytes rather than from fontsource, because fontsource is no
+longer a dependency: a floor derived from `node_modules` would return nothing on
+a clean install and quietly cut a smaller font than the one it replaced. The
+script also verifies the ratchet after each cut and exits non-zero naming any
+codepoint lost. `packages/ui/src/styles/fonts/generate.sh` regenerates all four
+files from the upstream `google/fonts` sources and prints the codepoint counts
+and feature tags per file. Its output is **committed
+source**, the same convention as `packages/crypto`'s and `packages/stocks`'
+`src/generated/**`: nothing in the task graph runs it, and a font bump is a
+deliberate act.
+
+Gochi Hand needs no feature Quicksand needed. It is subset the same way purely so
+both faces have one pipeline and one place to look. `apps/docs` now emits it as a
+build asset without using it — a browser only fetches a face some element
+actually asks for, so that costs disk and not a request.
+
+Two seams this does **not** close, both deliberate:
+
+- **The PDF export embeds its own five static TTFs** from
+  `apps/platform/src/routes/donation-calculator-export/fonts/`, full upstream
+  files rather than these subsets, because pdf-lib embeds a binary and does not
+  read `@font-face`. A node test pins the five BaseFont names, so a face change
+  that misses that directory fails there rather than shipping a report in the
+  old type.
+- **The Stripe payment box loads Quicksand from the Google Fonts CDN**, in
+  `components/donation/checkouts/stripe/checkout.tsx`. Stripe Elements renders in
+  a cross-origin iframe and can only be handed a stylesheet URL and a literal
+  family name, so it cannot reach these files. That copy is not feature-checked
+  and does not need to be — it renders card fields, not figures.
 
 ## Adoption
 

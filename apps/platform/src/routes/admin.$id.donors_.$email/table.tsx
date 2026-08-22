@@ -117,7 +117,7 @@ export function GiftsTable({ dists, subs }: IProps) {
               <td className="w-px whitespace-nowrap pl-0 border-l-0">
                 {m && (
                   <span
-                    className="text-xs font-semibold tabular-nums"
+                    className="text-xs font-semibold figures"
                     style={{ color: sub_color(m.idx) }}
                   >
                     {ticks[d.id]}
@@ -141,7 +141,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                             </Content>
                           }
                         >
-                          <span className="cursor-help text-xs font-semibold text-primary tabular-nums">
+                          <span className="cursor-help text-xs font-semibold text-primary figures">
                             +${humanize(d.amount_tip_usd, 2)}
                           </span>
                         </Tooltip>
@@ -157,7 +157,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                               </Content>
                             }
                           >
-                            <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-muted-fg tabular-nums">
+                            <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-muted-fg figures">
                               <SparklesIcon
                                 className="fill-success stroke-success"
                                 size={11}

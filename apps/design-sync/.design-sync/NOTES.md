@@ -153,18 +153,31 @@ exist in the emitted `.d.ts`. **Re-run it whenever a component's props change.**
 
 ## Fonts
 
-`cfg.extraFonts` points at the **fontsource packages**, not at the app's build output. It used
-to reach across into `apps/platform/node_modules` — the only place on disk they existed, since
-`packages/ui` declares the `--font-quicksand`/`--font-gochi` tokens but depends on neither
-fontsource package. Since the move this app **declares both itself**, so the paths are its own
-`node_modules/` and nothing points across a member. (`extraFonts` is bounded to the git
-workspace root rather than `PKG_DIR`, so the old cross-member form was legal, just fragile.)
-A non-platform consumer of `@better-giving/ui` still gets the token and no font — worth closing
-if `apps/docs` adopts the system. The
-compiled app CSS references `/assets/*.woff2` (absolute, root-relative) which resolve to nothing
-on disk, so the converter dropped them as dead `@font-face` blocks and shipped zero font files.
-The fontsource packages carry correct `@font-face` CSS with relative `./files/*.woff2`.
-Quicksand Variable and Gochi Hand are the only two families the system uses.
+`cfg.extraFonts` points at **`../../packages/ui/src/styles/fonts.css`** — the design system's
+own `@font-face` layer, one entry for both families.
+
+It used to point at two fontsource packages, and before that reached across into
+`apps/platform/node_modules` — the only place on disk they existed, since `packages/ui`
+declared the `--font-display`/`--font-body`/`--font-gochi` tokens but depended on none of the
+fontsource packages. This app then declared all three itself to stop pointing across a member.
+All of that is gone: `packages/ui` self-hosts both faces beside the tokens that
+name them (committed `.woff2` in `packages/ui/src/styles/fonts/`, cut by that dir's
+`generate.sh` so Quicksand keeps its `zero` feature — see `packages/brand/design-system.md` →
+"The faces"). This app no longer declares any font dependency of its own.
+
+Two things about that path still matter. `extraFonts` is bounded to the **git workspace root**
+rather than `PKG_DIR`, which is what makes the `../../` form legal. And the converter needs
+`@font-face` CSS whose `url()`s resolve **relative to the CSS file** — `fonts.css` uses
+`./fonts/*.woff2`, which does, exactly as the fontsource packages' `./files/*.woff2` did. The
+compiled app CSS is still no use for this: it references `/assets/*.woff2` (absolute,
+root-relative) which resolve to nothing on disk, so the converter drops those as dead
+`@font-face` blocks.
+
+Quicksand Variable and Gochi Hand are the only two families the system uses — `--font-display`
+and `--font-body` are two roles resolving to the one Quicksand face, so this is two families in
+one file, not three. Keep it in step with `--font-*` in `packages/ui/src/styles/theme.css`: a
+face swap that misses `fonts.css` makes every preview render in a family the system no longer
+has.
 
 ## Stylesheet
 

@@ -29,7 +29,7 @@ export function HowItWorks({ classes = "" }) {
               className="flex gap-3.5 md:gap-6 items-start p-5 md:p-6"
             >
               <span
-                className="w-10 md:w-16 shrink-0 text-3xl md:text-4xl font-bold leading-none text-primary tabular-nums slashed-zero"
+                className="w-10 md:w-16 shrink-0 text-3xl md:text-4xl font-bold leading-none text-primary figures slashed-zero"
                 aria-hidden
               >
                 {i + 1}

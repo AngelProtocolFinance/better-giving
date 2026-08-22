@@ -299,22 +299,41 @@
   animation-delay: 600ms;
 }
 
+/* the named type roles. each one is a responsive size curve plus its wrapping
+   behaviour — size only, never color, weight-of-voice or spacing, so a caller
+   still says what the text IS on the page. the ladder they step through is
+   closed in ./theme.css, so these are the sanctioned way to pick a heading
+   size: reaching past them means naming a new role here, not spelling a step
+   at the call site. */
+
+/* the one h1 at the top of a marketing page — the largest type in the product,
+   and there is at most one per page. */
 @utility hero-heading {
   @apply text-3xl/tight md:text-4xl/tight lg:text-6xl/tight text-balance;
 }
 
+/* the h2 that opens a band further down a marketing page. one rung under the
+   hero at every breakpoint so a section never competes with the page's title. */
 @utility section-heading {
   @apply text-3xl/tight md:text-4.5xl/tight text-balance;
 }
 
+/* the standfirst paragraph directly under a section-heading — larger than body
+   copy because it is read as part of the heading, not as the section's prose.
+   text-pretty rather than text-balance: it runs to several lines. */
 @utility section-body {
   @apply text-lg md:text-2xl text-pretty;
 }
 
+/* a heading inside long-form prose — blog posts, legal pages, help copy. sits
+   under section-heading because it divides a body of text rather than a page. */
 @utility article-heading {
   @apply text-2xl md:text-3xl text-balance;
 }
 
+/* the lead-in line above a heading. distinct from `eyebrow` below: this one is
+   larger and is not uppercased, so it carries a readable phrase rather than a
+   kicker. */
 @utility pre-heading {
   @apply text-sm md:text-lg font-bold;
 }
@@ -326,4 +345,24 @@
    uppercased. */
 @utility eyebrow {
   @apply text-xs font-bold uppercase tracking-label;
+}
+
+/* aligned numbers — any figure that sits in a column, a total, or beside
+   another figure a reader compares it to: money, counts, dates, percentages.
+
+   both halves are inert today, and that is recorded rather than hidden.
+   `tabular-nums` emits `font-variant-numeric: tabular-nums`, and Quicksand
+   ships no `tnum` feature (checked against the binary with fontTools) — its
+   digits are proportional, so a money column does not line up and cannot be
+   made to under this face. `--font-display` meanwhile equals `--font-body`,
+   so the family declaration changes nothing either.
+
+   the utility earns its line as a seam, not as a rule that fires: it collapses
+   every such call site into one name, so the day a face with real tabular figures is
+   adopted this is a one-line change instead of a 22-site sweep. both halves
+   are written out for that reason — a seam that is missing half the intent is
+   a seam that gets re-derived wrong. */
+@utility figures {
+  font-family: var(--font-display);
+  @apply tabular-nums;
 }

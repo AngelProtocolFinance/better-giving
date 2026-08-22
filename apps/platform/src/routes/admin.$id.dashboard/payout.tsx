@@ -17,12 +17,8 @@ export function Payout({ classes = "", ...p }: Props) {
     <div className={`${classes}`}>
       <div className="flex items-center justify-between mb-1">
         <div className="space-x-1 mb-1">
-          <span className="text-xs uppercase text-shadow-white text-shadow">
-            total
-          </span>
-          <span className="font-bold text-shadow-white text-shadow">
-            ${humanize(p.bal_cash)}
-          </span>
+          <span className="text-xs uppercase">total</span>
+          <span className="font-bold">${humanize(p.bal_cash)}</span>
         </div>
         <div className="space-x-1">
           <span className="text-xs">of</span>

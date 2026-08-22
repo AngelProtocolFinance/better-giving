@@ -62,7 +62,7 @@ export function Grow({ classes = "" }: IGrow) {
                   <div className="text-xs text-muted-fg">{a.detail}</div>
                 </div>
                 <div
-                  className={`text-sm font-bold whitespace-nowrap tabular-nums ${a.figure_classes}`}
+                  className={`text-sm font-bold whitespace-nowrap figures ${a.figure_classes}`}
                 >
                   {a.figure}
                 </div>

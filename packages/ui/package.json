@@ -16,7 +16,7 @@
     "./styles.css": "./src/styles/index.css"
   },
   "scripts": {
-    "build": "tailwindcss -i ./src/styles/build-entry.css -o ./dist/styles.css",
+    "build": "tailwindcss -i ./src/styles/build-entry.css -o ./dist/styles.css && mkdir -p ./dist/fonts && cp ./src/styles/fonts/*.woff2 ./dist/fonts/",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run --bail 1",
     "lint": "biome check .",
