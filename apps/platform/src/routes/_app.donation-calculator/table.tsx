@@ -77,7 +77,7 @@ export function Table({ classes = "", ...v }: Props) {
           const x = v.projection[p.value - 1];
           return (
             <Tabs.Content key={p.value} value={p.label}>
-              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+              <div className="table-scroll">
                 <table className="table">
                   <thead>
                     <tr>

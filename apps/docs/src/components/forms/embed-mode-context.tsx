@@ -1,12 +1,6 @@
-import { Copier } from "@better-giving/ui";
+import { Copier, Modal } from "@better-giving/ui";
 import { Info, X } from "lucide-react";
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useRef,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 import { useParams } from "react-router";
 import { HighlightedCode } from "#/components/highlighted-code";
 
@@ -74,7 +68,7 @@ export function EmbedModeTabs() {
 }
 
 function SetupModal({ id }: { id: string }) {
-  const dialog_ref = useRef<HTMLDialogElement>(null);
+  const [open, set_open] = useState(false);
 
   const script_snippet = `<script src="https://better.giving/form-embed.js" async></script>`;
   const container_snippet = `<div data-bg-form="${id}"></div>`;
@@ -83,29 +77,33 @@ function SetupModal({ id }: { id: string }) {
     <>
       <button
         type="button"
-        onClick={() => dialog_ref.current?.showModal()}
+        onClick={() => set_open(true)}
         className="font-medium underline hover:text-fg"
       >
         View setup instructions
       </button>
 
-      <dialog
-        ref={dialog_ref}
-        className="p-0 rounded backdrop:bg-black/50 max-w-xl w-[90vw] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 m-0"
+      <Modal
+        open={open}
+        onClose={() => set_open(false)}
+        size="md"
+        classes="bg-popover text-popover-fg"
       >
         <div className="p-5 border-b flex items-center justify-between">
           <h2 className="text-lg font-semibold text-fg">Script Embed Setup</h2>
-          <form method="dialog">
-            <button
-              type="submit"
-              className="p-1.5 rounded hover:bg-accent text-muted-fg"
-            >
-              <X size={20} />
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={() => set_open(false)}
+            aria-label="Close setup instructions"
+            className="p-1.5 rounded hover:bg-accent text-muted-fg"
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <div className="p-6 space-y-8 max-h-[70vh] overflow-y-auto">
+        {/* the tier already caps the box at 90dvh and scrolls it — the heading
+            scrolls with the body, as it does on every platform modal. */}
+        <div className="p-6 space-y-8">
           <section className="space-y-4">
             <div>
               <h3 className="font-medium text-fg">Step 1: Add the script</h3>
@@ -158,7 +156,7 @@ function SetupModal({ id }: { id: string }) {
             </div>
           </section>
         </div>
-      </dialog>
+      </Modal>
     </>
   );
 }

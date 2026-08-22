@@ -503,6 +503,30 @@ preset object, a hook) has a half `cfg.componentSrcMap` cannot carry, so it reac
 if `entry.tsx` names it. Nothing checks this — the gap is only visible by reading `conventions.md`
 against the bundle's export list, which is the validation pass the skill runs before upload.
 
+## Scope change, 2026-08-22 — the layout vocabulary
+
+`conventions.md` gained a *Page shape and scrollers* section: `page` (the one page width — width
+curve plus gutter, placed per band and never hoisted), `table-scroll` (the wrapper a wide table
+sits in) and `scrollbars` (the thin themed skin). Reading measure is documented as a cap on the
+text column one level in, not as a second page width.
+
+**Nothing was added to `cfg.componentSrcMap` or `entry.tsx`, and that is correct.** These are CSS
+utilities, not components — the repo chose utilities over a `<Container size={…}>` precisely
+because a runtime-composed class compiles to nothing under JIT. A utility reaches the design
+project through the **stylesheet**, and it is already there: `apps/platform/src` is one of the
+three scanned scopes and writes `page` 137 times, `table-scroll` 42. Verified in the rebuilt
+`.cache/styles.css`.
+
+The consequence is a dependency worth naming: these three exist in the published vocabulary
+**because the app writes them**, not because anything here declares them. If a future change ever
+moved the page shape out of `apps/platform/src`, the class would vanish from the design project
+silently — the same failure mode as any other JIT gap, one level up. A `@source inline(…)`
+safelist in `styles-entry.css` would pin them; not doing it yet, because the app-scope dependency
+is what every other utility in this bundle already has.
+
+Chrome stays unpublished, and `conventions.md` now says so out loud — a design starts below the
+header and ends above the footer.
+
 ## Re-sync risks — the watch-list for the next run
 
 What can silently go stale or wrong, in rough order of how expensive it is to miss:

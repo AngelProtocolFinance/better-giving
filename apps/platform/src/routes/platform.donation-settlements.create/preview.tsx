@@ -125,7 +125,7 @@ function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
         </Tabs.Content>
 
         <Tabs.Content value="json">
-          <pre className="text-xs bg-muted rounded p-3 overflow-x-auto max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+          <pre className="text-xs bg-muted rounded p-3 overflow-x-auto max-h-60 overflow-y-auto scrollbars">
             {JSON.stringify(preview.txs, null, 2)}
           </pre>
         </Tabs.Content>

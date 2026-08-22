@@ -98,7 +98,7 @@ export function ProbSol({ className = "" }) {
         <h4 className="text-center @6xl:text-left text-lg @6xl:text-3xl uppercase mb-6">
           How Better Giving Solves It
         </h4>
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <div className="table-scroll">
           <table className="w-full border-collapse">
             <thead className="bg-muted">
               <tr className="border-b">

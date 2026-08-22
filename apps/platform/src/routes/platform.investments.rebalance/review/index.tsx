@@ -42,9 +42,7 @@ export function Review(props: Props) {
   });
 
   return (
-    <div
-      className={`overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border ${props.classes || ""} p-8`}
-    >
+    <div className={`overflow-x-auto scrollbars ${props.classes || ""} p-8`}>
       <p className="text-muted-fg text-sm font-semibold">Portfolio value</p>
       <Diff
         classes="text-2xl font-bold mb-4"

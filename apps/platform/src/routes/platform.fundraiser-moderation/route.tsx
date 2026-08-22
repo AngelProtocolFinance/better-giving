@@ -27,9 +27,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
   return (
     <div className="grid content-start gap-y-4 gap-x-3 px-6 py-4 md:px-10 md:py-8 w-full">
       <h3 className="font-bold text-2xl">Fundraisers</h3>
-      <div className="grid col-span-full overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-        {node}
-      </div>
+      <div className="grid col-span-full table-scroll">{node}</div>
     </div>
   );
 }

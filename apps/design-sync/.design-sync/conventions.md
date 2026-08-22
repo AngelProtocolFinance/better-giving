@@ -94,6 +94,36 @@ appears only on genuinely floating layers: toasts, tooltips, and select popups.
 
 Focus is always a 2px `--ring` outline with `outline-offset: 2px`. Never `outline: none`.
 
+### Page shape and scrollers
+
+There is **one page width**, and it is a class: `page`. It carries the width curve and the side
+gutter and nothing else — no background, no vertical rhythm. The curve is full-bleed on a phone or
+tablet, capped at 80rem from 1280px up, and 96rem on a large monitor, so a page widens with the
+window rather than freezing at one size.
+
+Put `page` on **each band**, never on a wrapper around several. A band that paints a full-bleed fill
+(`bg-accent`, a border, a colored section) is the outer element and holds the padding-block; the
+`page` inside it holds the width and the gutter. Two things follow: the outer band must not carry
+its own `px-*` — two gutters stack — and a page that alternates full-bleed sections with contained
+ones simply repeats `page` on each. That is how every section on a page lines up on the same left
+edge, chrome included.
+
+**Reading measure is not a page width.** A long paragraph is capped one level *inside* the page —
+`max-w-3xl` on the text block, or the `prose` class, which brings its own 65-character measure.
+Narrowing the page itself to make text readable pulls the headings and images in with it.
+
+Two scrollers, both classes:
+
+- `table-scroll` — the wrapper a wide table sits in. Goes on the element **around** the `<table>`,
+  never on the table. A table's columns are the data and cannot reflow, so past a narrow viewport it
+  scrolls sideways instead of pushing the whole page wider.
+- `scrollbars` — the thin, themed scrollbar skin for anything else that scrolls: a popup list, a
+  code block, a drawer. `table-scroll` already includes it.
+
+**Chrome is not part of the published system.** The marketing header, the app header, the footer and
+the dashboard sidebar live in the app and are not exported here. Design the page, not the frame
+around it — a screen starts below the header and ends above the footer.
+
 ### A constraint worth knowing
 
 The stylesheet is compiled from real source — the components, these preview cards, and the app —

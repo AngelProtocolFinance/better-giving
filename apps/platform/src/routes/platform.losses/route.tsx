@@ -27,7 +27,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       {/* per-npo breakdown */}
       <h4 className="font-bold text-lg mt-8 mb-1">Losses per nonprofit</h4>
       {npo_losses.length > 0 ? (
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <div className="table-scroll">
           <table className="table">
             <thead>
               <tr>

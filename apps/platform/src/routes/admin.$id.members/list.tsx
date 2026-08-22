@@ -6,7 +6,7 @@ import { DeleteForm } from "./delete-form";
 interface IList extends LoaderData {}
 export function List(props: IList) {
   return (
-    <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+    <div className="table-scroll">
       <NavLink className="justify-self-end btn btn-primary gap-2 mb-2" to="add">
         <Plus size={16} />
         <span>Invite user</span>

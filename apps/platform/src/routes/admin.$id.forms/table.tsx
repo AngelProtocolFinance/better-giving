@@ -35,7 +35,7 @@ export function FormsTable({
 }: Props) {
   return (
     <div className={classes}>
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+      <div className="table-scroll">
         <table className="table w-full">
           <thead>
             <tr>

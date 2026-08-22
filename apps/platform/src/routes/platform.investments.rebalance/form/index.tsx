@@ -58,7 +58,7 @@ export function RebalanceForm({
             .join(" ")}
         </p>
       </div>
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border pb-4">
+      <div className="table-scroll pb-4">
         <table className="table">
           <thead>
             <tr className="text-xs text-left">

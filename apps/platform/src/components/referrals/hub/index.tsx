@@ -57,7 +57,7 @@ export const Hub = ({ classes = "" }: Props) => {
           Your all-in-one resource for sharing Better Giving, equipping you to
           refer nonprofits, grow your network, and earn rewards smoothly.
         </p>
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <div className="overflow-x-auto scrollbars">
           <div className="grid grid-rows-[auto_1fr] grid-cols-5 gap-x-8 min-w-max">
             {cards.map((card) => (
               <div

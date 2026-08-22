@@ -65,9 +65,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
         <Filter isDisabled={loading} classes="w-full @sm:w-auto" />
       </div>
 
-      <div className="grid overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-        {node}
-      </div>
+      <div className="grid table-scroll">{node}</div>
     </div>
   );
 }

@@ -250,6 +250,28 @@
   }
 }
 
+/* the scrollbar skin. tailwind 4.3 ships `scrollbar-width`/`scrollbar-color`
+   natively, and the three that dress a scroller here were always written as
+   one breath — 59 times, on the x axis, the y axis and both. one name, so a
+   new scroller cannot be half-skinned. axis is deliberately not included:
+   this is decoration, and the caller still says which way its content runs. */
+@utility scrollbars {
+  @apply scrollbar-thin scrollbar-thumb-ring scrollbar-track-border;
+}
+
+/* the wrapper a wide table sits in. a table is the one thing on a dashboard
+   that cannot reflow — the columns are the data — so past a narrow viewport it
+   either scrolls sideways or pushes the whole page wider and takes the sidebar
+   with it. put this on the element wrapping the `<table>`, never on the table.
+
+   36 files spelled it out identically; it carried the same three skin classes
+   every time and the axis every time. structure stays the caller's: a `grid`,
+   a `col-span-full`, a background or a margin on the same element are all
+   fine, and none of them competes with what this sets. */
+@utility table-scroll {
+  @apply overflow-x-auto scrollbars;
+}
+
 @utility fixed-center {
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }

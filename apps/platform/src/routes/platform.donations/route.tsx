@@ -31,9 +31,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
     <div className="px-6 py-4 md:px-10 md:py-8 w-full max-w-5xl grid content-start">
       <h3 className="font-bold text-2xl mb-4">Donations</h3>
 
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
-        {node}
-      </div>
+      <div className="table-scroll">{node}</div>
 
       <Outlet />
     </div>
