@@ -1,14 +1,16 @@
 import { Field, Modal } from "@better-giving/ui";
 
 // Modal is always authored open here: closed it renders nothing at all.
-// It portals to document.body, so `classes` carries the positioning
-// (`fixed-center`) exactly as every real caller does.
+// It portals to document.body, and `size` carries the whole content-box
+// geometry — centering, width, height cap, overflow. `classes` is left for
+// surface and padding only; a caller that hand-spells a width fights the tier.
 
 export const Confirmation = () => (
   <Modal
     open
     onClose={() => {}}
-    classes="fixed-center p-8 bg-popover text-popover-fg w-full sm:max-w-md rounded text-center"
+    size="panel"
+    classes="p-8 bg-popover text-popover-fg text-center"
   >
     <h3 className="text-xl font-bold text-balance">
       This organization is already registered
@@ -24,12 +26,9 @@ export const Confirmation = () => (
   </Modal>
 );
 
+// no `size` — the default `sm` (512px) is the single-column form tier.
 export const InviteMember = () => (
-  <Modal
-    open
-    onClose={() => {}}
-    classes="fixed-center p-6 bg-popover text-popover-fg w-full sm:max-w-lg rounded"
-  >
+  <Modal open onClose={() => {}} classes="p-6 bg-popover text-popover-fg">
     <h4 className="text-center text-xl font-bold mb-6">Invite a team member</h4>
     <div className="grid gap-4">
       <Field
@@ -56,7 +55,8 @@ export const DestructiveConfirm = () => (
   <Modal
     open
     onClose={() => {}}
-    classes="fixed-center p-8 bg-popover text-popover-fg w-full sm:max-w-md rounded"
+    size="panel"
+    classes="p-8 bg-popover text-popover-fg"
   >
     <h3 className="text-xl font-bold">Cancel this payout?</h3>
     <p className="text-muted-fg text-pretty mt-3">

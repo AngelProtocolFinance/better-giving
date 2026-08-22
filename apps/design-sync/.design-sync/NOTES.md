@@ -134,7 +134,7 @@ sync and were corrected by hand.
 
 ## How the prop contracts were originally generated
 
-`cfg.dtsPropsFor` holds all 41 bodies. They are NOT hand-authored — the converter's extractor
+`cfg.dtsPropsFor` holds all 40 bodies. They are NOT hand-authored — the converter's extractor
 only reads `.d.ts`, and platform ships none, so every body degraded to `[key: string]: unknown`.
 
 `.ds-sync/extract-props.mjs` regenerates them from the real source types via ts-morph:
@@ -207,6 +207,46 @@ now stops that walk, so the build is exactly the three scopes the entry names. W
 preview. Verified byte-identical to an absolute-path reference build, so the relative `@source`
 paths resolve to the intended dirs.
 
+### The docs were writing the stylesheet
+
+Found 2026-08-22. `@import "tailwindcss"` auto-detects sources from the entry file up to the
+nearest `package.json` — `apps/design-sync/` — and scans **everything** under it, markdown
+included. `NOTES.md` and `conventions.md` both live in that root, so any valid utility name quoted
+in their prose minted a real rule in the published stylesheet.
+
+That is worse than it sounds, in three ways:
+
+- **It made the vocabulary depend on the prose.** 20 utilities were reaching the design project
+  with no call site in any component, preview or app file. Among them the twelve this file records
+  as *deliberately lost* in the 2026-08-20 narrowing (`antialiased`, `w-12`, `outline-2`, …) —
+  the note recording the loss is what put them back — plus `bg-[conic-gradient(…)]` from the
+  `LoaderRing` write-up, and `bg-destructive/10` from the header's own don't-do-this example.
+- **It was asymmetric, which is the silent-miss trap.** `bg-chart-1` and `bg-chart-5` compiled
+  because the prose spelled them; `bg-chart-2` did not, because `…` elides. A design following
+  the header got a working swatch or an invisible one depending on the index.
+- **It made verification circular.** Every "checked it against the compiled stylesheet" pass in
+  this file was partly self-fulfilling for any name the header mentions — the check reads a
+  stylesheet the checked document helped write. The `w-16`/`h-20` snippet under
+  *Preview-authoring gotchas* was the pure case: it could never report a miss, because writing
+  the check minted both classes.
+
+Fixed with `@source not "../**/*.md"` in `styles-entry.css`, which drops the 20. What the header
+genuinely promises is then listed back explicitly with `@source inline(...)` rather than left to
+whichever names the app happened to write:
+
+- `rounded-none` — the radius ladder names it as one of the two escapes it still allows.
+- `{bg,text,border,fill,stroke}-chart-{1..5}` — `theme.css:75-79` maps `--color-chart-*`, so these
+  are registered Tailwind colours; nothing in the app writes a utility form because its charts
+  reach the tokens as `var(--chart-N)` in recharts props.
+- the numeric box ladder (`w-`/`h-`/`size-`/`min-w-`/`min-h-`/`max-w-` to 96, `gap-`/`p-`/`m-`
+  and their per-side and per-axis forms to 24). The header claimed "the standard w/h steps" were
+  safe and that was false in both directions — `w-16` and `h-20` absent, `w-20` and `h-16`
+  present. +17KB on a 207KB sheet.
+
+**So: naming a class in this file or in `conventions.md` no longer makes it real.** Verify a claim
+against the build, and if the build disagrees, fix one of the two — do not assume the doc is right
+because the class is in the stylesheet.
+
 The general shape of this is worth knowing: **the published vocabulary is only what these three
 scopes happen to write**, so a design that reaches for a reasonable utility nobody has used yet
 renders unstyled. The previews scope is the deliberate escape hatch — write the utility in a
@@ -254,7 +294,7 @@ this bundled copy of the converter does not ship — a full `package-build.mjs` 
 
 ## Scope
 
-41 components, deliberately narrowed to the reusable primitives. App-specific machinery is
+40 components, deliberately narrowed to the reusable primitives. App-specific machinery is
 excluded on purpose: `csv-exporter`, `img-editor`, `donate-methods`, `donation/**`, `token-field`,
 `youtube-player`, `referrals`, `bank-details`, `rich-text`, `chrome`, `header`, `footer`,
 `goal-selector`, `fundraiser`, `video`. Widening scope means adding to BOTH `cfg.componentSrcMap`
@@ -268,15 +308,12 @@ That is a real property of the system, not a gap in the sync.
 Surfaced while validating `conventions.md` against the compiled stylesheet. These are **repo**
 observations, not sync problems — recorded here rather than fixed.
 
-- **Four palette tokens have no compiled Tailwind utility**, because no scanned source writes
-  that utility form, and Tailwind v4 only emits what it sees:
-  `bg-warning-subtle`, `bg-chart-1`…`bg-chart-5`, `border-primary-border`, `ring-primary-ring`.
-  The tokens themselves are defined in `packages/brand/src/colors.css`. `bg-warning-subtle` is the
-  notable one — `design-system.md` already flags `--warning-subtle`/`-fg` as "defined, zero call
-  sites", and this confirms it end to end: a design written against that name renders unstyled.
-  `--primary-ring`/`--primary-border` are reached only through the `surface-primary` utility,
-  which rebinds `--ring`/`--border`, so their absence as standalone utilities is by design.
-  `conventions.md` documents all four as unavailable.
+- **Four palette tokens appeared to have no compiled utility** — superseded 2026-08-22. The
+  finding was an artifact of the measurement: this file is inside the Tailwind scan root, so the
+  sentence naming `bg-chart-1`…`bg-chart-5` minted rules for the two forms it spelled literally.
+  See *The docs were writing the stylesheet* under Stylesheet. The chart ramp and `rounded-none`
+  are now listed explicitly and compile in every form; `--primary-ring`/`--primary-border` are
+  still reached only through `surface-primary`, which is by design and is what the header says.
 
 - **`LoaderRing` painted nothing at all — fixed in this run.** `loader-ring.tsx` drew its ring
   with `bg-[conic-gradient(var(--tw-gradient-stops))] from-transparent to-<color>`. Under
@@ -288,18 +325,23 @@ observations, not sync problems — recorded here rather than fixed.
   replacing the arbitrary utility with `bg-conic`, which supplies the position itself; the
   client assets were then rebuilt (see Stylesheet) and `cfg.cssEntry` repointed.
 
-- **Three props are declared but never forwarded.** `ErrorStatus` and `LoadingStatus` are typed
-  `Omit<StatusProps, "icon">`, so their prop tables advertise `inline` and `gap`, but both
-  implementations pass only `classes` to `Status`. `MultiCombo` declares `label` and the JSX
-  drops it — real call sites render a separate `<Label>` above. The generated `.d.ts` is
-  type-accurate, so the docs (`.design-sync/docs/`) carry the caveat instead; the repo fix is
-  either to wire the props up or to delete them from the types.
+- **Two props were declared but never forwarded — fixed 2026-08-22.** `ErrorStatus` and
+  `LoadingStatus` are typed `Omit<StatusProps, "icon">`, so their published prop tables advertised
+  `inline` and `gap`, but both implementations passed only `classes` through to `Status`. Both now
+  rest-spread, which is the part that stops it recurring: the type is derived, so forwarding by
+  name silently drops whatever `StatusProps` gains next. No call site passed either prop, so no
+  render changed. (`MultiCombo`'s `label` was listed here too and is **not** a defect — it is
+  forwarded at `components/select/multi-combo.tsx:70`.)
 
-- Everything else the header names verifies: all seven `.btn-*` variants, `.pending`,
-  `.field-input`, `.field-input-container`, `.field-err`, `.label`, `.label-floating`, `.table`,
-  `.selector-btn`, `.selector-opt`, `.selector-opts`, and the utilities `surface-primary`,
-  `eyebrow`, `section-heading`, `section-body`, `hero-heading`, `article-heading`, `flex-center`,
-  `absolute-center`, `overlay`, `check-field`, `checkbox`, `radio`, `date-input`.
+- Everything the header names verifies against the build — and since 2026-08-22 that check is
+  finally honest, because the doc no longer mints what it names. Verified this way: the seven
+  `.btn-*` variants, `.pending`, the three size steps and `btn-icon`, `.field-input`,
+  `.field-input-container`, `.field-err`, `.label`, `.label-floating`, `.table`, `.selector-btn`,
+  `.selector-opt`, `page`, `table-scroll`, `scrollbars`, `rounded`/`rounded-full`/`rounded-none`,
+  `max-w-3xl`, `max-w-prose`, all three `-subtle` pairs, all 25 `chart-*` forms, and the utilities
+  `surface-primary`, `eyebrow`, `section-heading`, `section-body`, `hero-heading`,
+  `article-heading`, `flex-center`, `absolute-center`, `overlay`. The must-fail set is absent as
+  intended: `rounded-sm`/`-md`/`-lg`/`-xl`/`-xs`, `btn-outline`, `btn-link`, raw palette names.
 
 ## Preview-authoring gotchas (from the fan-out)
 
@@ -337,8 +379,11 @@ observations, not sync problems — recorded here rather than fixed.
   on claude.ai/design that nothing in this repo writes. Gaps are not symmetric between axes
   (`h-16` present, `w-16` absent → `h-16 w-16` renders a 64px-tall box of whatever width the
   content wants) and a missing utility is silent: no error, just a layout that ignores you.
-  Check before authoring:
-  `python3 -c "css=open('.design-sync/.cache/styles.css').read(); print([c for c in ['w-16','h-20'] if c not in css])"`
+  The numeric box ladder is now guaranteed by `@source inline(...)` (see *The docs were writing
+  the stylesheet*), so sizing and spacing no longer need this check. Everything else still does:
+  `python3 -c "css=open('.design-sync/.cache/styles.css').read(); print([c for c in ['columns-3','backdrop-blur-lg'] if '.'+c not in css])"`
+  — and note the check only became truthful once markdown left the scan scope; before that,
+  writing a class name into this file is what made it exist.
 
 - **Previews may compose `platform` components with each other and may import third-party
   packages.** `Group.tsx` renders `Field` and `Select` inside its panel; `Input.tsx` imports
@@ -527,6 +572,117 @@ is what every other utility in this bundle already has.
 Chrome stays unpublished, and `conventions.md` now says so out loud — a design starts below the
 header and ends above the footer.
 
+## Scope change, 2026-08-22 — the modal size set (#111)
+
+`Modal` gained a `size` prop: a closed geometry set (`packages/ui/src/helpers/modal-box.ts`) of
+`panel` 448 / `sm` 512 (the default) / `md` 672 / `lg` 768, each one centering itself, capping its
+height at `90dvh` and scrolling its own overflow, plus `"none"` for the dashboard's edge-anchored
+drawer. Three things followed in this sync:
+
+- **`cfg.dtsPropsFor.Modal` was hand-updated.** This is the drift the risks list warns about, caught
+  by diffing `packages/ui/src/components/` since the last synced sha. Nothing failed — the preview
+  rendered and validate exited 0 the whole time; only the published contract would have been wrong.
+- **`previews/Modal.tsx` was rewritten off the retired idiom.** It hand-spelled
+  `fixed-center … w-full sm:max-w-md rounded` on every cell, which is exactly what #111 replaced. A
+  preview is imitated by the design agent, so a stale one teaches the retired spelling to every
+  design. `classes` now carries surface and padding only; `size` carries the geometry. The three
+  cells still grade `good`, and the tier axis is visible in the sheet (`panel` cells narrower than
+  the default-`sm` one).
+- **`modal_box` / `ModalSize` were deliberately NOT added to the export surface.** They are exported
+  from `@better-giving/ui/helpers`, but a design reaches the tiers through the `size` prop, so
+  nothing callable is missing — unlike the `masks` / `show_toast` cases. If a future component ever
+  takes a *class string* from `modal_box` rather than a tier name, that changes.
+
+`conventions.md` gained a matching paragraph under *Page shape and scrollers* — dialog size is a
+closed set the same way radius and page width are, and without it the agent hand-spells the
+geometry (and an arbitrary width may not compile at all).
+
+## conventions.md drift found 2026-08-22 — `prose`
+
+The validation pass against the fresh build caught one name that does not exist: the header told the
+agent to cap reading measure with the `prose` class, and the compiled stylesheet has only
+`.max-w-prose` — there is no typography plugin anywhere in `styles-entry.css` or
+`packages/ui/src/styles/`. A design following that line renders an uncapped paragraph, silently.
+Corrected to `max-w-prose`. Everything else the header names verified — but read that with the
+next two sections in hand: this pass ran while the docs were still minting utilities, so the color
+half of it was circular (the header named `chart-1…5`, and naming it is what made it compile), and
+the ladder half was measured against whatever the app happened to write. The button, field,
+selector, table, utility and page classes are the part of that all-clear that stands on its own.
+
+**Run this pass every sync.** It is cheap (grep the header's names against `ds-bundle/_ds_bundle.css`
+and the `components/<group>/<Name>/` tree) and it is the only thing that catches a header that has
+quietly stopped being true.
+
+## conventions.md drift found 2026-08-22 (second pass) — the color set
+
+With the docs no longer writing the stylesheet (previous section), the header could finally be
+measured honestly, and the color section turned out to promise three things the build did not have:
+
+- **`text-card-fg`, `text-sidebar-fg`** — the ink row promises "the `-fg` partner of every surface
+  above". `text-popover-fg` compiled and `text-card-fg` did not, for no reason other than a preview
+  happening to write the one and not the other.
+- **`border-input`** — the lines row names `border`, `input`, `ring`; only `border-border` and
+  `outline-ring` had rules.
+- **`background-fg`** — promised by that same "every surface" phrasing and **not a token at all**.
+  `--color-background`'s ink is plain `--color-fg`; there is no `--color-background-fg` in
+  `theme.css`. This one is fixed in the prose, not the build.
+
+Fixed the first two the same way the chart ramp and the box ladder were: an `@source inline(...)`
+in `styles-entry.css` listing the semantic set across `bg-`/`text-`/`border-`/`ring-`. Every name in
+that list is a registered `--color-*` token in `packages/ui/src/styles/theme.css`, so this adds no
+vocabulary the system didn't already mean to have — it only stops the published set from depending
+on which tokens the app source happened to reach for. +82 rules, none removed.
+
+**`border-primary-border` and `ring-primary-ring` were deliberately NOT safelisted.** They are
+registered tokens, but the design decision is that `surface-primary` rebinds `--ring`/`--border`
+for you, and the header used to describe the two utilities as something you could reach for
+directly. Reworded instead: the pair exists as tokens, has no utility, and `surface-primary` is
+the way. Closing the escape beats widening it.
+
+## Checking the header is now one command
+
+`.design-sync/check-conventions.mjs` (committed) replaces the hand-rolled grep the previous two
+sections describe:
+
+```sh
+cd apps/design-sync && node .design-sync/check-conventions.mjs   # exits non-zero on a broken promise
+```
+
+It holds the header's enumerated claims as data — the surface/ink/lines sets, the chart ramp, both
+ladders, the button and utility class lists, the radius trio — plus a `MUST_BE_ABSENT` list for the
+names the header says do **not** exist (`rounded-lg`, `btn-outline`, `border-primary-border`, …), so
+a fix in one direction can't quietly break the other. It also checks every backticked or JSX-tagged
+component name against the `components/` tree and the bundle's export list.
+
+Two things about it that matter:
+
+- **The claim lists are the contract, not a scrape of the prose.** Rewriting a promise in
+  `conventions.md` without editing the corresponding list in the script means the script keeps
+  verifying the old promise. Change both in the same commit.
+- **Tailwind escapes `.` `/` `[` `]` `:` `%` `@` `(` `)` in the emitted selector** — `p-1.5` lands
+  as `.p-1\.5`. A naive grep for `.p-1.5` finds nothing and reports a false miss on every
+  fractional step; the script's `has()` accounts for it. The first draft of it did not, and claimed
+  98 missing utilities that were all present.
+
+## The converter's own deps live in `.ds-sync/node_modules`
+
+`esbuild`, `ts-morph` and `@types/react` are installed **inside the staged `.ds-sync/`**, isolated
+from the repo's workspace (this app declares only `playwright` and `@types/react` itself). The
+re-sync instruction says to re-copy the staged scripts with `cp -r`; **do not `rm -rf .ds-sync`
+first** — that takes the installed deps with it and the driver dies on
+`Cannot find package 'esbuild'` before it prints anything useful. If it does get wiped:
+
+```sh
+cd apps/design-sync/.ds-sync
+echo '{"name":"ds-sync-deps","private":true}' > package.json
+pnpm i --ignore-workspace esbuild ts-morph @types/react
+```
+
+`--ignore-workspace` because `.ds-sync/` is not a workspace member. pnpm blocks postinstall scripts
+by default and esbuild needs its own, so add `"pnpm": {"onlyBuiltDependencies": ["esbuild"]}` to
+that `package.json` — but add it *alongside* the dependencies, not by rewriting the file, or the
+next install removes all three packages.
+
 ## Re-sync risks — the watch-list for the next run
 
 What can silently go stale or wrong, in rough order of how expensive it is to miss:
@@ -561,4 +717,12 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
   the whole-repo overspill is gone (see Stylesheet).
 - **`.cache/styles.css` is gitignored**, so a fresh clone has no `cssEntry` until it is compiled.
   `pnpm --filter design-sync styles`. A missing one is loud (`! cssEntry: … not found — skipped`).
+- **`conventions.md` naming something the build doesn't have.** `prose` was this on 2026-08-22,
+  then the color set was (both above). The header is trusted verbatim by the design agent, and a
+  name with no rule fails silently. Now mechanical: `node .design-sync/check-conventions.mjs` after
+  every build whose stylesheet or header moved, before uploading. Its claim lists are hand-
+  maintained, so a reworded promise needs the script edited in the same commit.
+- **Node is pinned to 24 (`.nvmrc`, `engines`) but the converter runs fine on newer.** This sync ran
+  on Node 26.7.0; pnpm prints an `Unsupported engine` warning for every member and nothing else
+  happens. Not worth chasing, but don't read those warnings as a sync problem.
 - **The capture harness pins the clock to 2024-05-15.** Date previews are authored around it.

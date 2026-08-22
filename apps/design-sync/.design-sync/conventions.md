@@ -56,7 +56,7 @@ are the semantic tokens:
 | surfaces | `background`, `card`, `popover`, `muted`, `accent`, `secondary`, `sidebar` |
 | brand / state | `primary`, `success`, `warning`, `destructive` |
 | tinted band | `destructive-subtle` (+ its `-fg`) |
-| ink | `fg`, `muted-fg`, and the `-fg` partner of every surface above |
+| ink | `fg` (the ink on `background` — there is no `background-fg`), `muted-fg`, and the `-fg` partner of every other surface above |
 | lines | `border`, `input`, `ring` |
 
 Use them as `bg-card`, `text-muted-fg`, `border-border`, and so on. **A fill token is not
@@ -66,10 +66,13 @@ which is the warning ink on *every* surface. Never pair an alpha tint with its o
 `bg-destructive-subtle text-destructive-subtle-fg`, and set the surface and its ink **on the same
 element** — a child's own color utility wins over an inherited one.
 
-`success-subtle` (+ `-fg`) and `warning-subtle` (+ `-fg`) are authored pairs too, and `chart-1…5`
-exist for data viz. For a brand-filled panel that contains a control, use the `surface-primary`
-utility, which rebinds `--ring` and `--border` to the accessible pair for you rather than making you
-reach for `border-primary-border` / `ring-primary-ring` directly.
+`success-subtle` (+ `-fg`) and `warning-subtle` (+ `-fg`) are authored pairs too. `chart-1…5` is
+the data-viz ramp, and it compiles in every form you would reach for — `bg-`, `text-`, `border-`,
+`fill-`, `stroke-` — so an inline SVG series and the legend swatch beside it name the same colour.
+For a brand-filled panel that contains a control, use the `surface-primary` utility, which rebinds
+`--ring` and `--border` to the accessible pair for you. That pair exists only as tokens
+(`--primary-border`, `--primary-ring`) — there is deliberately no `border-primary-border` or
+`ring-primary-ring` utility, so `surface-primary` is the way to reach it.
 
 **On a `--primary` fill, state is never carried by hue.** Every semantic ink in the palette is
 authored for light surfaces and collapses on primary (destructive 1.06:1, warning 1.04:1, success
@@ -109,7 +112,7 @@ ones simply repeats `page` on each. That is how every section on a page lines up
 edge, chrome included.
 
 **Reading measure is not a page width.** A long paragraph is capped one level *inside* the page —
-`max-w-3xl` on the text block, or the `prose` class, which brings its own 65-character measure.
+`max-w-3xl` on the text block, or `max-w-prose`, which brings its own 65-character measure.
 Narrowing the page itself to make text readable pulls the headings and images in with it.
 
 Two scrollers, both classes:
@@ -119,6 +122,13 @@ Two scrollers, both classes:
   scrolls sideways instead of pushing the whole page wider.
 - `scrollbars` — the thin, themed scrollbar skin for anything else that scrolls: a popup list, a
   code block, a drawer. `table-scroll` already includes it.
+
+Dialog size is a closed set too. `Modal` carries its own geometry through `size`: `panel` (448px),
+`sm` (512px, the default), `md` (672px), `lg` (768px). Every tier centers itself, caps its height at
+90dvh and scrolls its own overflow, so a tall dialog never puts its heading and its submit control
+off-screen. Leave `classes` for surface and padding — a hand-spelled `fixed-center w-[90vw]
+sm:max-w-lg` fights the tier, and an arbitrary width may not compile at all. `size="none"` opts out
+entirely and exists for edge-anchored drawers; prefer a tier.
 
 **Chrome is not part of the published system.** The marketing header, the app header, the footer and
 the dashboard sidebar live in the app and are not exported here. Design the page, not the frame
@@ -131,10 +141,14 @@ so it holds the utilities that code actually writes, which is a large and realis
 not every possible one. Tailwind v4 is just-in-time: a class nobody has written has no rule, and a
 missing utility is **silent** — no error, just a layout that quietly ignores you.
 
-The common ladder is safe (Tailwind's 0.25rem basis: `gap-1`…`gap-8`, `p-2`…`p-8`, the standard
-`w-*`/`h-*` steps). What to watch: **arbitrary values are compiled on demand**, so `w-[36rem]` or
-`grid-cols-[9rem_auto]` has no rule unless that exact string already appears in the source — a few
-(`bottom-[2px]`) exist for that reason. Prefer plain flex/gap and the common steps, and reach for a
+The box ladder is guaranteed rather than incidental — it is listed in the build, so it does not
+depend on which sizes the app happened to need. Every Tailwind step from `0` to `96` compiles for
+`w-`, `h-`, `size-`, `min-w-`, `min-h-` and `max-w-`, and every step up to `24` for `gap-`, `p-`,
+`m-` and their per-side and per-axis forms (`px-`, `mt-`, `gap-x-`, …).
+
+What to watch: **arbitrary values are compiled on demand**, so `w-[36rem]` or `grid-cols-[9rem_auto]`
+has no rule unless that exact string already appears in the source — a few (`bottom-[2px]`) exist
+for that reason. Prefer plain flex/gap and the common steps, and reach for a
 bracket value only when the layout genuinely needs one. If something renders unstyled, an
 off-ladder or arbitrary utility is the first thing to check.
 

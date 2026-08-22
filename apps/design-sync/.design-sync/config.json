@@ -82,7 +82,7 @@
     "Toaster": "  children: React.ReactNode;",
     "PayoutStatus": "  type: \"error\" | \"settled\" | \"pending\" | \"refunded\" | \"refunded_loss\" | \"cancelled\";\n  classes?: string;",
     "Prompt": "  type?: \"loading\" | \"error\" | \"success\";\n  open?: boolean;\n  onClose?: (() => void) | undefined;\n  isDismissable?: boolean;\n  /** ...plus the standard props inherited from @types/react */",
-    "Modal": "  classes?: string;\n  open: boolean;\n  onClose: () => void;\n  /** ...plus the standard props inherited from @types/react */",
+    "Modal": "  classes?: string;\n  /** content-box geometry tier; defaults to `sm` (512px).\n   * `panel` 448px, `sm` 512px, `md` 672px, `lg` 768px — each is centered,\n   * caps its own height at 90dvh and scrolls its overflow.\n   * `\"none\"` opts out entirely (edge-anchored drawers that bring their own\n   * position and size through `classes`); prefer a tier. */\n  size?: \"panel\" | \"sm\" | \"md\" | \"lg\" | \"none\";\n  open: boolean;\n  onClose: () => void;\n  /** ...plus the standard props inherited from @types/react */",
     "Tooltip": "  tip: React.ReactNode;\n  children: React.JSX.Element;",
     "HoverCard": "  tip: React.ReactNode;\n  children: React.JSX.Element;",
     "Amount": "  /** the primary figure, ALREADY FORMATTED by the caller — this component never rounds */\n  value: string;\n  /** iso code; uppercased here and shown as the leading chip */\n  currency: string;\n  /** formatted usd magnitude WITHOUT the symbol — the \"$\" is drawn here, and it is\n   * suppressed when `currency` is already USD */\n  usd?: string | null;\n  chips?: React.ReactNode[];\n  classes?: string;",
