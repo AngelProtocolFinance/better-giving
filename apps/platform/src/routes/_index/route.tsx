@@ -75,8 +75,10 @@ export default function Page() {
         <GrowFunds classes="bg-accent py-24" />
         <OpenSource classes="bg-primary py-24" />
         <Testimonials classes="py-24" />
-        <div className="bg-accent px-6 pt-22 pb-48">
-          <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
+        <div className="bg-accent pt-22 pb-48">
+          <div className="page-narrow">
+            <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
+          </div>
         </div>
         <CtaBand
           title="Join the commons. It's free, forever."

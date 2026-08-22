@@ -57,15 +57,17 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
 
   return (
     <main>
-      <section className="px-6 pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
-        <p className="pre-heading">Blog &amp; Resources</p>
-        <h1 className="hero-heading max-w-3xl mx-auto mt-3">
-          Knowledge to empower your nonprofit
-        </h1>
-        <p className="section-body text-muted-fg max-w-2xl mx-auto mt-4">
-          Practical guides on fundraising, fund growth, and the admin work
-          nobody warned you about.
-        </p>
+      <section className="pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
+        <div className="page-narrow">
+          <p className="pre-heading">Blog &amp; Resources</p>
+          <h1 className="hero-heading max-w-3xl mx-auto mt-3">
+            Knowledge to empower your nonprofit
+          </h1>
+          <p className="section-body text-muted-fg max-w-2xl mx-auto mt-4">
+            Practical guides on fundraising, fund growth, and the admin work
+            nobody warned you about.
+          </p>
+        </div>
       </section>
 
       <section className="bg-accent py-20">

@@ -18,22 +18,24 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-accent px-6 pt-18 pb-16 text-center">
-        <p className="text-xs font-bold uppercase tracking-wider text-primary">
-          Pricing
-        </p>
-        <h1 className="hero-heading mt-4 max-w-3xl mx-auto">
-          Free. Forever. <span className="text-primary">Really.</span>
-        </h1>
-        <p className="mt-4.5 text-lg text-muted-fg max-w-2xl mx-auto text-pretty">
-          Not free-then-paid. Not free-with-gated-features. We're a nonprofit
-          like you. We grant out 100% of donations and never take a cut.
-        </p>
+      <div className="bg-linear-to-b from-background to-accent pt-18 pb-16 text-center">
+        <div className="page-narrow">
+          <p className="text-xs font-bold uppercase tracking-wider text-primary">
+            Pricing
+          </p>
+          <h1 className="hero-heading mt-4 max-w-3xl mx-auto">
+            Free. Forever. <span className="text-primary">Really.</span>
+          </h1>
+          <p className="mt-4.5 text-lg text-muted-fg max-w-2xl mx-auto text-pretty">
+            Not free-then-paid. Not free-with-gated-features. We're a nonprofit
+            like you. We grant out 100% of donations and never take a cut.
+          </p>
+        </div>
       </div>
 
       <PriceCards classes="bg-accent pt-4 pb-22" />
 
-      <div className="px-6 py-22">
+      <div className="page-narrow py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
           <h2 className="section-heading">So who pays for all this?</h2>
           <p className="text-muted-fg leading-relaxed max-w-2xl text-pretty">

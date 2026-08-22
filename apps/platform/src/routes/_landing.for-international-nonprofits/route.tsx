@@ -62,8 +62,8 @@ export default function Page() {
       <RateComparison classes="border-b border-border py-10 md:py-16" />
       <HowItWorks classes="border-b border-border py-10 md:py-16" />
       <Paperwork classes="bg-muted border-b border-border py-10 md:py-16" />
-      <Ethical classes="border-b border-border px-5 md:px-6 py-10 md:py-14" />
-      <Quote classes="bg-muted border-b border-border px-5 md:px-6 py-10 md:py-16" />
+      <Ethical classes="border-b border-border py-10 md:py-14" />
+      <Quote classes="bg-muted border-b border-border py-10 md:py-16" />
       <CtaBand
         title="Your mission. U.S. donors. 2.9%."
         subtitle="One short application, reviewed in 3 business days, is all that stands between your organization and tax-deductible U.S. fundraising."

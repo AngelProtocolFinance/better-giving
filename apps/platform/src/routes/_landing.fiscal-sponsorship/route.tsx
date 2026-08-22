@@ -91,7 +91,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="px-6 py-22">
+      <div className="page-narrow py-22">
         <div className="max-w-5xl mx-auto">
           <h2 className="section-heading text-center max-w-2xl mx-auto text-pretty">
             2.9%, the lowest sponsorship fee we know of

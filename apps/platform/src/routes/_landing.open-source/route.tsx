@@ -105,7 +105,7 @@ export default function Page() {
 
       <TwoPaths classes="bg-accent py-22" />
 
-      <div className="px-6 py-22">
+      <div className="page-narrow py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
           <Image
             src={laira_waiving}

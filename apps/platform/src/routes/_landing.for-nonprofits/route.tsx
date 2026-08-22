@@ -73,14 +73,16 @@ export default function Page() {
 
       <Portability classes="border-b border-border py-16 md:py-20" />
 
-      <div className="bg-muted border-b border-border px-6 py-16 md:py-20">
-        <FAQ
-          items={np_faqs}
-          pre_heading="Fair questions"
-          heading="So how is it actually free?"
-          sub="Skepticism is healthy. It's why our answers are verifiable, not just written here."
-          classes="max-w-3xl mx-auto"
-        />
+      <div className="bg-muted border-b border-border py-16 md:py-20">
+        <div className="page-narrow">
+          <FAQ
+            items={np_faqs}
+            pre_heading="Fair questions"
+            heading="So how is it actually free?"
+            sub="Skepticism is healthy. It's why our answers are verifiable, not just written here."
+            classes="max-w-3xl mx-auto"
+          />
+        </div>
       </div>
 
       <CtaBand
