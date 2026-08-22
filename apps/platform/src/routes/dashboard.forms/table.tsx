@@ -113,7 +113,7 @@ function Row(f: FormRow) {
       </td>
 
       {/* donation count */}
-      <td className="text-right tabular-nums">
+      <td className="text-right figures">
         {(f.ltd_count ?? 0).toLocaleString()}
       </td>
 

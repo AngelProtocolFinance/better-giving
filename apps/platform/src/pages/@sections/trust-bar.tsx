@@ -39,7 +39,7 @@ export function TrustBar({
 
   return (
     <El aria-label={label} className={classes}>
-      <div className="page grid grid-cols-2 md:grid-cols-4 gap-y-6 tabular-nums slashed-zero">
+      <div className="page grid grid-cols-2 md:grid-cols-4 gap-y-6 figures slashed-zero">
         {items.map((s, i) => (
           <div
             key={s.value}

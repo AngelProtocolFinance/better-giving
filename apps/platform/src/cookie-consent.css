@@ -1,5 +1,8 @@
 #cc-main {
-  --cc-font-family: "DM Sans Variable";
+  /* follows the system body face rather than naming one: this var held a
+     literal family that no longer shipped, so the banner silently fell back
+     to the ua default. the token can't drift out of step with theme.css. */
+  --cc-font-family: var(--font-body);
 
   --cc-btn-primary-bg: var(--primary);
   --cc-btn-primary-border-color: var(--primary);

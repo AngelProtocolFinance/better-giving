@@ -74,7 +74,7 @@ function Tab({ to, count, end, children }: ITabProps) {
           {children}
           <span
             className={[
-              "rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums",
+              "rounded px-1.5 py-0.5 text-2xs font-medium figures",
               isActive
                 ? "bg-muted text-muted-fg"
                 : "bg-background text-muted-fg",

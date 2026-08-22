@@ -155,8 +155,8 @@ exist in the emitted `.d.ts`. **Re-run it whenever a component's props change.**
 
 `cfg.extraFonts` points at the **fontsource packages**, not at the app's build output. It used
 to reach across into `apps/platform/node_modules` — the only place on disk they existed, since
-`packages/ui` declares the `--font-quicksand`/`--font-gochi` tokens but depends on neither
-fontsource package. Since the move this app **declares both itself**, so the paths are its own
+`packages/ui` declares the `--font-display`/`--font-body`/`--font-gochi` tokens but depends on
+none of the fontsource packages. Since the move this app **declares all three itself**, so the paths are its own
 `node_modules/` and nothing points across a member. (`extraFonts` is bounded to the git
 workspace root rather than `PKG_DIR`, so the old cross-member form was legal, just fragile.)
 A non-platform consumer of `@better-giving/ui` still gets the token and no font — worth closing
@@ -164,7 +164,11 @@ if `apps/docs` adopts the system. The
 compiled app CSS references `/assets/*.woff2` (absolute, root-relative) which resolve to nothing
 on disk, so the converter dropped them as dead `@font-face` blocks and shipped zero font files.
 The fontsource packages carry correct `@font-face` CSS with relative `./files/*.woff2`.
-Quicksand Variable and Gochi Hand are the only two families the system uses.
+Quicksand Variable and Gochi Hand are the only two families the system uses — `--font-display` and
+`--font-body` are two roles resolving to the one Quicksand face, so `extraFonts` carries two
+packages, not three. Keep this list and `cfg.extraFonts` in step with `--font-*` in
+`packages/ui/src/styles/theme.css` — a face swap that misses this file makes every preview
+render in a family the system no longer has.
 
 ## Stylesheet
 

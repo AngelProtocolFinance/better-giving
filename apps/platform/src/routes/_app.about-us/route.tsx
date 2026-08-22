@@ -50,7 +50,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         <div className="page">
           <div className="max-w-3xl mx-auto grid justify-items-center gap-5 text-center">
             <span
-              className="text-7xl/none font-bold text-secondary h-9"
+              className="text-6xl/none font-bold text-secondary h-9"
               aria-hidden
             >
               “

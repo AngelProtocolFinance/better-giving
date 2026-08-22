@@ -12,7 +12,7 @@ export function FeeGap({ classes = "" }) {
           more for your mission.
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-2 max-w-3xl tabular-nums slashed-zero">
+        <div className="grid gap-4 sm:grid-cols-2 max-w-3xl figures slashed-zero">
           <div className="bg-card border border-border rounded p-6">
             <p className="eyebrow text-muted-fg">Typical fiscal sponsor</p>
             <p className="text-5xl/tight font-bold mt-3">4-10%</p>
@@ -27,7 +27,7 @@ export function FeeGap({ classes = "" }) {
           </div>
         </div>
 
-        <p className="mt-6 text-lg font-bold tabular-nums slashed-zero">
+        <p className="mt-6 text-lg font-bold figures slashed-zero">
           That's $1,100-$7,100 more per year staying with your mission.
         </p>
       </div>

@@ -56,7 +56,7 @@ export function DateField({
             {(seg: DateValue | unknown) => (
               <DateInput.Segment
                 segment={seg as any}
-                className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-muted-fg tabular-nums"
+                className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-muted-fg figures"
               />
             )}
           </DateInput.SegmentContext>

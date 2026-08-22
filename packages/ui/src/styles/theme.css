@@ -8,19 +8,128 @@
 
   --color-white: #ffffff;
 
-  --text-2xs: 0.625rem;
-  --text-4_5xl: 2.625rem;
+  /* the size ladder is closed, the same way --color-* and --radius-* are: the
+     twelve steps below are every one the three source trees use, and every
+     other name now compiles to nothing instead of drifting in. text-7xl (one
+     call site, moved to 6xl) and text-8xl/-9xl (never used) are deliberately
+     gone — a 72px/96px/128px step nobody picked is the far end of the same
+     drift the radius reset closed at the near end.
 
-  /* uppercase-label tracking. tailwind's own ladder tops out at
-     tracking-widest (0.1em) and does not reach either value.
+     EVERY redeclared step carries its --text-<step>--line-height companion.
+     that key lives inside this namespace, so the reset drops it too, and an
+     unsuffixed `text-lg` would silently lose its line-height without it. the
+     values are tailwind v4's own, copied unchanged: this closes the set, it
+     does not retune it. --text-2xs and --text-4_5xl are ours and stay
+     UNPAIRED, exactly as they were — neither has ever had a default line
+     height, and pairing one now would move type that renders correctly today.
+
+     what the reset deliberately does not reach: text-balance/-pretty/-center/
+     -ellipsis are static utilities with no theme behind them, text-<color>
+     reads --color-*, and text-shadow-* is a sibling namespace v4 explicitly
+     exempts from this clear. nor does it reach arbitrary values — text-[11px]
+     still compiles, so bracket drift needs review, not the compiler. */
+  --text-*: initial;
+  --text-2xs: 0.625rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: calc(1 / 0.75);
+  --text-sm: 0.875rem;
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base: 1rem;
+  --text-base--line-height: calc(1.5 / 1);
+  --text-lg: 1.125rem;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl: 1.25rem;
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: calc(2 / 1.5);
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  /* the one authored step: `_` is how v4 spells a dot, so this is text-4.5xl */
+  --text-4_5xl: 2.625rem;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1;
+  --text-6xl: 3.75rem;
+  --text-6xl--line-height: 1;
+
+  /* the weight ladder is closed to the four in use. font-extrabold and
+     font-black are the point of it: Quicksand's wght axis stops at 700, so 800
+     and 900 have only ever rendered as bold — an inert class that would go
+     live, unreviewed, the day a heavier face is adopted. thin/extralight/light
+     go for the reverse reason: nothing under 400 is legible at this face's
+     low stroke contrast, and none of them has ever been reached for.
+     `font-[550]` is still arbitrary and still compiles — names close, brackets
+     do not. */
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* the leading ladder is closed to the four multipliers in use; loose (2) is
+     dropped as unused. values are tailwind v4's own, unchanged.
+     `leading-none` is deliberately NOT declared and is NOT lost: v4 emits it
+     from a static value (line-height: 1), not from this namespace, and the
+     `/none` modifier on a text-* utility is likewise a literal. numeric
+     leading (`leading-5`) is unaffected too — it derives from --spacing.
+     so this reset closes the named multipliers and nothing else. */
+  --leading-*: initial;
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* the tracking ladder is closed. tighter (-0.05em), normal (0em) and
+     widest (0.1em) are dropped as unused — normal especially, since it is the
+     resting value and spelling it is always a no-op.
+     label and badge are ours: tailwind's own ladder tops out at 0.1em and does
+     not reach either value.
      label: standalone uppercase label — eyebrow, section kicker, column meta.
      badge: uppercase text inside a padded chip; tighter so the last glyph
-     doesn't crowd the chip's right padding. */
+     doesn't crowd the chip's right padding.
+     tight (4), wide (8) and wider (26) stay because those call sites exist;
+     most of the 34 are uppercase labels that belong on `label`/`badge`, and
+     that sweep is a judgment call left for its own change. closing the
+     namespace stops the drift growing in the meantime.
+     widest goes with tighter and normal: no call sites, so retaining it as a
+     reference point for the two authored values would be the same drift this
+     reset exists to close, just with a nicer reason attached. */
+  --tracking-*: initial;
+  --tracking-tight: -0.025em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
   --tracking-label: 0.12em;
   --tracking-badge: 0.08em;
 
-  --font-quicksand: Quicksand Variable, sans-serif;
+  /* two roles, ONE face. both resolve to Quicksand today, and the split is
+     kept anyway because it is the seam: h1-h6 and body are bound to these in
+     ./base.css, so no call site ever names a face, and adopting a second one
+     is a one-line edit here rather than a forty-file sweep.
+     display: every heading h1-h6, marketing and dashboard alike, plus every
+       numeric figure — see the `figures` utility in ./utilities.css.
+     body: everything else — copy, buttons, forms, tables, labels.
+     named by ROLE — the mirror of the decorative color layer, which is named
+     by hue precisely because a role name would imply the semantic set can
+     reach for it. display-vs-body is a role, so the semantic faces take role
+     names and the decorative one keeps its face name (--font-gochi below).
+     ledger entry in packages/brand/design-system.md. */
+  --font-display: Quicksand Variable, sans-serif;
+  --font-body: Quicksand Variable, sans-serif;
+
+  /* the handwritten aside. named by face, not by role: it is the decorative
+     one-off, so a role name would put it in the semantic set. */
   --font-gochi: Gochi Hand, cursive;
+
+  /* the --font-* namespace is NOT closed the way --text-*, --font-weight-*,
+     --leading-* and --tracking-* above are: clearing it would take the three
+     faces down with it and leave nothing to name. so `font-mono` otherwise
+     resolves to whatever stack tailwind ships and nobody in this repo picked.
+     pinned to system mono — no third webfont: mono here carries ids, hashes
+     and wallet addresses, not reading copy. */
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
 }
 
 /* the embed's two accent slots. this package references them — btn-form-primary,
