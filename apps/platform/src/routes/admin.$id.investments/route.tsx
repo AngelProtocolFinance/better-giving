@@ -48,7 +48,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <h3>Investments</h3>{" "}
         <HoverCard
           tip={
-            <HoverContent className="bg-popover outline outline-border text-popover-fg text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border p-4 rounded shadow-lg">
+            <HoverContent className="bg-popover outline outline-border text-popover-fg text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
               <span className="block mb-2 font-medium">
                 Portfolio composition
               </span>

@@ -129,7 +129,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
       </div>
 
       {rows.length > 0 ? (
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border bg-card rounded mt-6">
+        <div className="table-scroll bg-card rounded mt-6">
           <table className="table">
             <thead>
               <tr>

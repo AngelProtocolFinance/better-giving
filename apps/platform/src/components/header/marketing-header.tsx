@@ -34,10 +34,10 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
       className={`${classes} relative bg-popover/95 backdrop-blur-md border-b`}
     >
       {/* the row carries a logo, six labels and two ctas — 944px of intrinsic
-          width before a single gap. that does not fit the 72rem reading
-          measure the marketing body uses, so header chrome sits on page
-          and its edges deliberately do not line up with the body's. matches
-          app-header, which puts its own row on page too. */}
+          width before a single gap, which is why the nav collapses at 75rem
+          rather than at a breakpoint name. the row sits on the same `page`
+          shape as the sections below it, so the logo's left edge and the
+          first heading's line up. */}
       <div className="page flex items-center justify-between gap-x-6 py-2">
         {/* shrink-0 belongs on the flex item, and DappLogo's own classes land
             on the <img> inside its <a> — without this the anchor shrinks and

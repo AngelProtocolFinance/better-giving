@@ -26,7 +26,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       {methods.length === 0 ? (
         <Info>No payout methods found</Info>
       ) : (
-        <div className="grid col-span-full overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <div className="grid col-span-full table-scroll">
           <Table methods={methods} />
         </div>
       )}

@@ -17,8 +17,7 @@ export const popup_cls =
   "z-50 max-h-60 overflow-y-auto overscroll-contain rounded border bg-popover text-popover-fg shadow-lg";
 
 /** the app scrollbar for a popup list. */
-export const popup_scrollbar_cls =
-  "scrollbar-thin scrollbar-thumb-ring scrollbar-track-border";
+export const popup_scrollbar_cls = "scrollbars";
 
 /**
  * popup enter/exit. deliberately not folded into `popup_cls`: not every popup

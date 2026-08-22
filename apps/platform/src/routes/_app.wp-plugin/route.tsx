@@ -87,7 +87,7 @@ export default function WpPlugin() {
           The following are additional, optional configuration arguments that
           may be passed to further customize and configure your Donation Form
           settings and appearance from the default:
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+          <div className="table-scroll">
             <table className="table">
               <thead>
                 <tr>

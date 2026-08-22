@@ -54,19 +54,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 function Header() {
   return (
-    <header className="border-b px-6 py-4 flex items-center justify-between">
-      <Link to="/" className="inline-flex items-center gap-3">
-        <img src={logo} alt="Better Giving" width={150} height={40} />
-      </Link>
-      <span className="text-sm font-medium text-muted-fg">Developer</span>
+    <header className="border-b">
+      <div className="page py-4 flex items-center justify-between">
+        <Link to="/" className="inline-flex items-center gap-3">
+          <img src={logo} alt="Better Giving" width={150} height={40} />
+        </Link>
+        <span className="text-sm font-medium text-muted-fg">Developer</span>
+      </div>
     </header>
   );
 }
 
 function Footer() {
   return (
-    <footer className="border-t bg-muted px-6 py-8 mt-auto">
-      <div className="max-w-4xl mx-auto flex flex-col items-center gap-4">
+    <footer className="border-t bg-muted mt-auto">
+      <div className="page py-8 flex flex-col items-center gap-4">
         <div className="flex items-center gap-4">
           <ExtLink
             href={socials.linkedin}

@@ -107,7 +107,7 @@ export function ErrorElement() {
         {GENERIC_ERROR_MESSAGE}
       </p>
       {import.meta.env.DEV && error instanceof Error && (
-        <pre className="bg-muted p-4 rounded text-xs text-muted-fg mt-4 max-w-2xl overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <pre className="bg-muted p-4 rounded text-xs text-muted-fg mt-4 max-w-2xl overflow-auto scrollbars">
           {error.message}
           {"\n"}
           {error.stack}

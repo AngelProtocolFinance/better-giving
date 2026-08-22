@@ -9,9 +9,7 @@ interface Props {
 
 export function Review({ classes = "", amount, per_npo_credit_usd }: Props) {
   return (
-    <div
-      className={`overflow-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border ${classes} p-6`}
-    >
+    <div className={`overflow-auto scrollbars ${classes} p-6`}>
       <table className="table">
         <thead>
           <tr>

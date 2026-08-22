@@ -23,9 +23,7 @@ export function HistoryTable({
   load_next,
 }: Props) {
   return (
-    <div
-      className={`${classes} overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border`}
-    >
+    <div className={`${classes} table-scroll`}>
       <table className="table">
         <thead>
           <tr>

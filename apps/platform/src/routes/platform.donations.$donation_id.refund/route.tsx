@@ -64,7 +64,7 @@ function Content({
         {data.previews.length === 0 ? (
           <p className="text-sm text-muted-fg">No distributions found.</p>
         ) : (
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+          <div className="table-scroll">
             <table className="table">
               <thead>
                 <tr>

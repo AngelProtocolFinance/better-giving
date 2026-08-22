@@ -33,7 +33,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         </NavLink>
       </div>
 
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+      <div className="table-scroll">
         <table className="table">
           <thead>
             <tr>

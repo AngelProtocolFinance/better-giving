@@ -1,7 +1,5 @@
 import { href } from "react-router";
 import { auth_mdlwr, user_ctx } from "#/.server/auth";
-import { Footer } from "#/components/footer";
-import { AppHeader } from "#/components/header";
 import { metas } from "#/helpers/seo";
 import { Layout as DashboardLayout } from "#/layout/dashboard";
 import type { Route } from "./+types/route";
@@ -19,13 +17,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 export default function Layout() {
   return (
-    <div className="grid">
-      <AppHeader variant="bare" classes="sticky z-40 -top-px" />
-      <DashboardLayout
-        rootRoute={`${href("/dashboard")}/`}
-        linkGroups={linkGroups}
-      />
-      <Footer variant="minimal" classes="mt-8" />
-    </div>
+    <DashboardLayout
+      rootRoute={`${href("/dashboard")}/`}
+      linkGroups={linkGroups}
+      headerVariant="bare"
+    />
   );
 }

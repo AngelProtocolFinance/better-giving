@@ -47,7 +47,7 @@ export function DonationsTable({ classes = "", items, ...props }: Props) {
         </CsvExporter>
       </div>
 
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+      <div className="table-scroll">
         <Table {...props} items={items.map(to_row)} />
       </div>
     </div>

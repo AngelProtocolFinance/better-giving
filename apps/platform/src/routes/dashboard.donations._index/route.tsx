@@ -25,7 +25,7 @@ function Donations({ loaderData }: Route.ComponentProps) {
   });
 
   return (
-    <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+    <div className="table-scroll">
       <Outlet />
       {node}
     </div>

@@ -4,8 +4,6 @@ import {
   npo_admin_mdlwr,
   user_ctx,
 } from "#/.server/auth";
-import { Footer } from "#/components/footer";
-import { AppHeader } from "#/components/header";
 import { metas } from "#/helpers/seo";
 import { Layout } from "#/layout/dashboard";
 import { npo_get } from "$/pg/queries/npo";
@@ -47,14 +45,10 @@ export default function AdminLayout({
   loaderData: data,
 }: Route.ComponentProps) {
   return (
-    <div className="grid">
-      <AppHeader classes="sticky z-40 -top-px" />
-      <Layout
-        rootRoute="/admin/:id/"
-        linkGroups={linkGroups}
-        sidebarHeader={<SidebarHeader {...data.endow} />}
-      />
-      <Footer variant="minimal" />
-    </div>
+    <Layout
+      rootRoute="/admin/:id/"
+      linkGroups={linkGroups}
+      sidebarHeader={<SidebarHeader {...data.endow} />}
+    />
   );
 }

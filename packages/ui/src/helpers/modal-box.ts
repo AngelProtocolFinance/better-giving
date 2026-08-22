@@ -16,13 +16,13 @@
 export const modal_box = {
   /** 448px — prompts, confirms, filter panels */
   panel:
-    "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-md max-h-[90dvh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border",
+    "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-md max-h-[90dvh] overflow-y-auto scrollbars",
   /** 512px — the default: single-column forms and dialogs */
-  sm: "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-lg max-h-[90dvh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border",
+  sm: "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-lg max-h-[90dvh] overflow-y-auto scrollbars",
   /** 672px — share sheets, charts, multi-column forms */
-  md: "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-2xl max-h-[90dvh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border",
+  md: "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-2xl max-h-[90dvh] overflow-y-auto scrollbars",
   /** 768px — the widest: tabular admin forms, embedded third-party frames */
-  lg: "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-3xl max-h-[90dvh] overflow-y-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border",
+  lg: "fixed-center rounded z-50 w-[90vw] sm:w-full sm:max-w-3xl max-h-[90dvh] overflow-y-auto scrollbars",
 } as const;
 
 export type ModalSize = keyof typeof modal_box;

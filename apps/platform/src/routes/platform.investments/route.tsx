@@ -165,7 +165,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           </Pie>
         </PieChart>
       </ResponsiveContainer>
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+      <div className="table-scroll">
         <table className="table">
           <thead>
             <tr>
@@ -202,7 +202,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           Top Holders{" "}
           <span className="text-sm text-muted-fg">( of {num_holders} )</span>
         </h5>
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-ring scrollbar-track-border">
+        <div className="table-scroll">
           <table className="table">
             <thead>
               <tr>
