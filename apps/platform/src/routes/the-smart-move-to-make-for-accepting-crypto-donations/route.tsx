@@ -59,7 +59,7 @@ export default function Component() {
       <div className="bg-linear-to-br from-transparent via-transparent via-50% to-lilac/50">
         <ProbSol className="page-narrow pt-40" />
       </div>
-      <div className="bg-linear-to-bl from-lilac/50 via-transparent to-transparent mb-40 px-10">
+      <div className="bg-linear-to-bl from-lilac/50 via-transparent to-transparent mb-40 px-5 md:px-10">
         <BottomCta className="max-w-2xl xl:max-w-4xl mx-auto" />
       </div>
       <Footer />

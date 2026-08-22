@@ -65,7 +65,7 @@ export default function Component() {
         <Testimonials classes="page-narrow" />
       </div>
       <div className="my-20 xl:my-40">
-        <BottomCta className="max-w-4xl w-full justify-self-center px-10" />
+        <BottomCta className="max-w-4xl w-full justify-self-center px-5 md:px-10" />
       </div>
       <Footer />
     </main>
