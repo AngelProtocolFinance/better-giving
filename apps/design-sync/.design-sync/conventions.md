@@ -56,7 +56,7 @@ are the semantic tokens:
 | surfaces | `background`, `card`, `popover`, `muted`, `accent`, `secondary`, `sidebar` |
 | brand / state | `primary`, `success`, `warning`, `destructive` |
 | tinted band | `destructive-subtle` (+ its `-fg`) |
-| ink | `fg`, `muted-fg`, and the `-fg` partner of every surface above |
+| ink | `fg` (the ink on `background` — there is no `background-fg`), `muted-fg`, and the `-fg` partner of every other surface above |
 | lines | `border`, `input`, `ring` |
 
 Use them as `bg-card`, `text-muted-fg`, `border-border`, and so on. **A fill token is not
@@ -70,8 +70,9 @@ element** — a child's own color utility wins over an inherited one.
 the data-viz ramp, and it compiles in every form you would reach for — `bg-`, `text-`, `border-`,
 `fill-`, `stroke-` — so an inline SVG series and the legend swatch beside it name the same colour.
 For a brand-filled panel that contains a control, use the `surface-primary` utility, which rebinds
-`--ring` and `--border` to the accessible pair for you rather than making you reach for
-`border-primary-border` / `ring-primary-ring` directly.
+`--ring` and `--border` to the accessible pair for you. That pair exists only as tokens
+(`--primary-border`, `--primary-ring`) — there is deliberately no `border-primary-border` or
+`ring-primary-ring` utility, so `surface-primary` is the way to reach it.
 
 **On a `--primary` fill, state is never carried by hue.** Every semantic ink in the palette is
 authored for light surfaces and collapses on primary (destructive 1.06:1, warning 1.04:1, success

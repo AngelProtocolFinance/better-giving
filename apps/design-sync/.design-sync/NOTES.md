@@ -603,14 +603,85 @@ The validation pass against the fresh build caught one name that does not exist:
 agent to cap reading measure with the `prose` class, and the compiled stylesheet has only
 `.max-w-prose` — there is no typography plugin anywhere in `styles-entry.css` or
 `packages/ui/src/styles/`. A design following that line renders an uncapped paragraph, silently.
-Corrected to `max-w-prose`. Everything else the header names still verifies: all seven `.btn-*`
-variants, the three size steps plus `btn-icon`, `.pending`, the field/label/selector/table classes,
-the nine utilities, `page` / `table-scroll` / `scrollbars`, every semantic color token including the
-`-subtle` pairs and `chart-1…5`, and the confirmation that `rounded-sm`/`-lg` compile to nothing.
+Corrected to `max-w-prose`. Everything else the header names verified — but read that with the
+next two sections in hand: this pass ran while the docs were still minting utilities, so the color
+half of it was circular (the header named `chart-1…5`, and naming it is what made it compile), and
+the ladder half was measured against whatever the app happened to write. The button, field,
+selector, table, utility and page classes are the part of that all-clear that stands on its own.
 
 **Run this pass every sync.** It is cheap (grep the header's names against `ds-bundle/_ds_bundle.css`
 and the `components/<group>/<Name>/` tree) and it is the only thing that catches a header that has
 quietly stopped being true.
+
+## conventions.md drift found 2026-08-22 (second pass) — the color set
+
+With the docs no longer writing the stylesheet (previous section), the header could finally be
+measured honestly, and the color section turned out to promise three things the build did not have:
+
+- **`text-card-fg`, `text-sidebar-fg`** — the ink row promises "the `-fg` partner of every surface
+  above". `text-popover-fg` compiled and `text-card-fg` did not, for no reason other than a preview
+  happening to write the one and not the other.
+- **`border-input`** — the lines row names `border`, `input`, `ring`; only `border-border` and
+  `outline-ring` had rules.
+- **`background-fg`** — promised by that same "every surface" phrasing and **not a token at all**.
+  `--color-background`'s ink is plain `--color-fg`; there is no `--color-background-fg` in
+  `theme.css`. This one is fixed in the prose, not the build.
+
+Fixed the first two the same way the chart ramp and the box ladder were: an `@source inline(...)`
+in `styles-entry.css` listing the semantic set across `bg-`/`text-`/`border-`/`ring-`. Every name in
+that list is a registered `--color-*` token in `packages/ui/src/styles/theme.css`, so this adds no
+vocabulary the system didn't already mean to have — it only stops the published set from depending
+on which tokens the app source happened to reach for. +82 rules, none removed.
+
+**`border-primary-border` and `ring-primary-ring` were deliberately NOT safelisted.** They are
+registered tokens, but the design decision is that `surface-primary` rebinds `--ring`/`--border`
+for you, and the header used to describe the two utilities as something you could reach for
+directly. Reworded instead: the pair exists as tokens, has no utility, and `surface-primary` is
+the way. Closing the escape beats widening it.
+
+## Checking the header is now one command
+
+`.design-sync/check-conventions.mjs` (committed) replaces the hand-rolled grep the previous two
+sections describe:
+
+```sh
+cd apps/design-sync && node .design-sync/check-conventions.mjs   # exits non-zero on a broken promise
+```
+
+It holds the header's enumerated claims as data — the surface/ink/lines sets, the chart ramp, both
+ladders, the button and utility class lists, the radius trio — plus a `MUST_BE_ABSENT` list for the
+names the header says do **not** exist (`rounded-lg`, `btn-outline`, `border-primary-border`, …), so
+a fix in one direction can't quietly break the other. It also checks every backticked or JSX-tagged
+component name against the `components/` tree and the bundle's export list.
+
+Two things about it that matter:
+
+- **The claim lists are the contract, not a scrape of the prose.** Rewriting a promise in
+  `conventions.md` without editing the corresponding list in the script means the script keeps
+  verifying the old promise. Change both in the same commit.
+- **Tailwind escapes `.` `/` `[` `]` `:` `%` `@` `(` `)` in the emitted selector** — `p-1.5` lands
+  as `.p-1\.5`. A naive grep for `.p-1.5` finds nothing and reports a false miss on every
+  fractional step; the script's `has()` accounts for it. The first draft of it did not, and claimed
+  98 missing utilities that were all present.
+
+## The converter's own deps live in `.ds-sync/node_modules`
+
+`esbuild`, `ts-morph` and `@types/react` are installed **inside the staged `.ds-sync/`**, isolated
+from the repo's workspace (this app declares only `playwright` and `@types/react` itself). The
+re-sync instruction says to re-copy the staged scripts with `cp -r`; **do not `rm -rf .ds-sync`
+first** — that takes the installed deps with it and the driver dies on
+`Cannot find package 'esbuild'` before it prints anything useful. If it does get wiped:
+
+```sh
+cd apps/design-sync/.ds-sync
+echo '{"name":"ds-sync-deps","private":true}' > package.json
+pnpm i --ignore-workspace esbuild ts-morph @types/react
+```
+
+`--ignore-workspace` because `.ds-sync/` is not a workspace member. pnpm blocks postinstall scripts
+by default and esbuild needs its own, so add `"pnpm": {"onlyBuiltDependencies": ["esbuild"]}` to
+that `package.json` — but add it *alongside* the dependencies, not by rewriting the file, or the
+next install removes all three packages.
 
 ## Re-sync risks — the watch-list for the next run
 
@@ -646,10 +717,11 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
   the whole-repo overspill is gone (see Stylesheet).
 - **`.cache/styles.css` is gitignored**, so a fresh clone has no `cssEntry` until it is compiled.
   `pnpm --filter design-sync styles`. A missing one is loud (`! cssEntry: … not found — skipped`).
-- **`conventions.md` naming something the build doesn't have.** `prose` was this on 2026-08-22
-  (above). The header is trusted verbatim by the design agent, and a name with no rule fails
-  silently. Grep every class, token and component name in it against the fresh `_ds_bundle.css` and
-  the `components/` tree before uploading.
+- **`conventions.md` naming something the build doesn't have.** `prose` was this on 2026-08-22,
+  then the color set was (both above). The header is trusted verbatim by the design agent, and a
+  name with no rule fails silently. Now mechanical: `node .design-sync/check-conventions.mjs` after
+  every build whose stylesheet or header moved, before uploading. Its claim lists are hand-
+  maintained, so a reworded promise needs the script edited in the same commit.
 - **Node is pinned to 24 (`.nvmrc`, `engines`) but the converter runs fine on newer.** This sync ran
   on Node 26.7.0; pnpm prints an `Unsupported engine` warning for every member and nothing else
   happens. Not worth chasing, but don't read those warnings as a sync problem.

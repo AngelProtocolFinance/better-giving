@@ -64,3 +64,13 @@
    published set from depending on which sizes the app happened to need. */
 @source inline("{w,h,size,min-w,min-h,max-w}-{0,px,0.5,1,1.5,2,2.5,3,3.5,4,5,6,7,8,9,10,11,12,14,16,20,24,28,32,36,40,44,48,52,56,60,64,72,80,96}");
 @source inline("{gap,gap-x,gap-y,p,px,py,pt,pr,pb,pl,m,mx,my,mt,mr,mb,ml}-{0,px,0.5,1,1.5,2,2.5,3,3.5,4,5,6,7,8,9,10,11,12,14,16,20,24}");
+
+/* the semantic color set, listed for the same reason as the chart ramp above.
+   the header tells a design that every surface has an `-fg` partner and that
+   the line tokens are border/input/ring; measured against the build that was
+   false in three places — text-card-fg, text-sidebar-fg and border-input had
+   no rule, while text-popover-fg did, purely because a preview happened to
+   write it. theme.css registers every name below as a --color-* token, so
+   these are the authored vocabulary either way; what varied was which ones
+   the app source happened to reach for. */
+@source inline("{bg,text,border,ring}-{background,fg,card,card-fg,popover,popover-fg,primary,primary-fg,secondary,secondary-fg,muted,muted-fg,accent,accent-fg,destructive,destructive-fg,destructive-subtle,destructive-subtle-fg,success,success-fg,success-subtle,success-subtle-fg,warning,warning-fg,warning-subtle,warning-subtle-fg,sidebar,sidebar-fg,border,input,ring}");
