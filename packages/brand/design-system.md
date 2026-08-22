@@ -925,12 +925,17 @@ the next person re-derives wrong.
 Any figure a reader compares to another — a money column, a total, a count, a
 date — takes it. Tables do **not** get it automatically.
 
-`slashed-zero` is the same category and is **not** fixed here: Quicksand ships no
-`zero` feature either, so the 4 call sites carrying it
-(`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
-×3) emit a dead rule. Filed as a known issue, deliberately left alone — unlike
-`figures`, it is spelled at the call site rather than behind a name, so removing
-it is a 4-site edit with no seam to preserve.
+`slashed-zero` **used to** be the same category and no longer is. It sits at 4
+call sites (`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
+×3) and emitted a dead rule for as long as they existed — but the cause was not
+the typeface. Quicksand draws a dotted-zero alternate and exposes it as the
+`zero` feature; the fontsource subset was discarding it. Since the faces became
+self-hosted (see "The faces" above) the feature ships, and all 4 sites render the
+dotted zero. Confirmed in the browser, not just in the binary.
+
+That is the one asymmetry between the two halves of this seam worth knowing:
+`slashed-zero` was a **delivery** problem and was fixable; `tabular-nums` is a
+**typeface** problem and is not.
 
 ### The limitation: closing a scale stops names, not brackets
 
@@ -954,26 +959,65 @@ An `em` value on an icon deliberately has no fixed size to pick off a ladder; it
 tracks whatever type it sits beside. Neither is a font-size decision and neither
 should be migrated onto a step.
 
-### The faces are not loaded where they are declared — open
+### The faces
 
 `packages/ui/src/styles/theme.css` declares `--font-display`, `--font-body` and
-`--font-gochi`. None of them is loaded there. The `@import "@fontsource-variable/…"`
-lines live in each consumer's own entry — `apps/platform/src/index.css` and
-`apps/docs/src/index.css` — and `packages/ui` depends on neither fontsource
-package.
+`--font-gochi`. `packages/ui/src/styles/fonts.css` **loads** them, from binaries
+committed beside it in `packages/ui/src/styles/fonts/`.
 
-So a consumer can import `@better-giving/ui/styles.css`, receive every token, load
-no face, and render the entire product in the browser's default sans with nothing
-failing anywhere. Recorded as a known hole, not defended as a design.
-`apps/design-sync` meets the same edge from the other side and works around it by
-declaring the fontsource packages itself (its `NOTES.md` → "Fonts").
+This used to be a hole, recorded here as one. The `@import "@fontsource-variable/…"`
+lines lived in each consumer's own entry — `apps/platform/src/index.css`,
+`apps/docs/src/index.css`, and `apps/design-sync` declaring the packages a third
+time — while the tokens naming those faces lived here. A consumer could import
+`@better-giving/ui/styles.css`, receive every token, load no face, and render the
+whole product in the browser's default sans with nothing failing anywhere. Three
+copies of the import, and the one package that knew the face names shipped none
+of them. Closed 2026-08-22 by moving the load next to the declaration.
 
-No gate catches it, and the shape of the system says why: every conformance gate
-here is **structural** — an off-system name compiles to no rule at all — and
-there is no structural way to make a *missing* `@import` fail. Closing it means
-either moving the imports into `packages/ui` and giving that package the
-fontsource dependencies, or a test that asserts every declared face has a
-matching `@font-face` in the compiled output. Neither is decided.
+**Why we subset the fonts ourselves rather than depend on fontsource.** Quicksand
+draws an alternate zero with a dot in its bowl and exposes it as the OpenType
+`zero` feature — which is exactly what `font-variant-numeric: slashed-zero`
+(Tailwind's `slashed-zero`) asks a font for, whatever the designer drew for it.
+fontsource cuts its subsets with pyftsubset's default layout-feature retain list.
+`zero` is not in that list, so the feature and its glyph were dropped before any
+browser saw them, and four call sites on the fee-comparison pages had been asking
+for a distinguishable zero since they were written and silently getting a plain
+one. Measured on the binaries, not assumed:
+
+| binary | codepoints | features | `zero` |
+| --- | --- | --- | --- |
+| `@fontsource-variable/quicksand@5.2.10`, latin | 228 | 9 | no |
+| ours, latin | 237 | 10 | **yes** |
+| upstream `google/fonts` Quicksand[wght].ttf | 694 | 17 | yes |
+
+Each subset is cut to the **union** of fontsource's declared `unicode-range` and
+the codepoints fontsource actually shipped, so coverage cannot regress against
+what the site served before — it went up in two of three subsets and held level
+in the third, while total bytes fell. `packages/ui/src/styles/fonts/generate.sh`
+regenerates all four files from the upstream `google/fonts` sources and prints
+the codepoint counts and feature tags per file. Its output is **committed
+source**, the same convention as `packages/crypto`'s and `packages/stocks`'
+`src/generated/**`: nothing in the task graph runs it, and a font bump is a
+deliberate act.
+
+Gochi Hand needs no feature Quicksand needed. It is subset the same way purely so
+both faces have one pipeline and one place to look. `apps/docs` now emits it as a
+build asset without using it — a browser only fetches a face some element
+actually asks for, so that costs disk and not a request.
+
+Two seams this does **not** close, both deliberate:
+
+- **The PDF export embeds its own five static TTFs** from
+  `apps/platform/src/routes/donation-calculator-export/fonts/`, full upstream
+  files rather than these subsets, because pdf-lib embeds a binary and does not
+  read `@font-face`. A node test pins the five BaseFont names, so a face change
+  that misses that directory fails there rather than shipping a report in the
+  old type.
+- **The Stripe payment box loads Quicksand from the Google Fonts CDN**, in
+  `components/donation/checkouts/stripe/checkout.tsx`. Stripe Elements renders in
+  a cross-origin iframe and can only be handed a stylesheet URL and a literal
+  family name, so it cannot reach these files. That copy is not feature-checked
+  and does not need to be — it renders card fields, not figures.
 
 ## Adoption
 

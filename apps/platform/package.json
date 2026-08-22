@@ -42,8 +42,6 @@
     "@better-giving/paypal": "workspace:*",
     "@better-giving/stocks": "workspace:*",
     "@better-giving/ui": "workspace:*",
-    "@fontsource-variable/quicksand": "5.2.10",
-    "@fontsource/gochi-hand": "5.2.8",
     "@hookform/error-message": "2.0.1",
     "@hookform/resolvers": "3.9.0",
     "@hubspot/api-client": "13.5.0",

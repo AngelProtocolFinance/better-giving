@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource-variable/quicksand";
+/* the faces come with the design system — see packages/ui/src/styles/fonts.css */
 @import "@better-giving/ui/styles.css";
 
 /* the fictional nonprofit's palette, for /demo-nonprofit only.

@@ -15,8 +15,6 @@
   },
   "dependencies": {
     "@better-giving/ui": "workspace:*",
-    "@fontsource-variable/quicksand": "5.2.10",
-    "@fontsource/gochi-hand": "5.2.8",
     "lucide-react": "0.562.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",

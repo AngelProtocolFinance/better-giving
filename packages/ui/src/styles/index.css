@@ -1,9 +1,10 @@
 /* the design system's style layer: brand color tokens, base/components/utilities,
-   and the theme mapping. imported by platform (as source, alongside its own
+   the faces, and the theme mapping. imported by platform (as source, alongside its own
    `@import "tailwindcss"`) and by ./build-entry.css (which adds that import
    itself to compile this package's standalone artifact). never import
    "tailwindcss" from this file — platform's compile needs to own that. */
 
+@import "./fonts.css";
 @import "@better-giving/brand/colors.css";
 @import "./base.css";
 @import "./components.css";
