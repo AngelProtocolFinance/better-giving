@@ -28,7 +28,7 @@ interface IGrow {
 export function Grow({ classes = "" }: IGrow) {
   return (
     <section className={classes} aria-labelledby="grow-heading">
-      <div className="page-narrow grid gap-9 lg:gap-14 lg:grid-cols-2 items-center">
+      <div className="page grid gap-9 lg:gap-14 lg:grid-cols-2 items-center">
         <div>
           <h2 id="grow-heading" className="section-heading">
             Don't just raise it. Grow it.

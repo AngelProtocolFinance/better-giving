@@ -47,7 +47,7 @@ interface IDonate {
 export function Donate({ base_url, classes = "" }: IDonate) {
   return (
     <section className={classes} aria-labelledby="donate-heading">
-      <div className="page-narrow grid justify-items-center">
+      <div className="page grid justify-items-center">
         <p className="text-xs font-bold uppercase tracking-wider text-primary">
           Support Better Giving
         </p>

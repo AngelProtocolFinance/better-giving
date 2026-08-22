@@ -15,9 +15,9 @@ export function AppHeader({ variant = "default", classes }: IAppHeader) {
   const { pathname: p, search: s } = useLocation();
   const to = auth_routes.includes(p) ? undefined : p + s;
 
-  // browse pages (minimal) center their body in page-wide — align the header
+  // browse pages (minimal) center their body in page — align the header
   // content to it. sidebar layouts (default/bare) stay flush-wide.
-  const inner = variant === "minimal" ? "page-wide" : "px-6";
+  const inner = variant === "minimal" ? "page" : "px-6";
 
   return (
     <header

@@ -12,7 +12,7 @@ export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const links: Route.LinksFunction = () => [...richtext_styles];
 export default CacheRoute(Page);
 
-const containerClass = "page-wide mt-8 grid content-start";
+const containerClass = "page mt-8 grid content-start";
 function Page({ loaderData }: Route.ComponentProps) {
   const { fund, base_url } = loaderData;
   const fetcher = useFetcher();

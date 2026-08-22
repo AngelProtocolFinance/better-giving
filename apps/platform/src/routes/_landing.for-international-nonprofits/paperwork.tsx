@@ -11,7 +11,7 @@ const items = [
 export function Paperwork({ classes = "" }) {
   return (
     <section className={classes}>
-      <div className="page-narrow grid gap-10 md:gap-12 md:grid-cols-2 items-start">
+      <div className="page grid gap-10 md:gap-12 md:grid-cols-2 items-start">
         <div className="grid gap-3 content-start">
           <h2 className="article-heading">
             You fundraise. We do the paperwork.

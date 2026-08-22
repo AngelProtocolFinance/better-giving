@@ -46,8 +46,8 @@ const link_cls = "text-sm text-primary-fg/90 hover:text-primary-fg";
 export function Footer({ classes = "", variant = "full", width }: Props) {
   const page =
     (width ?? (variant === "minimal" ? "wide" : "narrow")) === "wide"
-      ? "page-wide"
-      : "page-narrow";
+      ? "page"
+      : "page";
 
   // `page` carries the width intent so the footer lands on the same edge as the
   // header above it (see public-chrome.tsx). the <footer> itself paints the

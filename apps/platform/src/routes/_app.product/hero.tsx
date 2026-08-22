@@ -12,7 +12,7 @@ export function Hero({ classes = "" }: IHero) {
     <div
       className={`${classes} bg-linear-to-b from-background to-accent pt-16 pb-18`}
     >
-      <div className="page-narrow grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,32.5rem)] items-center">
+      <div className="page grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,32.5rem)] items-center">
         <div className="grid gap-5 justify-items-start">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Product

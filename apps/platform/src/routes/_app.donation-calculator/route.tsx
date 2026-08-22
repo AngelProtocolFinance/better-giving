@@ -52,9 +52,9 @@ export default function Page() {
   return (
     <div className="relative pb-8">
       <div className="bg-primary">
-        <Hero classes="page-narrow" />
+        <Hero classes="page" />
       </div>
-      <div className="page-narrow mt-4 py-8 grid sm:grid-cols-2 gap-x-4 content-start">
+      <div className="page mt-4 py-8 grid sm:grid-cols-2 gap-x-4 content-start">
         <h2 className="text-balance text-2xl sm:text-3xl text-primary mb-6 text-center col-span-2">
           Donation Processing Calculator
         </h2>
@@ -113,7 +113,7 @@ export default function Page() {
           </p>
         </div>
       </div>
-      <div className="page-narrow mt-4 py-8 grid sm:grid-cols-2 gap-x-4 content-start">
+      <div className="page mt-4 py-8 grid sm:grid-cols-2 gap-x-4 content-start">
         <h2 className="mt-8 text-balance text-2xl sm:text-3xl text-primary mb-6 text-center col-span-2">
           Savings & Investment Calculator
         </h2>

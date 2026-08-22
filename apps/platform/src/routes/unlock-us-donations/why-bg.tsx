@@ -37,7 +37,7 @@ export function WhyBg() {
     <section className="bg-primary text-white py-20 md:py-24 relative overflow-hidden">
       <div className="absolute -bottom-24 -left-24 size-80 bg-white/3 rounded-full" />
 
-      <div className="page-narrow relative">
+      <div className="page relative">
         <motion.h2
           className="section-heading font-bold text-center mb-14"
           initial={{ opacity: 0, y: 12 }}

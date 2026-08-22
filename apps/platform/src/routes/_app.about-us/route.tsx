@@ -31,7 +31,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   return (
     <main>
       <div className="bg-linear-to-b from-background to-accent pt-18 pb-18 text-center">
-        <div className="page-narrow">
+        <div className="page">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             About Better Giving
           </p>
@@ -47,7 +47,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
       </div>
 
       <div className="bg-primary py-22">
-        <div className="page-narrow">
+        <div className="page">
           <div className="max-w-3xl mx-auto grid justify-items-center gap-5 text-center">
             <span
               className="text-7xl/none font-bold text-secondary h-9"

@@ -82,7 +82,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
   const is_uploading = banner.value === "loading" || logo.value === "loading";
 
   return (
-    <div className="page-wide">
+    <div className="page">
       <fetcher.Form
         method="POST"
         onSubmit={handleSubmit}

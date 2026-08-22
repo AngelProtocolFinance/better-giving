@@ -22,7 +22,7 @@ interface IProof {
 export function Proof({ classes = "" }: IProof) {
   return (
     <section className={classes} aria-labelledby="proof-heading">
-      <div className="page-narrow grid gap-9 lg:gap-14 lg:grid-cols-[0.85fr_1.15fr] items-start">
+      <div className="page grid gap-9 lg:gap-14 lg:grid-cols-[0.85fr_1.15fr] items-start">
         <div className="lg:sticky lg:top-24">
           <h2 id="proof-heading" className="section-heading">
             Others promise transparency. Ours is checkable.

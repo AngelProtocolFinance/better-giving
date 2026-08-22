@@ -44,7 +44,7 @@ interface IFeatures {
 export function Features({ classes = "" }: IFeatures) {
   return (
     <section className={classes} aria-labelledby="features-heading">
-      <div className="page-narrow">
+      <div className="page">
         <h2
           id="features-heading"
           className="section-heading text-center max-w-2xl mx-auto"

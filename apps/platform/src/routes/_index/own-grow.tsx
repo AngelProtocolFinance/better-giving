@@ -9,7 +9,7 @@ interface IOwnGrow {
 export function OwnGrow({ classes = "" }: IOwnGrow) {
   return (
     <section className={classes} aria-labelledby="own-grow-heading">
-      <div className="page-narrow">
+      <div className="page">
         <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
           Why we're different
         </p>

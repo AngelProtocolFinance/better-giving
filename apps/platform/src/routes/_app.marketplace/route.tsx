@@ -57,8 +57,8 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
   });
   return (
     <div className="w-full grid content-start pb-16">
-      <Hero classes="grid isolate mt-8 page-wide" />
-      <div className="grid gap-y-4 content-start page-wide min-h-screen">
+      <Hero classes="grid isolate mt-8 page" />
+      <div className="grid gap-y-4 content-start page min-h-screen">
         <Toolbar classes="mt-10" />
         <ActiveFilters />
         {node}

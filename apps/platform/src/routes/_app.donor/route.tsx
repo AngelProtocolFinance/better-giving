@@ -20,10 +20,10 @@ export const meta: Route.MetaFunction = () =>
 export default function Page({ className = "" }) {
   return (
     <main className={`${className} grid @container`}>
-      <Hero className="page-narrow" />
-      <DonationFormInfo className="mt-20 page-narrow" />
+      <Hero className="page" />
+      <DonationFormInfo className="mt-20 page" />
       <Benefits
-        className="mt-56 page-narrow"
+        className="mt-56 page"
         subheading="Simple path to financial stability"
         heading="Making a Lasting Impact: Give today, Give Forever"
         body="Access our free fundraising technology and tools."

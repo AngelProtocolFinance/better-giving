@@ -1,7 +1,7 @@
 export function Quote({ classes = "" }) {
   return (
     <section className={classes}>
-      <div className="page-narrow">
+      <div className="page">
         <figure className="max-w-4xl mx-auto grid gap-4">
           <blockquote className="text-xl md:text-2xl/snug font-semibold text-pretty">
             &ldquo;U.S. donors wanted to support us for years. The tax deduction

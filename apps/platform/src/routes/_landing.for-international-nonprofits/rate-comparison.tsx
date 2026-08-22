@@ -123,7 +123,7 @@ function Cells({ row, accent }: { row: Row; accent?: boolean }) {
 export function RateComparison({ classes = "" }) {
   return (
     <section id="compare" className={classes}>
-      <div className="page-narrow">
+      <div className="page">
         <h2 className="section-heading">How we compare on published rates</h2>
         <p className="section-body text-muted-fg max-w-4xl mt-3 mb-8">
           Every figure below comes from the sponsor's own published fee

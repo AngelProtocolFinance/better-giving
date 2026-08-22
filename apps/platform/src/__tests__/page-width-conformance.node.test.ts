@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
 /**
- * the names sweep for the two page-width intents. layout is the one axis with
- * no closed-set gate behind it: `--color-*` and `--radius-*` are reset to
- * `initial` in theme.css so an off-system spelling compiles to nothing, but a
- * hand-picked width compiles fine and only looks slightly wrong. this file is
- * the gate instead.
+ * the names sweep for the page shape. layout is the one axis with no closed-set
+ * gate behind it: `--color-*` and `--radius-*` are reset to `initial` in
+ * theme.css so an off-system spelling compiles to nothing, but a hand-picked
+ * width compiles fine and only looks slightly wrong. this file is the gate
+ * instead.
  *
  * hence the `node` vitest project: the rest of the suite runs in browser mode,
  * which has no `node:fs`.
@@ -47,6 +47,31 @@ function files_with(needle: string): string[] {
   return sources.filter((x) => x.text.includes(needle)).map((x) => x.file);
 }
 
+/** every class string in the corpus, with where it came from. the shape's name
+ *  is an ordinary english word, so a raw line scan hits `function Page` and any
+ *  comment mentioning a page — the needles below run on class values only. */
+const class_values = sources.flatMap((x) =>
+  x.text
+    .split("\n")
+    .flatMap((line, i) =>
+      [...line.matchAll(/class(?:es|Name)=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map(
+        (m) => ({ file: x.file, n: i + 1, value: m[1] ?? m[2] ?? "" })
+      )
+    )
+);
+
+/** does this class string carry the page shape (the token, not the word)? */
+function has_shape(value: string): boolean {
+  return value.split(/\s+/).includes("page");
+}
+
+/** the same question about a whole line of source. */
+function line_has_shape(line: string): boolean {
+  return [
+    ...line.matchAll(/class(?:es|Name)=(?:"([^"]*)"|\{`([^`]*)`\})/g),
+  ].some((m) => has_shape(m[1] ?? m[2] ?? ""));
+}
+
 /** "<file>:<line>" for every line matching `re`. */
 function lines_with(re: RegExp): string[] {
   return sources.flatMap((x) =>
@@ -58,58 +83,77 @@ function lines_with(re: RegExp): string[] {
   );
 }
 
-describe("page width intents", () => {
-  test("`xl:container` is gone", () => {
-    // the utility it names never capped where it read as if it did: tailwind's
-    // `container` carries a nested breakpoint ladder that survives the `xl:`
-    // variant, so the 96rem rung still fired — full-bleed below 1280, frozen
-    // at 1240px of content to 1535, then 1496px. page-narrow/page-wide replace
-    // it everywhere, so the name survives in exactly one file, and in prose.
+describe("page shape", () => {
+  test("the page shape is named, not hand-spelled", () => {
+    // `container`'s ladder is the right behaviour and `page` keeps it rung for
+    // rung — what this bans is respelling it inline. `xl:container xl:mx-auto
+    // px-*` appeared ~40 times and carried a different gutter almost every
+    // time (px-5, px-10, px-24, max-sm:px-10), which is the duplication the
+    // name exists to close.
     const allowed = [
-      // names it in prose: the rationale comment on the two intents, which
-      // records the curve they replace.
+      // names it in prose: the rationale comment on the shape, which records
+      // where the rungs come from.
       "packages/ui/src/styles/utilities.css",
     ];
     expect(files_with("xl:container")).toEqual(allowed);
   });
 
-  test("both intents are defined in one place", () => {
-    for (const name of ["@utility page-narrow", "@utility page-wide"]) {
-      expect(files_with(name)).toEqual([
-        "packages/ui/src/styles/utilities.css",
-      ]);
-    }
+  test("the shape is defined in one place", () => {
+    expect(files_with("@utility page")).toEqual([
+      "packages/ui/src/styles/utilities.css",
+    ]);
+  });
+
+  test("there is exactly one page shape", () => {
+    // a second, narrower shape is the thing this collapsed. reading measure is
+    // a cap on the text column (`max-w-3xl`, or `prose`'s own 65ch), not a
+    // page width — narrowing the page to get it is what left the header
+    // sitting on a different edge from the sections under it.
+    expect(lines_with(/\bpage-(narrow|wide)\b/)).toEqual([]);
   });
 
   test("nothing re-specifies a container's own width, centering or gutter", () => {
     // utilities of equal specificity resolve by stylesheet source order, not by
-    // class-string order, and every one of these sorts AFTER the two intents —
-    // so a leftover silently beats the container it sits on. the exception is
-    // `prose`, which sorts later still and is meant to: it is the reading
-    // measure inside the page width, collapsed onto the same element.
+    // class-string order, and every one of these sorts AFTER `page` — so a
+    // leftover silently beats the shape it sits on. the exception is `prose`,
+    // which sorts later still and is meant to: it is the reading measure
+    // inside the page width, collapsed onto the same element.
     //
-    // `p-4` counts as a gutter: the intents emit `padding-inline`, and the
+    // `p-4` counts as a gutter: the shape emits `padding-inline`, and the
     // `padding` shorthand overwrites it whichever way the two sort. `py-*`,
     // `pt-*` and `pb-*` do not touch the inline axis and are the caller's.
-    const H_PAD = String.raw`\bp[xlrse]?-(?:\d|\[)`;
-    const competing = new RegExp(
-      String.raw`(page-narrow|page-wide)[^"\`']*\s(mx-auto|container|${H_PAD}|max-w-(?!full)\w)` +
-        String.raw`|(mx-auto|container|${H_PAD}|max-w-(?!full)\w)[\w:./[\]-]*\s[^"\`']*(page-narrow|page-wide)`
-    );
-    expect(lines_with(competing)).toEqual([]);
+    const H_PAD = /^p[xlrse]?-(?:\d|\[)/;
+    const competes = (t: string) =>
+      t === "mx-auto" ||
+      t === "container" ||
+      H_PAD.test(t) ||
+      /^max-w-(?!full)\w/.test(t);
+
+    const offenders = class_values.flatMap(({ file, n, value }) => {
+      if (!has_shape(value)) return [];
+      // a variant prefix does not make it a different utility: `md:px-10`
+      // still overwrites the shape's own padding-inline at that breakpoint.
+      const bad = value
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((t) => t.split(":").pop() ?? t)
+        .filter(competes);
+      return bad.length ? [`${file}:${n} ${bad.join(" ")}`] : [];
+    });
+    expect(offenders).toEqual([]);
   });
 
   test("the old inner-container idiom does not come back", () => {
-    // `max-w-6xl mx-auto` inside a full-bleed band was the second page width in
-    // the product, at the same 72rem page-narrow now names. `max-w-6xl` on its
-    // own is still a legitimate cap on a card that is not a page container.
+    // `max-w-6xl mx-auto` inside a full-bleed band was a second page width in
+    // the product, hand-rolled at 72rem. `max-w-6xl` on its own is still a
+    // legitimate cap on a card, or on a text column inside the page shape.
     expect(lines_with(/max-w-6xl\s+mx-auto|mx-auto\s+max-w-6xl/)).toEqual([]);
   });
 
   test("a full-bleed band does not stack a gutter on the container inside it", () => {
-    // the band paints the fill and holds the vertical rhythm; the container
+    // the band paints the fill and holds the vertical rhythm; the `page`
     // inside it owns the gutter. a `px-*` on the band is a second one, and it
-    // wins — the intents sort before every `px-*` in the sheet.
+    // wins — the shape sorts before every `px-*` in the sheet.
     //
     // two shapes, because a band reaches its container two ways. same-file: an
     // element wrapping the container element directly. cross-file: a section
@@ -125,7 +169,7 @@ describe("page width intents", () => {
           (l) =>
             /className="[^"]*">\s*$/.test(l.line) &&
             gutter.test(l.line) &&
-            /\b(page-narrow|page-wide)\b/.test(l.next)
+            line_has_shape(l.next)
         )
         .map((l) => `${x.file}:${l.n}`);
     });
@@ -136,7 +180,7 @@ describe("page width intents", () => {
     // second is a container.
     const container_files = new Set(
       sources
-        .filter((x) => /\b(page-narrow|page-wide)\b/.test(x.text))
+        .filter((x) => x.text.split("\n").some(line_has_shape))
         .map((x) => x.file)
     );
     const by_file = new Set(sources.map((x) => x.file));
@@ -220,7 +264,7 @@ describe("page width intents", () => {
           if (!target) return [];
           const tag = x.text.slice(m.index).split(">")[0];
           const cls = /class(?:es|Name)="([^"]*)"/.exec(tag);
-          if (!cls || !/\b(page-narrow|page-wide)\b/.test(cls[1])) return [];
+          if (!cls || !has_shape(cls[1])) return [];
           return [target];
         });
       })

@@ -1,7 +1,7 @@
 export function FeeGap({ classes = "" }) {
   return (
     <section className={classes}>
-      <div className="page-narrow">
+      <div className="page">
         <p className="eyebrow text-muted-fg mb-3">The math</p>
         <h2 className="section-heading max-w-3xl">
           On a $100,000 year, the fee gap reaches $7,100.

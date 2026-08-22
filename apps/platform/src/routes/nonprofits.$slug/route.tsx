@@ -96,21 +96,21 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
           observer.observe(node);
         }}
       >
-        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 page-narrow py-2">
+        <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 page py-2">
           <DappLogo classes="h-12" />
         </div>
       </div>
-      <Hero className="page-narrow" {...ctx} />
-      <Partners of_what={ctx.partners} classes="page-narrow my-10 xl:my-20" />
-      <Steps classes="page-narrow my-10 xl:my-20" />
-      <Products classes="page-narrow my-10 xl:my-20" />
-      <Features classes="page-narrow my-10 xl:my-20" />
-      <Underdog classes="page-narrow my-10 xl:my-20" />
-      <Testimonials classes="page-narrow my-10 xl:my-20" />
+      <Hero className="page" {...ctx} />
+      <Partners of_what={ctx.partners} classes="page my-10 xl:my-20" />
+      <Steps classes="page my-10 xl:my-20" />
+      <Products classes="page my-10 xl:my-20" />
+      <Features classes="page my-10 xl:my-20" />
+      <Underdog classes="page my-10 xl:my-20" />
+      <Testimonials classes="page my-10 xl:my-20" />
       <div className="bg-muted pb-24">
-        <Faq classes="page-narrow mt-24" />
+        <Faq classes="page mt-24" />
       </div>
-      <div className="page-narrow my-10 xl:my-20">
+      <div className="page my-10 xl:my-20">
         <Cta {...ctx} />
       </div>
       {/* quiet chrome, but the body above it is narrow — the default width for

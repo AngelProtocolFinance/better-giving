@@ -10,7 +10,7 @@ interface ITestimonials {
 export function Testimonials({ classes = "" }: ITestimonials) {
   return (
     <section className={classes} aria-labelledby="testimonials-heading">
-      <div className="page-narrow">
+      <div className="page">
         <h2 id="testimonials-heading" className="section-heading text-center">
           Nonprofits on Better Giving
         </h2>

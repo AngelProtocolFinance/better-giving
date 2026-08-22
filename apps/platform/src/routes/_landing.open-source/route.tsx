@@ -45,7 +45,7 @@ export default function Page() {
   return (
     <main>
       <div className="bg-primary pt-20 pb-22">
-        <div className="page-narrow grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
+        <div className="page grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
           <div className="grid gap-5 justify-items-start">
             <p className="text-xs font-bold uppercase tracking-wider text-secondary">
               Open Source
@@ -85,7 +85,7 @@ export default function Page() {
       </div>
 
       <div className="py-22">
-        <div className="page-narrow">
+        <div className="page">
           <h2 className="section-heading text-center max-w-2xl mx-auto">
             Why an open-source commons?
           </h2>
@@ -105,7 +105,7 @@ export default function Page() {
 
       <TwoPaths classes="bg-accent py-22" />
 
-      <div className="page-narrow py-22">
+      <div className="page py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
           <Image
             src={laira_waiving}

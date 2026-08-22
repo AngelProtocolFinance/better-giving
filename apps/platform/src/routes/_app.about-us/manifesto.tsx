@@ -23,7 +23,7 @@ interface IManifesto {
 export function Manifesto({ classes = "" }: IManifesto) {
   return (
     <section className={classes} aria-labelledby="manifesto-heading">
-      <div className="page-narrow">
+      <div className="page">
         <p className="text-xs font-bold uppercase tracking-wider text-primary text-center">
           The Better Giving Manifesto
         </p>

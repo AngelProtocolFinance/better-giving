@@ -30,7 +30,7 @@ const scenarios: IScenario[] = [
 export function Scenarios() {
   return (
     <section className="bg-card py-20 md:py-24">
-      <div className="page-narrow">
+      <div className="page">
         <motion.div
           className="text-center mb-14 grid gap-4"
           initial={{ opacity: 0, y: 12 }}

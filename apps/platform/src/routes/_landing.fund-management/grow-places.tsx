@@ -5,7 +5,7 @@ interface IGrowPlaces {
 export function GrowPlaces({ classes = "" }: IGrowPlaces) {
   return (
     <section className={classes} aria-labelledby="grow-places-heading">
-      <div className="page-narrow">
+      <div className="page">
         <h2
           id="grow-places-heading"
           className="section-heading text-center max-w-2xl mx-auto"

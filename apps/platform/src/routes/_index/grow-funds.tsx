@@ -20,7 +20,7 @@ interface IGrowFunds {
 export function GrowFunds({ classes = "" }: IGrowFunds) {
   return (
     <section className={classes} aria-labelledby="grow-funds-heading">
-      <div className="page-narrow grid gap-14 lg:grid-cols-2 items-center">
+      <div className="page grid gap-14 lg:grid-cols-2 items-center">
         <div className="grid gap-4.5 content-start">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Grow your funds

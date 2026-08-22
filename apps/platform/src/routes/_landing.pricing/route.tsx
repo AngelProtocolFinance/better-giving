@@ -19,7 +19,7 @@ export default function Page() {
   return (
     <main>
       <div className="bg-linear-to-b from-background to-accent pt-18 pb-16 text-center">
-        <div className="page-narrow">
+        <div className="page">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Pricing
           </p>
@@ -35,7 +35,7 @@ export default function Page() {
 
       <PriceCards classes="bg-accent pt-4 pb-22" />
 
-      <div className="page-narrow py-22">
+      <div className="page py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
           <h2 className="section-heading">So who pays for all this?</h2>
           <p className="text-muted-fg leading-relaxed max-w-2xl text-pretty">

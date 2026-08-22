@@ -58,7 +58,7 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
   return (
     <main>
       <section className="pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
-        <div className="page-narrow">
+        <div className="page">
           <p className="pre-heading">Blog &amp; Resources</p>
           <h1 className="hero-heading max-w-3xl mx-auto mt-3">
             Knowledge to empower your nonprofit
@@ -71,7 +71,7 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
       </section>
 
       <section className="bg-accent py-20">
-        <div className="page-narrow grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
+        <div className="page grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
           <Cards posts={posts} />
         </div>
         {nextPage && (

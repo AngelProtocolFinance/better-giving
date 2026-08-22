@@ -36,7 +36,7 @@ export default function Component() {
           observer.observe(node);
         }}
       >
-        <div className="page-narrow py-4 flex justify-between gap-x-4 items-center">
+        <div className="page py-4 flex justify-between gap-x-4 items-center">
           <DappLogo classes="h-12" />
           <Link
             to={href("/signup")}
@@ -54,10 +54,10 @@ export default function Component() {
         <Brands className="my-20 xl:my-56" />
       </div>
       <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
-        <Feature className="page-narrow" />
+        <Feature className="page" />
       </div>
       <div className="bg-linear-to-br from-transparent via-transparent via-50% to-lilac/50">
-        <ProbSol className="page-narrow pt-40" />
+        <ProbSol className="page pt-40" />
       </div>
       <div className="bg-linear-to-bl from-lilac/50 via-transparent to-transparent mb-40 px-5 md:px-10">
         <BottomCta className="max-w-2xl xl:max-w-4xl mx-auto" />

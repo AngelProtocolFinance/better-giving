@@ -33,7 +33,7 @@ export default function Component() {
           observer.observe(node);
         }}
       >
-        <div className="page-narrow py-4 flex justify-between gap-x-4 items-center">
+        <div className="page py-4 flex justify-between gap-x-4 items-center">
           <DappLogo classes="h-12" />
           <Link
             to={href("/signup")}
@@ -44,7 +44,7 @@ export default function Component() {
         </div>
       </div>
 
-      <Top classes="page-narrow bg-transparent mt-16 mb-28" />
+      <Top classes="page bg-transparent mt-16 mb-28" />
 
       <Footer />
     </main>

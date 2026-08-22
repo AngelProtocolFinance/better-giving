@@ -14,7 +14,7 @@ export function BottomCta() {
         }}
       />
 
-      <div className="page-narrow relative">
+      <div className="page relative">
         <motion.div
           className="max-w-2xl mx-auto text-center grid justify-items-center gap-6"
           initial={{ opacity: 0, y: 12 }}

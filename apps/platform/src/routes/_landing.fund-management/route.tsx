@@ -42,7 +42,7 @@ export default function Page() {
   return (
     <main>
       <div className="bg-linear-to-b from-background to-accent pt-16 pb-18">
-        <div className="page-narrow grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
+        <div className="page grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
           <div className="grid gap-5 justify-items-start">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">
               Fund Management
@@ -83,7 +83,7 @@ export default function Page() {
       <AllocationGovernance classes="bg-accent py-24" />
 
       <section className="py-22" aria-labelledby="split-steps-heading">
-        <div className="page-narrow">
+        <div className="page">
           <h2
             id="split-steps-heading"
             className="section-heading text-center max-w-2xl mx-auto"

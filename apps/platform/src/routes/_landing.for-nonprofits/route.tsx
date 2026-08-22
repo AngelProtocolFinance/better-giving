@@ -42,7 +42,7 @@ export default function Page() {
   return (
     <main>
       <header className="border-b border-border py-14 md:py-16">
-        <div className="page-narrow grid gap-10 lg:gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div className="page grid gap-10 lg:gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <Hero />
           <CtaForm
             classes="max-lg:mx-auto lg:justify-self-end"
@@ -74,7 +74,7 @@ export default function Page() {
       <Portability classes="border-b border-border py-16 md:py-20" />
 
       <div className="bg-muted border-b border-border py-16 md:py-20">
-        <div className="page-narrow">
+        <div className="page">
           <FAQ
             items={np_faqs}
             pre_heading="Fair questions"

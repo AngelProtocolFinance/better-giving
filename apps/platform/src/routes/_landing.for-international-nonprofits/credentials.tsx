@@ -7,7 +7,7 @@ const items = [
 export function Credentials({ classes = "" }) {
   return (
     <div className={classes}>
-      <ul className="page-narrow flex flex-wrap justify-center gap-x-10 gap-y-2 text-sm font-medium">
+      <ul className="page flex flex-wrap justify-center gap-x-10 gap-y-2 text-sm font-medium">
         {items.map((i) => (
           <li key={i}>{i}</li>
         ))}

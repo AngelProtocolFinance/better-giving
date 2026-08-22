@@ -1,7 +1,7 @@
 export function Ethical({ classes = "" }) {
   return (
     <section className={classes}>
-      <div className="page-narrow">
+      <div className="page">
         <div className="max-w-3xl mx-auto bg-card border border-border rounded p-5 md:p-8">
           <h2 className="article-heading">Ethical fundraising, verifiable</h2>
           <p className="text-base/relaxed text-muted-fg mt-3 text-pretty">
