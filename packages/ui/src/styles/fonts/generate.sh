@@ -35,9 +35,9 @@ curl -sfL -o "$tmp/GochiHand.ttf" \
   "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf"
 
 # the unicode-ranges in ../fonts.css, verbatim. each subset is cut to the UNION
-# of its range and the codepoints the fontsource package shipped, so a
-# regeneration can never serve less than what the site served before. that
-# union is why the ranges are expanded in python rather than passed as-is.
+# of its range and the coverage the committed subset beside this script already
+# has, so a regeneration can never serve less than what the site served before.
+# that union is why the ranges are expanded in python rather than passed as-is.
 "$PY" - "$tmp" <<'PYEOF'
 import subprocess, sys, os
 from fontTools.ttLib import TTFont
@@ -65,16 +65,24 @@ def expand(spec):
             out.add(int(p, 16))
     return out
 
-def shipped(pkg_rel):
-    """codepoints the fontsource package served, so we never regress below it.
-    absent (deps removed) -> fall back to the declared range alone."""
-    p = os.path.join(here, "../../../../..", "node_modules/.pnpm", pkg_rel)
+def floor(out):
+    """the coverage the committed subset at `out` already has — the ratchet the
+    union above is taken against. it is read from the committed woff2 rather
+    than from the font package the subsets were first derived from, because
+    that package is no longer a dependency: deriving the floor from node_modules
+    would quietly return nothing on a clean install and cut a SMALLER font than
+    the one it replaced. the shipped bytes are the only copy of this number that
+    cannot go missing. absent (a subset generated for the first time) -> the
+    declared range alone, said out loud rather than assumed."""
     try:
-        return set(TTFont(p).getBestCmap())
+        return set(TTFont(out).getBestCmap())
     except Exception:
+        print(f"  no existing {os.path.basename(out)} — declared range only")
         return set()
 
-def cut(src, out, unicodes, features):
+def cut(src, out, spec, features):
+    keep = floor(out)
+    unicodes = expand(spec) | keep
     lst = os.path.join(tmp, "u.txt")
     with open(lst, "w") as fh:
         fh.write(",".join(f"U+{c:04X}" for c in sorted(unicodes)))
@@ -82,6 +90,12 @@ def cut(src, out, unicodes, features):
                     f"--unicodes-file={lst}", f"--layout-features={features}",
                     "--flavor=woff2", f"--output-file={out}"], check=True)
     f = TTFont(out)
+    # the ratchet is only a promise until something checks it — the subsetter
+    # can drop a requested codepoint the source face does not actually have.
+    lost = keep - set(f.getBestCmap())
+    if lost:
+        raise SystemExit(f"{os.path.basename(out)} regressed: lost "
+                         + " ".join(f"U+{c:04X}" for c in sorted(lost)))
     feats = set()
     for t in ("GSUB", "GPOS"):
         if t in f:
@@ -93,13 +107,11 @@ def cut(src, out, unicodes, features):
 for sub, spec in RANGES.items():
     cut(f"{tmp}/Quicksand.ttf",
         os.path.join(here, f"quicksand-{sub}-wght-normal.woff2"),
-        expand(spec) | shipped(f"@fontsource-variable+quicksand@5.2.10/node_modules/@fontsource-variable/quicksand/files/quicksand-{sub}-wght-normal.woff2"),
-        QUICKSAND_FEATURES)
+        spec, QUICKSAND_FEATURES)
 
 cut(f"{tmp}/GochiHand.ttf",
     os.path.join(here, "gochi-hand-latin-400-normal.woff2"),
-    expand(RANGES["latin"]) | shipped("@fontsource+gochi-hand@5.2.8/node_modules/@fontsource/gochi-hand/files/gochi-hand-latin-400-normal.woff2"),
-    GOCHI_FEATURES)
+    RANGES["latin"], GOCHI_FEATURES)
 PYEOF
 
 echo "done. verify with: pnpm --filter @better-giving/ui build && grep -c woff2 dist/styles.css"

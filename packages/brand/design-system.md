@@ -991,11 +991,16 @@ one. Measured on the binaries, not assumed:
 | upstream `google/fonts` Quicksand[wght].ttf | 694 | 17 | yes |
 
 Each subset is cut to the **union** of fontsource's declared `unicode-range` and
-the codepoints fontsource actually shipped, so coverage cannot regress against
-what the site served before — it went up in two of three subsets and held level
-in the third, while total bytes fell. `packages/ui/src/styles/fonts/generate.sh`
-regenerates all four files from the upstream `google/fonts` sources and prints
-the codepoint counts and feature tags per file. Its output is **committed
+the coverage the committed binary beside the script already has, so coverage
+cannot regress against what the site served before — it went up in two of three
+subsets and held level in the third, while total bytes fell. That floor is read
+from the shipped bytes rather than from fontsource, because fontsource is no
+longer a dependency: a floor derived from `node_modules` would return nothing on
+a clean install and quietly cut a smaller font than the one it replaced. The
+script also verifies the ratchet after each cut and exits non-zero naming any
+codepoint lost. `packages/ui/src/styles/fonts/generate.sh` regenerates all four
+files from the upstream `google/fonts` sources and prints the codepoint counts
+and feature tags per file. Its output is **committed
 source**, the same convention as `packages/crypto`'s and `packages/stocks`'
 `src/generated/**`: nothing in the task graph runs it, and a font bump is a
 deliberate act.

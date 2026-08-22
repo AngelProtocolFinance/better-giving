@@ -18,7 +18,7 @@
    regenerate with ./fonts/generate.sh, which re-derives the subsets from the
    upstream google/fonts sources. the unicode-ranges below are the standard
    google/fontsource ones verbatim; each subset is cut to the union of its range
-   and the codepoints the fontsource package shipped, so a regeneration can never
+   and the coverage the committed file already has, so a regeneration can never
    serve less than the site served before.
 
    `font-display: swap`: the type is the brand, and a flash of fallback beats a
