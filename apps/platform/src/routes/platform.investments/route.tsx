@@ -198,7 +198,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           </tbody>
         </table>
 
-        <h5 className="font-bold text-md mt-8 mb-2">
+        <h5 className="font-bold text-base mt-8 mb-2">
           Top Holders{" "}
           <span className="text-sm text-muted-fg">( of {num_holders} )</span>
         </h5>

@@ -56,7 +56,7 @@ export default function Component() {
       </p>
       <p className="text-muted-fg text-sm mt-4">
         Changes are expected to be live in{" "}
-        <span className="text-md font-bold">{formatTime(time)}</span>
+        <span className="text-base font-bold">{formatTime(time)}</span>
       </p>
     </div>
   );

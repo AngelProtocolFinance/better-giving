@@ -143,7 +143,7 @@ interface ITopSavers {
 function TopSavers({ holders, total }: ITopSavers) {
   return (
     <div className="table-scroll">
-      <h5 className="font-bold text-md mt-8 mb-2">
+      <h5 className="font-bold text-base mt-8 mb-2">
         Top savers <span className="text-sm text-muted-fg">( of {total} )</span>
       </h5>
       <div className="table-scroll">

@@ -24,7 +24,7 @@ export function Testimonial() {
             straightforward.
           </p>
           <footer className="text-muted-fg font-medium">
-            <span className="block text-foreground font-bold">
+            <span className="block text-fg font-bold">
               Founder &amp; Artistic Director
             </span>
             London Arts Charity

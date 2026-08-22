@@ -26,7 +26,7 @@ export function Partners({
     >
       <motion.h2
         id="partners-heading"
-        className="font-medium text-3xl/tight md:text-3.5xl/tight text-center text-balance mb-8"
+        className="section-heading font-medium text-center mb-8"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
