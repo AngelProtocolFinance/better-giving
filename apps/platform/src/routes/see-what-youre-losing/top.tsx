@@ -10,7 +10,7 @@ export function Top({ classes = "" }) {
   const { state } = useHubspotDonCalculatorForm();
   return (
     <section
-      className={`${classes} grid grid-cols-1 lg:grid-cols-2 gap-12 p-4 @container`}
+      className={`${classes} grid grid-cols-1 lg:grid-cols-2 gap-12 py-4 @container`}
     >
       <div className="h-fit self-center relative">
         <Tooltip className="max-xl:hidden absolute -right-24 z-10" />

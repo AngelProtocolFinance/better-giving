@@ -87,8 +87,15 @@ describe("page width intents", () => {
     // so a leftover silently beats the container it sits on. the exception is
     // `prose`, which sorts later still and is meant to: it is the reading
     // measure inside the page width, collapsed onto the same element.
-    const competing =
-      /(page-narrow|page-wide)[^"`']*\s(mx-auto|container|px-\d|max-w-(?!full)\w)|(mx-auto|container|px-\d|max-w-(?!full)\w)[\w:./[\]-]*\s[^"`']*(page-narrow|page-wide)/;
+    //
+    // `p-4` counts as a gutter: the intents emit `padding-inline`, and the
+    // `padding` shorthand overwrites it whichever way the two sort. `py-*`,
+    // `pt-*` and `pb-*` do not touch the inline axis and are the caller's.
+    const H_PAD = String.raw`\bp[xlrse]?-(?:\d|\[)`;
+    const competing = new RegExp(
+      String.raw`(page-narrow|page-wide)[^"\`']*\s(mx-auto|container|${H_PAD}|max-w-(?!full)\w)` +
+        String.raw`|(mx-auto|container|${H_PAD}|max-w-(?!full)\w)[\w:./[\]-]*\s[^"\`']*(page-narrow|page-wide)`
+    );
     expect(lines_with(competing)).toEqual([]);
   });
 
@@ -108,7 +115,7 @@ describe("page width intents", () => {
     // element wrapping the container element directly. cross-file: a section
     // component that spreads the prop onto its root, which is how nearly every
     // marketing band is written here.
-    const gutter = /\bpx-\d|\bpx-\[/;
+    const gutter = /\bp[xlrse]?-(?:\d|\[)/;
 
     const wrapping = sources.flatMap((x) => {
       const lines = x.text.split("\n");
@@ -187,6 +194,53 @@ describe("page width intents", () => {
       });
     });
 
-    expect([...wrapping, ...handed]).toEqual([]);
+    // the third shape, and the one the same-file check cannot see: a section
+    // component takes the intent through `classes` and then adds a gutter of
+    // its own to the very element it spreads that prop onto. the two strings
+    // live in different files, so neither reads wrong on its own.
+    const recipients = new Set(
+      sources.flatMap((x) => {
+        const local = new Map<string, string>();
+        for (const m of x.text.matchAll(
+          /import\s+\{([^}]*)\}\s+from\s+"([^"]+)"/g
+        )) {
+          const target = resolve_spec(x.file, m[2]);
+          if (!target) continue;
+          for (const raw of m[1].split(",")) {
+            const name = raw
+              .trim()
+              .split(/\s+as\s+/)
+              .pop()
+              ?.trim();
+            if (name) local.set(name, target);
+          }
+        }
+        return [...x.text.matchAll(/<(\w+)[\s\n]/g)].flatMap((m) => {
+          const target = local.get(m[1]);
+          if (!target) return [];
+          const tag = x.text.slice(m.index).split(">")[0];
+          const cls = /class(?:es|Name)="([^"]*)"/.exec(tag);
+          if (!cls || !/\b(page-narrow|page-wide)\b/.test(cls[1])) return [];
+          return [target];
+        });
+      })
+    );
+
+    const spread = sources
+      .filter((x) => recipients.has(x.file))
+      .flatMap((x) =>
+        [
+          ...x.text.matchAll(
+            /className=\{`\$\{(?:classes|className)[^}]*\}([^`]*)`\}/g
+          ),
+        ]
+          .filter((m) => gutter.test(m[1]))
+          .map(
+            (m) =>
+              `${x.file}:${x.text.slice(0, m.index).split("\n").length}${m[1]}`
+          )
+      );
+
+    expect([...wrapping, ...handed, ...spread]).toEqual([]);
   });
 });

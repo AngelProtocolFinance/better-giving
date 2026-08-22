@@ -74,7 +74,11 @@ export default function Referrals() {
       </div>
       <Faq classes="page-narrow mt-10" />
 
-      <Bottom classes="page-narrow my-10 xl:my-30" />
+      {/* the card paints its own fill and owns its inner padding, so the page
+          container is the element around it, not the card itself. */}
+      <div className="page-narrow my-10 xl:my-30">
+        <Bottom />
+      </div>
       <Footer />
     </div>
   );
