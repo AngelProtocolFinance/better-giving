@@ -20,7 +20,7 @@ describe("EndowAlertForm", () => {
     const Stub = stub([]);
     const screen = await render(<Stub />);
     await expect
-      .element(screen.getByText("No organizations found"))
+      .element(screen.getByText("No organizations yet"))
       .toBeVisible();
     expect(screen.getByRole("button", { name: /save/i }).query()).toBeNull();
   });

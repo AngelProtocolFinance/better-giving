@@ -1,4 +1,4 @@
-import { Button, EmptyState } from "@better-giving/ui";
+import { EmptyState } from "@better-giving/ui";
 import { VideoPreview } from "#/pages/admin/media/video-preview";
 import type { IPaginator } from "#/types/components";
 import type { IMedia } from "@/npo";
@@ -35,16 +35,11 @@ interface INoVideo {
 export function NoVideo({ classes = "", filtered }: INoVideo) {
   if (filtered)
     return <EmptyState classes={classes}>No featured videos found</EmptyState>;
+  // no action of its own: the page header carries `Add Video` at all times, and
+  // a second link with the same name a few rows below it is the same control
+  // twice.
   return (
-    <EmptyState
-      classes={classes}
-      heading="No videos yet"
-      action={
-        <Button variant="secondary" to="new">
-          Add Video
-        </Button>
-      }
-    >
+    <EmptyState classes={classes} heading="No videos yet">
       Your first one shows on your profile as soon as you add it.
     </EmptyState>
   );
