@@ -40,6 +40,8 @@
     "Amount": "../../packages/ui/src/components/amount.tsx",
     "Separator": "../../packages/ui/src/components/separator.tsx",
     "Group": "../../packages/ui/src/components/group.tsx",
+    "EmptyState": "../../packages/ui/src/components/empty-state.tsx",
+    "EmptyRow": "../../packages/ui/src/components/empty-state.tsx",
     "ExtLink": "../../packages/ui/src/components/ext-link.tsx",
     "Copier": "../../packages/ui/src/components/copier/copier.tsx",
     "VerifiedIcon": "../../packages/ui/src/components/verified-icon.tsx",
@@ -94,7 +96,9 @@
     "Breadcrumbs": "  className?: string;\n  items: { title: string; to: string; end?: boolean; }[];",
     "Image": "  isSrcLoading?: boolean;\n  render?: ((img: React.ReactNode) => React.ReactElement) | undefined;\n  ref?: React.Ref<HTMLImageElement>;\n  /** ...plus the standard props inherited from @types/react */",
     "ImagePlaceholder": "  /** ...plus the standard props inherited from react */",
-    "DrawerIcon": "  is_open: boolean;\n  /** ...plus the standard props inherited from @types/react, lucide-react */"
+    "DrawerIcon": "  is_open: boolean;\n  /** ...plus the standard props inherited from @types/react, lucide-react */",
+    "EmptyState": "  /** the line. `No \u2026 yet` for a collection that has never held anything, `No \u2026 found` for a filter or search that came back empty. */\n  children: React.ReactNode;\n  /** promotes it to a full treatment. most screens leave it off. */\n  heading?: string;\n  /** the next step, where there is one \u2014 usually a `Button`. */\n  action?: React.ReactNode;\n  /** margin only; the component owns its padding. */\n  classes?: string;",
+    "EmptyRow": "  /** how many columns the table has \u2014 the cell spans all of them. */\n  col_span: number;\n  children: React.ReactNode;\n  heading?: string;\n  action?: React.ReactNode;\n  classes?: string;"
   },
   "overrides": {
     "Modal": {
@@ -142,6 +146,9 @@
       "primaryStory": "SuccessToast"
     },
     "Button": {
+      "cardMode": "column"
+    },
+    "EmptyState": {
       "cardMode": "column"
     }
   },

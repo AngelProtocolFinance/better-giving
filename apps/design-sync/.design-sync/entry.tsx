@@ -32,6 +32,12 @@ export { ContentLoader } from "../../../packages/ui/src/components/content-loade
 export { Copier } from "../../../packages/ui/src/components/copier/copier";
 export { DateField } from "../../../packages/ui/src/components/date-field";
 export { DateRangeField } from "../../../packages/ui/src/components/date-range-field";
+// what a screen shows where the content it was built around is not there.
+// `EmptyRow` is the same block inside the `<tr>` a `<tbody>` will accept.
+export {
+  EmptyRow,
+  EmptyState,
+} from "../../../packages/ui/src/components/empty-state";
 export { ExtLink } from "../../../packages/ui/src/components/ext-link";
 export { FileDropzone } from "../../../packages/ui/src/components/file-dropzone/file-dropzone";
 export { CheckField } from "../../../packages/ui/src/components/form/check-field";

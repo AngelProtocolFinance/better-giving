@@ -59,6 +59,23 @@ The other real class names, for when you compose a control by hand rather than u
 `.eyebrow`, `.section-heading`, `.section-body`, `.hero-heading`, `.article-heading`,
 `.flex-center`, `.absolute-center`, `.overlay`.
 
+### Empty states — use `EmptyState`
+
+Where the content a screen is built around is not there, the block is `EmptyState`; inside a table
+it is `EmptyRow`, which carries the `<td colSpan>` a `<tbody>` row requires. Never hand-roll either
+— a `<p className="text-muted-fg">` or a bare `<td colSpan>` with a "no rows" sentence in it is the
+spelling these replaced, and it drifted nineteen ways.
+
+The default is one line of muted text: no icon, no heading. `heading` and `action` promote it to a
+full treatment and are for the screens with a real next step, which are few.
+
+The line is `No … yet` or `No … found`, never a bare noun and never a trailing period. `yet` means
+the collection has never held anything; `found` means a filter or a search came back empty. They are
+not interchangeable — "No donations found" to somebody who has never donated reads as a search that
+failed.
+
+`classes` is for margin. The component owns its padding.
+
 ### Color is a closed token set
 
 Tailwind v4 with **every default color removed** (`--color-*: initial`). Raw palette names —
