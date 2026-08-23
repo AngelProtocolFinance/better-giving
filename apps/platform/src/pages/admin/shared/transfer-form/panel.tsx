@@ -116,7 +116,7 @@ export function Panel(props: Props) {
       <button
         type="submit"
         disabled={props.is_submitting || !isDirty}
-        className="btn btn-md btn-primary rounded mt-8"
+        className="btn btn-primary rounded mt-8"
       >
         {props.is_submitting ? "Submitting..." : "Submit"}
       </button>

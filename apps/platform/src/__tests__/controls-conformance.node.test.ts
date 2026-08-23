@@ -100,6 +100,21 @@ describe("the button size and variant sets", () => {
     expect(offenders).toEqual([]);
   });
 
+  test("`btn-md` is only ever written responsively", () => {
+    // btn-md is byte-identical to bare .btn, so `btn btn-md` is the size scale
+    // spelled twice and reads as a deliberate tier choice. the name exists for
+    // one job — stepping *down* from a larger tier (`btn-lg md:btn-md`) — so a
+    // bare one is always the copied-call-site tell, never that job.
+    const offenders = class_values.flatMap(({ file, n, value }) => {
+      const raw = value.split(/\s+/).filter(Boolean);
+      if (!raw.some((t) => t.replace(/["'`]/g, "") === "btn")) return [];
+      return raw.some((t) => t.replace(/["'`]/g, "") === "btn-md")
+        ? [`${file}:${n}`]
+        : [];
+    });
+    expect(offenders).toEqual([]);
+  });
+
   test("`btn` is spelled once", () => {
     // duplicate class names are inert in css, so this costs nothing at runtime
     // and is invisible in review — which is how five of them accumulated. it
