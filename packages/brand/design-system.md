@@ -456,7 +456,7 @@ Derived at use-site, not named tokens. `--radius` is the one radius system;
 
 ## Button variant set — what each fill means
 
-Six variants, authored in `packages/ui/src/styles/components.css` and closed by
+Seven variants, authored in `packages/ui/src/styles/components.css` and closed by
 `Button`'s `variant` prop. Two of them are **semantic**, and a semantic fill is a
 claim about the action, not a way to make a row look less grey.
 
@@ -465,6 +465,7 @@ claim about the action, not a way to make a row look less grey.
 | `btn-primary` | the one action the screen is for |
 | `btn-secondary` | every other action, including destructive-adjacent navigation |
 | `btn-ghost` | an action that must not compete with the content it sits in |
+| `btn-outline` | the second action **on a colored band** — see below |
 | `btn-destructive` | this deletes, rejects, or cannot be undone |
 | `btn-success` | **approve / confirm.** Nothing else |
 | `btn-warning` | proceed with caution — a real hazard the user should weigh |
@@ -485,6 +486,34 @@ claim about the action, not a way to make a row look less grey.
   with `btn-primary` against `btn-secondary`, never with hue.
 - Fill-vs-ink contrast for `--success` and `--warning` is a separate question and
   is in *The pair rule*, above. `--warning` is legible as text nowhere.
+
+### `btn-outline` — the variant that has no color of its own
+
+Every other variant names its fill. This one takes `color: inherit` and draws its
+border and hover from `currentColor` (`color-mix(in oklab, currentColor 40% |
+10% | 15%, transparent)` — `oklab`, matching what Tailwind's own `/40` modifier
+compiles to). So it is legible on any surface that declared its own ink, and on
+none that didn't.
+
+That dependency is the point. It replaced four hand-spelled copies —
+`border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10` three
+times and the same shape in raw `white` over a photo hero — every one of them
+sitting inside a container that had *already* set that ink for its own heading
+and body copy. The color was written twice, and one of the four had already
+drifted (`pages/@sections/cta-band.tsx` carried a full-opacity border where its
+two siblings carried 40%).
+
+**The band has to be `surface-primary`, not `bg-primary`.** A raw `bg-primary`
+paints the fill and says nothing about ink, so everything inside it inherits the
+page's `--fg` unless it names a color — which is how the terminal cards on the
+homepage and the open-source page were rendering their command text in `--fg`
+(#0f172a) on a `--primary` ground. `surface-primary` sets the fill, the ink, and
+the `--ring`/`--border` remaps a control needs on that ground; a `btn-outline`
+inside a bare `bg-primary` is invisible, and that is the correct failure — it
+fails where the band forgot to declare itself, not quietly at the button.
+
+Bands still on raw `bg-primary` are a separate sweep; the ones carrying a
+migrated CTA moved, the rest did not.
 
 ## Button size scale
 

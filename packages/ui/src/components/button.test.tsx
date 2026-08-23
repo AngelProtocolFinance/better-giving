@@ -210,6 +210,7 @@ describe("the closed class sets", () => {
     ["secondary", "btn btn-secondary"],
     ["ghost", "btn btn-ghost"],
     ["destructive", "btn btn-destructive"],
+    ["outline", "btn btn-outline"],
     ["success", "btn btn-success"],
     ["warning", "btn btn-warning"],
   ] as const;

@@ -11,6 +11,7 @@ type Variant =
   | "primary"
   | "secondary"
   | "ghost"
+  | "outline"
   | "destructive"
   | "success"
   | "warning";
@@ -23,6 +24,7 @@ const variant_class: Record<Variant, string> = {
   primary: "btn-primary",
   secondary: "btn-secondary",
   ghost: "btn-ghost",
+  outline: "btn-outline",
   destructive: "btn-destructive",
   success: "btn-success",
   warning: "btn-warning",

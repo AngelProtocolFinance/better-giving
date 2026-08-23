@@ -81,6 +81,7 @@ describe("the button size and variant sets", () => {
     "btn-primary",
     "btn-secondary",
     "btn-ghost",
+    "btn-outline",
     "btn-destructive",
     "btn-success",
     "btn-warning",

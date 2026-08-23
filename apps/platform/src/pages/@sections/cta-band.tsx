@@ -37,10 +37,7 @@ export function CtaBand({
         <Link to={href("/register")} className="btn btn-lg btn-secondary">
           {cta_label}
         </Link>
-        <ExtLink
-          href={BOOK_A_DEMO}
-          className="btn btn-lg border-2 text-primary-fg hover:bg-primary-fg/10"
-        >
+        <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-outline">
           Book a demo
         </ExtLink>
       </div>

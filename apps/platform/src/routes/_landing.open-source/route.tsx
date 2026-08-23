@@ -44,7 +44,7 @@ const why = [
 export default function Page() {
   return (
     <main>
-      <div className="bg-primary pt-20 pb-22">
+      <div className="surface-primary pt-20 pb-22">
         <div className="page grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
           <div className="grid gap-5 justify-items-start">
             <p className="text-xs font-bold uppercase tracking-wider text-secondary">
@@ -66,7 +66,7 @@ export default function Page() {
               </ExtLink>
               <Link
                 to={href("/register")}
-                className="btn btn-lg rounded border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
+                className="btn btn-lg btn-outline rounded"
               >
                 Join free forever
               </Link>

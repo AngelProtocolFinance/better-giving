@@ -49,7 +49,7 @@ export function Hero() {
             <Link
               to={BOOK_A_DEMO}
               target="_blank"
-              className="btn md:btn-lg border border-white/40 text-white hover:bg-white/10 active:bg-white/15 rounded text-nowrap capitalize backdrop-blur-sm"
+              className="btn md:btn-lg btn-outline rounded text-nowrap capitalize backdrop-blur-sm text-white"
             >
               Or book a demo with our UK team
             </Link>

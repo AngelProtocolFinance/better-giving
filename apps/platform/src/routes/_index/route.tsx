@@ -73,7 +73,7 @@ export default function Page() {
         <OwnGrow classes="bg-accent py-24" />
         <Pillars classes="py-24" />
         <GrowFunds classes="bg-accent py-24" />
-        <OpenSource classes="bg-primary py-24" />
+        <OpenSource classes="surface-primary py-24" />
         <Testimonials classes="py-24" />
         <div className="bg-accent pt-22 pb-48">
           <div className="page">
