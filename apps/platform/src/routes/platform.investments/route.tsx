@@ -1,3 +1,4 @@
+import { EmptyState } from "@better-giving/ui";
 import { format } from "date-fns";
 import { Link, NavLink, Outlet } from "react-router";
 import {
@@ -122,7 +123,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       {recent_logs.items.length > 0 ? (
         <HistoryTable items={recent_logs.items} />
       ) : (
-        <p className="text-muted-fg py-1">No changes yet</p>
+        <EmptyState>No changes yet</EmptyState>
       )}
       <div className="flex items-center gap-x-2 mt-8">
         <h4 className="font-bold text-lg">Portfolio Composition</h4>

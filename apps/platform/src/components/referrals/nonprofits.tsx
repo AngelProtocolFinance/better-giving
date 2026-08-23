@@ -1,4 +1,4 @@
-import { Info } from "@better-giving/ui";
+import { EmptyState } from "@better-giving/ui";
 import { format } from "date-fns";
 import { href, Link } from "react-router";
 import type { Referred } from "#/types/referrals";
@@ -50,7 +50,7 @@ export function Nonprofits({ classes = "", npos }: Props) {
           </table>
         </div>
       ) : (
-        <Info>No nonprofits onboarded yet</Info>
+        <EmptyState>No nonprofits onboarded yet</EmptyState>
       )}
     </div>
   );

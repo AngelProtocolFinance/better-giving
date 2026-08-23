@@ -1,3 +1,4 @@
+import { EmptyState } from "@better-giving/ui";
 import { Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { metas } from "#/helpers/seo";
@@ -50,7 +51,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           </table>
         </div>
       ) : (
-        <p className="text-muted-fg text-sm">No per-NPO data yet</p>
+        <EmptyState>No per-NPO data yet</EmptyState>
       )}
 
       {/* recent loss logs */}
@@ -65,7 +66,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       {logs.length > 0 ? (
         <LogsTable items={logs} />
       ) : (
-        <p className="text-muted-fg text-sm">No loss logs yet</p>
+        <EmptyState>No loss logs yet</EmptyState>
       )}
     </div>
   );

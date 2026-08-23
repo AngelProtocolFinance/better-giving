@@ -1,3 +1,4 @@
+import { EmptyState } from "@better-giving/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -62,7 +63,7 @@ function Content({
         </p>
 
         {data.previews.length === 0 ? (
-          <p className="text-sm text-muted-fg">No distributions found.</p>
+          <EmptyState>No distributions yet</EmptyState>
         ) : (
           <div className="table-scroll">
             <table className="table">

@@ -1,4 +1,4 @@
-import { Info } from "@better-giving/ui";
+import { EmptyState, Info } from "@better-giving/ui";
 import { endOfMonth, format, formatDistance } from "date-fns";
 import { ArrowRightIcon, HistoryIcon } from "lucide-react";
 import { Link, Outlet } from "react-router";
@@ -107,7 +107,7 @@ export function Earnings({
           {earnings.items.length > 0 ? (
             <EarningsHistory {...earnings} classes="mt-6" />
           ) : (
-            <p className="text-muted-fg py-1 mt-6">No earnings yet</p>
+            <EmptyState classes="mt-6">No earnings yet</EmptyState>
           )}
         </div>
       </div>

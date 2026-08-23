@@ -1,4 +1,4 @@
-import { EmptyRow, ExtLink } from "@better-giving/ui";
+import { Button, EmptyRow, ExtLink } from "@better-giving/ui";
 import { ArrowDownToLine } from "lucide-react";
 import { href, Link } from "react-router";
 import { CsvExporter } from "#/components/csv-exporter";
@@ -58,7 +58,17 @@ export function Table({
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <EmptyRow col_span={6}>No donations yet</EmptyRow>
+            <EmptyRow
+              col_span={6}
+              heading="No donations yet"
+              action={
+                <Button variant="primary" to={href("/marketplace")}>
+                  Browse nonprofits
+                </Button>
+              }
+            >
+              Pick a nonprofit and your first donation shows up here.
+            </EmptyRow>
           ) : (
             items.map((row) => {
               return (
