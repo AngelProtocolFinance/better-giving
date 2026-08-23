@@ -368,7 +368,7 @@ export function RecipientDetailsForm({
 
       <FormButtons
         disabled={disabled || bankStatement.value === "loading"}
-        isSubmitting={isSubmitting}
+        is_submitting={isSubmitting}
       />
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </Form>

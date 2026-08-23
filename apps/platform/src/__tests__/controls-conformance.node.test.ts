@@ -151,22 +151,29 @@ function tag_end(text: string, start: number): number {
   return -1;
 }
 
-describe("icon-only buttons", () => {
+describe("icon-only controls", () => {
   test("an icon is not an accessible name", () => {
-    // emptied: every icon-only control in the corpus now carries a name, and
-    // an entry added back here is a control a screen reader announces as
-    // "button". the next slice migrates these to the `Button` component, whose
-    // `icon` prop is unconstructible without an `aria-label`.
+    // buttons AND links: an icon-only anchor announces as "link" and nothing
+    // else, which is the same defect one element down. widening the tag set
+    // found fourteen of them after the fifteen buttons were named.
+    //
+    // empty, and an entry added back here is a control a screen reader
+    // announces by its role alone. the `Button` component's `icon` prop is
+    // unconstructible without an `aria-label`, so every call site it takes
+    // over is closed structurally rather than by this sweep.
     const exempt: string[] = [];
     const offenders = sources.flatMap(({ file, text }) => {
       if (exempt.includes(file)) return [];
-      return [...text.matchAll(/<button\b/g)].flatMap((m) => {
+      return [
+        ...text.matchAll(/<(?:button|a|Link|NavLink|ExtLink)\b/g),
+      ].flatMap((m) => {
         const end = tag_end(text, m.index);
         if (end < 0) return [];
         const attrs = text.slice(m.index, end);
         if (attrs.endsWith("/>")) return [];
         if (/aria-label|aria-labelledby|title=/.test(attrs)) return [];
-        const close = text.indexOf("</button>", end);
+        const tag = /^<([A-Za-z]+)/.exec(text.slice(m.index))?.[1] ?? "";
+        const close = text.indexOf(`</${tag}>`, end);
         if (close < 0) return [];
         const inner = text.slice(end, close).trim();
         // the only child is one self-closing element and nothing else: an
@@ -174,6 +181,10 @@ describe("icon-only buttons", () => {
         if (!/^<[A-Za-z][\w.]*[\s/]/.test(inner)) return [];
         if (tag_end(inner, 0) !== inner.length || !inner.endsWith("/>"))
           return [];
+        // a lone child can carry the name itself: an image through `alt`, an
+        // icon through an `aria-label`/`title` that svg exposes as role=img.
+        // both compute into the control's own name, so neither is a finding.
+        if (/\balt=|aria-label|title=/.test(inner)) return [];
         return [`${file}:${line_of(text, m.index)}`];
       });
     });

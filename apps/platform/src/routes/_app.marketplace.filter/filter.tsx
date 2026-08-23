@@ -49,6 +49,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
                 to={{ pathname: "..", search: params.toString() }}
                 replace
                 preventScrollReset
+                aria-label="Close filters"
                 className="active:text-primary"
               >
                 <X size={22} />

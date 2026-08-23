@@ -1,7 +1,7 @@
-import { LoadText } from "@better-giving/ui";
+import { Button } from "@better-giving/ui";
 import { CircleAlert, Hourglass } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 import { steps } from "#/pages/registration/routes";
 import type { TStatus } from "@/reg";
 
@@ -12,7 +12,7 @@ type Props = {
 
 export function EndowmentStatus({ status, classes = "" }: Props) {
   const fetcher = useFetcher({ key: "reg-sub" });
-  const isSubmitting = fetcher.state !== "idle";
+  const is_submitting = fetcher.state !== "idle";
   const conversion_pushed = useRef(false);
 
   // gtm conversion, keyed to this fetcher completing — not to status "02", so a
@@ -31,20 +31,22 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
         method="POST"
         className={`grid grid-cols-2 sm:flex gap-2 ${classes}`}
       >
-        <Link
-          aria-disabled={isSubmitting}
+        <Button
+          variant="secondary"
           to={`../${steps.banking}`}
-          className="min-w-32 btn-secondary btn"
+          disabled={is_submitting}
+          className="min-w-32"
         >
           Back
-        </Link>
-        <button
+        </Button>
+        <Button
+          variant="primary"
           type="submit"
-          disabled={isSubmitting}
-          className="min-w-32 btn btn-primary"
+          is_loading={is_submitting}
+          className="min-w-32"
         >
-          <LoadText is_loading={isSubmitting}>Continue</LoadText>
-        </button>
+          Continue
+        </Button>
       </fetcher.Form>
     );
   }
@@ -61,13 +63,14 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
             Your nonprofit's application has been rejected.
           </span>
         </p>
-        <button
+        <Button
+          variant="primary"
           type="submit"
-          disabled={isSubmitting}
-          className="min-w-32 btn btn-primary"
+          is_loading={is_submitting}
+          className="min-w-32"
         >
-          <LoadText is_loading={isSubmitting}>Resubmit</LoadText>
-        </button>
+          Resubmit
+        </Button>
       </fetcher.Form>
     );
   }

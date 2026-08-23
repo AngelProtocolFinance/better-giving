@@ -56,7 +56,11 @@ export default function Referrals() {
             </Link>
           )}
           {!is_loading && session?.signed_in && (
-            <Link to={href("/dashboard")} className="contents">
+            <Link
+              to={href("/dashboard")}
+              aria-label="Your dashboard"
+              className="contents"
+            >
               <UserAvatar avatar={session.avatar_url} classes="size-7" />
             </Link>
           )}

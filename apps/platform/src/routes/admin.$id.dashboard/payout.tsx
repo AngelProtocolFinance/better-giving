@@ -27,6 +27,7 @@ export function Payout({ classes = "", ...p }: Props) {
             to={{ pathname: "payout-min", search: `?min=${p.threshold}` }}
             replace
             preventScrollReset
+            aria-label="Edit payout threshold"
             className="text-xs inline-block"
           >
             <PencilIcon size={12} />

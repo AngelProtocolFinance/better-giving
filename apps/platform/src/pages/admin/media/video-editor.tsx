@@ -58,6 +58,7 @@ function Content(props: IProps) {
         </p>
         <Link
           to=".."
+          aria-label="Close"
           aria-disabled={nav.state !== "idle"}
           className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg"
         >

@@ -43,6 +43,7 @@ function Content({ verdict }: Props) {
         </p>
         <Link
           to=".."
+          aria-label="Close"
           aria-disabled={fetcher.state !== "idle"}
           className="border p-2 rounded absolute top-1/2 right-4 transfetcher.Form -translate-y-1/2 disabled:text-muted-fg"
         >

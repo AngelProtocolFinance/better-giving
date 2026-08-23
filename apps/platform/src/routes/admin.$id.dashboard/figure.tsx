@@ -30,6 +30,7 @@ export function Figure(props: Props) {
 
         <NavLink
           to={props.to}
+          aria-label={`View ${props.title}`}
           className="ml-auto text-primary hover:text-primary active:translate-x-0.5"
         >
           <ArrowRightIcon size={18} />

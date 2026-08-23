@@ -87,6 +87,7 @@ export function Earnings({
                   to={{ pathname: "payout-min", search: `?min=${payout_min}` }}
                   replace
                   preventScrollReset
+                  aria-label="Edit payout threshold"
                   className="text-xs"
                 >
                   <PencilIcon size={12} />

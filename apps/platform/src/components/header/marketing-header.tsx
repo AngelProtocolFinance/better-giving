@@ -58,7 +58,11 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
         {/* fixed cta/avatar slot: anon->avatar swap doesn't shift the nav */}
         <div className="hidden min-[75rem]:flex items-center justify-end gap-3">
           {is_signed_in ? (
-            <Link to={href("/dashboard")} className="contents">
+            <Link
+              to={href("/dashboard")}
+              aria-label="Your dashboard"
+              className="contents"
+            >
               <UserAvatar avatar={session?.avatar_url} classes="size-7" />
             </Link>
           ) : (

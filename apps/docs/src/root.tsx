@@ -1,5 +1,5 @@
 import { socials } from "@better-giving/brand";
-import { ExtLink } from "@better-giving/ui";
+import { Button, ExtLink } from "@better-giving/ui";
 import {
   isRouteErrorResponse,
   Link,
@@ -123,9 +123,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           <p className="text-sm text-muted-fg">
             The page you're looking for doesn't exist.
           </p>
-          <Link to="/" className="btn btn-primary inline-flex">
+          <Button variant="primary" to="/" className="inline-flex">
             Go home
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -140,13 +140,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         <p className="text-sm text-muted-fg">
           An error occurred while loading this page.
         </p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="btn btn-primary"
-        >
+        <Button variant="primary" onClick={() => window.location.reload()}>
           Try again
-        </button>
+        </Button>
       </div>
     </div>
   );
