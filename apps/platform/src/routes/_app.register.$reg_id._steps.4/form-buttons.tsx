@@ -1,5 +1,4 @@
-import { LoadText } from "@better-giving/ui";
-import { Link } from "react-router";
+import { Button } from "@better-giving/ui";
 import type {
   FormButtonsProps,
   IFormButtons,
@@ -13,30 +12,31 @@ export const form_buttons =
   (props: FormButtonsProps) => <Submit {...props} back={back} />;
 
 function Submit({
-  isSubmitting = false,
+  is_submitting = false,
   back,
 }: {
-  isSubmitting?: boolean;
+  is_submitting?: boolean;
   back: string;
 }) {
   return (
     <div className="grid gap-4 mt-8">
       <div className="grid grid-cols-2 sm:flex gap-2">
-        <Link
-          aria-disabled={isSubmitting}
+        <Button
+          variant="secondary"
           to={`../${back}`}
-          className="min-w-32 btn btn-secondary"
+          disabled={is_submitting}
+          className="min-w-32"
         >
           Back
-        </Link>
-        <button
-          aria-disabled={isSubmitting}
-          disabled={isSubmitting}
+        </Button>
+        <Button
+          variant="primary"
           type="submit"
-          className="min-w-32 btn btn-primary"
+          is_loading={is_submitting}
+          className="min-w-32"
         >
-          <LoadText is_loading={isSubmitting}>Submit</LoadText>
-        </button>
+          Submit
+        </Button>
       </div>
     </div>
   );

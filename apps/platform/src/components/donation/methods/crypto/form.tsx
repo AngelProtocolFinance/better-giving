@@ -34,6 +34,7 @@ export function Form(props: TMethodState<"crypto">) {
 
   const {
     handleSubmit,
+    isSubmitting,
     reset,
     token,
     errors,
@@ -205,7 +206,9 @@ export function Form(props: TMethodState<"crypto">) {
       <MethodBenefits subject="crypto" classes="mt-2" />
 
       <button
-        disabled={token_state === "error" || token_state === "loading"}
+        disabled={
+          token_state === "error" || token_state === "loading" || isSubmitting
+        }
         className="mt-auto btn btn-form-primary"
         type="submit"
       >

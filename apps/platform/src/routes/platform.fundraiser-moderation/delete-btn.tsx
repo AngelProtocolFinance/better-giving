@@ -34,7 +34,7 @@ export function DeleteBtn({
         </p>
         <div className="flex gap-2 justify-end">
           <form method="dialog">
-            <button type="submit" className="btn btn-md btn-secondary rounded">
+            <button type="submit" className="btn btn-secondary rounded">
               Cancel
             </button>
           </form>
@@ -46,7 +46,7 @@ export function DeleteBtn({
               type="submit"
               name="fund_id"
               value={fund_id}
-              className="btn btn-md btn-destructive rounded"
+              className="btn btn-destructive rounded"
             >
               Proceed
             </button>

@@ -1,5 +1,6 @@
+import { Button } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
-import { NavLink, useFetcher, useParams } from "react-router";
+import { useFetcher, useParams } from "react-router";
 import { admin_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import { RouteModal } from "#/components/route-modal";
@@ -36,7 +37,7 @@ export default function DisablePrompt() {
 function Content() {
   const { form_id } = useParams();
   const fetcher = useFetcher();
-  const isSubmitting = fetcher.state !== "idle";
+  const is_submitting = fetcher.state !== "idle";
 
   return (
     <>
@@ -52,20 +53,12 @@ function Content() {
       </div>
       <fetcher.Form method="POST" className="modal-actions">
         <input type="hidden" name="form_id" value={form_id} />
-        <NavLink
-          to=".."
-          aria-disabled={isSubmitting}
-          className="btn-secondary btn"
-        >
+        <Button variant="secondary" nav to=".." disabled={is_submitting}>
           Cancel
-        </NavLink>
-        <button
-          disabled={isSubmitting}
-          type="submit"
-          className="btn btn-destructive"
-        >
+        </Button>
+        <Button variant="destructive" type="submit" is_loading={is_submitting}>
           Proceed
-        </button>
+        </Button>
       </fetcher.Form>
     </>
   );

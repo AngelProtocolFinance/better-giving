@@ -26,7 +26,7 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
     handleSubmit,
     register,
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FV>({
     resolver: valibotResolver(donor_fv),
     values: value,
@@ -115,6 +115,7 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
         />
       )}
       <button
+        disabled={isSubmitting}
         className="mt-auto btn btn-form-primary col-span-full"
         type="submit"
       >

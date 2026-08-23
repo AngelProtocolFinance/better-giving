@@ -81,11 +81,6 @@
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: color-mix(in oklch, var(--destructive) 90%, black);
     }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
-    }
   }
 
   .btn-success {
@@ -96,11 +91,6 @@
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: color-mix(in oklch, var(--success) 90%, black);
-    }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
     }
   }
 
@@ -113,10 +103,29 @@
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: color-mix(in oklch, var(--warning) 90%, black);
     }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
+  }
+
+  /* an outline button that takes its color from the surface it sits on. the
+     four call sites this replaces each hand-spelled the band's ink a second
+     time — `border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10`,
+     or the same shape in raw white over a photo hero — on a container that had
+     already declared that ink for its own copy. writing it twice is what lets
+     it drift once. currentColor reads whatever the surface set: --primary-fg
+     on a `surface-primary` band, --fg on the page, white over a hero.
+
+     the mixes are oklab, not oklch, to match what tailwind's own `/40` and
+     `/10` opacity modifiers compile to — an oklch mix down to transparent
+     takes a different path and would not reproduce the call sites it
+     replaces. */
+  .btn-outline {
+    background-color: transparent;
+    color: inherit;
+    border: 2px solid color-mix(in oklab, currentColor 40%, transparent);
+    &:hover:not(:disabled):not([aria-disabled="true"]) {
+      background-color: color-mix(in oklab, currentColor 10%, transparent);
+    }
+    &:active {
+      background-color: color-mix(in oklab, currentColor 15%, transparent);
     }
   }
 
@@ -132,6 +141,7 @@
   .btn-md,
   .btn-lg,
   .btn-ghost,
+  .btn-outline,
   .btn-secondary,
   .btn-success,
   .btn-primary,
@@ -143,6 +153,7 @@
     }
   }
 
+  .btn-outline,
   .btn-secondary,
   .btn-success,
   .btn-primary,
@@ -153,15 +164,24 @@
       color: var(--muted-fg);
     }
   }
-  a.btn-secondary,
-  a.btn-warning,
-  a.btn-success,
-  a.btn-primary,
-  a.btn-destructive {
-    &[aria-disabled="true"] {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-    }
+
+  /* the in-flight rung, and it is deliberately the disabled fill: a control
+     that is submitting must not be submitted again, so it reads the same as
+     one that cannot be pressed. it was authored per-variant and only ever on
+     three of the six, plus a duplicate pair under `a.btn-*` — reachable on
+     half the set and inert on the other half. one block covers every variant
+     and both element forms.
+     `pointer-events: none` because the state is set by the component rather
+     than by the element's own `:disabled`, which would stop the click itself.
+     nothing here is reachable at rest: `.pending` is a class the component
+     writes only while a submission is in flight. */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-outline,
+  .btn-destructive,
+  .btn-success,
+  .btn-warning {
     &.pending {
       background-color: var(--muted);
       color: var(--muted-fg);
@@ -169,15 +189,16 @@
     }
   }
 
-  a.btn-ghost {
+  a.btn-secondary,
+  a.btn-warning,
+  a.btn-success,
+  a.btn-primary,
+  a.btn-ghost,
+  a.btn-outline,
+  a.btn-destructive {
     &[aria-disabled="true"] {
       background-color: var(--muted);
       color: var(--muted-fg);
-    }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
     }
   }
 

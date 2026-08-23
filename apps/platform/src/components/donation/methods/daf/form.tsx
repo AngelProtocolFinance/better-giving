@@ -88,6 +88,9 @@ export function Form(props: TMethodState<"daf">) {
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
 
+      {/* no `disabled` of its own — FormContainer's fieldset carries
+          `disabled={rhf.isSubmitting}` and already makes this unpressable
+          while a submit is in flight */}
       <button className="mt-auto btn btn-form-primary" type="submit">
         Continue
       </button>

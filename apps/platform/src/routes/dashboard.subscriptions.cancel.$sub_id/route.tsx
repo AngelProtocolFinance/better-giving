@@ -37,6 +37,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
         </p>
         <Dialog.CloseTrigger asChild>
           <Link
+            aria-label="Close"
             aria-disabled={busy}
             preventScrollReset
             replace

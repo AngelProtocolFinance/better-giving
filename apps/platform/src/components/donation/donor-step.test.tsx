@@ -182,3 +182,47 @@ describe("DonorStep: employer field", () => {
     expect(on_change.mock.calls[0][0].company_name).toBeFalsy();
   });
 });
+
+describe("DonorStep: in-flight submission", () => {
+  test("a second press before validation resolves does not fire a second submit", async () => {
+    don_mock.value = {
+      ...base_init,
+      recipient: donation_recipient_init({ donor_address_required: false }),
+    };
+    // synchronous and returning nothing — the shape `current-step` actually
+    // passes, a setter that swaps the step. the submission is still async
+    // because the resolver spans a tick, and that tick is the whole window a
+    // second press has to land in.
+    const on_change = vi.fn();
+
+    const screen = await render(
+      <DonorStep
+        value={{
+          ...donor_fv_blank,
+          email: "john@doe.com",
+          first_name: "John",
+          last_name: "Doe",
+        }}
+        on_back={vi.fn()}
+        on_change={on_change}
+      />
+    );
+
+    const btn = screen.getByRole("button", { name: "Continue" }).element();
+    // native dispatches, not driven clicks: playwright waits for a control to
+    // be enabled, and being unpressable is what is under test. the yield
+    // between them is the browser's own doing — every user press is its own
+    // task, so react has always flushed the disable before the next one
+    // arrives. two in a single task would beat the guard and no pointer can
+    // produce that.
+    (btn as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 0));
+    (btn as HTMLElement).click();
+
+    // no spinner and no label change — pressing Continue swaps the whole
+    // screen, so the only observable the guard has is the call count
+    await vi.waitFor(() => expect(on_change).toHaveBeenCalledOnce());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(on_change).toHaveBeenCalledOnce();
+  });
+});

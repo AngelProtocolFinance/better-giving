@@ -16,7 +16,7 @@ export function PostCta({ cta }: IPostCta) {
   return (
     <div className="@container mt-12">
       <div
-        className={`grid ${img_url ? "@5xl:grid-cols-2" : ""} bg-primary rounded ring-8 @md:ring-[1rem] ring-secondary px-10 py-12 @5xl:px-16 @5xl:py-18`}
+        className={`grid ${img_url ? "@5xl:grid-cols-2" : ""} surface-primary rounded ring-8 @md:ring-[1rem] ring-secondary px-10 py-12 @5xl:px-16 @5xl:py-18`}
       >
         <div className="grid order-2 @5xl:order-1">
           {cta.eyebrow && (
@@ -46,7 +46,7 @@ export function PostCta({ cta }: IPostCta) {
             {cta.link2?.href && cta.link2.label && (
               <ExtLink
                 href={cta.link2.href}
-                className="btn btn-lg rounded border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10"
+                className="btn btn-lg btn-outline rounded"
               >
                 {cta.link2.label}
               </ExtLink>

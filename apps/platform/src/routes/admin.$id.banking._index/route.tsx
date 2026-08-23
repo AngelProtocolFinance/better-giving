@@ -17,7 +17,7 @@ function Page({ loaderData }: Route.ComponentProps) {
     <div className="px-6 py-4 md:px-10 md:py-8">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-left text-lg uppercase">Current Banking Details</h1>
-        <NavLink to="new" className="btn btn-success">
+        <NavLink to="new" className="btn btn-primary">
           <Plus className="mr-2" size={16} />
           <span>New</span>
         </NavLink>

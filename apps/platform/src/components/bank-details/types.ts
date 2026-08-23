@@ -3,7 +3,7 @@ import type { V1RecipientAccount } from "#/types/bank-details";
 
 export type FormButtonsProps = {
   disabled?: boolean;
-  isSubmitting?: boolean;
+  is_submitting?: boolean;
 };
 
 export type IFormButtons = ComponentType<FormButtonsProps>;

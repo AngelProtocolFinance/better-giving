@@ -25,6 +25,9 @@ export function DsProvider({ children }: { children: ReactNode }) {
 // content
 export { Amount } from "../../../packages/ui/src/components/amount";
 export { Breadcrumbs } from "../../../packages/ui/src/components/breadcrumbs";
+// the button, and every button-shaped link. first in the file because it is
+// the one name a design reaches for before any other.
+export { Button } from "../../../packages/ui/src/components/button";
 export { ContentLoader } from "../../../packages/ui/src/components/content-loader";
 export { Copier } from "../../../packages/ui/src/components/copier/copier";
 export { DateField } from "../../../packages/ui/src/components/date-field";

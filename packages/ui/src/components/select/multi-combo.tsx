@@ -98,6 +98,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
               <Tag
                 key={opt.key(v)}
                 label={opt.render(v)}
+                name={opt.text(v)}
                 on_remove={() =>
                   p.on_change(p.values.filter((x) => opt.key(x) !== opt.key(v)))
                 }
@@ -162,12 +163,15 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
   );
 }
 
-function Tag(p: { label: ReactNode; on_remove: () => void }) {
+/** `label` is what the tag shows, `name` what its remove button announces —
+ *  a rendered label may be a logo or a badge with no text in it. */
+function Tag(p: { label: ReactNode; name: string; on_remove: () => void }) {
   return (
     <div className="flex items-center px-3 gap-2 h-10 bg-secondary border rounded font-semibold text-secondary-fg capitalize">
       <span className="max-w-[200px] truncate">{p.label}</span>
       <button
         type="button"
+        aria-label={`Remove ${p.name}`}
         onClick={(e) => {
           e.preventDefault();
           p.on_remove();

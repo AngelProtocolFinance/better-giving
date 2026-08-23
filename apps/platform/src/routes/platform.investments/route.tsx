@@ -138,7 +138,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           preventScrollReset
           to="log-dividends"
-          className="btn btn-sm btn-success rounded"
+          className="btn btn-sm btn-secondary rounded"
         >
           Dividend
         </NavLink>

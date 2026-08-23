@@ -442,7 +442,7 @@ use `colors.ts`.** For "what brand color is this", the comment.
 
 ## State ladder
 
-One convention, applied in `apps/platform/src/styles/components.css`:
+One convention, applied in `packages/ui/src/styles/components.css`:
 
 | state | value |
 | --- | --- |
@@ -454,9 +454,70 @@ One convention, applied in `apps/platform/src/styles/components.css`:
 Derived at use-site, not named tokens. `--radius` is the one radius system;
 `--radius-xs…3xl` are computed from it in `index.css`. Don't author parallel values.
 
+## Button variant set — what each fill means
+
+Seven variants, authored in `packages/ui/src/styles/components.css` and closed by
+`Button`'s `variant` prop. Two of them are **semantic**, and a semantic fill is a
+claim about the action, not a way to make a row look less grey.
+
+| variant | means |
+| --- | --- |
+| `btn-primary` | the one action the screen is for |
+| `btn-secondary` | every other action, including destructive-adjacent navigation |
+| `btn-ghost` | an action that must not compete with the content it sits in |
+| `btn-outline` | the second action **on a colored band** — see below |
+| `btn-destructive` | this deletes, rejects, or cannot be undone |
+| `btn-success` | **approve / confirm.** Nothing else |
+| `btn-warning` | proceed with caution — a real hazard the user should weigh |
+
+- **Green is a verdict, not a category.** Its live sites are the three moderation
+  screens where a reviewer approves something (`platform.redeem-requests`,
+  `platform.applications_.$id`, `platform.banking-applications_.$id`). It was
+  also, until 2026-08-23, on `Deposit`, `New` and `Dividend` — none of which
+  approve anything; they were green because money-in felt positive. A hue that
+  means "approve" on one screen and "this one is nice" on the next means neither.
+- **Amber has no call site, on purpose.** It was on the `Transfer` link beside
+  those `Deposit` buttons — moving money between two accounts you own is not a
+  hazard. The variant stays in the set because the product will eventually have a
+  real caution; it is not evidence that one exists now.
+- **A row of actions is not a colour scale.** `Deposit` / `Withdraw` / `Transfer`
+  were green / plain / amber, which reads as good / neutral / risky and none of
+  that was true. Sibling actions of equal weight take the same variant; rank them
+  with `btn-primary` against `btn-secondary`, never with hue.
+- Fill-vs-ink contrast for `--success` and `--warning` is a separate question and
+  is in *The pair rule*, above. `--warning` is legible as text nowhere.
+
+### `btn-outline` — the variant that has no color of its own
+
+Every other variant names its fill. This one takes `color: inherit` and draws its
+border and hover from `currentColor` (`color-mix(in oklab, currentColor 40% |
+10% | 15%, transparent)` — `oklab`, matching what Tailwind's own `/40` modifier
+compiles to). So it is legible on any surface that declared its own ink, and on
+none that didn't.
+
+That dependency is the point. It replaced four hand-spelled copies —
+`border-2 border-primary-fg/40 text-primary-fg hover:bg-primary-fg/10` three
+times and the same shape in raw `white` over a photo hero — every one of them
+sitting inside a container that had *already* set that ink for its own heading
+and body copy. The color was written twice, and one of the four had already
+drifted (`pages/@sections/cta-band.tsx` carried a full-opacity border where its
+two siblings carried 40%).
+
+**The band has to be `surface-primary`, not `bg-primary`.** A raw `bg-primary`
+paints the fill and says nothing about ink, so everything inside it inherits the
+page's `--fg` unless it names a color — which is how the terminal cards on the
+homepage and the open-source page were rendering their command text in `--fg`
+(#0f172a) on a `--primary` ground. `surface-primary` sets the fill, the ink, and
+the `--ring`/`--border` remaps a control needs on that ground; a `btn-outline`
+inside a bare `bg-primary` is invisible, and that is the correct failure — it
+fails where the band forgot to declare itself, not quietly at the button.
+
+Bands still on raw `bg-primary` are a separate sweep; the ones carrying a
+migrated CTA moved, the rest did not.
+
 ## Button size scale
 
-Three sizes, authored in `apps/platform/src/styles/components.css`. Every value
+Three sizes, authored in `packages/ui/src/styles/components.css`. Every value
 is on the 4px ladder (`--spacing: 0.25rem`).
 
 | name | py | px | font-size | min-height |

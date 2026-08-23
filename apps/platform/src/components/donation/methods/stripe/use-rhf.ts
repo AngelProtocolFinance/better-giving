@@ -92,7 +92,7 @@ export function use_rhf(fv: FV) {
     trigger,
     watch,
     setFocus,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FV>({
     defaultValues: fv,
     resolver: valibotResolver(stripe_donation_details),
@@ -257,6 +257,7 @@ export function use_rhf(fv: FV) {
     paypal_express,
     register,
     handleSubmit,
+    isSubmitting,
     setValue,
     errors,
     tip_format,

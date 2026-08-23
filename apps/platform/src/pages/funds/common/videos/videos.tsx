@@ -15,6 +15,7 @@ export function Videos({ classes = "", ...props }: IVideos) {
       <div className="flex gap-x-2 items-center mb-1">
         <p className="label">Videos</p>
         <button
+          aria-label="Add a video"
           onClick={() => set_open(true)}
           type="button"
           className="text-success"

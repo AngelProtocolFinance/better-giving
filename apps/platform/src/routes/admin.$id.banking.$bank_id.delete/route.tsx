@@ -1,3 +1,4 @@
+import { Button } from "@better-giving/ui";
 import { CircleAlert, X } from "lucide-react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -24,7 +25,7 @@ export default function DeletePrompt() {
 
 function Content({ isDefault, isWithHeir }: Props) {
   const fetcher = useFetcher();
-  const isSubmitting = fetcher.state !== "idle";
+  const is_submitting = fetcher.state !== "idle";
   const [canProceed, message] =
     isDefault && isWithHeir
       ? [false, "Kindly set another payout method as default before deleting"]
@@ -43,7 +44,8 @@ function Content({ isDefault, isWithHeir }: Props) {
         </p>
         <NavLink
           to=".."
-          aria-disabled={isSubmitting}
+          aria-label="Close"
+          aria-disabled={is_submitting}
           className="[.pending]:text-muted-fg border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg"
         >
           <X className="size-4.5 sm:size-6" />
@@ -55,21 +57,12 @@ function Content({ isDefault, isWithHeir }: Props) {
 
       {canProceed && (
         <fetcher.Form method="DELETE" className="modal-actions">
-          <NavLink
-            to=".."
-            aria-disabled={isSubmitting}
-            type="button"
-            className="btn-secondary btn"
-          >
+          <Button variant="secondary" nav to=".." disabled={is_submitting}>
             Cancel
-          </NavLink>
-          <button
-            disabled={isSubmitting}
-            type="submit"
-            className="btn btn-primary"
-          >
+          </Button>
+          <Button variant="primary" type="submit" is_loading={is_submitting}>
             Proceed
-          </button>
+          </Button>
         </fetcher.Form>
       )}
     </>

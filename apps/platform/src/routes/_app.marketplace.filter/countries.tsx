@@ -104,6 +104,7 @@ function SelectedOption({ selected, onChange, option }: SelectedProps) {
       <span className="max-w-50 truncate">{option}</span>
       <button
         type="button"
+        aria-label={`Remove ${option}`}
         onClick={(e) => {
           e.preventDefault();
           handle_remove(option);

@@ -57,6 +57,11 @@ export function Panel(props: Props) {
 
           <button
             type="button"
+            aria-label={
+              source.value === "liq"
+                ? "Transfer from Investments to Savings"
+                : "Transfer from Savings to Investments"
+            }
             onClick={() =>
               source.onChange(source.value === "liq" ? "lock" : "liq")
             }
@@ -111,7 +116,7 @@ export function Panel(props: Props) {
       <button
         type="submit"
         disabled={props.is_submitting || !isDirty}
-        className="btn btn-md btn-primary rounded mt-8"
+        className="btn btn-primary rounded mt-8"
       >
         {props.is_submitting ? "Submitting..." : "Submit"}
       </button>

@@ -37,7 +37,7 @@ export function BankDetails({
   verified,
 }: Props) {
   const currencies = use_currencies();
-  const [isSubmitting, setSubmitting] = useState(false);
+  const [is_submitting, set_submitting] = useState(false);
   const [currency, setCurrency] = useState<WiseCurrencyOption>({
     code: "USD",
     name: "United States Dollar",
@@ -51,15 +51,15 @@ export function BankDetails({
 
   const handleSubmit: OnSubmit = async (...params) => {
     try {
-      setSubmitting(true);
+      set_submitting(true);
       await onSubmit(...params);
     } catch (error) {
       // All errors should be handled in `onSubmit`.
-      // This try/catch is just to ensure that `isSubmitting`
+      // This try/catch is just to ensure that `is_submitting`
       // is set to false at the end of the operation.
       report_error(error);
     } finally {
-      setSubmitting(false);
+      set_submitting(false);
     }
   };
 
@@ -81,7 +81,7 @@ export function BankDetails({
         limit={Number.POSITIVE_INFINITY}
         label="Select your bank account currency:"
         required
-        disabled={isSubmitting || is_loading}
+        disabled={is_submitting || is_loading}
         classes={{ control: "w-full md:w-80" }}
         adornment={(open, state) =>
           state === "loading" ? (
@@ -110,7 +110,7 @@ export function BankDetails({
         value={dollar.mask(+amount)}
         onChange={(amount) => setAmount(dollar.unmask(amount).toString())}
         classes={{ input: "md:w-80" }}
-        disabled={isSubmitting}
+        disabled={is_submitting}
       />
 
       <Separator classes="before:bg-border after:bg-border" />
@@ -119,7 +119,7 @@ export function BankDetails({
         verified={verified}
         amount={+debounced_amount}
         currency={currency.code}
-        disabled={isSubmitting || is_loading}
+        disabled={is_submitting || is_loading}
         FormButtons={FormButtons}
         onSubmit={handleSubmit}
       />

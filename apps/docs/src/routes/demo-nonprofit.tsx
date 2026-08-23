@@ -174,6 +174,7 @@ export default function DemoNonprofitPage() {
               <form method="dialog">
                 <button
                   type="submit"
+                  aria-label="Close"
                   className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-accent text-muted-fg"
                 >
                   <X size={20} />

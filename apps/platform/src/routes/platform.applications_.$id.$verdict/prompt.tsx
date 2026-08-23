@@ -46,6 +46,7 @@ function Content() {
           Changing Application Status
         </p>
         <Link
+          aria-label="Close"
           aria-disabled={fetcher.state !== "idle"}
           preventScrollReset
           replace

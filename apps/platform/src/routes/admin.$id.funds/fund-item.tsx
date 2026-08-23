@@ -87,7 +87,7 @@ export const FundItem = (props: Props) => {
         )}
         <NavLink
           aria-disabled={!status.active}
-          className={`btn btn btn-primary rounded ${
+          className={`btn btn-primary rounded ${
             props.isEditor ? "" : "invisible"
           }`}
           to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}

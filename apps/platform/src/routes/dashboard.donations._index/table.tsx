@@ -155,7 +155,11 @@ function RowAction({ row }: { row: IRow }) {
     row.status === "refunded_loss"
   ) {
     return (
-      <Link to={row.id} className="w-full flex justify-center">
+      <Link
+        to={row.id}
+        aria-label="View receipt"
+        className="w-full flex justify-center"
+      >
         <ArrowDownToLine size={20} />
       </Link>
     );
