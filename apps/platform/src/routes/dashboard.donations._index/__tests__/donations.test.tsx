@@ -208,3 +208,40 @@ describe("my donations — pagination", () => {
       .not.toBeInTheDocument();
   });
 });
+
+describe("my donations — the empty table", () => {
+  it("an account with nothing in it gets the first-donation treatment", async () => {
+    const screen = await render_donations();
+
+    await expect
+      .element(screen.getByText("No donations yet"))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: /browse nonprofits/i }))
+      .toBeInTheDocument();
+  });
+
+  it("a filter that matched none names the filter and offers no next step", async () => {
+    const npo = await seed_npo();
+    // seeded settled; the filter below asks for refunded, so the page is empty
+    // while the account is not.
+    for (let i = 1; i <= 3; i++) {
+      await seed_donation(npo.id, i);
+    }
+
+    const screen = await render_donations(
+      "/dashboard/donations?status=refunded"
+    );
+
+    await expect
+      .element(screen.getByText("No refunded donations found"))
+      .toBeInTheDocument();
+    // the first-donation copy would be a lie here — there are three of them.
+    await expect
+      .element(screen.getByText("No donations yet"))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: /browse nonprofits/i }))
+      .not.toBeInTheDocument();
+  });
+});
