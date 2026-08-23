@@ -19,25 +19,39 @@ const { DsProvider, Group, Field, Amount } = window.BetterGiving;
 Everything else renders standalone. Mount `<Toaster />` once near the root if you use toasts;
 they are pushed imperatively with `show_toast(...)`, not by rendering a component.
 
-### There is no Button component — buttons are classes
+### Buttons — use `Button`
 
-The system deliberately ships no `Button`. A button is a raw element carrying `.btn` plus exactly
-one variant:
+`Button` is every button and every button-shaped link. It renders a `<button>`, a router link
+(`to`), a nav link (`to` + `nav`), or a plain anchor (`href`), so one component covers all four:
 
 ```jsx
-<button className="btn btn-primary">Save changes</button>
-<a className="btn btn-secondary" href="/fundraisers">Back</a>
+<Button variant="primary">Save changes</Button>
+<Button variant="secondary" to="/fundraisers">Back</Button>
 ```
 
-Variants: `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-destructive`, `btn-success`,
-`btn-warning`, and `btn-form-primary` (donation form only). That list is closed — names borrowed
-from other systems (`btn-outline`, `btn-link`) have no rule and render as an unstyled element.
-Add `.pending` for the in-flight state. Disabled travels on `disabled` for `<button>` and `aria-disabled` for `<a>`.
+`variant` is required and the list is closed: `primary`, `secondary`, `ghost`, `outline`,
+`destructive`, `success`, `warning` — plus `btn-form-primary`, a class the donation form alone
+uses. Names borrowed from other systems (`btn-link`) have no rule and render as an unstyled
+element. **`success` means approve or confirm and nothing else; `warning` means a real hazard.**
+Neither is a way to make a row of actions look less grey — siblings of equal weight take the same
+variant and rank by `primary` against `secondary`, never by hue.
 
-Size is a separate, three-step axis: `btn-sm` (28px), bare `btn` (36px, the default — write no size
-class), `btn-lg` (48px). Icon-only is a **modifier**, not a fourth size: `btn-icon` zeroes the
-horizontal padding and squares the control on whichever tier it accompanies — `btn-sm btn-icon`,
-`btn btn-icon`, `btn-lg btn-icon`. Always give an icon-only button an `aria-label`.
+`outline` is the one variant with no color of its own: it reads `currentColor`, so it is legible on
+a `.surface-primary` band or any surface that declared its ink, and invisible on one that only set
+a fill. Put it on a band, beside a `secondary`.
+
+`size` is `sm`, `md` (the default — write nothing), `lg`, or `field`, which matches the height of a
+form control standing beside it. `is_loading` gives the in-flight state, with `loading_text` for the
+label it swaps in. `disabled` works on every form, including the link ones, where a `disabled`
+attribute would do nothing. `icon` is the icon-only shape and **requires** `aria-label`.
+
+The classes are still real and still the fallback when you compose a control by hand: `.btn` plus
+one of `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-outline`, `.btn-destructive`,
+`.btn-success`, `.btn-warning`, `.btn-form-primary`; `.pending` for in-flight; the sizes `.btn-sm`
+(24px), bare `.btn` (36px), `.btn-lg` (52px), `.btn-field`; and `.btn-icon`, a **modifier** rather
+than a fourth size — it squares the control on whichever tier it accompanies. Never write
+`btn btn-md`: bare `.btn` is that tier, and `btn-md` exists only to step *down* responsively
+(`btn-lg md:btn-md`).
 
 The other real class names, for when you compose a control by hand rather than using a component:
 `.field-input`, `.field-input-container`, `.field-err`, `.label`, `.label-floating`,

@@ -307,14 +307,18 @@ this bundled copy of the converter does not ship — a full `package-build.mjs` 
 
 ## Scope
 
-40 components, deliberately narrowed to the reusable primitives. App-specific machinery is
+41 components, deliberately narrowed to the reusable primitives. App-specific machinery is
 excluded on purpose: `csv-exporter`, `img-editor`, `donate-methods`, `donation/**`, `token-field`,
 `youtube-player`, `referrals`, `bank-details`, `rich-text`, `chrome`, `header`, `footer`,
 `goal-selector`, `fundraiser`, `video`. Widening scope means adding to BOTH `cfg.componentSrcMap`
 and `.design-sync/entry.tsx`.
 
-Note the repo has **no Button component** — buttons are raw `<button className="btn btn-primary">`.
-That is a real property of the system, not a gap in the sync.
+`Button` was added 2026-08-23 and is the 41st. Until then this file recorded that the repo had no
+button component and that this was a property of the system rather than a gap in the sync — which
+was true when written, and had the effect that every design produced on the canvas hand-spelled
+`<button className="btn btn-primary">`. It now covers all four elements a button can be
+(`<button>`, `Link`, `NavLink`, `<a>`), so `conventions.md` points designs at the component and
+keeps the classes as the hand-composition fallback.
 
 ## Findings the repo may want to act on
 
