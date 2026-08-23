@@ -1,4 +1,4 @@
-import { ExtLink } from "@better-giving/ui";
+import { EmptyRow, ExtLink } from "@better-giving/ui";
 import { ArrowDownToLine } from "lucide-react";
 import { href, Link } from "react-router";
 import { CsvExporter } from "#/components/csv-exporter";
@@ -58,11 +58,7 @@ export function Table({
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="text-center text-muted-fg py-8">
-                No donations found
-              </td>
-            </tr>
+            <EmptyRow col_span={6}>No donations yet</EmptyRow>
           ) : (
             items.map((row) => {
               return (

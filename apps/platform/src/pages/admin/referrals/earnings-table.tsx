@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { format } from "date-fns";
 import { InfoIcon } from "lucide-react";
@@ -29,11 +30,7 @@ export function EarningsHistory({
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr>
-              <td colSpan={3} className="text-center text-muted-fg py-8">
-                No items found
-              </td>
-            </tr>
+            <EmptyRow col_span={3}>No earnings yet</EmptyRow>
           ) : (
             items.map((p, idx) => {
               // TODO: join referrer_commissions to get actual commission amount

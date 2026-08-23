@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { LoadMoreRow } from "#/components/load-more-row";
@@ -45,11 +46,7 @@ export function DonorsTable({ items, load_next, loading, disabled }: IProps) {
       </thead>
       <tbody>
         {items.length === 0 ? (
-          <tr>
-            <td colSpan={3} className="py-8 text-center text-muted-fg">
-              No donors yet
-            </td>
-          </tr>
+          <EmptyRow col_span={3}>No donors yet</EmptyRow>
         ) : (
           items.map((d) => {
             const to = `/admin/${npo_id}/donors/${encodeURIComponent(d.email)}`;

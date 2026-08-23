@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { format } from "date-fns";
 import { ArrowRight, InfoIcon } from "lucide-react";
@@ -38,11 +39,7 @@ export function Table({
         </thead>
         <tbody>
           {items.length === 0 && (
-            <tr>
-              <td colSpan={5} className="text-center text-muted-fg py-8">
-                No transactions found
-              </td>
-            </tr>
+            <EmptyRow col_span={5}>No transactions yet</EmptyRow>
           )}
           {items.map((r, idx) => (
             <tr key={idx} className="text-sm">

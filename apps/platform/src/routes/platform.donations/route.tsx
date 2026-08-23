@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
@@ -118,11 +119,7 @@ function Table({
       </thead>
       <tbody>
         {items.length === 0 ? (
-          <tr>
-            <td colSpan={10} className="text-center text-muted-fg py-8">
-              {empty_msg}
-            </td>
-          </tr>
+          <EmptyRow col_span={10}>{empty_msg}</EmptyRow>
         ) : (
           items.map((p) => <Row key={p.donation_id} payment={p} />)
         )}

@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
@@ -46,11 +47,7 @@ export function LogsTable({
             </tr>
           ))}
           {items.length === 0 && (
-            <tr>
-              <td colSpan={9} className="text-center text-muted-fg py-8">
-                No loss logs yet
-              </td>
-            </tr>
+            <EmptyRow col_span={9}>No loss logs yet</EmptyRow>
           )}
         </tbody>
         {load_next && (

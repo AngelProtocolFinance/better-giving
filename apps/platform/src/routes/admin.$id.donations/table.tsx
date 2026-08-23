@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon, SparklesIcon } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
@@ -66,11 +67,7 @@ export function Table({ items, load_next, loading, disabled }: Props) {
       </thead>
       <tbody>
         {items.length === 0 && (
-          <tr>
-            <td colSpan={9} className="text-center text-muted-fg py-8">
-              No donations found
-            </td>
-          </tr>
+          <EmptyRow col_span={9}>No donations yet</EmptyRow>
         )}
         {items.map((record) => (
           <tr key={record.id}>

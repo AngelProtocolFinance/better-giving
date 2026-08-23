@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
@@ -24,11 +25,7 @@ export function GrantsTable({
         </thead>
         <tbody>
           {items.length === 0 && (
-            <tr>
-              <td colSpan={2} className="text-center text-muted-fg py-8">
-                No grants found
-              </td>
-            </tr>
+            <EmptyRow col_span={2}>No grants yet</EmptyRow>
           )}
           {items.map((payout, idx) => (
             <tr key={idx}>

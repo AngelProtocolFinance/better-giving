@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
@@ -77,11 +78,7 @@ export function LogsTable({
             </tr>
           ))}
           {items.length === 0 && (
-            <tr>
-              <td colSpan={6} className="text-center text-muted-fg py-8">
-                No revenue logs yet
-              </td>
-            </tr>
+            <EmptyRow col_span={6}>No revenue logs yet</EmptyRow>
           )}
         </tbody>
         {load_next && (
