@@ -454,6 +454,38 @@ One convention, applied in `packages/ui/src/styles/components.css`:
 Derived at use-site, not named tokens. `--radius` is the one radius system;
 `--radius-xs…3xl` are computed from it in `index.css`. Don't author parallel values.
 
+## Button variant set — what each fill means
+
+Six variants, authored in `packages/ui/src/styles/components.css` and closed by
+`Button`'s `variant` prop. Two of them are **semantic**, and a semantic fill is a
+claim about the action, not a way to make a row look less grey.
+
+| variant | means |
+| --- | --- |
+| `btn-primary` | the one action the screen is for |
+| `btn-secondary` | every other action, including destructive-adjacent navigation |
+| `btn-ghost` | an action that must not compete with the content it sits in |
+| `btn-destructive` | this deletes, rejects, or cannot be undone |
+| `btn-success` | **approve / confirm.** Nothing else |
+| `btn-warning` | proceed with caution — a real hazard the user should weigh |
+
+- **Green is a verdict, not a category.** Its live sites are the three moderation
+  screens where a reviewer approves something (`platform.redeem-requests`,
+  `platform.applications_.$id`, `platform.banking-applications_.$id`). It was
+  also, until 2026-08-23, on `Deposit`, `New` and `Dividend` — none of which
+  approve anything; they were green because money-in felt positive. A hue that
+  means "approve" on one screen and "this one is nice" on the next means neither.
+- **Amber has no call site, on purpose.** It was on the `Transfer` link beside
+  those `Deposit` buttons — moving money between two accounts you own is not a
+  hazard. The variant stays in the set because the product will eventually have a
+  real caution; it is not evidence that one exists now.
+- **A row of actions is not a colour scale.** `Deposit` / `Withdraw` / `Transfer`
+  were green / plain / amber, which reads as good / neutral / risky and none of
+  that was true. Sibling actions of equal weight take the same variant; rank them
+  with `btn-primary` against `btn-secondary`, never with hue.
+- Fill-vs-ink contrast for `--success` and `--warning` is a separate question and
+  is in *The pair rule*, above. `--warning` is legible as text nowhere.
+
 ## Button size scale
 
 Three sizes, authored in `packages/ui/src/styles/components.css`. Every value
