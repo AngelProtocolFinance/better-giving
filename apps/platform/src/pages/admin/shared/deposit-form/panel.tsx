@@ -79,6 +79,7 @@ export function Panel({
         </p>
         <button
           type="button"
+          aria-label="Close"
           onClick={onClose}
           className="absolute top-6 md:top-8 right-6 md:right-8 p-2 rounded border hover:bg-muted transition-colors"
         >

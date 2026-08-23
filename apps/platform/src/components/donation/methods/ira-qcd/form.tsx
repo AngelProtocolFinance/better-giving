@@ -130,6 +130,9 @@ export function Form(props: TMethodState<"ira_qcd">) {
 
       <MethodBenefits subject="ira_qcd" classes="mt-4" />
 
+      {/* no `disabled` of its own — FormContainer's fieldset carries
+          `disabled={isSubmitting}` and already makes this unpressable while a
+          submit is in flight */}
       <button className="mt-auto btn btn-form-primary" type="submit">
         Continue
       </button>

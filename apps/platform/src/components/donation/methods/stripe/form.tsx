@@ -301,7 +301,8 @@ export function Form(props: TMethodState<"stripe">) {
           paid ||
           currency.isLoading ||
           currency.isValidating ||
-          !!currency.error
+          !!currency.error ||
+          rhf.isSubmitting
         }
         className="mt-auto btn btn-form-primary"
         type="submit"

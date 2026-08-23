@@ -51,9 +51,38 @@ describe("MultiCombo", () => {
       <Harness initial={["Brazil"]} on_change={on_change} />
     );
 
-    // [0] "before", [1] the tag's remove button, [2] the drawer trigger
     await expect.element(screen.getByText("Brazil").first()).toBeVisible();
-    await screen.getByRole("button").nth(1).click();
+    // by name, not by index: in a row of identical X glyphs the name is the
+    // only thing telling one tag's remove button from the next one's
+    await screen.getByRole("button", { name: "Remove Brazil" }).click();
+    expect(on_change).toHaveBeenCalledWith([]);
+  });
+
+  test("the remove button is named from item_text, not from the rendered tag", async () => {
+    interface Org {
+      id: string;
+      name: string;
+    }
+    const orgs: Org[] = [
+      { id: "a", name: "Wildlife Fund" },
+      { id: "b", name: "Ocean Trust" },
+    ];
+    const on_change = vi.fn();
+
+    const screen = await render(
+      <MultiCombo<Org>
+        values={[orgs[0]]}
+        options={orgs}
+        on_change={on_change}
+        item_key={(o) => o.id}
+        item_text={(o) => o.name}
+        // the tag shows a glyph and nothing readable — exactly the case where
+        // the label cannot double as the control's name
+        render={(o) => <span aria-hidden="true">{o.name.charAt(0)}</span>}
+      />
+    );
+
+    await screen.getByRole("button", { name: "Remove Wildlife Fund" }).click();
     expect(on_change).toHaveBeenCalledWith([]);
   });
 

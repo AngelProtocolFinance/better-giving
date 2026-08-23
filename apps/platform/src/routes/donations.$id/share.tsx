@@ -54,6 +54,7 @@ export function ShareBtn(props: IShareBtn) {
     <>
       <button
         type="button"
+        aria-label={`Share on ${props.title}`}
         onClick={() => set_open(true)}
         className="relative size-10 grid place-items-center"
       >
@@ -99,6 +100,7 @@ function Prompt({
         Share on {social.title}
         <button
           type="button"
+          aria-label="Close"
           onClick={() => set_open(false)}
           className="absolute top-1/2 transform -translate-y-1/2 right-4 size-10 border rounded "
         >

@@ -25,7 +25,7 @@ export function use_rhf(init: FV | undefined) {
     control,
     setFocus,
     register,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FV>({
     defaultValues: init || initial,
     resolver: valibotResolver(crypto_donation_details),
@@ -65,6 +65,7 @@ export function use_rhf(init: FV | undefined) {
     reset,
     setValue,
     handleSubmit,
+    isSubmitting,
     errors,
     getValues,
     setFocus,

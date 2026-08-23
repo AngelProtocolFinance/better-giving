@@ -371,8 +371,14 @@ export function Paypal({
   return (
     <div className={`relative isolate ${classes}`}>
       {is_partial && (
+        // a shield over the sdk's own buttons, not a control: its whole job is
+        // to swallow a click on an unfilled form and run validation, so it is
+        // out of the tab order and out of the a11y tree. a keyboard donor
+        // reaches the form fields it is complaining about, never this.
         <button
           type="button"
+          tabIndex={-1}
+          aria-hidden="true"
           data-testid="paypal-gate"
           className="absolute inset-0 z-10 cursor-pointer pointer-events-auto"
           onClick={() => validate()}

@@ -182,3 +182,41 @@ describe("DonorStep: employer field", () => {
     expect(on_change.mock.calls[0][0].company_name).toBeFalsy();
   });
 });
+
+describe("DonorStep: in-flight submission", () => {
+  test("a second press during submission does not fire a second submit", async () => {
+    don_mock.value = {
+      ...base_init,
+      recipient: donation_recipient_init({ donor_address_required: false }),
+    };
+    // never settles, so the press stays in flight for the whole assertion
+    const on_change = vi.fn(() => new Promise<void>(() => {}));
+
+    const screen = await render(
+      <DonorStep
+        value={{
+          ...donor_fv_blank,
+          email: "john@doe.com",
+          first_name: "John",
+          last_name: "Doe",
+        }}
+        on_back={vi.fn()}
+        on_change={on_change}
+      />
+    );
+
+    const btn = screen.getByRole("button", { name: "Continue" });
+    await btn.click();
+
+    // the label never changes — pressing Continue swaps the whole screen, so
+    // the guard is the fix here and a spinner would just be a flicker
+    await expect.element(btn).toBeDisabled();
+    expect(on_change).toHaveBeenCalledOnce();
+
+    // a native dispatch, not a driven click: playwright waits for a control to
+    // be enabled, and being unpressable is what is under test
+    btn.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(on_change).toHaveBeenCalledOnce();
+  });
+});

@@ -137,35 +137,11 @@ function tag_end(text: string, start: number): number {
 
 describe("icon-only buttons", () => {
   test("an icon is not an accessible name", () => {
-    // a countdown, not a permanent allowlist: the next slice migrates these to
-    // the `Button` component, whose `icon` prop is unconstructible without an
-    // `aria-label`, and empties this array. a file listed here is exempt whole
-    // — the rule cannot tell a newly added unnamed control in it from the one
-    // being counted down.
-    const exempt = [
-      // rich-text toolbar: the insert-link button
-      "apps/platform/src/components/rich-text/editor.tsx",
-      // deposit panel: the corner close button
-      "apps/platform/src/pages/admin/shared/deposit-form/panel.tsx",
-      // video modal: the corner close button
-      "apps/platform/src/pages/funds/common/videos/video-modal.tsx",
-      // videos field: the add-a-video button beside the label
-      "apps/platform/src/pages/funds/common/videos/videos.tsx",
-      // registration: the mobile tooltip toggle beside a field label
-      "apps/platform/src/pages/registration/reference.tsx",
-      // fundraiser share dialog: the corner close button
-      "apps/platform/src/routes/_app.fundraisers.$fund_id/share.tsx",
-      // endowment selector: the remove button on a selected-endowment chip
-      "apps/platform/src/routes/_app.fundraisers.new/endowment-selector/endowment-selector.tsx",
-      // marketplace filter: the remove button on a selected-country chip
-      "apps/platform/src/routes/_app.marketplace.filter/countries.tsx",
-      // donation share: the social button itself, and the dialog's close button
-      "apps/platform/src/routes/donations.$id/share.tsx",
-      // rebalance form: the add-row and remove-row buttons in the tx table
-      "apps/platform/src/routes/platform.investments.rebalance/form/index.tsx",
-      // multi-combo: the remove button on a selected tag
-      "packages/ui/src/components/select/multi-combo.tsx",
-    ];
+    // emptied: every icon-only control in the corpus now carries a name, and
+    // an entry added back here is a control a screen reader announces as
+    // "button". the next slice migrates these to the `Button` component, whose
+    // `icon` prop is unconstructible without an `aria-label`.
+    const exempt: string[] = [];
     const offenders = sources.flatMap(({ file, text }) => {
       if (exempt.includes(file)) return [];
       return [...text.matchAll(/<button\b/g)].flatMap((m) => {

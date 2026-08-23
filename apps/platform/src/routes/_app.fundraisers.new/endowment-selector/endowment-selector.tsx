@@ -133,6 +133,7 @@ export function EndowmentSelector(props: Props) {
               <span className="max-w-50 truncate">{v.name}</span>
               <button
                 type="button"
+                aria-label={`Remove ${v.name}`}
                 onClick={(e) => {
                   e.preventDefault();
                   props.onChange(props.values.filter((x) => x.id !== v.id));

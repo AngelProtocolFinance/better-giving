@@ -149,9 +149,9 @@ export function DirectMode({
       </p>
 
       <ContinueBtn
-        disabled={
-          !data?.order_id || !!error || isLoading || navigation.state !== "idle"
-        }
+        disabled={!data?.order_id || !!error || isLoading}
+        is_loading={navigation.state !== "idle"}
+        loading_text="Redirecting..."
         onClick={handle_continue}
         text="I have completed the payment"
         className="justify-self-stretch mt-8"

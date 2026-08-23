@@ -43,6 +43,7 @@ export function VideoModal(props: IVideoModal) {
           </p>
           <button
             type="button"
+            aria-label="Close"
             onClick={() => props.set_open(false)}
             className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-muted-fg"
           >

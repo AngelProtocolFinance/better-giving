@@ -112,6 +112,10 @@ const render_list_item: RenderListItemFunction = (p) => {
 
 function Toolbar() {
   const editor = useEditor();
+  const link_active = useEditorSelector(
+    editor,
+    selectors.isActiveAnnotation("link")
+  );
   return (
     <div className="flex items-center gap-0.5 pb-2 border-b border-muted">
       <DecoratorBtn name="strong" icon={<BoldIcon size={16} />} />
@@ -120,6 +124,7 @@ function Toolbar() {
       <ListBtn name="bullet" icon={<ListIcon size={16} />} />
       <button
         type="button"
+        aria-label={link_active ? "Remove link" : "Insert link"}
         className="p-1.5 rounded cursor-pointer text-muted-fg hover:text-fg"
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => {
@@ -149,6 +154,8 @@ function Toolbar() {
   );
 }
 
+const decorator_names = { strong: "Bold", em: "Italic" } as const;
+
 function DecoratorBtn({
   name,
   icon,
@@ -161,6 +168,8 @@ function DecoratorBtn({
   return (
     <button
       type="button"
+      aria-label={decorator_names[name]}
+      aria-pressed={active}
       className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-muted-fg hover:text-fg"}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => {
@@ -172,6 +181,11 @@ function DecoratorBtn({
     </button>
   );
 }
+
+const list_names = {
+  number: "Numbered list",
+  bullet: "Bulleted list",
+} as const;
 
 function ListBtn({
   name,
@@ -185,6 +199,8 @@ function ListBtn({
   return (
     <button
       type="button"
+      aria-label={list_names[name]}
+      aria-pressed={active}
       className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-muted-fg hover:text-fg"}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => {

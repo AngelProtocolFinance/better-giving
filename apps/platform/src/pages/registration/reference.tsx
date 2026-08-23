@@ -34,6 +34,11 @@ export default function Reference({ id, classes = "" }: Props) {
         </Tooltip>
         <button
           type="button"
+          aria-label={
+            isTooltipOpen
+              ? "Hide what this number is for"
+              : "Show what this number is for"
+          }
           onClick={() => {
             setIsTooltipOpen((p) => !p);
           }}

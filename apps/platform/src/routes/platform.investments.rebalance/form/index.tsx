@@ -64,6 +64,7 @@ export function RebalanceForm({
             <tr className="text-xs text-left">
               <th>
                 <button
+                  aria-label="Add transaction row"
                   className="align-middle"
                   type="button"
                   onClick={() => txs.append(default_tx)}
@@ -87,6 +88,7 @@ export function RebalanceForm({
                   <td>
                     <button
                       type="button"
+                      aria-label={`Remove transaction row ${idx + 1}`}
                       onClick={() => txs.remove(idx)}
                       className="px-2 align-middle"
                     >

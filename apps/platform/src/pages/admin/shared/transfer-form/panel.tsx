@@ -57,6 +57,11 @@ export function Panel(props: Props) {
 
           <button
             type="button"
+            aria-label={
+              source.value === "liq"
+                ? "Transfer from Investments to Savings"
+                : "Transfer from Savings to Investments"
+            }
             onClick={() =>
               source.onChange(source.value === "liq" ? "lock" : "liq")
             }
