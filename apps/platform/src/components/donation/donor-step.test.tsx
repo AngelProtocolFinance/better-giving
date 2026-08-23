@@ -184,13 +184,16 @@ describe("DonorStep: employer field", () => {
 });
 
 describe("DonorStep: in-flight submission", () => {
-  test("a second press during submission does not fire a second submit", async () => {
+  test("a second press before validation resolves does not fire a second submit", async () => {
     don_mock.value = {
       ...base_init,
       recipient: donation_recipient_init({ donor_address_required: false }),
     };
-    // never settles, so the press stays in flight for the whole assertion
-    const on_change = vi.fn(() => new Promise<void>(() => {}));
+    // synchronous and returning nothing — the shape `current-step` actually
+    // passes, a setter that swaps the step. the submission is still async
+    // because the resolver spans a tick, and that tick is the whole window a
+    // second press has to land in.
+    const on_change = vi.fn();
 
     const screen = await render(
       <DonorStep
@@ -205,17 +208,20 @@ describe("DonorStep: in-flight submission", () => {
       />
     );
 
-    const btn = screen.getByRole("button", { name: "Continue" });
-    await btn.click();
+    const btn = screen.getByRole("button", { name: "Continue" }).element();
+    // native dispatches, not driven clicks: playwright waits for a control to
+    // be enabled, and being unpressable is what is under test. the yield
+    // between them is the browser's own doing — every user press is its own
+    // task, so react has always flushed the disable before the next one
+    // arrives. two in a single task would beat the guard and no pointer can
+    // produce that.
+    (btn as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 0));
+    (btn as HTMLElement).click();
 
-    // the label never changes — pressing Continue swaps the whole screen, so
-    // the guard is the fix here and a spinner would just be a flicker
-    await expect.element(btn).toBeDisabled();
-    expect(on_change).toHaveBeenCalledOnce();
-
-    // a native dispatch, not a driven click: playwright waits for a control to
-    // be enabled, and being unpressable is what is under test
-    btn.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // no spinner and no label change — pressing Continue swaps the whole
+    // screen, so the only observable the guard has is the call count
+    await vi.waitFor(() => expect(on_change).toHaveBeenCalledOnce());
     await new Promise((r) => setTimeout(r, 50));
     expect(on_change).toHaveBeenCalledOnce();
   });
