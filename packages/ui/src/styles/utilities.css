@@ -200,6 +200,15 @@
     background-color: var(--muted);
     color: var(--muted-fg);
   }
+  /* the in-flight rung, matching the six variants in components.css. it cannot
+     be picked up from there: --form-primary is a tenant value and this tier is
+     the only thing that paints it, so a fill it does not restate stays the
+     tenant's brand while the control is submitting. */
+  &.pending {
+    background-color: var(--muted);
+    color: var(--muted-fg);
+    pointer-events: none;
+  }
 }
 
 /* a band or panel filled with --primary. use instead of bare `bg-primary`

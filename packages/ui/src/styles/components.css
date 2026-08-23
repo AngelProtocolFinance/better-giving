@@ -81,11 +81,6 @@
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: color-mix(in oklch, var(--destructive) 90%, black);
     }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
-    }
   }
 
   .btn-success {
@@ -97,11 +92,6 @@
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: color-mix(in oklch, var(--success) 90%, black);
     }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
-    }
   }
 
   .btn-warning {
@@ -112,11 +102,6 @@
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: color-mix(in oklch, var(--warning) 90%, black);
-    }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
     }
   }
 
@@ -153,6 +138,30 @@
       color: var(--muted-fg);
     }
   }
+
+  /* the in-flight rung, and it is deliberately the disabled fill: a control
+     that is submitting must not be submitted again, so it reads the same as
+     one that cannot be pressed. it was authored per-variant and only ever on
+     three of the six, plus a duplicate pair under `a.btn-*` — reachable on
+     half the set and inert on the other half. one block covers every variant
+     and both element forms.
+     `pointer-events: none` because the state is set by the component rather
+     than by the element's own `:disabled`, which would stop the click itself.
+     nothing here is reachable at rest: `.pending` is a class the component
+     writes only while a submission is in flight. */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-destructive,
+  .btn-success,
+  .btn-warning {
+    &.pending {
+      background-color: var(--muted);
+      color: var(--muted-fg);
+      pointer-events: none;
+    }
+  }
+
   a.btn-secondary,
   a.btn-warning,
   a.btn-success,
@@ -162,22 +171,12 @@
       background-color: var(--muted);
       color: var(--muted-fg);
     }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
-    }
   }
 
   a.btn-ghost {
     &[aria-disabled="true"] {
       background-color: var(--muted);
       color: var(--muted-fg);
-    }
-    &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
-      pointer-events: none;
     }
   }
 

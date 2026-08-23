@@ -442,7 +442,7 @@ use `colors.ts`.** For "what brand color is this", the comment.
 
 ## State ladder
 
-One convention, applied in `apps/platform/src/styles/components.css`:
+One convention, applied in `packages/ui/src/styles/components.css`:
 
 | state | value |
 | --- | --- |
@@ -456,7 +456,7 @@ Derived at use-site, not named tokens. `--radius` is the one radius system;
 
 ## Button size scale
 
-Three sizes, authored in `apps/platform/src/styles/components.css`. Every value
+Three sizes, authored in `packages/ui/src/styles/components.css`. Every value
 is on the 4px ladder (`--spacing: 0.25rem`).
 
 | name | py | px | font-size | min-height |
