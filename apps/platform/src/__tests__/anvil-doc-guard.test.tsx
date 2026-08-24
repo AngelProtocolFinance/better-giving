@@ -14,11 +14,15 @@ const download = vi.hoisted(() => vi.fn());
 
 const user_by_w_form = vi.hoisted(() => vi.fn());
 
+const is_fsa_doc_eid = vi.hoisted(() => vi.fn());
+
 vi.mock("#/.server/auth", () => ({
   get_session: vi.fn(async () => ({ user: session.user ?? undefined })),
 }));
 
 vi.mock("$/pg/queries/user", () => ({ user_by_w_form }));
+
+vi.mock("$/pg/queries/registration", () => ({ is_fsa_doc_eid }));
 
 vi.mock("$/kit/anvil", () => ({ anvil: { downloadDocuments: download } }));
 
@@ -30,6 +34,7 @@ const OWNER = { id: "user-1", email: "one@example.com" };
 const OTHER = { id: "user-2", email: "two@example.com" };
 
 const EID = "eid-w9";
+const FSA = "eid-fsa";
 
 beforeEach(() => {
   session.user = null;
@@ -38,6 +43,8 @@ beforeEach(() => {
   download.mockResolvedValue({ data: "zip-bytes", statusCode: 200 });
   user_by_w_form.mockReset();
   user_by_w_form.mockImplementation(async () => w_form_owner.row ?? undefined);
+  is_fsa_doc_eid.mockReset();
+  is_fsa_doc_eid.mockImplementation(async (eid: string) => eid === FSA);
 });
 
 afterEach(() => {
@@ -88,23 +95,45 @@ describe("anvil doc download", () => {
     expect(res.headers.get("vary")).toBe("cookie");
   });
 
-  it("serves an eid no user row claims, with no session", async () => {
+  it("serves a recorded agreement with no session", async () => {
     // the fund services agreement: its link is emailed to a registrant who
     // has no session and may be on another device
-    const res = await call("eid-fsa");
+    const res = await call(FSA);
 
     expect(res.status).toBe(200);
-    expect(user_by_w_form).toHaveBeenCalledWith("eid-fsa");
-    expect(download).toHaveBeenCalledWith("eid-fsa", { dataType: "stream" });
+    expect(is_fsa_doc_eid).toHaveBeenCalledWith(FSA);
+    // recognising the agreement ends the question — the w-9 lookup is the
+    // fallback, not a second opinion
+    expect(user_by_w_form).not.toHaveBeenCalled();
+    expect(download).toHaveBeenCalledWith(FSA, { dataType: "stream" });
     // one set of headers for both document kinds — no branch to get wrong
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect(res.headers.get("vary")).toBe("cookie");
   });
 
+  it("refuses an eid no record claims", async () => {
+    // an orphaned w-9 — the signer has since signed another, so `w_form` has
+    // moved on and nothing names this document. served on a miss it would be
+    // a taxpayer id handed to whoever held the eid.
+    const res = await call("eid-orphan");
+
+    expect(res.status).toBe(403);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("refuses an eid no record claims even for a signed-in user", async () => {
+    session.user = { ...OTHER };
+
+    const res = await call("eid-orphan");
+
+    expect(res.status).toBe(403);
+    expect(download).not.toHaveBeenCalled();
+  });
+
   it("passes anvil's status through when the download fails", async () => {
     download.mockResolvedValue({ data: "no such document", statusCode: 404 });
 
-    const res = await call("eid-fsa");
+    const res = await call(FSA);
 
     expect(res.status).toBe(404);
   });

@@ -124,7 +124,9 @@ function tag_end(text: string, start: number): number {
  *  a cross-file question no text sweep can answer. */
 function modal_renderers(text: string): string[] {
   const heads = [
-    ...text.matchAll(/^(?:export )?(?:function|const) ([A-Z][\w]*)\b/gm),
+    ...text.matchAll(
+      /^(?:export )?(?:default )?(?:function|const) ([A-Z][\w]*)\b/gm
+    ),
   ];
   return heads
     .filter((m, i) =>
