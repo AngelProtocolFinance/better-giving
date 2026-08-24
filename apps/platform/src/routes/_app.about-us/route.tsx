@@ -46,7 +46,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <div className="bg-primary py-22">
+      <div className="surface-primary py-22">
         <div className="page">
           <div className="max-w-3xl mx-auto grid justify-items-center gap-5 text-center">
             <span
@@ -55,7 +55,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             >
               “
             </span>
-            <p className="text-2xl md:text-3xl/normal font-medium text-primary-fg text-pretty">
+            <p className="text-2xl md:text-3xl/normal font-medium text-pretty">
               We believe a new model of philanthropy is possible, not based on
               scarcity and dependence, but on abundance and financial
               self-sufficiency.

@@ -30,14 +30,12 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
               within 5 working days whenever you need them.
             </p>
           </div>
-          <div className="bg-primary rounded p-9 grid gap-3.5 content-start">
-            <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-primary-fg/15 text-primary-fg rounded-full px-3 py-1.5">
+          <div className="surface-primary rounded p-9 grid gap-3.5 content-start">
+            <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-primary-fg/15 rounded-full px-3 py-1.5">
               Long-term growth
             </span>
-            <h3 className="text-2xl font-bold text-primary-fg">
-              Sustainability Fund
-            </h3>
-            <span className="text-4xl font-bold text-primary-fg">
+            <h3 className="text-2xl font-bold">Sustainability Fund</h3>
+            <span className="text-4xl font-bold">
               ~11%{" "}
               <span className="text-base font-normal text-primary-fg/90">
                 avg. annual return, past 5 yrs*
