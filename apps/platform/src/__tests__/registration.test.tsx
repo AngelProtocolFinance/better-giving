@@ -856,6 +856,7 @@ describe("E2E: changing the organization type", () => {
         ...BANKING_FIELDS,
         o_fsa_signing_url: "https://example.com/sign",
         o_fsa_signed_doc_url: "https://example.com/signed-fsa.pdf",
+        o_fsa_doc_eid: "docGroupEid",
       },
       INTL_IDENTITY
     );
@@ -876,6 +877,9 @@ describe("E2E: changing the organization type", () => {
     // an agreement signed as a Canadian charity says nothing about an EIN
     expect(row.o_fsa_signing_url).toBeNull();
     expect(row.o_fsa_signed_doc_url).toBeNull();
+    // the eid goes with them: it is what authorizes the download, so a
+    // surviving one leaves the superseded agreement open to its link holder
+    expect(row.o_fsa_doc_eid).toBeNull();
     // and neither do the two documents describing that legal entity
     expect(row.o_legal_entity_type).toBeNull();
     expect(row.o_proof_of_reg).toBeNull();
@@ -902,6 +906,7 @@ describe("E2E: changing the organization type", () => {
         ...BANKING_FIELDS,
         o_fsa_signing_url: "https://example.com/sign",
         o_fsa_signed_doc_url: "https://example.com/signed-fsa.pdf",
+        o_fsa_doc_eid: "docGroupEid",
       },
       INTL_IDENTITY
     );
@@ -924,6 +929,7 @@ describe("E2E: changing the organization type", () => {
     expect(row.o_type).toBe("other");
     expect(row.o_fsa_signing_url).toBeNull();
     expect(row.o_fsa_signed_doc_url).toBeNull();
+    expect(row.o_fsa_doc_eid).toBeNull();
     expect(row.o_legal_entity_type).toBeNull();
     expect(row.o_proof_of_reg).toBeNull();
   }, 40_000);
@@ -937,6 +943,7 @@ describe("E2E: changing the organization type", () => {
         ...BANKING_FIELDS,
         o_fsa_signing_url: "https://example.com/sign",
         o_fsa_signed_doc_url: "https://example.com/signed-fsa.pdf",
+        o_fsa_doc_eid: "docGroupEid",
       },
       INTL_IDENTITY
     );
@@ -949,6 +956,7 @@ describe("E2E: changing the organization type", () => {
 
     const row = await get_reg(id);
     expect(row.o_fsa_signed_doc_url).toBe("https://example.com/signed-fsa.pdf");
+    expect(row.o_fsa_doc_eid).toBe("docGroupEid");
     expect(row.o_legal_entity_type).toBe(FSA_DOC_FIELDS.o_legal_entity_type);
     expect(row.o_proof_of_reg).toBe(FSA_DOC_FIELDS.o_proof_of_reg);
   }, 40_000);
@@ -1059,6 +1067,45 @@ describe("E2E: dashboard update", () => {
     const row = await get_reg(id);
     expect(row.r_first_name).toBe("Janet");
   }, 30_000);
+
+  // the agreement names the registrant, so renaming them unsigns it. what has
+  // to go with it is the eid: it is what `is_fsa_doc_eid` recognises the
+  // document by, and therefore what keeps the superseded one downloadable
+  // without a session.
+  it("drops the agreement and its eid when the registrant is renamed", async () => {
+    const { id } = await seed_reg(
+      {
+        ...CONTACT_FIELDS,
+        ...ORG_FIELDS,
+        ...FSA_DOC_FIELDS,
+        ...BANKING_FIELDS,
+        o_fsa_signing_url: "https://example.com/sign",
+        o_fsa_signed_doc_url: "https://example.com/signed-fsa.pdf",
+        o_fsa_doc_eid: "docGroupEid",
+      },
+      INTL_IDENTITY
+    );
+    const screen = await render_registration(id, "5");
+
+    await expect.element(screen.getByText(/summary/i)).toBeVisible();
+    await screen.getByText("Update").nth(0).click();
+
+    await expect
+      .element(screen.getByLabelText(/first name/i))
+      .toHaveDisplayValue("Jane");
+    await screen.getByLabelText(/first name/i).clear();
+    await screen.getByLabelText(/first name/i).fill("Janet");
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    // the agreement is unfinished again, so the summary bounces back to it
+    await expect.element(screen.getByLabelText(/legal entity/i)).toBeVisible();
+
+    const row = await get_reg(id);
+    expect(row.r_first_name).toBe("Janet");
+    expect(row.o_fsa_signing_url).toBeNull();
+    expect(row.o_fsa_signed_doc_url).toBeNull();
+    expect(row.o_fsa_doc_eid).toBeNull();
+  }, 40_000);
 });
 
 describe("E2E: submitted state disables dashboard", () => {

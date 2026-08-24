@@ -74,6 +74,10 @@ export const update_action =
     if (done_fsa_url && contact_changed) {
       attrs.o_fsa_signing_url = null;
       attrs.o_fsa_signed_doc_url = null;
+      // the eid is what `is_fsa_doc_eid` recognises the agreement by, so it is
+      // also what keeps the download open to anyone holding the link. leaving
+      // it behind revokes the record and not the capability.
+      attrs.o_fsa_doc_eid = null;
     }
 
     /* identity + its resets are change-identity.ts's, not a step's */

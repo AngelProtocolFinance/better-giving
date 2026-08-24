@@ -98,6 +98,10 @@ export const change_identity = async (
     // for this one, in either direction.
     attrs.o_fsa_signing_url = null;
     attrs.o_fsa_signed_doc_url = null;
+    // and the eid with them: it is what `is_fsa_doc_eid` recognises the
+    // agreement by, so a surviving one keeps the superseded document
+    // downloadable by anyone holding its link.
+    attrs.o_fsa_doc_eid = null;
     // the two documents that assert something about *the entity*: its legal
     // form and its proof of registration. The project description (what the
     // work is) and the registrant's own ID both survive — neither is a claim
