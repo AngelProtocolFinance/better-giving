@@ -51,7 +51,7 @@ export default function Page() {
 
   return (
     <div className="relative pb-8">
-      <div className="bg-primary">
+      <div className="surface-primary">
         <Hero classes="page" />
       </div>
       <div className="page mt-4 py-8 grid sm:grid-cols-2 gap-x-4 content-start">
@@ -75,7 +75,7 @@ export default function Page() {
           <Result1 {...view} classes="" />
         </div>
       </div>
-      <div className="grid content-center bg-primary py-8">
+      <div className="grid content-center surface-primary py-8">
         <div className="max-md:grid max-md:justify-items-center max-md:gap-y-2 md:relative justify-self-center">
           <div className="md:absolute md:-left-4 md:-bottom-2 shrink-0">
             <Image
@@ -107,7 +107,7 @@ export default function Page() {
               />
             </svg>
           </div>
-          <p className="text-balance max-w-2xl text-center text-lg sm:text-xl text-primary-fg">
+          <p className="text-balance max-w-2xl text-center text-lg sm:text-xl">
             There's more! {app_name}’s savings & investment services can support
             your long term future
           </p>

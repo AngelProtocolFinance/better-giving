@@ -4,7 +4,7 @@ import { href, Link } from "react-router";
 
 export function BottomCta() {
   return (
-    <section className="bg-primary text-white py-20 md:py-24 relative overflow-hidden">
+    <section className="surface-primary py-20 md:py-24 relative overflow-hidden">
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{

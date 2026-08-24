@@ -25,7 +25,7 @@ export default function Page() {
       <Hero />
       <GiftTypes classes="py-22" />
       <Features classes="bg-accent py-22" />
-      <MembershipAdvantage classes="bg-primary py-24" />
+      <MembershipAdvantage classes="py-24" />
       <Portability classes="py-24" />
       <CtaBand
         title="Raise more, starting this quarter"

@@ -19,7 +19,9 @@ import { describe, expect, test } from "vitest";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = resolve(here, "..", "..", "..", "..");
-const self = relative(repo, fileURLToPath(import.meta.url));
+const self = relative(repo, fileURLToPath(import.meta.url))
+  .split(sep)
+  .join("/");
 
 const ROOTS = ["apps/platform/src", "packages/ui/src"];
 const EXTS = [".ts", ".tsx", ".css"];
@@ -34,18 +36,23 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const sources = ROOTS.flatMap((r) => walk(join(repo, r)));
+/** repo-relative path + text of every scanned file. this file is skipped: it
+ *  spells the needles out itself. */
+const corpus = ROOTS.flatMap((r) => walk(join(repo, r)))
+  .map((f) => ({
+    file: relative(repo, f).split(sep).join("/"),
+    text: readFileSync(f, "utf8"),
+  }))
+  .filter((x) => x.file !== self)
+  .sort((a, b) => a.file.localeCompare(b.file));
 
-/** every scanned file whose text contains `needle`, repo-relative, sorted.
- *  this file is skipped: it spells the needles out itself. */
+/** every scanned file whose text contains `needle`, repo-relative, sorted. */
 function files_with(needle: string): string[] {
-  return sources
-    .map((f) => ({ f, text: readFileSync(f, "utf8") }))
-    .filter((x) => x.text.includes(needle))
-    .map((x) => relative(repo, x.f).split(sep).join("/"))
-    .filter((f) => f !== self.split(sep).join("/"))
-    .sort();
+  return corpus.filter((x) => x.text.includes(needle)).map((x) => x.file);
 }
+
+const line_of = (text: string, i: number) =>
+  text.slice(0, i).split("\n").length;
 
 describe("modal size set", () => {
   test("`fixed-center` is spelled only where it is defined and spent", () => {
@@ -85,5 +92,81 @@ describe("modal size set", () => {
       .filter(([, cls]) => /(^|\s)(bg-|text-|border(\s|$))/.test(cls))
       .map(([tier]) => tier);
     expect(surfaced).toEqual([]);
+  });
+});
+
+/** index just past the `>` that closes the tag opening at `start`, skipping
+ *  quotes and nested `{}`/`()` — otherwise an `onClick={() => …}` ends the tag
+ *  at its own arrow. */
+function tag_end(text: string, start: number): number {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") quote = c;
+    else if (c === "{" || c === "(") depth++;
+    else if (c === "}" || c === ")") depth--;
+    else if (c === ">" && depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+/** the components declared in `text` that render a `<Modal>` themselves. a
+ *  modal reaches its trigger through one of these more often than directly —
+ *  the trigger writes `<Prompt …/>` and the dialog is a level down — so a
+ *  needle set of `<Modal` alone reads green on the exact shape it is here to
+ *  catch. top-level declarations only; a wrapper imported from another file is
+ *  a cross-file question no text sweep can answer. */
+function modal_renderers(text: string): string[] {
+  const heads = [
+    ...text.matchAll(
+      /^(?:export )?(?:default )?(?:function|const) ([A-Z][\w]*)\b/gm
+    ),
+  ];
+  return heads
+    .filter((m, i) =>
+      text.slice(m.index, heads[i + 1]?.index ?? text.length).includes("<Modal")
+    )
+    .map((m) => m[1]);
+}
+
+/** the two spellings that reach a `<button>` by name. the house `Button` also
+ *  has link forms (`to`/`href`), which render an `<a>` — a modal written inside
+ *  one is the same defect, so no attempt is made to tell them apart. any *other*
+ *  component that renders a button is the cross-file question `modal_renderers`
+ *  documents and stays uncovered. */
+const BUTTONS = ["button", "Button"];
+
+describe("the modal and its trigger", () => {
+  test("a modal is never written inside the button that opens it", () => {
+    // `Modal` portals to document.body, so the dom nesting is fine — react is
+    // the problem. react propagates events through the *react* tree, not the
+    // dom one, so a click anywhere in the portaled dialog still bubbles to the
+    // react parent. written inside its own trigger, that parent is the
+    // `<button>`: closing the dialog re-fires the trigger's `onClick` and
+    // reopens it, and every click inside the dialog does the same. nothing
+    // errors and nothing looks wrong in the dom — it reviews as correct.
+    // trigger and dialog are siblings under a fragment instead.
+    const offenders = corpus.flatMap(({ file, text }) => {
+      if (!BUTTONS.some((t) => text.includes(`<${t}`))) return [];
+      const needles = ["<Modal", ...modal_renderers(text).map((n) => `<${n}`)];
+      return BUTTONS.flatMap((tag) =>
+        [...text.matchAll(new RegExp(`<${tag}\\b`, "g"))].flatMap((m) => {
+          const end = tag_end(text, m.index);
+          if (end < 0 || text.slice(m.index, end).endsWith("/>")) return [];
+          const close = text.indexOf(`</${tag}>`, end);
+          if (close < 0) return [];
+          const inner = text.slice(end, close);
+          const hit = needles.find((n) => inner.includes(n));
+          return hit ? [`${file}:${line_of(text, m.index)} ${hit}`] : [];
+        })
+      );
+    });
+    expect(offenders).toEqual([]);
   });
 });

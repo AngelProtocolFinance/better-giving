@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, like, lte, or, sql } from "drizzle-orm";
 import type { IReg, IRegNew, IRegsSearchObj } from "@/reg/schema";
 import { db } from "../db";
 import { registrations } from "../schema/registration";
@@ -139,4 +139,21 @@ export async function regs(opts?: IRegsSearchObj): Promise<IPage<IReg>> {
       ? encode_date_cursor(items[items.length - 1]?.updated_at ?? undefined)
       : undefined,
   };
+}
+
+/** whether `eid` names a signed fund services agreement.
+ *
+ * the agreement's only record is the download url the etch-complete webhook
+ * writes, and the eid is its last path segment — matched as a suffix because
+ * the origin half differs between staging and production. the eid arrives off
+ * a url path, so its `like` metacharacters are escaped: unescaped, a bare `%`
+ * would match every row that has ever signed one. */
+export async function is_fsa_doc_eid(eid: string): Promise<boolean> {
+  const suffix = eid.replace(/([%_\\])/g, "\\$1");
+  const [row] = await db
+    .select({ id: registrations.id })
+    .from(registrations)
+    .where(like(registrations.o_fsa_signed_doc_url, `%/${suffix}`))
+    .limit(1);
+  return !!row;
 }

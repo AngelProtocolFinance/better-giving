@@ -16,16 +16,16 @@ interface IMembershipAdvantage {
 
 export function MembershipAdvantage({ classes = "" }: IMembershipAdvantage) {
   return (
-    <section className={classes} aria-labelledby="membership-heading">
+    <section
+      className={`surface-primary ${classes}`}
+      aria-labelledby="membership-heading"
+    >
       <div className="page grid gap-14 lg:grid-cols-[1.05fr_0.95fr] items-center">
         <div className="grid gap-4.5">
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">
+          <p className="text-xs font-bold uppercase tracking-wider text-secondary">
             The membership advantage
           </p>
-          <h2
-            id="membership-heading"
-            className="section-heading text-primary-fg"
-          >
+          <h2 id="membership-heading" className="section-heading">
             We do the admin. You keep the relationships.
           </h2>
           <p className="text-primary-fg/90 leading-relaxed text-pretty">
@@ -34,7 +34,7 @@ export function MembershipAdvantage({ classes = "" }: IMembershipAdvantage) {
             your back office dramatically simpler, while you still receive full
             donor-level data for outreach and retention.
           </p>
-          <div className="grid gap-2.5 text-primary-fg font-medium text-sm">
+          <div className="grid gap-2.5 font-medium text-sm">
             {points.map((p) => (
               <span key={p} className="flex items-center gap-2.5">
                 <span

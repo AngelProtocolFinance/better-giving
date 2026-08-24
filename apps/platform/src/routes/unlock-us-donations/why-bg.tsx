@@ -34,7 +34,7 @@ const cards: ICard[] = [
 
 export function WhyBg() {
   return (
-    <section className="bg-primary text-white py-20 md:py-24 relative overflow-hidden">
+    <section className="surface-primary py-20 md:py-24 relative overflow-hidden">
       <div className="absolute -bottom-24 -left-24 size-80 bg-white/3 rounded-full" />
 
       <div className="page relative">
