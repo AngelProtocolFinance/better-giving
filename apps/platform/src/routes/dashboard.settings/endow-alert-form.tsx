@@ -1,4 +1,4 @@
-import { CheckField, EmptyState, Form } from "@better-giving/ui";
+import { Actions, CheckField, EmptyState, Form } from "@better-giving/ui";
 import { type SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import type { IUserNpo2 } from "#/types/user";
@@ -83,7 +83,10 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
         </div>
       ))}
 
-      <div className="col-span-full flex justify-end items-center gap-4 p-4">
+      <Actions classes="col-span-full p-4">
+        <button disabled={!isDirty} type="reset" className="btn-secondary btn">
+          reset
+        </button>
         <button
           disabled={!isDirty || fetcher.state === "submitting"}
           type="submit"
@@ -91,10 +94,7 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
         >
           {fetcher.state === "submitting" ? "updating.." : "save"}
         </button>
-        <button disabled={!isDirty} type="reset" className="btn-secondary btn">
-          reset
-        </button>
-      </div>
+      </Actions>
     </Form>
   );
 }
