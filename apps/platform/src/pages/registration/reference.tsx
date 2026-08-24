@@ -1,7 +1,7 @@
 import { DrawerIcon } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelp } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 type Props = {
   id: string;
@@ -10,6 +10,7 @@ type Props = {
 
 export default function Reference({ id, classes = "" }: Props) {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const tooltip_id = useId();
 
   return (
     <div
@@ -39,6 +40,8 @@ export default function Reference({ id, classes = "" }: Props) {
               ? "Hide what this number is for"
               : "Show what this number is for"
           }
+          aria-expanded={isTooltipOpen}
+          aria-controls={tooltip_id}
           onClick={() => {
             setIsTooltipOpen((p) => !p);
           }}
@@ -47,9 +50,13 @@ export default function Reference({ id, classes = "" }: Props) {
           <DrawerIcon is_open={isTooltipOpen} size={20} />
         </button>
       </div>
-      {isTooltipOpen && (
-        <p className="md:hidden mt-4 text-muted-fg">{tooltip}</p>
-      )}
+      <p
+        id={tooltip_id}
+        hidden={!isTooltipOpen}
+        className="md:hidden mt-4 text-muted-fg"
+      >
+        {tooltip}
+      </p>
     </div>
   );
 }

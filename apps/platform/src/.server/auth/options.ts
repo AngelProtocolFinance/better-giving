@@ -71,7 +71,15 @@ export const login_link_plugin = (deps: AuthOptionDeps) =>
 const user_additional_fields = {
   first_name: { type: "string", required: true },
   last_name: { type: "string", required: true },
-  referral_code: { type: "string", required: false, unique: true },
+  // the code referral attribution and payouts key on. minted server-side in
+  // the `user.create.after` hook below and `unique`, so a client-set value can
+  // collide with — or claim — another referrer's.
+  referral_code: {
+    type: "string",
+    required: false,
+    unique: true,
+    input: false,
+  },
   pref_currency: { type: "string", required: false, defaultValue: "usd" },
   avatar_url: { type: "string", required: false },
   // the payout destination and the signed-w-9 handle are server-owned:
@@ -84,7 +92,8 @@ const user_additional_fields = {
   pay_id: { type: "string", required: false, input: false },
   pay_min: { type: "number", required: false, defaultValue: 0, input: false },
   w_form: { type: "string", required: false, input: false },
-  signup_date: { type: "string", required: false },
+  // stamped by the same hook. a record about the user, not one they author.
+  signup_date: { type: "string", required: false, input: false },
 } satisfies Record<
   string,
   {

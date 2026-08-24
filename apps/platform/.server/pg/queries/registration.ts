@@ -1,4 +1,16 @@
-import { and, asc, desc, eq, gte, like, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  like,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { IReg, IRegNew, IRegsSearchObj } from "@/reg/schema";
 import { db } from "../db";
 import { registrations } from "../schema/registration";
@@ -141,19 +153,89 @@ export async function regs(opts?: IRegsSearchObj): Promise<IPage<IReg>> {
   };
 }
 
-/** whether `eid` names a signed fund services agreement.
+/** records a signing packet, and only onto the row it was generated from.
+ * returns nothing when the row has moved on — the packet is orphaned, and the
+ * caller has to start the agreement again rather than record it.
  *
- * the agreement's only record is the download url the etch-complete webhook
- * writes, and the eid is its last path segment — matched as a suffix because
- * the origin half differs between staging and production. the eid arrives off
- * a url path, so its `like` metacharacters are escaped: unescaped, a bare `%`
- * would match every row that has ever signed one. */
+ * `updated_at` is the version column: anvil mints the packet over the network,
+ * and an identity or contact reset committing during that call would be undone
+ * by an id-only write, putting a signing url and an eid back onto an identity
+ * the packet does not assert. `reg_fsa_signed` would then accept that
+ * packet's completion, since the eid it compares against is the restored
+ * one. */
+export async function reg_fsa_packet(
+  id: string,
+  seen_at: string,
+  attrs: Record<string, any>
+) {
+  const [row] = await db
+    .update(registrations)
+    .set({ ...attrs, updated_at: new Date().toISOString() })
+    .where(and(eq(registrations.id, id), eq(registrations.updated_at, seen_at)))
+    .returning();
+  return row;
+}
+
+/** records the signed agreement, and only for the packet the row is still
+ * waiting on. returns nothing when it is not — the caller has a superseded
+ * packet, not a failure.
+ *
+ * the predicate belongs in the statement rather than a caller's `if`, because
+ * anvil's webhook races the reset paths: an identity or contact change
+ * committing between a read and this write would be undone, putting the row
+ * back to signed and re-opening the superseded document, since
+ * `is_fsa_doc_eid` matches a signed url by its last path segment.
+ *
+ * a row predating `o_fsa_doc_eid` has no eid to compare against, so it is
+ * recognised by the signing url those same paths clear. */
+export async function reg_fsa_signed(id: string, doc_eid: string, url: string) {
+  const [row] = await db
+    .update(registrations)
+    .set({
+      o_fsa_signed_doc_url: url,
+      status: "01",
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(registrations.id, id),
+        or(
+          eq(registrations.o_fsa_doc_eid, doc_eid),
+          and(
+            isNull(registrations.o_fsa_doc_eid),
+            isNotNull(registrations.o_fsa_signing_url)
+          )
+        )
+      )
+    )
+    .returning();
+  return row;
+}
+
+/** whether `eid` names a fund services agreement of ours.
+ *
+ * two records can carry it, and a row has one or the other:
+ *
+ * - `o_fsa_doc_eid`, stamped when the etch packet is CREATED — early enough
+ *   that the success page anvil redirects to resolves, which a record written
+ *   by the etch-complete webhook is not.
+ * - the download url that webhook writes, whose last path segment is the eid.
+ *   matched as a suffix because the origin half differs between staging and
+ *   production, and it is what rows without the column are found by, so none
+ *   of them needs a backfill. the eid arrives off a url path, so its `like`
+ *   metacharacters are escaped: unescaped, a bare `%` would match every row
+ *   that has ever signed one. */
 export async function is_fsa_doc_eid(eid: string): Promise<boolean> {
   const suffix = eid.replace(/([%_\\])/g, "\\$1");
   const [row] = await db
     .select({ id: registrations.id })
     .from(registrations)
-    .where(like(registrations.o_fsa_signed_doc_url, `%/${suffix}`))
+    .where(
+      or(
+        eq(registrations.o_fsa_doc_eid, eid),
+        like(registrations.o_fsa_signed_doc_url, `%/${suffix}`)
+      )
+    )
     .limit(1);
   return !!row;
 }

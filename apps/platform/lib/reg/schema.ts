@@ -308,6 +308,7 @@ export interface IRegUpdateables
 export interface IRegUpdateInternal {
   o_fsa_signing_url?: string;
   o_fsa_signed_doc_url?: string;
+  o_fsa_doc_eid?: string;
   status: TStatus;
   status_approved_npo_id?: number;
 }

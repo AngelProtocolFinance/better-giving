@@ -57,9 +57,6 @@ export default function Filter({ classes = "" }: { classes?: string }) {
             </div>
 
             <div className="px-4 py-4">
-              <p className="font-bold text-xs  uppercase block mb-2">
-                Countries
-              </p>
               <Countries />
             </div>
 

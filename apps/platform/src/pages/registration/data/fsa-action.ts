@@ -9,8 +9,7 @@ import type { IFsaSigner } from "@/reg";
 import { Progress } from "@/reg/progress";
 import { fsa_docs_or_signer, type IFsaDocs, reg_id } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
-import { db } from "$/pg/db";
-import { reg_get, reg_update } from "$/pg/queries/registration";
+import { reg_fsa_packet, reg_get } from "$/pg/queries/registration";
 
 export const action: ActionFunction = async ({ request, params }) => {
   const { user } = await get_session(request);
@@ -58,13 +57,23 @@ export const action: ActionFunction = async ({ request, params }) => {
       org_hq_country: r.o_hq_country,
       docs,
     };
-    const url = await gen_fsa_signing_url(rid, signer, from.toString());
+    const { url, doc_eid } = await gen_fsa_signing_url(
+      rid,
+      signer,
+      from.toString()
+    );
 
-    const u1 = await reg_update(db, rid, {
+    /* the packet anvil just minted asserts the identity read above. a reset
+     * committing while it was being minted leaves the row carrying a different
+     * one, so the packet is dropped rather than recorded. */
+    const u1 = await reg_fsa_packet(rid, reg.updated_at, {
       status: "01",
       o_fsa_signing_url: url,
+      o_fsa_doc_eid: doc_eid,
     });
-    if (u1) await enqueue(msg("reg-updated", u1));
+    if (!u1) return resp.status(409, "application changed while signing");
+
+    await enqueue(msg("reg-updated", u1));
 
     return redirect(url);
   }
@@ -91,14 +100,24 @@ export const action: ActionFunction = async ({ request, params }) => {
     docs: docs_or_eid,
   };
 
-  const url = await gen_fsa_signing_url(rid, signer, from.toString());
+  const { url, doc_eid } = await gen_fsa_signing_url(
+    rid,
+    signer,
+    from.toString()
+  );
 
-  const u2 = await reg_update(db, rid, {
+  /* the packet anvil just minted asserts the identity read above. a reset
+   * committing while it was being minted leaves the row carrying a different
+   * one, so the packet is dropped rather than recorded. */
+  const u2 = await reg_fsa_packet(rid, reg.updated_at, {
     ...docs_or_eid,
     status: "01",
     o_fsa_signing_url: url,
+    o_fsa_doc_eid: doc_eid,
   });
-  if (u2) await enqueue(msg("reg-updated", u2));
+  if (!u2) return resp.status(409, "application changed while signing");
+
+  await enqueue(msg("reg-updated", u2));
 
   return redirect(url);
 };

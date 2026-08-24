@@ -72,7 +72,7 @@ export function Features({ classes = "" }: { classes?: string }) {
             key={index}
             className="flex @max-3xl:flex-col gap-y-4 items-center gap-x-16 last:mb-0"
           >
-            <div className="flex items-center justify-center p-4 rounded-full bg-primary/50">
+            <div className="flex items-center justify-center p-4 rounded-full bg-primary/10 text-primary">
               {item.icon}
             </div>
             <div className="ml-4">

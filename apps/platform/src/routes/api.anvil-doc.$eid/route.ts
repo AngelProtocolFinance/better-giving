@@ -25,13 +25,11 @@ export const loader: LoaderFunction = async ({ request, params: { eid } }) => {
   // identifying the *w-9* positively would hand every one of those to anyone
   // holding the eid, forever.
   //
-  // the cost of that direction is a window: the agreement's record is written
-  // by the etch-complete webhook, while anvil redirects the signer to the
-  // success page in parallel, so the download link on that page can 403 until
-  // the webhook lands. the emailed link is never in the window — it is sent
-  // off the same write. closing it means recording the eid at packet creation
-  // instead: `createEtchPacket` already returns it, and the registration row
-  // has nowhere to keep it.
+  // recognition has to beat the redirect. anvil sends the signer to the
+  // success page in parallel with its etch-complete webhook, so a record
+  // written by that webhook is not there yet when the page's download link is
+  // clicked. `registrations.o_fsa_doc_eid` is stamped when the packet is
+  // CREATED, which is strictly before both.
   if (!(await is_fsa_doc_eid(eid))) {
     const owner = await user_by_w_form(eid);
     const { user } = await get_session(request);

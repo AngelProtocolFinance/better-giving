@@ -193,6 +193,28 @@ describe("icon-only controls", () => {
     });
     expect(offenders).toEqual([]);
   });
+
+  test("a disclosure states whether it is open", () => {
+    // `DrawerIcon` is the system's open/closed chevron, so a raw `<button>`
+    // that renders one IS a disclosure. WCAG 4.1.2 wants its *value*, and a
+    // name that changes with the state ("Show…"/"Hide…") is not the same
+    // thing — assistive tech surfaces expanded/collapsed as a property users
+    // query and navigate by. the ark triggers are exempt by construction:
+    // zag writes `aria-expanded` onto them, and none of them is a `<button>`
+    // element in source.
+    const offenders = sources.flatMap(({ file, text }) =>
+      [...text.matchAll(/<button\b/g)].flatMap((m) => {
+        const end = tag_end(text, m.index);
+        if (end < 0) return [];
+        const close = text.indexOf("</button>", end);
+        if (close < 0) return [];
+        if (!text.slice(end, close).includes("DrawerIcon")) return [];
+        if (/aria-expanded/.test(text.slice(m.index, end))) return [];
+        return [`${file}:${line_of(text, m.index)}`];
+      })
+    );
+    expect(offenders).toEqual([]);
+  });
 });
 
 /** every `EmptyState`/`EmptyRow` in the corpus, with the line that carries the

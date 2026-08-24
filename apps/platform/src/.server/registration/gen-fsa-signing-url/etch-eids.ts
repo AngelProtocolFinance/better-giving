@@ -6,6 +6,11 @@ import { anvil } from "$/kit/anvil";
 interface Eids {
   packet: string;
   signer: string;
+  /** the document group the signed pdf is downloaded by. taken here rather
+   * than off the etch-complete webhook: that webhook and anvil's redirect to
+   * the success page race, and `/api/anvil-doc/$eid` recognises an agreement
+   * only from what we stored. */
+  doc_group: string;
 }
 
 export const etch_eids = async (
@@ -78,5 +83,6 @@ export const etch_eids = async (
   return {
     packet: res.data?.data.createEtchPacket.eid,
     signer: res.data?.data.createEtchPacket.documentGroup.signers[0].eid,
+    doc_group: res.data?.data.createEtchPacket.documentGroup.eid,
   } satisfies Eids;
 };
