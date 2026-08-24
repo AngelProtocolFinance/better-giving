@@ -26,6 +26,13 @@ export async function user_by_referral_code(
   return row as unknown as IUserDb | undefined;
 }
 
+export async function user_by_w_form(
+  eid: string
+): Promise<IUserDb | undefined> {
+  const [row] = await db.select().from(user).where(eq(user.w_form, eid));
+  return row as unknown as IUserDb | undefined;
+}
+
 export async function user_update(email: string, update: Partial<IUserDb>) {
   await db
     .update(user)
