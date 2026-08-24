@@ -141,19 +141,30 @@ export async function regs(opts?: IRegsSearchObj): Promise<IPage<IReg>> {
   };
 }
 
-/** whether `eid` names a signed fund services agreement.
+/** whether `eid` names a fund services agreement of ours.
  *
- * the agreement's only record is the download url the etch-complete webhook
- * writes, and the eid is its last path segment — matched as a suffix because
- * the origin half differs between staging and production. the eid arrives off
- * a url path, so its `like` metacharacters are escaped: unescaped, a bare `%`
- * would match every row that has ever signed one. */
+ * two records can carry it, and a row has one or the other:
+ *
+ * - `o_fsa_doc_eid`, stamped when the etch packet is CREATED — early enough
+ *   that the success page anvil redirects to resolves, which a record written
+ *   by the etch-complete webhook is not.
+ * - the download url that webhook writes, whose last path segment is the eid.
+ *   matched as a suffix because the origin half differs between staging and
+ *   production, and it is what rows without the column are found by, so none
+ *   of them needs a backfill. the eid arrives off a url path, so its `like`
+ *   metacharacters are escaped: unescaped, a bare `%` would match every row
+ *   that has ever signed one. */
 export async function is_fsa_doc_eid(eid: string): Promise<boolean> {
   const suffix = eid.replace(/([%_\\])/g, "\\$1");
   const [row] = await db
     .select({ id: registrations.id })
     .from(registrations)
-    .where(like(registrations.o_fsa_signed_doc_url, `%/${suffix}`))
+    .where(
+      or(
+        eq(registrations.o_fsa_doc_eid, eid),
+        like(registrations.o_fsa_signed_doc_url, `%/${suffix}`)
+      )
+    )
     .limit(1);
   return !!row;
 }

@@ -151,6 +151,34 @@ describe("server-owned user fields", () => {
     expect((await row()).pay_min).toBe(0);
   });
 
+  it("refuses a client-supplied referral_code on /update-user", async () => {
+    const headers = await sign_in();
+    const minted = (await row()).referral_code;
+
+    await expect(
+      test_auth_ref.current.api.updateUser({
+        body: { referral_code: "SOMEONE-ELSES" },
+        headers,
+      })
+    ).rejects.toThrow();
+
+    expect((await row()).referral_code).toBe(minted);
+  });
+
+  it("refuses a client-supplied signup_date on /update-user", async () => {
+    const headers = await sign_in();
+    const stamped = (await row()).signup_date;
+
+    await expect(
+      test_auth_ref.current.api.updateUser({
+        body: { signup_date: "1999-01-01" },
+        headers,
+      })
+    ).rejects.toThrow();
+
+    expect((await row()).signup_date).toEqual(stamped);
+  });
+
   it("still takes a user-editable field on the same endpoint", async () => {
     const headers = await sign_in();
 
@@ -162,7 +190,7 @@ describe("server-owned user fields", () => {
     expect((await row()).first_name).toBe("Janet");
   });
 
-  it("keeps signup working, and closed to the same three", async () => {
+  it("keeps signup working, and closed to the server-owned five", async () => {
     const res = await test_auth_ref.current.api.signUpEmail({
       body: {
         email: "new@example.com",
@@ -184,6 +212,19 @@ describe("server-owned user fields", () => {
           first_name: "Jane",
           last_name: "Doe",
           w_form: "someone-elses-eid",
+        },
+      })
+    ).rejects.toThrow();
+
+    await expect(
+      test_auth_ref.current.api.signUpEmail({
+        body: {
+          email: "third@example.com",
+          password: TEST_PW,
+          name: "third",
+          first_name: "Jane",
+          last_name: "Doe",
+          referral_code: "SOMEONE-ELSES",
         },
       })
     ).rejects.toThrow();

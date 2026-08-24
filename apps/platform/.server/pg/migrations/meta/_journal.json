@@ -246,6 +246,13 @@
       "when": 1787568169512,
       "tag": "0034_fast_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1787577959539,
+      "tag": "0035_add_registrations_fsa_doc_eid",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { ChevronDown, LightbulbIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 interface Props {
   classes?: string;
@@ -50,6 +50,7 @@ const content: Record<
 
 export function MethodBenefits({ classes = "", subject }: Props) {
   const [expanded, set_expanded] = useState(false);
+  const details_id = useId();
   const c = content[subject];
   return (
     <div className={`${classes} grid gap-y-2`}>
@@ -67,22 +68,25 @@ export function MethodBenefits({ classes = "", subject }: Props) {
         <button
           onClick={() => set_expanded(true)}
           type="button"
+          aria-expanded={expanded}
+          aria-controls={details_id}
           className="flex items-center -mt-4 justify-self-start text-xs text-primary hover:underline"
         >
           read more <ChevronDown size={16} />
         </button>
       )}
-      {expanded && c.disclaimer && (
-        <div className="grid rounded bg-muted p-2">
-          <span className="text-sm text-muted-fg">{c.disclaimer}</span>
-        </div>
-      )}
-      {expanded &&
-        c.expanded.map((text) => (
+      <div id={details_id} hidden={!expanded} className="grid gap-y-2">
+        {c.disclaimer && (
+          <div className="grid rounded bg-muted p-2">
+            <span className="text-sm text-muted-fg">{c.disclaimer}</span>
+          </div>
+        )}
+        {c.expanded.map((text) => (
           <p key={text.slice(0, 30)} className="text-sm">
             {text}
           </p>
         ))}
+      </div>
     </div>
   );
 }

@@ -153,9 +153,10 @@ vi.mock("remix-client-cache", () => ({
 
 // mock anvil signing — return a route the stub can handle
 vi.mock("#/.server/registration/gen-fsa-signing-url", () => ({
-  gen_fsa_signing_url: vi.fn(
-    async (reg_id: string) => `/register/${reg_id}/sign-result`
-  ),
+  gen_fsa_signing_url: vi.fn(async (reg_id: string) => ({
+    url: `/register/${reg_id}/sign-result`,
+    doc_eid: `doc-${reg_id}`,
+  })),
 }));
 
 // mock helpers that import anvil SDK (SST secrets not available in test)

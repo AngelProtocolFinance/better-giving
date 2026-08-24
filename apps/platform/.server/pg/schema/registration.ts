@@ -55,6 +55,13 @@ export const registrations = pgTable(
     o_proof_of_reg: text("o_proof_of_reg"),
     o_fsa_signing_url: text("o_fsa_signing_url"),
     o_fsa_signed_doc_url: text("o_fsa_signed_doc_url"),
+    // the anvil document-group eid `/api/anvil-doc/$eid` recognises the signed
+    // agreement by. written when the etch packet is created, not when it
+    // completes: the etch-complete webhook and anvil's redirect to the success
+    // page race, so a record written by the webhook lands too late to serve
+    // that page. nullable — see `is_fsa_doc_eid` for what stands in when it is
+    // null.
+    o_fsa_doc_eid: text("o_fsa_doc_eid"),
 
     // banking (step 5)
     o_bank_id: text("o_bank_id"),
@@ -79,6 +86,8 @@ export const registrations = pgTable(
     check("status_check", sql`${t.status} IN ('01','02','03','04')`),
     index("registrations_r_id_status_idx").on(t.r_id, t.status, t.updated_at),
     index("registrations_status_updated_idx").on(t.status, t.updated_at),
+    // every agreement download resolves an eid through this
+    index("registrations_o_fsa_doc_eid_idx").on(t.o_fsa_doc_eid),
     // pg_trgm fuzzy search index on org name + id
     index("registrations_search_trgm_idx").using(
       "gin",

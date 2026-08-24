@@ -58,11 +58,16 @@ export const action: ActionFunction = async ({ request, params }) => {
       org_hq_country: r.o_hq_country,
       docs,
     };
-    const url = await gen_fsa_signing_url(rid, signer, from.toString());
+    const { url, doc_eid } = await gen_fsa_signing_url(
+      rid,
+      signer,
+      from.toString()
+    );
 
     const u1 = await reg_update(db, rid, {
       status: "01",
       o_fsa_signing_url: url,
+      o_fsa_doc_eid: doc_eid,
     });
     if (u1) await enqueue(msg("reg-updated", u1));
 
@@ -91,12 +96,17 @@ export const action: ActionFunction = async ({ request, params }) => {
     docs: docs_or_eid,
   };
 
-  const url = await gen_fsa_signing_url(rid, signer, from.toString());
+  const { url, doc_eid } = await gen_fsa_signing_url(
+    rid,
+    signer,
+    from.toString()
+  );
 
   const u2 = await reg_update(db, rid, {
     ...docs_or_eid,
     status: "01",
     o_fsa_signing_url: url,
+    o_fsa_doc_eid: doc_eid,
   });
   if (u2) await enqueue(msg("reg-updated", u2));
 
