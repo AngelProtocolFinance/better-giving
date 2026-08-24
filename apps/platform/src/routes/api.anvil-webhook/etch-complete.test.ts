@@ -13,6 +13,7 @@ import type { TestDb } from "$/pg/test-utils/pglite-browser";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const signer_eid = vi.hoisted(() => ({ current: "r-1" }));
+const stale_read = vi.hoisted(() => ({ current: null as any }));
 
 // --- mocks ---
 
@@ -30,6 +31,16 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
+
+// `reg_get` only, so `stale_read` can hand back a row the reset has already
+// overtaken while the real conditional write runs against the live one.
+vi.mock("$/pg/queries/registration", async (orig) => {
+  const actual = await orig<typeof import("$/pg/queries/registration")>();
+  return {
+    ...actual,
+    reg_get: async (id: string) => stale_read.current ?? actual.reg_get(id),
+  };
+});
 
 // the real one resolves the registration id through anvil's graphql api
 vi.mock("./helpers", () => ({
@@ -68,6 +79,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await test_db.current!.db.delete(registrations);
   signer_eid.current = "r-1";
+  stale_read.current = null;
 });
 
 async function seed(cols: {
@@ -137,6 +149,20 @@ describe("etch_complete", () => {
     expect((await row()).o_fsa_signed_doc_url).toBe(
       `${BASE}/api/anvil-doc/${EID}`
     );
+  });
+
+  // the reset commits between this handler's read and its write: a check made
+  // on the read passes, and the write it lets through undoes the reset.
+  test("loses to a reset that lands after its own read", async () => {
+    await seed({});
+    stale_read.current = {
+      id: "r-1",
+      o_fsa_doc_eid: EID,
+      o_fsa_signing_url: "https://anvil.test/sign",
+    };
+
+    expect(await etch_complete(payload(), BASE)).toBeUndefined();
+    expect((await row()).o_fsa_signed_doc_url).toBeNull();
   });
 
   test("faults on a signer no registration claims", async () => {

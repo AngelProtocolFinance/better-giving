@@ -1,4 +1,16 @@
-import { and, asc, desc, eq, gte, like, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  like,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { IReg, IRegNew, IRegsSearchObj } from "@/reg/schema";
 import { db } from "../db";
 import { registrations } from "../schema/registration";
@@ -139,6 +151,42 @@ export async function regs(opts?: IRegsSearchObj): Promise<IPage<IReg>> {
       ? encode_date_cursor(items[items.length - 1]?.updated_at ?? undefined)
       : undefined,
   };
+}
+
+/** records the signed agreement, and only for the packet the row is still
+ * waiting on. returns nothing when it is not — the caller has a superseded
+ * packet, not a failure.
+ *
+ * the predicate belongs in the statement rather than a caller's `if`, because
+ * anvil's webhook races the reset paths: an identity or contact change
+ * committing between a read and this write would be undone, putting the row
+ * back to signed and re-opening the superseded document, since
+ * `is_fsa_doc_eid` matches a signed url by its last path segment.
+ *
+ * a row predating `o_fsa_doc_eid` has no eid to compare against, so it is
+ * recognised by the signing url those same paths clear. */
+export async function reg_fsa_signed(id: string, doc_eid: string, url: string) {
+  const [row] = await db
+    .update(registrations)
+    .set({
+      o_fsa_signed_doc_url: url,
+      status: "01",
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(registrations.id, id),
+        or(
+          eq(registrations.o_fsa_doc_eid, doc_eid),
+          and(
+            isNull(registrations.o_fsa_doc_eid),
+            isNotNull(registrations.o_fsa_signing_url)
+          )
+        )
+      )
+    )
+    .returning();
+  return row;
 }
 
 /** whether `eid` names a fund services agreement of ours.
