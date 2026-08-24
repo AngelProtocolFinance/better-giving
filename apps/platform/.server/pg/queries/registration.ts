@@ -153,6 +153,29 @@ export async function regs(opts?: IRegsSearchObj): Promise<IPage<IReg>> {
   };
 }
 
+/** records a signing packet, and only onto the row it was generated from.
+ * returns nothing when the row has moved on — the packet is orphaned, and the
+ * caller has to start the agreement again rather than record it.
+ *
+ * `updated_at` is the version column: anvil mints the packet over the network,
+ * and an identity or contact reset committing during that call would be undone
+ * by an id-only write, putting a signing url and an eid back onto an identity
+ * the packet does not assert. `reg_fsa_signed` would then accept that
+ * packet's completion, since the eid it compares against is the restored
+ * one. */
+export async function reg_fsa_packet(
+  id: string,
+  seen_at: string,
+  attrs: Record<string, any>
+) {
+  const [row] = await db
+    .update(registrations)
+    .set({ ...attrs, updated_at: new Date().toISOString() })
+    .where(and(eq(registrations.id, id), eq(registrations.updated_at, seen_at)))
+    .returning();
+  return row;
+}
+
 /** records the signed agreement, and only for the packet the row is still
  * waiting on. returns nothing when it is not — the caller has a superseded
  * packet, not a failure.
