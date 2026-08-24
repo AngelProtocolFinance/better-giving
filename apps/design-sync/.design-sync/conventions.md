@@ -76,6 +76,30 @@ failed.
 
 `classes` is for margin. The component owns its padding.
 
+### Form and dialog actions — use `Actions`
+
+Where a form or a dialog ends — the submit and whatever sits beside it — the row is `Actions`. There
+were 45 of them in 23 spellings before it existed, and five sites had re-typed the dialog footer's
+tinted strip by hand rather than spend the one name for it.
+
+**Cancel comes first.** Not convention: DOM order is also the stacked order below `sm` and the tab
+order everywhere, so the control that undoes has to be the one a keyboard reaches first. Put the
+submit last, always.
+
+`align="split"` pushes the two apart, for a reset or a destructive sitting opposite the confirm so a
+misclick beside the confirm lands on nothing. A cancel never takes it — a cancel belongs next to what
+it cancels.
+
+`band` is the dialog footer: a tinted, top-bordered strip, full-bleed to the dialog's edges. It is
+the only place that strip is authored; never write `bg-muted border-t` on a footer row yourself.
+
+The row stacks full-width below `sm` and puts its controls at the right edge above it. That geometry
+is the row's — never write `flex`, `grid`, `gap-*`, `justify-*` or `items-*` beside it or into
+`classes`, which is for margin. `modal-actions` was the old dialog-only name and no longer exists.
+
+Where a `<Form>` element *is* the row, put `className="actions"` on the form rather than nesting a
+`<div>` inside it that exists only to carry the class.
+
 ### Color is a closed token set
 
 Tailwind v4 with **every default color removed** (`--color-*: initial`). Raw palette names —

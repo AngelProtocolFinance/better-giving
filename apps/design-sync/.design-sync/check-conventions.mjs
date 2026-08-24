@@ -130,6 +130,7 @@ const claims = {
     "btn-icon",
     "pending",
   ],
+  "action row": ["actions", "actions-split", "actions-band"],
   "hand-composed controls": [
     "field-input",
     "field-input-container",
@@ -159,6 +160,7 @@ const claims = {
 // names the header deliberately says do NOT exist. present here = the prose
 // is now wrong in the other direction.
 const MUST_BE_ABSENT = [
+  "modal-actions",
   "rounded-sm",
   "rounded-md",
   "rounded-lg",

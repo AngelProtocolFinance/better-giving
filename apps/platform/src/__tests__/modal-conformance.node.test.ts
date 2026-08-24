@@ -12,6 +12,9 @@ import { describe, expect, test } from "vitest";
  *
  * hence the `node` vitest project: the rest of the suite runs in browser mode,
  * which has no `node:fs`.
+ *
+ * a modal's footer row is not here: it is the same row a page form ends with,
+ * so it is gated with the other controls in `controls-conformance`.
  */
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -59,12 +62,6 @@ describe("modal size set", () => {
     const exempt = ["apps/platform/src/components/img-editor/img-cropper.tsx"];
 
     expect(files_with("fixed-center")).toEqual([...exempt, ...owners].sort());
-  });
-
-  test("the modal action-bar row is spelled only in its @utility", () => {
-    const bar =
-      "p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t";
-    expect(files_with(bar)).toEqual(["packages/ui/src/styles/utilities.css"]);
   });
 
   test("every tier bounds its own height", () => {
