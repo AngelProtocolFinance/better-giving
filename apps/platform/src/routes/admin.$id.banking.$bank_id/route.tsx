@@ -79,10 +79,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           is unchanged — try again shortly.
         </p>
       )}
-      <fetcher.Form
-        method="POST"
-        className="flex max-sm:flex-col gap-1 sm:gap-3 mt-4 sm:justify-self-end"
-      >
+      <fetcher.Form method="POST" className="actions mt-4">
         <NavLink to={"../banking"} className="min-w-24 btn btn-secondary">
           Back
         </NavLink>

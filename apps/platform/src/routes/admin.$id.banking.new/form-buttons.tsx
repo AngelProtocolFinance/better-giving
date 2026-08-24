@@ -1,4 +1,4 @@
-import { Button } from "@better-giving/ui";
+import { Actions, Button } from "@better-giving/ui";
 import type { FormButtonsProps } from "#/components/bank-details/types";
 
 export function FormButtons({
@@ -6,16 +6,16 @@ export function FormButtons({
   is_submitting = false,
 }: FormButtonsProps) {
   return (
-    <div className="grid gap-4">
+    <Actions>
       <Button
         variant="primary"
         type="submit"
         disabled={disabled}
         is_loading={is_submitting}
-        className="gap-1 w-full md:w-80"
+        className="gap-1"
       >
         Submit
       </Button>
-    </div>
+    </Actions>
   );
 }

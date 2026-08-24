@@ -1,4 +1,5 @@
 import {
+  Actions,
   ExtLink,
   Label,
   LoadText,
@@ -112,7 +113,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         </ExtLink>
         .
       </p>
-      <div className="grid grid-cols-2 sm:flex gap-2 mt-8">
+      <Actions classes="mt-8">
         <NavLink
           aria-disabled={fetcher.state !== "idle"}
           to={`../${steps.contact}`}
@@ -127,7 +128,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         >
           <LoadText is_loading={fetcher.state !== "idle"}>Continue</LoadText>
         </button>
-      </div>
+      </Actions>
     </form>
   );
 }

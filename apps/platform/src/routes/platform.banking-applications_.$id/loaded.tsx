@@ -1,4 +1,4 @@
-import { ExtLink } from "@better-giving/ui";
+import { Actions, ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { href, NavLink } from "react-router";
@@ -72,7 +72,7 @@ export function Loaded(props: LoaderData) {
           can't be approved right now. Everything else on it is up to date.
         </p>
       )}
-      <div className="flex gap-x-3 justify-self-center sm:justify-self-end">
+      <Actions>
         <NavLink
           replace
           preventScrollReset
@@ -99,7 +99,7 @@ export function Loaded(props: LoaderData) {
         >
           Approve
         </NavLink>
-      </div>
+      </Actions>
     </>
   );
 }

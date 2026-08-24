@@ -1,5 +1,5 @@
 import { Field as BaseField } from "@ark-ui/react/field";
-import { Form as F, Field, Increments } from "@better-giving/ui";
+import { Actions, Form as F, Field, Increments } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { DollarSign } from "lucide-react";
 import { useController, useFieldArray, useForm } from "react-hook-form";
@@ -202,14 +202,14 @@ export function DonationFormTab(p: Props) {
         )}
       </div>
 
-      <div className="flex gap-3 mt-8">
+      <Actions classes="mt-8">
         <button type="reset" className="btn-secondary btn" disabled={!isDirty}>
           Reset changes
         </button>
         <button type="submit" className="btn btn-primary" disabled={!isDirty}>
           Submit changes
         </button>
-      </div>
+      </Actions>
     </F>
   );
 }

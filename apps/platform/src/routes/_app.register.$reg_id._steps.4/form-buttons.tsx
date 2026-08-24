@@ -1,4 +1,4 @@
-import { Button } from "@better-giving/ui";
+import { Actions, Button } from "@better-giving/ui";
 import type {
   FormButtonsProps,
   IFormButtons,
@@ -19,25 +19,23 @@ function Submit({
   back: string;
 }) {
   return (
-    <div className="grid gap-4 mt-8">
-      <div className="grid grid-cols-2 sm:flex gap-2">
-        <Button
-          variant="secondary"
-          to={`../${back}`}
-          disabled={is_submitting}
-          className="min-w-32"
-        >
-          Back
-        </Button>
-        <Button
-          variant="primary"
-          type="submit"
-          is_loading={is_submitting}
-          className="min-w-32"
-        >
-          Submit
-        </Button>
-      </div>
-    </div>
+    <Actions classes="mt-8">
+      <Button
+        variant="secondary"
+        to={`../${back}`}
+        disabled={is_submitting}
+        className="min-w-32"
+      >
+        Back
+      </Button>
+      <Button
+        variant="primary"
+        type="submit"
+        is_loading={is_submitting}
+        className="min-w-32"
+      >
+        Submit
+      </Button>
+    </Actions>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  Actions,
   Combo,
   Confirmed,
   DrawerIcon,
@@ -323,7 +324,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         </div>
       </div>
 
-      <div className="flex gap-3 group-disabled:hidden">
+      <Actions classes="group-disabled:hidden">
         <button
           disabled={!rhf.isDirty}
           type="reset"
@@ -338,7 +339,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         >
           Submit changes
         </button>
-      </div>
+      </Actions>
       {/** success prompts */}
       <Outlet />
     </F>
