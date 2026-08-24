@@ -26,16 +26,14 @@ interface Props {
   classes?: string;
   /** cancel first. the row does not enforce it, it records it: DOM order is
    *  also the stacked order at narrow and the tab order everywhere, so the
-   *  control that undoes has to be the one a keyboard reaches first. 36 of the
-   *  41 multi-control rows already read that way; the five that don't are
-   *  converging in their own pass. */
+   *  control that undoes has to be the one a keyboard reaches first. */
   children: ReactNode;
 }
 
-/** the class layer stays reachable, and seven rows use it: where a `<Form>` or
- *  `<fetcher.Form>` element IS the row, `className="actions"` on the form beats
- *  nesting a div inside it that exists only to carry the class. same split
- *  `Button` makes — the component is the default, the recipe is still a name. */
+/** the class layer stays reachable: where a `<Form>` or `<fetcher.Form>`
+ *  element IS the row, `className="actions"` on the form beats nesting a div
+ *  inside it that exists only to carry the class. same split `Button` makes —
+ *  the component is the default, the recipe is still a name. */
 export function Actions({
   align = "end",
   band,

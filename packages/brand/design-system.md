@@ -635,10 +635,8 @@ on the value but right that the two should share one; moving the fields to
 
 One row, authored in `packages/ui/src/styles/utilities.css` and spent through
 `Actions`. It is where a form or a dialog ends: the submit, and whatever sits
-beside it. There were **45 of them in 23 spellings** before this name existed —
-one geometry written 23 ways, plus five sites that had re-typed the dialog
-footer's surface by hand rather than spend the one name that already existed for
-it. Two of those five were inside the design system itself.
+beside it. It is one geometry, and this is the only place it is spelled — the
+dialog footer's tinted surface included.
 
 | name | what it is |
 | --- | --- |
@@ -646,12 +644,11 @@ it. Two of those five were inside the design system itself.
 | `actions-split` | the same row with the controls pushed apart |
 | `actions-band` | the dialog footer's tinted strip; composes with either row |
 
-- **Cancel comes first, and the row records it rather than enforcing it.** 36 of
-  the 41 multi-control rows already read that way. It matters past convention
-  because DOM order is *also* the stacked order below `sm` and *also* the tab
-  order everywhere — so the control that undoes has to be the one a keyboard
-  reaches first, and a row that hard-coded the visual order would be free to
-  disagree with both.
+- **Cancel comes first, and the row records it rather than enforcing it.** It
+  matters past convention because DOM order is *also* the stacked order below
+  `sm` and *also* the tab order everywhere — so the control that undoes has to
+  be the one a keyboard reaches first, and a row that hard-coded the visual
+  order would be free to disagree with both.
 - **`actions-split` is not a third alignment.** It is for a reset or a
   destructive sitting opposite the confirm, so that a misclick beside the
   confirm lands on nothing. A cancel never takes it: a cancel belongs next to
@@ -663,13 +660,12 @@ it. Two of those five were inside the design system itself.
   sheet. Same reasoning as the page shape and the empty state's rhythm.
 - **The stack is `flex-col` with no `items-*`.** That leaves `align-items:
   stretch`, which is what makes the buttons full-width down there — no child
-  selector, no `w-full` on each control. Before this, every dialog kept two
-  side-by-side buttons at 320px.
-- **The gap is the one the 14 dialog rows already carried.** Four other gaps
-  appeared across the 23 spellings; each was a single site's guess.
+  selector, no `w-full` on each control. A dialog still showing two side-by-side
+  buttons at 320px is not on this row.
+- **The gap is `gap-4`.** The spacing the dialog set sits at, held at every
+  width.
 - **`actions-band` is the only place a `bg-muted border-t` strip is authored.**
-  The sweep fails on any other class string carrying both, which is what the
-  five hand-rolled copies were.
+  The sweep fails on any other class string carrying both.
 
 ## Two color layers, and the line between them
 

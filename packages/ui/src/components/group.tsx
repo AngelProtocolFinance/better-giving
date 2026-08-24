@@ -20,10 +20,9 @@ export function Group({
       aria-labelledby={title ? id : undefined}
       className={`grid w-full gap-6 p-6 border rounded bg-card ${className}`}
     >
-      {/* the heading pair is one grid child, not two. as two it needed a
-          `-mt-4` to claw back the row gap, which pinned the pair's spacing to
-          whatever `gap-6` happened to be — move the gap and the title lands on
-          the description. */}
+      {/* the heading pair is one grid child, not two: as two, the section's
+          own `gap-6` falls between title and description, and closing it back
+          up pins their spacing to whatever that gap happens to be. */}
       {(title || description) && (
         <div className="grid gap-2">
           {title && (

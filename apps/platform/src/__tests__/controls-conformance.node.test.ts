@@ -324,10 +324,10 @@ describe("the form action row", () => {
   });
 
   test("the dialog footer band is not typed out by hand", () => {
-    // the band is a tinted strip with a top border, and five call sites had
-    // re-typed its properties rather than spend the name — two of them inside
-    // the design system itself. bare tokens on purpose: `hover:bg-muted` on a
-    // menu item is a different thing entirely and is not a finding.
+    // the band is a tinted strip with a top border, and its properties are
+    // cheap to re-type by hand — the name is the only place they are authored.
+    // bare tokens on purpose: `hover:bg-muted` on a menu item is a different
+    // thing entirely and is not a finding.
     const offenders = class_values
       .filter(({ value }) => {
         const raw = value.split(/\s+/).filter(Boolean);

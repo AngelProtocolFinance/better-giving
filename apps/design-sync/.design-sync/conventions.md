@@ -78,9 +78,9 @@ failed.
 
 ### Form and dialog actions — use `Actions`
 
-Where a form or a dialog ends — the submit and whatever sits beside it — the row is `Actions`. There
-were 45 of them in 23 spellings before it existed, and five sites had re-typed the dialog footer's
-tinted strip by hand rather than spend the one name for it.
+Where a form or a dialog ends — the submit and whatever sits beside it — the row is `Actions`. It is
+the one name for that geometry; never hand-roll the row, and never hand-roll the dialog footer's
+tinted strip.
 
 **Cancel comes first.** Not convention: DOM order is also the stacked order below `sm` and the tab
 order everywhere, so the control that undoes has to be the one a keyboard reaches first. Put the

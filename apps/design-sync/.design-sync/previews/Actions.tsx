@@ -27,7 +27,7 @@ export const Split = () => (
 
 // inside a dialog the row sits on a band — a tinted strip with a top border,
 // full-bleed to the dialog's edges. this is the only place that strip is
-// authored; five call sites had re-typed it by hand.
+// authored; never write `bg-muted border-t` on a footer row by hand.
 export const InADialog = () => (
   <div className="w-80 border rounded overflow-hidden bg-card">
     <p className="font-bold text-center border-b bg-muted p-5">

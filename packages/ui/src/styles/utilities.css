@@ -285,8 +285,8 @@
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }
 
-/* the row a form's or a dialog's terminal controls sit in — 45 of them across
-   the product in 23 spellings, which is one geometry written 23 ways.
+/* the row a form's or a dialog's terminal controls sit in: the submit, and
+   whatever sits beside it.
 
    `actions` and `actions-split` are two complete rows, not a base and a
    modifier: they are never written together, and the second is not a
@@ -301,13 +301,11 @@
    there, with no child selector and no `w-full` on each control. `items-center`
    is scoped to `sm:` because it only means anything once the row is a row.
 
-   there is no `text-center`/`sm:text-right` here and one would buy nothing:
-   text-align does not reach a flex container's items, and `.btn` centers its
-   own label anyway.
+   no `text-align` belongs here: it does not reach a flex container's items,
+   and `.btn` centers its own label anyway.
 
-   the gap is the one the 14 dialog rows already carried, so the whole modal
-   set keeps its spacing at rest; the four other gaps in the 23 spellings were
-   each a single site's guess.
+   `gap-4` is the spacing the dialog set sits at, and the row holds it at every
+   width.
 
    `actions-band` is the dialog footer's fill and padding, and composes with
    either row. `empty:h-12` holds the band open when the footer renders no
