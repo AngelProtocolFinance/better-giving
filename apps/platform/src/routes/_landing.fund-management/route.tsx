@@ -55,7 +55,7 @@ export default function Page() {
               in high-yield savings, or invested in the Sustainability Fund.
               Change the split anytime. Pay nothing, ever.
             </p>
-            <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
+            <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
               <Link
                 to={href("/register")}
                 className="btn btn-lg btn-primary shadow-lg shadow-primary/25"

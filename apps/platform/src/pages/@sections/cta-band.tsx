@@ -33,7 +33,7 @@ export function CtaBand({
       <p className="mt-4 text-lg text-primary-fg/90 max-w-xl mx-auto text-pretty">
         {subtitle}
       </p>
-      <div className="flex flex-wrap justify-center gap-3.5 mt-8">
+      <div className="flex max-sm:flex-col sm:flex-wrap justify-center gap-3.5 mt-8">
         <Link to={href("/register")} className="btn btn-lg btn-secondary">
           {cta_label}
         </Link>

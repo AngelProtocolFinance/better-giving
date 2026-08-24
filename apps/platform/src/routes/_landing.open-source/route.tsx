@@ -56,7 +56,7 @@ export default function Page() {
               platform, all of it. When software moves money for your mission,
               "trust us" isn't enough. Verify us instead.
             </p>
-            <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
+            <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
               <ExtLink
                 href={GITHUB_REPO}
                 className="btn btn-lg btn-secondary gap-2"

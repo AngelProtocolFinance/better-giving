@@ -26,7 +26,7 @@ export function Hero({ classes = "" }: IHero) {
             express checkout, recurring giving, and every gift type, in one flow
             on your own website.
           </p>
-          <div className="flex flex-wrap items-center gap-3.5 mt-1.5">
+          <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
             <Link
               to={href("/register")}
               className="btn btn-lg btn-primary shadow-lg shadow-primary/25"
