@@ -1,5 +1,6 @@
 import { Popover } from "@ark-ui/react/popover";
 import {
+  Actions,
   Combo,
   DateRangeField,
   DrawerIcon,
@@ -108,14 +109,14 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
           />
         </div>
 
-        <div className="flex gap-x-4 items-center justify-between p-6 lg:mt-2 bg-muted border-t">
+        <Actions band align="split" classes="lg:mt-2">
           <button type="reset" className="text-primary underline text-sm">
             Reset filters
           </button>
           <button type="submit" className="btn btn-primary rounded font-bold">
             Apply filters
           </button>
-        </div>
+        </Actions>
       </form>
     </Popover.Content>
   );

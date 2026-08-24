@@ -1,3 +1,4 @@
+import { Actions } from "@better-giving/ui";
 import { modal_box } from "@better-giving/ui/helpers";
 import { useRef } from "react";
 import { useFetcher } from "react-router";
@@ -32,8 +33,11 @@ export function DeleteBtn({
           <span className="font-bold">{name}</span> This action cannot be
           undone.
         </p>
-        <div className="flex gap-2 justify-end">
-          <form method="dialog">
+        <Actions>
+          {/* `contents` so the buttons are the row's own items: each sits in its
+              own form, and a form box between them would keep them at content
+              width when the row stacks. */}
+          <form method="dialog" className="contents">
             <button type="submit" className="btn btn-secondary rounded">
               Cancel
             </button>
@@ -41,6 +45,7 @@ export function DeleteBtn({
           <fetcher.Form
             onSubmit={() => dialog_ref.current?.close()}
             method="DELETE"
+            className="contents"
           >
             <button
               type="submit"
@@ -51,7 +56,7 @@ export function DeleteBtn({
               Proceed
             </button>
           </fetcher.Form>
-        </div>
+        </Actions>
       </dialog>
     </>
   );

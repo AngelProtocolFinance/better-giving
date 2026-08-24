@@ -1,4 +1,4 @@
-import { Field } from "@better-giving/ui";
+import { Actions, Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { ChevronRight, CircleAlert, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
@@ -104,7 +104,7 @@ function Content() {
         </div>
       )}
 
-      <div className="modal-actions">
+      <Actions band>
         <Link
           to={".."}
           aria-disabled={fetcher.state === "submitting"}
@@ -122,7 +122,7 @@ function Content() {
         >
           Submit
         </button>
-      </div>
+      </Actions>
     </form>
   );
 }

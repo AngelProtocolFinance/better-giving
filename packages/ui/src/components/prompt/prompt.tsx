@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useNavigate } from "react-router";
+import { Actions } from "../form/actions";
 import { Modal } from "../modal";
 import { PromptIcon } from "./prompt-icon";
 export interface IPrompt extends PropsWithChildren {
@@ -42,15 +43,15 @@ export function Prompt({
 
       <PromptIcon type={type} classes="mb-6 sm:mb-8 mt-4 sm:mt-12" />
       <div className="px-6 pb-4 text-center text-muted-fg">{children}</div>
-      <div className="p-3 sm:px-8 sm:py-4 empty:h-12 w-full text-center sm:text-right bg-muted border-t">
+      <Actions band>
         <button
           onClick={close}
           type="button"
-          className="inline-block btn btn-primary max-sm:w-full"
+          className="inline-block btn btn-primary"
         >
           {type === "success" ? "Done" : "Ok"}
         </button>
-      </div>
+      </Actions>
     </Modal>
   );
 }

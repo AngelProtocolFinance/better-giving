@@ -285,11 +285,43 @@
   @apply rounded fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
 }
 
-/* the trailing button row inside a modal content box. pure class string, no
-   structure — so it is a utility, not a component. external flow (a `mt-*`
-   above it) stays the caller's. */
-@utility modal-actions {
-  @apply p-3 sm:px-8 sm:py-4 flex items-center justify-end gap-4 w-full text-center sm:text-right bg-muted border-t;
+/* the row a form's or a dialog's terminal controls sit in — 45 of them across
+   the product in 23 spellings, which is one geometry written 23 ways.
+
+   `actions` and `actions-split` are two complete rows, not a base and a
+   modifier: they are never written together, and the second is not a
+   `justify-*` laid over the first. two utilities of equal specificity resolve
+   by stylesheet source order, not class-string order, so an override written
+   beside the base is a coin flip — the same reason the vertical rhythm is not
+   overridable on EmptyState. the geometry is therefore repeated in full, and
+   the only thing that differs is where the free space goes.
+
+   the stack at narrow is `flex-col` with no `items-*`, which leaves
+   `align-items: stretch` — that is what makes the buttons full-width down
+   there, with no child selector and no `w-full` on each control. `items-center`
+   is scoped to `sm:` because it only means anything once the row is a row.
+
+   there is no `text-center`/`sm:text-right` here and one would buy nothing:
+   text-align does not reach a flex container's items, and `.btn` centers its
+   own label anyway.
+
+   the gap is the one the 14 dialog rows already carried, so the whole modal
+   set keeps its spacing at rest; the four other gaps in the 23 spellings were
+   each a single site's guess.
+
+   `actions-band` is the dialog footer's fill and padding, and composes with
+   either row. `empty:h-12` holds the band open when the footer renders no
+   control at all. */
+@utility actions {
+  @apply flex max-sm:flex-col sm:items-center sm:justify-end gap-4 w-full;
+}
+
+@utility actions-split {
+  @apply flex max-sm:flex-col sm:items-center sm:justify-between gap-4 w-full;
+}
+
+@utility actions-band {
+  @apply p-3 sm:px-8 sm:py-4 bg-muted border-t empty:h-12;
 }
 
 @utility absolute-center {

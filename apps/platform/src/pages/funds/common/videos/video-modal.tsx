@@ -1,4 +1,4 @@
-import { Field, Modal } from "@better-giving/ui";
+import { Actions, Field, Modal } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -61,7 +61,7 @@ export function VideoModal(props: IVideoModal) {
           />
         </div>
 
-        <div className="mt-4 modal-actions">
+        <Actions band classes="mt-4">
           <button
             type="button"
             className="btn-secondary btn"
@@ -72,7 +72,7 @@ export function VideoModal(props: IVideoModal) {
           <button disabled={!isDirty} type="submit" className="btn btn-primary">
             Continue
           </button>
-        </div>
+        </Actions>
       </form>
     </Modal>
   );

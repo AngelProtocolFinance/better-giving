@@ -1,4 +1,4 @@
-import { EmptyState } from "@better-giving/ui";
+import { Actions, EmptyState } from "@better-giving/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -96,7 +96,7 @@ function Content({
         </div>
       )}
 
-      <div className="modal-actions">
+      <Actions band>
         <button
           type="button"
           disabled={submitting}
@@ -119,7 +119,7 @@ function Content({
               ? "Confirm refund (with loss)"
               : "Confirm refund"}
         </button>
-      </div>
+      </Actions>
     </div>
   );
 }

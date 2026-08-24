@@ -56,7 +56,7 @@ function Content({ isDefault, isWithHeir }: Props) {
       <div className="p-6 text-center text-muted-fg">{message}</div>
 
       {canProceed && (
-        <fetcher.Form method="DELETE" className="modal-actions">
+        <fetcher.Form method="DELETE" className="actions actions-band">
           <Button variant="secondary" nav to=".." disabled={is_submitting}>
             Cancel
           </Button>

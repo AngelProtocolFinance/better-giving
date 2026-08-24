@@ -1,6 +1,6 @@
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
-import { DrawerIcon, Field, Select } from "@better-giving/ui";
+import { Actions, DrawerIcon, Field, Select } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { FilterIcon } from "lucide-react";
 import { useState } from "react";
@@ -118,7 +118,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
                   }}
                 />
 
-                <div className="flex gap-x-4 items-center justify-between p-6 lg:mt-2 bg-muted border-t">
+                <Actions band align="split" classes="lg:mt-2">
                   <button
                     type="reset"
                     className="text-primary underline text-sm"
@@ -131,7 +131,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
                   >
                     Apply filters
                   </button>
-                </div>
+                </Actions>
               </form>
             </Popover.Content>
           </Popover.Positioner>

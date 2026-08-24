@@ -51,7 +51,7 @@ function Content() {
         Are you sure you want to disable this form? It will no longer accept
         donations.
       </div>
-      <fetcher.Form method="POST" className="modal-actions">
+      <fetcher.Form method="POST" className="actions actions-band">
         <input type="hidden" name="form_id" value={form_id} />
         <Button variant="secondary" nav to=".." disabled={is_submitting}>
           Cancel

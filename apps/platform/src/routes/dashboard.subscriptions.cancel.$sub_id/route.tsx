@@ -1,5 +1,5 @@
 import { Dialog } from "@ark-ui/react/dialog";
-import { Field } from "@better-giving/ui";
+import { Actions, Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -70,7 +70,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
         />
       </div>
 
-      <div className="p-4 grid grid-cols-2 gap-4 w-full  sm:text-right bg-muted border-t">
+      <Actions band>
         <Dialog.CloseTrigger asChild>
           <Link
             to={".."}
@@ -85,7 +85,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
         <button disabled={busy} type="submit" className="btn btn-destructive">
           {busy ? "Canceling..." : "Cancel"}
         </button>
-      </div>
+      </Actions>
     </form>
   );
 }

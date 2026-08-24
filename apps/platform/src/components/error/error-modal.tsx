@@ -1,4 +1,4 @@
-import { Modal } from "@better-giving/ui";
+import { Actions, Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 import { isRouteErrorResponse, useRouteError } from "react-router";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
@@ -33,15 +33,15 @@ export function ErrorModal() {
         <p className="font-bold mt-3">Something went wrong</p>
         <p className="text-muted-fg text-sm mt-2 text-balance">{message}</p>
       </div>
-      <div className="p-3 sm:px-8 sm:py-4 empty:h-12 w-full text-center sm:text-right bg-muted border-t">
+      <Actions band>
         <button
           onClick={() => window.location.reload()}
           type="button"
-          className="inline-block btn btn-primary max-sm:w-full"
+          className="inline-block btn btn-primary"
         >
           Ok
         </button>
-      </div>
+      </Actions>
     </Modal>
   );
 }
