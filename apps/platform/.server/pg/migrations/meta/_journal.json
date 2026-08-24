@@ -239,6 +239,13 @@
       "when": 1786377798689,
       "tag": "0033_donations_receipt_claimed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1787568169512,
+      "tag": "0034_fast_joystick",
+      "breakpoints": true
     }
   ]
 }

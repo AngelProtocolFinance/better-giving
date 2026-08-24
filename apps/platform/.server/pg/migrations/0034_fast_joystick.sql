@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "w_form_weld_eid" text;
