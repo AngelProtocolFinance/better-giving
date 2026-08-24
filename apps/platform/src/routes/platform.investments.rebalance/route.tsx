@@ -1,3 +1,4 @@
+import { Actions } from "@better-giving/ui";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -32,7 +33,7 @@ function Content(props: ILog) {
       )}
       {state.type === "review" && <Review fv={state.data} ltd={props} />}
 
-      <div className="modal-actions">
+      <Actions band>
         {state.type === "form" ? (
           <Link
             replace
@@ -69,7 +70,7 @@ function Content(props: ILog) {
         >
           {state.type === "form" ? "Review" : "Submit"}
         </button>
-      </div>
+      </Actions>
     </div>
   );
 }

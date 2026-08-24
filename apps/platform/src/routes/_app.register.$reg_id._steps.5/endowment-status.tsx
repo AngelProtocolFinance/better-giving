@@ -27,10 +27,7 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
 
   if (!status || status === "01") {
     return (
-      <fetcher.Form
-        method="POST"
-        className={`grid grid-cols-2 sm:flex gap-2 ${classes}`}
-      >
+      <fetcher.Form method="POST" className={`actions ${classes}`}>
         <Button
           variant="secondary"
           to={`../${steps.banking}`}

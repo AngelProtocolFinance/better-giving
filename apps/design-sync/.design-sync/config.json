@@ -8,6 +8,7 @@
   "cssEntry": ".design-sync/.cache/styles.css",
   "componentSrcMap": {
     "Button": "../../packages/ui/src/components/button.tsx",
+    "Actions": "../../packages/ui/src/components/form/actions.tsx",
     "Field": "../../packages/ui/src/components/form/field.tsx",
     "CheckField": "../../packages/ui/src/components/form/check-field.tsx",
     "Input": "../../packages/ui/src/components/form/input.tsx",
@@ -56,6 +57,7 @@
   },
   "extraFonts": ["../../packages/ui/src/styles/fonts.css"],
   "dtsPropsFor": {
+    "Actions": "  /** `\"split\"` pushes the two controls apart \u2014 a reset or a destructive opposite the confirm. never for a cancel. */\n  align?: \"end\" | \"split\";\n  /** the dialog footer band: tinted strip, top border, full-bleed. */\n  band?: boolean;\n  /** margin only; the row owns its gap and, under `band`, its padding. */\n  classes?: string;\n  /** cancel first \u2014 it is also the stacked order and the tab order. */\n  children: React.ReactNode;",
     "Button": "  variant: \"primary\" | \"secondary\" | \"ghost\" | \"outline\" | \"destructive\" | \"success\" | \"warning\";\n  size?: \"sm\" | \"md\" | \"lg\" | \"field\";\n  is_loading?: boolean;\n  loading_text?: string;\n  disabled?: boolean;\n  className?: string;\n  children?: React.ReactNode;\n  /** icon-only. requires aria-label \u2014 the two are a union, so a nameless one does not typecheck. */\n  icon?: boolean;\n  /** router Link. add `nav` for a NavLink. */\n  to?: string;\n  nav?: boolean;\n  /** plain anchor. mutually exclusive with `to`. */\n  href?: string;\n  /** ...plus the standard props of whichever element the above picks */",
     "Field": "  classes?: unknown;\n  tooltip?: React.ReactNode;\n  label: string | React.ReactElement<unknown, string | React.JSXElementConstructor<any>>;\n  sub?: React.ReactNode;\n  type?: unknown;\n  error?: string;\n  ref?: React.Ref<HTMLTextAreaElement | HTMLInputElement>;\n  /** ...plus the standard props inherited from @types/react */",
     "CheckField": "  classes?: unknown;\n  error?: string;\n  ref?: React.Ref<HTMLInputElement>;\n  /** ...plus the standard props inherited from @types/react */",
@@ -144,6 +146,9 @@
     "Toaster": {
       "cardMode": "single",
       "primaryStory": "SuccessToast"
+    },
+    "Actions": {
+      "cardMode": "column"
     },
     "Button": {
       "cardMode": "column"

@@ -76,6 +76,9 @@ export function ErrorElement() {
           <p className="text-muted-fg text-center text-balance max-w-md mt-2">
             {config.description}
           </p>
+          {/* not `Actions`: this page is a centred column, and the shared row is
+              a form's — it spans the full width and hugs the right edge, which
+              would leave the buttons alone at the far side of the viewport. */}
           <div className="flex gap-3 mt-8">
             {config.action === "back" ? (
               <NavLink to={back_path} className="btn btn-primary rounded">
@@ -114,6 +117,9 @@ export function ErrorElement() {
         </pre>
       )}
       <div className="flex gap-3 mt-8">
+        <NavLink to={back_path} className="btn btn-secondary rounded">
+          Go back
+        </NavLink>
         <button
           type="button"
           onClick={() => window.location.reload()}
@@ -121,9 +127,6 @@ export function ErrorElement() {
         >
           Reload
         </button>
-        <NavLink to={back_path} className="btn btn-secondary rounded">
-          Go back
-        </NavLink>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { ExtLink } from "@better-giving/ui";
+import { Actions, ExtLink } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { href, NavLink, Outlet } from "react-router";
@@ -122,7 +122,7 @@ export default function Loaded(
           </p>
         </Container>
       )}
-      <div className="flex gap-x-3 justify-self-center sm:justify-self-end">
+      <Actions>
         <NavLink
           to={href("/platform/applications")}
           className="min-w-24 btn btn-secondary"
@@ -132,7 +132,6 @@ export default function Loaded(
         <NavLink
           aria-disabled={!!prev_verdict}
           to={`rejected?org_name=${props.o_name}`}
-          type="button"
           className="min-w-24 btn btn-destructive"
           preventScrollReset
         >
@@ -141,7 +140,6 @@ export default function Loaded(
         <NavLink
           aria-disabled={!!prev_verdict || props.bank_unavailable}
           to={`approved?org_name=${props.o_name}`}
-          type="button"
           className="min-w-24 btn btn-success"
           preventScrollReset
         >
@@ -149,7 +147,7 @@ export default function Loaded(
         </NavLink>
         {/** review route renders here */}
         <Outlet />
-      </div>
+      </Actions>
     </>
   );
 }

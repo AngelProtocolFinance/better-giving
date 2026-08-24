@@ -1,5 +1,5 @@
 import { Field as BaseField } from "@ark-ui/react/field";
-import { Field, Form as Frm, Increments } from "@better-giving/ui";
+import { Actions, Field, Form as Frm, Increments } from "@better-giving/ui";
 import { DollarSign } from "lucide-react";
 import type { SubmitHandler } from "react-hook-form";
 import { useFetcher } from "react-router";
@@ -203,7 +203,7 @@ export function Form({
         )}
       />
 
-      <div className="flex items-center justify-end gap-4 mt-4 mb-8">
+      <Actions align="split" classes="mt-4 mb-8">
         <button
           onClick={async () => {
             const fundNameConfirmation = window.prompt(
@@ -221,7 +221,7 @@ export function Form({
           }}
           disabled={is_closing_fund}
           type="button"
-          className="btn btn-destructive font-medium justify-self-end"
+          className="btn btn-destructive font-medium"
         >
           {is_closing_fund ? "Closing.." : "Close fund"}
         </button>
@@ -230,11 +230,11 @@ export function Form({
             !rhf.isDirty || rhf.is_uploading || is_submitting || is_uploading
           }
           type="submit"
-          className="btn btn-primary font-medium justify-self-end"
+          className="btn btn-primary font-medium"
         >
           {is_submitting && !is_closing_fund ? "Updating..." : "Update fund"}
         </button>
-      </div>
+      </Actions>
     </Frm>
   );
 }

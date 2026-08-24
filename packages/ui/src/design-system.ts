@@ -1,5 +1,5 @@
 /**
- * the published component set — these 43 names, and only these, are what
+ * the published component set — these 44 names, and only these, are what
  * `.design-sync/config.json` → `componentSrcMap` lists. it lives in its own
  * module so the set stays greppable: a component the design agent can't see
  * is a component the next screen invents from scratch instead, and an export
@@ -21,6 +21,7 @@ export {
 } from "./components/empty-state";
 export { ExtLink } from "./components/ext-link";
 export { FileDropzone } from "./components/file-dropzone/file-dropzone";
+export { Actions } from "./components/form/actions";
 export { CheckField } from "./components/form/check-field";
 export { Field } from "./components/form/field";
 export { Input } from "./components/form/input";

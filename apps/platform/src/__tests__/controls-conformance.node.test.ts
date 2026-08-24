@@ -4,13 +4,16 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
 /**
- * the names sweep for the button. every other gate in this system works by
- * making an off-system spelling compile to nothing — `--color-*`, `--radius-*`
- * and `--text-*` are reset to `initial`, so `gray-500`, `rounded-lg` and
- * `text-8xl` match no rule. that is exactly why it cannot catch these three:
- * a `btn-xl`, a doubled `btn`, and an icon-only button with no accessible name
- * each produce no error, no warning and no compiled rule — they render, they
- * look plausible in review, and not existing IS the failure mode.
+ * the names sweep for the three controls the system owns — the button, the
+ * empty state, and the form action row. every other gate in this system works
+ * by making an off-system spelling compile to nothing — `--color-*`,
+ * `--radius-*` and `--text-*` are reset to `initial`, so `gray-500`,
+ * `rounded-lg` and `text-8xl` match no rule. that is exactly why it cannot
+ * catch what is here: a `btn-xl`, a doubled `btn`, an icon-only button with no
+ * accessible name, an empty state that says the wrong one of yet/found, a
+ * hand-rolled dialog footer. each produces no error, no warning and no
+ * compiled rule — they render, they look plausible in review, and not existing
+ * IS the failure mode.
  *
  * hence the `node` vitest project: the rest of the suite runs in browser mode,
  * which has no `node:fs`.
@@ -248,6 +251,93 @@ describe("the empty state", () => {
         .filter((m) => /\bNo\b[\s\S]{0,60}?\b(yet|found)\b/i.test(m[1]))
         .map((m) => `${file}:${line_of(text, m.index)}`)
     );
+    expect(offenders).toEqual([]);
+  });
+});
+
+/** every `<Actions>` in the corpus with the `classes` it was handed. the
+ *  component joins that string onto its own row class, so a geometry token in
+ *  there lands in the same class attribute as the one the utility already
+ *  set — and the sweep over `class_values` cannot see it, because the attribute
+ *  it reads is only the caller's half. */
+const action_rows = sources.flatMap((x) =>
+  [...x.text.matchAll(/<Actions\b([^>]*)>/g)].map((m) => ({
+    file: x.file,
+    n: line_of(x.text, m.index),
+    attrs: m[1],
+    classes: /classes=(?:"([^"]*)"|\{`([^`]*)`\})/.exec(m[1]),
+  }))
+);
+
+describe("the form action row", () => {
+  /** the closed set, as drawn by utilities.css. `actions` itself carries no
+   *  suffix, so it is not in here — this is the set of names that may follow
+   *  the prefix. */
+  const SET = new Set(["actions-split", "actions-band"]);
+
+  test("the row writes no `actions-*` name outside the set", () => {
+    // same failure as an off-set `btn-*`: the name compiles to nothing, the
+    // element keeps whatever the rest of its class string said, and the row
+    // looks approximately right in review.
+    const offenders = class_values.flatMap(({ file, n, value }) => {
+      const bad = tokens(value).filter(
+        (t) => t.startsWith("actions-") && !SET.has(t)
+      );
+      return bad.length ? [`${file}:${n} ${bad.join(" ")}`] : [];
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  test("the row is not handed geometry it already owns", () => {
+    // `actions` and `actions-split` are two complete rows, not a base and a
+    // modifier. a `justify-*`, `gap-*`, `items-*`, `flex` or `grid` written
+    // beside one is the same declaration twice at equal specificity, which
+    // resolves by stylesheet source order rather than class-string order — so
+    // it renders one way here and the other way after an unrelated edit
+    // reorders the sheet.
+    const owned = /^(flex|grid|gap(-[xy])?-|justify-|items-)/;
+    const from_class = class_values.flatMap(({ file, n, value }) => {
+      const t = tokens(value);
+      if (!t.includes("actions") && !t.includes("actions-split")) return [];
+      const bad = t.filter((x) => owned.test(x));
+      return bad.length ? [`${file}:${n} ${bad.join(" ")}`] : [];
+    });
+    const from_prop = action_rows.flatMap((r) => {
+      const bad = tokens(r.classes?.[1] ?? r.classes?.[2] ?? "").filter((x) =>
+        owned.test(x)
+      );
+      return bad.length ? [`${r.file}:${r.n} ${bad.join(" ")}`] : [];
+    });
+    expect([...from_class, ...from_prop].sort()).toEqual([]);
+  });
+
+  test("the two rows are never written together", () => {
+    // one of them wins by source order and the other is decoration, and which
+    // is which is not visible at the call site.
+    const offenders = class_values
+      .filter(({ value }) => {
+        const t = tokens(value);
+        return t.includes("actions") && t.includes("actions-split");
+      })
+      .map(({ file, n }) => `${file}:${n}`);
+    expect(offenders).toEqual([]);
+  });
+
+  test("the dialog footer band is not typed out by hand", () => {
+    // the band is a tinted strip with a top border, and its properties are
+    // cheap to re-type by hand — the name is the only place they are authored.
+    // bare tokens on purpose: `hover:bg-muted` on a menu item is a different
+    // thing entirely and is not a finding.
+    const offenders = class_values
+      .filter(({ value }) => {
+        const raw = value.split(/\s+/).filter(Boolean);
+        return (
+          raw.includes("bg-muted") &&
+          raw.includes("border-t") &&
+          !raw.includes("actions-band")
+        );
+      })
+      .map(({ file, n }) => `${file}:${n}`);
     expect(offenders).toEqual([]);
   });
 });

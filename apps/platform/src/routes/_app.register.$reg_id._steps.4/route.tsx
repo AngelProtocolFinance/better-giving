@@ -1,4 +1,4 @@
-import { ExtLink, type IPrompt, Prompt } from "@better-giving/ui";
+import { Actions, ExtLink, type IPrompt, Prompt } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
@@ -76,7 +76,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
           change
         </button>
 
-        <div className="grid grid-cols-2 sm:flex gap-2 w-full mt-auto">
+        <Actions classes="mt-auto">
           <NavLink to={`../${back}`} className="min-w-32 btn btn-secondary">
             Back
           </NavLink>
@@ -86,7 +86,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
           >
             Continue
           </NavLink>
-        </div>
+        </Actions>
       </div>
     );
   }

@@ -59,10 +59,7 @@ export const FundItem = (props: Props) => {
         target={to_target(props.target)}
       />
 
-      <fetcher.Form
-        method="POST"
-        className="flex items-center justify-between gap-x-6 mt-6"
-      >
+      <fetcher.Form method="POST" className="actions-split mt-6">
         {/** fund item won't show once NPO opted out of it: so no need to hide this button */}
         {!props.isSelf ? (
           <button
@@ -83,7 +80,9 @@ export const FundItem = (props: Props) => {
             </span>
           </button>
         ) : (
-          <div data-placeholder />
+          // holds the left slot open so `Edit` stays at the right edge; when
+          // the row stacks there is no slot to hold, only a phantom gap
+          <div data-placeholder className="max-sm:hidden" />
         )}
         <NavLink
           aria-disabled={!status.active}

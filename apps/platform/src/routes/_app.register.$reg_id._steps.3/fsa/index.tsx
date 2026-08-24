@@ -1,4 +1,5 @@
 import {
+  Actions,
   ExtLink,
   Field,
   FileDropzone,
@@ -131,7 +132,7 @@ export function FsaForm(props: Props) {
         </ExtLink>
       ) : null}
 
-      <div className="grid grid-cols-2 sm:flex gap-2 mt-8">
+      <Actions classes="mt-8">
         <Link
           aria-disabled={is_submitting || is_redirecting}
           to={`../${steps.org_details}`}
@@ -151,7 +152,7 @@ export function FsaForm(props: Props) {
             {props.o_fsa_signed_doc_url ? "Continue" : "Sign"}
           </LoadText>
         </button>
-      </div>
+      </Actions>
     </Frm>
   );
 }

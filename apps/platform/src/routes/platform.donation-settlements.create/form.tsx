@@ -1,4 +1,4 @@
-import { Field, Label } from "@better-giving/ui";
+import { Actions, Field, Label } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useEffect } from "react";
 import type { Resolver } from "react-hook-form";
@@ -206,14 +206,14 @@ export function SettleForm({
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
 
-      <div className="modal-actions">
+      <Actions band>
         <button type="button" onClick={on_close} className="btn-secondary btn">
           Cancel
         </button>
         <button type="submit" disabled={loading} className="btn btn-primary">
           {loading ? "Loading..." : "Preview"}
         </button>
-      </div>
+      </Actions>
     </form>
   );
 }

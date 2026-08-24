@@ -631,6 +631,42 @@ stay at `--radius-sm`, so a button and the input beside it stop matching.
 on the value but right that the two should share one; moving the fields to
 `var(--radius)` is the companion fix and is the user's call.
 
+## The form action row
+
+One row, authored in `packages/ui/src/styles/utilities.css` and spent through
+`Actions`. It is where a form or a dialog ends: the submit, and whatever sits
+beside it. It is one geometry, and this is the only place it is spelled — the
+dialog footer's tinted surface included.
+
+| name | what it is |
+| --- | --- |
+| `actions` | the row — controls to the right at `sm` and up, stacked full-width below |
+| `actions-split` | the same row with the controls pushed apart |
+| `actions-band` | the dialog footer's tinted strip; composes with either row |
+
+- **Cancel comes first, and the row records it rather than enforcing it.** It
+  matters past convention because DOM order is *also* the stacked order below
+  `sm` and *also* the tab order everywhere — so the control that undoes has to
+  be the one a keyboard reaches first, and a row that hard-coded the visual
+  order would be free to disagree with both.
+- **`actions-split` is not a third alignment.** It is for a reset or a
+  destructive sitting opposite the confirm, so that a misclick beside the
+  confirm lands on nothing. A cancel never takes it: a cancel belongs next to
+  what it cancels.
+- **The two rows are complete and mutually exclusive, not a base and a
+  modifier.** Two utilities of equal specificity resolve by stylesheet source
+  order rather than class-string order, so a `justify-*` written beside a base
+  would render one way and then the other way after an unrelated edit moved the
+  sheet. Same reasoning as the page shape and the empty state's rhythm.
+- **The stack is `flex-col` with no `items-*`.** That leaves `align-items:
+  stretch`, which is what makes the buttons full-width down there — no child
+  selector, no `w-full` on each control. A dialog still showing two side-by-side
+  buttons at 320px is not on this row.
+- **The gap is `gap-4`.** The spacing the dialog set sits at, held at every
+  width.
+- **`actions-band` is the only place a `bg-muted border-t` strip is authored.**
+  The sweep fails on any other class string carrying both.
+
 ## Two color layers, and the line between them
 
 Not every color in the app lives in this file, and the answer is not "everything

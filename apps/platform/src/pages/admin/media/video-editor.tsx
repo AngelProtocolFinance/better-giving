@@ -1,4 +1,4 @@
-import { Field, Modal, RmxForm } from "@better-giving/ui";
+import { Actions, Field, Modal, RmxForm } from "@better-giving/ui";
 import { X } from "lucide-react";
 import {
   Link,
@@ -75,14 +75,14 @@ function Content(props: IProps) {
         />
       </div>
 
-      <div className="mt-4 modal-actions">
+      <Actions band classes="mt-4">
         <Link to=".." className="btn-secondary btn">
           Cancel
         </Link>
         <button disabled={!isDirty} type="submit" className="btn btn-primary">
           Continue
         </button>
-      </div>
+      </Actions>
     </RmxForm>
   );
 }

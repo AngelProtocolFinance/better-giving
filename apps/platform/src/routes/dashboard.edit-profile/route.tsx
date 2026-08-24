@@ -1,4 +1,4 @@
-import { Field, Form, Label } from "@better-giving/ui";
+import { Actions, Field, Form, Label } from "@better-giving/ui";
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
@@ -80,7 +80,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         error={rhf.errors.last_name?.message}
       />
 
-      <div className="flex gap-3 mt-8">
+      <Actions classes="mt-8">
         <button
           type="reset"
           className="btn-secondary btn"
@@ -95,7 +95,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         >
           Submit changes
         </button>
-      </div>
+      </Actions>
     </Form>
   );
 }

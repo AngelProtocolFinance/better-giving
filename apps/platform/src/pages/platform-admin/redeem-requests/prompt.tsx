@@ -1,3 +1,4 @@
+import { Actions } from "@better-giving/ui";
 import { ChevronRight, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { Link, useFetcher } from "react-router";
@@ -53,7 +54,7 @@ function Content({ verdict }: Props) {
         )}
       </div>
 
-      <div className="modal-actions">
+      <Actions band>
         <Link
           replace
           preventScrollReset
@@ -66,7 +67,7 @@ function Content({ verdict }: Props) {
         <button type="submit" className="btn btn-primary">
           Submit
         </button>
-      </div>
+      </Actions>
     </fetcher.Form>
   );
 }

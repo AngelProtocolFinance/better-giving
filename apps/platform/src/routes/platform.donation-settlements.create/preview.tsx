@@ -1,4 +1,5 @@
 import { Tabs } from "@ark-ui/react/tabs";
+import { Actions } from "@better-giving/ui";
 import { CodeIcon, TableIcon } from "lucide-react";
 import { humanize } from "@/helpers/decimal";
 import type { IFormValues, ISettlementPreview } from "./types";
@@ -64,7 +65,7 @@ export function Preview({
         )}
       </div>
 
-      <div className="modal-actions">
+      <Actions band>
         <button
           type="button"
           disabled={submitting}
@@ -81,7 +82,7 @@ export function Preview({
         >
           {submitting ? "Settling..." : "Confirm"}
         </button>
-      </div>
+      </Actions>
     </div>
   );
 }
