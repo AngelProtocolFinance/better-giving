@@ -1,4 +1,4 @@
-import { Image } from "lucide-react";
+import { EmptyState } from "@better-giving/ui";
 import { VideoPreview } from "#/pages/admin/media/video-preview";
 import type { IPaginator } from "#/types/components";
 import type { IMedia } from "@/npo";
@@ -25,17 +25,22 @@ export function List({ classes = "", ...props }: Props) {
   );
 }
 
-export function NoVideo({ classes = "" }) {
+interface INoVideo {
+  classes?: string;
+  /** the featured filter is on, so this is a query that came back empty
+   *  rather than a profile with nothing on it */
+  filtered?: boolean;
+}
+
+export function NoVideo({ classes = "", filtered }: INoVideo) {
+  if (filtered)
+    return <EmptyState classes={classes}>No featured videos found</EmptyState>;
+  // no action of its own: the page header carries `Add Video` at all times, and
+  // a second link with the same name a few rows below it is the same control
+  // twice.
   return (
-    <div
-      className={`bg-card ${classes} grid justify-items-center rounded border px-4 py-16`}
-    >
-      <Image className="text-muted-fg mb-6" />
-      <p className="font-bold mb-2">Start by adding your first video</p>
-      <p className="text-sm text-muted-fg">
-        You have no videos. To add one, use the{" "}
-        <span className="font-bold">Add video</span> button above.
-      </p>
-    </div>
+    <EmptyState classes={classes} heading="No videos yet">
+      Your first one shows on your profile as soon as you add it.
+    </EmptyState>
   );
 }

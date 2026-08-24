@@ -304,7 +304,7 @@ describe("payout methods list", () => {
     const screen = await render_list(npo.id);
 
     await expect
-      .element(screen.getByText(/no payout methods found/i))
+      .element(screen.getByText(/no payout methods yet/i))
       .toBeVisible();
   });
 });
@@ -657,7 +657,7 @@ describe("delete", () => {
 
     // redirected to list — bapp gone
     await expect
-      .element(screen.getByText(/no payout methods found/i))
+      .element(screen.getByText(/no payout methods yet/i))
       .toBeVisible();
   });
 

@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import { PlusIcon } from "lucide-react";
 import { NavLink, Outlet, useSearchParams } from "react-router";
@@ -51,11 +52,7 @@ function Page({ loaderData }: Route.ComponentProps) {
               <Row key={s.donation_id} settlement={s} />
             ))}
             {settlements.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center text-muted-fg py-8">
-                  No settlements found
-                </td>
-              </tr>
+              <EmptyRow col_span={7}>No settlements yet</EmptyRow>
             )}
           </tbody>
         </table>

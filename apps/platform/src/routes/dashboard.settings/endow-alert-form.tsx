@@ -1,4 +1,4 @@
-import { CheckField, Form, Info } from "@better-giving/ui";
+import { CheckField, EmptyState, Form } from "@better-giving/ui";
 import { type SubmitHandler, useFieldArray, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";
 import type { IUserNpo2 } from "#/types/user";
@@ -33,7 +33,7 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
   const { fields } = useFieldArray({ control, name: "items" });
 
   if (user_npos.length === 0) {
-    return <Info classes="mt-4">No organizations found</Info>;
+    return <EmptyState classes="mt-4">No organizations yet</EmptyState>;
   }
 
   const onSubmit: SubmitHandler<FV> = async (fv) => {

@@ -1,6 +1,6 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
-import { DrawerIcon, Info } from "@better-giving/ui";
+import { DrawerIcon, EmptyState } from "@better-giving/ui";
 import { href, Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import type { Route } from "./+types/route";
@@ -86,7 +86,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       </div>
       <div className="grid @xl:grid-cols-2 @2xl:grid-cols-3 gap-4">
         {funds.length === 0 ? (
-          <Info classes="mt-4">No fundraisers found</Info>
+          <EmptyState classes="mt-4">No fundraisers found</EmptyState>
         ) : (
           funds.map((fund) => (
             <FundItem

@@ -1,4 +1,4 @@
-import { ExtLink } from "@better-giving/ui";
+import { Button, EmptyRow, ExtLink } from "@better-giving/ui";
 import { ArrowDownToLine } from "lucide-react";
 import { href, Link } from "react-router";
 import { CsvExporter } from "#/components/csv-exporter";
@@ -6,6 +6,7 @@ import { LoadMoreRow } from "#/components/load-more-row";
 import { Money } from "#/components/money";
 import { PaymentResumer } from "#/pages/user-dashboard/donations/payment-resumer";
 import type { IPaginator } from "#/types/components";
+import type { TStatus } from "@/donations";
 import { toPP } from "@/helpers/date";
 import { type IRow, status_label, status_text_color } from "./helpers";
 
@@ -24,7 +25,11 @@ const csv_headers: { key: keyof IRow; label: string }[] = [
   { key: "frequency", label: "frequency" },
 ];
 
-interface Props extends IPaginator<IRow> {}
+interface Props extends IPaginator<IRow> {
+  /** the active status filter, when one is on. a filtered table that came
+   *  back empty says nothing about whether the account has donations. */
+  status?: TStatus;
+}
 
 export function Table({
   items,
@@ -32,6 +37,7 @@ export function Table({
   disabled,
   loading,
   load_next,
+  status,
 }: Props) {
   return (
     <div className={classes}>
@@ -58,11 +64,23 @@ export function Table({
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="text-center text-muted-fg py-8">
-                No donations found
-              </td>
-            </tr>
+            status ? (
+              <EmptyRow col_span={6}>
+                No {status_label(status).toLowerCase()} donations found
+              </EmptyRow>
+            ) : (
+              <EmptyRow
+                col_span={6}
+                heading="No donations yet"
+                action={
+                  <Button variant="primary" to={href("/marketplace")}>
+                    Browse nonprofits
+                  </Button>
+                }
+              >
+                Pick a nonprofit and your first donation shows up here.
+              </EmptyRow>
+            )
           ) : (
             items.map((row) => {
               return (

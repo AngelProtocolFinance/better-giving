@@ -95,7 +95,7 @@ async function seed_video(npo_id: number, overrides: IVideoSeed = {}) {
 
 // --- render helpers ---
 
-function render_media(npo_id: number) {
+function render_media(npo_id: number, search = "") {
   const Stub = createRoutesStub([
     {
       path: "/admin/:id",
@@ -132,7 +132,7 @@ function render_media(npo_id: number) {
 
   return render(
     <Stub
-      initialEntries={[`/admin/${npo_id}/media`]}
+      initialEntries={[`/admin/${npo_id}/media${search}`]}
       future={{ v8_middleware: true }}
     />
   );
@@ -161,9 +161,7 @@ it("empty → add video → edit → feature toggle → delete", async () => {
 
   // 1. empty state
   let screen = await render_media(npo.id);
-  await expect
-    .element(screen.getByText(/start by adding your first video/i))
-    .toBeVisible();
+  await expect.element(screen.getByText(/no videos yet/i)).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: /add video/i }))
     .toBeInTheDocument();
@@ -252,14 +250,27 @@ it("empty → add video → edit → feature toggle → delete", async () => {
   );
 });
 
+it("featured filter that matched none does not read as an empty profile", async () => {
+  const npo = await seed_npo();
+  await seed_video(npo.id, { url: "https://youtu.be/vid1" });
+
+  const screen = await render_media(npo.id, "?featured=1");
+
+  await expect
+    .element(screen.getByText(/no featured videos found/i))
+    .toBeVisible();
+  // the profile has a video; saying it has none would be wrong
+  await expect
+    .element(screen.getByText(/no videos yet/i))
+    .not.toBeInTheDocument();
+});
+
 it("all videos: empty → seed → list → delete", async () => {
   const npo = await seed_npo();
 
   // 1. empty state
   let screen = await render_media(npo.id);
-  await expect
-    .element(screen.getByText(/start by adding your first video/i))
-    .toBeVisible();
+  await expect.element(screen.getByText(/no videos yet/i)).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: /add video/i }))
     .toBeInTheDocument();
@@ -302,9 +313,7 @@ it("video editor: validation errors → fix → submit", async () => {
   const npo = await seed_npo();
 
   const screen = await render_media(npo.id);
-  await expect
-    .element(screen.getByText(/start by adding your first video/i))
-    .toBeVisible();
+  await expect.element(screen.getByText(/no videos yet/i)).toBeVisible();
 
   // open add editor
   await screen.getByRole("link", { name: /add video/i }).click();

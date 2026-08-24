@@ -1,4 +1,4 @@
-import { Info } from "@better-giving/ui";
+import { EmptyState } from "@better-giving/ui";
 import { Plus } from "lucide-react";
 import { NavLink } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
@@ -24,7 +24,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       </div>
 
       {methods.length === 0 ? (
-        <Info>No payout methods found</Info>
+        <EmptyState>No payout methods yet</EmptyState>
       ) : (
         <div className="grid col-span-full table-scroll">
           <Table methods={methods} />

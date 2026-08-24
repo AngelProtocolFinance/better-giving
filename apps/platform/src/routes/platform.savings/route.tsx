@@ -1,3 +1,4 @@
+import { EmptyState } from "@better-giving/ui";
 import { format } from "date-fns";
 import { Link, NavLink, Outlet } from "react-router";
 import {
@@ -99,7 +100,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <BalanceHistoryTable items={logs_bal} />
         </>
       ) : (
-        <p className="text-muted-fg py-8">No balance data yet.</p>
+        <EmptyState>No balance data yet</EmptyState>
       )}
 
       <div className="flex items-center gap-x-2 mt-8 mb-4">
@@ -124,7 +125,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       {logs_intr.length > 0 ? (
         <InterestHistoryTable items={logs_intr} />
       ) : (
-        <p className="text-muted-fg py-1">No interest logs yet</p>
+        <EmptyState>No interest logs yet</EmptyState>
       )}
 
       {top_holders.length > 0 && (

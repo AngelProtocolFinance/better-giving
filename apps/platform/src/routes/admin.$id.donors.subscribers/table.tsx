@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -129,11 +130,7 @@ export function SubscribersTable({
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <tr>
-            <td colSpan={4} className="py-8 text-center text-muted-fg">
-              No subscribers yet
-            </td>
-          </tr>
+          <EmptyRow col_span={4}>No subscribers yet</EmptyRow>
         ) : (
           rows.map((r) => {
             const to = `/admin/${npo_id}/donors/${encodeURIComponent(r.from_email)}`;

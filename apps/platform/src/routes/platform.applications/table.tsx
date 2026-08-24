@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Folder } from "lucide-react";
 import { href, NavLink, useSearchParams } from "react-router";
 import { HeaderButton } from "#/components/header-button";
@@ -90,11 +91,7 @@ export function Table({
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="text-center text-muted-fg py-8">
-                {empty_msg}
-              </td>
-            </tr>
+            <EmptyRow col_span={5}>{empty_msg}</EmptyRow>
           ) : (
             items.map((row) => (
               <tr key={row.id} className="text-sm">

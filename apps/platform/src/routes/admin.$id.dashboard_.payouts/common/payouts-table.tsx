@@ -1,4 +1,4 @@
-import { PayoutStatus } from "@better-giving/ui";
+import { EmptyRow, PayoutStatus } from "@better-giving/ui";
 import { format } from "date-fns";
 import { ArrowRightIcon } from "lucide-react";
 import { LoadMoreRow } from "#/components/load-more-row";
@@ -30,11 +30,7 @@ export function PayoutsTable({
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="text-center text-muted-fg py-8">
-                No payouts found
-              </td>
-            </tr>
+            <EmptyRow col_span={5}>No payouts yet</EmptyRow>
           ) : (
             items.map((payout, idx) => (
               <tr key={idx}>

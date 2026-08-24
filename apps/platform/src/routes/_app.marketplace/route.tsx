@@ -1,4 +1,4 @@
-import { Info } from "@better-giving/ui";
+import { EmptyState } from "@better-giving/ui";
 import { Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { safeParse } from "valibot";
@@ -45,7 +45,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
     page1,
     table: (props) =>
       props.items.length === 0 ? (
-        <Info classes={props.classes}>No organisations found</Info>
+        <EmptyState classes={props.classes}>No organisations found</EmptyState>
       ) : (
         <Cards {...props} />
       ),

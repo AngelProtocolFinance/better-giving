@@ -1,4 +1,4 @@
-import { ExtLink } from "@better-giving/ui";
+import { EmptyState, ExtLink } from "@better-giving/ui";
 import { endOfMonth, format, formatDistance } from "date-fns";
 import { ArrowRightIcon, HistoryIcon, PencilIcon } from "lucide-react";
 import { Link, Outlet } from "react-router";
@@ -125,7 +125,7 @@ export function Earnings({
               classes="mt-6"
             />
           ) : (
-            <p className="text-muted-fg py-1 mt-6">No earnings yet</p>
+            <EmptyState classes="mt-6">No earnings yet</EmptyState>
           )}
         </div>
       </div>

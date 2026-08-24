@@ -1,4 +1,4 @@
-import { Info } from "@better-giving/ui";
+import { EmptyState } from "@better-giving/ui";
 import {
   Arrow as HoverArrow,
   Content as HoverContent,
@@ -159,7 +159,7 @@ export function Loaded({ classes = "", ...props }: Props) {
             items={props.recent_payouts.items}
           />
         ) : (
-          <Info classes="mt-2 mb-3">No grant items</Info>
+          <EmptyState classes="mt-2 mb-3">No grant items yet</EmptyState>
         )}
 
         {props.recent_payouts.items.length > 0 && (
@@ -184,7 +184,7 @@ export function Loaded({ classes = "", ...props }: Props) {
         {props.recent_settlements.items.length > 0 ? (
           <GrantsTable items={props.recent_settlements.items} />
         ) : (
-          <Info>No payout records</Info>
+          <EmptyState>No payout records yet</EmptyState>
         )}
       </div>
     </div>

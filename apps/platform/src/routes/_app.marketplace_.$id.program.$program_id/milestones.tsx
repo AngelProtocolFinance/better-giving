@@ -1,4 +1,4 @@
-import { Image, Info } from "@better-giving/ui";
+import { EmptyState, Image } from "@better-giving/ui";
 import { RichText } from "#/components/rich-text";
 import { Container } from "#/pages/marketplace/container";
 import type { IMilestone } from "@/npo";
@@ -22,7 +22,7 @@ export function Milestones({ classes = "", milestones }: Props) {
           ))}
         </div>
       ) : (
-        <Info classes="m-6">No milestones found</Info>
+        <EmptyState classes="m-6">No milestones yet</EmptyState>
       )}
     </Container>
   );

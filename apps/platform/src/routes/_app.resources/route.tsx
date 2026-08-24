@@ -1,3 +1,4 @@
+import { EmptyState } from "@better-giving/ui";
 import Fuse from "fuse.js";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -90,7 +91,7 @@ export default function Resources() {
 
         {/* results */}
         {filtered.length === 0 ? (
-          <p className="text-center text-muted-fg py-12">No resources found.</p>
+          <EmptyState>No resources found</EmptyState>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((r) => (

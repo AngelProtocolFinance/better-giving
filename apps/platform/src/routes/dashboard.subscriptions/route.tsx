@@ -1,4 +1,4 @@
-import { Info } from "@better-giving/ui";
+import { EmptyState } from "@better-giving/ui";
 import { format } from "date-fns";
 import { href, Link, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
@@ -144,13 +144,13 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
           </table>
         </div>
       ) : (
-        <Info classes="mt-6">
+        <EmptyState classes="mt-6">
           {filter === "inactive"
-            ? "No cancelled donations"
+            ? "No cancelled donations found"
             : filter === "active"
-              ? "No active recurring donations"
+              ? "No active recurring donations found"
               : "No recurring donations found"}
-        </Info>
+        </EmptyState>
       )}
       {/** cancel prompt */}
       <Outlet />

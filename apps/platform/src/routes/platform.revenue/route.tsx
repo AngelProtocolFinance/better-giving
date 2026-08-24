@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Link } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { metas } from "#/helpers/seo";
@@ -66,11 +67,7 @@ function Page({ loaderData }: Route.ComponentProps) {
               </tr>
             ))}
             {npo_ltds.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center text-muted-fg py-8">
-                  No per-NPO data yet
-                </td>
-              </tr>
+              <EmptyRow col_span={5}>No per-NPO data yet</EmptyRow>
             )}
           </tbody>
           {npo_ltds.length > 0 && (

@@ -1,3 +1,4 @@
+import { EmptyRow } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { InfoIcon, RefreshCw, SparklesIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -94,11 +95,7 @@ export function GiftsTable({ dists, subs }: IProps) {
       </thead>
       <tbody>
         {dists.length === 0 && (
-          <tr>
-            <td colSpan={6} className="py-8 text-center text-muted-fg">
-              No donations yet
-            </td>
-          </tr>
+          <EmptyRow col_span={6}>No donations yet</EmptyRow>
         )}
         {dists.map((d) => {
           const m = d.subscription_id ? meta[d.subscription_id] : undefined;

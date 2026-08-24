@@ -24,7 +24,11 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
   const { node } = use_table({
     page1,
     table: (p) =>
-      p.items.length === 0 ? <NoVideo classes={p.classes} /> : <List {...p} />,
+      p.items.length === 0 ? (
+        <NoVideo classes={p.classes} filtered={filter === "featured"} />
+      ) : (
+        <List {...p} />
+      ),
     classes: "mt-6",
     gen_loader: (load, next) => () => {
       const p = new URLSearchParams(search);

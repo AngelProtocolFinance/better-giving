@@ -1,6 +1,6 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
-import { Target } from "@better-giving/ui";
+import { EmptyRow, Target } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { ChevronDownIcon, TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
@@ -52,11 +52,9 @@ export function FormsTable({
           </thead>
           <tbody>
             {items.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center text-muted-fg py-8">
-                  No {status === "all" ? "" : status} forms found
-                </td>
-              </tr>
+              <EmptyRow col_span={7}>
+                No {status === "all" ? "" : status} forms found
+              </EmptyRow>
             ) : (
               items.map((f) => (
                 <tr key={f.id}>

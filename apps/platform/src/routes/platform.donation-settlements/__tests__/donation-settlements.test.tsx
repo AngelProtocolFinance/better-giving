@@ -288,7 +288,7 @@ describe("settle donation — full flow", () => {
     // 1. start on list — empty
     const screen = await render_app();
     await expect
-      .element(screen.getByText("No settlements found"))
+      .element(screen.getByText("No settlements yet"))
       .toBeInTheDocument();
 
     // 2. click "+ New" to open create dialog

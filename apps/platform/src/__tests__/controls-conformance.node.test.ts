@@ -191,3 +191,63 @@ describe("icon-only controls", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/** every `EmptyState`/`EmptyRow` in the corpus, with the line that carries the
+ *  claim. when a `heading` is present it is the headline and the child is the
+ *  sentence under it; with no heading the child IS the headline. only literal
+ *  text — an interpolated child is a runtime string the sweep cannot read, and
+ *  four of these name their filter that way on purpose. */
+const empty_states = sources.flatMap((x) =>
+  [
+    ...x.text.matchAll(
+      /<Empty(?:State|Row)\b([^>]*)>([\s\S]*?)<\/Empty(?:State|Row)>/g
+    ),
+  ].map((m) => {
+    const heading = /heading="([^"]*)"/.exec(m[1])?.[1];
+    const child = m[2].replace(/\s+/g, " ").trim();
+    return {
+      file: x.file,
+      n: line_of(x.text, m.index),
+      attrs: m[1],
+      headline: heading ?? (/[<>{}]/.test(child) ? null : child),
+    };
+  })
+);
+
+describe("the empty state", () => {
+  test("says `yet` or `found`, and nothing else", () => {
+    // the two say different things to the person reading: `yet` is a
+    // collection that has never held anything, `found` is a filter or a search
+    // that came back empty. a bare noun ("No grant items", "No data") is the
+    // third convention this replaced, and a trailing period is the fourth
+    // spelling of the same sentence. which of the two is true stays the call
+    // site's call; that it is one of them is not.
+    const offenders = empty_states
+      .filter((e) => e.headline && !/^No .+ (yet|found)$/.test(e.headline))
+      .map((e) => `${e.file}:${e.n} ${JSON.stringify(e.headline)}`);
+    expect(offenders).toEqual([]);
+  });
+
+  test("the caller does not re-specify the rhythm", () => {
+    // the component owns its padding. two utilities of equal specificity
+    // resolve by stylesheet order rather than class-string order, so a second
+    // `py-*` from a caller renders right on some builds and wrong on others.
+    // margin is the caller's, as everywhere else.
+    const offenders = empty_states
+      .filter((e) => /classes=\{?"[^"]*\bp[xytblr]?-/.test(e.attrs))
+      .map((e) => `${e.file}:${e.n}`);
+    expect(offenders).toEqual([]);
+  });
+
+  test("an empty table row is not written out by hand", () => {
+    // a `<td colSpan>` holding a "no rows" sentence is `EmptyRow`. nineteen
+    // copies of it drifted into two class orders and three rhythms before one
+    // of them started naming the wrong noun entirely.
+    const offenders = sources.flatMap(({ file, text }) =>
+      [...text.matchAll(/<td\b[^>]*colSpan[^>]*>([\s\S]*?)<\/td>/g)]
+        .filter((m) => /\bNo\b[\s\S]{0,60}?\b(yet|found)\b/i.test(m[1]))
+        .map((m) => `${file}:${line_of(text, m.index)}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+});
