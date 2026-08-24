@@ -41,6 +41,11 @@
    (bg-chart-1 compiles, bg-chart-2 does not) is exactly the silent-miss trap
    the header warns designs about. */
 @source not "../**/*.md";
+/* the checker is prose in list form, and the same trap: its MUST_BE_ABSENT
+   array spells the names the header promises do not exist, and spelling a name
+   is what mints it. excluded per-file rather than by extension so preview.mjs
+   stays scanned; another vocabulary-as-data file needs its own line. */
+@source not "./check-conventions.mjs";
 
 /* the two families the header promises that no scanned file happens to write.
    both are intended vocabulary, not inventions: theme.css maps --color-chart-*

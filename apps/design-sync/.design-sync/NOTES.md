@@ -681,6 +681,30 @@ Two things about it that matter:
   fractional step; the script's `has()` accounts for it. The first draft of it did not, and claimed
   98 missing utilities that were all present.
 
+## conventions.md drift found 2026-08-24 — the checker was minting what it forbids
+
+`check-conventions.mjs` failed on `border-primary-border` and `ring-primary-ring`: documented as
+absent, present in the build. Nothing in `packages/ui/src`, `apps/platform/src` or
+`.design-sync/previews` writes either — the only file that spells them is the checker's own
+`MUST_BE_ABSENT` list, and the checker sits inside the tailwind scan root. It was minting the two
+rules it then found and reported.
+
+Same class as the `bg-chart-*` artifact two sections up, and the `@source not "../**/*.md"` added
+for that one does not reach a `.mjs`. Fixed by naming it:
+
+```css
+@source not "./check-conventions.mjs";
+```
+
+Two things worth carrying forward:
+
+- **The checker reads `ds-bundle/`, not `.cache/styles.css`.** After a `pnpm --filter design-sync
+  styles` the fix looks unapplied until the converter runs again — grep `.cache/styles.css`
+  directly to confirm a stylesheet fix, and re-run the driver before trusting the checker's verdict.
+- **A file that lists class names as data is prose, whatever its extension.** The exclusion is
+  per-file rather than `../**/*.mjs` so `preview.mjs` and any future script stay scanned; a new
+  vocabulary-as-data file needs its own line here.
+
 ## The converter's own deps live in `.ds-sync/node_modules`
 
 `esbuild`, `ts-morph` and `@types/react` are installed **inside the staged `.ds-sync/`**, isolated
@@ -742,4 +766,10 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
 - **Node is pinned to 24 (`.nvmrc`, `engines`) but the converter runs fine on newer.** This sync ran
   on Node 26.7.0; pnpm prints an `Unsupported engine` warning for every member and nothing else
   happens. Not worth chasing, but don't read those warnings as a sync problem.
+- **One orphan font in the project: `fonts/gochi-hand-latin-400-normal.woff`.** Left by an earlier
+  sync whose converter emitted a `.woff` fallback beside the `.woff2`; this build emits `.woff2`
+  only and `fonts/fonts.css` references nothing else, so it is unreferenced dead weight rather than
+  a broken link. The diff's `upload.deletePaths` does not name it — the anchor tracks aux files as
+  one `auxSha`, not a path list — and §5 forbids hand-deriving deletes, so it was left in place on
+  2026-08-24. Harmless; delete it deliberately if a future run wants the project clean.
 - **The capture harness pins the clock to 2024-05-15.** Date previews are authored around it.
