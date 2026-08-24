@@ -1,4 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
+import { report_error } from "@/errors/report";
 import type { INpoAdmin, IUserBookmark, IUserNpo } from "@/users/interfaces";
 import type { IInviteNew, IUserDb, IUserXNpoUpdate } from "@/users/schema";
 import { db } from "../db";
@@ -26,11 +27,79 @@ export async function user_by_referral_code(
   return row as unknown as IUserDb | undefined;
 }
 
+/**
+ * the user who owns the completed form filed under this document-group eid.
+ *
+ * the caller is a download authorization gate for a document carrying a
+ * taxpayer id, and `user.w_form` has no UNIQUE behind it. two rows claiming one
+ * eid means neither claim can be trusted, so this refuses rather than choosing:
+ * picking either one hands the document to a 50/50 guess. the second row is
+ * fetched only to notice that state — it is a failed guard upstream, not
+ * something an ORDER BY should paper over.
+ */
 export async function user_by_w_form(
-  eid: string
+  eid: string,
+  tx: DbOrTx = db
 ): Promise<IUserDb | undefined> {
-  const [row] = await db.select().from(user).where(eq(user.w_form, eid));
-  return row as unknown as IUserDb | undefined;
+  const rows = await tx
+    .select()
+    .from(user)
+    .where(eq(user.w_form, eid))
+    .limit(2);
+
+  if (rows.length > 1) {
+    // the eid stays out of the report. it is the key that authorizes
+    // downloading a document carrying a taxpayer id, and a report reaches a
+    // third-party tracker and stdout. the claimants are what makes the state
+    // diagnosable — they are who has to be untangled.
+    report_error(new Error("w_form eid claimed by more than one user"), {
+      claimants: rows.length,
+      claimant_emails: rows.map((r) => r.email),
+    });
+    return undefined;
+  }
+
+  return rows[0] as unknown as IUserDb | undefined;
+}
+
+/**
+ * records the weld-data submission minted for this user, before they are sent
+ * to the form. its own writer rather than `user_update`, whose `Partial<IUserDb>`
+ * would drag this column into a type shared with client code.
+ */
+export async function user_w_form_weld_eid_set(
+  email: string,
+  eid: string,
+  tx: DbOrTx = db
+) {
+  const [row] = await tx
+    .update(user)
+    .set({ w_form_weld_eid: eid })
+    .where(eq(user.email, email))
+    .returning({ email: user.email });
+
+  // a write matching no row would strand the user: they are sent to a form
+  // whose completion is checked against an eid that was never recorded, so the
+  // refusal only surfaces after they have signed.
+  if (!row) throw new Error(`no user to record weld eid against: ${email}`);
+}
+
+/**
+ * the weld-data eid the server minted for this user, or null if they were never
+ * sent to the form. its own reader because `user_get` casts the row to
+ * `IUserDb`, which does not declare this column — the value survives the query
+ * but not the type. undefined distinguishes "no such user" from "no eid yet".
+ */
+export async function user_w_form_weld_eid(
+  email: string,
+  tx: DbOrTx = db
+): Promise<string | null | undefined> {
+  const [row] = await tx
+    .select({ eid: user.w_form_weld_eid })
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
+  return row?.eid;
 }
 
 export async function user_update(email: string, update: Partial<IUserDb>) {

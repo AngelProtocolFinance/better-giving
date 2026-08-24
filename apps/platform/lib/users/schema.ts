@@ -33,7 +33,9 @@ export interface IUserDb extends IUser {
 
   /** wise recipient id */
   pay_id?: string;
-  /** weld data eid of signed w9 or w8ben */
+  /** document-group eid of the signed w9 or w8ben. the weld-data eid the form
+   * was minted from is a separate column this type does not declare — undeclared
+   * is not unreachable, since `user_get` selects the whole row */
   w_form?: string;
 }
 

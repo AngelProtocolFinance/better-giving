@@ -64,20 +64,35 @@ export const login_link_plugin = (deps: AuthOptionDeps) =>
   });
 
 /** `required` must stay a literal — better-auth derives the signUp body type
- * from it, and a widened `boolean` makes every optional column mandatory. */
+ * from it, and a widened `boolean` makes every optional column mandatory. the
+ * same holds for `input`, which is why it is named in the constraint below
+ * rather than left to the index signature: an `input: boolean` field is one
+ * better-auth's client types still offer as writable. */
 const user_additional_fields = {
   first_name: { type: "string", required: true },
   last_name: { type: "string", required: true },
   referral_code: { type: "string", required: false, unique: true },
   pref_currency: { type: "string", required: false, defaultValue: "usd" },
   avatar_url: { type: "string", required: false },
-  pay_id: { type: "string", required: false },
-  pay_min: { type: "number", required: false, defaultValue: 0 },
-  w_form: { type: "string", required: false },
+  // the payout destination and the signed-w-9 handle are server-owned:
+  // `pay_id` names the wise recipient money is sent to, and `w_form` is the
+  // anvil eid `/api/anvil-doc/$eid` hands a taxpayer's w-9 back for. an
+  // additional field is client-writable on `/update-user` by default, which
+  // would let any signed-in user point either at somebody else's. the routes
+  // that legitimately set them go through `user_update` — raw drizzle, not
+  // better-auth — and `internalAdapter.updateUser` skips this parse too.
+  pay_id: { type: "string", required: false, input: false },
+  pay_min: { type: "number", required: false, defaultValue: 0, input: false },
+  w_form: { type: "string", required: false, input: false },
   signup_date: { type: "string", required: false },
 } satisfies Record<
   string,
-  { type: "string" | "number"; required: boolean; [k: string]: unknown }
+  {
+    type: "string" | "number";
+    required: boolean;
+    input?: false;
+    [k: string]: unknown;
+  }
 >;
 
 /** the config the auth tests exercise. env-bound pieces (secret, baseURL,

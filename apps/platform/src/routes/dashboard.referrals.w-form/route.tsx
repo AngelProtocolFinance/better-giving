@@ -1,20 +1,20 @@
-import { ExtLink } from "@better-giving/ui";
+import { RmxForm } from "@better-giving/ui";
+import { useNavigation } from "react-router";
 import { RouteModal } from "#/components/route-modal";
-import type { Route } from "./+types/route";
-import type { LoaderData } from "./api";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
-export { action, loader } from "./api";
 
-export default function Page({ loaderData: data }: Route.ComponentProps) {
+export default function Page() {
   return (
     <RouteModal classes="grid bg-popover text-popover-fg p-6">
-      <Content {...data} />
+      <Content />
     </RouteModal>
   );
 }
 
-function Content(props: LoaderData) {
+function Content() {
+  const navigation = useNavigation();
+
   return (
     <>
       <div className="text-center mb-6">
@@ -24,27 +24,43 @@ function Content(props: LoaderData) {
         </p>
       </div>
 
-      <div className="space-y-4">
-        <ExtLink
-          href={props.w9_url}
-          className="w-full block p-4 border rounded hover:bg-muted transition-colors text-left"
-        >
-          <div className="font-semibold">For US Residents</div>
-          <div className="text-sm text-muted-fg">
-            Complete this W-9 tax status form
-          </div>
-        </ExtLink>
+      {/* the form is minted server-side and recorded against this user before
+      anvil is opened — no public weld link, so the submission is never
+      anonymous. one column holds that record, so a signer is deliberately sent
+      to one form at a time: a second mint overwrites the first, and the
+      overwritten one can no longer be claimed on the callback. hence the
+      controls close while a mint is in flight. */}
+      <RmxForm
+        disabled={navigation.state !== "idle"}
+        method="post"
+        action="../w-form-start"
+      >
+        <div className="space-y-4">
+          <button
+            type="submit"
+            name="tax_form"
+            value="irs-w9"
+            className="w-full block p-4 border rounded hover:bg-muted transition-colors text-left disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+          >
+            <div className="font-semibold">For US Residents</div>
+            <div className="text-sm text-muted-fg">
+              Complete this W-9 tax status form
+            </div>
+          </button>
 
-        <ExtLink
-          href={props.w8ben_url}
-          className="w-full block p-4 border rounded hover:bg-muted transition-colors text-left"
-        >
-          <div className="font-semibold">For Non-US Residents</div>
-          <div className="text-sm text-muted-fg">
-            Complete this W-8BEN tax status form
-          </div>
-        </ExtLink>
-      </div>
+          <button
+            type="submit"
+            name="tax_form"
+            value="fw8ben"
+            className="w-full block p-4 border rounded hover:bg-muted transition-colors text-left disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+          >
+            <div className="font-semibold">For Non-US Residents</div>
+            <div className="text-sm text-muted-fg">
+              Complete this W-8BEN tax status form
+            </div>
+          </button>
+        </div>
+      </RmxForm>
     </>
   );
 }

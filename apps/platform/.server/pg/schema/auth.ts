@@ -27,7 +27,13 @@ export const user = pgTable("user", {
   avatar_url: text("avatar_url"),
   pay_id: text("pay_id"),
   pay_min: integer("pay_min").default(0),
+  // document-group eid of the completed w9/w8ben — what the download route
+  // resolves ownership against.
   w_form: text("w_form"),
+  // weld-data eid of the submission the server minted for this user, held from
+  // the mint until the form comes back completed. a different anvil eid kind
+  // than `w_form`: the two are not interchangeable in any anvil call.
+  w_form_weld_eid: text("w_form_weld_eid"),
   signup_date: text("signup_date"),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
