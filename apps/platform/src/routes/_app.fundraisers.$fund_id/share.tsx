@@ -72,20 +72,22 @@ function ShareBtn(props: IShare) {
   const [open, set_open] = useState(false);
 
   return (
-    <button
-      type="button"
-      aria-label={`Share on ${props.title}`}
-      onClick={() => set_open(true)}
-      className="relative size-10 grid place-items-center"
-    >
-      <img
-        src={props.src}
-        width={props.size}
-        className="absolute-center"
-        alt=""
-      />
-      <Prompt {...props} open={open} set_open={(o) => set_open(o)} />
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label={`Share on ${props.title}`}
+        onClick={() => set_open(true)}
+        className="relative size-10 grid place-items-center"
+      >
+        <img
+          src={props.src}
+          width={props.size}
+          className="absolute-center"
+          alt=""
+        />
+      </button>
+      <Prompt {...props} open={open} set_open={set_open} />
+    </>
   );
 }
 

@@ -21,38 +21,40 @@ export function PaymentResumer({ payment_id, classes, amount }: Props) {
   const [prompt, set_prompt] = useState<IPrompt>();
 
   return (
-    <button
-      disabled={intent_state === "pending"}
-      type="button"
-      className={`${classes} text-xs text-primary`}
-      onClick={async () => {
-        try {
-          set_intent_state("pending");
-          const res = await fetch(`/api/crypto-intents/${payment_id}`);
-          if (res.status === 410) {
-            return show_toast({
-              type: "error",
-              message: "Donation is already processing.",
+    <>
+      <button
+        disabled={intent_state === "pending"}
+        type="button"
+        className={`${classes} text-xs text-primary`}
+        onClick={async () => {
+          try {
+            set_intent_state("pending");
+            const res = await fetch(`/api/crypto-intents/${payment_id}`);
+            if (res.status === 410) {
+              return show_toast({
+                type: "error",
+                message: "Donation is already processing.",
+              });
+            }
+            const payment: Payment = await res.json();
+            set_qr({
+              ...payment,
+              order_amount: amount,
+              on_close: () => set_qr(undefined),
             });
+          } catch (err) {
+            set_qr(undefined);
+            set_prompt(error_prompt(err));
+          } finally {
+            set_intent_state(undefined);
           }
-          const payment: Payment = await res.json();
-          set_qr({
-            ...payment,
-            order_amount: amount,
-            on_close: () => set_qr(undefined),
-          });
-        } catch (err) {
-          set_qr(undefined);
-          set_prompt(error_prompt(err));
-        } finally {
-          set_intent_state(undefined);
-        }
-      }}
-    >
-      {intent_state === "pending" ? "Loading..." : "Finish paying"}
+        }}
+      >
+        {intent_state === "pending" ? "Loading..." : "Finish paying"}
+      </button>
       {qr && <QrModal {...qr} on_close={() => set_qr(undefined)} />}
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
-    </button>
+    </>
   );
 }
 
