@@ -39,7 +39,7 @@
      near-white tint would carry the surface away from the ink sitting on it. */
   .btn-secondary {
     background-color: var(--panel);
-    color: var(--secondary-fg);
+    color: var(--gray-12);
     border: 1px solid var(--gray-6);
     &:active {
       background-color: var(--secondary-active);
