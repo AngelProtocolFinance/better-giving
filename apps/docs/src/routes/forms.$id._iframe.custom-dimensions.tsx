@@ -81,7 +81,7 @@ export default function CustomDimensions() {
       {/* Note */}
       <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
         <Info size={18} className="text-primary shrink-0 mt-0.5" />
-        <p className="text-secondary-fg">
+        <p className="text-gray-12">
           The donation form content reorganizes on smaller set width and scrolls
           if it exceeds the set height.
         </p>

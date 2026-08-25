@@ -52,7 +52,7 @@ export function Top({ classes = "" }) {
         {open && (
           <Modal
             size="lg"
-            classes="grid bg-popover text-popover-fg"
+            classes="grid bg-popover text-gray-12"
             open={open}
             onClose={() => set_open(false)}
           >

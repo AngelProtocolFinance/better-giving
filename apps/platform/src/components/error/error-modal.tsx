@@ -26,7 +26,7 @@ export function ErrorModal() {
     <Modal
       open={true}
       onClose={() => window.location.reload()}
-      classes="grid bg-popover text-popover-fg"
+      classes="grid bg-popover text-gray-12"
     >
       <div className="px-6 pb-4 text-center mt-6">
         <CircleAlert className="text-destructive mx-auto" size={40} />

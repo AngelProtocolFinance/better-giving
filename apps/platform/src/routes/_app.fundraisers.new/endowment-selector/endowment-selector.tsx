@@ -153,7 +153,7 @@ export function EndowmentSelector(props: Props) {
 
         <Portal>
           <Combobox.Positioner>
-            <Combobox.Content className="z-10 w-(--reference-width) bg-popover text-popover-fg text-sm border max-h-40 scrollbars overflow-y-auto rounded shadow-xl shadow-black/5">
+            <Combobox.Content className="z-10 w-(--reference-width) bg-popover text-gray-12 text-sm border max-h-40 scrollbars overflow-y-auto rounded shadow-xl shadow-black/5">
               {get_status() ? (
                 <p className="p-2 text-sm text-gray-11">{get_status()}</p>
               ) : (

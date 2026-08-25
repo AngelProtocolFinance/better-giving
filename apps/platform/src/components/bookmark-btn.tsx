@@ -23,7 +23,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
     return (
       <Tooltip
         tip={
-          <Content className="px-4 py-2 bg-popover outline outline-gray-6 text-popover-fg text-sm rounded shadow-lg">
+          <Content className="px-4 py-2 bg-popover outline outline-gray-6 text-gray-12 text-sm rounded shadow-lg">
             Login to save your favorites
             <Arrow />
           </Content>
@@ -40,7 +40,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
     <Tooltip
       tip={
         !is_bookmarked ? (
-          <Content className="px-4 py-2 bg-popover outline outline-gray-6 text-popover-fg text-sm rounded shadow-lg">
+          <Content className="px-4 py-2 bg-popover outline outline-gray-6 text-gray-12 text-sm rounded shadow-lg">
             Add to favorites
             <Arrow />
           </Content>

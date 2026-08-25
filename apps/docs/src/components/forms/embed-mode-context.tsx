@@ -87,7 +87,7 @@ function SetupModal({ id }: { id: string }) {
         open={open}
         onClose={() => set_open(false)}
         size="md"
-        classes="bg-popover text-popover-fg"
+        classes="bg-popover text-gray-12"
       >
         <div className="p-5 border-b flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-12">

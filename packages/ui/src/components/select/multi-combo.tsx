@@ -167,7 +167,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
  *  a rendered label may be a logo or a badge with no text in it. */
 function Tag(p: { label: ReactNode; name: string; on_remove: () => void }) {
   return (
-    <div className="flex items-center px-3 gap-2 h-10 bg-secondary border rounded font-semibold text-secondary-fg capitalize">
+    <div className="flex items-center px-3 gap-2 h-10 bg-secondary border rounded font-semibold text-gray-12 capitalize">
       <span className="max-w-[200px] truncate">{p.label}</span>
       <button
         type="button"

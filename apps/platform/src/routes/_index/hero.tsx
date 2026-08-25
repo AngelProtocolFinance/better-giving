@@ -27,10 +27,10 @@ export function Hero({ classes = "" }: IHero) {
       <div className="page grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,33rem)] items-center">
         <div className="grid gap-5 justify-items-start">
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs font-bold bg-secondary text-secondary-fg border border-gray-6 rounded-full px-4 py-2">
+            <span className="text-xs font-bold bg-secondary text-gray-12 border border-gray-6 rounded-full px-4 py-2">
               Built by and for nonprofits
             </span>
-            <span className="text-xs font-bold bg-secondary text-secondary-fg border border-gray-6 rounded-full px-4 py-2">
+            <span className="text-xs font-bold bg-secondary text-gray-12 border border-gray-6 rounded-full px-4 py-2">
               Open source
             </span>
           </div>
@@ -48,7 +48,7 @@ export function Hero({ classes = "" }: IHero) {
             {gift_types.map((g) => (
               <span
                 key={g}
-                className="text-xs font-medium bg-secondary text-secondary-fg rounded-full px-3.5 py-1.5"
+                className="text-xs font-medium bg-secondary text-gray-12 rounded-full px-3.5 py-1.5"
               >
                 {g}
               </span>

@@ -4,7 +4,11 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--gray-6);
+    /* the token, not the step: `surface-primary` rebinds --border so a hairline
+       inside a brand fill is drawn against that fill. reading gray-6 here left
+       that rebind with no consumer. --ring is read the same way, for the same
+       reason. */
+    border-color: var(--border);
     outline-color: var(--ring);
   }
 

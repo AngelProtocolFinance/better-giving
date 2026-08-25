@@ -35,7 +35,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
               {gift_types.map((g) => (
                 <span
                   key={g}
-                  className="text-sm font-semibold bg-secondary text-secondary-fg rounded px-3 py-1.5"
+                  className="text-sm font-semibold bg-secondary text-gray-12 rounded px-3 py-1.5"
                 >
                   {g}
                 </span>

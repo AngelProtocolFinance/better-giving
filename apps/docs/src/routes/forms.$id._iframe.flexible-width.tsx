@@ -72,7 +72,7 @@ export default function FlexibleWidth() {
       {/* Info Note */}
       <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
         <Info size={18} className="text-primary shrink-0 mt-0.5" />
-        <p className="text-secondary-fg">
+        <p className="text-gray-12">
           Set <code className="bg-card px-1 rounded">width: 100%</code> and a{" "}
           <code className="bg-card px-1 rounded">max-width</code> to ensure the
           form is responsive but doesn&apos;t stretch too wide on large screens.

@@ -94,8 +94,17 @@
 
   --radius: 0.25rem;
 
+  /* there is no --fg, and no -fg twin for any surface below. every one of them
+     resolved to gray-12 and always would: each surface they sat on is light, so
+     the ink never varied with the fill. six names for one step, which is the
+     shape the ramp exists to remove. body copy is text-gray-12 and de-emphasised
+     copy is text-gray-11, at the call site, named as the rungs they are.
+     a -fg name survives only where the ink genuinely follows its fill —
+     --primary-fg, --destructive-fg, --success-fg, --warning-fg. those four are
+     radix's per-ramp contrast token: three are white and --warning-fg is not,
+     because amber's step 9 sits light enough to need dark ink. they share a
+     value by coincidence of the ramps, not by duplication. */
   --background: var(--gray-1);
-  --fg: var(--gray-12); /* 15.95:1 on --background */
   /* step 2, the ramp's subtle ground — one rung down from the page, so a panel
      is read by its fill as well as its border, and anything resting on step 1
      inside it (a field, see --input) reads lighter than the panel. that
@@ -107,12 +116,10 @@
      step 1 on step 2 is fainter still. the two together are what makes a field
      findable; neither does it alone. */
   --card: var(--gray-2);
-  --card-fg: var(--gray-12);
   /* a floating layer takes the panel rung too — radix files menus, dialogs and
      popovers under the same one cards get. the separate name is so a floating
      layer's fill can move without moving every panel. */
   --popover: var(--gray-2);
-  --popover-fg: var(--gray-12);
   --primary: var(--blue-9); /* 5.48:1 white-on-fill */
   /* the hovered rung of the filled control, and its pressed rung too. the ramp
      gives a solid fill two steps, 9 and 10; steps 11 and 12 are text and both
@@ -144,11 +151,6 @@
   --band: var(--blue-2);
   --secondary: var(--blue-3);
   --secondary-active: var(--blue-5);
-  --secondary-fg: var(--gray-12);
-  /* the disabled fill for every .btn variant. that is a ui-element background,
-     which is step 3 — not the step-2 subtle surface. */
-  --muted: var(--gray-3);
-  --muted-fg: var(--gray-11); /* 5.75:1 on --background */
   /* the filled error control: white ink at 5.62:1, up from 4.52:1. this is the
      darker red the value it replaces described as the one that would clear the
      tinted surfaces too — the ramp makes that move. a tinted band carrying
@@ -187,7 +189,7 @@
      painted on it — at 4.25:1 it is under AA as text on the page too, not just
      on a tint; --success-subtle-fg is the success ink everywhere, 4.45:1 here —
      an accepted miss, taken as the ramp generates it. an icon is a shape, not
-     text, and keeps step 9. --fg on the band stays far clear, so it also takes
+     text, and keeps step 9. gray-12 on the band stays far clear, so it also takes
      neutral body copy. */
   --success-subtle: var(--green-3);
   --success-subtle-fg: var(--green-11);
@@ -203,7 +205,7 @@
   /* de-emphasised warning surface: an advisory panel, banner, or row carrying
      warning copy rather than a filled control. --warning is a FILL and is not
      legible as text at any size; --warning-subtle-fg is the warning ink
-     everywhere — 4.00:1 on this band, the worst of the accepted misses. --fg on
+     everywhere — 4.00:1 on this band, the worst of the accepted misses. gray-12 on
      the band stays far clear, so it also takes neutral body copy. */
   --warning-subtle: var(--amber-3);
   --warning-subtle-fg: var(--amber-11);
@@ -235,11 +237,9 @@
   --primary-border: color-mix(in oklch, var(--primary-fg) 80%, var(--primary));
 
   --sidebar: var(--gray-1);
-  --sidebar-fg: var(--fg);
   --sidebar-primary: var(--primary);
   --sidebar-primary-fg: var(--primary-fg);
   --sidebar-accent: var(--secondary);
-  --sidebar-accent-fg: var(--secondary-fg);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 

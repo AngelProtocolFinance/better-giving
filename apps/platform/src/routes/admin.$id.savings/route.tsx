@@ -23,7 +23,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <h3>Savings</h3>{" "}
         <Tooltip
           tip={
-            <Content className="bg-popover outline outline-gray-6 text-popover-fg text-sm max-w-xs p-4 rounded">
+            <Content className="bg-popover outline outline-gray-6 text-gray-12 text-sm max-w-xs p-4 rounded">
               Funds held in Fidelity Government Money Market (SPAXX) consisting
               of cash, US Government Securities and Repurchase Agreements
               <Arrow />

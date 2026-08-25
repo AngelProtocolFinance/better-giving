@@ -72,7 +72,7 @@ function SegGroup({ index, invalid }: { index: number; invalid: boolean }) {
         {(seg: DateValue | unknown) => (
           <DateInput.Segment
             segment={seg as any}
-            className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-gray-11 figures"
+            className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-gray-12 data-placeholder:text-gray-11 figures"
           />
         )}
       </DateInput.SegmentContext>

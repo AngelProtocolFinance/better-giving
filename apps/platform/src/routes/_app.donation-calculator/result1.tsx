@@ -68,7 +68,7 @@ export function Result1({ classes = "", ...v }: Props) {
             Additional donations from expanded payment types:
             <Tooltip
               tip={
-                <Content className="max-w-xs text-center bg-popover outline outline-gray-6 p-4 text-popover-fg text-xs shadow-lg rounded">
+                <Content className="max-w-xs text-center bg-popover outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
                   Based on industry data, each payment type represents a portion
                   of potential donations: Credit Card (63%), Bank/ACH (10%),
                   Digital Wallets (7%), DAF (12%), Stocks (6%), Crypto (2%).

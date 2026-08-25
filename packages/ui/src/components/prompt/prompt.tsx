@@ -28,7 +28,7 @@ export function Prompt({
     <Modal
       open={open ?? true}
       onClose={close}
-      classes="grid bg-popover text-popover-fg"
+      classes="grid bg-popover text-gray-12"
     >
       <div className="flex justify-end p-4 border-b">
         <button

@@ -47,7 +47,7 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
   return (
     <Popover.Content
       asChild
-      className="grid content-start gap-4 w-(--reference-width) rounded border bg-popover text-popover-fg origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out"
+      className="grid content-start gap-4 w-(--reference-width) rounded border bg-popover text-gray-12 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out"
     >
       <form
         onSubmit={handleSubmit(onSubmit, (err) => {

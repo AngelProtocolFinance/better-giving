@@ -97,7 +97,7 @@ export default function Page() {
                 className="grid gap-2.5 justify-items-center text-center content-start"
               >
                 <span
-                  className="size-13 rounded-full bg-secondary text-secondary-fg grid place-items-center text-xl font-bold"
+                  className="size-13 rounded-full bg-secondary text-gray-12 grid place-items-center text-xl font-bold"
                   aria-hidden
                 >
                   {s.n}

@@ -173,7 +173,7 @@ export function RateComparison({ classes = "" }) {
               </tr>
             </thead>
             <tbody>
-              <tr className="bg-secondary text-secondary-fg">
+              <tr className="bg-secondary text-gray-12">
                 <Cells row={bg} accent />
               </tr>
               {others.map((r) => (

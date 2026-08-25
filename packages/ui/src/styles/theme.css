@@ -221,27 +221,28 @@
   --color-gray-11: var(--gray-11);
   --color-gray-12: var(--gray-12);
 
-  /* --fg, --muted, --muted-fg and --border are deliberately NOT bound to a
-     utility. they name a rung on the neutral scale and nothing else, so the
-     call site names the step — text-gray-12, bg-gray-3, text-gray-11,
-     border-gray-6 — and `text-muted-fg` fails to compile rather than drifting
-     back in beside its own step name. closed the same way --radius-* and the
-     type ladders above are.
-     the TOKENS stay: colors.css still declares all four, and the email
-     templates read all four off the generated hex mirror — a flat hex map with
-     no tailwind namespace to drift within, so the name costs nothing there. */
+  /* neutral ink and neutral lines have no token and no utility. --fg, --muted
+     and --muted-fg named a rung on the grey scale and nothing else, so they are
+     gone from colors.css too and the call site names the step: text-gray-12
+     body, text-gray-11 de-emphasised, bg-gray-3 a disabled fill. `text-fg` and
+     `text-muted-fg` fail to compile rather than drifting back in beside their
+     own step names. closed the same way --radius-* and the type ladders above
+     are.
+     --border is the exception and still exists, because it is not a constant:
+     `surface-primary` rebinds it so hairlines inside a brand fill are drawn
+     against that fill instead of against the page. it has no utility for the
+     same reason the others don't — border-gray-6 is what a call site writes;
+     the token is read by the base `*` rule, which is what makes the rebind
+     reach every element inside. */
   --color-background: var(--background);
   --color-card: var(--card);
-  --color-card-fg: var(--card-fg);
   --color-popover: var(--popover);
-  --color-popover-fg: var(--popover-fg);
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
   --color-primary-deep: var(--primary-deep);
   --color-band: var(--band);
   --color-secondary: var(--secondary);
   --color-secondary-active: var(--secondary-active);
-  --color-secondary-fg: var(--secondary-fg);
   --color-destructive: var(--destructive);
   --color-destructive-fg: var(--destructive-fg);
   --color-destructive-subtle: var(--destructive-subtle);
@@ -267,11 +268,9 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
-  --color-sidebar-fg: var(--sidebar-fg);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-fg: var(--sidebar-primary-fg);
   --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-fg: var(--sidebar-accent-fg);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   /* the radius ladder is closed, the same way --color-* is. this repo has ONE
