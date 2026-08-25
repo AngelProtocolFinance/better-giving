@@ -1,7 +1,7 @@
 import type { PDFDocument, PDFPage } from "pdf-lib";
 import { rgb } from "pdf-lib";
 import { socials } from "#/constants/urls";
-import { blue, fs, gray, w } from "../styles";
+import { blue, fs, w } from "../styles";
 import { add_link, draw_wrapped, hex } from "./layout";
 import type { Fonts, Images } from "./types";
 import { PAGE_H, PAGE_W } from "./types";
@@ -21,7 +21,7 @@ export function draw_footer(
     y: y_bottom,
     width: PAGE_W,
     height: footer_h,
-    color: hex(blue.d),
+    color: hex(blue["9"]),
   });
 
   const baseline_y = footer_h / 2 - fs.xlm / 2 + 4;
@@ -100,7 +100,7 @@ export function draw_footer(
     fonts.regular,
     fs.sm,
     max_w,
-    { color: gray.l6 }
+    { color: "#fff" }
   );
   draw_wrapped(
     page,
@@ -110,6 +110,6 @@ export function draw_footer(
     fonts.regular,
     fs.xxs2,
     max_w,
-    { color: gray.l6 }
+    { color: "#fff" }
   );
 }

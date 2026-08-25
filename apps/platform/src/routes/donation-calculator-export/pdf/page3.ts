@@ -47,7 +47,7 @@ export function draw_page3(
     y + fs.xl,
     fonts.bold,
     fs.xl,
-    blue.d
+    blue["9"]
   );
   y += fs.xl + w["20"];
 
@@ -62,7 +62,7 @@ export function draw_page3(
       fonts.regular,
       fs.md,
       content_w * 0.9,
-      { color: gray.d2 }
+      { color: gray["12"] }
     );
     y += h + w["20"];
   }
@@ -90,7 +90,7 @@ export function draw_page3(
   const btn_y_top = y + (ly_h - btn_h) / 2;
 
   // rounded rect bg
-  draw_rect(page, btn_x, btn_y_top, btn_w, btn_h, blue.d);
+  draw_rect(page, btn_x, btn_y_top, btn_w, btn_h, blue["9"]);
   draw_text(
     page,
     btn_text,

@@ -1,5 +1,8 @@
 import { format } from "date-fns";
-import { ticker_colors } from "#/pages/platform-admin/investments/common";
+import {
+  ticker_colors,
+  unmapped_ticker_color,
+} from "#/pages/platform-admin/investments/common";
 import { humanize } from "@/helpers/decimal";
 import type { ILog } from "@/nav";
 import { prices_fn } from "../helpers";
@@ -74,7 +77,7 @@ export function Review(props: Props) {
           {tickers2.map((t) => (
             <tr key={t.id} className="text-sm">
               <td
-                style={{ color: ticker_colors[t.id] || "#64748b" }}
+                style={{ color: ticker_colors[t.id] || unmapped_ticker_color }}
                 className="font-bold"
               >
                 {t.id}

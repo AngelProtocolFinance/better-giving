@@ -4,7 +4,7 @@ import type { PDFDocument, PDFPage } from "pdf-lib";
 import { base_url } from "#/constants/env";
 import type { View } from "#/routes/_app.donation-calculator/types";
 import { methods, methodsArr } from "#/types/donation-calculator";
-import { blue, fs, gray, green, w } from "../styles";
+import { blue, fs, gray, green, red, w } from "../styles";
 import {
   add_link,
   draw_dot,
@@ -30,7 +30,7 @@ export function draw_page1(
 
   // === HEADER ===
   const header_h = 110;
-  draw_rect(page, 0, 0, PAGE_W, header_h, blue.d);
+  draw_rect(page, 0, 0, PAGE_W, header_h, blue["9"]);
 
   let y = 16;
   draw_text(
@@ -95,7 +95,7 @@ export function draw_page1(
     y + fs.lg,
     fonts.semibold,
     fs.lg,
-    blue.d
+    blue["9"]
   );
   const s1_title_w = fonts.semibold.widthOfTextAtSize(
     "YOUR CURRENT ONLINE DONATIONS",
@@ -107,7 +107,7 @@ export function draw_page1(
     y + fs.lg / 2,
     content_w - s1_title_w - w["4"],
     2,
-    blue.d
+    blue["9"]
   );
 
   // KV pairs - two columns
@@ -179,7 +179,7 @@ export function draw_page1(
   // current amount received box
   y += fs.base + w["6"];
   const box_h = 40;
-  draw_rect(page, w["23"], y, content_w - 6, box_h, gray.l4);
+  draw_rect(page, w["23"], y, content_w - 6, box_h, gray["3"]);
 
   const box_center_y = y + box_h / 2;
   draw_text_right(
@@ -194,7 +194,7 @@ export function draw_page1(
   const og_net_str = to_usd(v.ogNet);
   const og_ded_str = `(${to_usd(-v.ogDeductions)})`;
   const net_color =
-    v.ogNet > v.amount ? green.d : v.ogNet < v.amount ? "#ef4444" : undefined;
+    v.ogNet > v.amount ? green["9"] : v.ogNet < v.amount ? red["9"] : undefined;
   draw_text_right(
     page,
     og_net_str,
@@ -211,13 +211,13 @@ export function draw_page1(
     box_center_y + 12,
     fonts.bold,
     fs.base,
-    "#ef4444"
+    red["9"]
   );
 
   // === SECTION 2: annual impact with BG ===
   y += box_h + w["24"];
   const s2_title = "ANNUAL DONATION PROCESSING IMPACT WITH BETTER GIVING";
-  draw_text(page, s2_title, px, y + fs.lg, fonts.semibold, fs.lg, blue.d);
+  draw_text(page, s2_title, px, y + fs.lg, fonts.semibold, fs.lg, blue["9"]);
   const s2_title_w = fonts.semibold.widthOfTextAtSize(s2_title, fs.lg);
   if (s2_title_w < content_w - 10) {
     draw_rect(
@@ -226,7 +226,7 @@ export function draw_page1(
       y + fs.lg / 2,
       content_w - s2_title_w - w["4"],
       2,
-      blue.d
+      blue["9"]
     );
   }
 
@@ -283,7 +283,7 @@ export function draw_page1(
 
   // "with better giving" box
   y += fs.base + w["6"];
-  draw_rect(page, w["22"], y, content_w - 4, box_h, gray.l4);
+  draw_rect(page, w["22"], y, content_w - 4, box_h, gray["3"]);
   draw_text_right(
     page,
     "With Better Giving",
@@ -295,7 +295,7 @@ export function draw_page1(
   const bg_net_str = to_usd(v.bgNet);
   const bg_adv_str = `(+${to_usd(v.advantage)})`;
   const bg_color =
-    v.bgNet > v.ogNet ? green.d : v.bgNet < v.ogNet ? "#ef4444" : undefined;
+    v.bgNet > v.ogNet ? green["9"] : v.bgNet < v.ogNet ? red["9"] : undefined;
   draw_text_right(
     page,
     bg_net_str,
@@ -312,13 +312,13 @@ export function draw_page1(
     y + box_h / 2 + 12,
     fonts.bold,
     fs.base,
-    green.d
+    green["9"]
   );
 
   // total annual advantage
   y += box_h;
   const adv_h = 36;
-  draw_rect(page, w["22"], y, content_w - 4, adv_h, green.l5);
+  draw_rect(page, w["22"], y, content_w - 4, adv_h, green["2"]);
   draw_text_center(
     page,
     "Total annual advantage",
@@ -339,7 +339,7 @@ export function draw_page1(
   // === SECTION 3: long-term financial growth ===
   y += adv_h + w["30"];
   const s3_title = "LONG-TERM FINANCIAL GROWTH (ESTIMATED PREDICTIONS)";
-  draw_text(page, s3_title, px, y + fs.lg, fonts.semibold, fs.lg, blue.d);
+  draw_text(page, s3_title, px, y + fs.lg, fonts.semibold, fs.lg, blue["9"]);
   const s3_title_w = fonts.semibold.widthOfTextAtSize(s3_title, fs.lg);
   if (s3_title_w < content_w - 10) {
     draw_rect(
@@ -348,7 +348,7 @@ export function draw_page1(
       y + fs.lg / 2,
       content_w - s3_title_w - w["4"],
       2,
-      blue.d
+      blue["9"]
     );
   }
 
@@ -480,8 +480,8 @@ function draw_donation_methods(
       mx + dot_r,
       dot_cy,
       dot_r,
-      is_active ? blue.d : "#ffffff",
-      is_active ? undefined : gray.l1
+      is_active ? blue["9"] : "#ffffff",
+      is_active ? undefined : gray["8"]
     );
     draw_text(
       page,
@@ -515,7 +515,7 @@ function draw_impact_card(
 
   // impact header
   const hdr_h = 44;
-  draw_rect(page, x, y, width, hdr_h, green.l5);
+  draw_rect(page, x, y, width, hdr_h, green["2"]);
   const yr_label = `${yr} ${yr > 1 ? "Years" : "Year"} Impact`;
   draw_text_right(
     page,
@@ -532,7 +532,7 @@ function draw_impact_card(
     y + 32,
     fonts.bold,
     fs.base,
-    green.d
+    green["9"]
   );
   y += hdr_h + w["8"];
 
@@ -569,7 +569,7 @@ function draw_impact_card(
       y + fs.base,
       is_growth ? fonts.semibold : fonts.regular,
       fs.base,
-      is_growth ? green.d : undefined
+      is_growth ? green["9"] : undefined
     );
     y += fs.base + w["4"];
   }
@@ -608,7 +608,7 @@ function draw_impact_card(
       y + fs.base,
       is_growth ? fonts.semibold : fonts.regular,
       fs.base,
-      is_growth ? green.d : undefined
+      is_growth ? green["9"] : undefined
     );
     y += fs.base + w["4"];
   }
@@ -629,13 +629,13 @@ function draw_impact_card(
     y + fs.base,
     fonts.bold,
     fs.base,
-    green.d
+    green["9"]
   );
   y += fs.base + w["10"];
 
   // balance footer
   const ftr_h = 44;
-  draw_rect(page, x, y, width, ftr_h, green.l5);
+  draw_rect(page, x, y, width, ftr_h, green["2"]);
   const bal_label = `${yr} ${yr > 1 ? "Years" : "Year"} Balance`;
   draw_text_right(
     page,
@@ -652,6 +652,6 @@ function draw_impact_card(
     y + 32,
     fonts.bold,
     fs.base,
-    green.d
+    green["9"]
   );
 }

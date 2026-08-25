@@ -66,14 +66,14 @@ function Page({ loaderData }: Route.ComponentProps) {
               <YAxis
                 yAxisId="left"
                 orientation="left"
-                stroke="#2d89c8"
+                stroke="#1e6dab"
                 tick={{ fontSize: 12, dx: -4 }}
               />
               <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="total"
-                stroke="#2d89c8"
+                stroke="#1e6dab"
                 name="Savings Balance"
                 dot={{ r: 3 }}
                 isAnimationActive={false}

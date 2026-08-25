@@ -17,7 +17,7 @@ export function draw_page4(
 
   // --- header bar ---
   const header_h = 60;
-  draw_rect(page, 0, 0, PAGE_W, header_h, blue.d);
+  draw_rect(page, 0, 0, PAGE_W, header_h, blue["9"]);
 
   draw_text(page, "APPENDIX", px, 35, fonts.bold, fs.xl, "#ffffff");
 
@@ -45,7 +45,7 @@ export function draw_page4(
     y + fs.lg2 / 2,
     content_w - title_w - w["4"],
     1,
-    gray.d
+    gray["9"]
   );
 
   // --- better giving platform ---
@@ -75,7 +75,7 @@ export function draw_page4(
       y + fs.md,
       fonts.regular,
       fs.md,
-      gray.d1
+      gray["11"]
     );
     const h = draw_wrapped(
       page,
@@ -85,7 +85,7 @@ export function draw_page4(
       fonts.regular,
       fs.md,
       content_w - bullet_indent - w["10"],
-      { color: gray.d1 }
+      { color: gray["11"] }
     );
     y += Math.max(h, fs.md * 1.4) + w["4"];
   }
@@ -110,7 +110,7 @@ export function draw_page4(
     fonts.regular,
     fs.md,
     content_w,
-    { color: gray.d1 }
+    { color: gray["11"] }
   );
   y += h + w["6"];
 
@@ -130,7 +130,7 @@ export function draw_page4(
       y + fs.md,
       fonts.regular,
       fs.md,
-      gray.d1
+      gray["11"]
     );
     draw_text(
       page,
@@ -139,7 +139,7 @@ export function draw_page4(
       y + fs.md,
       fonts.regular,
       fs.md,
-      gray.d1
+      gray["11"]
     );
     y += fs.md * 1.4 + w["6"];
   }
@@ -162,7 +162,7 @@ export function draw_page4(
       y + fs.md,
       fonts.regular,
       fs.md,
-      gray.d1
+      gray["11"]
     );
     draw_text(
       page,
@@ -171,7 +171,7 @@ export function draw_page4(
       y + fs.md,
       fonts.regular,
       fs.md,
-      gray.d1
+      gray["11"]
     );
     y += fs.md * 1.4 + w["6"];
   }
