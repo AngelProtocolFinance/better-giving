@@ -80,7 +80,7 @@ export function Form({
         charLimit={MAX_DESCRIPTION_CHARS}
         classes={{
           field:
-            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
+            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
           counter: "text-gray-11",
           error: "text-right",
         }}
@@ -178,7 +178,7 @@ export function Form({
                 <input
                   type="number"
                   {...rhf.register(`increments.${idx}.value`)}
-                  className="w-full h-full  outline-ring rounded text-sm font-medium bg-input pl-8 pr-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
+                  className="w-full h-full  outline-ring rounded text-sm font-medium bg-surface pl-8 pr-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
                 />
               </div>
 
@@ -190,7 +190,7 @@ export function Form({
               <textarea
                 {...rhf.register(`increments.${idx}.label`)}
                 rows={2}
-                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
+                className="w-full  outline-ring rounded text-sm font-medium bg-surface px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
               />
               <p
                 data-error={!!rhf.errors.increments?.[idx]?.label?.message}

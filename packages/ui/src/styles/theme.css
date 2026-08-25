@@ -255,7 +255,7 @@
   --color-warning-fg: var(--warning-fg);
   --color-warning-subtle: var(--warning-subtle);
   --color-warning-subtle-fg: var(--warning-subtle-fg);
-  --color-input: var(--input);
+  --color-surface: var(--surface);
   --color-ring: var(--ring);
   --color-primary-ring: var(--primary-ring);
   --color-primary-border: var(--primary-border);

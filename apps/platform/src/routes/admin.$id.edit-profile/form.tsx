@@ -152,7 +152,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           charLimit={MAX_CHARS}
           classes={{
             field:
-              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
+              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
             counter: "text-gray-11",
             error: "text-right",
           }}
@@ -234,7 +234,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           on_reset={() => rhf.resetField("active_in_countries")}
           options={country_names}
           classes={{
-            container: "bg-input",
+            container: "bg-surface",
             options: "text-sm",
           }}
         />

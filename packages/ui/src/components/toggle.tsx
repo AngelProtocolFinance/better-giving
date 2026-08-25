@@ -30,7 +30,7 @@ export const Toggle = ({ children, ...props }: Props) => {
         onCheckedChange={(e) => props.onChange(e.checked)}
         className="contents"
       >
-        <Switch.Control className="bg-input relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-ring data-disabled:bg-gray-3 data-disabled:cursor-default">
+        <Switch.Control className="bg-surface relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-ring data-disabled:bg-gray-3 data-disabled:cursor-default">
           <Switch.Thumb className="translate-x-1 bg-gray-11 data-[state=checked]:translate-x-6.5 data-[state=checked]:bg-primary inline-block size-6 transform rounded-full transition-transform" />
         </Switch.Control>
         <Switch.Label

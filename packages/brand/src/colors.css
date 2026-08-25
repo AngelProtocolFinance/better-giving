@@ -107,10 +107,10 @@
   --background: var(--gray-1);
   /* step 2, the ramp's subtle ground — one rung down from the page, so a panel
      is read by its fill as well as its border, and anything resting on step 1
-     inside it (a field, see --input) reads lighter than the panel. that
+     inside it (a field, see --surface) reads lighter than the panel. that
      direction is radix's: its default text-field variant sits LIGHTER than the
      panel it is on, and the tinted fill is the opt-in `soft` variant. it is
-     also the only direction available here — --input is already step 1 and
+     also the only direction available here — --surface is already step 1 and
      there is no rung above it, so the separation has to come from moving the
      container down. NOT a substitute for the border: --border is 1.36:1 and
      step 1 on step 2 is fainter still. the two together are what makes a field
@@ -218,11 +218,15 @@
      below, which is fainter still — the boundary and the ring are both under
      the threshold, and neither rescues the other. */
   --border: var(--gray-6);
-  /* step 1, the lightest rung there is — the same value the page carries, but
-     the job is the opposite: on a --card panel this is what lifts the field
-     off its container. a field on the bare page is therefore fill-identical to
-     it and reads by its border alone. */
-  --input: var(--gray-1);
+  /* the fill a form control carries — radix's --color-surface, and the reason
+     the container moved rather than this: step 1 is the lightest rung there is,
+     so a field can only sit ABOVE its panel, never below. the same value the
+     page carries, doing the opposite job — on a --panel this is what lifts the
+     field off its container, while a field on the bare page is fill-identical
+     to it and reads by its border alone.
+     unrelated to the `surface-primary` utility, which is a brand-filled BAND.
+     that one names what fills it; this one names what sits on a fill. */
+  --surface: var(--gray-1);
   /* step 8 is the ramp's focus rung, and it no longer equals --primary. a ring
      drawn on a --primary fill used to measure 1.00:1 against it, which is the
      defect the `surface-primary` utility exists to work around; on that fill

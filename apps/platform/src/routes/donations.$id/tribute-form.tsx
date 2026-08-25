@@ -32,7 +32,7 @@ export function TributeForm({ classes = "", init }: Props) {
         disabled={!!init?.full_name}
         label="Honoree's name"
         placeholder="e.g. Jane Doe"
-        classes={{ container: "[&_input]:bg-input" }}
+        classes={{ container: "[&_input]:bg-surface" }}
         required
         error={errors.full_name?.message}
       />

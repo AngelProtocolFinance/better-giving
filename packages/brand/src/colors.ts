@@ -92,7 +92,7 @@ export const colors = {
   warning_subtle: "#ffefcd",
   warning_subtle_fg: "#ac6500",
   border: "#d2dbe7",
-  input: "#fbfcfe",
+  surface: "#fbfcfe",
   ring: "#6daee9",
   primary_ring: "#ffffff",
   sidebar: "#fbfcfe",

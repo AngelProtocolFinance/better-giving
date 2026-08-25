@@ -69,7 +69,7 @@ export function EmployerForm({ init, filed }: IEmployerForm) {
         maxLength={company_name_max_length}
         required
         error={errors.company_name?.message}
-        classes={{ container: "[&_input]:bg-input" }}
+        classes={{ container: "[&_input]:bg-surface" }}
       />
       <button
         disabled={fetcher.state !== "idle"}

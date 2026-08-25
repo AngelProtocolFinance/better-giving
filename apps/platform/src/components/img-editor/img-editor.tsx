@@ -148,7 +148,7 @@ export function ImgEditor({
           const files = Array.from(e.dataTransfer.files);
           if (files.length) handle_files(files);
         }}
-        className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-input cursor-pointer
+        className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
           focus-within:outline-2 data-[drag="true"]:outline-2 outline-ring
           hover:bg-secondary
           data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none

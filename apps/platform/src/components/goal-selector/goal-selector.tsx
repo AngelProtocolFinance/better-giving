@@ -28,7 +28,7 @@ export function GoalSelector(props: Props) {
           value={value}
           className="flex items-center gap-2"
         >
-          <RadioGroup.ItemControl className="group flex size-5 items-center justify-center rounded-full border bg-input data-[state=checked]:bg-primary">
+          <RadioGroup.ItemControl className="group flex size-5 items-center justify-center rounded-full border bg-surface data-[state=checked]:bg-primary">
             <span className="invisible size-2 rounded-full bg-panel group-data-[state=checked]:visible" />
           </RadioGroup.ItemControl>
           <RadioGroup.ItemText className="text-sm">

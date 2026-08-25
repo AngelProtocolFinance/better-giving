@@ -58,7 +58,7 @@ function EditorHarness({
         charLimit={char_limit}
         classes={{
           field:
-            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
+            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
           counter: "text-gray-11",
         }}
       />
@@ -88,7 +88,7 @@ function StatefulEditor({
         charLimit={char_limit}
         classes={{
           field:
-            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
+            "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
           counter: "text-gray-11",
         }}
       />

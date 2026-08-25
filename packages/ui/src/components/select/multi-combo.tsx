@@ -104,7 +104,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
                 }
               />
             ))}
-            <div className="bg-input inline-flex items-center gap-2 text-gray-11 pl-3 rounded">
+            <div className="bg-surface inline-flex items-center gap-2 text-gray-11 pl-3 rounded">
               <Search size={20} />
               {/* the one focusable input in this control: it is both the search
                   box and what an external `ref` (RHF error focus) lands on. */}

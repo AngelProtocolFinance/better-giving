@@ -163,7 +163,7 @@ export function DonationFormTab(p: Props) {
                 <input
                   type="number"
                   {...register(`increments.${idx}.value`)}
-                  className="w-full h-full  outline-ring rounded text-sm font-medium bg-input pl-8 pr-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
+                  className="w-full h-full  outline-ring rounded text-sm font-medium bg-surface pl-8 pr-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
                 />
               </div>
 
@@ -175,7 +175,7 @@ export function DonationFormTab(p: Props) {
               <textarea
                 {...register(`increments.${idx}.label`)}
                 rows={2}
-                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
+                className="w-full  outline-ring rounded text-sm font-medium bg-surface px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
               />
               <p
                 data-error={!!errors.increments?.[idx]?.label?.message}
