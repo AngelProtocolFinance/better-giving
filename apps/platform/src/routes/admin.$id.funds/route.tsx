@@ -45,7 +45,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             }}
             positioning={{ placement: "bottom-start", gutter: 8 }}
           >
-            <Select.Trigger className="flex items-center gap-2 text-sm border rounded px-3 py-1.5 outline-ring focus:outline-2 data-[state=open]:outline-2">
+            <Select.Trigger className="flex items-center gap-2 text-sm border rounded px-3 py-1.5 outline-ring focus-visible:outline-2 data-[state=open]:outline-2">
               <Select.ValueText placeholder="All" />
               <Select.Context>
                 {(api) => (

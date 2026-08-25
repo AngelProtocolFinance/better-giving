@@ -42,14 +42,25 @@
   @apply absolute -bottom-5 right-0 text-xs text-right text-destructive;
 }
 
+/* focus-visible, never focus — the house trigger, the same one `.btn` and every
+   `btn-*` variant carry in styles/components.css. `focus:` here rings the
+   control on a pointer press and the button beside it stays unringed: browsers
+   withhold :focus-visible from a pointer press on a checkbox or radio, and
+   grant it to every keyboard one, so the narrower trigger costs a keyboard user
+   nothing.
+   the text controls keep `:focus` and are not a hole in that rule: a pointer
+   press on an <input> DOES match :focus-visible, so `.field-input-container`'s
+   `:has(input:focus)` in styles/components.css is the same set of moments under
+   another name. ledger entry in packages/brand/design-system.md →
+   "Which states each control carries". */
 @utility radio {
   @apply flex items-center gap-4 data-[required=true]:after:ml-1 data-[required=true]:after:content-['*'] data-[required=true]:after:text-destructive;
   & > input {
-    @apply appearance-none h-4 relative aspect-square border rounded-full before:content-[''] before:h-2.5 before:aspect-square before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full checked:before:bg-primary disabled:checked:before:bg-gray-3 focus:outline-2 focus:outline-ring;
+    @apply appearance-none h-4 relative aspect-square border rounded-full before:content-[''] before:h-2.5 before:aspect-square before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full checked:before:bg-primary disabled:checked:before:bg-gray-3 focus-visible:outline-2 focus-visible:outline-ring;
   }
 }
 @utility checkbox {
-  @apply accent-primary size-4 shrink-0 focus:outline-2 focus:outline-ring disabled:accent-gray-3;
+  @apply accent-primary size-4 shrink-0 focus-visible:outline-2 focus-visible:outline-ring disabled:accent-gray-3;
 }
 
 @utility overlay {

@@ -701,6 +701,70 @@ bug:
 `--radius` is the one radius system; `--radius-xs…3xl` are computed from it in
 `index.css`. Don't author parallel values.
 
+## Which states each control carries
+
+The *State ladder* above says what a state is painted **with**. This says which
+states each control **has** — the half that was authored once, for the button,
+and inherited nowhere. A blank cell is not a bug on its own; it is a state that,
+the first time a screen needs it, gets invented at that screen.
+
+Rows are what ships today, read out of `packages/ui/src/styles/{components,utilities}.css`
+and the components beside them. `—` means the state does not apply to that control.
+
+| control | rest | hover | focus-visible | active | disabled | pending | invalid | read-only |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `.btn` + 7 variants | ✓ | ✓ | ✓ | ✓¹ | ✓ | ✓ | — | — |
+| `.field-input` (input, textarea) | ✓ | | ✓² | — | ✓ | | ✓ | ✓³ |
+| `.field-input-container` (composite field) | ✓ | | ✓² | — | ✓ | | ✓ | ✓³ |
+| `checkbox` / `check-field` | ✓ | | ✓ | | ✓ | | ⁴ | — |
+| `radio` | ✓ | | ✓ | | ✓ | | ⁴ | — |
+| `Toggle` (switch) | ✓⁵ | | ✓ | — | ✓ | | ⁴ | — |
+| `Select` / `Combo` trigger | ✓ | | ✓⁶ | — | ✓ | | ✓ | — |
+| `.selector-opt` (option row) | ✓ | ✓⁷ | — | ✓⁷ | | — | — | — |
+| badge / chip | — | — | — | — | — | — | — | — |
+
+1. Filled variants share step 10 between hover and active — see the two-rungs
+   note above. Tinted and ghost press 3 → 5.
+2. The text controls take the UA outline, colored by the `*` rule in
+   `styles/base.css` (`outline-color: var(--ring)`); the composite reaches it
+   through `:has(input:focus)`.
+3. `[readonly]` paints the same gray-3 / gray-11 pair as `:disabled`, so the two
+   are indistinguishable to a reader. Deliberate today — the product has no
+   read-only field that is meant to look reachable — and worth knowing before
+   the first one appears.
+4. The control itself does not change; the error surfaces as `.field-err` text
+   beside it. Ark sets `data-invalid` on the parts, so painting the box is a
+   class away, not a mechanism away.
+5. Rest here is a pair, not one state: unchecked and `data-[state=checked]`.
+6. Plus `data-[state=open]`, which the other controls have no equivalent of.
+7. `data-highlighted` is the keyboard equivalent of `:hover` and both are
+   painted; `data-[state=checked]` is the selected rung. A **disabled option has
+   no paint at all** — zag emits `data-disabled` and `option_cls` in
+   `packages/ui/src/components/select/classes.ts` does not read it, so an
+   unselectable row is indistinguishable from a selectable one.
+
+**One focus trigger: `focus-visible`, never `focus`.** Applied at every control
+in the table. Until 2026-08-25 the checkbox, the radio and the select trigger
+spelled `focus:`, which is why a mouse click ringed a checkbox and not a button
+beside it — browsers withhold `:focus-visible` from a pointer press on those
+controls and grant it to every keyboard press, so the switch costs keyboard
+users nothing. The text controls are the one deliberate exception in spelling
+only: a pointer press on an `<input>` *does* match `:focus-visible`, so
+`:has(input:focus)` already behaves identically and the difference is not
+observable.
+
+Two things the table shows and no single component would:
+
+- **Nothing has a hover state but the button and the option row.** A checkbox, a
+  radio and a switch are all pointer targets that give no acknowledgement until
+  they are pressed.
+- **`pending` reaches the button alone.** A form whose submit is in flight has
+  one control that says so; its fields do not.
+
+Neither is a defect to fix here — both are design decisions with no answer yet,
+and the point of the row is that the next builder can see the blank instead of
+filling it by eye.
+
 ## Button variant set — what each fill means
 
 Seven variants, authored in `packages/ui/src/styles/components.css` and closed by

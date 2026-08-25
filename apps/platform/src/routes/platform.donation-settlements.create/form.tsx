@@ -105,7 +105,7 @@ export function SettleForm({
           <select
             id="__from"
             {...register("from")}
-            className="w-full rounded border border-gray-6 bg-panel px-3 py-2 text-sm font-medium text-gray-12 focus:outline-primary"
+            className="w-full rounded border border-gray-6 bg-panel px-3 py-2 text-sm font-medium text-gray-12 focus-visible:outline-2 outline-ring"
           >
             <option value="cheque">Cheque</option>
             <option value="daf">DAF</option>

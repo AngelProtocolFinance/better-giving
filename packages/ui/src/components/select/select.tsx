@@ -77,7 +77,7 @@ export function Select<T extends string>({
       <ArkSelect.Control>
         <ArkSelect.Trigger
           ref={btn_ref}
-          className={`${cls.button} selector-btn field-input focus:outline-2 data-[state=open]:outline-2 outline-ring`}
+          className={`${cls.button} selector-btn field-input focus-visible:outline-2 data-[state=open]:outline-2 outline-ring`}
         >
           {props.value != null ? (
             props.option_disp(props.value as T)

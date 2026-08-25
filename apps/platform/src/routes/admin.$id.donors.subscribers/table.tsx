@@ -214,7 +214,7 @@ function Th({
         type="button"
         onClick={() => on_click(k)}
         disabled={disabled}
-        className={`inline-flex w-full select-none items-center gap-1 px-2 py-2 focus:outline-none focus-visible:ring focus-visible:ring-ring ${
+        className={`inline-flex w-full select-none items-center gap-1 px-2 py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 outline-ring ${
           disabled ? "cursor-default" : "cursor-pointer"
         } ${align === "right" ? "justify-end" : ""} ${active ? "text-gray-12" : ""}`}
       >
