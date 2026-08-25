@@ -27,14 +27,14 @@ export default function Referrals() {
   return (
     <div className="w-full grid content-start pb-16 @container">
       <div
-        className="sticky -top-px z-50"
+        className="sticky -top-px z-sticky"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(
             ([e]) => {
               const isIntersecting = e.intersectionRatio < 1;
               e.target.classList.toggle("bg-panel", isIntersecting);
-              e.target.classList.toggle("shadow-lg", isIntersecting);
+              e.target.classList.toggle("shadow-floating", isIntersecting);
             },
             { threshold: [1] }
           );

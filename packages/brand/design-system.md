@@ -3,11 +3,13 @@
 Ledger for the palette in `src/colors.css`. Values live in the CSS; this file says
 what to reach for and what has already been measured, so nobody rediscovers it.
 
-Type is here too, and its values are **not** in this package — the face tokens
-and the size/weight/leading/tracking ladders sit in
-`packages/ui/src/styles/theme.css`. They are recorded here because this is the
-one file that says what a token is *for*, and a second ledger would only be a
-second place to go stale. See "One face, two roles, and four closed ladders".
+Type and elevation are here too, and their values are **not** in this package —
+the face tokens, the size/weight/leading/tracking ladders, and the shadow and
+stacking sets all sit in `packages/ui/src/styles/theme.css`. They are recorded
+here because this is the one file that says what a token is *for*, and a second
+ledger would only be a second place to go stale. See "One face, two roles, and
+four closed ladders" and "Elevation — four levels, and one treatment that is not
+a rung".
 
 Contrast figures are WCAG 2.x ratios measured on the **shipped hex** (the sRGB
 round-trip of the `oklch()`), not on the raw oklch. AA body text needs 4.5:1;
@@ -191,7 +193,7 @@ is the brand action color. The two blues split a ground from an element: see
 | `--background` | the page itself — `gray-1`, `#fbfcfe`. The page ground is **not** `#ffffff`, and every ratio in this file is measured against the real ground rather than white. `--surface` is set to this same value on purpose; see "decisions that look like bugs". Ink is `text-gray-12` — there is no `--fg` |
 | `--panel` | every container lifted off the page, in the flow or over it: panel, tile, table shell, row, and the transient layers too — menu, combobox and select list, dialog, toast. Radix files all of them under one rung and so does this. `gray-2`, one step below the page, so a panel reads by its fill *and* its `--border`; that matters because the border alone is 1.36:1. Splitting a floating layer back out later is a grep |
 | `--surface` | the fill a form control carries — Radix's `--color-surface`. `gray-1`, so on a `--panel` it sits one step *lighter* than its container, which is the direction Radix uses and the only one available: step 1 is the lightest rung there is. On the bare page it is fill-identical and reads by its border alone. Not fields only — `.btn-secondary` and the file dropzone rest here too, for the same reason: a control is a control wherever it sits |
-| `--overlay` | the scrim a dialog lays over the page — `gray-12` at 30%, via `color-mix()`. The four `Dialog.Backdrop` sites all carried this value already; the token is what stops a fifth being picked by eye. The drawer and the two native `<dialog>` backdrops still spell their own alphas — unifying those is an elevation decision, and there is no elevation ladder yet |
+| `--overlay` | the scrim a dialog lays over the page — `gray-12` at 30%, via `color-mix()`. The four `Dialog.Backdrop` sites all carried this value already; the token is what stops a fifth being picked by eye. It is the whole of the `modal` level's color: that level carries no shadow, so the scrim and the stacking step are what define it — see "Elevation". **Every backdrop in the app now spells it** — the four ark backdrops, the dashboard drawer (a `Modal size="none"`, so it takes the house backdrop rather than one of its own), and the single native `<dialog>`, whose `backdrop:` pseudo-element takes the same token. `apps/docs` spells it too, in the embed playground's `<dialog>` — that page is our own docs chrome around an embedded form, not a stand-in for a customer's site. The one backdrop outside this token is `demo-nonprofit`'s, and only because that whole page impersonates a fictional nonprofit's website: a system token there would stop it demonstrating the one thing it is for |
 | `--secondary` | second-tier action, plus chips and tags. The button does **not** rest on it: `.btn-secondary` rests on `--surface` with a `--border` — it is a control, and `--surface` is the fill a control carries — and takes `--secondary` (`blue-3`) on hover and `--secondary-active` (`blue-5`) pressed. So `--secondary` is a *state* fill for the button and a *resting* fill for chips — check which one you are in before assuming its ink. Ink is `text-gray-12` |
 | `--band` | the alternating full-bleed section on the marketing pages, and the far stop of the hero's `--background` → tint gradient. `blue-2`, the ramp's page-level subtle ground — **not** a UI element, and nothing hovers it. It is a *lighter* rung than `--secondary`, so every ink figure recorded below against `blue-3` is a floor for this band, not a ceiling |
 | `--sidebar-*` (6 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other five alias `--primary` / `--primary-fg` / `--secondary` / `--border` / `--ring`. Its two `-fg` twins went with the rest of the neutral ink. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
@@ -591,6 +593,232 @@ is a transient state and not a band.
 Neither tint carries brand hue as a resting fill beyond that. Brand action color
 is `--primary`.
 
+## Elevation — four levels, and one treatment that is not a rung
+
+The seventh foundation, and the last one to get a set. Its values are **not** in
+this package: the shadow tokens and the stacking steps live in
+`packages/ui/src/styles/theme.css`, because a box-shadow is not a color and
+`colors.css` is parsed token-by-token by `colors.test.ts` and
+`scripts/generate-colors.ts` — both of which *throw* on a `:root` declaration
+that is neither an `oklch()`, a `var()` alias, a `color-mix()` nor a plain
+length. A shadow there would take the email mirror down with it. Only the scrim
+color, `--overlay`, is a color and stays in the palette.
+
+**Depth is scarce here on purpose: the app is flat.** A card does not lift. The
+fill ladder already separates a container from the page by going *down* —
+`--panel` is `gray-2`, one rung below `--background` — and a shadow separates by
+going up, so spending both on one object says the same thing twice. Depth is
+reserved for what genuinely hovers over content.
+
+The set is closed and small. `--shadow-*` and `--inset-shadow-*` are reset to
+`initial`, so a call site has these names and nothing else.
+
+| level | what sits here | shadow | stacking |
+| --- | --- | --- | --- |
+| `flush` | the document flow, and most of the product: card, panel, table shell, row, form control. Separates by its `--panel` fill and its `--border` edge | none — and **no token**, see below | none |
+| `floating` | hovers over content, transient, no scrim: menu, dropdown, combobox and select popup, tooltip, hovercard, toast, and pinned page chrome once it is stuck | `shadow-floating` | `z-floating` for a popup; pinned chrome keeps `z-sticky` / `z-subbar` |
+| `modal` | covers the page behind a scrim: dialog, drawer, route-modal | **none, by decision** — see below | `z-scrim` on the backdrop, `z-modal` on the panel |
+| recessed track | a track a control sits *in*: slider track, progress bar, switch control | `inset-shadow-track` | none |
+| recessed fill | the fill that rides raised inside that track | `shadow-track-fill` | none |
+
+Two names sit outside that table on purpose and are described below: the
+**marketing lift** (`shadow-lift-card` / `-cta` / `-media`), a treatment held
+apart from the rungs, and `shadow-handle`, a legibility affordance that is not a
+level at all.
+
+### `flush` is a rule, not a token
+
+There is no `shadow-flush`, and adding one would be drift bait of exactly the
+kind `blue-4` is left undeclared to avoid: nothing would ever spend it, because
+a flat object is written by *not* writing a shadow. The rule is still authored —
+here and in the token file — because the rule is the half of a level that goes
+missing.
+
+`shadow-none` is not the spelling for it either. Tailwind emits that one from a
+literal rather than from the scale, so no namespace reset reaches it; with the
+namespace closed there is nothing left in the app for it to switch off but a
+named level, and a level that has to be cancelled at its own call site is the
+wrong level for that call site. The sweep treats it as a stock name.
+
+### Dialogs carry no shadow, and that is the decision
+
+The heaviest layer in the app is the flattest one. **The scrim is what separates
+a dialog from the page**, and a shadow laid on top of an already dimmed page is
+decoration that no reader can attribute to a state. So `modal` is defined by
+`--overlay` and its two stacking steps, and there is deliberately no
+`--shadow-modal` to reach for. Recorded here so a later sweep finds a decision
+rather than a hole.
+
+Every backdrop in the app spells `bg-overlay` — the four `Dialog.Backdrop`
+sites, the dashboard drawer (which is a `Modal size="none"` and takes the house
+backdrop), and the one native `<dialog>`, through its `backdrop:` pseudo-element.
+
+Two unrelated things are spelled `overlay` and the collision predates this
+section: `--overlay` is the dialog scrim, while the `overlay` **utility** in
+`packages/ui/src/styles/utilities.css` is a `bg-primary/70` photo scrim that
+puts copy over an image. Neither is reachable from the other's name.
+
+### The marketing lift is named apart, and that is the point
+
+The blue-tinted glow on the marketing pages is deliberate and it stays — as its
+own name, outside the general set. Naming it apart is precisely what stops the
+app picking it up by accident: there is no rung of the elevation ladder it can
+be reached through, so an app card cannot acquire a brand glow by asking for
+depth.
+
+| token | where it goes |
+| --- | --- |
+| `shadow-lift-card` | a marketing card — `--primary` at 5% |
+| `shadow-lift-cta` | a hero call to action — `--primary` at 25% |
+| `shadow-lift-media` | a photograph, or the skeleton or illustrative device standing in for one — `--color-black` at 10%, the one that is not blue |
+
+**A call site spends one class.** The tint lives inside the token, never as a
+`shadow-<color>` modifier written beside a level — a level paired with a
+hand-picked color is two decisions again, and the second one is the one that
+drifts.
+
+### `--shadow-handle` is an affordance, not a rung
+
+**Do not reach for it to raise something.** It is not a level, it is not below
+`floating`, and it does not belong on any object that could instead be flat. Its
+whole job is **legibility**: the img-editor's 8px white crop handle
+(`apps/platform/src/components/img-editor/cropper.tsx`) is drawn over a donor's
+own uploaded photograph, so its ground is arbitrary and against pale imagery the
+dot has no edge at all. The shadow gives it one; depth is the side effect, not
+the point. The same problem is recorded in that file for the selection edge,
+which solves it a different way — a white boundary paired with the blue focus
+ring.
+
+It exists as a name only because the call site spelled a **bare `shadow`**, which
+reads the DEFAULT `--shadow` key. That key is deprecated in v4 and the namespace
+reset strips it along with the rest — silently, with no build error and no
+shadow, which is the exact failure the reset exists to prevent everywhere else.
+The value is byte-identical to what that key resolved to at the pinned version,
+so naming it moved nothing.
+
+### `drop-shadow-*` stays open, deliberately
+
+The `--drop-shadow-*` namespace is a sibling of `--shadow-*` and is **not** reset.
+Two sites spend it — `routes/unlock-us-donations/hero.tsx:29,35`, white heading
+and body copy laid directly over a photograph — and they are doing the same job
+as `--shadow-handle`: making a light mark readable against a ground nobody
+controls. A `filter: drop-shadow` follows the glyph outlines, which a
+`box-shadow` cannot do, so there is no box-shadow token that could replace them.
+
+Closing that namespace would mean authoring a text-legibility scale for two call
+sites, and the scale is not the elevation ladder — nothing that spends it is
+sitting at a level. Recorded here so a later sweep finds a decision rather than
+an oversight.
+
+### The stacking ladder
+
+Each elevation level binds its own step, so a level owns its depth *and* its
+order. The ordering exists to answer one question: a combobox opened inside a
+dialog has to clear the dialog, and it now does so by being the higher step
+rather than by a hand-picked number.
+
+| step | value | what sits here |
+| --- | --- | --- |
+| `z-subbar` | 20 | a bar pinned *beneath* a pinned header — the checklist's progress bar at `top-16` |
+| `z-sticky` | 30 | page chrome that pins — the app and marketing headers, the announcement bar |
+| `z-scrim` | 40 | the `--overlay` a modal lays over the page |
+| `z-modal` | 50 | dialog, drawer, route-modal — above its own scrim |
+| `z-floating` | 60 | menu, popup, tooltip, toast — **above an open modal**, which is what retired the hand-picked value |
+| `z-top` | 100 | the one step above everything: the route-load progress bar |
+
+**Pinned chrome takes two rungs, not one.** A page can pin a header *and* a bar
+beneath it — `_landing.ethical-fundraising-platform-checklist/checklist.tsx`
+sticks a progress bar at `top-16`, under the 4rem marketing header. On one
+shared step the pair resolves by document order, so the sub-bar wins wherever it
+comes later in the tree and slides over the header it is meant to sit under. The
+rule that fixes it: **a pinned header is always above a bar pinned beneath it.**
+
+**Bounded deliberately.** These six name the elevation layers and nothing else.
+The `z-*` namespace is **not** reset, so `z-0` and `z-10` still compile, and
+every `z-*` that stacks siblings inside a single component is untouched — that
+is a different problem with a different ladder, and it does not have one. The
+ladder's floor is `z-subbar` at 20, which is what makes 20 the line: below it a
+raw number is sibling stacking, at it and above it a raw number is a layer
+ordering itself against the ladder by luck.
+
+`--z-index-*` is a real Tailwind v4 theme namespace — the `z` utility declares it
+as its theme key — but it is **absent from the namespace table in the docs**. It
+is verified against the compiler at the pinned version rather than read off that
+table, so re-verify it on a Tailwind major.
+
+### Where the values came from
+
+**From the dominant spelling already in the tree, not from invention.** There was
+no canvas turn for this foundation; the ladder codifies the majority so that
+migrating onto it moved pixels at the outliers only.
+
+| token | value | what it was |
+| --- | --- | --- |
+| `--shadow-floating` | `0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)` | Tailwind's stock `shadow-lg`, already on most floating sites |
+| `--inset-shadow-track` | `inset 0 2px 4px 0 rgb(0 0 0 / 0.05)` | Tailwind's `shadow-inner`, on every track site |
+| `--shadow-track-fill` | `0 1px 2px 0 rgb(0 0 0 / 0.05)` | Tailwind's stock `shadow-xs` |
+| `--shadow-lift-card` | `shadow-floating`'s geometry, tinted `--primary` at 5% | `shadow-lg shadow-primary/5`, verbatim on the marketing cards |
+| `--shadow-lift-cta` | the same geometry, tinted `--primary` at 25% | `shadow-lg shadow-primary/25`, on every hero CTA |
+| `--shadow-lift-media` | `0 25px 50px -12px`, tinted `--color-black` at 10% | `shadow-2xl shadow-black/10` |
+| `--shadow-handle` | `0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)` | the bare `shadow` on the crop handle — see above |
+
+The `color-mix()` in the three lift tokens is exactly what Tailwind compiles a
+`/<alpha>` shadow modifier to, so each token paints identically to the pair it
+replaced. `--color-black` is `#000101`, not pure black — `shadow-black/10` always
+read that token and the named version reads the same one.
+
+One site spends `shadow-lift-media` on something that is not a photograph: the
+marketing terminal card (`pages/@sections/terminal-card.tsx`). It sits on a
+`surface-primary` ground, where `shadow-lift-card`'s primary-at-5% composites
+onto primary and paints nothing — the black-tinted rung is the only one of the
+three that reads there, and the card is a raised object on a coloured ground,
+which is what that rung names.
+
+**The shadow color is stock and off-ramp, and that is a transcription, not a
+choice.** Every neutral shadow here is a plain `rgb(0 0 0 / …)`. No rung of the
+grey ramp is an alpha black, so deriving a shadow color from the palette is a
+palette decision to take back to the ramp — not one to make while codifying what
+the tree already paints.
+
+**`--inset-shadow-track` is in the `--inset-shadow-*` namespace, not
+`--shadow-*`.** They are two separate `box-shadow` slots that compose, and
+`shadow-inner` is a *deprecated* Tailwind v4 alias living in the `--shadow-*`
+namespace. The paint is identical today, and the named token outlives the alias.
+
+### How the set stays closed
+
+Two halves, and they catch different things.
+
+**The build enforces the names.** `--shadow-*: initial` and
+`--inset-shadow-*: initial` sit above the declarations in the `@theme inline`
+block — above, because a reset written under them would clear the ladder it
+exists to protect, silently. Every stock name and the deprecated bare `--shadow`
+key match no rule, so an off-system spelling paints nothing rather than drifting
+in.
+
+**A sweep enforces the rest**
+(`apps/platform/src/__tests__/elevation-conformance.node.test.ts`), because three
+things the reset provably cannot reach:
+
+- `shadow-[…]` never consults the theme — an arbitrary value compiles straight
+  out of its own bracket and survives a closed namespace intact.
+- a stripped utility is silent: `shadow-lg` after the reset renders flat with no
+  error, so the reset stops the drift but cannot report that the class was
+  written.
+- `shadow-<color>/<alpha>` beside a named lift compiles fine and simply
+  overwrites that lift's own tint, so the class string says one thing and the
+  paint says another.
+
+The same sweep reads `z-*`: a raw number at 20 or above, or a `z-[…]`, is a
+layer that should have taken a named step. `drop-shadow-*` is excluded
+structurally — the needles are anchored so the `-` in `drop-shadow` drops it —
+rather than by an exemption list.
+
+One consequence worth knowing about: a sweep spells every needle it hunts for,
+and Tailwind's extractor cannot tell a needle from a call site. `src/index.css`
+therefore carries an `@source not` for `src/__tests__/**/*.node.test.ts`; without
+it the closed namespace still emits a rule for each name it exists to strip.
+
 ## Decisions that look like bugs
 
 Recorded so they are not "fixed" by someone reading them as oversights.
@@ -700,6 +928,70 @@ bug:
 
 `--radius` is the one radius system; `--radius-xs…3xl` are computed from it in
 `index.css`. Don't author parallel values.
+
+## Which states each control carries
+
+The *State ladder* above says what a state is painted **with**. This says which
+states each control **has** — the half that was authored once, for the button,
+and inherited nowhere. A blank cell is not a bug on its own; it is a state that,
+the first time a screen needs it, gets invented at that screen.
+
+Rows are what ships today, read out of `packages/ui/src/styles/{components,utilities}.css`
+and the components beside them. `—` means the state does not apply to that control.
+
+| control | rest | hover | focus-visible | active | disabled | pending | invalid | read-only |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `.btn` + 7 variants | ✓ | ✓ | ✓ | ✓¹ | ✓ | ✓ | — | — |
+| `.field-input` (input, textarea) | ✓ | | ✓² | — | ✓ | | ✓ | ✓³ |
+| `.field-input-container` (composite field) | ✓ | | ✓² | — | ✓ | | ✓ | ✓³ |
+| `checkbox` / `check-field` | ✓ | | ✓ | | ✓ | | ⁴ | — |
+| `radio` | ✓ | | ✓ | | ✓ | | ⁴ | — |
+| `Toggle` (switch) | ✓⁵ | | ✓ | — | ✓ | | ⁴ | — |
+| `Select` / `Combo` trigger | ✓ | | ✓⁶ | — | ✓ | | ✓ | — |
+| `.selector-opt` (option row) | ✓ | ✓⁷ | — | ✓⁷ | | — | — | — |
+| badge / chip | — | — | — | — | — | — | — | — |
+
+1. Filled variants share step 10 between hover and active — see the two-rungs
+   note above. Tinted and ghost press 3 → 5.
+2. The text controls take the UA outline, colored by the `*` rule in
+   `styles/base.css` (`outline-color: var(--ring)`); the composite reaches it
+   through `:has(input:focus)`.
+3. `[readonly]` paints the same gray-3 / gray-11 pair as `:disabled`, so the two
+   are indistinguishable to a reader. Deliberate today — the product has no
+   read-only field that is meant to look reachable — and worth knowing before
+   the first one appears.
+4. The control itself does not change; the error surfaces as `.field-err` text
+   beside it. Ark sets `data-invalid` on the parts, so painting the box is a
+   class away, not a mechanism away.
+5. Rest here is a pair, not one state: unchecked and `data-[state=checked]`.
+6. Plus `data-[state=open]`, which the other controls have no equivalent of.
+7. `data-highlighted` is the keyboard equivalent of `:hover` and both are
+   painted; `data-[state=checked]` is the selected rung. A **disabled option has
+   no paint at all** — zag emits `data-disabled` and `option_cls` in
+   `packages/ui/src/components/select/classes.ts` does not read it, so an
+   unselectable row is indistinguishable from a selectable one.
+
+**One focus trigger: `focus-visible`, never `focus`.** Applied at every control
+in the table. Until 2026-08-25 the checkbox, the radio and the select trigger
+spelled `focus:`, which is why a mouse click ringed a checkbox and not a button
+beside it — browsers withhold `:focus-visible` from a pointer press on those
+controls and grant it to every keyboard press, so the switch costs keyboard
+users nothing. The text controls are the one deliberate exception in spelling
+only: a pointer press on an `<input>` *does* match `:focus-visible`, so
+`:has(input:focus)` already behaves identically and the difference is not
+observable.
+
+Two things the table shows and no single component would:
+
+- **Nothing has a hover state but the button and the option row.** A checkbox, a
+  radio and a switch are all pointer targets that give no acknowledgement until
+  they are pressed.
+- **`pending` reaches the button alone.** A form whose submit is in flight has
+  one control that says so; its fields do not.
+
+Neither is a defect to fix here — both are design decisions with no answer yet,
+and the point of the row is that the next builder can see the blank instead of
+filling it by eye.
 
 ## Button variant set — what each fill means
 

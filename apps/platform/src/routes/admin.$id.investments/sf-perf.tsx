@@ -24,7 +24,7 @@ export function SfPerf({ id, classes = "" }: Props) {
       <button
         type="button"
         onClick={() => expand(true)}
-        className={`text-xs font-semibold rounded focus:outline-none  ${
+        className={`text-xs font-semibold rounded focus-visible:outline-2 outline-ring ${
           data.total_return > 0
             ? "text-success-subtle-fg"
             : data.total_return < 0

@@ -48,7 +48,7 @@ export function NavProgress() {
   return (
     <Progress.Root
       value={width}
-      className="fixed top-0 left-0 w-full h-0.5 z-99"
+      className="fixed top-0 left-0 w-full h-0.5 z-top"
       style={{
         opacity: phase === "completing" ? 0 : 1,
         transition:

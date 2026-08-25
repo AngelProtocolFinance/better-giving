@@ -46,6 +46,13 @@
    is what mints it. excluded per-file rather than by extension so preview.mjs
    stays scanned; another vocabulary-as-data file needs its own line. */
 @source not "./check-conventions.mjs";
+/* the platform names sweeps are the same trap one tree over. each spells the
+   off-system utilities it hunts for — `shadow-2xl`, `z-51`, `shadow-primary/40`
+   — as literals inside its own regexes, so scanning them mints a rule for every
+   name the closed namespaces exist to strip, and the published vocabulary then
+   offers a design exactly the depth the app is not allowed to have. platform's
+   own src/index.css carries the twin of this line. */
+@source not "../../platform/src/__tests__/**/*.node.test.ts";
 
 /* the two families the header promises that no scanned file happens to write.
    both are intended vocabulary, not inventions: theme.css maps --color-chart-*

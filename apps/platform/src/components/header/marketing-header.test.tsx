@@ -14,7 +14,7 @@ function stub() {
       path: "/",
       Component: () => (
         <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[4rem_1fr] min-h-dvh">
-          <MarketingHeader classes="sticky z-40 -top-px" />
+          <MarketingHeader classes="sticky z-sticky -top-px" />
           <main />
         </div>
       ),

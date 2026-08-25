@@ -218,7 +218,7 @@ export function ImgEditor({
 }
 
 const buttonStyle =
-  "text-primary-fg text-lg bg-primary hover:bg-primary/80 disabled:bg-gray-6 disabled:text-gray-11 p-2 m-1 rounded shadow-lg";
+  "text-primary-fg text-lg bg-primary hover:bg-primary/80 disabled:bg-gray-6 disabled:text-gray-11 p-2 m-1 rounded";
 function IconButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button {...props} type="button" className={buttonStyle} />;
 }

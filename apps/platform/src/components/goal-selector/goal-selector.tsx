@@ -36,7 +36,7 @@ export function GoalSelector(props: Props) {
             {value === "smart" && (
               <Tooltip
                 tip={
-                  <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
+                  <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-floating rounded">
                     Smart milestones will dynamically update your goal amount as
                     donors contribute, providing a moving target that grows with
                     your success

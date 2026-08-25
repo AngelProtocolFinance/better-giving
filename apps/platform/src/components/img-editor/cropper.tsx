@@ -98,7 +98,7 @@ export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
               <div
                 className={
                   CORNER_BORDER[position] ??
-                  "size-2 rounded-full bg-white shadow"
+                  "size-2 rounded-full bg-white shadow-handle"
                 }
               />
             </ImageCropper.Handle>

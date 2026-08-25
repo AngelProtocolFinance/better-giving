@@ -38,7 +38,7 @@ export function Payout({ classes = "", ...p }: Props) {
         style={{
           backgroundImage: `linear-gradient(to right, var(--success) 0%, var(--success) ${Math.min(progress * 100, 100)}%, color-mix(in oklch, var(--success) 15%, transparent) ${Math.min(progress * 100, 100)}%, color-mix(in oklch, var(--success) 15%, transparent) 100%)`,
         }}
-        className="py-1 rounded-full shadow-inner mb-2"
+        className="py-1 rounded-full inset-shadow-track mb-2"
       />
       <p className="text-sm">
         {progress < 1 ? "Once desired amount is accumulated, " : ""}

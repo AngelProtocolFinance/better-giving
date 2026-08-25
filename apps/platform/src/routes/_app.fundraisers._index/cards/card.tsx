@@ -33,7 +33,7 @@ export function Card({
             height={60}
             loading="lazy"
             src={logo || flying_character}
-            className="absolute bottom-0 translate-y-1/2 z-10 left-3 rounded-full border-2 border-primary shadow-2xl shadow-black/20"
+            className="absolute bottom-0 translate-y-1/2 z-10 left-3 rounded-full border-2 border-primary shadow-lift-media"
             onError={(e) => e.currentTarget.classList.add("bg-secondary")}
           />
         </div>

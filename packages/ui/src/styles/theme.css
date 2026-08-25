@@ -283,6 +283,137 @@
      are unaffected: v4 emits those from literals, not from this scale. */
   --radius-*: initial;
 
+  /* both shadow namespaces are closed, the same way --color-* and --radius-*
+     are, and this pair MUST stay above the declarations below — a reset written
+     under them clears the ladder it exists to protect, with no build error and
+     no shadow.
+
+     what closing them buys: every stock name (`shadow-md`, `shadow-2xl`,
+     `shadow-inner`) and the deprecated bare `--shadow` key match no rule, so
+     depth cannot be re-picked by eye one call site at a time. what a call site
+     is left with is exactly the ladder declared below — the four levels, the
+     recessed pair, the three marketing lifts and the one handle affordance —
+     and the flush level, which is written by not writing a shadow at all.
+     `shadow-none` survives — v4 emits it from a literal, not from this scale —
+     so the sweep below is what keeps it out of a call site.
+
+     it does NOT reach `shadow-[…]`. an arbitrary value is compiled straight
+     from the bracket and never consults the theme, so the bracket half of this
+     gate is a filesystem sweep, not the compiler —
+     apps/platform/src/__tests__/elevation-conformance.node.test.ts.
+
+     --drop-shadow-* is a sibling namespace and stays OPEN on purpose: two sites
+     lay white copy over a photograph (routes/unlock-us-donations/hero.tsx), and
+     a filter follows the glyph outlines where a box-shadow cannot. that is text
+     legibility, not a level, so it has no token here to converge on. */
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+
+  /* the elevation set: four levels a thing can sit at, plus one treatment that
+     is deliberately not a rung of them. a call site spends ONE name — the tint
+     lives inside the token, never as a `shadow-<color>` modifier written beside
+     it, because a level paired with a hand-picked color is two decisions again.
+
+     flush — in the document flow, and most of the product. a card, panel,
+       table shell or form control separates by its fill (--panel is gray-2, one
+       rung BELOW the page) and its --border edge. it has NO token, on purpose:
+       nothing would ever spend it, because flush is written by writing no
+       shadow at all. `shadow-none` is not the spelling either — with the
+       namespace closed there is nothing left for it to switch off but a named
+       level, and a level that has to be cancelled at the call site is the wrong
+       level there. the rule is the half of a level that goes missing, so it is
+       written here and in the ledger rather than left implied by an absent
+       name.
+     floating — hovers over content, transient, no scrim: menu, dropdown,
+       combobox and select popup, tooltip, hovercard, toast, and a sticky header
+       once it is stuck. --shadow-floating, and z-floating below.
+     modal — covers the page behind a scrim: dialog, drawer, route-modal.
+       carries NO shadow, and that is a decision rather than an oversight: the
+       scrim is what separates it from the page, so a shadow over an already
+       dimmed page is decoration. the level is --overlay (declared in
+       packages/brand/src/colors.css) plus z-scrim and z-modal, and there is
+       deliberately no --shadow-modal to reach for.
+     the recessed pair — a track a control sits IN (slider, progress bar, switch)
+       and the fill that rides raised inside it. inward depth, the mirror of
+       floating: --inset-shadow-track and --shadow-track-fill.
+
+     the values are the dominant spelling already in the tree, transcribed from
+     tailwind's own defaults rather than retuned — --shadow-floating is
+     `shadow-lg`, --inset-shadow-track is `shadow-inner`, --shadow-track-fill is
+     `shadow-xs`. codifying the majority is what keeps the migration onto these
+     names a pixel change at the outliers only.
+     the shadow COLOR is stock for the same reason: plain rgb(0 0 0 / …), not a
+     ramp step. no rung of the grey ramp is an alpha black, so deriving one is a
+     palette decision and not one to make while transcribing.
+
+     --inset-shadow-track sits in the --inset-shadow-* namespace rather than
+     --shadow-*, and that is not cosmetic: the two are separate box-shadow slots
+     that compose, while `shadow-inner` is a DEPRECATED alias v4 still carries in
+     the --shadow-* namespace. same paint today, and it outlives the alias. */
+  --shadow-floating:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --inset-shadow-track: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-track-fill: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+
+  /* the marketing lift — a treatment, not a rung, and named apart precisely so
+     the app cannot pick it up by reaching for a level. three surfaces on the
+     marketing pages carry a deliberate glow: a card, a hero CTA, and a
+     photograph (or the skeleton standing in for one). they are spelled today as
+     `shadow-lg shadow-primary/5`, `shadow-lg shadow-primary/25` and
+     `shadow-2xl shadow-black/10`; folding the tint into the token is what makes
+     each one class instead of two, and what stops a fourth opacity being picked
+     by eye.
+     the color-mix() is exactly what v4 compiles a `/<alpha>` shadow modifier to,
+     so these paint identically to the pairs they replace. --color-black is
+     #000101, not pure black — `shadow-black/10` always read that token, and
+     naming it here keeps it reading the same one. */
+  --shadow-lift-card:
+    0 10px 15px -3px color-mix(in oklab, var(--primary) 5%, transparent),
+    0 4px 6px -4px color-mix(in oklab, var(--primary) 5%, transparent);
+  --shadow-lift-cta:
+    0 10px 15px -3px color-mix(in oklab, var(--primary) 25%, transparent),
+    0 4px 6px -4px color-mix(in oklab, var(--primary) 25%, transparent);
+  --shadow-lift-media: 0 25px 50px -12px
+    color-mix(in oklab, var(--color-black) 10%, transparent);
+
+  /* an affordance, NOT a rung — do not reach for it to raise something. the
+     one consumer is the img-editor's 8px white crop handle
+     (components/img-editor/cropper.tsx), drawn over a donor's own uploaded
+     photograph, where the ground is arbitrary and a white dot on pale imagery
+     has no edge at all. the shadow is there to give it one; depth is a side
+     effect. the same legibility problem is recorded for the selection edge in
+     that file's own comment.
+     it exists as a name because the call site spelled a bare `shadow`, which
+     reads the DEFAULT --shadow key — deprecated in v4, and stripped along with
+     the rest of the namespace by the reset, silently and with no build error.
+     the value is exactly what that key resolved to at the pinned version, so
+     naming it moved nothing. */
+  --shadow-handle:
+    0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+
+  /* the stacking ladder. each elevation level binds its own step, ordered so a
+     popup opened INSIDE a dialog clears it without a hand-picked value — which
+     is the entire reason a combobox in a modal used to be spelled `z-51`.
+     bounded on purpose: these six name the elevation layers and nothing else.
+     the z-* namespace is NOT reset, so `z-10` and friends still compile, and
+     the values that stack siblings inside one component stay untouched.
+     --z-index-* is a real v4 namespace — the `z` utility declares it as its
+     theme key — but it is absent from the namespace table in the docs, so this
+     is verified against the compiler at the pinned version, not read off that
+     table. */
+  /* two rungs for pinned chrome, not one: a page can pin a header AND a bar
+     beneath it (the checklist's progress bar sticks at top-16, under the 4rem
+     marketing header). one step for both leaves the pair resolving by document
+     order, so the sub-bar wins when it comes later in the tree and slides over
+     the header it is supposed to sit under. the rule is fixed: a pinned header
+     is always above a bar pinned beneath it. */
+  --z-index-subbar: 20; /* a bar pinned BENEATH a pinned header */
+  --z-index-sticky: 30; /* page chrome that pins: header, announcement bar */
+  --z-index-scrim: 40; /* the --overlay a modal lays over the page */
+  --z-index-modal: 50; /* dialog, drawer, route-modal — above their own scrim */
+  --z-index-floating: 60; /* menu, popup, tooltip, toast — above an open modal */
+  --z-index-top: 100; /* the one step above everything: route-load progress */
+
   /*
    * ark overlay/accordion animations.
    * inline `transition-[...] data-[state=closed]:...` only animates exit;

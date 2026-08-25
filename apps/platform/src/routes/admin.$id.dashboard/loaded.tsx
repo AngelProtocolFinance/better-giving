@@ -63,7 +63,7 @@ export function Loaded({ classes = "", ...props }: Props) {
           title="Investments"
           to="../investments"
           hover_content={
-            <HoverContent className="bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
+            <HoverContent className="bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-floating">
               <span className="block mb-2 font-medium">
                 Portfolio composition
               </span>
@@ -144,7 +144,7 @@ export function Loaded({ classes = "", ...props }: Props) {
         </NavLink>
       </div>
 
-      <div className="w-full mt-16 h-1.5 bg-gray-3 rounded-full shadow-inner" />
+      <div className="w-full mt-16 h-1.5 bg-gray-3 rounded-full inset-shadow-track" />
 
       {/** div scopes when the sticky header ends */}
       <div className="@container/period mt-2">

@@ -30,8 +30,8 @@ export function Target({ text, target, classes = "", progress }: ITarget) {
         max={to}
         className="h-1.5 w-full"
       >
-        <Progress.Track className="h-full w-full rounded-full bg-success/10 shadow-inner">
-          <Progress.Range className="h-full rounded-full bg-success shadow-xs" />
+        <Progress.Track className="h-full w-full rounded-full bg-success/10 inset-shadow-track">
+          <Progress.Range className="h-full rounded-full bg-success shadow-track-fill" />
         </Progress.Track>
       </Progress.Root>
       <div className="flex items-center justify-between mt-1">
@@ -65,8 +65,8 @@ Target.Inline = ({ text, target, classes = "", progress }: ITarget) => {
         max={to}
         className="h-1.5 flex-1"
       >
-        <Progress.Track className="h-full w-full rounded-full bg-success/10 shadow-inner">
-          <Progress.Range className="h-full rounded-full bg-success shadow-xs" />
+        <Progress.Track className="h-full w-full rounded-full bg-success/10 inset-shadow-track">
+          <Progress.Range className="h-full rounded-full bg-success shadow-track-fill" />
         </Progress.Track>
       </Progress.Root>
       <p className="flex items-center gap-x-1 text-sm text-gray-11 whitespace-nowrap">

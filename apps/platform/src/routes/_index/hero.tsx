@@ -57,7 +57,7 @@ export function Hero({ classes = "" }: IHero) {
           <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-2">
             <Link
               to={href("/register")}
-              className="btn btn-lg btn-primary shadow-lg shadow-primary/25"
+              className="btn btn-lg btn-primary shadow-lift-cta"
             >
               Join free forever
             </Link>
@@ -76,7 +76,7 @@ export function Hero({ classes = "" }: IHero) {
             className="absolute size-50 bg-secondary rounded-full -top-8 -right-4"
             aria-hidden
           />
-          <div className="relative bg-panel border border-gray-6 rounded shadow-2xl shadow-primary/15 overflow-hidden -rotate-1">
+          <div className="relative bg-panel border border-gray-6 rounded shadow-lift-media overflow-hidden -rotate-1">
             <img
               src={donation_form}
               alt="Better Giving embeddable donation form"

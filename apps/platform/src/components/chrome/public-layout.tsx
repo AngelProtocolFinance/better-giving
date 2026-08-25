@@ -44,7 +44,7 @@ export function PublicLayout() {
       {banner && <AnnouncementBanner />}
       {/* site navigation is not part of any printed document. sticky is worse
           than useless on paper: it lands the bar mid-sheet, in flow. */}
-      <PublicHeader classes="sticky z-40 -top-px print:hidden" />
+      <PublicHeader classes="sticky z-sticky -top-px print:hidden" />
       <Outlet />
       <PublicFooter />
     </div>

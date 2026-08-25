@@ -28,7 +28,7 @@ export function Layout({
 }: DashboardLayoutProps) {
   return (
     <div className="grid">
-      <AppHeader variant={headerVariant} classes="sticky z-40 -top-px" />
+      <AppHeader variant={headerVariant} classes="sticky z-sticky -top-px" />
       <div className="grid max-md:content-start md:grid-cols-[auto_1fr] border-b">
         <SidebarOpener
           className="md:hidden"

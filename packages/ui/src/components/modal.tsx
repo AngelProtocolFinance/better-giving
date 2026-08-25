@@ -28,10 +28,10 @@ export function Modal({ size = "sm", ...props }: Props) {
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-50 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
+        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
-            className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${size === "none" ? "z-50" : modal_box[size]} ${props.classes ?? ""}`}
+            className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${size === "none" ? "z-modal" : modal_box[size]} ${props.classes ?? ""}`}
           >
             {props.children}
           </Dialog.Content>

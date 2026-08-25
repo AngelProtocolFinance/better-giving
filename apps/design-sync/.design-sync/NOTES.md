@@ -705,6 +705,26 @@ Two things worth carrying forward:
   per-file rather than `../**/*.mjs` so `preview.mjs` and any future script stay scanned; a new
   vocabulary-as-data file needs its own line here.
 
+## The platform names sweeps are vocabulary-as-data too, one tree over
+
+`styles-entry.css` carries `@source "../../platform/src"` so the published vocabulary stays
+continuous with the app's. That scope includes `apps/platform/src/__tests__/*.node.test.ts`, and
+every one of those sweeps spells the off-system names it hunts for as literals inside its own
+regexes. The elevation sweep is the sharpest case: it names `shadow-2xl`, `shadow-none`,
+`shadow-[…]`, `shadow-primary/40`, `z-51` and `z-[51]`, so scanning it mints a rule for each name
+the closed `--shadow-*`/`--inset-shadow-*` reset exists to strip — and the design agent is then
+offered exactly the depth the app is not allowed to have. Same class as `check-conventions.mjs`
+above; the per-file exclusion there does not reach another package.
+
+```css
+@source not "../../platform/src/__tests__/**/*.node.test.ts";
+```
+
+**It needs a twin in the app, not just here.** `apps/platform/src/index.css` compiles its own
+stylesheet over the same tree and was emitting the same 13 dead rules, so it carries the same line
+against `./__tests__/**/*.node.test.ts`. Two entries, two files, and they only stay in step by
+being written together.
+
 ## The converter's own deps live in `.ds-sync/node_modules`
 
 `esbuild`, `ts-morph` and `@types/react` are installed **inside the staged `.ds-sync/`**, isolated

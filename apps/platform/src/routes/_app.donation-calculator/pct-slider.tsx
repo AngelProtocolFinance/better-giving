@@ -19,7 +19,7 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
         {p.tooltip && (
           <Tooltip
             tip={
-              <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
+              <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-floating rounded">
                 {p.tooltip}
                 <Arrow />
               </Content>
@@ -40,12 +40,12 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
             onValueChange={(e) => p.onChange(e.value[0])}
           >
             <Slider.Control className="flex w-full items-center">
-              <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3">
+              <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3 inset-shadow-track">
                 <Slider.Range className="absolute h-full bg-primary" />
               </Slider.Track>
               <Slider.Thumb
                 index={0}
-                className="block size-4 rounded-full border-2 border-primary bg-background shadow-md focus-visible:outline-2 focus-visible:outline-ring"
+                className="block size-4 rounded-full border-2 border-primary bg-background shadow-track-fill focus-visible:outline-2 focus-visible:outline-ring"
               />
             </Slider.Control>
           </Slider.Root>

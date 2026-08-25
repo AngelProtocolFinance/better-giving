@@ -18,7 +18,7 @@ function useAutoOpen() {
 }
 
 const tip_cls =
-  "bg-panel outline outline-gray-6 text-gray-12 px-4 py-2 rounded text-sm shadow-md";
+  "bg-panel outline outline-gray-6 text-gray-12 px-4 py-2 rounded text-sm shadow-floating";
 
 export const Open = () => {
   const box = useAutoOpen();

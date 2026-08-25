@@ -67,7 +67,7 @@ export function Panel(props: Props) {
             onClick={() =>
               source.onChange(source.value === "liq" ? "lock" : "liq")
             }
-            className="relative p-6 border-t hover:outline hover:outline-primary outline-primary shadow-xl shadow-black/10 rounded-full group"
+            className="relative p-6 border-t hover:outline hover:outline-primary outline-primary rounded-full group"
           >
             <div className="absolute-center">
               <MoveLeft

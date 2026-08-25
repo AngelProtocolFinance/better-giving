@@ -8,8 +8,10 @@ interface ITerminalCard {
 /** illustrative repo terminal — content is decorative, not real commands */
 export function TerminalCard({ label, classes = "", children }: ITerminalCard) {
   return (
+    // the media lift, not the card one: this sits on a --primary ground, where
+    // the card lift's primary-at-5% composites onto primary and paints nothing.
     <div
-      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden shadow-2xl`}
+      className={`${classes} bg-black/25 border border-primary-fg/15 rounded overflow-hidden shadow-lift-media`}
     >
       <div className="flex items-center gap-2 px-4.5 py-3.5 border-b border-primary-fg/10">
         <span className="size-3 rounded-full bg-primary-fg/25" />

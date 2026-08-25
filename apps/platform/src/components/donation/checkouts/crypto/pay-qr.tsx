@@ -35,8 +35,7 @@ export function PayQr({ classes = "", ...props }: Props) {
       <Copier
         text={props.recipient}
         classes={{
-          container:
-            "flex items-center gap-2 px-2 py-1.5 rounded border shadow-md shadow-black/5",
+          container: "flex items-center gap-2 px-2 py-1.5 rounded border",
           icon: "size-5",
         }}
       >
@@ -58,8 +57,7 @@ function Memo({ val, classes = "" }: IMemo) {
       <Copier
         text={val}
         classes={{
-          container:
-            "flex items-center gap-2 px-2 py-1.5 rounded border shadow-md shadow-black/5",
+          container: "flex items-center gap-2 px-2 py-1.5 rounded border",
           icon: "size-5",
         }}
       >
