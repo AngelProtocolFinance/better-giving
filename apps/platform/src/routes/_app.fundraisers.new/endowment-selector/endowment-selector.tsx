@@ -117,7 +117,7 @@ export function EndowmentSelector(props: Props) {
       >
         <Combobox.Label className="block text-sm font-medium mb-2 w-fit">
           I want to raise funds for …{" "}
-          <span className="text-destructive">*</span>
+          <span className="text-destructive-subtle-fg">*</span>
         </Combobox.Label>
         <Combobox.Control
           aria-invalid={!!props.error}

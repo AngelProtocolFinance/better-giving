@@ -21,7 +21,7 @@ export function Loaded(props: LoaderData) {
         </div>
       )}
       {is_rejected && (
-        <p className="text-destructive text-sm -mt-3">
+        <p className="text-destructive-subtle-fg text-sm -mt-3">
           {props.ba.rejection_reason}
         </p>
       )}

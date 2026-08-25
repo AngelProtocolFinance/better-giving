@@ -46,9 +46,7 @@ export function Table({ classes = "", ...v }: Props) {
           <p className="sm:text-lg font-bold text-balance">
             {tab} Savings & Investment Impact
           </p>
-          <Usd tinted classes="text-lg font-bold">
-            {p.total}
-          </Usd>
+          <Usd classes="text-lg font-bold">{p.total}</Usd>
         </div>
         {p.total > 0 && (
           <Image

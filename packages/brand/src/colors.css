@@ -150,7 +150,11 @@
   /* de-emphasised destructive surface: an error panel, banner, or row that
      carries error ink as body copy rather than a filled control. step 11 on
      step 3 is 4.57:1, where the hand-authored red on a tint it replaces
-     measured 4.09:1. */
+     measured 4.09:1. --destructive-subtle-fg is the error ink EVERYWHERE, the
+     page included, not only on this band — --destructive is a fill, and step 9
+     read as text clears AA only because red's step 9 happens to sit dark. the
+     other two status hues don't, so ink follows the rung, not the luck. an
+     icon is a shape, not text, and keeps step 9. */
   --destructive-subtle: var(--red-3);
   --destructive-subtle-fg: var(--red-11);
   /* pressed rung for a control whose resting surface is --destructive-subtle.
@@ -168,9 +172,11 @@
   /* de-emphasised success surface, same shape as the destructive and warning
      bands: a confirmation panel, status pill, or row carrying success copy
      rather than a filled control. --success itself is a FILL and must never be
-     painted on it; --success-subtle-fg is the success ink, 4.45:1 here — an
-     accepted miss, taken as the ramp generates it. --fg on the band stays far
-     clear, so it also takes neutral body copy. */
+     painted on it — at 4.25:1 it is under AA as text on the page too, not just
+     on a tint; --success-subtle-fg is the success ink everywhere, 4.45:1 here —
+     an accepted miss, taken as the ramp generates it. an icon is a shape, not
+     text, and keeps step 9. --fg on the band stays far clear, so it also takes
+     neutral body copy. */
   --success-subtle: var(--green-3);
   --success-subtle-fg: var(--green-11);
   --warning: var(--amber-9); /* a fill, never text */

@@ -56,7 +56,7 @@ function Content({
         <p className="text-sm text-gray-11 mb-4">
           {data.donation_id}
           {data.already_refunded && (
-            <span className="ml-2 text-destructive text-xs font-semibold">
+            <span className="ml-2 text-destructive-subtle-fg text-xs font-semibold">
               Already refunded
             </span>
           )}

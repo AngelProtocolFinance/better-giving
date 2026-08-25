@@ -113,9 +113,7 @@ export function Result1({ classes = "", ...v }: Props) {
           <p className="sm:text-lg font-bold text-balance">
             Annual Donation Processing Impact
           </p>
-          <Usd tinted classes="text-lg font-bold">
-            {v.advantage}
-          </Usd>
+          <Usd classes="text-lg font-bold">{v.advantage}</Usd>
         </div>
         {v.advantage > 0 && (
           <Image

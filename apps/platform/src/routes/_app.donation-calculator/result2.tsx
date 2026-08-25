@@ -48,9 +48,7 @@ export function Result2({ classes = "", ...v }: Props) {
           <p className="sm:text-lg font-bold text-balance">
             Annual Savings & Investment Impact
           </p>
-          <Usd tinted classes="text-lg font-bold">
-            {y1.total}
-          </Usd>
+          <Usd classes="text-lg font-bold">{y1.total}</Usd>
         </div>
         {y1.total > 0 && (
           <Image

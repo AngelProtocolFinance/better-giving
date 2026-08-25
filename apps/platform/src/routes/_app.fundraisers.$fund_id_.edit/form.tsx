@@ -139,7 +139,7 @@ export function Form({
       />
 
       <p className="label mt-6">
-        Fundraiser goal <span className="text-destructive">*</span>
+        Fundraiser goal <span className="text-destructive-subtle-fg">*</span>
       </p>
       <GoalSelector
         classes="mt-2 mb-2"
@@ -182,7 +182,7 @@ export function Form({
                 />
               </div>
 
-              <p className="mt-1 empty:hidden text-left text-xs text-destructive">
+              <p className="mt-1 empty:hidden text-left text-xs text-destructive-subtle-fg">
                 {rhf.errors.increments?.[idx]?.value?.message}
               </p>
             </BaseField.Root>
@@ -194,7 +194,7 @@ export function Form({
               />
               <p
                 data-error={!!rhf.errors.increments?.[idx]?.label?.message}
-                className="mt-1 text-left text-xs data-[error='true']:text-destructive"
+                className="mt-1 text-left text-xs data-[error='true']:text-destructive-subtle-fg"
               >
                 {rhf.incs[idx].label.length}/{increment_label_max_chars}
               </p>

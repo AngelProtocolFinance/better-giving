@@ -49,7 +49,7 @@ export function TokenField({ ref, ...props }: ITokenField & { ref?: Ref<El> }) {
       {props.error && (
         <p
           data-error
-          className="peer text-destructive text-xs text-right mt-0.5"
+          className="peer text-destructive-subtle-fg text-xs text-right mt-0.5"
         >
           {props.error}
         </p>

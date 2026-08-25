@@ -82,7 +82,7 @@ function Match({ payment: c }: { payment: PaymentRow }) {
         </span>
       )}
       {c.match_send_failed_kind && (
-        <span className="text-destructive text-xs font-semibold">
+        <span className="text-destructive-subtle-fg text-xs font-semibold">
           {c.match_send_failed_kind} mail refused
         </span>
       )}
@@ -180,7 +180,7 @@ function Row({ payment: c }: { payment: PaymentRow }) {
       </td>
       <td>
         {c.status === "refunded" || c.status === "refunded_loss" ? (
-          <span className="text-destructive text-xs font-semibold">
+          <span className="text-destructive-subtle-fg text-xs font-semibold">
             {c.status === "refunded_loss" ? "Refunded (loss)" : "Refunded"}
           </span>
         ) : is_stripe ? (

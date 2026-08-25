@@ -28,13 +28,13 @@ export function SubscribersKpis({ summary, trends }: IKpiProps) {
     has_new || has_cancelled ? (
       <>
         {has_new && (
-          <span className="text-success">
+          <span className="text-success-subtle-fg">
             ${summary.new_usd.toLocaleString()} new
           </span>
         )}
         {has_new && has_cancelled && <span className="text-gray-11"> · </span>}
         {has_cancelled && (
-          <span className="text-destructive">
+          <span className="text-destructive-subtle-fg">
             ${summary.cancelled_usd.toLocaleString()} cancelled
           </span>
         )}

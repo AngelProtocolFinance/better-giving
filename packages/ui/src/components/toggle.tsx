@@ -36,7 +36,7 @@ export const Toggle = ({ children, ...props }: Props) => {
         <Switch.Label
           className={`${cls.label} ${
             props.required
-              ? "after:ml-1 after:content-['*'] after:text-destructive"
+              ? "after:ml-1 after:content-['*'] after:text-destructive-subtle-fg"
               : ""
           }`}
         >

@@ -32,7 +32,7 @@ export function FloatingField({
         {error && (
           <span
             data-error
-            className="text-destructive mt-0.5 text-right text-xs font-normal"
+            className="text-destructive-subtle-fg mt-0.5 text-right text-xs font-normal"
           >
             {error}
           </span>

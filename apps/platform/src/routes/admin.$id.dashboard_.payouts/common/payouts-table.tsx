@@ -41,7 +41,7 @@ export function PayoutsTable({
                   <span
                     className={
                       payout.type === "refunded"
-                        ? "line-through text-destructive"
+                        ? "line-through text-destructive-subtle-fg"
                         : ""
                     }
                   >

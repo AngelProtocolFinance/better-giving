@@ -210,7 +210,7 @@ export function ImgEditor({
         )}
       </label>
 
-      <span className="empty:hidden text-destructive text-xs mt-1">
+      <span className="empty:hidden text-destructive-subtle-fg text-xs mt-1">
         {props.error}
       </span>
     </div>

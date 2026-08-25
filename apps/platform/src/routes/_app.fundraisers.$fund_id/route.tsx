@@ -59,8 +59,8 @@ function Fund({ loaderData }: Route.ComponentProps) {
               classes={{
                 container: "text-xs",
                 active: "",
-                inactive: "text-destructive",
-                completed: "text-success",
+                inactive: "text-destructive-subtle-fg",
+                completed: "text-success-subtle-fg",
                 expired: "text-gray-11",
               }}
             />

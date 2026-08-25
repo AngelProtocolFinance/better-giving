@@ -23,7 +23,7 @@ export function FeeGap({ classes = "" }) {
             <p className="eyebrow text-primary">Better Giving</p>
             <p className="text-5xl/tight font-bold mt-3 text-primary">2.9%</p>
             <p className="text-sm text-gray-11 mt-2">You keep</p>
-            <p className="text-xl font-bold text-success">$97,100</p>
+            <p className="text-xl font-bold text-success-subtle-fg">$97,100</p>
           </div>
         </div>
 

@@ -65,14 +65,14 @@ function Content(props: IContent) {
       <Field.Root className="grid my-4">
         <Field.Label className="mb-1">
           Amount
-          <span className="text-destructive"> *</span>
+          <span className="text-destructive-subtle-fg"> *</span>
         </Field.Label>
         <input
           placeholder="e.g. $ 100"
           {...register("amount")}
           className="px-4 py-3 rounded outline-ring border"
         />
-        <span className="text-destructive text-xs text-right empty:hidden mt-1">
+        <span className="text-destructive-subtle-fg text-xs text-right empty:hidden mt-1">
           {errors.amount?.message}
         </span>
       </Field.Root>

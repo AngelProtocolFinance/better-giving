@@ -63,7 +63,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           <button
             type="submit"
             aria-label="Log Out"
-            className="flex items-center gap-x-2 text-sm text-gray-11 transition-colors hover:text-destructive focus-visible:outline-2 focus-visible:outline-ring rounded"
+            className="flex items-center gap-x-2 text-sm text-gray-11 transition-colors hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring rounded"
           >
             <LogOutIcon size={18} className="shrink-0" />
             <span className="max-sm:sr-only">Log Out</span>

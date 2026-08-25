@@ -137,7 +137,7 @@ export function SettleForm({
             </p>
           )}
           {errors.npo && (
-            <p className="text-xs text-destructive mt-1">
+            <p className="text-xs text-destructive-subtle-fg mt-1">
               {errors.npo.message}
             </p>
           )}
@@ -203,7 +203,7 @@ export function SettleForm({
 
         {/* the loader's reason, not a field's — a preview that resolved to no
             records leaves the admin here, and has to say what it found */}
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {error && <p className="text-xs text-destructive-subtle-fg">{error}</p>}
       </div>
 
       <Actions band>

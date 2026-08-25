@@ -46,7 +46,9 @@ export function DonateMethods({
         Here you can turn on/off payment options and change the order of their
         appearance
       </p>
-      <p className="text-destructive text-xs mb-2 empty:hidden">{error}</p>
+      <p className="text-destructive-subtle-fg text-xs mb-2 empty:hidden">
+        {error}
+      </p>
       {/** focus this element on error */}
       <input className="sr-only" ref={ref} />
       <Reorder.Group

@@ -63,7 +63,7 @@ export function RichText({
         )}
       </div>
       <p
-        className={`empty:hidden text-destructive text-xs mt-1 ${style.error}`}
+        className={`empty:hidden text-destructive-subtle-fg text-xs mt-1 ${style.error}`}
       >
         {props.error}
       </p>

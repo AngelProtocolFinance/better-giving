@@ -58,7 +58,9 @@ export function Row(props: IRow) {
       <td>
         <span
           className={
-            props.status === "refunded" ? "line-through text-destructive" : ""
+            props.status === "refunded"
+              ? "line-through text-destructive-subtle-fg"
+              : ""
           }
         >
           ${humanize(props.net_usd, 2)}

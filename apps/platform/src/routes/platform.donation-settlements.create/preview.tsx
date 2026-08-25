@@ -39,7 +39,9 @@ export function Preview({
           Review the records that will be created
         </p>
 
-        {error && <p className="text-xs text-destructive mb-4">{error}</p>}
+        {error && (
+          <p className="text-xs text-destructive-subtle-fg mb-4">{error}</p>
+        )}
 
         {/* donation */}
         <RecordSection title="Donation">

@@ -101,12 +101,12 @@ export function Stocks(props: StocksDonationDetails) {
       </p>
 
       {status === "ok" ? (
-        <p className="mt-6 text-sm inline-flex items-center gap-1.5 text-success">
+        <p className="mt-6 text-sm inline-flex items-center gap-1.5 text-success-subtle-fg">
           <CircleCheck size={16} />
           Thanks! We'll look out for it.
         </p>
       ) : status === "error" ? (
-        <p className="mt-6 text-sm text-destructive">
+        <p className="mt-6 text-sm text-destructive-subtle-fg">
           Something went wrong — please email {emails.hi} instead.
         </p>
       ) : (

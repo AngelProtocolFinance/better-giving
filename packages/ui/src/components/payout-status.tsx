@@ -22,15 +22,23 @@ const configs: Record<PayoutStatusType, IConfig> = {
     dot: "bg-warning",
     label: "Pending",
   },
-  settled: { text: "text-success", dot: "bg-success", label: "Settled" },
-  error: { text: "text-destructive", dot: "bg-destructive", label: "Error" },
+  settled: {
+    text: "text-success-subtle-fg",
+    dot: "bg-success",
+    label: "Settled",
+  },
+  error: {
+    text: "text-destructive-subtle-fg",
+    dot: "bg-destructive",
+    label: "Error",
+  },
   refunded: {
-    text: "text-destructive",
+    text: "text-destructive-subtle-fg",
     dot: "bg-destructive",
     label: "Refunded",
   },
   refunded_loss: {
-    text: "text-success",
+    text: "text-success-subtle-fg",
     dot: "bg-success",
     label: "Settled",
   },

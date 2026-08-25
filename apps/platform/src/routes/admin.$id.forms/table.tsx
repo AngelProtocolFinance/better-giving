@@ -126,7 +126,7 @@ function Row(f: FormRow) {
         {f.status === "active" && (
           <NavLink
             to={`${f.id}/disable`}
-            className="text-destructive hover:text-destructive text-xs font-medium"
+            className="text-destructive-subtle-fg hover:text-destructive-subtle-fg text-xs font-medium"
           >
             Disable
           </NavLink>

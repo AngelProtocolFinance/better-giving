@@ -56,7 +56,7 @@ export function EarningsHistory({
                     <span
                       className={
                         status === "refunded"
-                          ? "line-through text-destructive"
+                          ? "line-through text-destructive-subtle-fg"
                           : ""
                       }
                     >

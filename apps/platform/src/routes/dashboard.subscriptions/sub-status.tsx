@@ -8,7 +8,7 @@ interface ISubStatus {
 export function SubStatus({ status, classes = "" }: ISubStatus) {
   const { text, color } =
     status === "active"
-      ? { text: "Active", color: "text-success" }
+      ? { text: "Active", color: "text-success-subtle-fg" }
       : { text: "Cancelled", color: "text-gray-11" };
 
   return (

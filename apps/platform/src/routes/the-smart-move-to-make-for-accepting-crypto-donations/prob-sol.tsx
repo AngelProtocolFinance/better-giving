@@ -103,7 +103,7 @@ export function ProbSol({ className = "" }) {
             <thead className="bg-gray-3">
               <tr className="border-b">
                 <th className="text-left font-semibold pb-2">
-                  <div className="text-lg flex items-center gap-2 text-destructive">
+                  <div className="text-lg flex items-center gap-2 text-destructive-subtle-fg">
                     <X className="text-destructive" strokeWidth={3} />
                     Problem
                   </div>

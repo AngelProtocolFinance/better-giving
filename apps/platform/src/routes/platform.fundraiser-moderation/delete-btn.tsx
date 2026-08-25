@@ -19,7 +19,7 @@ export function DeleteBtn({
         type="button"
         disabled={fetcher.state !== "idle"}
         onClick={() => dialog_ref.current?.showModal()}
-        className="text-destructive hover:text-destructive disabled:text-gray-11 text-xs font-medium"
+        className="text-destructive-subtle-fg hover:text-destructive-subtle-fg disabled:text-gray-11 text-xs font-medium"
       >
         Delete
       </button>

@@ -26,7 +26,7 @@ const bg: Row = {
       Confirm
     </span>
   ),
-  published: <span className="text-success font-bold">Yes</span>,
+  published: <span className="text-success-subtle-fg font-bold">Yes</span>,
 };
 
 const others: Row[] = [
@@ -37,7 +37,7 @@ const others: Row[] = [
     on_100k: { amount: "$5,000", effective: "5.0% effective" },
     on_250k: { amount: "$9,500", effective: "3.8% effective" },
     minimum: "$5,000 fund balance",
-    published: <span className="text-success font-bold">Yes</span>,
+    published: <span className="text-success-subtle-fg font-bold">Yes</span>,
   },
   {
     sponsor: "Give2Asia",
@@ -47,7 +47,9 @@ const others: Row[] = [
     on_250k: "Quote required",
     minimum: "$5,000 (Hong Kong, Taiwan) · $10,000 (mainland China)",
     published: (
-      <span className="text-destructive font-semibold">Not published</span>
+      <span className="text-destructive-subtle-fg font-semibold">
+        Not published
+      </span>
     ),
   },
   {
@@ -57,7 +59,7 @@ const others: Row[] = [
     on_100k: { amount: "$10,000", effective: "10% effective" },
     on_250k: { amount: "$25,000", effective: "10% effective" },
     minimum: "$24,000 minimum annual fundraising required",
-    published: <span className="text-success font-bold">Yes</span>,
+    published: <span className="text-success-subtle-fg font-bold">Yes</span>,
   },
   {
     sponsor: "CAF America",
@@ -67,7 +69,9 @@ const others: Row[] = [
     on_250k: "Quote required",
     minimum: "Varies by agreement",
     published: (
-      <span className="text-destructive font-semibold">Not published</span>
+      <span className="text-destructive-subtle-fg font-semibold">
+        Not published
+      </span>
     ),
   },
 ];
@@ -86,7 +90,9 @@ function CostCell({ cost, accent }: { cost: Cost | string; accent?: boolean }) {
     return <span className="text-gray-11">{cost}</span>;
   return (
     <>
-      <span className={`block font-bold ${accent ? "text-success" : ""}`}>
+      <span
+        className={`block font-bold ${accent ? "text-success-subtle-fg" : ""}`}
+      >
         {cost.amount}
       </span>
       <span className="block text-xs text-gray-11">{cost.effective}</span>

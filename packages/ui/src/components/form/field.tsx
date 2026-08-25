@@ -83,7 +83,7 @@ export function Field<T extends InputType = InputType>({
           )}{" "}
           <span
             id={errorId}
-            className="empty:hidden text-destructive text-xs before:content-['('] before:mr-0.5 after:content-[')'] after:ml-0.5 empty:before:hidden empty:after:hidden"
+            className="empty:hidden text-destructive-subtle-fg text-xs before:content-['('] before:mr-0.5 after:content-[')'] after:ml-0.5 empty:before:hidden empty:after:hidden"
           >
             {error}
           </span>

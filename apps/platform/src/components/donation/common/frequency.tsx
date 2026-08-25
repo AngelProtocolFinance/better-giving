@@ -40,7 +40,7 @@ export function Frequency({
         onValueChange={(e) => onChange(e.value as TFrequency)}
       >
         <RadioGroup.Label className="mb-1 label">
-          Frequency <span className="text-destructive">*</span>
+          Frequency <span className="text-destructive-subtle-fg">*</span>
         </RadioGroup.Label>
         <div className="grid grid-cols-2 gap-2 @md/frequency:flex">
           {opts.map((f) => (

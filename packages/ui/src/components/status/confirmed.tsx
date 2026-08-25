@@ -10,7 +10,7 @@ export function Confirmed({ classes = "", children }: Props) {
   return (
     <Status
       inline
-      classes={`${classes} text-sm text-success mr-2`}
+      classes={`${classes} text-sm text-success-subtle-fg mr-2`}
       icon={<CircleCheck size={16} className="mr-2 inline-block relative" />}
     >
       {children}

@@ -108,9 +108,9 @@ const dot_color: Record<TStatus, string> = {
 };
 
 const text_color: Record<TStatus, string> = {
-  approved: "text-success",
+  approved: "text-success-subtle-fg",
   "under-review": "text-warning-subtle-fg",
-  rejected: "text-destructive",
+  rejected: "text-destructive-subtle-fg",
   default: "text-primary",
 };
 

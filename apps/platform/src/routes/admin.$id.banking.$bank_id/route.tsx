@@ -37,7 +37,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
       </div>
 
       {is_rejected && (
-        <p className="text-sm text-destructive my-2">
+        <p className="text-sm text-destructive-subtle-fg my-2">
           <CircleAlert className="relative inline bottom-px mr-1" />
           <span>{d.ba.rejection_reason}</span>
         </p>

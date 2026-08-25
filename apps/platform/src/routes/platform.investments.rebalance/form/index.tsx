@@ -136,7 +136,7 @@ export function RebalanceForm({
           </tbody>
         </table>
       </div>
-      <p className="text-destructive text-xs mt-1 empty:hidden">
+      <p className="text-destructive-subtle-fg text-xs mt-1 empty:hidden">
         {errors.txs?.root?.message}
       </p>
     </form>

@@ -82,7 +82,7 @@ function Content({ verdict }: Props) {
             id={reason_id}
             className="field-input"
           />
-          <span className="empty:hidden text-xs text-destructive mt-1">
+          <span className="empty:hidden text-xs text-destructive-subtle-fg mt-1">
             {errors.reason?.message}
           </span>
         </div>

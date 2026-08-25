@@ -36,7 +36,7 @@ interface ITermLine {
 export function TermCmd({ children }: ITermLine) {
   return (
     <p>
-      <span className="text-warning">$</span> {children}
+      <span className="text-warning-subtle-fg">$</span> {children}
     </p>
   );
 }

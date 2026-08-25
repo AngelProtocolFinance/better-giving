@@ -42,7 +42,7 @@ export function LogsTable({
                 <span
                   className={
                     l.status === "refunded" || l.status === "refunded_loss"
-                      ? "line-through text-destructive"
+                      ? "line-through text-destructive-subtle-fg"
                       : ""
                   }
                 >
@@ -53,7 +53,7 @@ export function LogsTable({
                 <span
                   className={
                     l.status === "refunded" || l.status === "refunded_loss"
-                      ? "line-through text-destructive"
+                      ? "line-through text-destructive-subtle-fg"
                       : ""
                   }
                 >

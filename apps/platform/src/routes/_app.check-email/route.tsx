@@ -66,7 +66,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         {resent && (
           <p
             role="status"
-            className="text-center text-xs sm:text-sm text-success mt-3"
+            className="text-center text-xs sm:text-sm text-success-subtle-fg mt-3"
           >
             A new link is on its way.
           </p>

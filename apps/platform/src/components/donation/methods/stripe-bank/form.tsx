@@ -172,7 +172,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
                   placeholder="Enter contribution amount"
                   aria-invalid={!!rhf.errors.tip?.message}
                 />
-                <span className="right-6 text-xs text-destructive text-right absolute top-1/2 -translate-y-1/2 empty:hidden">
+                <span className="right-6 text-xs text-destructive-subtle-fg text-right absolute top-1/2 -translate-y-1/2 empty:hidden">
                   {rhf.errors.tip?.message}
                 </span>
               </div>

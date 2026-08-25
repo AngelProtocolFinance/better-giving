@@ -70,11 +70,11 @@ export function Table({
               <td>{format(r.date_updated, "PP")}</td>
               <td className="uppercase text-xs">
                 {r.status === "cancelled" ? (
-                  <span className="text-destructive">Cancelled</span>
+                  <span className="text-destructive-subtle-fg">Cancelled</span>
                 ) : r.status === "pending" ? (
                   <span className="text-warning-subtle-fg">Pending</span>
                 ) : (
-                  <span className="text-success">Final</span>
+                  <span className="text-success-subtle-fg">Final</span>
                 )}
               </td>
             </tr>

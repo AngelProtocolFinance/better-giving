@@ -78,7 +78,7 @@ export function SettingsBasic({
         on_change={donate_methods.onChange}
         ref={donate_methods.ref}
         error={
-          <p className="text-destructive text-xs mb-1 empty:hidden">
+          <p className="text-destructive-subtle-fg text-xs mb-1 empty:hidden">
             {errors.methods?.message}
           </p>
         }
@@ -129,7 +129,7 @@ export function SettingsBasic({
                   className="field-input h-full pl-8 font-medium"
                 />
               </div>
-              <p className="mt-1 empty:hidden text-left text-xs text-destructive">
+              <p className="mt-1 empty:hidden text-left text-xs text-destructive-subtle-fg">
                 {errors.increments?.[idx]?.value?.message}
               </p>
             </BaseField.Root>
@@ -141,7 +141,7 @@ export function SettingsBasic({
               />
               <p
                 data-error={!!errors.increments?.[idx]?.label?.message}
-                className="mt-1 text-left text-xs data-[error='true']:text-destructive"
+                className="mt-1 text-left text-xs data-[error='true']:text-destructive-subtle-fg"
               >
                 {incs[idx].label.length}/{increment_label_max_chars}
               </p>

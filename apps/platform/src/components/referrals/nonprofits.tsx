@@ -26,7 +26,7 @@ export function Nonprofits({ classes = "", npos }: Props) {
         </td>
         <td className="text-sm">${humanize(npo.ltd)}</td>
         <td
-          className={`text-sm ${now > expiry ? "text-destructive" : "text-success"}`}
+          className={`text-sm ${now > expiry ? "text-destructive-subtle-fg" : "text-success-subtle-fg"}`}
         >
           {now > expiry ? "Ended" : `ends in ${format(expiry, "PP")}`}
         </td>

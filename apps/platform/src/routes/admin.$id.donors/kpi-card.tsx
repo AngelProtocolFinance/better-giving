@@ -12,8 +12,8 @@ interface IProps {
 }
 
 const TONE_COLOR: Record<TDeltaTone, string> = {
-  positive: "text-success",
-  negative: "text-destructive",
+  positive: "text-success-subtle-fg",
+  negative: "text-destructive-subtle-fg",
   neutral: "text-gray-11",
 };
 

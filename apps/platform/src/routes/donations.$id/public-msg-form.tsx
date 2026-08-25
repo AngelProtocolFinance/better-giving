@@ -30,7 +30,7 @@ export function PublicMsgForm({ classes = "", init }: Props) {
         <p
           id="public-msg-char-count"
           data-exceed={errors.msg?.type === "max"}
-          className="text-xs text-gray-11 -mt-2 data-[exceed='true']:text-destructive text-right mb-1"
+          className="text-xs text-gray-11 -mt-2 data-[exceed='true']:text-destructive-subtle-fg text-right mb-1"
           aria-live="polite"
           aria-atomic="true"
         >
@@ -48,7 +48,7 @@ export function PublicMsgForm({ classes = "", init }: Props) {
         />
         <p
           id="public-msg-error"
-          className="text-destructive text-xs empty:hidden text-right"
+          className="text-destructive-subtle-fg text-xs empty:hidden text-right"
           role="alert"
         >
           {errors.msg?.message}

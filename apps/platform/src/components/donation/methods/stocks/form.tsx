@@ -185,7 +185,7 @@ export function Form(props: TMethodState<"stocks">) {
                   placeholder="Enter contribution amount"
                   aria-invalid={!!errors.tip?.message}
                 />
-                <span className="right-6 text-xs text-destructive text-right absolute top-1/2 -translate-y-1/2 empty:hidden">
+                <span className="right-6 text-xs text-destructive-subtle-fg text-right absolute top-1/2 -translate-y-1/2 empty:hidden">
                   {errors.tip?.message}
                 </span>
               </div>

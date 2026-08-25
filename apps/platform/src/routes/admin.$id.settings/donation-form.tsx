@@ -167,7 +167,7 @@ export function DonationFormTab(p: Props) {
                 />
               </div>
 
-              <p className="mt-1 empty:hidden text-left text-xs text-destructive">
+              <p className="mt-1 empty:hidden text-left text-xs text-destructive-subtle-fg">
                 {errors.increments?.[idx]?.value?.message}
               </p>
             </BaseField.Root>
@@ -179,7 +179,7 @@ export function DonationFormTab(p: Props) {
               />
               <p
                 data-error={!!errors.increments?.[idx]?.label?.message}
-                className="mt-1 text-left text-xs data-[error='true']:text-destructive"
+                className="mt-1 text-left text-xs data-[error='true']:text-destructive-subtle-fg"
               >
                 {incs[idx].label.length}/{increment_label_max_chars}
               </p>

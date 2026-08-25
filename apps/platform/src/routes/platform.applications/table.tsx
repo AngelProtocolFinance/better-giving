@@ -142,9 +142,9 @@ const dot_color: { [key in TStatus]: string } = {
 };
 
 const text_color: { [key in TStatus]: string } = {
-  "03": "text-success",
+  "03": "text-success-subtle-fg",
   "02": "text-warning-subtle-fg",
-  "04": "text-destructive",
+  "04": "text-destructive-subtle-fg",
   "01": "text-gray-11",
 };
 

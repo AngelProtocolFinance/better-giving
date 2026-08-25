@@ -48,7 +48,9 @@ export function Panel(props: Props) {
                 Savings
               </span>
             ) : (
-              <span className="text-success font-semibold">Investments</span>
+              <span className="text-success-subtle-fg font-semibold">
+                Investments
+              </span>
             )}
             <span className="text-sm font-semibold text-gray-11 ml-2">
               ${humanize(props.bals[source.value])}
@@ -83,7 +85,9 @@ export function Panel(props: Props) {
           <p className=" justify-self-start">
             <span className="text-gray-11 text-xs mr-1">to</span>
             {source.value === "liq" ? (
-              <span className="text-success font-semibold">Investments</span>
+              <span className="text-success-subtle-fg font-semibold">
+                Investments
+              </span>
             ) : (
               <span className="text-warning-subtle-fg font-semibold">
                 Savings

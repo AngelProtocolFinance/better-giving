@@ -80,12 +80,12 @@ export function DonationTab({
         />
         <p
           data-exceed={receipMsg.length > MAX_RECEIPT_MSG_CHAR}
-          className="text-xs text-gray-11 data-[exceed='true']:text-destructive flex justify-between"
+          className="text-xs text-gray-11 data-[exceed='true']:text-destructive-subtle-fg flex justify-between"
         >
           <span>
             {receipMsg.length}/{MAX_RECEIPT_MSG_CHAR}
           </span>
-          <span className="text-destructive text-xs">
+          <span className="text-destructive-subtle-fg text-xs">
             {errors.receipt_msg?.message ?? ""}
           </span>
         </p>

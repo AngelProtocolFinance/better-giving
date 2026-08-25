@@ -31,7 +31,9 @@ export function Table({
             items.map((payout, idx) => (
               <tr
                 key={idx}
-                className={payout.error ? "text-destructive" : "text-gray-12"}
+                className={
+                  payout.error ? "text-destructive-subtle-fg" : "text-gray-12"
+                }
               >
                 <td>{format(payout.date, "PP")}</td>
                 <td>

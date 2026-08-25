@@ -11,13 +11,13 @@ const accounts = [
     name: "Savings account",
     detail: "High-yield reserves",
     figure: "3% to 4% APY",
-    figure_classes: "text-success",
+    figure_classes: "text-success-subtle-fg",
   },
   {
     name: "Sustainability Fund",
     detail: "Long-term diversified investment",
     figure: "~11% historical*",
-    figure_classes: "text-success",
+    figure_classes: "text-success-subtle-fg",
   },
 ] as const;
 
