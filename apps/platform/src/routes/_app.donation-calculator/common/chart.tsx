@@ -37,6 +37,25 @@ interface Point {
 interface Props {
   points: Point[];
 }
+
+/* the default tooltip drops a row's name unless the formatter hands back a
+   string (`isNumOrStr` gates the name span AND the separator), so per-row ink
+   cannot come from a formatter — the rows are rendered here instead. */
+function TooltipRows({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-background border border-border rounded px-3 py-2 text-[13px]">
+      <p className="mb-1 font-medium">{label}</p>
+      {payload.map((entry: any) => (
+        <p key={entry.dataKey} style={{ color: ink(entry.dataKey) }}>
+          {series[entry.dataKey as keyof typeof series]?.label ??
+            String(entry.name)}{" "}
+          : {to_usd(Number(entry.value))}
+        </p>
+      ))}
+    </div>
+  );
+}
 export function Chart({ points }: Props) {
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -56,21 +75,7 @@ export function Chart({ points }: Props) {
             return `$${value}`;
           }}
         />
-        <Tooltip
-          wrapperStyle={{ fontSize: 13 }}
-          formatter={(value: any, name: any, item: any) => {
-            const s = series[item?.dataKey as keyof typeof series];
-            const color = s?.ink;
-            return [
-              <span key="value" style={{ color }}>
-                {to_usd(Number(value))}
-              </span>,
-              <span key="name" style={{ color }}>
-                {s?.label ?? String(name)}
-              </span>,
-            ];
-          }}
-        />
+        <Tooltip content={<TooltipRows />} />
         <Legend
           iconSize={10}
           iconType="circle"
