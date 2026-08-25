@@ -5,7 +5,7 @@ import { RouteModal } from "./route-modal";
 
 function Modal() {
   return (
-    <RouteModal classes="bg-popover p-4">
+    <RouteModal classes="bg-panel p-4">
       <p>modal body</p>
     </RouteModal>
   );

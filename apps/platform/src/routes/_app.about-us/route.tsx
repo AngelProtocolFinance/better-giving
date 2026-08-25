@@ -30,7 +30,7 @@ export const meta: Route.MetaFunction = () =>
 export default function Page({ loaderData }: Route.ComponentProps) {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-accent pt-18 pb-18 text-center">
+      <div className="bg-linear-to-b from-background to-band pt-18 pb-18 text-center">
         <div className="page">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             About Better Giving
@@ -38,7 +38,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           <h1 className="hero-heading mt-4 max-w-4xl mx-auto">
             A nonprofit whose mission is your mission's money
           </h1>
-          <p className="mt-4.5 text-lg text-muted-fg max-w-2xl mx-auto text-pretty">
+          <p className="mt-4.5 text-lg text-gray-11 max-w-2xl mx-auto text-pretty">
             Since 2021, we've helped 210+ nonprofits worldwide raise over $6M,
             with free tools, shared growth, and a simple belief: the
             organizations doing the work should keep the money.
@@ -68,16 +68,16 @@ export default function Page({ loaderData }: Route.ComponentProps) {
       </div>
 
       <UnderdogLetter classes="py-24" />
-      <Manifesto classes="bg-accent py-22" />
+      <Manifesto classes="bg-band py-22" />
       <Volunteer classes="py-24" />
-      <Values classes="bg-accent py-22" />
+      <Values classes="bg-band py-22" />
 
       <CtaBand
         title="Build the commons with us"
         subtitle="Join as a member, contribute as a volunteer, or just read the code. Every door is open."
       />
 
-      <Donate base_url={loaderData.base_url} classes="bg-accent py-22" />
+      <Donate base_url={loaderData.base_url} classes="bg-band py-22" />
     </main>
   );
 }

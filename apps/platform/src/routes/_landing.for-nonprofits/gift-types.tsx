@@ -18,16 +18,16 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
         <h2 id="gift-types-heading" className="section-heading">
           Every gift type. One free platform.
         </h2>
-        <p className="mt-3 max-w-3xl text-lg text-muted-fg text-pretty">
+        <p className="mt-3 max-w-3xl text-lg text-gray-11 text-pretty">
           Most platforms charge 2% to 5%, or gate gift types behind paid tiers.
           Better Giving gives you the full toolkit at no cost, because donors
           cover processing or chip in voluntarily, always opt-in.
         </p>
 
         <div className="grid gap-5 mt-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr]">
-          <div className="md:col-span-2 lg:col-span-1 lg:row-span-2 bg-card border border-border rounded p-8 flex flex-col justify-center">
+          <div className="md:col-span-2 lg:col-span-1 lg:row-span-2 bg-panel border border-gray-6 rounded p-8 flex flex-col justify-center">
             <h3 className="text-2xl">Accept every gift type</h3>
-            <p className="mt-3 max-w-md leading-relaxed text-muted-fg text-pretty">
+            <p className="mt-3 max-w-md leading-relaxed text-gray-11 text-pretty">
               One embeddable donation form for everything your donors want to
               give.
             </p>
@@ -35,7 +35,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
               {gift_types.map((g) => (
                 <span
                   key={g}
-                  className="text-sm font-semibold bg-secondary text-secondary-fg rounded px-3 py-1.5"
+                  className="text-sm font-semibold bg-secondary text-gray-12 rounded px-3 py-1.5"
                 >
                   {g}
                 </span>
@@ -43,18 +43,18 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded p-6 flex flex-col justify-center">
+          <div className="bg-panel border border-gray-6 rounded p-6 flex flex-col justify-center">
             <h3 className="text-lg">Own your donors</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-fg text-pretty">
+            <p className="mt-2 text-sm leading-relaxed text-gray-11 text-pretty">
               Your donor data belongs to you, full stop. No unauthorized
               listings, no marketing to your donors, no lock-in. Nonprofit
               consent is principle #1, and we live it.
             </p>
           </div>
 
-          <div className="bg-card border border-border rounded p-6 flex flex-col justify-center">
+          <div className="bg-panel border border-gray-6 rounded p-6 flex flex-col justify-center">
             <h3 className="text-lg">Set up in an afternoon</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-fg text-pretty">
+            <p className="mt-2 text-sm leading-relaxed text-gray-11 text-pretty">
               Embed your form and connect your bank in an afternoon. Most
               accounts are approved within 3 business days, and tax receipts,
               donor records, and compliance are handled automatically.

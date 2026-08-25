@@ -19,7 +19,7 @@ export function Form2({ classes = "", state, setState }: Props) {
         onChange={(x) => setState({ ...state, notGrantedRate: x })}
         tooltip="Select the percentage of donations you would consider allocating towards savings and investments if it were handled effortlessly on your behalf."
       />
-      <p className="text-sm text-muted-fg mt-1">
+      <p className="text-sm text-gray-11 mt-1">
         Better Giving automates this process completely, handling allocations
         and investment management.
       </p>

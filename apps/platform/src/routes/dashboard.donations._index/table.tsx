@@ -126,7 +126,7 @@ export function Table({
                     <Money
                       classes={
                         row.status === "refunded"
-                          ? "line-through text-destructive"
+                          ? "line-through text-destructive-subtle-fg"
                           : ""
                       }
                       amount={row.amount}

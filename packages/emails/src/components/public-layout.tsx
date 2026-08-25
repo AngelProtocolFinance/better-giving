@@ -27,7 +27,7 @@ export function PublicLayout({
           backgroundColor: email_colors.background,
           // explicit ink: clients that force dark mode invert inherited text
           // while still honouring an explicit background — white on white.
-          color: email_colors.fg,
+          color: email_colors.gray_12,
         }}
       >
         <Container style={{ padding: 16 }}>
@@ -66,7 +66,7 @@ export function PublicLayout({
               margin: 0,
               marginTop: 4,
               fontSize: 13,
-              color: email_colors.muted_fg,
+              color: email_colors.gray_11,
             }}
           >
             {LEGAL_NAME} | EIN: {EIN} | Copyright {new Date().getUTCFullYear()}{" "}

@@ -18,7 +18,7 @@ export function TokenField({ ref, ...props }: ITokenField & { ref?: Ref<El> }) {
         {props.label}
       </label>
 
-      <div className="mt-1 grid grid-cols-[auto_1fr] field-input-container rounded pr-5 divide-x divide-border">
+      <div className="mt-1 grid grid-cols-[auto_1fr] field-input-container rounded pr-5 divide-x divide-gray-6">
         {props.combobox}
         {/** match input text, and append $ value */}
         <div className="relative h-full w-full">
@@ -38,7 +38,7 @@ export function TokenField({ ref, ...props }: ITokenField & { ref?: Ref<El> }) {
           {props.amount_usd ? (
             <div className="pointer-events-none absolute top-1/2 -translate-y-1/2 left-2">
               <span className="invisible mr-1">{props.amount}</span>{" "}
-              <span className="text-muted-fg text-sm">
+              <span className="text-gray-11 text-sm">
                 ~${humanize(props.amount_usd)}
               </span>
             </div>
@@ -49,7 +49,7 @@ export function TokenField({ ref, ...props }: ITokenField & { ref?: Ref<El> }) {
       {props.error && (
         <p
           data-error
-          className="peer text-destructive text-xs text-right mt-0.5"
+          className="peer text-destructive-subtle-fg text-xs text-right mt-0.5"
         >
           {props.error}
         </p>

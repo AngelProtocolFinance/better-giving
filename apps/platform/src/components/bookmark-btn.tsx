@@ -15,7 +15,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
 
   if (user === "loading") {
     return (
-      <Heart size={19} className={`${classes} text-muted-fg animate-pulse`} />
+      <Heart size={19} className={`${classes} text-gray-11 animate-pulse`} />
     );
   }
 
@@ -23,13 +23,13 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
     return (
       <Tooltip
         tip={
-          <Content className="px-4 py-2 bg-popover outline outline-border text-popover-fg text-sm rounded shadow-lg">
+          <Content className="px-4 py-2 bg-panel outline outline-gray-6 text-gray-12 text-sm rounded shadow-lg">
             Login to save your favorites
             <Arrow />
           </Content>
         }
       >
-        <Heart size={19} className={`${classes} text-muted-fg`} />
+        <Heart size={19} className={`${classes} text-gray-11`} />
       </Tooltip>
     );
   }
@@ -40,7 +40,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
     <Tooltip
       tip={
         !is_bookmarked ? (
-          <Content className="px-4 py-2 bg-popover outline outline-border text-popover-fg text-sm rounded shadow-lg">
+          <Content className="px-4 py-2 bg-panel outline outline-gray-6 text-gray-12 text-sm rounded shadow-lg">
             Add to favorites
             <Arrow />
           </Content>
@@ -51,7 +51,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
         type="button"
         disabled={pending}
         aria-label="Add to favorites"
-        className={`glyph-btn disabled:text-muted-fg ${classes}`}
+        className={`glyph-btn disabled:text-gray-11 ${classes}`}
         onClick={async () => {
           set_pending(true);
           await toggle_bookmark(npo, user);

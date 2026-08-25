@@ -14,7 +14,7 @@
  * `popup_scrollbar_cls`.
  */
 export const popup_cls =
-  "z-50 max-h-60 overflow-y-auto overscroll-contain rounded border bg-popover text-popover-fg shadow-lg";
+  "z-50 max-h-60 overflow-y-auto overscroll-contain rounded border bg-panel text-gray-12 shadow-lg";
 
 /** the app scrollbar for a popup list. */
 export const popup_scrollbar_cls = "scrollbars";
@@ -36,10 +36,10 @@ export const popup_motion_cls =
  * @zag-js/select + @zag-js/combobox 1.41.2). `data-selected` matches neither.
  */
 export const option_cls =
-  "flex items-center gap-2 px-4 py-2 text-sm hover:bg-accent data-highlighted:bg-accent data-[state=checked]:bg-accent";
+  "flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary data-highlighted:bg-secondary data-[state=checked]:bg-secondary-active";
 
 /** the line that replaces the option rows while a list is empty/loading/failed. */
-export const status_cls = "px-4 py-2 text-sm text-muted-fg";
+export const status_cls = "px-4 py-2 text-sm text-gray-11";
 
 /** one wording per status, across every popup. */
 export const status_text = {

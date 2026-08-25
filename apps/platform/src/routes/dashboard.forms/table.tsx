@@ -89,7 +89,7 @@ function Row(f: FormRow) {
           {f.name}
         </NavLink>
         {f.tag && (
-          <p className="flex items-center gap-1 text-xs text-muted-fg mt-0.5">
+          <p className="flex items-center gap-1 text-xs text-gray-11 mt-0.5">
             <TagIcon size={12} className="shrink-0" />
             {f.tag}
           </p>
@@ -106,7 +106,7 @@ function Row(f: FormRow) {
         {target !== null ? (
           <Target.Inline target={target} progress={f.ltd ?? 0} />
         ) : (
-          <span className="text-sm text-muted-fg">{to_usd(f.ltd ?? 0)}</span>
+          <span className="text-sm text-gray-11">{to_usd(f.ltd ?? 0)}</span>
         )}
       </td>
 
@@ -116,7 +116,7 @@ function Row(f: FormRow) {
       </td>
 
       {/* created */}
-      <td className="whitespace-nowrap text-muted-fg">
+      <td className="whitespace-nowrap text-gray-11">
         {f.date_created ? toPP(f.date_created) : "—"}
       </td>
 
@@ -125,7 +125,7 @@ function Row(f: FormRow) {
         {f.status === "active" && (
           <NavLink
             to={`${f.id}/disable`}
-            className="text-destructive hover:text-destructive text-xs font-medium"
+            className="text-destructive-subtle-fg hover:text-destructive-subtle-fg text-xs font-medium"
           >
             Disable
           </NavLink>
@@ -142,11 +142,11 @@ function StatusBadge({ status }: { status: string | null }) {
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-medium ${
         is_active
           ? "bg-success-subtle text-success-subtle-fg"
-          : "bg-muted text-muted-fg"
+          : "bg-gray-3 text-gray-11"
       }`}
     >
       <span
-        className={`size-1.5 rounded-full ${is_active ? "bg-success" : "bg-muted-fg"}`}
+        className={`size-1.5 rounded-full ${is_active ? "bg-success" : "bg-gray-11"}`}
       />
       {is_active ? "Active" : "Inactive"}
     </span>
@@ -172,11 +172,11 @@ function StatusFilter({ value }: { value: Filter }) {
     >
       <Select.Trigger className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide cursor-pointer">
         <Select.ValueText placeholder="Status" />
-        <ChevronDownIcon size={14} className="text-muted-fg" />
+        <ChevronDownIcon size={14} className="text-gray-11" />
       </Select.Trigger>
       <Portal>
         <Select.Positioner>
-          <Select.Content className="rounded border bg-popover text-popover-fg min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
+          <Select.Content className="rounded border bg-panel text-gray-12 min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
             {FILTER_OPTS.map((v) => (
               <Select.Item key={v} item={v} className="selector-opt text-sm">
                 <Select.ItemText>{FILTER_LABEL[v]}</Select.ItemText>

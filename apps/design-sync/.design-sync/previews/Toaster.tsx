@@ -24,8 +24,8 @@ function Emit({ toasts }: { toasts: Toast[] }) {
 // the page underneath a toast — kept realistic so the overlay reads in context.
 function MembersPanel() {
   return (
-    <div className="w-96 overflow-hidden rounded border bg-card">
-      <div className="border-b bg-muted px-4 py-3 text-sm font-medium text-fg">
+    <div className="w-96 overflow-hidden rounded border bg-panel">
+      <div className="border-b bg-gray-3 px-4 py-3 text-sm font-medium text-gray-12">
         Members — Rainforest Trust
       </div>
       {[
@@ -37,8 +37,8 @@ function MembersPanel() {
           className="flex items-center gap-4 border-b px-4 py-3"
         >
           <div className="flex flex-col">
-            <span className="text-sm text-fg">{m.name}</span>
-            <span className="text-xs text-muted-fg">{m.email}</span>
+            <span className="text-sm text-gray-12">{m.name}</span>
+            <span className="text-xs text-gray-11">{m.email}</span>
           </div>
           <button type="button" className="btn btn-ghost ml-auto px-4 py-1.5">
             Remove

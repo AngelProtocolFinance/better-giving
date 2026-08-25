@@ -33,7 +33,7 @@ export default function Page({
     <div className="px-6 py-4 md:px-10 md:py-8">
       <div className="mb-6 flex items-end justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Donors</h1>
-        <div className="inline-flex gap-1 rounded bg-muted p-1">
+        <div className="inline-flex gap-1 rounded bg-gray-3 p-1">
           <Tab to={base} end count={donor_total}>
             All donors
           </Tab>
@@ -64,8 +64,8 @@ function Tab({ to, count, end, children }: ITabProps) {
         [
           "inline-flex h-8 items-center gap-2 rounded px-3 text-sm font-medium transition-colors",
           isActive
-            ? "bg-background text-fg shadow-sm"
-            : "text-muted-fg hover:text-fg",
+            ? "bg-background text-gray-12 shadow-sm"
+            : "text-gray-11 hover:text-gray-12",
         ].join(" ")
       }
     >
@@ -76,8 +76,8 @@ function Tab({ to, count, end, children }: ITabProps) {
             className={[
               "rounded px-1.5 py-0.5 text-2xs font-medium figures",
               isActive
-                ? "bg-muted text-muted-fg"
-                : "bg-background text-muted-fg",
+                ? "bg-gray-3 text-gray-11"
+                : "bg-background text-gray-11",
             ].join(" ")}
           >
             {count.toLocaleString("en-US")}

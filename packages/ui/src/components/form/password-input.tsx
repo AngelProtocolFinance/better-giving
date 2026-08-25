@@ -15,7 +15,7 @@ export function PasswordInput({ error, ref, ...rest }: Props) {
     <Ark.Root>
       <Ark.Control className="relative">
         <Lock
-          className="text-muted-fg absolute top-1/2 -translate-y-1/2 left-4"
+          className="text-gray-11 absolute top-1/2 -translate-y-1/2 left-4"
           size={20}
         />
         <Ark.Input
@@ -30,7 +30,7 @@ export function PasswordInput({ error, ref, ...rest }: Props) {
           aria-invalid={!!error}
         />
         <Ark.VisibilityTrigger
-          className={`${ornament_end_cls} text-muted-fg hover:text-muted-fg active:text-fg rounded`}
+          className={`${ornament_end_cls} text-gray-11 hover:text-gray-11 active:text-gray-12 rounded`}
         >
           <Ark.Indicator fallback={<Eye size={20} />}>
             <EyeOff size={20} />

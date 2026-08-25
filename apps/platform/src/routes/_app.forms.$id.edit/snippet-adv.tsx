@@ -11,15 +11,15 @@ export function SnippetAdv({ classes = "", form_id, base_url }: Props) {
 
   return (
     <div
-      className={`${classes} @container/configurer bg-card rounded p-4 self-start`}
+      className={`${classes} @container/configurer bg-panel rounded p-4 self-start`}
     >
       <p className="text-sm gap-x-1 mb-1">
         Add this script just before{" "}
-        <span className="font-mono bg-card text-warning-subtle-fg text-xs p-1 rounded">
+        <span className="font-mono bg-panel text-warning-subtle-fg text-xs p-1 rounded">
           {"</body>"}
         </span>
       </p>
-      <div className="flex p-4 rounded bg-muted divide-x divide-border">
+      <div className="flex p-4 rounded bg-gray-3 divide-x divide-gray-6">
         <code className="w-full text-sm font-mono break-all block pr-2 whitespace-pre-line">
           {script_url}
         </code>
@@ -32,7 +32,7 @@ export function SnippetAdv({ classes = "", form_id, base_url }: Props) {
         />
       </div>
       <p className="text-sm gap-x-1 mb-1 mt-2">Render the container element</p>
-      <div className="flex p-4 rounded bg-muted divide-x divide-border">
+      <div className="flex p-4 rounded bg-gray-3 divide-x divide-gray-6">
         <code className="w-full text-sm font-mono break-all block pr-2 whitespace-pre-line">
           {container_url}
         </code>

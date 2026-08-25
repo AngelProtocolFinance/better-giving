@@ -46,9 +46,9 @@ export function Faq({ classes = "" }: { classes?: string }) {
         {items.map((item, index) => (
           <div
             key={index}
-            className="flex @max-3xl:flex-col gap-y-4 items-center gap-x-8 last:mb-0 bg-card p-8 rounded shadow-xl shadow-black/2"
+            className="flex @max-3xl:flex-col gap-y-4 items-center gap-x-8 last:mb-0 bg-panel p-8 rounded shadow-xl shadow-black/2"
           >
-            <div className="flex items-center justify-center p-4 rounded-full bg-muted">
+            <div className="flex items-center justify-center p-4 rounded-full bg-gray-3">
               <CircleQuestionMark className="text-primary" size={30} />
             </div>
             <div className="ml-4">

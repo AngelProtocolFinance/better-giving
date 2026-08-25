@@ -7,7 +7,7 @@ export function Docs({ classes = "" }) {
   const details_id = useId();
 
   return (
-    <div className={`bg-card rounded shadow-sm p-6 ${classes}`}>
+    <div className={`bg-panel rounded shadow-sm p-6 ${classes}`}>
       <button
         type="button"
         className="flex items-center gap-x-4 w-full"
@@ -15,7 +15,7 @@ export function Docs({ classes = "" }) {
         aria-controls={details_id}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <Info size={20} className="text-muted-fg" />
+        <Info size={20} className="text-gray-11" />
         <span className="text-lg sm:text-xl font-bold">
           Calculation Details
         </span>

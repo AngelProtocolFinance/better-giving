@@ -25,7 +25,7 @@ export const Fund = (props: IFundRow) => {
             container: "px-3 py-1 rounded-full text-xs",
             active: "",
             inactive: "bg-destructive-subtle text-destructive-subtle-fg",
-            expired: "bg-muted text-muted-fg",
+            expired: "bg-gray-3 text-gray-11",
             completed: "bg-success-subtle text-success-subtle-fg",
           }}
         />
@@ -33,7 +33,7 @@ export const Fund = (props: IFundRow) => {
 
       <Link
         to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-        className="mt-4 font-semibold text-muted-fg hover:text-primary "
+        className="mt-4 font-semibold text-gray-11 hover:text-primary "
       >
         {props.name}
       </Link>

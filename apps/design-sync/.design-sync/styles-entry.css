@@ -71,11 +71,17 @@
 @source inline("{gap,gap-x,gap-y,p,px,py,pt,pr,pb,pl,m,mx,my,mt,mr,mb,ml}-{0,px,0.5,1,1.5,2,2.5,3,3.5,4,5,6,7,8,9,10,11,12,14,16,20,24}");
 
 /* the semantic color set, listed for the same reason as the chart ramp above.
-   the header tells a design that every surface has an `-fg` partner and that
-   the line tokens are border/input/ring; measured against the build that was
-   false in three places — text-card-fg, text-sidebar-fg and border-input had
-   no rule, while text-popover-fg did, purely because a preview happened to
-   write it. theme.css registers every name below as a --color-* token, so
-   these are the authored vocabulary either way; what varied was which ones
-   the app source happened to reach for. */
-@source inline("{bg,text,border,ring}-{background,fg,card,card-fg,popover,popover-fg,primary,primary-fg,secondary,secondary-fg,muted,muted-fg,accent,accent-fg,destructive,destructive-fg,destructive-subtle,destructive-subtle-fg,success,success-fg,success-subtle,success-subtle-fg,warning,warning-fg,warning-subtle,warning-subtle-fg,sidebar,sidebar-fg,border,input,ring}");
+   the header used to promise an `-fg` partner for every surface, which was
+   never true and is now deliberately false: only the four fills whose ink
+   follows them keep one. every other surface takes gray-12, so `text-panel-fg`
+   and `text-secondary-fg` are gone rather than aliased.
+   the line row is `ring` alone — `border` and `input` both moved, `border` to
+   the neutral scale below and `input` to `surface`, which is a fill. */
+@source inline("{bg,text,border,ring}-{background,panel,surface,overlay,primary,primary-fg,secondary,secondary-active,band,destructive,destructive-fg,destructive-subtle,destructive-subtle-fg,success,success-fg,success-subtle,success-subtle-fg,warning,warning-fg,warning-subtle,warning-subtle-fg,sidebar,ring}");
+
+/* the neutral scale, whose steps replaced the names dropped from the row
+   above — fg, muted, muted-fg and border, plus every surface's -fg twin. those
+   are rungs, not things, so a design names the step; theme.css binds none of
+   them to a utility, and colors.css no longer declares the first three at all.
+   the other four ramps are listed too: a mockup reaches for them the same way. */
+@source inline("{bg,text,border,ring,fill,stroke}-{gray,blue,green,red,amber}-{1,2,3,4,5,6,7,8,9,10,11,12}");

@@ -219,7 +219,7 @@ export function RecipientDetailsForm({
                     key={v.key}
                     className={`relative border ${
                       getFieldState(f.key).error ? "border-destructive" : ""
-                    } rounded px-4 py-3.5 text-sm has-checked:border-primary has-disabled:bg-muted w-32 focus-within:outline-2 focus-within:outline-ring`}
+                    } rounded px-4 py-3.5 text-sm has-checked:border-primary has-disabled:bg-gray-3 w-32 focus-within:outline-2 focus-within:outline-ring`}
                   >
                     <input
                       className="appearance none w-0 h-0"

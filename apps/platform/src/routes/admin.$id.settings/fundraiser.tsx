@@ -53,7 +53,7 @@ export function FundraiserTab({ fund_opt_in }: Props) {
         <CheckField {...register("fund_opt_in")} classes="font-medium">
           Allow Fundraisers to be created on behalf of your nonprofit
         </CheckField>
-        <p className="text-xs sm:text-sm text-muted-fg italic mt-1">
+        <p className="text-xs sm:text-sm text-gray-11 italic mt-1">
           Fundraising functionality is optional for all Better Giving
           nonprofits. By opting in, people will be able to create fundraisers on
           your behalf. You will receive 100% of funds raised for fundraisers

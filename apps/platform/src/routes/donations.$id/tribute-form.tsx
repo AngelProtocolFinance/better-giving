@@ -32,7 +32,7 @@ export function TributeForm({ classes = "", init }: Props) {
         disabled={!!init?.full_name}
         label="Honoree's name"
         placeholder="e.g. Jane Doe"
-        classes={{ container: "[&_input]:bg-input" }}
+        classes={{ container: "[&_input]:bg-surface" }}
         required
         error={errors.full_name?.message}
       />
@@ -80,7 +80,7 @@ export function TributeForm({ classes = "", init }: Props) {
           />
           <p
             data-exceed={errors.notif?.from_msg?.type === "max"}
-            className="text-xs text-muted-fg -mt-2 data-[exceed='true']:text-destructive"
+            className="text-xs text-gray-11 -mt-2 data-[exceed='true']:text-destructive-subtle-fg"
           >
             {custom_msg?.length ?? 0}/{from_msg_max_length}
           </p>

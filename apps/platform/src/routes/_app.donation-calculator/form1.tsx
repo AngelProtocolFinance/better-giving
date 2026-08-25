@@ -84,7 +84,7 @@ export function Form1({ classes = "", state, setState }: Props) {
             Donors can cover processing fees
           </Field.Label>
         </div>
-        <Field.HelperText className=" text-muted-fg mt-1 text-sm">
+        <Field.HelperText className=" text-gray-11 mt-1 text-sm">
           Better Giving enables donors to cover fees, and our data shows 80% opt
           to do so.
         </Field.HelperText>
@@ -94,7 +94,7 @@ export function Form1({ classes = "", state, setState }: Props) {
         Donation types currently accepted
         <Tooltip
           tip={
-            <Content className="max-w-xs text-center bg-popover outline outline-border p-4 text-popover-fg text-xs shadow-lg rounded">
+            <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
               Based on industry data, each payment type represents a portion of
               potential donations: Credit Card (63%), Bank/ACH (10%), Digital
               Wallets (7%), DAF (12%), Stocks (6%), Crypto (2%). Better Giving

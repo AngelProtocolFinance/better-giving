@@ -104,7 +104,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
                 }
               />
             ))}
-            <div className="bg-input inline-flex items-center gap-2 text-muted-fg pl-3 rounded">
+            <div className="bg-surface inline-flex items-center gap-2 text-gray-11 pl-3 rounded">
               <Search size={20} />
               {/* the one focusable input in this control: it is both the search
                   box and what an external `ref` (RHF error focus) lands on. */}
@@ -167,7 +167,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
  *  a rendered label may be a logo or a badge with no text in it. */
 function Tag(p: { label: ReactNode; name: string; on_remove: () => void }) {
   return (
-    <div className="flex items-center px-3 gap-2 h-10 bg-secondary border rounded font-semibold text-secondary-fg capitalize">
+    <div className="flex items-center px-3 gap-2 h-10 bg-secondary border rounded font-semibold text-gray-12 capitalize">
       <span className="max-w-[200px] truncate">{p.label}</span>
       <button
         type="button"

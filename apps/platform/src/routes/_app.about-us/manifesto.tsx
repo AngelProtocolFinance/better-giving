@@ -37,11 +37,11 @@ export function Manifesto({ classes = "" }: IManifesto) {
           {rights.map((r) => (
             <div
               key={r.num}
-              className="bg-card rounded p-8 shadow-lg shadow-primary/5 grid gap-2.5 content-start"
+              className="bg-panel rounded p-8 shadow-lg shadow-primary/5 grid gap-2.5 content-start"
             >
               <span className="text-3xl font-bold text-primary">{r.num}</span>
               <span className="text-xl font-bold">{r.title}</span>
-              <p className="text-sm/relaxed text-muted-fg">{r.body}</p>
+              <p className="text-sm/relaxed text-gray-11">{r.body}</p>
             </div>
           ))}
         </div>

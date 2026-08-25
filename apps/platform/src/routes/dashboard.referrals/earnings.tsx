@@ -53,7 +53,7 @@ export function Earnings({
               <div className="text-2xl font-bold">
                 ${humanize(pending_total)}
               </div>
-              <p className="text-sm text-muted-fg mt-1">
+              <p className="text-sm text-gray-11 mt-1">
                 pays out {format(end, "PP")}- in {formatDistance(end, now)}.
               </p>
             </div>
@@ -70,7 +70,7 @@ export function Earnings({
                 size={20}
                 className=" @max-lg:hidden hidden @lg:group-hover:block group-active:translate-x-0.5"
               />
-              <div className="text-xl font-bold text-muted-fg">
+              <div className="text-xl font-bold text-gray-11">
                 ${humanize(payout_ltd)}
               </div>
               <span className="text-sm mt-1">paid out</span>
@@ -78,7 +78,7 @@ export function Earnings({
           </div>
           {payout && (
             <div className="mt-4">
-              <p className="text-sm text-muted-fg">Payout threshold</p>
+              <p className="text-sm text-gray-11">Payout threshold</p>
               <div className="flex gap-x-1 items-center">
                 <p className="font-semibold text-warning-subtle-fg">
                   ${humanize(payout_min)}
@@ -97,7 +97,7 @@ export function Earnings({
           )}
           {payout && w_form ? (
             <div className="mt-4">
-              <p className="text-sm text-muted-fg">Payout method</p>
+              <p className="text-sm text-gray-11">Payout method</p>
               <div className="flex gap-x-2 items-center">
                 <p className="text-sm">{payout.longAccountSummary}</p>
                 <Link to="payout" className="btn btn-sm btn-primary rounded">

@@ -17,7 +17,7 @@ export default function DeletePrompt() {
   const isDefault = d === "true";
   const isWithHeir = with_heir === "true";
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-popover">
+    <RouteModal classes="grid content-start justify-items-center bg-panel">
       <Content isDefault={isDefault} isWithHeir={isWithHeir} />
     </RouteModal>
   );
@@ -39,21 +39,21 @@ function Content({ isDefault, isWithHeir }: Props) {
   return (
     <>
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Delete payout method
         </p>
         <NavLink
           to=".."
           aria-label="Close"
           aria-disabled={is_submitting}
-          className="[.pending]:text-muted-fg border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg"
+          className="[.pending]:text-gray-11 border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />
         </NavLink>
       </div>
       <CircleAlert size={80} className="mt-6 text-destructive" />
 
-      <div className="p-6 text-center text-muted-fg">{message}</div>
+      <div className="p-6 text-center text-gray-11">{message}</div>
 
       {canProceed && (
         <fetcher.Form method="DELETE" className="actions actions-band">

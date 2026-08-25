@@ -53,7 +53,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
         <UserAvatar avatar={d.avatar_url} classes="size-16" />
         <div className="grid">
           <h1 className="text-lg font-bold">{d.name}</h1>
-          <span className="text-sm text-muted-fg">{d.email}</span>
+          <span className="text-sm text-gray-11">{d.email}</span>
         </div>
         <Form
           method="POST"
@@ -63,7 +63,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           <button
             type="submit"
             aria-label="Log Out"
-            className="flex items-center gap-x-2 text-sm text-muted-fg transition-colors hover:text-destructive focus-visible:outline-2 focus-visible:outline-ring rounded"
+            className="flex items-center gap-x-2 text-sm text-gray-11 transition-colors hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring rounded"
           >
             <LogOutIcon size={18} className="shrink-0" />
             <span className="max-sm:sr-only">Log Out</span>
@@ -75,7 +75,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
       {d.is_admin && (
         <Link
           to={href("/platform")}
-          className="flex items-center gap-x-3 bg-card border border-border rounded p-3 mb-8 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+          className="flex items-center gap-x-3 bg-panel border border-gray-6 rounded p-3 mb-8 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
         >
           <span className="size-8 rounded-full bg-primary/10 text-primary grid place-items-center shrink-0">
             <ShieldIcon size={18} />
@@ -88,7 +88,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
       <section aria-labelledby="hub-orgs" className="mb-8">
         <h2
           id="hub-orgs"
-          className="uppercase text-xs text-muted-fg tracking-wide mb-3"
+          className="uppercase text-xs text-gray-11 tracking-wide mb-3"
         >
           My Organizations
         </h2>
@@ -97,7 +97,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
             <Link
               key={org.id}
               to={href("/admin/:id", { id: org.id.toString() })}
-              className="flex items-center gap-x-3 bg-card border border-border rounded p-3 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+              className="flex items-center gap-x-3 bg-panel border border-gray-6 rounded p-3 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
             >
               <Image
                 loading="lazy"
@@ -111,10 +111,10 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           ))}
           <Link
             to={href("/register")}
-            className="flex items-center gap-x-3 border border-dashed border-border rounded p-3 text-muted-fg transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex items-center gap-x-3 border border-dashed border-gray-6 rounded p-3 text-gray-11 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
           >
             {/* placeholder slot sized to match the org logos */}
-            <span className="size-8 rounded-full bg-muted grid place-items-center shrink-0">
+            <span className="size-8 rounded-full bg-gray-3 grid place-items-center shrink-0">
               <PlusIcon size={18} />
             </span>
             <span className="text-sm font-medium">
@@ -129,7 +129,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
         <section aria-labelledby="hub-favorites" className="mb-8 pt-8 border-t">
           <h2
             id="hub-favorites"
-            className="uppercase text-xs text-muted-fg tracking-wide mb-3"
+            className="uppercase text-xs text-gray-11 tracking-wide mb-3"
           >
             My Favorites
           </h2>
@@ -159,7 +159,7 @@ function FavoriteCard({ fav }: { fav: IFavorite }) {
     <div className="relative">
       <Link
         to={href("/marketplace/:id", { id: fav.id.toString() })}
-        className="flex items-center gap-x-3 bg-card border border-border rounded p-3 pr-11 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex items-center gap-x-3 bg-panel border border-gray-6 rounded p-3 pr-11 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
       >
         <Image
           loading="lazy"
@@ -179,7 +179,7 @@ function FavoriteCard({ fav }: { fav: IFavorite }) {
         <button
           type="submit"
           aria-label={`Remove ${fav.name} from favorites`}
-          className="grid place-items-center size-7 rounded-full text-muted-fg transition-colors hover:bg-muted hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring"
+          className="grid place-items-center size-7 rounded-full text-gray-11 transition-colors hover:bg-gray-3 hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring"
         >
           <XIcon size={16} />
         </button>

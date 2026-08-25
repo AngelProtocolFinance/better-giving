@@ -10,7 +10,7 @@ type Props = {
 
 export function Prompt(props: Props) {
   return (
-    <RouteModal classes="bg-popover">
+    <RouteModal classes="bg-panel">
       <Content {...props} />
     </RouteModal>
   );
@@ -28,24 +28,24 @@ function Content({ verdict }: Props) {
     >
       <input type="hidden" value={verdict} name="verdict" />
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Redeem units request
         </p>
         <Link
           to=".."
           aria-label="Close"
           aria-disabled={fetcher.state !== "idle"}
-          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-muted-fg"
+          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />
         </Link>
       </div>
-      <p className="px-6 pb-4 text-center text-muted-fg mt-4 font-semibold">
+      <p className="px-6 pb-4 text-center text-gray-11 mt-4 font-semibold">
         You are about to {verdict} this request.
       </p>
 
       <div className="flex items-center gap-2 mb-6">
-        <Status classes="bg-muted-fg">Pending</Status>
+        <Status classes="bg-gray-11">Pending</Status>
         <ChevronRight size={20} />
         {verdict === "approve" ? (
           <Status classes="bg-success">Approved</Status>

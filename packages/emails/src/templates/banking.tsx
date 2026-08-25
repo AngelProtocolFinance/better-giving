@@ -35,7 +35,7 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
           style={{
             textAlign: "center",
             fontSize: 12,
-            color: email_colors.muted_fg,
+            color: email_colors.gray_11,
           }}
         >
           Getting too many emails?{" "}

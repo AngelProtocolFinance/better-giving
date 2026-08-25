@@ -22,10 +22,10 @@ const th: React.CSSProperties = {
   border: `1px solid ${email_colors.border}`,
   padding: "8px 12px",
   textAlign: "left",
-  backgroundColor: email_colors.muted,
+  backgroundColor: email_colors.gray_3,
   // tinted surface carries its own ink; inheritance loses in clients that
   // force their own text color onto an explicit background
-  color: email_colors.fg,
+  color: email_colors.gray_12,
   fontWeight: 600,
   fontSize: 13,
 };
@@ -88,7 +88,7 @@ function Jsx({
               key={r.id}
               style={
                 r.effect === "skipped"
-                  ? { color: email_colors.muted_fg }
+                  ? { color: email_colors.gray_11 }
                   : undefined
               }
             >

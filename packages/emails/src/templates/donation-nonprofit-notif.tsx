@@ -26,7 +26,7 @@ function Jsx(d: IData) {
           style={{
             textAlign: "center",
             fontSize: 12,
-            color: email_colors.muted_fg,
+            color: email_colors.gray_11,
           }}
         >
           Getting too many emails?{" "}
@@ -74,7 +74,7 @@ function Jsx(d: IData) {
         style={{
           marginTop: 10,
           fontSize: 12,
-          color: email_colors.muted_fg,
+          color: email_colors.gray_11,
           lineHeight: 1.4,
         }}
       >

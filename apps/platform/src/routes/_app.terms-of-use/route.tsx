@@ -16,7 +16,7 @@ export const meta: Route.MetaFunction = () =>
 export default function TermsDonors() {
   return (
     <main className="prose lg:prose-lg page py-20">
-      <i className="text-muted-fg text-right block">
+      <i className="text-gray-11 text-right block">
         Effective October 25, 2024
       </i>
       <h2 className="text-center">

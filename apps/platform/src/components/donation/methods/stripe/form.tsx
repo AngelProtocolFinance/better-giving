@@ -125,7 +125,7 @@ export function Form(props: TMethodState<"stripe">) {
     if (u?.flow !== flow) return null;
     if (don.hide_unavailable_express) return null;
     return (
-      <p role="status" className="mt-4 text-xs text-muted-fg">
+      <p role="status" className="mt-4 text-xs text-gray-11">
         {u.msg}
       </p>
     );
@@ -133,12 +133,15 @@ export function Form(props: TMethodState<"stripe">) {
 
   // the popup portals to body, out of #donation-container, so it inherits none
   // of the tenant palette — re-apply on the far side what the shell reads.
-  // --accent is the option row's highlight and --ring the scrollbar thumb;
-  // #donation-container points --ring at --form-primary for the same reason.
+  // --secondary/-active are the option row's highlight and checked fill, one
+  // value for both because a tenant hands over a single colour and there is no
+  // runtime ramp to press it up a step. --ring is the scrollbar thumb, and
+  // #donation-container points it at --form-primary for the same reason.
   const popup_vars: Record<string, string | undefined> = {
     "--form-primary": don.config?.accent_primary,
     "--form-secondary": don.config?.accent_secondary,
-    "--accent": don.config?.accent_secondary,
+    "--secondary": don.config?.accent_secondary,
+    "--secondary-active": don.config?.accent_secondary,
     "--ring": don.config?.accent_primary,
   };
 
@@ -160,7 +163,7 @@ export function Form(props: TMethodState<"stripe">) {
       options={opts}
       // the control is as narrow as a currency code; the list is not
       popup_width="w-56"
-      indicator={<CheckIcon size={14} className="text-muted-fg" />}
+      indicator={<CheckIcon size={14} className="text-gray-11" />}
       popup_vars={popup_vars}
       value={rhf.currency.value}
       // the schema has no empty currency, and the seam only emits undefined
@@ -235,7 +238,7 @@ export function Form(props: TMethodState<"stripe">) {
                   placeholder="Enter contribution amount"
                   aria-invalid={!!rhf.errors.tip?.message}
                 />
-                <span className="right-6 text-xs text-destructive text-right absolute top-1/2 -translate-y-1/2 empty:hidden">
+                <span className="right-6 text-xs text-destructive-subtle-fg text-right absolute top-1/2 -translate-y-1/2 empty:hidden">
                   {rhf.errors.tip?.message}
                 </span>
               </div>
@@ -294,7 +297,7 @@ export function Form(props: TMethodState<"stripe">) {
         />
       )}
       {!prompt && unavailable(pp_unavailable, pp_flow)}
-      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
+      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
 
       <button
         disabled={

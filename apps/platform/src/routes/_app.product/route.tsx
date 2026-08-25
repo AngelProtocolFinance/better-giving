@@ -24,7 +24,7 @@ export default function Page() {
     <main>
       <Hero />
       <GiftTypes classes="py-22" />
-      <Features classes="bg-accent py-22" />
+      <Features classes="bg-band py-22" />
       <MembershipAdvantage classes="py-24" />
       <Portability classes="py-24" />
       <CtaBand

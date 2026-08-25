@@ -35,11 +35,13 @@ export function Preview({
     <div>
       <div className="p-6 sm:p-8">
         <h3 className="text-lg font-bold mb-1">Confirm settlement</h3>
-        <p className="text-sm text-muted-fg mb-4">
+        <p className="text-sm text-gray-11 mb-4">
           Review the records that will be created
         </p>
 
-        {error && <p className="text-xs text-destructive mb-4">{error}</p>}
+        {error && (
+          <p className="text-xs text-destructive-subtle-fg mb-4">{error}</p>
+        )}
 
         {/* donation */}
         <RecordSection title="Donation">
@@ -56,7 +58,7 @@ export function Preview({
         ) : (
           previews.map((p, idx) => (
             <div key={idx}>
-              <h4 className="text-xs font-semibold text-muted-fg uppercase tracking-wide mb-2">
+              <h4 className="text-xs font-semibold text-gray-11 uppercase tracking-wide mb-2">
                 {p.npo_name}
               </h4>
               <RecordsTabs preview={p} />
@@ -88,7 +90,7 @@ export function Preview({
 }
 
 const tab_cls =
-  "px-3 py-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-muted-fg hover:text-fg data-selected:text-fg data-selected:border-b-2 data-selected:border-primary flex items-center gap-1";
+  "px-3 py-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-gray-11 hover:text-gray-12 data-selected:text-gray-12 data-selected:border-b-2 data-selected:border-primary flex items-center gap-1";
 
 function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
   return (
@@ -126,7 +128,7 @@ function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
         </Tabs.Content>
 
         <Tabs.Content value="json">
-          <pre className="text-xs bg-muted rounded p-3 overflow-x-auto max-h-60 overflow-y-auto scrollbars">
+          <pre className="text-xs bg-gray-3 rounded p-3 overflow-x-auto max-h-60 overflow-y-auto scrollbars">
             {JSON.stringify(preview.txs, null, 2)}
           </pre>
         </Tabs.Content>
@@ -176,7 +178,7 @@ function TxRow({
       <tr>
         <td>
           {LABELS[account] ?? account}
-          <span className="text-muted-fg ml-1">
+          <span className="text-gray-11 ml-1">
             {humanize(tx.bal_begin as number)} →{" "}
             {humanize(tx.bal_end as number)}
           </span>
@@ -184,7 +186,7 @@ function TxRow({
         <td className="text-right figures">
           +${humanize(tx.amount as number)}
           {account === "lock" && (
-            <span className="text-muted-fg ml-1">
+            <span className="text-gray-11 ml-1">
               ({humanize(tx.amount_units as number, 6)} units @ $
               {humanize(nav_price)}/unit)
             </span>
@@ -213,7 +215,7 @@ function RecordSection({
 }) {
   return (
     <section className="mb-4">
-      <h4 className="text-xs font-semibold text-muted-fg uppercase tracking-wide mb-2">
+      <h4 className="text-xs font-semibold text-gray-11 uppercase tracking-wide mb-2">
         {title}
       </h4>
       <div className="grid gap-1">{children}</div>
@@ -224,7 +226,7 @@ function RecordSection({
 function KV({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-4 text-sm">
-      <span className="text-muted-fg w-20 shrink-0">{label}</span>
+      <span className="text-gray-11 w-20 shrink-0">{label}</span>
       <span>{value}</span>
     </div>
   );

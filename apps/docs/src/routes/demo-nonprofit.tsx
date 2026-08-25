@@ -57,13 +57,13 @@ export default function DemoNonprofitPage() {
   return (
     <main className="flex-1">
       {/* Navigation */}
-      <nav className="sticky top-0 bg-card border-b px-6 py-3 z-10">
+      <nav className="sticky top-0 bg-panel border-b px-6 py-3 z-10">
         <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-center">
           {DEMO_SECTIONS.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="px-3 py-1.5 text-sm text-muted-fg hover:text-fg hover:bg-accent rounded transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-11 hover:text-gray-12 hover:bg-secondary rounded transition-colors"
             >
               {section.title}
             </a>
@@ -103,14 +103,14 @@ export default function DemoNonprofitPage() {
       </section>
 
       {/* With Border - White background section */}
-      <section id="with-border" className="px-6 py-16 bg-card scroll-mt-16">
+      <section id="with-border" className="px-6 py-16 bg-panel scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-fg mb-3">
+            <h2 className="text-3xl font-bold text-gray-12 mb-3">
               Support Our Mission
             </h2>
-            <p className="text-muted-fg text-sm max-w-lg mx-auto">
-              <span className="font-medium text-fg">With Border</span>
+            <p className="text-gray-11 text-sm max-w-lg mx-auto">
+              <span className="font-medium text-gray-12">With Border</span>
               {" — "}On white backgrounds, a subtle border separates the form
               from surrounding content.{" "}
               <ViewCodeLink href={`/forms/${id}/with-border`} />
@@ -126,12 +126,14 @@ export default function DemoNonprofitPage() {
       </section>
 
       {/* Donate Button - Program Cards */}
-      <section id="donate-button" className="px-6 py-16 bg-muted scroll-mt-16">
+      <section id="donate-button" className="px-6 py-16 bg-gray-3 scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-fg mb-3">Our Programs</h2>
-            <p className="text-muted-fg text-sm max-w-lg mx-auto">
-              <span className="font-medium text-fg">Donate Button</span>
+            <h2 className="text-3xl font-bold text-gray-12 mb-3">
+              Our Programs
+            </h2>
+            <p className="text-gray-11 text-sm max-w-lg mx-auto">
+              <span className="font-medium text-gray-12">Donate Button</span>
               {" — "}Button click opens form in a modal. Great for CTAs without
               dedicating page space.{" "}
               <ViewCodeLink href={`/forms/${id}/donate-button`} />
@@ -141,17 +143,17 @@ export default function DemoNonprofitPage() {
             {PROGRAMS.map((program) => (
               <div
                 key={program.title}
-                className="bg-card rounded border p-6 flex flex-col"
+                className="bg-panel rounded border p-6 flex flex-col"
               >
                 <div
                   className={`w-12 h-12 rounded flex items-center justify-center ${program.color} mb-4`}
                 >
                   <program.icon size={24} />
                 </div>
-                <h3 className="text-lg font-semibold text-fg mb-2">
+                <h3 className="text-lg font-semibold text-gray-12 mb-2">
                   {program.title}
                 </h3>
-                <p className="text-muted-fg text-sm mb-6 flex-1">
+                <p className="text-gray-11 text-sm mb-6 flex-1">
                   {program.description}
                 </p>
                 <button
@@ -175,7 +177,7 @@ export default function DemoNonprofitPage() {
                 <button
                   type="submit"
                   aria-label="Close"
-                  className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-accent text-muted-fg"
+                  className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-secondary text-gray-11"
                 >
                   <X size={20} />
                 </button>
@@ -187,14 +189,14 @@ export default function DemoNonprofitPage() {
       </section>
 
       {/* With Content - Donation Appeal */}
-      <section id="with-content" className="px-6 py-16 bg-card scroll-mt-16">
+      <section id="with-content" className="px-6 py-16 bg-panel scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-6 p-6 bg-demo-pale rounded border border-demo-tint">
-              <h2 className="text-2xl font-bold text-fg mb-2">
+              <h2 className="text-2xl font-bold text-gray-12 mb-2">
                 Help Us Reach $50,000
               </h2>
-              <p className="text-muted-fg text-sm mb-4">
+              <p className="text-gray-11 text-sm mb-4">
                 Expand our youth education program to three new communities.
               </p>
               <div className="bg-demo-tint rounded h-3 overflow-hidden mb-2">
@@ -203,11 +205,11 @@ export default function DemoNonprofitPage() {
                   style={{ width: "68%" }}
                 />
               </div>
-              <p className="text-xs text-muted-fg mb-4">
+              <p className="text-xs text-gray-11 mb-4">
                 $34,000 raised of $50,000 goal
               </p>
-              <p className="text-xs text-muted-fg">
-                <span className="font-medium text-muted-fg">With Content</span>
+              <p className="text-xs text-gray-11">
+                <span className="font-medium text-gray-11">With Content</span>
                 {" — "}Wrap the form with headings, campaign progress, or
                 context. <ViewCodeLink href={`/forms/${id}/with-content`} />
               </p>
@@ -220,15 +222,19 @@ export default function DemoNonprofitPage() {
       {/* Fixed Dimensions - Sidebar Widget */}
       <section
         id="fixed-dimensions"
-        className="px-6 py-16 bg-muted scroll-mt-16"
+        className="px-6 py-16 bg-gray-3 scroll-mt-16"
       >
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-[1fr_350px] gap-8">
             {/* Main content */}
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-fg">Latest Updates</h2>
-              <p className="text-muted-fg text-sm">
-                <span className="font-medium text-fg">Fixed Dimensions</span>
+              <h2 className="text-2xl font-bold text-gray-12">
+                Latest Updates
+              </h2>
+              <p className="text-gray-11 text-sm">
+                <span className="font-medium text-gray-12">
+                  Fixed Dimensions
+                </span>
                 {" — "}Form constrained to sidebar width. Scrolls if content
                 exceeds height.{" "}
                 <ViewCodeLink href={`/forms/${id}/custom-dimensions`} />
@@ -252,21 +258,21 @@ export default function DemoNonprofitPage() {
               ].map((article) => (
                 <article
                   key={article.title}
-                  className="bg-card rounded border p-5"
+                  className="bg-panel rounded border p-5"
                 >
-                  <span className="text-xs text-muted-fg">{article.date}</span>
-                  <h3 className="font-semibold text-fg mt-1">
+                  <span className="text-xs text-gray-11">{article.date}</span>
+                  <h3 className="font-semibold text-gray-12 mt-1">
                     {article.title}
                   </h3>
-                  <p className="text-muted-fg text-sm mt-1">{article.text}</p>
+                  <p className="text-gray-11 text-sm mt-1">{article.text}</p>
                 </article>
               ))}
             </div>
 
             {/* Sidebar with fixed-dimension form */}
             <aside className="md:sticky md:top-20 self-start">
-              <div className="bg-card rounded border p-4">
-                <h3 className="font-semibold text-fg mb-3 text-center text-sm">
+              <div className="bg-panel rounded border p-4">
+                <h3 className="font-semibold text-gray-12 mb-3 text-center text-sm">
                   Quick Donate
                 </h3>
                 <iframe
@@ -284,7 +290,7 @@ export default function DemoNonprofitPage() {
       </section>
 
       {/* Footer */}
-      <footer className="px-6 py-8 bg-fg text-background">
+      <footer className="px-6 py-8 bg-gray-12 text-background">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-background/70 text-sm">
             Demo page showcasing Better Giving embed styles

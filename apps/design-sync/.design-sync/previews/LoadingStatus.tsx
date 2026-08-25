@@ -19,16 +19,14 @@ export const Sizes = () => (
     <LoadingStatus classes="text-primary text-sm">
       Loading requirements…
     </LoadingStatus>
-    <LoadingStatus classes="text-muted-fg">
-      Verifying bank account
-    </LoadingStatus>
+    <LoadingStatus classes="text-gray-11">Verifying bank account</LoadingStatus>
   </div>
 );
 
 export const InPanel = () => (
   <div className="border rounded p-6 max-w-md">
     <h3 className="font-medium mb-1">Transfer requirements</h3>
-    <p className="text-sm text-muted-fg mb-6">
+    <p className="text-sm text-gray-11 mb-6">
       $1,200.00 · USD to Books for Kids
     </p>
     <LoadingStatus classes="text-primary text-sm">

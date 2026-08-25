@@ -136,7 +136,7 @@ export function DirectMode({
         )}
       </QueryLoader>
 
-      <p className="text-sm text-muted-fg mt-4 indent-4 leading-normal">
+      <p className="text-sm text-gray-11 mt-4 indent-4 leading-normal">
         Please note that manual donations of cryptocurrencies using the QR code
         may take up to 1 business day to process. Due to market fluctuations,
         the value of your cryptocurrency donation may vary between the time it

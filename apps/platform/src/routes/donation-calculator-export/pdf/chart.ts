@@ -103,9 +103,12 @@ export function draw_chart(
   }
 
   // draw areas bottom to top
-  fill_area(["savings"], green.l3, green.d1);
-  fill_area(["savings", "liq"], amber.l1, amber.d);
-  fill_area(["savings", "liq", "lock"], blue.l1, blue.d);
+  fill_area(["savings"], green["6"], green["9"]);
+  fill_area(["savings", "liq"], amber["6"], amber["9"]);
+  // blue's band takes step 8, not 9: its top edge IS the total, and the 2px
+  // step-9 line is drawn straight over it, so the two blues never read apart
+  // on the plot. the legend chip is the one place they sit side by side.
+  fill_area(["savings", "liq", "lock"], blue["6"], blue["8"]);
 
   // total line
   for (let i = 0; i < points.length - 1; i++) {
@@ -113,7 +116,7 @@ export function draw_chart(
       start: { x: xs(i), y: y_pdf(ys(points[i].total)) },
       end: { x: xs(i + 1), y: y_pdf(ys(points[i + 1].total)) },
       thickness: 2,
-      color: hex(blue.d1),
+      color: hex(blue["9"]),
     });
   }
 
@@ -122,7 +125,7 @@ export function draw_chart(
     start: { x: ox + margin.left, y: y_pdf(ys(0)) },
     end: { x: ox + width - margin.right, y: y_pdf(ys(0)) },
     thickness: 1,
-    color: hex(gray.d1),
+    color: hex(gray["11"]),
   });
 
   // y-axis
@@ -130,7 +133,7 @@ export function draw_chart(
     start: { x: ox + margin.left, y: y_pdf(y_top + margin.top) },
     end: { x: ox + margin.left, y: y_pdf(ys(0)) },
     thickness: 1,
-    color: hex(gray.d1),
+    color: hex(gray["11"]),
   });
 
   // y-axis ticks
@@ -153,7 +156,7 @@ export function draw_chart(
       start: { x: ox + margin.left - 5, y: y_pdf(tick_y) },
       end: { x: ox + margin.left, y: y_pdf(tick_y) },
       thickness: 1,
-      color: hex(gray.d1),
+      color: hex(gray["11"]),
     });
 
     // label — center vertically on tick mark
@@ -173,7 +176,7 @@ export function draw_chart(
         start: { x: ox + margin.left, y: y_pdf(tick_y) },
         end: { x: ox + width - margin.right, y: y_pdf(tick_y) },
         thickness: 0.5,
-        color: hex(gray.l2),
+        color: hex(gray["6"]),
         dashArray: [3, 3],
       });
     }
@@ -192,7 +195,7 @@ export function draw_chart(
       start: { x: tx, y: y_pdf(base_y) },
       end: { x: tx, y: y_pdf(base_y) - 5 },
       thickness: 1,
-      color: hex("#666666"),
+      color: hex(gray["11"]),
     });
 
     const lbl = points[i].year;

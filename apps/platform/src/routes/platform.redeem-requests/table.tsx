@@ -57,9 +57,9 @@ export function Table({
                     </NavLink>
                   </div>
                 ) : r.status === "cancelled" ? (
-                  <span className="text-destructive">Cancelled</span>
+                  <span className="text-destructive-subtle-fg">Cancelled</span>
                 ) : (
-                  <span className="text-success">Final</span>
+                  <span className="text-success-subtle-fg">Final</span>
                 )}
               </td>
             </tr>

@@ -53,7 +53,7 @@ export function ImgEditor({
   const styles = unpack(props.classes);
   const is_loading = props.value === "loading";
   const disabled = props.disabled || is_loading;
-  const overlay = `before:content-[''] before:grid before:place-items-center before:absolute before:inset-0 data-[drag="true"]:before:bg-accent data-[loading="true"]:before:bg-accent/90 data-[loading="true"]:before:content-['._._.'] before:text-xl before:font-bold `;
+  const overlay = `before:content-[''] before:grid before:place-items-center before:absolute before:inset-0 data-[drag="true"]:before:bg-secondary data-[loading="true"]:before:bg-secondary/90 data-[loading="true"]:before:content-['._._.'] before:text-xl before:font-bold `;
 
   async function handleSave(cropped: File) {
     setFile(cropped);
@@ -95,7 +95,7 @@ export function ImgEditor({
 
   return (
     <div className={`${styles.container} grid grid-rows-[1fr_auto]`}>
-      <p className="text-xs text-muted-fg mb-2">
+      <p className="text-xs text-gray-11 mb-2">
         <span>
           Valid types are:{" "}
           {props.spec.type
@@ -148,10 +148,10 @@ export function ImgEditor({
           const files = Array.from(e.dataTransfer.files);
           if (files.length) handle_files(files);
         }}
-        className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-input cursor-pointer
+        className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
           focus-within:outline-2 data-[drag="true"]:outline-2 outline-ring
-          hover:bg-accent
-          data-[disabled="true"]:bg-muted data-[disabled="true"]:pointer-events-none
+          hover:bg-secondary
+          data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none
           data-[invalid="true"]:border-destructive
           `}
         style={{
@@ -162,7 +162,7 @@ export function ImgEditor({
       >
         {!preview ? (
           <div
-            className="absolute-center relative grid justify-items-center text-sm text-muted-fg select-none"
+            className="absolute-center relative grid justify-items-center text-sm text-gray-11 select-none"
             tabIndex={-1}
           >
             {file_input}
@@ -210,7 +210,7 @@ export function ImgEditor({
         )}
       </label>
 
-      <span className="empty:hidden text-destructive text-xs mt-1">
+      <span className="empty:hidden text-destructive-subtle-fg text-xs mt-1">
         {props.error}
       </span>
     </div>
@@ -218,7 +218,7 @@ export function ImgEditor({
 }
 
 const buttonStyle =
-  "text-primary-fg text-lg bg-primary hover:bg-primary/80 disabled:bg-border disabled:text-muted-fg p-2 m-1 rounded shadow-lg";
+  "text-primary-fg text-lg bg-primary hover:bg-primary/80 disabled:bg-gray-6 disabled:text-gray-11 p-2 m-1 rounded shadow-lg";
 function IconButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button {...props} type="button" className={buttonStyle} />;
 }

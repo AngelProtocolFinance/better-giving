@@ -59,7 +59,7 @@ function Header() {
         <Link to="/" className="inline-flex items-center gap-3">
           <img src={logo} alt="Better Giving" width={150} height={40} />
         </Link>
-        <span className="text-sm font-medium text-muted-fg">Developer</span>
+        <span className="text-sm font-medium text-gray-11">Developer</span>
       </div>
     </header>
   );
@@ -67,7 +67,7 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="border-t bg-muted mt-auto">
+    <footer className="border-t bg-gray-3 mt-auto">
       <div className="page py-8 flex flex-col items-center gap-4">
         <div className="flex items-center gap-4">
           <ExtLink
@@ -101,7 +101,7 @@ function Footer() {
             <img src={instagram} alt="Instagram" width={18} height={18} />
           </ExtLink>
         </div>
-        <p className="text-sm text-muted-fg text-center">
+        <p className="text-sm text-gray-11 text-center">
           © Copyright {new Date().getFullYear()} Better Giving, a registered
           charitable 501(c)(3) (EIN 87-3758939)
         </p>
@@ -119,8 +119,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <h2 className="text-xl font-semibold text-fg">Page not found</h2>
-          <p className="text-sm text-muted-fg">
+          <h2 className="text-xl font-semibold text-gray-12">Page not found</h2>
+          <p className="text-sm text-gray-11">
             The page you're looking for doesn't exist.
           </p>
           <Button variant="primary" to="/" className="inline-flex">
@@ -136,8 +136,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center space-y-4">
-        <h2 className="text-xl font-semibold text-fg">Something went wrong</h2>
-        <p className="text-sm text-muted-fg">
+        <h2 className="text-xl font-semibold text-gray-12">
+          Something went wrong
+        </h2>
+        <p className="text-sm text-gray-11">
           An error occurred while loading this page.
         </p>
         <Button variant="primary" onClick={() => window.location.reload()}>

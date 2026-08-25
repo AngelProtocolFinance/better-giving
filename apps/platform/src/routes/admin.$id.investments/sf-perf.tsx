@@ -26,9 +26,9 @@ export function SfPerf({ id, classes = "" }: Props) {
         onClick={() => expand(true)}
         className={`text-xs font-semibold rounded focus:outline-none  ${
           data.total_return > 0
-            ? "text-success"
+            ? "text-success-subtle-fg"
             : data.total_return < 0
-              ? "text-destructive"
+              ? "text-destructive-subtle-fg"
               : ""
         }`}
       >

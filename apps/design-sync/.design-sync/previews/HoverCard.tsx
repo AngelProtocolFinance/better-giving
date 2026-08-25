@@ -21,7 +21,7 @@ function useAutoOpen() {
 }
 
 const card_cls =
-  "bg-popover outline outline-border text-popover-fg text-sm w-80 p-4 rounded shadow-lg";
+  "bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 p-4 rounded shadow-lg";
 
 export const Open = () => {
   const box = useAutoOpen();
@@ -62,7 +62,7 @@ export const OnFigure = () => {
   const box = useAutoOpen();
   return (
     <div ref={box} className="pt-2 pb-64">
-      <div className="rounded border bg-card p-4 w-72">
+      <div className="rounded border bg-panel p-4 w-72">
         <h4 className="font-medium">Total raised</h4>
         <p className="text-lg font-medium mt-2">$12,800.00</p>
         <div className="mt-3 flex items-center">
@@ -86,13 +86,13 @@ export const OnFigure = () => {
                     <span className="font-medium">$1,230.00</span>
                   </li>
                 </ul>
-                <p className="text-muted-fg mt-3">
+                <p className="text-gray-11 mt-3">
                   Settled donations through Nov 14, 2025.
                 </p>
               </div>
             }
           >
-            <button type="button" className="text-muted-fg text-sm underline">
+            <button type="button" className="text-gray-11 text-sm underline">
               See breakdown
             </button>
           </HoverCard>

@@ -63,15 +63,15 @@ export const TitleOnly = () => (
   <Group className="max-w-2xl" title="Next payout">
     <dl className="grid gap-4">
       <div className="flex items-baseline justify-between">
-        <dt className="text-sm text-muted-fg">Available balance</dt>
+        <dt className="text-sm text-gray-11">Available balance</dt>
         <dd className="text-2xl font-semibold">$1,200.00</dd>
       </div>
       <div className="flex items-baseline justify-between">
-        <dt className="text-sm text-muted-fg">Scheduled for</dt>
+        <dt className="text-sm text-gray-11">Scheduled for</dt>
         <dd className="text-sm font-medium">Nov 14, 2025</dd>
       </div>
       <div className="flex items-baseline justify-between">
-        <dt className="text-sm text-muted-fg">Destination</dt>
+        <dt className="text-sm text-gray-11">Destination</dt>
         <dd className="text-sm font-medium">
           Wells Fargo &bull;&bull;&bull;&bull; 4821
         </dd>
@@ -83,7 +83,7 @@ export const TitleOnly = () => (
 // children only — the plain bordered panel, no heading at all.
 export const Untitled = () => (
   <Group className="max-w-2xl">
-    <p className="text-sm text-muted-fg">
+    <p className="text-sm text-gray-11">
       Ocean Conservancy has no fundraisers yet. Create one to start collecting
       donations.
     </p>

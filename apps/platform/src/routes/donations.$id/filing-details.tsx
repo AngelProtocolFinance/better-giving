@@ -58,17 +58,17 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
   if (p.voided) {
     return (
       <section
-        className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+        className={`w-full border bg-panel rounded overflow-hidden ${classes}`}
       >
         <div className="flex items-start gap-x-2 p-4">
           <span className="h-lh flex items-center shrink-0">
-            <BuildingIcon className="stroke-muted-fg" size={16} />
+            <BuildingIcon className="stroke-gray-11" size={16} />
           </span>
           <div>
             <h3 className="text-sm font-semibold">
               This donation was refunded
             </h3>
-            <p className="text-sm text-muted-fg mt-1">
+            <p className="text-sm text-gray-11 mt-1">
               {p.filed
                 ? "You told us you filed a matching-gift claim for it. Since the gift went back to you, that claim no longer applies — let your employer know if they haven't already closed it."
                 : "There's nothing to file with an employer for a gift that's been returned. If you give again, the details will be here."}
@@ -86,7 +86,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
   if (p.matched) {
     return (
       <section
-        className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+        className={`w-full border bg-panel rounded overflow-hidden ${classes}`}
       >
         <div className="flex items-start gap-x-2 p-4">
           <span className="h-lh flex items-center shrink-0">
@@ -101,7 +101,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
             {/* the paperwork is gone rather than merely marked done: a donor
                 reading filing details beside a completed match has every reason
                 to file again, and the second claim is the one that bounces. */}
-            <p className="text-sm text-muted-fg mt-1">
+            <p className="text-sm text-gray-11 mt-1">
               A matching gift of {humanize(p.matched.amount)}{" "}
               {p.matched.currency.toUpperCase()} reached {p.recipient}. There's
               nothing left to file — thank you for asking them.
@@ -114,7 +114,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
 
   return (
     <section
-      className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+      className={`w-full border bg-panel rounded overflow-hidden ${classes}`}
     >
       <div className="flex items-start gap-x-2 p-4">
         <span className="h-lh flex items-center shrink-0">
@@ -124,7 +124,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
           <h3 className="text-sm font-semibold">
             Ask your employer to match this gift
           </h3>
-          <p className="text-sm text-muted-fg mt-1">
+          <p className="text-sm text-gray-11 mt-1">
             If your employer runs a matching gift program, filing takes a few
             minutes. Better Giving is the 501(c)(3) that received your donation,
             so these are the details the form will ask for.
@@ -156,7 +156,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
           nonprofit reads a form full of Better Giving's details as wrong and
           stops. the second sentence answers the question that raises — where a
           match ends up — before it costs us the filing. */}
-      <p className="text-xs text-muted-fg p-4 border-t">
+      <p className="text-xs text-gray-11 p-4 border-t">
         {LEGAL_NAME} granted your gift on to {p.recipient}, and a match works
         the same way: your employer pays {LEGAL_NAME}, and we forward it on to{" "}
         {p.recipient}.
@@ -169,7 +169,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
         <h3 className="text-sm font-semibold">
           If your employer sends the match directly
         </h3>
-        <p className="text-sm text-muted-fg mt-1">
+        <p className="text-sm text-gray-11 mt-1">
           Most employers pay through their giving platform, which already holds
           our details. If yours mails a check instead, this is what they need.
         </p>
@@ -182,7 +182,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
         <Row label="Reference" value={`Donation ${p.id}`} />
         <Row label="Employer questions" value={emails.hi} last />
       </dl>
-      <p className="text-sm text-muted-fg p-4 border-t">
+      <p className="text-sm text-gray-11 p-4 border-t">
         Not sure where to file? Check your employer's giving portal, or forward
         these details to your HR team. They can reach us at {emails.hi} with any
         questions.
@@ -223,7 +223,7 @@ function FiledBtn({ filed }: IFiledBtn) {
         </span>
         <span>
           <span className="font-semibold">You told us you filed this.</span>{" "}
-          <span className="text-muted-fg">
+          <span className="text-gray-11">
             We'll expect your employer's verification request and answer it.
           </span>
         </span>
@@ -233,7 +233,7 @@ function FiledBtn({ filed }: IFiledBtn) {
 
   return (
     <Form onSubmit={handleSubmit} method="POST" className="grid">
-      <p className="text-sm text-muted-fg">
+      <p className="text-sm text-gray-11">
         Filed it already? Tell us, so we know to expect your employer's
         verification request.
       </p>
@@ -259,7 +259,7 @@ interface IRow {
 function Row({ label, value, children, last }: IRow) {
   return (
     <>
-      <dt className="px-4 max-sm:pt-3 sm:p-3 flex items-center text-xs font-semibold uppercase text-muted-fg">
+      <dt className="px-4 max-sm:pt-3 sm:p-3 flex items-center text-xs font-semibold uppercase text-gray-11">
         {label}
       </dt>
       <div
@@ -271,7 +271,7 @@ function Row({ label, value, children, last }: IRow) {
         <Copier
           text={value}
           classes={{
-            container: "text-muted-fg hover:text-fg shrink-0",
+            container: "text-gray-11 hover:text-gray-12 shrink-0",
             icon: "size-4",
           }}
           size={16}

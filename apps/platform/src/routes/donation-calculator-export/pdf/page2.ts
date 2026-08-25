@@ -35,7 +35,7 @@ export function draw_page2(
   // === header ===
   let y: number = px;
   const title = "TOTAL 5 - 10 - 15 - 20 YEARS FINANCIAL ADVANTAGE";
-  draw_text(page, title, px, y + fs.lg2, fonts.semibold, fs.lg2, blue.d);
+  draw_text(page, title, px, y + fs.lg2, fonts.semibold, fs.lg2, blue["9"]);
   const title_w = fonts.semibold.widthOfTextAtSize(title, fs.lg2);
   draw_rect(
     page,
@@ -43,7 +43,7 @@ export function draw_page2(
     y + fs.lg2 / 2,
     content_w - title_w - w["4"],
     2,
-    blue.d
+    blue["9"]
   );
   y += fs.lg2 + 2;
   draw_text(
@@ -53,7 +53,7 @@ export function draw_page2(
     y + fs.lg2,
     fonts.semibold,
     fs.lg2,
-    blue.d
+    blue["9"]
   );
   y += fs.lg2 + w["6"];
   draw_text(
@@ -123,30 +123,37 @@ export function draw_page2(
 
   // === legend ===
   y += w["6"];
+  /* each swatch declares the stroke its band is actually drawn with, so the blue
+     band's border is step 8 while the total line below it keeps step 9 — they
+     are two different blues in the figure and have to stay two here. swatch
+     fills run one rung heavier than the chart's, because a legend chip is small
+     enough that the band's own step 6 would read as empty. labels are step 11,
+     the scale's text rung; the swatch carries the hue, so the label does not
+     have to. */
   const legend_items = [
     {
-      color: green.l1,
-      border: green.d1,
+      color: green["8"],
+      border: green["9"],
       label: "Donation Processing Savings",
-      text_color: green.d1,
+      text_color: green["11"],
     },
     {
-      color: amber.l1,
-      border: amber.d1,
+      color: amber["8"],
+      border: amber["9"],
       label: "Savings Returns",
-      text_color: amber.l1,
+      text_color: amber["11"],
     },
     {
-      color: blue.l1,
-      border: blue.d,
+      color: blue["6"],
+      border: blue["8"],
       label: "Investment Returns",
-      text_color: blue.l1,
+      text_color: blue["11"],
     },
     {
-      color: blue.d,
+      color: blue["9"],
       border: undefined,
       label: "Total Financial Advantage",
-      text_color: blue.d,
+      text_color: blue["11"],
     },
   ];
 
@@ -195,11 +202,11 @@ export function draw_page2(
     fonts.regular,
     fs.sm2,
     box_w - box_px * 2,
-    { color: amber.d3 }
+    { color: amber["12"] }
   );
   const amber_h = amber_text_h + box_py * 2;
   // draw bg behind text (draw after since pdf-lib layers by draw order — redraw text)
-  draw_rect(page, w["22"], y, box_w, amber_h, amber.l4);
+  draw_rect(page, w["22"], y, box_w, amber_h, amber["3"]);
   draw_wrapped(
     page,
     amber_text,
@@ -208,11 +215,12 @@ export function draw_page2(
     fonts.regular,
     fs.sm2,
     box_w - box_px * 2,
-    { color: amber.d3 }
+    { color: amber["12"] }
   );
   y += amber_h + w["8"];
 
-  // blue callout
+  // blue callout. title on step 12, body on step 11 — the ramp's two text
+  // rungs over a step-3 ground, so the heading still reads as the heavier one.
   const blue_title_h = fs.lg + w["4"];
   const blue_body =
     "These projections demonstrate how Better Giving's integrated approach compounds over time. Our organization could accumulate significant additional funds through the combination of reduced processing fees, expanded donation types, and strategic investments.";
@@ -224,10 +232,10 @@ export function draw_page2(
     fonts.regular,
     fs.sm2,
     box_w - box_px * 2,
-    { color: blue.d2 }
+    { color: blue["11"] }
   );
   const blue_h = box_py + blue_title_h + blue_body_h + box_py;
-  draw_rect(page, w["22"], y, box_w, blue_h, blue.l4);
+  draw_rect(page, w["22"], y, box_w, blue_h, blue["3"]);
   draw_text(
     page,
     "The Power of Compound Growth",
@@ -235,7 +243,7 @@ export function draw_page2(
     y + box_py + fs.lg,
     fonts.medium,
     fs.lg,
-    blue.d3
+    blue["12"]
   );
   draw_wrapped(
     page,
@@ -245,7 +253,7 @@ export function draw_page2(
     fonts.regular,
     fs.sm2,
     box_w - box_px * 2,
-    { color: blue.d2 }
+    { color: blue["11"] }
   );
 }
 

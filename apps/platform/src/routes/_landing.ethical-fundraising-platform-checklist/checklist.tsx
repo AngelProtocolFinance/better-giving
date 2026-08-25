@@ -121,21 +121,21 @@ export function Checklist({ classes = "" }: IChecklist) {
       <div
         role="status"
         aria-live="polite"
-        className="sticky top-16 z-30 flex flex-wrap items-center gap-5 rounded border border-border bg-card p-4 print:static"
+        className="sticky top-16 z-30 flex flex-wrap items-center gap-5 rounded border border-gray-6 bg-panel p-4 print:static"
       >
         <p className="flex items-baseline gap-1.5 leading-none figures">
           {/* the space is load-bearing: without it the live region announces
               "12of 28" — the flex gap is visual only */}
           <span className="text-4xl font-bold text-primary">{done}</span>{" "}
-          <span className="text-lg font-medium text-muted-fg">of {total}</span>
+          <span className="text-lg font-medium text-gray-11">of {total}</span>
         </p>
         <div className="min-w-56 flex-1">
           <p className="text-sm font-bold">{verdict.headline}</p>
-          <p className="mt-0.5 text-xs text-muted-fg">{verdict.sub}</p>
+          <p className="mt-0.5 text-xs text-gray-11">{verdict.sub}</p>
           {/* the count above says the same thing in words */}
           <div
             aria-hidden="true"
-            className="mt-2 h-1.5 overflow-hidden rounded bg-muted"
+            className="mt-2 h-1.5 overflow-hidden rounded bg-gray-3"
           >
             <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
           </div>
@@ -155,14 +155,14 @@ export function Checklist({ classes = "" }: IChecklist) {
         <button
           type="button"
           onClick={() => commit(new Set())}
-          className="btn btn-ghost gap-2 border border-border"
+          className="btn btn-ghost gap-2 border border-gray-6"
         >
           <RotateCcw size={16} />
           Reset all
         </button>
       </div>
 
-      <p className="mb-6 flex flex-wrap items-start gap-2 rounded border border-border bg-muted px-4 py-3 text-sm text-muted-fg">
+      <p className="mb-6 flex flex-wrap items-start gap-2 rounded border border-gray-6 bg-gray-3 px-4 py-3 text-sm text-gray-11">
         <Badge tone="warning">Flashpoint</Badge>
         <span className="min-w-64 flex-1">
           A practice named in the Alaska, multi-state GoFundMe, or California
@@ -175,12 +175,12 @@ export function Checklist({ classes = "" }: IChecklist) {
           <section
             key={section.id}
             aria-labelledby={`${section.id}-heading`}
-            className="rounded border border-border bg-card p-5"
+            className="rounded border border-gray-6 bg-panel p-5"
           >
             <h2 id={`${section.id}-heading`} className="article-heading">
               {section.title}
             </h2>
-            <p className="mt-1.5 max-w-prose text-sm text-muted-fg">
+            <p className="mt-1.5 max-w-prose text-sm text-gray-11">
               {section.sub}
             </p>
             <div className="mt-4">
@@ -190,7 +190,7 @@ export function Checklist({ classes = "" }: IChecklist) {
                   /* the row is the unit that must not split, not the panel: a
                      panel of eleven questions is taller than a sheet, and
                      `break-inside: avoid` on a box that can't fit is ignored */
-                  className="grid break-inside-avoid grid-cols-[auto_1fr] items-start gap-x-3 border-t border-border py-2.5"
+                  className="grid break-inside-avoid grid-cols-[auto_1fr] items-start gap-x-3 border-t border-gray-6 py-2.5"
                 >
                   <input
                     id={item.id}
@@ -205,7 +205,7 @@ export function Checklist({ classes = "" }: IChecklist) {
                       <Badge tone="warning">Flashpoint</Badge>
                     )}
                     {item.note && (
-                      <span className="mt-1 block text-xs text-muted-fg">
+                      <span className="mt-1 block text-xs text-gray-11">
                         {item.note}
                       </span>
                     )}

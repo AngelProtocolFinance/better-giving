@@ -40,7 +40,7 @@ export function Top({ classes = "" }) {
               rx="40"
               ry="6"
               filter="url(#blur)"
-              className="fill-muted"
+              className="fill-gray-3"
               // className="blur-sm"
             />
           </svg>
@@ -69,7 +69,7 @@ export function Top({ classes = "" }) {
               rx="110"
               ry="12"
               filter="url(#blur)"
-              className="fill-muted/70"
+              className="fill-gray-3/70"
             />
           </svg>
         </div>

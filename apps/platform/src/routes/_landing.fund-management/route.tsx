@@ -41,7 +41,7 @@ const split_steps = [
 export default function Page() {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-accent pt-16 pb-18">
+      <div className="bg-linear-to-b from-background to-band pt-16 pb-18">
         <div className="page grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
           <div className="grid gap-5 justify-items-start">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -50,7 +50,7 @@ export default function Page() {
             <h1 className="hero-heading">
               This quarter's gifts, next decade's reserves
             </h1>
-            <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
+            <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
               Choose what share of each donation is granted to your bank, held
               in high-yield savings, or invested in the Sustainability Fund.
               Change the split anytime. Pay nothing, ever.
@@ -66,7 +66,7 @@ export default function Page() {
                 Book a demo
               </ExtLink>
             </div>
-            <p className="text-sm text-muted-fg">
+            <p className="text-sm text-gray-11">
               No setup, AUM, or performance fees. 100% of growth is yours.
             </p>
           </div>
@@ -80,7 +80,7 @@ export default function Page() {
       </div>
 
       <GrowPlaces classes="py-22" />
-      <AllocationGovernance classes="bg-accent py-24" />
+      <AllocationGovernance classes="bg-band py-24" />
 
       <section className="py-22" aria-labelledby="split-steps-heading">
         <div className="page">
@@ -97,13 +97,13 @@ export default function Page() {
                 className="grid gap-2.5 justify-items-center text-center content-start"
               >
                 <span
-                  className="size-13 rounded-full bg-secondary text-secondary-fg grid place-items-center text-xl font-bold"
+                  className="size-13 rounded-full bg-secondary text-gray-12 grid place-items-center text-xl font-bold"
                   aria-hidden
                 >
                   {s.n}
                 </span>
                 <span className="text-xl font-bold">{s.title}</span>
-                <p className="text-sm/relaxed text-muted-fg max-w-75">
+                <p className="text-sm/relaxed text-gray-11 max-w-75">
                   {s.body}
                 </p>
               </div>

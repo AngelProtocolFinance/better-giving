@@ -22,7 +22,7 @@ export default function Page({ loaderData: user }: Route.ComponentProps) {
   const { min = pay_min } = search(params);
 
   return (
-    <RouteModal classes="grid bg-popover text-popover-fg p-6">
+    <RouteModal classes="grid bg-panel text-gray-12 p-6">
       <Content prev={+min} />
     </RouteModal>
   );
@@ -65,14 +65,14 @@ function Content(props: IContent) {
       <Field.Root className="grid my-4">
         <Field.Label className="mb-1">
           Amount
-          <span className="text-destructive"> *</span>
+          <span className="text-destructive-subtle-fg"> *</span>
         </Field.Label>
         <input
           placeholder="e.g. $ 100"
           {...register("amount")}
           className="px-4 py-3 rounded outline-ring border"
         />
-        <span className="text-destructive text-xs text-right empty:hidden mt-1">
+        <span className="text-destructive-subtle-fg text-xs text-right empty:hidden mt-1">
           {errors.amount?.message}
         </span>
       </Field.Root>

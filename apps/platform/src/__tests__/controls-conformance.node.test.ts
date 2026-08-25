@@ -348,13 +348,13 @@ describe("the form action row", () => {
   test("the dialog footer band is not typed out by hand", () => {
     // the band is a tinted strip with a top border, and its properties are
     // cheap to re-type by hand — the name is the only place they are authored.
-    // bare tokens on purpose: `hover:bg-muted` on a menu item is a different
+    // bare tokens on purpose: `hover:bg-gray-3` on a menu item is a different
     // thing entirely and is not a finding.
     const offenders = class_values
       .filter(({ value }) => {
         const raw = value.split(/\s+/).filter(Boolean);
         return (
-          raw.includes("bg-muted") &&
+          raw.includes("bg-gray-3") &&
           raw.includes("border-t") &&
           !raw.includes("actions-band")
         );

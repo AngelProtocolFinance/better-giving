@@ -28,11 +28,11 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           <h2 id="grow-funds-heading" className="section-heading">
             This quarter's gifts, next decade's reserves
           </h2>
-          <p className="text-muted-fg text-pretty">
+          <p className="text-gray-11 text-pretty">
             Route any share of your donations into two places money grows:
           </p>
           <div className="grid gap-3.5">
-            <div className="flex gap-3.5 items-start bg-card border border-border rounded px-5 py-4.5">
+            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-4.5">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -41,13 +41,13 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               </span>
               <div>
                 <span className="font-bold">High-yield savings</span>
-                <p className="mt-0.5 text-sm/normal text-muted-fg">
+                <p className="mt-0.5 text-sm/normal text-gray-11">
                   FDIC-insured, ~3-4% yield, accessible anytime. Electronic
                   payouts within 5 working days.
                 </p>
               </div>
             </div>
-            <div className="flex gap-3.5 items-start bg-card border border-border rounded px-5 py-4.5">
+            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-4.5">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -56,7 +56,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               </span>
               <div>
                 <span className="font-bold">Sustainability Fund</span>
-                <p className="mt-0.5 text-sm/normal text-muted-fg">
+                <p className="mt-0.5 text-sm/normal text-gray-11">
                   Professionally managed, investment-committee governed,
                   rebalanced quarterly. ~11% average annual return over the past
                   five years.* No setup, AUM, or performance fees.
@@ -64,13 +64,13 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
               </div>
             </div>
           </div>
-          <p className="text-xs text-muted-fg">
+          <p className="text-xs text-gray-11">
             *Past performance is not indicative of future results; all
             investments carry risk.
           </p>
         </div>
 
-        <div className="bg-card rounded p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
+        <div className="bg-panel rounded p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
           <span className="text-lg font-bold">
             Sustainability Fund target allocation
           </span>
@@ -80,10 +80,10 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             role="img"
             aria-label="Target allocation: 50% U.S. equities, 10% non-U.S. equities, 32.5% fixed income, 7.5% metals"
           >
-            <div className="size-32.5 rounded-full bg-card grid place-items-center text-center">
+            <div className="size-32.5 rounded-full bg-panel grid place-items-center text-center">
               <div>
                 <span className="block text-2xl font-bold">~11%</span>
-                <span className="text-xs text-muted-fg">
+                <span className="text-xs text-gray-11">
                   avg. annual return,
                   <br />
                   past 5 yrs*

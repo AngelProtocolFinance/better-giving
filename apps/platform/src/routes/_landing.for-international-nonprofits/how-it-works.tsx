@@ -18,11 +18,11 @@ export function HowItWorks({ classes = "" }) {
     <section className={classes}>
       <div className="page">
         <h2 className="section-heading">Fiscal sponsorship in three steps</h2>
-        <p className="section-body text-muted-fg max-w-3xl mt-3 mb-9">
+        <p className="section-body text-gray-11 max-w-3xl mt-3 mb-9">
           Your donors give to Better Giving, a U.S. 501(c)(3), earmarked for
           your organization. They get a U.S. tax deduction. You get the funds.
         </p>
-        <ol className="bg-card border border-border rounded divide-y divide-border">
+        <ol className="bg-panel border border-gray-6 rounded divide-y divide-gray-6">
           {steps.map((s, i) => (
             <li
               key={s.title}
@@ -36,7 +36,7 @@ export function HowItWorks({ classes = "" }) {
               </span>
               <div className="grid gap-2 min-w-0">
                 <h3 className="text-lg font-bold">{s.title}</h3>
-                <p className="text-sm/relaxed text-muted-fg text-pretty max-w-prose">
+                <p className="text-sm/relaxed text-gray-11 text-pretty max-w-prose">
                   {s.body}
                 </p>
               </div>

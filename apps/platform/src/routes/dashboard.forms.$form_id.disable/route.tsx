@@ -28,7 +28,7 @@ export const action = async (x: {
 
 export default function DisablePrompt() {
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-popover">
+    <RouteModal classes="grid content-start justify-items-center bg-panel">
       <Content />
     </RouteModal>
   );
@@ -42,12 +42,12 @@ function Content() {
   return (
     <>
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Disable form
         </p>
       </div>
       <CircleAlert size={80} className="mt-6 text-destructive" />
-      <div className="p-6 text-center text-muted-fg">
+      <div className="p-6 text-center text-gray-11">
         Are you sure you want to disable this form? It will no longer accept
         donations.
       </div>

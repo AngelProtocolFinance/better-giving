@@ -98,13 +98,13 @@ export function Stewardship({ subs, dists }: IProps) {
           </defs>
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 10, fill: "var(--muted-fg)" }}
+            tick={{ fontSize: 10, fill: "var(--gray-11)" }}
             tickLine={false}
-            axisLine={{ stroke: "var(--border)" }}
+            axisLine={{ stroke: "var(--gray-6)" }}
             interval={0}
           />
           <Tooltip
-            cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+            cursor={{ fill: "var(--gray-3)", opacity: 0.3 }}
             content={<MonthTooltip />}
           />
           <Bar dataKey="billed" stackId="m" fill="var(--primary)" />
@@ -133,24 +133,24 @@ function MonthTooltip({ active, label, payload }: ITooltipProps) {
   if (billed === 0 && pending === 0 && cancelled === 0) return null;
   const fmt = (n: number) => `$${n.toFixed(2)}`;
   return (
-    <div className="rounded border border-border bg-popover p-2 text-xs">
+    <div className="rounded border border-gray-6 bg-panel p-2 text-xs">
       <p className="mb-1 font-semibold">{label}</p>
       {billed > 0 && (
         <p>
-          <span className="text-muted-fg">billed </span>
+          <span className="text-gray-11">billed </span>
           <span className="font-medium">{fmt(billed)}</span>
         </p>
       )}
       {pending + cancelled > 0 && (
         <p>
-          <span className="text-muted-fg">
+          <span className="text-gray-11">
             {is_future ? "expected " : "pending "}
           </span>
           <span className="font-medium">{fmt(pending + cancelled)}</span>
         </p>
       )}
       {cancelled > 0 && (
-        <p className="mt-1 text-muted-fg">
+        <p className="mt-1 text-gray-11">
           includes {fmt(cancelled)} cancelled this month
         </p>
       )}

@@ -95,7 +95,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
 
   return (
     <div className="grid justify-items-center gap-3.5">
-      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
         <h3 className="text-center text-balance text-2xl font-bold">
           {ctx.title}
         </h3>
@@ -115,7 +115,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           </button>
         </RmxForm>
 
-        <Separator classes="my-4 before:mr-3.5 after:ml-3.5 before:bg-border after:bg-border font-medium text-xs text-muted-fg">
+        <Separator classes="my-4 before:mr-3.5 after:ml-3.5 before:bg-gray-6 after:bg-gray-6 font-medium text-xs text-gray-11">
           OR
         </Separator>
 
@@ -155,7 +155,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           />
         </RmxForm>
 
-        <p className="text-center max-sm:text-sm text-muted-fg mt-4">
+        <p className="text-center max-sm:text-sm text-gray-11 mt-4">
           We'll email you a link to confirm your address and sign you in. No
           password to choose.
         </p>
@@ -173,7 +173,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           Already have an account?
           <Link
             to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-            className="text-primary hover:text-primary active:text-primary aria-disabled:text-muted-fg font-medium underline"
+            className="text-primary hover:text-primary active:text-primary aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >
             Login

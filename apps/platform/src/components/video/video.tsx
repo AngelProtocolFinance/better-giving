@@ -77,15 +77,17 @@ export const Video = ({ classes = "", vid }: Props) => {
         className="relative w-full"
         style={{ paddingBottom: "56.25%" }}
       >
-        <div className="absolute inset-0 bg-muted rounded overflow-hidden">
+        <div className="absolute inset-0 bg-gray-3 rounded overflow-hidden">
           {status === "loading" && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-muted-fg">Loading…</div>
+              <div className="text-gray-11">Loading…</div>
             </div>
           )}
           {status === "error" && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-destructive">Failed to load video</div>
+              <div className="text-destructive-subtle-fg">
+                Failed to load video
+              </div>
             </div>
           )}
           <video

@@ -74,7 +74,7 @@ export function Table({
                     to={href("/platform/banking-applications/:id", {
                       id: row.id,
                     })}
-                    className="text-center w-full inline-block [.pending]:text-muted-fg hover:text-primary"
+                    className="text-center w-full inline-block [.pending]:text-gray-11 hover:text-primary"
                   >
                     <Folder
                       size={22}
@@ -108,9 +108,9 @@ const dot_color: Record<TStatus, string> = {
 };
 
 const text_color: Record<TStatus, string> = {
-  approved: "text-success",
+  approved: "text-success-subtle-fg",
   "under-review": "text-warning-subtle-fg",
-  rejected: "text-destructive",
+  rejected: "text-destructive-subtle-fg",
   default: "text-primary",
 };
 

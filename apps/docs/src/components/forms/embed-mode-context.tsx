@@ -48,17 +48,17 @@ export function EmbedModeTabs() {
         type="button"
         onClick={() => set_mode("iframe")}
         className={`transition-colors ${
-          mode === "iframe" ? "text-fg" : "text-muted-fg hover:text-fg"
+          mode === "iframe" ? "text-gray-12" : "text-gray-11 hover:text-gray-12"
         }`}
       >
         iframe
       </button>
-      <span className="text-border">|</span>
+      <span className="text-gray-6">|</span>
       <button
         type="button"
         onClick={() => set_mode("script")}
         className={`transition-colors ${
-          mode === "script" ? "text-fg" : "text-muted-fg hover:text-fg"
+          mode === "script" ? "text-gray-12" : "text-gray-11 hover:text-gray-12"
         }`}
       >
         script
@@ -78,7 +78,7 @@ function SetupModal({ id }: { id: string }) {
       <button
         type="button"
         onClick={() => set_open(true)}
-        className="font-medium underline hover:text-fg"
+        className="font-medium underline hover:text-gray-12"
       >
         View setup instructions
       </button>
@@ -87,15 +87,17 @@ function SetupModal({ id }: { id: string }) {
         open={open}
         onClose={() => set_open(false)}
         size="md"
-        classes="bg-popover text-popover-fg"
+        classes="bg-panel text-gray-12"
       >
         <div className="p-5 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-fg">Script Embed Setup</h2>
+          <h2 className="text-lg font-semibold text-gray-12">
+            Script Embed Setup
+          </h2>
           <button
             type="button"
             onClick={() => set_open(false)}
             aria-label="Close setup instructions"
-            className="p-1.5 rounded hover:bg-accent text-muted-fg"
+            className="p-1.5 rounded hover:bg-secondary text-gray-11"
           >
             <X size={20} />
           </button>
@@ -106,52 +108,56 @@ function SetupModal({ id }: { id: string }) {
         <div className="p-6 space-y-8">
           <section className="space-y-4">
             <div>
-              <h3 className="font-medium text-fg">Step 1: Add the script</h3>
-              <p className="text-sm text-muted-fg mt-1">
+              <h3 className="font-medium text-gray-12">
+                Step 1: Add the script
+              </h3>
+              <p className="text-sm text-gray-11 mt-1">
                 Add this script tag just before the closing{" "}
-                <code className="bg-accent px-1.5 py-0.5 rounded text-xs font-mono">
+                <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono">
                   {"</body>"}
                 </code>{" "}
                 tag on your page.
               </p>
             </div>
             <div className="rounded text-sm border overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
-                <span className="text-xs text-muted-fg font-medium">HTML</span>
+              <div className="flex items-center justify-between px-4 py-2 bg-gray-3 border-b">
+                <span className="text-xs text-gray-11 font-medium">HTML</span>
                 <Copier
                   text={script_snippet}
-                  classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+                  classes="p-1.5 rounded text-gray-11 hover:bg-secondary hover:text-gray-12"
                 />
               </div>
               <HighlightedCode
                 code={script_snippet}
                 lang="html"
                 className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-                fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
+                fallback_class_name="p-4 m-0 overflow-x-auto text-gray-11"
               />
             </div>
           </section>
 
           <section className="space-y-4">
             <div>
-              <h3 className="font-medium text-fg">Step 2: Add the container</h3>
-              <p className="text-sm text-muted-fg mt-1">
+              <h3 className="font-medium text-gray-12">
+                Step 2: Add the container
+              </h3>
+              <p className="text-sm text-gray-11 mt-1">
                 Place this element where you want the donation form to appear.
               </p>
             </div>
             <div className="rounded text-sm border overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
-                <span className="text-xs text-muted-fg font-medium">HTML</span>
+              <div className="flex items-center justify-between px-4 py-2 bg-gray-3 border-b">
+                <span className="text-xs text-gray-11 font-medium">HTML</span>
                 <Copier
                   text={container_snippet}
-                  classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+                  classes="p-1.5 rounded text-gray-11 hover:bg-secondary hover:text-gray-12"
                 />
               </div>
               <HighlightedCode
                 code={container_snippet}
                 lang="html"
                 className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-                fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
+                fallback_class_name="p-4 m-0 overflow-x-auto text-gray-11"
               />
             </div>
           </section>

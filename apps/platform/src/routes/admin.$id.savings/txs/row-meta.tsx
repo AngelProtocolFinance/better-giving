@@ -16,7 +16,7 @@ export const Description = (props: IDescription) => {
   return (
     <p>
       {props.text} :{" "}
-      <span className="text-xs text-muted-fg">{mask_string(props.id, 4)}</span>
+      <span className="text-xs text-gray-11">{mask_string(props.id, 4)}</span>
     </p>
   );
 };

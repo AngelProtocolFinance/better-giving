@@ -38,7 +38,7 @@ import { describe, expect, test } from "vitest";
  *   deliberate ink on a 10% tint.
  * - **variant-prefixed fills are out.** `data-[state=checked]:bg-primary` on a
  *   toggle track or a radio control is a third story again: the fill only
- *   exists in one state, and what sits on it is a `bg-card` dot or a
+ *   exists in one state, and what sits on it is a `bg-panel` dot or a
  *   `Switch.Thumb` that takes no `currentColor` at all. those controls draw
  *   their focus ring with `outline-offset-2`, so it lands on the page ground
  *   rather than on the fill, and the ring collapse this file is about cannot

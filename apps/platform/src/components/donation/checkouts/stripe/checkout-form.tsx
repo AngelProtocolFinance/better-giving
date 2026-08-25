@@ -153,7 +153,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
           </LoadText>
         </button>
       )}
-      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-muted-fg" />}
+      {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </form>
   );

@@ -32,7 +32,7 @@ export function FloatingField({
         {error && (
           <span
             data-error
-            className="text-destructive mt-0.5 text-right text-xs font-normal"
+            className="text-destructive-subtle-fg mt-0.5 text-right text-xs font-normal"
           >
             {error}
           </span>
@@ -59,7 +59,7 @@ export function FloatingInput({
     <Field.Input
       {...props}
       placeholder=""
-      className={`${className} peer w-full py-3.5 text-sm rounded border bg-input px-4 transition-colors outline-ring data-invalid:border-destructive`}
+      className={`${className} peer w-full py-3.5 text-sm rounded border bg-surface px-4 transition-colors outline-ring data-invalid:border-destructive`}
       ref={ref}
     />
   );

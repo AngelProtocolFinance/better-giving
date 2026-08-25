@@ -29,7 +29,7 @@ const scenarios: IScenario[] = [
 
 export function Scenarios() {
   return (
-    <section className="bg-card py-20 md:py-24">
+    <section className="bg-panel py-20 md:py-24">
       <div className="page">
         <motion.div
           className="text-center mb-14 grid gap-4"
@@ -39,7 +39,7 @@ export function Scenarios() {
           transition={{ duration: 0.4 }}
         >
           <h2 className="section-heading font-bold">What If?</h2>
-          <p className="section-body text-muted-fg max-w-2xl mx-auto">
+          <p className="section-body text-gray-11 max-w-2xl mx-auto">
             Imagine the possibilities when geography no longer limits
             generosity.
           </p>
@@ -49,7 +49,7 @@ export function Scenarios() {
           {scenarios.map((scenario, i) => (
             <motion.div
               key={scenario.title}
-              className="bg-card border border-border rounded p-6 grid content-start gap-3"
+              className="bg-panel border border-gray-6 rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
@@ -59,7 +59,7 @@ export function Scenarios() {
                 <scenario.icon size={24} />
               </div>
               <h3 className="text-xl font-bold">{scenario.title}</h3>
-              <p className="text-muted-fg">{scenario.body}</p>
+              <p className="text-gray-11">{scenario.body}</p>
             </motion.div>
           ))}
         </div>

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { type Resource, type ResourceType, TYPE_LABELS } from "./data";
 
 const badge_styles: Record<ResourceType, string> = {
-  templates: "bg-muted text-muted-fg",
+  templates: "bg-gray-3 text-gray-11",
   guides: "bg-success-subtle text-success-subtle-fg",
   whitepapers: "bg-secondary text-primary",
 };
@@ -11,7 +11,7 @@ const badge_styles: Record<ResourceType, string> = {
 export function ResourceCard({ resource }: { resource: Resource }) {
   const [pending, set_pending] = useState(false);
   return (
-    <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-card p-5 gap-3">
+    <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-panel p-5 gap-3">
       <div className="flex items-center gap-3">
         <FileText size={20} className="text-primary shrink-0" />
         <span
@@ -23,7 +23,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
 
       <h3 className="font-semibold leading-snug">{resource.name}</h3>
 
-      <p className="text-sm text-muted-fg leading-relaxed">
+      <p className="text-sm text-gray-11 leading-relaxed">
         {resource.description}
       </p>
 
@@ -61,9 +61,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
         </a>
       </div>
 
-      {resource.size && (
-        <p className="text-xs text-muted-fg">{resource.size}</p>
-      )}
+      {resource.size && <p className="text-xs text-gray-11">{resource.size}</p>}
     </div>
   );
 }

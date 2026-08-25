@@ -67,15 +67,15 @@ export default function Page() {
       <PublicHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
-        <TrustBar classes="border-y border-border py-7" />
+        <TrustBar classes="border-y border-gray-6 py-7" />
         <PartnersStrip classes="border-b border-secondary" />
         <Steps classes="py-22" />
-        <OwnGrow classes="bg-accent py-24" />
+        <OwnGrow classes="bg-band py-24" />
         <Pillars classes="py-24" />
-        <GrowFunds classes="bg-accent py-24" />
+        <GrowFunds classes="bg-band py-24" />
         <OpenSource classes="surface-primary py-24" />
         <Testimonials classes="py-24" />
-        <div className="bg-accent pt-22 pb-48">
+        <div className="bg-band pt-22 pb-48">
           <div className="page">
             <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
           </div>

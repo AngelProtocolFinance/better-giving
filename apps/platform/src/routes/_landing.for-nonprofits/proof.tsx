@@ -27,7 +27,7 @@ export function Proof({ classes = "" }: IProof) {
           <h2 id="proof-heading" className="section-heading">
             Others promise transparency. Ours is checkable.
           </h2>
-          <p className="mt-4 text-muted-fg text-pretty">
+          <p className="mt-4 text-gray-11 text-pretty">
             We're small, and that's exactly why our transparency has to be
             provable rather than promised.
           </p>
@@ -39,11 +39,11 @@ export function Proof({ classes = "" }: IProof) {
           </Link>
         </div>
 
-        <div className="grid divide-y divide-border">
+        <div className="grid divide-y divide-gray-6">
           {points.map((p) => (
             <div key={p.title} className="py-8 first:pt-0 last:pb-0">
               <h3 className="text-xl leading-snug">{p.title}</h3>
-              <p className="mt-3 leading-relaxed text-muted-fg text-pretty">
+              <p className="mt-3 leading-relaxed text-gray-11 text-pretty">
                 {p.body}
               </p>
             </div>

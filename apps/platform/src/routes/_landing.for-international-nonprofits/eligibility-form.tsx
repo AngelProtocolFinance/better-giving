@@ -80,12 +80,12 @@ export function EligibilityForm({
 
   return (
     <div
-      className={`${classes} bg-card border border-border rounded p-5 sm:p-6`}
+      className={`${classes} bg-panel border border-gray-6 rounded p-5 sm:p-6`}
     >
       <h2 className="text-xl font-bold">
         Check if your organization qualifies
       </h2>
-      <p className="text-sm/relaxed text-muted-fg mt-2">
+      <p className="text-sm/relaxed text-gray-11 mt-2">
         Three fields to start. We reply within 3 business days.
       </p>
 
@@ -238,7 +238,7 @@ export function EligibilityForm({
           Book a demo
         </ExtLink>
 
-        <p className="text-xs text-muted-fg">
+        <p className="text-xs text-gray-11">
           No setup fee, no minimum, no annual contract. You pay nothing until
           your first donation.
         </p>

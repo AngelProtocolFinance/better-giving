@@ -67,22 +67,22 @@ function Match({ payment: c }: { payment: PaymentRow }) {
       >
         {/* donor-entered and never resolved — there is no employer row behind
             this string, so it is shown exactly as typed */}
-        {c.company_name || <span className="text-muted-fg">No employer</span>}
+        {c.company_name || <span className="text-gray-11">No employer</span>}
       </span>
       {reached.length > 0 && (
-        <span className="text-xs text-muted-fg">
+        <span className="text-xs text-gray-11">
           {reached
             .map(([label, at]) => `${label} ${format(new Date(at!), "MMM d")}`)
             .join(" · ")}
         </span>
       )}
       {c.match_voided_at && (
-        <span className="text-xs text-muted-fg">
+        <span className="text-xs text-gray-11">
           voided · {c.match_void_reason}
         </span>
       )}
       {c.match_send_failed_kind && (
-        <span className="text-destructive text-xs font-semibold">
+        <span className="text-destructive-subtle-fg text-xs font-semibold">
           {c.match_send_failed_kind} mail refused
         </span>
       )}
@@ -180,7 +180,7 @@ function Row({ payment: c }: { payment: PaymentRow }) {
       </td>
       <td>
         {c.status === "refunded" || c.status === "refunded_loss" ? (
-          <span className="text-destructive text-xs font-semibold">
+          <span className="text-destructive-subtle-fg text-xs font-semibold">
             {c.status === "refunded_loss" ? "Refunded (loss)" : "Refunded"}
           </span>
         ) : is_stripe ? (
@@ -193,7 +193,7 @@ function Row({ payment: c }: { payment: PaymentRow }) {
             Refund
           </NavLink>
         ) : (
-          <span className="text-muted-fg text-xs">N/A</span>
+          <span className="text-gray-11 text-xs">N/A</span>
         )}
       </td>
     </tr>

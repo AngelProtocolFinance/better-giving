@@ -56,17 +56,17 @@ export function status_label(s: TStatus): string {
 }
 
 const status_text_colors: Record<TStatus, string> = {
-  settled: "text-success",
-  refunded: "text-destructive",
+  settled: "text-success-subtle-fg",
+  refunded: "text-destructive-subtle-fg",
   intent: "text-warning-subtle-fg",
   confirmed: "text-primary",
-  created: "text-muted-fg",
-  expired: "text-muted-fg",
-  failed: "text-destructive",
-  refunded_loss: "text-destructive",
-  cancelled: "text-muted-fg",
+  created: "text-gray-11",
+  expired: "text-gray-11",
+  failed: "text-destructive-subtle-fg",
+  refunded_loss: "text-destructive-subtle-fg",
+  cancelled: "text-gray-11",
 };
 
 export function status_text_color(s: TStatus): string {
-  return status_text_colors[s] ?? "text-muted-fg";
+  return status_text_colors[s] ?? "text-gray-11";
 }

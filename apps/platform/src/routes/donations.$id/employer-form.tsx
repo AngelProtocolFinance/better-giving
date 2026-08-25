@@ -45,7 +45,7 @@ export function EmployerForm({ init, filed }: IEmployerForm) {
   if (init) {
     return (
       <p className="text-sm">
-        <span className="text-muted-fg">You work at </span>
+        <span className="text-gray-11">You work at </span>
         <span className="font-semibold">{init}</span>
       </p>
     );
@@ -69,7 +69,7 @@ export function EmployerForm({ init, filed }: IEmployerForm) {
         maxLength={company_name_max_length}
         required
         error={errors.company_name?.message}
-        classes={{ container: "[&_input]:bg-input" }}
+        classes={{ container: "[&_input]:bg-surface" }}
       />
       <button
         disabled={fetcher.state !== "idle"}

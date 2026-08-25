@@ -31,7 +31,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
   return (
     <div className="space-y-3">
       {/* Row 1: Color Picker | Radius Slider with value */}
-      <div className="flex items-center gap-6 text-sm text-muted-fg border-b pb-4">
+      <div className="flex items-center gap-6 text-sm text-gray-11 border-b pb-4">
         <div className="inline-flex items-center gap-2">
           <ColorPicker
             color={config.button_bg}
@@ -54,8 +54,8 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
                 }
                 className={`p-1.5 transition-colors ${
                   config.button_radius === preset
-                    ? "bg-accent text-fg"
-                    : "text-muted-fg hover:text-fg hover:bg-accent"
+                    ? "bg-secondary-active text-gray-12"
+                    : "text-gray-11 hover:text-gray-12 hover:bg-secondary"
                 }`}
                 title={preset}
               >
@@ -92,7 +92,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
         }}
         handleComponent={{
           bottomRight: (
-            <div className="w-3 h-3 bg-muted-fg rounded absolute -bottom-1 -right-1 opacity-50 hover:opacity-100 transition-opacity cursor-nwse-resize" />
+            <div className="w-3 h-3 bg-gray-11 rounded absolute -bottom-1 -right-1 opacity-50 hover:opacity-100 transition-opacity cursor-nwse-resize" />
           ),
         }}
       >
@@ -110,7 +110,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
       </Resizable>
 
       {/* Row 3: Size indicator */}
-      <p className="text-sm text-muted-fg">
+      <p className="text-sm text-gray-11">
         {config.button_width} × {config.button_height}
       </p>
 

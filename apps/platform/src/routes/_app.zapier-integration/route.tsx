@@ -34,7 +34,7 @@ export default function Component() {
           ))}
         </ol>
 
-        <div className="mt-8 p-4 bg-muted border-l-4 border-primary rounded-r">
+        <div className="mt-8 p-4 bg-gray-3 border-l-4 border-primary rounded-r">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="shrink-0">
               <AlertCircle className="size-5 text-primary" />

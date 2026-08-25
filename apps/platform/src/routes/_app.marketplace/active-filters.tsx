@@ -138,7 +138,7 @@ function Item({ children, onRemove }: PropsWithChildren<{ onRemove(): void }>) {
     <button
       type="button"
       onClick={onRemove}
-      className="flex items-center gap-2 border select-none rounded-full capitalize text-xs py-1 pl-3 pr-1.5 text-muted-fg bg-muted hover:bg-secondary"
+      className="flex items-center gap-2 border select-none rounded-full capitalize text-xs py-1 pl-3 pr-1.5 text-gray-11 bg-gray-3 hover:bg-secondary"
     >
       <span>{children}</span>
       <CircleX size={20} />

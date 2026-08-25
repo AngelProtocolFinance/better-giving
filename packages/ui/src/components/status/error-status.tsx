@@ -14,7 +14,7 @@ export function ErrorStatus({
   return (
     <Status
       {...rest}
-      classes={`text-destructive ${classes}`}
+      classes={`text-destructive-subtle-fg ${classes}`}
       icon={<CircleAlert />}
     >
       {children}

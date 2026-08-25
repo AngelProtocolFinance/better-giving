@@ -266,7 +266,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
       </div>
       <ContentLoader className="h-12 mt-4 block group-has-[chariot-connect]:hidden" />
       {stuck && paid && (
-        <StuckMsg dest={paid} classes="mt-4 text-sm text-muted-fg" />
+        <StuckMsg dest={paid} classes="mt-4 text-sm text-gray-11" />
       )}
       <DonationTerms
         endowName={don.recipient.name}

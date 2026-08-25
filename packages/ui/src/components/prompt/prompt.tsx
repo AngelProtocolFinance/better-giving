@@ -28,7 +28,7 @@ export function Prompt({
     <Modal
       open={open ?? true}
       onClose={close}
-      classes="grid bg-popover text-popover-fg"
+      classes="grid bg-panel text-gray-12"
     >
       <div className="flex justify-end p-4 border-b">
         <button
@@ -42,7 +42,7 @@ export function Prompt({
       </div>
 
       <PromptIcon type={type} classes="mb-6 sm:mb-8 mt-4 sm:mt-12" />
-      <div className="px-6 pb-4 text-center text-muted-fg">{children}</div>
+      <div className="px-6 pb-4 text-center text-gray-11">{children}</div>
       <Actions band>
         <button
           onClick={close}

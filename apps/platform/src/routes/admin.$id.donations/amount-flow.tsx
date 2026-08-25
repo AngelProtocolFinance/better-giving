@@ -78,7 +78,7 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
             y1={svg_height / 2}
             x2="20"
             y2={svg_height / 2}
-            stroke="var(--muted-fg)"
+            stroke="var(--gray-11)"
             strokeWidth="1"
           />
 
@@ -102,14 +102,14 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
                 {/* Smooth curved branch line with straight segment */}
                 <path
                   d={path_data}
-                  stroke="var(--muted-fg)"
+                  stroke="var(--gray-11)"
                   strokeWidth="1"
                   fill="none"
                 />
                 {/* Arrow head */}
                 <polygon
                   points={`${end_x},${target_y} ${end_x - 5},${target_y - 3} ${end_x - 5},${target_y + 3}`}
-                  fill="var(--muted-fg)"
+                  fill="var(--gray-11)"
                 />
               </g>
             );
@@ -146,7 +146,7 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
             {/* Optional text */}
             {item.text && (
               <div
-                className="text-muted-fg whitespace-nowrap"
+                className="text-gray-11 whitespace-nowrap"
                 style={{ fontSize: `${font_size * 0.75}px` }}
               >
                 - {item.text}

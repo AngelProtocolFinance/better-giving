@@ -57,20 +57,20 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
 
   return (
     <main>
-      <section className="pt-16 pb-14 text-center bg-linear-to-b from-background to-accent">
+      <section className="pt-16 pb-14 text-center bg-linear-to-b from-background to-band">
         <div className="page">
           <p className="pre-heading">Blog &amp; Resources</p>
           <h1 className="hero-heading max-w-3xl mx-auto mt-3">
             Knowledge to empower your nonprofit
           </h1>
-          <p className="section-body text-muted-fg max-w-2xl mx-auto mt-4">
+          <p className="section-body text-gray-11 max-w-2xl mx-auto mt-4">
             Practical guides on fundraising, fund growth, and the admin work
             nobody warned you about.
           </p>
         </div>
       </section>
 
-      <section className="bg-accent py-20">
+      <section className="bg-band py-20">
         <div className="page grid gap-8 md:grid-cols-2 lg:grid-cols-3 content-start">
           <Cards posts={posts} />
         </div>
@@ -103,7 +103,7 @@ const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
     <NavLink
       key={post._id}
       to={post.slug.current}
-      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-card border border-border hover:shadow-lg transition-shadow group"
+      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lg transition-shadow group"
     >
       {post.image?.asset ? (
         <img
@@ -119,7 +119,7 @@ const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
           {post.title}
         </h2>
         {post.excerpt && (
-          <p className="text-muted-fg line-clamp-4 text-pretty">
+          <p className="text-gray-11 line-clamp-4 text-pretty">
             {post.excerpt}
           </p>
         )}

@@ -29,7 +29,7 @@ export function Slug({
           </Link>
         </div>
       )}
-      <p className="text-xs sm:text-sm text-muted-fg italic mt-2">
+      <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
         Change your nonprofit's profile URL ending segment from the default
         numeric ID to a more human-readable value for better SEO and donor
         recognition. Only numbers and letters are permitted! Your numeric ID URL
@@ -37,7 +37,7 @@ export function Slug({
         have been shared.
       </p>
 
-      <p className="text-xs sm:text-sm text-muted-fg italic mt-2">
+      <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
         Example: {gen_link(new_slug || "myNonprofit", base_url)}
       </p>
     </div>

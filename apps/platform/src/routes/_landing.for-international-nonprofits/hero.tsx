@@ -28,13 +28,13 @@ export function Hero({
             beside it, so it centers on its own axis instead of hugging a left
             edge nothing else shares */}
         <div className="grid gap-5 max-lg:justify-items-center max-lg:text-center max-lg:max-w-3xl max-lg:mx-auto lg:justify-items-start">
-          <p className="eyebrow text-muted-fg">
+          <p className="eyebrow text-gray-11">
             For international nonprofits · Fiscal sponsorship
           </p>
           <h1 className="hero-heading lg:max-w-2xl">
             Unlock U.S. donors without a 501(c)(3)
           </h1>
-          <p className="section-body text-muted-fg lg:max-w-xl">
+          <p className="section-body text-gray-11 lg:max-w-xl">
             U.S. donors give more when gifts are tax-deductible. Our fiscal
             sponsorship makes that possible at 2.9%, versus the usual 4-10%.
           </p>

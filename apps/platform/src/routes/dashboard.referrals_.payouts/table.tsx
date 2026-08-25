@@ -31,7 +31,9 @@ export function Table({
             items.map((payout, idx) => (
               <tr
                 key={idx}
-                className={payout.error ? "text-destructive" : "text-fg"}
+                className={
+                  payout.error ? "text-destructive-subtle-fg" : "text-gray-12"
+                }
               >
                 <td>{format(payout.date, "PP")}</td>
                 <td>
@@ -39,7 +41,7 @@ export function Table({
                     {payout.error && (
                       <Tooltip
                         tip={
-                          <Content className="max-w-xs bg-popover outline outline-border p-4 text-popover-fg text-xs shadow-lg rounded">
+                          <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
                             <Arrow />
                             Commission amount not paid out and will be retried
                             in the next cycle.

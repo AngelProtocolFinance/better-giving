@@ -73,7 +73,7 @@ export function ErrorElement() {
             {error.status}
           </p>
           <h1 className="text-xl font-bold text-center mt-2">{config.title}</h1>
-          <p className="text-muted-fg text-center text-balance max-w-md mt-2">
+          <p className="text-gray-11 text-center text-balance max-w-md mt-2">
             {config.description}
           </p>
           {/* not `Actions`: this page is a centred column, and the shared row is
@@ -106,11 +106,11 @@ export function ErrorElement() {
       <h1 className="text-xl font-bold text-center mt-6">
         Oops, something went wrong
       </h1>
-      <p className="text-muted-fg text-center text-balance max-w-md mt-2">
+      <p className="text-gray-11 text-center text-balance max-w-md mt-2">
         {GENERIC_ERROR_MESSAGE}
       </p>
       {import.meta.env.DEV && error instanceof Error && (
-        <pre className="bg-muted p-4 rounded text-xs text-muted-fg mt-4 max-w-2xl overflow-auto scrollbars">
+        <pre className="bg-gray-3 p-4 rounded text-xs text-gray-11 mt-4 max-w-2xl overflow-auto scrollbars">
           {error.message}
           {"\n"}
           {error.stack}

@@ -49,7 +49,7 @@ export function Steps({ classes = "" }: ISteps) {
                 {s.step}
               </span>
               <span className="text-2xl font-bold">{s.title}</span>
-              <p className="text-sm/relaxed text-muted-fg max-w-72">{s.body}</p>
+              <p className="text-sm/relaxed text-gray-11 max-w-72">{s.body}</p>
             </div>
           ))}
         </div>

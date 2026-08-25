@@ -45,24 +45,24 @@ export default function Resources() {
   return (
     <div className="w-full grid content-start pb-16">
       {/* hero */}
-      <section className="bg-muted py-16">
+      <section className="bg-gray-3 py-16">
         <div className="page grid gap-4 justify-items-center text-center">
           <h1 className="text-3xl sm:text-4xl font-bold">Resource Hub</h1>
-          <p className="text-muted-fg max-w-xl">
+          <p className="text-gray-11 max-w-xl">
             Download whitepapers, case studies, product manuals, and templates
             to power your nonprofit's growth.
           </p>
           <div className="relative w-full max-w-md mt-4">
             <Search
               size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-fg"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-11"
             />
             <input
               type="text"
               placeholder="Search resources..."
               value={query}
               onChange={(e) => set_query(e.target.value)}
-              className="field-input py-2.5 pl-10 pr-4 bg-card"
+              className="field-input py-2.5 pl-10 pr-4 bg-surface"
             />
           </div>
         </div>
@@ -118,7 +118,7 @@ function FilterTab({
       type="button"
       onClick={onClick}
       className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-        active ? "bg-primary text-primary-fg" : "bg-muted hover:bg-muted"
+        active ? "bg-primary text-primary-fg" : "bg-gray-3 hover:bg-gray-3"
       }`}
     >
       {children}

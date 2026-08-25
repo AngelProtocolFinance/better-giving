@@ -1,5 +1,8 @@
 import { format } from "date-fns";
-import { ticker_colors } from "#/pages/platform-admin/investments/common";
+import {
+  ticker_colors,
+  unmapped_ticker_color,
+} from "#/pages/platform-admin/investments/common";
 import { humanize } from "@/helpers/decimal";
 import type { ILog } from "@/nav";
 import { prices_fn } from "../helpers";
@@ -43,7 +46,7 @@ export function Review(props: Props) {
 
   return (
     <div className={`overflow-x-auto scrollbars ${props.classes || ""} p-8`}>
-      <p className="text-muted-fg text-sm font-semibold">Portfolio value</p>
+      <p className="text-gray-11 text-sm font-semibold">Portfolio value</p>
       <Diff
         classes="text-2xl font-bold mb-4"
         el="div"
@@ -51,7 +54,7 @@ export function Review(props: Props) {
         b={total_value_2}
         formatter={(x) => `$${humanize(x)}`}
       />
-      <p className="text-muted-fg text-sm font-semibold">Unit price</p>
+      <p className="text-gray-11 text-sm font-semibold">Unit price</p>
       <Diff
         classes="text-2xl font-bold mb-4"
         el="div"
@@ -74,7 +77,7 @@ export function Review(props: Props) {
           {tickers2.map((t) => (
             <tr key={t.id} className="text-sm">
               <td
-                style={{ color: ticker_colors[t.id] || "#64748b" }}
+                style={{ color: ticker_colors[t.id] || unmapped_ticker_color }}
                 className="font-bold"
               >
                 {t.id}

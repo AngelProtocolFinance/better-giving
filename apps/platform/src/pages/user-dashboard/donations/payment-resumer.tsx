@@ -64,13 +64,13 @@ function QrModal(props: IQrModal) {
     <Modal
       open={true}
       onClose={props.on_close ?? (() => {})}
-      classes="grid bg-popover px-4 py-8"
+      classes="grid bg-panel px-4 py-8"
     >
       <h4 className="text-lg text-center mb-2">
         Donation to {props.description}
       </h4>
 
-      <p className="text-muted-fg text-balance text-center mb-3.5 max-w-sm justify-self-center">
+      <p className="text-gray-11 text-balance text-center mb-3.5 max-w-sm justify-self-center">
         To complete your donation, send{" "}
         {ru_vdec(props.order_amount, props.usdpu, token.precision)}
         &nbsp;

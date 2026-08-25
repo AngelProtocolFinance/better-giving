@@ -29,7 +29,7 @@ export function Search({ classes = "" }: { classes?: string }) {
         type="search"
         name="query"
         onChange={debounced_change}
-        className="w-full h-full p-3 pl-10 placeholder:text-muted-fg font-medium bg-transparent outline-hidden"
+        className="w-full h-full p-3 pl-10 placeholder:text-gray-11 font-medium bg-transparent outline-hidden"
         placeholder="Search organizations..."
       />
     </div>

@@ -19,11 +19,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="w-full max-w-lg px-5">
-      <div className="bg-card border border-border rounded p-6 sm:p-10">
+      <div className="bg-panel border border-gray-6 rounded p-6 sm:p-10">
         <h1 className="text-xl font-bold text-balance">
           Organization type and identity
         </h1>
-        <p className="text-muted-fg text-sm mt-1.5 text-pretty">
+        <p className="text-gray-11 text-sm mt-1.5 text-pretty">
           Changing your type reopens the steps that depended on the old one.
         </p>
 

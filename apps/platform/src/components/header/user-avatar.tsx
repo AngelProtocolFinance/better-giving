@@ -12,7 +12,7 @@ export function UserAvatar({ classes = "", avatar }: Props) {
       className={`inline-flex shrink-0 rounded-full overflow-hidden size-7 ${classes}`}
     >
       <Avatar.Fallback>
-        <CircleUserRound className="size-full text-primary disabled:text-muted-fg" />
+        <CircleUserRound className="size-full text-primary disabled:text-gray-11" />
       </Avatar.Fallback>
       <Avatar.Image
         src={avatar}

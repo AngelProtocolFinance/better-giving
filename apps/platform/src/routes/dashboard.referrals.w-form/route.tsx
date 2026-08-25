@@ -6,7 +6,7 @@ export { ErrorModal as ErrorBoundary } from "#/components/error";
 
 export default function Page() {
   return (
-    <RouteModal classes="grid bg-popover text-popover-fg p-6">
+    <RouteModal classes="grid bg-panel text-gray-12 p-6">
       <Content />
     </RouteModal>
   );
@@ -19,7 +19,7 @@ function Content() {
     <>
       <div className="text-center mb-6">
         <h2 className="text-xl font-bold mb-2">Tax Forms Required</h2>
-        <p className="text-muted-fg">
+        <p className="text-gray-11">
           To receive payout, kindly fill out the appropriate tax form
         </p>
       </div>
@@ -40,10 +40,10 @@ function Content() {
             type="submit"
             name="tax_form"
             value="irs-w9"
-            className="w-full block p-4 border rounded hover:bg-muted transition-colors text-left disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+            className="w-full block p-4 border rounded hover:bg-gray-3 transition-colors text-left disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
           >
             <div className="font-semibold">For US Residents</div>
-            <div className="text-sm text-muted-fg">
+            <div className="text-sm text-gray-11">
               Complete this W-9 tax status form
             </div>
           </button>
@@ -52,10 +52,10 @@ function Content() {
             type="submit"
             name="tax_form"
             value="fw8ben"
-            className="w-full block p-4 border rounded hover:bg-muted transition-colors text-left disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+            className="w-full block p-4 border rounded hover:bg-gray-3 transition-colors text-left disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
           >
             <div className="font-semibold">For Non-US Residents</div>
-            <div className="text-sm text-muted-fg">
+            <div className="text-sm text-gray-11">
               Complete this W-8BEN tax status form
             </div>
           </button>

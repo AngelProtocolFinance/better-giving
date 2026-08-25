@@ -75,7 +75,7 @@ function Page({ loaderData }: Route.ComponentProps) {
 function Card({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <p className="text-muted-fg text-sm mb-1">{label}</p>
+      <p className="text-gray-11 text-sm mb-1">{label}</p>
       <p className="text-xl font-bold">${humanize(value)}</p>
     </div>
   );

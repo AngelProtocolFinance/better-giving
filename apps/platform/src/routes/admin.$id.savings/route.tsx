@@ -23,17 +23,17 @@ function Page({ loaderData }: Route.ComponentProps) {
         <h3>Savings</h3>{" "}
         <Tooltip
           tip={
-            <Content className="bg-popover outline outline-border text-popover-fg text-sm max-w-xs p-4 rounded">
+            <Content className="bg-panel outline outline-gray-6 text-gray-12 text-sm max-w-xs p-4 rounded">
               Funds held in Fidelity Government Money Market (SPAXX) consisting
               of cash, US Government Securities and Repurchase Agreements
               <Arrow />
             </Content>
           }
         >
-          <CircleHelp size={16} className="text-muted-fg ml-1" />
+          <CircleHelp size={16} className="text-gray-11 ml-1" />
         </Tooltip>
       </div>
-      <p className="text-xl font-semibold bg-card border p-4 rounded">
+      <p className="text-xl font-semibold bg-panel border p-4 rounded">
         ${humanize(bal_liq)}
       </p>
       <div className="flex items-center gap-4 mt-4">

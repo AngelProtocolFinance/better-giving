@@ -16,7 +16,7 @@ export const Diff = ({ el, classes, formatter, a, b }: Props) => {
   if (diff > 0) {
     return createElement(
       el as any,
-      { className: `${classes} text-success` },
+      { className: `${classes} text-success-subtle-fg` },
       formatter(b),
       " ",
       <span className="text-2xs">(+{formatter(diff)})</span>
@@ -25,7 +25,7 @@ export const Diff = ({ el, classes, formatter, a, b }: Props) => {
 
   return createElement(
     el as any,
-    { className: `${classes} text-destructive` },
+    { className: `${classes} text-destructive-subtle-fg` },
     formatter(b),
     " ",
     <span className="text-2xs">(-{formatter(Math.abs(diff))})</span>

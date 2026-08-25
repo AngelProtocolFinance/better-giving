@@ -40,7 +40,7 @@ export function Increments({
           <Plus size={17} strokeWidth={3} />
         </button>
       </div>
-      <p className="text-xs text-destructive empty:hidden col-span-3">
+      <p className="text-xs text-destructive-subtle-fg empty:hidden col-span-3">
         {countError}
       </p>
       {fields.length > 0 && (

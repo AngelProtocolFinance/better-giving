@@ -19,6 +19,10 @@ import type { Route } from "./+types/route";
 import { SfPerf } from "./sf-perf";
 import { Txs } from "./txs";
 
+/* a categorical legend, not semantic tokens: crypto and commodities carry the
+   assets' own identity colors (bitcoin orange, gold), so the whole set stays off
+   the design palette rather than repointing four of its six entries and leaving
+   the legend reading in two languages. */
 const category_colors: Record<TickerCategory | "other", string> = {
   equities: "#3b82f6",
   fixed_income: "#6b7280",
@@ -48,7 +52,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <h3>Investments</h3>{" "}
         <HoverCard
           tip={
-            <HoverContent className="bg-popover outline outline-border text-popover-fg text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
+            <HoverContent className="bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
               <span className="block mb-2 font-medium">
                 Portfolio composition
               </span>
@@ -96,10 +100,10 @@ function Page({ loaderData }: Route.ComponentProps) {
             </HoverContent>
           }
         >
-          <CircleHelp size={16} className="text-muted-fg ml-1" />
+          <CircleHelp size={16} className="text-gray-11 ml-1" />
         </HoverCard>
       </div>
-      <div className="text-xl font-semibold bg-card border p-4 rounded">
+      <div className="text-xl font-semibold bg-panel border p-4 rounded">
         ${humanize(bal_lock)} <SfPerf id={id} />
       </div>
       <div className="flex items-center gap-4 mt-4">

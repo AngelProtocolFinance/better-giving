@@ -117,7 +117,7 @@ export function EndowmentSelector(props: Props) {
       >
         <Combobox.Label className="block text-sm font-medium mb-2 w-fit">
           I want to raise funds for …{" "}
-          <span className="text-destructive">*</span>
+          <span className="text-destructive-subtle-fg">*</span>
         </Combobox.Label>
         <Combobox.Control
           aria-invalid={!!props.error}
@@ -127,7 +127,7 @@ export function EndowmentSelector(props: Props) {
           {props.values.map((v) => (
             <div
               key={v.id}
-              className="flex items-center px-3 gap-2 h-10 border rounded font-semibold text-muted-fg"
+              className="flex items-center px-3 gap-2 h-10 border rounded font-semibold text-gray-11"
             >
               <Image src={v.logo} className="w-8" />
               <span className="max-w-50 truncate">{v.name}</span>
@@ -144,7 +144,7 @@ export function EndowmentSelector(props: Props) {
             </div>
           ))}
 
-          <Search size={20} className="text-muted-fg ml-2 shrink-0" />
+          <Search size={20} className="text-gray-11 ml-2 shrink-0" />
           <Combobox.Input
             className="appearance-none bg-transparent focus:outline-hidden h-10 min-w-30 flex-1"
             ref={props.ref}
@@ -153,9 +153,9 @@ export function EndowmentSelector(props: Props) {
 
         <Portal>
           <Combobox.Positioner>
-            <Combobox.Content className="z-10 w-(--reference-width) bg-popover text-popover-fg text-sm border max-h-40 scrollbars overflow-y-auto rounded shadow-xl shadow-black/5">
+            <Combobox.Content className="z-10 w-(--reference-width) bg-panel text-gray-12 text-sm border max-h-40 scrollbars overflow-y-auto rounded shadow-xl shadow-black/5">
               {get_status() ? (
-                <p className="p-2 text-sm text-muted-fg">{get_status()}</p>
+                <p className="p-2 text-sm text-gray-11">{get_status()}</p>
               ) : (
                 items.map((item) => (
                   <Combobox.Item
@@ -176,7 +176,7 @@ export function EndowmentSelector(props: Props) {
         </Portal>
       </Combobox.Root>
       <p className="field-err mt-1 empty:hidden">{props.error}</p>
-      <p className="text-sm text-muted-fg mt-1">
+      <p className="text-sm text-gray-11 mt-1">
         You may include more than one nonprofit in a joint fundraiser, if those
         nonprofits have opted in to fundraising functionality. Raised funds will
         be split equally between the nonprofits.

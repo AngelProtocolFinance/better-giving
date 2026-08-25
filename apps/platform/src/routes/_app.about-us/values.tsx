@@ -35,14 +35,14 @@ export function Values({ classes = "" }: IValues) {
           {values.map((v) => (
             <div
               key={v.title}
-              className="bg-card border border-border rounded p-7 grid gap-2 content-start"
+              className="bg-panel border border-gray-6 rounded p-7 grid gap-2 content-start"
             >
               <span className="text-xl font-bold">{v.title}</span>
-              <p className="text-sm/relaxed text-muted-fg">{v.body}</p>
+              <p className="text-sm/relaxed text-gray-11">{v.body}</p>
             </div>
           ))}
         </div>
-        <p className="mt-8 text-center text-sm/relaxed text-muted-fg max-w-2xl mx-auto">
+        <p className="mt-8 text-center text-sm/relaxed text-gray-11 max-w-2xl mx-auto">
           Better Giving is a registered 501(c)(3) public charity, EIN
           87-3758939.{" "}
           <ExtLink

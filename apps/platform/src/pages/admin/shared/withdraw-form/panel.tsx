@@ -42,9 +42,7 @@ export function Panel(props: Props) {
           opt && (
             <p className="text-sm">
               <span>{opts_display[opt]}: </span>
-              <span className="text-muted-fg">
-                ${humanize(props.bals[opt])}
-              </span>
+              <span className="text-gray-11">${humanize(props.bals[opt])}</span>
             </p>
           )
         }

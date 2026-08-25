@@ -67,7 +67,7 @@ function Applications({ loaderData: page1 }: Route.ComponentProps) {
             disabled={loading}
             name="query"
             defaultValue={params.get("query") ?? ""}
-            className="p-3 pl-10 bg-transparent w-full outline-hidden placeholder:text-muted-fg"
+            className="p-3 pl-10 bg-transparent w-full outline-hidden placeholder:text-gray-11"
             type="text"
             placeholder="Search applications"
           />

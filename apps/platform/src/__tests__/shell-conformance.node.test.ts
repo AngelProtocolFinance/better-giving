@@ -66,7 +66,7 @@ describe("the scrollbar skin", () => {
     for (const c of [
       "scrollbar-thin",
       "scrollbar-thumb-ring",
-      "scrollbar-track-border",
+      "scrollbar-track-gray-6",
     ]) {
       expect({ [c]: files_with(c) }).toEqual({
         [c]: ["packages/ui/src/styles/utilities.css"],

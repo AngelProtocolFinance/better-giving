@@ -49,7 +49,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       {ltd ? (
         <>
           <div>
-            <p className="text-muted-fg text-sm mb-2">Total Value</p>
+            <p className="text-gray-11 text-sm mb-2">Total Value</p>
             <p className="text-3xl font-bold">${humanize(ltd.total)}</p>
           </div>
 
@@ -66,14 +66,14 @@ function Page({ loaderData }: Route.ComponentProps) {
               <YAxis
                 yAxisId="left"
                 orientation="left"
-                stroke="#2d89c8"
+                stroke="#1e6dab"
                 tick={{ fontSize: 12, dx: -4 }}
               />
               <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="total"
-                stroke="#2d89c8"
+                stroke="#1e6dab"
                 name="Savings Balance"
                 dot={{ r: 3 }}
                 isAnimationActive={false}
@@ -145,7 +145,7 @@ function TopSavers({ holders, total }: ITopSavers) {
   return (
     <div className="table-scroll">
       <h5 className="font-bold text-base mt-8 mb-2">
-        Top savers <span className="text-sm text-muted-fg">( of {total} )</span>
+        Top savers <span className="text-sm text-gray-11">( of {total} )</span>
       </h5>
       <div className="table-scroll">
         <table className="table">

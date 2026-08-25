@@ -79,7 +79,7 @@ export function NpoSelector(p: Props) {
         </Combobox.Trigger>
 
         <Combobox.Positioner>
-          <Combobox.Content className="z-51 max-h-60 w-(--reference-width) overflow-y-scroll overscroll-contain scrollbars bg-popover text-popover-fg shadow-lg rounded">
+          <Combobox.Content className="z-51 max-h-60 w-(--reference-width) overflow-y-scroll overscroll-contain scrollbars bg-panel text-gray-12 shadow-lg rounded">
             {p.opts === "loading" ? (
               <LoadingStatus classes="w-full text-sm p-2">
                 Loading options..
@@ -89,7 +89,7 @@ export function NpoSelector(p: Props) {
             ) : (
               p.opts.map((opt) => (
                 <Combobox.Item
-                  className="data-[state=checked]:bg-secondary data-highlighted:bg-secondary hover:text-primary flex gap-2 p-2 text-sm"
+                  className="data-[state=checked]:bg-secondary-active data-highlighted:bg-secondary hover:text-primary flex gap-2 p-2 text-sm"
                   key={opt.id}
                   item={opt}
                 >

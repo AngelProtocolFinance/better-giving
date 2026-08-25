@@ -15,7 +15,7 @@ export function Testimonials({ classes = "" }: ITestimonials) {
           Nonprofits on Better Giving
         </h2>
         <div className="grid gap-6 md:grid-cols-2 mt-24">
-          <div className="bg-card border border-border rounded p-8 flex flex-col gap-4">
+          <div className="bg-panel border border-gray-6 rounded p-8 flex flex-col gap-4">
             <p className="text-base/relaxed">
               "I personally like to check our BG balance weekly. Looking at the
               endowment growth week by week gives me a little spark of
@@ -30,13 +30,13 @@ export function Testimonials({ classes = "" }: ITestimonials) {
               />
               <div>
                 <span className="block font-bold text-sm">Jenna Edwards</span>
-                <span className="text-xs text-muted-fg">
+                <span className="text-xs text-gray-11">
                   The For a Day Foundation
                 </span>
               </div>
             </div>
           </div>
-          <div className="relative bg-card border border-border rounded p-8 flex flex-col gap-4">
+          <div className="relative bg-panel border border-gray-6 rounded p-8 flex flex-col gap-4">
             <p className="text-base/relaxed">
               "Better Giving has provided us with a powerful platform to engage
               donors, expand our reach, and make a tangible impact in the
@@ -51,7 +51,7 @@ export function Testimonials({ classes = "" }: ITestimonials) {
               />
               <div>
                 <span className="block font-bold text-sm">Brima Kabbah</span>
-                <span className="text-xs text-muted-fg">
+                <span className="text-xs text-gray-11">
                   Community Action for Sustainable Development
                 </span>
               </div>

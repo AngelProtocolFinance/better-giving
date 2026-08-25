@@ -26,7 +26,7 @@ export function Nonprofits({ classes = "", npos }: Props) {
         </td>
         <td className="text-sm">${humanize(npo.ltd)}</td>
         <td
-          className={`text-sm ${now > expiry ? "text-destructive" : "text-success"}`}
+          className={`text-sm ${now > expiry ? "text-destructive-subtle-fg" : "text-success-subtle-fg"}`}
         >
           {now > expiry ? "Ended" : `ends in ${format(expiry, "PP")}`}
         </td>
@@ -37,8 +37,8 @@ export function Nonprofits({ classes = "", npos }: Props) {
     <div className={classes}>
       <h2 className="text-2xl mb-4">Onboarded Nonprofits</h2>
       {rows.length > 0 ? (
-        <div className="table-scroll bg-card rounded">
-          <table className="min-w-full [&_th,&_td]:p-2 [&_th,&_td]:first:pl-0 [&_th,&_td]:text-left [&_tbody]:divide-y [&_tbody]:divide-border divide-y divide-border">
+        <div className="table-scroll bg-panel rounded">
+          <table className="min-w-full [&_th,&_td]:p-2 [&_th,&_td]:first:pl-0 [&_th,&_td]:text-left [&_tbody]:divide-y [&_tbody]:divide-gray-6 divide-y divide-gray-6">
             <thead>
               <tr>
                 <th>Name</th>

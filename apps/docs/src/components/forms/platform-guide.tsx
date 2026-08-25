@@ -47,7 +47,7 @@ const PLATFORM_GUIDES = [
 export function PlatformGuide() {
   return (
     <div className="pt-6">
-      <h3 className="text-sm font-medium text-fg mb-3">
+      <h3 className="text-sm font-medium text-gray-12 mb-3">
         How to embed on your platform
       </h3>
       <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -55,10 +55,10 @@ export function PlatformGuide() {
           <ExtLink
             key={name}
             href={url}
-            className="inline-flex items-center gap-1 text-sm text-muted-fg hover:text-fg transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-gray-11 hover:text-gray-12 transition-colors"
           >
             {name}
-            <ExternalLink size={12} className="text-muted-fg" />
+            <ExternalLink size={12} className="text-gray-11" />
           </ExtLink>
         ))}
       </div>

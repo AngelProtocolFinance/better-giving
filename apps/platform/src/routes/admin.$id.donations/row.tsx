@@ -58,7 +58,9 @@ export function Row(props: IRow) {
       <td>
         <span
           className={
-            props.status === "refunded" ? "line-through text-destructive" : ""
+            props.status === "refunded"
+              ? "line-through text-destructive-subtle-fg"
+              : ""
           }
         >
           ${humanize(props.net_usd, 2)}
@@ -66,7 +68,7 @@ export function Row(props: IRow) {
         {props.status === "refunded" && (
           <Tooltip
             tip={
-              <Content className="max-w-xs bg-popover outline outline-border p-4 text-popover-fg text-xs shadow-lg rounded">
+              <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
                 <Arrow />
                 Refunded
               </Content>

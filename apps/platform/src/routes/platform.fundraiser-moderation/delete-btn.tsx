@@ -19,13 +19,13 @@ export function DeleteBtn({
         type="button"
         disabled={fetcher.state !== "idle"}
         onClick={() => dialog_ref.current?.showModal()}
-        className="text-destructive hover:text-destructive disabled:text-muted-fg text-xs font-medium"
+        className="text-destructive-subtle-fg hover:text-destructive-subtle-fg disabled:text-gray-11 text-xs font-medium"
       >
         Delete
       </button>
       <dialog
         ref={dialog_ref}
-        className={`p-6 backdrop:bg-fg/50 ${modal_box.panel}`}
+        className={`p-6 backdrop:bg-gray-12/50 ${modal_box.panel}`}
       >
         <h2 className="text-lg font-semibold mb-2">Delete Fundraiser</h2>
         <p className="mb-4 whitespace-normal">

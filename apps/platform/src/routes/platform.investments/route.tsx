@@ -16,7 +16,10 @@ import {
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { NpoName } from "#/components/npo-name";
 import { metas } from "#/helpers/seo";
-import { ticker_colors } from "#/pages/platform-admin/investments/common";
+import {
+  ticker_colors,
+  unmapped_ticker_color,
+} from "#/pages/platform-admin/investments/common";
 import { HistoryTable } from "#/pages/platform-admin/investments/history-table";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
@@ -55,11 +58,11 @@ function Page({ loaderData }: Route.ComponentProps) {
       <h3 className="font-bold text-2xl mb-4">Investments</h3>
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-6 mb-8">
         <div>
-          <p className="text-muted-fg text-sm mb-2">Portfolio Value</p>
+          <p className="text-gray-11 text-sm mb-2">Portfolio Value</p>
           <p className="text-3xl font-bold">${humanize(ltd.value)}</p>
         </div>
         <div>
-          <p className="text-muted-fg text-sm mb-2">Portfolio Units</p>
+          <p className="text-gray-11 text-sm mb-2">Portfolio Units</p>
           <p className="text-3xl font-bold">{humanize(ltd.units)}</p>
         </div>
       </div>
@@ -75,20 +78,20 @@ function Page({ loaderData }: Route.ComponentProps) {
           <YAxis
             yAxisId="left"
             orientation="left"
-            stroke="#2d89c8"
+            stroke="#1e6dab"
             tick={{ fontSize: 12, dx: -4 }}
           />
           <YAxis
             yAxisId="right"
             orientation="right"
-            stroke="#10b981"
+            stroke="#0e8c62"
             tick={{ fontSize: 12, dx: 4 }}
           />
           <Line
             yAxisId="left"
             type="monotone"
             dataKey="units"
-            stroke="#2d89c8"
+            stroke="#1e6dab"
             name="Units"
             dot={{ r: 3 }}
             isAnimationActive={false}
@@ -97,7 +100,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             yAxisId="right"
             type="monotone"
             dataKey="price"
-            stroke="#10b981"
+            stroke="#0e8c62"
             name="Price"
             dot={{ r: 3 }}
             isAnimationActive={false}
@@ -160,7 +163,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             {pie_data.map((p) => (
               <Cell
                 key={p.id}
-                fill={ticker_colors[p.id] || "#64748b"} // default gray
+                fill={ticker_colors[p.id] || unmapped_ticker_color}
               />
             ))}
           </Pie>
@@ -182,7 +185,9 @@ function Page({ loaderData }: Route.ComponentProps) {
             {pie_data.map((t) => (
               <tr key={t.id} className="text-sm">
                 <td
-                  style={{ color: ticker_colors[t.id] || "#64748b" }}
+                  style={{
+                    color: ticker_colors[t.id] || unmapped_ticker_color,
+                  }}
                   className="font-bold"
                 >
                   {t.id}
@@ -201,7 +206,7 @@ function Page({ loaderData }: Route.ComponentProps) {
 
         <h5 className="font-bold text-base mt-8 mb-2">
           Top Holders{" "}
-          <span className="text-sm text-muted-fg">( of {num_holders} )</span>
+          <span className="text-sm text-gray-11">( of {num_holders} )</span>
         </h5>
         <div className="table-scroll">
           <table className="table">

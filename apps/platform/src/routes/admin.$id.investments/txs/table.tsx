@@ -50,7 +50,7 @@ export function Table({
                   {r.status === "cancelled" && (
                     <Tooltip
                       tip={
-                        <Content className="max-w-xs bg-popover outline outline-border p-4 text-popover-fg text-xs shadow-lg rounded">
+                        <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
                           <Arrow />
                           Transaction request was cancelled and will not be
                           processed.
@@ -59,7 +59,7 @@ export function Table({
                     >
                       <InfoIcon
                         size={14}
-                        className="text-muted-fg absolute -left-5 top-0.5"
+                        className="text-gray-11 absolute -left-5 top-0.5"
                       />
                     </Tooltip>
                   )}
@@ -70,11 +70,11 @@ export function Table({
 
               <td className="uppercase text-xs">
                 {r.status === "cancelled" ? (
-                  <span className="text-destructive">Cancelled</span>
+                  <span className="text-destructive-subtle-fg">Cancelled</span>
                 ) : r.status === "pending" ? (
                   <span className="text-warning-subtle-fg">Pending</span>
                 ) : (
-                  <span className="text-success">Final</span>
+                  <span className="text-success-subtle-fg">Final</span>
                 )}
               </td>
             </tr>

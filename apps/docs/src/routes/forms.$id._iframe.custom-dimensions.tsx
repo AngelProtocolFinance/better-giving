@@ -65,8 +65,8 @@ export default function CustomDimensions() {
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-fg">Custom Dimensions</h1>
-        <p className="text-sm text-muted-fg mt-1">
+        <h1 className="text-xl font-bold text-gray-12">Custom Dimensions</h1>
+        <p className="text-sm text-gray-11 mt-1">
           Easily change the width and height of your embedded donation form.
         </p>
         <a
@@ -81,7 +81,7 @@ export default function CustomDimensions() {
       {/* Note */}
       <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
         <Info size={18} className="text-primary shrink-0 mt-0.5" />
-        <p className="text-secondary-fg">
+        <p className="text-gray-12">
           The donation form content reorganizes on smaller set width and scrolls
           if it exceeds the set height.
         </p>
@@ -123,16 +123,16 @@ export default function CustomDimensions() {
         />
       </Resizable>
 
-      <div className="text-sm text-muted-fg">
+      <div className="text-sm text-gray-11">
         {size.width} x {size.height}
       </div>
 
       <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-3 border-b">
           <EmbedModeTabs />
           <Copier
             text={code_snippet}
-            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+            classes="p-1.5 rounded text-gray-11 hover:bg-secondary hover:text-gray-12"
           />
         </div>
         <HighlightedCode
@@ -140,7 +140,7 @@ export default function CustomDimensions() {
           lang="html"
           transformers={transformers}
           className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-gray-11"
         />
       </div>
 

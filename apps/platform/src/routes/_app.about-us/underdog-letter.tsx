@@ -14,12 +14,12 @@ export function UnderdogLetter({ classes = "" }: IUnderdogLetter) {
           <h2 id="underdog-heading" className="section-heading">
             We're not the biggest platform. So we try harder.
           </h2>
-          <p className="text-muted-fg leading-relaxed text-pretty">
+          <p className="text-gray-11 leading-relaxed text-pretty">
             When you're a fellow nonprofit, you have to. We can't afford
             confusing checkouts, hidden platform fees, or charging for gated
             features.
           </p>
-          <p className="text-muted-fg leading-relaxed text-pretty">
+          <p className="text-gray-11 leading-relaxed text-pretty">
             So we help you raise more with a conversion-optimized donation flow.
             We help you grow more by accepting larger gift types and putting
             donations to work. We help you do more by handling the admin so you

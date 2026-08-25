@@ -9,20 +9,20 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           {/* Hero Section */}
           <div className="mb-12">
-            <h1 className="text-3xl font-bold text-fg mb-3">
+            <h1 className="text-3xl font-bold text-gray-12 mb-3">
               Better Giving Developer Resources
             </h1>
           </div>
 
           {/* Feature Cards */}
           <div className="space-y-4">
-            <div className="flex items-start gap-4 p-5 rounded border bg-card max-w-md">
+            <div className="flex items-start gap-4 p-5 rounded border bg-panel max-w-md">
               <div className="p-3 rounded bg-secondary text-primary">
                 <Code size={24} />
               </div>
               <div className="flex-1">
-                <h2 className="font-semibold text-fg">Form Embedding</h2>
-                <p className="text-sm text-muted-fg mt-1">
+                <h2 className="font-semibold text-gray-12">Form Embedding</h2>
+                <p className="text-sm text-gray-11 mt-1">
                   Discover cool ways to embed Better Giving donation forms
                   seamlessly into your website.
                 </p>

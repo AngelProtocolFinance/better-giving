@@ -42,7 +42,7 @@ function Content() {
       className="contents"
     >
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Changing Application Status
         </p>
         <Link
@@ -51,7 +51,7 @@ function Content() {
           preventScrollReset
           replace
           to=".."
-          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-muted-fg"
+          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />
         </Link>
@@ -63,7 +63,7 @@ function Content() {
         <div>Nonprofit</div>
       </h3>
 
-      <p className="px-6 pb-4 text-center text-muted-fg mt-4">
+      <p className="px-6 pb-4 text-center text-gray-11 mt-4">
         <span className="block">
           You are about to {verdict} the Application for
         </span>
@@ -71,19 +71,19 @@ function Content() {
       </p>
 
       {verdict === "approved" ? (
-        <div className="px-6 pb-4 text-center text-muted-fg">
+        <div className="px-6 pb-4 text-center text-gray-11">
           This will immediately payout all pending funds to newly linked bank
           account and is irreversible.
         </div>
       ) : null}
 
-      <div className="px-6 pb-4 text-center text-muted-fg font-bold">
+      <div className="px-6 pb-4 text-center text-gray-11 font-bold">
         Please ensure you have confirmed all submitted details and supporting
         documentation before proceeding!
       </div>
 
       <div className="flex items-center gap-2 mb-6">
-        <Status classes="bg-muted-fg">Pending</Status>
+        <Status classes="bg-gray-11">Pending</Status>
         <ChevronRight size={20} />
         {verdict === "approved" ? (
           <Status classes="bg-success">Approved</Status>
@@ -129,7 +129,7 @@ function Content() {
 
 export default function Prompt() {
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-popover">
+    <RouteModal classes="grid content-start justify-items-center bg-panel">
       <Content />
     </RouteModal>
   );

@@ -86,7 +86,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
       <fetcher.Form
         method="POST"
         onSubmit={handleSubmit}
-        className="grid bg-card border rounded p-6 my-4 w-full max-w-4xl"
+        className="grid bg-panel border rounded p-6 my-4 w-full max-w-4xl"
       >
         <h4 className="font-semibold text-sm mb-4">Create your fundraiser</h4>
 
@@ -126,8 +126,8 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           charLimit={MAX_DESCRIPTION_CHAR}
           classes={{
             field:
-              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
-            counter: "text-muted-fg",
+              "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-surface p-3 min-h-60",
+            counter: "text-gray-11",
             error: "text-right",
           }}
           error={
@@ -221,16 +221,16 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
                 <div className="relative w-full">
                   <DollarSign
                     size={15}
-                    className="text-muted-fg absolute top-1/2 left-2 transform -translate-y-1/2"
+                    className="text-gray-11 absolute top-1/2 left-2 transform -translate-y-1/2"
                   />
                   <input
                     type="number"
                     {...register(`increments.${idx}.value`)}
-                    className="w-full h-full  outline-ring rounded text-sm font-medium bg-input pl-8 pr-4 py-3.5 placeholder:text-muted-fg border disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+                    className="w-full h-full  outline-ring rounded text-sm font-medium bg-surface pl-8 pr-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
                   />
                 </div>
 
-                <p className="mt-1 empty:hidden text-left text-xs text-destructive">
+                <p className="mt-1 empty:hidden text-left text-xs text-destructive-subtle-fg">
                   {errors.increments?.[idx]?.value?.message}
                 </p>
               </BaseField.Root>
@@ -238,11 +238,11 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
                 <textarea
                   {...register(`increments.${idx}.label`)}
                   rows={2}
-                  className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-muted-fg border disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+                  className="w-full  outline-ring rounded text-sm font-medium bg-surface px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
                 />
                 <p
                   data-error={!!errors.increments?.[idx]?.label?.message}
-                  className="mt-1 text-left text-xs data-[error='true']:text-destructive"
+                  className="mt-1 text-left text-xs data-[error='true']:text-destructive-subtle-fg"
                 >
                   {incs[idx].label.length}/{increment_label_max_chars}
                 </p>

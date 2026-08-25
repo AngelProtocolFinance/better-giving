@@ -22,7 +22,7 @@ export function DonateFrequencies({
         Donation frequency
       </Fieldset.Legend>
       <input ref={ref} className="sr-only" />
-      <p className="grid col-span-2 text-destructive text-xs empty:hidden">
+      <p className="grid col-span-2 text-destructive-subtle-fg text-xs empty:hidden">
         {p.error}
       </p>
       {Array.from({ length: 4 }).map((_, idx) => (

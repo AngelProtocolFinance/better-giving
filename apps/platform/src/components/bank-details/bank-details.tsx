@@ -85,7 +85,7 @@ export function BankDetails({
         classes={{ control: "w-full md:w-80" }}
         adornment={(open, state) =>
           state === "loading" ? (
-            <LoaderCircle className="text-muted-fg animate-spin" size={20} />
+            <LoaderCircle className="text-gray-11 animate-spin" size={20} />
           ) : (
             <DrawerIcon
               is_open={open}
@@ -100,7 +100,7 @@ export function BankDetails({
         label="What is the amount you expect to receive monthly on our
         platform?"
         sub={
-          <p className="text-muted-fg text-sm my-2 italic">
+          <p className="text-gray-11 text-sm my-2 italic">
             Depending on how much you expect to receive each month via{" "}
             {app_name}, different details are required. At this point, we
             recommend using a conservative figure - Maybe $1000 per month.
@@ -113,7 +113,7 @@ export function BankDetails({
         disabled={is_submitting}
       />
 
-      <Separator classes="before:bg-border after:bg-border" />
+      <Separator classes="before:bg-gray-6 after:bg-gray-6" />
 
       <RecipientDetails
         verified={verified}

@@ -638,7 +638,7 @@ measured honestly, and the color section turned out to promise three things the 
 - **`text-card-fg`, `text-sidebar-fg`** — the ink row promises "the `-fg` partner of every surface
   above". `text-popover-fg` compiled and `text-card-fg` did not, for no reason other than a preview
   happening to write the one and not the other.
-- **`border-input`** — the lines row names `border`, `input`, `ring`; only `border-border` and
+- **`border-input`** — the lines row names `border`, `input`, `ring`; only `border-gray-6` and
   `outline-ring` had rules.
 - **`background-fg`** — promised by that same "every surface" phrasing and **not a token at all**.
   `--color-background`'s ink is plain `--color-fg`; there is no `--color-background-fg` in
@@ -773,3 +773,26 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
   one `auxSha`, not a path list — and §5 forbids hand-deriving deletes, so it was left in place on
   2026-08-24. Harmless; delete it deliberately if a future run wants the project clean.
 - **The capture harness pins the clock to 2024-05-15.** Date previews are authored around it.
+
+## The header's color set moved to radix semantics, 2026-08-25
+
+The palette kept the shadcn habit of minting an `-fg` twin per surface, and after the
+retheme five of them resolved to `gray-12`. Radix mints no per-surface foreground —
+one contrast token per ramp, everything else reads the grey rungs — so the twins were
+deleted and three surfaces renamed. What this directory had to change:
+
+- **`styles-entry.css`'s semantic `@source inline(...)`** — `card`, `card-fg`, `popover`,
+  `popover-fg`, `secondary-fg`, `sidebar-fg` and `input` are gone; `panel`, `surface` and
+  `overlay` are in. Brace expansion, still not regex-safe: edit the list by hand and count
+  the commas.
+- **`check-conventions.mjs`** — `SURFACES` split into `INKED` (the four fills whose ink
+  follows them, so `text-<x>-fg` is a real claim) and `PLAIN` (fills carrying the neutral
+  rung, which have no `-fg` to claim). `border-input` dropped from the lines claim.
+- **`conventions.md`** — the surfaces, ink and other-lines rows rewritten. The ink row no
+  longer promises "the `-fg` partner of every surface"; that phrasing is what produced the
+  2026-08-22 drift above, and it is now false on purpose rather than by accident.
+
+Fifteen previews wrote a deleted name and moved with the rest — `bg-card` → `bg-panel`
+in the panel-shaped ones, `bg-input` → `bg-surface` in `Increments`, `text-popover-fg` →
+`text-gray-12` in `Tooltip` and `HoverCard`. `Group.tsx` needed nothing and already
+covers the page → panel → field stack the rename is about.

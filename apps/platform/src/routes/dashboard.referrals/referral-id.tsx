@@ -9,17 +9,15 @@ interface Props {
 
 export function ReferralId({ classes = "", ...p }: Props) {
   return (
-    <div className={`bg-muted p-6 rounded border ${classes}`}>
+    <div className={`bg-gray-3 p-6 rounded border ${classes}`}>
       <div className="mb-4">
-        <div className="text-sm font-medium text-muted-fg mb-1">
-          REFERRAL ID
-        </div>
+        <div className="text-sm font-medium text-gray-11 mb-1">REFERRAL ID</div>
         <div className="flex items-center">
           <div className="text-xl font-semibold mr-2">{p.referral_id}</div>
           <Copier
             text={p.referral_id}
             classes={{
-              container: "text-muted-fg hover:text-fg",
+              container: "text-gray-11 hover:text-gray-12",
               icon: "size-5",
             }}
             size={20}
@@ -28,7 +26,7 @@ export function ReferralId({ classes = "", ...p }: Props) {
       </div>
 
       <div>
-        <div className="text-sm font-medium text-muted-fg mb-1">
+        <div className="text-sm font-medium text-gray-11 mb-1">
           REFERRAL LINK
         </div>
         <div className="flex items-center">
@@ -39,7 +37,7 @@ export function ReferralId({ classes = "", ...p }: Props) {
           <Copier
             text={`${p.base_url}${href("/register")}?referrer=${p.referral_id}`}
             classes={{
-              container: "text-muted-fg hover:text-fg ml-2",
+              container: "text-gray-11 hover:text-gray-12 ml-2",
               icon: "size-5",
             }}
             size={20}
@@ -47,7 +45,7 @@ export function ReferralId({ classes = "", ...p }: Props) {
         </div>
       </div>
 
-      <div className="mt-3 text-sm text-muted-fg">
+      <div className="mt-3 text-sm text-gray-11">
         By sharing your referral link or code, you agree to our{" "}
         <Link
           target="_blank"

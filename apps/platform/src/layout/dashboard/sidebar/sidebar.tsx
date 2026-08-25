@@ -24,7 +24,7 @@ export function Sidebar({
         {linkGroups.map((group) => (
           <React.Fragment key={`link_group-${group.title}`}>
             {group.title && (
-              <h6 className="col-span-2 pt-5 px-5 pb-1 font-bold text-xs uppercase text-muted-fg tracking-wide">
+              <h6 className="col-span-2 pt-5 px-5 pb-1 font-bold text-xs uppercase text-gray-11 tracking-wide">
                 {group.title}
               </h6>
             )}
@@ -34,8 +34,8 @@ export function Sidebar({
                 key={`nav_link-${link.to}`}
                 to={link.to}
                 className={({ isActive, isPending }) =>
-                  `grid grid-cols-subgrid col-span-2 items-center py-3 px-5 font-bold text-sm hover:text-primary transition ease-in-out duration-300 aria-disabled:text-muted-fg aria-disabled:pointer-events-none
-                ${isActive ? "pointer-events-none text-primary" : ""} ${isPending ? "pointer-events-none text-muted-fg" : ""}`
+                  `grid grid-cols-subgrid col-span-2 items-center py-3 px-5 font-bold text-sm hover:text-primary transition ease-in-out duration-300 aria-disabled:text-gray-11 aria-disabled:pointer-events-none
+                ${isActive ? "pointer-events-none text-primary" : ""} ${isPending ? "pointer-events-none text-gray-11" : ""}`
                 }
                 onClick={onChange}
                 aria-disabled={link.disabled}

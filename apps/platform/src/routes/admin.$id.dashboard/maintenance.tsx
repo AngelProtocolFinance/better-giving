@@ -42,7 +42,7 @@ export default function Component() {
     <div className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid content-start">
       <h3 className="font-bold text-2xl mb-4">Dashboard</h3>
       <div className="flex items-center gap-2">
-        <p className="mt-4 text-muted-fg">
+        <p className="mt-4 text-gray-11">
           Your new dashboard experience is underway
         </p>
         <img
@@ -51,10 +51,10 @@ export default function Component() {
           alt="Laira jumping"
         />
       </div>
-      <p className="text-muted-fg mt-2">
+      <p className="text-gray-11 mt-2">
         Please bear with us while we bring final pieces together 🙏
       </p>
-      <p className="text-muted-fg text-sm mt-4">
+      <p className="text-gray-11 text-sm mt-4">
         Changes are expected to be live in{" "}
         <span className="text-base font-bold">{formatTime(time)}</span>
       </p>

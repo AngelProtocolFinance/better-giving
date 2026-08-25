@@ -14,7 +14,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     navigate("..", { preventScrollReset: true, replace: true });
 
   return (
-    <RouteModal size="lg" classes="bg-popover">
+    <RouteModal size="lg" classes="bg-panel">
       <Content data={loaderData} on_close={close} />
     </RouteModal>
   );
@@ -39,7 +39,7 @@ function Content({
       <div className="p-6 sm:p-8 text-center">
         <CheckCircle2Icon className="mx-auto mb-3 text-success" size={40} />
         <h3 className="text-lg font-bold mb-1">Refund processed</h3>
-        <p className="text-sm text-muted-fg mb-4">
+        <p className="text-sm text-gray-11 mb-4">
           All records have been reversed and Stripe refund issued.
         </p>
         <button type="button" onClick={on_close} className="btn btn-primary">
@@ -53,10 +53,10 @@ function Content({
     <div>
       <div className="p-6 sm:p-8">
         <h3 className="text-lg font-bold mb-1">Refund preview</h3>
-        <p className="text-sm text-muted-fg mb-4">
+        <p className="text-sm text-gray-11 mb-4">
           {data.donation_id}
           {data.already_refunded && (
-            <span className="ml-2 text-destructive text-xs font-semibold">
+            <span className="ml-2 text-destructive-subtle-fg text-xs font-semibold">
               Already refunded
             </span>
           )}
@@ -138,13 +138,13 @@ function PreviewRow({ preview: p }: { preview: DistPreview }) {
               <span>
                 {e.label}
                 {e.reason && (
-                  <span className="text-muted-fg ml-1">— {e.reason}</span>
+                  <span className="text-gray-11 ml-1">— {e.reason}</span>
                 )}
               </span>
             </span>
           ))}
           {p.effects.length === 0 && (
-            <span className="text-xs text-muted-fg">—</span>
+            <span className="text-xs text-gray-11">—</span>
           )}
         </div>
       </td>
@@ -156,13 +156,13 @@ function PreviewRow({ preview: p }: { preview: DistPreview }) {
               <span>
                 {w.label}
                 {w.reason && (
-                  <span className="text-muted-fg ml-1">— {w.reason}</span>
+                  <span className="text-gray-11 ml-1">— {w.reason}</span>
                 )}
               </span>
             </span>
           ))}
           {p.warnings.length === 0 && (
-            <span className="text-xs text-muted-fg">—</span>
+            <span className="text-xs text-gray-11">—</span>
           )}
         </div>
       </td>
@@ -174,13 +174,13 @@ function PreviewRow({ preview: p }: { preview: DistPreview }) {
               <span>
                 {b.label}
                 {b.reason && (
-                  <span className="text-muted-fg ml-1">— {b.reason}</span>
+                  <span className="text-gray-11 ml-1">— {b.reason}</span>
                 )}
               </span>
             </span>
           ))}
           {p.blockers.length === 0 && (
-            <span className="text-xs text-muted-fg">—</span>
+            <span className="text-xs text-gray-11">—</span>
           )}
         </div>
       </td>

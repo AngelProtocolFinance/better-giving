@@ -62,7 +62,7 @@ export function SettingsBasic({
   return (
     <Form
       disabled={isSubmitting}
-      className={`${classes} @container/configurer bg-card rounded p-4 self-start`}
+      className={`${classes} @container/configurer bg-panel rounded p-4 self-start`}
       onSubmit={handleSubmit((x) => on_submit(x), console.error)}
       onReset={(e) => {
         e.preventDefault();
@@ -78,7 +78,7 @@ export function SettingsBasic({
         on_change={donate_methods.onChange}
         ref={donate_methods.ref}
         error={
-          <p className="text-destructive text-xs mb-1 empty:hidden">
+          <p className="text-destructive-subtle-fg text-xs mb-1 empty:hidden">
             {errors.methods?.message}
           </p>
         }
@@ -119,7 +119,7 @@ export function SettingsBasic({
               <div className="relative w-full">
                 <DollarSign
                   size={14}
-                  className="text-muted-fg absolute top-1/2 left-3 -translate-y-1/2"
+                  className="text-gray-11 absolute top-1/2 left-3 -translate-y-1/2"
                 />
                 <input
                   type="number"
@@ -129,7 +129,7 @@ export function SettingsBasic({
                   className="field-input h-full pl-8 font-medium"
                 />
               </div>
-              <p className="mt-1 empty:hidden text-left text-xs text-destructive">
+              <p className="mt-1 empty:hidden text-left text-xs text-destructive-subtle-fg">
                 {errors.increments?.[idx]?.value?.message}
               </p>
             </BaseField.Root>
@@ -137,11 +137,11 @@ export function SettingsBasic({
               <textarea
                 rows={2}
                 {...register(`increments.${idx}.label`)}
-                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-muted-fg border disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+                className="w-full  outline-ring rounded text-sm font-medium bg-surface px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
               />
               <p
                 data-error={!!errors.increments?.[idx]?.label?.message}
-                className="mt-1 text-left text-xs data-[error='true']:text-destructive"
+                className="mt-1 text-left text-xs data-[error='true']:text-destructive-subtle-fg"
               >
                 {incs[idx].label.length}/{increment_label_max_chars}
               </p>

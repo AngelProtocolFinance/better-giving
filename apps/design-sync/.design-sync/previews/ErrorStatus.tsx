@@ -19,9 +19,7 @@ export const Centered = () => (
 export const InCard = () => (
   <div className="border rounded p-6 max-w-md">
     <h3 className="font-medium mb-1">Payouts</h3>
-    <p className="text-sm text-muted-fg mb-6">
-      Rainforest Trust · last 30 days
-    </p>
+    <p className="text-sm text-gray-11 mb-6">Rainforest Trust · last 30 days</p>
     <ErrorStatus classes="text-sm">
       We couldn't load your payout history. Refresh to try again.
     </ErrorStatus>

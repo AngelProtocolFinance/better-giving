@@ -14,7 +14,7 @@ function Item({ children, con }: IItem) {
   return (
     <span className="flex gap-2.5 text-sm/normal">
       <Icon
-        className={`flex-none size-4 mt-0.5 ${con ? "text-muted-fg" : "text-primary"}`}
+        className={`flex-none size-4 mt-0.5 ${con ? "text-gray-11" : "text-primary"}`}
         strokeWidth={3}
         aria-hidden
       />
@@ -34,14 +34,14 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
         <h2 className="section-heading text-center max-w-2xl mx-auto">
           Two ways to run it
         </h2>
-        <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
+        <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
           Most members choose the managed platform for convenience. The
           self-hosted path exists so that choice is always yours, and always
           will be.
         </p>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
-          <div className="bg-card rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
-            <span className="justify-self-start self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
+          <div className="bg-panel rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
+            <span className="justify-self-start self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-gray-12 rounded-full px-3 py-1.5">
               Most popular
             </span>
             <h3 className="text-2xl font-bold">Managed platform</h3>
@@ -64,8 +64,8 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
             </Link>
           </div>
 
-          <div className="bg-card rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
-            <span className="self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
+          <div className="bg-panel rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
+            <span className="self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-gray-12 rounded-full px-3 py-1.5">
               Maximum control
             </span>
             <h3 className="text-2xl font-bold">Self-hosted</h3>

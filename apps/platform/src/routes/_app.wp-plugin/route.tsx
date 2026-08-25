@@ -35,7 +35,7 @@ export default function WpPlugin() {
               Wordpress Plugin
             </ExtLink>{" "}
             (ZIP file).
-            <p className="text-muted-fg">
+            <p className="text-gray-11">
               SHA256 Checksum:
               34f1aa11ab99e691e290b128d11d019cc9f7cb29f14f01f921b03835316880ce
             </p>
@@ -61,7 +61,7 @@ export default function WpPlugin() {
           is the number that was assigned to your nonprofit when you signed up
           with {app_name} and is unique to it (ex. 121).
         </div>
-        <div className="mx-auto flex max-w-md gap-4 bg-card p-4 my-4 rounded">
+        <div className="mx-auto flex max-w-md gap-4 bg-panel p-4 my-4 rounded">
           <Image
             alt="Laira mascot waving"
             src={laira_waiving}

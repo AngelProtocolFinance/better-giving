@@ -223,7 +223,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
                     // field isn't left focused over a closed empty list
                     queueMicrotask(() => api.setOpen(true));
                   }}
-                  className={`${ornament_end_cls} disabled:text-muted-fg text-destructive hover:text-destructive active:text-destructive`}
+                  className={`${ornament_end_cls} disabled:text-gray-11 text-destructive hover:text-destructive active:text-destructive`}
                 >
                   <X size={16} />
                 </Combobox.ClearTrigger>

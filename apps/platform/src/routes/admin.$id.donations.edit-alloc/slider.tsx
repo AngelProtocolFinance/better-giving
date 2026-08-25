@@ -41,7 +41,7 @@ export function AllocationSlider({
       <div className="grid grid-cols-[auto_auto_1fr_auto] gap-y-2">
         <Row
           title="Grant"
-          icon={<HandCoins size={20} className="text-muted-fg" />}
+          icon={<HandCoins size={20} className="text-gray-11" />}
           pct={value.cash}
         />
         <Row
@@ -70,20 +70,20 @@ export function AllocationSlider({
               disabled
                 ? undefined
                 : {
-                    backgroundImage: `linear-gradient(to right, var(--muted) 0%, var(--muted) ${boundary[0]}%, var(--success) ${boundary[0]}%, var(--success) 100%)`,
+                    backgroundImage: `linear-gradient(to right, var(--gray-3) 0%, var(--gray-3) ${boundary[0]}%, var(--success) ${boundary[0]}%, var(--success) 100%)`,
                   }
             }
-            className="shadow-inner bg-muted group-aria-disabled/slider:bg-muted relative grow rounded-full h-2"
+            className="shadow-inner bg-gray-3 group-aria-disabled/slider:bg-gray-3 relative grow rounded-full h-2"
           >
-            <Slider.Range className="absolute bg-warning group-aria-disabled/slider:bg-muted rounded-full h-full" />
+            <Slider.Range className="absolute bg-warning group-aria-disabled/slider:bg-gray-3 rounded-full h-full" />
           </Slider.Track>
           <Slider.Thumb
             index={0}
-            className="block size-5 rounded-full bg-muted-fg shadow-md  group-aria-disabled/slider:bg-muted-fg"
+            className="block size-5 rounded-full bg-gray-11 shadow-md  group-aria-disabled/slider:bg-gray-11"
           />
           <Slider.Thumb
             index={1}
-            className="block size-5 rounded-full bg-card shadow-md border group-aria-disabled/slider:bg-muted-fg"
+            className="block size-5 rounded-full bg-panel shadow-md border group-aria-disabled/slider:bg-gray-11"
           />
         </Slider.Control>
       </Slider.Root>

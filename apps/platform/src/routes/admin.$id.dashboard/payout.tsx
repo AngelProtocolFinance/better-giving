@@ -55,7 +55,7 @@ export function Payout({ classes = "", ...p }: Props) {
         {
           <span className="">
             {format(p.next_payout, "PP")}
-            <span className="text-muted-fg">
+            <span className="text-gray-11">
               - in {formatDistance(p.next_payout, new Date())}
             </span>
             .

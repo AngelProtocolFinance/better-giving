@@ -29,7 +29,7 @@ export function Chart({ classes = "", ...v }: Props) {
 
   return (
     <div
-      className={`${classes} p-6 rounded grid content-start bg-card @container`}
+      className={`${classes} p-6 rounded grid content-start bg-panel @container`}
     >
       <h1 className="text-lg sm:text-xl font-bold mb-4 text-primary">
         {yrs}-Year Financial Advantage
@@ -57,7 +57,7 @@ export function Chart({ classes = "", ...v }: Props) {
           aria-label={["Years"]}
         >
           <Slider.Control className="flex w-full items-center">
-            <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-muted">
+            <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3">
               <Slider.Range className="absolute h-full bg-primary" />
             </Slider.Track>
             <Slider.Thumb
@@ -94,11 +94,11 @@ export function Chart({ classes = "", ...v }: Props) {
         </span>
       </div>
 
-      <div className="mt-4 p-4 bg-muted rounded">
-        <h3 className="font-medium text-fg mb-2">
+      <div className="mt-4 p-4 bg-gray-3 rounded">
+        <h3 className="font-medium text-gray-12 mb-2">
           The Power of Compound Growth
         </h3>
-        <p className="text-sm text-muted-fg">
+        <p className="text-sm text-gray-11">
           This {yrs}-year projection demonstrates how Better Giving's integrated
           approach compounds over time. By Year {yrs}, your organization could
           accumulate significant additional funds through the combination of

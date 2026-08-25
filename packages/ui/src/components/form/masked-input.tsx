@@ -118,7 +118,7 @@ export function MaskedInput(props: Props) {
       </label>
       {props.sub ? (
         typeof props.sub === "string" ? (
-          <p className="text-muted-fg text-sm mb-2">{props.sub}</p>
+          <p className="text-gray-11 text-sm mb-2">{props.sub}</p>
         ) : (
           props.sub
         )

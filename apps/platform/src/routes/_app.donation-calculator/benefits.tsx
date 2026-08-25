@@ -28,7 +28,7 @@ export function Benefits({ classes = "" }: Props) {
   ];
 
   return (
-    <div className={`${classes} h-fit bg-card shadow-sm rounded p-6`}>
+    <div className={`${classes} h-fit bg-panel shadow-sm rounded p-6`}>
       <h3 className="text-lg sm:text-xl font-bold mb-4">
         Better Giving Benefits
       </h3>
@@ -39,7 +39,7 @@ export function Benefits({ classes = "" }: Props) {
             <Check size={20} className="shrink-0 text-success mt-1.5" />
             <div>
               <h4 className="font-semibold mb-1">{benefit.title}</h4>
-              <p className="text-muted-fg">{benefit.description}</p>
+              <p className="text-gray-11">{benefit.description}</p>
             </div>
           </div>
         ))}

@@ -55,10 +55,10 @@ export function Features({ classes = "" }: IFeatures) {
           {features.map((f) => (
             <div
               key={f.title}
-              className="bg-card rounded px-6.5 py-6 shadow-md shadow-primary/5"
+              className="bg-panel rounded px-6.5 py-6 shadow-md shadow-primary/5"
             >
               <span className="block font-bold mb-1.5">{f.title}</span>
-              <span className="text-sm/normal text-muted-fg">{f.body}</span>
+              <span className="text-sm/normal text-gray-11">{f.body}</span>
             </div>
           ))}
         </div>

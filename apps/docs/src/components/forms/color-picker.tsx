@@ -26,7 +26,7 @@ export function ColorPicker({ color, on_change }: ColorPickerProps) {
             onClick={() => set_is_open(false)}
             aria-label="Close color picker"
           />
-          <div className="absolute top-full left-0 mt-2 z-20 bg-card p-3 rounded border">
+          <div className="absolute top-full left-0 mt-2 z-20 bg-panel p-3 rounded border">
             <HexColorPicker color={color} onChange={on_change} />
             <input
               type="text"

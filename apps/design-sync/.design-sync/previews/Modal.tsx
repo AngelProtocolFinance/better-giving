@@ -10,12 +10,12 @@ export const Confirmation = () => (
     open
     onClose={() => {}}
     size="panel"
-    classes="p-8 bg-popover text-popover-fg text-center"
+    classes="p-8 bg-panel text-gray-12 text-center"
   >
     <h3 className="text-xl font-bold text-balance">
       This organization is already registered
     </h3>
-    <p className="text-muted-fg text-pretty mt-3">
+    <p className="text-gray-11 text-pretty mt-3">
       Rainforest Trust already has an account on Better Giving. Ask an existing
       admin to invite you, or email support@better.giving for help getting
       access.
@@ -28,7 +28,7 @@ export const Confirmation = () => (
 
 // no `size` — the default `sm` (512px) is the single-column form tier.
 export const InviteMember = () => (
-  <Modal open onClose={() => {}} classes="p-6 bg-popover text-popover-fg">
+  <Modal open onClose={() => {}} classes="p-6 bg-panel text-gray-12">
     <h4 className="text-center text-xl font-bold mb-6">Invite a team member</h4>
     <div className="grid gap-4">
       <Field
@@ -56,10 +56,10 @@ export const DestructiveConfirm = () => (
     open
     onClose={() => {}}
     size="panel"
-    classes="p-8 bg-popover text-popover-fg"
+    classes="p-8 bg-panel text-gray-12"
   >
     <h3 className="text-xl font-bold">Cancel this payout?</h3>
-    <p className="text-muted-fg text-pretty mt-3">
+    <p className="text-gray-11 text-pretty mt-3">
       The payout of $1,200.00 to Ocean Conservancy scheduled for Nov 14, 2025
       will not be sent. The balance stays available for the next payout run.
     </p>

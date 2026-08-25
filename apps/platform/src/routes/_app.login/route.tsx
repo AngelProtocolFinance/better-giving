@@ -187,8 +187,8 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
   const is_submitting = nav.state !== "idle";
 
   return (
-    <div className="grid justify-items-center gap-3.5 px-4 py-14 text-muted-fg">
-      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+    <div className="grid justify-items-center gap-3.5 px-4 py-14 text-gray-11">
+      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
         <h3 className="text-center text-2xl font-bold">
           Philanthropy for Everyone
         </h3>
@@ -206,7 +206,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
             <span className="font-semibold">Continue with Google</span>
           </button>
         </RmxForm>
-        <Separator classes="my-4 before:mr-3.5 after:ml-3.5 before:bg-border after:bg-border font-medium text-xs text-muted-fg">
+        <Separator classes="my-4 before:mr-3.5 after:ml-3.5 before:bg-gray-6 after:bg-gray-6 font-medium text-xs text-gray-11">
           OR
         </Separator>
         <RmxForm
@@ -230,7 +230,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           />
           <Link
             to={`${href("/login/reset")}?redirect=${encodeURIComponent(to)}`}
-            className="font-medium text-muted-fg hover:text-fg active:text-fg text-xs sm:text-sm justify-self-end hover:underline"
+            className="font-medium text-gray-11 hover:text-gray-12 active:text-gray-12 text-xs sm:text-sm justify-self-end hover:underline"
           >
             Forgot password?
           </Link>
@@ -247,7 +247,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           Don't have an account?
           <Link
             to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
-            className="text-primary hover:text-primary active:text-primary aria-disabled:text-muted-fg font-medium underline"
+            className="text-primary hover:text-primary active:text-primary aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >
             Sign up

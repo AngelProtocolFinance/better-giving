@@ -55,7 +55,7 @@ export function EarningsHistory({
                     <span
                       className={
                         status === "refunded"
-                          ? "line-through text-destructive"
+                          ? "line-through text-destructive-subtle-fg"
                           : ""
                       }
                     >
@@ -64,7 +64,7 @@ export function EarningsHistory({
                     {status === "refunded" && (
                       <Tooltip
                         tip={
-                          <Content className="max-w-xs bg-popover outline outline-border p-4 text-popover-fg text-xs shadow-lg rounded">
+                          <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
                             <Arrow />
                             Refunded
                           </Content>

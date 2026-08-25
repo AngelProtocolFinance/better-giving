@@ -46,7 +46,7 @@ export function Share(props: ShareProps) {
       <h2 className="w-full pt-2 font-bold text-primary mb-2">
         Spread the word!
       </h2>
-      <p className="text-muted-fg text-sm max-w-sm">
+      <p className="text-gray-11 text-sm max-w-sm">
         Encourage your friends to join in and contribute, making a collective
         impact through donations.
       </p>
@@ -113,7 +113,7 @@ function Prompt({ recipientName, open, set_open, url, ...social }: IPrompt) {
       size="md"
       classes="grid content-start border bg-background"
     >
-      <div className="grid place-items-center relative h-16  font-bold bg-muted border-b">
+      <div className="grid place-items-center relative h-16  font-bold bg-gray-3 border-b">
         Share on {social.title}
         <button
           type="button"

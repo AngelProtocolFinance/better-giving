@@ -77,8 +77,8 @@ export function MethodBenefits({ classes = "", subject }: Props) {
       )}
       <div id={details_id} hidden={!expanded} className="grid gap-y-2">
         {c.disclaimer && (
-          <div className="grid rounded bg-muted p-2">
-            <span className="text-sm text-muted-fg">{c.disclaimer}</span>
+          <div className="grid rounded bg-gray-3 p-2">
+            <span className="text-sm text-gray-11">{c.disclaimer}</span>
           </div>
         )}
         {c.expanded.map((text) => (

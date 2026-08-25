@@ -10,7 +10,7 @@ interface IHero {
 export function Hero({ classes = "" }: IHero) {
   return (
     <div
-      className={`${classes} bg-linear-to-b from-background to-accent pt-16 pb-18`}
+      className={`${classes} bg-linear-to-b from-background to-band pt-16 pb-18`}
     >
       <div className="page grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,32.5rem)] items-center">
         <div className="grid gap-5 justify-items-start">
@@ -21,7 +21,7 @@ export function Hero({ classes = "" }: IHero) {
             One form that turns visitors into donors, and donors into monthly
             givers
           </h1>
-          <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
+          <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
             Brandable, embeddable, and conversion-optimized: fewer clicks,
             express checkout, recurring giving, and every gift type, in one flow
             on your own website.
@@ -44,7 +44,7 @@ export function Hero({ classes = "" }: IHero) {
             className="absolute size-45 bg-secondary rounded-full -top-7 -right-4"
             aria-hidden
           />
-          <div className="relative bg-card border border-border rounded shadow-2xl shadow-primary/15 overflow-hidden">
+          <div className="relative bg-panel border border-gray-6 rounded shadow-2xl shadow-primary/15 overflow-hidden">
             <img
               src={donation_form}
               alt="Better Giving embeddable donation form"

@@ -45,9 +45,9 @@ export function Tooltip(props: Props) {
         {props.children}
       </ArkTooltip.Trigger>
       <Portal>
-        <ArkTooltip.Positioner className="[--arrow-size:10px] [--arrow-background:var(--popover)]">
+        <ArkTooltip.Positioner className="[--arrow-size:10px] [--arrow-background:var(--panel)]">
           <ArkTooltip.Arrow>
-            <ArkTooltip.ArrowTip className="border-l border-t border-border" />
+            <ArkTooltip.ArrowTip className="border-l border-t border-gray-6" />
           </ArkTooltip.Arrow>
           {props.tip}
         </ArkTooltip.Positioner>

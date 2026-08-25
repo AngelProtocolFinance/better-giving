@@ -36,6 +36,9 @@ interface ITermLine {
 export function TermCmd({ children }: ITermLine) {
   return (
     <p>
+      {/* step 9, not the -subtle-fg ink rung: this card's ground is bg-black/25
+          over surface-primary, and the ink rungs are tuned to sit ON light. on
+          the dark panel step 11 goes under the body copy beside it. */}
       <span className="text-warning">$</span> {children}
     </p>
   );

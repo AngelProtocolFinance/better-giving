@@ -3,7 +3,7 @@ import { href, Link } from "react-router";
 
 export function Success(props: { to: string }) {
   return (
-    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
       <CircleCheck className="text-primary size-16 sm:size-20" />
 
       <h3 className="text-center text-xl sm:text-2xl font-bold mt-6">

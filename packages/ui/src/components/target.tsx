@@ -35,11 +35,11 @@ export function Target({ text, target, classes = "", progress }: ITarget) {
         </Progress.Track>
       </Progress.Root>
       <div className="flex items-center justify-between mt-1">
-        <p className="flex items-center gap-x-1 text-sm text-muted-fg">
+        <p className="flex items-center gap-x-1 text-sm text-gray-11">
           <span className="font-medium">{to_usd(progress)}</span>
           <span className="text-xs">Raised</span>
         </p>
-        <p className="flex items-center gap-x-1 text-sm text-muted-fg">
+        <p className="flex items-center gap-x-1 text-sm text-gray-11">
           <span className="font-medium">{to_usd(to)}</span>
           <span className="text-xs">Goal</span>
         </p>
@@ -56,7 +56,7 @@ Target.Inline = ({ text, target, classes = "", progress }: ITarget) => {
   return (
     <div className={`flex items-center gap-x-3 ${classes}`}>
       {text}
-      <p className="flex items-center gap-x-1 text-sm text-muted-fg whitespace-nowrap">
+      <p className="flex items-center gap-x-1 text-sm text-gray-11 whitespace-nowrap">
         <span className="font-medium">{to_usd(progress)}</span>
         <span className="text-xs">Raised</span>
       </p>
@@ -69,7 +69,7 @@ Target.Inline = ({ text, target, classes = "", progress }: ITarget) => {
           <Progress.Range className="h-full rounded-full bg-success shadow-xs" />
         </Progress.Track>
       </Progress.Root>
-      <p className="flex items-center gap-x-1 text-sm text-muted-fg whitespace-nowrap">
+      <p className="flex items-center gap-x-1 text-sm text-gray-11 whitespace-nowrap">
         <span className="font-medium">{to_usd(to)}</span>
         <span className="text-xs">Goal</span>
       </p>
@@ -87,7 +87,7 @@ Target.Text = ({ classes = "" }) => {
         className="inline-block relative mr-2 bottom-1"
         alt=""
       />
-      <span className="text-sm font-medium text-muted-fg">
+      <span className="text-sm font-medium text-gray-11">
         Help them reach their goal!
       </span>
     </p>

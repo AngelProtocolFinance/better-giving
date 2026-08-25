@@ -12,7 +12,7 @@ export default function ErrorPage(props: ErrorQueryParams) {
         <CircleAlert size={30} className="text-destructive-fg" />
       </div>
       <h1 className="text-2xl uppercase text-center">Signing failed</h1>
-      <p className="bg-muted p-4 text-sm text-muted-fg mt-4">
+      <p className="bg-gray-3 p-4 text-sm text-gray-11 mt-4">
         {props.error}: {props.message}
       </p>
       <button

@@ -32,7 +32,7 @@ export const FundItem = (props: Props) => {
             container: "px-3 py-1 rounded-full text-xs",
             active: "",
             inactive: "bg-destructive-subtle text-destructive-subtle-fg",
-            expired: "bg-muted text-muted-fg",
+            expired: "bg-gray-3 text-gray-11",
             completed: "bg-success-subtle text-success-subtle-fg",
           }}
         />
@@ -40,7 +40,7 @@ export const FundItem = (props: Props) => {
 
       <Link
         to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-        className="mt-4 font-semibold text-muted-fg hover:text-primary "
+        className="mt-4 font-semibold text-gray-11 hover:text-primary "
       >
         {props.name}
       </Link>
@@ -65,7 +65,7 @@ export const FundItem = (props: Props) => {
           <button
             name="fund_id"
             value={props.id}
-            className=" bg-warning enabled:hover:bg-warning text-warning-fg rounded px-4 py-2 text-xs flex items-center gap-1 disabled:bg-muted disabled:text-muted-fg"
+            className=" bg-warning enabled:hover:bg-warning text-warning-fg rounded px-4 py-2 text-xs flex items-center gap-1 disabled:bg-gray-3 disabled:text-gray-11"
             type="submit"
             disabled={fetcher.state !== "idle" || !props.active}
           >

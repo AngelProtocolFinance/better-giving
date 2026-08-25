@@ -62,7 +62,7 @@ export const Colored = () => (
     <Status classes="text-destructive" icon={<CircleAlert size={20} />}>
       We couldn't reach the payment processor
     </Status>
-    <Status classes="text-muted-fg" icon={<Clock size={20} />}>
+    <Status classes="text-gray-11" icon={<Clock size={20} />}>
       Awaiting bank confirmation
     </Status>
   </div>

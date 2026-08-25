@@ -34,7 +34,7 @@ export default function Loaded(
       )}
       {props.status_approved_npo_id && (
         <NavLink
-          className="text-primary [.pending]:text-muted-fg hover:underline block -mt-4 text-sm"
+          className="text-primary [.pending]:text-gray-11 hover:underline block -mt-4 text-sm"
           to={href("/marketplace/:id", {
             id: props.status_approved_npo_id.toString(),
           })}
@@ -117,7 +117,7 @@ export default function Loaded(
               <DocLink url={props.o_bank_statement ?? "N/A"} />
             </Row>
           </dl>
-          <p className="p-3 text-sm text-muted-fg">
+          <p className="p-3 text-sm text-gray-11">
             Bank account details couldn't be loaded from Wise.
           </p>
         </Container>

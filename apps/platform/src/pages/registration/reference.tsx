@@ -14,7 +14,7 @@ export default function Reference({ id, classes = "" }: Props) {
 
   return (
     <div
-      className={`${classes} w-full py-4 px-6 text-sm text-left md:text-center bg-background md:text-muted-fg md: md:border-t rounded-b`}
+      className={`${classes} w-full py-4 px-6 text-sm text-left md:text-center bg-background md:text-gray-11 md: md:border-t rounded-b`}
     >
       <div className="relative">
         <span className="font-semibold mr-2">Your registration number:</span>
@@ -22,7 +22,7 @@ export default function Reference({ id, classes = "" }: Props) {
 
         <Tooltip
           tip={
-            <Content className="p-3 text-xs bg-popover outline outline-border text-popover-fg max-w-xs rounded">
+            <Content className="p-3 text-xs bg-panel outline outline-gray-6 text-gray-12 max-w-xs rounded">
               {tooltip}
               <Arrow />
             </Content>
@@ -53,7 +53,7 @@ export default function Reference({ id, classes = "" }: Props) {
       <p
         id={tooltip_id}
         hidden={!isTooltipOpen}
-        className="md:hidden mt-4 text-muted-fg"
+        className="md:hidden mt-4 text-gray-11"
       >
         {tooltip}
       </p>

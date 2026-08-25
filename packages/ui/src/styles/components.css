@@ -34,12 +34,15 @@
     border-radius: var(--radius);
   }
 
+  /* a tinted control presses UP its scale: resting tint → -active, which is the
+     ramp's own selected rung. it does not darken toward black, which on a
+     near-white tint would carry the surface away from the ink sitting on it. */
   .btn-secondary {
-    background-color: var(--card);
-    color: var(--secondary-fg);
-    border: 1px solid var(--border);
+    background-color: var(--panel);
+    color: var(--gray-12);
+    border: 1px solid var(--gray-6);
     &:active {
-      background-color: color-mix(in oklch, var(--secondary) 85%, black);
+      background-color: var(--secondary-active);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--secondary);
@@ -50,25 +53,30 @@
     background-color: transparent;
     color: inherit;
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--accent);
+      background-color: var(--secondary);
     }
     &:active {
-      background-color: color-mix(in oklch, var(--accent) 85%, black);
+      background-color: var(--secondary-active);
     }
     &:disabled {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
   }
 
+  /* the filled variants below share one rung between :hover and :active: the
+     ramp gives a solid fill two steps, not three, so pressed looks the same as
+     hovered. on touch, where there is no hover, that leaves a tap with no color
+     acknowledgement at all — the affordance a scale can't supply is a
+     transform/filter, not another fill. */
   .btn-primary {
     background-color: var(--primary);
     color: var(--primary-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--primary) 85%, black);
+      background-color: var(--primary-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--primary) 90%, black);
+      background-color: var(--primary-hover);
     }
   }
 
@@ -76,10 +84,10 @@
     background-color: var(--destructive);
     color: var(--destructive-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--destructive) 85%, black);
+      background-color: var(--destructive-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--destructive) 90%, black);
+      background-color: var(--destructive-hover);
     }
   }
 
@@ -87,10 +95,10 @@
     background-color: var(--success);
     color: var(--success-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--success) 85%, black);
+      background-color: var(--success-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--success) 90%, black);
+      background-color: var(--success-hover);
     }
   }
 
@@ -98,10 +106,10 @@
     background-color: var(--warning);
     color: var(--warning-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--warning) 85%, black);
+      background-color: var(--warning-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--warning) 90%, black);
+      background-color: var(--warning-hover);
     }
   }
 
@@ -111,7 +119,8 @@
      or the same shape in raw white over a photo hero — on a container that had
      already declared that ink for its own copy. writing it twice is what lets
      it drift once. currentColor reads whatever the surface set: --primary-fg
-     on a `surface-primary` band, --fg on the page, white over a hero.
+     on a `surface-primary` band, gray-12 from the body rule on the page,
+     white over a hero.
 
      the mixes are oklab, not oklch, to match what tailwind's own `/40` and
      `/10` opacity modifiers compile to — an oklch mix down to transparent
@@ -129,13 +138,14 @@
     }
   }
 
-  /* one focus indicator for every variant. --ring is the only value in the
-     system that clears 3:1 (WCAG 2.4.7/1.4.11) against the page in both
-     themes; the per-variant outline colors this replaces were tints of the
-     button's own fill and were invisible against it. the offset is
-     load-bearing, not decoration: --ring == --primary, so a flush ring on
-     .btn-primary would be 1.00:1 against the button it surrounds. on a
-     --primary-filled panel, scope with the `surface-primary` utility. */
+  /* one focus indicator for every variant. the per-variant outline colors this
+     replaces were tints of the button's own fill and were invisible against it;
+     one ring for every variant is the fix, and the offset is what makes it
+     work rather than the color. --ring is the ramp's step 8, 2.30:1 against the
+     page — under 3:1, taken as radix assigns it, so the ring is legible by
+     being detached and continuous, not by contrast alone. on a .btn-primary
+     fill it measures 2.32:1, which is why the offset stays and why a
+     --primary-filled panel still scopes with `surface-primary`. */
   .btn,
   .btn-sm,
   .btn-md,
@@ -160,8 +170,8 @@
   .btn-warning,
   .btn-destructive {
     &:disabled {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
   }
 
@@ -183,8 +193,8 @@
   .btn-success,
   .btn-warning {
     &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
       pointer-events: none;
     }
   }
@@ -197,8 +207,8 @@
   a.btn-outline,
   a.btn-destructive {
     &[aria-disabled="true"] {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
   }
 
@@ -210,23 +220,23 @@
       --tw-leading,
       var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
     );
-    background-color: var(--input);
+    background-color: var(--surface);
     padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
     min-block-size: var(--field-size);
-    border: 1px solid var(--border);
+    border: 1px solid var(--gray-6);
     outline-color: var(--ring);
-    color: var(--fg);
+    color: var(--gray-12);
 
     &::placeholder {
-      color: var(--muted-fg);
+      color: var(--gray-11);
     }
     /* biome-ignore lint/style/noDescendingSpecificity: unrelated to a.btn-* selectors */
     &[aria-disabled="true"],
     &[readonly],
     &:disabled {
       pointer-events: none;
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
 
     /* :user-invalid, never :invalid — :invalid paints every required-but-empty
@@ -245,9 +255,9 @@
       --tw-leading,
       var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
     );
-    background-color: var(--input);
-    border: 1px solid var(--border);
-    color: var(--fg);
+    background-color: var(--surface);
+    border: 1px solid var(--gray-6);
+    color: var(--gray-12);
 
     &:has(input:focus) {
       outline: solid;
@@ -256,14 +266,14 @@
     }
 
     &:has(input::placeholder) {
-      color: var(--muted-fg);
+      color: var(--gray-11);
     }
     &:has(input[aria-disabled="true"]),
     &:has(input[readonly]),
     &:has(input:disabled) {
       pointer-events: none;
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
 
     &:has(input:user-invalid),
@@ -290,13 +300,13 @@
   .selector-opt {
     padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
     &[data-state="checked"] {
-      background-color: var(--accent);
+      background-color: var(--secondary-active);
     }
     &[data-highlighted] {
-      background-color: var(--accent);
+      background-color: var(--secondary);
     }
     &:hover {
-      background-color: var(--accent);
+      background-color: var(--secondary);
     }
   }
 
@@ -310,7 +320,7 @@
     }
     &[data-required="false"]::after {
       content: " (optional)";
-      color: var(--muted-fg);
+      color: var(--gray-11);
       font-weight: normal;
       font-size: 0.8em;
     }
@@ -321,7 +331,7 @@
     left: 0;
     color: var(--ring);
     transition: transform 0.2s ease-out;
-    background-color: var(--card);
+    background-color: var(--panel);
     padding-right: var(--spacing);
     font-weight: var(--font-weight-semibold);
     font-size: var(--text-xs);
@@ -333,7 +343,7 @@
     }
     &[data-required="false"]::after {
       content: " (optional)";
-      color: var(--muted-fg);
+      color: var(--gray-11);
       font-weight: normal;
       font-size: 0.8em;
     }
@@ -359,25 +369,25 @@
     bottom: 50%;
     transform: translateY(50%);
     font-size: var(--text-sm);
-    color: var(--muted-fg);
+    color: var(--gray-11);
   }
 
   .table {
     min-width: 100%;
-    border: 1px solid var(--border);
+    border: 1px solid var(--gray-6);
     border-collapse: separate;
     border-spacing: 0;
     font-feature-settings: "tnum", "zero";
 
     & thead {
-      background-color: var(--muted);
+      background-color: var(--gray-3);
     }
 
     & th {
       font-weight: var(--font-weight-medium);
       font-size: var(--text-sm);
       line-height: var(--text-sm--line-height);
-      color: var(--muted-fg);
+      color: var(--gray-11);
     }
 
     & tbody tr {
@@ -387,12 +397,12 @@
 
     /* column dividers */
     & :is(th, td) + :is(th, td) {
-      border-left: 1px solid var(--border);
+      border-left: 1px solid var(--gray-6);
     }
 
     /* row dividers */
     & :is(tbody, tfoot) > tr > :is(th, td) {
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--gray-6);
     }
 
     & :is(th, td) {
@@ -416,8 +426,8 @@
       }
       /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
       &:disabled {
-        background-color: var(--muted);
-        color: var(--muted-fg);
+        background-color: var(--gray-3);
+        color: var(--gray-11);
       }
     }
   }

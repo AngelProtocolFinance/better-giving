@@ -33,7 +33,7 @@ export default function Layout() {
             p.delete("next");
             set_params(p);
           }}
-          className="rounded border border-border bg-card px-3 py-1.5 text-sm font-medium text-fg focus:outline-primary"
+          className="rounded border border-gray-6 bg-panel px-3 py-1.5 text-sm font-medium text-gray-12 focus:outline-primary"
         >
           {filter_options.map((o) => (
             <option key={o.value} value={o.value}>

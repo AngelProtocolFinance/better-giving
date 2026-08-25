@@ -38,10 +38,10 @@ export function Portability({ classes = "" }: IPortability) {
         >
           Your donors are yours, including your recurring donors
         </h2>
-        <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
+        <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
           Most platforms let you export a spreadsheet, but hold your monthly
           card-on-file donors hostage. We make the opposite promise, the{" "}
-          <strong className="text-fg">
+          <strong className="text-gray-12">
             Recurring-Donor Portability Guarantee
           </strong>
           :
@@ -53,11 +53,11 @@ export function Portability({ classes = "" }: IPortability) {
                 {p.n}
               </span>
               <span className="block font-bold mt-2 mb-1.5">{p.title}</span>
-              <span className="text-sm/normal text-muted-fg">{p.body}</span>
+              <span className="text-sm/normal text-gray-11">{p.body}</span>
             </div>
           ))}
         </div>
-        <p className="mt-7 text-sm/relaxed text-muted-fg text-center max-w-3xl mx-auto text-pretty">
+        <p className="mt-7 text-sm/relaxed text-gray-11 text-center max-w-3xl mx-auto text-pretty">
           Honest fine print: whether a stored card credential can transfer
           directly depends on card-network rules, PCI-DSS, and your new
           processor. Where a direct transfer isn't permitted, we hand over the

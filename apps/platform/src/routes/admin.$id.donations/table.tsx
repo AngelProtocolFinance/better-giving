@@ -24,7 +24,7 @@ export function Table({ items, load_next, loading, disabled }: Props) {
               <span>Fees </span>
               <Tooltip
                 tip={
-                  <Content className="p-4 bg-card max-w-sm text-sm rounded shadow-lg">
+                  <Content className="p-4 bg-panel max-w-sm text-sm rounded shadow-lg">
                     <p className="text-xs uppercase font-semibold">
                       Base fee{" "}
                       <span className="text-primary text-xs font-bold">
@@ -56,7 +56,7 @@ export function Table({ items, load_next, loading, disabled }: Props) {
                   </Content>
                 }
               >
-                <InfoIcon size={14} className="text-muted-fg" />
+                <InfoIcon size={14} className="text-gray-11" />
               </Tooltip>
             </div>
           </th>

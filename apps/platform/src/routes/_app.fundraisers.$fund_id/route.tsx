@@ -43,7 +43,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
   );
 
   return (
-    <section className="grid pb-10 bg-muted">
+    <section className="grid pb-10 bg-gray-3">
       <div className="group relative page grid md:grid-cols-[3fr_2fr] gap-4">
         <div className="self-start mt-14 ease-in-out z-10 grid gap-4 relative">
           <div className="absolute -top-8 flex items-center justify-between w-full">
@@ -59,20 +59,20 @@ function Fund({ loaderData }: Route.ComponentProps) {
               classes={{
                 container: "text-xs",
                 active: "",
-                inactive: "text-destructive",
-                completed: "text-success",
-                expired: "text-muted-fg",
+                inactive: "text-destructive-subtle-fg",
+                completed: "text-success-subtle-fg",
+                expired: "text-gray-11",
               }}
             />
           </div>
 
-          <div className="bg-card rounded p-4">
+          <div className="bg-panel rounded p-4">
             <div className="grid max-md:gap-y-4 items-center max-md:justify-items-center md:grid-cols-[auto_1fr]">
               <div className="mr-4 md:row-span-2">
                 <Image
                   src={fund.logo || flying_character}
                   width={60}
-                  className="rounded-full object-cover bg-card"
+                  className="rounded-full object-cover bg-panel"
                 />
               </div>
 
@@ -80,7 +80,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 {fund.name}
               </h4>
               <div className="pl-0.5">
-                <span className="text-sm font-medium text-muted-fg mr-1">
+                <span className="text-sm font-medium text-gray-11 mr-1">
                   by
                 </span>
                 <FundCreator
@@ -99,7 +99,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
 
-          <div className="rounded overflow-hidden bg-card">
+          <div className="rounded overflow-hidden bg-panel">
             {fund.banner && (
               <img
                 src={fund.banner}
@@ -129,14 +129,14 @@ function Fund({ loaderData }: Route.ComponentProps) {
         </div>
         <div
           id="info-card"
-          className="md:sticky md:top-30 bg-card self-start flex flex-col content-start z-10 rounded p-4"
+          className="md:sticky md:top-30 bg-panel self-start flex flex-col content-start z-10 rounded p-4"
         >
           {" "}
           <DonateSection
             {...fund}
             classes={{ container: "max-md:hidden", link: "mb-4 order-first" }}
           />
-          <p className="text-muted-fg md:mt-8 mb-2 font-bold uppercase text-xs">
+          <p className="text-gray-11 md:mt-8 mb-2 font-bold uppercase text-xs">
             Donations go to
           </p>
           <div className="grid gap-y-4 mb-4 grid-cols-[auto_1fr]">
@@ -148,7 +148,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 <Image src={m.logo} className="aspect-2/1 rounded" width={50} />
                 <Link
                   to={href("/marketplace/:id", { id: m.id.toString() })}
-                  className="font-bold  text-muted-fg hover:text-primary"
+                  className="font-bold  text-gray-11 hover:text-primary"
                 >
                   {m.name}
                 </Link>

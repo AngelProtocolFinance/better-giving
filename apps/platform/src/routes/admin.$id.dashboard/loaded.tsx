@@ -18,6 +18,10 @@ import { group_by_category } from "@/nav/interfaces";
 import { min_payout_amount } from "@/npo/schema";
 import type { DashboardData } from "./api";
 
+/* a categorical legend, not semantic tokens: crypto and commodities carry the
+   assets' own identity colors (bitcoin orange, gold), so the whole set stays off
+   the design palette rather than repointing four of its six entries and leaving
+   the legend reading in two languages. */
 const category_colors: Record<TickerCategory | "other", string> = {
   equities: "#3b82f6",
   fixed_income: "#6b7280",
@@ -47,7 +51,7 @@ export function Loaded({ classes = "", ...props }: Props) {
           title="Savings"
           to="../savings"
           tooltip={
-            <Content className="bg-popover outline outline-border text-popover-fg text-sm max-w-xs p-4 rounded">
+            <Content className="bg-panel outline outline-gray-6 text-gray-12 text-sm max-w-xs p-4 rounded">
               Funds held in Fidelity Government Money Market (SPAXX) consisting
               of cash, US Government Securities and Repurchase Agreements
               <Arrow />
@@ -59,7 +63,7 @@ export function Loaded({ classes = "", ...props }: Props) {
           title="Investments"
           to="../investments"
           hover_content={
-            <HoverContent className="bg-popover outline outline-border text-popover-fg text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
+            <HoverContent className="bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
               <span className="block mb-2 font-medium">
                 Portfolio composition
               </span>
@@ -140,7 +144,7 @@ export function Loaded({ classes = "", ...props }: Props) {
         </NavLink>
       </div>
 
-      <div className="w-full mt-16 h-1.5 bg-muted rounded-full shadow-inner" />
+      <div className="w-full mt-16 h-1.5 bg-gray-3 rounded-full shadow-inner" />
 
       {/** div scopes when the sticky header ends */}
       <div className="@container/period mt-2">

@@ -1,60 +1,47 @@
+/* the radix ramps, copied step-for-step from packages/brand/src/colors.css.
+   pdf-lib draws into a document with no stylesheet, so nothing here can read a
+   css custom property — the hex has to be inlined. keys are the radix step
+   numbers; only the steps a call site actually reaches are carried, so a step
+   missing below is unused, not wrong. change a value in colors.css and it has
+   to be re-copied here. */
+
 export const blue = {
-  d7: "#050c1a",
-  d6: "#0d1e30",
-  d5: "#112840",
-  d4: "#1a3f60",
-  d3: "#194b73",
-  d2: "#1a578a",
-  d1: "#1e6dab",
-  d: "#2d89c8",
-  l1: "#54a5dc",
-  l2: "#8fc4ea",
-  l3: "#c4def3",
-  l4: "#e4effa",
-  l5: "#f2f8fd",
+  "3": "#e4f4ff",
+  "6": "#b0d6fb",
+  "8": "#6daee9",
+  "9": "#1e6dab",
+  "11": "#206fad",
+  "12": "#1c3d5b",
 };
 
 export const green = {
-  d5: "#022c22",
-  d4: "#064e3b",
-  d3: "#065f46",
-  d2: "#047857",
-  d1: "#059669",
-  d: "#10b981",
-  l1: "#34d399",
-  l2: "#6ee7b7",
-  l3: "#a7f3d0",
-  l4: "#d1fae5",
-  l5: "#ecfdf5",
+  "2": "#f4fbf7",
+  "6": "#b0ddc6",
+  "8": "#66b893",
+  "9": "#0e8c62",
+  "11": "#008057",
 };
 
 export const amber = {
-  d5: "#451a03",
-  d4: "#78350f",
-  d3: "#92400e",
-  d2: "#b45309",
-  d1: "#d97706",
-  d: "#f59e0b",
-  l1: "#fbbf24",
-  l2: "#fcd34d",
-  l3: "#fde68a",
-  l4: "#fef3c7",
-  l5: "#fffbeb",
+  "3": "#ffefcd",
+  "6": "#ffc977",
+  "8": "#f19a00",
+  "9": "#f59e0b",
+  "11": "#ac6500",
+  "12": "#4f3515",
 };
 
 export const gray = {
-  d5: "#020617",
-  d4: "#0f172a",
-  d3: "#1e293b",
-  d2: "#334155",
-  d1: "#475569",
-  d: "#64748b",
-  l1: "#94a3b8",
-  l2: "#cbd5e1",
-  l3: "#e2e8f0",
-  l4: "#f1f5f9",
-  l5: "#f8fafc",
-  l6: "#fff",
+  "3": "#ecf1f7",
+  "6": "#d2dbe7",
+  "8": "#b4bdc8",
+  "9": "#868f9a",
+  "11": "#5d656f",
+  "12": "#1a2029",
+};
+
+export const red = {
+  "9": "#cc1926",
 };
 
 export const fs = {

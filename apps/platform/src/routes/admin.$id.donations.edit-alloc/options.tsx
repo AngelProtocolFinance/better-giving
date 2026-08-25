@@ -21,11 +21,11 @@ export function AllocationOptions(props: Props) {
         >
           <RadioGroup.ItemControl />
           <RadioGroup.ItemHiddenInput />
-          <span className="flex flex-1 gap-x-3 items-center group-data-[state=checked]:bg-secondary border group-data-[state=checked]:border-primary group-hover:ring-1 group-hover:border-primary px-2 py-4 rounded">
+          <span className="flex flex-1 gap-x-3 items-center group-data-[state=checked]:bg-secondary-active border group-data-[state=checked]:border-primary group-hover:ring-1 group-hover:border-primary px-2 py-4 rounded">
             {option.icon}
             <div className="grid gap-y-2">
               <p className="text-sm font-medium leading-none">{option.label}</p>
-              <p className="text-sm text-muted-fg">{option.description}</p>
+              <p className="text-sm text-gray-11">{option.description}</p>
             </div>
           </span>
         </RadioGroup.Item>

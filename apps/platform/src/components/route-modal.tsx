@@ -32,7 +32,7 @@ export function RouteModal({
       }}
     >
       <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-fg/30 z-50" />
+        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-50" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
             className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${modal_box[size]} ${classes}`}

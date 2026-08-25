@@ -29,7 +29,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
        edge to edge and its own rows stretch with it, spreading six lines of
        copy over 700px. */
     <div className="grid justify-items-center content-start px-4 py-14">
-      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
         <h3 className="text-center text-xl sm:text-2xl font-bold">
           {stale ? "That link has expired" : "Check your inbox"}
         </h3>
@@ -57,7 +57,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           <button
             type="submit"
             disabled={sending || throttled}
-            className="btn btn-lg btn-primary rounded w-full mt-6 disabled:bg-muted disabled:text-muted-fg"
+            className="btn btn-lg btn-primary rounded w-full mt-6 disabled:bg-gray-3 disabled:text-gray-11"
           >
             {sending ? "Sending…" : "Send a new link"}
           </button>
@@ -66,14 +66,14 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         {resent && (
           <p
             role="status"
-            className="text-center text-xs sm:text-sm text-success mt-3"
+            className="text-center text-xs sm:text-sm text-success-subtle-fg mt-3"
           >
             A new link is on its way.
           </p>
         )}
 
         {throttled && (
-          <p className="text-center text-xs sm:text-sm text-muted-fg mt-3">
+          <p className="text-center text-xs sm:text-sm text-gray-11 mt-3">
             Available again in 00:{String(counter).padStart(2, "0")}
           </p>
         )}
@@ -86,11 +86,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
             it is also the only place the expiry and single use are stated, so
             neither heading needs to repeat them. */}
-        <p className="text-center text-xs sm:text-sm text-muted-fg mt-3">
+        <p className="text-center text-xs sm:text-sm text-gray-11 mt-3">
           Links expire in 1 hour and work only once. If yours hasn't arrived,
           check your spam folder or email{" "}
           <a
-            className="underline hover:text-fg"
+            className="underline hover:text-gray-12"
             href="mailto:support@better.giving"
           >
             support@better.giving
@@ -102,7 +102,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             here is otherwise a dead end with no link out of it */}
         <NavLink
           to={href("/signup")}
-          className="text-center text-xs sm:text-sm text-muted-fg underline hover:text-fg mt-3"
+          className="text-center text-xs sm:text-sm text-gray-11 underline hover:text-gray-12 mt-3"
         >
           Wrong address? Start over
         </NavLink>

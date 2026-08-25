@@ -54,7 +54,7 @@ export function GiftsTable({ dists, subs }: IProps) {
               <span>Fees </span>
               <Tooltip
                 tip={
-                  <Content className="p-4 bg-card max-w-sm text-sm rounded shadow-lg">
+                  <Content className="p-4 bg-panel max-w-sm text-sm rounded shadow-lg">
                     <p className="text-xs uppercase font-semibold">
                       Base fee{" "}
                       <span className="text-primary text-xs font-bold">
@@ -86,7 +86,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                   </Content>
                 }
               >
-                <InfoIcon size={14} className="text-muted-fg" />
+                <InfoIcon size={14} className="text-gray-11" />
               </Tooltip>
             </div>
           </th>
@@ -132,7 +132,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                         <Tooltip
                           key="tip"
                           tip={
-                            <Content className="rounded bg-card p-2 text-xs shadow-lg">
+                            <Content className="rounded bg-panel p-2 text-xs shadow-lg">
                               <p>Tip to {app_name}</p>
                               <Arrow />
                             </Content>
@@ -148,13 +148,13 @@ export function GiftsTable({ dists, subs }: IProps) {
                           <Tooltip
                             key="fa"
                             tip={
-                              <Content className="rounded bg-card p-2 text-xs shadow-lg">
+                              <Content className="rounded bg-panel p-2 text-xs shadow-lg">
                                 <p>Processing fee covered by donor</p>
                                 <Arrow />
                               </Content>
                             }
                           >
-                            <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-muted-fg figures">
+                            <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-gray-11 figures">
                               <SparklesIcon
                                 className="fill-success stroke-success"
                                 size={11}
@@ -174,7 +174,7 @@ export function GiftsTable({ dists, subs }: IProps) {
               <td>
                 <Tooltip
                   tip={
-                    <Content className="rounded bg-card p-3 shadow-lg">
+                    <Content className="rounded bg-panel p-3 shadow-lg">
                       <Fees
                         base={d.fee_base ?? 0}
                         fsa={d.fee_fsa ?? 0}

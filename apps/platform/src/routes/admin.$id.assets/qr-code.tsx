@@ -103,7 +103,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
             <Tabs.Trigger
               key={tab.id}
               value={tab.id}
-              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 border-transparent text-muted-fg hover:text-fg data-selected:border-primary data-selected:text-primary"
+              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 border-transparent text-gray-11 hover:text-gray-12 data-selected:border-primary data-selected:text-primary"
             >
               {tab.name}
             </Tabs.Trigger>
@@ -135,7 +135,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
                 </Ark.Overlay>
               )}
             </Ark.Root>
-            <p className="text-sm text-muted-fg mt-1">
+            <p className="text-sm text-gray-11 mt-1">
               {tab.name}:{" "}
               <span className="font-mono text-xs">{urls[tab.id]}</span>
             </p>

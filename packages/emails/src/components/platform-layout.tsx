@@ -17,7 +17,7 @@ export function PlatformLayout({ children }: PlatformLayoutProps) {
           backgroundColor: email_colors.background,
           // explicit ink: clients that force dark mode invert inherited text
           // while still honouring an explicit background — white on white.
-          color: email_colors.fg,
+          color: email_colors.gray_12,
         }}
       >
         <Container style={{ padding: 16 }}>

@@ -5,7 +5,7 @@ type Props = { email: string; to: string };
 
 export function MigratedInfo(props: Props) {
   return (
-    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
       <div className="grid place-items-center size-16 sm:size-20 rounded-full bg-secondary">
         <KeyRound className="size-8 sm:size-10 text-primary" />
       </div>
@@ -27,7 +27,7 @@ export function MigratedInfo(props: Props) {
         </p>
       </div>
 
-      <p className="mt-4 text-xs text-muted-fg text-center">
+      <p className="mt-4 text-xs text-gray-11 text-center">
         This is a one-time step — once you set your password, you can log in
         normally.
       </p>
