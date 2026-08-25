@@ -55,6 +55,9 @@ export function Result1({ classes = "", ...v }: Props) {
         Donation Processing Impact Details
       </h3>
 
+      {/* the three rows are the additive terms of `advantage` (bg-view.ts): a
+          positive figure is a gain in every one of them. the subscription is a
+          cost the org stops paying under bg, not one it takes on. */}
       <div className="space-y-3 mb-6">
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
           <p className="max-sm:text-sm">Fee Savings:</p>
@@ -91,7 +94,7 @@ export function Result1({ classes = "", ...v }: Props) {
           </Usd>
         </div>
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
-          <p className="max-sm:text-sm">Subscription cost</p>
+          <p className="max-sm:text-sm">Subscription cost eliminated:</p>
           <Usd sign classes="font-semibold">
             {v.ogSubsCost}
           </Usd>

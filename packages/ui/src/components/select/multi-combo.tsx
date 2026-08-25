@@ -168,16 +168,22 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
 function Tag(p: { label: ReactNode; name: string; on_remove: () => void }) {
   return (
     <div className="flex items-center px-3 gap-2 h-10 bg-secondary border rounded font-semibold text-gray-12 capitalize">
-      <span className="max-w-[200px] truncate">{p.label}</span>
+      {/* `space-x-2`, not `flex gap-2`: a `render` that returns several nodes
+          (a flag beside a name) needs them spaced, but this span is the one
+          that truncates, and text-overflow needs its children to stay inline. */}
+      <span className="max-w-[200px] truncate space-x-2">{p.label}</span>
+      {/* the glyph reads quieter than the label it removes, but the box holds
+          24px: the glyph is the affordance, the box is the target. */}
       <button
         type="button"
         aria-label={`Remove ${p.name}`}
+        className="grid place-items-center shrink-0 size-6 rounded text-gray-11 hover:text-gray-12 focus-visible:outline-2 outline-ring"
         onClick={(e) => {
           e.preventDefault();
           p.on_remove();
         }}
       >
-        <X size={20} />
+        <X size={16} />
       </button>
     </div>
   );
