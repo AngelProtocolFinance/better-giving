@@ -7,7 +7,7 @@ export function VerifiedIcon({ size, classes = "" }: Props) {
   return (
     <Tooltip
       tip={
-        <Content className="bg-popover outline outline-border text-popover-fg px-4 py-2 rounded text-sm shadow-md z-10">
+        <Content className="bg-popover outline outline-gray-6 text-popover-fg px-4 py-2 rounded text-sm shadow-md z-10">
           Verified
           <Arrow />
         </Content>

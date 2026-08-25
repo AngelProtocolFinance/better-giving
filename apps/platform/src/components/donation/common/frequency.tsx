@@ -52,7 +52,7 @@ export function Frequency({
         </div>
       </RadioGroup.Root>
       {error && <p className="field-err text-left mt-1">{error}</p>}
-      <p className="text-muted-fg text-sm my-2">
+      <p className="text-gray-11 text-sm my-2">
         <span className="font-medium text-sm">Recurring donations</span> help
         nonprofits focus on mission and long-term impact, not fundraising.
         Cancel anytime.

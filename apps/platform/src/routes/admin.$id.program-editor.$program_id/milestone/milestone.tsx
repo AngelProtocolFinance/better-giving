@@ -35,7 +35,7 @@ export function Milestone(props: Props) {
 
   return (
     <Collapsible.Root className="bg-card border rounded overflow-hidden">
-      <div className="relative py-3 px-4 text-center bg-muted">
+      <div className="relative py-3 px-4 text-center bg-gray-3">
         <span className="text-xl font-bold ">{props.title}</span>
         <Collapsible.Trigger className="absolute right-4 top-1/2 -translate-y-1/2 group">
           <DrawerIcon
@@ -116,7 +116,7 @@ export function Milestone(props: Props) {
             classes={{
               field:
                 "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
-              counter: "text-muted-fg",
+              counter: "text-gray-11",
             }}
             error={
               errors.description?.value?.message ||

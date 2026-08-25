@@ -57,7 +57,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
             disabled={loading}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="p-3 pl-10 bg-transparent w-full outline-hidden placeholder:text-muted-fg"
+            className="p-3 pl-10 bg-transparent w-full outline-hidden placeholder:text-gray-11"
             type="text"
             placeholder="Search banking applications"
           />

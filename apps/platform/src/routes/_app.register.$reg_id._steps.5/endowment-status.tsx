@@ -75,7 +75,7 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
   if (status === "02") {
     return (
       <div
-        className={`max-sm:grid justify-items-center gap-2 text-muted-fg ${classes}`}
+        className={`max-sm:grid justify-items-center gap-2 text-gray-11 ${classes}`}
       >
         <Hourglass className="relative bottom-px inline mr-2" size={18} />
         <span className="max-sm:text-center">

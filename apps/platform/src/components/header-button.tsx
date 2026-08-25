@@ -29,7 +29,7 @@ export function HeaderButton<T>(
           <ChevronDown className="size-4 shrink-0" />
         )
       ) : (
-        <ChevronsUpDown className="size-4 shrink-0 text-muted-fg" />
+        <ChevronsUpDown className="size-4 shrink-0 text-gray-11" />
       )}
     </button>
   );

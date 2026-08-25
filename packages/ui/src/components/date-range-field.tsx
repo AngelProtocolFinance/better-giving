@@ -48,7 +48,7 @@ export function DateRangeField({
       <DateInput.Label className="label mb-1">{label}</DateInput.Label>
       <DateInput.Control className="flex items-center gap-2">
         <SegGroup index={0} invalid={!!error} />
-        <span className="text-muted-fg text-sm" aria-hidden="true">
+        <span className="text-gray-11 text-sm" aria-hidden="true">
           →
         </span>
         <SegGroup index={1} invalid={!!error} />
@@ -65,14 +65,14 @@ function SegGroup({ index, invalid }: { index: number; invalid: boolean }) {
   return (
     <DateInput.SegmentGroup
       index={index}
-      className="flex-1 min-w-0 flex items-center gap-0.5 px-2 py-3.5 rounded border border-border bg-input text-sm text-fg data-invalid:border-destructive focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-2"
+      className="flex-1 min-w-0 flex items-center gap-0.5 px-2 py-3.5 rounded border border-gray-6 bg-input text-sm text-gray-12 data-invalid:border-destructive focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-2"
       data-invalid={invalid || undefined}
     >
       <DateInput.SegmentContext>
         {(seg: DateValue | unknown) => (
           <DateInput.Segment
             segment={seg as any}
-            className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-muted-fg figures"
+            className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-gray-11 figures"
           />
         )}
       </DateInput.SegmentContext>

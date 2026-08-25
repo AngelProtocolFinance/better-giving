@@ -113,7 +113,7 @@ export function Form(props: TMethodState<"stocks">) {
       options={{ search: search_tickers }}
       // the control is as narrow as a symbol; the list is not
       popup_width="w-56"
-      indicator={<CheckIcon size={14} className="text-muted-fg" />}
+      indicator={<CheckIcon size={14} className="text-gray-11" />}
       popup_vars={popup_vars}
       render={(t) => (
         <span className="grid gap-y-0.5 text-xs">

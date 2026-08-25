@@ -52,7 +52,7 @@ export function RebalanceForm({
     >
       <div className="mb-2">
         <p className=" uppercase text-sm font-bold">Tickers</p>
-        <p className="font-mono text-sm text-muted-fg">
+        <p className="font-mono text-sm text-gray-11">
           {Object.keys(composition)
             .map((x) => x.toLowerCase())
             .join(" ")}

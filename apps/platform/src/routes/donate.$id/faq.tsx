@@ -28,7 +28,7 @@ export function FAQ({ classes = "" }: Props) {
               />
             </Accordion.ItemTrigger>
             <Accordion.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-              <div className="text-sm grid gap-3 text-muted-fg mb-6">
+              <div className="text-sm grid gap-3 text-gray-11 mb-6">
                 {faq.paragraphs.map((p, idx) => (
                   <Fragment key={idx}>{p}</Fragment>
                 ))}
@@ -107,8 +107,8 @@ const faqs = [
     paragraphs: [
       <p key={0} className="leading-normal">
         For gifts by check: Make your check out to{" "}
-        <Em classes="text-fg">Better Giving, Inc.</Em> and send it to:{" "}
-        <Em intensity={1} classes="text-fg block mt-2">
+        <Em classes="text-gray-12">Better Giving, Inc.</Em> and send it to:{" "}
+        <Em intensity={1} classes="text-gray-12 block mt-2">
           Better Giving, Inc.
           <br /> 18 Cottekill Rd
           <br /> Rosendale, NY 12472
@@ -123,7 +123,7 @@ const faqs = [
         our services free, you may add that in the memo with{" "}
         <Em
           intensity={1}
-          classes="text-fg text-xs font-mono bg-secondary p-0.5"
+          classes="text-gray-12 text-xs font-mono bg-secondary p-0.5"
         >
           BG:&nbsp;$amount
         </Em>
@@ -145,7 +145,7 @@ function Em({
           ? "font-medium"
           : intensity === 2
             ? "font-semibold"
-            : "font-semibold text-fg"
+            : "font-semibold text-gray-12"
       } ${classes}`}
     >
       {children}

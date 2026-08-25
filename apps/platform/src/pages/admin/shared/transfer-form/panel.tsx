@@ -34,15 +34,15 @@ export function Panel(props: Props) {
 
       {props.from ? (
         <div>
-          <p className="text-muted-fg text-sm font-semibold">Balance</p>
-          <p className="text-lg font-semibold text-muted-fg">
+          <p className="text-gray-11 text-sm font-semibold">Balance</p>
+          <p className="text-lg font-semibold text-gray-11">
             ${humanize(props.bals[source.value])}
           </p>
         </div>
       ) : (
         <div className="grid items-center grid-cols-[1fr_auto_1fr] gap-x-4 border-y py-4">
           <p className=" justify-self-end">
-            <span className="text-muted-fg text-xs mr-1">from</span>
+            <span className="text-gray-11 text-xs mr-1">from</span>
             {source.value === "liq" ? (
               <span className="text-warning-subtle-fg font-semibold">
                 Savings
@@ -50,7 +50,7 @@ export function Panel(props: Props) {
             ) : (
               <span className="text-success font-semibold">Investments</span>
             )}
-            <span className="text-sm font-semibold text-muted-fg ml-2">
+            <span className="text-sm font-semibold text-gray-11 ml-2">
               ${humanize(props.bals[source.value])}
             </span>
           </p>
@@ -71,7 +71,7 @@ export function Panel(props: Props) {
               <MoveLeft
                 size={20}
                 strokeWidth={2}
-                className="relative top-1.5 right-1 group-active:right-1.5 stroke-muted-fg"
+                className="relative top-1.5 right-1 group-active:right-1.5 stroke-gray-11"
               />
               <MoveRight
                 size={20}
@@ -81,7 +81,7 @@ export function Panel(props: Props) {
             </div>
           </button>
           <p className=" justify-self-start">
-            <span className="text-muted-fg text-xs mr-1">to</span>
+            <span className="text-gray-11 text-xs mr-1">to</span>
             {source.value === "liq" ? (
               <span className="text-success font-semibold">Investments</span>
             ) : (

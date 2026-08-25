@@ -100,7 +100,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
       options={opts}
       // the control is as narrow as a currency code; the list is not
       popup_width="w-56"
-      indicator={<CheckIcon size={14} className="text-muted-fg" />}
+      indicator={<CheckIcon size={14} className="text-gray-11" />}
       popup_vars={popup_vars}
       value={rhf.currency.value}
       // the schema has no empty currency, and the seam only emits undefined
@@ -187,7 +187,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
         checked_changed={(x) => rhf.cpf.onChange(x)}
       />
 
-      <p className="text-xs text-muted-fg">
+      <p className="text-xs text-gray-11">
         0.8% fee, capped at $5 — save vs. card (2.2% + $0.30)
       </p>
 

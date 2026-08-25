@@ -52,7 +52,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
             <div className="size-32.5 rounded-full bg-card grid place-items-center text-center">
               <div>
                 <span className="block text-2xl font-bold">100%</span>
-                <span className="text-xs text-muted-fg">
+                <span className="text-xs text-gray-11">
                   of growth
                   <br />
                   is yours
@@ -84,7 +84,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
             {pillars.map((p) => (
               <div
                 key={p.title}
-                className="flex gap-3.5 items-start bg-card border border-border rounded px-5 py-4.5"
+                className="flex gap-3.5 items-start bg-card border border-gray-6 rounded px-5 py-4.5"
               >
                 <span
                   className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
@@ -94,9 +94,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
                 </span>
                 <div>
                   <span className="font-bold">{p.title}</span>
-                  <p className="mt-0.5 text-sm/normal text-muted-fg">
-                    {p.body}
-                  </p>
+                  <p className="mt-0.5 text-sm/normal text-gray-11">{p.body}</p>
                 </div>
               </div>
             ))}

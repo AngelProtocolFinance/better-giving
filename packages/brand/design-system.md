@@ -351,7 +351,7 @@ Five sites, all carrying real text (counted, will drift):
 - `routes/dashboard.forms/table.tsx:145` — active/inactive pill
 
 The last two were the sharper argument: their *inactive* branch is
-`bg-muted text-muted-fg`, which passes, so the two halves of one control were
+`bg-gray-3 text-gray-11`, which passes, so the two halves of one control were
 held to different standards. Three ternaries in
 `_app.donation-calculator/{table,result1,result2}.tsx` show the same asymmetry
 the other way — an error branch with an authored band beside a success branch
@@ -880,7 +880,7 @@ dialog footer's tinted surface included.
   buttons at 320px is not on this row.
 - **The gap is `gap-4`.** The spacing the dialog set sits at, held at every
   width.
-- **`actions-band` is the only place a `bg-muted border-t` strip is authored.**
+- **`actions-band` is the only place a `bg-gray-3 border-t` strip is authored.**
   The sweep fails on any other class string carrying both.
 
 ## Two color layers, and the line between them
@@ -920,7 +920,7 @@ Three rules, and they are what make this a decision instead of a leak:
 - **Marketing surfaces only. Never product UI.** A dashboard, form, table or
   badge takes the semantic set. This is the rule that decides the `templates`
   badge in `_app.resources/resource-card.tsx`, which was reaching for `lilac/40`
-  with an invented purple ink — it takes `bg-muted text-muted-fg` (5.20:1)
+  with an invented purple ink — it takes `bg-gray-3 text-gray-11` (5.20:1)
   instead, alongside its two siblings which already use authored pairs.
 - **`--fg` is the only ink they carry, and it is measured above.** A decorative
   wash that needs a *second* ink has stopped being decorative; that is a mint

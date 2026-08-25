@@ -50,19 +50,19 @@ export function SettingsAdv({
           <p className="text-sm mb-2">
             The URL to redirect to after a successful donation. Donation
             information such as{" "}
-            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-gray-3 p-0.5 rounded">
               donor_name
             </code>
             ,{" "}
-            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-gray-3 p-0.5 rounded">
               donation_amount
             </code>
             ,{" "}
-            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-gray-3 p-0.5 rounded">
               donation_currency
             </code>
             , and{" "}
-            <code className="text-xs text-warning-subtle-fg bg-muted p-0.5 rounded">
+            <code className="text-xs text-warning-subtle-fg bg-gray-3 p-0.5 rounded">
               payment_method
             </code>{" "}
             would be included on the{" "}

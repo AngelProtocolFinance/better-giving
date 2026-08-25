@@ -14,7 +14,7 @@ export function Snippet({ classes = "", form_id, base_url }: Props) {
       <p className="text-sm gap-x-1 mb-1">
         Copy snippet below and paste into your website
       </p>
-      <div className="flex p-4 rounded bg-muted divide-x divide-border">
+      <div className="flex p-4 rounded bg-gray-3 divide-x divide-gray-6">
         <code className="w-full text-sm font-mono break-all block pr-2 whitespace-pre-line">
           {iframe_url}
         </code>

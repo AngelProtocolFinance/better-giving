@@ -15,7 +15,7 @@ export function Hero({ classes = "" }: IHero) {
       <h1 className="hero-heading mt-4 max-w-4xl">
         Fundraising you can audit. Free, forever.
       </h1>
-      <p className="section-body mt-5 max-w-2xl text-muted-fg">
+      <p className="section-body mt-5 max-w-2xl text-gray-11">
         Accept cards, bank, stocks, DAFs, and crypto with $0 platform fees. Our
         code is public, so you can verify it.
       </p>

@@ -32,7 +32,7 @@ export const WithChips = () => (
     chips={[
       <span
         key="recurring"
-        className="text-2xs uppercase tracking-badge rounded bg-muted text-muted-fg px-1.5 py-0.5"
+        className="text-2xs uppercase tracking-badge rounded bg-gray-3 text-gray-11 px-1.5 py-0.5"
       >
         Monthly
       </span>,

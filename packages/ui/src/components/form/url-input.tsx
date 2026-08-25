@@ -53,7 +53,7 @@ export function UrlInput(props: Props) {
           autoComplete="off"
           spellCheck={false}
         />
-        <span className="relative text-sm text-muted-fg pointer-events-none">
+        <span className="relative text-sm text-gray-11 pointer-events-none">
           https://
         </span>
       </div>

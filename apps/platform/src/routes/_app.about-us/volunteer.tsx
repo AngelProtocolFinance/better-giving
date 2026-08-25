@@ -23,7 +23,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
           <h2 id="volunteer-heading" className="section-heading">
             Volunteers. No investors. No salaries to protect.
           </h2>
-          <p className="text-muted-fg leading-relaxed text-pretty">
+          <p className="text-gray-11 leading-relaxed text-pretty">
             Better Giving is run by volunteers from across the nonprofit and
             technology worlds, people who build, maintain, and support the
             commons because they believe nonprofits deserve better financial
@@ -31,7 +31,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
             target to hit, which is exactly why we can promise free forever and
             mean it.
           </p>
-          <p className="text-muted-fg leading-relaxed text-pretty">
+          <p className="text-gray-11 leading-relaxed text-pretty">
             Want to lend your skills (code, design, writing, nonprofit
             expertise)? We'd love to have you.
           </p>

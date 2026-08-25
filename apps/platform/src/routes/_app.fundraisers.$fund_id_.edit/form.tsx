@@ -81,7 +81,7 @@ export function Form({
         classes={{
           field:
             "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
-          counter: "text-muted-fg",
+          counter: "text-gray-11",
           error: "text-right",
         }}
         error={
@@ -173,12 +173,12 @@ export function Form({
               <div className="relative w-full">
                 <DollarSign
                   size={15}
-                  className="text-muted-fg absolute top-1/2 left-2 transform -translate-y-1/2"
+                  className="text-gray-11 absolute top-1/2 left-2 transform -translate-y-1/2"
                 />
                 <input
                   type="number"
                   {...rhf.register(`increments.${idx}.value`)}
-                  className="w-full h-full  outline-ring rounded text-sm font-medium bg-input pl-8 pr-4 py-3.5 placeholder:text-muted-fg border disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+                  className="w-full h-full  outline-ring rounded text-sm font-medium bg-input pl-8 pr-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
                 />
               </div>
 
@@ -190,7 +190,7 @@ export function Form({
               <textarea
                 {...rhf.register(`increments.${idx}.label`)}
                 rows={2}
-                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-muted-fg border disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
               />
               <p
                 data-error={!!rhf.errors.increments?.[idx]?.label?.message}

@@ -77,5 +77,13 @@
    no rule, while text-popover-fg did, purely because a preview happened to
    write it. theme.css registers every name below as a --color-* token, so
    these are the authored vocabulary either way; what varied was which ones
-   the app source happened to reach for. */
-@source inline("{bg,text,border,ring}-{background,fg,card,card-fg,popover,popover-fg,primary,primary-fg,secondary,secondary-fg,muted,muted-fg,accent,accent-fg,destructive,destructive-fg,destructive-subtle,destructive-subtle-fg,success,success-fg,success-subtle,success-subtle-fg,warning,warning-fg,warning-subtle,warning-subtle-fg,sidebar,sidebar-fg,border,input,ring}");
+   the app source happened to reach for.
+   the line tokens are now input/ring alone — `border` moved to the neutral
+   scale below, so the row is surfaces and their ink and nothing else. */
+@source inline("{bg,text,border,ring}-{background,card,card-fg,popover,popover-fg,primary,primary-fg,secondary,secondary-fg,accent,accent-fg,destructive,destructive-fg,destructive-subtle,destructive-subtle-fg,success,success-fg,success-subtle,success-subtle-fg,warning,warning-fg,warning-subtle,warning-subtle-fg,sidebar,sidebar-fg,input,ring}");
+
+/* the neutral scale, whose steps replaced the four names dropped from the row
+   above — fg, muted, muted-fg and border. those are rungs, not things, so a
+   design names the step; theme.css no longer binds them to a utility at all.
+   the other four ramps are listed too: a mockup reaches for them the same way. */
+@source inline("{bg,text,border,ring,fill,stroke}-{gray,blue,green,red,amber}-{1,2,3,4,5,6,7,8,9,10,11,12}");

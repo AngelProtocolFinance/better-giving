@@ -101,7 +101,7 @@ export function IdentityForm({
           <RadioGroup.Label className="sr-only">
             Organization type
           </RadioGroup.Label>
-          <div className="flex gap-1 p-1 bg-muted rounded">
+          <div className="flex gap-1 p-1 bg-gray-3 rounded">
             {org_type_opts.map((o) => (
               <RadioGroup.Item
                 key={o.value}

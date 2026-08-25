@@ -55,7 +55,7 @@ export function Field<T extends InputType = InputType>({
       </Label>
       {props.sub ? (
         typeof props.sub === "string" ? (
-          <p className="text-muted-fg text-sm mb-2">{props.sub}</p>
+          <p className="text-gray-11 text-sm mb-2">{props.sub}</p>
         ) : (
           props.sub
         )
@@ -77,7 +77,7 @@ export function Field<T extends InputType = InputType>({
       {(tooltip && ( //tooltip in normal flow
         <p className={`${style.error} text-left mt-1 left-0 text-xs`}>
           {typeof tooltip === "string" ? (
-            <span className="text-muted-fg">{tooltip}</span>
+            <span className="text-gray-11">{tooltip}</span>
           ) : (
             tooltip
           )}{" "}

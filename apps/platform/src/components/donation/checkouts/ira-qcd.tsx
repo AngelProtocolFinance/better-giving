@@ -45,7 +45,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
         type="button"
         onClick={() => to_step("ira_qcd", props, "form", don_set)}
       />
-      <p className="mt-4 text-center text-muted-fg uppercase">
+      <p className="mt-4 text-center text-gray-11 uppercase">
         IRA Donation Pending
       </p>
       <p className="mt-4 text-center">
@@ -53,7 +53,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
         following information.
       </p>
 
-      <div className="grid gap-y-1 rounded bg-muted p-3 text-sm leading-relaxed mt-6">
+      <div className="grid gap-y-1 rounded bg-gray-3 p-3 text-sm leading-relaxed mt-6">
         <Row label="Payee name" value="Better Giving, Inc." />
         <Row label="EIN" value="87-3758939" />
         <div>

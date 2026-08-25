@@ -67,7 +67,7 @@ export default function Page() {
       <PublicHeader classes="sticky z-40 -top-px" />
       <main>
         <Hero />
-        <TrustBar classes="border-y border-border py-7" />
+        <TrustBar classes="border-y border-gray-6 py-7" />
         <PartnersStrip classes="border-b border-secondary" />
         <Steps classes="py-22" />
         <OwnGrow classes="bg-accent py-24" />

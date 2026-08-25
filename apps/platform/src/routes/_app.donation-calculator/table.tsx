@@ -31,7 +31,7 @@ export function Table({ classes = "", ...v }: Props) {
             ? "bg-success-subtle"
             : p.total < 0
               ? "bg-destructive-subtle"
-              : "bg-muted"
+              : "bg-gray-3"
         } p-4 @md:p-6 rounded @md:flex items-center gap-4 mb-2`}
       >
         {p.total > 0 ? (
@@ -65,7 +65,7 @@ export function Table({ classes = "", ...v }: Props) {
             <Tabs.Trigger
               key={p.value}
               value={p.label}
-              className="flex-1 py-2.5 font-medium leading-5 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-fg hover:text-primary data-selected:border-b-2 data-selected:border-primary data-selected:text-primary"
+              className="flex-1 py-2.5 font-medium leading-5 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-gray-12 hover:text-primary data-selected:border-b-2 data-selected:border-primary data-selected:text-primary"
             >
               {p.label}
             </Tabs.Trigger>

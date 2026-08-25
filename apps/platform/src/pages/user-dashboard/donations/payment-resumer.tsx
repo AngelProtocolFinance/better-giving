@@ -70,7 +70,7 @@ function QrModal(props: IQrModal) {
         Donation to {props.description}
       </h4>
 
-      <p className="text-muted-fg text-balance text-center mb-3.5 max-w-sm justify-self-center">
+      <p className="text-gray-11 text-balance text-center mb-3.5 max-w-sm justify-self-center">
         To complete your donation, send{" "}
         {ru_vdec(props.order_amount, props.usdpu, token.precision)}
         &nbsp;

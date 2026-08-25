@@ -61,7 +61,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 className={
                   data.from_public_msg_to_npo
                     ? "stroke-success"
-                    : "stroke-muted-fg fill-muted"
+                    : "stroke-gray-11 fill-gray-3"
                 }
                 size={16}
               />
@@ -92,7 +92,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 className={
                   data.from_private_msg_to_npo
                     ? "stroke-success"
-                    : "stroke-muted-fg fill-muted"
+                    : "stroke-gray-11 fill-gray-3"
                 }
                 size={16}
               />
@@ -123,7 +123,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
                 className={
-                  data.tribute ? "stroke-success" : "stroke-muted-fg fill-muted"
+                  data.tribute ? "stroke-success" : "stroke-gray-11 fill-gray-3"
                 }
                 size={16}
               />
@@ -171,7 +171,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
-            <p className="text-muted-fg">
+            <p className="text-gray-11">
               Encourage your friends to join in and contribute, making a
               collective impact through donations.
             </p>
@@ -199,7 +199,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               ? href("/forms/:id", { id: data.form_id })
               : href("/donate-widget/:id", { id: data.to_id })
           }
-          className="mt-4 btn btn-secondary w-full [.pending]:text-muted-fg"
+          className="mt-4 btn btn-secondary w-full [.pending]:text-gray-11"
         >
           Go Back
         </NavLink>
@@ -207,7 +207,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
       {!widget_version && (
         <NavLink
           to={href("/dashboard/donations")}
-          className="mt-4 btn btn-primary w-full [.pending]:text-muted-fg"
+          className="mt-4 btn btn-primary w-full [.pending]:text-gray-11"
         >
           My donations
         </NavLink>

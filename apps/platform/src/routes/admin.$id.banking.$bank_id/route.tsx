@@ -74,7 +74,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
         </Row>
       </dl>
       {d.wacc_unavailable && (
-        <p className="text-sm text-muted-fg mt-2">
+        <p className="text-sm text-gray-11 mt-2">
           Bank account details couldn't be loaded from Wise. This payout method
           is unchanged — try again shortly.
         </p>

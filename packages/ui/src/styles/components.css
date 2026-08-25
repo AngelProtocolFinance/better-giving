@@ -40,7 +40,7 @@
   .btn-secondary {
     background-color: var(--card);
     color: var(--secondary-fg);
-    border: 1px solid var(--border);
+    border: 1px solid var(--gray-6);
     &:active {
       background-color: var(--secondary-active);
     }
@@ -59,8 +59,8 @@
       background-color: var(--accent-active);
     }
     &:disabled {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
   }
 
@@ -170,8 +170,8 @@
   .btn-warning,
   .btn-destructive {
     &:disabled {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
   }
 
@@ -193,8 +193,8 @@
   .btn-success,
   .btn-warning {
     &.pending {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
       pointer-events: none;
     }
   }
@@ -207,8 +207,8 @@
   a.btn-outline,
   a.btn-destructive {
     &[aria-disabled="true"] {
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
   }
 
@@ -223,20 +223,20 @@
     background-color: var(--input);
     padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
     min-block-size: var(--field-size);
-    border: 1px solid var(--border);
+    border: 1px solid var(--gray-6);
     outline-color: var(--ring);
-    color: var(--fg);
+    color: var(--gray-12);
 
     &::placeholder {
-      color: var(--muted-fg);
+      color: var(--gray-11);
     }
     /* biome-ignore lint/style/noDescendingSpecificity: unrelated to a.btn-* selectors */
     &[aria-disabled="true"],
     &[readonly],
     &:disabled {
       pointer-events: none;
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
 
     /* :user-invalid, never :invalid — :invalid paints every required-but-empty
@@ -256,8 +256,8 @@
       var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.4286 */
     );
     background-color: var(--input);
-    border: 1px solid var(--border);
-    color: var(--fg);
+    border: 1px solid var(--gray-6);
+    color: var(--gray-12);
 
     &:has(input:focus) {
       outline: solid;
@@ -266,14 +266,14 @@
     }
 
     &:has(input::placeholder) {
-      color: var(--muted-fg);
+      color: var(--gray-11);
     }
     &:has(input[aria-disabled="true"]),
     &:has(input[readonly]),
     &:has(input:disabled) {
       pointer-events: none;
-      background-color: var(--muted);
-      color: var(--muted-fg);
+      background-color: var(--gray-3);
+      color: var(--gray-11);
     }
 
     &:has(input:user-invalid),
@@ -320,7 +320,7 @@
     }
     &[data-required="false"]::after {
       content: " (optional)";
-      color: var(--muted-fg);
+      color: var(--gray-11);
       font-weight: normal;
       font-size: 0.8em;
     }
@@ -343,7 +343,7 @@
     }
     &[data-required="false"]::after {
       content: " (optional)";
-      color: var(--muted-fg);
+      color: var(--gray-11);
       font-weight: normal;
       font-size: 0.8em;
     }
@@ -369,25 +369,25 @@
     bottom: 50%;
     transform: translateY(50%);
     font-size: var(--text-sm);
-    color: var(--muted-fg);
+    color: var(--gray-11);
   }
 
   .table {
     min-width: 100%;
-    border: 1px solid var(--border);
+    border: 1px solid var(--gray-6);
     border-collapse: separate;
     border-spacing: 0;
     font-feature-settings: "tnum", "zero";
 
     & thead {
-      background-color: var(--muted);
+      background-color: var(--gray-3);
     }
 
     & th {
       font-weight: var(--font-weight-medium);
       font-size: var(--text-sm);
       line-height: var(--text-sm--line-height);
-      color: var(--muted-fg);
+      color: var(--gray-11);
     }
 
     & tbody tr {
@@ -397,12 +397,12 @@
 
     /* column dividers */
     & :is(th, td) + :is(th, td) {
-      border-left: 1px solid var(--border);
+      border-left: 1px solid var(--gray-6);
     }
 
     /* row dividers */
     & :is(tbody, tfoot) > tr > :is(th, td) {
-      border-top: 1px solid var(--border);
+      border-top: 1px solid var(--gray-6);
     }
 
     & :is(th, td) {
@@ -426,8 +426,8 @@
       }
       /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
       &:disabled {
-        background-color: var(--muted);
-        color: var(--muted-fg);
+        background-color: var(--gray-3);
+        color: var(--gray-11);
       }
     }
   }

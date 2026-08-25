@@ -81,13 +81,13 @@ const claims = {
   "surface fills": SURFACES.map((s) => `bg-${s}`),
   "surface ink": [
     ...SURFACES.map((s) => `text-${s}-fg`),
-    "text-fg",
-    "text-muted-fg",
+    "text-gray-12",
+    "text-gray-11",
   ],
   "authored subtle pairs": ["destructive", "success", "warning"].flatMap(
     (s) => [`bg-${s}-subtle`, `text-${s}-subtle-fg`]
   ),
-  lines: ["border-border", "border-input", "ring-ring", "outline-ring"],
+  lines: ["border-gray-6", "border-input", "ring-ring", "outline-ring"],
   "chart ramp": ["bg", "text", "border", "fill", "stroke"].flatMap((p) =>
     [1, 2, 3, 4, 5].map((n) => `${p}-chart-${n}`)
   ),

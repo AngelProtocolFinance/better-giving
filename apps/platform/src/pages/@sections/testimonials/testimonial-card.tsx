@@ -5,7 +5,7 @@ export const TestimonialCard = (props: Testimonial) => {
     <div className="grid content-start p-6 bg-card rounded w-full">
       <p className="text-lg">{props.content}</p>
       <p className="mt-4 font-bold text-left">{props.reviewer}</p>
-      <p className="font-medium text-left text-muted-fg">{props.org}</p>
+      <p className="font-medium text-left text-gray-11">{props.org}</p>
       <img
         width={props.org_logo.w}
         height={props.org_logo.h}

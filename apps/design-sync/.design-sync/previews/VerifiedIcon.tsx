@@ -9,7 +9,7 @@ export const Sizes = () => (
     {[16, 21, 28, 40].map((size) => (
       <div key={size} className="flex flex-col items-center gap-1">
         <VerifiedIcon size={size} />
-        <span className="text-2xs text-muted-fg">{size}px</span>
+        <span className="text-2xs text-gray-11">{size}px</span>
       </div>
     ))}
   </div>
@@ -39,7 +39,7 @@ export const OnProfileHeader = () => (
       <h2 className="text-2xl font-semibold">Ocean Conservancy</h2>
       <VerifiedIcon size={28} classes="shrink-0" />
     </div>
-    <p className="text-sm text-muted-fg">
+    <p className="text-sm text-gray-11">
       EIN 87-3758939 &bull; Raised $1,200.00 this month
     </p>
   </div>

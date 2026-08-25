@@ -36,7 +36,7 @@ export default function Page({
     <div className="px-6 py-4 md:px-10 md:py-8">
       <Link
         to={back_to}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-fg hover:text-fg"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-11 hover:text-gray-12"
       >
         <ArrowLeft size={16} />
         {back_label}
@@ -45,7 +45,7 @@ export default function Page({
       <h1 className="text-4xl font-bold leading-tight tracking-tight">
         {name ?? email}
       </h1>
-      {name && <p className="mt-1.5 text-base text-muted-fg">{email}</p>}
+      {name && <p className="mt-1.5 text-base text-gray-11">{email}</p>}
 
       <Section heading="Lifetime">
         <div className="flex flex-wrap items-baseline gap-x-14 gap-y-2">
@@ -58,7 +58,7 @@ export default function Page({
             label="total"
           />
         </div>
-        <p className="mt-2 text-xs text-muted-fg">since {since_label(since)}</p>
+        <p className="mt-2 text-xs text-gray-11">since {since_label(since)}</p>
       </Section>
 
       {has_subs && (
@@ -113,8 +113,8 @@ interface ISectionProps {
 
 function Section({ heading, children }: ISectionProps) {
   return (
-    <section className="mt-8 border-t border-border pt-6">
-      <h3 className="text-2xs font-semibold uppercase tracking-wider text-muted-fg">
+    <section className="mt-8 border-t border-gray-6 pt-6">
+      <h3 className="text-2xs font-semibold uppercase tracking-wider text-gray-11">
         {heading}
       </h3>
       <div className="mt-3">{children}</div>
@@ -136,7 +136,7 @@ function Stat({ value, label, size = "lg" }: IStatProps) {
       >
         {value}
       </span>
-      <span className="text-sm text-muted-fg">{label}</span>
+      <span className="text-sm text-gray-11">{label}</span>
     </span>
   );
 }
@@ -174,14 +174,14 @@ function SubscriptionPills({
             key={s.id}
             title={cancelled ? "cancelled" : undefined}
             className={`inline-flex items-center gap-1.5 rounded border bg-card px-2.5 py-1 text-xs ${
-              cancelled ? "border-dashed border-border" : "border-border"
+              cancelled ? "border-dashed border-gray-6" : "border-gray-6"
             }`}
           >
             <RefreshCw size={12} style={{ color: sub_color(idx) }} />
             <span className="font-semibold">
               ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}
             </span>
-            <span className="text-muted-fg">{freq_label}</span>
+            <span className="text-gray-11">{freq_label}</span>
           </li>
         );
       })}
@@ -190,7 +190,7 @@ function SubscriptionPills({
           <button
             type="button"
             onClick={() => set_show_inactive((v) => !v)}
-            className="inline-flex items-center rounded border border-dashed border-border px-2.5 py-1 text-xs text-muted-fg hover:text-fg"
+            className="inline-flex items-center rounded border border-dashed border-gray-6 px-2.5 py-1 text-xs text-gray-11 hover:text-gray-12"
           >
             {show_inactive
               ? `hide ${inactive_count} inactive`

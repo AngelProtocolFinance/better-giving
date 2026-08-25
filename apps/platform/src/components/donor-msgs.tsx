@@ -57,7 +57,7 @@ export function DonorMsgs({ classes = "", id }: Props) {
                 {donor.donor_name}
               </p>
               {donor.donor_message && (
-                <p className="text-muted-fg mt-1">{donor.donor_message}</p>
+                <p className="text-gray-11 mt-1">{donor.donor_message}</p>
               )}
             </div>
           </div>

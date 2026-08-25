@@ -28,8 +28,8 @@ export function EmptyState({
   children,
 }: IShared) {
   return (
-    <div className={`py-8 text-center text-muted-fg ${classes}`}>
-      {heading && <h3 className="text-lg text-fg">{heading}</h3>}
+    <div className={`py-8 text-center text-gray-11 ${classes}`}>
+      {heading && <h3 className="text-lg text-gray-12">{heading}</h3>}
       <p className={heading ? "mt-1" : ""}>{children}</p>
       {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>

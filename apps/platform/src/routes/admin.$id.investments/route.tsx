@@ -52,7 +52,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <h3>Investments</h3>{" "}
         <HoverCard
           tip={
-            <HoverContent className="bg-popover outline outline-border text-popover-fg text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
+            <HoverContent className="bg-popover outline outline-gray-6 text-popover-fg text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
               <span className="block mb-2 font-medium">
                 Portfolio composition
               </span>
@@ -100,7 +100,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             </HoverContent>
           }
         >
-          <CircleHelp size={16} className="text-muted-fg ml-1" />
+          <CircleHelp size={16} className="text-gray-11 ml-1" />
         </HoverCard>
       </div>
       <div className="text-xl font-semibold bg-card border p-4 rounded">

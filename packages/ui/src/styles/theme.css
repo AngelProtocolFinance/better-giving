@@ -221,8 +221,16 @@
   --color-gray-11: var(--gray-11);
   --color-gray-12: var(--gray-12);
 
+  /* --fg, --muted, --muted-fg and --border are deliberately NOT bound to a
+     utility. they name a rung on the neutral scale and nothing else, so the
+     call site names the step — text-gray-12, bg-gray-3, text-gray-11,
+     border-gray-6 — and `text-muted-fg` fails to compile rather than drifting
+     back in beside its own step name. closed the same way --radius-* and the
+     type ladders above are.
+     the TOKENS stay: colors.css still declares all four, and the email
+     templates read all four off the generated hex mirror — a flat hex map with
+     no tailwind namespace to drift within, so the name costs nothing there. */
   --color-background: var(--background);
-  --color-fg: var(--fg);
   --color-card: var(--card);
   --color-card-fg: var(--card-fg);
   --color-popover: var(--popover);
@@ -232,8 +240,6 @@
   --color-primary-deep: var(--primary-deep);
   --color-secondary: var(--secondary);
   --color-secondary-fg: var(--secondary-fg);
-  --color-muted: var(--muted);
-  --color-muted-fg: var(--muted-fg);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-destructive: var(--destructive);
@@ -249,7 +255,6 @@
   --color-warning-fg: var(--warning-fg);
   --color-warning-subtle: var(--warning-subtle);
   --color-warning-subtle-fg: var(--warning-subtle-fg);
-  --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-primary-ring: var(--primary-ring);

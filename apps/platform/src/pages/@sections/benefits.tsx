@@ -46,7 +46,7 @@ function Benefit(props: TBenefit) {
         <h4 className="text-xl @2xl:text-2xl text-center @2xl:text-left mb-6 text-pretty">
           {props.title}
         </h4>
-        <p className="text-lg @2xl:text-xl text-muted-fg text-center @2xl:text-left">
+        <p className="text-lg @2xl:text-xl text-gray-11 text-center @2xl:text-left">
           {props.description}
         </p>
       </div>

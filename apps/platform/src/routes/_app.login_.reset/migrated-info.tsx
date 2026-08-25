@@ -27,7 +27,7 @@ export function MigratedInfo(props: Props) {
         </p>
       </div>
 
-      <p className="mt-4 text-xs text-muted-fg text-center">
+      <p className="mt-4 text-xs text-gray-11 text-center">
         This is a one-time step — once you set your password, you can log in
         normally.
       </p>

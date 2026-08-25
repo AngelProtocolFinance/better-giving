@@ -18,7 +18,7 @@ export const InCard = () => (
     <ImagePlaceholder className="h-40 w-full" />
     <div className="p-3">
       <h3 className="text-center mb-2">Books for Kids</h3>
-      <p className="text-muted-fg text-sm text-center">
+      <p className="text-gray-11 text-sm text-center">
         Putting a book in every child's hands.
       </p>
     </div>

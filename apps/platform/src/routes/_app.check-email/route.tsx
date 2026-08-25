@@ -57,7 +57,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           <button
             type="submit"
             disabled={sending || throttled}
-            className="btn btn-lg btn-primary rounded w-full mt-6 disabled:bg-muted disabled:text-muted-fg"
+            className="btn btn-lg btn-primary rounded w-full mt-6 disabled:bg-gray-3 disabled:text-gray-11"
           >
             {sending ? "Sending…" : "Send a new link"}
           </button>
@@ -73,7 +73,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         )}
 
         {throttled && (
-          <p className="text-center text-xs sm:text-sm text-muted-fg mt-3">
+          <p className="text-center text-xs sm:text-sm text-gray-11 mt-3">
             Available again in 00:{String(counter).padStart(2, "0")}
           </p>
         )}
@@ -86,11 +86,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
             it is also the only place the expiry and single use are stated, so
             neither heading needs to repeat them. */}
-        <p className="text-center text-xs sm:text-sm text-muted-fg mt-3">
+        <p className="text-center text-xs sm:text-sm text-gray-11 mt-3">
           Links expire in 1 hour and work only once. If yours hasn't arrived,
           check your spam folder or email{" "}
           <a
-            className="underline hover:text-fg"
+            className="underline hover:text-gray-12"
             href="mailto:support@better.giving"
           >
             support@better.giving
@@ -102,7 +102,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             here is otherwise a dead end with no link out of it */}
         <NavLink
           to={href("/signup")}
-          className="text-center text-xs sm:text-sm text-muted-fg underline hover:text-fg mt-3"
+          className="text-center text-xs sm:text-sm text-gray-11 underline hover:text-gray-12 mt-3"
         >
           Wrong address? Start over
         </NavLink>

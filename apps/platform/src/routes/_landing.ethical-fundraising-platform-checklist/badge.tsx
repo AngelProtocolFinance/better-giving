@@ -7,7 +7,7 @@ export type Tone = "neutral" | "warning" | "success";
    shape (bg-warning-subtle / text-warning-subtle-fg) is for a tinted surface
    carrying body copy. see packages/brand/design-system.md. */
 const TONES: Record<Tone, string> = {
-  neutral: "bg-muted text-muted-fg",
+  neutral: "bg-gray-3 text-gray-11",
   warning: "bg-warning text-warning-fg",
   success: "bg-success text-success-fg",
 };

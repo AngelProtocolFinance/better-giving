@@ -19,7 +19,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
         >
           Own it. Grow it.
         </h2>
-        <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
+        <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
           Most platforms move your money and keep the keys. We built the
           opposite: infrastructure you can own, and reserves that grow.
         </p>
@@ -31,13 +31,13 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
               alt="Two Lairas shaking hands"
             />
             <h3 className="text-2xl font-bold">Own it.</h3>
-            <p className="text-base/relaxed text-muted-fg">
+            <p className="text-base/relaxed text-gray-11">
               Our whole stack is open source: trust you can verify in code, not
               just promises. You own the donor relationship, your data exports
               freely, and if you ever want full independence, you can self-host
               the donation form and own your own gateway. And there's no
               lock-in, including your recurring donors: our{" "}
-              <strong className="text-fg">
+              <strong className="text-gray-12">
                 Recurring-Donor Portability Guarantee
               </strong>{" "}
               means if you ever leave, we actively help migrate your recurring
@@ -51,7 +51,7 @@ export function OwnGrow({ classes = "" }: IOwnGrow) {
               alt="Laira presenting a growth chart"
             />
             <h3 className="text-2xl font-bold">Grow it.</h3>
-            <p className="text-base/relaxed text-muted-fg">
+            <p className="text-base/relaxed text-gray-11">
               We don't just move money. We help you keep and grow it. Route any
               share of what you raise into FDIC-insured savings (~3-4%) or a
               professionally managed Sustainability Fund, and turn this

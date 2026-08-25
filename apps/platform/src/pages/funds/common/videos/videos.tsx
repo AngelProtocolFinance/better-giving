@@ -23,7 +23,7 @@ export function Videos({ classes = "", ...props }: IVideos) {
           <Plus size={16} />
         </button>
       </div>
-      <p id="videos-description" className="text-muted-fg text-sm mb-2">
+      <p id="videos-description" className="text-gray-11 text-sm mb-2">
         Upload a video or two about your fundraiser - you could use a video from
         your chosen nonprofit.
       </p>

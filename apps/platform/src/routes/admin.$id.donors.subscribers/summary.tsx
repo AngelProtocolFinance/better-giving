@@ -32,7 +32,7 @@ export function SubscribersKpis({ summary, trends }: IKpiProps) {
             ${summary.new_usd.toLocaleString()} new
           </span>
         )}
-        {has_new && has_cancelled && <span className="text-muted-fg"> · </span>}
+        {has_new && has_cancelled && <span className="text-gray-11"> · </span>}
         {has_cancelled && (
           <span className="text-destructive">
             ${summary.cancelled_usd.toLocaleString()} cancelled

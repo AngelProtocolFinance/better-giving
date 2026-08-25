@@ -26,7 +26,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
         >
           Every way to give, in one flow
         </h2>
-        <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
+        <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
           Stop turning donors away. One integration covers everything. No extra
           portals, no added admin. Non-cash gifts are liquidated for you and
           granted as cash.
@@ -35,10 +35,10 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
           {gift_types.map((g) => (
             <div
               key={g.title}
-              className="bg-accent border border-border rounded px-6 py-5.5"
+              className="bg-accent border border-gray-6 rounded px-6 py-5.5"
             >
               <span className="block font-bold">{g.title}</span>
-              <span className="text-sm/normal text-muted-fg">{g.body}</span>
+              <span className="text-sm/normal text-gray-11">{g.body}</span>
             </div>
           ))}
         </div>

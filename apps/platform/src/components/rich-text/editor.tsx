@@ -117,7 +117,7 @@ function Toolbar() {
     selectors.isActiveAnnotation("link")
   );
   return (
-    <div className="flex items-center gap-0.5 pb-2 border-b border-muted">
+    <div className="flex items-center gap-0.5 pb-2 border-b border-gray-3">
       <DecoratorBtn name="strong" icon={<BoldIcon size={16} />} />
       <DecoratorBtn name="em" icon={<ItalicIcon size={16} />} />
       <ListBtn name="number" icon={<ListOrderedIcon size={16} />} />
@@ -125,7 +125,7 @@ function Toolbar() {
       <button
         type="button"
         aria-label={link_active ? "Remove link" : "Insert link"}
-        className="p-1.5 rounded cursor-pointer text-muted-fg hover:text-fg"
+        className="p-1.5 rounded cursor-pointer text-gray-11 hover:text-gray-12"
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => {
           const annotation = selectors.isActiveAnnotation("link")(
@@ -170,7 +170,7 @@ function DecoratorBtn({
       type="button"
       aria-label={decorator_names[name]}
       aria-pressed={active}
-      className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-muted-fg hover:text-fg"}`}
+      className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-gray-11 hover:text-gray-12"}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => {
         editor.send({ type: "decorator.toggle", decorator: name });
@@ -201,7 +201,7 @@ function ListBtn({
       type="button"
       aria-label={list_names[name]}
       aria-pressed={active}
-      className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-muted-fg hover:text-fg"}`}
+      className={`p-1.5 rounded cursor-pointer ${active ? "text-primary" : "text-gray-11 hover:text-gray-12"}`}
       onPointerDown={(e) => e.preventDefault()}
       onClick={() => {
         editor.send({ type: "list item.toggle", listItem: name });

@@ -45,11 +45,11 @@
 @utility radio {
   @apply flex items-center gap-4 data-[required=true]:after:ml-1 data-[required=true]:after:content-['*'] data-[required=true]:after:text-destructive;
   & > input {
-    @apply appearance-none h-4 relative aspect-square border rounded-full before:content-[''] before:h-2.5 before:aspect-square before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full checked:before:bg-primary disabled:checked:before:bg-muted focus:outline-2 focus:outline-ring;
+    @apply appearance-none h-4 relative aspect-square border rounded-full before:content-[''] before:h-2.5 before:aspect-square before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:rounded-full checked:before:bg-primary disabled:checked:before:bg-gray-3 focus:outline-2 focus:outline-ring;
   }
 }
 @utility checkbox {
-  @apply accent-primary size-4 shrink-0 focus:outline-2 focus:outline-ring disabled:accent-muted;
+  @apply accent-primary size-4 shrink-0 focus:outline-2 focus:outline-ring disabled:accent-gray-3;
 }
 
 @utility overlay {
@@ -197,16 +197,16 @@
     background-color: color-mix(in oklch, var(--form-primary) 85%, black);
   }
   &:disabled {
-    background-color: var(--muted);
-    color: var(--muted-fg);
+    background-color: var(--gray-3);
+    color: var(--gray-11);
   }
   /* the in-flight rung, matching the six variants in components.css. it cannot
      be picked up from there: --form-primary is a tenant value and this tier is
      the only thing that paints it, so a fill it does not restate stays the
      tenant's brand while the control is submitting. */
   &.pending {
-    background-color: var(--muted);
-    color: var(--muted-fg);
+    background-color: var(--gray-3);
+    color: var(--gray-11);
     pointer-events: none;
   }
 }
@@ -268,7 +268,7 @@
    new scroller cannot be half-skinned. axis is deliberately not included:
    this is decoration, and the caller still says which way its content runs. */
 @utility scrollbars {
-  @apply scrollbar-thin scrollbar-thumb-ring scrollbar-track-border;
+  @apply scrollbar-thin scrollbar-thumb-ring scrollbar-track-gray-6;
 }
 
 /* the wrapper a wide table sits in. a table is the one thing on a dashboard
@@ -322,7 +322,7 @@
 }
 
 @utility actions-band {
-  @apply p-3 sm:px-8 sm:py-4 bg-muted border-t empty:h-12;
+  @apply p-3 sm:px-8 sm:py-4 bg-gray-3 border-t empty:h-12;
 }
 
 @utility absolute-center {
@@ -381,7 +381,7 @@
 }
 
 /* the small uppercase label above a section heading — the canonical eyebrow.
-   type only: color is the caller's (text-primary / text-muted-fg /
+   type only: color is the caller's (text-primary / text-gray-11 /
    text-secondary), as is any size override (text-2xs on dense surfaces).
    distinct from pre-heading, which is the larger lead-in that is not always
    uppercased. */

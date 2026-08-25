@@ -45,7 +45,7 @@ export const Inline = () => (
 export const InCard = () => (
   <div className="w-64 bg-card border rounded p-3">
     <h3 className="text-center mb-2">Ocean Conservancy</h3>
-    <p className="text-muted-fg text-sm text-center mb-4">
+    <p className="text-gray-11 text-sm text-center mb-4">
       Protecting the ocean from today's greatest global challenges.
     </p>
     <Target progress={6_400} target={25_000} />

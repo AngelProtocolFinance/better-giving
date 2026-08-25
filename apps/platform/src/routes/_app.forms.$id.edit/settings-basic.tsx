@@ -119,7 +119,7 @@ export function SettingsBasic({
               <div className="relative w-full">
                 <DollarSign
                   size={14}
-                  className="text-muted-fg absolute top-1/2 left-3 -translate-y-1/2"
+                  className="text-gray-11 absolute top-1/2 left-3 -translate-y-1/2"
                 />
                 <input
                   type="number"
@@ -137,7 +137,7 @@ export function SettingsBasic({
               <textarea
                 rows={2}
                 {...register(`increments.${idx}.label`)}
-                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-muted-fg border disabled:pointer-events-none disabled:bg-muted disabled:text-muted-fg"
+                className="w-full  outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-gray-11 border disabled:pointer-events-none disabled:bg-gray-3 disabled:text-gray-11"
               />
               <p
                 data-error={!!errors.increments?.[idx]?.label?.message}

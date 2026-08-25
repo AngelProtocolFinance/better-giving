@@ -86,7 +86,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                   </Content>
                 }
               >
-                <InfoIcon size={14} className="text-muted-fg" />
+                <InfoIcon size={14} className="text-gray-11" />
               </Tooltip>
             </div>
           </th>
@@ -154,7 +154,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                               </Content>
                             }
                           >
-                            <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-muted-fg figures">
+                            <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-gray-11 figures">
                               <SparklesIcon
                                 className="fill-success stroke-success"
                                 size={11}

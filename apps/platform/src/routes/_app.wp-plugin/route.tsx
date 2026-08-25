@@ -35,7 +35,7 @@ export default function WpPlugin() {
               Wordpress Plugin
             </ExtLink>{" "}
             (ZIP file).
-            <p className="text-muted-fg">
+            <p className="text-gray-11">
               SHA256 Checksum:
               34f1aa11ab99e691e290b128d11d019cc9f7cb29f14f01f921b03835316880ce
             </p>

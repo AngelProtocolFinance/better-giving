@@ -49,14 +49,14 @@ export function DateField({
       <DateInput.Control className="flex items-center gap-2">
         <DateInput.SegmentGroup
           index={0}
-          className="flex-1 min-w-0 flex items-center gap-0.5 px-2 py-3.5 rounded border border-border bg-input text-sm text-fg data-invalid:border-destructive focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-2"
+          className="flex-1 min-w-0 flex items-center gap-0.5 px-2 py-3.5 rounded border border-gray-6 bg-input text-sm text-gray-12 data-invalid:border-destructive focus-within:outline-2 focus-within:outline-ring focus-within:outline-offset-2"
           data-invalid={error ? true : undefined}
         >
           <DateInput.SegmentContext>
             {(seg: DateValue | unknown) => (
               <DateInput.Segment
                 segment={seg as any}
-                className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-muted-fg figures"
+                className="px-0.5 rounded focus:outline-none focus:bg-secondary focus:text-secondary-fg data-placeholder:text-gray-11 figures"
               />
             )}
           </DateInput.SegmentContext>

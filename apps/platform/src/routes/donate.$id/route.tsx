@@ -87,7 +87,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           />
         </div>
         <FAQ classes="max-md:px-4 md:col-start-2 md:row-span-5 md:w-75.5" />
-        <p className="max-md:px-4 mb-4 max-mbcol-start-1 text-sm leading-normal text-left text-muted-fg">
+        <p className="max-md:px-4 mb-4 max-mbcol-start-1 text-sm leading-normal text-left text-gray-11">
           <span className="block mb-0.5">
             Need help? See{" "}
             <Link to="./#faqs" className="hover:underline font-medium">

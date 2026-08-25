@@ -17,7 +17,7 @@ const row = (rows: Row[], valueError?: string) => (idx: number) => {
     <>
       <div className="grid grid-rows-subgrid row-span-2">
         <div className="relative w-full">
-          <span className="text-muted-fg absolute top-1/2 left-3 -translate-y-1/2 text-sm">
+          <span className="text-gray-11 absolute top-1/2 left-3 -translate-y-1/2 text-sm">
             $
           </span>
           <input
@@ -38,7 +38,7 @@ const row = (rows: Row[], valueError?: string) => (idx: number) => {
           rows={2}
           readOnly
           value={f?.label ?? ""}
-          className="w-full outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-muted-fg border"
+          className="w-full outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-gray-11 border"
         />
         <p className="mt-1 empty:hidden text-left text-xs text-destructive" />
       </div>

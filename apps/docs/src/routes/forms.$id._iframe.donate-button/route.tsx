@@ -21,8 +21,8 @@ export default function DonateButton() {
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-fg">Donate Button</h1>
-        <p className="text-sm text-muted-fg mt-1">
+        <h1 className="text-xl font-bold text-gray-12">Donate Button</h1>
+        <p className="text-sm text-gray-11 mt-1">
           Add a donate button that opens the form in a dialog when clicked.
         </p>
         <a

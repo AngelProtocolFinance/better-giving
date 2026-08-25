@@ -32,7 +32,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
       className="contents"
     >
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Cancel Recurring Donation
         </p>
         <Dialog.CloseTrigger asChild>
@@ -42,14 +42,14 @@ function Content({ recipient_name }: { recipient_name: string }) {
             preventScrollReset
             replace
             to=".."
-            className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg aria-disabled:pointer-events-none"
+            className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11 aria-disabled:pointer-events-none"
           >
             <X className="size-4.5 sm:size-6" />
           </Link>
         </Dialog.CloseTrigger>
       </div>
 
-      <p className="px-6 pb-4 text-muted-fg mt-4">
+      <p className="px-6 pb-4 text-gray-11 mt-4">
         <span className="block">
           You are about to cancel your recurring donations to
         </span>
@@ -57,7 +57,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
         cannot be undone. You will no longer be charged for this subscription.
       </p>
 
-      <div className="px-6 pb-4 text-center text-muted-fg" />
+      <div className="px-6 pb-4 text-center text-gray-11" />
 
       <div className="px-6 w-full pb-6">
         <Field

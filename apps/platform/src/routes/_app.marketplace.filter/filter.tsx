@@ -25,12 +25,12 @@ export default function Filter({ classes = "" }: { classes?: string }) {
       }}
     >
       <Portal>
-        <Dialog.Backdrop className="fixed z-40 inset-0 bg-fg/30" />
+        <Dialog.Backdrop className="fixed z-40 inset-0 bg-gray-12/30" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
             className={`${classes} ${modal_box.panel} isolate border bg-background`}
           >
-            <div className="bg-muted flex items-center p-4 border-b">
+            <div className="bg-gray-3 flex items-center p-4 border-b">
               <p className="font-bold  uppercase mr-auto">Filters</p>
               <button
                 type="button"
@@ -41,7 +41,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
                     { replace: true, preventScrollReset: true }
                   )
                 }
-                className="text-muted-fg text-sm mr-4"
+                className="text-gray-11 text-sm mr-4"
               >
                 Clear Filters
               </button>
@@ -60,7 +60,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
               <Countries />
             </div>
 
-            <div className="px-2 divide-y divide-border">
+            <div className="px-2 divide-y divide-gray-6">
               <Designations />
               <KYCFilter />
               {/* <VerificationFilter /> */}

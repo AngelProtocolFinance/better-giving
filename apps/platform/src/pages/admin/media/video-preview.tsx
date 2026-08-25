@@ -31,7 +31,7 @@ export function VideoPreview(props: IMedia) {
               props.featured
                 ? "fill-warning-subtle-fg stroke-warning-subtle-fg"
                 : ""
-            } group-disabled:text-muted-fg group-disabled:fill-muted-fg`}
+            } group-disabled:text-gray-11 group-disabled:fill-gray-11`}
           />
         </CRUDBtn>
         <Link
@@ -43,7 +43,7 @@ export function VideoPreview(props: IMedia) {
               prev_url: props.url,
             }).toString(),
           }}
-          className="p-1.5 text-lg rounded-full hover:bg-secondary group aria-disabled:text-muted-fg"
+          className="p-1.5 text-lg rounded-full hover:bg-secondary group aria-disabled:text-gray-11"
         >
           <Pencil size={16} />
         </Link>
@@ -78,7 +78,7 @@ function CRUDBtn({ className, children, featured, ...props }: ICRUDBtn) {
       <button
         type="submit"
         {...props}
-        className={`p-1.5 text-lg rounded-full hover:bg-secondary group disabled:text-muted-fg group aria-disabled:text-muted-fg ${className}`}
+        className={`p-1.5 text-lg rounded-full hover:bg-secondary group disabled:text-gray-11 group aria-disabled:text-gray-11 ${className}`}
       >
         {fetcher.state === "submitting" ? (
           <LoaderCircle className="animate-spin" />

@@ -83,7 +83,7 @@ const ptComponents: PortableTextComponents = {
             className="rounded"
           />
           {value.caption && (
-            <figcaption className="mt-2 text-center text-sm text-muted-fg">
+            <figcaption className="mt-2 text-center text-sm text-gray-11">
               {value.caption}
             </figcaption>
           )}
@@ -118,7 +118,7 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
         {post.title}
       </h1>
 
-      <p className="text-sm mt-8 text-muted-fg">
+      <p className="text-sm mt-8 text-gray-11">
         Posted:{" "}
         {new Date(post.publishedAt).toLocaleDateString(undefined, {
           day: "numeric",
@@ -127,9 +127,9 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
         })}
       </p>
       {post.author?.name && (
-        <p className="text-muted-fg text-sm">Author: {post.author.name}</p>
+        <p className="text-gray-11 text-sm">Author: {post.author.name}</p>
       )}
-      <div className="w-full h-px bg-muted my-4" />
+      <div className="w-full h-px bg-gray-3 my-4" />
 
       <div className="prose lg:prose-lg prose-a:text-primary hover:prose-a:text-primary">
         {Array.isArray(post.body) && (

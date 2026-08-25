@@ -43,7 +43,7 @@ export function Card({
 
           {/* TAGLINE */}
           {tagline && tagline !== PLACEHOLDER_TAGLINE ? (
-            <p className="peer text-muted-fg text-sm -mt-2 mb-4">{tagline}</p>
+            <p className="peer text-gray-11 text-sm -mt-2 mb-4">{tagline}</p>
           ) : (
             <div />
           )}

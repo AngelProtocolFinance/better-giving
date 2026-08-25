@@ -27,7 +27,7 @@ export function IdentitySummary({ reg, classes = "" }: Props) {
 
   return (
     <div
-      className={`${classes} flex flex-wrap items-center gap-x-3 gap-y-1 px-6 py-3 text-sm text-muted-fg border-t border-border`}
+      className={`${classes} flex flex-wrap items-center gap-x-3 gap-y-1 px-6 py-3 text-sm text-gray-11 border-t border-gray-6`}
     >
       <span>
         {label ?? "Organization type not set"}
@@ -37,7 +37,7 @@ export function IdentitySummary({ reg, classes = "" }: Props) {
       {reg.status === "01" && (
         <NavLink
           to={href("/register/:reg_id/identity", { reg_id: reg.id })}
-          className="ml-auto underline hover:text-fg"
+          className="ml-auto underline hover:text-gray-12"
         >
           Change
         </NavLink>

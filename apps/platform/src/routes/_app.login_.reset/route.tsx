@@ -39,7 +39,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   })();
 
   return (
-    <div className="grid place-items-center px-4 py-14 text-muted-fg">
+    <div className="grid place-items-center px-4 py-14 text-gray-11">
       {content}
     </div>
   );

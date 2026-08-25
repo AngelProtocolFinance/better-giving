@@ -35,15 +35,15 @@ const configs: Record<PayoutStatusType, IConfig> = {
     label: "Settled",
   },
   cancelled: {
-    text: "text-muted-fg",
-    dot: "bg-muted-fg",
+    text: "text-gray-11",
+    dot: "bg-gray-11",
     label: "Cancelled",
   },
 };
 
 const fallback: IConfig = {
-  text: "text-muted-fg",
-  dot: "bg-muted-fg",
+  text: "text-gray-11",
+  dot: "bg-gray-11",
   label: "",
 };
 

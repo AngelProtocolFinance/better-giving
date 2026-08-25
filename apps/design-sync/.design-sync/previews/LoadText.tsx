@@ -60,13 +60,13 @@ export const Variants = () => (
 export const FormFooter = () => (
   <div className="w-[30rem] rounded border bg-card">
     <div className="p-6">
-      <p className="text-sm text-fg">Payout amount</p>
-      <p className="mt-1 text-2xl font-medium text-fg">$1,200.00</p>
-      <p className="mt-1 text-sm text-muted-fg">
+      <p className="text-sm text-gray-12">Payout amount</p>
+      <p className="mt-1 text-2xl font-medium text-gray-12">$1,200.00</p>
+      <p className="mt-1 text-sm text-gray-11">
         Requested Nov 14, 2025 — settles to your linked account.
       </p>
     </div>
-    <div className="flex justify-end gap-3 border-t bg-muted p-4">
+    <div className="flex justify-end gap-3 border-t bg-gray-3 p-4">
       <button type="button" className="btn btn-secondary px-6 py-2">
         Back
       </button>

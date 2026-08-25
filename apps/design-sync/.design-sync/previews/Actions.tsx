@@ -27,13 +27,13 @@ export const Split = () => (
 
 // inside a dialog the row sits on a band — a tinted strip with a top border,
 // full-bleed to the dialog's edges. this is the only place that strip is
-// authored; never write `bg-muted border-t` on a footer row by hand.
+// authored; never write `bg-gray-3 border-t` on a footer row by hand.
 export const InADialog = () => (
   <div className="w-80 border rounded overflow-hidden bg-card">
-    <p className="font-bold text-center border-b bg-muted p-5">
+    <p className="font-bold text-center border-b bg-gray-3 p-5">
       Delete payout method
     </p>
-    <p className="p-6 text-center text-muted-fg">This cannot be undone.</p>
+    <p className="p-6 text-center text-gray-11">This cannot be undone.</p>
     <Actions band>
       <Button variant="secondary">Cancel</Button>
       <Button variant="destructive" type="submit">

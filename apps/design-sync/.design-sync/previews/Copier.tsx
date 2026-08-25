@@ -14,7 +14,7 @@ export const IconBesideValue = () => (
       ["Routing number", "121000248"],
     ].map(([label, value]) => (
       <div key={label} className="flex items-center gap-2">
-        <dt className="text-xs font-semibold uppercase text-muted-fg w-36 shrink-0">
+        <dt className="text-xs font-semibold uppercase text-gray-11 w-36 shrink-0">
           {label}
         </dt>
         <dd className="flex items-center gap-2 text-sm flex-1">
@@ -22,7 +22,7 @@ export const IconBesideValue = () => (
           <Copier
             text={value}
             classes={{
-              container: "text-muted-fg hover:text-fg shrink-0",
+              container: "text-gray-11 hover:text-gray-12 shrink-0",
               icon: "size-4",
             }}
             size={16}
@@ -36,7 +36,7 @@ export const IconBesideValue = () => (
 // the crypto checkout: a long wallet address that must be copied verbatim.
 export const WalletAddress = () => (
   <div className="w-96 bg-card border rounded p-4 grid gap-2">
-    <p className="text-xs font-semibold uppercase tracking-badge text-muted-fg">
+    <p className="text-xs font-semibold uppercase tracking-badge text-gray-11">
       Send ETH to this address
     </p>
     <div className="flex items-center gap-2">
@@ -46,7 +46,7 @@ export const WalletAddress = () => (
       <Copier
         text="0x7a25CbA1f3D9e04B8c6E2Af51D0b937Ee4c8A912"
         classes={{
-          container: "text-muted-fg hover:text-fg shrink-0",
+          container: "text-gray-11 hover:text-gray-12 shrink-0",
           icon: "size-5",
         }}
         size={20}
@@ -57,15 +57,15 @@ export const WalletAddress = () => (
 
 // the referrals dashboard block: id and share link, each with its own copier.
 export const ReferralBlock = () => (
-  <div className="w-96 bg-muted p-6 rounded border">
+  <div className="w-96 bg-gray-3 p-6 rounded border">
     <div className="mb-4">
-      <div className="text-sm font-medium text-muted-fg mb-1">Referral ID</div>
+      <div className="text-sm font-medium text-gray-11 mb-1">Referral ID</div>
       <div className="flex items-center">
         <div className="text-xl font-semibold mr-2">rainforest-trust</div>
         <Copier
           text="rainforest-trust"
           classes={{
-            container: "text-muted-fg hover:text-fg",
+            container: "text-gray-11 hover:text-gray-12",
             icon: "size-5",
           }}
           size={20}
@@ -73,9 +73,7 @@ export const ReferralBlock = () => (
       </div>
     </div>
     <div>
-      <div className="text-sm font-medium text-muted-fg mb-1">
-        Referral link
-      </div>
+      <div className="text-sm font-medium text-gray-11 mb-1">Referral link</div>
       <div className="flex items-center">
         <p className="text-primary truncate max-w-xs font-mono text-sm">
           https://app.better.giving/register?referrer=rainforest-trust
@@ -83,7 +81,7 @@ export const ReferralBlock = () => (
         <Copier
           text="https://app.better.giving/register?referrer=rainforest-trust"
           classes={{
-            container: "text-muted-fg hover:text-fg ml-2",
+            container: "text-gray-11 hover:text-gray-12 ml-2",
             icon: "size-5",
           }}
           size={20}
@@ -96,7 +94,7 @@ export const ReferralBlock = () => (
 // with a label inside the trigger — the wire-transfer memo panel.
 export const LabeledTrigger = () => (
   <div className="w-96 bg-card border rounded p-4">
-    <p className="text-sm text-muted-fg mb-3">
+    <p className="text-sm text-gray-11 mb-3">
       Include this code with your transfer of $1,200.00 so we can match the
       deposit.
     </p>

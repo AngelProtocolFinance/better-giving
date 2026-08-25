@@ -23,8 +23,8 @@ export function Testimonial() {
             providing a US fiscal sponsorship that is secure and
             straightforward.
           </p>
-          <footer className="text-muted-fg font-medium">
-            <span className="block text-fg font-bold">
+          <footer className="text-gray-11 font-medium">
+            <span className="block text-gray-12 font-bold">
               Founder &amp; Artistic Director
             </span>
             London Arts Charity

@@ -47,14 +47,14 @@ export function Stocks(props: StocksDonationDetails) {
         type="button"
         onClick={() => to_step("stocks", props, "form", don_set)}
       />
-      <p className="mt-4 text-center text-muted-fg uppercase">
+      <p className="mt-4 text-center text-gray-11 uppercase">
         Stock Donation Pending
       </p>
       <p className="mt-4 text-center">
         To complete this donation, please provide your broker with the following
         transfer instructions.
       </p>
-      <div className="grid gap-y-1 rounded bg-muted p-3 text-sm leading-relaxed mt-6">
+      <div className="grid gap-y-1 rounded bg-gray-3 p-3 text-sm leading-relaxed mt-6">
         <Row label="Shares" value={shares} />
         <Row label="Ticker" value={props.ticker.symbol} />
         <Row label="Deliver to" value="Fidelity Investments" />
@@ -68,7 +68,7 @@ export function Stocks(props: StocksDonationDetails) {
       <h4 className="text-sm font-medium mt-6 mb-1">
         You may also need the following information
       </h4>
-      <span className="rounded bg-muted p-3 text-sm leading-relaxed">
+      <span className="rounded bg-gray-3 p-3 text-sm leading-relaxed">
         Better Giving is a nonprofit with 501(c)(3) tax-exempt status. EIN:
         87-3758939.
       </span>

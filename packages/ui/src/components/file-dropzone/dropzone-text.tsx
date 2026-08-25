@@ -22,7 +22,7 @@ export function file_name(url: string): string {
 export function DropzoneText({ value, mbLimit }: Props) {
   if (value == null || value === "") {
     return (
-      <div className="grid justify-items-center text-sm text-muted-fg select-none">
+      <div className="grid justify-items-center text-sm text-gray-11 select-none">
         <ArrowUpFromLine size={20} className="mb-4.5" />
         <p className="font-semibold mb-1">Upload file</p>
         <span>Click to Browse or Drag &amp; Drop</span>
@@ -32,7 +32,7 @@ export function DropzoneText({ value, mbLimit }: Props) {
   if (value === "loading") {
     return (
       <div className="grid place-items-center">
-        <LoaderCircle className="text-muted-fg animate-spin" />
+        <LoaderCircle className="text-gray-11 animate-spin" />
       </div>
     );
   }

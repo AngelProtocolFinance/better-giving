@@ -37,12 +37,12 @@ export function OrgCard({ classes = "", program, ...props }: Props) {
           ) : null}
         </Link>
         {props.tagline && !program && (
-          <p className="text-muted-fg text-sm w-full line-clamp-2">
+          <p className="text-gray-11 text-sm w-full line-clamp-2">
             {props.tagline}
           </p>
         )}
         {program && (
-          <p className="text-muted-fg text-sm w-full line-clamp-2">
+          <p className="text-gray-11 text-sm w-full line-clamp-2">
             {props.tagline || to_text(program.description_pt)}
           </p>
         )}

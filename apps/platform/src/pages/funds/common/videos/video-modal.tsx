@@ -38,14 +38,14 @@ export function VideoModal(props: IVideoModal) {
         }}
       >
         <div className="relative">
-          <p className="text-xl font-bold text-center border-b bg-muted p-5">
+          <p className="text-xl font-bold text-center border-b bg-gray-3 p-5">
             {props.initUrl ? "Edit" : "Add"} video
           </p>
           <button
             type="button"
             aria-label="Close"
             onClick={() => props.set_open(false)}
-            className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-muted-fg"
+            className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-gray-11"
           >
             <X size={24} />
           </button>

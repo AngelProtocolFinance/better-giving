@@ -95,7 +95,7 @@ export function ImgEditor({
 
   return (
     <div className={`${styles.container} grid grid-rows-[1fr_auto]`}>
-      <p className="text-xs text-muted-fg mb-2">
+      <p className="text-xs text-gray-11 mb-2">
         <span>
           Valid types are:{" "}
           {props.spec.type
@@ -151,7 +151,7 @@ export function ImgEditor({
         className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-input cursor-pointer
           focus-within:outline-2 data-[drag="true"]:outline-2 outline-ring
           hover:bg-accent
-          data-[disabled="true"]:bg-muted data-[disabled="true"]:pointer-events-none
+          data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none
           data-[invalid="true"]:border-destructive
           `}
         style={{
@@ -162,7 +162,7 @@ export function ImgEditor({
       >
         {!preview ? (
           <div
-            className="absolute-center relative grid justify-items-center text-sm text-muted-fg select-none"
+            className="absolute-center relative grid justify-items-center text-sm text-gray-11 select-none"
             tabIndex={-1}
           >
             {file_input}
@@ -218,7 +218,7 @@ export function ImgEditor({
 }
 
 const buttonStyle =
-  "text-primary-fg text-lg bg-primary hover:bg-primary/80 disabled:bg-border disabled:text-muted-fg p-2 m-1 rounded shadow-lg";
+  "text-primary-fg text-lg bg-primary hover:bg-primary/80 disabled:bg-gray-6 disabled:text-gray-11 p-2 m-1 rounded shadow-lg";
 function IconButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button {...props} type="button" className={buttonStyle} />;
 }

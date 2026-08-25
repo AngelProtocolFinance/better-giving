@@ -4,7 +4,7 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--border);
+    border-color: var(--gray-6);
     outline-color: var(--ring);
   }
 
@@ -20,7 +20,7 @@
 
   body {
     font-family: var(--font-body);
-    color: var(--fg);
+    color: var(--gray-12);
   }
 
   a {

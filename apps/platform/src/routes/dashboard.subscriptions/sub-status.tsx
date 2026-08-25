@@ -9,7 +9,7 @@ export function SubStatus({ status, classes = "" }: ISubStatus) {
   const { text, color } =
     status === "active"
       ? { text: "Active", color: "text-success" }
-      : { text: "Cancelled", color: "text-muted-fg" };
+      : { text: "Cancelled", color: "text-gray-11" };
 
   return (
     <span className={`text-sm font-medium ${color} ${classes}`}>{text}</span>

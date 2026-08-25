@@ -55,7 +55,7 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
         e.preventDefault();
         reset();
       }}
-      className={`${classes} grid grid-cols-[auto_auto_auto] divide-y divide-border border-b border-x`}
+      className={`${classes} grid grid-cols-[auto_auto_auto] divide-y divide-gray-6 border-b border-x`}
     >
       <div className="grid grid-cols-subgrid col-span-3 font-bold text-sm border-t">
         <h5 className="p-3">Receive Email Alerts for</h5>
@@ -65,7 +65,7 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
       {fields.map((field, idx) => (
         <div
           key={field.id}
-          className="grid grid-cols-subgrid col-span-3 divide-x divide-border"
+          className="grid grid-cols-subgrid col-span-3 divide-x divide-gray-6"
         >
           <div className="p-3">{field.name ?? `Endowment: ${field.id}`}</div>
           {

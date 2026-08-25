@@ -39,7 +39,7 @@ function Fund(props: IFundItem) {
       >
         {props.name}
       </Link>
-      <p className="text-muted-fg text-sm line-clamp-3">
+      <p className="text-gray-11 text-sm line-clamp-3">
         {to_text(props.description_pt)}
       </p>
       <Target

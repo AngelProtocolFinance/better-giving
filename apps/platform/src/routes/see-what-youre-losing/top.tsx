@@ -65,7 +65,7 @@ export function Top({ classes = "" }) {
           </Modal>
         )}
 
-        <p className="max-lg:text-center text-right text-sm text-muted-fg mt-2">
+        <p className="max-lg:text-center text-right text-sm text-gray-11 mt-2">
           "It takes less than a minute — find out how much you're leaving on the
           table."
         </p>

@@ -73,7 +73,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
         <td>
           <SubStatus status={s.status} />
           {s.status === "inactive" && (
-            <div className="text-xs text-muted-fg">
+            <div className="text-xs text-gray-11">
               {format(new Date(s.updated_at), "PP")}
             </div>
           )}
@@ -103,7 +103,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
 
       <div
         role="tablist"
-        className="mt-6 inline-flex gap-1 border border-border rounded p-1 bg-card w-fit"
+        className="mt-6 inline-flex gap-1 border border-gray-6 rounded p-1 bg-card w-fit"
       >
         {FILTERS.map((f) => {
           const active = f.key === filter;
@@ -119,7 +119,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
               className={`px-3 py-1 text-sm rounded ${
                 active
                   ? "bg-primary text-primary-fg"
-                  : "text-muted-fg hover:text-fg"
+                  : "text-gray-11 hover:text-gray-12"
               }`}
             >
               {f.label}

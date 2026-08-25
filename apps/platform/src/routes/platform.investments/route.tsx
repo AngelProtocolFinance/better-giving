@@ -58,11 +58,11 @@ function Page({ loaderData }: Route.ComponentProps) {
       <h3 className="font-bold text-2xl mb-4">Investments</h3>
       <div className="grid grid-cols-1 @xl:grid-cols-2 @4xl:grid-cols-4 gap-6 mb-8">
         <div>
-          <p className="text-muted-fg text-sm mb-2">Portfolio Value</p>
+          <p className="text-gray-11 text-sm mb-2">Portfolio Value</p>
           <p className="text-3xl font-bold">${humanize(ltd.value)}</p>
         </div>
         <div>
-          <p className="text-muted-fg text-sm mb-2">Portfolio Units</p>
+          <p className="text-gray-11 text-sm mb-2">Portfolio Units</p>
           <p className="text-3xl font-bold">{humanize(ltd.units)}</p>
         </div>
       </div>
@@ -206,7 +206,7 @@ function Page({ loaderData }: Route.ComponentProps) {
 
         <h5 className="font-bold text-base mt-8 mb-2">
           Top Holders{" "}
-          <span className="text-sm text-muted-fg">( of {num_holders} )</span>
+          <span className="text-sm text-gray-11">( of {num_holders} )</span>
         </h5>
         <div className="table-scroll">
           <table className="table">

@@ -57,7 +57,7 @@ export default function IframeLayout() {
               {is_open ? <X size={18} /> : <Menu size={18} />}
             </button>
             {active_item && !is_open && (
-              <span className="text-sm font-medium text-fg">
+              <span className="text-sm font-medium text-gray-12">
                 {active_item.label}
               </span>
             )}
@@ -82,8 +82,8 @@ export default function IframeLayout() {
                       transition-colors text-sm
                       ${
                         isActive
-                          ? "bg-accent text-fg font-medium"
-                          : "text-muted-fg hover:bg-accent hover:text-fg"
+                          ? "bg-accent text-gray-12 font-medium"
+                          : "text-gray-11 hover:bg-accent hover:text-gray-12"
                       }
                     `}
                   >
@@ -91,7 +91,7 @@ export default function IframeLayout() {
                       <>
                         <Icon
                           size={18}
-                          className={isActive ? "text-fg" : "text-muted-fg"}
+                          className={isActive ? "text-gray-12" : "text-gray-11"}
                         />
                         <span className="whitespace-nowrap">{label}</span>
                       </>

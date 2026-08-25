@@ -67,7 +67,7 @@ export function Loaded(props: LoaderData) {
         </Row>
       </dl>
       {props.wacc_unavailable && (
-        <p className="text-sm text-muted-fg -mt-2">
+        <p className="text-sm text-gray-11 -mt-2">
           Bank account details couldn't be loaded from Wise, so this application
           can't be approved right now. Everything else on it is up to date.
         </p>

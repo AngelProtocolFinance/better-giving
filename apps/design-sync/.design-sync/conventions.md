@@ -63,7 +63,7 @@ The other real class names, for when you compose a control by hand rather than u
 
 Where the content a screen is built around is not there, the block is `EmptyState`; inside a table
 it is `EmptyRow`, which carries the `<td colSpan>` a `<tbody>` row requires. Never hand-roll either
-— a `<p className="text-muted-fg">` or a bare `<td colSpan>` with a "no rows" sentence in it is the
+— a `<p className="text-gray-11">` or a bare `<td colSpan>` with a "no rows" sentence in it is the
 spelling these replaced, and it drifted nineteen ways.
 
 The default is one line of muted text: no icon, no heading. `heading` and `action` promote it to a
@@ -91,7 +91,7 @@ misclick beside the confirm lands on nothing. A cancel never takes it — a canc
 it cancels.
 
 `band` is the dialog footer: a tinted, top-bordered strip, full-bleed to the dialog's edges. It is
-the only place that strip is authored; never write `bg-muted border-t` on a footer row yourself.
+the only place that strip is authored; never write `bg-gray-3 border-t` on a footer row yourself.
 
 The row stacks full-width below `sm` and puts its controls at the right edge above it. That geometry
 is the row's — never write `flex`, `grid`, `gap-*`, `justify-*` or `items-*` beside it or into
@@ -114,7 +114,7 @@ are the semantic tokens:
 | ink | `fg` (the ink on `background` — there is no `background-fg`), `muted-fg`, and the `-fg` partner of every other surface above |
 | lines | `border`, `input`, `ring` |
 
-Use them as `bg-card`, `text-muted-fg`, `border-border`, and so on. **A fill token is not
+Use them as `bg-card`, `text-gray-11`, `border-gray-6`, and so on. **A fill token is not
 automatically a text color.** `text-warning` is illegible at 2.15:1 — use `text-warning-subtle-fg`,
 which is the warning ink on *every* surface. Never pair an alpha tint with its own ink
 (`bg-destructive/10 text-destructive` measures 3.92:1); use the authored pair

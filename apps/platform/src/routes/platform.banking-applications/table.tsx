@@ -74,7 +74,7 @@ export function Table({
                     to={href("/platform/banking-applications/:id", {
                       id: row.id,
                     })}
-                    className="text-center w-full inline-block [.pending]:text-muted-fg hover:text-primary"
+                    className="text-center w-full inline-block [.pending]:text-gray-11 hover:text-primary"
                   >
                     <Folder
                       size={22}

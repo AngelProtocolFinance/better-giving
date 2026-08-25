@@ -41,10 +41,10 @@ export function Summary({ Amount, frequency = "one-time", ...props }: Props) {
       {props.pre_split_content}
 
       <dl
-        className={`grid grid-cols-[1fr_auto] items-center justify-between border-y divide-y divide-border ${splitClass}`}
+        className={`grid grid-cols-[1fr_auto] items-center justify-between border-y divide-y divide-gray-6 ${splitClass}`}
       >
         {props.program?.value && (
-          <p className="text-muted-fg col-span-full py-2 text-sm">
+          <p className="text-gray-11 col-span-full py-2 text-sm">
             Program: {props.program.label}
           </p>
         )}
@@ -56,7 +56,7 @@ export function Summary({ Amount, frequency = "one-time", ...props }: Props) {
                 : "Total donation"}
             </span>
           </dt>
-          <Amount amount={props.amount} classes="text-fg" />
+          <Amount amount={props.amount} classes="text-gray-12" />
         </div>
 
         {tipValue > 0 && (

@@ -52,13 +52,13 @@ export function DonorsTable({ items, load_next, loading, disabled }: IProps) {
             const to = `/admin/${npo_id}/donors/${encodeURIComponent(d.email)}`;
             const state = { from: "donors" };
             return (
-              <tr key={d.email} className="hover:bg-muted">
+              <tr key={d.email} className="hover:bg-gray-3">
                 <td className="p-0">
                   <Link to={to} state={state} className="block px-2 py-2">
                     <div className="font-medium leading-tight">
                       {d.name ?? d.email}
                     </div>
-                    <div className="text-xs leading-snug text-muted-fg">
+                    <div className="text-xs leading-snug text-gray-11">
                       {d.email}
                     </div>
                   </Link>
@@ -128,7 +128,7 @@ function Th({ k, sort, dir, align = "left", children }: IThProps) {
         onClick={on_click}
         className={`inline-flex w-full cursor-pointer select-none items-center gap-1 px-2 py-2 focus:outline-none focus-visible:ring focus-visible:ring-ring ${
           align === "right" ? "justify-end" : ""
-        } ${active ? "text-fg" : ""}`}
+        } ${active ? "text-gray-12" : ""}`}
       >
         {children}
         <Glyph className={`size-3 ${active ? "" : "opacity-40"}`} />

@@ -39,7 +39,7 @@ export function Benefits({ classes = "" }: Props) {
             <Check size={20} className="shrink-0 text-success mt-1.5" />
             <div>
               <h4 className="font-semibold mb-1">{benefit.title}</h4>
-              <p className="text-muted-fg">{benefit.description}</p>
+              <p className="text-gray-11">{benefit.description}</p>
             </div>
           </div>
         ))}

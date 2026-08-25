@@ -25,7 +25,7 @@ export default function Page() {
     <main>
       {/* paper has its own margin — the screen's breathing room above the fold
           is just a shorter first page */}
-      <header className="border-b border-border px-6 py-14 md:py-16 print:border-0 print:pt-4 print:pb-0">
+      <header className="border-b border-gray-6 px-6 py-14 md:py-16 print:border-0 print:pt-4 print:pb-0">
         <div className="mx-auto max-w-3xl">
           <p className="eyebrow text-primary">
             Member-powered ethical fundraising
@@ -33,10 +33,10 @@ export default function Page() {
           <h1 className="hero-heading mt-4">
             Does your donation platform pass the ethics test?
           </h1>
-          <p className="mt-5 text-base/relaxed text-muted-fg text-pretty">
+          <p className="mt-5 text-base/relaxed text-gray-11 text-pretty">
             Work through each question about the platform that collects money in
             your name. Every item maps to the{" "}
-            <strong className="font-bold text-fg">
+            <strong className="font-bold text-gray-12">
               National Council of Nonprofits' Principles for Ethical Online
               Fundraising Platforms
             </strong>
@@ -53,15 +53,15 @@ export default function Page() {
       <div className="px-6 py-10 md:py-12 print:px-0 print:py-4">
         <Checklist classes="mx-auto max-w-3xl" />
 
-        <footer className="mx-auto mt-6 max-w-3xl break-inside-avoid rounded border border-border bg-card p-5 text-sm/relaxed text-muted-fg">
+        <footer className="mx-auto mt-6 max-w-3xl break-inside-avoid rounded border border-gray-6 bg-card p-5 text-sm/relaxed text-gray-11">
           <p>
-            <strong className="font-bold text-fg">How to use this.</strong> Send
-            unchecked items to your platform's support or account team in
+            <strong className="font-bold text-gray-12">How to use this.</strong>{" "}
+            Send unchecked items to your platform's support or account team in
             writing and keep the reply. If a platform won't answer a flashpoint
             question in writing, that reluctance is itself informative.
           </p>
           <p className="mt-3">
-            <strong className="font-bold text-fg">
+            <strong className="font-bold text-gray-12">
               Regulatory quick-check.
             </strong>{" "}
             If any of your donors are in California, your platform must be
@@ -79,7 +79,7 @@ export default function Page() {
             state's charitable-solicitation rules or ask a nonprofit attorney
             about your specific situation.
           </p>
-          <p className="mt-5 border-t border-border pt-4 text-xs print:hidden">
+          <p className="mt-5 border-t border-gray-6 pt-4 text-xs print:hidden">
             <Link
               to={href("/blog/:slug", { slug: BANNER_POST_SLUG })}
               className="font-bold text-primary hover:underline"

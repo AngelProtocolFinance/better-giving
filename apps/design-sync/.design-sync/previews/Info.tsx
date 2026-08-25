@@ -14,7 +14,7 @@ export const Default = () => (
 export const EmptyTableState = () => (
   <div className="border rounded p-6 max-w-md">
     <h3 className="font-medium mb-1">Recurring donations</h3>
-    <p className="text-sm text-muted-fg mb-4">
+    <p className="text-sm text-gray-11 mb-4">
       Donors giving to Rainforest Trust on a schedule.
     </p>
     <Info classes="mt-6">No active recurring donations</Info>

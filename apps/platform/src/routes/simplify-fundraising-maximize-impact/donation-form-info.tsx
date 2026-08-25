@@ -54,7 +54,7 @@ export function DonationFormInfo({ className = "" }) {
 
       <StepsCarousel classes="w-full max-w-lg self-center justify-self-center" />
 
-      <ul className="divide-y divide-border mt-6 @6xl:mt-0 grid grid-cols-[auto_1fr]">
+      <ul className="divide-y divide-gray-6 mt-6 @6xl:mt-0 grid grid-cols-[auto_1fr]">
         {items.map((item, idx) => (
           <ListItem {...item} key={idx} />
         ))}

@@ -296,11 +296,11 @@ export function FAQ({
         {heading}
       </h2>
       {sub && (
-        <p className="col-span-full text-center text-lg text-muted-fg text-pretty -mt-6 mb-10">
+        <p className="col-span-full text-center text-lg text-gray-11 text-pretty -mt-6 mb-10">
           {sub}
         </p>
       )}
-      <Accordion.Root collapsible className="divide-y divide-border">
+      <Accordion.Root collapsible className="divide-y divide-gray-6">
         {items.map((faq) => (
           <Accordion.Item key={faq.id} value={String(faq.id)} className="group">
             <Accordion.ItemTrigger className="flex items-center justify-between gap-2 w-full py-6 px-4">

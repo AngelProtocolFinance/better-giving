@@ -39,7 +39,7 @@ export const option_cls =
   "flex items-center gap-2 px-4 py-2 text-sm hover:bg-accent data-highlighted:bg-accent data-[state=checked]:bg-accent";
 
 /** the line that replaces the option rows while a list is empty/loading/failed. */
-export const status_cls = "px-4 py-2 text-sm text-muted-fg";
+export const status_cls = "px-4 py-2 text-sm text-gray-11";
 
 /** one wording per status, across every popup. */
 export const status_text = {

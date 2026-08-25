@@ -16,7 +16,7 @@ export function Paperwork({ classes = "" }) {
           <h2 className="article-heading">
             You fundraise. We do the paperwork.
           </h2>
-          <p className="text-base/relaxed text-muted-fg text-pretty">
+          <p className="text-base/relaxed text-gray-11 text-pretty">
             Everything a U.S. donor expects, and everything the IRS requires,
             handled on your behalf.
           </p>
@@ -27,7 +27,7 @@ export function Paperwork({ classes = "" }) {
           {items.map((i) => (
             <li
               key={i}
-              className="flex items-start gap-2.5 bg-card border border-border rounded px-4 py-3.5 text-sm/relaxed"
+              className="flex items-start gap-2.5 bg-card border border-gray-6 rounded px-4 py-3.5 text-sm/relaxed"
             >
               <Check
                 size={16}

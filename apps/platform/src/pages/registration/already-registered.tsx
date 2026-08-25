@@ -21,12 +21,12 @@ export function AlreadyRegistered({ name, onClose }: Props) {
       <h3 className="text-xl font-bold text-balance">
         This organization is already registered
       </h3>
-      <p className="text-muted-fg text-pretty mt-3">
+      <p className="text-gray-11 text-pretty mt-3">
         {name} already has an account on Better Giving. Ask an existing admin to
         invite you, or email{" "}
         <a
           href="mailto:support@better.giving"
-          className="text-fg font-bold underline"
+          className="text-gray-12 font-bold underline"
         >
           support@better.giving
         </a>{" "}

@@ -59,7 +59,7 @@ function EditorHarness({
         classes={{
           field:
             "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
-          counter: "text-muted-fg",
+          counter: "text-gray-11",
         }}
       />
       <button type="button" onClick={() => ref.current?.focus()}>
@@ -89,7 +89,7 @@ function StatefulEditor({
         classes={{
           field:
             "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
-          counter: "text-muted-fg",
+          counter: "text-gray-11",
         }}
       />
     </div>
@@ -109,7 +109,7 @@ describe("rich text editor — toolbar", () => {
     const screen = await render(<EditorHarness />);
 
     await vi.waitFor(() => {
-      const toolbar = screen.container.querySelector(".border-b.border-muted");
+      const toolbar = screen.container.querySelector(".border-b.border-gray-3");
       expect(toolbar).not.toBeNull();
       const btns = toolbar!.querySelectorAll(":scope > button");
       // bold, italic, ordered-list, bulleted-list, link
@@ -125,7 +125,7 @@ describe("rich text editor — toolbar", () => {
     await userEvent.click(editor);
     await userEvent.keyboard("normal ");
 
-    const toolbar = screen.container.querySelector(".border-b.border-muted")!;
+    const toolbar = screen.container.querySelector(".border-b.border-gray-3")!;
     const bold_btn = toolbar.querySelectorAll(
       ":scope > button"
     )[0] as HTMLElement;
@@ -145,7 +145,7 @@ describe("rich text editor — toolbar", () => {
     const editor = await wait_for_editor(screen);
     await userEvent.click(editor);
 
-    const toolbar = screen.container.querySelector(".border-b.border-muted")!;
+    const toolbar = screen.container.querySelector(".border-b.border-gray-3")!;
     const italic_btn = toolbar.querySelectorAll(
       ":scope > button"
     )[1] as HTMLElement;
@@ -202,7 +202,7 @@ describe("rich text editor — lists", () => {
     await userEvent.click(editor);
 
     // toolbar order: strong, em, number, bullet, link → bullet is index 3
-    const toolbar = screen.container.querySelector(".border-b.border-muted")!;
+    const toolbar = screen.container.querySelector(".border-b.border-gray-3")!;
     const list_btn = toolbar.querySelectorAll(
       ":scope > button"
     )[3] as HTMLElement;
@@ -223,7 +223,7 @@ describe("rich text editor — lists", () => {
     await userEvent.click(editor);
 
     // numbered list is index 2
-    const toolbar = screen.container.querySelector(".border-b.border-muted")!;
+    const toolbar = screen.container.querySelector(".border-b.border-gray-3")!;
     const list_btn = toolbar.querySelectorAll(
       ":scope > button"
     )[2] as HTMLElement;
@@ -243,7 +243,7 @@ describe("rich text editor — lists", () => {
     const editor = await wait_for_editor(screen);
     await userEvent.click(editor);
 
-    const toolbar = screen.container.querySelector(".border-b.border-muted")!;
+    const toolbar = screen.container.querySelector(".border-b.border-gray-3")!;
     const list_btn = toolbar.querySelectorAll(
       ":scope > button"
     )[3] as HTMLElement;
@@ -313,7 +313,7 @@ describe("rich text editor — read-only", () => {
     const screen = await render(<RichText content={content} readOnly />);
 
     await expect.element(screen.getByText("read only")).toBeVisible();
-    const toolbar = screen.container.querySelector(".border-b.border-muted");
+    const toolbar = screen.container.querySelector(".border-b.border-gray-3");
     expect(toolbar).toBeNull();
   });
 

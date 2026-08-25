@@ -43,7 +43,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
   );
 
   return (
-    <section className="grid pb-10 bg-muted">
+    <section className="grid pb-10 bg-gray-3">
       <div className="group relative page grid md:grid-cols-[3fr_2fr] gap-4">
         <div className="self-start mt-14 ease-in-out z-10 grid gap-4 relative">
           <div className="absolute -top-8 flex items-center justify-between w-full">
@@ -61,7 +61,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 active: "",
                 inactive: "text-destructive",
                 completed: "text-success",
-                expired: "text-muted-fg",
+                expired: "text-gray-11",
               }}
             />
           </div>
@@ -80,7 +80,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 {fund.name}
               </h4>
               <div className="pl-0.5">
-                <span className="text-sm font-medium text-muted-fg mr-1">
+                <span className="text-sm font-medium text-gray-11 mr-1">
                   by
                 </span>
                 <FundCreator
@@ -136,7 +136,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
             {...fund}
             classes={{ container: "max-md:hidden", link: "mb-4 order-first" }}
           />
-          <p className="text-muted-fg md:mt-8 mb-2 font-bold uppercase text-xs">
+          <p className="text-gray-11 md:mt-8 mb-2 font-bold uppercase text-xs">
             Donations go to
           </p>
           <div className="grid gap-y-4 mb-4 grid-cols-[auto_1fr]">
@@ -148,7 +148,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
                 <Image src={m.logo} className="aspect-2/1 rounded" width={50} />
                 <Link
                   to={href("/marketplace/:id", { id: m.id.toString() })}
-                  className="font-bold  text-muted-fg hover:text-primary"
+                  className="font-bold  text-gray-11 hover:text-primary"
                 >
                   {m.name}
                 </Link>

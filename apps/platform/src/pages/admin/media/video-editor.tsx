@@ -53,14 +53,14 @@ function Content(props: IProps) {
       onSubmit={handleSubmit}
     >
       <div className="relative">
-        <p className="text-xl capitalize font-bold text-center border-b bg-muted p-5">
+        <p className="text-xl capitalize font-bold text-center border-b bg-gray-3 p-5">
           {props.action} video
         </p>
         <Link
           to=".."
           aria-label="Close"
           aria-disabled={nav.state !== "idle"}
-          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-muted-fg"
+          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X size={24} />
         </Link>

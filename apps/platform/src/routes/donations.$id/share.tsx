@@ -96,7 +96,7 @@ function Prompt({
       size="md"
       classes="grid content-start border bg-background"
     >
-      <div className="grid place-items-center relative h-16  font-bold bg-muted border-b">
+      <div className="grid place-items-center relative h-16  font-bold bg-gray-3 border-b">
         Share on {social.title}
         <button
           type="button"

@@ -74,16 +74,16 @@ export function Panel({
       {/* Header */}
       <div className="p-6 md:p-8 border-b relative">
         <h2 className="text-2xl font-bold mb-2">Deposit Funds</h2>
-        <p className="text-sm text-muted-fg">
+        <p className="text-sm text-gray-11">
           Transfer funds to your Better Giving account
         </p>
         <button
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="absolute top-6 md:top-8 right-6 md:right-8 p-2 rounded border hover:bg-muted transition-colors"
+          className="absolute top-6 md:top-8 right-6 md:right-8 p-2 rounded border hover:bg-gray-3 transition-colors"
         >
-          <X size={24} className="text-muted-fg" />
+          <X size={24} className="text-gray-11" />
         </button>
       </div>
 
@@ -129,7 +129,7 @@ export function Panel({
         <MemoSection memo={memo} account_type={account_type} classes="mb-6" />
 
         {/* Non-USD Note */}
-        <p className="text-sm text-muted-fg">
+        <p className="text-sm text-gray-11">
           For non-USD transfers, contact{" "}
           <a
             href="mailto:hi@better.giving"
@@ -190,7 +190,7 @@ function AccountSelector({
 
 function InfoSection({ title, children, classes = "" }: InfoSectionProps) {
   return (
-    <div className={`bg-muted rounded p-5 ${classes}`}>
+    <div className={`bg-gray-3 rounded p-5 ${classes}`}>
       <h3 className="font-bold mb-4">{title}</h3>
       <div className="grid gap-4">{children}</div>
     </div>
@@ -238,7 +238,7 @@ function MemoSection({ memo, account_type, classes = "" }: MemoSectionProps) {
 function InfoRow({ label, value, copyable = true }: InfoRowProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-      <span className="text-sm text-muted-fg min-w-35">{label}</span>
+      <span className="text-sm text-gray-11 min-w-35">{label}</span>
       <div className="flex-1 flex items-center gap-2">
         <span className="text-sm font-semibold text-pretty flex-1">
           {value}
@@ -248,7 +248,7 @@ function InfoRow({ label, value, copyable = true }: InfoRowProps) {
             text={value}
             classes={{
               container:
-                "shrink-0 px-2.5 py-1.5 text-xs text-muted-fg bg-card border rounded hover:bg-muted transition-colors",
+                "shrink-0 px-2.5 py-1.5 text-xs text-gray-11 bg-card border rounded hover:bg-gray-3 transition-colors",
             }}
           />
         )}
@@ -264,18 +264,18 @@ function InfoRowWithDetails({
 }: InfoRowWithDetailsProps) {
   return (
     <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-start">
-      <span className="text-sm text-muted-fg">{label}</span>
+      <span className="text-sm text-gray-11">{label}</span>
       <div className="flex items-center gap-2 row-span-2">
         <span className="text-sm font-semibold">{value}</span>
         <Copier
           text={value}
           classes={{
             container:
-              "shrink-0 px-2.5 py-1.5 text-xs text-muted-fg bg-card border rounded hover:bg-muted transition-colors",
+              "shrink-0 px-2.5 py-1.5 text-xs text-gray-11 bg-card border rounded hover:bg-gray-3 transition-colors",
           }}
         />
       </div>
-      <p className="text-xs text-muted-fg text-pretty">{details}</p>
+      <p className="text-xs text-gray-11 text-pretty">{details}</p>
     </div>
   );
 }

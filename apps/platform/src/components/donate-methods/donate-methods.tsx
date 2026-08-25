@@ -42,7 +42,7 @@ export function DonateMethods({
   return (
     <div className={style.container}>
       <p className={`${style.label} mb-1 label`}>Donation methods</p>
-      <p className={`text-muted-fg ${style.tooltip} mb-2 text-sm`}>
+      <p className={`text-gray-11 ${style.tooltip} mb-2 text-sm`}>
         Here you can turn on/off payment options and change the order of their
         appearance
       </p>
@@ -108,7 +108,7 @@ function Method({ value, index, total, hint_id, move, updator }: IMethod) {
       dragControls={controls}
       id={value.id}
       style={{ y }}
-      className="flex items-center gap-2 border p-3 aria-disabled:bg-muted aria-disabled:text-muted-fg rounded bg-card select-none"
+      className="flex items-center gap-2 border p-3 aria-disabled:bg-gray-3 aria-disabled:text-gray-11 rounded bg-card select-none"
     >
       <input
         id={checkbox_id}

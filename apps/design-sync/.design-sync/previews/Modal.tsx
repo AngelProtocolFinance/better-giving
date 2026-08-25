@@ -15,7 +15,7 @@ export const Confirmation = () => (
     <h3 className="text-xl font-bold text-balance">
       This organization is already registered
     </h3>
-    <p className="text-muted-fg text-pretty mt-3">
+    <p className="text-gray-11 text-pretty mt-3">
       Rainforest Trust already has an account on Better Giving. Ask an existing
       admin to invite you, or email support@better.giving for help getting
       access.
@@ -59,7 +59,7 @@ export const DestructiveConfirm = () => (
     classes="p-8 bg-popover text-popover-fg"
   >
     <h3 className="text-xl font-bold">Cancel this payout?</h3>
-    <p className="text-muted-fg text-pretty mt-3">
+    <p className="text-gray-11 text-pretty mt-3">
       The payout of $1,200.00 to Ocean Conservancy scheduled for Nov 14, 2025
       will not be sent. The balance stays available for the next payout run.
     </p>

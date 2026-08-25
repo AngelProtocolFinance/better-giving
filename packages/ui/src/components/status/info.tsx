@@ -10,7 +10,7 @@ export function Info({ classes = "", children }: Props) {
   return (
     <Status
       inline
-      classes={`${classes} text-sm text-muted-fg mr-2`}
+      classes={`${classes} text-sm text-gray-11 mr-2`}
       icon={
         <CircleAlert
           size={16}

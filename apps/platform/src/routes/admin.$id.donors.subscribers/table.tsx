@@ -137,7 +137,7 @@ export function SubscribersTable({
             return (
               <tr
                 key={r.from_email}
-                className={`hover:bg-muted ${r.active_count === 0 ? "text-muted-fg" : ""}`}
+                className={`hover:bg-gray-3 ${r.active_count === 0 ? "text-gray-11" : ""}`}
               >
                 <td className="p-0">
                   <Link
@@ -148,7 +148,7 @@ export function SubscribersTable({
                     <div className="font-medium leading-tight">
                       {r.from_name ?? r.from_email}
                     </div>
-                    <div className="text-xs leading-snug text-muted-fg">
+                    <div className="text-xs leading-snug text-gray-11">
                       {r.from_email}
                     </div>
                   </Link>
@@ -164,8 +164,8 @@ export function SubscribersTable({
       {(rows.length > 0 || load_next) && (
         <tfoot>
           {rows.length > 0 && (
-            <tr className="bg-muted">
-              <td className="text-xs font-medium text-muted-fg">Total</td>
+            <tr className="bg-gray-3">
+              <td className="text-xs font-medium text-gray-11">Total</td>
               <FootMoney n={totals.billed_month} />
               <FootMoney n={totals.pend_month} />
               <FootMoney n={totals.pend_year} />
@@ -216,7 +216,7 @@ function Th({
         disabled={disabled}
         className={`inline-flex w-full select-none items-center gap-1 px-2 py-2 focus:outline-none focus-visible:ring focus-visible:ring-ring ${
           disabled ? "cursor-default" : "cursor-pointer"
-        } ${align === "right" ? "justify-end" : ""} ${active ? "text-fg" : ""}`}
+        } ${align === "right" ? "justify-end" : ""} ${active ? "text-gray-12" : ""}`}
       >
         {children}
         {info && <InfoTip label={info} />}
@@ -241,7 +241,7 @@ function Money({ n, to, bold }: IMoneyProps) {
       <Link
         to={to}
         state={{ from: "subscribers" }}
-        className={`block px-2 py-2 ${bold ? "font-medium" : ""} ${zero ? "text-muted-fg" : ""}`}
+        className={`block px-2 py-2 ${bold ? "font-medium" : ""} ${zero ? "text-gray-11" : ""}`}
       >
         {zero ? "—" : fmt$(n)}
       </Link>

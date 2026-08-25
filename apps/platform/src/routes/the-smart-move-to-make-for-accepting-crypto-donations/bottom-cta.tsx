@@ -46,7 +46,7 @@ export function BottomCta({ className = "" }) {
                 rx="40"
                 ry="6"
                 filter="url(#blur)"
-                className="fill-muted"
+                className="fill-gray-3"
                 // className="blur-sm"
               />
             </svg>

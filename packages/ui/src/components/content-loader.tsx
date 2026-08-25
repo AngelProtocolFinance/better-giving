@@ -5,6 +5,9 @@ export function ContentLoader({
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div {...props} className={`${className} bg-muted animate-pulse rounded`} />
+    <div
+      {...props}
+      className={`${className} bg-gray-3 animate-pulse rounded`}
+    />
   );
 }

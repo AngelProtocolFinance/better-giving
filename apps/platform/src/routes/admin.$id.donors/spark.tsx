@@ -23,11 +23,11 @@ export function Spark({ data, w = 160, h = 64, title = "trend" }: IProps) {
   return (
     <svg width={w} height={h} className="block" role="img" aria-label={title}>
       <title>{title}</title>
-      <path d={area} className="fill-muted" />
+      <path d={area} className="fill-gray-3" />
       <path
         d={d}
         fill="none"
-        className="stroke-fg"
+        className="stroke-gray-12"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -54,7 +54,9 @@ export function Bars({ data, w = 160, h = 64, title = "trend" }: IProps) {
             width={bw}
             height={bh}
             rx={1}
-            className={i === data.length - 1 ? "fill-fg" : "fill-muted-fg/40"}
+            className={
+              i === data.length - 1 ? "fill-gray-12" : "fill-gray-11/40"
+            }
           />
         );
       })}

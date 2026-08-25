@@ -29,7 +29,7 @@ export function Slug({
           </Link>
         </div>
       )}
-      <p className="text-xs sm:text-sm text-muted-fg italic mt-2">
+      <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
         Change your fundraiser's profile URL ending segment from the default
         alphanumeric ID to a more human-readable value for better SEO and donor
         recognition. Only numbers and letters are permitted! Your alphanumeric
@@ -37,7 +37,7 @@ export function Slug({
         links that have been shared.
       </p>
 
-      <p className="text-xs sm:text-sm text-muted-fg italic mt-2">
+      <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
         Example: {get_link(slug_new || "myFundraiser", base_url)}
       </p>
     </div>

@@ -107,7 +107,7 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
       <Features classes="page my-10 xl:my-20" />
       <Underdog classes="page my-10 xl:my-20" />
       <Testimonials classes="page my-10 xl:my-20" />
-      <div className="bg-muted pb-24">
+      <div className="bg-gray-3 pb-24">
         <Faq classes="page mt-24" />
       </div>
       <div className="page my-10 xl:my-20">

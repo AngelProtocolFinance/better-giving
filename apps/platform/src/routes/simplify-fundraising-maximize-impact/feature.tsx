@@ -54,7 +54,7 @@ export function Feature({ className = "" }) {
 
       <Video vid={videos.about} classes="max-w-2xl justify-self-center p-4" />
 
-      <ul className="col-span-full mt-10 lg:divide-x divide-border grid gap-y-20 lg:gap-y-0 lg:grid-cols-3">
+      <ul className="col-span-full mt-10 lg:divide-x divide-gray-6 grid gap-y-20 lg:gap-y-0 lg:grid-cols-3">
         {items.map((item, idx) => (
           <ListItem {...item} key={idx} />
         ))}

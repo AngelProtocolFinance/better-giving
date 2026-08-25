@@ -18,10 +18,10 @@ export function Amount({ value, currency, usd, chips, classes = "" }: IAmount) {
   const c = currency.toUpperCase();
   return (
     <span className={`inline-flex items-baseline gap-x-1.5 ${classes}`}>
-      <span className="text-2xs font-medium text-muted-fg">{c}</span>
+      <span className="text-2xs font-medium text-gray-11">{c}</span>
       <span className="figures">{value}</span>
       {usd != null && c !== "USD" && (
-        <span className="text-xs text-muted-fg figures">${usd}</span>
+        <span className="text-xs text-gray-11 figures">${usd}</span>
       )}
       {chips}
     </span>

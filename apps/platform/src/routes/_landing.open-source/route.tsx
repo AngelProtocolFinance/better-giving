@@ -93,10 +93,10 @@ export default function Page() {
             {why.map((w) => (
               <div
                 key={w.title}
-                className="bg-accent border border-border rounded p-8 grid gap-2.5 content-start"
+                className="bg-accent border border-gray-6 rounded p-8 grid gap-2.5 content-start"
               >
                 <span className="text-xl font-bold">{w.title}</span>
-                <p className="text-sm/relaxed text-muted-fg">{w.body}</p>
+                <p className="text-sm/relaxed text-gray-11">{w.body}</p>
               </div>
             ))}
           </div>
@@ -114,7 +114,7 @@ export default function Page() {
             className="mb-1"
           />
           <h2 className="section-heading">How the commons stays free</h2>
-          <p className="text-muted-fg leading-relaxed max-w-2xl text-pretty">
+          <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
             Better Giving is volunteer-driven and funded entirely by optional
             donor contributions at checkout. Always opt-in, never pre-selected.
             No platform fees, no investors, no gated features. Members who share

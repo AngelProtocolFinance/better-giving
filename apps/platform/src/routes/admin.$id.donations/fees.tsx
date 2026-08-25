@@ -12,22 +12,22 @@ export function Fees({ classes = "", ...f }: Props) {
     <div className={`${classes} grid gap-y-2 text-xs`}>
       {f.base > 0 && (
         <div>
-          <p className="text-2xs uppercase text-muted-fg">base</p> $
+          <p className="text-2xs uppercase text-gray-11">base</p> $
           {humanize(f.base, 3)}
         </div>
       )}
       {f.fsa > 0 && (
         <div>
-          <p className="text-2xs uppercase text-muted-fg">fiscal sponsorship</p>{" "}
+          <p className="text-2xs uppercase text-gray-11">fiscal sponsorship</p>{" "}
           ${humanize(f.fsa, 3)}
         </div>
       )}
       {f.processing > 0 && (
         <div className="">
-          <p className="text-2xs uppercase text-muted-fg">processing</p>{" "}
+          <p className="text-2xs uppercase text-gray-11">processing</p>{" "}
           <p className="flex items-center">
             <span
-              className={`${covered_by_donor ? "line-through text-muted-fg" : ""}`}
+              className={`${covered_by_donor ? "line-through text-gray-11" : ""}`}
             >
               ${humanize(f.processing, 3)}
             </span>

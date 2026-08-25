@@ -45,7 +45,7 @@ export function Borders() {
           {cards.map((card, i) => (
             <motion.div
               key={card.title}
-              className="bg-card border border-border rounded p-6 grid content-start gap-3"
+              className="bg-card border border-gray-6 rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
@@ -55,7 +55,7 @@ export function Borders() {
                 <card.icon size={24} />
               </div>
               <h3 className="text-xl font-bold">{card.title}</h3>
-              <p className="text-muted-fg">{card.body}</p>
+              <p className="text-gray-11">{card.body}</p>
             </motion.div>
           ))}
         </div>

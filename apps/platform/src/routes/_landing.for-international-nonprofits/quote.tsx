@@ -8,7 +8,7 @@ export function Quote({ classes = "" }) {
             was the wall. Fiscal sponsorship through Better Giving took that
             wall down in a week.&rdquo;
           </blockquote>
-          <figcaption className="text-sm text-muted-fg">
+          <figcaption className="text-sm text-gray-11">
             CASD Sierra Leone, fiscally sponsored partner
           </figcaption>
         </figure>

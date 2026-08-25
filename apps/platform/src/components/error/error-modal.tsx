@@ -31,7 +31,7 @@ export function ErrorModal() {
       <div className="px-6 pb-4 text-center mt-6">
         <CircleAlert className="text-destructive mx-auto" size={40} />
         <p className="font-bold mt-3">Something went wrong</p>
-        <p className="text-muted-fg text-sm mt-2 text-balance">{message}</p>
+        <p className="text-gray-11 text-sm mt-2 text-balance">{message}</p>
       </div>
       <Actions band>
         <button

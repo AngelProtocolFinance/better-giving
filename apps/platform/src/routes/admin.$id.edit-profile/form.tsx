@@ -153,7 +153,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           classes={{
             field:
               "rich-text-toolbar border text-sm grid grid-rows-[auto_1fr] rounded bg-input p-3 min-h-60",
-            counter: "text-muted-fg",
+            counter: "text-gray-11",
             error: "text-right",
           }}
           error={
@@ -317,7 +317,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           <Link
             target="_blank"
             to={href("/marketplace/:id", { id: id.toString() })}
-            className="text-primary hover:text-fg text-sm flex items-center gap-1"
+            className="text-primary hover:text-gray-12 text-sm flex items-center gap-1"
           >
             View Profile
           </Link>

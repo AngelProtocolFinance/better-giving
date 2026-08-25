@@ -45,7 +45,7 @@ export function Milestones({ programId, milestones }: Props) {
       </div>
       {milestones.length > 0 ? (
         <>
-          <span className="text-sm text-muted-fg">
+          <span className="text-sm text-gray-11">
             Milestones will be publicly displayed in descending order by their
             date.
           </span>

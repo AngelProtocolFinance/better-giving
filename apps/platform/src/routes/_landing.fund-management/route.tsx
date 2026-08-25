@@ -50,7 +50,7 @@ export default function Page() {
             <h1 className="hero-heading">
               This quarter's gifts, next decade's reserves
             </h1>
-            <p className="text-lg/relaxed text-muted-fg max-w-lg text-pretty">
+            <p className="text-lg/relaxed text-gray-11 max-w-lg text-pretty">
               Choose what share of each donation is granted to your bank, held
               in high-yield savings, or invested in the Sustainability Fund.
               Change the split anytime. Pay nothing, ever.
@@ -66,7 +66,7 @@ export default function Page() {
                 Book a demo
               </ExtLink>
             </div>
-            <p className="text-sm text-muted-fg">
+            <p className="text-sm text-gray-11">
               No setup, AUM, or performance fees. 100% of growth is yours.
             </p>
           </div>
@@ -103,7 +103,7 @@ export default function Page() {
                   {s.n}
                 </span>
                 <span className="text-xl font-bold">{s.title}</span>
-                <p className="text-sm/relaxed text-muted-fg max-w-75">
+                <p className="text-sm/relaxed text-gray-11 max-w-75">
                   {s.body}
                 </p>
               </div>

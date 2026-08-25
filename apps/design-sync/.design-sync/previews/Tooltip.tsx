@@ -18,7 +18,7 @@ function useAutoOpen() {
 }
 
 const tip_cls =
-  "bg-popover outline outline-border text-popover-fg px-4 py-2 rounded text-sm shadow-md";
+  "bg-popover outline outline-gray-6 text-popover-fg px-4 py-2 rounded text-sm shadow-md";
 
 export const Open = () => {
   const box = useAutoOpen();
@@ -68,7 +68,7 @@ export const OnFigure = () => {
               </div>
             }
           >
-            <button type="button" className="text-muted-fg text-sm underline">
+            <button type="button" className="text-gray-11 text-sm underline">
               How is this calculated?
             </button>
           </Tooltip>

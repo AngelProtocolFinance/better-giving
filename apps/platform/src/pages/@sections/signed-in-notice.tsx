@@ -20,7 +20,7 @@ export function SignedInNotice({ classes = "", email, ref }: ISignedInNotice) {
       ref={ref}
       role="alert"
       tabIndex={-1}
-      className={`${classes} grid gap-2.5 bg-muted border border-border rounded p-4 text-sm/relaxed focus-visible:outline-2 focus-visible:outline-offset-2`}
+      className={`${classes} grid gap-2.5 bg-gray-3 border border-gray-6 rounded p-4 text-sm/relaxed focus-visible:outline-2 focus-visible:outline-offset-2`}
     >
       <p>
         This browser is signed in as{" "}

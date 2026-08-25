@@ -14,7 +14,7 @@ function Item({ children, con }: IItem) {
   return (
     <span className="flex gap-2.5 text-sm/normal">
       <Icon
-        className={`flex-none size-4 mt-0.5 ${con ? "text-muted-fg" : "text-primary"}`}
+        className={`flex-none size-4 mt-0.5 ${con ? "text-gray-11" : "text-primary"}`}
         strokeWidth={3}
         aria-hidden
       />
@@ -34,7 +34,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
         <h2 className="section-heading text-center max-w-2xl mx-auto">
           Two ways to run it
         </h2>
-        <p className="mt-3.5 text-muted-fg text-center max-w-2xl mx-auto text-pretty">
+        <p className="mt-3.5 text-gray-11 text-center max-w-2xl mx-auto text-pretty">
           Most members choose the managed platform for convenience. The
           self-hosted path exists so that choice is always yours, and always
           will be.

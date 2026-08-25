@@ -13,18 +13,18 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
           Two places your money grows
         </h2>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
-          <div className="bg-accent border border-border rounded p-9 grid gap-3.5 content-start">
+          <div className="bg-accent border border-gray-6 rounded p-9 grid gap-3.5 content-start">
             <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
               No market risk
             </span>
             <h3 className="text-2xl font-bold">High-yield savings</h3>
             <span className="text-4xl font-bold text-primary">
               ~3-4%{" "}
-              <span className="text-base font-normal text-muted-fg">
+              <span className="text-base font-normal text-gray-11">
                 annual yield
               </span>
             </span>
-            <p className="text-sm/relaxed text-muted-fg">
+            <p className="text-sm/relaxed text-gray-11">
               FDIC-insured and accessible anytime. A reliable way to build
               reserves while funds stay safe and liquid, with electronic payouts
               within 5 working days whenever you need them.
@@ -48,7 +48,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
             </p>
           </div>
         </div>
-        <p className="mt-4.5 text-xs text-muted-fg text-center">
+        <p className="mt-4.5 text-xs text-gray-11 text-center">
           *Past performance is not indicative of future results; all investments
           carry risk.
         </p>

@@ -14,7 +14,7 @@ interface IProps {
 const TONE_COLOR: Record<TDeltaTone, string> = {
   positive: "text-success",
   negative: "text-destructive",
-  neutral: "text-muted-fg",
+  neutral: "text-gray-11",
 };
 
 export function KpiCard({
@@ -27,10 +27,10 @@ export function KpiCard({
 }: IProps) {
   const delta_color = TONE_COLOR[delta_tone];
   return (
-    <div className="rounded border border-border bg-card p-6">
+    <div className="rounded border border-gray-6 bg-card p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-sm font-medium text-muted-fg">{label}</div>
+          <div className="text-sm font-medium text-gray-11">{label}</div>
           <div className="mt-2 text-3xl font-bold tracking-tight">{value}</div>
           {delta && (
             <div className={`mt-2 text-xs ${delta_color}`}>{delta}</div>

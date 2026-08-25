@@ -18,7 +18,7 @@ export function Result1({ classes = "", ...v }: Props) {
       </h3>
 
       <div className="mb-6">
-        <p className="text-muted-fg">Current Online Donations</p>
+        <p className="text-gray-11">Current Online Donations</p>
         <p className="text-lg sm:text-xl font-bold">{to_usd(v.amount)}</p>
       </div>
 
@@ -28,9 +28,9 @@ export function Result1({ classes = "", ...v }: Props) {
         Donation Processing Impact
       </h3>
 
-      <div className="grid @md:grid-cols-2 @md:bg-muted rounded mb-6 divide-border divide-y @md:divide-x @md:divide-y-0">
+      <div className="grid @md:grid-cols-2 @md:bg-gray-3 rounded mb-6 divide-gray-6 divide-y @md:divide-x @md:divide-y-0">
         <div className="@md:p-5 pb-2">
-          <p className="max-sm:text-sm text-muted-fg mb-2">
+          <p className="max-sm:text-sm text-gray-11 mb-2">
             Current Amount Received
           </p>
           <p className="text-lg sm:text-xl font-bold">
@@ -41,9 +41,7 @@ export function Result1({ classes = "", ...v }: Props) {
           </p>
         </div>
         <div className="@md:p-5 pt-2">
-          <p className="max-sm:text-sm text-muted-fg mb-2">
-            With Better Giving
-          </p>
+          <p className="max-sm:text-sm text-gray-11 mb-2">With Better Giving</p>
           <p className="text-lg sm:text-xl font-bold">
             <Usd relative={v.ogNet}>{v.bgNet}</Usd>{" "}
             <Usd sign parens classes="text-lg sm:text-xl">
@@ -70,7 +68,7 @@ export function Result1({ classes = "", ...v }: Props) {
             Additional donations from expanded payment types:
             <Tooltip
               tip={
-                <Content className="max-w-xs text-center bg-popover outline outline-border p-4 text-popover-fg text-xs shadow-lg rounded">
+                <Content className="max-w-xs text-center bg-popover outline outline-gray-6 p-4 text-popover-fg text-xs shadow-lg rounded">
                   Based on industry data, each payment type represents a portion
                   of potential donations: Credit Card (63%), Bank/ACH (10%),
                   Digital Wallets (7%), DAF (12%), Stocks (6%), Crypto (2%).
@@ -101,7 +99,7 @@ export function Result1({ classes = "", ...v }: Props) {
       </div>
 
       <div
-        className={`${v.advantage > 0 ? "bg-success-subtle" : v.advantage < 0 ? "bg-destructive-subtle" : "bg-muted"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
+        className={`${v.advantage > 0 ? "bg-success-subtle" : v.advantage < 0 ? "bg-destructive-subtle" : "bg-gray-3"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
       >
         {v.advantage > 0 ? (
           <TrendingUp size={40} className="size-8 sm:size-10 text-success" />

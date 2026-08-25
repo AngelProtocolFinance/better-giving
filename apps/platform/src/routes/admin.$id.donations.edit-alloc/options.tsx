@@ -25,7 +25,7 @@ export function AllocationOptions(props: Props) {
             {option.icon}
             <div className="grid gap-y-2">
               <p className="text-sm font-medium leading-none">{option.label}</p>
-              <p className="text-sm text-muted-fg">{option.description}</p>
+              <p className="text-sm text-gray-11">{option.description}</p>
             </div>
           </span>
         </RadioGroup.Item>

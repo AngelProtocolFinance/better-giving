@@ -18,7 +18,7 @@ export function Portability({ classes = "" }: IPortability) {
         <h2 id="portability-heading" className="article-heading">
           The recurring-donor portability guarantee
         </h2>
-        <p className="mt-3 text-lg text-muted-fg text-pretty">
+        <p className="mt-3 text-lg text-gray-11 text-pretty">
           If you ever leave, your recurring donors leave with you:
           subscriptions, data, everything. We never hold nonprofits captive.
           Partnership means you stay because you want to, not because switching

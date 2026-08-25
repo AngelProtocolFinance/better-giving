@@ -8,29 +8,29 @@ export const AllTypes = () => (
   <div className="flex flex-col gap-3 items-start">
     <div className="flex items-center gap-3">
       <PayoutStatus type="pending" />
-      <span className="text-xs text-muted-fg">type="pending"</span>
+      <span className="text-xs text-gray-11">type="pending"</span>
     </div>
     <div className="flex items-center gap-3">
       <PayoutStatus type="settled" />
-      <span className="text-xs text-muted-fg">type="settled"</span>
+      <span className="text-xs text-gray-11">type="settled"</span>
     </div>
     <div className="flex items-center gap-3">
       <PayoutStatus type="refunded_loss" />
-      <span className="text-xs text-muted-fg">
+      <span className="text-xs text-gray-11">
         type="refunded_loss" — reads as settled
       </span>
     </div>
     <div className="flex items-center gap-3">
       <PayoutStatus type="refunded" />
-      <span className="text-xs text-muted-fg">type="refunded"</span>
+      <span className="text-xs text-gray-11">type="refunded"</span>
     </div>
     <div className="flex items-center gap-3">
       <PayoutStatus type="error" />
-      <span className="text-xs text-muted-fg">type="error"</span>
+      <span className="text-xs text-gray-11">type="error"</span>
     </div>
     <div className="flex items-center gap-3">
       <PayoutStatus type="cancelled" />
-      <span className="text-xs text-muted-fg">type="cancelled"</span>
+      <span className="text-xs text-gray-11">type="cancelled"</span>
     </div>
   </div>
 );
@@ -38,7 +38,7 @@ export const AllTypes = () => (
 export const InTable = () => (
   <table className="text-sm border-collapse max-w-xl">
     <thead>
-      <tr className="text-left text-xs text-muted-fg">
+      <tr className="text-left text-xs text-gray-11">
         <th className="px-3 py-2 font-medium">Amount</th>
         <th className="px-3 py-2 font-medium">Description</th>
         <th className="px-3 py-2 font-medium">Date</th>
@@ -88,7 +88,7 @@ export const Inline = () => (
   <div className="border rounded p-4 max-w-md flex items-center justify-between gap-4">
     <div>
       <p className="font-medium">$1,200.00</p>
-      <p className="text-sm text-muted-fg">Ocean Conservancy · Nov 14, 2025</p>
+      <p className="text-sm text-gray-11">Ocean Conservancy · Nov 14, 2025</p>
     </div>
     <PayoutStatus type="pending" classes="shrink-0" />
   </div>

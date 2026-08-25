@@ -19,14 +19,14 @@ export function Result2({ classes = "", ...v }: Props) {
 
       <div className="space-y-3 mb-6">
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
-          <p className="max-sm:text-sm text-muted-fg">
+          <p className="max-sm:text-sm text-gray-11">
             Savings Account Growth (4%):
           </p>
           <p className=" font-semibold">{to_usd(y1.liq)}</p>
         </div>
 
         <div className="flex gap-x-4 @max-md:flex-col justify-between @md:items-center">
-          <p className="max-sm:text-sm text-muted-fg">
+          <p className="max-sm:text-sm text-gray-11">
             Sustainability Fund Growth (20%):
           </p>
           <p className=" font-semibold">{to_usd(y1.lock)}</p>
@@ -34,7 +34,7 @@ export function Result2({ classes = "", ...v }: Props) {
       </div>
 
       <div
-        className={`${y1.total > 0 ? "bg-success-subtle" : y1.total < 0 ? "bg-destructive-subtle" : "bg-muted"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
+        className={`${y1.total > 0 ? "bg-success-subtle" : y1.total < 0 ? "bg-destructive-subtle" : "bg-gray-3"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
       >
         {y1.total > 0 ? (
           <TrendingUp size={40} className="size-8 sm:size-10 text-success" />

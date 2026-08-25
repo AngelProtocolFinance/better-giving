@@ -29,7 +29,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
         <h5 className="text-sm font-bold truncate flex-1">{name}</h5>
         <ChevronsUpDownIcon
           size={16}
-          className="shrink-0 text-muted-fg group-hover:text-fg"
+          className="shrink-0 text-gray-11 group-hover:text-gray-12"
         />
       </Menu.Trigger>
       <Portal>
@@ -41,7 +41,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
                 <Menu.Item key={org.id} value={org.id.toString()} asChild>
                   <Link
                     to={href("/admin/:id", { id: org.id.toString() })}
-                    className="hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 flex items-center gap-2 px-2 py-2 rounded text-muted-fg hover:text-fg"
+                    className="hover:bg-gray-3 data-highlighted:bg-gray-3 data-highlighted:text-gray-12 data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 flex items-center gap-2 px-2 py-2 rounded text-gray-11 hover:text-gray-12"
                   >
                     <Image
                       src={org.logo || flying_character}
@@ -58,7 +58,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
             <Menu.Item value="register" asChild>
               <Link
                 to={href("/register")}
-                className="hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t mt-1 flex items-center gap-2 px-2 py-2 rounded text-muted-fg hover:text-fg"
+                className="hover:bg-gray-3 data-highlighted:bg-gray-3 data-highlighted:text-gray-12 data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t mt-1 flex items-center gap-2 px-2 py-2 rounded text-gray-11 hover:text-gray-12"
               >
                 <PlusIcon size={16} className="shrink-0" />
                 <span className="text-sm">Register another org</span>

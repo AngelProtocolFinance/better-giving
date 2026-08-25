@@ -82,7 +82,7 @@ export function Select<T extends string>({
           {props.value != null ? (
             props.option_disp(props.value as T)
           ) : (
-            <span className="text-muted-fg">{props.placeholder}</span>
+            <span className="text-gray-11">{props.placeholder}</span>
           )}
           <ArkSelect.Context>
             {(api) => (

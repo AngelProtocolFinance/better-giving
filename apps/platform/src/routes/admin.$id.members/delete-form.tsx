@@ -35,7 +35,7 @@ export function DeleteForm({ user, to_remove, pending_email, label }: Props) {
           });
         }}
         type="button"
-        className=" disabled:text-muted-fg hover:text-destructive active:text-destructive absolute-center"
+        className=" disabled:text-gray-11 hover:text-destructive active:text-destructive absolute-center"
       >
         {fetcher.state !== "idle" ? (
           <LoaderCircle size={16} className="animate-spin" />

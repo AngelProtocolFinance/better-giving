@@ -72,8 +72,8 @@ export function ProgressIndicator({ step, o_type, classes = "" }: Props) {
             >
               <div className="h-5.5 border-l group-data-complete:border-primary group-data-curr:border-primary my-2 group-first:hidden" />
               <div className="flex items-center w-full">
-                <div className="w-4 aspect-square bg-muted group-data-complete:bg-primary rounded-full transform -translate-x-1/2" />
-                <span className="text-sm text-muted-fg group-data-curr:text-primary">
+                <div className="w-4 aspect-square bg-gray-3 group-data-complete:bg-primary rounded-full transform -translate-x-1/2" />
+                <span className="text-sm text-gray-11 group-data-curr:text-primary">
                   {label}
                 </span>
                 {i === first_visible && (

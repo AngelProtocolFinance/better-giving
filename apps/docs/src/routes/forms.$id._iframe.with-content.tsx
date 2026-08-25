@@ -63,8 +63,8 @@ export default function WithContent() {
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-fg">With Content</h1>
-        <p className="text-sm text-muted-fg mt-1">
+        <h1 className="text-xl font-bold text-gray-12">With Content</h1>
+        <p className="text-sm text-gray-11 mt-1">
           Add custom headings, descriptions, or other content around your
           embedded form to provide context and encourage donations.
         </p>
@@ -94,7 +94,7 @@ export default function WithContent() {
         <h2 className="text-2xl font-bold text-center mb-2">
           Donate To Better Giving
         </h2>
-        <p className="text-muted-fg text-center mb-4">
+        <p className="text-gray-11 text-center mb-4">
           Better Giving is a 501c3 nonprofit that provides nonprofits free
           fundraising tools
         </p>
@@ -109,11 +109,11 @@ export default function WithContent() {
       </div>
 
       <div className="rounded text-sm border overflow-hidden min-w-0 max-w-full">
-        <div className="flex items-center justify-between px-4 py-2 bg-muted border-b">
+        <div className="flex items-center justify-between px-4 py-2 bg-gray-3 border-b">
           <EmbedModeTabs />
           <Copier
             text={code_snippet}
-            classes="p-1.5 rounded text-muted-fg hover:bg-accent hover:text-fg"
+            classes="p-1.5 rounded text-gray-11 hover:bg-accent hover:text-gray-12"
           />
         </div>
         <HighlightedCode
@@ -121,7 +121,7 @@ export default function WithContent() {
           lang="html"
           transformers={transformers}
           className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
-          fallback_class_name="p-4 m-0 overflow-x-auto text-muted-fg"
+          fallback_class_name="p-4 m-0 overflow-x-auto text-gray-11"
         />
       </div>
 

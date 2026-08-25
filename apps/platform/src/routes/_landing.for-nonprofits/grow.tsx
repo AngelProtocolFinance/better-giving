@@ -33,13 +33,13 @@ export function Grow({ classes = "" }: IGrow) {
           <h2 id="grow-heading" className="section-heading">
             Don't just raise it. Grow it.
           </h2>
-          <p className="mt-4 text-muted-fg text-pretty">
+          <p className="mt-4 text-gray-11 text-pretty">
             Every donation can be split automatically between funds you control:
             spend now, build reserves, or invest for the long term. It's how
             small nonprofits build the three to six months of operating reserves
             the strong ones have.
           </p>
-          <p className="mt-4 text-muted-fg">
+          <p className="mt-4 text-gray-11">
             You set the split once. We handle the rest.
           </p>
           <Link
@@ -51,7 +51,7 @@ export function Grow({ classes = "" }: IGrow) {
         </div>
 
         <div>
-          <div className="bg-card border border-border rounded divide-y divide-border overflow-hidden">
+          <div className="bg-card border border-gray-6 rounded divide-y divide-gray-6 overflow-hidden">
             {accounts.map((a) => (
               <div
                 key={a.name}
@@ -59,7 +59,7 @@ export function Grow({ classes = "" }: IGrow) {
               >
                 <div>
                   <div className="text-sm font-bold">{a.name}</div>
-                  <div className="text-xs text-muted-fg">{a.detail}</div>
+                  <div className="text-xs text-gray-11">{a.detail}</div>
                 </div>
                 <div
                   className={`text-sm font-bold whitespace-nowrap figures ${a.figure_classes}`}
@@ -69,7 +69,7 @@ export function Grow({ classes = "" }: IGrow) {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted-fg">
+          <p className="mt-3 text-xs text-gray-11">
             *Historical returns are not a guarantee of future performance.
             Allocations are always your choice.
           </p>

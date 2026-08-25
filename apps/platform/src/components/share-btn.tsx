@@ -81,7 +81,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={
-                      "hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 flex items-center gap-3 px-3 py-2 rounded text-muted-fg hover:text-fg"
+                      "hover:bg-gray-3 data-highlighted:bg-gray-3 data-highlighted:text-gray-12 data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 flex items-center gap-3 px-3 py-2 rounded text-gray-11 hover:text-gray-12"
                     }
                   >
                     {item.icon}
@@ -96,7 +96,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                     navigator.clipboard.writeText(p.url);
                   }}
                   className={
-                    "hover:bg-muted data-highlighted:bg-muted data-highlighted:text-fg data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t text-sm col-span-full flex items-center gap-3 w-full px-3 py-2 rounded hover:text-fg"
+                    "hover:bg-gray-3 data-highlighted:bg-gray-3 data-highlighted:text-gray-12 data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t text-sm col-span-full flex items-center gap-3 w-full px-3 py-2 rounded hover:text-gray-12"
                   }
                 >
                   <LinkIcon size={16} />

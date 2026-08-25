@@ -74,7 +74,7 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
       <Fieldset.Root className="grid grid-cols-2 group gap-4">
         <Fieldset.Legend className="col-span-full label mb-3">
           Your name{" "}
-          <span className="block text-sm text-muted-fg font-normal">
+          <span className="block text-sm text-gray-11 font-normal">
             as would appear in your tax receipt and donation record.
           </span>
         </Fieldset.Legend>

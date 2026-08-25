@@ -27,13 +27,13 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="w-full max-w-lg px-5">
-      <div className="bg-card border border-border rounded p-6 sm:p-10">
+      <div className="bg-card border border-gray-6 rounded p-6 sm:p-10">
         <div className="grid justify-items-center text-center">
           <CircleCheck className="text-success" size={40} />
           <h1 className="text-2xl font-bold mt-3 text-balance">
             Register your nonprofit
           </h1>
-          <p className="text-muted-fg mt-1.5 text-pretty">
+          <p className="text-gray-11 mt-1.5 text-pretty">
             Select your organization type to begin.
           </p>
         </div>

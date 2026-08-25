@@ -60,13 +60,13 @@ const status_text_colors: Record<TStatus, string> = {
   refunded: "text-destructive",
   intent: "text-warning-subtle-fg",
   confirmed: "text-primary",
-  created: "text-muted-fg",
-  expired: "text-muted-fg",
+  created: "text-gray-11",
+  expired: "text-gray-11",
   failed: "text-destructive",
   refunded_loss: "text-destructive",
-  cancelled: "text-muted-fg",
+  cancelled: "text-gray-11",
 };
 
 export function status_text_color(s: TStatus): string {
-  return status_text_colors[s] ?? "text-muted-fg";
+  return status_text_colors[s] ?? "text-gray-11";
 }

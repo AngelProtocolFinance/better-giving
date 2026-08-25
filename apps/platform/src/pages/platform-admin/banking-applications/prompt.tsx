@@ -39,31 +39,31 @@ function Content({ verdict }: Props) {
     >
       <input type="hidden" value={verdict} name="type" />
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-muted p-5">
+        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Banking application
         </p>
         <Link
           to=".."
           aria-label="Close"
           aria-disabled={fetcher.state !== "idle"}
-          className="border p-2 rounded absolute top-1/2 right-4 transfetcher.Form -translate-y-1/2 disabled:text-muted-fg"
+          className="border p-2 rounded absolute top-1/2 right-4 transfetcher.Form -translate-y-1/2 disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />
         </Link>
       </div>
-      <p className="px-6 pb-4 text-center text-muted-fg mt-4 font-semibold">
+      <p className="px-6 pb-4 text-center text-gray-11 mt-4 font-semibold">
         You are about to {verdict} this banking application.
       </p>
 
       {verdict === "approved" ? (
-        <div className="px-6 pb-4 text-center text-muted-fg">
+        <div className="px-6 pb-4 text-center text-gray-11">
           This will immediately payout all pending funds to newly linked bank
           account and is irreversible.
         </div>
       ) : null}
 
       <div className="flex items-center gap-2 mb-6">
-        <Status classes="bg-muted-fg">Under review</Status>
+        <Status classes="bg-gray-11">Under review</Status>
         <ChevronRight size={20} />
         {verdict === "approved" ? (
           <Status classes="bg-success">Approved</Status>

@@ -49,7 +49,7 @@ export function InitForm(props: Props) {
 
       <Link
         to={`${href("/login")}?redirect=${props.to}`}
-        className="mt-5 text-primary hover:text-primary active:text-primary aria-disabled:text-muted-fg max-sm:text-sm font-medium underline text-center"
+        className="mt-5 text-primary hover:text-primary active:text-primary aria-disabled:text-gray-11 max-sm:text-sm font-medium underline text-center"
         aria-disabled={fetcher.state !== "idle"}
       >
         Back to Sign In

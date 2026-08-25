@@ -46,7 +46,7 @@ export function Review(props: Props) {
 
   return (
     <div className={`overflow-x-auto scrollbars ${props.classes || ""} p-8`}>
-      <p className="text-muted-fg text-sm font-semibold">Portfolio value</p>
+      <p className="text-gray-11 text-sm font-semibold">Portfolio value</p>
       <Diff
         classes="text-2xl font-bold mb-4"
         el="div"
@@ -54,7 +54,7 @@ export function Review(props: Props) {
         b={total_value_2}
         formatter={(x) => `$${humanize(x)}`}
       />
-      <p className="text-muted-fg text-sm font-semibold">Unit price</p>
+      <p className="text-gray-11 text-sm font-semibold">Unit price</p>
       <Diff
         classes="text-2xl font-bold mb-4"
         el="div"

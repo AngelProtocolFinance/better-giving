@@ -105,7 +105,7 @@ export function SettleForm({
           <select
             id="__from"
             {...register("from")}
-            className="w-full rounded border border-border bg-card px-3 py-2 text-sm font-medium text-fg focus:outline-primary"
+            className="w-full rounded border border-gray-6 bg-card px-3 py-2 text-sm font-medium text-gray-12 focus:outline-primary"
           >
             <option value="cheque">Cheque</option>
             <option value="daf">DAF</option>
@@ -131,7 +131,7 @@ export function SettleForm({
           {/* the field goes optional without moving, so say why rather than
               leave the admin wondering which of the two is now in charge */}
           {from_gift && (
-            <p className="text-muted-fg text-sm mt-1">
+            <p className="text-gray-11 text-sm mt-1">
               Optional — the donation below decides where this goes. A gift to a
               fund is settled across the fund&apos;s nonprofits.
             </p>
@@ -187,7 +187,7 @@ export function SettleForm({
             {...register("for_donation_id")}
             label="For donation ID"
             sub={
-              <p className="text-muted-fg text-sm mb-2">
+              <p className="text-gray-11 text-sm mb-2">
                 The id the employer was asked to quote as{" "}
                 <span className="font-medium">Donation &#123;id&#125;</span> on
                 their payment — it&apos;s printed on the donor&apos;s donation

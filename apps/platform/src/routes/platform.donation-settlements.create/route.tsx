@@ -85,7 +85,7 @@ function Content({ on_close }: { on_close: () => void }) {
       <div className="p-6 sm:p-8 text-center">
         <CheckCircle2Icon className="mx-auto mb-3 text-success" size={40} />
         <h3 className="text-lg font-bold mb-1">Settlement created</h3>
-        <p className="text-sm text-muted-fg mb-4">
+        <p className="text-sm text-gray-11 mb-4">
           Settlement for ${form.net} to {recipients} has been recorded.
         </p>
         <button type="button" onClick={on_close} className="btn btn-primary">

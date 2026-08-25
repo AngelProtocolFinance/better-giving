@@ -108,7 +108,7 @@ export function Table({
                         ? href("/register/:reg_id", { reg_id: row.id })
                         : href("/platform/applications/:id", { id: row.id })
                     }
-                    className="text-center w-full inline-block [.pending]:text-muted-fg hover:text-primary"
+                    className="text-center w-full inline-block [.pending]:text-gray-11 hover:text-primary"
                   >
                     <Folder
                       size={22}
@@ -138,14 +138,14 @@ const dot_color: { [key in TStatus]: string } = {
   "03": "bg-success",
   "02": "bg-warning",
   "04": "bg-destructive",
-  "01": "bg-muted-fg",
+  "01": "bg-gray-11",
 };
 
 const text_color: { [key in TStatus]: string } = {
   "03": "text-success",
   "02": "text-warning-subtle-fg",
   "04": "text-destructive",
-  "01": "text-muted-fg",
+  "01": "text-gray-11",
 };
 
 const text: { [key in TStatus]: string } = {
@@ -181,7 +181,7 @@ function Status({ status, reg }: IStatusProps) {
           {progress.steps.map((done, i) => (
             <div
               key={i}
-              className={`h-1 w-3 rounded-full ${done ? "bg-primary" : "bg-muted"}`}
+              className={`h-1 w-3 rounded-full ${done ? "bg-primary" : "bg-gray-3"}`}
               title={`${step_labels[i]}: ${done ? "done" : "pending"}`}
             />
           ))}

@@ -87,7 +87,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
           //TODO: endowId={1}
           endowId={1}
         />
-        <p className="max-md:px-4 mb-4 max-md:col-start-1 text-sm leading-normal text-left text-muted-fg">
+        <p className="max-md:px-4 mb-4 max-md:col-start-1 text-sm leading-normal text-left text-gray-11">
           <span className="block mb-0.5">
             Need help? See{" "}
             <Link to="./#faqs" className="hover:underline font-medium">

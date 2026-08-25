@@ -30,7 +30,7 @@ export function Table({ methods, classes = "" }: Props) {
             <td>
               <NavLink
                 to={row.id}
-                className="[.pending]:text-muted-fg text-center w-full inline-block hover:text-primary"
+                className="[.pending]:text-gray-11 text-center w-full inline-block hover:text-primary"
               >
                 <FolderIcon
                   size={22}
@@ -49,7 +49,7 @@ export function Table({ methods, classes = "" }: Props) {
 const style: { [key in TStatus]: string } = {
   default: "bg-primary text-primary-fg",
   approved: "bg-success text-success-fg",
-  "under-review": "bg-muted-fg text-primary-fg",
+  "under-review": "bg-gray-11 text-primary-fg",
   rejected: "bg-destructive text-destructive-fg",
 };
 

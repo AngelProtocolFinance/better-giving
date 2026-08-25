@@ -57,7 +57,7 @@ export function Donate({ base_url, classes = "" }: IDonate) {
         >
           Free for nonprofits isn't free to run
         </h2>
-        <p className="mt-4 text-muted-fg leading-relaxed text-pretty text-center max-w-2xl">
+        <p className="mt-4 text-gray-11 leading-relaxed text-pretty text-center max-w-2xl">
           Better Giving is a 501(c)(3) nonprofit. Donations here pay for the
           servers, the support, and the engineering behind tools nonprofits
           never get billed for.

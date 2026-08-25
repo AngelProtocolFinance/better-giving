@@ -638,7 +638,7 @@ measured honestly, and the color section turned out to promise three things the 
 - **`text-card-fg`, `text-sidebar-fg`** — the ink row promises "the `-fg` partner of every surface
   above". `text-popover-fg` compiled and `text-card-fg` did not, for no reason other than a preview
   happening to write the one and not the other.
-- **`border-input`** — the lines row names `border`, `input`, `ring`; only `border-border` and
+- **`border-input`** — the lines row names `border`, `input`, `ring`; only `border-gray-6` and
   `outline-ring` had rules.
 - **`background-fg`** — promised by that same "every surface" phrasing and **not a token at all**.
   `--color-background`'s ink is plain `--color-fg`; there is no `--color-background-fg` in

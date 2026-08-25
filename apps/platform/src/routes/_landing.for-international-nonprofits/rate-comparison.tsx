@@ -83,13 +83,13 @@ const benchmark: Row = {
 
 function CostCell({ cost, accent }: { cost: Cost | string; accent?: boolean }) {
   if (typeof cost === "string")
-    return <span className="text-muted-fg">{cost}</span>;
+    return <span className="text-gray-11">{cost}</span>;
   return (
     <>
       <span className={`block font-bold ${accent ? "text-success" : ""}`}>
         {cost.amount}
       </span>
-      <span className="block text-xs text-muted-fg">{cost.effective}</span>
+      <span className="block text-xs text-gray-11">{cost.effective}</span>
     </>
   );
 }
@@ -97,12 +97,12 @@ function CostCell({ cost, accent }: { cost: Cost | string; accent?: boolean }) {
 function Cells({ row, accent }: { row: Row; accent?: boolean }) {
   return (
     <>
-      {/* text-fg: .table's th rule paints every header muted, which is right for
+      {/* text-gray-12: .table's th rule paints every header muted, which is right for
           the column strip and wrong for the row's own name */}
-      <th scope="row" className="align-top text-fg">
+      <th scope="row" className="align-top text-gray-12">
         <span className="block font-bold">{row.sponsor}</span>
         {row.note && (
-          <span className="block text-xs font-normal text-muted-fg">
+          <span className="block text-xs font-normal text-gray-11">
             {row.note}
           </span>
         )}
@@ -125,14 +125,14 @@ export function RateComparison({ classes = "" }) {
     <section id="compare" className={classes}>
       <div className="page">
         <h2 className="section-heading">How we compare on published rates</h2>
-        <p className="section-body text-muted-fg max-w-4xl mt-3 mb-8">
+        <p className="section-body text-gray-11 max-w-4xl mt-3 mb-8">
           Every figure below comes from the sponsor's own published fee
           schedule, linked at the bottom. Where a sponsor doesn't publish a
           rate, we say so rather than guess. You should ask them directly, and
           you should expect an answer.
         </p>
 
-        <p className="lg:hidden text-xs text-muted-fg mb-2">
+        <p className="lg:hidden text-xs text-gray-11 mb-2">
           Scroll the table sideways for every column.
         </p>
         {/* focusable region: the only way to reach a scroll container without a
@@ -175,15 +175,15 @@ export function RateComparison({ classes = "" }) {
                   <Cells row={r} />
                 </tr>
               ))}
-              <tr className="bg-muted text-muted-fg">
+              <tr className="bg-gray-3 text-gray-11">
                 <Cells row={benchmark} />
               </tr>
             </tbody>
           </table>
         </section>
 
-        <p className="mt-5 text-xs/relaxed text-muted-fg max-w-5xl">
-          <span className="font-bold text-fg">
+        <p className="mt-5 text-xs/relaxed text-gray-11 max-w-5xl">
+          <span className="font-bold text-gray-12">
             Sources, verified August 2026:
           </span>{" "}
           Myriad USA published fee schedule (myriadusa.org), Give2Asia donor FAQ

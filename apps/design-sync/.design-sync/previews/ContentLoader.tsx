@@ -36,7 +36,7 @@ export const ProfileSkeleton = () => (
 // cells are loaders.
 export const TableRows = () => (
   <div className="w-full max-w-2xl overflow-hidden rounded border bg-card">
-    <div className="flex items-center gap-4 border-b bg-muted px-4 py-3 text-xs font-medium text-muted-fg">
+    <div className="flex items-center gap-4 border-b bg-gray-3 px-4 py-3 text-xs font-medium text-gray-11">
       <span className="flex-1">Donor</span>
       <span className="w-32">Date</span>
       <span className="w-24 text-right">Amount</span>
@@ -75,11 +75,11 @@ export const CardGrid = () => (
 export const StatTile = () => (
   <div className="flex gap-6">
     <div className="w-56 rounded border bg-card p-5">
-      <p className="text-sm text-muted-fg">Raised this month</p>
+      <p className="text-sm text-gray-11">Raised this month</p>
       <ContentLoader className="mt-3 h-8 w-32" />
     </div>
     <div className="w-56 rounded border bg-card p-5">
-      <p className="text-sm text-muted-fg">Next payout</p>
+      <p className="text-sm text-gray-11">Next payout</p>
       <ContentLoader className="mt-3 h-8 w-40" />
     </div>
   </div>
