@@ -58,7 +58,7 @@ export function Content({
       className={`${classes} w-full grid gap-5 content-start justify-items-center`}
     >
       {config.isTitleShown && (
-        <h1 className="text-center w-full z-20 text-lg sm:text-3xl text-pretty">
+        <h1 className="text-center w-full text-lg sm:text-3xl text-pretty">
           {config.title || `Donate to ${npo.name}`}
         </h1>
       )}

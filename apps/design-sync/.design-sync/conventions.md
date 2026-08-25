@@ -170,8 +170,30 @@ no `rounded*` class at the call site. `rounded-sm`, `-md`, `-lg`, `-xl`, `-xs` a
 `initial` and **fail to compile** — writing one produces no rule at all, which is deliberate: it is
 how the single radius stays single. `rounded-full` and `rounded-none` still work. Nothing is a pill.
 
-**Elevation barely exists.** A card is `bg-panel` + `border` + `rounded` — never a shadow. The fill sits one rung below the page, so the panel reads by fill *and* border; a field inside it goes back up to `bg-surface`. Shadow
-appears only on genuinely floating layers: toasts, tooltips, and select popups.
+**The app is flat, and the shadow namespace is closed.** A card is `bg-panel` + `border` + `rounded` — never a
+shadow. The fill sits one rung below the page, so the panel reads by fill *and* border; a field inside it goes back
+up to `bg-surface`. `shadow-xs`/`-sm`/`-md`/`-lg`/`-xl`/`-2xl`/`-inner` are reset to `initial` and **fail to
+compile**, so depth cannot be re-picked one call site at a time; `shadow-[…]` still compiles and is caught by a
+sweep instead. The whole set a call site may spend:
+
+- `shadow-floating` — the one shadow for things that genuinely hover with no scrim under them: menu, dropdown,
+  combobox and select popup, tooltip, hovercard, toast, and a pinned header once it is stuck.
+- **no shadow at all on the modal level.** A dialog, drawer or route-modal is defined by its `bg-overlay` scrim and
+  its stacking step — a shadow laid over an already dimmed page says nothing, so there is no `shadow-modal` and
+  adding one is not the fix for a dialog that reads flat.
+- `inset-shadow-track` + `shadow-track-fill` — the recessed pair, and the only inward depth: a slider or progress
+  track and the fill riding raised inside it. Both halves or neither.
+- `shadow-handle` — a legibility affordance, not a rung: the white crop handle over a donor's own photograph. Never
+  reach for it to raise something.
+- `shadow-lift-card` / `shadow-lift-cta` / `shadow-lift-media` — the **marketing lift**, a treatment held apart from
+  the levels on purpose. Marketing cards, hero CTAs and photographs only; an app surface must not reach for one, and
+  there is no rung of the ladder that leads to it. The tint lives inside each token — never a `shadow-<color>/<alpha>`
+  written beside a name.
+
+Stacking is six named steps, low to high: `z-subbar` (a bar pinned beneath a pinned header), `z-sticky` (pinned page
+chrome), `z-scrim`, `z-modal`, `z-floating` (above an open modal, so a combobox in a dialog needs no hand-picked
+number), `z-top`. A pinned header always sits above a bar pinned beneath it. Below the ladder's floor, `z-0`/`z-10`
+still stack siblings inside one component; a raw number at 20 or above is a layer competing with the ladder by luck.
 
 Focus is always a 2px `--ring` outline with `outline-offset: 2px`. Never `outline: none`.
 

@@ -117,7 +117,7 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
       {/* Simple Dialog */}
       <dialog
         ref={dialog_ref}
-        className="p-0 rounded backdrop:bg-black/50"
+        className="p-0 rounded backdrop:bg-overlay"
         style={{
           position: "fixed",
           top: "50%",

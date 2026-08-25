@@ -283,6 +283,32 @@
      are unaffected: v4 emits those from literals, not from this scale. */
   --radius-*: initial;
 
+  /* both shadow namespaces are closed, the same way --color-* and --radius-*
+     are, and this pair MUST stay above the declarations below — a reset written
+     under them clears the ladder it exists to protect, with no build error and
+     no shadow.
+
+     what closing them buys: every stock name (`shadow-md`, `shadow-2xl`,
+     `shadow-inner`) and the deprecated bare `--shadow` key match no rule, so
+     depth cannot be re-picked by eye one call site at a time. what a call site
+     is left with is exactly the ladder declared below — the four levels, the
+     recessed pair, the three marketing lifts and the one handle affordance —
+     and the flush level, which is written by not writing a shadow at all.
+     `shadow-none` survives — v4 emits it from a literal, not from this scale —
+     so the sweep below is what keeps it out of a call site.
+
+     it does NOT reach `shadow-[…]`. an arbitrary value is compiled straight
+     from the bracket and never consults the theme, so the bracket half of this
+     gate is a filesystem sweep, not the compiler —
+     apps/platform/src/__tests__/elevation-conformance.node.test.ts.
+
+     --drop-shadow-* is a sibling namespace and stays OPEN on purpose: two sites
+     lay white copy over a photograph (routes/unlock-us-donations/hero.tsx), and
+     a filter follows the glyph outlines where a box-shadow cannot. that is text
+     legibility, not a level, so it has no token here to converge on. */
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+
   /* the elevation set: four levels a thing can sit at, plus one treatment that
      is deliberately not a rung of them. a call site spends ONE name — the tint
      lives inside the token, never as a `shadow-<color>` modifier written beside
@@ -291,10 +317,13 @@
      flush — in the document flow, and most of the product. a card, panel,
        table shell or form control separates by its fill (--panel is gray-2, one
        rung BELOW the page) and its --border edge. it has NO token, on purpose:
-       nothing would ever spend it, and v4 emits `shadow-none` from a literal
-       for the rare place that has to switch depth back off. the rule is the
-       half of a level that goes missing, so it is written here and in the
-       ledger rather than left implied by an absent name.
+       nothing would ever spend it, because flush is written by writing no
+       shadow at all. `shadow-none` is not the spelling either — with the
+       namespace closed there is nothing left for it to switch off but a named
+       level, and a level that has to be cancelled at the call site is the wrong
+       level there. the rule is the half of a level that goes missing, so it is
+       written here and in the ledger rather than left implied by an absent
+       name.
      floating — hovers over content, transient, no scrim: menu, dropdown,
        combobox and select popup, tooltip, hovercard, toast, and a sticky header
        once it is stuck. --shadow-floating, and z-floating below.

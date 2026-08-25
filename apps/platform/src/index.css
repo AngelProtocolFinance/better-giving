@@ -6,6 +6,13 @@
 
 @plugin "@tailwindcss/typography";
 
+/* the names sweeps in src/__tests__ spell every off-system utility they hunt
+   for — `shadow-2xl`, `z-51`, `shadow-primary/40` — as literals inside their
+   own regexes, and the extractor cannot tell a needle from a call site. left
+   scanned, a closed namespace still emits a rule for each name it exists to
+   strip, and the sweep quietly re-opens the hole it guards. */
+@source not "./__tests__/**/*.node.test.ts";
+
 @theme {
   /* decorative marketing washes — NOT the semantic palette. flat grounds behind
      marketing copy; --fg is the only ink any of them carries (peach 14.58:1,

@@ -236,8 +236,13 @@
      `modal` level's color: that level carries no shadow, so the scrim and the
      stacking step are what define it — see the elevation set in
      packages/ui/src/styles/theme.css.
-     the drawer and the native <dialog> backdrops still spell their own alphas
-     and have not converged on this token yet.
+     every backdrop in the app spells it: the four ark backdrops, the dashboard
+     drawer (a Modal size="none", so it takes the house backdrop rather than one
+     of its own), and the one native <dialog>, whose backdrop: pseudo-element
+     takes the same token. the docs site's embed playground spells it too; the
+     only backdrop outside it is demo-nonprofit's, a page that impersonates a
+     fictional org's website and would stop demonstrating that if it took a
+     system token.
      color-mix() has no single literal, so this has no email twin — mail has no
      dialogs, so it needs none. */
   --overlay: color-mix(in oklch, var(--gray-12) 30%, transparent);
