@@ -82,25 +82,36 @@ Three properties of the generated set travel with it:
 
 ### Which step each token points at
 
-The values live in `colors.css`; this is the shape. Every one of the 50 semantic
+The values live in `colors.css`; this is the shape. Every one of the 42 semantic
 tokens resolves to a step (or to `#ffffff`, or to a `color-mix()` off one).
 
 | step | blue | red | green | amber | gray |
 | --- | --- | --- | --- | --- | --- |
-| 1 | | | | | `--background` `--card` `--popover` `--input` `--sidebar` |
-| 2 | `--band` | | | | |
-| 3 | `--secondary` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | `--muted` |
+| 1 | | | | | `--background` `--surface` `--sidebar` |
+| 2 | `--band` | | | | `--panel` |
+| 3 | `--secondary` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | |
 | 5 | `--secondary-active` | `--destructive-subtle-active` | | | |
 | 6 | | | | | `--border` |
 | 8 | `--ring` | | | | |
 | 9 | `--primary` | `--destructive` | `--success` | `--warning` | |
 | 10 | `--primary-hover` | `--destructive-hover` | `--success-hover` | `--warning-hover` | |
-| 11 | | `--destructive-subtle-fg` | `--success-subtle-fg` | `--warning-subtle-fg` | `--muted-fg` |
-| 12 | `--primary-deep` | | | `--warning-fg` | `--fg` `--card-fg` `--popover-fg` `--secondary-fg` |
+| 11 | | `--destructive-subtle-fg` | `--success-subtle-fg` | `--warning-subtle-fg` | |
+| 12 | `--primary-deep` | | | `--warning-fg` | |
+
+**The gray column is empty from step 11 down, and that is the point.** Neutral
+ink has no token: `--fg`, `--card-fg`, `--popover-fg`, `--secondary-fg`,
+`--sidebar-fg` and `--muted-fg` all resolved to one of two rungs and always would,
+because every surface they sat on is light. A call site writes `text-gray-12` or
+`text-gray-11`. `--muted` went the same way — it named the disabled fill and nothing
+read it. Step 7 is unclaimed: Radix reserves it for a control's own edge, and
+`--border` (step 6, the separator rung) is currently doing both jobs.
+
+`--overlay` is the one token off the solid ramp on purpose: `gray-12` at 30%,
+via `color-mix()`, for a dialog scrim.
 
 `--primary-fg` / `--destructive-fg` / `--success-fg` are `oklch(1 0 0)` — white,
 each scale's own `contrast` color. `--primary-ring` is `--primary-fg`;
-`--primary-border` is a `color-mix()` off it. The seven `--sidebar-*` beyond
+`--primary-border` is a `color-mix()` off it. The five `--sidebar-*` beyond
 `--sidebar` alias app tokens. `--form-primary` / `--form-secondary` are tenant
 values. `--chart-1…5` are stock shadcn defaults and are **not** on the ramp.
 
@@ -132,7 +143,7 @@ climbs the same scale — 4.97:1 on red-2, 4.57:1 on red-3, 4.08:1 on red-4,
 steps earlier.
 
 **What this policy does not cover is a pairing Radix never made.** An own-scale
-ink on a *different* scale's surface — amber-11 on `--muted` (gray-3), green-11
+ink on a *different* scale's surface — amber-11 on `gray-3` (gray-3), green-11
 on `--secondary` (blue-3) — is the palette's own combination, and this file's rule
 applies instead: *a fill and an ink are only safe together if someone measured
 that combination*. Those figures are in the sections below, and several of them
@@ -152,8 +163,8 @@ Three rules fall out of that test, and all three are load-bearing:
 - **A `var()` alias mirrors; a `color-mix()` does not.** The test reads a literal
   `oklch(...)` declaration, and it follows a `var()` alias chain of any depth to the literal
   behind it — which is what keeps the email twin alive now that the semantic
-  tokens are aliases onto ramp steps — 49 of the 50 get a twin; the one
-  `color-mix()` has no literal behind it. `email_colors.primary` is `#1e6dab` because
+  tokens are aliases onto ramp steps — 40 of the 42 get a twin; the two
+  `color-mix()`es (`--primary-border`, `--overlay`) have no literal behind them. `email_colors.primary` is `#1e6dab` because
   the mirror resolved `var(--blue-9)`, not because anyone typed it twice.
   A `color-mix()` has no single literal behind it and is left out by rule:
   `--primary-border` has no email twin, and neither does anything minted as a mix.
@@ -177,13 +188,13 @@ is the brand action color. The two blues split a ground from an element: see
 
 | token | what it is |
 | --- | --- |
-| `--background` / `--fg` | the page itself — `gray-1`, `#fbfcfe`. The page ground is **not** `#ffffff`, and every ratio in this file is measured against the real ground rather than white. `--input` is set to this same value on purpose; see "decisions that look like bugs" |
-| `--card` / `--card-fg` | any panel, tile, table shell or row lifted off the page. **Identical to `--background`** (both `gray-1`), so a card is read by its `--border`, not by its fill — which is why that border being 1.36:1 is a call worth knowing about |
-| `--popover` / `--popover-fg` | transient layers only: menu, combobox and select lists, dialog, toast. Same value as `--card`; the separate name exists so a floating layer's fill can move without moving every panel |
-| `--muted` / `--muted-fg` | the recessive band — table zebra, skeletons, the neutral half of a status pill, and the **disabled fill for every `.btn` variant**. It is `gray-3`, the ramp's UI-element background, not the step-2 subtle surface: a disabled control is an element, not a band. `--muted-fg` is the app's general de-emphasised ink on *any* surface, not only on `--muted`; that is why it is in the fill-or-ink table below and the other `-fg`s are not |
-| `--secondary` / `--secondary-fg` | second-tier action, plus chips and tags. The button does **not** rest on it: `.btn-secondary` rests on `--card` with a `--border`, takes `--secondary` (`blue-3`) on hover and `--secondary-active` (`blue-5`) pressed. So `--secondary` is a *state* fill for the button and a *resting* fill for chips — check which one you are in before assuming its ink |
+| `--background` | the page itself — `gray-1`, `#fbfcfe`. The page ground is **not** `#ffffff`, and every ratio in this file is measured against the real ground rather than white. `--surface` is set to this same value on purpose; see "decisions that look like bugs". Ink is `text-gray-12` — there is no `--fg` |
+| `--panel` | every container lifted off the page, in the flow or over it: panel, tile, table shell, row, and the transient layers too — menu, combobox and select list, dialog, toast. Radix files all of them under one rung and so does this. `gray-2`, one step below the page, so a panel reads by its fill *and* its `--border`; that matters because the border alone is 1.36:1. Splitting a floating layer back out later is a grep |
+| `--surface` | the fill a form control carries — Radix's `--color-surface`. `gray-1`, so on a `--panel` it sits one step *lighter* than its container, which is the direction Radix uses and the only one available: step 1 is the lightest rung there is. On the bare page it is fill-identical and reads by its border alone |
+| `--overlay` | the scrim a dialog lays over the page — `gray-12` at 30%, via `color-mix()`. The four `Dialog.Backdrop` sites all carried this value already; the token is what stops a fifth being picked by eye. The drawer and the two native `<dialog>` backdrops still spell their own alphas — unifying those is an elevation decision, and there is no elevation ladder yet |
+| `--secondary` | second-tier action, plus chips and tags. The button does **not** rest on it: `.btn-secondary` rests on `--panel` with a `--border`, takes `--secondary` (`blue-3`) on hover and `--secondary-active` (`blue-5`) pressed. So `--secondary` is a *state* fill for the button and a *resting* fill for chips — check which one you are in before assuming its ink. Ink is `text-gray-12` |
 | `--band` | the alternating full-bleed section on the marketing pages, and the far stop of the hero's `--background` → tint gradient. `blue-2`, the ramp's page-level subtle ground — **not** a UI element, and nothing hovers it. It is a *lighter* rung than `--secondary`, so every ink figure recorded below against `blue-3` is a floor for this band, not a ceiling |
-| `--sidebar-*` (8 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other seven alias `--fg` / `--primary` / `--primary-fg` / `--secondary` / `--secondary-fg` / `--border` / `--ring`. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
+| `--sidebar-*` (6 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other five alias `--primary` / `--primary-fg` / `--secondary` / `--border` / `--ring`. Its two `-fg` twins went with the rest of the neutral ink. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
 
 ## Fill or ink — the distinction that causes the most drift
 
@@ -196,17 +207,21 @@ steps are 11 and 12. A semantic token that names a fill (`--primary`,
 `--destructive`, `--success`, `--warning`) is a step 9, and whether it happens to
 be legible as text is a measurement, not a licence.
 
-| token | fill | legible as text | on `--card`/`--background` | notes |
+Every figure below is measured against `--background` (`gray-1`), the real page
+ground. `--panel` now sits a rung lower at `gray-2`, so these are a ceiling for
+ink on a panel, not its value — nothing here has been re-measured against it.
+
+| token | fill | legible as text | on `--background` | notes |
 | --- | --- | --- | --- | --- |
 | `--primary` | yes | **yes** | 5.34:1 | also the ink for text-only controls. `--ring` is a separate token (`blue-8`) |
-| `--primary-deep` | yes | **no, by rule** | 10.95:1 | dark enough to be legible, but `--fg` is the app's dark ink and a second one is drift. Fill only — see its section |
+| `--primary-deep` | yes | **no, by rule** | 10.95:1 | dark enough to be legible, but `gray-12` is the app's dark ink and a second one is drift. Fill only — see its section |
 | `--success` | yes | **no** | **4.14:1** | green-9 is a solid, and it does not clear the body floor as text on the page. The green ink is `--success-subtle-fg` (green-11) at 4.84:1, on every surface, the same way `--warning-subtle-fg` is the warning ink |
-| `--success-subtle-fg` | no | yes | 4.84:1 | ink for `--success-subtle` (4.45:1 — accepted miss) and the app's only legible green. 4.38:1 on `--muted` and 4.42:1 on `--secondary`, both under the floor |
-| `--destructive` | yes | **yes** | 5.48:1 | 4.95:1 on `--muted`, 5.00:1 on `--secondary`, 4.90:1 on `--destructive-subtle` — red-9 clears the body floor on every surface in the palette |
+| `--success-subtle-fg` | no | yes | 4.84:1 | ink for `--success-subtle` (4.45:1 — accepted miss) and the app's only legible green. 4.38:1 on `gray-3` and 4.42:1 on `--secondary`, both under the floor |
+| `--destructive` | yes | **yes** | 5.48:1 | 4.95:1 on `gray-3`, 5.00:1 on `--secondary`, 4.90:1 on `--destructive-subtle` — red-9 clears the body floor on every surface in the palette |
 | `--warning` | yes | **no, at any size** | 2.09:1 | fill only. Never `text-warning`. Use `--warning-subtle-fg` |
-| `--fg` | no | yes | 15.95:1 | |
-| `--muted-fg` | no | yes | 5.75:1 | 5.20:1 on `--muted`, 5.25:1 on `--secondary`, 4.44:1 on the `blue-5` pressed rung |
-| `--*-fg` | no | yes | — | ink for its own paired surface, nowhere else |
+| `gray-12` | no | yes | 15.95:1 | |
+| `gray-11` | no | yes | 5.75:1 | 5.20:1 on `gray-3`, 5.25:1 on `--secondary`, 4.44:1 on the `blue-5` pressed rung |
+| `--*-fg` | no | yes | — | the four per-ramp contrast inks — `--primary-fg`, `--destructive-fg`, `--success-fg`, `--warning-fg` — each legible on its own step-9 fill and nowhere else |
 
 Icons are Lucide. A *meaningful* icon (one carrying information no adjacent text
 carries) needs 3:1, so `stroke-warning` on the page at 2.09:1 does not qualify —
@@ -235,7 +250,7 @@ before assuming, and measure before assuming it is fine:
 
 Two of those pass, and passing is not the point: **an alpha of a fill is a value
 nobody generated and nobody re-measures when the fill moves.** All four figures
-are ink-on-its-own-tint over `--background`; put the same band on `--muted` or
+are ink-on-its-own-tint over `--background`; put the same band on `gray-3` or
 inside a card that carries any other fill and the number changes with no
 call-site edit to notice. Use an authored pair wherever one exists.
 
@@ -246,7 +261,7 @@ call-site edit to notice. Use an authored pair wherever one exists.
 | `--success-subtle` / `--success-subtle-fg` | success band, same shape — confirmation panel, `completed`/`active` status pill, badge |
 | `--destructive-subtle-active` | **fill only.** The pressed rung of a control whose hover is `--destructive-subtle`; its ink stays `--destructive-subtle-fg` |
 
-All three bands also take neutral body copy: `--fg` measures 14.41:1 on
+All three bands also take neutral body copy: `gray-12` measures 14.41:1 on
 `--warning-subtle`, 14.28:1 on `--destructive-subtle` and 14.64:1 on
 `--success-subtle`. Only the *semantically colored* copy needs the `-fg`, and on
 two of the three bands that ink is the tighter of the two by a wide margin.
@@ -266,7 +281,7 @@ sites** — check for these before assuming a band is a one-line fix:
   `text-destructive` on the child. Inheritance does not rescue it: between two same-layer color utilities
   the winner is **stylesheet order, not attribute order**, so a
   `text-destructive-subtle-fg` container loses to the child's own utility. And the
-  child cannot simply switch — `Usd` also renders on `--card`, where
+  child cannot simply switch — `Usd` also renders on `--panel`, where
   `--destructive` passes at 5.48:1. The combination measures 4.63:1 and clears
   the floor, which changes the urgency and not the shape: the pair is still open,
   nothing measures it, and the case wants a variant rather than a swap.
@@ -325,14 +340,14 @@ control hovers into either. When one does, it is `amber-5` / `green-5` — the s
 The band that keeps `bg-<token>/10 text-<token>` out of the success case.
 Surface `green-3`, ink `green-11`. **Measured: 4.45:1 ink on `--success-subtle`
 — an accepted miss, the pairing Radix itself assigns — 4.84:1 on
-`--card`/`--background`, 4.73:1 on the `green-2` band, 4.38:1 on `--muted`,
+`--panel`/`--background`, 4.73:1 on the `green-2` band, 4.38:1 on `gray-3`,
 4.42:1 on `--secondary`, 3.73:1 on the `blue-5` pressed rung;
-`--fg` on the band is 14.64:1, so it also takes neutral body copy.**
+`gray-12` on the band is 14.64:1, so it also takes neutral body copy.**
 
 The three cross-scale figures in that list — green ink on a gray or blue surface
 — are **not** covered by the accepted-misses policy, which only speaks for
 pairings the ramp generated. They are the palette's own combinations and two of
-them sit under the floor. Green copy on `--muted` or `--secondary` is a pairing to
+them sit under the floor. Green copy on `gray-3` or `--secondary` is a pairing to
 avoid, not one to quote.
 
 Being `var()` aliases, both halves mirror into `colors.ts` and are available to
@@ -448,8 +463,8 @@ accretion: a rung that carries text is a value someone has to measure.
 
 ### `--destructive-subtle` / `-fg`
 
-Surface `red-3`, ink `red-11`: **4.57:1** ink on surface, 5.11:1 ink on `--card`,
-4.62:1 on `--muted`, 4.67:1 on `--secondary`. It is the one authored
+Surface `red-3`, ink `red-11`: **4.57:1** ink on surface, 5.11:1 ink on `--panel`,
+4.62:1 on `gray-3`, 4.67:1 on `--secondary`. It is the one authored
 band whose own pairing clears the body floor as generated.
 
 `--destructive` (red-9) measures 4.90:1 on the subtle surface, so painting the
@@ -463,7 +478,7 @@ Warning takes the **pair** shape rather than a lone ink token, because the app
 tints warning bands in several places and has no legible warning text color at
 all. Unlike destructive — where `--destructive` is a legible ink on the page and
 `-subtle-fg` is the tighter ink for the tint — `--warning` is legible nowhere, so
-**`--warning-subtle-fg` is *the* warning ink everywhere**, including on `--card`
+**`--warning-subtle-fg` is *the* warning ink everywhere**, including on `--panel`
 and `--background`. One value, one name; a second name for the same value would
 be a drift trap the test cannot catch. Green now has the same shape (see
 `--success-subtle`), which leaves red as the one hue with a fill that also reads
@@ -474,10 +489,10 @@ palette and it does not clear 4.5:1 anywhere**, measured:
 
 | on | ratio | |
 | --- | --- | --- |
-| `--card` / `--background` | **4.43:1** | |
+| `--panel` / `--background` | **4.43:1** | |
 | the `amber-2` band | **4.30:1** | accepted miss — Radix's own pairing |
 | `--secondary` (blue-3) | **4.05:1** | cross-scale; the palette's own pairing |
-| `--muted` (gray-3) | **4.01:1** | cross-scale |
+| `gray-3` (gray-3) | **4.01:1** | cross-scale |
 | `--warning-subtle` (amber-3) | **4.00:1** | accepted miss — the worst pairing in the system |
 | `--secondary-active` (blue-5) | **3.42:1** | cross-scale |
 
@@ -558,7 +573,7 @@ rungs of the blue ramp, one job each.
 
 **`blue-4` is deliberately unclaimed.** It is the ramp's hover rung for an element
 that *rests* on `blue-3`; nothing in the app does — every hoverable thing here
-rests transparent or on `--card`, and the ramp's own rule is that such an element
+rests transparent or on `--panel`, and the ramp's own rule is that such an element
 hovers to step 3. A declared token with no consumer is drift bait, so it is left
 undeclared until something rests on the tint.
 
@@ -568,9 +583,9 @@ row and a merely-hovered one were indistinguishable — most visibly in
 `:hover` all set the same fill. The state is now readable.
 
 The band job constrains the lighter rung: a resting band carries de-emphasised
-body copy, so `--muted-fg` on it has to hold. It measures **5.25:1** on `blue-3`;
+body copy, so `gray-11` on it has to hold. It measures **5.25:1** on `blue-3`;
 `--band` is a lighter step than that, so the band clears by more than the figure
-recorded here. On the pressed rung (`blue-5`) `--muted-fg` falls to 4.44:1, which
+recorded here. On the pressed rung (`blue-5`) `gray-11` falls to 4.44:1, which
 is a transient state and not a band.
 
 Neither tint carries brand hue as a resting fill beyond that. Brand action color
@@ -589,12 +604,16 @@ Recorded so they are not "fixed" by someone reading them as oversights.
   standing policy as the accepted misses. What it is *not* is a trade: a faint
   boundary is not compensated for by the ring, because the ring is fainter still.
   Even `gray-8`, the strongest neutral rung, reaches only 1.85:1 on the page —
-  there is no lighter-touch fix inside the scale. It compounds with `--input`,
-  which is the page color (`gray-1`) — a field is identified by its boundary, not
-  its fill, and that boundary is intentionally faint. Change one and re-check the
-  other; `colors.css` carries the short form of this at both tokens.
+  there is no lighter-touch fix inside the scale. It compounds with `--surface`,
+  which is the page color (`gray-1`) — a field **on the bare page** is identified
+  by its boundary alone, and that boundary is intentionally faint. Inside a
+  `--panel` the field also reads by fill, one rung lighter than its container;
+  that is separation, not contrast, and it does not rescue the boundary. Note
+  which rung is doing the work: step 7 is the ramp's *element border*, step 6 the
+  separator, and `--border` is spending step 6 on both. Change one and re-check
+  the other; `colors.css` carries the short form of this at both tokens.
 - **`--destructive` is red-9 and clears every surface in the palette** (5.48:1 on
-  the page, 4.95:1 on `--muted`, 5.00:1 on `--secondary`, 4.90:1 on
+  the page, 4.95:1 on `gray-3`, 5.00:1 on `--secondary`, 4.90:1 on
   `--destructive-subtle`). The tinted case is still served by
   `--destructive-subtle` / `-fg`, because a band is a pair and a fill is not an
   ink — not because the fill fails there.
@@ -657,12 +676,12 @@ rung is a named token off the ramp** — nothing is mixed at a use-site.
 | control | resting | hover | active (pressed) |
 | --- | --- | --- | --- |
 | filled (`.btn-primary` and the three semantic variants) | step 9 — `--primary`, `--destructive`, `--success`, `--warning` | step 10 — `--*-hover` | **step 10, the same rung** |
-| tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--card` or transparent | step 3 — `--secondary` | step 5 — `--secondary-active` |
+| tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--panel` or transparent | step 3 — `--secondary` | step 5 — `--secondary-active` |
 | a subtle band that is also a control | `--destructive-subtle` (step 3) | — | `--destructive-subtle-active` (step 5) |
 
 | state | value |
 | --- | --- |
-| disabled / pending | `--muted` fill, `--muted-fg` ink |
+| disabled / pending | `gray-3` fill, `gray-11` ink |
 | focus | `outline: 2px solid var(--ring)`, `outline-offset: 2px` — same for every variant |
 
 Two things fall out of the scale and are worth knowing before either reads as a
@@ -736,8 +755,8 @@ two siblings carried 40%).
 
 **The band has to be `surface-primary`, not `bg-primary`.** A raw `bg-primary`
 paints the fill and says nothing about ink, so everything inside it inherits the
-page's `--fg` unless it names a color — which is how the terminal cards on the
-homepage and the open-source page were rendering their command text in `--fg`
+page's `gray-12` unless it names a color — which is how the terminal cards on the
+homepage and the open-source page were rendering their command text in `gray-12`
 (`#1a2029`) on a `--primary` ground. `surface-primary` sets the fill, the ink, and
 the `--ring`/`--border` remaps a control needs on that ground; a `btn-outline`
 inside a bare `bg-primary` is invisible, and that is the correct failure — it
@@ -907,7 +926,7 @@ the rule is that a color belongs to exactly one of them and is named in it.
 | layer | file | what belongs | email twin |
 | --- | --- | --- | --- |
 | **semantic palette** | `packages/brand/src/colors.css` | every color that carries meaning or ink — surfaces, states, brand, chrome | yes, by the guard |
-| **decorative marketing washes** | `apps/platform/src/index.css` `@theme` | flat pastel grounds behind marketing copy, carrying `--fg` and nothing else | no, and deliberately |
+| **decorative marketing washes** | `apps/platform/src/index.css` `@theme` | flat pastel grounds behind marketing copy, carrying `gray-12` and nothing else | no, and deliberately |
 
 The semantic set is closed and greppable precisely because it is small. Pouring
 five pastel page-washes into it would dilute the vocabulary that makes *"is this
@@ -917,10 +936,10 @@ is a declared layer with a stated rule, not an accident.**
 
 ### The decorative layer
 
-Five named tokens, all flat marketing grounds. Measured with `--fg`, which is the
+Five named tokens, all flat marketing grounds. Measured with `gray-12`, which is the
 only ink any of them carries:
 
-| token | value | `--fg` on it | where |
+| token | value | `gray-12` on it | where |
 | --- | --- | --- | --- |
 | `--color-peach` | `#fde3d8` | 13.38:1 | gradient washes, 3 marketing routes |
 | `--color-lilac` | `#eae2fc` | 13.09:1 | gradient washes; benefits card rotation |
@@ -937,7 +956,7 @@ Three rules, and they are what make this a decision instead of a leak:
   badge in `_app.resources/resource-card.tsx`, which was reaching for `lilac/40`
   with an invented purple ink — it takes `bg-gray-3 text-gray-11` (5.20:1)
   instead, alongside its two siblings which already use authored pairs.
-- **`--fg` is the only ink they carry, and it is measured above.** A decorative
+- **`gray-12` is the only ink they carry, and it is measured above.** A decorative
   wash that needs a *second* ink has stopped being decorative; that is a mint
   request against the semantic palette, not a new pastel.
 
@@ -959,9 +978,9 @@ comment naming the brand.
 vendor hue lands on an `<h4>` in our layout it is our text, styled by us, and
 1.4.3 does not apply. That is exactly the shipped case —
 `routes/admin.$id.integrations/route.tsx:12` paints the heading "Zapier" in
-`#FF4F00`, which measures **3.21:1** on `--card` at `text-xl font-semibold`.
+`#FF4F00`, which measures **3.21:1** on `--panel` at `text-xl font-semibold`.
 20px at weight 600 is not WCAG "large text" (that is 24px, or 18.66px **bold**),
-so the floor is 4.5:1 and it **fails**. The heading takes plain `--fg`; if a
+so the floor is 4.5:1 and it **fails**. The heading takes plain `gray-12`; if a
 Zapier brand presence is wanted there, it is a logo, and sourcing the official
 mark is a `graphic-designer` job.
 
@@ -1023,7 +1042,7 @@ inside an inline `backgroundImage` template string, which a class-scoped sweep
 cannot see.
 
 **No mint.** The control's own legend already names all three segments in system
-tokens — the rows above it render `HandCoins` in `--muted-fg`, `PiggyBank` in
+tokens — the rows above it render `HandCoins` in `gray-11`, `PiggyBank` in
 `--warning` and `Sprout` in `--success`. The track was improvising a parallel
 `muted` / `amber` / `green` beside the legend keying it. Minting three more would
 be the parallel-semantic-palette this file refuses elsewhere, spent on one
@@ -1031,10 +1050,10 @@ control.
 
 | segment | takes |
 | --- | --- |
-| grant (cash) | `--muted` |
+| grant (cash) | `gray-3` |
 | savings (liq) | `--warning` |
 | investment (lock) | `--success` |
-| disabled | `--muted`, per the app-wide disabled convention |
+| disabled | `gray-3`, per the app-wide disabled convention |
 
 All three are documented **fills**, which is the only role used here — no ink
 lands on the track.
@@ -1051,10 +1070,10 @@ each boundary besides.
 element whose inline `backgroundImage` paints an opaque gradient from 0% to 100%,
 and `background-image` composites over `background-color`. The disabled range
 dims, the track does not. The fix is to omit the inline gradient when disabled so
-the flat `--muted` fill shows — which is also what makes the disabled state match
-the thumbs, both of which already go `--muted-fg`.
+the flat `gray-3` fill shows — which is also what makes the disabled state match
+the thumbs, both of which already go `gray-11`.
 
-Unrelated to the literals, and **not** fixed here: thumb 1 is `bg-card` with a
+Unrelated to the literals, and **not** fixed here: thumb 1 is `bg-panel` with a
 `--border` hairline, so at 1.36:1 it is a control identified by an edge the
 "decisions that look like bugs" entry deliberately keeps faint. On a draggable
 thumb that call is sharper than on a panel. Recorded, not decided.
@@ -1377,8 +1396,8 @@ Two seams this does **not** close, both deliberate:
 
 `colors.css` holds two kinds of name and they are adopted differently.
 
-**The 50 semantic tokens are live** and carry call sites in `apps/platform/src`,
-bar the seven `--sidebar-*` aliases noted above. The palette is the whole
+**The 42 semantic tokens are live** and carry call sites in `apps/platform/src`,
+bar the five `--sidebar-*` aliases noted above. The palette is the whole
 contract — a semantic name that ships here is a name the app paints with.
 
 **The 60 ramp steps are reachable too, and that is the deliberate act this file
@@ -1388,12 +1407,19 @@ sets divide by whether the name carries meaning: a semantic token says what a
 fill is *for* and survives a retheme, a step says which rung it is and is what
 you reach for when there is no meaning to name.
 
-Four neutral names went the other way and now have **no utility at all** —
-`--fg`, `--muted`, `--muted-fg`, `--border`. They named a rung and nothing else,
-so the call site names the step (`text-gray-12`, `bg-gray-3`, `text-gray-11`,
-`border-gray-6`) and `text-muted-fg` fails to compile rather than drifting back
-in beside its own step name. The tokens stay declared: the email templates read
-all four off the hex mirror, where there is no Tailwind namespace to drift in.
+The neutral names went the other way and are **gone entirely** — `--fg`,
+`--muted` and `--muted-fg` are no longer declared, and neither is any surface's
+`-fg` twin. They named a rung and nothing else, so the call site names the step
+(`text-gray-12`, `bg-gray-3`, `text-gray-11`) and `text-fg`, `text-panel-fg` and
+`text-muted-fg` fail to compile rather than drifting back in beside their own
+step names. The email templates read the step keys off the hex mirror for the
+same reason.
+
+`--border` is the exception: it survives with no utility, because it is not a
+constant. `surface-primary` rebinds it so a hairline inside a brand fill is
+drawn against that fill, and the base `*` rule reads the token — which is what
+makes the rebind reach every element inside. A call site still writes
+`border-gray-6`.
 
 What is still closed is everything outside both sets. The `--color-*` namespace
 is reset to `initial`, so a raw Tailwind palette name — `blue-600`, `gray-950` —

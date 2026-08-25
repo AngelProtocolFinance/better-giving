@@ -108,15 +108,15 @@ are the semantic tokens:
 
 | family | names |
 | --- | --- |
-| surfaces | `background`, `card`, `popover`, `sidebar` |
+| surfaces | `background` (the page), `panel` (a card, dialog, popover or menu — radix files all four under one rung), `surface` (a form control's fill, one step *lighter* than the panel it sits on), `overlay` (a dialog scrim), `sidebar` |
 | brand tint | `band` (a page-level ground), `secondary` (a ui element at rest, and the hover fill of anything resting transparent), `secondary-active` (that element selected) |
 | brand / state | `primary`, `success`, `warning`, `destructive` |
 | tinted band | `destructive-subtle` / `success-subtle` / `warning-subtle` (+ their `-fg`) |
-| ink | the `-fg` partner of a surface that has one: `card-fg`, `popover-fg`, `secondary-fg`, `primary-fg`, `sidebar-fg`. `band` has none — it takes the neutral ink |
-| neutral ink + lines | **step names, not token names**: `text-gray-12` body, `text-gray-11` de-emphasised, `border-gray-6` hairline. `text-fg`, `text-muted-fg`, `bg-muted` and `border-border` do **not** compile — they named a rung and the rung is what you write |
-| other lines | `input`, `ring` |
+| ink | the `-fg` partner of the four fills whose ink follows them: `primary-fg`, `success-fg`, `warning-fg`, `destructive-fg`. **no other surface has one.** ink on a light fill is always `text-gray-12`, so `panel`, `surface`, `band`, `secondary` and `sidebar` take the neutral rung |
+| neutral ink + lines | **step names, not token names**: `text-gray-12` body, `text-gray-11` de-emphasised, `border-gray-6` hairline. `text-fg`, `text-panel-fg`, `text-secondary-fg`, `text-muted-fg`, `bg-muted` and `border-border` do **not** compile — they named a rung, and the rung is what you write |
+| other lines | `ring` |
 
-Use them as `bg-card`, `text-gray-11`, `border-gray-6`, and so on. **A fill token is not
+Use them as `bg-panel`, `text-gray-11`, `border-gray-6`, and so on. **A fill token is not
 automatically a text color.** `text-warning` is illegible at 2.15:1 — use `text-warning-subtle-fg`,
 which is the warning ink on *every* surface. Never pair an alpha tint with its own ink
 (`bg-destructive/10 text-destructive` measures 3.92:1); use the authored pair
@@ -135,7 +135,7 @@ For a brand-filled panel that contains a control, use the `surface-primary` util
 authored for light surfaces and collapses on primary (destructive 1.06:1, warning 1.04:1, success
 1.08:1). Carry state there with weight, an icon and the words instead.
 
-Dimmer text is `--muted-fg`, never `--fg` at reduced opacity.
+Dimmer text is `text-gray-11`, never `text-gray-12` at reduced opacity.
 
 ### Type, shape, elevation
 
@@ -170,7 +170,7 @@ no `rounded*` class at the call site. `rounded-sm`, `-md`, `-lg`, `-xl`, `-xs` a
 `initial` and **fail to compile** — writing one produces no rule at all, which is deliberate: it is
 how the single radius stays single. `rounded-full` and `rounded-none` still work. Nothing is a pill.
 
-**Elevation barely exists.** A card is `bg-card` + `border` + `rounded` — never a shadow. Shadow
+**Elevation barely exists.** A card is `bg-panel` + `border` + `rounded` — never a shadow. The fill sits one rung below the page, so the panel reads by fill *and* border; a field inside it goes back up to `bg-surface`. Shadow
 appears only on genuinely floating layers: toasts, tooltips, and select popups.
 
 Focus is always a 2px `--ring` outline with `outline-offset: 2px`. Never `outline: none`.

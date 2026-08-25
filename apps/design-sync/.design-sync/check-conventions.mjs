@@ -27,17 +27,20 @@ const has = (n) => {
 
 // the enumerated promises. each entry is a claim the header makes in prose;
 // when a claim changes, change it here in the same edit.
-// a fill with its own authored ink. --band is NOT here: it is a page-level
-// ground that carries the neutral text rung, so there is no --band-fg to claim.
-const SURFACES = [
-  "card",
-  "popover",
+// a fill whose ink follows it, so the pair is authored and claimable. every
+// other fill takes the neutral rung — there is no --panel-fg or --band-fg to
+// claim, because ink on a light surface is always gray-12.
+const INKED = ["primary", "success", "warning", "destructive"];
+// fills that carry the neutral ink rung instead of an -fg of their own.
+const PLAIN = [
+  "background",
+  "panel",
+  "surface",
+  "overlay",
+  "band",
   "secondary",
+  "secondary-active",
   "sidebar",
-  "primary",
-  "success",
-  "warning",
-  "destructive",
 ];
 const BOX = [
   0,
@@ -79,19 +82,18 @@ const BOX = [
 const SPACE = BOX.slice(0, BOX.indexOf(24) + 1);
 const claims = {
   "surface fills": [
-    ...SURFACES.map((s) => `bg-${s}`),
-    "bg-band",
-    "bg-secondary-active",
+    ...INKED.map((s) => `bg-${s}`),
+    ...PLAIN.map((s) => `bg-${s}`),
   ],
   "surface ink": [
-    ...SURFACES.map((s) => `text-${s}-fg`),
+    ...INKED.map((s) => `text-${s}-fg`),
     "text-gray-12",
     "text-gray-11",
   ],
   "authored subtle pairs": ["destructive", "success", "warning"].flatMap(
     (s) => [`bg-${s}-subtle`, `text-${s}-subtle-fg`]
   ),
-  lines: ["border-gray-6", "border-input", "ring-ring", "outline-ring"],
+  lines: ["border-gray-6", "ring-ring", "outline-ring"],
   "chart ramp": ["bg", "text", "border", "fill", "stroke"].flatMap((p) =>
     [1, 2, 3, 4, 5].map((n) => `${p}-chart-${n}`)
   ),

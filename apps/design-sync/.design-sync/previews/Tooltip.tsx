@@ -18,7 +18,7 @@ function useAutoOpen() {
 }
 
 const tip_cls =
-  "bg-popover outline outline-gray-6 text-popover-fg px-4 py-2 rounded text-sm shadow-md";
+  "bg-panel outline outline-gray-6 text-gray-12 px-4 py-2 rounded text-sm shadow-md";
 
 export const Open = () => {
   const box = useAutoOpen();
@@ -57,7 +57,7 @@ export const OnFigure = () => {
   const box = useAutoOpen();
   return (
     <div ref={box} className="pt-2 pb-28">
-      <div className="rounded border bg-card p-4 w-72">
+      <div className="rounded border bg-panel p-4 w-72">
         <h4 className="font-medium">Payouts</h4>
         <p className="text-lg font-medium mt-2">$1,200.00</p>
         <div className="mt-3 flex items-center">

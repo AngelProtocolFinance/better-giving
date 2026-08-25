@@ -38,7 +38,7 @@ const row = (rows: Row[], valueError?: string) => (idx: number) => {
           rows={2}
           readOnly
           value={f?.label ?? ""}
-          className="w-full outline-ring rounded text-sm font-medium bg-input px-4 py-3.5 placeholder:text-gray-11 border"
+          className="w-full outline-ring rounded text-sm font-medium bg-surface px-4 py-3.5 placeholder:text-gray-11 border"
         />
         <p className="mt-1 empty:hidden text-left text-xs text-destructive" />
       </div>
