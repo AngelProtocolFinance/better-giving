@@ -97,7 +97,7 @@ function SetupModal({ id }: { id: string }) {
             type="button"
             onClick={() => set_open(false)}
             aria-label="Close setup instructions"
-            className="p-1.5 rounded hover:bg-accent text-gray-11"
+            className="p-1.5 rounded hover:bg-secondary text-gray-11"
           >
             <X size={20} />
           </button>
@@ -113,7 +113,7 @@ function SetupModal({ id }: { id: string }) {
               </h3>
               <p className="text-sm text-gray-11 mt-1">
                 Add this script tag just before the closing{" "}
-                <code className="bg-accent px-1.5 py-0.5 rounded text-xs font-mono">
+                <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono">
                   {"</body>"}
                 </code>{" "}
                 tag on your page.
@@ -124,7 +124,7 @@ function SetupModal({ id }: { id: string }) {
                 <span className="text-xs text-gray-11 font-medium">HTML</span>
                 <Copier
                   text={script_snippet}
-                  classes="p-1.5 rounded text-gray-11 hover:bg-accent hover:text-gray-12"
+                  classes="p-1.5 rounded text-gray-11 hover:bg-secondary hover:text-gray-12"
                 />
               </div>
               <HighlightedCode
@@ -150,7 +150,7 @@ function SetupModal({ id }: { id: string }) {
                 <span className="text-xs text-gray-11 font-medium">HTML</span>
                 <Copier
                   text={container_snippet}
-                  classes="p-1.5 rounded text-gray-11 hover:bg-accent hover:text-gray-12"
+                  classes="p-1.5 rounded text-gray-11 hover:bg-secondary hover:text-gray-12"
                 />
               </div>
               <HighlightedCode

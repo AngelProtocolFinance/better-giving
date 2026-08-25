@@ -10,7 +10,7 @@ interface IHero {
 export function Hero({ classes = "" }: IHero) {
   return (
     <div
-      className={`${classes} bg-linear-to-b from-background to-accent pt-16 pb-18`}
+      className={`${classes} bg-linear-to-b from-background to-band pt-16 pb-18`}
     >
       <div className="page grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,32.5rem)] items-center">
         <div className="grid gap-5 justify-items-start">

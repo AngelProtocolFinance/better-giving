@@ -150,7 +150,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
         }}
         className={`relative grid place-items-center rounded border border-dashed w-full h-45.5 cursor-pointer
           focus-within:outline-2 data-dragging:outline-2 outline-ring
-          hover:bg-accent
+          hover:bg-secondary
           aria-busy:bg-gray-3 aria-busy:cursor-progress aria-busy:hover:bg-gray-3
           data-disabled:bg-gray-3 data-disabled:pointer-events-none data-disabled:outline-0
           data-invalid:border-destructive

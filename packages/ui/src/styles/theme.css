@@ -238,10 +238,10 @@
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
   --color-primary-deep: var(--primary-deep);
+  --color-band: var(--band);
   --color-secondary: var(--secondary);
+  --color-secondary-active: var(--secondary-active);
   --color-secondary-fg: var(--secondary-fg);
-  --color-accent: var(--accent);
-  --color-accent-fg: var(--accent-fg);
   --color-destructive: var(--destructive);
   --color-destructive-fg: var(--destructive-fg);
   --color-destructive-subtle: var(--destructive-subtle);

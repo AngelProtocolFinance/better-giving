@@ -36,11 +36,14 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
   const popup_vars: Record<string, string | undefined> = {
     "--form-primary": don.config?.accent_primary,
     "--form-secondary": don.config?.accent_secondary,
-    // the option row's highlight is --accent (the semantic token for a
-    // selected/highlighted row). re-point it at the tenant accent here, the
-    // same move #donation-container makes for --ring — the popup is portaled
-    // out of the container, so it inherits neither.
-    "--accent": don.config?.accent_secondary,
+    // the option row's highlight is --secondary and its checked fill
+    // --secondary-active. re-point BOTH at the tenant accent here, the same
+    // move #donation-container makes for --ring — the popup is portaled out of
+    // the container, so it inherits neither. the two rungs collapse to one
+    // value on purpose: a tenant hands over a single colour and there is no
+    // runtime ramp to press it up a step, so the embed's accent stays flat.
+    "--secondary": don.config?.accent_secondary,
+    "--secondary-active": don.config?.accent_secondary,
   };
 
   return (

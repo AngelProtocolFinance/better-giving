@@ -97,7 +97,7 @@ export default function WithBorder() {
           <EmbedModeTabs />
           <Copier
             text={code_snippet}
-            classes="p-1.5 rounded text-gray-11 hover:bg-accent hover:text-gray-12"
+            classes="p-1.5 rounded text-gray-11 hover:bg-secondary hover:text-gray-12"
           />
         </div>
         <HighlightedCode

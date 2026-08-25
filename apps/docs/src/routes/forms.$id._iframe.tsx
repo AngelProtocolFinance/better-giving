@@ -51,7 +51,7 @@ export default function IframeLayout() {
             <button
               type="button"
               onClick={() => set_is_open(!is_open)}
-              className="rounded hover:bg-accent"
+              className="rounded hover:bg-secondary"
               aria-label={is_open ? "Close menu" : "Open menu"}
             >
               {is_open ? <X size={18} /> : <Menu size={18} />}
@@ -82,8 +82,8 @@ export default function IframeLayout() {
                       transition-colors text-sm
                       ${
                         isActive
-                          ? "bg-accent text-gray-12 font-medium"
-                          : "text-gray-11 hover:bg-accent hover:text-gray-12"
+                          ? "bg-secondary-active text-gray-12 font-medium"
+                          : "text-gray-11 hover:bg-secondary hover:text-gray-12"
                       }
                     `}
                   >

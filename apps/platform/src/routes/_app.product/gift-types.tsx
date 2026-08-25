@@ -35,7 +35,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
           {gift_types.map((g) => (
             <div
               key={g.title}
-              className="bg-accent border border-gray-6 rounded px-6 py-5.5"
+              className="bg-secondary border border-gray-6 rounded px-6 py-5.5"
             >
               <span className="block font-bold">{g.title}</span>
               <span className="text-sm/normal text-gray-11">{g.body}</span>

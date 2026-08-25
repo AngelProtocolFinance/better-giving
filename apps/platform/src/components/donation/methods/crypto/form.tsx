@@ -60,12 +60,15 @@ export function Form(props: TMethodState<"crypto">) {
 
   // the popup portals to body, out of #donation-container, so it inherits none
   // of the tenant palette — re-apply on the far side what the shell reads.
-  // --accent is the option row's highlight and --ring the scrollbar thumb;
-  // #donation-container points --ring at --form-primary for the same reason.
+  // --secondary/-active are the option row's highlight and checked fill, one
+  // value for both because a tenant hands over a single colour and there is no
+  // runtime ramp to press it up a step. --ring is the scrollbar thumb, and
+  // #donation-container points it at --form-primary for the same reason.
   const popup_vars: Record<string, string | undefined> = {
     "--form-primary": don.config?.accent_primary,
     "--form-secondary": don.config?.accent_secondary,
-    "--accent": don.config?.accent_secondary,
+    "--secondary": don.config?.accent_secondary,
+    "--secondary-active": don.config?.accent_secondary,
     "--ring": don.config?.accent_primary,
   };
 

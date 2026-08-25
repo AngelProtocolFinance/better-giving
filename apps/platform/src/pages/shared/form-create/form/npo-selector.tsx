@@ -89,7 +89,7 @@ export function NpoSelector(p: Props) {
             ) : (
               p.opts.map((opt) => (
                 <Combobox.Item
-                  className="data-[state=checked]:bg-secondary data-highlighted:bg-secondary hover:text-primary flex gap-2 p-2 text-sm"
+                  className="data-[state=checked]:bg-secondary-active data-highlighted:bg-secondary hover:text-primary flex gap-2 p-2 text-sm"
                   key={opt.id}
                   item={opt}
                 >

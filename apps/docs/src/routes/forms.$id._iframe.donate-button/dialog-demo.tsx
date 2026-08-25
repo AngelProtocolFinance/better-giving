@@ -54,8 +54,8 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
                 }
                 className={`p-1.5 transition-colors ${
                   config.button_radius === preset
-                    ? "bg-accent text-gray-12"
-                    : "text-gray-11 hover:text-gray-12 hover:bg-accent"
+                    ? "bg-secondary-active text-gray-12"
+                    : "text-gray-11 hover:text-gray-12 hover:bg-secondary"
                 }`}
                 title={preset}
               >

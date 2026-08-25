@@ -53,10 +53,10 @@
     background-color: transparent;
     color: inherit;
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: var(--accent);
+      background-color: var(--secondary);
     }
     &:active {
-      background-color: var(--accent-active);
+      background-color: var(--secondary-active);
     }
     &:disabled {
       background-color: var(--gray-3);
@@ -300,13 +300,13 @@
   .selector-opt {
     padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
     &[data-state="checked"] {
-      background-color: var(--accent);
+      background-color: var(--secondary-active);
     }
     &[data-highlighted] {
-      background-color: var(--accent);
+      background-color: var(--secondary);
     }
     &:hover {
-      background-color: var(--accent);
+      background-color: var(--secondary);
     }
   }
 

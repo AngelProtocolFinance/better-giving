@@ -18,7 +18,7 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-accent pt-18 pb-16 text-center">
+      <div className="bg-linear-to-b from-background to-band pt-18 pb-16 text-center">
         <div className="page">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Pricing
@@ -33,7 +33,7 @@ export default function Page() {
         </div>
       </div>
 
-      <PriceCards classes="bg-accent pt-4 pb-22" />
+      <PriceCards classes="bg-band pt-4 pb-22" />
 
       <div className="page py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
@@ -48,7 +48,7 @@ export default function Page() {
             nonprofit. And third-party processing fees? Most donors choose to
             cover them, so the vast majority of every gift reaches you.
           </p>
-          <div className="bg-accent border border-gray-6 rounded px-7 py-5 max-w-xl">
+          <div className="bg-secondary border border-gray-6 rounded px-7 py-5 max-w-xl">
             <p className="text-sm/relaxed text-gray-11 text-pretty">
               <strong className="text-gray-12">
                 Prefer no contribution ask on your form?

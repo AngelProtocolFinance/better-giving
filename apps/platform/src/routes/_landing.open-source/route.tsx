@@ -93,7 +93,7 @@ export default function Page() {
             {why.map((w) => (
               <div
                 key={w.title}
-                className="bg-accent border border-gray-6 rounded p-8 grid gap-2.5 content-start"
+                className="bg-secondary border border-gray-6 rounded p-8 grid gap-2.5 content-start"
               >
                 <span className="text-xl font-bold">{w.title}</span>
                 <p className="text-sm/relaxed text-gray-11">{w.body}</p>
@@ -103,7 +103,7 @@ export default function Page() {
         </div>
       </div>
 
-      <TwoPaths classes="bg-accent py-22" />
+      <TwoPaths classes="bg-band py-22" />
 
       <div className="page py-22">
         <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">

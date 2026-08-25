@@ -108,11 +108,13 @@ are the semantic tokens:
 
 | family | names |
 | --- | --- |
-| surfaces | `background`, `card`, `popover`, `muted`, `accent`, `secondary`, `sidebar` |
+| surfaces | `background`, `card`, `popover`, `sidebar` |
+| brand tint | `band` (a page-level ground), `secondary` (a ui element at rest, and the hover fill of anything resting transparent), `secondary-active` (that element selected) |
 | brand / state | `primary`, `success`, `warning`, `destructive` |
-| tinted band | `destructive-subtle` (+ its `-fg`) |
-| ink | `fg` (the ink on `background` — there is no `background-fg`), `muted-fg`, and the `-fg` partner of every other surface above |
-| lines | `border`, `input`, `ring` |
+| tinted band | `destructive-subtle` / `success-subtle` / `warning-subtle` (+ their `-fg`) |
+| ink | the `-fg` partner of a surface that has one: `card-fg`, `popover-fg`, `secondary-fg`, `primary-fg`, `sidebar-fg`. `band` has none — it takes the neutral ink |
+| neutral ink + lines | **step names, not token names**: `text-gray-12` body, `text-gray-11` de-emphasised, `border-gray-6` hairline. `text-fg`, `text-muted-fg`, `bg-muted` and `border-border` do **not** compile — they named a rung and the rung is what you write |
+| other lines | `input`, `ring` |
 
 Use them as `bg-card`, `text-gray-11`, `border-gray-6`, and so on. **A fill token is not
 automatically a text color.** `text-warning` is illegible at 2.15:1 — use `text-warning-subtle-fg`,
@@ -181,7 +183,7 @@ tablet, capped at 80rem from 1280px up, and 96rem on a large monitor, so a page 
 window rather than freezing at one size.
 
 Put `page` on **each band**, never on a wrapper around several. A band that paints a full-bleed fill
-(`bg-accent`, a border, a colored section) is the outer element and holds the padding-block; the
+(`bg-band`, a border, a colored section) is the outer element and holds the padding-block; the
 `page` inside it holds the width and the gutter. Two things follow: the outer band must not carry
 its own `px-*` — two gutters stack — and a page that alternates full-bleed sections with contained
 ones simply repeats `page` on each. That is how every section on a page lines up on the same left

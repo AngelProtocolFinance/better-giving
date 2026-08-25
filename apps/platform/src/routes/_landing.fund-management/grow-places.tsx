@@ -13,7 +13,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
           Two places your money grows
         </h2>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
-          <div className="bg-accent border border-gray-6 rounded p-9 grid gap-3.5 content-start">
+          <div className="bg-secondary border border-gray-6 rounded p-9 grid gap-3.5 content-start">
             <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-secondary text-secondary-fg rounded-full px-3 py-1.5">
               No market risk
             </span>

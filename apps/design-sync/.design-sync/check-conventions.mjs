@@ -27,11 +27,11 @@ const has = (n) => {
 
 // the enumerated promises. each entry is a claim the header makes in prose;
 // when a claim changes, change it here in the same edit.
+// a fill with its own authored ink. --band is NOT here: it is a page-level
+// ground that carries the neutral text rung, so there is no --band-fg to claim.
 const SURFACES = [
   "card",
   "popover",
-  "muted",
-  "accent",
   "secondary",
   "sidebar",
   "primary",
@@ -78,7 +78,11 @@ const BOX = [
 ];
 const SPACE = BOX.slice(0, BOX.indexOf(24) + 1);
 const claims = {
-  "surface fills": SURFACES.map((s) => `bg-${s}`),
+  "surface fills": [
+    ...SURFACES.map((s) => `bg-${s}`),
+    "bg-band",
+    "bg-secondary-active",
+  ],
   "surface ink": [
     ...SURFACES.map((s) => `text-${s}-fg`),
     "text-gray-12",

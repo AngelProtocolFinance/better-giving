@@ -119,24 +119,24 @@
      --primary-fg; there is no -deep-fg, because a second name for #ffffff is a
      drift trap the test can't catch. */
   --primary-deep: var(--blue-12);
-  --secondary: var(--blue-3); /* chip resting fill / button hover */
-  /* pressed rung for a control resting on --secondary. step 5 is the ramp's
-     active/selected rung; a tinted surface presses UP the scale, not toward
-     black, so it stays under its own ink. */
+  /* the brand tint's rungs, one job each. step 2 is a page-level GROUND — the
+     full-bleed marketing band, which nothing hovers. step 3 is a ui element:
+     a tinted panel or chip at rest, and also the hover fill of an element whose
+     resting state is transparent, which is the ramp's own rule for a ghost
+     control. step 5 is that element SELECTED — a hovered row and a checked one
+     have to paint differently or the state is invisible.
+     step 4 is the hover of an element that RESTS on step 3 — nothing in the app
+     does, so it is deliberately unclaimed rather than declared and unused. a
+     tinted surface presses UP the scale, not toward black, so every rung stays
+     under its own ink. */
+  --band: var(--blue-2);
+  --secondary: var(--blue-3);
   --secondary-active: var(--blue-5);
   --secondary-fg: var(--gray-12);
   /* the disabled fill for every .btn variant. that is a ui-element background,
      which is step 3 — not the step-2 subtle surface. */
   --muted: var(--gray-3);
   --muted-fg: var(--gray-11); /* 5.75:1 on --background */
-  /* overloaded: the hover/selected fill AND the marketing resting band. one
-     step serves both until the two jobs are split into their own tokens. */
-  --accent: var(--blue-3);
-  /* pressed rung for a control resting on --accent, same 3 → 5 shape as
-     --secondary-active. equal to it while --accent and --secondary both sit on
-     blue-3; the two names are what lets them part company later. */
-  --accent-active: var(--blue-5);
-  --accent-fg: var(--gray-12);
   /* the filled error control: white ink at 5.62:1, up from 4.52:1. this is the
      darker red the value it replaces described as the one that would clear the
      tinted surfaces too — the ramp makes that move. a tinted band carrying
@@ -222,8 +222,8 @@
   --sidebar-fg: var(--fg);
   --sidebar-primary: var(--primary);
   --sidebar-primary-fg: var(--primary-fg);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-fg: var(--accent-fg);
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-fg: var(--secondary-fg);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 

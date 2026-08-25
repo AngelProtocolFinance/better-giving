@@ -21,7 +21,9 @@ export function FlatFilter<T>({ classes = "", ...props }: GroupProps<T>) {
               key={option.key}
               onClick={() => toggle(option.value)}
               className={`${
-                selected ? "border-primary text-accent-fg bg-accent" : ""
+                selected
+                  ? "border-primary text-secondary-fg bg-secondary-active"
+                  : ""
               } border select-none rounded-full capitalize text-xs pt-1 pb-[.3rem] px-4`}
             >
               {option.displayText}

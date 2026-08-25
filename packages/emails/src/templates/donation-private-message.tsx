@@ -35,10 +35,10 @@ function Jsx(d: IData) {
         style={{
           marginTop: 4,
           padding: "12px",
-          backgroundColor: email_colors.accent,
+          backgroundColor: email_colors.secondary,
           // tinted surface carries its own ink; inheritance loses in clients
           // that force their own text color onto an explicit background
-          color: email_colors.accent_fg,
+          color: email_colors.secondary_fg,
           borderLeft: `3px solid ${email_colors.primary}`,
           fontStyle: "italic",
         }}

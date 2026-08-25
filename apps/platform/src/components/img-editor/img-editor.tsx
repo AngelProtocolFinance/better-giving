@@ -53,7 +53,7 @@ export function ImgEditor({
   const styles = unpack(props.classes);
   const is_loading = props.value === "loading";
   const disabled = props.disabled || is_loading;
-  const overlay = `before:content-[''] before:grid before:place-items-center before:absolute before:inset-0 data-[drag="true"]:before:bg-accent data-[loading="true"]:before:bg-accent/90 data-[loading="true"]:before:content-['._._.'] before:text-xl before:font-bold `;
+  const overlay = `before:content-[''] before:grid before:place-items-center before:absolute before:inset-0 data-[drag="true"]:before:bg-secondary data-[loading="true"]:before:bg-secondary/90 data-[loading="true"]:before:content-['._._.'] before:text-xl before:font-bold `;
 
   async function handleSave(cropped: File) {
     setFile(cropped);
@@ -150,7 +150,7 @@ export function ImgEditor({
         }}
         className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-input cursor-pointer
           focus-within:outline-2 data-[drag="true"]:outline-2 outline-ring
-          hover:bg-accent
+          hover:bg-secondary
           data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none
           data-[invalid="true"]:border-destructive
           `}

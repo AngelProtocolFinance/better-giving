@@ -82,20 +82,21 @@ Three properties of the generated set travel with it:
 
 ### Which step each token points at
 
-The values live in `colors.css`; this is the shape. Every one of the 49 semantic
+The values live in `colors.css`; this is the shape. Every one of the 50 semantic
 tokens resolves to a step (or to `#ffffff`, or to a `color-mix()` off one).
 
 | step | blue | red | green | amber | gray |
 | --- | --- | --- | --- | --- | --- |
 | 1 | | | | | `--background` `--card` `--popover` `--input` `--sidebar` |
-| 3 | `--secondary` `--accent` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | `--muted` |
-| 5 | `--secondary-active` `--accent-active` | `--destructive-subtle-active` | | | |
+| 2 | `--band` | | | | |
+| 3 | `--secondary` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | `--muted` |
+| 5 | `--secondary-active` | `--destructive-subtle-active` | | | |
 | 6 | | | | | `--border` |
 | 8 | `--ring` | | | | |
 | 9 | `--primary` | `--destructive` | `--success` | `--warning` | |
 | 10 | `--primary-hover` | `--destructive-hover` | `--success-hover` | `--warning-hover` | |
 | 11 | | `--destructive-subtle-fg` | `--success-subtle-fg` | `--warning-subtle-fg` | `--muted-fg` |
-| 12 | `--primary-deep` | | | `--warning-fg` | `--fg` `--card-fg` `--popover-fg` `--secondary-fg` `--accent-fg` |
+| 12 | `--primary-deep` | | | `--warning-fg` | `--fg` `--card-fg` `--popover-fg` `--secondary-fg` |
 
 `--primary-fg` / `--destructive-fg` / `--success-fg` are `oklch(1 0 0)` — white,
 each scale's own `contrast` color. `--primary-ring` is `--primary-fg`;
@@ -132,7 +133,7 @@ steps earlier.
 
 **What this policy does not cover is a pairing Radix never made.** An own-scale
 ink on a *different* scale's surface — amber-11 on `--muted` (gray-3), green-11
-on `--accent` (blue-3) — is the palette's own combination, and this file's rule
+on `--secondary` (blue-3) — is the palette's own combination, and this file's rule
 applies instead: *a fill and an ink are only safe together if someone measured
 that combination*. Those figures are in the sections below, and several of them
 also sit under 4.5:1.
@@ -150,8 +151,9 @@ Three rules fall out of that test, and all three are load-bearing:
 
 - **A `var()` alias mirrors; a `color-mix()` does not.** The test reads a literal
   `oklch(...)` declaration, and it follows a `var()` alias chain of any depth to the literal
-  behind it — which is what keeps the email twin alive now that all 49 semantic
-  tokens are aliases onto ramp steps. `email_colors.primary` is `#1e6dab` because
+  behind it — which is what keeps the email twin alive now that the semantic
+  tokens are aliases onto ramp steps — 49 of the 50 get a twin; the one
+  `color-mix()` has no literal behind it. `email_colors.primary` is `#1e6dab` because
   the mirror resolved `var(--blue-9)`, not because anyone typed it twice.
   A `color-mix()` has no single literal behind it and is left out by rule:
   `--primary-border` has no email twin, and neither does anything minted as a mix.
@@ -168,9 +170,10 @@ Three rules fall out of that test, and all three are load-bearing:
 ## Resting surfaces — what each one is for
 
 Every token here is a **fill**, and its `-fg` is the only ink authored for it.
-The neutral surfaces are gray steps; `--secondary` and `--accent` are `blue-3`,
-a tint of the brand hue and not the brand color itself — `--primary` is the brand
-action color, and `--accent` is the person-caused state (own section below).
+The neutral surfaces are gray steps; `--band` (`blue-2`) and `--secondary`
+(`blue-3`) are tints of the brand hue and not the brand color itself — `--primary`
+is the brand action color. The two blues split a ground from an element: see
+"the tint ladder" below.
 
 | token | what it is |
 | --- | --- |
@@ -179,7 +182,8 @@ action color, and `--accent` is the person-caused state (own section below).
 | `--popover` / `--popover-fg` | transient layers only: menu, combobox and select lists, dialog, toast. Same value as `--card`; the separate name exists so a floating layer's fill can move without moving every panel |
 | `--muted` / `--muted-fg` | the recessive band — table zebra, skeletons, the neutral half of a status pill, and the **disabled fill for every `.btn` variant**. It is `gray-3`, the ramp's UI-element background, not the step-2 subtle surface: a disabled control is an element, not a band. `--muted-fg` is the app's general de-emphasised ink on *any* surface, not only on `--muted`; that is why it is in the fill-or-ink table below and the other `-fg`s are not |
 | `--secondary` / `--secondary-fg` | second-tier action, plus chips and tags. The button does **not** rest on it: `.btn-secondary` rests on `--card` with a `--border`, takes `--secondary` (`blue-3`) on hover and `--secondary-active` (`blue-5`) pressed. So `--secondary` is a *state* fill for the button and a *resting* fill for chips — check which one you are in before assuming its ink |
-| `--sidebar-*` (8 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other seven alias `--fg` / `--primary` / `--primary-fg` / `--accent` / `--accent-fg` / `--border` / `--ring`. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
+| `--band` | the alternating full-bleed section on the marketing pages, and the far stop of the hero's `--background` → tint gradient. `blue-2`, the ramp's page-level subtle ground — **not** a UI element, and nothing hovers it. It is a *lighter* rung than `--secondary`, so every ink figure recorded below against `blue-3` is a floor for this band, not a ceiling |
+| `--sidebar-*` (8 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other seven alias `--fg` / `--primary` / `--primary-fg` / `--secondary` / `--secondary-fg` / `--border` / `--ring`. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
 
 ## Fill or ink — the distinction that causes the most drift
 
@@ -197,11 +201,11 @@ be legible as text is a measurement, not a licence.
 | `--primary` | yes | **yes** | 5.34:1 | also the ink for text-only controls. `--ring` is a separate token (`blue-8`) |
 | `--primary-deep` | yes | **no, by rule** | 10.95:1 | dark enough to be legible, but `--fg` is the app's dark ink and a second one is drift. Fill only — see its section |
 | `--success` | yes | **no** | **4.14:1** | green-9 is a solid, and it does not clear the body floor as text on the page. The green ink is `--success-subtle-fg` (green-11) at 4.84:1, on every surface, the same way `--warning-subtle-fg` is the warning ink |
-| `--success-subtle-fg` | no | yes | 4.84:1 | ink for `--success-subtle` (4.45:1 — accepted miss) and the app's only legible green. 4.38:1 on `--muted` and 4.42:1 on `--accent`, both under the floor |
-| `--destructive` | yes | **yes** | 5.48:1 | 4.95:1 on `--muted`, 5.00:1 on `--accent`, 4.90:1 on `--destructive-subtle` — red-9 clears the body floor on every surface in the palette |
+| `--success-subtle-fg` | no | yes | 4.84:1 | ink for `--success-subtle` (4.45:1 — accepted miss) and the app's only legible green. 4.38:1 on `--muted` and 4.42:1 on `--secondary`, both under the floor |
+| `--destructive` | yes | **yes** | 5.48:1 | 4.95:1 on `--muted`, 5.00:1 on `--secondary`, 4.90:1 on `--destructive-subtle` — red-9 clears the body floor on every surface in the palette |
 | `--warning` | yes | **no, at any size** | 2.09:1 | fill only. Never `text-warning`. Use `--warning-subtle-fg` |
 | `--fg` | no | yes | 15.95:1 | |
-| `--muted-fg` | no | yes | 5.75:1 | 5.20:1 on `--muted`, 5.25:1 on `--accent`/`--secondary`, 4.44:1 on the `blue-5` pressed rung |
+| `--muted-fg` | no | yes | 5.75:1 | 5.20:1 on `--muted`, 5.25:1 on `--secondary`, 4.44:1 on the `blue-5` pressed rung |
 | `--*-fg` | no | yes | — | ink for its own paired surface, nowhere else |
 
 Icons are Lucide. A *meaningful* icon (one carrying information no adjacent text
@@ -288,8 +292,7 @@ hole, not an invented value.
 A control whose *hover* is the subtle tint has a **pressed** rung, and it is the
 ramp's own: `red-5`. Steps 3 / 4 / 5 are the UI-element background's resting /
 hover / active rungs, so the press is a step up the scale rather than a value
-somebody mixed. `--secondary-active` and `--accent-active` are the same 3 → 5
-shape at `blue-5`.
+somebody mixed. `--secondary-active` is the same 3 → 5 shape at `blue-5`.
 
 **A tinted surface presses UP its scale, not toward black.** That is the whole
 reason this rung is a token and not a use-site derivation: the app's filled
@@ -323,13 +326,13 @@ The band that keeps `bg-<token>/10 text-<token>` out of the success case.
 Surface `green-3`, ink `green-11`. **Measured: 4.45:1 ink on `--success-subtle`
 — an accepted miss, the pairing Radix itself assigns — 4.84:1 on
 `--card`/`--background`, 4.73:1 on the `green-2` band, 4.38:1 on `--muted`,
-4.42:1 on `--accent`/`--secondary`, 3.73:1 on the `blue-5` pressed rung;
+4.42:1 on `--secondary`, 3.73:1 on the `blue-5` pressed rung;
 `--fg` on the band is 14.64:1, so it also takes neutral body copy.**
 
 The three cross-scale figures in that list — green ink on a gray or blue surface
 — are **not** covered by the accepted-misses policy, which only speaks for
 pairings the ramp generated. They are the palette's own combinations and two of
-them sit under the floor. Green copy on `--muted` or `--accent` is a pairing to
+them sit under the floor. Green copy on `--muted` or `--secondary` is a pairing to
 avoid, not one to quote.
 
 Being `var()` aliases, both halves mirror into `colors.ts` and are available to
@@ -446,7 +449,7 @@ accretion: a rung that carries text is a value someone has to measure.
 ### `--destructive-subtle` / `-fg`
 
 Surface `red-3`, ink `red-11`: **4.57:1** ink on surface, 5.11:1 ink on `--card`,
-4.62:1 on `--muted`, 4.67:1 on `--accent`/`--secondary`. It is the one authored
+4.62:1 on `--muted`, 4.67:1 on `--secondary`. It is the one authored
 band whose own pairing clears the body floor as generated.
 
 `--destructive` (red-9) measures 4.90:1 on the subtle surface, so painting the
@@ -473,7 +476,7 @@ palette and it does not clear 4.5:1 anywhere**, measured:
 | --- | --- | --- |
 | `--card` / `--background` | **4.43:1** | |
 | the `amber-2` band | **4.30:1** | accepted miss — Radix's own pairing |
-| `--accent` / `--secondary` (blue-3) | **4.05:1** | cross-scale; the palette's own pairing |
+| `--secondary` (blue-3) | **4.05:1** | cross-scale; the palette's own pairing |
 | `--muted` (gray-3) | **4.01:1** | cross-scale |
 | `--warning-subtle` (amber-3) | **4.00:1** | accepted miss — the worst pairing in the system |
 | `--secondary-active` (blue-5) | **3.42:1** | cross-scale |
@@ -540,26 +543,38 @@ The hero it grounds — `routes/unlock-us-donations/hero.tsx` — carries the to
 at all five of the sites that once held a hardcoded hex. A hero ground is a
 palette value, and this is where it is named.
 
-## `--accent` is not hover-only
+## The tint ladder — `--band`, `--secondary`, `--secondary-active`
 
-In this system `--accent` is **both** the person-caused-state surface (hover fill,
-selected row — `.btn-ghost:hover`, `.selector-opt[data-selected]`) **and** the
-alternating resting band on the marketing pages, ~14 sites. **It is still
-overloaded**: one step (`blue-3`) serves both jobs, and splitting them — a hover
-fill at `blue-4`, a resting band at `blue-2` — is a separate change with ~135
-sites of per-site judgment behind it. Recorded as the present state, not as a
-plan.
+`--accent` used to be **both** the person-caused-state surface (hover fill,
+selected row) **and** the alternating resting band on the marketing pages, at one
+value. It no longer exists; the token family is retired and its jobs sit on three
+rungs of the blue ramp, one job each.
 
-That second job constrains the value: a resting band carries de-emphasised body
-copy, so `--muted-fg` on `--accent` has to hold. It measures **5.25:1** on
-`blue-3` — the band is fine, and it is the same figure `--secondary` carries
-because the two tokens sit on the same step. On the pressed rung (`blue-5`)
-`--muted-fg` falls to 4.44:1, which is a transient state and not a band.
-Re-measure `--muted-fg` against whatever step `--accent` lands on if the two jobs
-are ever split.
+| rung | token | job |
+| --- | --- | --- |
+| `blue-2` | `--band` | a page-level GROUND: the full-bleed marketing section, the hero gradient's far stop. Nothing hovers it |
+| `blue-3` | `--secondary` | a UI ELEMENT: a tinted panel or chip at rest, and the hover fill of an element whose resting state is transparent (`.btn-ghost:hover`, a toolbar button, a list row) |
+| `blue-5` | `--secondary-active` | that element SELECTED or pressed (`.selector-opt[data-state="checked"]`) |
 
-`--accent` carries no brand hue as a resting fill beyond that tint. Brand action
-color is `--primary`.
+**`blue-4` is deliberately unclaimed.** It is the ramp's hover rung for an element
+that *rests* on `blue-3`; nothing in the app does — every hoverable thing here
+rests transparent or on `--card`, and the ramp's own rule is that such an element
+hovers to step 3. A declared token with no consumer is drift bait, so it is left
+undeclared until something rests on the tint.
+
+What the split bought: hover and selected used to paint identically, so a checked
+row and a merely-hovered one were indistinguishable — most visibly in
+`.selector-opt`, where `[data-state="checked"]`, `[data-highlighted]` and
+`:hover` all set the same fill. The state is now readable.
+
+The band job constrains the lighter rung: a resting band carries de-emphasised
+body copy, so `--muted-fg` on it has to hold. It measures **5.25:1** on `blue-3`;
+`--band` is a lighter step than that, so the band clears by more than the figure
+recorded here. On the pressed rung (`blue-5`) `--muted-fg` falls to 4.44:1, which
+is a transient state and not a band.
+
+Neither tint carries brand hue as a resting fill beyond that. Brand action color
+is `--primary`.
 
 ## Decisions that look like bugs
 
@@ -579,7 +594,7 @@ Recorded so they are not "fixed" by someone reading them as oversights.
   its fill, and that boundary is intentionally faint. Change one and re-check the
   other; `colors.css` carries the short form of this at both tokens.
 - **`--destructive` is red-9 and clears every surface in the palette** (5.48:1 on
-  the page, 4.95:1 on `--muted`, 5.00:1 on `--accent`, 4.90:1 on
+  the page, 4.95:1 on `--muted`, 5.00:1 on `--secondary`, 4.90:1 on
   `--destructive-subtle`). The tinted case is still served by
   `--destructive-subtle` / `-fg`, because a band is a pair and a fill is not an
   ink — not because the fill fails there.
@@ -642,7 +657,7 @@ rung is a named token off the ramp** — nothing is mixed at a use-site.
 | control | resting | hover | active (pressed) |
 | --- | --- | --- | --- |
 | filled (`.btn-primary` and the three semantic variants) | step 9 — `--primary`, `--destructive`, `--success`, `--warning` | step 10 — `--*-hover` | **step 10, the same rung** |
-| tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--card` or transparent | step 3 — `--secondary`, `--accent` | step 5 — `--secondary-active`, `--accent-active` |
+| tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--card` or transparent | step 3 — `--secondary` | step 5 — `--secondary-active` |
 | a subtle band that is also a control | `--destructive-subtle` (step 3) | — | `--destructive-subtle-active` (step 5) |
 
 | state | value |
@@ -1362,19 +1377,29 @@ Two seams this does **not** close, both deliberate:
 
 `colors.css` holds two kinds of name and they are adopted differently.
 
-**The 49 semantic tokens are live** and carry call sites in `apps/platform/src`;
-none is defined-but-unused. The palette is the whole contract — a semantic name
-that ships here is a name the app paints with.
+**The 50 semantic tokens are live** and carry call sites in `apps/platform/src`,
+bar the seven `--sidebar-*` aliases noted above. The palette is the whole
+contract — a semantic name that ships here is a name the app paints with.
 
-**The 60 ramp steps are the material underneath, and they are not reachable from
-a call site at all.** `packages/ui/src/styles/theme.css` maps the semantic tokens
-into the `--color-*` namespace and no step; the namespace is otherwise reset to
-`initial`, so a step spelled as a utility compiles to no rule — the same gate
-that keeps a raw Tailwind palette name out. A step reaches the app **only**
-through the semantic token that aliases it, which is why repointing 49 aliases
-rethemed the product with no call-site change. Opening the namespace to step
-names is a deliberate act with a sweep behind it, not something a call site can
-do on its own.
+**The 60 ramp steps are reachable too, and that is the deliberate act this file
+once said would need one.** `packages/ui/src/styles/theme.css` binds every step
+as `--color-<scale>-<step>`, so `bg-gray-3` and `text-blue-11` compile. The two
+sets divide by whether the name carries meaning: a semantic token says what a
+fill is *for* and survives a retheme, a step says which rung it is and is what
+you reach for when there is no meaning to name.
+
+Four neutral names went the other way and now have **no utility at all** —
+`--fg`, `--muted`, `--muted-fg`, `--border`. They named a rung and nothing else,
+so the call site names the step (`text-gray-12`, `bg-gray-3`, `text-gray-11`,
+`border-gray-6`) and `text-muted-fg` fails to compile rather than drifting back
+in beside its own step name. The tokens stay declared: the email templates read
+all four off the hex mirror, where there is no Tailwind namespace to drift in.
+
+What is still closed is everything outside both sets. The `--color-*` namespace
+is reset to `initial`, so a raw Tailwind palette name — `blue-600`, `gray-950` —
+compiles to no rule. Tailwind drops an unknown utility silently, with no build
+error, which is why retiring a name is only safe after a grep proves zero call
+sites.
 
 Counts of call sites are deliberately absent from this file. They decay on every
 commit, and a stale number here reads as authority. When a figure is needed, take

@@ -159,7 +159,7 @@ function AccountSelector({
       >
         <RadioGroup.Item
           value={"savings" satisfies AccountType}
-          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-accent transition-colors flex items-center justify-between"
+          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-secondary-active transition-colors flex items-center justify-between"
         >
           <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
             Savings account
@@ -172,7 +172,7 @@ function AccountSelector({
         </RadioGroup.Item>
         <RadioGroup.Item
           value={"investments" satisfies AccountType}
-          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-accent transition-colors flex items-center justify-between"
+          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-secondary-active transition-colors flex items-center justify-between"
         >
           <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
             Investments account

@@ -63,7 +63,7 @@ export default function DemoNonprofitPage() {
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="px-3 py-1.5 text-sm text-gray-11 hover:text-gray-12 hover:bg-accent rounded transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-11 hover:text-gray-12 hover:bg-secondary rounded transition-colors"
             >
               {section.title}
             </a>
@@ -177,7 +177,7 @@ export default function DemoNonprofitPage() {
                 <button
                   type="submit"
                   aria-label="Close"
-                  className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-accent text-gray-11"
+                  className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-secondary text-gray-11"
                 >
                   <X size={20} />
                 </button>
