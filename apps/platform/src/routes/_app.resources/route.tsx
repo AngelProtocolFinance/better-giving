@@ -62,7 +62,7 @@ export default function Resources() {
               placeholder="Search resources..."
               value={query}
               onChange={(e) => set_query(e.target.value)}
-              className="field-input py-2.5 pl-10 pr-4 bg-card"
+              className="field-input py-2.5 pl-10 pr-4 bg-input"
             />
           </div>
         </div>

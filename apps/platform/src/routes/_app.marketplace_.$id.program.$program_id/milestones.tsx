@@ -48,7 +48,7 @@ function Milestone(m: IMilestone) {
       </p>
       <h6 className="pl-6 sm:pl-8 font-bold mb-3 relative">
         {m.title}
-        <span className="bg-card w-4 h-6 absolute left-[-0.5px] top-1/2 -translate-y-1/2 -translate-x-1/2" />
+        <span className="bg-background w-4 h-6 absolute left-[-0.5px] top-1/2 -translate-y-1/2 -translate-x-1/2" />
         <span
           className={`${
             isComplete ? "bg-primary" : "bg-gray-3"

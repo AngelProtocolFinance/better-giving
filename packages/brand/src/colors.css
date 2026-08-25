@@ -96,10 +96,22 @@
 
   --background: var(--gray-1);
   --fg: var(--gray-12); /* 15.95:1 on --background */
-  /* identical to --background — a card reads by its border */
-  --card: var(--gray-1);
+  /* step 2, the ramp's subtle ground — one rung down from the page, so a panel
+     is read by its fill as well as its border, and anything resting on step 1
+     inside it (a field, see --input) reads lighter than the panel. that
+     direction is radix's: its default text-field variant sits LIGHTER than the
+     panel it is on, and the tinted fill is the opt-in `soft` variant. it is
+     also the only direction available here — --input is already step 1 and
+     there is no rung above it, so the separation has to come from moving the
+     container down. NOT a substitute for the border: --border is 1.36:1 and
+     step 1 on step 2 is fainter still. the two together are what makes a field
+     findable; neither does it alone. */
+  --card: var(--gray-2);
   --card-fg: var(--gray-12);
-  --popover: var(--gray-1);
+  /* a floating layer takes the panel rung too — radix files menus, dialogs and
+     popovers under the same one cards get. the separate name is so a floating
+     layer's fill can move without moving every panel. */
+  --popover: var(--gray-2);
   --popover-fg: var(--gray-12);
   --primary: var(--blue-9); /* 5.48:1 white-on-fill */
   /* the hovered rung of the filled control, and its pressed rung too. the ramp
@@ -203,7 +215,11 @@
      below, which is fainter still — the boundary and the ring are both under
      the threshold, and neither rescues the other. */
   --border: var(--gray-6);
-  --input: var(--gray-1); /* field fill, same as the page */
+  /* step 1, the lightest rung there is — the same value the page carries, but
+     the job is the opposite: on a --card panel this is what lifts the field
+     off its container. a field on the bare page is therefore fill-identical to
+     it and reads by its border alone. */
+  --input: var(--gray-1);
   /* step 8 is the ramp's focus rung, and it no longer equals --primary. a ring
      drawn on a --primary fill used to measure 1.00:1 against it, which is the
      defect the `surface-primary` utility exists to work around; on that fill

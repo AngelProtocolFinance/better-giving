@@ -234,7 +234,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           on_reset={() => rhf.resetField("active_in_countries")}
           options={country_names}
           classes={{
-            container: "bg-card",
+            container: "bg-input",
             options: "text-sm",
           }}
         />
