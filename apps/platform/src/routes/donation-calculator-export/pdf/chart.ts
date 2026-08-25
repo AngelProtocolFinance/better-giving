@@ -105,7 +105,9 @@ export function draw_chart(
   // draw areas bottom to top
   fill_area(["savings"], green["6"], green["9"]);
   fill_area(["savings", "liq"], amber["6"], amber["9"]);
-  // blue's stroke steps down one so the total line — blue 9, drawn over it — stays a distinct value
+  // blue's band takes step 8, not 9: its top edge IS the total, and the 2px
+  // step-9 line is drawn straight over it, so the two blues never read apart
+  // on the plot. the legend chip is the one place they sit side by side.
   fill_area(["savings", "liq", "lock"], blue["6"], blue["8"]);
 
   // total line

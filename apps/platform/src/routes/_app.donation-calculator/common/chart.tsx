@@ -10,6 +10,22 @@ import {
   YAxis,
 } from "recharts";
 
+/* recharts paints legend and tooltip text with the series' own stroke, so a
+   band's plot colour doubles as its label ink unless it is overridden here.
+   they are different rungs and have to stay different: the band is drawn with
+   a fill and a border step, the label is step 11, the scale's text rung. the
+   pdf sibling splits them the same way. hex is hand-copied from colors.css,
+   as everywhere a chart is drawn from js — nothing guards that drift. */
+const series = {
+  savings: { label: "Donation Processing Savings", ink: "#008057" },
+  liq: { label: "Savings Returns", ink: "#ac6500" },
+  lock: { label: "Investment Returns", ink: "#206fad" },
+  total: { label: "Total Financial Advantage", ink: "#206fad" },
+} as const;
+
+const ink = (key: unknown): string | undefined =>
+  series[key as keyof typeof series]?.ink;
+
 interface Point {
   year: string;
   amount: number;
@@ -42,21 +58,26 @@ export function Chart({ points }: Props) {
         />
         <Tooltip
           wrapperStyle={{ fontSize: 13 }}
-          formatter={(value: any, name: any) => {
-            const labels: Record<string, string> = {
-              liq: "Savings Returns",
-              savings: "Donation Processing Savings",
-              lock: "Investment Returns",
-              total: "Total Financial Advantage",
-            };
-
-            return [to_usd(Number(value)), labels[name] || String(name)];
+          formatter={(value: any, name: any, item: any) => {
+            const s = series[item?.dataKey as keyof typeof series];
+            const color = s?.ink;
+            return [
+              <span key="value" style={{ color }}>
+                {to_usd(Number(value))}
+              </span>,
+              <span key="name" style={{ color }}>
+                {s?.label ?? String(name)}
+              </span>,
+            ];
           }}
         />
         <Legend
           iconSize={10}
           iconType="circle"
           wrapperStyle={{ fontSize: 13 }}
+          formatter={(value: any, entry: any) => (
+            <span style={{ color: ink(entry?.dataKey) }}>{value}</span>
+          )}
         />
 
         <Area
