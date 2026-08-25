@@ -40,7 +40,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
           will be.
         </p>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
-          <div className="bg-panel rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
+          <div className="bg-panel border rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
             <span className="justify-self-start self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-gray-12 rounded-full px-3 py-1.5">
               Most popular
             </span>
@@ -64,7 +64,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
             </Link>
           </div>
 
-          <div className="bg-panel rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
+          <div className="bg-panel border rounded p-9 shadow-lg shadow-primary/5 flex flex-col gap-3.5">
             <span className="self-start text-2xs font-bold uppercase tracking-wider bg-secondary text-gray-12 rounded-full px-3 py-1.5">
               Maximum control
             </span>

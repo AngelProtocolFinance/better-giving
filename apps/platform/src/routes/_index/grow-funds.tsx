@@ -70,7 +70,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </p>
         </div>
 
-        <div className="bg-panel rounded p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
+        <div className="bg-panel border rounded p-10 shadow-lg shadow-primary/5 grid gap-6 justify-items-center">
           <span className="text-lg font-bold">
             Sustainability Fund target allocation
           </span>

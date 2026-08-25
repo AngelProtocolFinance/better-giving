@@ -34,11 +34,15 @@
     border-radius: var(--radius);
   }
 
+  /* --surface, not --panel: this is a control, and --surface is the fill a
+     control carries — on a --panel it is what lifts the button off its
+     container. on the bare page it is fill-identical instead and reads by its
+     border alone, the same bargain .field-input takes. */
   /* a tinted control presses UP its scale: resting tint → -active, which is the
      ramp's own selected rung. it does not darken toward black, which on a
      near-white tint would carry the surface away from the ink sitting on it. */
   .btn-secondary {
-    background-color: var(--panel);
+    background-color: var(--surface);
     color: var(--gray-12);
     border: 1px solid var(--gray-6);
     &:active {

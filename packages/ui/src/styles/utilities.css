@@ -342,22 +342,29 @@
 }
 
 /* the named type roles. each one is a responsive size curve plus its wrapping
-   behaviour — size only, never color, weight-of-voice or spacing, so a caller
-   still says what the text IS on the page. the ladder they step through is
-   closed in ./theme.css, so these are the sanctioned way to pick a heading
-   size: reaching past them means naming a new role here, not spelling a step
-   at the call site. */
+   behaviour — never color and never weight-of-voice, so a caller still says
+   what the text IS on the page. the ladder they step through is closed in
+   ./theme.css, so these are the sanctioned way to pick a heading size:
+   reaching past them means naming a new role here, not spelling a step at the
+   call site.
+
+   tracking is the one spacing these roles do carry, and only where it is a
+   function of the size rather than a voice: quicksand is drawn for text and
+   its sidebearings read loose once the size curve reaches display rungs, so
+   the correction differs per breakpoint. a call site cannot express that — it
+   sees one class, not the rungs behind it — which is why it lives here with
+   the curve it corrects. */
 
 /* the one h1 at the top of a marketing page — the largest type in the product,
    and there is at most one per page. */
 @utility hero-heading {
-  @apply text-3xl/tight md:text-4xl/tight lg:text-6xl/tight text-balance;
+  @apply text-3xl/tight md:text-4xl/tight lg:text-6xl/tight tracking-tight text-balance;
 }
 
 /* the h2 that opens a band further down a marketing page. one rung under the
    hero at every breakpoint so a section never competes with the page's title. */
 @utility section-heading {
-  @apply text-3xl/tight md:text-4.5xl/tight text-balance;
+  @apply text-3xl/tight md:text-4.5xl/tight tracking-tight text-balance;
 }
 
 /* the standfirst paragraph directly under a section-heading — larger than body

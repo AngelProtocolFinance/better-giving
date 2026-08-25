@@ -149,6 +149,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
           if (busy) ev.preventDefault();
         }}
         className={`relative grid place-items-center rounded border border-dashed w-full h-45.5 cursor-pointer
+          bg-surface
           focus-within:outline-2 data-dragging:outline-2 outline-ring
           hover:bg-secondary
           aria-busy:bg-gray-3 aria-busy:cursor-progress aria-busy:hover:bg-gray-3
