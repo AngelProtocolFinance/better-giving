@@ -25,7 +25,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
       }}
     >
       <Portal>
-        <Dialog.Backdrop className="fixed z-40 inset-0 bg-gray-12/30" />
+        <Dialog.Backdrop className="fixed z-40 inset-0 bg-overlay" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
             className={`${classes} ${modal_box.panel} isolate border bg-background`}

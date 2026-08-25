@@ -234,6 +234,14 @@
      against the page the ring is 2.30:1 — the rung radix assigns, taken as
      generated, and well under what a sole indicator would need. */
   --ring: var(--blue-8);
+  /* the scrim a dialog lays over the page — radix's --color-overlay. gray-12
+     at 30%, which is what all four dialog backdrops already carried; naming it
+     is what stops the fifth one being picked by eye. the drawer and the native
+     <dialog> backdrops still spell their own alphas, because unifying those is
+     an elevation decision and there is no elevation ladder yet.
+     color-mix() has no single literal, so this has no email twin — mail has no
+     dialogs, so it needs none. */
+  --overlay: color-mix(in oklch, var(--gray-12) 30%, transparent);
   /* ring + hairline for controls drawn ON a --primary fill.
      5.48:1 and 4.08:1 on --primary respectively — the second is a color-mix
      with no email twin and no checked value; read it out of a browser before

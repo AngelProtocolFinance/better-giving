@@ -49,7 +49,7 @@ export function ImgCropper({
       unmountOnExit
     >
       <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-gray-12/30 z-50" />
+        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-50" />
         <Dialog.Positioner className="contents">
           <Dialog.Content className="z-50 fixed-center border-2 rounded overflow-hidden">
             <div className="bg-panel flex items-center justify-end gap-2 p-1">
