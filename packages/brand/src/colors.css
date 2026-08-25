@@ -94,10 +94,10 @@
 
   --radius: 0.25rem;
 
-  /* there is no --fg, and no -fg twin for any surface below. every one of them
-     resolved to gray-12 and always would: each surface they sat on is light, so
-     the ink never varied with the fill. six names for one step, which is the
-     shape the ramp exists to remove. body copy is text-gray-12 and de-emphasised
+  /* there is no --fg, and no -fg twin for any surface below: every one of them
+     would resolve to gray-12. each surface below is light, so the ink never
+     varies with the fill, and six names for one step is the shape the ramp
+     exists to remove. body copy is text-gray-12 and de-emphasised
      copy is text-gray-11, at the call site, named as the rungs they are.
      a -fg name survives only where the ink genuinely follows its fill —
      --primary-fg, --destructive-fg, --success-fg, --warning-fg. those four are
@@ -152,11 +152,9 @@
   --band: var(--blue-2);
   --secondary: var(--blue-3);
   --secondary-active: var(--blue-5);
-  /* the filled error control: white ink at 5.62:1, up from 4.52:1. this is the
-     darker red the value it replaces described as the one that would clear the
-     tinted surfaces too — the ramp makes that move. a tinted band carrying
-     error copy still takes --destructive-subtle/-fg below, which is now a pair
-     that clears AA on its own band rather than a patch for ink that didn't. */
+  /* the filled error control: white ink at 5.62:1. a tinted band carrying
+     error copy takes --destructive-subtle/-fg below instead — that pair clears
+     AA on its own band, which is a fill's job to do, not this one's. */
   --destructive: var(--red-9);
   /* hovered and pressed rung of the filled error control — one step for both,
      see --primary-hover. */
@@ -164,8 +162,7 @@
   --destructive-fg: oklch(1 0 0); /* #ffffff */
   /* de-emphasised destructive surface: an error panel, banner, or row that
      carries error ink as body copy rather than a filled control. step 11 on
-     step 3 is 4.57:1, where the hand-authored red on a tint it replaces
-     measured 4.09:1. --destructive-subtle-fg is the error ink EVERYWHERE, the
+     step 3 is 4.57:1. --destructive-subtle-fg is the error ink EVERYWHERE, the
      page included, not only on this band — --destructive is a fill, and step 9
      read as text clears AA only because red's step 9 happens to sit dark. the
      other two status hues don't, so ink follows the rung, not the luck. an
@@ -173,10 +170,9 @@
   --destructive-subtle: var(--red-3);
   --destructive-subtle-fg: var(--red-11);
   /* pressed rung for a control whose resting surface is --destructive-subtle.
-     step 5 is the ramp's own active/selected rung, which is why this is no
-     longer a color-mix(): on a near-white band the `color-mix(… 85%, black)`
-     ladder every filled .btn uses moves the surface away from its own ink and
-     the pair fails. */
+     step 5 is the ramp's own active/selected rung. NOT the `color-mix(… 85%,
+     black)` ladder the filled .btn variants use: on a near-white band that
+     moves the surface away from the ink sitting on it and the pair fails. */
   --destructive-subtle-active: var(--red-5);
   /* 4.25:1 white-on-fill — an accepted miss, under AA */
   --success: var(--green-9);
@@ -227,10 +223,10 @@
      unrelated to the `surface-primary` utility, which is a brand-filled BAND.
      that one names what fills it; this one names what sits on a fill. */
   --surface: var(--gray-1);
-  /* step 8 is the ramp's focus rung, and it no longer equals --primary. a ring
-     drawn on a --primary fill used to measure 1.00:1 against it, which is the
-     defect the `surface-primary` utility exists to work around; on that fill
-     step 8 now reaches 2.32:1, so the utility still has a job, a smaller one.
+  /* step 8 is the ramp's focus rung, and deliberately not --primary: a ring
+     that equals the fill it surrounds measures 1.00:1 against it and is not
+     there at all. on a --primary fill step 8 reaches 2.32:1 — still thin, which
+     is the job the `surface-primary` utility keeps.
      against the page the ring is 2.30:1 — the rung radix assigns, taken as
      generated, and well under what a sole indicator would need. */
   --ring: var(--blue-8);

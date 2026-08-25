@@ -119,7 +119,8 @@
      or the same shape in raw white over a photo hero — on a container that had
      already declared that ink for its own copy. writing it twice is what lets
      it drift once. currentColor reads whatever the surface set: --primary-fg
-     on a `surface-primary` band, --fg on the page, white over a hero.
+     on a `surface-primary` band, gray-12 from the body rule on the page,
+     white over a hero.
 
      the mixes are oklab, not oklch, to match what tailwind's own `/40` and
      `/10` opacity modifiers compile to — an oklch mix down to transparent
@@ -142,10 +143,9 @@
      one ring for every variant is the fix, and the offset is what makes it
      work rather than the color. --ring is the ramp's step 8, 2.30:1 against the
      page — under 3:1, taken as radix assigns it, so the ring is legible by
-     being detached and continuous, not by contrast alone. it no longer equals
-     --primary: a flush ring on .btn-primary used to measure 1.00:1 against the
-     button it surrounds and now measures 2.32:1, which is why the offset stays
-     and why a --primary-filled panel still scopes with `surface-primary`. */
+     being detached and continuous, not by contrast alone. on a .btn-primary
+     fill it measures 2.32:1, which is why the offset stays and why a
+     --primary-filled panel still scopes with `surface-primary`. */
   .btn,
   .btn-sm,
   .btn-md,

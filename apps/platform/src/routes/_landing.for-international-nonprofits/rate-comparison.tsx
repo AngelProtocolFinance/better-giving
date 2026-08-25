@@ -103,8 +103,8 @@ function CostCell({ cost, accent }: { cost: Cost | string; accent?: boolean }) {
 function Cells({ row, accent }: { row: Row; accent?: boolean }) {
   return (
     <>
-      {/* text-gray-12: .table's th rule paints every header muted, which is right for
-          the column strip and wrong for the row's own name */}
+      {/* .table's th rule paints every header on the dim rung, which is right
+          for the column strip and wrong for the row's own name */}
       <th scope="row" className="align-top text-gray-12">
         <span className="block font-bold">{row.sponsor}</span>
         {row.note && (
