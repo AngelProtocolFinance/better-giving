@@ -42,7 +42,7 @@ export function DonorMsgs({ classes = "", id }: Props) {
         {items.map((donor) => (
           <div
             key={donor.id}
-            className="flex bg-card items-start gap-4 border p-4 rounded"
+            className="flex bg-panel items-start gap-4 border p-4 rounded"
           >
             <Image
               src={donor.photo || laira}

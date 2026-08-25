@@ -33,7 +33,7 @@ export default function Referrals() {
           const observer = new IntersectionObserver(
             ([e]) => {
               const isIntersecting = e.intersectionRatio < 1;
-              e.target.classList.toggle("bg-card", isIntersecting);
+              e.target.classList.toggle("bg-panel", isIntersecting);
               e.target.classList.toggle("shadow-lg", isIntersecting);
             },
             { threshold: [1] }

@@ -7,7 +7,7 @@ export function Docs({ classes = "" }) {
   const details_id = useId();
 
   return (
-    <div className={`bg-card rounded shadow-sm p-6 ${classes}`}>
+    <div className={`bg-panel rounded shadow-sm p-6 ${classes}`}>
       <button
         type="button"
         className="flex items-center gap-x-4 w-full"

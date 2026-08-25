@@ -77,8 +77,8 @@ export default function WithBorder() {
         />
         <p className="text-warning-subtle-fg">
           Use a subtle border color like{" "}
-          <code className="bg-card px-1 rounded">lightgray</code> or{" "}
-          <code className="bg-card px-1 rounded">#e5e5e5</code> to blend with
+          <code className="bg-panel px-1 rounded">lightgray</code> or{" "}
+          <code className="bg-panel px-1 rounded">#e5e5e5</code> to blend with
           most designs without being too prominent.
         </p>
       </div>

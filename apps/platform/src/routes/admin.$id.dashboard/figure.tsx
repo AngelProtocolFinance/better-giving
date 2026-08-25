@@ -19,7 +19,7 @@ export function Figure(props: Props) {
   const icon = <CircleHelp size={14} className="text-gray-11 ml-1" />;
 
   return (
-    <div className="@container rounded border bg-card p-4">
+    <div className="@container rounded border bg-panel p-4">
       <div className="flex items-center mb-4">
         <h4 className="">{props.title}</h4>
         {props.hover_content ? (

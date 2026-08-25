@@ -207,7 +207,7 @@ function MemoSection({ memo, account_type, classes = "" }: MemoSectionProps) {
         <h3 className="font-bold text-warning-subtle-fg">
           Your Reference Memo
         </h3>
-        <span className="text-xs font-medium text-warning-subtle-fg bg-card px-2 py-1 rounded">
+        <span className="text-xs font-medium text-warning-subtle-fg bg-panel px-2 py-1 rounded">
           {account_label}
         </span>
       </div>
@@ -215,7 +215,7 @@ function MemoSection({ memo, account_type, classes = "" }: MemoSectionProps) {
         You must include this code when making your transfer, or we won't be
         able to identify your deposit.
       </p>
-      <div className="bg-card rounded p-4 border border-warning">
+      <div className="bg-panel rounded p-4 border border-warning">
         <div className="flex items-center justify-between gap-4">
           <code className="text-lg font-bold font-mono tracking-wide break-all">
             {memo}
@@ -248,7 +248,7 @@ function InfoRow({ label, value, copyable = true }: InfoRowProps) {
             text={value}
             classes={{
               container:
-                "shrink-0 px-2.5 py-1.5 text-xs text-gray-11 bg-card border rounded hover:bg-gray-3 transition-colors",
+                "shrink-0 px-2.5 py-1.5 text-xs text-gray-11 bg-panel border rounded hover:bg-gray-3 transition-colors",
             }}
           />
         )}
@@ -271,7 +271,7 @@ function InfoRowWithDetails({
           text={value}
           classes={{
             container:
-              "shrink-0 px-2.5 py-1.5 text-xs text-gray-11 bg-card border rounded hover:bg-gray-3 transition-colors",
+              "shrink-0 px-2.5 py-1.5 text-xs text-gray-11 bg-panel border rounded hover:bg-gray-3 transition-colors",
           }}
         />
       </div>

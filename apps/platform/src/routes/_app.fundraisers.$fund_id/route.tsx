@@ -66,13 +66,13 @@ function Fund({ loaderData }: Route.ComponentProps) {
             />
           </div>
 
-          <div className="bg-card rounded p-4">
+          <div className="bg-panel rounded p-4">
             <div className="grid max-md:gap-y-4 items-center max-md:justify-items-center md:grid-cols-[auto_1fr]">
               <div className="mr-4 md:row-span-2">
                 <Image
                   src={fund.logo || flying_character}
                   width={60}
-                  className="rounded-full object-cover bg-card"
+                  className="rounded-full object-cover bg-panel"
                 />
               </div>
 
@@ -99,7 +99,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
             </div>
           </div>
 
-          <div className="rounded overflow-hidden bg-card">
+          <div className="rounded overflow-hidden bg-panel">
             {fund.banner && (
               <img
                 src={fund.banner}
@@ -129,7 +129,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
         </div>
         <div
           id="info-card"
-          className="md:sticky md:top-30 bg-card self-start flex flex-col content-start z-10 rounded p-4"
+          className="md:sticky md:top-30 bg-panel self-start flex flex-col content-start z-10 rounded p-4"
         >
           {" "}
           <DonateSection

@@ -73,7 +73,7 @@ export function TipField({ classes = "", ...p }: Props) {
           <ThumbWiggle play={play && !p.checked} on_done={end_nudge}>
             <Switch.Thumb
               aria-hidden="true"
-              className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-card transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
+              className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-panel transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
             />
           </ThumbWiggle>
         </Switch.Control>

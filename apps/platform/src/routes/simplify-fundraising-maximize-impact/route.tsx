@@ -24,13 +24,13 @@ export default function Component() {
   return (
     <main className="w-full grid content-start pb-16 @container">
       <div
-        className="sticky -top-px z-50 bg-card"
+        className="sticky -top-px z-50 bg-panel"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(
             ([e]) => {
               const isIntersecting = e.intersectionRatio < 1;
-              e.target.classList.toggle("bg-card", isIntersecting);
+              e.target.classList.toggle("bg-panel", isIntersecting);
               e.target.classList.toggle("shadow-lg", isIntersecting);
             },
             { threshold: [1] }

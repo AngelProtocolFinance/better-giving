@@ -28,7 +28,7 @@ export const action = async (x: {
 
 export default function DisablePrompt() {
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-popover">
+    <RouteModal classes="grid content-start justify-items-center bg-panel">
       <Content />
     </RouteModal>
   );

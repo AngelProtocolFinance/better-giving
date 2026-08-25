@@ -21,7 +21,7 @@ export default function Page() {
       onClose={() =>
         navigate("..", { preventScrollReset: true, replace: true })
       }
-      classes="grid bg-popover"
+      classes="grid bg-panel"
     >
       <Content
         action={params.media_id ? "edit" : "add"}

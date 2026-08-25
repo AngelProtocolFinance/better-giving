@@ -52,7 +52,7 @@ export function ImgCropper({
         <Dialog.Backdrop className="fixed inset-0 bg-gray-12/30 z-50" />
         <Dialog.Positioner className="contents">
           <Dialog.Content className="z-50 fixed-center border-2 rounded overflow-hidden">
-            <div className="bg-card flex items-center justify-end gap-2 p-1">
+            <div className="bg-panel flex items-center justify-end gap-2 p-1">
               <button
                 type="button"
                 aria-label="Save cropped image"

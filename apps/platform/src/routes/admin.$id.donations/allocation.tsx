@@ -35,7 +35,7 @@ export function Allocation(props: Props) {
               <span>Grants</span>
               <Tooltip
                 tip={
-                  <Content className="max-w-xs bg-popover outline outline-gray-6 p-4 text-gray-12 text-sm shadow-lg rounded">
+                  <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-sm shadow-lg rounded">
                     Donations received through Better Giving that will
                     distributed to your bank account.
                     <Arrow />
@@ -71,7 +71,7 @@ interface IRow {
 }
 function Row(props: IRow) {
   return (
-    <div className="flex items-center bg-card border rounded p-4">
+    <div className="flex items-center bg-panel border rounded p-4">
       {props.icon}
       {props.title}
       <span className="ml-12 text-gray-11 font-medium text-sm ">

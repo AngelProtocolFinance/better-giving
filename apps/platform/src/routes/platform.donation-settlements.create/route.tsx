@@ -28,7 +28,7 @@ export default function Page(_: Route.ComponentProps) {
     navigate("..", { preventScrollReset: true, replace: true });
 
   return (
-    <RouteModal size="lg" classes="bg-popover">
+    <RouteModal size="lg" classes="bg-panel">
       <Content on_close={close} />
     </RouteModal>
   );

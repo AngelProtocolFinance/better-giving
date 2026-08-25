@@ -53,7 +53,7 @@ export default function Page() {
       <div className="px-6 py-10 md:py-12 print:px-0 print:py-4">
         <Checklist classes="mx-auto max-w-3xl" />
 
-        <footer className="mx-auto mt-6 max-w-3xl break-inside-avoid rounded border border-gray-6 bg-card p-5 text-sm/relaxed text-gray-11">
+        <footer className="mx-auto mt-6 max-w-3xl break-inside-avoid rounded border border-gray-6 bg-panel p-5 text-sm/relaxed text-gray-11">
           <p>
             <strong className="font-bold text-gray-12">How to use this.</strong>{" "}
             Send unchecked items to your platform's support or account team in

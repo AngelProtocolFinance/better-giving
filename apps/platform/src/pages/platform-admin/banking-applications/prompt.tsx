@@ -13,7 +13,7 @@ type Props = {
 
 export function Prompt(props: Props) {
   return (
-    <RouteModal classes="bg-popover">
+    <RouteModal classes="bg-panel">
       <Content {...props} />
     </RouteModal>
   );

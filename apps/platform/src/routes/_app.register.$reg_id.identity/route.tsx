@@ -19,7 +19,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="w-full max-w-lg px-5">
-      <div className="bg-card border border-gray-6 rounded p-6 sm:p-10">
+      <div className="bg-panel border border-gray-6 rounded p-6 sm:p-10">
         <h1 className="text-xl font-bold text-balance">
           Organization type and identity
         </h1>

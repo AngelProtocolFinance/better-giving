@@ -94,7 +94,7 @@ export default function CancelPrompt({
   loaderData: { recipient_name },
 }: Route.ComponentProps) {
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-popover">
+    <RouteModal classes="grid content-start justify-items-center bg-panel">
       <Content recipient_name={recipient_name} />
     </RouteModal>
   );

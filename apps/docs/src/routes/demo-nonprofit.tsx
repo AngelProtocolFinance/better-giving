@@ -57,7 +57,7 @@ export default function DemoNonprofitPage() {
   return (
     <main className="flex-1">
       {/* Navigation */}
-      <nav className="sticky top-0 bg-card border-b px-6 py-3 z-10">
+      <nav className="sticky top-0 bg-panel border-b px-6 py-3 z-10">
         <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-center">
           {DEMO_SECTIONS.map((section) => (
             <a
@@ -103,7 +103,7 @@ export default function DemoNonprofitPage() {
       </section>
 
       {/* With Border - White background section */}
-      <section id="with-border" className="px-6 py-16 bg-card scroll-mt-16">
+      <section id="with-border" className="px-6 py-16 bg-panel scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-12 mb-3">
@@ -143,7 +143,7 @@ export default function DemoNonprofitPage() {
             {PROGRAMS.map((program) => (
               <div
                 key={program.title}
-                className="bg-card rounded border p-6 flex flex-col"
+                className="bg-panel rounded border p-6 flex flex-col"
               >
                 <div
                   className={`w-12 h-12 rounded flex items-center justify-center ${program.color} mb-4`}
@@ -189,7 +189,7 @@ export default function DemoNonprofitPage() {
       </section>
 
       {/* With Content - Donation Appeal */}
-      <section id="with-content" className="px-6 py-16 bg-card scroll-mt-16">
+      <section id="with-content" className="px-6 py-16 bg-panel scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-6 p-6 bg-demo-pale rounded border border-demo-tint">
@@ -258,7 +258,7 @@ export default function DemoNonprofitPage() {
               ].map((article) => (
                 <article
                   key={article.title}
-                  className="bg-card rounded border p-5"
+                  className="bg-panel rounded border p-5"
                 >
                   <span className="text-xs text-gray-11">{article.date}</span>
                   <h3 className="font-semibold text-gray-12 mt-1">
@@ -271,7 +271,7 @@ export default function DemoNonprofitPage() {
 
             {/* Sidebar with fixed-dimension form */}
             <aside className="md:sticky md:top-20 self-start">
-              <div className="bg-card rounded border p-4">
+              <div className="bg-panel rounded border p-4">
                 <h3 className="font-semibold text-gray-12 mb-3 text-center text-sm">
                   Quick Donate
                 </h3>

@@ -17,7 +17,7 @@ export default function DeletePrompt() {
   const isDefault = d === "true";
   const isWithHeir = with_heir === "true";
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-popover">
+    <RouteModal classes="grid content-start justify-items-center bg-panel">
       <Content isDefault={isDefault} isWithHeir={isWithHeir} />
     </RouteModal>
   );

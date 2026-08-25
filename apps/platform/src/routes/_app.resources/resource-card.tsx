@@ -11,7 +11,7 @@ const badge_styles: Record<ResourceType, string> = {
 export function ResourceCard({ resource }: { resource: Resource }) {
   const [pending, set_pending] = useState(false);
   return (
-    <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-card p-5 gap-3">
+    <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-panel p-5 gap-3">
       <div className="flex items-center gap-3">
         <FileText size={20} className="text-primary shrink-0" />
         <span

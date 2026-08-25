@@ -50,7 +50,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           )}
           <div
             key={d.id}
-            className="p-4 rounded flex gap-2 max-lg:flex-col max-lg:items-start items-center bg-card border mt-4 gap-y-4"
+            className="p-4 rounded flex gap-2 max-lg:flex-col max-lg:items-start items-center bg-panel border mt-4 gap-y-4"
           >
             <div className="flex-1">
               <h3 className="text-lg flex-1">{d.name}</h3>

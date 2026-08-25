@@ -173,7 +173,7 @@ function SubscriptionPills({
           <li
             key={s.id}
             title={cancelled ? "cancelled" : undefined}
-            className={`inline-flex items-center gap-1.5 rounded border bg-card px-2.5 py-1 text-xs ${
+            className={`inline-flex items-center gap-1.5 rounded border bg-panel px-2.5 py-1 text-xs ${
               cancelled ? "border-dashed border-gray-6" : "border-gray-6"
             }`}
           >

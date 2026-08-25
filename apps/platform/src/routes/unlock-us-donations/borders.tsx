@@ -29,7 +29,7 @@ const cards: ICard[] = [
 
 export function Borders() {
   return (
-    <section className="bg-card py-20 md:py-24">
+    <section className="bg-panel py-20 md:py-24">
       <div className="page">
         <motion.h2
           className="section-heading font-bold text-center mb-14"
@@ -45,7 +45,7 @@ export function Borders() {
           {cards.map((card, i) => (
             <motion.div
               key={card.title}
-              className="bg-card border border-gray-6 rounded p-6 grid content-start gap-3"
+              className="bg-panel border border-gray-6 rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}

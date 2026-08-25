@@ -31,7 +31,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   const { endow, program, user, base_url } = loaderData;
   return (
     <div className="w-full">
-      <div className="bg-card h-14.75 w-full flex items-center justify-between px-10 mb-4">
+      <div className="bg-panel h-14.75 w-full flex items-center justify-between px-10 mb-4">
         <DappLogo classes="h-12" />
         <Link
           to={href("/marketplace/:id", { id: endow.id.toString() })}

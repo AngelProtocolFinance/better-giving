@@ -114,12 +114,13 @@
      there is no rung above it, so the separation has to come from moving the
      container down. NOT a substitute for the border: --border is 1.36:1 and
      step 1 on step 2 is fainter still. the two together are what makes a field
-     findable; neither does it alone. */
-  --card: var(--gray-2);
-  /* a floating layer takes the panel rung too — radix files menus, dialogs and
-     popovers under the same one cards get. the separate name is so a floating
-     layer's fill can move without moving every panel. */
-  --popover: var(--gray-2);
+     findable; neither does it alone.
+     one name covers the card and the floating layer alike: radix files panels,
+     menus, dialogs and popovers under a single rung, and a second name holding
+     the same value is the drift the -fg twins were deleted for. lifting a
+     popover off panels later means splitting this back out — greppable, and
+     nothing in the product asks for it today. */
+  --panel: var(--gray-2);
   --primary: var(--blue-9); /* 5.48:1 white-on-fill */
   /* the hovered rung of the filled control, and its pressed rung too. the ramp
      gives a solid fill two steps, 9 and 10; steps 11 and 12 are text and both

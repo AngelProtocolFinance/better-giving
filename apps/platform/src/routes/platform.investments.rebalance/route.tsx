@@ -12,7 +12,7 @@ export { action, loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {
   return (
-    <RouteModal size="lg" classes="bg-popover">
+    <RouteModal size="lg" classes="bg-panel">
       <Content {...data} />
     </RouteModal>
   );

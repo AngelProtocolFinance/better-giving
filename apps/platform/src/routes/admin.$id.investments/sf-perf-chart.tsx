@@ -26,7 +26,7 @@ const CustomTooltip = ({
 }: TooltipProps<number, string>) => {
   if (active && payload?.length && label) {
     return (
-      <div className="bg-popover text-gray-12 rounded p-2 shadow-lg text-xs grid gap-y-1">
+      <div className="bg-panel text-gray-12 rounded p-2 shadow-lg text-xs grid gap-y-1">
         <p className="font-medium">{date_fmt(label)}</p>
         {payload.map((entry, index: number) => (
           <p key={index} style={{ color: entry.color }}>

@@ -22,7 +22,7 @@ export function InitForm(props: Props) {
     <fetcher.Form
       method="POST"
       onSubmit={handleSubmit}
-      className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded"
+      className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded"
     >
       <h3 className="text-center text-xl sm:text-2xl font-bold">
         Reset your Password

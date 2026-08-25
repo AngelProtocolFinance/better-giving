@@ -28,7 +28,7 @@ export default CacheRoute(Page);
 function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
   return (
     <div className="w-full">
-      <div className="bg-card h-14.75 w-full flex items-center justify-between px-10 mb-4">
+      <div className="bg-panel h-14.75 w-full flex items-center justify-between px-10 mb-4">
         <DappLogo classes="h-12" />
         <Link
           to={href("/fundraisers/:fund_id", { fund_id: fund.id })}
@@ -52,7 +52,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
         {/** small screen but space is still enough to render sidebar */}
         <div className="mx-0 border-b md:contents min-[445px]:border min-[445px]:mx-4 rounded">
           {is_closed(fund.active, fund.expiration ?? undefined) ? (
-            <Info classes="row-start-2 self-center bg-card rounded h-80 content-center justify-items-center grid">
+            <Info classes="row-start-2 self-center bg-panel rounded h-80 content-center justify-items-center grid">
               This fundraiser is already closed and can't accept any more
               donations
             </Info>

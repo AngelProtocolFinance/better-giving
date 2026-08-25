@@ -38,7 +38,7 @@ export function PostCta({ cta }: IPostCta) {
             {cta.link1 && (
               <ExtLink
                 href={cta.link1.href}
-                className="text-primary border border-primary btn btn-lg bg-card rounded"
+                className="text-primary border border-primary btn btn-lg bg-panel rounded"
               >
                 {cta.link1.label}
               </ExtLink>

@@ -25,7 +25,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
         </p>
 
         <div className="grid gap-5 mt-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr]">
-          <div className="md:col-span-2 lg:col-span-1 lg:row-span-2 bg-card border border-gray-6 rounded p-8 flex flex-col justify-center">
+          <div className="md:col-span-2 lg:col-span-1 lg:row-span-2 bg-panel border border-gray-6 rounded p-8 flex flex-col justify-center">
             <h3 className="text-2xl">Accept every gift type</h3>
             <p className="mt-3 max-w-md leading-relaxed text-gray-11 text-pretty">
               One embeddable donation form for everything your donors want to
@@ -43,7 +43,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
             </div>
           </div>
 
-          <div className="bg-card border border-gray-6 rounded p-6 flex flex-col justify-center">
+          <div className="bg-panel border border-gray-6 rounded p-6 flex flex-col justify-center">
             <h3 className="text-lg">Own your donors</h3>
             <p className="mt-2 text-sm leading-relaxed text-gray-11 text-pretty">
               Your donor data belongs to you, full stop. No unauthorized
@@ -52,7 +52,7 @@ export function GiftTypes({ classes = "" }: IGiftTypes) {
             </p>
           </div>
 
-          <div className="bg-card border border-gray-6 rounded p-6 flex flex-col justify-center">
+          <div className="bg-panel border border-gray-6 rounded p-6 flex flex-col justify-center">
             <h3 className="text-lg">Set up in an afternoon</h3>
             <p className="mt-2 text-sm leading-relaxed text-gray-11 text-pretty">
               Embed your form and connect your bank in an afternoon. Most

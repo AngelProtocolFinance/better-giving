@@ -10,7 +10,7 @@ export { action } from "./api";
 
 export default function Page() {
   return (
-    <RouteModal size="lg" classes="bg-popover">
+    <RouteModal size="lg" classes="bg-panel">
       <Content />
     </RouteModal>
   );

@@ -95,7 +95,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
 
   return (
     <div className="grid justify-items-center gap-3.5">
-      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
         <h3 className="text-center text-balance text-2xl font-bold">
           {ctx.title}
         </h3>

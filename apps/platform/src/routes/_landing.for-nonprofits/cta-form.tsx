@@ -78,7 +78,7 @@ export function CtaForm({
 
   return (
     <div
-      className={`${classes} w-full max-w-115 bg-card border border-gray-6 rounded p-6 text-left`}
+      className={`${classes} w-full max-w-115 bg-panel border border-gray-6 rounded p-6 text-left`}
     >
       <h2 className="text-xl font-bold">Create your free account</h2>
       <p className="mt-2 text-sm text-gray-11">

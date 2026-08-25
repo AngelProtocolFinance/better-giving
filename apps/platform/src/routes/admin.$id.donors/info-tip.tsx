@@ -9,7 +9,7 @@ export function InfoTip({ label }: IProps) {
   return (
     <Tooltip
       tip={
-        <Content className="max-w-xs rounded bg-card p-3 text-xs text-gray-12 shadow-lg">
+        <Content className="max-w-xs rounded bg-panel p-3 text-xs text-gray-12 shadow-lg">
           {label}
           <Arrow />
         </Content>

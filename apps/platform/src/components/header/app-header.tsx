@@ -21,7 +21,7 @@ export function AppHeader({ variant = "default", classes }: IAppHeader) {
 
   return (
     <header
-      className={`${classes} bg-popover border-b`}
+      className={`${classes} bg-panel border-b`}
       ref={(node) => {
         if (!node) return;
         const observer = new IntersectionObserver(

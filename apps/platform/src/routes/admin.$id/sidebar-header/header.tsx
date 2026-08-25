@@ -34,7 +34,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
-          <Menu.Content className="z-40 grid w-max min-w-56 p-2 rounded bg-popover text-gray-12 shadow-xl shadow-black/5 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+          <Menu.Content className="z-40 grid w-max min-w-56 p-2 rounded bg-panel text-gray-12 shadow-xl shadow-black/5 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
             {list.map((org) => {
               const is_current = org.id.toString() === current_id;
               return (

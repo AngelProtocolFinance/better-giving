@@ -55,7 +55,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
           </Link>
         </div>
 
-        <div className="bg-card border border-gray-6 rounded p-8 flex flex-col gap-3.5">
+        <div className="bg-panel border border-gray-6 rounded p-8 flex flex-col gap-3.5">
           <span className="text-lg font-bold">Fiscal sponsorship</span>
           <span className="text-5xl font-bold">
             2.9%
@@ -82,7 +82,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
           </Link>
         </div>
 
-        <div className="bg-card border border-gray-6 rounded p-8 flex flex-col gap-3.5">
+        <div className="bg-panel border border-gray-6 rounded p-8 flex flex-col gap-3.5">
           <span className="text-lg font-bold">Self-hosted</span>
           <span className="text-5xl font-bold">
             $0

@@ -121,7 +121,7 @@ export function Checklist({ classes = "" }: IChecklist) {
       <div
         role="status"
         aria-live="polite"
-        className="sticky top-16 z-30 flex flex-wrap items-center gap-5 rounded border border-gray-6 bg-card p-4 print:static"
+        className="sticky top-16 z-30 flex flex-wrap items-center gap-5 rounded border border-gray-6 bg-panel p-4 print:static"
       >
         <p className="flex items-baseline gap-1.5 leading-none figures">
           {/* the space is load-bearing: without it the live region announces
@@ -175,7 +175,7 @@ export function Checklist({ classes = "" }: IChecklist) {
           <section
             key={section.id}
             aria-labelledby={`${section.id}-heading`}
-            className="rounded border border-gray-6 bg-card p-5"
+            className="rounded border border-gray-6 bg-panel p-5"
           >
             <h2 id={`${section.id}-heading`} className="article-heading">
               {section.title}

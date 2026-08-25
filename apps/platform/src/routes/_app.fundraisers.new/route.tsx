@@ -86,7 +86,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
       <fetcher.Form
         method="POST"
         onSubmit={handleSubmit}
-        className="grid bg-card border rounded p-6 my-4 w-full max-w-4xl"
+        className="grid bg-panel border rounded p-6 my-4 w-full max-w-4xl"
       >
         <h4 className="font-semibold text-sm mb-4">Create your fundraiser</h4>
 

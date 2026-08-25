@@ -16,7 +16,7 @@ export default function Home() {
 
           {/* Feature Cards */}
           <div className="space-y-4">
-            <div className="flex items-start gap-4 p-5 rounded border bg-card max-w-md">
+            <div className="flex items-start gap-4 p-5 rounded border bg-panel max-w-md">
               <div className="p-3 rounded bg-secondary text-primary">
                 <Code size={24} />
               </div>

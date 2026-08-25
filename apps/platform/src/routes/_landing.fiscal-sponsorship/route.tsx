@@ -134,7 +134,7 @@ export default function Page() {
             {audiences.map((a) => (
               <div
                 key={a.title}
-                className="bg-card border border-gray-6 rounded p-8 shadow-lg shadow-primary/5 grid gap-2.5 content-start"
+                className="bg-panel border border-gray-6 rounded p-8 shadow-lg shadow-primary/5 grid gap-2.5 content-start"
               >
                 <span className="text-xl font-bold">{a.title}</span>
                 <p className="text-sm/relaxed text-gray-11">{a.body}</p>

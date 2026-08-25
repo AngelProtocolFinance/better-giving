@@ -235,8 +235,7 @@
      the token is read by the base `*` rule, which is what makes the rebind
      reach every element inside. */
   --color-background: var(--background);
-  --color-card: var(--card);
-  --color-popover: var(--popover);
+  --color-panel: var(--panel);
   --color-primary: var(--primary);
   --color-primary-fg: var(--primary-fg);
   --color-primary-deep: var(--primary-deep);

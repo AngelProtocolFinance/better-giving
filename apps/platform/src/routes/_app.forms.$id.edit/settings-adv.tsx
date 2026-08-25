@@ -30,7 +30,7 @@ export function SettingsAdv({
   return (
     <Form
       disabled={isSubmitting}
-      className={`${classes} @container/configurer bg-card rounded p-4 self-start`}
+      className={`${classes} @container/configurer bg-panel rounded p-4 self-start`}
       onSubmit={handleSubmit((x) => on_submit(x))}
       onReset={(e) => {
         e.preventDefault();

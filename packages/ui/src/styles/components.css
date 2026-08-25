@@ -38,7 +38,7 @@
      ramp's own selected rung. it does not darken toward black, which on a
      near-white tint would carry the surface away from the ink sitting on it. */
   .btn-secondary {
-    background-color: var(--card);
+    background-color: var(--panel);
     color: var(--secondary-fg);
     border: 1px solid var(--gray-6);
     &:active {
@@ -331,7 +331,7 @@
     left: 0;
     color: var(--ring);
     transition: transform 0.2s ease-out;
-    background-color: var(--card);
+    background-color: var(--panel);
     padding-right: var(--spacing);
     font-weight: var(--font-weight-semibold);
     font-size: var(--text-xs);

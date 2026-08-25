@@ -31,7 +31,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
 
   return (
     <header
-      className={`${classes} relative bg-popover/95 backdrop-blur-md border-b`}
+      className={`${classes} relative bg-panel/95 backdrop-blur-md border-b`}
     >
       {/* the row carries a logo, six labels and two ctas — 944px of intrinsic
           width before a single gap, which is why the nav collapses at 75rem
@@ -104,7 +104,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             onClick={close}
             className="min-[75rem]:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
           />
-          <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-popover border-b border-secondary shadow-lg">
+          <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-panel border-b border-secondary shadow-lg">
             <nav aria-label="Marketing" className="grid gap-1 p-4">
               {links.map((l) => (
                 <NavLink

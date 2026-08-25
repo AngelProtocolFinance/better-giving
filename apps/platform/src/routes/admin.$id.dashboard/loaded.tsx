@@ -51,7 +51,7 @@ export function Loaded({ classes = "", ...props }: Props) {
           title="Savings"
           to="../savings"
           tooltip={
-            <Content className="bg-popover outline outline-gray-6 text-gray-12 text-sm max-w-xs p-4 rounded">
+            <Content className="bg-panel outline outline-gray-6 text-gray-12 text-sm max-w-xs p-4 rounded">
               Funds held in Fidelity Government Money Market (SPAXX) consisting
               of cash, US Government Securities and Repurchase Agreements
               <Arrow />
@@ -63,7 +63,7 @@ export function Loaded({ classes = "", ...props }: Props) {
           title="Investments"
           to="../investments"
           hover_content={
-            <HoverContent className="bg-popover outline outline-gray-6 text-gray-12 text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
+            <HoverContent className="bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-y-auto scrollbars p-4 rounded shadow-lg">
               <span className="block mb-2 font-medium">
                 Portfolio composition
               </span>

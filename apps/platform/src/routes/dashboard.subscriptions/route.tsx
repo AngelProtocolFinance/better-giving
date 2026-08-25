@@ -103,7 +103,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
 
       <div
         role="tablist"
-        className="mt-6 inline-flex gap-1 border border-gray-6 rounded p-1 bg-card w-fit"
+        className="mt-6 inline-flex gap-1 border border-gray-6 rounded p-1 bg-panel w-fit"
       >
         {FILTERS.map((f) => {
           const active = f.key === filter;
@@ -129,7 +129,7 @@ function Page({ loaderData: { subs } }: Route.ComponentProps) {
       </div>
 
       {rows.length > 0 ? (
-        <div className="table-scroll bg-card rounded mt-6">
+        <div className="table-scroll bg-panel rounded mt-6">
           <table className="table">
             <thead>
               <tr>

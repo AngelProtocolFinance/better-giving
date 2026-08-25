@@ -58,7 +58,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
   if (p.voided) {
     return (
       <section
-        className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+        className={`w-full border bg-panel rounded overflow-hidden ${classes}`}
       >
         <div className="flex items-start gap-x-2 p-4">
           <span className="h-lh flex items-center shrink-0">
@@ -86,7 +86,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
   if (p.matched) {
     return (
       <section
-        className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+        className={`w-full border bg-panel rounded overflow-hidden ${classes}`}
       >
         <div className="flex items-start gap-x-2 p-4">
           <span className="h-lh flex items-center shrink-0">
@@ -114,7 +114,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
 
   return (
     <section
-      className={`w-full border bg-card rounded overflow-hidden ${classes}`}
+      className={`w-full border bg-panel rounded overflow-hidden ${classes}`}
     >
       <div className="flex items-start gap-x-2 p-4">
         <span className="h-lh flex items-center shrink-0">

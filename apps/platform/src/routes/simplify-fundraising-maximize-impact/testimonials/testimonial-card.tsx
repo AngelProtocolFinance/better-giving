@@ -8,9 +8,9 @@ const TestimonialCard = (props: Testimonial) => {
         height={240}
         src={props.org_logo.src}
         alt="Reviewer's organization logo"
-        className="object-contain size-28 rounded ml-8 bg-card shadow-xl"
+        className="object-contain size-28 rounded ml-8 bg-panel shadow-xl"
       />
-      <div className="relative -mt-14 pt-24 px-8 pb-8 rounded bg-card -z-10 border">
+      <div className="relative -mt-14 pt-24 px-8 pb-8 rounded bg-panel -z-10 border">
         <p className="text-lg @md:h-64 mt-8">{props.content}</p>
         <p className="mt-4 @md:mt-0 text-lg opacity-90 font-bold">
           {props.reviewer}

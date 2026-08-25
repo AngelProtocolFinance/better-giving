@@ -7,7 +7,7 @@ export function Expired(props: Props) {
   const fetcher = useFetcher();
 
   return (
-    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-card border rounded">
+    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
       <div className="grid place-items-center size-16 sm:size-20 rounded-full bg-secondary">
         <CircleAlert className="size-8 sm:size-10 text-destructive" />
       </div>

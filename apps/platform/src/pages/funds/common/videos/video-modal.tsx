@@ -26,7 +26,7 @@ export function VideoModal(props: IVideoModal) {
     <Modal
       open={props.open}
       onClose={() => props.set_open(false)}
-      classes="grid bg-popover"
+      classes="grid bg-panel"
     >
       <form
         className="contents"

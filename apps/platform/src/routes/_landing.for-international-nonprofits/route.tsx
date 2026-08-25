@@ -55,7 +55,7 @@ export default function Page() {
         signed_in_as={result?.signed_in_as}
         pending={nav.state === "submitting"}
       />
-      <Credentials classes="bg-card py-4" />
+      <Credentials classes="bg-panel py-4" />
       <TrustBar classes="bg-gray-3 border-y border-gray-6 py-7" items={stats} />
       <PartnersStrip classes="border-b border-gray-6" />
       <FeeGap classes="bg-gray-3 border-b border-gray-6 py-10 md:py-16" />

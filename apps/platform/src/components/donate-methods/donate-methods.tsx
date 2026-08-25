@@ -110,7 +110,7 @@ function Method({ value, index, total, hint_id, move, updator }: IMethod) {
       dragControls={controls}
       id={value.id}
       style={{ y }}
-      className="flex items-center gap-2 border p-3 aria-disabled:bg-gray-3 aria-disabled:text-gray-11 rounded bg-card select-none"
+      className="flex items-center gap-2 border p-3 aria-disabled:bg-gray-3 aria-disabled:text-gray-11 rounded bg-panel select-none"
     >
       <input
         id={checkbox_id}

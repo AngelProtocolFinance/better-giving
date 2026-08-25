@@ -13,13 +13,13 @@ export function FeeGap({ classes = "" }) {
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2 max-w-3xl figures slashed-zero">
-          <div className="bg-card border border-gray-6 rounded p-6">
+          <div className="bg-panel border border-gray-6 rounded p-6">
             <p className="eyebrow text-gray-11">Typical fiscal sponsor</p>
             <p className="text-5xl/tight font-bold mt-3">4-10%</p>
             <p className="text-sm text-gray-11 mt-2">You keep</p>
             <p className="text-xl font-bold">$90,000-$96,000</p>
           </div>
-          <div className="bg-card border-2 border-primary rounded p-6">
+          <div className="bg-panel border-2 border-primary rounded p-6">
             <p className="eyebrow text-primary">Better Giving</p>
             <p className="text-5xl/tight font-bold mt-3 text-primary">2.9%</p>
             <p className="text-sm text-gray-11 mt-2">You keep</p>

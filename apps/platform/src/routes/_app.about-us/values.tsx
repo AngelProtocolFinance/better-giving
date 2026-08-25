@@ -35,7 +35,7 @@ export function Values({ classes = "" }: IValues) {
           {values.map((v) => (
             <div
               key={v.title}
-              className="bg-card border border-gray-6 rounded p-7 grid gap-2 content-start"
+              className="bg-panel border border-gray-6 rounded p-7 grid gap-2 content-start"
             >
               <span className="text-xl font-bold">{v.title}</span>
               <p className="text-sm/relaxed text-gray-11">{v.body}</p>

@@ -54,7 +54,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         Make your donation even more impactful
       </p>
       {!widget_version && (
-        <Collapsible.Root className="w-full border bg-card rounded overflow-hidden">
+        <Collapsible.Root className="w-full border bg-panel rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
@@ -85,7 +85,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         </Collapsible.Root>
       )}
       {data.to_type !== "fund" ? (
-        <Collapsible.Root className="w-full border bg-card rounded overflow-hidden mt-2">
+        <Collapsible.Root className="w-full border bg-panel rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
@@ -118,7 +118,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         </Collapsible.Root>
       ) : null}
       {data.to_type !== "fund" && (
-        <Collapsible.Root className="w-full border bg-card rounded overflow-hidden mt-2">
+        <Collapsible.Root className="w-full border bg-panel rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
@@ -160,7 +160,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         matched={data.match_arrived}
       />
       {!widget_version && (
-        <Collapsible.Root className="mt-2 w-full border bg-card rounded overflow-hidden">
+        <Collapsible.Root className="mt-2 w-full border bg-panel rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <StarIcon className="stroke-warning fill-warning" size={14} />

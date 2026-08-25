@@ -11,11 +11,11 @@ export function SnippetAdv({ classes = "", form_id, base_url }: Props) {
 
   return (
     <div
-      className={`${classes} @container/configurer bg-card rounded p-4 self-start`}
+      className={`${classes} @container/configurer bg-panel rounded p-4 self-start`}
     >
       <p className="text-sm gap-x-1 mb-1">
         Add this script just before{" "}
-        <span className="font-mono bg-card text-warning-subtle-fg text-xs p-1 rounded">
+        <span className="font-mono bg-panel text-warning-subtle-fg text-xs p-1 rounded">
           {"</body>"}
         </span>
       </p>

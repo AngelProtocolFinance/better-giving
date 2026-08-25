@@ -176,7 +176,7 @@ function StatusFilter({ value }: { value: Filter }) {
       </Select.Trigger>
       <Portal>
         <Select.Positioner>
-          <Select.Content className="rounded border bg-popover text-gray-12 min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
+          <Select.Content className="rounded border bg-panel text-gray-12 min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
             {FILTER_OPTS.map((v) => (
               <Select.Item key={v} item={v} className="selector-opt text-sm">
                 <Select.ItemText>{FILTER_LABEL[v]}</Select.ItemText>

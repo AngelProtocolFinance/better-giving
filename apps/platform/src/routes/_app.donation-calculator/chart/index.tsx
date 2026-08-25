@@ -29,7 +29,7 @@ export function Chart({ classes = "", ...v }: Props) {
 
   return (
     <div
-      className={`${classes} p-6 rounded grid content-start bg-card @container`}
+      className={`${classes} p-6 rounded grid content-start bg-panel @container`}
     >
       <h1 className="text-lg sm:text-xl font-bold mb-4 text-primary">
         {yrs}-Year Financial Advantage

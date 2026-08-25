@@ -22,7 +22,7 @@ export default function Reference({ id, classes = "" }: Props) {
 
         <Tooltip
           tip={
-            <Content className="p-3 text-xs bg-popover outline outline-gray-6 text-gray-12 max-w-xs rounded">
+            <Content className="p-3 text-xs bg-panel outline outline-gray-6 text-gray-12 max-w-xs rounded">
               {tooltip}
               <Arrow />
             </Content>
