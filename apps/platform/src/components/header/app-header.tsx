@@ -27,7 +27,7 @@ export function AppHeader({ variant = "default", classes }: IAppHeader) {
         const observer = new IntersectionObserver(
           ([e]) => {
             const isIntersecting = e.intersectionRatio < 1;
-            e.target.classList.toggle("shadow-lg", isIntersecting);
+            e.target.classList.toggle("shadow-floating", isIntersecting);
           },
           { threshold: [1] }
         );

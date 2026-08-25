@@ -350,14 +350,21 @@
   /* the stacking ladder. each elevation level binds its own step, ordered so a
      popup opened INSIDE a dialog clears it without a hand-picked value — which
      is the entire reason a combobox in a modal is spelled `z-51` today.
-     bounded on purpose: these five name the elevation layers and nothing else.
+     bounded on purpose: these six name the elevation layers and nothing else.
      the z-* namespace is NOT reset, so `z-10` and friends still compile, and
      the values that stack siblings inside one component stay untouched.
      --z-index-* is a real v4 namespace — the `z` utility declares it as its
      theme key — but it is absent from the namespace table in the docs, so this
      is verified against the compiler at the pinned version, not read off that
      table. */
-  --z-index-sticky: 30; /* page chrome that pins: header, sticky sub-bar */
+  /* two rungs for pinned chrome, not one: a page can pin a header AND a bar
+     beneath it (the checklist's progress bar sticks at top-16, under the 4rem
+     marketing header). one step for both leaves the pair resolving by document
+     order, so the sub-bar wins when it comes later in the tree and slides over
+     the header it is supposed to sit under. the rule is fixed: a pinned header
+     is always above a bar pinned beneath it. */
+  --z-index-subbar: 20; /* a bar pinned BENEATH a pinned header */
+  --z-index-sticky: 30; /* page chrome that pins: header, announcement bar */
   --z-index-scrim: 40; /* the --overlay a modal lays over the page */
   --z-index-modal: 50; /* dialog, drawer, route-modal — above their own scrim */
   --z-index-floating: 60; /* menu, popup, tooltip, toast — above an open modal */

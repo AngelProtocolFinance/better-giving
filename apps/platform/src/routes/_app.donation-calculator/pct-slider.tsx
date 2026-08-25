@@ -19,7 +19,7 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
         {p.tooltip && (
           <Tooltip
             tip={
-              <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
+              <Content className="max-w-xs text-center bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-floating rounded">
                 {p.tooltip}
                 <Arrow />
               </Content>

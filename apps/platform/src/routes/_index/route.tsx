@@ -64,7 +64,7 @@ export default function Page() {
       {/* "/" is always marketing chrome and is never the post the banner links
           to, so it needs no gate. */}
       <AnnouncementBanner />
-      <PublicHeader classes="sticky z-40 -top-px" />
+      <PublicHeader classes="sticky z-sticky -top-px" />
       <main>
         <Hero />
         <TrustBar classes="border-y border-gray-6 py-7" />

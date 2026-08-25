@@ -62,7 +62,7 @@ export function LogsTable({
                 {(l.status === "refunded" || l.status === "refunded_loss") && (
                   <Tooltip
                     tip={
-                      <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-lg rounded">
+                      <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-floating rounded">
                         <Arrow />
                         Refunded
                       </Content>

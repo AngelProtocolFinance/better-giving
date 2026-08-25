@@ -613,7 +613,7 @@ reserved for what genuinely hovers over content.
 | level | what sits here | shadow | stacking |
 | --- | --- | --- | --- |
 | `flush` | the document flow, and most of the product: card, panel, table shell, row, form control. Separates by its `--panel` fill and its `--border` edge | none — and **no token**, see below | none |
-| `floating` | hovers over content, transient, no scrim: menu, dropdown, combobox and select popup, tooltip, hovercard, toast, and a sticky header once it is stuck | `shadow-floating` | `z-floating` |
+| `floating` | hovers over content, transient, no scrim: menu, dropdown, combobox and select popup, tooltip, hovercard, toast, and pinned page chrome once it is stuck | `shadow-floating` | `z-floating` for a popup; pinned chrome keeps `z-sticky` / `z-subbar` |
 | `modal` | covers the page behind a scrim: dialog, drawer, route-modal | **none, by decision** — see below | `z-scrim` on the backdrop, `z-modal` on the panel |
 | recessed track | a track a control sits *in*: slider track, progress bar, switch control | `inset-shadow-track` | none |
 | recessed fill | the fill that rides raised inside that track | `shadow-track-fill` | none |
@@ -696,13 +696,21 @@ rung above it.
 
 | step | value | what sits here |
 | --- | --- | --- |
-| `z-sticky` | 30 | page chrome that pins — the app and marketing headers, a sticky sub-bar |
+| `z-subbar` | 20 | a bar pinned *beneath* a pinned header — the checklist's progress bar at `top-16` |
+| `z-sticky` | 30 | page chrome that pins — the app and marketing headers, the announcement bar |
 | `z-scrim` | 40 | the `--overlay` a modal lays over the page |
 | `z-modal` | 50 | dialog, drawer, route-modal — above its own scrim |
 | `z-floating` | 60 | menu, popup, tooltip, toast — **above an open modal**, which is what retires the hand-picked value |
 | `z-top` | 100 | the one step above everything: the route-load progress bar |
 
-**Bounded deliberately.** These five name the elevation layers and nothing else.
+**Pinned chrome takes two rungs, not one.** A page can pin a header *and* a bar
+beneath it — `_landing.ethical-fundraising-platform-checklist/checklist.tsx`
+sticks a progress bar at `top-16`, under the 4rem marketing header. On one
+shared step the pair resolves by document order, so the sub-bar wins wherever it
+comes later in the tree and slides over the header it is meant to sit under. The
+rule that fixes it: **a pinned header is always above a bar pinned beneath it.**
+
+**Bounded deliberately.** These six name the elevation layers and nothing else.
 The `z-*` namespace is **not** reset, so `z-10` and friends still compile, and
 every `z-*` that stacks siblings inside a single component is untouched — that
 is a different problem with a different ladder, and it does not have one.
@@ -716,10 +724,15 @@ table, so re-verify it on a Tailwind major.
 
 The names above exist; the namespaces are still open. `--shadow-*` and
 `--inset-shadow-*` are not reset to `initial`, so every stock name (`shadow-md`,
-`shadow-2xl`) and every `shadow-[…]` bracket value still compiles, and the call
-sites still spell the stock names rather than these. Closing the namespace before
-the call sites move would silently strip the shadows the product has today —
-Tailwind drops an unknown utility with no build error.
+`shadow-2xl`) and every `shadow-[…]` bracket value still compiles. Closing the
+namespace before the last call site moves would silently strip the shadows the
+product has today — Tailwind drops an unknown utility with no build error.
+
+The `floating` level and the whole stacking ladder are migrated: every popup,
+menu, tooltip, hovercard, toast and pinned header spells `shadow-floating`, and
+every elevation layer spells its own step. What still spells a stock name is the
+flat half — the cards and controls that lose their shadow, the recessed tracks,
+and the marketing lift.
 
 ## Decisions that look like bugs
 

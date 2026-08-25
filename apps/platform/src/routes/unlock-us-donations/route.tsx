@@ -26,14 +26,14 @@ export default function Component() {
   return (
     <main className="w-full grid content-start @container">
       <div
-        className="sticky -top-px z-50 bg-panel"
+        className="sticky -top-px z-sticky bg-panel"
         ref={(node) => {
           if (!node) return;
           const observer = new IntersectionObserver(
             ([e]) => {
               const stuck = e.intersectionRatio < 1;
               e.target.classList.toggle("bg-panel", stuck);
-              e.target.classList.toggle("shadow-lg", stuck);
+              e.target.classList.toggle("shadow-floating", stuck);
             },
             { threshold: [1] }
           );

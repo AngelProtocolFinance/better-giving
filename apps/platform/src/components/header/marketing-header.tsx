@@ -104,7 +104,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             onClick={close}
             className="min-[75rem]:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
           />
-          <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-panel border-b border-secondary shadow-lg">
+          <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-panel border-b border-secondary shadow-floating">
             <nav aria-label="Marketing" className="grid gap-1 p-4">
               {links.map((l) => (
                 <NavLink

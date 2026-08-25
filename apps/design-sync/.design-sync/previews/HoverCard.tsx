@@ -21,7 +21,7 @@ function useAutoOpen() {
 }
 
 const card_cls =
-  "bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 p-4 rounded shadow-lg";
+  "bg-panel outline outline-gray-6 text-gray-12 text-sm w-80 p-4 rounded shadow-floating";
 
 export const Open = () => {
   const box = useAutoOpen();
