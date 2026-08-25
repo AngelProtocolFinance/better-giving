@@ -34,12 +34,15 @@
     border-radius: var(--radius);
   }
 
+  /* a tinted control presses UP its scale: resting tint → -active, which is the
+     ramp's own selected rung. it does not darken toward black, which on a
+     near-white tint would carry the surface away from the ink sitting on it. */
   .btn-secondary {
     background-color: var(--card);
     color: var(--secondary-fg);
     border: 1px solid var(--border);
     &:active {
-      background-color: color-mix(in oklch, var(--secondary) 85%, black);
+      background-color: var(--secondary-active);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--secondary);
@@ -53,7 +56,7 @@
       background-color: var(--accent);
     }
     &:active {
-      background-color: color-mix(in oklch, var(--accent) 85%, black);
+      background-color: var(--accent-active);
     }
     &:disabled {
       background-color: var(--muted);
@@ -61,14 +64,19 @@
     }
   }
 
+  /* the filled variants below share one rung between :hover and :active: the
+     ramp gives a solid fill two steps, not three, so pressed looks the same as
+     hovered. on touch, where there is no hover, that leaves a tap with no color
+     acknowledgement at all — the affordance a scale can't supply is a
+     transform/filter, not another fill. */
   .btn-primary {
     background-color: var(--primary);
     color: var(--primary-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--primary) 85%, black);
+      background-color: var(--primary-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--primary) 90%, black);
+      background-color: var(--primary-hover);
     }
   }
 
@@ -76,10 +84,10 @@
     background-color: var(--destructive);
     color: var(--destructive-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--destructive) 85%, black);
+      background-color: var(--destructive-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--destructive) 90%, black);
+      background-color: var(--destructive-hover);
     }
   }
 
@@ -87,10 +95,10 @@
     background-color: var(--success);
     color: var(--success-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--success) 85%, black);
+      background-color: var(--success-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--success) 90%, black);
+      background-color: var(--success-hover);
     }
   }
 
@@ -98,10 +106,10 @@
     background-color: var(--warning);
     color: var(--warning-fg);
     &:active {
-      background-color: color-mix(in oklch, var(--warning) 85%, black);
+      background-color: var(--warning-hover);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
-      background-color: color-mix(in oklch, var(--warning) 90%, black);
+      background-color: var(--warning-hover);
     }
   }
 
@@ -129,13 +137,15 @@
     }
   }
 
-  /* one focus indicator for every variant. --ring is the only value in the
-     system that clears 3:1 (WCAG 2.4.7/1.4.11) against the page in both
-     themes; the per-variant outline colors this replaces were tints of the
-     button's own fill and were invisible against it. the offset is
-     load-bearing, not decoration: --ring == --primary, so a flush ring on
-     .btn-primary would be 1.00:1 against the button it surrounds. on a
-     --primary-filled panel, scope with the `surface-primary` utility. */
+  /* one focus indicator for every variant. the per-variant outline colors this
+     replaces were tints of the button's own fill and were invisible against it;
+     one ring for every variant is the fix, and the offset is what makes it
+     work rather than the color. --ring is the ramp's step 8, 2.30:1 against the
+     page — under 3:1, taken as radix assigns it, so the ring is legible by
+     being detached and continuous, not by contrast alone. it no longer equals
+     --primary: a flush ring on .btn-primary used to measure 1.00:1 against the
+     button it surrounds and now measures 2.32:1, which is why the offset stays
+     and why a --primary-filled panel still scopes with `surface-primary`. */
   .btn,
   .btn-sm,
   .btn-md,

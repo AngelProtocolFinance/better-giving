@@ -214,8 +214,11 @@
 /* a band or panel filled with --primary. use instead of bare `bg-primary`
    whenever the fill contains a control: it rebinds --ring and --border for
    everything inside, because the page-level values are drawn against the page
-   and both collapse on brand fill (--ring == --primary is 1.00:1 there).
-   same mechanism as #donation-container's --ring remap in platform's index.css. */
+   and neither is picked to sit on a brand fill. --ring is the ramp's step 8
+   and no longer equals --primary — it went from vanishing into the fill to
+   merely being quiet on it, so this rebind is a smaller win than it was and
+   still the right one. same mechanism as #donation-container's --ring remap in
+   platform's index.css. */
 @utility surface-primary {
   background-color: var(--primary);
   color: var(--primary-fg);
