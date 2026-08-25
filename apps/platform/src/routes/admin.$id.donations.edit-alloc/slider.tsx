@@ -35,7 +35,7 @@ export function AllocationSlider({
 
   return (
     <div
-      className={`${classes} grid gap-y-4 border/80 p-4 rounded shadow-inner`}
+      className={`${classes} grid gap-y-4 border/80 p-4 rounded inset-shadow-track`}
     >
       {/** percentages */}
       <div className="grid grid-cols-[auto_auto_1fr_auto] gap-y-2">
@@ -73,17 +73,17 @@ export function AllocationSlider({
                     backgroundImage: `linear-gradient(to right, var(--gray-3) 0%, var(--gray-3) ${boundary[0]}%, var(--success) ${boundary[0]}%, var(--success) 100%)`,
                   }
             }
-            className="shadow-inner bg-gray-3 group-aria-disabled/slider:bg-gray-3 relative grow rounded-full h-2"
+            className="inset-shadow-track bg-gray-3 group-aria-disabled/slider:bg-gray-3 relative grow rounded-full h-2"
           >
             <Slider.Range className="absolute bg-warning group-aria-disabled/slider:bg-gray-3 rounded-full h-full" />
           </Slider.Track>
           <Slider.Thumb
             index={0}
-            className="block size-5 rounded-full bg-gray-11 shadow-md  group-aria-disabled/slider:bg-gray-11"
+            className="block size-5 rounded-full bg-gray-11 shadow-track-fill group-aria-disabled/slider:bg-gray-11"
           />
           <Slider.Thumb
             index={1}
-            className="block size-5 rounded-full bg-panel shadow-md border group-aria-disabled/slider:bg-gray-11"
+            className="block size-5 rounded-full bg-panel shadow-track-fill border group-aria-disabled/slider:bg-gray-11"
           />
         </Slider.Control>
       </Slider.Root>

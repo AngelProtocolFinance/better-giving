@@ -45,7 +45,7 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
               </Slider.Track>
               <Slider.Thumb
                 index={0}
-                className="block size-4 rounded-full border-2 border-primary bg-background shadow-md focus-visible:outline-2 focus-visible:outline-ring"
+                className="block size-4 rounded-full border-2 border-primary bg-background shadow-track-fill focus-visible:outline-2 focus-visible:outline-ring"
               />
             </Slider.Control>
           </Slider.Root>

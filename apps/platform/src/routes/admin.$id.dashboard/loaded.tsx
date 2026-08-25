@@ -144,7 +144,7 @@ export function Loaded({ classes = "", ...props }: Props) {
         </NavLink>
       </div>
 
-      <div className="w-full mt-16 h-1.5 bg-gray-3 rounded-full shadow-inner" />
+      <div className="w-full mt-16 h-1.5 bg-gray-3 rounded-full inset-shadow-track" />
 
       {/** div scopes when the sticky header ends */}
       <div className="@container/period mt-2">

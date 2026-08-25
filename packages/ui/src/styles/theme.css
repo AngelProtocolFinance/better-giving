@@ -349,7 +349,7 @@
 
   /* the stacking ladder. each elevation level binds its own step, ordered so a
      popup opened INSIDE a dialog clears it without a hand-picked value — which
-     is the entire reason a combobox in a modal is spelled `z-51` today.
+     is the entire reason a combobox in a modal used to be spelled `z-51`.
      bounded on purpose: these six name the elevation layers and nothing else.
      the z-* namespace is NOT reset, so `z-10` and friends still compile, and
      the values that stack siblings inside one component stay untouched.

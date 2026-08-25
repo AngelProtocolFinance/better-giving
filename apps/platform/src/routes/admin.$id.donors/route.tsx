@@ -64,7 +64,7 @@ function Tab({ to, count, end, children }: ITabProps) {
         [
           "inline-flex h-8 items-center gap-2 rounded px-3 text-sm font-medium transition-colors",
           isActive
-            ? "bg-background text-gray-12 shadow-sm"
+            ? "bg-background text-gray-12"
             : "text-gray-11 hover:text-gray-12",
         ].join(" ")
       }
