@@ -232,9 +232,12 @@
   --ring: var(--blue-8);
   /* the scrim a dialog lays over the page — radix's --color-overlay. gray-12
      at 30%, which is what all four dialog backdrops already carried; naming it
-     is what stops the fifth one being picked by eye. the drawer and the native
-     <dialog> backdrops still spell their own alphas, because unifying those is
-     an elevation decision and there is no elevation ladder yet.
+     is what stops the fifth one being picked by eye. this is the whole of the
+     `modal` level's color: that level carries no shadow, so the scrim and the
+     stacking step are what define it — see the elevation set in
+     packages/ui/src/styles/theme.css.
+     the drawer and the native <dialog> backdrops still spell their own alphas
+     and have not converged on this token yet.
      color-mix() has no single literal, so this has no email twin — mail has no
      dialogs, so it needs none. */
   --overlay: color-mix(in oklch, var(--gray-12) 30%, transparent);
