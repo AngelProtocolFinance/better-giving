@@ -40,7 +40,7 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
             onValueChange={(e) => p.onChange(e.value[0])}
           >
             <Slider.Control className="flex w-full items-center">
-              <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3">
+              <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3 inset-shadow-track">
                 <Slider.Range className="absolute h-full bg-primary" />
               </Slider.Track>
               <Slider.Thumb

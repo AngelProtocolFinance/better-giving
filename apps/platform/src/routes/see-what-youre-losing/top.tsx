@@ -16,7 +16,7 @@ export function Top({ classes = "" }) {
         <Tooltip className="max-xl:hidden absolute -right-24 z-10" />
         <Video
           vid={videos.donation_calculator}
-          classes="relative shadow-xl shadow-black/10 rounded"
+          classes="relative shadow-lift-media rounded"
         />
       </div>
       <div>

@@ -63,10 +63,10 @@ export const TableRows = () => (
 // cards holding the grid's shape.
 export const CardGrid = () => (
   <div className="grid w-full max-w-2xl grid-cols-2 gap-6">
-    <ContentLoader className="h-40 rounded shadow-2xl shadow-black/10" />
-    <ContentLoader className="h-40 rounded shadow-2xl shadow-black/10" />
-    <ContentLoader className="h-40 rounded shadow-2xl shadow-black/10" />
-    <ContentLoader className="h-40 rounded shadow-2xl shadow-black/10" />
+    <ContentLoader className="h-40 rounded shadow-lift-media" />
+    <ContentLoader className="h-40 rounded shadow-lift-media" />
+    <ContentLoader className="h-40 rounded shadow-lift-media" />
+    <ContentLoader className="h-40 rounded shadow-lift-media" />
   </div>
 );
 

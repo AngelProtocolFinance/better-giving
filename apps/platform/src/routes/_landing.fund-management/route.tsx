@@ -58,7 +58,7 @@ export default function Page() {
             <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-1.5">
               <Link
                 to={href("/register")}
-                className="btn btn-lg btn-primary shadow-lg shadow-primary/25"
+                className="btn btn-lg btn-primary shadow-lift-cta"
               >
                 Join free forever
               </Link>

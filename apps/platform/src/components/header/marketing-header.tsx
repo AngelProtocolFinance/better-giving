@@ -69,7 +69,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             <>
               <Link
                 to={href("/register")}
-                className="btn btn-primary rounded shadow-md shadow-primary/25"
+                className="btn btn-primary rounded shadow-lift-cta"
               >
                 Join free forever
               </Link>

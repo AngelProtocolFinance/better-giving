@@ -347,6 +347,21 @@
   --shadow-lift-media: 0 25px 50px -12px
     color-mix(in oklab, var(--color-black) 10%, transparent);
 
+  /* an affordance, NOT a rung — do not reach for it to raise something. the
+     one consumer is the img-editor's 8px white crop handle
+     (components/img-editor/cropper.tsx), drawn over a donor's own uploaded
+     photograph, where the ground is arbitrary and a white dot on pale imagery
+     has no edge at all. the shadow is there to give it one; depth is a side
+     effect. the same legibility problem is recorded for the selection edge in
+     that file's own comment.
+     it exists as a name because the call site spelled a bare `shadow`, which
+     reads the DEFAULT --shadow key — deprecated in v4, and stripped along with
+     the rest of the namespace by the reset, silently and with no build error.
+     the value is exactly what that key resolved to at the pinned version, so
+     naming it moved nothing. */
+  --shadow-handle:
+    0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+
   /* the stacking ladder. each elevation level binds its own step, ordered so a
      popup opened INSIDE a dialog clears it without a hand-picked value — which
      is the entire reason a combobox in a modal used to be spelled `z-51`.

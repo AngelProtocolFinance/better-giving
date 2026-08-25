@@ -70,7 +70,7 @@ export default function Page() {
         </Link>
         {/* <Exporter view={view} classes="col-start-2 justify-self-end mb-2" /> */}
 
-        <div className="grid sm:grid-cols-subgrid col-span-2 bg-panel p-4 rounded shadow-sm">
+        <div className="grid sm:grid-cols-subgrid col-span-2 bg-panel p-4 rounded">
           <Form1 state={state} setState={setState} classes="sm:border-r" />
           <Result1 {...view} classes="" />
         </div>
@@ -118,7 +118,7 @@ export default function Page() {
           Savings & Investment Calculator
         </h2>
 
-        <div className="grid sm:grid-cols-subgrid col-span-2 bg-panel p-4 rounded shadow-sm">
+        <div className="grid sm:grid-cols-subgrid col-span-2 bg-panel p-4 rounded">
           <Form2 state={state} setState={setState} classes="sm:border-r" />
           <Table {...view} classes="" />
           {/* <Result2 {...view} classes="" /> */}

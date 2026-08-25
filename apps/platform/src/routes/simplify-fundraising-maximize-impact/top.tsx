@@ -86,7 +86,7 @@ export function Top({ className = "" }) {
         src={benefits.donors[1].img}
         width={500}
         height={500}
-        className="rounded-full justify-self-center self-center order-1 @6xl:order-2 w-96 @6xl:w-auto shadow-2xl shadow-black/20"
+        className="rounded-full justify-self-center self-center order-1 @6xl:order-2 w-96 @6xl:w-auto shadow-lift-media"
       />
     </section>
   );

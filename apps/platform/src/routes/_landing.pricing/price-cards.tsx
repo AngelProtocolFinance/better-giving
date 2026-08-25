@@ -28,7 +28,7 @@ export function PriceCards({ classes = "" }: IPriceCards) {
   return (
     <div className={`${classes}`}>
       <div className="page grid gap-6 md:grid-cols-3">
-        <div className="bg-primary rounded p-8 flex flex-col gap-3.5 shadow-xl shadow-primary/20 text-primary-fg">
+        <div className="bg-primary rounded p-8 flex flex-col gap-3.5 shadow-lift-cta text-primary-fg">
           <span className="text-lg font-bold">
             Fundraising &amp; fund management
           </span>

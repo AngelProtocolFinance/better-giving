@@ -670,6 +670,7 @@ migrating onto it moves pixels at the outliers only.
 | `--shadow-lift-card` | `shadow-floating`'s geometry, tinted `--primary` at 5% | `shadow-lg shadow-primary/5`, verbatim on the marketing cards |
 | `--shadow-lift-cta` | the same geometry, tinted `--primary` at 25% | `shadow-lg shadow-primary/25`, on every hero CTA |
 | `--shadow-lift-media` | `0 25px 50px -12px`, tinted `--color-black` at 10% | `shadow-2xl shadow-black/10` |
+| `--shadow-handle` | `0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)` | the bare `shadow` on the crop handle — see below |
 
 The `color-mix()` in the three lift tokens is exactly what Tailwind compiles a
 `/<alpha>` shadow modifier to, so each token paints identically to the pair it
@@ -686,6 +687,39 @@ the tree already paints.
 `--shadow-*`.** They are two separate `box-shadow` slots that compose, and
 `shadow-inner` is a *deprecated* Tailwind v4 alias living in the `--shadow-*`
 namespace. The paint is identical today, and the named token outlives the alias.
+
+### `--shadow-handle` is an affordance, not a rung
+
+**Do not reach for it to raise something.** It is not a level, it is not below
+`floating`, and it does not belong on any object that could instead be flat. Its
+whole job is **legibility**: the img-editor's 8px white crop handle
+(`apps/platform/src/components/img-editor/cropper.tsx`) is drawn over a donor's
+own uploaded photograph, so its ground is arbitrary and against pale imagery the
+dot has no edge at all. The shadow gives it one; depth is the side effect, not
+the point. The same problem is recorded in that file for the selection edge,
+which solves it a different way — a white boundary paired with the blue focus
+ring.
+
+It exists as a name only because the call site spelled a **bare `shadow`**, which
+reads the DEFAULT `--shadow` key. That key is deprecated in v4 and would have
+been stripped by the namespace reset silently, with no build error and no
+shadow — the exact failure the reset exists to prevent everywhere else. The value
+is byte-identical to what that key resolved to at the pinned version, so naming
+it moved nothing.
+
+### `drop-shadow-*` stays open, deliberately
+
+The `--drop-shadow-*` namespace is a sibling of `--shadow-*` and is **not** reset.
+Two sites spend it — `routes/unlock-us-donations/hero.tsx:29,35`, white heading
+and body copy laid directly over a photograph — and they are doing the same job
+as `--shadow-handle`: making a light mark readable against a ground nobody
+controls. A `filter: drop-shadow` follows the glyph outlines, which a
+`box-shadow` cannot do, so there is no box-shadow token that could replace them.
+
+Closing that namespace would mean authoring a text-legibility scale for two call
+sites, and the scale is not the elevation ladder — nothing that spends it is
+sitting at a level. Recorded here so a later sweep finds a decision rather than
+an oversight.
 
 ### The stacking ladder
 
