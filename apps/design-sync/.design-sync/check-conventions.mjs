@@ -14,6 +14,11 @@ const css = fs.readFileSync(`${OUT}/_ds_bundle.css`, "utf8");
 const styles = fs.readFileSync(`${OUT}/styles.css`, "utf8");
 const bundle = fs.readFileSync(`${OUT}/_ds_bundle.js`, "utf8");
 const md = fs.readFileSync(".design-sync/conventions.md", "utf8");
+const cfg = JSON.parse(fs.readFileSync(".design-sync/config.json", "utf8"));
+const ds_barrel = fs.readFileSync(
+  "../../packages/ui/src/design-system.ts",
+  "utf8"
+);
 const comps = fs
   .readdirSync(`${OUT}/components`)
   .flatMap((g) => fs.readdirSync(`${OUT}/components/${g}`));
@@ -215,6 +220,40 @@ for (const n of named) {
   console.log(
     `✗ "${n}" is neither a component folder nor an export in the bundle`
   );
+}
+
+// the published set and the synced set are two hand-maintained lists of the
+// same thing: `design-system.ts` is what the package publishes, `componentSrcMap`
+// is what the gallery uploads. a component added to one and not the other is
+// silent — it just never reaches the design, or points at a path that no longer
+// exports. nothing else compares them, so this does.
+const ds_exports = new Set();
+for (const [, blk] of ds_barrel
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .matchAll(/export\s*\{([^}]*)\}\s*from/g))
+  for (const n of blk.split(","))
+    if (n.trim())
+      ds_exports.add(
+        n
+          .trim()
+          .split(/\s+as\s+/)
+          .pop()
+      );
+const synced = new Set(Object.keys(cfg.componentSrcMap));
+if (!ds_exports.size) {
+  // a parse that finds nothing would otherwise agree with any config at all.
+  bad++;
+  console.log("✗ parsed no exports out of design-system.ts — check the parse");
+} else {
+  const unsynced = [...ds_exports].filter((n) => !synced.has(n));
+  const unpublished = [...synced].filter((n) => !ds_exports.has(n));
+  if (unsynced.length || unpublished.length) {
+    bad += unsynced.length + unpublished.length;
+    if (unsynced.length)
+      console.log(`✗ published but not synced: ${unsynced.join(", ")}`);
+    if (unpublished.length)
+      console.log(`✗ synced but not published: ${unpublished.join(", ")}`);
+  } else console.log(`✓ published set == synced set (${ds_exports.size})`);
 }
 
 console.log(

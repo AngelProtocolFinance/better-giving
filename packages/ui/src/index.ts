@@ -1,5 +1,5 @@
 /**
- * the app's single import path into the design system: the 40 published
+ * the app's single import path into the design system: the published
  * components (re-exported from `./design-system`), plus the surface the app
  * needs that the design agent must never be handed —
  * `Form`/`RmxForm`/`useRmxForm` bind to react-router,
@@ -7,10 +7,12 @@
  * a field GROUP, never a control variant), and the rest are helpers that only
  * look like components to an extractor reading names off a barrel.
  *
- * two families are namespaced instead of flattened here — `./tooltip` and
- * `./hover-card` both export `Arrow` and `Content`, and a flat barrel can only
- * hold one of each. `./masks` is a namespace pair (`dollar`, `ein`) for the
- * same reason.
+ * `Tooltip` and `HoverCard` are flattened here like every other component, but
+ * their PARTS are not: `./tooltip` and `./hover-card` both export `Arrow` and
+ * `Content`, and a flat barrel can only hold one of each — so a caller needing
+ * the parts takes the subpath, which is nearly all of them. `./masks` is
+ * subpath-only outright, a namespace pair (`dollar`, `ein`) for that same
+ * collision.
  */
 
 export type { FileOutput, FileSpec } from "./components/file-dropzone/types";
