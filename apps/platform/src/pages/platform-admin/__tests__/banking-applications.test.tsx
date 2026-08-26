@@ -678,24 +678,56 @@ describe("list loader", () => {
     expect(seen.sort()).toEqual(ids.sort());
   });
 
-  it("reads a cursor issued before the id tie-breaker", async () => {
-    // skew protection: old js paging into a new deploy sends a bare iso cursor
+  it("keeps ties reachable through a cursor issued before the tie-breaker", async () => {
+    // skew protection: old js paging into a new deploy sends a bare iso
+    // cursor, which names the boundary instant but not which of its ties the
+    // previous page already served. a strict `<` would drop the rest of them
     const npo = await seed_npo();
-    await seed_bapp(npo.id, {
-      status: "default",
-      updated_at: "2025-01-01T00:00:00.000Z",
-    });
+    const boundary = "2025-01-01T00:00:00.000Z";
+    const tied = [
+      await seed_bapp(npo.id, { status: "default", updated_at: boundary }),
+      await seed_bapp(npo.id, { status: "default", updated_at: boundary }),
+    ];
     const older = await seed_bapp(npo.id, {
       status: "default",
       updated_at: "2024-01-01T00:00:00.000Z",
     });
 
-    const legacy = btoa("2025-01-01T00:00:00.000Z")
+    const legacy = btoa(boundary)
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "");
     const page = await bapps_by_status(["default"], { next: legacy });
 
-    expect(page.items.map((x) => x.id)).toEqual([older]);
+    expect(page.items.map((x) => x.id).sort()).toEqual([...tied, older].sort());
+  });
+
+  it("returns to the row comparison after one legacy page", async () => {
+    // the duplicate window is one page wide: the cursor this response issues
+    // carries an id, so nothing repeats twice
+    const npo = await seed_npo();
+    const boundary = "2025-01-01T00:00:00.000Z";
+    for (let i = 0; i < 3; i++) {
+      await seed_bapp(npo.id, { status: "default", updated_at: boundary });
+    }
+
+    const legacy = btoa(boundary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    const first = await bapps_by_status(["default"], {
+      limit: 2,
+      next: legacy,
+    });
+    expect(first.next).toBeDefined();
+
+    const second = await bapps_by_status(["default"], {
+      limit: 2,
+      next: first.next,
+    });
+    const overlap = second.items.filter((x) =>
+      first.items.some((y) => y.id === x.id)
+    );
+    expect(overlap).toEqual([]);
   });
 });

@@ -107,13 +107,17 @@ export async function bapps_by_status(
       ? eq(banking_apps.status, status)
       : undefined;
 
-  // a legacy cursor carries no id, so it keeps the old timestamp-only
-  // comparison — no row is skipped, at worst a tie is served twice
+  // a legacy cursor names an instant but not which of its ties were already
+  // served, so it takes `<=`: everything at the boundary comes back, the ones
+  // the previous page showed included. a repeated row is visible and harmless;
+  // a dropped one is neither. bounded to a single page — the cursor this
+  // response issues carries an id, so the next request is back on the row
+  // comparison.
   const keyset = !cursor
     ? undefined
     : cursor.id
       ? sql`(${banking_apps.updated_at}, ${banking_apps.id}) < (${cursor.updated_at}::timestamptz, ${cursor.id}::text)`
-      : sql`${banking_apps.updated_at} < ${cursor.updated_at}::timestamptz`;
+      : sql`${banking_apps.updated_at} <= ${cursor.updated_at}::timestamptz`;
 
   const rows = await db
     .select()
