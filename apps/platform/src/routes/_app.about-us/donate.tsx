@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react";
-import { Steps } from "#/components/donation";
-import { donation_recipient_init } from "#/components/donation/types";
+import { donation_recipient_init, Steps } from "#/components/donation";
 
 // Steps takes a union — a fresh mount or a resumed donation state; `Extract`
 // picks the fresh-mount branch (a plain `Omit` over the union keeps nothing).

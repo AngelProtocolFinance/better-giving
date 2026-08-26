@@ -5,7 +5,7 @@ import facebook from "#/assets/icons/social/facebook.webp";
 import linkedin from "#/assets/icons/social/linkedin.webp";
 import telegram from "#/assets/icons/social/telegram.webp";
 import x from "#/assets/icons/social/x.webp";
-import { is_fund } from "#/components/donation/types";
+import { is_fund } from "#/components/donation";
 import { app_name } from "#/constants/env";
 
 interface SocialMedia {

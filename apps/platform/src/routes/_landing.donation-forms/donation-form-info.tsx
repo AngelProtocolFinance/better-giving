@@ -1,4 +1,4 @@
-import { StepsCarousel } from "#/components/donation/steps-carousel";
+import { StepsCarousel } from "#/components/donation";
 
 export function DonationFormInfo({ classes = "" }) {
   return (

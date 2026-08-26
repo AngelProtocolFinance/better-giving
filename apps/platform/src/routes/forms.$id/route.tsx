@@ -1,7 +1,11 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router";
-import { type Config, Steps, type TDonation } from "#/components/donation";
-import { parent_origin } from "#/components/donation/common/parent-origin";
+import {
+  type Config,
+  parent_origin,
+  Steps,
+  type TDonation,
+} from "#/components/donation";
 import { donor_fv_blank } from "@/donations/schema";
 import type { Route } from "./+types/route";
 

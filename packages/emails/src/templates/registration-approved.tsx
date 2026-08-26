@@ -1,7 +1,7 @@
 import { Text } from "react-email";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL } from "../constants";
+import { APP_NAME, DAPP_URL, HELP } from "../constants";
 
 export interface IData {
   org_name: string;
@@ -37,20 +37,14 @@ function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
       </Text>
       <Text>
         Details on all aspects of editing your page can be found{" "}
-        <Link href="https://intercom.help/better-giving/en/articles/7064094-how-do-we-edit-the-overview-on-our-better-giving-page">
-          here
-        </Link>
-        .
+        <Link href={HELP.edit_overview}>here</Link>.
       </Text>
       <Text>
         Along with a {APP_NAME} marketplace page to enable 'global browsers' to
         see your nonprofit, the use of the embedded donation form on your own
         website donation page is key to the success of increasing your
         donations. Instruction on how to do that{" "}
-        <Link href="https://intercom.help/better-giving/en/articles/7188194-add-a-donation-form-to-your-own-site">
-          can be found here
-        </Link>
-        .
+        <Link href={HELP.embed_form}>can be found here</Link>.
       </Text>
     </PublicLayout>
   );

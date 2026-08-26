@@ -5,7 +5,7 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL } from "../constants";
+import { APP_NAME, DAPP_URL, HELP } from "../constants";
 import { format_amount } from "../helpers";
 import type { IDonation, IDonor } from "../types";
 
@@ -39,10 +39,8 @@ function Jsx(d: IData) {
           </>
         )}
         Don't forget,{" "}
-        <Link href="https://intercom.help/better-giving/en/articles/8791497-how-to-sign-in-to-a-better-giving-personal-account">
-          you can sign in
-        </Link>{" "}
-        to keep track of all your donations
+        <Link href={HELP.personal_account_signin}>you can sign in</Link> to keep
+        track of all your donations
         {d.tax_receipt_id && " and download further receipts"}, if you have
         created your free {APP_NAME} personal account.
       </Text>

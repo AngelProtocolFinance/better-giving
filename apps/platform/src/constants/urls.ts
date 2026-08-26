@@ -1,5 +1,10 @@
-import { socials as brand_socials } from "@better-giving/brand";
+import { socials as brand_socials, INTERCOM_HELP } from "@better-giving/brand";
+
 import { base_url } from "./env";
+
+// re-exported so app code keeps one import path for urls; the value itself lives
+// in the brand package because the email templates deep-link into the same centre.
+export { INTERCOM_HELP };
 
 export const PRIVACY_POLICY = `${base_url}/privacy-policy/`;
 export const TERMS_OF_USE_NPO = `${base_url}/terms-of-use-npo/`;
@@ -13,7 +18,6 @@ export const guidestar = {
 export const DEV_DOCS_BASE_URL = "https://developer.better.giving";
 export const BOOK_A_DEMO =
   "https://meetings-eu1.hubspot.com/chauncey-st-john/better-giving-nonprofit-demo";
-export const INTERCOM_HELP = "https://intercom.help/better-giving/en";
 export const GITHUB_REPO =
   "https://github.com/AngelProtocolFinance/better-giving";
 
@@ -22,8 +26,7 @@ export const socials = {
   intercom: INTERCOM_HELP,
 };
 
-export const referrals_hub =
-  "https://intercom.help/better-giving/en/collections/13341032-referral-program-resource-hub ";
+export const referrals_hub = `${INTERCOM_HELP}/collections/13341032-referral-program-resource-hub`;
 
 export const static_url = (path: string) =>
   `https://cnfc6hjkztdschkg.public.blob.vercel-storage.com/migrated/static/${path}`;

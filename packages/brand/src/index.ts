@@ -41,3 +41,8 @@ export const EMAILS = {
   hi: "hi@better.giving",
   support: "support@better.giving",
 } as const;
+
+// the help centre. platform links to its root, the email templates deep-link into
+// individual articles — one base string between them, or a re-hosted centre
+// breaks half the links and leaves the other half working.
+export const INTERCOM_HELP = "https://intercom.help/better-giving/en";
