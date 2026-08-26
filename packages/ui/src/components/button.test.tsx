@@ -252,3 +252,27 @@ describe("the closed class sets", () => {
     );
   });
 });
+
+/** the guard on src/test-setup.ts as much as on the button: these read
+ *  *rendered* geometry rather than a class string, so if the style layer ever
+ *  stops being applied every class goes inert and these fail — rather than the
+ *  suite silently measuring unstyled boxes. */
+describe("size tiers render at their declared height", () => {
+  const heights = [
+    ["sm", 24],
+    ["md", 36],
+    ["lg", 52],
+  ] as const;
+
+  for (const [size, px] of heights) {
+    test(`${size} is ${px}px tall`, async () => {
+      const screen = await render(
+        <Button variant="primary" size={size}>
+          x
+        </Button>
+      );
+      const el = screen.getByRole("button").element();
+      expect(el.getBoundingClientRect().height).toBe(px);
+    });
+  }
+});

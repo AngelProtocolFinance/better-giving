@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import tailwind from "@tailwindcss/vite";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vite";
 
@@ -7,7 +8,9 @@ import { defineConfig } from "vite";
 // setup files (which import `#/services/*`) would be dead weight and would tie
 // the design system's tests to the app's aliases.
 export default defineConfig({
+  plugins: [tailwind()],
   test: {
+    setupFiles: ["./src/test-setup.ts"],
     browser: {
       enabled: true,
       provider: playwright(),
