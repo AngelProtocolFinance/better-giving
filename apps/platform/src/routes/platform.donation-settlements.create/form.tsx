@@ -12,16 +12,32 @@ import type { IFormValues, INpoOpt } from "./types";
 const gift_decides = (o: { from: string; for_donation_id?: string }) =>
   o.from === "match" && !!o.for_donation_id?.trim();
 
+const email = v.pipe(v.string(), v.email());
+
 const npo_opt = v.custom<INpoOpt>(
   (v): v is INpoOpt =>
     v != null && typeof v === "object" && "id" in v && "name" in v,
   "Select a nonprofit"
 );
 
+/** blank is fine — the action substitutes the house address for an untouched
+ * box. anything typed has to parse: neither schema ever checked the shape, and
+ * the control carries no native constraint of its own. */
+const donor_email = v.optional(
+  v.pipe(
+    v.string(),
+    v.check(
+      (s) => !s.trim() || v.safeParse(email, s.trim()).success,
+      "Enter a valid email"
+    )
+  ),
+  "settlement@better.giving"
+);
+
 const fields = {
   from: v.picklist(["cheque", "daf", "match"]),
   donor_name: v.optional(v.string(), ""),
-  donor_email: v.optional(v.string(), "settlement@better.giving"),
+  donor_email,
   net: v.pipe(v.string(), v.nonEmpty("Enter a valid amount")),
   reference: v.pipe(v.string(), v.nonEmpty("Enter a reference ID")),
   for_donation_id: v.optional(v.string(), ""),
@@ -156,6 +172,7 @@ export function SettleForm({
           type="email"
           placeholder="settlement@better.giving"
           classes={{ input: "w-full" }}
+          error={errors.donor_email?.message}
         />
 
         <Field

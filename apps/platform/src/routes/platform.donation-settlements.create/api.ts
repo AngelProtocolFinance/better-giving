@@ -51,7 +51,9 @@ const schema = v.object({
     )
   ),
   donor_name: text("Anonymous"),
-  donor_email: text("settlement@better.giving"),
+  /** checked after the blank is folded away, so an untouched box still passes
+   * on the house address while a typed one has to be an address */
+  donor_email: v.pipe(text("settlement@better.giving"), v.email()),
   net: v.pipe(v.string(), v.transform(Number), v.minValue(0.01)),
   reference: v.pipe(v.string(), v.nonEmpty()),
   /**
