@@ -82,10 +82,12 @@ import {
   action,
   loader,
 } from "#/pages/platform-admin/banking-applications/api";
+import { loader as list_loader } from "#/routes/platform.banking-applications/api";
 import DetailPage from "#/routes/platform.banking-applications_.$id/route";
 import ApprovePage from "#/routes/platform.banking-applications_.$id.approve/route";
 import RejectPage from "#/routes/platform.banking-applications_.$id.reject/route";
 import { wise } from "$/kit/wise";
+import { bapps_by_status } from "$/pg/queries/banking";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 
 // --- setup ---
@@ -422,7 +424,8 @@ describe("approve flow", () => {
     ).click();
     await expect.element(screen.getByTestId("success")).toBeVisible();
 
-    // "default" status not surfaced in platform-admin UI — DB check required
+    // the detail page renders "default" and "approved" identically, so only
+    // the db distinguishes the auto-default
     const updated = await get_bapp(bapp_id);
     expect(updated.status).toBe("default");
   });
@@ -574,5 +577,157 @@ describe("action edge cases", () => {
       status: 404,
       statusText: expect.stringContaining("not found"),
     });
+  });
+});
+
+describe("list loader", () => {
+  const list = (qs: string) =>
+    (list_loader as (...a: any[]) => any)({
+      request: new Request(`http://test/platform/banking-applications${qs}`),
+      params: {},
+      context: {},
+    });
+
+  it("surfaces a default bapp under both All and Approved", async () => {
+    // approving an npo's only application promotes it to "default" — a
+    // verdict, not a review state, so it must not drop out of the list
+    const npo = await seed_npo();
+    const bapp_id = await seed_bapp(npo.id, { status: "default" });
+
+    const all = await list("?status=");
+    expect(all.items.map((x: any) => x.id)).toContain(bapp_id);
+
+    const approved = await list("?status=approved");
+    expect(approved.items.map((x: any) => x.id)).toContain(bapp_id);
+  });
+
+  it("keeps default out of under-review and rejected", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { status: "default" });
+
+    expect((await list("?status=under-review")).items).toHaveLength(0);
+    expect((await list("?status=rejected")).items).toHaveLength(0);
+  });
+
+  it("orders by updated_at, so a verdict on an old submission lands first", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { status: "approved" });
+    const old_id = await seed_bapp(npo.id, {
+      date_created: "2024-01-01T00:00:00.000Z",
+      updated_at: "2024-01-01T00:00:00.000Z",
+    });
+
+    // submission date alone would bury it
+    expect((await list("?status=")).items[0].id).not.toBe(old_id);
+
+    const form = new FormData();
+    form.set("type", "approved");
+    await (action as (...a: any[]) => any)({
+      params: { id: old_id },
+      request: new Request(
+        `http://test/platform/banking-applications/${old_id}`,
+        { method: "POST", body: form }
+      ),
+      context: {},
+    });
+
+    const after = await list("?status=");
+    expect(after.items[0].id).toBe(old_id);
+    expect(after.items[0].updated_at).not.toBe(after.items[0].date_created);
+  });
+
+  it("narrows to one endowment via endowmentID", async () => {
+    const a = await seed_npo();
+    const b = await seed_npo();
+    const mine = await seed_bapp(a.id, { status: "default" });
+    await seed_bapp(b.id, { status: "default" });
+
+    const page = await list(`?status=&endowmentID=${a.id}`);
+    expect(page.items.map((x: any) => x.id)).toEqual([mine]);
+  });
+
+  it("rejects a malformed endowmentID", async () => {
+    await expect(list("?status=&endowmentID=abc")).rejects.toBeDefined();
+  });
+
+  it("pages through rows that share an updated_at", async () => {
+    // bapp_set_default stamps two rows with one instant, and the backfill gave
+    // every pre-existing row its submission time — a timestamp-only cursor
+    // would drop whichever tied rows fell past the page edge
+    const npo = await seed_npo();
+    const tied = "2025-03-04T05:06:07.000Z";
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      ids.push(
+        await seed_bapp(npo.id, {
+          status: "default",
+          date_created: tied,
+          updated_at: tied,
+        })
+      );
+    }
+
+    const seen: string[] = [];
+    let next: string | undefined;
+    do {
+      const page = await bapps_by_status(["default"], { limit: 2, next });
+      seen.push(...page.items.map((x) => x.id));
+      next = page.next;
+    } while (next);
+
+    expect(seen.sort()).toEqual(ids.sort());
+  });
+
+  it("keeps ties reachable through a cursor issued before the tie-breaker", async () => {
+    // skew protection: old js paging into a new deploy sends a bare iso
+    // cursor, which names the boundary instant but not which of its ties the
+    // previous page already served. a strict `<` would drop the rest of them
+    const npo = await seed_npo();
+    const boundary = "2025-01-01T00:00:00.000Z";
+    const tied = [
+      await seed_bapp(npo.id, { status: "default", updated_at: boundary }),
+      await seed_bapp(npo.id, { status: "default", updated_at: boundary }),
+    ];
+    const older = await seed_bapp(npo.id, {
+      status: "default",
+      updated_at: "2024-01-01T00:00:00.000Z",
+    });
+
+    const legacy = btoa(boundary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    const page = await bapps_by_status(["default"], { next: legacy });
+
+    expect(page.items.map((x) => x.id).sort()).toEqual([...tied, older].sort());
+  });
+
+  it("returns to the row comparison after one legacy page", async () => {
+    // the duplicate window is one page wide: the cursor this response issues
+    // carries an id, so nothing repeats twice
+    const npo = await seed_npo();
+    const boundary = "2025-01-01T00:00:00.000Z";
+    for (let i = 0; i < 3; i++) {
+      await seed_bapp(npo.id, { status: "default", updated_at: boundary });
+    }
+
+    const legacy = btoa(boundary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    const first = await bapps_by_status(["default"], {
+      limit: 2,
+      next: legacy,
+    });
+    expect(first.next).toBeDefined();
+
+    const second = await bapps_by_status(["default"], {
+      limit: 2,
+      next: first.next,
+    });
+    const overlap = second.items.filter((x) =>
+      first.items.some((y) => y.id === x.id)
+    );
+    expect(overlap).toEqual([]);
   });
 });

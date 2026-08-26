@@ -8,13 +8,16 @@ export interface IBapp {
   bank_statement_url: string;
   /** iso */
   date_created: string;
+  /** iso — when the row last moved state: submission, verdict, or promotion */
+  updated_at: string;
   status: TStatus;
   /** maybe empty */
   rejection_reason: string;
 }
 
 export interface IBappsOpts {
-  status?: TStatus;
+  status?: TStatus | TStatus[];
+  npo_id?: number;
   next?: string;
   limit?: number;
 }
