@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, pgTable, text } from "drizzle-orm/pg-core";
-import { timestamptz } from "./columns";
+import { timestamptz, timestamptz_now } from "./columns";
 import { npos } from "./npo";
 
 export const banking_apps = pgTable(
@@ -18,6 +18,9 @@ export const banking_apps = pgTable(
     bank_statement_url: text("bank_statement_url").notNull().default(""),
     rejection_reason: text("rejection_reason").notNull().default(""),
     date_created: timestamptz("date_created").notNull().default(sql`now()`),
+    // when the row last moved state — submission, verdict, or promotion to the
+    // npo's primary account. the admin list orders on this, not date_created.
+    updated_at: timestamptz_now("updated_at"),
   },
   (t) => [
     check(
@@ -30,6 +33,7 @@ export const banking_apps = pgTable(
       t.date_created
     ),
     index("banking_apps_status_date_idx").on(t.status, t.date_created),
+    index("banking_apps_status_updated_idx").on(t.status, t.updated_at),
     index("banking_apps_under_review_idx")
       .on(t.date_created)
       .where(sql`${t.status} = 'under-review'`),

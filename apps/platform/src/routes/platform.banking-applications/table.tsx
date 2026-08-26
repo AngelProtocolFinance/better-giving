@@ -20,7 +20,7 @@ export function Table({
 }: Props) {
   const { handleHeaderClick, sorted, sortDirection, sortKey } = use_sort(
     items,
-    "date_created"
+    "updated_at"
   );
 
   return (
@@ -30,12 +30,12 @@ export function Table({
           <tr>
             <th>
               <HeaderButton
-                onClick={handleHeaderClick("date_created")}
+                onClick={handleHeaderClick("updated_at")}
                 _activeSortKey={sortKey}
-                _sortKey="date_created"
+                _sortKey="updated_at"
                 _sortDirection={sortDirection}
               >
-                Date
+                Last updated
               </HeaderButton>
             </th>
             <th>Endowment</th>
@@ -61,7 +61,7 @@ export function Table({
           ) : (
             sorted.map((row) => (
               <tr key={row.id} className="text-sm">
-                <td>{toPP(row.date_created)}</td>
+                <td>{toPP(row.updated_at)}</td>
                 <td>{row.npo_id}</td>
                 <td>{row.bank_summary}</td>
                 <td>
@@ -98,25 +98,27 @@ export function Table({
   );
 }
 
+// "default" is approved *and* the npo's primary account — same verdict, so it
+// reads as Approved with the primary-ness as a suffix rather than a 4th state.
 const dot_color: Record<TStatus, string> = {
   approved: "bg-success",
   "under-review": "bg-warning",
   rejected: "bg-destructive",
-  default: "bg-primary",
+  default: "bg-success",
 };
 
 const text_color: Record<TStatus, string> = {
   approved: "text-success-subtle-fg",
   "under-review": "text-warning-subtle-fg",
   rejected: "text-destructive-subtle-fg",
-  default: "text-primary",
+  default: "text-success-subtle-fg",
 };
 
 const text: Record<TStatus, string> = {
   approved: "Approved",
   "under-review": "Under Review",
   rejected: "Rejected",
-  default: "Pending",
+  default: "Approved",
 };
 
 function Status({ status }: { status: TStatus }) {
@@ -128,6 +130,9 @@ function Status({ status }: { status: TStatus }) {
         className={`${dot_color[status]} size-2 rounded-full inline-block shrink-0`}
       />
       {text[status]}
+      {status === "default" && (
+        <span className="text-gray-11 font-normal">· primary</span>
+      )}
     </span>
   );
 }

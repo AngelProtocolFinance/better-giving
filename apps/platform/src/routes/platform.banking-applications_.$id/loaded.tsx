@@ -5,7 +5,9 @@ import { href, NavLink } from "react-router";
 import type { LoaderData } from "#/pages/platform-admin/banking-applications/api";
 
 export function Loaded(props: LoaderData) {
-  const is_approved = props.ba.status === "approved";
+  // "default" is an approved account promoted to the npo's primary one
+  const is_approved =
+    props.ba.status === "approved" || props.ba.status === "default";
   const is_rejected = props.ba.status === "rejected";
   const prev_verdict = is_approved || is_rejected;
 
@@ -33,6 +35,12 @@ export function Loaded(props: LoaderData) {
         <span className="text-sm font-semibold uppercase">Date submitted:</span>
         <span className="uppercase text-sm">
           {new Date(props.ba.date_created).toLocaleDateString()}
+        </span>
+      </div>
+      <div className="flex max-sm:flex-col gap-x-4 -mt-2 lg:-mt-4">
+        <span className="text-sm font-semibold uppercase">Last updated:</span>
+        <span className="uppercase text-sm">
+          {new Date(props.ba.updated_at).toLocaleDateString()}
         </span>
       </div>
 

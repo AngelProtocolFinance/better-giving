@@ -65,11 +65,13 @@ export async function npo_default_bapp(npo_id: number) {
   return row;
 }
 
+/** the admin list: keyed on `updated_at` so a verdict on an old submission
+ * surfaces as recent, which submission date can never do. */
 export async function bapps_by_status(
   status: TStatus | TStatus[] | undefined,
   opts?: IBappsOpts
 ) {
-  const { limit = 15, next } = opts || {};
+  const { limit = 15, next, npo_id } = opts || {};
   const cursor = decode_date_cursor(next);
 
   const status_filter = Array.isArray(status)
@@ -84,10 +86,11 @@ export async function bapps_by_status(
     .where(
       and(
         status_filter,
-        cursor ? sql`${banking_apps.date_created} < ${cursor}` : undefined
+        npo_id ? eq(banking_apps.npo_id, npo_id) : undefined,
+        cursor ? sql`${banking_apps.updated_at} < ${cursor}` : undefined
       )
     )
-    .orderBy(desc(banking_apps.date_created))
+    .orderBy(desc(banking_apps.updated_at))
     .limit(limit + 1);
 
   const has_more = rows.length > limit;
@@ -95,7 +98,7 @@ export async function bapps_by_status(
   return {
     items,
     next: has_more
-      ? encode_date_cursor(items[items.length - 1]?.date_created ?? undefined)
+      ? encode_date_cursor(items[items.length - 1]?.updated_at ?? undefined)
       : undefined,
   } satisfies IPage<Bapp>;
 }
@@ -117,6 +120,7 @@ export async function bapp_update_status(
     .set({
       status: update.status,
       rejection_reason: update.rejection_reason ?? "",
+      updated_at: new Date().toISOString(),
     })
     .where(eq(banking_apps.id, id));
 
@@ -129,7 +133,7 @@ export async function bapp_set_default(id: string, npo_id: number) {
     // demote existing default
     await tx
       .update(banking_apps)
-      .set({ status: "approved" })
+      .set({ status: "approved", updated_at: new Date().toISOString() })
       .where(
         and(
           eq(banking_apps.npo_id, npo_id),
@@ -141,7 +145,7 @@ export async function bapp_set_default(id: string, npo_id: number) {
     // promote target
     await tx
       .update(banking_apps)
-      .set({ status: "default" })
+      .set({ status: "default", updated_at: new Date().toISOString() })
       .where(eq(banking_apps.id, id));
   });
 }

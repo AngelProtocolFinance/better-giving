@@ -82,6 +82,7 @@ import {
   action,
   loader,
 } from "#/pages/platform-admin/banking-applications/api";
+import { loader as list_loader } from "#/routes/platform.banking-applications/api";
 import DetailPage from "#/routes/platform.banking-applications_.$id/route";
 import ApprovePage from "#/routes/platform.banking-applications_.$id.approve/route";
 import RejectPage from "#/routes/platform.banking-applications_.$id.reject/route";
@@ -422,7 +423,8 @@ describe("approve flow", () => {
     ).click();
     await expect.element(screen.getByTestId("success")).toBeVisible();
 
-    // "default" status not surfaced in platform-admin UI — DB check required
+    // the detail page renders "default" and "approved" identically, so only
+    // the db distinguishes the auto-default
     const updated = await get_bapp(bapp_id);
     expect(updated.status).toBe("default");
   });
@@ -574,5 +576,76 @@ describe("action edge cases", () => {
       status: 404,
       statusText: expect.stringContaining("not found"),
     });
+  });
+});
+
+describe("list loader", () => {
+  const list = (qs: string) =>
+    (list_loader as (...a: any[]) => any)({
+      request: new Request(`http://test/platform/banking-applications${qs}`),
+      params: {},
+      context: {},
+    });
+
+  it("surfaces a default bapp under both All and Approved", async () => {
+    // approving an npo's only application promotes it to "default" — a
+    // verdict, not a review state, so it must not drop out of the list
+    const npo = await seed_npo();
+    const bapp_id = await seed_bapp(npo.id, { status: "default" });
+
+    const all = await list("?status=");
+    expect(all.items.map((x: any) => x.id)).toContain(bapp_id);
+
+    const approved = await list("?status=approved");
+    expect(approved.items.map((x: any) => x.id)).toContain(bapp_id);
+  });
+
+  it("keeps default out of under-review and rejected", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { status: "default" });
+
+    expect((await list("?status=under-review")).items).toHaveLength(0);
+    expect((await list("?status=rejected")).items).toHaveLength(0);
+  });
+
+  it("orders by updated_at, so a verdict on an old submission lands first", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { status: "approved" });
+    const old_id = await seed_bapp(npo.id, {
+      date_created: "2024-01-01T00:00:00.000Z",
+      updated_at: "2024-01-01T00:00:00.000Z",
+    });
+
+    // submission date alone would bury it
+    expect((await list("?status=")).items[0].id).not.toBe(old_id);
+
+    const form = new FormData();
+    form.set("type", "approved");
+    await (action as (...a: any[]) => any)({
+      params: { id: old_id },
+      request: new Request(
+        `http://test/platform/banking-applications/${old_id}`,
+        { method: "POST", body: form }
+      ),
+      context: {},
+    });
+
+    const after = await list("?status=");
+    expect(after.items[0].id).toBe(old_id);
+    expect(after.items[0].updated_at).not.toBe(after.items[0].date_created);
+  });
+
+  it("narrows to one endowment via endowmentID", async () => {
+    const a = await seed_npo();
+    const b = await seed_npo();
+    const mine = await seed_bapp(a.id, { status: "default" });
+    await seed_bapp(b.id, { status: "default" });
+
+    const page = await list(`?status=&endowmentID=${a.id}`);
+    expect(page.items.map((x: any) => x.id)).toEqual([mine]);
+  });
+
+  it("rejects a malformed endowmentID", async () => {
+    await expect(list("?status=&endowmentID=abc")).rejects.toBeDefined();
   });
 });

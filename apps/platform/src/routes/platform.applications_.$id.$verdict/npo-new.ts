@@ -87,6 +87,7 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     const [inserted] = await tx.insert(npos).values(new_endow).returning();
     const id = Number(inserted.id);
 
+    const now = new Date().toISOString();
     const bank_new: IBapp = {
       id: r.o_bank_id,
       npo_id: id,
@@ -94,7 +95,8 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
       bank_summary: wacc.longAccountSummary,
       rejection_reason: "",
       status: "default",
-      date_created: new Date().toISOString(),
+      date_created: now,
+      updated_at: now,
     };
 
     await bapp_put(tx, bank_new);
