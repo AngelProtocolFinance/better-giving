@@ -87,6 +87,7 @@ import DetailPage from "#/routes/platform.banking-applications_.$id/route";
 import ApprovePage from "#/routes/platform.banking-applications_.$id.approve/route";
 import RejectPage from "#/routes/platform.banking-applications_.$id.reject/route";
 import { wise } from "$/kit/wise";
+import { bapps_by_status } from "$/pg/queries/banking";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 
 // --- setup ---
@@ -647,5 +648,54 @@ describe("list loader", () => {
 
   it("rejects a malformed endowmentID", async () => {
     await expect(list("?status=&endowmentID=abc")).rejects.toBeDefined();
+  });
+
+  it("pages through rows that share an updated_at", async () => {
+    // bapp_set_default stamps two rows with one instant, and the backfill gave
+    // every pre-existing row its submission time — a timestamp-only cursor
+    // would drop whichever tied rows fell past the page edge
+    const npo = await seed_npo();
+    const tied = "2025-03-04T05:06:07.000Z";
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      ids.push(
+        await seed_bapp(npo.id, {
+          status: "default",
+          date_created: tied,
+          updated_at: tied,
+        })
+      );
+    }
+
+    const seen: string[] = [];
+    let next: string | undefined;
+    do {
+      const page = await bapps_by_status(["default"], { limit: 2, next });
+      seen.push(...page.items.map((x) => x.id));
+      next = page.next;
+    } while (next);
+
+    expect(seen.sort()).toEqual(ids.sort());
+  });
+
+  it("reads a cursor issued before the id tie-breaker", async () => {
+    // skew protection: old js paging into a new deploy sends a bare iso cursor
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      status: "default",
+      updated_at: "2025-01-01T00:00:00.000Z",
+    });
+    const older = await seed_bapp(npo.id, {
+      status: "default",
+      updated_at: "2024-01-01T00:00:00.000Z",
+    });
+
+    const legacy = btoa("2025-01-01T00:00:00.000Z")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+    const page = await bapps_by_status(["default"], { next: legacy });
+
+    expect(page.items.map((x) => x.id)).toEqual([older]);
   });
 });
