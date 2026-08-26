@@ -2,12 +2,12 @@ import {
   FileDropzone,
   type FileOutput,
   Form,
-  fileOutput,
   type IPrompt,
   Label,
   Prompt,
   Select,
 } from "@better-giving/ui";
+import { fileOutput } from "@better-giving/ui/helpers";
 import { ErrorMessage } from "@hookform/error-message";
 import { useState } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";

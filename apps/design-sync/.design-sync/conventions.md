@@ -57,7 +57,7 @@ The other real class names, for when you compose a control by hand rather than u
 `.field-input`, `.field-input-container`, `.field-err`, `.label`, `.label-floating`,
 `.selector-btn`, `.selector-opt`, `.table`, and the utilities `.surface-primary`,
 `.eyebrow`, `.section-heading`, `.section-body`, `.hero-heading`, `.article-heading`,
-`.flex-center`, `.absolute-center`, `.overlay`.
+`.flex-center`, `.absolute-center`.
 
 ### Empty states — use `EmptyState`
 

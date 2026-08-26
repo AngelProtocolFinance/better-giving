@@ -156,7 +156,6 @@ const claims = {
     "article-heading",
     "flex-center",
     "absolute-center",
-    "overlay",
   ],
   "page + scrollers": ["page", "table-scroll", "scrollbars"],
   measure: ["max-w-3xl", "max-w-prose"],

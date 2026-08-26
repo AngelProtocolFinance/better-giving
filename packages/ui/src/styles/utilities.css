@@ -63,10 +63,6 @@
   @apply accent-primary size-4 shrink-0 focus-visible:outline-2 focus-visible:outline-ring disabled:accent-gray-3;
 }
 
-@utility overlay {
-  @apply before:content-[''] before:absolute before:inset-0 before:bg-primary/70;
-}
-
 @utility check-field {
   @apply grid grid-cols-[auto_1fr] justify-items-start gap-x-3 items-center;
   & > label {
@@ -342,14 +338,6 @@
 
 @utility flex-center {
   @apply flex items-center justify-center;
-}
-
-@utility box-delay-1 {
-  animation-delay: 300ms;
-}
-
-@utility box-delay-2 {
-  animation-delay: 600ms;
 }
 
 /* the named type roles. each one is a responsive size curve plus its wrapping

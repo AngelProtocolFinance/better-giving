@@ -1,4 +1,5 @@
-import { Field, Form, toYYYMMDD } from "@better-giving/ui";
+import { Field, Form } from "@better-giving/ui";
+import { toYYYMMDD } from "@better-giving/ui/helpers";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useForm } from "react-hook-form";
 import { href } from "react-router";

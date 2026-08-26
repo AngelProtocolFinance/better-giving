@@ -1,5 +1,6 @@
 import { Collapsible } from "@ark-ui/react/collapsible";
-import { DrawerIcon, Field, Form, Label, toYYYMMDD } from "@better-giving/ui";
+import { DrawerIcon, Field, Form, Label } from "@better-giving/ui";
+import { toYYYMMDD } from "@better-giving/ui/helpers";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useController, useForm } from "react-hook-form";
 import { useFetcher } from "react-router";

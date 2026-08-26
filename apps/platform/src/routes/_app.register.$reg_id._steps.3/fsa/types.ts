@@ -1,4 +1,5 @@
-import { type FileSpec, fileOutput } from "@better-giving/ui";
+import type { FileSpec } from "@better-giving/ui";
+import { fileOutput } from "@better-giving/ui/helpers";
 import * as v from "valibot";
 import type { IFsaDocs } from "@/reg";
 import { fsa_docs_fv } from "@/reg/schema";

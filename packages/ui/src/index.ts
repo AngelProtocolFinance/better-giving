@@ -14,13 +14,11 @@
  */
 
 export type { FileOutput, FileSpec } from "./components/file-dropzone/types";
-export { fileOutput } from "./components/file-dropzone/types";
 export {
   FloatingField,
   FloatingInput,
 } from "./components/form/floating-field";
 export { Form, RmxForm, useRmxForm } from "./components/form/form";
-export { toYYYMMDD } from "./components/form/helpers";
 export { ornament_end_cls } from "./components/form/ornament";
 export type { Classes as FormClasses } from "./components/form/types";
 export type { PayoutStatusType } from "./components/payout-status";

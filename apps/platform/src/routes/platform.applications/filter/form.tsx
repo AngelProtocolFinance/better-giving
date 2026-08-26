@@ -5,8 +5,8 @@ import {
   DateRangeField,
   DrawerIcon,
   Select,
-  toYYYMMDD,
 } from "@better-giving/ui";
+import { toYYYMMDD } from "@better-giving/ui/helpers";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { FC } from "react";
 import { useController, useForm } from "react-hook-form";
