@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import * as v from "valibot";
 import { $, $int_gte1, $req, frequency } from "../schemas";
 import { endOfDay, iso_date, startOfDay } from "../schemas/date";
@@ -152,7 +153,11 @@ export const donor_fv_blank: IDonorFv = {
   last_name: "",
   email: "",
 };
-export const PLACEHOLDER_EMAIL = "hi@better.giving";
+// stands in until the processor tells us the donor's real address. it has to be a
+// real inbox rather than a sentinel: receipts go to `from_email` unconditionally,
+// so a donation that never gets one mails us instead of bouncing. the paypal
+// webhook compares against it to tell "not known yet" from a real address.
+export const PLACEHOLDER_EMAIL = EMAILS.hi;
 
 export const donor_fv_init: IDonorFv = {
   title: "",

@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import type { IAllocation } from "../donations/schema";
 import type { IIncrement } from "../schemas";
 
@@ -32,11 +33,14 @@ export const DONATION_INCREMENTS: IIncrement[] = [
 export const logo_url = (path: string, custom = false) =>
   custom ? path : `https://nowpayments.io${path}`;
 
+// the personal inboxes are routing detail and stay here; `hi` is the brand's
+// contact point, so it comes from `@better-giving/brand` and can't drift from the
+// sender line on outgoing mail.
 export const emails = {
   tim: "tim@better.giving",
   jms: "justin@better.giving",
   chauncey: "chauncey@better.giving",
-  hi: "hi@better.giving",
+  hi: EMAILS.hi,
 };
 
 export const GENERIC_ERROR_MESSAGE = `An unexpected error occurred and has been reported. Please get in touch with ${emails.hi} if the problem persists.`;

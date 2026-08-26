@@ -30,3 +30,14 @@ export const socials = {
   x: "https://x.com/BetterDotGiving",
   youtube: "https://www.youtube.com/@BetterDotGiving",
 };
+
+/**
+ * the inboxes a donor or nonprofit is told to write to. `hi` is the general
+ * contact and also the From: address on every outgoing mail, so the line a
+ * recipient replies to and the line the app prints have to name one inbox.
+ * `support` is the one the marketing and account-recovery pages point at.
+ */
+export const EMAILS = {
+  hi: "hi@better.giving",
+  support: "support@better.giving",
+} as const;

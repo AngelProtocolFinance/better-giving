@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import { useEffect } from "react";
 import { href, NavLink, useFetcher } from "react-router";
 import { use_counter } from "#/hooks/use-counter";
@@ -91,9 +92,9 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           check your spam folder or email{" "}
           <a
             className="underline hover:text-gray-12"
-            href="mailto:support@better.giving"
+            href={`mailto:${EMAILS.support}`}
           >
-            support@better.giving
+            {EMAILS.support}
           </a>
           .
         </p>

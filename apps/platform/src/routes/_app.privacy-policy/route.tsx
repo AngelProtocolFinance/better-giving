@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
@@ -99,7 +100,7 @@ export default function PrivacyPolicy() {
         received personal information from a child under 13 without verification
         of parental consent, we will delete that information. If you believe we
         might have any information from or about a child under 13, please
-        contact us at: hi@better.giving.{" "}
+        contact us at: {EMAILS.hi}.{" "}
       </p>
       <p>
         <strong>Information We Collect About You and How We Collect It</strong>
@@ -442,8 +443,8 @@ export default function PrivacyPolicy() {
         required to inform you of the lawful bases of our processing of your
         personal information, which are described below. If you have questions
         about the legal bases under which we are processing your information,
-        please contact us at hi@better.giving. The legal bases under which We
-        may process your personal information include:
+        please contact us at {EMAILS.hi}. The legal bases under which We may
+        process your personal information include:
       </p>
       <ul>
         <li>To provide our services to you. </li>
@@ -472,8 +473,7 @@ export default function PrivacyPolicy() {
       </p>
       <p>
         Under the GDPR you have certain rights regarding your personal
-        information. You may email hi@better.giving to request the following
-        actions:
+        information. You may email {EMAILS.hi} to request the following actions:
       </p>
       <ul>
         <li>
@@ -555,7 +555,7 @@ export default function PrivacyPolicy() {
       </p>
       <p>
         California consumers may make a request pursuant to their rights under
-        the CCPA by contacting us at hi@better.giving.{" "}
+        the CCPA by contacting us at {EMAILS.hi}.{" "}
       </p>
       <p>
         <strong>Data Security</strong>
@@ -599,7 +599,7 @@ export default function PrivacyPolicy() {
       </p>
       <p>
         To ask questions or comment about this privacy policy and our privacy
-        practices, contact us at hi@better.giving.{" "}
+        practices, contact us at {EMAILS.hi}.{" "}
       </p>
     </div>
   );

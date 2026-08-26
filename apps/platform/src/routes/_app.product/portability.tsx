@@ -1,3 +1,5 @@
+import { EMAILS } from "@better-giving/brand";
+
 const promises = [
   {
     n: "1",
@@ -64,10 +66,10 @@ export function Portability({ classes = "" }: IPortability) {
           full recurring-gift schedule and support a re-authorization campaign.
           We will never be the obstacle. Invoke it anytime:{" "}
           <a
-            href="mailto:support@better.giving"
+            href={`mailto:${EMAILS.support}`}
             className="font-bold text-primary hover:underline"
           >
-            support@better.giving
+            {EMAILS.support}
           </a>
         </p>
       </div>

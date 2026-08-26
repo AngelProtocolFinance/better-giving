@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import { href, Link } from "react-router";
 import { app_name } from "#/constants/env";
 import { metas } from "#/helpers/seo";
@@ -107,8 +108,7 @@ export default function TermsSms() {
           us:
         </p>
         <address>
-          Email:{" "}
-          <a href="mailto:support@better.giving">support@better.giving</a>
+          Email: <a href={`mailto:${EMAILS.support}`}>{EMAILS.support}</a>
         </address>
       </section>
 

@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import { Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 
@@ -25,10 +26,10 @@ export function AlreadyRegistered({ name, onClose }: Props) {
         {name} already has an account on Better Giving. Ask an existing admin to
         invite you, or email{" "}
         <a
-          href="mailto:support@better.giving"
+          href={`mailto:${EMAILS.support}`}
           className="text-gray-12 font-bold underline"
         >
-          support@better.giving
+          {EMAILS.support}
         </a>{" "}
         for help getting access.
       </p>

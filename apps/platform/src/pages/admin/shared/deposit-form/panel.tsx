@@ -1,4 +1,5 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
+import { EMAILS } from "@better-giving/brand";
 import { Copier } from "@better-giving/ui";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
@@ -132,10 +133,10 @@ export function Panel({
         <p className="text-sm text-gray-11">
           For non-USD transfers, contact{" "}
           <a
-            href="mailto:hi@better.giving"
+            href={`mailto:${EMAILS.hi}`}
             className="text-primary underline hover:no-underline"
           >
-            hi@better.giving
+            {EMAILS.hi}
           </a>{" "}
           for specific instructions.
         </p>

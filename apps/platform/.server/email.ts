@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import nodemailer from "nodemailer";
 import type { ReactElement } from "react";
 import { render } from "react-email";
@@ -19,7 +20,7 @@ const transport = nodemailer.createTransport({
 });
 
 const emoji = stage === "production" ? "😇" : "🧪";
-export const sender = `Better Giving ${emoji} <hi@better.giving>`;
+export const sender = `Better Giving ${emoji} <${EMAILS.hi}>`;
 
 interface IInput {
   node: ReactElement;

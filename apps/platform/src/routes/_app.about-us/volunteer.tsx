@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import { Image } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import laira_cheering from "#/assets/laira/laira-cheering.webp";
@@ -36,7 +37,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
             expertise)? We'd love to have you.
           </p>
           <a
-            href="mailto:support@better.giving"
+            href={`mailto:${EMAILS.support}`}
             className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
           >
             Volunteer with us

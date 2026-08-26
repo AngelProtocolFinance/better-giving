@@ -1,3 +1,4 @@
+import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
@@ -65,7 +66,7 @@ export default function TermsDonors() {
         The headings and subheadings are for reference only and do not limit the
         terms or application of the applicable section. Your trust is very
         important to us. If you have questions about this Agreement, please
-        email hi@better.giving.
+        email {EMAILS.hi}.
       </p>
       <ol>
         <li>
