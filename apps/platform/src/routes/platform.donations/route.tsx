@@ -1,8 +1,7 @@
-import { EmptyRow } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import { NavLink, Outlet, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { LoadMoreRow } from "#/components/load-more-row";
 import { Money } from "#/components/money";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";

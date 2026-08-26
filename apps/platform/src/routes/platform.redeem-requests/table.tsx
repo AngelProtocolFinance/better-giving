@@ -1,6 +1,6 @@
+import { LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import { NavLink } from "react-router";
-import { LoadMoreRow } from "#/components/load-more-row";
 import { NpoName } from "#/components/npo-name";
 import type { IPaginator } from "#/types/components";
 import type { IBalanceTx } from "@/balance-txs";

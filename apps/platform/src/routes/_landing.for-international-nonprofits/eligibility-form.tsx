@@ -2,11 +2,11 @@ import {
   Combo,
   DrawerIcon,
   ExtLink,
+  Honeypot,
   LoadText,
   RmxForm,
 } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
-import { Honeypot } from "#/components/honeypot";
 import {
   countries as cmap,
   country_names as cnames,

@@ -1,7 +1,6 @@
-import { EmptyRow, PayoutStatus } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow, PayoutStatus } from "@better-giving/ui";
 import { format } from "date-fns";
 import { ArrowRightIcon } from "lucide-react";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { IPayout } from "@/payouts";

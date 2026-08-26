@@ -58,6 +58,9 @@ export * as masks from "../../../packages/ui/src/components/form/masks";
 export { PasswordInput } from "../../../packages/ui/src/components/form/password-input";
 export { UrlInput } from "../../../packages/ui/src/components/form/url-input";
 export { Group } from "../../../packages/ui/src/components/group";
+// the sortable column head: label, then the caret that says which key the
+// table is ordered by and in which direction.
+export { HeaderButton } from "../../../packages/ui/src/components/header-button";
 export {
   Content as HoverCardContent,
   HoverCard,
@@ -66,6 +69,12 @@ export { DrawerIcon } from "../../../packages/ui/src/components/icon/drawer-icon
 export { Image } from "../../../packages/ui/src/components/image/image";
 export { ImagePlaceholder } from "../../../packages/ui/src/components/image/image-placeholder";
 export { Increments } from "../../../packages/ui/src/components/increments";
+// the "View More" foot of a paginated table. `LoadMoreRow` brings its own
+// <tfoot>; `LoadMoreTr` is the bare <tr> for a table that already has one.
+export {
+  LoadMoreRow,
+  LoadMoreTr,
+} from "../../../packages/ui/src/components/load-more-row";
 export { LoadText } from "../../../packages/ui/src/components/load-text";
 export { LoaderRing } from "../../../packages/ui/src/components/loader-ring";
 

@@ -1,6 +1,5 @@
-import { EmptyRow } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { SettlementRow } from "$/pg/queries/payout";

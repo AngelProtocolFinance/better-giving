@@ -1,8 +1,7 @@
-import { EmptyRow } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { format } from "date-fns";
 import { Info } from "lucide-react";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { IPayout } from "@/referrals/interface";

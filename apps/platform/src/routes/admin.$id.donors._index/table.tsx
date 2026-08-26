@@ -1,7 +1,6 @@
-import { EmptyRow } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { INpoDonor } from "$/pg/queries/donor";
 
 type TSort = "name" | "count" | "total";

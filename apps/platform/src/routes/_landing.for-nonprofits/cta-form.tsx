@@ -1,13 +1,13 @@
 import {
   ExtLink,
   Field,
+  Honeypot,
   LoadText,
   MaskedInput,
   RmxForm,
 } from "@better-giving/ui";
 import { ein } from "@better-giving/ui/masks";
 import { useEffect, useRef, useState } from "react";
-import { Honeypot } from "#/components/honeypot";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";

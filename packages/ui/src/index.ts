@@ -23,6 +23,9 @@ export {
 export { Form, RmxForm, useRmxForm } from "./components/form/form";
 export { ornament_end_cls } from "./components/form/ornament";
 export type { Classes as FormClasses } from "./components/form/types";
+// not in the published set: it renders an sr-only bait input with no visual
+// state at all, so there is nothing for the design agent to see or vary.
+export { Honeypot } from "./components/honeypot";
 export type { PayoutStatusType } from "./components/payout-status";
 export type { IPrompt } from "./components/prompt/prompt";
 export type { Props as ComboProps } from "./components/select/combo";

@@ -1,5 +1,4 @@
-import { EmptyRow } from "@better-giving/ui";
-import { LoadMoreRow } from "#/components/load-more-row";
+import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
 import { humanize } from "@/helpers/decimal";

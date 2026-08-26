@@ -1,5 +1,5 @@
+import { LoadMoreRow } from "@better-giving/ui";
 import { href, NavLink } from "react-router";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import type { IFund } from "@/fundraiser";
 import { toPP } from "@/helpers/date";

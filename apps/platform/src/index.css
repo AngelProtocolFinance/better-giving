@@ -13,6 +13,13 @@
    strip, and the sweep quietly re-opens the hole it guards. */
 @source not "./__tests__/**/*.node.test.ts";
 
+/* tailwind's auto-detect root is the nearest package.json, so
+   apps/platform/CLAUDE.md is scanned like source and every utility it names
+   in prose mints a rule. what the doc adds is the bare form of classes that
+   source only ever writes prefixed — `outline-0`, `rounded-none` — so the
+   bundle carries rules nothing renders. */
+@source not "../**/*.md";
+
 @theme {
   /* decorative marketing washes — NOT the semantic palette. flat grounds behind
      marketing copy; --fg is the only ink any of them carries (peach 14.58:1,

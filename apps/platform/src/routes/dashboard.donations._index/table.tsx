@@ -1,8 +1,7 @@
-import { Button, EmptyRow, ExtLink } from "@better-giving/ui";
+import { Button, EmptyRow, ExtLink, LoadMoreRow } from "@better-giving/ui";
 import { ArrowDownToLine } from "lucide-react";
 import { href, Link } from "react-router";
 import { CsvExporter } from "#/components/csv-exporter";
-import { LoadMoreRow } from "#/components/load-more-row";
 import { Money } from "#/components/money";
 import { PaymentResumer } from "#/pages/user-dashboard/donations/payment-resumer";
 import type { IPaginator } from "#/types/components";

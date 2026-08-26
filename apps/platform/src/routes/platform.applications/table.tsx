@@ -1,8 +1,6 @@
-import { EmptyRow } from "@better-giving/ui";
+import { EmptyRow, HeaderButton, LoadMoreRow } from "@better-giving/ui";
 import { Folder } from "lucide-react";
 import { href, NavLink, useSearchParams } from "react-router";
-import { HeaderButton } from "#/components/header-button";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
 import type { IReg, TStatus } from "@/reg";

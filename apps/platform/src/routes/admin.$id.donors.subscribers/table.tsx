@@ -1,8 +1,7 @@
-import { EmptyRow } from "@better-giving/ui";
+import { EmptyRow, LoadMoreTr } from "@better-giving/ui";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
-import { LoadMoreTr } from "#/components/load-more-row";
 import { InfoTip } from "../admin.$id.donors/info-tip";
 
 export interface ISubRow {

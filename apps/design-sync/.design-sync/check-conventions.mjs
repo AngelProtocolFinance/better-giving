@@ -19,6 +19,7 @@ const ds_barrel = fs.readFileSync(
   "../../packages/ui/src/design-system.ts",
   "utf8"
 );
+const entry_src = fs.readFileSync(".design-sync/entry.tsx", "utf8");
 const comps = fs
   .readdirSync(`${OUT}/components`)
   .flatMap((g) => fs.readdirSync(`${OUT}/components/${g}`));
@@ -222,11 +223,12 @@ for (const n of named) {
   );
 }
 
-// the published set and the synced set are two hand-maintained lists of the
-// same thing: `design-system.ts` is what the package publishes, `componentSrcMap`
-// is what the gallery uploads. a component added to one and not the other is
-// silent — it just never reaches the design, or points at a path that no longer
-// exports. nothing else compares them, so this does.
+// four hand-maintained lists say the same thing and nothing else compares them:
+// `design-system.ts` is what the package publishes, `componentSrcMap` is what
+// the gallery uploads, `dtsPropsFor` is the prop block each card shows, and
+// `entry.tsx` is what the bundle actually mounts. a component added to one and
+// not the rest is silent — it never reaches the design, or points at a path
+// that no longer exports, or arrives with no props documented.
 const ds_exports = new Set();
 for (const [, blk] of ds_barrel
   .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -239,21 +241,53 @@ for (const [, blk] of ds_barrel
           .split(/\s+as\s+/)
           .pop()
       );
-const synced = new Set(Object.keys(cfg.componentSrcMap));
 if (!ds_exports.size) {
   // a parse that finds nothing would otherwise agree with any config at all.
   bad++;
   console.log("✗ parsed no exports out of design-system.ts — check the parse");
 } else {
-  const unsynced = [...ds_exports].filter((n) => !synced.has(n));
-  const unpublished = [...synced].filter((n) => !ds_exports.has(n));
-  if (unsynced.length || unpublished.length) {
-    bad += unsynced.length + unpublished.length;
-    if (unsynced.length)
-      console.log(`✗ published but not synced: ${unsynced.join(", ")}`);
-    if (unpublished.length)
-      console.log(`✗ synced but not published: ${unpublished.join(", ")}`);
-  } else console.log(`✓ published set == synced set (${ds_exports.size})`);
+  // these two must be the same set, so the check runs both directions.
+  const pairs = [
+    ["componentSrcMap", new Set(Object.keys(cfg.componentSrcMap))],
+    ["dtsPropsFor", new Set(Object.keys(cfg.dtsPropsFor))],
+  ];
+  for (const [label, other] of pairs) {
+    const missing = [...ds_exports].filter((n) => !other.has(n));
+    const extra = [...other].filter((n) => !ds_exports.has(n));
+    if (missing.length || extra.length) {
+      bad += missing.length + extra.length;
+      if (missing.length)
+        console.log(
+          `✗ published but absent from ${label}: ${missing.join(", ")}`
+        );
+      if (extra.length)
+        console.log(`✗ in ${label} but not published: ${extra.join(", ")}`);
+    } else console.log(`✓ published set == ${label} (${ds_exports.size})`);
+  }
+
+  // entry.tsx is one direction only: it is a superset on purpose — DsProvider,
+  // the `masks` namespace, and the Tooltip/HoverCard parts a flat barrel cannot
+  // hold all live there and are published by nothing.
+  const entry_names = new Set(
+    [...entry_src.matchAll(/export\s*\{([^}]*)\}\s*from/g)].flatMap(([, blk]) =>
+      blk
+        .split(",")
+        .map((n) =>
+          n
+            .trim()
+            .split(/\s+as\s+/)
+            .pop()
+        )
+        .filter(Boolean)
+    )
+  );
+  const unmounted = [...ds_exports].filter((n) => !entry_names.has(n));
+  if (unmounted.length) {
+    bad += unmounted.length;
+    console.log(
+      `✗ published but not exported by entry.tsx: ${unmounted.join(", ")}`
+    );
+  } else console.log(`✓ entry.tsx exports the whole published set`);
 }
 
 console.log(

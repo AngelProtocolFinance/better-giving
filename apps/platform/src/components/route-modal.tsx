@@ -32,10 +32,14 @@ export function RouteModal({
       }}
     >
       <Portal>
-        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim" />
+        {/* enter-direction only, on both halves: closing here is a navigation,
+            so the route unmounts before ark can flip data-state to closed.
+            Modal survives its own exit via unmountOnExit; nothing here can, so
+            a `data-[state=closed]:` class would never fire. */}
+        <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
-            className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${modal_box[size]} ${classes}`}
+            className={`data-[state=open]:animate-popup-in ${modal_box[size]} ${classes}`}
           >
             {children}
           </Dialog.Content>

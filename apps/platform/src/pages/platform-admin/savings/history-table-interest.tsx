@@ -1,5 +1,5 @@
+import { LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { IInterestLog } from "@/liquid";

@@ -1,7 +1,7 @@
+import { LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { LoadMoreRow } from "#/components/load-more-row";
 import type { IPaginator } from "#/types/components";
 import type { IBalanceTx } from "@/balance-txs";
 import { humanize } from "@/helpers/decimal";
