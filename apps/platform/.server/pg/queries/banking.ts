@@ -1,4 +1,5 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import type { IBappsOpts } from "@/banking";
 import type { TStatus } from "@/banking/schema";
 import { db } from "../db";
@@ -22,7 +23,7 @@ export async function npo_bapps(
   opts?: { limit?: number; next?: string }
 ) {
   const { limit = 10, next } = opts || {};
-  const cursor = decode_date_cursor(next);
+  const cursor = decode_bapp_cursor(next);
 
   const rows = await db
     .select()
@@ -30,19 +31,21 @@ export async function npo_bapps(
     .where(
       and(
         eq(banking_apps.npo_id, npo_id),
-        cursor ? sql`${banking_apps.date_created} < ${cursor}` : undefined
+        bapp_keyset(banking_apps.date_created, cursor)
       )
     )
-    .orderBy(desc(banking_apps.date_created))
+    .orderBy(desc(banking_apps.date_created), desc(banking_apps.id))
     .limit(limit + 1);
 
   const has_more = rows.length > limit;
   const items = rows.slice(0, limit);
+  const last = items[items.length - 1];
   return {
     items,
-    next: has_more
-      ? encode_date_cursor(items[items.length - 1]?.date_created ?? undefined)
-      : undefined,
+    next:
+      has_more && last
+        ? encode_bapp_cursor({ ts: last.date_created, id: last.id })
+        : undefined,
   } satisfies IPage<Bapp>;
 }
 
@@ -66,15 +69,19 @@ export async function npo_default_bapp(npo_id: number) {
 }
 
 interface BappCursor {
-  updated_at: string;
+  /** the ordering timestamp — `updated_at` on the admin list, `date_created`
+   * on an npo's own list */
+  ts: string;
   /** empty on a cursor issued before the tie-breaker existed */
   id: string;
 }
 
-/** `updated_at` is not unique — `bapp_set_default` stamps two rows with one
- * instant, and the backfill gave every pre-existing row its submission time.
- * a timestamp-only cursor drops every tied row that fell past the page edge,
- * since the next page's `< cursor` rejects them all. `id` breaks the tie.
+/** neither ordering timestamp is unique — `bapp_set_default` stamps two rows
+ * with one instant, the backfill gave every pre-existing row its submission
+ * time, and `date_created` defaults to `now()` for rows written in one
+ * transaction. a timestamp-only cursor drops every tied row that fell past the
+ * page edge, since the next page's `< cursor` rejects them all. `id` breaks the
+ * tie.
  *
  * carried as `<iso>|<id>` through the same base64url pair the date cursor uses
  * — neither field can contain a pipe, and a decoded value without one is a
@@ -82,14 +89,26 @@ interface BappCursor {
  * throwing. `encode_cursor`'s json form is `Buffer`-based and unavailable in
  * the browser test env. */
 function encode_bapp_cursor(c: BappCursor) {
-  return encode_date_cursor(`${c.updated_at}|${c.id}`);
+  return encode_date_cursor(`${c.ts}|${c.id}`);
 }
 
 function decode_bapp_cursor(next?: string): BappCursor | undefined {
   const raw = decode_date_cursor(next);
   if (!raw) return undefined;
-  const [updated_at, id = ""] = raw.split("|");
-  return { updated_at, id };
+  const [ts, id = ""] = raw.split("|");
+  return { ts, id };
+}
+
+/** a legacy cursor names an instant but not which of its ties were already
+ * served, so it takes `<=`: everything at the boundary comes back, the ones
+ * the previous page showed included. a repeated row is visible and harmless;
+ * a dropped one is neither. bounded to a single page — the cursor the response
+ * issues carries an id, so the next request is back on the row comparison. */
+function bapp_keyset(col: PgColumn, cursor?: BappCursor) {
+  if (!cursor) return undefined;
+  return cursor.id
+    ? sql`(${col}, ${banking_apps.id}) < (${cursor.ts}::timestamptz, ${cursor.id}::text)`
+    : sql`${col} <= ${cursor.ts}::timestamptz`;
 }
 
 /** the admin list: keyed on `updated_at` so a verdict on an old submission
@@ -107,17 +126,7 @@ export async function bapps_by_status(
       ? eq(banking_apps.status, status)
       : undefined;
 
-  // a legacy cursor names an instant but not which of its ties were already
-  // served, so it takes `<=`: everything at the boundary comes back, the ones
-  // the previous page showed included. a repeated row is visible and harmless;
-  // a dropped one is neither. bounded to a single page — the cursor this
-  // response issues carries an id, so the next request is back on the row
-  // comparison.
-  const keyset = !cursor
-    ? undefined
-    : cursor.id
-      ? sql`(${banking_apps.updated_at}, ${banking_apps.id}) < (${cursor.updated_at}::timestamptz, ${cursor.id}::text)`
-      : sql`${banking_apps.updated_at} <= ${cursor.updated_at}::timestamptz`;
+  const keyset = bapp_keyset(banking_apps.updated_at, cursor);
 
   const rows = await db
     .select()
@@ -139,7 +148,7 @@ export async function bapps_by_status(
     items,
     next:
       has_more && last
-        ? encode_bapp_cursor({ updated_at: last.updated_at, id: last.id })
+        ? encode_bapp_cursor({ ts: last.updated_at, id: last.id })
         : undefined,
   } satisfies IPage<Bapp>;
 }

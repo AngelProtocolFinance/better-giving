@@ -1,5 +1,5 @@
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
 import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
@@ -67,7 +67,7 @@ function Jsx(d: IData) {
           margin: 0,
           marginBottom: 20,
           fontWeight: 600,
-          color: email_colors.primary,
+          color: flat_colors.primary,
         }}
       >
         The {APP_NAME} Team
@@ -104,7 +104,7 @@ function Jsx(d: IData) {
         style={{
           marginTop: 10,
           fontSize: 12,
-          color: email_colors.gray_11,
+          color: flat_colors.gray_11,
           lineHeight: 1.4,
         }}
       >

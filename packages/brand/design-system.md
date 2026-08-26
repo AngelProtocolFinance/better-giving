@@ -79,7 +79,7 @@ Three properties of the generated set travel with it:
   Non-monotonic, exactly as stock Radix amber is. Any "the steps ascend"
   assertion will trip on it; the ramp is not broken.
 - **No alpha steps.** Radix emits `-a1 … -a12` per scale; none is here, because
-  the email mirror has no alpha channel and a token with no email twin is a token
+  the email mirror has no alpha channel and a token with no flat twin is a token
   the drift guard cannot police.
 
 ### Which step each token points at
@@ -164,12 +164,12 @@ Three rules fall out of that test, and all three are load-bearing:
 
 - **A `var()` alias mirrors; a `color-mix()` does not.** The test reads a literal
   `oklch(...)` declaration, and it follows a `var()` alias chain of any depth to the literal
-  behind it — which is what keeps the email twin alive now that the semantic
+  behind it — which is what keeps the flat twin alive now that the semantic
   tokens are aliases onto ramp steps — 40 of the 42 get a twin; the two
-  `color-mix()`es (`--primary-border`, `--overlay`) have no literal behind them. `email_colors.primary` is `#1e6dab` because
+  `color-mix()`es (`--primary-border`, `--overlay`) have no literal behind them. `flat_colors.primary` is `#1e6dab` because
   the mirror resolved `var(--blue-9)`, not because anyone typed it twice.
   A `color-mix()` has no single literal behind it and is left out by rule:
-  `--primary-border` has no email twin, and neither does anything minted as a mix.
+  `--primary-border` has no flat twin, and neither does anything minted as a mix.
 - **Adding a literal `oklch()` token to `:root` means adding its hex to
   `colors.ts` in the same commit**, or `colors.test.ts` fails — `packages/brand`
   has no build step, so the test is the whole gate. The mirror is mechanically
@@ -1304,13 +1304,14 @@ rg -n '#[0-9a-fA-F]{3,8}\b' apps/platform/src --glob '*.ts*'   # the real surfac
 
 Two clusters dominate the wider sweep, and they are in different states:
 
-- **The `donation-calculator-export` PDF palette** (`styles.ts`) is a third copy
-  of the palette as literal hex, for a renderer that cannot read CSS at all —
-  the same shape as the email twin. It holds **the ramp's own values, keyed
-  `1…12`**, and every figure and chart in the export draws from them. It is a
-  copy and it is **unguarded**: no test fails if the ramp moves and this file
-  does not. **A donor downloads this file**, so a mismatch ships. A drift guard
-  here is the same shape as `colors.test.ts` and does not exist yet.
+- **The `donation-calculator-export` PDF palette** (`styles.ts`) needs the ramp
+  as literal hex, for a renderer that cannot read CSS at all. It **reads the
+  flat twin** (`@better-giving/brand/flat`) rather than carrying a third copy:
+  it re-keys the twin's `blue_9` into the `1…12` step numbers every figure and
+  chart in the export draws from, so the values arrive already guarded by
+  `colors.test.ts` and there is nothing here to drift. **A donor downloads this
+  file** — that is why it is not a copy. Only the steps a call site reaches are
+  re-keyed; a missing step is unused, not wrong.
 - **Per-ticker/per-asset chart color maps, duplicated across four files**
   (`pages/platform-admin/investments/common.ts`, `admin.$id.dashboard/loaded.tsx`,
   `admin.$id.investments/route.tsx`, `routes/platform.investments/route.tsx`).

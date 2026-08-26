@@ -95,11 +95,12 @@ export function CtaForm({
         // a failed submit stays where the form is: the default reset would
         // throw the page back to the top, above everything just marked
         preventScrollReset
-        /* `Field` strips `required` to keep native validation off, but still
-         * spreads `type` — so `type="email"` below reinstates a constraint the
-         * browser enforces before the action ever runs, in its own bubble,
-         * bypassing the summary and the marking. turn the whole form's native
-         * validation off rather than giving up the email keyboard on mobile. */
+        /* `Field` withholds both halves of native validation — `required` and a
+         * constrained `type` — so the email below hands the browser no rule of
+         * its own. this is the form-wide floor for what `Field` does not reach:
+         * `MaskedInput`, and any raw control added here. a browser bubble fires
+         * before the action runs and bypasses the summary, the marking and the
+         * focus move. */
         noValidate
         disabled={pending}
         className="grid gap-4 mt-5"

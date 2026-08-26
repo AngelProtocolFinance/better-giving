@@ -13,6 +13,23 @@ const textarea = "textarea" as const;
 type TextArea = typeof textarea;
 type InputType = HTMLInputTypeAttribute | TextArea;
 
+/** a constrained *text* type is a rule the browser enforces itself, in its own
+ * bubble, before the action ever runs — so a malformed address fires no submit,
+ * the app's error summary stays empty, nothing is marked `aria-invalid` and the
+ * focus move never happens. `required` is withheld from the control for exactly
+ * that reason (see the prop below); a type named here is translated rather than
+ * spread, for the same one.
+ *
+ * the keyboard is the only half worth keeping, and `inputMode` carries it
+ * without the constraint. the schema is what validates. `date`, `number` and
+ * `checkbox` are absent — their type is the control, not a rule over free
+ * text. */
+const unconstrained: Partial<Record<string, "email" | "url" | "tel">> = {
+  email: "email",
+  url: "url",
+  tel: "tel",
+};
+
 type Props<T extends InputType> = Omit<
   T extends TextArea
     ? React.TextareaHTMLAttributes<HTMLTextAreaElement>
@@ -47,6 +64,7 @@ export function Field<T extends InputType = InputType>({
 
   const id = `__${String(props.name)}`;
   const errorId = `__error_${String(props.name)}`;
+  const mode = unconstrained[type as string];
 
   return (
     <div className={`${style.container} `}>
@@ -68,7 +86,15 @@ export function Field<T extends InputType = InputType>({
       {createElement(type === textarea ? textarea : "input", {
         ref,
         ...props,
-        ...(type === textarea ? {} : { type }),
+        ...(type === textarea ? {} : { type: mode ? "text" : type }),
+        // a caller's own inputMode wins. autoCapitalize is off by default on a
+        // constrained type and on by default on `text`, so it is restated here
+        ...(mode
+          ? {
+              inputMode: props.inputMode ?? mode,
+              autoCapitalize: props.autoCapitalize ?? "none",
+            }
+          : {}),
         id,
         "aria-invalid": !!error,
         "aria-disabled": props.disabled,

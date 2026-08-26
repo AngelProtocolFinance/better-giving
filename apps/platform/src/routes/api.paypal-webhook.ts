@@ -15,7 +15,7 @@ import {
 } from "@/donations";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
 import { report_error, report_resp } from "@/errors/report";
-import { to_full } from "@/helpers/name";
+import { to_full_or_anonymous } from "@/helpers/name";
 import type { ISub, TInterval } from "@/subscriptions";
 import { paypal as paypal_env } from "$/env";
 import { paypal } from "$/kit/paypal";
@@ -132,7 +132,8 @@ const donor_update = (
   const fn = [name?.given_name, name?.surname].filter(Boolean).join(" ") || "";
   const str = [l1, l2].filter(Boolean).join(" ") || "";
   if (email) update.from_email = email;
-  if (fn) update.from_name = to_full(name?.given_name, name?.surname);
+  if (fn)
+    update.from_name = to_full_or_anonymous(name?.given_name, name?.surname);
   if (str) update.from_addr_street = str;
   if (city) update.from_addr_city = city;
   if (state) update.from_addr_state = state;

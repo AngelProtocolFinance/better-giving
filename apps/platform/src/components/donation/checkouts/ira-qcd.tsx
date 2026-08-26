@@ -113,7 +113,7 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
           onClick={async () => {
             set_status("loading");
             try {
-              const res = await fetch("/api/donation-notifications", {
+              const res = await fetch(href("/api/donation-notifications"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { to_full } from "../helpers/name";
+import { to_full_or_anonymous } from "../helpers/name";
 import type { IFrom, TStatus } from "./interfaces";
 import type { IAmount, IDonor } from "./schema";
 
@@ -9,7 +9,7 @@ export const amnt_sum = ({ base, tip, fee_allowance: fa }: IAmount): number => {
 export const to_from = (donor: IDonor): IFrom => {
   return {
     from_email: donor.email,
-    from_name: to_full(donor.first_name, donor.last_name),
+    from_name: to_full_or_anonymous(donor.first_name, donor.last_name),
     from_title: donor.title,
     from_company_name: donor.company_name,
     from_addr_street: donor.address?.street,
