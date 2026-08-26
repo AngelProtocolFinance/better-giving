@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
 import { PlatformLayout } from "../components/platform-layout";
 
@@ -19,19 +19,19 @@ export interface IData {
 }
 
 const th: React.CSSProperties = {
-  border: `1px solid ${email_colors.border}`,
+  border: `1px solid ${flat_colors.border}`,
   padding: "8px 12px",
   textAlign: "left",
-  backgroundColor: email_colors.gray_3,
+  backgroundColor: flat_colors.gray_3,
   // tinted surface carries its own ink; inheritance loses in clients that
   // force their own text color onto an explicit background
-  color: email_colors.gray_12,
+  color: flat_colors.gray_12,
   fontWeight: 600,
   fontSize: 13,
 };
 
 const td: React.CSSProperties = {
-  border: `1px solid ${email_colors.border}`,
+  border: `1px solid ${flat_colors.border}`,
   padding: "8px 12px",
   fontSize: 13,
 };
@@ -60,7 +60,7 @@ function Jsx({
       <Text
         style={{
           margin: "4px 0",
-          color: low_balance ? email_colors.destructive : undefined,
+          color: low_balance ? flat_colors.destructive : undefined,
         }}
       >
         Wise USD balance: <strong>${wise_usd_balance.toLocaleString()}</strong>
@@ -88,7 +88,7 @@ function Jsx({
               key={r.id}
               style={
                 r.effect === "skipped"
-                  ? { color: email_colors.gray_11 }
+                  ? { color: flat_colors.gray_11 }
                   : undefined
               }
             >

@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import type { PropsWithChildren } from "react";
 import { Body, Container, Head, Html, Section } from "react-email";
 import { APP_NAME } from "../constants";
@@ -14,10 +14,10 @@ export function PlatformLayout({ children }: PlatformLayoutProps) {
       <Body
         style={{
           fontFamily: "sans-serif",
-          backgroundColor: email_colors.background,
+          backgroundColor: flat_colors.background,
           // explicit ink: clients that force dark mode invert inherited text
           // while still honouring an explicit background — white on white.
-          color: email_colors.gray_12,
+          color: flat_colors.gray_12,
         }}
       >
         <Container style={{ padding: 16 }}>

@@ -1,5 +1,5 @@
 import { EIN, LEGAL_NAME } from "@better-giving/brand";
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import type { PropsWithChildren, ReactNode } from "react";
 import { Body, Container, Head, Html, Section, Text } from "react-email";
 import { APP_NAME } from "../constants";
@@ -24,10 +24,10 @@ export function PublicLayout({
       <Body
         style={{
           fontFamily: "sans-serif",
-          backgroundColor: email_colors.background,
+          backgroundColor: flat_colors.background,
           // explicit ink: clients that force dark mode invert inherited text
           // while still honouring an explicit background — white on white.
-          color: email_colors.gray_12,
+          color: flat_colors.gray_12,
         }}
       >
         <Container style={{ padding: 16 }}>
@@ -42,7 +42,7 @@ export function PublicLayout({
                   style={{
                     margin: 0,
                     fontWeight: 600,
-                    color: email_colors.primary,
+                    color: flat_colors.primary,
                   }}
                 >
                   The {APP_NAME} Team
@@ -66,7 +66,7 @@ export function PublicLayout({
               margin: 0,
               marginTop: 4,
               fontSize: 13,
-              color: email_colors.gray_11,
+              color: flat_colors.gray_11,
             }}
           >
             {LEGAL_NAME} | EIN: {EIN} | Copyright {new Date().getUTCFullYear()}{" "}

@@ -10,7 +10,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./colors.css": "./src/colors.css",
-    "./email": "./src/email.ts"
+    "./flat": "./src/flat.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
@@ -18,7 +18,7 @@ function Jsx({ registrant_first_name, rejection_reason }: IData) {
         deemed that this application to register with Better Giving did not pass
         the acceptance process for the following reason(s):
       </Text>
-      <Text style={{ color: email_colors.destructive, fontWeight: 600 }}>
+      <Text style={{ color: flat_colors.destructive, fontWeight: 600 }}>
         {rejection_reason}
       </Text>
       <Text>

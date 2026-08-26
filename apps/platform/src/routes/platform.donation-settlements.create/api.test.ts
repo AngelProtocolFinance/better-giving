@@ -874,6 +874,15 @@ describe("settlement create — the paths that came before", () => {
     expect((await donor_of(row!.id)).email).toBe("settlement@better.giving");
   });
 
+  test("a malformed donor email is refused, and named", async () => {
+    // the control hands the browser no rule of its own, so this schema is the
+    // only thing between a typo and a donor record nobody can write back to
+    const res = await settle({ from: "cheque", donor_email: "not-an-address" });
+
+    expect(res.ok).toBe(false);
+    expect((res as { error: string }).error).toMatch(/^donor_email: /);
+  });
+
   test("a field the schema refuses is named in the refusal", async () => {
     // an admin holding a cheque needs to know which box was rejected, not that
     // something somewhere in the form was

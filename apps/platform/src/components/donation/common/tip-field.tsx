@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { base_url } from "#/constants/env";
+import { use_donation } from "../context";
 import type { TTipFormat } from "../types";
 import { ThumbWiggle } from "./thumb-wiggle";
 
@@ -142,8 +142,11 @@ export function TipField({ classes = "", ...p }: Props) {
 }
 
 function BgTxtLogoLink() {
+  // the embed's own origin, carried as config — the form is served into a host
+  // page and must not read the app's build-time env.
+  const { don } = use_donation();
   return (
-    <ExtLink href={base_url}>
+    <ExtLink href={don.base_url}>
       <span className="font-bold text-primary">Better.</span>
       <span className="font-bold text-primary">Giving</span>{" "}
       <span className="text-primary text-2xs">501(c)(3)</span>

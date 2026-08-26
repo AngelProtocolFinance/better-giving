@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
 import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
@@ -35,7 +35,7 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
           style={{
             textAlign: "center",
             fontSize: 12,
-            color: email_colors.gray_11,
+            color: flat_colors.gray_11,
           }}
         >
           Getting too many emails?{" "}
@@ -54,7 +54,7 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
       </Text>
 
       {action === "rejected" && rejection_reason && (
-        <Text style={{ color: email_colors.destructive }}>
+        <Text style={{ color: flat_colors.destructive }}>
           Reason: {rejection_reason}
         </Text>
       )}

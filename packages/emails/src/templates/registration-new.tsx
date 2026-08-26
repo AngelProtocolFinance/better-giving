@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import { Button, Text } from "react-email";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME } from "../constants";
@@ -26,8 +26,8 @@ function Jsx({ reference_id, resume_url }: IData) {
           display: "block",
           width: "100%",
           textAlign: "center",
-          backgroundColor: email_colors.primary,
-          color: email_colors.primary_fg,
+          backgroundColor: flat_colors.primary,
+          color: flat_colors.primary_fg,
           fontWeight: 600,
           fontSize: 16,
           padding: "14px 0",

@@ -35,3 +35,46 @@ describe("Field: autofill", () => {
       .toHaveAttribute("autocomplete", "off");
   });
 });
+
+describe("Field: native validation", () => {
+  it("renders a constrained text type as text, so the browser cannot block the submit in its own bubble", async () => {
+    const screen = await render(
+      <Field label="Work email" name="email" type="email" />
+    );
+    const input = screen.getByLabelText("Work email");
+
+    await expect.element(input).toHaveAttribute("type", "text");
+    await expect.element(input).toHaveAttribute("inputmode", "email");
+    await expect.element(input).toHaveAttribute("autocapitalize", "none");
+  });
+
+  it("keeps a caller's own inputMode", async () => {
+    const screen = await render(
+      <Field label="Phone" name="phone" type="tel" inputMode="numeric" />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Phone"))
+      .toHaveAttribute("inputmode", "numeric");
+  });
+
+  it("leaves a control type alone — date is the control, not a rule over free text", async () => {
+    const screen = await render(
+      <Field label="Start date" name="start" type="date" />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Start date"))
+      .toHaveAttribute("type", "date");
+  });
+
+  it("withholds required from the control, and marks it on the label instead", async () => {
+    const screen = await render(
+      <Field label="Nonprofit name" name="o_name" required />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Nonprofit name"))
+      .not.toHaveAttribute("required");
+  });
+});

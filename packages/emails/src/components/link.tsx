@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import type { ComponentProps } from "react";
 import { Link as EmailLink } from "react-email";
 
@@ -12,6 +12,6 @@ export type LinkProps = ComponentProps<typeof EmailLink>;
  */
 export function Link({ style, ...props }: LinkProps) {
   return (
-    <EmailLink {...props} style={{ color: email_colors.primary, ...style }} />
+    <EmailLink {...props} style={{ color: flat_colors.primary, ...style }} />
   );
 }

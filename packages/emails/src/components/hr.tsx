@@ -1,4 +1,4 @@
-import { email_colors } from "@better-giving/brand/email";
+import { flat_colors } from "@better-giving/brand/flat";
 import type { ComponentProps } from "react";
 import { Hr as EmailHr } from "react-email";
 
@@ -14,7 +14,7 @@ export function Hr({ style, ...props }: HrProps) {
   return (
     <EmailHr
       {...props}
-      style={{ borderTop: `1px solid ${email_colors.border}`, ...style }}
+      style={{ borderTop: `1px solid ${flat_colors.border}`, ...style }}
     />
   );
 }
