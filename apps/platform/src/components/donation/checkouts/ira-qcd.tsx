@@ -1,6 +1,7 @@
+import { ADDRESS, ADDRESS_LINES, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { Copier, LoadText } from "@better-giving/ui";
 import { CircleCheck } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { href } from "react-router";
 import { emails } from "@/constants/common";
 import { BackBtn } from "../common/back-btn";
@@ -26,9 +27,9 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
   const name = don.recipient.name;
 
   const instructions_text = [
-    "Payee name: Better Giving, Inc.",
-    "EIN: 87-3758939",
-    "Mailing address: 18 Cottekill Rd, Rosendale, NY 12472",
+    `Payee name: ${LEGAL_NAME}`,
+    `EIN: ${EIN}`,
+    `Mailing address: ${ADDRESS}`,
     `Reference: ${name}`,
     `Project URL: ${url}`,
     `Amount: $${total.toFixed(2)}`,
@@ -54,16 +55,18 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
       </p>
 
       <div className="grid gap-y-1 rounded bg-gray-3 p-3 text-sm leading-relaxed mt-6">
-        <Row label="Payee name" value="Better Giving, Inc." />
-        <Row label="EIN" value="87-3758939" />
+        <Row label="Payee name" value={LEGAL_NAME} />
+        <Row label="EIN" value={EIN} />
         <div>
           <span>Mailing address:</span>
           <span className="block pl-2">
-            Better Giving, Inc.
-            <br />
-            18 Cottekill Rd
-            <br />
-            Rosendale, NY 12472
+            {LEGAL_NAME}
+            {ADDRESS_LINES.map((line) => (
+              <Fragment key={line}>
+                <br />
+                {line}
+              </Fragment>
+            ))}
           </span>
         </div>
         <Row label="Reference" value={name} />
@@ -164,9 +167,9 @@ ${NEW_LINE}
 I would like to request a Qualified Charitable Distribution (QCD) from my IRA to support ${charity_name} (${profile_url}).${NEW_LINE}
 ${NEW_LINE}
 Please use the following information:${NEW_LINE}
-Payee name: Better Giving, Inc.${NEW_LINE}
-EIN: 87-3758939${NEW_LINE}
-Mailing address: 18 Cottekill Rd, Rosendale, NY 12472${NEW_LINE}
+Payee name: ${LEGAL_NAME}${NEW_LINE}
+EIN: ${EIN}${NEW_LINE}
+Mailing address: ${ADDRESS}${NEW_LINE}
 Reference: ${charity_name} (${profile_url})${NEW_LINE}
 Amount: $${amount.toFixed(2)}${NEW_LINE}
 ${NEW_LINE}

@@ -107,6 +107,10 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
         // a real employer, never Better Giving — naming the platform's own
         // nonprofit is what taught donors to enter who they represent
         placeholder="e.g. Microsoft"
+        // the fill rate here is what the whole matching pipeline depends
+        // on, so this field opts into autofill where the rest of the form
+        // does not
+        autoComplete="organization"
       />
 
       {don.recipient.donor_address_required && (

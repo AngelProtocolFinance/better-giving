@@ -1,3 +1,4 @@
+import { EIN, LEGAL_NAME } from "@better-giving/brand";
 import { Copier, LoadText } from "@better-giving/ui";
 import { CircleCheck } from "lucide-react";
 import { useState } from "react";
@@ -32,7 +33,7 @@ export function Stocks(props: StocksDonationDetails) {
     "Deliver to: Fidelity Investments",
     "DTC number: 0226",
     "Account number: Z40390069",
-    "Account name: Better Giving, Inc.",
+    `Account name: ${LEGAL_NAME}`,
     `Reference: ${name}`,
     `Project URL: ${url}`,
   ].join("\n");
@@ -60,7 +61,7 @@ export function Stocks(props: StocksDonationDetails) {
         <Row label="Deliver to" value="Fidelity Investments" />
         <Row label="DTC number" value="0226" />
         <Row label="Account number" value="Z40390069" />
-        <Row label="Account name" value="Better Giving, Inc." />
+        <Row label="Account name" value={LEGAL_NAME} />
         <Row label="Reference" value={name} />
         <Row label="Project URL" value={url} />
       </div>
@@ -69,8 +70,8 @@ export function Stocks(props: StocksDonationDetails) {
         You may also need the following information
       </h4>
       <span className="rounded bg-gray-3 p-3 text-sm leading-relaxed">
-        Better Giving is a nonprofit with 501(c)(3) tax-exempt status. EIN:
-        87-3758939.
+        Better Giving is a nonprofit with 501(c)(3) tax-exempt status. EIN:{" "}
+        {EIN}.
       </span>
 
       <div className="flex justify-center gap-4 mt-6">
@@ -175,12 +176,12 @@ Please process the transfer using the following instructions:${NEW_LINE}
 Deliver to: Fidelity Investments${NEW_LINE}
 DTC number: 0226${NEW_LINE}
 Account number: Z40390069${NEW_LINE}
-Account name: Better Giving, Inc.${NEW_LINE}
+Account name: ${LEGAL_NAME}${NEW_LINE}
 Reference: ${charity_name} (${profile_url})${NEW_LINE}
 Ticker: ${stock_symbol || "[STOCK_SYMBOL]"}${NEW_LINE}
 Shares: ${number_of_shares || "[NUMBER_OF_SHARES]"}${NEW_LINE}
 ${NEW_LINE}
-Better Giving EIN: 87-3758939${NEW_LINE}
+Better Giving EIN: ${EIN}${NEW_LINE}
 ${NEW_LINE}
 I have copied ${emails.hi} so the donation can be properly recognized and designated. Please let me know if you need any additional information.${NEW_LINE}
 ${NEW_LINE}

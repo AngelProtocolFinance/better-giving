@@ -104,7 +104,9 @@ export default defineConfig((config) => {
           test: {
             name: "node",
             environment: "node",
-            include: ["src/**/*.node.test.ts"],
+            // jobs/ is server-side and excluded from the browser project, so
+            // this is the only project that can carry a test for it.
+            include: ["src/**/*.node.test.ts", "jobs/**/*.node.test.ts"],
             globals: true,
           },
         },

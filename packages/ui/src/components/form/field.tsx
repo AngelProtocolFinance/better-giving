@@ -17,7 +17,7 @@ type Props<T extends InputType> = Omit<
   T extends TextArea
     ? React.TextareaHTMLAttributes<HTMLTextAreaElement>
     : React.InputHTMLAttributes<HTMLInputElement>,
-  "autoComplete" | "className" | "id" | "spellCheck" | "type"
+  "className" | "id" | "spellCheck" | "type"
 > & {
   classes?: Classes | string;
   tooltip?: ReactNode;
@@ -32,6 +32,10 @@ export function Field<T extends InputType = InputType>({
   classes,
   tooltip,
   required, //extract from props to disable native validation
+  // off by default: most fields here are somebody else's data (a nonprofit's
+  // details, a donation's recipient), which the browser must not prefill from
+  // the visitor's own saved values
+  autoComplete = "off",
   error,
   ref,
   ...props
@@ -70,7 +74,7 @@ export function Field<T extends InputType = InputType>({
         "aria-disabled": props.disabled,
         "aria-errormessage": errorId,
         className: `${style.input} field-input`,
-        autoComplete: "off",
+        autoComplete,
         spellCheck: false,
       })}
 

@@ -1,3 +1,4 @@
+import { EIN } from "@better-giving/brand";
 import { ExtLink } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import logo_white from "#/assets/images/bettergiving-logo-white.webp";
@@ -128,7 +129,7 @@ export function Footer({ classes = "", variant = "full", width }: Props) {
           <p className="text-xs/relaxed text-primary-fg/90">
             Better Giving is a 501(c)(3) nonprofit.
             <br />
-            EIN 87-3758939
+            EIN {EIN}
           </p>
           <ExtLink href={guidestar.profile} className="inline-flex">
             <img

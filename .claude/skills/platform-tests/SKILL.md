@@ -1,12 +1,12 @@
 ---
-name: test-writer
+name: platform-tests
 description: "Use when writing, modifying, or reviewing component tests, integration tests, or route tests in the apps/platform React Router v7 web app. Triggers on *.test.tsx, *.test.ts files."
 globs:
   - "apps/platform/{src,lib,.server}/**/*.test.tsx"
   - "apps/platform/{src,lib,.server}/**/*.test.ts"
 ---
 
-# Test Writer — Vitest Browser Mode
+# Platform Tests — Vitest Browser Mode
 
 **Jurisdiction: `apps/platform/`.** Every path in this skill is relative to `apps/platform/`; run the commands from there (`pnpm --filter platform exec …` from the repo root works too).
 
@@ -331,7 +331,7 @@ beforeAll(async () => {
 
 ### Queue mock (integration tests)
 
-Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). The polyfill in `setup-tests-browser.ts` populates `globalThis.process.env` from `import.meta.env` so module-load `process.env.X` reads work in chromium; the test-writer typically still mocks the queue itself to assert enqueued payloads:
+Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). The polyfill in `setup-tests-browser.ts` populates `globalThis.process.env` from `import.meta.env` so module-load `process.env.X` reads work in chromium; this skill typically still mocks the queue itself to assert enqueued payloads:
 
 `$/kit/queue` has **no `queue` export** — its exports are flat and named (`receiver`, `client`, `enqueue`, `schedule`, `don_dist`, `verify_qstash`). Mock the ones the SUT imports:
 

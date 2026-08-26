@@ -1,3 +1,4 @@
+import { EIN } from "@better-giving/brand";
 import { ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import { guidestar } from "#/constants/urls";
@@ -43,8 +44,7 @@ export function Values({ classes = "" }: IValues) {
           ))}
         </div>
         <p className="mt-8 text-center text-sm/relaxed text-gray-11 max-w-2xl mx-auto">
-          Better Giving is a registered 501(c)(3) public charity, EIN
-          87-3758939.{" "}
+          Better Giving is a registered 501(c)(3) public charity, EIN {EIN}.{" "}
           <ExtLink
             href={guidestar.profile}
             className="font-bold text-primary hover:underline"

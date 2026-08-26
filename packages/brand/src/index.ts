@@ -9,7 +9,16 @@
  */
 export const LEGAL_NAME = "Better Giving, Inc.";
 export const EIN = "87-3758939";
-export const ADDRESS = "18 Cottekill Rd, Rosendale, NY 12472";
+/**
+ * the mailing address as a donor writes it on an envelope. the lines are the
+ * source; `ADDRESS` is the one-line form the filing pack and the
+ * copy-to-clipboard strings want, joined from them so the two cannot disagree.
+ */
+export const ADDRESS_LINES = [
+  "18 Cottekill Rd",
+  "Rosendale, NY 12472",
+] as const;
+export const ADDRESS = ADDRESS_LINES.join(", ");
 
 // canonical better giving social profile urls. single source of truth shared by
 // platform (spread into its wider `socials` map alongside intercom) and the docs

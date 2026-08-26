@@ -1,4 +1,5 @@
 import { Accordion } from "@ark-ui/react/accordion";
+import { ADDRESS_LINES, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { DrawerIcon, ExtLink } from "@better-giving/ui";
 import { Fragment, type PropsWithChildren } from "react";
 import { href, Link } from "react-router";
@@ -49,7 +50,7 @@ const faqs = (_: number) => [
     paragraphs: [
       <p key={0}>
         Donations are made to Altruistic Partners Empowering Society, DBA Better
-        Giving, a registered charitable 501(c)(3) (EIN 87-3758939).
+        Giving, a registered charitable 501(c)(3) (EIN {EIN}).
       </p>,
       <p key={1}>
         <Em intensity={2}>For immediate donations</Em>, Better Giving grants out
@@ -113,11 +114,14 @@ const faqs = (_: number) => [
     paragraphs: [
       <p key={0} className="leading-normal">
         For gifts by check: Make your check out to{" "}
-        <Em classes="text-gray-12">Better Giving, Inc.</Em> and send it to:{" "}
+        <Em classes="text-gray-12">{LEGAL_NAME}</Em> and send it to:{" "}
         <Em intensity={1} classes="text-gray-12 block mt-2">
-          Better Giving, Inc.
-          <br /> 18 Cottekill Rd
-          <br /> Rosendale, NY 12472
+          {LEGAL_NAME}
+          {ADDRESS_LINES.map((line) => (
+            <Fragment key={line}>
+              <br /> {line}
+            </Fragment>
+          ))}
         </Em>
       </p>,
       <p key={1}>

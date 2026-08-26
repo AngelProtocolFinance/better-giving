@@ -27,6 +27,7 @@
     "./.server/**/*.ts",
     "./.server/**/*.tsx",
     "./plugins/**/*.ts",
+    "./jobs/**/*.ts",
     "drizzle.config.ts",
     "vite.config.ts"
   ],
