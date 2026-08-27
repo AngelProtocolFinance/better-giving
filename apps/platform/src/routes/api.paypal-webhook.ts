@@ -13,9 +13,9 @@ import {
   type IDonationSettled,
   type IDonationUpdate,
 } from "@/donations";
+import { paypal_donor_update } from "@/donations/helpers";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
 import { report_error, report_resp } from "@/errors/report";
-import { to_full_or_anonymous } from "@/helpers/name";
 import type { ISub, TInterval } from "@/subscriptions";
 import { paypal as paypal_env } from "$/env";
 import { paypal } from "$/kit/paypal";
@@ -113,34 +113,15 @@ interface ISettlement {
   c: string;
 }
 
+// paypal hands the three parts separately at every call site — an order's
+// payment source, a subscriber, a shipping address — so they are gathered here
+// rather than at each of the four
 const donor_update = (
   email: string,
   name: IName | undefined,
   address?: IAddress | undefined
-): IDonationUpdate => {
-  const {
-    address_line_1: l1,
-    address_line_2: l2,
-    admin_area_1: state,
-    admin_area_2: city,
-    postal_code: zip,
-    country_code: country,
-  } = address || {};
-
-  const update: IDonationUpdate = {};
-
-  const fn = [name?.given_name, name?.surname].filter(Boolean).join(" ") || "";
-  const str = [l1, l2].filter(Boolean).join(" ") || "";
-  if (email) update.from_email = email;
-  if (fn)
-    update.from_name = to_full_or_anonymous(name?.given_name, name?.surname);
-  if (str) update.from_addr_street = str;
-  if (city) update.from_addr_city = city;
-  if (state) update.from_addr_state = state;
-  if (zip) update.from_addr_zip_code = zip;
-  if (country) update.from_addr_country = country;
-  return update;
-};
+): IDonationUpdate =>
+  paypal_donor_update({ email_address: email, name, address });
 
 // -- signature verification --
 

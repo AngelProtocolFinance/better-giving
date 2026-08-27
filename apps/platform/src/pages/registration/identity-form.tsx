@@ -1,11 +1,5 @@
 import { RadioGroup } from "@ark-ui/react/radio-group";
-import {
-  Combo,
-  DrawerIcon,
-  Field,
-  LoadText,
-  MaskedInput,
-} from "@better-giving/ui";
+import { Field, LoadText, MaskedInput } from "@better-giving/ui";
 import { ein } from "@better-giving/ui/masks";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { ReactNode } from "react";
@@ -13,10 +7,7 @@ import { useController } from "react-hook-form";
 import type { FetcherWithComponents } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { use_submit_event } from "#/analytics";
-import {
-  countries as cmap,
-  country_names as cnames,
-} from "#/constants/countries";
+import { CountryCombo } from "#/components/country-combo";
 import type { IRegStartFv } from "@/reg";
 import { reg_start_fv } from "@/reg/schema";
 
@@ -133,31 +124,14 @@ export function IdentityForm({
           />
         ) : (
           <>
-            <Combo
+            <CountryCombo
               ref={country.ref}
               value={country.value || undefined}
               on_change={(c) => country.onChange(c ?? "")}
               required
               clearable
               label="Country of registration"
-              placeholder="Select a country"
               classes={{ container: "mt-6" }}
-              options={cnames}
-              render={(c) => (
-                <>
-                  <span className="text-2xl">{cmap[c].flag}</span>
-                  <span>{c}</span>
-                </>
-              )}
-              adornment_side="start"
-              adornment={(open) => {
-                const flag = cmap[country.value]?.flag;
-                return flag ? (
-                  <span className="text-2xl">{flag}</span>
-                ) : (
-                  <DrawerIcon is_open={open} size={20} />
-                );
-              }}
               error={errors.o_hq_country?.message}
             />
             <Field

@@ -1,16 +1,6 @@
-import {
-  Combo,
-  DrawerIcon,
-  ExtLink,
-  Honeypot,
-  LoadText,
-  RmxForm,
-} from "@better-giving/ui";
+import { ExtLink, Honeypot, LoadText, RmxForm } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
-import {
-  countries as cmap,
-  country_names as cnames,
-} from "#/constants/countries";
+import { CountryCombo } from "#/components/country-combo";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";
@@ -130,7 +120,7 @@ export function EligibilityForm({
           </p>
         </div>
 
-        <Combo
+        <CountryCombo
           ref={(el) => {
             refs.current.o_hq_country = el;
           }}
@@ -140,23 +130,6 @@ export function EligibilityForm({
           required
           clearable
           label="Country of registration"
-          placeholder="Select a country"
-          options={cnames}
-          render={(c) => (
-            <>
-              <span className="text-2xl">{cmap[c].flag}</span>
-              <span>{c}</span>
-            </>
-          )}
-          adornment_side="start"
-          adornment={(open) => {
-            const flag = cmap[country]?.flag;
-            return flag ? (
-              <span className="text-2xl">{flag}</span>
-            ) : (
-              <DrawerIcon is_open={open} size={20} />
-            );
-          }}
           error={errors?.o_hq_country}
         />
         {/* the combobox input is a search field, not the value — the selection

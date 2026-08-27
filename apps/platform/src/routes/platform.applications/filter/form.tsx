@@ -1,16 +1,10 @@
 import { Popover } from "@ark-ui/react/popover";
-import {
-  Actions,
-  Combo,
-  DateRangeField,
-  DrawerIcon,
-  Select,
-} from "@better-giving/ui";
+import { Actions, DateRangeField, Select } from "@better-giving/ui";
 import { toYYYMMDD } from "@better-giving/ui/helpers";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { FC } from "react";
 import { useController, useForm } from "react-hook-form";
-import { countries, country_names } from "#/constants/countries";
+import { CountryCombo } from "#/components/country-combo";
 import type { IRegsSearchObj } from "@/reg";
 import { statuses } from "./constants";
 import { type FV, schema } from "./schema";
@@ -60,28 +54,11 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
         }}
       >
         <div className="px-6 pt-6">
-          <Combo
+          <CountryCombo
             value={country.value || undefined}
             on_change={(c) => country.onChange(c ?? "")}
             label="Country"
-            placeholder="Select a country"
-            options={country_names}
             clearable
-            render={(c) => (
-              <>
-                <span className="text-2xl">{countries[c].flag}</span>
-                <span>{c}</span>
-              </>
-            )}
-            adornment_side="start"
-            adornment={(open) => {
-              const flag = countries[country.value]?.flag;
-              return flag ? (
-                <span className="text-2xl">{flag}</span>
-              ) : (
-                <DrawerIcon is_open={open} size={20} />
-              );
-            }}
           />
 
           <DateRangeField

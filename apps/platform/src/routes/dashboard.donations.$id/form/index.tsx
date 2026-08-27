@@ -1,8 +1,8 @@
-import { Combo, DrawerIcon, ExtLink, Field, Select } from "@better-giving/ui";
+import { ExtLink, Field, Select } from "@better-giving/ui";
 import { useController } from "react-hook-form";
 import { useFetcher, useParams } from "react-router";
 import { useRemixForm } from "remix-hook-form";
-import { countries, country_names } from "#/constants/countries";
+import { CountryCombo } from "#/components/country-combo";
 import { PRIVACY_POLICY, TERMS_OF_USE_DONOR } from "#/constants/urls";
 import { states } from "#/constants/us-states";
 import type { KycLoaderData } from "../api";
@@ -102,32 +102,15 @@ export function Form({ classes = "", user }: IForm) {
         error={errors.postal_code?.message}
       />
 
-      <Combo
+      <CountryCombo
         label="Country"
         required
         clearable
         ref={country.ref}
         value={country.value || undefined}
         on_change={(c) => country.onChange(c ?? "")}
-        placeholder="Select a country"
-        options={country_names}
         on_reset={() => resetField("us_state")}
         error={errors.country?.message}
-        render={(c) => (
-          <>
-            <span className="text-2xl">{countries[c].flag}</span>
-            <span>{c}</span>
-          </>
-        )}
-        adornment_side="start"
-        adornment={(open) => {
-          const flag = countries[country.value]?.flag;
-          return flag ? (
-            <span className="text-2xl">{flag}</span>
-          ) : (
-            <DrawerIcon is_open={open} size={20} />
-          );
-        }}
       />
       {isUS ? (
         <Select
