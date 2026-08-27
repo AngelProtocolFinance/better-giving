@@ -34,6 +34,30 @@ function normalize(err: unknown): unknown {
   return new Error(err === undefined ? "(undefined error)" : String(err));
 }
 
+/**
+ * safari refuses `ApplePaySession` when a third party embeds `/forms/:id` over
+ * plain http, and stripe's availability probe throws it inside a promise nobody
+ * owns — so it lands in the unhandled-rejection sink. nothing of ours is broken:
+ * apple pay simply doesn't render and every other method works, and http
+ * embedders are not a supported configuration.
+ *
+ * both halves are required. the name alone is a generic dom error and keying on
+ * it would bury real defects. read as plain properties rather than
+ * `instanceof DOMException` because the rejection crosses the embedder's realm,
+ * where instanceof fails — the same reasoning `normalize` already carries.
+ */
+function is_apple_pay_insecure_parent(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const { name, message } = err as { name?: unknown; message?: unknown };
+  return (
+    name === "InvalidAccessError" &&
+    typeof message === "string" &&
+    /apple pay session from a document with an insecure parent frame/i.test(
+      message
+    )
+  );
+}
+
 function capture(
   error: unknown,
   level: "error" | "warning",
@@ -74,6 +98,19 @@ export function report_degraded(
   context?: Record<string, unknown>
 ): void {
   capture(error, "warning", context);
+}
+
+/**
+ * the `unhandledrejection` sink: a rejection nobody owns, classified before it
+ * is levelled. everything unrecognised is still an error — this is a list of
+ * known third-party noise, not a filter over our own bugs.
+ */
+export function report_unhandled(reason: unknown): void {
+  if (is_apple_pay_insecure_parent(reason)) {
+    report_degraded(reason);
+    return;
+  }
+  report_error(reason);
 }
 
 // .catch-friendly variants that report + return a value.

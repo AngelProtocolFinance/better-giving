@@ -75,7 +75,7 @@ export default function Page() {
         <GrowFunds classes="bg-band py-24" />
         <OpenSource classes="surface-primary py-24" />
         <Testimonials classes="py-24" />
-        <div className="bg-band pt-22 pb-48">
+        <div className="bg-band py-22">
           <div className="page">
             <FAQ items={home_faqs} classes="max-w-3xl mx-auto" />
           </div>

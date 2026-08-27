@@ -11,7 +11,7 @@ import * as Sentry from "@sentry/react-router";
 import { StrictMode, startTransition } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { HydratedRouter } from "react-router/dom";
-import { report_error } from "@/errors/report";
+import { report_error, report_unhandled } from "@/errors/report";
 
 // only report from prod — preview/dev noise drowns out real signal.
 const stage = import.meta.env.VITE_STAGE;
@@ -26,7 +26,7 @@ if (dsn && stage === "production") {
   });
 
   window.addEventListener("unhandledrejection", (e) => {
-    report_error(e.reason);
+    report_unhandled(e.reason);
   });
   window.addEventListener("error", (e) => {
     report_error(e.error ?? e.message, {
