@@ -70,13 +70,17 @@ beforeEach(() => {
 });
 
 describe("api.nowpayments-webhook action", () => {
-  it("returns a handled status and reports when the body isn't json", async () => {
+  // the signature header here is arbitrary and never checked: the parse runs
+  // first, so this branch is the one an anonymous caller reaches. both halves
+  // of the assertion are the point — the status, so nowpayments stops retrying
+  // a payload no retry can fix, and the silence, so a stranger cannot page us.
+  it("returns 400 unreported when the body isn't json", async () => {
     const res = await invoke(
       post("not-json", { "x-nowpayments-sig": "deadbeef" })
     );
 
-    expect(res.status).toBe(500);
-    expect(capture_exception_mock).toHaveBeenCalledOnce();
+    expect(res.status).toBe(400);
+    expect(capture_exception_mock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the signature header is absent", async () => {

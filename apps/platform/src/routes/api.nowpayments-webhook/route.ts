@@ -16,13 +16,25 @@ export async function action({ request }: Route.ActionArgs) {
 
   const body = await request.text();
 
+  // a body that isn't json is permanent — redelivery cannot make it parse — so
+  // it answers 400 like the two branches around it rather than a 5xx, which
+  // nowpayments would retry forever.
+  //
+  // unreported for the same reason the signature mismatch below is: the
+  // signature is computed over the *parsed* payload, so this runs before
+  // anything has proved the caller holds the ipn secret, and an anonymous
+  // request must not be able to page the team. logged, so a genuine change in
+  // what nowpayments sends is still visible as a rate.
+  let payment: NP.PaymentPayload;
+  try {
+    payment = JSON.parse(body || "{}");
+  } catch (err) {
+    console.warn("nowpayments-webhook: unparseable body", err);
+    return new Response("invalid request", { status: 400 });
+  }
+
   try {
     /// hash payload ///
-    // inside the try: a malformed body throws here, and that must land in the
-    // catch below (reported, with a response) instead of escaping unhandled
-    // into a generic framework 500 that never reaches sentry.
-    const payment: NP.PaymentPayload = JSON.parse(body || "{}");
-
     const payment_sorted: any = {};
     for (const [k, v] of Object.entries(payment).sort(([a], [b]) =>
       a.localeCompare(b)

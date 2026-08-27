@@ -84,6 +84,14 @@
       // validate origin
       if (e.origin !== script_origin) return;
 
+      // the sender must be this iframe. every listener on the page hears every
+      // message, and two embeds of the same form share both an origin and a
+      // form_id, so neither check above separates them — each handler then
+      // sizes its own frame to whatever the other one asked for. the redirect
+      // branch is worse: the handler acks the frame it owns, so a frame that
+      // never asked to leave stands its fallback down and waits.
+      if (e.source !== iframe.contentWindow) return;
+
       // validate message structure and form_id
       if (e.data?.form_id !== form_id) return;
 
