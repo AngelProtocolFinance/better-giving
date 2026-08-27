@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -8,37 +8,47 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  role: text("role").default("user"),
-  first_name: text("first_name").notNull(),
-  last_name: text("last_name").notNull(),
-  referral_code: text("referral_code").unique(),
-  pref_currency: text("pref_currency").default("usd"),
-  avatar_url: text("avatar_url"),
-  pay_id: text("pay_id"),
-  pay_min: integer("pay_min").default(0),
-  // document-group eid of the completed w9/w8ben — what the download route
-  // resolves ownership against.
-  w_form: text("w_form"),
-  // weld-data eid of the submission the server minted for this user, held from
-  // the mint until the form comes back completed. a different anvil eid kind
-  // than `w_form`: the two are not interchangeable in any anvil call.
-  w_form_weld_eid: text("w_form_weld_eid"),
-  signup_date: text("signup_date"),
-  banned: boolean("banned").default(false),
-  banReason: text("ban_reason"),
-  banExpires: timestamp("ban_expires"),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    role: text("role").default("user"),
+    first_name: text("first_name").notNull(),
+    last_name: text("last_name").notNull(),
+    referral_code: text("referral_code").unique(),
+    pref_currency: text("pref_currency").default("usd"),
+    avatar_url: text("avatar_url"),
+    pay_id: text("pay_id"),
+    pay_min: integer("pay_min").default(0),
+    // document-group eid of the completed w9/w8ben — what the download route
+    // resolves ownership against.
+    w_form: text("w_form"),
+    // weld-data eid of the submission the server minted for this user, held from
+    // the mint until the form comes back completed. a different anvil eid kind
+    // than `w_form`: the two are not interchangeable in any anvil call.
+    w_form_weld_eid: text("w_form_weld_eid"),
+    signup_date: text("signup_date"),
+    banned: boolean("banned").default(false),
+    banReason: text("ban_reason"),
+    banExpires: timestamp("ban_expires"),
+  },
+  (t) => [
+    // the anvil-doc download guard resolves ownership by eid on every request
+    // (`routes/api.anvil-doc.$eid`), which is what made this column hot. partial
+    // because almost every row is null — only a referrer who has signed a w-9
+    // carries one, and a null pays nothing to skip.
+    index("user_w_form_idx").on(t.w_form).where(sql`${t.w_form} is not null`),
+  ]
+);
 
 export const session = pgTable(
   "session",

@@ -26,7 +26,7 @@ export function VideoPreview(props: IMedia) {
               measures 2.15:1 on white; --warning-subtle-fg is the warning ink
               (5.70:1). stroke matches so the whole glyph reads as one state. */}
           <Star
-            size={19}
+            size={16}
             className={`${
               props.featured
                 ? "fill-warning-subtle-fg stroke-warning-subtle-fg"
@@ -43,7 +43,7 @@ export function VideoPreview(props: IMedia) {
               prev_url: props.url,
             }).toString(),
           }}
-          className="p-1.5 text-lg rounded-full hover:bg-secondary group aria-disabled:text-gray-11"
+          className="glyph-btn p-1.5 hover:bg-secondary group aria-disabled:text-gray-11"
         >
           <Pencil size={16} />
         </Link>
@@ -55,7 +55,7 @@ export function VideoPreview(props: IMedia) {
           id={props.id}
           disabled={allControlsDisabled}
         >
-          <Minus />
+          <Minus size={16} />
         </CRUDBtn>
       </div>
       {/** render only thumbnails on lists */}
@@ -78,10 +78,10 @@ function CRUDBtn({ className, children, featured, ...props }: ICRUDBtn) {
       <button
         type="submit"
         {...props}
-        className={`p-1.5 text-lg rounded-full hover:bg-secondary group disabled:text-gray-11 group aria-disabled:text-gray-11 ${className}`}
+        className={`glyph-btn p-1.5 hover:bg-secondary group disabled:text-gray-11 group aria-disabled:text-gray-11 ${className}`}
       >
         {fetcher.state === "submitting" ? (
-          <LoaderCircle className="animate-spin" />
+          <LoaderCircle size={16} className="animate-spin" />
         ) : (
           children
         )}
