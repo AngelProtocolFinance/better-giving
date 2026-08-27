@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { to_full_or_anonymous } from "../helpers/name";
-import type { IFrom, TStatus } from "./interfaces";
+import type { IDonationUpdate, IFrom, TStatus } from "./interfaces";
 import type { IAmount, IDonor } from "./schema";
 
 export const amnt_sum = ({ base, tip, fee_allowance: fa }: IAmount): number => {
@@ -18,6 +18,68 @@ export const to_from = (donor: IDonor): IFrom => {
     from_addr_zip_code: donor.address?.zip_code,
     from_addr_country: donor.address?.country,
   };
+};
+
+/**
+ * the payer parts paypal reports. structural rather than borrowed from the sdk
+ * because the two callers read two different paypal shapes — a capture
+ * response's `payment_source.paypal|venmo` and a webhook event's payer — and
+ * only these fields are common to both.
+ */
+export interface IPaypalPayer {
+  email_address?: string;
+  name?: { given_name?: string; surname?: string };
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    /** state / province */
+    admin_area_1?: string;
+    /** city */
+    admin_area_2?: string;
+    postal_code?: string;
+    country_code?: string;
+  };
+}
+
+/**
+ * what paypal knows about the payer, as a donation patch.
+ *
+ * every part is optional and independently present, so each is written only
+ * when it arrives — the address excepted, which is written as a unit.
+ */
+export const paypal_donor_update = (payer: IPaypalPayer): IDonationUpdate => {
+  const { email_address: email, name, address: addr } = payer;
+  const update: IDonationUpdate = {};
+
+  if (email) update.from_email = email;
+
+  // guard the raw parts — `to_full_or_anonymous` defaults to "Anonymous",
+  // which would clobber the form-entered name recorded at intent time
+  if (name?.given_name || name?.surname) {
+    update.from_name = to_full_or_anonymous(name.given_name, name.surname);
+  }
+
+  // the address is ONE value, not five. `donation_update` patches the addr
+  // jsonb key by key, so writing the parts independently merges paypal's
+  // record into whatever the donor typed at intent time — a payer carrying
+  // only a country stamps it onto the form's street, city and zip, and the tax
+  // receipt then names an address that belongs to nobody. so paypal's address
+  // replaces the stored one whole, or none of it is touched; the empty strings
+  // are what clear a part paypal does not have, and every consumer filters
+  // them out. `street || city` is the same has-an-address test
+  // `.server/pg/queries/donation` runs on the way in.
+  const street = [addr?.address_line_1, addr?.address_line_2]
+    .filter(Boolean)
+    .join(" ");
+  if (street || addr?.admin_area_2) {
+    update.from_addr_street = street;
+    update.from_addr_city = addr?.admin_area_2 ?? "";
+    update.from_addr_state = addr?.admin_area_1 ?? "";
+    update.from_addr_zip_code = addr?.postal_code ?? "";
+    update.from_addr_country = addr?.country_code ?? "";
+  }
+
+  return update;
 };
 
 export const status_flags: { [key in TStatus]: string } = {

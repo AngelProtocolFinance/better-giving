@@ -88,12 +88,36 @@ describe("capture_order donor patch", () => {
     expect(update_arg()).not.toHaveProperty("from_name");
   });
 
-  it("skips the update entirely when no email is returned", async () => {
+  // the email is not what carries the rest of the record — venmo and a paypal
+  // account with a withheld email both report a payer name without one
+  it("writes a name paypal returns with no email beside it", async () => {
     capture_order_mock.mockResolvedValue({
       payment_source: { paypal: { name: { given_name: "Jane" } } },
     });
 
     await capture_order({ order_id: "o5", don_id: "d5" });
+
+    expect(update_arg()).toEqual({ from_name: "Jane" });
+  });
+
+  // the donor typed an address at intent time; a country on its own would
+  // otherwise be merged onto their street, city and zip
+  it("leaves the address alone when paypal has neither street nor city", async () => {
+    capture_order_mock.mockResolvedValue({
+      payment_source: {
+        paypal: { email_address: "jane@b.co", address: { country_code: "GB" } },
+      },
+    });
+
+    await capture_order({ order_id: "o6", don_id: "d6" });
+
+    expect(update_arg()).toEqual({ from_email: "jane@b.co" });
+  });
+
+  it("skips the update entirely when there is nothing to write", async () => {
+    capture_order_mock.mockResolvedValue({ payment_source: { paypal: {} } });
+
+    await capture_order({ order_id: "o7", don_id: "d7" });
 
     expect(donation_update_mock).not.toHaveBeenCalled();
   });

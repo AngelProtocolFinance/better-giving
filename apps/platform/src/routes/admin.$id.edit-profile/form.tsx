@@ -1,8 +1,6 @@
 import {
   Actions,
-  Combo,
   Confirmed,
-  DrawerIcon,
   Form as F,
   Field,
   Group,
@@ -15,9 +13,10 @@ import {
   UrlInput,
 } from "@better-giving/ui";
 import { href, Link, Outlet } from "react-router";
+import { CountryCombo } from "#/components/country-combo";
 import { ImgEditor } from "#/components/img-editor";
 import { RichText } from "#/components/rich-text";
-import { countries, country_names } from "#/constants/countries";
+import { country_names } from "#/constants/countries";
 import { emails } from "@/constants/common";
 import type { EndowDesignation } from "@/npo";
 import type { OrgDesignation } from "@/schemas";
@@ -200,31 +199,14 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           option_disp={(v) => v}
         />
 
-        <Combo
+        <CountryCombo
           required
           clearable
           label="Headquarters"
           value={rhf.hqCountry.value || undefined}
           on_change={(c) => rhf.hqCountry.onChange(c ?? "")}
-          placeholder="Select a country"
-          options={country_names}
           error={rhf.errors.hq_country?.message}
           ref={rhf.hqCountry.ref}
-          render={(c) => (
-            <>
-              <span className="text-2xl">{countries[c].flag}</span>
-              <span>{c}</span>
-            </>
-          )}
-          adornment_side="start"
-          adornment={(open) => {
-            const flag = countries[rhf.hqCountry.value]?.flag;
-            return flag ? (
-              <span className="text-2xl">{flag}</span>
-            ) : (
-              <DrawerIcon is_open={open} size={20} />
-            );
-          }}
         />
         <Label className="-mb-4">Active countries</Label>
         <MultiCombo
