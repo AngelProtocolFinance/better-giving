@@ -78,3 +78,26 @@ describe("Field: native validation", () => {
       .not.toHaveAttribute("required");
   });
 });
+
+describe("Field: error announcement", () => {
+  // `aria-errormessage` is the right relationship and several screen readers
+  // ignore it, so the description is what actually reaches the reader.
+  it("names the message as the input's description", async () => {
+    const screen = await render(
+      <Field label="Work email" name="email" error="Enter a valid address" />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Work email"))
+      .toHaveAccessibleDescription("Enter a valid address");
+  });
+
+  // conditional, so a valid field is not described by its own empty paragraph
+  it("describes nothing when there is no error", async () => {
+    const screen = await render(<Field label="Work email" name="email" />);
+
+    await expect
+      .element(screen.getByLabelText("Work email"))
+      .toHaveAccessibleDescription("");
+  });
+});

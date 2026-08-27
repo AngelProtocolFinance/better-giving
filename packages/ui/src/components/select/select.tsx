@@ -5,6 +5,7 @@ import {
 import {
   type ReactNode,
   type Ref,
+  useId,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -37,6 +38,7 @@ export function Select<T extends string>({
   ...props
 }: Props<T> & { ref?: Ref<Pick<HTMLButtonElement, "focus" | "scrollTo">> }) {
   const cls = unpack(props.classes);
+  const err_id = useId();
   const btn_ref = useRef<HTMLButtonElement>(null);
   useImperativeHandle(ref, () => ({
     focus: () => btn_ref.current?.focus(),
@@ -77,6 +79,7 @@ export function Select<T extends string>({
       <ArkSelect.Control>
         <ArkSelect.Trigger
           ref={btn_ref}
+          aria-describedby={props.error ? err_id : undefined}
           className={`${cls.button} selector-btn field-input focus-visible:outline-2 data-[state=open]:outline-2 outline-ring`}
         >
           {props.value != null ? (
@@ -113,7 +116,11 @@ export function Select<T extends string>({
           </ArkSelect.Item>
         ))}
       </Popup>
-      <p className="field-err mt-1 empty:hidden">{props.error}</p>
+      {/* named by the trigger's `aria-describedby` above: zag's select puts
+          `aria-invalid` on the trigger and nothing that says why. */}
+      <p id={err_id} className="field-err mt-1 empty:hidden">
+        {props.error}
+      </p>
       {props.children?.(props.value)}
     </ArkSelect.Root>
   );

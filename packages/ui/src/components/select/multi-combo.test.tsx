@@ -129,3 +129,38 @@ describe("MultiCombo", () => {
       .toBeVisible();
   });
 });
+
+// same gap as `Combo`: the control paints `aria-invalid` and the message sits
+// under it unlinked, because zag's input takes no describedby off the field.
+describe("MultiCombo: error announcement", () => {
+  test("names the message as the input's description", async () => {
+    const screen = await render(
+      <MultiCombo
+        label="Countries"
+        values={[]}
+        options={countries}
+        on_change={() => {}}
+        error="Pick at least one"
+      />
+    );
+
+    await expect
+      .element(screen.getByRole("combobox"))
+      .toHaveAccessibleDescription("Pick at least one");
+  });
+
+  test("describes nothing when there is no error", async () => {
+    const screen = await render(
+      <MultiCombo
+        label="Countries"
+        values={[]}
+        options={countries}
+        on_change={() => {}}
+      />
+    );
+
+    await expect
+      .element(screen.getByRole("combobox"))
+      .toHaveAccessibleDescription("");
+  });
+});

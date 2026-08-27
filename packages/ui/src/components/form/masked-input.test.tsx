@@ -322,3 +322,41 @@ describe("MaskedInput: disabled", () => {
       .toHaveTextContent("yes");
   });
 });
+
+describe("MaskedInput: error announcement", () => {
+  // `aria-errormessage` is the right relationship and several screen readers
+  // ignore it, so the description is what actually reaches the reader.
+  it("names the message as the input's description", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        error="Enter a valid EIN"
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription("Enter a valid EIN");
+  });
+
+  // conditional, so a valid field is not described by its own empty paragraph
+  it("describes nothing when there is no error", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription("");
+  });
+});

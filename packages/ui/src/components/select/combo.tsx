@@ -1,7 +1,14 @@
 import { Combobox } from "@ark-ui/react/combobox";
 import { useFilter } from "@ark-ui/react/locale";
 import { X } from "lucide-react";
-import { type ReactNode, type Ref, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type Ref,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ornament_end_cls,
   ornament_end_inboard_cls,
@@ -98,6 +105,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
   const opt = use_opt(p);
   const src = use_source(p.options);
   const [query, set_query] = useState("");
+  const err_id = useId();
 
   const limit = p.limit ?? RESULT_LIMIT;
   const match = p.filter ?? contains;
@@ -154,6 +162,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
       label={p.label}
       required={p.required}
       error={p.error}
+      error_id={err_id}
       disabled={disabled}
       classes={{ container: p.classes?.container, label: p.classes?.label }}
     >
@@ -194,6 +203,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
             ref={ref}
             placeholder={p.placeholder}
             aria-required={p.required || undefined}
+            aria-describedby={p.error ? err_id : undefined}
             spellCheck={false}
             className={input_cls}
           />

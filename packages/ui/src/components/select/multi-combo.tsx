@@ -5,6 +5,7 @@ import {
   type PropsWithChildren,
   type ReactNode,
   type Ref,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -41,6 +42,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
   const { contains } = useFilter({ sensitivity: "base" });
   const opt = use_opt(p);
   const [query, set_query] = useState("");
+  const err_id = useId();
 
   const filtered = useMemo(
     () =>
@@ -70,6 +72,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
       label={p.label}
       required={p.required}
       error={p.error}
+      error_id={err_id}
       disabled={p.disabled}
       classes={{ container: p.classes?.container, label: p.classes?.label }}
     >
@@ -112,6 +115,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
                 ref={ref}
                 placeholder={p.placeholder}
                 aria-required={p.required || undefined}
+                aria-describedby={p.error ? err_id : undefined}
                 className="appearance-none bg-transparent first:pl-3 focus:outline-hidden h-10"
               />
             </div>

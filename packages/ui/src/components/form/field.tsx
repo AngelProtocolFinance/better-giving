@@ -98,7 +98,12 @@ export function Field<T extends InputType = InputType>({
         id,
         "aria-invalid": !!error,
         "aria-disabled": props.disabled,
+        // both, because neither alone is enough: `aria-errormessage` is the
+        // right relationship but several screen readers still ignore it, and
+        // `aria-describedby` is the one they all honour. conditional so a
+        // field with no error is not described by an empty paragraph.
         "aria-errormessage": errorId,
+        "aria-describedby": error ? errorId : undefined,
         className: `${style.input} field-input`,
         autoComplete,
         spellCheck: false,

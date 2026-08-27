@@ -134,7 +134,10 @@ export function MaskedInput(props: Props) {
         value={props.value}
         aria-invalid={!!props.error}
         readOnly={props.disabled}
+        // see `field.tsx`: the errormessage relationship is the correct one and
+        // the describedby is the one every screen reader reads
         aria-errormessage={errorId}
+        aria-describedby={props.error ? errorId : undefined}
         className={`${style.input} field-input`}
         autoComplete="off"
         spellCheck={false}

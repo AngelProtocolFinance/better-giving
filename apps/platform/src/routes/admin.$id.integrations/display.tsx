@@ -1,4 +1,5 @@
-import { Check, Copy, Eye, EyeOff } from "lucide-react";
+import { Copier } from "@better-giving/ui";
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
@@ -7,17 +8,13 @@ interface Props {
 }
 export function Display({ apiKey, classes = "" }: Props) {
   const [keyShown, showKey] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className={classes}>
-      <div className="flex items-center space-x-2">
+      {/* gap, not `space-x`: `Copier` renders its root `display: contents`, and
+          a margin on a contents box is dropped — the sibling-margin spelling
+          would silently lose the space before the copy button. */}
+      <div className="flex items-center gap-2">
         <input
           type={keyShown ? "text" : "password"}
           value={apiKey}
@@ -32,18 +29,11 @@ export function Display({ apiKey, classes = "" }: Props) {
         >
           {keyShown ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
-        <button
-          type="button"
-          onClick={copyToClipboard}
-          className="btn btn-field btn-icon btn-secondary"
-          aria-label="Copy API Key"
-        >
-          {copied ? (
-            <Check size={16} className="text-success" />
-          ) : (
-            <Copy size={16} />
-          )}
-        </button>
+        <Copier
+          text={apiKey}
+          label="Copy API Key"
+          classes={{ container: "btn btn-field btn-icon btn-secondary" }}
+        />
       </div>
     </div>
   );

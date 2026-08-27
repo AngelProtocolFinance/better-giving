@@ -5,6 +5,14 @@ interface IFieldFrame {
   label?: ReactNode;
   required?: boolean;
   error?: string;
+  /** id for the error paragraph, so the control can point `aria-describedby`
+   * at it. ark wires that itself only between `Field.Root` and
+   * `Field.ErrorText`, and zag's combobox input never reads it off the field
+   * context either way — it takes only the id, disabled, readOnly, required
+   * and invalid. so the message renders, is never named by anything, and a
+   * screen reader announces an invalid control with no reason. the caller
+   * mints the id because the caller is what owns the control element. */
+  error_id?: string;
   disabled?: boolean;
   classes?: { container?: string; label?: string };
   children: ReactNode;
@@ -27,7 +35,11 @@ interface IFieldFrame {
  */
 export function FieldFrame({ label, ...p }: IFieldFrame) {
   const container = `grid content-start ${p.classes?.container ?? ""}`;
-  const err = <p className="field-err mt-1 empty:hidden">{p.error}</p>;
+  const err = (
+    <p id={p.error_id} className="field-err mt-1 empty:hidden">
+      {p.error}
+    </p>
+  );
 
   if (label == null) {
     return (

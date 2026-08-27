@@ -594,3 +594,39 @@ describe("Combo over an async source", () => {
     expect(search).toHaveBeenCalledTimes(1);
   });
 });
+
+// zag's combobox input carries `aria-invalid` but never points at a reason:
+// it reads only id, disabled, readOnly, required and invalid off the field
+// context, so nothing links the message to the control unless we do.
+describe("Combo: error announcement", () => {
+  test("names the message as the input's description", async () => {
+    const screen = await render(
+      <Combo
+        label="Country"
+        value={undefined}
+        on_change={() => {}}
+        options={countries}
+        error="Pick a country"
+      />
+    );
+
+    await expect
+      .element(screen.getByRole("combobox"))
+      .toHaveAccessibleDescription("Pick a country");
+  });
+
+  test("describes nothing when there is no error", async () => {
+    const screen = await render(
+      <Combo
+        label="Country"
+        value={undefined}
+        on_change={() => {}}
+        options={countries}
+      />
+    );
+
+    await expect
+      .element(screen.getByRole("combobox"))
+      .toHaveAccessibleDescription("");
+  });
+});
