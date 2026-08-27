@@ -819,6 +819,87 @@ and Tailwind's extractor cannot tell a needle from a call site. `src/index.css`
 therefore carries an `@source not` for `src/__tests__/**/*.node.test.ts`; without
 it the closed namespace still emits a rule for each name it exists to strip.
 
+## Motion — three speeds, three curves, and a default that is now stated
+
+Values live in `packages/ui/src/styles/theme.css` beside the animation
+keyframes, for the same reason the shadow ladder does: a duration is not a
+color, and `colors.css` is parsed token-by-token by `colors.test.ts`.
+
+The foundation was **half closed** before this: eight `--animate-*` keyframes
+were a real named set, but nothing named a speed or an easing, so the majority
+of the app's `transition-*` utilities carried neither. Those read Tailwind's
+`--default-transition-duration` (150ms) and `--default-transition-timing-function`
+(the in-out curve) — correct values, taken by accident, and unretunable because
+nothing in this repo declared them.
+
+### The speed ladder
+
+Three steps, which are the three values the app and the keyframes already ran
+at. This named them; it did not retune them, so the day the ladder landed
+nothing moved.
+
+| step | value | what runs at it |
+| --- | --- | --- |
+| `duration-fast` | 150ms | a control acknowledging you — hover, focus, checked, a thumb sliding — and a popup opening |
+| `duration-base` | 200ms | an element entering or leaving the page: the scrim, a floating label |
+| `duration-slow` | 300ms | something changing size in the flow: the accordion, a card's lift on hover |
+
+**A transition that wants the house speed writes no duration at all.** That is
+what `--default-transition-duration: var(--duration-fast)` buys, and it is why
+the ladder has three steps rather than the six a full scale would carry: the
+common case is not spelled, so the only names needed are the two exceptions.
+
+### The curves are Tailwind's three, and each one has a job
+
+Easing **is** a real theme namespace, and the three curves it ships are exactly
+the three roles this system has, so the set is inherited rather than
+redeclared — this is the one foundation where the stock set was already right.
+
+| curve | when |
+| --- | --- |
+| `ease-out` | something entering — `--animate-overlay-in`, `--animate-popup-in` |
+| `ease-in` | something leaving — `--animate-overlay-out`, `--animate-popup-out` |
+| `ease-in-out` | a control moving between two resting states: a hover colour, a toggle thumb, a chevron flipping |
+
+The openness audit read the app's fourteen `ease-in-out` uses as contradicting
+the enter/exit pairing the keyframes use. They do not: **every one of them was
+the third kind**, a state change between two resting positions. What was missing
+was the rule, not the discipline. With `--default-transition-timing-function`
+bound to `ease-in-out`, all fourteen said out loud what the default already
+said, so they were dropped — which leaves an explicit `ease-out` or `ease-in` at
+a call site meaning something again.
+
+### Duration is the one axis with no namespace to close
+
+Tailwind gives `--color-*`, `--radius-*`, `--text-*` and `--shadow-*` a theme
+namespace, so each of those closes by resetting to `initial`. It gives duration
+**none** — `duration-<number>` is a bare value parsed at the call site, not a
+scale lookup. There is nothing to reset and `duration-200` will always compile.
+
+So the three steps are bound by `@utility` in `styles/utilities.css`, the same
+way `rounded` is bound to `--radius`, and what keeps a literal out of a call
+site is the sweep and review rather than the compiler. That is a weaker
+guarantee than the closed ladders have, and it is written down here so a later
+reader finds the limit rather than assuming the same protection.
+
+### Raw transition strings read the tokens too
+
+Three sites cannot use a utility — `components/nav-progress.tsx` builds a
+`transition` string in JS for an inline `style`, and `.label-floating` in
+`components.css` is a CSS rule. Both spell `var(--duration-*) var(--ease-*)`
+rather than literal seconds, which works because these are `@theme` variables
+and therefore reach `:root` at runtime. A literal there would be invisible to
+every sweep this file describes.
+
+### What is still open
+
+**Whether a popup animates at all, and a `prefers-reduced-motion` guard.** Of
+the app's dropdown implementations only some animate open/close, none checks
+the media query, and the shared popup shell left motion out rather than have a
+builder pick it. Both are design calls, both are parked, and neither is blocked
+by this ladder — naming the speeds is what a decision about them would have had
+to do first.
+
 ## Decisions that look like bugs
 
 Recorded so they are not "fixed" by someone reading them as oversights.

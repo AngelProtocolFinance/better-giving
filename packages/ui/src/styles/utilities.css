@@ -32,6 +32,24 @@
   border-end-end-radius: var(--radius);
 }
 
+/* the three named speeds from theme.css, as the names a call site writes.
+   tailwind's own `duration-*` is a bare-value utility with no theme namespace
+   behind it, so there is no scale to declare a ladder in and none to reset:
+   `duration-200` compiles regardless, and the sweep is what rejects it. these
+   three exist so that a transition which needs to say a speed out loud has a
+   name to say it with, and so the value moves in one place. a transition that
+   wants the house speed says nothing at all and reads
+   --default-transition-duration. */
+@utility duration-fast {
+  transition-duration: var(--duration-fast);
+}
+@utility duration-base {
+  transition-duration: var(--duration-base);
+}
+@utility duration-slow {
+  transition-duration: var(--duration-slow);
+}
+
 @utility date-input {
   &::-webkit-calendar-picker-indicator {
     @apply absolute w-full opacity-0;

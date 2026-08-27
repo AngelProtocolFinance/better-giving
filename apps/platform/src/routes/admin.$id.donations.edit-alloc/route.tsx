@@ -45,8 +45,8 @@ function Content(props: IAllocation) {
         onCheckedChange={(e) => set_is_custom(e.checked)}
         className="flex items-center gap-x-2 mt-4"
       >
-        <Switch.Control className="group relative flex h-6 w-10 rounded-full bg-gray-3 p-1 transition-colors duration-200 ease-in-out focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 data-[state=checked]:bg-primary inset-shadow-track">
-          <Switch.Thumb className="pointer-events-none inline-block size-4 translate-x-0 rounded-full bg-panel ring-0 shadow-track-fill transition duration-200 ease-in-out group-data-[state=checked]:translate-x-4" />
+        <Switch.Control className="group relative flex h-6 w-10 rounded-full bg-gray-3 p-1 transition-colors duration-base focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 data-[state=checked]:bg-primary inset-shadow-track">
+          <Switch.Thumb className="pointer-events-none inline-block size-4 translate-x-0 rounded-full bg-panel ring-0 shadow-track-fill transition duration-base group-data-[state=checked]:translate-x-4" />
         </Switch.Control>
         <Switch.Label>Set custom allocation</Switch.Label>
         <Switch.HiddenInput />

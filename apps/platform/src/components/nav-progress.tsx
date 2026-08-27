@@ -52,7 +52,9 @@ export function NavProgress() {
       style={{
         opacity: phase === "completing" ? 0 : 1,
         transition:
-          phase === "completing" ? "opacity 0.3s 0.1s ease-in" : undefined,
+          phase === "completing"
+            ? "opacity var(--duration-slow) 0.1s var(--ease-in)"
+            : undefined,
       }}
     >
       <Progress.Track className="w-full h-full">
@@ -61,8 +63,8 @@ export function NavProgress() {
           style={{
             transition:
               phase === "completing"
-                ? "width 0.15s ease-out"
-                : "width 0.3s ease-out",
+                ? "width var(--duration-fast) var(--ease-out)"
+                : "width var(--duration-slow) var(--ease-out)",
           }}
         />
       </Progress.Track>

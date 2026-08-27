@@ -414,6 +414,42 @@
   --z-index-floating: 60; /* menu, popup, tooltip, toast — above an open modal */
   --z-index-top: 100; /* the one step above everything: route-load progress */
 
+  /* the speed ladder. three steps, and they are the three values the app and
+     the keyframes below already ran at — the ladder names them, it does not
+     design them.
+
+     the two --default-transition-* keys carry more than their two lines
+     suggest: the overwhelming majority of the app's transitions name neither a
+     duration nor an easing, so every one of them reads these. tailwind's own
+     defaults are 150ms and its in-out curve, which is what an unspelled
+     transition takes while nothing here declares them — the right values,
+     arrived at by accident and retunable nowhere.
+
+     duration is the one axis on this page tailwind gives no theme NAMESPACE
+     for — `duration-<number>` is a bare value, not a scale lookup — so there
+     is nothing to reset to `initial` and `duration-200` still compiles. the
+     three steps are bound to `duration-fast|base|slow` by @utility in
+     styles/utilities.css, the same way `rounded` is bound to --radius, and
+     the sweep rather than the compiler is what keeps a literal out of a call
+     site.
+
+     easing is a real namespace, and tailwind's three curves are exactly the
+     three roles this system has, so the set is inherited unchanged rather
+     than redeclared:
+       ease-out     something entering        (--animate-*-in below)
+       ease-in      something leaving         (--animate-*-out below)
+       ease-in-out  a control moving between two resting states — a hover
+                    colour, a toggle thumb, a chevron flipping
+     the third is the default, so a call site writes no easing for it at all —
+     which is what keeps an explicit ease-out or ease-in meaning enter or exit
+     and nothing else. */
+  --duration-fast: 150ms; /* a control acknowledging you, and a popup */
+  --duration-base: 200ms; /* an element entering or leaving the page */
+  --duration-slow: 300ms; /* something changing size in the flow */
+
+  --default-transition-duration: var(--duration-fast);
+  --default-transition-timing-function: var(--ease-in-out);
+
   /*
    * ark overlay/accordion animations.
    * inline `transition-[...] data-[state=closed]:...` only animates exit;
@@ -422,12 +458,12 @@
    * for accordion: `data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up`
    * with `overflow-hidden` on item-content (--height is set during transitions).
    */
-  --animate-overlay-in: overlay-in 200ms ease-out;
-  --animate-overlay-out: overlay-out 200ms ease-in;
-  --animate-popup-in: popup-in 150ms ease-out;
-  --animate-popup-out: popup-out 150ms ease-in;
-  --animate-accordion-down: accordion-down 300ms ease-out;
-  --animate-accordion-up: accordion-up 300ms ease-out;
+  --animate-overlay-in: overlay-in var(--duration-base) var(--ease-out);
+  --animate-overlay-out: overlay-out var(--duration-base) var(--ease-in);
+  --animate-popup-in: popup-in var(--duration-fast) var(--ease-out);
+  --animate-popup-out: popup-out var(--duration-fast) var(--ease-in);
+  --animate-accordion-down: accordion-down var(--duration-slow) var(--ease-out);
+  --animate-accordion-up: accordion-up var(--duration-slow) var(--ease-out);
   /* ark marquee: vars (--marquee-duration/delay/loop-count) provided by machine */
   --animate-marquee-y: marqueeY var(--marquee-duration) linear
     var(--marquee-delay) var(--marquee-loop-count);

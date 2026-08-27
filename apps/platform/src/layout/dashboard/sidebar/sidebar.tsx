@@ -34,7 +34,7 @@ export function Sidebar({
                 key={`nav_link-${link.to}`}
                 to={link.to}
                 className={({ isActive, isPending }) =>
-                  `grid grid-cols-subgrid col-span-2 items-center py-3 px-5 font-bold text-sm hover:text-primary transition ease-in-out duration-300 aria-disabled:text-gray-11 aria-disabled:pointer-events-none
+                  `grid grid-cols-subgrid col-span-2 items-center py-3 px-5 font-bold text-sm hover:text-primary transition duration-slow aria-disabled:text-gray-11 aria-disabled:pointer-events-none
                 ${isActive ? "pointer-events-none text-primary" : ""} ${isPending ? "pointer-events-none text-gray-11" : ""}`
                 }
                 onClick={onChange}

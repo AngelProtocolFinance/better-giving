@@ -13,10 +13,10 @@ export function CpfToggle({ classes = "", checked, checked_changed }: Props) {
       onCheckedChange={(e) => checked_changed(e.checked)}
       className={`group ${classes} gap-x-1 flex items-center text-sm justify-self-start`}
     >
-      <Switch.Control className="group relative text-xs flex items-center h-lh w-8 rounded-full bg-gray-3 p-1 ease-in-out data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
+      <Switch.Control className="group relative text-xs flex items-center h-lh w-8 rounded-full bg-gray-3 p-1 transition-colors data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50">
         <Switch.Thumb
           aria-hidden="true"
-          className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-surface transition-transform ease-in-out group-data-[state=checked]:translate-x-3.5"
+          className="pointer-events-none inline-block h-[0.8lh] aspect-square -translate-x-0.5 rounded-full bg-surface transition-transform group-data-[state=checked]:translate-x-3.5"
         />
       </Switch.Control>
       <Switch.Label className="whitespace-nowrap font-medium">

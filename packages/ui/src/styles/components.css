@@ -334,7 +334,7 @@
     position: absolute;
     left: 0;
     color: var(--ring);
-    transition: transform 0.2s ease-out;
+    transition: transform var(--duration-base) var(--ease-out);
     background-color: var(--panel);
     padding-right: var(--spacing);
     font-weight: var(--font-weight-semibold);

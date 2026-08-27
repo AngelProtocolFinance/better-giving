@@ -8,7 +8,7 @@ export function DrawerIcon({
   return (
     <ChevronDown
       {...props}
-      className={`transition transform ease-in-out ${
+      className={`transition transform ${
         is_open ? "rotate-180" : "rotate-0"
       } ${className}`}
     />

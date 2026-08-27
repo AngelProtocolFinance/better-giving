@@ -15,7 +15,7 @@ export default function Page() {
         {name}’s account has been created!
       </h1>
       <Link
-        className="mt-6 text-primary hover:text-primary underline decoration-1 hover:decoration-2 text-center text-lg transition ease-in-out duration-300"
+        className="mt-6 text-primary hover:text-primary underline decoration-1 hover:decoration-2 text-center text-lg transition duration-slow"
         to={href("/admin/:id/edit-profile", { id: id ?? "invalid id" })}
       >
         Start filling out {name}’s profile and attract donors! Thank you!

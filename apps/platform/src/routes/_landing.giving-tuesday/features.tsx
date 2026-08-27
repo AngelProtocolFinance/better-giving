@@ -46,7 +46,7 @@ export function Features({ classes = "" }) {
         {cards.map(({ title, description, icon }) => (
           <div
             key={title}
-            className="shadow-lift-card bg-panel grid grid-rows-subgrid justify-items-center row-span-3 items-center p-6 rounded transition-shadow duration-300"
+            className="shadow-lift-card bg-panel grid grid-rows-subgrid justify-items-center row-span-3 items-center p-6 rounded transition-shadow duration-slow"
           >
             <div className="p-1">{icon}</div>
             <div className="text-xl font-semibold">{title}</div>
