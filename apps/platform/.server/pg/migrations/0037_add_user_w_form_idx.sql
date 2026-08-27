@@ -1,0 +1,1 @@
+CREATE INDEX "user_w_form_idx" ON "user" USING btree ("w_form") WHERE "user"."w_form" is not null;
