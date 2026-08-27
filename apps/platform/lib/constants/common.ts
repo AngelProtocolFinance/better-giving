@@ -44,3 +44,19 @@ export const emails = {
 };
 
 export const GENERIC_ERROR_MESSAGE = `An unexpected error occurred and has been reported. Please get in touch with ${emails.hi} if the problem persists.`;
+
+/**
+ * where a donated security is delivered. operational rather than brand, so it
+ * stays here beside the inboxes rather than in `@better-giving/brand` with the
+ * legal identity.
+ *
+ * the stock checkout states all three values three times over — the
+ * instruction rows, the copy-to-clipboard string, the mailto body — and a
+ * broker acting on a stale one sends the shares to an account BG cannot claim
+ * them from, so the three spellings read one source.
+ */
+export const BROKERAGE = {
+  deliver_to: "Fidelity Investments",
+  dtc: "0226",
+  account_no: "Z40390069",
+} as const;

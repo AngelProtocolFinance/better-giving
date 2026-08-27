@@ -3,7 +3,7 @@ import { Copier, LoadText } from "@better-giving/ui";
 import { CircleCheck } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
-import { emails } from "@/constants/common";
+import { BROKERAGE, emails } from "@/constants/common";
 import { ru_vdec } from "@/helpers/decimal";
 import { BackBtn } from "../common/back-btn";
 import { use_donation } from "../context";
@@ -30,9 +30,9 @@ export function Stocks(props: StocksDonationDetails) {
   const instructions_text = [
     `Shares: ${shares}`,
     `Ticker: ${props.ticker.symbol}`,
-    "Deliver to: Fidelity Investments",
-    "DTC number: 0226",
-    "Account number: Z40390069",
+    `Deliver to: ${BROKERAGE.deliver_to}`,
+    `DTC number: ${BROKERAGE.dtc}`,
+    `Account number: ${BROKERAGE.account_no}`,
     `Account name: ${LEGAL_NAME}`,
     `Reference: ${name}`,
     `Project URL: ${url}`,
@@ -58,9 +58,9 @@ export function Stocks(props: StocksDonationDetails) {
       <div className="grid gap-y-1 rounded bg-gray-3 p-3 text-sm leading-relaxed mt-6">
         <Row label="Shares" value={shares} />
         <Row label="Ticker" value={props.ticker.symbol} />
-        <Row label="Deliver to" value="Fidelity Investments" />
-        <Row label="DTC number" value="0226" />
-        <Row label="Account number" value="Z40390069" />
+        <Row label="Deliver to" value={BROKERAGE.deliver_to} />
+        <Row label="DTC number" value={BROKERAGE.dtc} />
+        <Row label="Account number" value={BROKERAGE.account_no} />
         <Row label="Account name" value={LEGAL_NAME} />
         <Row label="Reference" value={name} />
         <Row label="Project URL" value={url} />
@@ -173,9 +173,9 @@ ${NEW_LINE}
 I would like to make a charitable stock donation to Better Giving in support of ${charity_name} (${profile_url}).${NEW_LINE}
 ${NEW_LINE}
 Please process the transfer using the following instructions:${NEW_LINE}
-Deliver to: Fidelity Investments${NEW_LINE}
-DTC number: 0226${NEW_LINE}
-Account number: Z40390069${NEW_LINE}
+Deliver to: ${BROKERAGE.deliver_to}${NEW_LINE}
+DTC number: ${BROKERAGE.dtc}${NEW_LINE}
+Account number: ${BROKERAGE.account_no}${NEW_LINE}
 Account name: ${LEGAL_NAME}${NEW_LINE}
 Reference: ${charity_name} (${profile_url})${NEW_LINE}
 Ticker: ${stock_symbol || "[STOCK_SYMBOL]"}${NEW_LINE}
