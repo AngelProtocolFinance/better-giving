@@ -40,7 +40,13 @@ export type Props<T extends FieldValues, K extends Path<T>> = {
   spec: ImgSpec;
 };
 
+/** what a form library gets to focus. RHF only ever calls `.focus()`, and
+ * without a handle exposing one it skips the field entirely on an invalid
+ * submit — the register-time `_f.ref` placeholder has no focus method. */
+export type ImgEditorHandle = { focus: () => void };
+
 export interface ControlledProps extends Omit<Props<any, any>, "name"> {
+  ref?: React.Ref<ImgEditorHandle>;
   value: ImgOutput;
   /** optional: also run some validation */
   on_change: (value: ImgOutput) => void;

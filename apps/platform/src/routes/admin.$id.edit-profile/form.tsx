@@ -90,6 +90,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         />
         <Label className="-mb-4">Banner image of your organization</Label>
         <ImgEditor
+          ref={rhf.banner.ref}
           value={rhf.banner.value}
           on_change={(val) => {
             rhf.banner.onChange(val);
@@ -106,6 +107,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         />
         <Label className="-mb-4">Logo of your organization</Label>
         <ImgEditor
+          ref={rhf.logo.ref}
           value={rhf.logo.value}
           on_change={(val) => {
             rhf.logo.onChange(val);
@@ -126,6 +128,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           Marketplace Card image for your organization
         </Label>
         <ImgEditor
+          ref={rhf.card_img.ref}
           value={rhf.card_img.value}
           on_change={(val) => {
             rhf.card_img.onChange(val);

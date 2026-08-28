@@ -48,6 +48,7 @@ export function ProgramInfo(props: IProgram) {
         />
         <Label className="-mb-4">Banner image of program</Label>
         <ImgEditor
+          ref={image.ref}
           value={image.value}
           on_change={(v) => {
             image.onChange(v);

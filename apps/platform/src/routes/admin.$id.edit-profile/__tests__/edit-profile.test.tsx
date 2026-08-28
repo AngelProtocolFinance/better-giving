@@ -653,3 +653,58 @@ describe("edit profile — validation", () => {
       .toBeEnabled();
   });
 });
+
+/** each editor is preceded by its visible <Label> and carries no accessible
+ * name of its own, so the label text is the only stable handle on one of the
+ * three */
+const banner_editor = (screen: {
+  getByText: (t: string) => { element: () => Element };
+}) =>
+  screen.getByText("Banner image of your organization").element()
+    .nextElementSibling as HTMLElement;
+
+describe("edit profile — focus on error", () => {
+  it("missing banner image takes focus on submit", async () => {
+    // without the scroll the banner goes to its error state off-screen, so the
+    // submit reads as doing nothing
+    const npo = await seed_npo({ image: "" });
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // submit is disabled until dirty, so touch a field the schema accepts
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.clear();
+    await tagline.fill("Still helping the world");
+
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(
+        banner_editor(screen).querySelector("input[type='file']")
+      );
+    });
+  });
+
+  it("all three images missing → the banner wins, not the card image", async () => {
+    // the controllers all register before the form's own fields, so RHF's focus
+    // pass walks them in useController order — which has to match DOM order or
+    // the user is sent to the card image at the bottom of the form
+    const npo = await seed_npo({ image: "", logo: "", card_img: "" });
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.clear();
+    await tagline.fill("Still helping the world");
+
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(
+        banner_editor(screen).querySelector("input[type='file']")
+      );
+    });
+  });
+});

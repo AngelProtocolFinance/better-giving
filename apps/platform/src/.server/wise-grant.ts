@@ -21,17 +21,14 @@ const b64url = (bytes: ArrayBuffer): string => {
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 };
 
-const key = async () => {
-  const secret = app.session_secret;
-  if (!secret) throw new Error("APP_SESSION_SECRET is not set");
-  return crypto.subtle.importKey(
+const key = async () =>
+  crypto.subtle.importKey(
     "raw",
-    enc.encode(secret),
+    enc.encode(app.session_secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
-};
 
 export const sign_recipient = async (
   user_id: string,

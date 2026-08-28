@@ -63,6 +63,20 @@ export default defineConfig((config) => {
         {
           // inherit this file's vite config (plugins, resolve, base).
           extends: true,
+          // server modules read `process.env.X` at module scope because they
+          // also run on node, and vitest defines each `test.env` key only as
+          // `import.meta.env.X`. defining the other spelling makes the value a
+          // literal, so nothing depends on when a `process` object appears
+          // relative to an esm-hoisted import graph.
+          // NODE_ENV is vite's own define. `env` carries the whole shell
+          // environment, and esbuild rejects a define key it can't parse as an
+          // identifier chain (`npm_config_@scope:registry` and the like).
+          // scoped to this project — never inlined into the app build.
+          define: Object.fromEntries(
+            Object.entries(env)
+              .filter(([k]) => k !== "NODE_ENV" && /^[A-Za-z_$][\w$]*$/.test(k))
+              .map(([k, v]) => [`process.env.${k}`, JSON.stringify(v)])
+          ),
           test: {
             name: "browser",
             setupFiles: [

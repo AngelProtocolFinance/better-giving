@@ -1,7 +1,7 @@
 import { unpack } from "@better-giving/ui/helpers";
 import { ArrowUpFromLine, Crop, Undo } from "lucide-react";
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useImperativeHandle, useMemo, useRef, useState } from "react";
 import { uploadFile } from "#/helpers/upload-file";
 import { report_error } from "@/errors/report";
 import { humanize } from "@/helpers/decimal";
@@ -11,14 +11,35 @@ import type { ControlledProps } from "./types";
 
 const BYTES_IN_MB = 1e6;
 
-export function ImgEditor({
-  ref,
-  ...props
-}: ControlledProps & { ref?: React.Ref<HTMLInputElement> }) {
+export function ImgEditor({ ref, ...props }: ControlledProps) {
   const [file, setFile] = useState<File>();
   const [open_cropper, set_open_cropper] = useState(false);
   const [drag_active, set_drag_active] = useState(false);
+  const root_ref = useRef<HTMLDivElement>(null);
+  const dropzone_ref = useRef<HTMLLabelElement>(null);
   const input_ref = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => {
+        // the file input is the control, but the preview branch keeps it under
+        // `hidden` and an upload in flight disables it — focus() is a no-op in
+        // both. read the outcome back rather than predict it from the branch,
+        // and fall back to the dropzone, so focus-on-error never lands nowhere.
+        // the dropzone and not the root: it is what paints the ring, so the
+        // fallback is visible rather than a silent scroll to an unmarked field.
+        input_ref.current?.focus({ preventScroll: true });
+        if (document.activeElement !== input_ref.current) {
+          dropzone_ref.current?.focus({ preventScroll: true });
+        }
+        // "start", not "nearest": nearest no-ops when the field is already
+        // partly in view, which is the case scroll-mt-24 exists to correct
+        root_ref.current?.scrollIntoView({ block: "start" });
+      },
+    }),
+    []
+  );
 
   const preview = useMemo(
     () =>
@@ -74,13 +95,7 @@ export function ImgEditor({
 
   const file_input = (
     <input
-      ref={(node) => {
-        input_ref.current = node;
-        if (typeof ref === "function") ref(node);
-        else if (ref)
-          (ref as React.MutableRefObject<HTMLInputElement | null>).current =
-            node;
-      }}
+      ref={input_ref}
       type="file"
       className="sr-only"
       accept={props.spec.type.join(",")}
@@ -94,7 +109,11 @@ export function ImgEditor({
   );
 
   return (
-    <div className={`${styles.container} grid grid-rows-[1fr_auto]`}>
+    <div
+      ref={root_ref}
+      // scroll-mt-24 clears the sticky header when the handle scrolls here
+      className={`${styles.container} grid grid-rows-[1fr_auto] scroll-mt-24`}
+    >
       <p className="text-xs text-gray-11 mb-2">
         <span>
           Valid types are:{" "}
@@ -132,6 +151,10 @@ export function ImgEditor({
       )}
       {/* biome-ignore lint/a11y/noLabelWithoutControl: wraps file input */}
       <label
+        ref={dropzone_ref}
+        // -1: never in the tab order, but focusable as the handle's fallback
+        // target — and focus-within below then paints the ring on it
+        tabIndex={-1}
         data-loading={is_loading}
         data-invalid={!!props.error}
         data-drag={drag_active}
