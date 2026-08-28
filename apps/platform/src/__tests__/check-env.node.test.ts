@@ -10,8 +10,8 @@ import { check_env } from "../../utils/check-env";
 // root to fall back on, so a launch-directory resolution finds none of them.
 const repo_root = resolve(import.meta.dirname, "../../../..");
 
-// widened to delete a key — see env-guard.node.test.ts for why the declared
-// ProcessEnv leaves it non-optional.
+// ProcessEnv declares every server key required (lib/types/env.d.ts), so a key
+// is not optional to `delete` without widening first.
 const env = process.env as Partial<NodeJS.ProcessEnv>;
 
 describe("check_env", () => {

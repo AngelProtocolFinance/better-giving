@@ -35,7 +35,7 @@ export function check_env(mode: string, validate = true) {
   //
   // an empty prefix matches every key, so loadEnv's own last pass copies the
   // whole of process.env over the parsed files: an exported value beats the
-  // committed one, and spreading process.env here as well would change nothing.
+  // committed one.
   const env = loadEnv(mode, pkg_dir, "");
   Object.assign(process.env, env);
 
