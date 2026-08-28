@@ -3,8 +3,11 @@ export const base_url = process.env.BASE_URL;
 
 // the value is passed in rather than looked up by name: the browser test
 // bundle gets these as per-key `process.env.X` defines (vite.config.ts), and a
-// define only replaces that exact spelling — `process.env[name]` would survive
-// as a runtime lookup against a `process` that holds none of them.
+// define only replaces that exact spelling. `process.env[name]` matches only
+// the `process.env: {}` catch-all beside them, so every key would read
+// undefined and every `required` call would throw; without that catch-all it
+// would be worse — `ReferenceError: process is not defined`, chromium having no
+// `process` at all.
 const required = (name: string, value: string | undefined): string => {
   if (!value) throw new Error(`${name} is not set`);
   return value;

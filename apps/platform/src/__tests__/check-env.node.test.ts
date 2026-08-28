@@ -3,27 +3,23 @@ import { chdir, cwd } from "node:process";
 import { describe, expect, test } from "vitest";
 import { check_env } from "../../utils/check-env";
 
-// node project, not browser: check_env reads `.env*` off disk.
+// node project, not browser: check_env reads `.env*` off disk, and this drives
+// `chdir` (main-thread only — see the node project's `pool` in vite.config.ts).
 //
-// the `.env*` files live only in apps/platform — there are none at the
-// monorepo root. a resolution that keys off the launch directory therefore
-// finds nothing whenever vitest is started from the root (`vitest --root
-// apps/platform` from anywhere but the package dir), and every consumer of
-// `$/env` silently gets undefined. APP_SESSION_SECRET going missing that way
-// surfaces as `DataError: HMAC key data must not be empty` at cookie-sign
-// time, fifteen seconds into a route test.
+// the `.env*` files live only in apps/platform, with nothing at the monorepo
+// root to fall back on, so a launch-directory resolution finds none of them.
 const repo_root = resolve(import.meta.dirname, "../../../..");
 
-// ProcessEnv declares every server key required (lib/types/env.d.ts), so the
-// keys are not optional to `delete` without widening first.
+// widened to delete a key — see env-guard.node.test.ts for why the declared
+// ProcessEnv leaves it non-optional.
 const env = process.env as Partial<NodeJS.ProcessEnv>;
 
 describe("check_env", () => {
   test("resolves .env.test from the platform package, not the launch directory", () => {
     const prev_cwd = cwd();
     const prev_secret = process.env.APP_SESSION_SECRET;
-    // the `...process.env` spread would otherwise supply the value the
-    // resolution is being tested for.
+    // loadEnv's last pass copies process.env over the parsed files, so an
+    // exported value satisfies the assertion without a file ever being read.
     delete env.APP_SESSION_SECRET;
     try {
       chdir(repo_root);

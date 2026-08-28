@@ -72,11 +72,25 @@ export default defineConfig((config) => {
           // environment, and esbuild rejects a define key it can't parse as an
           // identifier chain (`npm_config_@scope:registry` and the like).
           // scoped to this project — never inlined into the app build.
-          define: Object.fromEntries(
-            Object.entries(env)
-              .filter(([k]) => k !== "NODE_ENV" && /^[A-Za-z_$][\w$]*$/.test(k))
-              .map(([k, v]) => [`process.env.${k}`, JSON.stringify(v)])
-          ),
+          define: {
+            // catch-all under the per-key entries. which keys the set below
+            // covers depends on the ambient environment, so it differs between
+            // a laptop and ci; an unmatched `process.env.X` would survive to
+            // runtime and throw `ReferenceError: process is not defined` in
+            // chromium, naming `process` rather than the key. vite sets this
+            // same define itself, but not here — vitest turns on
+            // `keepProcessEnv`, which drops vite's whole `process.env` group.
+            // the longest matching key wins regardless of insertion order, so
+            // the per-key entries still take precedence over this one.
+            "process.env": "{}",
+            ...Object.fromEntries(
+              Object.entries(env)
+                .filter(
+                  ([k]) => k !== "NODE_ENV" && /^[A-Za-z_$][\w$]*$/.test(k)
+                )
+                .map(([k, v]) => [`process.env.${k}`, JSON.stringify(v)])
+            ),
+          },
           test: {
             name: "browser",
             setupFiles: [
@@ -118,6 +132,11 @@ export default defineConfig((config) => {
           test: {
             name: "node",
             environment: "node",
+            // `process.chdir()` throws ERR_WORKER_UNSUPPORTED_OPERATION off the
+            // main thread, and check-env.node.test.ts needs it to prove
+            // resolution ignores the launch directory. forks is vitest's
+            // current default; pinning it keeps that test off a default.
+            pool: "forks",
             // jobs/ is server-side and excluded from the browser project, so
             // this is the only project that can carry a test for it.
             include: ["src/**/*.node.test.ts", "jobs/**/*.node.test.ts"],

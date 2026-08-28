@@ -8,7 +8,12 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 // keys are not optional to `delete` without widening first.
 const env = process.env as Partial<NodeJS.ProcessEnv>;
 
-const without = async (key: "APP_SESSION_SECRET") => {
+type GuardedKey =
+  | "APP_SESSION_SECRET"
+  | "APP_COOKIE_SECRET"
+  | "APP_API_ENCRYPTION_KEY";
+
+const without = async (key: GuardedKey) => {
   const prev = env[key];
   delete env[key];
   vi.resetModules();
@@ -32,10 +37,18 @@ describe("$/env", () => {
   // a deployed server never runs check_env — it only loads at build and at
   // dev-server start. without this the miss reaches cookie signing and surfaces
   // as `DataError: HMAC key data must not be empty`, naming nothing.
-  test("a missing signing secret fails at module load, naming the variable", async () => {
-    const err = await without("APP_SESSION_SECRET");
+  //
+  // the key name is a free string beside the property it reads, so each case
+  // asserts its own name: a copy-paste swap between two of them stays green
+  // against a shared assertion.
+  test.each<GuardedKey>([
+    "APP_SESSION_SECRET",
+    "APP_COOKIE_SECRET",
+    "APP_API_ENCRYPTION_KEY",
+  ])("a missing %s fails at module load, naming the variable", async (key) => {
+    const err = await without(key);
 
     expect(err).toBeInstanceOf(Error);
-    expect(err!.message).toContain("APP_SESSION_SECRET");
+    expect(err!.message).toBe(`${key} is not set`);
   });
 });

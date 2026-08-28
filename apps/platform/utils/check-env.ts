@@ -32,7 +32,11 @@ const OPT_OUT_KEYS: readonly RequiredKey[] = ["SENTRY_AUTH_TOKEN"] as const;
 export function check_env(mode: string, validate = true) {
   // loadEnv pulls all keys (no prefix filter) from .env, .env.[mode],
   // .env.[mode].local, etc. — matches what vite/vitest see at runtime.
-  const env = { ...process.env, ...loadEnv(mode, pkg_dir, "") };
+  //
+  // an empty prefix matches every key, so loadEnv's own last pass copies the
+  // whole of process.env over the parsed files: an exported value beats the
+  // committed one, and spreading process.env here as well would change nothing.
+  const env = loadEnv(mode, pkg_dir, "");
   Object.assign(process.env, env);
 
   if (validate) {

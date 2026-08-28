@@ -12,7 +12,7 @@ globs:
 
 Tests run in **real headless Chromium** via `@vitest/browser` + Playwright. Render with `vitest-browser-react`. No jsdom, no happy-dom, no `@testing-library/*`.
 
-Setup is **two** files: `src/setup-tests-browser.ts` (process.env polyfill, MSW worker, qstash capture) and `src/__tests__/mocks/payment.tsx` (global payment-provider mocks — where a stripe/paypal mock you didn't write comes from).
+Setup is **two** files: `src/setup-tests-browser.ts` (MSW worker, qstash capture) and `src/__tests__/mocks/payment.tsx` (global payment-provider mocks — where a stripe/paypal mock you didn't write comes from).
 Config: `vite.config.ts` → `test.browser`. Env comes from `.env.test`.
 
 `check_env` (`utils/check-env.ts`) resolves `.env*` from the platform package
@@ -338,7 +338,7 @@ beforeAll(async () => {
 
 ### Queue mock (integration tests)
 
-Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). Server modules read `process.env.X` at module scope because they also run on node, and vitest defines each `test.env` key only as `import.meta.env.X`. The browser project therefore adds a `process.env.<KEY>` define per key (`vite.config.ts`), so those reads are literals in the bundle — there is no `process` polyfill, and a key absent from `env` is not replaced at all; this skill typically still mocks the queue itself to assert enqueued payloads:
+Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). Server modules read `process.env.X` at module scope because they also run on node, and vitest defines each `test.env` key only as `import.meta.env.X`. The browser project therefore adds a `process.env.<KEY>` define per key (`vite.config.ts`), so those reads are literals in the bundle — there is no `process` polyfill, and a `process.env: {}` catch-all sits under the per-key defines so a key absent from `env` reads `undefined` rather than throwing `ReferenceError: process is not defined`; this skill typically still mocks the queue itself to assert enqueued payloads:
 
 `$/kit/queue` has **no `queue` export** — its exports are flat and named (`receiver`, `client`, `enqueue`, `schedule`, `don_dist`, `verify_qstash`). Mock the ones the SUT imports:
 
@@ -368,8 +368,7 @@ that never renders.
 
 Consequence for tests: a file that imports `$/env` transitively without mocking
 it now fails at **import** when a key is unset, not at use. `vi.mock("$/env",
-factory)` never evaluates the real module, so the three files that mock it are
-unaffected.
+factory)` never evaluates the real module, so files that mock it are unaffected.
 
 Most route tests mock `#/.server/toast` (~20 of them) or `$/env` outright, which
 takes them off this path entirely. `src/__tests__/donation-settlement.test.tsx`
