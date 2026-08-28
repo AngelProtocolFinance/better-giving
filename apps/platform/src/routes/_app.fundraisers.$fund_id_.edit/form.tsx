@@ -106,6 +106,7 @@ export function Form({
       <Videos {...rhf.videos} classes="mt-4 mb-8" />
       <p className="label mb-2 mt-4">Logo</p>
       <ImgEditor
+        ref={rhf.logo.ref}
         disabled={is_submitting}
         value={rhf.logo.value}
         on_change={(v) => {
@@ -123,6 +124,7 @@ export function Form({
 
       <p className="label mt-6 mb-2">Banner</p>
       <ImgEditor
+        ref={rhf.banner.ref}
         disabled={is_submitting}
         value={rhf.banner.value}
         on_change={(v) => {

@@ -12,8 +12,15 @@ globs:
 
 Tests run in **real headless Chromium** via `@vitest/browser` + Playwright. Render with `vitest-browser-react`. No jsdom, no happy-dom, no `@testing-library/*`.
 
-Setup is **two** files: `src/setup-tests-browser.ts` (process.env polyfill, MSW worker, qstash capture) and `src/__tests__/mocks/payment.tsx` (global payment-provider mocks — where a stripe/paypal mock you didn't write comes from).
+Setup is **two** files: `src/setup-tests-browser.ts` (MSW worker, qstash capture) and `src/__tests__/mocks/payment.tsx` (global payment-provider mocks — where a stripe/paypal mock you didn't write comes from).
 Config: `vite.config.ts` → `test.browser`. Env comes from `.env.test`.
+
+`check_env` (`utils/check-env.ts`) resolves `.env*` from the platform package
+directory, not the launch directory, so a run started anywhere works — the
+`.env*` files exist only in `apps/platform`, and a cwd-keyed `loadEnv` silently
+found none of them when vitest was started from the repo root. Note process env
+beats the file: an `APP_SESSION_SECRET` exported in your shell overrides
+`.env.test` for the whole run.
 
 Tests live under `src/`, `lib/` and `.server/` — 13 of them are outside `src/`.
 
@@ -331,7 +338,7 @@ beforeAll(async () => {
 
 ### Queue mock (integration tests)
 
-Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). The polyfill in `setup-tests-browser.ts` populates `globalThis.process.env` from `import.meta.env` so module-load `process.env.X` reads work in chromium; this skill typically still mocks the queue itself to assert enqueued payloads:
+Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). Server modules read `process.env.X` at module scope because they also run on node, and vitest defines each `test.env` key only as `import.meta.env.X`. The browser project therefore adds a `process.env.<KEY>` define per key (`vite.config.ts`), so those reads are literals in the bundle — there is no `process` polyfill, and a `process.env: {}` catch-all sits under the per-key defines so a key absent from `env` reads `undefined` rather than throwing `ReferenceError: process is not defined`; this skill typically still mocks the queue itself to assert enqueued payloads:
 
 `$/kit/queue` has **no `queue` export** — its exports are flat and named (`receiver`, `client`, `enqueue`, `schedule`, `don_dist`, `verify_qstash`). Mock the ones the SUT imports:
 
@@ -348,6 +355,26 @@ vi.mock("$/kit/queue", () => ({
   verify_qstash: vi.fn(),
 }));
 ```
+
+## Signed cookies — don't mock the secret away
+
+`.server/env.ts` throws at module load if `APP_SESSION_SECRET`,
+`APP_COOKIE_SECRET` or `APP_API_ENCRYPTION_KEY` is missing, so consumers read
+`app.session_secret` directly and the type is honest. Without that a missing
+secret is invisible — `secrets: [undefined]` is a non-empty array, so
+react-router reads the cookie as signed, no warning fires, and the miss
+surfaces 15s later as `DataError: HMAC key data must not be empty` on a heading
+that never renders.
+
+Consequence for tests: a file that imports `$/env` transitively without mocking
+it now fails at **import** when a key is unset, not at use. `vi.mock("$/env",
+factory)` never evaluates the real module, so files that mock it are unaffected.
+
+Most route tests mock `#/.server/toast` (~20 of them) or `$/env` outright, which
+takes them off this path entirely. `src/__tests__/donation-settlement.test.tsx`
+and `src/__tests__/fund-donation-settlement.test.tsx` deliberately mock neither
+— they are the suite's only real coverage of cookie signing in the browser.
+Leave them unmocked.
 
 ## MSW in Browser Mode
 

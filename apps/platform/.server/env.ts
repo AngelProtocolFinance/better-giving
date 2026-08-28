@@ -1,12 +1,36 @@
 export const stage = process.env.STAGE;
 export const base_url = process.env.BASE_URL;
 
+// the value is passed in rather than looked up by name: the browser test
+// bundle gets these as per-key `process.env.X` defines (vite.config.ts), and a
+// define only replaces that exact spelling. `process.env[name]` matches only
+// the `process.env: {}` catch-all beside them, so every key would read
+// undefined and every `required` call would throw; without that catch-all it
+// would be worse — `ReferenceError: process is not defined`, chromium having no
+// `process` at all.
+const required = (name: string, value: string | undefined): string => {
+  if (!value) throw new Error(`${name} is not set`);
+  return value;
+};
+
+// the app's own crypto keys, checked where they are produced so a miss names
+// itself. an absent signing secret is otherwise silent: `secrets: [undefined]`
+// is a non-empty array, so react-router reads the cookie as signed and no
+// warning fires — the miss lands later and elsewhere as `DataError: HMAC key
+// data must not be empty` out of `crypto.subtle.importKey`.
+// this runs on every server boot; `check_env` only guards build and dev.
 export const app = {
   slug: process.env.APP_SLUG,
   npo_id: process.env.APP_NPO_ID,
-  api_encryption_key: process.env.APP_API_ENCRYPTION_KEY,
-  session_secret: process.env.APP_SESSION_SECRET,
-  cookie_secret: process.env.APP_COOKIE_SECRET,
+  api_encryption_key: required(
+    "APP_API_ENCRYPTION_KEY",
+    process.env.APP_API_ENCRYPTION_KEY
+  ),
+  session_secret: required(
+    "APP_SESSION_SECRET",
+    process.env.APP_SESSION_SECRET
+  ),
+  cookie_secret: required("APP_COOKIE_SECRET", process.env.APP_COOKIE_SECRET),
 } as const;
 
 export const ai_gateway = {

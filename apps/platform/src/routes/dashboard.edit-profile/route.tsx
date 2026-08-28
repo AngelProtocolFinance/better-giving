@@ -45,6 +45,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
 
       <Label className="mb-2">Avatar</Label>
       <ImgEditor
+        ref={rhf.avatar_url.ref}
         spec={avatar_spec}
         value={rhf.avatar_url.value}
         on_change={(v) => {

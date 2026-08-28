@@ -166,6 +166,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           Banner
         </Label>
         <ImgEditor
+          ref={banner.ref}
           value={banner.value}
           spec={img_spec([4, 1])}
           on_change={(v) => {
@@ -187,6 +188,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           Logo
         </Label>
         <ImgEditor
+          ref={logo.ref}
           value={logo.value}
           on_change={(v) => {
             logo.onChange(v);

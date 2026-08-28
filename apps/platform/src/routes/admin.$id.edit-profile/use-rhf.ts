@@ -14,9 +14,12 @@ export function use_rhf(init: FV) {
   } = useForm<FV>({ values: init, resolver: valibotResolver(schema) });
 
   const slug = watch("slug");
-  const { field: card_img } = useController({ control, name: "card_img" });
+  // registration order is load-bearing: RHF's focus-on-error walks fields in
+  // the order they registered, not in DOM order, so these three must match the
+  // order form.tsx renders them — banner, logo, card image.
   const { field: banner } = useController({ control, name: "image" });
   const { field: logo } = useController({ control, name: "logo" });
+  const { field: card_img } = useController({ control, name: "card_img" });
   const { field: overview } = useController({ control, name: "overview" });
   const { field: designation } = useController({
     control,

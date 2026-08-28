@@ -76,6 +76,7 @@ export function Milestone(props: Props) {
         >
           <Label className="-mb-4">Image of milestone</Label>
           <ImgEditor
+            ref={media.ref}
             value={media.value}
             on_change={(v) => {
               media.onChange(v);

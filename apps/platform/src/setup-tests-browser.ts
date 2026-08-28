@@ -1,9 +1,3 @@
-// polyfill process.env in chromium so server modules (`.server/env.ts`)
-// can read top-level process.env.X when pulled in via route handlers.
-// vitest injects `.env*` into import.meta.env via `loadEnv` (see vite.config.ts).
-const g = globalThis as { process?: { env: Record<string, string> } };
-g.process = g.process ?? { env: { ...import.meta.env } };
-
 import { HttpResponse, http } from "msw";
 import { setupWorker } from "msw/browser";
 import { afterEach, beforeAll } from "vitest";

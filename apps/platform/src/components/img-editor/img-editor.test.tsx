@@ -1,7 +1,12 @@
+import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
+// the preview branch hides the file input in css (`hidden`), and whether that
+// input can take focus is the whole point of the fallback — so the real
+// stylesheet must be loaded for that case to be observable.
+import "#/index.css";
 import { ImgEditor } from "./img-editor";
-import type { ControlledProps, ImgSpec } from "./types";
+import type { ControlledProps, ImgOutput, ImgSpec } from "./types";
 
 const upload_mock = vi.hoisted(() => vi.fn());
 vi.mock("#/helpers/upload-file", () => ({
@@ -195,5 +200,114 @@ describe("ImgEditor", () => {
     const screen = await render(<ImgEditor {...props} />);
 
     await expect.element(screen.getByText("invalid file type")).toBeVisible();
+  });
+});
+
+/** what the call sites render immediately before the editor. the editor's own
+ * root carries no accessible name, so the visible label is the only stable
+ * handle on one specific editor. */
+const LABEL = "Banner image of your organization";
+/** a 1x1 gif: the preview goes into `background: url(...)`, and a http url
+ * there is a real unmocked fetch out of the test browser */
+const PIXEL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+/** the shape every call site uses: a controller-driven editor whose rule fails,
+ * with a text field BELOW it — so a submit exercises RHF's default
+ * focus-on-error rather than an explicit `setFocus` */
+function RHFHarness(props: {
+  initial?: ImgOutput;
+  rule?: (v: ImgOutput) => true | string;
+  /** makes the field below invalid too, so the two compete for focus */
+  text_required?: boolean;
+}) {
+  const { control, handleSubmit, register } = useForm<{
+    image: ImgOutput;
+    title: string;
+  }>({
+    defaultValues: { image: props.initial ?? "", title: "" },
+  });
+  const { field } = useController({
+    control,
+    name: "image",
+    rules: { validate: props.rule ?? ((v) => !!v || "required") },
+  });
+
+  return (
+    <form onSubmit={handleSubmit(() => {})}>
+      <p>{LABEL}</p>
+      <ImgEditor
+        ref={field.ref}
+        value={field.value}
+        on_change={field.onChange}
+        on_undo={() => field.onChange("")}
+        spec={spec}
+      />
+      <input
+        aria-label="Title"
+        {...register("title", {
+          required: props.text_required ? "required" : false,
+        })}
+      />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+
+describe("ImgEditor: focus target", () => {
+  test("failed submit focuses the file input and scrolls the field into view", async () => {
+    const screen = await render(<RHFHarness />);
+    const root = screen.getByText(LABEL).element()
+      .nextElementSibling as HTMLElement;
+    const scroll = vi.spyOn(root, "scrollIntoView");
+
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(
+        root.querySelector("input[type='file']")
+      );
+      expect(scroll).toHaveBeenCalledWith({ block: "start" });
+    });
+  });
+
+  test("wins focus over an invalid field below it", async () => {
+    const screen = await render(<RHFHarness text_required />);
+    const root = screen.getByText(LABEL).element()
+      .nextElementSibling as HTMLElement;
+    const scroll = vi.spyOn(root, "scrollIntoView");
+
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(
+        root.querySelector("input[type='file']")
+      );
+      // focus alone does not move the page; the scroll is the half this case
+      // turns on
+      expect(scroll).toHaveBeenCalledWith({ block: "start" });
+    });
+    // without a focusable handle RHF skips the image and lands here instead
+    expect(document.activeElement).not.toBe(
+      screen.getByLabelText("Title").element()
+    );
+  });
+
+  test("preview branch: the dropzone takes focus and still scrolls", async () => {
+    const screen = await render(
+      <RHFHarness initial={PIXEL} rule={() => "rejected"} />
+    );
+    const root = screen.getByText(LABEL).element()
+      .nextElementSibling as HTMLElement;
+    const scroll = vi.spyOn(root, "scrollIntoView");
+
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    // the file input lives under `hidden` here, so focus() on it is a no-op —
+    // the dropzone takes it instead, where the focus-within ring paints
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(root.querySelector("label"));
+      expect(scroll).toHaveBeenCalledWith({ block: "start" });
+    });
   });
 });
