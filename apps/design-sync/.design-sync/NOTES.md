@@ -296,8 +296,11 @@ itself calls expected; there is nothing to set `cfg.tokensPkg` to.
 `cfg.overrides` — `cardMode: "column"` for the wide-but-in-flow ones (`Copier`, `ExtLink`,
 `Target`, `VerifiedIcon`, `ContentLoader`, `LoadText`, `LoaderRing`, `PayoutStatus`) and
 `cardMode: "single"` for the ones that paint outside their cell (`Modal`, `Tooltip`, `HoverCard`,
-`Prompt`, `Toaster`). Note the validator's remediation text names `preview-rebuild.mjs`, which
-this bundled copy of the converter does not ship — a full `package-build.mjs` run does the job.
+`Prompt`, `Toaster`). `HeaderButton` and `LoadMoreRow` joined the `column` set on 2026-08-28 — a
+table is wider than a grid cell by nature, so every component that renders one lands here.
+The validator's remediation text names `preview-rebuild.mjs`; the bundled converter **does** ship
+it now, at `.ds-sync/lib/preview-rebuild.mjs` (it did not when this line was first written). A full
+`package-build.mjs` run still does the job and is what the driver runs anyway.
 
 ## Known render warns (triaged as legitimate — not new problems)
 
@@ -744,6 +747,59 @@ by default and esbuild needs its own, so add `"pnpm": {"onlyBuiltDependencies": 
 that `package.json` — but add it *alongside* the dependencies, not by rewriting the file, or the
 next install removes all three packages.
 
+## Motion reached the header, 2026-08-28 — and the safelist is what made it true
+
+`bed97a1` named the three speeds (`duration-fast|base|slow`), bound `--default-transition-duration`
+and `-timing-function` to `duration-fast` / `ease-in-out`, and fixed the curve-per-intent rule.
+`conventions.md` predated it and said nothing about motion at all, so the design agent had no
+guidance on the one axis where **the compiler cannot help**: duration is the only namespace tailwind
+gives no theme lookup for — `duration-300` is a bare value, so there is nothing to reset to
+`initial` and a raw duration always compiles. The header plus `motion-conformance.node.test.ts` are
+the entire gate.
+
+Measuring before writing turned up the familiar trap, and it was worse here than anywhere:
+
+- `duration-base` and `duration-slow` compiled, `duration-fast` did not — the app writes the two it
+  needed and takes the third through the bound default, so it never spells it.
+- **none of `ease-out` / `ease-in` / `ease-in-out` compiled.** Same reason: they are bound as the
+  default, and the commit's whole point was deleting the fourteen call sites that said `ease-in-out`
+  out loud.
+- **none of the six `--animate-*` shorthands compiled in bare form.** They only ever appear under a
+  `data-[state=…]` variant, and a variant compiles that variant — `.data-\[state\=open\]\:animate-popup-in`
+  exists, `.animate-popup-in` does not. A design animating a surface it built itself got nothing.
+
+Fixed the way the chart ramp, the box ladder and the semantic color set were: five `@source
+inline(...)` lines in `styles-entry.css`, listing the speeds, the curves, the `transition-*` group
+(`transition-opacity` was missing too), and the six shorthands **in both the bare and the two
+`data-[state]` forms** — both are idiomatic, so promising one and not the other is the asymmetry
+again. `check-conventions.mjs` gained a `motion` claim list in the same edit.
+
+One real bug fell out of writing that claim list: **`has()` did not escape `=`**, so any
+`data-[state=open]:…` claim would have reported a false miss forever. Exactly the `p-1.5` bug its
+own comment describes, one character over. `=` is in the escape set now.
+
+`duration-<number>` is deliberately **not** in `MUST_BE_ABSENT` — it compiles by construction and
+always will; claiming otherwise would fail the checker on a truth.
+
+## Prop contracts corrected, 2026-08-28
+
+Found by the standing "diff the changed components' props" pass, not by any gate:
+
+- **`Copier` gained `label?: string`** (`0cad947`). The trigger's accessible name; `aria-labelledby`
+  points at the children when there are any, so `label` is for the glyph-only case in a row holding
+  more than one copier. Added to `cfg.dtsPropsFor` and to `docs/Copier.md`.
+- **`Field` stopped omitting `autoComplete`** and now defaults it to `"off"`, and `type="email"`,
+  `"url"` and `"tel"` render as `type="text"` + the matching `inputMode`. Neither shows up in the
+  props body — `autoComplete` is inherited, so the summary line already covers it — but both change
+  what correct calling code looks like, so they went into `docs/Field.md` instead. **That is the
+  general rule: a behaviour change with no prop change has nowhere to land except the doc**, and the
+  doc is what becomes `.prompt.md`.
+
+Neither drift was visible to any mechanical check: the previews render, typecheck passes, validate
+exits 0. The upload partition did ship both (`Copier` and `Field` appear in `upload.components`
+purely because their `.d.ts` / `.prompt.md` changed) — which is the same lesson the `FileDropzone`
+entry in the risk list records, seen from the other end.
+
 ## Re-sync risks — the watch-list for the next run
 
 What can silently go stale or wrong, in rough order of how expensive it is to miss:
@@ -793,6 +849,18 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
   one `auxSha`, not a path list — and §5 forbids hand-deriving deletes, so it was left in place on
   2026-08-24. Harmless; delete it deliberately if a future run wants the project clean.
 - **The capture harness pins the clock to 2024-05-15.** Date previews are authored around it.
+- **`check-conventions.mjs` is now a fourth thing that has to move with the prose** — and since
+  2026-08-28 with `styles-entry.css` too. A promise in the header needs a claim in the script AND,
+  when nothing in the three scanned scopes writes the name, an `@source inline(...)` line. Three
+  files, one edit. The motion section is the worked example.
+- **Anything the app reaches through a *bound default* is invisible to the JIT scan.** This is a
+  distinct failure from "nobody wrote it yet": `--default-transition-duration` means correct app code
+  never spells `duration-fast` or `ease-in-out`, so a well-factored theme actively *removes* names
+  from the published vocabulary. Whenever a token gets bound as a default, check whether its explicit
+  form still compiles. Same for a utility only ever written under a variant — `data-[state=open]:x`
+  compiles that variant, never the bare `x`.
+- **`extraFonts` still emits only `.woff2`.** The orphan `.woff` above is unchanged and still
+  unnamed by any diff; it will outlive every re-sync until someone deletes it deliberately.
 
 ## The header's color set moved to radix semantics, 2026-08-25
 

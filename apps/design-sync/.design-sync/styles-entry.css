@@ -92,3 +92,23 @@
    them to a utility, and colors.css no longer declares the first three at all.
    the other four ramps are listed too: a mockup reaches for them the same way. */
 @source inline("{bg,text,border,ring,fill,stroke}-{gray,blue,green,red,amber}-{1,2,3,4,5,6,7,8,9,10,11,12}");
+
+/* motion, listed for the same reason as everything above it. the three speeds
+   and the three curves are theme values, and the six --animate-* shorthands are
+   a closed set, but none of them is a class any scanned file happens to write:
+   the speeds and curves are bound through --default-transition-*, so the app
+   gets them without naming them, and the keyframe shorthands only ever appear
+   under a `data-[state=…]` variant, which compiles that variant and not the bare
+   name. so `duration-base` compiled and `duration-fast` did not, and every
+   `animate-*` was reachable only in the exact variant form some component wrote
+   — the bg-chart-1/bg-chart-2 asymmetry again, on the one axis with no namespace
+   to close (duration takes a bare number, so `duration-300` compiles no matter
+   what; the header and the conformance sweep are the whole gate).
+   the state pair is listed in both forms because both are idiomatic: the bare
+   name for an element a design animates itself, the variant for one driven by an
+   ark machine. */
+@source inline("duration-{fast,base,slow}");
+@source inline("ease-{out,in,in-out}");
+@source inline("transition-{all,colors,transform,opacity,shadow,none}");
+@source inline("animate-{overlay-in,overlay-out,popup-in,popup-out,accordion-down,accordion-up}");
+@source inline("data-[state={open,closed}]:animate-{overlay-in,overlay-out,popup-in,popup-out}");

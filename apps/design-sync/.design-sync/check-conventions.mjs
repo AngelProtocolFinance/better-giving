@@ -24,10 +24,11 @@ const comps = fs
   .readdirSync(`${OUT}/components`)
   .flatMap((g) => fs.readdirSync(`${OUT}/components/${g}`));
 
-// tailwind escapes . / [ ] : % @ ( ) in the emitted selector, so `p-1.5`
-// lands as `.p-1\\.5` — the pattern has to match the backslash too.
+// tailwind escapes . / [ ] : % @ ( ) = in the emitted selector, so `p-1.5`
+// lands as `.p-1\\.5` and `data-[state=open]:…` as `.data-\\[state\\=open\\]\\:…` —
+// the pattern has to match the backslash too.
 const has = (n) => {
-  const body = n.replace(/[./[\]:%@()]/g, (c) => `\\\\\\${c}`);
+  const body = n.replace(/[./[\]:%@()=]/g, (c) => `\\\\\\${c}`);
   return new RegExp(`\\.${body}(?![a-zA-Z0-9_-])`).test(css);
 };
 
@@ -166,6 +167,33 @@ const claims = {
   "page + scrollers": ["page", "table-scroll", "scrollbars"],
   measure: ["max-w-3xl", "max-w-prose"],
   type: ["text-sm", "text-xs", "text-2xs"],
+  // none of these is a class any scanned file writes: the speeds and curves
+  // reach the app through --default-transition-*, and the six keyframe
+  // shorthands only ever under a data-[state] variant — so all of it is
+  // safelisted in styles-entry.css, and this list is what keeps the safelist
+  // and the prose in step. `duration-<number>` is deliberately NOT in
+  // MUST_BE_ABSENT: duration has no theme namespace, so it compiles no matter
+  // what and the conformance sweep is its only gate.
+  motion: [
+    "duration-fast",
+    "duration-base",
+    "duration-slow",
+    "ease-out",
+    "ease-in",
+    "ease-in-out",
+    "transition",
+    "transition-colors",
+    "transition-transform",
+    "transition-opacity",
+    "animate-overlay-in",
+    "animate-overlay-out",
+    "animate-popup-in",
+    "animate-popup-out",
+    "animate-accordion-down",
+    "animate-accordion-up",
+    "data-[state=open]:animate-popup-in",
+    "data-[state=closed]:animate-popup-out",
+  ],
 };
 
 // names the header deliberately says do NOT exist. present here = the prose

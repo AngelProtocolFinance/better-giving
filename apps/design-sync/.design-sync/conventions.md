@@ -197,6 +197,22 @@ still stack siblings inside one component; a raw number at 20 or above is a laye
 
 Focus is always a 2px `--ring` outline with `outline-offset: 2px`. Never `outline: none`.
 
+**Motion has three speeds and three curves, and the unspelled case is already bound.** `duration-fast`
+(150ms — a control acknowledging you, and a popup), `duration-base` (200ms — something entering or leaving
+the page), `duration-slow` (300ms — something changing size in the flow). A `transition` with no duration
+and no easing takes `duration-fast` and `ease-in-out`, which is the house default and the right answer for
+most of what you write — so the shortest correct spelling is usually just `transition-colors`. Name a speed
+only to depart from it. The curve says which way the thing is going: `ease-out` for something entering,
+`ease-in` for something leaving, `ease-in-out` for a control moving between two resting states — a hover
+colour, a toggle thumb, a chevron. Writing `ease-in-out` on a state change says nothing the default did not,
+so leave it off. Duration is the one axis with no namespace to close: `duration-300` compiles like any other
+number and nothing fails, so a raw duration is caught by a sweep rather than by the compiler — don't write
+one. Keyframed enter/exit pairs are the six `--animate-*` shorthands: `animate-overlay-in`/`-out` (a scrim),
+`animate-popup-in`/`-out` (a dialog, menu, tooltip, toast), `animate-accordion-down`/`-up`. Each carries its
+own duration and curve, so never pair one with a `duration-*`. Driven by an Ark machine they take the state
+variant — `data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out`, both halves or the exit
+never fires. `Modal`, `Prompt` and `Toaster` already animate themselves; these are for a surface you build.
+
 ### Page shape and scrollers
 
 There is **one page width**, and it is a class: `page`. It carries the width curve and the side

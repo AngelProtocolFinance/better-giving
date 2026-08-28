@@ -98,7 +98,7 @@
     "Group": "  title?: string;\n  description?: string;\n  className?: string;\n  /** ...plus the standard props inherited from @types/react */",
     "HeaderButton": "  /** which way the table is ordered right now. */\n  _sortDirection: \"asc\" | \"desc\";\n  /** the key THIS head sorts by. */\n  _sortKey: string;\n  /** the key the table is sorted by \u2014 equal to `_sortKey` on the one active head. */\n  _activeSortKey: string;\n  className?: string;\n  children?: React.ReactNode;\n  /** ...plus the standard props of <button>. generic over the row type in source: `<HeaderButton<Row> \u2026>`. */",
     "ExtLink": "  /** ...plus the standard props inherited from @types/react */",
-    "Copier": "  text: string;\n  classes?: unknown;\n  size?: number | { copy?: number; check?: number; };\n  children?: React.ReactNode;",
+    "Copier": "  text: string;\n  classes?: unknown;\n  size?: number | { copy?: number; check?: number; };\n  children?: React.ReactNode;\n  /** the trigger's accessible name. name what is being copied wherever a row holds more than one control, so \"Copy\" alone doesn't have to carry it. omit it when `children` supply a visible label \u2014 those name the button themselves. */\n  label?: string;",
     "VerifiedIcon": "  size: number;\n  classes?: string;",
     "Target": "  text?: React.ReactNode;\n  progress: number;\n  target: number | \"smart\" | null;\n  classes?: string;",
     "Breadcrumbs": "  className?: string;\n  items: { title: string; to: string; end?: boolean; }[];",
@@ -160,6 +160,12 @@
       "cardMode": "column"
     },
     "EmptyState": {
+      "cardMode": "column"
+    },
+    "HeaderButton": {
+      "cardMode": "column"
+    },
+    "LoadMoreRow": {
       "cardMode": "column"
     }
   },
