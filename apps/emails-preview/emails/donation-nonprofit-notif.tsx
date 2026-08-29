@@ -6,7 +6,6 @@ const { node } = donation_nonprofit_notif.template({
   amount: { value: 250, currency: "PHP", value_usd: 4.5 },
   to_id: "12345",
   to_name: "Save The Rainforest Foundation",
-  claimed: true,
   from: {
     first_name: "John",
     full_name: "John Smith",
