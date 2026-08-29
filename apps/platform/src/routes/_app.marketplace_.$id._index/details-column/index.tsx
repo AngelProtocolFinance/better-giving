@@ -49,14 +49,6 @@ export function DetailsColumn({
             Donate now
           </NavLink>
         </div>
-        {npo.claimed === false && (
-          <NavLink
-            to={href("/register")}
-            className="max-lg:text-center block mt-4 font-medium text-primary hover:underline p-8 border rounded"
-          >
-            Register your nonprofit
-          </NavLink>
-        )}
         {fundraisers}
       </div>
     </div>

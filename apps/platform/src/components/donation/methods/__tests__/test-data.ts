@@ -18,7 +18,6 @@ const endow = {
   sdgs: [1],
   kyc_donors_only: false,
   fiscal_sponsored: true,
-  claimed: true,
 } as INpo;
 
 const test_donate_data: DonateData = {

@@ -80,7 +80,6 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
     to_name: r.to_name,
     amount: to_amount(r.amount, r.amount_usd, r.amount_denom),
     program_name: r.program?.name,
-    claimed: r.to_claimed ?? true,
     is_recurring,
     from: {
       full_name: r.from?.name || "Anonymous",

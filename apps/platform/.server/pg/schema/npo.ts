@@ -74,7 +74,6 @@ export const npos = pgTable(
       scale: 18,
     }),
     target_smart: boolean("target_smart"),
-    claimed: boolean("claimed").notNull().default(true),
     kyc_donors_only: boolean("kyc_donors_only").notNull().default(false),
     fiscal_sponsored: boolean("fiscal_sponsored").notNull().default(false),
     referral_id: text("referral_id").unique(),

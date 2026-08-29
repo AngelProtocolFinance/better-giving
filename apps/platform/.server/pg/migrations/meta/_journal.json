@@ -267,6 +267,13 @@
       "when": 1787840264445,
       "tag": "0037_add_user_w_form_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1787988076971,
+      "tag": "0038_drop_claim",
+      "breakpoints": true
     }
   ]
 }

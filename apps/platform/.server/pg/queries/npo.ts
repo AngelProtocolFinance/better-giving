@@ -84,7 +84,6 @@ export async function npo_by_regnum(
     .select({
       id: npos.id,
       name: npos.name,
-      claimed: npos.claimed,
       hq_country: npos.hq_country,
       registration_number: npos.registration_number,
     })
@@ -97,10 +96,9 @@ export async function npo_by_regnum(
  * the listing a would-be registrant would collide with: same registration
  * number + country AND at least one member behind it.
  *
- * deliberately not `npo_by_regnum`: that one reads `npos.claimed`, which is
- * `NOT NULL DEFAULT true` and never set false by app code, so every imported
- * listing reads as owned. membership is the only thing that means somebody can
- * actually invite the registrant in. the comparison folds case and trims —
+ * deliberately not `npo_by_regnum`: that one matches any imported listing,
+ * owned or not. membership is the only thing that means somebody can actually
+ * invite the registrant in. the comparison folds case and trims —
  * registration input is lowercased on the way in while
  * `npos.registration_number` is stored verbatim.
  */
@@ -225,7 +223,6 @@ export async function npo_search(
 
   if (p.published?.length)
     conditions.push(inArray(npos.published, p.published));
-  if (p.claimed?.length) conditions.push(inArray(npos.claimed, p.claimed));
   if (p.endow_designation?.length)
     conditions.push(inArray(npos.endow_designation, p.endow_designation));
   if (p.kyc_only?.length)
@@ -282,7 +279,6 @@ export async function npo_search(
       endow_designation: npos.endow_designation,
       registration_number: npos.registration_number,
       kyc_donors_only: npos.kyc_donors_only,
-      claimed: npos.claimed,
       published: npos.published,
       active: npos.active,
       fund_opt_in: npos.fund_opt_in,

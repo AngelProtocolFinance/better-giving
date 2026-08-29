@@ -1,12 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-} from "drizzle-orm/pg-core";
+import { check, index, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { timestamptz } from "./columns";
 
 export const registrations = pgTable(
@@ -76,9 +69,6 @@ export const registrations = pgTable(
     // internal
     status_rejected_reason: text("status_rejected_reason"),
     status_approved_npo_id: integer("status_approved_npo_id"),
-    // the nonprofit-claim flow is gone; nothing reads or writes this. kept
-    // only so the column stays mapped until a separate cleanup drops it.
-    claim: jsonb("claim"),
     created_at: timestamptz("created_at"),
     updated_at: timestamptz("updated_at"),
   },

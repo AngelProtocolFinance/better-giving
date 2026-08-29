@@ -113,8 +113,6 @@ const npo = v.object({
   ),
   fund_opt_in: v.optional(v.boolean()),
   target: v.optional(target),
-  /** endowment is not claimed if `false` only */
-  claimed: v.boolean(),
   kyc_donors_only: v.boolean(),
   fiscal_sponsored: v.boolean(),
   referral_id: v.optional($req),
@@ -132,7 +130,6 @@ const npo = v.object({
 export const npo_update = v.partial(
   v.omit(npo, [
     "id",
-    "claimed",
     "kyc_donors_only",
     "fiscal_sponsored",
     "active",
@@ -237,7 +234,6 @@ const npo_item_field = v.picklist([
   "endow_designation",
   "registration_number",
   "kyc_donors_only",
-  "claimed",
   "published",
   "active",
   "fund_opt_in",
@@ -259,7 +255,6 @@ export const npos_search = v.object({
   ),
   kyc_only: v.optional(bool_csv),
   fund_opt_in: v.optional(bool_csv),
-  claimed: v.optional(bool_csv),
   published: v.optional(bool_csv),
   countries: v.optional(v.pipe(csv_strs, v.array($))),
   fields: v.optional(v.pipe(csv_strs, v.array(npo_item_field))),

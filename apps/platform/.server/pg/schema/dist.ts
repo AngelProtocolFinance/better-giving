@@ -27,7 +27,6 @@ export const dists = pgTable(
     date_created: timestamptz("date_created").notNull(),
     to_id: integer("to_id").references(() => npos.id),
     to_name: text("to_name"),
-    to_claimed: boolean("to_claimed"),
     to_fiscal_sponsored: boolean("to_fiscal_sponsored"),
     amount: numeric_as_number("amount", { precision: 38, scale: 18 }),
     amount_usd: numeric_as_number("amount_usd", { precision: 38, scale: 18 }),

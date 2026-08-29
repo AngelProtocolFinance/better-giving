@@ -113,7 +113,6 @@ async function seed_npo(
       hq_country: "United States",
       published: false,
       active: true,
-      claimed: true,
       fund_opt_in: true,
       ...overrides,
     })

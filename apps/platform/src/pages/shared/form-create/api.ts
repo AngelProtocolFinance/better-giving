@@ -70,7 +70,6 @@ export const loader = async ({
 
   const { npo_id, q } = search(request);
   const npos = await get_npos({
-    claimed: [true],
     query: q,
   }).then((x) => x.items.map((n) => ({ id: n.id, name: n.name })));
 

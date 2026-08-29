@@ -13,7 +13,6 @@ export interface IData extends IDonation {
   to_id: string;
   is_recurring?: boolean;
   from?: IDonor;
-  claimed?: boolean;
   from_private_msg_to_to?: string;
 }
 
@@ -89,8 +88,6 @@ function Jsx(d: IData) {
 export const template = (data: IData) => {
   return {
     node: <Jsx {...data} />,
-    subject: data.claimed
-      ? `Donation to ${data.to_name}`
-      : `Donation to Unclaimed NPO: ${data.to_name}`,
+    subject: `Donation to ${data.to_name}`,
   };
 };

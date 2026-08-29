@@ -4,13 +4,7 @@ import type { INpo } from "$/pg/queries/npo";
 
 export interface EndowCardsPage
   extends INposPage<
-    | "id"
-    | "card_img"
-    | "name"
-    | "tagline"
-    | "claimed"
-    | "contributions_total"
-    | "target"
+    "id" | "card_img" | "name" | "tagline" | "contributions_total" | "target"
   > {}
 export interface EndowOptionsPage
   extends INposPage<"id" | "name" | "registration_number"> {}
@@ -37,7 +31,6 @@ export type EndowmentProfileUpdate = Except<
   Required<INpo>,
   | "endow_designation"
   | "fiscal_sponsored"
-  | "claimed"
   | "allocation"
   | "kyc_donors_only"
   | EndowmentSettingsAttributes

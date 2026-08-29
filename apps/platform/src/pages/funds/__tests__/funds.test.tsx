@@ -98,7 +98,6 @@ beforeAll(async () => {
       active_in_countries: [],
       published: true,
       active: true,
-      claimed: true,
       street_address: "123 Main",
       url: "https://npo.org",
     })

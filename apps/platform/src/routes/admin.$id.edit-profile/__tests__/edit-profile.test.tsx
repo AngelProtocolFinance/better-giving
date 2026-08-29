@@ -80,7 +80,6 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   active_in_countries: [],
   published: false,
   active: true,
-  claimed: true,
   street_address: "123 Main St",
   url: "https://example.org",
 };
@@ -538,7 +537,7 @@ describe("edit profile — published toggle", () => {
       .element(screen.getByText(/your profile is visible in the marketplace/i))
       .toBeInTheDocument();
 
-    // verify NPO appears on marketplace (filters by published + claimed)
+    // verify NPO appears on marketplace (filters by published)
     await screen.unmount();
     const marketplace = await render_marketplace();
 

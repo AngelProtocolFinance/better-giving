@@ -147,7 +147,6 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   hq_country: "United States",
   published: true,
   active: true,
-  claimed: true,
   fiscal_sponsored: true,
   hide_bg_tip: true,
   allocation: { liq: 50, lock: 30, cash: 20 },

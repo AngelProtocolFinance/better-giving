@@ -1,4 +1,4 @@
-import { Image, Target, to_target, VerifiedIcon } from "@better-giving/ui";
+import { Image, Target, to_target } from "@better-giving/ui";
 import { href, NavLink } from "react-router";
 import flying_character from "#/assets/images/flying-character.webp";
 import { BookmarkBtn } from "#/components/bookmark-btn";
@@ -13,7 +13,6 @@ export function Card({
   card_img,
   id,
   tagline,
-  claimed,
   contributions_total,
   target,
 }: EndowmentCard) {
@@ -32,12 +31,6 @@ export function Card({
         <div className="grid grid-rows-subgrid row-start-2 row-span-3 p-3 pb-16 gap-3">
           {/* nonprofit NAME */}
           <h3 className="text-ellipsis line-clamp-2 text-center mb-2">
-            {claimed && (
-              <VerifiedIcon
-                classes="inline relative bottom-px mr-1"
-                size={21}
-              />
-            )}
             <span className="inline">{name}</span>
           </h3>
 

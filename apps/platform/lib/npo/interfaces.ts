@@ -20,7 +20,6 @@ export interface INpoItem {
   endow_designation: OrgDesignation;
   registration_number: string;
   kyc_donors_only: boolean;
-  claimed: boolean;
   published: boolean;
   active: boolean;
   fund_opt_in: boolean;
@@ -34,7 +33,6 @@ export interface INpoItem {
 export interface INpoWithRegNum {
   id: number;
   name: string;
-  claimed: boolean;
   hq_country: string;
   registration_number: string;
 }

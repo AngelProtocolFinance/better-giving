@@ -7,7 +7,6 @@ import Categories from "./categories";
 import Countries from "./countries";
 import Designations from "./designations";
 import KYCFilter from "./kyc-filter";
-// import { VerificationFilter } from "./verification-filter";
 
 export default function Filter({ classes = "" }: { classes?: string }) {
   const [params] = useSearchParams();
@@ -63,7 +62,6 @@ export default function Filter({ classes = "" }: { classes?: string }) {
             <div className="px-2 divide-y divide-gray-6">
               <Designations />
               <KYCFilter />
-              {/* <VerificationFilter /> */}
               <Categories />
             </div>
           </Dialog.Content>

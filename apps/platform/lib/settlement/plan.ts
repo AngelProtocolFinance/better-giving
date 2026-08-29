@@ -22,7 +22,6 @@ export const referral_commission_rate = 0.3;
 export interface NpoSettlementContext {
   id: number;
   name: string;
-  claimed: boolean;
   fiscal_sponsored: boolean;
   hide_bg_tip: boolean | null | undefined;
   allocation: IAllocation | null | undefined;
@@ -373,7 +372,6 @@ export function calc_settlement_plan(
         company: don.from_company_name,
       },
       program: don.program,
-      to_claimed: ctx.claimed,
     })
   );
 

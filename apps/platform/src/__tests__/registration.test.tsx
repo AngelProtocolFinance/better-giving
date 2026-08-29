@@ -1173,7 +1173,6 @@ async function seed_npo(
       hq_country: "United States",
       published: false,
       active: true,
-      claimed: true,
       ...overrides,
     })
     .returning();
@@ -1350,8 +1349,8 @@ describe("new_application", () => {
   });
 
   it("passes straight through when the matching npo has no members", async () => {
-    // claimed=true with zero memberships is a stale import, not an owner
-    await seed_npo({ registration_number: "123456789", claimed: true });
+    // an imported listing with zero memberships is not an owner
+    await seed_npo({ registration_number: "123456789" });
 
     const res = await new_application(
       start_request(),

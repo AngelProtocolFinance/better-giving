@@ -35,7 +35,6 @@ export interface IDonDistPayload {
   from_email: string;
   from?: { name?: string; company?: string; address?: IFromAddress };
   program?: { id: string; name: string };
-  to_claimed?: boolean;
   form?: { id: string; tag?: string };
 }
 

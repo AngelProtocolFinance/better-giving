@@ -17,8 +17,8 @@ import { Toolbar } from "./toolbar";
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const p_s = safeParse(npos_search, search(request));
   if (p_s.issues) throw resp.status(400, p_s.issues[0].message);
-  const { published, claimed, ...p } = p_s.output;
-  const page = await get_npos({ ...p, claimed: [true], published: [true] });
+  const { published, ...p } = p_s.output;
+  const page = await get_npos({ ...p, published: [true] });
   return page;
 };
 

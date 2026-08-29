@@ -49,7 +49,6 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
   const plan = calc_settlement_plan(i, {
     id: npo.id,
     name: npo.name,
-    claimed: npo.claimed,
     fiscal_sponsored: npo.fiscal_sponsored,
     hide_bg_tip: npo.hide_bg_tip,
     allocation: npo.allocation,
@@ -72,7 +71,6 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     date_created: don.created_at,
     to_id: +don.to_id,
     to_name: don.to_name,
-    to_claimed: npo.claimed,
     to_fiscal_sponsored: dist.to_settings.fiscal_sponsored,
     amount: don.amount.base,
     amount_usd: don.amount.base / don.upusd,

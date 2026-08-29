@@ -83,7 +83,6 @@ async function seed_npo() {
       hq_country: "United States",
       published: true,
       active: true,
-      claimed: true,
     })
     .returning();
   return row;

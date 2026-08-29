@@ -18,7 +18,6 @@ export const toFlat = (p: INposSearchObj): INposSearch => {
     kyc_only: p.kyc_only?.join(","),
     countries: p.countries?.join(","),
     endow_designation: p.endow_designation?.join(),
-    claimed: p.claimed?.join(","),
   };
   return raw;
 };

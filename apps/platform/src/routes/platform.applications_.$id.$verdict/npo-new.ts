@@ -25,7 +25,6 @@ export type EndowContentFromReg = Pick<
   | "name"
   | "registration_number"
   | "url"
-  | "claimed"
   | "referrer_user"
   | "referrer_npo"
   | "referrer_expiry"
@@ -44,7 +43,6 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     registration_number:
       r.o_type === "501c3" ? r.o_ein : r.o_registration_number,
     url: r.o_website,
-    claimed: true,
     referral_id: rid,
   };
 

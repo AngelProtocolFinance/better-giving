@@ -1,10 +1,4 @@
-import {
-  Breadcrumbs,
-  ExtLink,
-  Target,
-  to_target,
-  VerifiedIcon,
-} from "@better-giving/ui";
+import { Breadcrumbs, ExtLink, Target, to_target } from "@better-giving/ui";
 import { Globe, MapPin } from "lucide-react";
 import { href, NavLink } from "react-router";
 import { BookmarkBtn } from "#/components/bookmark-btn";
@@ -62,12 +56,6 @@ export function Body({ classes = "", npo, children, program }: Props) {
           <div className="flex flex-col items-center lg:items-start w-full gap-2 text-center lg:text-left">
             <div className="flex max-sm:flex-col items-center gap-3">
               <h3 className="font-display text-3xl w-full max-w-2xl wrap-break-word">
-                {(npo.claimed ?? true) && (
-                  <VerifiedIcon
-                    classes="relative inline bottom-px mr-2"
-                    size={27}
-                  />
-                )}
                 <span>{npo.name}</span>
               </h3>
               <BookmarkBtn

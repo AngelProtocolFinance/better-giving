@@ -54,7 +54,6 @@ const make_ctx = (
 ): NpoSettlementContext => ({
   id: 1,
   name: "Test NPO",
-  claimed: true,
   fiscal_sponsored: false,
   hide_bg_tip: false,
   allocation: { cash: 100, liq: 0, lock: 0 },

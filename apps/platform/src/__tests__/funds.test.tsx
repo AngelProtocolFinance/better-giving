@@ -81,7 +81,6 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   hq_country: "United States",
   published: false,
   active: true,
-  claimed: true,
 };
 
 beforeAll(async () => {

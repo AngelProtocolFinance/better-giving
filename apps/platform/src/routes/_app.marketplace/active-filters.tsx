@@ -89,28 +89,10 @@ export function ActiveFilters() {
     </Item>
   ));
 
-  const verificationFilters = (parsed.claimed || []).map((isVerified) => (
-    <Item
-      key={`${isVerified}`}
-      onRemove={() =>
-        setParams(
-          toRaw({
-            ...parsed,
-            claimed: parsed.claimed?.filter((v) => v !== isVerified),
-          }),
-          { replace: true, preventScrollReset: true }
-        )
-      }
-    >
-      {isVerified ? "Verified" : "Not verified"}
-    </Item>
-  ));
-
   const filters = endowDesignations
     .concat(sdgFilters)
     .concat(countryFilters)
-    .concat(kycFilters)
-    .concat(verificationFilters);
+    .concat(kycFilters);
 
   return (
     <div className="flex flex-wrap gap-1">

@@ -10,7 +10,6 @@ export async function preview_settlement(i: IInput) {
   const plan = calc_settlement_plan(i, {
     id: npo.id,
     name: npo.name,
-    claimed: npo.claimed,
     fiscal_sponsored: npo.fiscal_sponsored,
     hide_bg_tip: npo.hide_bg_tip,
     allocation: npo.allocation,

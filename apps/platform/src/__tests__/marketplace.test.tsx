@@ -55,7 +55,6 @@ const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
   active_in_countries: [],
   published: true,
   active: true,
-  claimed: true,
   street_address: "123 Main St",
   url: "https://example.org",
 };
@@ -125,7 +124,7 @@ function render_marketplace(entry = "/marketplace") {
 // --- tests ---
 
 describe("marketplace — basic listing", () => {
-  it("renders published+claimed NPOs with names and taglines", async () => {
+  it("renders published NPOs with names and taglines", async () => {
     await seed_npo({ name: "Org Alpha", tagline: "Alpha tagline" });
     await seed_npo({ name: "Org Beta", tagline: "Beta tagline" });
     const screen = await render_marketplace();
@@ -138,18 +137,14 @@ describe("marketplace — basic listing", () => {
 });
 
 describe("marketplace — visibility", () => {
-  it("only shows published AND claimed NPOs", async () => {
+  it("only shows published NPOs", async () => {
     await seed_npo({ name: "Visible Org" });
     await seed_npo({ name: "Unpublished Org", published: false });
-    await seed_npo({ name: "Unclaimed Org", claimed: false });
     const screen = await render_marketplace();
 
     await expect.element(screen.getByText("Visible Org")).toBeInTheDocument();
     await expect
       .element(screen.getByText("Unpublished Org"))
-      .not.toBeInTheDocument();
-    await expect
-      .element(screen.getByText("Unclaimed Org"))
       .not.toBeInTheDocument();
   });
 });

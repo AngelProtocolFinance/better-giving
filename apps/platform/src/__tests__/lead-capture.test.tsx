@@ -340,7 +340,6 @@ async function seed_owned_npo(registration_number: string, name: string) {
       hq_country: "United States",
       published: false,
       active: true,
-      claimed: true,
     })
     .returning();
   await test_db
