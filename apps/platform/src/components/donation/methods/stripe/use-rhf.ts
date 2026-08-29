@@ -3,6 +3,7 @@ import { useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
 import { paypal_currencies } from "#/constants/paypal";
 import { to_atomic_c } from "#/helpers/stripe";
+import type { ICurrencyFv } from "#/types/currency";
 import { PROCESSING_RATES } from "@/constants/common";
 import { rd } from "@/helpers/decimal";
 import { min_fee_allowance } from "@/helpers/donation";
@@ -48,23 +49,25 @@ export interface IPayPalExpress {
   is_partial: boolean;
 }
 
-/** render  */
+/** the amount the express element mounts against before the donor has typed a
+ * valid one. sits at the form's own minimum because stripe enforces a
+ * per-currency floor we carry no table for, and 2 usd clears every documented
+ * one. */
 const stripe_express_partial = (
-  currency: string,
-  unit_per_usd: number,
+  c: ICurrencyFv,
   frequency: TFrequency
 ): IStripeExpress => {
   return {
     frequency,
     is_partial: true,
-    total_usd: 1,
-    base: 1,
+    total_usd: c.min / c.rate,
+    base: c.min,
     tip: 0,
     fee_allowance: 0,
-    total_atomic: to_atomic_c(currency)(unit_per_usd),
-    total: unit_per_usd,
+    total_atomic: to_atomic_c(c.code)(c.min),
+    total: c.min,
     items: [],
-    currency: currency.toLowerCase(),
+    currency: c.code.toLowerCase(),
   };
 };
 
@@ -138,10 +141,10 @@ export function use_rhf(fv: FV) {
     if (!c.code) return null;
 
     const ap = safeParse(amount_schema({ required: true }), a);
-    if (ap.issues) return stripe_express_partial(c.code, c.rate, f);
+    if (ap.issues) return stripe_express_partial(c, f);
 
     const amnt = +ap.output;
-    if (amnt < c.min) return stripe_express_partial(c.code, c.rate, f);
+    if (amnt < c.min) return stripe_express_partial(c, f);
 
     const to_atomic = to_atomic_c(c.code);
     const items: ILineItem[] = [
