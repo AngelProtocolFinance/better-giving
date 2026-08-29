@@ -22,6 +22,53 @@ type RequiredKey = ServerKey | ClientKey;
 // upload in vite.config.ts — empty = skip upload locally.
 const OPT_OUT_KEYS: readonly RequiredKey[] = ["SENTRY_AUTH_TOKEN"] as const;
 
+// ProcessEnv declares every required key (lib/types/env.d.ts), so a key is not
+// optional to `delete` without widening first.
+const ambient = process.env as Partial<NodeJS.ProcessEnv>;
+
+// loadEnv pulls all keys (no prefix filter) from .env, .env.[mode],
+// .env.[mode].local, etc. — matches what vite/vitest see at runtime.
+//
+// an empty prefix matches every key, so loadEnv's own last pass copies the
+// whole of process.env over the parsed files: an exported value would beat the
+// committed one. for the keys this package declares that is backwards — the
+// `.env*` files are the configuration, the shell is whatever the launching
+// terminal happened to carry, and an exported APP_SESSION_SECRET silently
+// replacing .env.test's filler runs a whole suite against a real secret.
+//
+// loadEnv gives no way to read the file layer back out on its own, so the
+// declared keys are unset across the call and restored after. a declared key
+// that no file supplies is simply absent from the result and falls back to the
+// shell value, which is how a deploy — no `.env*` files at all, every value
+// from the platform — resolves unchanged.
+//
+// the one thing that window costs: loadEnv runs dotenv-expand against a
+// snapshot of process.env taken inside the call, so a `${DECLARED_KEY}`
+// reference in a `.env*` file expands against the files only, never the shell.
+// no file uses `${}` today; one that needs a shell value has to spell it out.
+function load_env(mode: string) {
+  const shell = { ...process.env };
+  for (const k of [...SERVER_KEYS, ...CLIENT_KEYS]) delete ambient[k];
+  try {
+    const files = loadEnv(mode, pkg_dir, "");
+    // a one-off `CHARIOT_API_KEY=<prod> pnpm dev` used to win and now loses,
+    // so say which keys the files took over rather than leaving the export
+    // looking applied. keys the shell alone supplies come back through
+    // loadEnv's own copy of process.env, identical, and never land here.
+    const shadowed = Object.keys(files).filter(
+      (k) => shell[k] !== undefined && shell[k] !== files[k]
+    );
+    if (shadowed.length) {
+      console.warn(
+        `env: .env* overrode exported ${shadowed.join(", ")} (files win over the shell)`
+      );
+    }
+    return { ...shell, ...files };
+  } finally {
+    Object.assign(process.env, shell);
+  }
+}
+
 // validates required env keys, merges loaded .env values into process.env (so
 // runtime code via process.env still works), and returns a typed view for the
 // vite config factory to read from instead of process.env.
@@ -30,13 +77,7 @@ const OPT_OUT_KEYS: readonly RequiredKey[] = ["SENTRY_AUTH_TOKEN"] as const;
 // without ever needing real values — the merge and the typed view still happen,
 // only the assertions are skipped. defaults on so a new caller fails loud.
 export function check_env(mode: string, validate = true) {
-  // loadEnv pulls all keys (no prefix filter) from .env, .env.[mode],
-  // .env.[mode].local, etc. — matches what vite/vitest see at runtime.
-  //
-  // an empty prefix matches every key, so loadEnv's own last pass copies the
-  // whole of process.env over the parsed files: an exported value beats the
-  // committed one.
-  const env = loadEnv(mode, pkg_dir, "");
+  const env = load_env(mode);
   Object.assign(process.env, env);
 
   if (validate) {

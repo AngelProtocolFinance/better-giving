@@ -112,10 +112,12 @@
     "test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
-      // both come from the committed apps/platform/.env.test (covered by
-      // inputs above), so ci needs nothing extra. declared here anyway because
-      // turbo strips any env var not listed, which would silently drop a
-      // real-env override of either one.
+      // both are declared in the committed apps/platform/.env.test (covered
+      // by inputs above) and check_env gives the files precedence, so neither
+      // ever resolves from the shell here and ci needs nothing extra. listed
+      // anyway because turbo's env mode is strict: an unlisted var is stripped
+      // from the task environment outright, so anything reading process.env
+      // before check_env runs would see nothing rather than a stale value.
       "env": ["VITE_BASE_URL", "APP_SESSION_SECRET"]
     },
     "typecheck": {

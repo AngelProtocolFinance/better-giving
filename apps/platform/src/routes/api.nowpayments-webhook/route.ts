@@ -17,8 +17,11 @@ export async function action({ request }: Route.ActionArgs) {
   const body = await request.text();
 
   // a body that isn't json is permanent — redelivery cannot make it parse — so
-  // it answers 400 like the two branches around it rather than a 5xx, which
-  // nowpayments would retry forever.
+  // it answers 400 like the two branches around it rather than a 5xx.
+  // nowpayments documents only that the callback "must return a 200 OK"; a 500
+  // is assumed failed and redelivered, and nothing in their docs deactivates an
+  // ipn over repeated 4xx — which is the one way answering 400 here would cost
+  // us the webhook.
   //
   // unreported for the same reason the signature mismatch below is: the
   // signature is computed over the *parsed* payload, so this runs before

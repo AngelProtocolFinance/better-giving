@@ -35,4 +35,42 @@ describe("check_env", () => {
       else env.APP_SESSION_SECRET = prev_secret;
     }
   });
+
+  test("a value from .env.test beats the same key exported in the shell", () => {
+    const prev_secret = process.env.APP_SESSION_SECRET;
+    // loadEnv applies process.env last, so unless check_env puts the `.env*`
+    // files back on top, this exported value is what the whole suite runs on.
+    env.APP_SESSION_SECRET = "exported-never-read-from-a-file";
+    try {
+      const loaded = check_env("test", false);
+
+      expect(loaded.APP_SESSION_SECRET).not.toBe(
+        "exported-never-read-from-a-file"
+      );
+      expect(loaded.APP_SESSION_SECRET).toEqual(expect.any(String));
+      expect(env.APP_SESSION_SECRET).toBe(loaded.APP_SESSION_SECRET);
+    } finally {
+      if (prev_secret === undefined) delete env.APP_SESSION_SECRET;
+      else env.APP_SESSION_SECRET = prev_secret;
+    }
+  });
+
+  // the files win for the declared keys only, and by unsetting them across the
+  // load — everything else in the environment has to come back untouched,
+  // which is also what lets a deploy with no `.env*` files resolve at all.
+  test("keeps ambient values the files never declare", () => {
+    const ambient_key = "CHECK_ENV_AMBIENT_ONLY" as const;
+    process.env[ambient_key] = "from-the-shell";
+    try {
+      const loaded = check_env("test", false) as unknown as Record<
+        string,
+        string
+      >;
+
+      expect(loaded[ambient_key]).toBe("from-the-shell");
+      expect(process.env[ambient_key]).toBe("from-the-shell");
+    } finally {
+      delete process.env[ambient_key];
+    }
+  });
 });
