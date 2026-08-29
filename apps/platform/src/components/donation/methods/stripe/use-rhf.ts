@@ -53,7 +53,7 @@ export interface IPayPalExpress {
  * valid one. sits at the form's own minimum because stripe enforces a
  * per-currency floor we carry no table for, and 2 usd clears every documented
  * one. */
-const stripe_express_partial = (
+export const stripe_express_partial = (
   c: ICurrencyFv,
   frequency: TFrequency
 ): IStripeExpress => {
