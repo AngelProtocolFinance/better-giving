@@ -19,11 +19,7 @@ export function InitForm(props: Props) {
   });
 
   return (
-    <fetcher.Form
-      method="POST"
-      onSubmit={handleSubmit}
-      className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded"
-    >
+    <fetcher.Form method="POST" onSubmit={handleSubmit} className="solo-card">
       <h3 className="text-center text-xl sm:text-2xl font-bold">
         Reset your Password
       </h3>

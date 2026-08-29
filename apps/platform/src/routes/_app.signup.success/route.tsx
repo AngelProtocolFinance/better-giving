@@ -5,7 +5,7 @@ import type { Route } from "./+types/route";
 export { loader } from "../_app.signup/loader";
 export default function Page({ loaderData: to }: Route.ComponentProps) {
   return (
-    <div className="grid justify-items-center w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
+    <div className="solo-card justify-items-center">
       <CircleCheck className="text-primary size-16 sm:size-20" />
 
       <h3 className="text-center text-xl sm:text-2xl font-bold mt-6">

@@ -16,10 +16,7 @@ export function SetPasswordForm(props: Props) {
   } = useRemixForm<IPasswordSchema>({ fetcher });
 
   return (
-    <fetcher.Form
-      method="POST"
-      className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded"
-    >
+    <fetcher.Form method="POST" className="solo-card">
       <input type="hidden" name="email" value={props.email} />
       <input type="hidden" name="token" value={props.token} />
       <h3 className="text-center text-xl sm:text-2xl font-bold">

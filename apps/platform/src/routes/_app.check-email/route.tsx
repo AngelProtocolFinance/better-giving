@@ -30,7 +30,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
        edge to edge and its own rows stretch with it, spreading six lines of
        copy over 700px. */
     <div className="grid justify-items-center content-start px-4 py-14">
-      <div className="grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded">
+      <div className="solo-card">
         <h3 className="text-center text-xl sm:text-2xl font-bold">
           {stale ? "That link has expired" : "Check your inbox"}
         </h3>

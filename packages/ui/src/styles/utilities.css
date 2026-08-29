@@ -287,6 +287,20 @@
   }
 }
 
+/* the card that is the whole of a single-purpose screen — login, signup,
+   check-email, and the five password-reset panels each sit alone on an
+   otherwise empty page in exactly this shape. not a narrower `page`: that one
+   is a width and a gutter for a full layout, this is one bordered card with
+   its own fill.
+
+   no gap and no `justify-items`, both deliberately. the ten it collapsed
+   space their children with per-child `mt-*`, so a gap here would add to those
+   margins rather than replace them; and they split evenly on whether their
+   content is centred, which makes alignment the caller's to say. */
+@utility solo-card {
+  @apply grid w-full max-w-md px-6 sm:px-7 py-7 sm:py-8 bg-panel border rounded;
+}
+
 /* the scrollbar skin. tailwind 4.3 ships `scrollbar-width`/`scrollbar-color`
    natively, and the three that dress a scroller here were always written as
    one breath — 59 times, on the x axis, the y axis and both. one name, so a
