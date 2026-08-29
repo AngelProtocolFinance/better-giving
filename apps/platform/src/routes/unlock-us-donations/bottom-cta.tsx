@@ -32,7 +32,7 @@ export function BottomCta() {
 
           <Link
             to={href("/register")}
-            className="btn btn-lg btn-primary bg-white text-primary hover:bg-white/90 active:bg-white/80 rounded capitalize inline-flex items-center gap-2 mt-2"
+            className="btn btn-lg btn-primary bg-white text-primary hover:bg-white/90 active:bg-white/80 capitalize inline-flex items-center gap-2 mt-2"
           >
             Join Us Today!
             <ArrowRight size={18} />

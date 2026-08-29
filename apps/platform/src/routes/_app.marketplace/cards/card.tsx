@@ -57,7 +57,7 @@ export function Card({
           to={href("/donate/:id", {
             id: id.toString(),
           })}
-          className="btn btn-primary rounded"
+          className="btn btn-primary"
         >
           Donate
         </NavLink>

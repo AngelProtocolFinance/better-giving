@@ -109,7 +109,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           preventScrollReset
           to="log-interest"
-          className="btn btn-sm btn-primary rounded"
+          className="btn btn-sm btn-primary"
         >
           Log Interest
         </NavLink>

@@ -62,7 +62,7 @@ function Content(props: IAllocation) {
       <button
         disabled={is_loading}
         type="button"
-        className="btn btn-primary mt-4 rounded"
+        className="btn btn-primary mt-4"
         onClick={async () => {
           const update: EndowmentUpdate = { allocation: alloc };
           fetcher.submit(update, {

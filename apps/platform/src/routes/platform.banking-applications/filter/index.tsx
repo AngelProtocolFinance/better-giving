@@ -125,10 +125,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
                   >
                     Reset filters
                   </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary rounded font-bold"
-                  >
+                  <button type="submit" className="btn btn-primary font-bold">
                     Apply filters
                   </button>
                 </Actions>

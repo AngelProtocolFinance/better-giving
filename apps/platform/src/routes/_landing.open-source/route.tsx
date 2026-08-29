@@ -64,10 +64,7 @@ export default function Page() {
                 View the repository
                 <ArrowRight className="size-4" />
               </ExtLink>
-              <Link
-                to={href("/register")}
-                className="btn btn-lg btn-outline rounded"
-              >
+              <Link to={href("/register")} className="btn btn-lg btn-outline">
                 Join free forever
               </Link>
             </div>

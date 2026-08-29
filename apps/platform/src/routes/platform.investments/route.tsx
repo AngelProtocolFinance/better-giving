@@ -134,7 +134,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           preventScrollReset
           to="rebalance"
-          className="btn btn-sm btn-primary rounded"
+          className="btn btn-sm btn-primary"
         >
           Rebalance
         </NavLink>
@@ -142,7 +142,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           preventScrollReset
           to="log-dividends"
-          className="btn btn-sm btn-secondary rounded"
+          className="btn btn-sm btn-secondary"
         >
           Dividend
         </NavLink>

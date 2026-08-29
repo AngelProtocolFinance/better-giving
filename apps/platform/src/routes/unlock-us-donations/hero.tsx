@@ -41,7 +41,7 @@ export function Hero() {
           <div className="flex flex-col lg:flex-row gap-3 md:gap-4 mt-2">
             <Link
               to={href("/register")}
-              className="btn md:btn-lg btn-primary rounded text-nowrap capitalize inline-flex items-center gap-2"
+              className="btn md:btn-lg btn-primary text-nowrap capitalize inline-flex items-center gap-2"
             >
               Join us today!
               <ArrowRight size={18} />
@@ -49,7 +49,7 @@ export function Hero() {
             <Link
               to={BOOK_A_DEMO}
               target="_blank"
-              className="btn md:btn-lg btn-outline rounded text-nowrap capitalize backdrop-blur-sm text-white"
+              className="btn md:btn-lg btn-outline text-nowrap capitalize backdrop-blur-sm text-white"
             >
               Or book a demo with our UK team
             </Link>

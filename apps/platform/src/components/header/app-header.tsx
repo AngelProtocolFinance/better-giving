@@ -81,7 +81,7 @@ function AuthSlot({ variant, signed_in, avatar, is_loading, to }: IAuthSlot) {
       {!is_loading && !signed_in && to && variant === "minimal" && (
         <Link
           to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-          className="btn btn-secondary rounded"
+          className="btn btn-secondary"
         >
           Log In
         </Link>

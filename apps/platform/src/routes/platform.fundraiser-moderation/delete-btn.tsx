@@ -38,7 +38,7 @@ export function DeleteBtn({
               own form, and a form box between them would keep them at content
               width when the row stacks. */}
           <form method="dialog" className="contents">
-            <button type="submit" className="btn btn-secondary rounded">
+            <button type="submit" className="btn btn-secondary">
               Cancel
             </button>
           </form>
@@ -51,7 +51,7 @@ export function DeleteBtn({
               type="submit"
               name="fund_id"
               value={fund_id}
-              className="btn btn-destructive rounded"
+              className="btn btn-destructive"
             >
               Proceed
             </button>

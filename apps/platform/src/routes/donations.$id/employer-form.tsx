@@ -74,7 +74,7 @@ export function EmployerForm({ init, filed }: IEmployerForm) {
       <button
         disabled={fetcher.state !== "idle"}
         type="submit"
-        className="btn btn-primary rounded mt-4 justify-self-end"
+        className="btn btn-primary mt-4 justify-self-end"
       >
         Save
       </button>

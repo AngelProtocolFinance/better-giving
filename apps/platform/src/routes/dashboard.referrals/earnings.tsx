@@ -100,7 +100,7 @@ export function Earnings({
               <p className="text-sm text-gray-11">Payout method</p>
               <div className="flex gap-x-2 items-center">
                 <p className="text-sm">{payout.longAccountSummary}</p>
-                <Link to="payout" className="btn btn-sm btn-primary rounded">
+                <Link to="payout" className="btn btn-sm btn-primary">
                   Change
                 </Link>
               </div>
@@ -109,7 +109,7 @@ export function Earnings({
             <div className="flex items-center gap-x-2">
               <Link
                 to={w_form ? "payout" : "w-form"}
-                className="btn btn-primary mt-2 rounded"
+                className="btn btn-primary mt-2"
               >
                 Setup Payout Method
               </Link>

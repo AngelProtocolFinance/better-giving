@@ -91,7 +91,7 @@ export function TributeForm({ classes = "", init }: Props) {
           fetcher.state !== "idle" || (!!init?.full_name && !!init.notif)
         }
         type="submit"
-        className="btn btn-primary rounded mt-4 justify-self-end"
+        className="btn btn-primary mt-4 justify-self-end"
       >
         Submit
       </button>

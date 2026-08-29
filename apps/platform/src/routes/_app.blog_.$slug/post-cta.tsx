@@ -38,16 +38,13 @@ export function PostCta({ cta }: IPostCta) {
             {cta.link1 && (
               <ExtLink
                 href={cta.link1.href}
-                className="text-primary border border-primary btn btn-lg bg-panel rounded"
+                className="text-primary border border-primary btn btn-lg bg-panel"
               >
                 {cta.link1.label}
               </ExtLink>
             )}
             {cta.link2?.href && cta.link2.label && (
-              <ExtLink
-                href={cta.link2.href}
-                className="btn btn-lg btn-outline rounded"
-              >
+              <ExtLink href={cta.link2.href} className="btn btn-lg btn-outline">
                 {cta.link2.label}
               </ExtLink>
             )}

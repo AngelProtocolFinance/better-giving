@@ -35,10 +35,7 @@ export default function Component() {
       >
         <div className="page py-4 flex justify-between gap-x-4 items-center">
           <DappLogo classes="h-12" />
-          <Link
-            to={href("/signup")}
-            className="btn btn-primary text-nowrap rounded"
-          >
+          <Link to={href("/signup")} className="btn btn-primary text-nowrap">
             Sign up
           </Link>
         </div>

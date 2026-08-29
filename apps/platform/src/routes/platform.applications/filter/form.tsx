@@ -90,7 +90,7 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
           <button type="reset" className="text-primary underline text-sm">
             Reset filters
           </button>
-          <button type="submit" className="btn btn-primary rounded font-bold">
+          <button type="submit" className="btn btn-primary font-bold">
             Apply filters
           </button>
         </Actions>

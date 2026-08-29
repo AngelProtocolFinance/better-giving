@@ -29,13 +29,13 @@ export function Hero({ className = "", ...props }: Props) {
         <div className="flex flex-col xl:flex-row justify-center xl:justify-start items-center gap-6">
           <Link
             to={href("/register")}
-            className="text-center btn xl:btn-lg btn-primary font-bold rounded"
+            className="text-center btn xl:btn-lg btn-primary font-bold"
           >
             Start Free
           </Link>
           <Link
             to={BOOK_A_DEMO}
-            className="capitalize text-center btn xl:btn-lg btn-secondary font-bold border-2 rounded"
+            className="capitalize text-center btn xl:btn-lg btn-secondary font-bold border-2"
           >
             See how it works (&nbsp;Book&nbsp;a&nbsp;call&nbsp;)
           </Link>

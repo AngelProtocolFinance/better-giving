@@ -69,7 +69,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
           <span>Bank statement</span>
         </ExtLink>
         <button
-          className="btn btn-sm btn-destructive rounded mt-2 mb-8"
+          className="btn btn-sm btn-destructive mt-2 mb-8"
           type="button"
           onClick={() => set_is_changing(true)}
         >
@@ -95,7 +95,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
     <div className="flex flex-col items-start max-sm:items-center">
       {is_changing && (
         <button
-          className="btn btn-sm btn-primary rounded mt-2 mb-4"
+          className="btn btn-sm btn-primary mt-2 mb-4"
           type="button"
           onClick={() => set_is_changing(false)}
         >

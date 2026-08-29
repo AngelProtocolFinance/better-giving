@@ -28,7 +28,7 @@ export function NewsletterForm() {
           type="submit"
           name="intent"
           value="subscribe"
-          className="btn btn-secondary rounded"
+          className="btn btn-secondary"
           disabled={isSubmitting}
         >
           Subscribe

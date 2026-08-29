@@ -59,7 +59,7 @@ export function SetPasswordForm(props: Props) {
         value="confirm"
         disabled={fetcher.state !== "idle"}
         type="submit"
-        className="mt-6 w-full btn btn-lg btn-primary rounded"
+        className="mt-6 w-full btn btn-lg btn-primary"
       >
         Confirm
       </button>

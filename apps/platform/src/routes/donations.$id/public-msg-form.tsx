@@ -57,7 +57,7 @@ export function PublicMsgForm({ classes = "", init }: Props) {
       <button
         disabled={fetcher.state !== "idle" || !!init}
         type="submit"
-        className="btn btn-primary rounded mt-4 justify-self-end"
+        className="btn btn-primary mt-4 justify-self-end"
       >
         Submit
       </button>

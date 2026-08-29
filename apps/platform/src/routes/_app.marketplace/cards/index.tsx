@@ -17,7 +17,7 @@ export function Cards({ classes = "", items, load_next, loading }: Props) {
         <button
           type="button"
           disabled={loading}
-          className="col-span-full btn btn-primary rounded w-full mt-6"
+          className="col-span-full btn btn-primary w-full mt-6"
           onClick={load_next}
         >
           Load more organizations

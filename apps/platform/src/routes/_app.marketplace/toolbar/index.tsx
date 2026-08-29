@@ -14,7 +14,7 @@ export function Toolbar({ classes = "" }: { classes?: string }) {
         replace
         preventScrollReset
         to={{ pathname: "filter", search: params.toString() }}
-        className="btn btn-primary justify-start justify-self-start rounded"
+        className="btn btn-primary justify-start justify-self-start"
       >
         <FilterIcon size={16} className="mr-2" />
         <span>Filters</span>

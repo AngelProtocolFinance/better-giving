@@ -46,7 +46,7 @@ export const Fund = (props: IFundRow) => {
 
       <Link
         aria-disabled={!status.active}
-        className="btn btn-primary rounded justify-self-end mt-6"
+        className="btn btn-primary justify-self-end mt-6"
         to={href("/fundraisers/:fund_id/edit", { fund_id: props.id })}
       >
         Edit

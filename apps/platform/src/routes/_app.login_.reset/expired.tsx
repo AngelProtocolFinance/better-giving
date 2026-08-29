@@ -26,7 +26,7 @@ export function Expired(props: Props) {
         <button
           disabled={fetcher.state !== "idle"}
           type="submit"
-          className="w-full btn btn-lg btn-primary rounded"
+          className="w-full btn btn-lg btn-primary"
         >
           {fetcher.state !== "idle" ? "Sending..." : "Resend reset email"}
         </button>

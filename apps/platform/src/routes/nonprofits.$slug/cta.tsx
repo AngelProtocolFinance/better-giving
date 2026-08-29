@@ -22,13 +22,13 @@ export function Cta({ classes = "", ...props }: Props) {
       <div className="flex flex-col @xl:flex-row justify-center items-center gap-6 mt-10">
         <Link
           to={href("/register")}
-          className="text-center btn xl:btn-lg btn-primary font-bold rounded"
+          className="text-center btn xl:btn-lg btn-primary font-bold"
         >
           Start Today - Free
         </Link>
         <Link
           to={BOOK_A_DEMO}
-          className="capitalize text-center btn xl:btn-lg btn-secondary font-bold rounded"
+          className="capitalize text-center btn xl:btn-lg btn-secondary font-bold"
         >
           Questions? Chat with us
         </Link>

@@ -42,7 +42,7 @@ export function InitForm(props: Props) {
       <button
         disabled={fetcher.state !== "idle"}
         type="submit"
-        className="mt-6 w-full btn btn-lg btn-primary rounded"
+        className="mt-6 w-full btn btn-lg btn-primary"
       >
         {fetcher.state !== "idle" ? "Sending..." : "Send Code"}
       </button>

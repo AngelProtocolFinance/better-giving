@@ -28,7 +28,7 @@ export function BottomCta({ className = "" }) {
         <Image width={200} src={laira_shake_hands_x2} className="mt-4 mb-8" />
         <Link
           to={href("/register")}
-          className="btn btn-primary flex items-center font-bold rounded"
+          className="btn btn-primary flex items-center font-bold"
         >
           Get Started
         </Link>

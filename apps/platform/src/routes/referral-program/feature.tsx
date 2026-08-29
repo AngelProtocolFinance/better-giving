@@ -52,7 +52,7 @@ export function Feature({ className = "" }) {
           pathname: href("/signup"),
           search: `?redirect=${href("/dashboard/referrals")}`,
         }}
-        className="btn btn-lg btn-primary mt-8 justify-self-center col-span-full ml-1 font-bold inline-flex items-center gap-1 rounded"
+        className="btn btn-lg btn-primary mt-8 justify-self-center col-span-full ml-1 font-bold inline-flex items-center gap-1"
       >
         Become an Affiliate
         <ArrowRight size={18} />

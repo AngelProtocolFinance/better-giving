@@ -81,14 +81,14 @@ export function ErrorElement() {
               would leave the buttons alone at the far side of the viewport. */}
           <div className="flex gap-3 mt-8">
             {config.action === "back" ? (
-              <NavLink to={back_path} className="btn btn-primary rounded">
+              <NavLink to={back_path} className="btn btn-primary">
                 Go back
               </NavLink>
             ) : (
               <button
                 type="button"
                 onClick={() => revalidator.revalidate()}
-                className="btn btn-primary rounded"
+                className="btn btn-primary"
               >
                 Try again
               </button>
@@ -117,13 +117,13 @@ export function ErrorElement() {
         </pre>
       )}
       <div className="flex gap-3 mt-8">
-        <NavLink to={back_path} className="btn btn-secondary rounded">
+        <NavLink to={back_path} className="btn btn-secondary">
           Go back
         </NavLink>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="btn btn-primary rounded"
+          className="btn btn-primary"
         >
           Reload
         </button>

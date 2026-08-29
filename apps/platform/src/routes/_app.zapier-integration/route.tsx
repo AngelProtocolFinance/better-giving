@@ -146,10 +146,7 @@ const steps = [
           Enter the API key you obtained from your Better Giving NPO dashboard
           and click Yes, Continue.
         </p>
-        <button
-          type="button"
-          className="mt-2 btn btn-primary rounded w-full sm:w-auto"
-        >
+        <button type="button" className="mt-2 btn btn-primary w-full sm:w-auto">
           Continue
         </button>
         <p>Click Test trigger button.</p>

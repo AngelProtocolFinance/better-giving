@@ -43,7 +43,7 @@ export function Top({ className = "" }) {
               const dest = document.getElementById("register-nonprofit");
               dest?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="btn btn-lg btn-primary ml-1 font-bold inline-flex items-center gap-1 rounded"
+            className="btn btn-lg btn-primary ml-1 font-bold inline-flex items-center gap-1"
           >
             Register Your Nonprofit Now
             <ArrowRight size={18} />

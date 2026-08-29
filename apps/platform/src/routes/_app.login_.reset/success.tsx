@@ -15,7 +15,7 @@ export function Success(props: { to: string }) {
 
       <Link
         to={`${href("/login")}?redirect=${props.to}`}
-        className="btn btn-lg btn-primary mt-9 w-full rounded"
+        className="btn btn-lg btn-primary mt-9 w-full"
       >
         Back to Sign in
       </Link>

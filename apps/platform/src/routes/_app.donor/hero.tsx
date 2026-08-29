@@ -22,7 +22,7 @@ export function Hero({ className = "" }) {
 
         <Link
           to={href("/marketplace")}
-          className="justify-self-center @6xl:justify-self-start btn btn-lg btn-primary rounded"
+          className="justify-self-center @6xl:justify-self-start btn btn-lg btn-primary"
         >
           Donate today
         </Link>

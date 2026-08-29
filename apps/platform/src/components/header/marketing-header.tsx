@@ -69,11 +69,11 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             <>
               <Link
                 to={href("/register")}
-                className="btn btn-primary rounded shadow-lift-cta"
+                className="btn btn-primary shadow-lift-cta"
               >
                 Join free forever
               </Link>
-              <Link to={href("/login")} className="btn btn-secondary rounded">
+              <Link to={href("/login")} className="btn btn-secondary">
                 Log In
               </Link>
             </>
@@ -132,14 +132,14 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
                   <Link
                     to={href("/register")}
                     onClick={close}
-                    className="btn btn-primary rounded"
+                    className="btn btn-primary"
                   >
                     Join free forever
                   </Link>
                   <Link
                     to={href("/login")}
                     onClick={close}
-                    className="btn btn-secondary rounded"
+                    className="btn btn-secondary"
                   >
                     Log In
                   </Link>

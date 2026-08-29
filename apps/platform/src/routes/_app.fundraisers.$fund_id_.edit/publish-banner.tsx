@@ -30,7 +30,7 @@ export function PublishBanner({ classes = "", ...props }: Props) {
           disabled={props.isToggling}
           onClick={props.onToggle}
           type="button"
-          className="btn btn-primary rounded"
+          className="btn btn-primary"
         >
           {props.isToggling
             ? "Updating.."

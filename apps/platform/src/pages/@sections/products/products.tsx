@@ -27,7 +27,7 @@ export function Products({ classes = "" }) {
 
         <Link
           to={href("/register")}
-          className="btn btn-lg btn-primary justify-self-center xl:justify-self-start font-bold rounded"
+          className="btn btn-lg btn-primary justify-self-center xl:justify-self-start font-bold"
         >
           Join us today!
         </Link>

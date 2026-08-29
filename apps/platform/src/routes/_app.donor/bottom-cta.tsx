@@ -16,7 +16,7 @@ export function BottomCta({ className = "" }) {
         </h3>
         <Link
           to={href("/marketplace")}
-          className="disabled:bg-gray-3 aria-disabled:bg-gray-3 text-primary border border-primary enabled:hover:border-primary justify-self-center @5xl:justify-self-start btn btn-lg bg-panel rounded"
+          className="disabled:bg-gray-3 aria-disabled:bg-gray-3 text-primary border border-primary enabled:hover:border-primary justify-self-center @5xl:justify-self-start btn btn-lg bg-panel"
         >
           Donate today
         </Link>

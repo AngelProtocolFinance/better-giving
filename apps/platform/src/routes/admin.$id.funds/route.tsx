@@ -78,7 +78,7 @@ function Page({ loaderData }: Route.ComponentProps) {
               pathname: href("/fundraisers/new"),
               search: `npo=${endow.id}`,
             }}
-            className="btn btn-primary rounded"
+            className="btn btn-primary"
           >
             + Create
           </Link>

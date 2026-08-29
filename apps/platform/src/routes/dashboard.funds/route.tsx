@@ -24,7 +24,7 @@ function Page({ loaderData: { funds } }: Route.ComponentProps) {
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <div className="flex items-center justify-between mb-2 w-full border-b pb-4">
         <h3 className="text-3xl">My Fundraisers</h3>
-        <Link to={href("/fundraisers/new")} className="btn btn-primary rounded">
+        <Link to={href("/fundraisers/new")} className="btn btn-primary">
           Create
         </Link>
       </div>
