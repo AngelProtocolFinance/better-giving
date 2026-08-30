@@ -65,6 +65,12 @@ export async function handle_setup_intent_succeeded({
 
   const sub = await stripe.subscriptions.create(
     {
+      // the mode is fixed for the life of the subscription and only ever
+      // migrates classic -> flexible, never back. spelled out so the default
+      // an api version carries cannot pick it. for a fixed-price single item
+      // with no trial, discount, or update, the two modes bill identically;
+      // older subscriptions in the fleet are still classic and stay that way.
+      billing_mode: { type: "flexible" },
       customer: cust_id,
       default_payment_method: str_id(intent.payment_method),
       currency: c,

@@ -4,10 +4,20 @@ import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
 import type { IMetadata } from "@/stripe";
-import type { ISub } from "@/subscriptions";
+import type { ISub, TInterval } from "@/subscriptions";
 import { db } from "$/pg/db";
 import { donation_get } from "$/pg/queries/donation";
 import { sub_put } from "$/pg/queries/subscription";
+
+const INTERVALS: Record<TInterval, true> = {
+  day: true,
+  week: true,
+  month: true,
+  year: true,
+};
+
+const is_interval = (s: Stripe.Price.Recurring.Interval): s is TInterval =>
+  s in INTERVALS;
 
 /**
  * project a stripe subscription + the order it came from into our row.
@@ -28,6 +38,13 @@ export function to_sub_record(
       `price:${p.id} is not recurring on subscription:${sub.id} price`
     );
   }
+  const { interval } = p.recurring;
+  if (!is_interval(interval)) {
+    throw new Error(
+      `price:${p.id} on subscription:${sub.id} recurs at unsupported interval:${interval}`
+    );
+  }
+
   const total = amnt_sum(order.amount);
   const total_usd = total / order.upusd;
 
@@ -35,7 +52,7 @@ export function to_sub_record(
     id: sub.id,
     created_at: new Date(sub.created * 1000).toISOString(),
     updated_at: new Date(sub.created * 1000).toISOString(),
-    interval: p.recurring.interval,
+    interval,
     interval_count: p.recurring.interval_count,
     next_billing: new Date(
       sub.items.data[0].current_period_end * 1000

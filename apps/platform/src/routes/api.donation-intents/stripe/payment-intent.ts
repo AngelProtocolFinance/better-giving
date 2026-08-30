@@ -14,6 +14,11 @@ export async function payment_intent(i: IInput): Promise<string> {
   const to_pay = i.base + i.fee_allowance + i.tip;
   const { client_secret } = await stripe.paymentIntents.create({
     amount: to_atomic_c(i.currency)(to_pay),
+    // stripe's default is automatic_async, which leaves the charge's
+    // balance_transaction null at confirmation — the value settled.ts polls
+    // for before it 503s and makes stripe redeliver. spelled out to keep
+    // settlement a single round trip.
+    capture_method: "automatic",
     currency: i.currency.toLowerCase(),
     customer: i.customer_id,
     metadata: { order_id: i.order_id } satisfies IMetadata,

@@ -31,7 +31,7 @@ vi.mock("$/pg/db", () => ({
 vi.mock("$/kit/stripe", () => ({
   stripe: {
     webhooks: { constructEvent: vi.fn() },
-    paymentIntents: { retrieve: vi.fn(), search: vi.fn() },
+    paymentIntents: { retrieve: vi.fn() },
     paymentMethods: { retrieve: vi.fn() },
     invoices: { retrieve: vi.fn() },
     refunds: { create: vi.fn() },

@@ -32,7 +32,7 @@ vi.mock("$/pg/db", () => ({
 vi.mock("$/kit/stripe", () => ({
   stripe: {
     webhooks: { constructEvent: vi.fn() },
-    paymentIntents: { retrieve: vi.fn(), search: vi.fn() },
+    paymentIntents: { retrieve: vi.fn() },
     paymentMethods: { retrieve: vi.fn() },
     invoices: { retrieve: vi.fn() },
     refunds: { create: vi.fn() },
@@ -347,29 +347,6 @@ function make_stripe_event(order_id: string) {
 }
 
 function setup_refund_stripe_mocks() {
-  (stripe.paymentIntents.search as any).mockResolvedValue({
-    data: [
-      {
-        id: "pi_test_123",
-        amount: 10500,
-        currency: "usd",
-        status: "succeeded",
-        created: 1700000000,
-        description: null,
-        receipt_email: null,
-        metadata: { order_id: "test-order-123" },
-        latest_charge: {
-          refunded: false,
-          billing_details: { email: "donor@test.com" },
-          payment_method_details: { type: "card" },
-        },
-        invoice: null,
-      },
-    ],
-    has_more: false,
-    next_page: null,
-  });
-
   (stripe.paymentIntents.retrieve as any).mockResolvedValue({
     id: "pi_test_123",
     amount: 10500,

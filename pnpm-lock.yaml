@@ -188,7 +188,7 @@ importers:
         version: 19.2.3(@types/react@19.2.17)
       next:
         specifier: 16.2.6
-        version: 16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -215,7 +215,7 @@ importers:
         version: 5.37.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@better-auth/infra':
         specifier: 0.3.2
-        version: 0.3.2(@better-auth/core@1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0))(better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5))(zod@4.4.3)
+        version: 0.3.2(@better-auth/core@1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0))(better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5))(zod@4.4.3)
       '@better-giving/brand':
         specifier: workspace:*
         version: link:../../packages/brand
@@ -299,7 +299,7 @@ importers:
         version: 6.0.176(zod@4.4.3)
       better-auth:
         specifier: 1.6.22
-        version: 1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5)
+        version: 1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5)
       blog-types:
         specifier: workspace:*
         version: link:../../packages/types/blog
@@ -364,8 +364,8 @@ importers:
         specifier: 4.0.0
         version: 4.0.0(react-router@7.16.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
       stripe:
-        specifier: 22.1.1
-        version: 22.1.1(@types/node@24.0.4)
+        specifier: 22.6.0
+        version: 22.6.0(@types/node@24.0.4)
       swr:
         specifier: 2.3.2
         version: 2.3.2(react@19.2.6)
@@ -8695,8 +8695,8 @@ packages:
     resolution: {integrity: sha512-4gB8na07fecVVkOI6Rs4e7T6NOTki5EmL7TUduTs6bu3EdnSycntVJ4re8kgZA+wx9IueI2Y11bfbgwtzuE0KQ==}
     engines: {node: '>=0.10.0'}
 
-  stripe@22.1.1:
-    resolution: {integrity: sha512-cmodIYP27tBkJ8G7DuGgWw0PFuemlFZbuF3Wwr1TrjFjUa3T7NIgCe6TVwX8BO2ynu+xtTuDGfHafNDCPt9lXA==}
+  stripe@22.6.0:
+    resolution: {integrity: sha512-Ezk+WYEEwX2DLxFrKfb6coznlCMZvCaCYMNPXNHFSZkBIEzF5Hgm7RLb38q/0h9Ol5jsUJGJRorvhzAvckgfhw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
@@ -9792,7 +9792,7 @@ snapshots:
       '@babel/types': 7.29.7
       '@jridgewell/remapping': 2.3.5
       convert-source-map: 2.0.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -9844,7 +9844,7 @@ snapshots:
       '@babel/core': 7.29.7
       '@babel/helper-compilation-targets': 7.29.7
       '@babel/helper-plugin-utils': 7.29.7
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       lodash.debounce: 4.0.8
       resolve: 1.22.12
     transitivePeerDependencies:
@@ -10514,7 +10514,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -10527,7 +10527,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -10539,7 +10539,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -10571,12 +10571,12 @@ snapshots:
     optionalDependencies:
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7)
 
-  '@better-auth/infra@0.3.2(@better-auth/core@1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0))(better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5))(zod@4.4.3)':
+  '@better-auth/infra@0.3.2(@better-auth/core@1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0))(better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5))(zod@4.4.3)':
     dependencies:
       '@better-auth/core': 1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0)
       '@better-auth/utils': 0.4.2
       '@better-fetch/fetch': 1.3.1
-      better-auth: 1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5)
+      better-auth: 1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5)
       better-call: 1.3.7(zod@4.4.3)
       jose: 6.2.3
       libphonenumber-js: 1.13.7
@@ -12339,7 +12339,7 @@ snapshots:
       '@portabletext/schema': 2.2.3
       '@portabletext/to-html': 5.0.2
       '@xstate/react': 6.1.0(@types/react@19.2.17)(react@19.2.6)(xstate@5.32.5)
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       react: 19.2.6
       scroll-into-view-if-needed: 3.1.0
       xstate: 5.32.5
@@ -12356,7 +12356,7 @@ snapshots:
       '@portabletext/schema': 2.2.3
       '@portabletext/to-html': 5.0.2
       '@xstate/react': 6.1.0(@types/react@19.2.17)(react@19.2.7)(xstate@5.32.5)
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       react: 19.2.7
       scroll-into-view-if-needed: 3.1.0
       xstate: 5.32.5
@@ -12498,7 +12498,7 @@ snapshots:
   '@react-email/ui@6.9.0(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       esbuild: 0.28.1
-      next: 16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      next: 16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     transitivePeerDependencies:
       - '@babel/core'
       - '@opentelemetry/api'
@@ -12769,7 +12769,7 @@ snapshots:
       '@vitejs/plugin-react': 6.0.3(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/runtime@7.29.2)(rolldown@1.1.5)(vite@8.1.5(@types/node@24.0.4)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))(vite@8.1.5(@types/node@24.0.4)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       chokidar: 5.0.0
       cjs-module-lexer: 2.2.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       empathic: 2.0.1
       lodash-es: 4.18.1
       node-html-parser: 7.1.0
@@ -12815,7 +12815,7 @@ snapshots:
       '@oclif/core': 4.11.14
       '@sanity/client': 7.23.2
       boxen: 8.0.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       empathic: 2.0.1
       get-it: 8.8.0
       get-tsconfig: 4.14.0
@@ -12871,7 +12871,7 @@ snapshots:
       chokidar: 5.0.0
       console-table-printer: 2.16.1
       date-fns: 4.4.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       dotenv: 17.4.2
       eventsource: 4.1.0
       execa: 9.6.1
@@ -12972,7 +12972,7 @@ snapshots:
       '@sanity/telemetry': 1.1.0(react@19.2.7)
       '@sanity/worker-channels': 2.0.0
       chokidar: 3.6.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       globby: 11.1.0
       groq: 6.5.0
       groq-js: 1.30.3
@@ -13021,7 +13021,7 @@ snapshots:
 
   '@sanity/export@6.2.0':
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       get-it: 8.8.0
       json-stream-stringify: 3.1.7
       p-queue: 9.3.1
@@ -13059,7 +13059,7 @@ snapshots:
       '@sanity/client': 7.23.2
       '@sanity/generate-help-url': 4.0.0
       '@sanity/mutator': 6.1.0(@types/react@19.2.17)
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       get-it: 8.8.0
       gunzip-maybe: 1.4.2
       p-map: 7.0.4
@@ -13115,7 +13115,7 @@ snapshots:
       '@sanity/util': 6.1.0(@types/react@19.2.17)
       arrify: 2.0.1
       console-table-printer: 2.16.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       fast-fifo: 1.3.2
       groq-js: 1.30.3
       p-map: 7.0.4
@@ -13143,7 +13143,7 @@ snapshots:
       '@sanity/diff-match-patch': 3.2.0
       '@sanity/types': 6.1.0(@types/react@19.2.17)
       '@sanity/uuid': 3.0.3
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       lodash-es: 4.18.1
     transitivePeerDependencies:
       - '@types/react'
@@ -14747,7 +14747,7 @@ snapshots:
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -14944,7 +14944,7 @@ snapshots:
 
   before-after-hook@4.0.0: {}
 
-  better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5):
+  better-auth@1.6.22(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.9.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))(next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(pg@8.20.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(vitest@4.1.5):
     dependencies:
       '@better-auth/core': 1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0)
       '@better-auth/drizzle-adapter': 1.6.22(@better-auth/core@1.6.22(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@opentelemetry/api@1.9.1)(better-call@1.3.7(zod@4.4.3))(jose@6.2.3)(kysely@0.29.2)(nanostores@1.3.0))(@better-auth/utils@0.4.2)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7))
@@ -14968,7 +14968,7 @@ snapshots:
       better-sqlite3: 12.9.0
       drizzle-kit: 0.31.10
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.5)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.15.6)(better-sqlite3@12.9.0)(bun-types@1.1.17)(kysely@0.29.2)(pg@8.20.0)(postgres@3.4.9)(sqlite3@5.1.7)
-      next: 16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      next: 16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       pg: 8.20.0
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
@@ -15433,10 +15433,6 @@ snapshots:
 
   debounce@2.2.0: {}
 
-  debug@4.4.3:
-    dependencies:
-      ms: 2.1.3
-
   debug@4.4.3(supports-color@8.1.1):
     dependencies:
       ms: 2.1.3
@@ -15619,7 +15615,7 @@ snapshots:
       base64id: 2.0.0
       cookie: 0.7.2
       cors: 2.8.6
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       engine.io-parser: 5.2.3
       ws: 8.18.3
     transitivePeerDependencies:
@@ -16159,7 +16155,7 @@ snapshots:
 
   groq-js@1.30.3:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -16299,7 +16295,7 @@ snapshots:
     dependencies:
       '@tootallnate/once': 1.1.2
       agent-base: 6.0.2
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
     optional: true
@@ -16307,21 +16303,14 @@ snapshots:
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.4.3
-    transitivePeerDependencies:
-      - supports-color
-
-  https-proxy-agent@7.0.6:
-    dependencies:
-      agent-base: 7.1.4
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -16574,7 +16563,7 @@ snapshots:
       decimal.js: 10.6.0
       html-encoding-sniffer: 4.0.0
       http-proxy-agent: 7.0.2
-      https-proxy-agent: 7.0.6
+      https-proxy-agent: 7.0.6(supports-color@9.4.0)
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.23
       parse5: 7.3.0
@@ -16605,7 +16594,7 @@ snapshots:
       decimal.js: 10.6.0
       html-encoding-sniffer: 6.0.0(@noble/hashes@2.2.0)
       http-proxy-agent: 7.0.2
-      https-proxy-agent: 7.0.6
+      https-proxy-agent: 7.0.6(supports-color@9.4.0)
       is-potential-custom-element-name: 1.0.1
       parse5: 8.0.1
       saxes: 6.0.0
@@ -17157,7 +17146,7 @@ snapshots:
 
   neverthrow@7.2.0: {}
 
-  next@16.2.6(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@next/env': 16.2.6
       '@swc/helpers': 0.5.15
@@ -17166,7 +17155,7 @@ snapshots:
       postcss: 8.4.31
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-      styled-jsx: 5.1.6(react@19.2.6)
+      styled-jsx: 5.1.6(@babel/core@7.29.7)(react@19.2.6)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.2.6
       '@next/swc-darwin-x64': 16.2.6
@@ -18007,7 +17996,7 @@ snapshots:
 
   require-in-the-middle@8.0.1:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       module-details-from-path: 1.0.4
     transitivePeerDependencies:
       - supports-color
@@ -18184,7 +18173,7 @@ snapshots:
       color2k: 2.0.4
       dataloader: 2.2.3
       date-fns: 4.1.0
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       exif-component: 1.0.1
       fast-deep-equal: 3.1.3
       groq-js: 1.30.3
@@ -18404,7 +18393,7 @@ snapshots:
 
   socket.io-adapter@2.5.6:
     dependencies:
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       ws: 8.18.3
     transitivePeerDependencies:
       - bufferutil
@@ -18414,7 +18403,7 @@ snapshots:
   socket.io-parser@4.2.6:
     dependencies:
       '@socket.io/component-emitter': 3.1.2
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -18423,7 +18412,7 @@ snapshots:
       accepts: 1.3.8
       base64id: 2.0.0
       cors: 2.8.6
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       engine.io: 6.6.7
       socket.io-adapter: 2.5.6
       socket.io-parser: 4.2.6
@@ -18435,7 +18424,7 @@ snapshots:
   socks-proxy-agent@6.2.1:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       socks: 2.8.9
     transitivePeerDependencies:
       - supports-color
@@ -18553,7 +18542,7 @@ snapshots:
   strip-json-comments@2.0.1:
     optional: true
 
-  stripe@22.1.1(@types/node@24.0.4):
+  stripe@22.6.0(@types/node@24.0.4):
     optionalDependencies:
       '@types/node': 24.0.4
 
@@ -18574,10 +18563,12 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.7(react@19.2.7)
 
-  styled-jsx@5.1.6(react@19.2.6):
+  styled-jsx@5.1.6(@babel/core@7.29.7)(react@19.2.6):
     dependencies:
       client-only: 0.0.1
       react: 19.2.6
+    optionalDependencies:
+      '@babel/core': 7.29.7
 
   stylis@4.3.6: {}
 
@@ -18793,7 +18784,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.3
       consola: 3.4.2
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       esbuild: 0.27.7
       fix-dts-default-cjs-exports: 1.0.1
       joycon: 3.1.1
@@ -19047,7 +19038,7 @@ snapshots:
   vite-node@3.2.4(@types/node@24.0.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@9.4.0)
       es-module-lexer: 1.7.0
       pathe: 2.0.3
       vite: 7.3.2(@types/node@24.0.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1)(yaml@2.9.0)
