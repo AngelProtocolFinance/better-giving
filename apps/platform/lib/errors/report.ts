@@ -71,8 +71,11 @@ function capture(
     error instanceof Error || error instanceof Response
       ? context
       : { ...context, original_error: error };
+  // bugsink stores and displays level but deliberately does not index it as a
+  // searchable tag, so the error/degraded split is carried by a tag of our own.
   Sentry.captureException(normalize(error), {
     level,
+    tags: { report: level === "error" ? "bug" : "degraded" },
     ...(extra ? { extra } : {}),
   });
 }
@@ -88,8 +91,9 @@ export function report_error(
  * a third party we don't control was unreachable from the visitor's browser —
  * a blocked script, a dropped fetch, an sdk that never came up. nothing in this
  * repo is broken when one fires, and they outnumber real defects by orders of
- * magnitude, so they're kept at warning level: `level:error` stays a list of
- * our own bugs, while a provider outage is still visible as a rate change.
+ * magnitude, so they're kept at warning level and tagged `report:degraded`:
+ * `report:bug` stays a queryable list of our own bugs, while a provider outage
+ * is still visible as a rate change.
  *
  * only for failures already handled — the caller must have degraded the ui.
  */

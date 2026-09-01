@@ -7,10 +7,12 @@ vi.mock("@sentry/react-router", () => ({
 
 const { report_unhandled } = await import("./report");
 
-// the level IS the contract: `level:error` is meant to read as a list of our
-// own bugs, so anything a third party throws that leaves the ui working has to
-// land on warning instead
+// the `report` tag IS the contract: `report:bug` is meant to read as a list of
+// our own bugs, so anything a third party throws that leaves the ui working has
+// to land on `degraded` instead. level carries the same split for the event
+// page, but only the tag is searchable, so both are asserted together.
 const level = () => capture_exception.mock.calls.at(-1)?.[1]?.level;
+const report = () => capture_exception.mock.calls.at(-1)?.[1]?.tags?.report;
 
 // what safari actually throws — read as a plain object because the real one
 // crosses the embedder's realm
@@ -30,6 +32,7 @@ describe("report_unhandled", () => {
   test("degrades safari's insecure-parent apple pay rejection", () => {
     report_unhandled(insecure_parent);
     expect(level()).toBe("warning");
+    expect(report()).toBe("degraded");
   });
 
   // both halves of the match are required — the name on its own is a generic
@@ -37,16 +40,19 @@ describe("report_unhandled", () => {
   test("still reports another InvalidAccessError as an error", () => {
     report_unhandled({ name: "InvalidAccessError", message: "detached node" });
     expect(level()).toBe("error");
+    expect(report()).toBe("bug");
   });
 
   test("still reports the apple pay message under another name", () => {
     report_unhandled({ name: "TypeError", message: insecure_parent.message });
     expect(level()).toBe("error");
+    expect(report()).toBe("bug");
   });
 
   test("reports an ordinary rejection as an error", () => {
     report_unhandled(new Error("boom"));
     expect(level()).toBe("error");
+    expect(report()).toBe("bug");
   });
 
   // the sink takes whatever a rejected promise carried, which need not be an
@@ -54,7 +60,9 @@ describe("report_unhandled", () => {
   test("survives a primitive reason", () => {
     report_unhandled("boom");
     expect(level()).toBe("error");
+    expect(report()).toBe("bug");
     report_unhandled(undefined);
     expect(level()).toBe("error");
+    expect(report()).toBe("bug");
   });
 });

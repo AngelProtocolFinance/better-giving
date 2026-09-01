@@ -37,10 +37,20 @@ export default defineConfig((config) => {
     !!env.VERCEL_GIT_COMMIT_SHA &&
     sentryReactRouter(
       {
-        org: env.SENTRY_ORG,
+        sentryUrl: "https://bugsink-justin.fly.dev",
+        // bugsink has no organizations; its docs prescribe this literal slug.
+        org: "bugsinkhasnoorgs",
         project: env.SENTRY_PROJECT,
         authToken: env.SENTRY_AUTH_TOKEN,
-        release: { name: env.VERCEL_GIT_COMMIT_SHA },
+        // bugsink has no release create/finalize endpoints — it infers releases
+        // from the identifier on incoming events, so leaving either on fails
+        // the sourcemap upload. `inject` stays on (its default) to put that
+        // identifier in the bundle.
+        release: {
+          name: env.VERCEL_GIT_COMMIT_SHA,
+          create: false,
+          finalize: false,
+        },
       },
       config
     );

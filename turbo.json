@@ -3,15 +3,7 @@
   // every member extends this; $TURBO_DEFAULT$ is package-scoped so changes
   // here wouldn't otherwise invalidate anything.
   "globalDependencies": ["tsconfig.base.json"],
-  "globalPassThroughEnv": [
-    "VERCEL",
-    "VERCEL_ENV",
-    "CI",
-    "SENTRY_VERCEL_LOG_DRAIN_URL",
-    "SENTRY_OTLP_TRACES_URL",
-    "SENTRY_PUBLIC_KEY",
-    "SANITY_READ_TOKEN"
-  ],
+  "globalPassThroughEnv": ["VERCEL", "VERCEL_ENV", "CI", "SANITY_READ_TOKEN"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -71,7 +63,6 @@
         "HUBSPOT_DEAL_STAGE_ID",
         "SENTRY_DSN",
         "SENTRY_AUTH_TOKEN",
-        "SENTRY_ORG",
         "SENTRY_PROJECT",
         "AI_GATEWAY_API_KEY",
         "BETTER_AUTH_API_KEY",

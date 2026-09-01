@@ -126,7 +126,6 @@ export const qstash = {
 export const sentry = {
   dsn: process.env.SENTRY_DSN,
   auth_token: process.env.SENTRY_AUTH_TOKEN,
-  org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
 } as const;
 
