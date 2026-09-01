@@ -44,11 +44,10 @@ export default defineConfig((config) => {
         project: env.SENTRY_PROJECT,
         authToken: env.SENTRY_AUTH_TOKEN,
         // bugsink has no release endpoints at all — it infers releases from the
-        // identifier on incoming events. `deploy` is the load-bearing one: left
-        // unset, the plugin turns it on by itself whenever VERCEL and
-        // VERCEL_TARGET_ENV are present, and the deploy call is fatal to the
-        // build. `inject` stays on (its default) to put the identifier in the
-        // bundle.
+        // identifier on incoming events. `deploy` in particular must stay set:
+        // left unset, the plugin turns it on by itself whenever VERCEL and
+        // VERCEL_TARGET_ENV are present, and that call is fatal to the build.
+        // `inject` stays on (its default) to put the identifier in the bundle.
         release: {
           name: env.VERCEL_GIT_COMMIT_SHA,
           create: false,
