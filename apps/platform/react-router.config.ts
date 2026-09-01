@@ -1,6 +1,7 @@
 import type { Config } from "@react-router/dev/config";
 import { sentryOnBuildEnd } from "@sentry/react-router";
 import { vercelPreset } from "@vercel/react-router/vite";
+import { BUGSINK_URL } from "./utils/bugsink";
 export default {
   ssr: true,
   appDirectory: "src",
@@ -8,6 +9,11 @@ export default {
   presets: [vercelPreset()],
   buildEnd: async (args) => {
     if (process.env.SENTRY_AUTH_TOKEN) {
+      // sentryOnBuildEnd builds its own sentry-cli and forwards only authToken,
+      // org and project — never the instance url — so without this every call
+      // it makes resolves against sentry.io and 404s on an org that only
+      // exists here.
+      process.env.SENTRY_URL = BUGSINK_URL;
       await sentryOnBuildEnd(args);
     }
     // when assets are served from blob (vite base is a real origin, not "/";

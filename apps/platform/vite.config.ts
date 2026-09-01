@@ -6,6 +6,7 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vite";
 import { devtools_json } from "./plugins/devtools-json";
 import { inline_binary } from "./plugins/inline-binary";
+import { BUGSINK_URL } from "./utils/bugsink";
 import { check_env } from "./utils/check-env";
 
 export default defineConfig((config) => {
@@ -37,19 +38,22 @@ export default defineConfig((config) => {
     !!env.VERCEL_GIT_COMMIT_SHA &&
     sentryReactRouter(
       {
-        sentryUrl: "https://bugsink-justin.fly.dev",
+        sentryUrl: BUGSINK_URL,
         // bugsink has no organizations; its docs prescribe this literal slug.
         org: "bugsinkhasnoorgs",
         project: env.SENTRY_PROJECT,
         authToken: env.SENTRY_AUTH_TOKEN,
-        // bugsink has no release create/finalize endpoints — it infers releases
-        // from the identifier on incoming events, so leaving either on fails
-        // the sourcemap upload. `inject` stays on (its default) to put that
-        // identifier in the bundle.
+        // bugsink has no release endpoints at all — it infers releases from the
+        // identifier on incoming events. `deploy` is the load-bearing one: left
+        // unset, the plugin turns it on by itself whenever VERCEL and
+        // VERCEL_TARGET_ENV are present, and the deploy call is fatal to the
+        // build. `inject` stays on (its default) to put the identifier in the
+        // bundle.
         release: {
           name: env.VERCEL_GIT_COMMIT_SHA,
           create: false,
           finalize: false,
+          deploy: false,
         },
       },
       config
