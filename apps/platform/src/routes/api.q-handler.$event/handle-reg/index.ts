@@ -9,7 +9,7 @@ import type { CompanyProperties, ContactProperties } from "@/hubspot";
 import type { IRegCreatedPayload } from "@/queue";
 import { Progress } from "@/reg/progress";
 import type { IReg } from "@/reg/schema";
-import { send_email } from "$/email";
+import { send_email, send_email_or_throw } from "$/email";
 import { base_url, hubspot } from "$/env";
 import { bg_sales } from "$/kit/discord";
 import { wise } from "$/kit/wise";
@@ -68,12 +68,12 @@ export async function handle_reg_created(r: IRegCreatedPayload) {
     reference_id: r.id,
     resume_url,
   });
-  const res = await send_email({
+  const res = await send_email_or_throw({
     to: [r.r_id],
     node,
     subject,
   });
-  console.info(res.data?.id);
+  console.info(res.id);
 }
 
 export async function handle_reg_updated(reg: IReg) {
@@ -167,6 +167,10 @@ export async function handle_reg_updated(reg: IReg) {
     console.info(deal);
   }
 
+  // the swallowing send, and an at-most-once kind behind it: a redelivery would
+  // file a second hubspot deal for the same application, and a throw here would
+  // skip the contact/company sync at the foot of this function. a refused status
+  // mail is reported and left rather than re-driving everything around it.
   if (reg.status === "04") {
     const { node, subject } = registration_rejected.template({
       registrant_first_name: reg.r_first_name || "missing",

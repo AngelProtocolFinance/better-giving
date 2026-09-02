@@ -3,7 +3,7 @@ import { emails } from "@/constants/common";
 import { to_pretty_utc } from "@/helpers/date";
 import { rd } from "@/helpers/decimal";
 import type { ILockTxCreatedPayload } from "@/queue";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 import { npo_get } from "$/pg/queries/npo";
 
 // emitter already filters for lock account, non-dividend, non-refund
@@ -26,7 +26,7 @@ export async function handle_lock_tx_created(data: ILockTxCreatedPayload) {
   };
   const { node, subject } = email.template(d);
 
-  const res = await send_email({
+  const res = await send_email_or_throw({
     node,
     subject,
     to: Object.values(emails),

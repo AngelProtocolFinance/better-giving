@@ -98,6 +98,11 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   };
   const { node, subject } = donation_nonprofit_notif.template(data);
 
+  // the swallowing send, and an at-most-once kind behind it: the country metric
+  // above is an ungated `total + inc` and the webhooks are already delivered by
+  // the time this runs, so a redelivery double-counts the donation and re-fires
+  // every subscriber's endpoint. a refusal is still reported by the send itself,
+  // which is what makes a notification lost here survivable.
   const res = await send_email({
     node,
     subject,

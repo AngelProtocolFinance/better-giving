@@ -36,13 +36,13 @@ vi.mock("$/pg/db", () => ({
 
 // the only faked seam: whether a second delivery mails the donor again is the
 // whole question, and the claim it turns on is a real db gate.
-const send_email = vi.hoisted(() =>
+const send_email_or_throw = vi.hoisted(() =>
   vi.fn(async (_i: { node: any; to: string[]; subject: string }) => ({
-    data: { id: "email-1", response: "250 ok" },
-    error: null,
+    id: "email-1",
+    response: "250 ok",
   }))
 );
-vi.mock("$/email", () => ({ send_email, sender: "test@test.com" }));
+vi.mock("$/email", () => ({ send_email_or_throw, sender: "test@test.com" }));
 
 // giving the lease back is a second db write on the way out of a failure, and
 // it can fail too. everything else in the module stays real — the claim this
@@ -164,7 +164,7 @@ describe("handle_don_receipt - queue redelivery", () => {
     await handle_don_receipt(don());
     await handle_don_receipt(don());
 
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   test("the donor never sees two receipt numbers for one donation", async () => {
@@ -173,7 +173,7 @@ describe("handle_don_receipt - queue redelivery", () => {
 
     // a fresh tax_receipt_id per delivery is what makes a duplicate
     // unreconcilable: two numbers, one gift, and no way to tell which is real
-    const ids = send_email.mock.calls.map(
+    const ids = send_email_or_throw.mock.calls.map(
       ([i]) => (i as any).node.props.tax_receipt_id
     );
     expect(new Set(ids).size).toBe(1);
@@ -182,7 +182,7 @@ describe("handle_don_receipt - queue redelivery", () => {
 
 describe("handle_don_receipt - a send that fails", () => {
   test("rethrows so the failure surfaces instead of passing for sent", async () => {
-    send_email.mockRejectedValueOnce(new Error("resend unavailable"));
+    send_email_or_throw.mockRejectedValueOnce(new Error("resend unavailable"));
 
     await expect(handle_don_receipt(don())).rejects.toThrow(
       "resend unavailable"
@@ -190,14 +190,14 @@ describe("handle_don_receipt - a send that fails", () => {
   });
 
   test("releases the claim so a later delivery still mails the donor", async () => {
-    send_email.mockRejectedValueOnce(new Error("resend unavailable"));
+    send_email_or_throw.mockRejectedValueOnce(new Error("resend unavailable"));
     await expect(handle_don_receipt(don())).rejects.toThrow();
 
     // a burnt claim over a refused send is permanent: the receipt is never
     // mailed, nothing retries, and the stamp says it went out
     await handle_don_receipt(don());
 
-    expect(send_email).toHaveBeenCalledTimes(2);
+    expect(send_email_or_throw).toHaveBeenCalledTimes(2);
   });
 
   test("the claim is not released by an ordinary redelivery", async () => {
@@ -207,11 +207,11 @@ describe("handle_don_receipt - a send that fails", () => {
 
     // the lease is only given back on a throw — a delivery that found the
     // claim taken must not hand it to the next one
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   test("a release that fails too does not bury the send failure", async () => {
-    send_email.mockRejectedValueOnce(new Error("resend unavailable"));
+    send_email_or_throw.mockRejectedValueOnce(new Error("resend unavailable"));
     fail_release.current = true;
 
     // the release runs on the way out of the send failure, so a throw from it
@@ -223,7 +223,7 @@ describe("handle_don_receipt - a send that fails", () => {
   });
 
   test("the release failure is still reported rather than swallowed", async () => {
-    send_email.mockRejectedValueOnce(new Error("resend unavailable"));
+    send_email_or_throw.mockRejectedValueOnce(new Error("resend unavailable"));
     fail_release.current = true;
 
     await expect(handle_don_receipt(don())).rejects.toThrow();
@@ -269,7 +269,7 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     // expiry the donor's receipt is lost for good.
     await handle_don_receipt(don());
 
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   test("a claim still inside its lease is left alone", async () => {
@@ -279,7 +279,7 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     // claim exists to prevent.
     await handle_don_receipt(don());
 
-    expect(send_email).not.toHaveBeenCalled();
+    expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 
   test("a blip on the sent stamp does not cost the donor a second receipt", async () => {
@@ -295,7 +295,7 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     await expire_claim();
     await handle_don_receipt(don());
 
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   test("a sent stamp that never lands is reported and rethrown", async () => {
@@ -306,7 +306,7 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     // receipts went out that the donation row does not know about. it stays
     // claimed rather than released — releasing is what would invite the
     // duplicate — so the report is the only thing that says so.
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
     expect(report_error).toHaveBeenCalledOnce();
   });
 
@@ -318,6 +318,6 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     // the reason an expiry can never mail a second receipt for one gift.
     await handle_don_receipt(don());
 
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 });
