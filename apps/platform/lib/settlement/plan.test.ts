@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import type { IDonDistPayload } from "../queue";
 import type { IInput, IParts } from "../types/donation-dist";
 import {
   calc_settlement_plan,
@@ -196,6 +197,31 @@ describe("calc_settlement_plan", () => {
   test("don_dist msg is always emitted, last", () => {
     const plan = calc_settlement_plan(make_input(), make_ctx());
     expect(plan.msgs.at(-1)?.id).toBe("don-dist");
+  });
+
+  test("don_dist carries the donor address the npo notification prints", () => {
+    const plan = calc_settlement_plan(
+      make_input({
+        tx: {
+          ...make_input().tx,
+          from_addr_street: "12 Fleet St",
+          from_addr_city: "London",
+          from_addr_zip_code: "EC4Y 1AA",
+          from_addr_country: "GB",
+        },
+      }),
+      make_ctx()
+    );
+
+    // this is the only producer of the kind, so an address it drops is one the
+    // notification can never show
+    const p = plan.msgs.at(-1)?.payload as IDonDistPayload;
+    expect(p.from?.address).toMatchObject({
+      street: "12 Fleet St",
+      city: "London",
+      zip: "EC4Y 1AA",
+      country: "GB",
+    });
   });
 });
 

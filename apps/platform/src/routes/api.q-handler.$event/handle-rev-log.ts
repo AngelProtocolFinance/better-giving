@@ -2,7 +2,7 @@ import { tip_notif } from "emails";
 import { emails } from "@/constants/common";
 import { to_amount } from "@/helpers/email";
 import type { ITipReceivedPayload } from "@/queue";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 
 // emitter already filters for tip-only — no guards needed here
 export async function handle_tip_received(data: ITipReceivedPayload) {
@@ -19,7 +19,7 @@ export async function handle_tip_received(data: ITipReceivedPayload) {
     is_recurring: data.is_recurring,
   });
 
-  const res = await send_email({
+  const res = await send_email_or_throw({
     node,
     subject,
     to: Object.values(emails),

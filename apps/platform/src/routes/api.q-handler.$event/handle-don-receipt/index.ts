@@ -7,7 +7,7 @@ import { report_error } from "@/errors/report";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 import {
   claim_receipt_send,
   mark_receipt_sent,
@@ -130,8 +130,8 @@ async function sends(don: IDonation) {
     };
     const { node, subject } = dpm.template(data);
 
-    const res = await send_email({ node, subject, to: adms });
-    console.info("sent private message to npo admins:", res.data?.id, data);
+    const res = await send_email_or_throw({ node, subject, to: adms });
+    console.info("sent private message to npo admins:", res.id, data);
   }
 
   // tribute notification email
@@ -153,11 +153,11 @@ async function sends(don: IDonation) {
     };
     const { node, subject } = dtn.template(data);
 
-    const res = await send_email({
+    const res = await send_email_or_throw({
       node,
       to: [don.tribute.notif.to_email],
       subject,
     });
-    console.info("sent tribute notification:", res.data?.id, data);
+    console.info("sent tribute notification:", res.id, data);
   }
 }

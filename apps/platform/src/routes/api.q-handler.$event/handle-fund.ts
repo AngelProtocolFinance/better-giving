@@ -1,7 +1,6 @@
 import { fund_opt_out_notif } from "emails";
-import { report_error } from "@/errors/report";
 import type { IFundMemberRemovedPayload } from "@/queue";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 import { npo_get } from "$/pg/queries/npo";
 
 export async function handle_fund_member_removed(
@@ -14,15 +13,11 @@ export async function handle_fund_member_removed(
       to_name: data.creator_name,
       opted_out_name: npo.name,
     });
-    try {
-      const res = await send_email({
-        node,
-        subject,
-        to: [data.creator_id],
-      });
-      console.info("sent opt-out email:", res);
-    } catch (err) {
-      report_error(err, { fund_id: data.fund_id, npo_id });
-    }
+    const res = await send_email_or_throw({
+      node,
+      subject,
+      to: [data.creator_id],
+    });
+    console.info("sent opt-out email:", res);
   }
 }

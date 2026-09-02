@@ -5,10 +5,10 @@ import type { TestDb } from "$/pg/test-utils/pglite-browser";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const test_auth_ref = vi.hoisted(() => ({ current: null as any }));
-const send_email = vi.hoisted(() =>
+const send_email_or_throw = vi.hoisted(() =>
   vi.fn(async (_i: { node: any; to: string[]; subject: string }) => ({
-    data: { id: "email-1", response: "250 ok" },
-    error: null,
+    id: "email-1",
+    response: "250 ok",
   }))
 );
 const enqueued = vi.hoisted(() => [] as { id: string; payload: any }[]);
@@ -29,7 +29,10 @@ vi.mock("$/pg/db", () => ({
 }));
 
 vi.mock("$/email", () => ({
-  send_email,
+  send_email_or_throw,
+  // `handle_reg_updated` shares this module and keeps the swallowing send; the
+  // factory has to name it or the module fails to load
+  send_email: vi.fn(),
   sender: "test <test@test.com>",
 }));
 
@@ -130,7 +133,7 @@ beforeEach(async () => {
 /** the html the applicant actually receives — the mail is the subject here, so
  * every assertion about it reads the rendered document rather than the props
  * the handler happened to pass. */
-const sent_html = () => render(send_email.mock.calls[0]![0].node);
+const sent_html = () => render(send_email_or_throw.mock.calls[0]![0].node);
 
 const hrefs = (html: string) =>
   [...html.matchAll(/href="([^"]+)"/g)].map((m) =>
@@ -192,7 +195,7 @@ describe("handle_reg_created", () => {
       unproven: true,
     });
 
-    expect(send_email).not.toHaveBeenCalled();
+    expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 
   it("mails the registrant whose address is not yet proven", async () => {
@@ -204,8 +207,8 @@ describe("handle_reg_created", () => {
       unproven: true,
     });
 
-    expect(send_email).toHaveBeenCalledOnce();
-    expect(send_email.mock.calls[0]![0]).toMatchObject({
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0]![0]).toMatchObject({
       to: ["lead@example.org"],
     });
   });
@@ -217,7 +220,7 @@ describe("handle_reg_created", () => {
       unproven: true,
     });
 
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   it("mails on a message enqueued before the flag existed", async () => {
@@ -227,7 +230,7 @@ describe("handle_reg_created", () => {
 
     await handle_reg_created({ id: "reg-4", r_id: "owner@example.org" });
 
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   it("gives the unproven applicant a way back in, not just a reference", async () => {
@@ -363,8 +366,8 @@ describe("handle_reg_created", () => {
 
     await handle_reg_created(m!.payload);
 
-    expect(send_email).toHaveBeenCalledOnce();
-    expect(send_email.mock.calls[0]![0]).toMatchObject({
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0]![0]).toMatchObject({
       to: ["founder@example.org"],
     });
   });

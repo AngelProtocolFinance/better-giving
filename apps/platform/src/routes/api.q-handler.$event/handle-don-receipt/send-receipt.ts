@@ -2,7 +2,7 @@ import { donation_receipt, type IDonation as IDon, type IDonor } from "emails";
 import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 import { app } from "$/env";
 import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 
@@ -41,8 +41,12 @@ export const send_receipt = async (d: IDonation) => {
       from: donor,
     };
     const { node, subject } = donation_receipt.template(x);
-    const res = await send_email({ node, subject, to: [d.from_email] });
-    console.info("sent tip receipt:", res.data?.id, x);
+    const res = await send_email_or_throw({
+      node,
+      subject,
+      to: [d.from_email],
+    });
+    console.info("sent tip receipt:", res.id, x);
   }
 
   if (d.to_type === "fund") {
@@ -64,8 +68,12 @@ export const send_receipt = async (d: IDonation) => {
         from: donor,
       };
       const { node, subject } = donation_receipt.template(x);
-      const res = await send_email({ node, subject, to: [d.from_email] });
-      console.info("sent receipt fund npo member:", res.data?.id, x);
+      const res = await send_email_or_throw({
+        node,
+        subject,
+        to: [d.from_email],
+      });
+      console.info("sent receipt fund npo member:", res.id, x);
     }
     return;
   }
@@ -88,6 +96,6 @@ export const send_receipt = async (d: IDonation) => {
     to_msg_to_from: npo.receipt_msg ?? undefined,
   };
   const { node, subject } = donation_receipt.template(x);
-  const res = await send_email({ node, subject, to: [d.from_email] });
-  console.info("sent npo receipt:", res.data?.id, x);
+  const res = await send_email_or_throw({ node, subject, to: [d.from_email] });
+  console.info("sent npo receipt:", res.id, x);
 };

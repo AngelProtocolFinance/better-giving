@@ -370,6 +370,16 @@ export function calc_settlement_plan(
       from: {
         name: don.from_name,
         company: don.from_company_name,
+        // the same fields the receipt prints. every part is optional and the
+        // consumer joins whatever is present, so a donor who gave no address
+        // renders as none rather than as a row of separators.
+        address: {
+          street: don.from_addr_street,
+          city: don.from_addr_city,
+          state: don.from_addr_state,
+          zip: don.from_addr_zip_code,
+          country: don.from_addr_country,
+        },
       },
       program: don.program,
     })

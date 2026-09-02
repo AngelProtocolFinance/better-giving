@@ -60,11 +60,16 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
 });
 
 describe("msg() — delivery config", () => {
-  // the notification kinds send an email as their first act, where a retry is
-  // a duplicate send: they take at-most-once, deliver-now delivery, and get no
-  // row here. a kind opting into retries or a delay has to be listed
-  // deliberately, with a reason a retry cannot reach the donor twice.
+  // a kind whose handler only reads and mails takes retries: it mails through
+  // `send_email_or_throw`, so a refusal comes back to qstash, and the worst a
+  // redelivery costs a reader is a duplicate notification. staying off this
+  // list is the deliberate half — a handler that repeats non-idempotent work on
+  // redelivery keeps at-most-once, and says so at the handler.
   const opted_in: Partial<Record<Kind, IDelivery>> = {
+    "banking-approved": { retries: 3 },
+    "banking-default": { retries: 3 },
+    "banking-new": { retries: 3 },
+    "banking-rejected": { retries: 3 },
     // idempotent by construction: `claim_pack_send` is a single conditional
     // UPDATE, so a retry of a delivery that already mailed loses the claim and
     // returns without sending.
@@ -73,6 +78,15 @@ describe("msg() — delivery config", () => {
     // conditional UPDATE too, so the days of drift between arming and delivery
     // cannot turn into a second reminder.
     "don-match-chase": { delay_s: 3 * 24 * 60 * 60 },
+    // the receipt lease is the gate here: a redelivery that finds the claim
+    // taken or the sent stamp set mails nothing, so no donor sees a second tax
+    // receipt.
+    "don-sttl-receipt": { retries: 3 },
+    "fund-member-removed": { retries: 3 },
+    "invite-email": { retries: 3 },
+    "lock-tx-created": { retries: 3 },
+    "reg-created": { retries: 3 },
+    "tip-received": { retries: 3 },
   };
 
   test.each(KINDS)("%s", (kind) => {

@@ -2,6 +2,7 @@ import { EMAILS } from "@better-giving/brand";
 import nodemailer from "nodemailer";
 import type { ReactElement } from "react";
 import { render } from "react-email";
+import { report_error } from "@/errors/report";
 import { smtp, stage } from "./env";
 
 // zeptomail; swapping providers means editing these three + the SMTP_PASSWORD
@@ -54,7 +55,29 @@ export async function send_email(i: IInput) {
       error: null,
     };
   } catch (err) {
-    console.error(`email send failed — ${i.subject}:`, err);
+    // reported here rather than at each call site: a swallowed refusal is
+    // invisible everywhere else, and vercel's logs are not read until a donor
+    // asks where their mail went. subject only — `to`/`bcc` are donor and admin
+    // addresses, and a report is not a place for them.
+    report_error(err, { subject: i.subject });
     return { data: null, error: err };
   }
+}
+
+/**
+ * the send whose failure must not pass for success.
+ *
+ * a queued send has a retry or a send-once lease behind it, and both are driven
+ * by the throw: a handler that returns normally tells qstash the mail is away
+ * and stamps the row to match, so a refusal swallowed here is a mail lost for
+ * good with the row asserting it went out.
+ *
+ * fire-and-forget callers keep `send_email` — a magic link, a webhook handler,
+ * a dashboard action must not fail the flow that triggered them over a bounced
+ * notification.
+ */
+export async function send_email_or_throw(i: IInput) {
+  const { data, error } = await send_email(i);
+  if (!data) throw error;
+  return data;
 }

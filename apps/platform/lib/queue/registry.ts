@@ -172,16 +172,38 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
 };
 
 // per-kind delivery config. a kind absent here keeps at-most-once,
-// deliver-now delivery — the right default for the notification emails that
-// make up the registry today, where a retry means a duplicate send. long or
-// failure-prone handlers opt into retries; scheduled follow-ups into a delay.
+// deliver-now delivery; scheduled follow-ups take a delay.
+//
+// every kind whose handler only reads and mails takes retries, and the trade is
+// the same one for all of them: a duplicate notification costs a reader one
+// confused minute, while a lost one is a mail nobody knows is missing. that
+// only holds because those handlers mail through `send_email_or_throw` — the
+// swallowing `send_email` returns normally on a refusal, which tells qstash the
+// mail is away and burns the retry on nothing.
+//
+// a kind stays absent when its handler does non-idempotent work a redelivery
+// would repeat — `don-dist` and `reg-updated`, each of which keeps the
+// swallowing send and carries its own reasoning at the handler.
 const delivery: Partial<{ [K in Kind]: IDelivery }> = {
-  // the exception the comment above describes. this handler reads the donation
-  // and writes an event row before it mails anything, so its failure modes are
-  // transient db ones rather than duplicate sends — and the pack send is gated
-  // by a claim query, so a retry of a delivery that already sent loses the
-  // claim and returns without mailing. a transient failure must not be what
-  // costs a donor their match.
+  "banking-approved": { retries: 3 },
+  "banking-default": { retries: 3 },
+  "banking-new": { retries: 3 },
+  "banking-rejected": { retries: 3 },
+  // the lease in `handle-don-receipt` is what makes this safe past the first
+  // mail: a redelivery that finds the claim taken returns without sending, and
+  // one that finds the sent stamp never mails a second tax receipt.
+  "don-sttl-receipt": { retries: 3 },
+  "fund-member-removed": { retries: 3 },
+  "invite-email": { retries: 3 },
+  "lock-tx-created": { retries: 3 },
+  // only the welcome mail; registration's update side is `reg-updated`.
+  "reg-created": { retries: 3 },
+  "tip-received": { retries: 3 },
+  // this handler reads the donation and writes an event row before it mails
+  // anything, so its failure modes are transient db ones rather than duplicate
+  // sends — and the pack send is gated by a claim query, so a retry of a
+  // delivery that already sent loses the claim and returns without mailing. a
+  // transient failure must not be what costs a donor their match.
   "don-match": { retries: 3 },
   // the one reminder to file. three days is long enough that the pack has
   // dropped out of view and short enough to still land inside most filing
