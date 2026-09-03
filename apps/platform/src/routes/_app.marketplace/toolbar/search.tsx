@@ -28,6 +28,9 @@ export function Search({ classes = "" }: { classes?: string }) {
       <input
         type="search"
         name="query"
+        // uncontrolled on purpose: the handler is debounced and must not
+        // re-render per keystroke
+        defaultValue={params.get("query") ?? ""}
         onChange={debounced_change}
         className="w-full h-full p-3 pl-10 placeholder:text-gray-11 font-medium bg-transparent outline-hidden"
         placeholder="Search organizations..."
