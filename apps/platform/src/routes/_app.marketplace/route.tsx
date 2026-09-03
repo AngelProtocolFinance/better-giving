@@ -42,6 +42,11 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
   const [params] = useSearchParams();
   const { node } = use_table({
     id: "marketplace",
+    // the url's filters, not the shape of page 1: two different filters can
+    // return the same first card and the same count, and the shape heuristic
+    // reads that as no change — which would let a search still in flight
+    // repaint the grid the new filter just drew.
+    filter_key: params.toString(),
     page1,
     table: (props) =>
       props.items.length === 0 ? (

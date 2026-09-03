@@ -7,13 +7,24 @@ interface Row {
   id: string;
 }
 
+interface Opts {
+  /** pass an explicit `filter_key` instead of leaning on the shape heuristic */
+  keyed?: boolean;
+  /** serve both filters an identically shaped page 1 */
+  identical?: boolean;
+}
+
 /** a table over one loader keyed on `?q`, with a fetcher load and a filter
  *  change on separate buttons so the two can be interleaved by hand. */
-function build(park: { started: boolean; gate: Promise<void> }) {
+function build(
+  park: { started: boolean; gate: Promise<void> },
+  opts: Opts = {}
+) {
   function Page({ loaderData }: any) {
-    const [, set_params] = useSearchParams();
+    const [params, set_params] = useSearchParams();
     const { node, load } = use_table<Row>({
       id: "t",
+      filter_key: opts.keyed ? params.toString() : undefined,
       page1: loaderData,
       table: (p) => (
         <ul>
@@ -50,7 +61,8 @@ function build(park: { started: boolean; gate: Promise<void> }) {
           park.started = true;
           await park.gate;
         }
-        return { items: [{ id: q }], page: 1, pages: 1 };
+        const id = opts.identical && (q === "a" || q === "b") ? "same" : q;
+        return { items: [{ id }], page: 1, pages: 1 };
       },
     },
   ]);
@@ -86,6 +98,29 @@ describe("use_table", () => {
 
     expect(screen.getByText("row:slow").query()).toBeNull();
     await expect.element(screen.getByText("row:b")).toBeVisible();
+  });
+
+  // the generation only moves when page1 is seen to change, and the fallback
+  // heuristic reads page1's shape — two filters can return the same first row
+  // and the same count. the filters themselves are the identity, which is what
+  // the marketplace and fundraiser routes pass.
+  test("a filter change the shape heuristic cannot see still discards", async () => {
+    const park = parked();
+    const Stub = build(park, { keyed: true, identical: true });
+    const screen = await render(<Stub initialEntries={["/?q=a"]} />);
+
+    await expect.element(screen.getByText("row:same")).toBeVisible();
+
+    await screen.getByRole("button", { name: "slow search" }).click();
+    await vi.waitFor(() => expect(park.started).toBe(true));
+
+    await screen.getByRole("button", { name: "change filter" }).click();
+
+    park.release();
+    await new Promise((r) => setTimeout(r, 500));
+
+    expect(screen.getByText("row:slow").query()).toBeNull();
+    await expect.element(screen.getByText("row:same")).toBeVisible();
   });
 
   // the other side of the same guard: with no filter change under it, a
