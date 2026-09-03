@@ -213,6 +213,13 @@ own duration and curve, so never pair one with a `duration-*`. Driven by an Ark 
 variant — `data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out`, both halves or the exit
 never fires. `Modal`, `Prompt` and `Toaster` already animate themselves; these are for a surface you build.
 
+**A press is the one thing that is never transitioned.** The four filled button variants nudge
+`translateY(1px)` on `:active` and snap back — instantly, with no duration, because the ramp gives a
+solid fill two steps and not three, so pressed and hovered share a colour and the nudge is the whole
+acknowledgement (on touch, where there is no hover, it is the only one). `Button` and the `.btn-*`
+recipes already do this. Easing it in reads as lag rather than as contact, so a control you build
+yourself gets the same treatment: instant on the way down.
+
 ### Page shape and scrollers
 
 There is **one page width**, and it is a class: `page`. It carries the width curve and the side
@@ -238,6 +245,13 @@ Two scrollers, both classes:
   scrolls sideways instead of pushing the whole page wider.
 - `scrollbars` — the thin, themed scrollbar skin for anything else that scrolls: a popup list, a
   code block, a drawer. `table-scroll` already includes it.
+
+**A screen that is one card is `solo-card`**, not a narrowed `page`. Login, signup, check-email and
+the five password-reset panels each sit alone on an otherwise empty page in exactly one shape: a
+`max-w-md` bordered card with its own `bg-panel` fill and its own padding. `page` is a width and a
+gutter for a full layout; this is the single card that *is* the layout. It sets no `gap` and no
+`justify-items` on purpose — space its children with per-child `mt-*`, and say the alignment
+yourself, because these screens split evenly on whether their content is centered.
 
 Dialog size is a closed set too. `Modal` carries its own geometry through `size`: `panel` (448px),
 `sm` (512px, the default), `md` (672px), `lg` (768px). Every tier centers itself, caps its height at

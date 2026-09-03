@@ -164,7 +164,7 @@ const claims = {
     "flex-center",
     "absolute-center",
   ],
-  "page + scrollers": ["page", "table-scroll", "scrollbars"],
+  "page + scrollers": ["page", "table-scroll", "scrollbars", "solo-card"],
   measure: ["max-w-3xl", "max-w-prose"],
   type: ["text-sm", "text-xs", "text-2xs"],
   // none of these is a class any scanned file writes: the speeds and curves

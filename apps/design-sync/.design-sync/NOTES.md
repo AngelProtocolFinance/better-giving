@@ -478,7 +478,8 @@ Collected across the fan-out; each was hit at least once while authoring.
 
 ## States no still capture can reach
 
-Recorded so a future sync doesn't re-litigate them: focus / focus-visible rings on every input,
+Recorded so a future sync doesn't re-litigate them: the `:active` press on the four filled button
+variants (`translateY(1px)`, added 2026-09-02 in `746292a`), focus / focus-visible rings on every input,
 hover and `data-highlighted` option rows, drag-over on `FileDropzone`, `:user-invalid`,
 `MaskedInput`'s caret restoration, `Copier`'s 700ms `text-success` check, `VerifiedIcon`'s
 hover tooltip, `DrawerIcon`'s rotation transition (its endpoints are both shown), and the open
@@ -800,6 +801,33 @@ exits 0. The upload partition did ship both (`Copier` and `Field` appear in `upl
 purely because their `.d.ts` / `.prompt.md` changed) — which is the same lesson the `FileDropzone`
 entry in the risk list records, seen from the other end.
 
+## Scope change, 2026-09-03 — `solo-card`, and the press that no card can show
+
+Two design-system changes landed between syncs, neither of them a component change: `git diff` over
+`packages/ui/src/components/` since `1112ea3` is **empty**, and the whole re-sync came back
+`47 unchanged / 0 changed / 0 added`, with `upload.styling: true` as the only reason to upload at
+all. Both changes are therefore invisible to every partition the driver reports — a stylesheet-only
+sync is exactly the case where the header is the only artifact that can carry the change.
+
+- **`solo-card`** (`packages/ui/src/styles/utilities.css`) — the bordered `max-w-md` card that *is*
+  the whole of a single-purpose screen (login, signup, check-email, the five reset panels). Added to
+  `conventions.md` under *Page shape and scrollers* and to `check-conventions.mjs`'s
+  `page + scrollers` claim. **Not safelisted**, deliberately: it compiles because
+  `apps/platform/src` writes it ten times, which is the same app-scope dependency `page` and
+  `table-scroll` already have — see *Scope change, 2026-08-22 — the layout vocabulary*. If the solo
+  screens ever leave that tree the class vanishes from the published vocabulary silently, and then it
+  needs an `@source inline(...)` line like the motion set did.
+- **The filled-button press** (`746292a`) — `:active` nudges `translateY(1px)` on `.btn-primary` and
+  the three semantic variants, instant and never transitioned, because the ramp gives a solid two
+  fill steps and not three. A still capture can never show it, so it went into `conventions.md`'s
+  motion paragraph as a house rule for a control the agent builds itself. This is the same shape as
+  the 2026-08-28 prop corrections: **a behaviour change with no prop change and no render change has
+  nowhere to land except the prose.**
+
+`[DOCS_UNMAPPED]` for `Actions`, `EmptyRow`, `HeaderButton`, `LoadMoreRow`, `LoadMoreTr` is standing
+and expected — those five have no `docs/*.md` and take a synthesized `.prompt.md`. It has printed on
+every run since they were added; it is not new.
+
 ## Re-sync risks — the watch-list for the next run
 
 What can silently go stale or wrong, in rough order of how expensive it is to miss:
@@ -859,6 +887,12 @@ What can silently go stale or wrong, in rough order of how expensive it is to mi
   from the published vocabulary. Whenever a token gets bound as a default, check whether its explicit
   form still compiles. Same for a utility only ever written under a variant — `data-[state=open]:x`
   compiles that variant, never the bare `x`.
+- **A stylesheet-only sync reports as "nothing changed".** 2026-09-03 was the worked example: 47
+  unchanged, 0 changed, 0 added, and the only true field was `upload.styling`. Neither of that run's
+  two real changes (`solo-card`, the filled-button press) could show up in a partition, a render or a
+  grade — so on a run whose verdict looks empty, diff `packages/ui/src/styles/` and
+  `packages/brand/design-system.md` against the last sync sha before concluding there is nothing to
+  say. The header is the only artifact that carries a change of that shape.
 - **`extraFonts` still emits only `.woff2`.** The orphan `.woff` above is unchanged and still
   unnamed by any diff; it will outlive every re-sync until someone deletes it deliberately.
 
