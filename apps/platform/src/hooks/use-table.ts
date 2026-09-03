@@ -1,4 +1,10 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useFetcher } from "react-router";
 import type { IPaginator } from "#/types/components";
 import type { IPageKeyed, IPageNumbered } from "@/types/api";
@@ -37,7 +43,7 @@ export function use_table<I, F = Page<I>>({
   classes = "",
   unwrap,
 }: Props<I, F>) {
-  const { state, data: raw, load } = useFetcher<F>({ key: id });
+  const { state, data: raw, load: raw_load } = useFetcher<F>({ key: id });
   const data = raw && unwrap ? unwrap(raw as F) : (raw as Page<I> | undefined);
   // extra items loaded via fetcher (pages 2, 3, …); page1.items used directly
   const [extra, set_extra] = useState<I[]>([]);
@@ -48,8 +54,21 @@ export function use_table<I, F = Page<I>>({
   // so stale fetcher data from a previous generation is ignored.
   // skip increment on mount so the first fetcher result isn't discarded.
   const gen = useRef(0);
-  const saved_gen = useRef(gen.current);
   const mounted = useRef(false);
+
+  // the generation a request was *issued* in. react-router does not abort a
+  // fetcher load when the route navigates, so a response sent under the old
+  // filter still arrives — stamping at issue is what tells the two apart.
+  // reading the generation at arrival cannot: the effect below re-syncs on
+  // every page1 change, so by then the counters always agree.
+  const req_gen = useRef(gen.current);
+  const load = useCallback(
+    (href: string) => {
+      req_gen.current = gen.current;
+      raw_load(href);
+    },
+    [raw_load]
+  );
 
   // fallback identity key when caller doesn't pass filter_key
   const first_id = page1.items[0]
@@ -61,17 +80,13 @@ export function use_table<I, F = Page<I>>({
   useEffect(() => {
     if (mounted.current) gen.current++;
     else mounted.current = true;
-    saved_gen.current = gen.current;
     set_extra([]);
     set_replaced(false);
   }, [p1_key]);
   useEffect(() => {
     if (state !== "idle" || !data) return;
-    // ignore fetcher data from a previous generation
-    if (saved_gen.current !== gen.current) {
-      saved_gen.current = gen.current;
-      return;
-    }
+    // ignore fetcher data asked for under a filter that is no longer on screen
+    if (req_gen.current !== gen.current) return;
     // numbered pagination: page 1 means fresh search/filter — replace
     if ("page" in data && data.page === 1) {
       set_replaced(true);
@@ -81,7 +96,7 @@ export function use_table<I, F = Page<I>>({
   }, [state, data]);
 
   // only use fetcher's next cursor if it belongs to current generation
-  const next = data && saved_gen.current === gen.current ? np(data) : np(page1);
+  const next = data && req_gen.current === gen.current ? np(data) : np(page1);
 
   // when fetcher search replaced page1, show only extra; otherwise append
   const items = replaced
