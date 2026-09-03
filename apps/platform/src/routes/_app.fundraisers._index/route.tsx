@@ -28,6 +28,8 @@ function Funds({ loaderData: page1 }: Route.ComponentProps) {
   const [params] = useSearchParams();
   const { node, load } = use_table({
     id: "funds",
+    // see the marketplace route: the filters are the identity, not page 1's shape
+    filter_key: params.toString(),
     page1,
     table: (x) => <Cards {...x} />,
     classes: "mt-4",

@@ -201,6 +201,28 @@ describe("ImgEditor", () => {
 
     await expect.element(screen.getByText("invalid file type")).toBeVisible();
   });
+
+  // the preview writes `value` straight into `background: url(...)`, so a
+  // sentinel reaching that branch requests a relative path that does not exist
+  // and puts the file input under `hidden group-hover:flex` — a pointer-only
+  // way out of a state the user never chose. reachable without a local `file`:
+  // a value restored from the server, or written back after the file cleared.
+  test.each([
+    "loading",
+    "invalid-type",
+    "exceeds-size",
+    "failure",
+  ] as const)("the %s sentinel is not rendered as a background url", async (sentinel) => {
+    const props = make_props({ value: sentinel });
+    const screen = await render(<ImgEditor {...props} />);
+
+    await vi.waitFor(() => {
+      const dropzone = screen.container.querySelector("label");
+      expect(dropzone?.style.background).toBe("");
+    });
+    // no preview means the upload prompt, not the hover-only control
+    await expect.element(screen.getByText("Upload file")).toBeVisible();
+  });
 });
 
 /** what the call sites render immediately before the editor. the editor's own

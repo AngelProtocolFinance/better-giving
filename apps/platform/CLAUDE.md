@@ -36,7 +36,7 @@ Three-layer structure:
 - config in `vite.config.ts` under `test`
 - environment: vitest browser mode, headless chromium via playwright; globals enabled
 - `.claude/**` is in vitest's `exclude` (defensive — Claude config lives in the root `.claude/`, not here)
-- when running vitest on changed files, use `--bail 1 --changed` to fail fast and scope to changes only
+- **a run costs one headless chromium per test file, serially.** `fileParallelism: false` (`vite.config.ts:140`) walks all 131 browser test files one at a time, so the full suite is the expensive default. Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
 
 ## Code Style
 
@@ -48,7 +48,7 @@ Three-layer structure:
 
 Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style layer, and the pure helpers, reached only through the package's exports. Nothing under `src/components/` belongs to it; what is left there is app-specific (route chrome, `rich-text`, `img-editor`, `donation`, and the `DappLogo` in `components/image`).
 
-- **tokens** live in `packages/brand/src/colors.css`; **`packages/brand/design-system.md` is the ledger** — what each token is for, fills vs. legible text, the deliberate calls. Read it before reaching for a color.
+- **tokens** live in `packages/brand/src/colors.css` — the ledger governing them is under **## UI**, below.
 - **entry points**: `@better-giving/ui` (the barrel), `@better-giving/ui/tooltip` and `/hover-card` (namespaced — both export `Arrow`/`Content`, and a flat barrel holds one of each), `/masks`, `/helpers` (`to_usd`, `unpack` — no react import, ever), `/styles.css`.
 - `src/index.css` keeps only what is the app's: the `tailwindcss` import (the package must never issue its own), the `@source` registering `packages/ui/src` for content detection, the decorative marketing washes, and the `#donation-container` embed-runtime overrides.
 - **app reaches are injected, not imported.** `FileDropzone` takes `upload` and `report_error` as props — that is why the package carries no Sentry and no knowledge of our API routes.

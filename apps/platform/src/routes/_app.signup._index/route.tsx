@@ -192,7 +192,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         , {!terms_1 && " and  "}
         {terms_0 && (
           <ExtLink
-            href={href("/terms-of-use")}
+            href={terms_0.to}
             className="text-primary hover:text-primary/80"
           >
             {terms_0.title}
