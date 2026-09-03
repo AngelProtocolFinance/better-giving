@@ -68,16 +68,17 @@
     }
   }
 
-  /* the filled variants below share one rung between :hover and :active: the
-     ramp gives a solid fill two steps, not three, so pressed looks the same as
-     hovered. on touch, where there is no hover, that leaves a tap with no color
-     acknowledgement at all — the affordance a scale can't supply is a
-     transform/filter, not another fill. */
+  /* the filled variants below share one fill between :hover and :active: the
+     ramp gives a solid two steps, not three, so there is no third rung to press
+     to. the press reads as a 1px downward nudge instead — the affordance a
+     scale can't supply, and on touch, where there is no hover, the only
+     acknowledgement a tap gets. */
   .btn-primary {
     background-color: var(--primary);
     color: var(--primary-fg);
     &:active {
       background-color: var(--primary-hover);
+      transform: translateY(1px);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--primary-hover);
@@ -89,6 +90,7 @@
     color: var(--destructive-fg);
     &:active {
       background-color: var(--destructive-hover);
+      transform: translateY(1px);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--destructive-hover);
@@ -100,6 +102,7 @@
     color: var(--success-fg);
     &:active {
       background-color: var(--success-hover);
+      transform: translateY(1px);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--success-hover);
@@ -111,6 +114,7 @@
     color: var(--warning-fg);
     &:active {
       background-color: var(--warning-hover);
+      transform: translateY(1px);
     }
     &:hover:not(:disabled):not([aria-disabled="true"]) {
       background-color: var(--warning-hover);

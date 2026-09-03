@@ -984,7 +984,7 @@ rung is a named token off the ramp** — nothing is mixed at a use-site.
 
 | control | resting | hover | active (pressed) |
 | --- | --- | --- | --- |
-| filled (`.btn-primary` and the three semantic variants) | step 9 — `--primary`, `--destructive`, `--success`, `--warning` | step 10 — `--*-hover` | **step 10, the same rung** |
+| filled (`.btn-primary` and the three semantic variants) | step 9 — `--primary`, `--destructive`, `--success`, `--warning` | step 10 — `--*-hover` | **step 10 + `translateY(1px)`** |
 | tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--panel` or transparent | step 3 — `--secondary` | step 5 — `--secondary-active` |
 | a subtle band that is also a control | `--destructive-subtle` (step 3) | — | `--destructive-subtle-active` (step 5) |
 
@@ -998,11 +998,13 @@ bug:
 
 - **A solid has two rungs, not three.** Radix gives a fill step 9 and step 10 and
   stops; steps 11 and 12 are text and both sit *lighter* than 10 (`blue-10`
-  `#055f9c` against `blue-11` `#206fad`). So `:hover` and `:active` share step 10
-  and a pressed filled button looks exactly like a hovered one. On
-  touch, where there is no hover, that leaves a tap with no color
-  acknowledgement — a non-color affordance is the fix, and it is a motion
-  decision rather than a palette one.
+  `#055f9c` against `blue-11` `#206fad`). So `:hover` and `:active` share step 10,
+  and the press is carried by a non-color affordance instead: a
+  `translateY(1px)` nudge on all four filled variants
+  (`packages/ui/src/styles/components.css`). It is instant, never
+  transitioned — a press is the one state a user can outrun, so easing the
+  nudge in reads as lag rather than as contact. On touch, where there is no
+  hover, that nudge is the only acknowledgement a tap gets.
 - **A tinted surface presses UP its scale**, 3 → 5, never toward black. Darkening
   a light band moves it toward its own dark ink, which is the failure a
   darkening ladder produces there and the reason these active rungs are steps.
