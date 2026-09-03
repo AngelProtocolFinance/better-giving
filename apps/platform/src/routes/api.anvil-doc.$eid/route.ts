@@ -30,6 +30,13 @@ export const loader: LoaderFunction = async ({ request, params: { eid } }) => {
   // written by that webhook is not there yet when the page's download link is
   // clicked. `registrations.o_fsa_doc_eid` is stamped when the packet is
   // CREATED, which is strictly before both.
+  //
+  // the ownership tier below asks only "does a USER row claim this eid".
+  // `npos.w_form` is a second tax-form column, inert today — nothing reads or
+  // writes it and no link here is built from it. the day an npo w-9 becomes
+  // downloadable through this route, an eid held there is unclaimed by any
+  // user, falls past this branch, and is served to anyone holding it. no test
+  // fails. whoever wires that up adds a second lookup in this same tier.
   if (!(await is_fsa_doc_eid(eid))) {
     const owner = await user_by_w_form(eid);
     const { user } = await get_session(request);

@@ -82,6 +82,8 @@ export const npos = pgTable(
       (): AnyPgColumn => npos.referral_id
     ),
     referrer_expiry: timestamptz("referrer_expiry"),
+    // unreferenced by any code path today. the ownership rule for serving a
+    // stored w-9 eid lives in src/routes/api.anvil-doc.$eid/route.ts.
     w_form: text("w_form"),
     payout_minimum: numeric_as_number("payout_minimum", {
       precision: 38,
