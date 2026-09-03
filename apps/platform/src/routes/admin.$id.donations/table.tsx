@@ -23,7 +23,7 @@ export function Table({ items, load_next, loading, disabled }: Props) {
               <span>Fees </span>
               <Tooltip
                 tip={
-                  <Content className="p-4 bg-panel max-w-sm text-sm rounded shadow-floating">
+                  <Content className="max-w-sm text-sm">
                     <p className="text-xs uppercase font-semibold">
                       Base fee{" "}
                       <span className="text-primary text-xs font-bold">

@@ -1310,14 +1310,16 @@ hovercard body — the panel-shaped surface that *does* converge — is
 `popup_shell` in `packages/ui/src/components/popup.ts`, and `Content` in
 `tooltip.tsx` and `hover-card.tsx` carries it: `bg-panel`, an `outline-gray-6`
 hairline, `shadow-floating` + `z-floating` (the `floating` elevation row),
-`rounded`, and `p-4`. Measured 2026-09-03 before naming it: 21 sites, `p-4` in 15,
-`px-4 py-2` in 3, `p-3` in 1, the shadow missing on 3. Its edge is `outline`,
+`rounded`, and `p-4`. Measured 2026-09-03 before naming it: 27 sites. 21 drew the
+hairline, with `p-4` in 15, `px-4 py-2` in 3, `p-3` in 1 and the shadow missing
+on 3; the other 6 drew no edge at all, at `p-4`, `p-3` and `p-2`. Its edge is `outline`,
 not `border`, on purpose — it pins the ramp step directly so that inside a
 `surface-primary` band it keeps drawing against the page it floats over while
 every other bordered surface redraws against the fill. A call site passes only
 what is its own: a width cap (`max-w-xs`, `w-80`), a type size, an alignment,
-a scroller. `shell-conformance.node.test.ts` fails any class string that pairs
-`bg-panel` with `outline-gray-6`.
+a scroller. `shell-conformance.node.test.ts` fails a `Content` whose class
+string carries anything the shell owns — a fill, an edge, a shadow, a radius, a
+padding, a z-index, the ink.
 
 **The card is not a named shell, and this rule does not make one.** Measured
 2026-09-03 across `apps/platform/src` and `packages/ui/src`: the in-flow,

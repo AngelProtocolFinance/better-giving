@@ -54,7 +54,7 @@ export function GiftsTable({ dists, subs }: IProps) {
               <span>Fees </span>
               <Tooltip
                 tip={
-                  <Content className="p-4 bg-panel max-w-sm text-sm rounded shadow-floating">
+                  <Content className="max-w-sm text-sm">
                     <p className="text-xs uppercase font-semibold">
                       Base fee{" "}
                       <span className="text-primary text-xs font-bold">
@@ -132,7 +132,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                         <Tooltip
                           key="tip"
                           tip={
-                            <Content className="rounded bg-panel p-2 text-xs shadow-floating">
+                            <Content className="text-xs">
                               <p>Tip to {app_name}</p>
                               <Arrow />
                             </Content>
@@ -148,7 +148,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                           <Tooltip
                             key="fa"
                             tip={
-                              <Content className="rounded bg-panel p-2 text-xs shadow-floating">
+                              <Content className="text-xs">
                                 <p>Processing fee covered by donor</p>
                                 <Arrow />
                               </Content>
@@ -174,7 +174,7 @@ export function GiftsTable({ dists, subs }: IProps) {
               <td>
                 <Tooltip
                   tip={
-                    <Content className="rounded bg-panel p-3 shadow-floating">
+                    <Content>
                       <Fees
                         base={d.fee_base ?? 0}
                         fsa={d.fee_fsa ?? 0}
