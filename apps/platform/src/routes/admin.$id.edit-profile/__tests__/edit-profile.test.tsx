@@ -685,6 +685,35 @@ describe("edit profile — focus on error", () => {
     });
   });
 
+  it("reset → re-dirty → submit still focuses the banner", async () => {
+    // `rhf.reset()` empties RHF's `_fields`/`_names.mount`, and `useController`
+    // registers on mount only — so if reset drops controller registration the
+    // focus pass has no `_f.ref.focus` to call and the submit reads as doing
+    // nothing again.
+    const npo = await seed_npo({ image: "" });
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.clear();
+    await tagline.fill("Still helping the world");
+
+    await screen.getByRole("button", { name: /reset changes/i }).click();
+
+    // re-dirty: submit is disabled until the form is dirty again
+    await tagline.clear();
+    await tagline.fill("Helping the world, again");
+
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(
+        banner_editor(screen).querySelector("input[type='file']")
+      );
+    });
+  });
+
   it("all three images missing → the banner wins, not the card image", async () => {
     // the controllers all register before the form's own fields, so RHF's focus
     // pass walks them in useController order — which has to match DOM order or
