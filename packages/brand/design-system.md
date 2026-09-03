@@ -1256,6 +1256,66 @@ stay at `--radius-sm`, so a button and the input beside it stop matching.
 on the value but right that the two should share one; moving the fields to
 `var(--radius)` is the companion fix and is the user's call.
 
+## A shell owns its padding and radius, its contents own none
+
+A shell is a container with a fill, an edge and an inside — `page`, `solo-card`,
+`actions-band`, a dialog, a card. **The inset that holds its contents off its
+edge, and the corner that clips them, belong to the shell.** A child inside one
+carries its own margins, gaps and type; it does not carry the shell's padding,
+and it does not draw a second corner.
+
+The reason this is worth stating is that **both spellings render identically**. A
+card carrying `p-6`, and a card carrying nothing while each of its children
+carries `p-6`, are the same picture — pixel for pixel, at every viewport. They
+only disagree once they are *composed*: dropped into a grid beside each other,
+given a divider, a sticky sub-header, an `overflow-hidden` scroller, or reused
+inside another shell. By then, which of the two a given surface is has to be read
+off its children, one file at a time.
+
+**No gate catches the difference**, because every value on both sides is already
+on-system. The colour, radius and shadow ladders close by making an off-system
+name fail to compile — `--color-*`, `--radius-*`, `--shadow-*` are reset to
+`initial` in `packages/ui/src/styles/theme.css` — but `p-6` on a parent and `p-6`
+on its children are both legal spellings of a legal step, so biome, tsc and the
+`*-conformance.node.test.ts` sweeps all pass either way. This rule has no
+compiler half at all. It is a rule and only a rule, which is why it is written
+here rather than left implied by the shells that already obey it.
+
+What follows from it:
+
+- **A shell with no padding has delegated its inset, and that is a different
+  shell.** A table shell, a `divide-y` list, an `overflow-hidden` media card:
+  each is a real shape and none of them is a padded card. 23 `bg-panel … rounded`
+  surfaces are spelled this way today (`routes/donations.$id/`,
+  `routes/_app.blog/`, `_landing.for-nonprofits/grow.tsx`,
+  `_landing.for-international-nonprofits/how-it-works.tsx`), and nothing but
+  reading their children separates them from the padded ones.
+- **The radius is set once, on the outermost thing that clips.** A child reaching
+  for `rounded` inside an already-rounded shell is either drawing a corner nobody
+  asked for, or standing in for the `overflow-hidden` its shell should carry.
+- **`solo-card` is the worked example.** It carries the fill, the border, the
+  corner and the inset, and its comment in
+  `packages/ui/src/styles/utilities.css` records what it deliberately does *not*
+  carry — no `gap`, no `justify-items` — because those are flow, and flow stays
+  the caller's. That split is the rule restated: the box is the shell's, the
+  arrangement is the caller's.
+- **A named shell is where the rule becomes checkable.** Once an inset lives
+  inside an `@utility`, a sweep can fail any class string that respells it. That
+  is how `page`, `table-scroll` and `actions-band` are held today
+  (`page-width-conformance.node.test.ts`, `shell-conformance.node.test.ts`); an
+  unnamed shape has nothing to sweep for.
+
+**The card is not a named shell, and this rule does not make one.** Measured
+2026-09-03 across `apps/platform/src` and `packages/ui/src`: the in-flow,
+rounded, padded panel-shaped surfaces spell **30 different insets across 131
+sites** — `p-4` 24%, `p-6` 16%, `p-3` 14%, `p-8` 8%, with 15 spellings used
+exactly once — and the padding tracks the *role* (marketing card, dashboard tile,
+list row, alert strip), not the shell. The small inline chip is worse: 22
+spellings, over two radii (`rounded` and `rounded-full`), top spelling under 20%.
+A shell drawn at a padding three quarters of the tree does not already use is a
+thirty-first spelling, not a convergence. The rule stands on its own until a role
+converges enough to name.
+
 ## The form action row
 
 One row, authored in `packages/ui/src/styles/utilities.css` and spent through
