@@ -50,7 +50,7 @@ export function Table({
                   {r.status === "cancelled" && (
                     <Tooltip
                       tip={
-                        <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-floating rounded">
+                        <Content className="max-w-xs text-xs">
                           <Arrow />
                           Transaction request was cancelled and will not be
                           processed.

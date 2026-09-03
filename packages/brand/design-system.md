@@ -1305,6 +1305,20 @@ What follows from it:
   (`page-width-conformance.node.test.ts`, `shell-conformance.node.test.ts`); an
   unnamed shape has nothing to sweep for.
 
+**The popup content shell is named, on the component.** A tooltip or
+hovercard body — the panel-shaped surface that *does* converge — is
+`popup_shell` in `packages/ui/src/components/popup.ts`, and `Content` in
+`tooltip.tsx` and `hover-card.tsx` carries it: `bg-panel`, an `outline-gray-6`
+hairline, `shadow-floating` + `z-floating` (the `floating` elevation row),
+`rounded`, and `p-4`. Measured 2026-09-03 before naming it: 21 sites, `p-4` in 15,
+`px-4 py-2` in 3, `p-3` in 1, the shadow missing on 3. Its edge is `outline`,
+not `border`, on purpose — it pins the ramp step directly so that inside a
+`surface-primary` band it keeps drawing against the page it floats over while
+every other bordered surface redraws against the fill. A call site passes only
+what is its own: a width cap (`max-w-xs`, `w-80`), a type size, an alignment,
+a scroller. `shell-conformance.node.test.ts` fails any class string that pairs
+`bg-panel` with `outline-gray-6`.
+
 **The card is not a named shell, and this rule does not make one.** Measured
 2026-09-03 across `apps/platform/src` and `packages/ui/src`: the in-flow,
 rounded, padded panel-shaped surfaces spell **30 different insets across 131

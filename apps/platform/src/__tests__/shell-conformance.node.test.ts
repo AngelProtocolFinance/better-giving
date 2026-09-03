@@ -117,6 +117,29 @@ describe("the table scroller", () => {
   });
 });
 
+describe("the popup content shell", () => {
+  test("a tooltip or hovercard body is not re-spelled at the call site", () => {
+    // `Content` carries `popup_shell`; a class string pairing the fill with the
+    // shell's hairline is a call site drawing the body itself, which is how the
+    // paddings drifted and the shadow went missing. `outline-gray-6` is the
+    // needle because it is the shell's signature — the one edge on the tree
+    // that pins its ramp step directly instead of following `--border`.
+    const offenders = class_values
+      .filter(({ value }) => {
+        const t = tokens(value);
+        return t.includes("bg-panel") && t.includes("outline-gray-6");
+      })
+      .map(({ file, n }) => `${file}:${n}`);
+    expect(offenders).toEqual([]);
+  });
+
+  test("the shell is defined in one place", () => {
+    expect(files_with("outline outline-gray-6")).toEqual([
+      "packages/ui/src/components/popup.ts",
+    ]);
+  });
+});
+
 describe("the dashboard shell", () => {
   test("the sidebar surfaces do not re-compose their own chrome", () => {
     // donor, npo admin and platform admin used to spell the same four-element

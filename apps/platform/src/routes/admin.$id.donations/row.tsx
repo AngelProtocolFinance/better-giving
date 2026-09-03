@@ -68,7 +68,7 @@ export function Row(props: IRow) {
         {props.status === "refunded" && (
           <Tooltip
             tip={
-              <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-xs shadow-floating rounded">
+              <Content className="max-w-xs text-xs">
                 <Arrow />
                 Refunded
               </Content>
