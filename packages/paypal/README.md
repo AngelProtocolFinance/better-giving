@@ -2,16 +2,7 @@
 
 TypeScript type definitions automatically generated from [PayPal's official OpenAPI specifications](https://github.com/paypal/paypal-rest-api-specifications).
 
-## Features
-
-- **Type-safe**: Fully typed interfaces for all PayPal REST APIs
-- **Up-to-date**: Generated directly from official PayPal OpenAPI specs
-- **Comprehensive**: Covers 13 PayPal APIs including Orders, Payments, Subscriptions, and more
-- **Tree-shakeable**: Import only the types you need
-
 ## Available Modules
-
-This package provides TypeScript types for the following PayPal APIs:
 
 | Module | Import Path | API |
 |--------|-------------|-----|
@@ -33,8 +24,6 @@ This package provides TypeScript types for the following PayPal APIs:
 
 ## Usage
 
-Import types and helper functions from the package:
-
 ```typescript
 // Import helper types and utilities from the main package
 import type {
@@ -53,8 +42,6 @@ type PaymentCapture = typeof payments.components.schemas['capture-2'];
 ```
 
 ## Using the PayPal SDK Helper
-
-This package includes a simple SDK helper for making API calls:
 
 ```typescript
 import { PayPalSDK, type ISdkConfig } from '@better-giving/paypal';
@@ -81,60 +68,17 @@ const order = await sdk.create_order({
 console.log('Order ID:', order.id);
 ```
 
-## Example with Fetch
-
-```typescript
-import type { CreateOrderRequest, CreateOrderResponse } from '@better-giving/paypal';
-
-async function create_order(order_data: CreateOrderRequest, access_token: string): Promise<CreateOrderResponse> {
-  const response = await fetch('https://api.paypal.com/v2/checkout/orders', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${access_token}`
-    },
-    body: JSON.stringify(order_data)
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to create order');
-  }
-
-  return response.json();
-}
-```
-
 ## Development
-
-### Prerequisites
-
-- Node.js 20+
-- pnpm (via corepack)
 
 ### Building from Source
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd paypal-typescript-types
-
-# Enable corepack
 corepack enable
-
-# Install dependencies
 pnpm install
-
-# Download PayPal OpenAPI specs and generate types
-pnpm build
+pnpm --filter @better-giving/paypal build
 ```
 
-### Scripts
-
-- `pnpm build` - Full build process (download specs + generate types + compile)
-- `pnpm clean` - Remove generated files and build artifacts
-- `pnpm format` - Format code with Biome
-
-This project uses the TypeScript compiler (tsc) for compiling source code and generating type declarations.
+Scripts live in `package.json`.
 
 ## Updating Types
 
@@ -164,18 +108,6 @@ Each API module exports types following the OpenAPI structure:
   }
 }
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT
-
-## Disclaimer
-
-This is an unofficial package. For official PayPal SDKs and documentation, visit [PayPal Developer](https://developer.paypal.com/).
 
 ## Related Links
 
