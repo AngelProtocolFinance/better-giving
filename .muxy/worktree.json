@@ -1,0 +1,5 @@
+{
+  "setup": [
+    "for f in .env .env.staging .env.production; do src=\"$(dirname \"$(git rev-parse --path-format=absolute --git-common-dir)\")/apps/platform/$f\"; if [ -f \"$src\" ]; then cp \"$src\" apps/platform/ && echo \"env: copied $f\"; else echo \"env: no $f in the primary worktree\"; fi; done"
+  ]
+}
