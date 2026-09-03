@@ -2,25 +2,15 @@
 
 TypeScript type definitions automatically generated from [PayPal's official OpenAPI specifications](https://github.com/paypal/paypal-rest-api-specifications).
 
-## Available Modules
+## Modules
 
-| Module | Import Path | API |
-|--------|-------------|-----|
-| **Orders** | `@better-giving/paypal/generated` (`orders`) | Checkout Orders API v2 |
-| **Payments** | `@better-giving/paypal/generated` (`payments`) | Payments API v2 |
-| **Payments v1** | `@better-giving/paypal/generated` (`payments_v1`) | Payments API v1 (Legacy) |
-| **Subscriptions** | `@better-giving/paypal/generated` (`subscriptions`) | Billing Subscriptions API v1 |
-| **Invoices** | `@better-giving/paypal/generated` (`invoices`) | Invoicing API v2 |
-| **Payouts** | `@better-giving/paypal/generated` (`payouts`) | Payouts Batch API v1 |
-| **Payment Tokens** | `@better-giving/paypal/generated` (`payment_tokens`) | Vault Payment Tokens API v3 |
-| **Disputes** | `@better-giving/paypal/generated` (`disputes`) | Customer Disputes API v1 |
-| **Partner Referrals** | `@better-giving/paypal/generated` (`partner_referrals`) | Partner Referrals API v2 |
-| **Catalog Products** | `@better-giving/paypal/generated` (`catalog_products`) | Catalog Products API v1 |
-| **Shipment Tracking** | `@better-giving/paypal/generated` (`shipment_tracking`) | Shipment Tracking API v1 |
-| **Web Experience Profiles** | `@better-giving/paypal/generated` (`web_experience_profiles`) | Payment Experience API v1 |
-| **Transaction Search** | `@better-giving/paypal/generated` (`transaction_search`) | Transaction Search API v1 |
-| **Webhooks** | `@better-giving/paypal/generated` (`webhooks`) | Webhooks Management API v1 |
-| **SDK** | `@better-giving/paypal` | PayPal SDK Helper |
+`@better-giving/paypal` exports the `PayPalSDK` class and the curated helper types.
+`@better-giving/paypal/generated` exports one namespace per PayPal API: the shipped set is the
+export list in `src/generated/index.ts`, and the specs it is generated from are `SPEC_FILES` in
+`scripts/download-specs.ts`.
+
+`payments_v1` is PayPal's legacy Payments API and is deprecated by PayPal. New work belongs on
+Orders v2 or Payments v2.
 
 ## Usage
 
@@ -36,7 +26,6 @@ import type {
 // Or import raw generated types from specific API modules
 import { orders, payments, subscriptions } from '@better-giving/paypal/generated';
 
-// Use the generated types directly
 type OrderDetail = typeof orders.components.schemas.order;
 type PaymentCapture = typeof payments.components.schemas['capture-2'];
 ```
@@ -64,8 +53,6 @@ const order = await sdk.create_order({
     },
   ],
 });
-
-console.log('Order ID:', order.id);
 ```
 
 ## Development
@@ -90,24 +77,8 @@ pnpm --filter @better-giving/paypal generate
 
 ## Type Structure
 
-Each API module exports types following the OpenAPI structure:
-
-```typescript
-{
-  paths: {
-    '/api/path': {
-      get: { parameters, responses, ... },
-      post: { requestBody, responses, ... },
-      ...
-    }
-  },
-  components: {
-    schemas: { ... },
-    parameters: { ... },
-    responses: { ... }
-  }
-}
-```
+Each module is `openapi-typescript` output: a `paths` map keyed by API path and a `components` map
+of schemas, parameters and responses. Read the module file for the exact shape.
 
 ## Related Links
 
