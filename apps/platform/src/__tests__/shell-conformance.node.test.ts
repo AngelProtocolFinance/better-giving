@@ -117,6 +117,42 @@ describe("the table scroller", () => {
   });
 });
 
+describe("the popup content shell", () => {
+  test("a tooltip or hovercard body is not re-spelled at the call site", () => {
+    // `Content` carries `popup_shell`, so a class the shell already owns —
+    // a fill, an edge, a shadow, a radius, a padding, a z-index, the ink —
+    // on a `Content` is the call site drawing the body a second time. a
+    // stray `p-2` beside the shell's `p-4` resolves by stylesheet order, not
+    // by intent, which is how paddings drift and a shadow goes missing. the
+    // caller keeps its width cap, its type size, its alignment, its scroller.
+    const shell_owned =
+      /^(bg-|outline|shadow-|rounded|z-|border|p-|px-|py-|pt-|pb-|pl-|pr-|text-gray-)/;
+    const offenders = sources
+      .filter((x) =>
+        /from "(@better-giving\/ui|\.)\/(tooltip|hover-card)"/.test(x.text)
+      )
+      .flatMap((x) =>
+        x.text.split("\n").flatMap((line, i) => {
+          const m = line.match(
+            /<Content\s+className=(?:"([^"]*)"|\{`([^`]*)`\})/
+          );
+          if (!m) return [];
+          const bad = tokens(m[1] ?? m[2] ?? "").filter((c) =>
+            shell_owned.test(c.split(":").pop() ?? c)
+          );
+          return bad.length ? [`${x.file}:${i + 1} ${bad.join(" ")}`] : [];
+        })
+      );
+    expect(offenders).toEqual([]);
+  });
+
+  test("the shell is defined in one place", () => {
+    expect(files_with("outline outline-gray-6")).toEqual([
+      "packages/ui/src/components/popup.ts",
+    ]);
+  });
+});
+
 describe("the dashboard shell", () => {
   test("the sidebar surfaces do not re-compose their own chrome", () => {
     // donor, npo admin and platform admin used to spell the same four-element

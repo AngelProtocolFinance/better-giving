@@ -1,6 +1,7 @@
 import { HoverCard as Ark } from "@ark-ui/react/hover-card";
 import { Portal } from "@ark-ui/react/portal";
 import type { ComponentProps, ReactNode } from "react";
+import { popup_anim, popup_shell } from "./popup";
 
 // no-op: arrow rendered by `HoverCard` as a sibling of `Content` inside
 // `Positioner` (see tooltip.tsx for the same pattern).
@@ -8,14 +9,16 @@ export function Arrow() {
   return null;
 }
 
-const popup_anim =
-  "origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out";
-
 export function Content({
   className = "",
   ...props
 }: ComponentProps<typeof Ark.Content>) {
-  return <Ark.Content className={`${popup_anim} ${className}`} {...props} />;
+  return (
+    <Ark.Content
+      className={`${popup_anim} ${popup_shell} ${className}`}
+      {...props}
+    />
+  );
 }
 
 interface Props {

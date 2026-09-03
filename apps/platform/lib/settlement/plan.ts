@@ -143,6 +143,16 @@ export function calc_settlement_plan(
     currency: i.sttl.currency,
     fees: { ...pcfs, processing: i.ps.sttl_fee.base },
     fee_allowance: i.ps.sttl_fa.base,
+    // recorded here and nowhere else. the npo is credited the full processing
+    // fee either way (`credit_fa`), so a positive excess stays with bg
+    // implicitly and a negative one is bg shouldering the gap — by design, not
+    // a bug. neither side reaches a revenue log: the tip's `fa_excess` below
+    // is a detail field on the tip log, not a booking, so there is no mirror
+    // to copy. naming it would mean a new `RevenueType` (a check-constraint
+    // migration in `.server/pg/schema/revenue.ts`), an `ILtdItems` bucket, the
+    // admin revenue page, and two accounting calls the code does not answer:
+    // whether a referrer commission applies to surplus allowance, and whether
+    // the negative side is a loss log.
     fee_allowance_excess: fa_excess,
     parent: i.prnt,
     to_settings: settings,

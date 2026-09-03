@@ -35,7 +35,7 @@ export function Allocation(props: Props) {
               <span>Grants</span>
               <Tooltip
                 tip={
-                  <Content className="max-w-xs bg-panel outline outline-gray-6 p-4 text-gray-12 text-sm shadow-floating rounded">
+                  <Content className="max-w-xs text-sm">
                     Donations received through Better Giving that will
                     distributed to your bank account.
                     <Arrow />
