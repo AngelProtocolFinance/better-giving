@@ -26,6 +26,11 @@ export function Search({ classes = "" }: { classes?: string }) {
         className="absolute origin-center left-3 top-1/2 -translate-y-1/2"
       />
       <input
+        // keyed on the url term so a change made while the marketplace stays
+        // mounted — "Clear all" wipes `query` — reaches the box. typing never
+        // writes to the url (the handler loads a fetcher), so the key holds
+        // still under the keystrokes it would otherwise remount on.
+        key={params.get("query") ?? ""}
         type="search"
         name="query"
         // uncontrolled on purpose: the handler is debounced and must not
