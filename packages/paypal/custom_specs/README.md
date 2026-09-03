@@ -16,8 +16,6 @@ OpenAPI specifications PayPal does not publish in its [official specifications r
 
 Deprecated by PayPal. It stays because it is the source of the `Sale` type; new integrations use the Checkout Orders API v2 or Payments API v2.
 
-**Generated module:** `payments_v1` (accessible via `@better-giving/paypal/generated`)
-
 ## Specs and version control
 
 `scripts/download-specs.ts` copies this directory into `specs/` alongside the official specs it fetches. Custom specs are committed; `specs/` is gitignored, so anything that lands there by download is disposable.

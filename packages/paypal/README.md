@@ -77,8 +77,7 @@ pnpm --filter @better-giving/paypal generate
 
 ## Type Structure
 
-Each module is `openapi-typescript` output: a `paths` map keyed by API path and a `components` map
-of schemas, parameters and responses. Read the module file for the exact shape.
+Each module is `openapi-typescript` output; read the module file for the exact shape.
 
 ## Related Links
 

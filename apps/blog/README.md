@@ -19,7 +19,7 @@ pnpm dev      # http://localhost:3333
 
 - Framework preset: **Other**
 - Install: `pnpm install`
-- Build: `pnpm build` (runs `sanity build`, outputs to `dist`)
+- Build: `pnpm build`
 - Output dir: `dist`
 - Env vars: none (projectId/dataset hardcoded in `sanity.cli.ts`)
 
