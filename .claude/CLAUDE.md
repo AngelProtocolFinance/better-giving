@@ -2,7 +2,7 @@
 
 Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **Each member's own `CLAUDE.md` is the authority on that member — read it before working there.** This file carries only what spans members.
 
-<!-- team-justin v0.52.0 · derived 2026-09-03 · /team-justin:deploy to re-derive -->
+<!-- team-justin v0.54.0 · derived 2026-09-03 · /team-justin:deploy to re-derive -->
 ## Team
 
 Load **`team-justin:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.
@@ -15,6 +15,8 @@ Load **`team-justin:lead`** before building, reviewing, or dispatching a seat �
 - **cms** → `team-justin:sanity-builder` — `apps/blog` + `@sanity/client` 7.22.1 in platform
 - **platform** → `team-justin:vercel-platform-engineer` — `@vercel/react-router` 1.3.1 + `vercelPreset`
 - **toolchain** → `team-justin:toolchain-engineer` — turbo 2.10.5, biome 2.4.15, pnpm 10.32.1
+- **skills** → `team-justin:drizzle` — drizzle-orm 0.45.2 in `apps/platform`. The only library conditional this repo hits: validation is valibot, forms are react-hook-form + remix-hook-form.
+- **not a seat** — `next` 16.2.6 in `apps/emails-preview` is `email build`'s toolchain, which generates a throwaway Next app into `.react-email/`. No App Router source exists in the repo; routing off that manifest to `nextjs-builder` is a mis-route.
 - **project seats** — `.claude/skills/`: `platform-tests`, `db-admin`, `chariot-webhooks`, `upstash-manager`, `wise`. Prefer these over a plugin seat wherever they overlap; `platform-tests` outranks `test-writer` on platform's tests
 
 A slice reaching a stack no seat above covers is a question for the user, naming the seat it would need — never a nearby seat pressed into the gap.
