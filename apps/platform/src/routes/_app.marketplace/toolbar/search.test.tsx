@@ -12,8 +12,10 @@ async function render_search(entry: string) {
 }
 
 /** the box and the chip row are separate components over one set of search
- *  params, so a term surviving a filter change is only visible with both up. */
-async function render_toolbar(entry: string) {
+ *  params, so a term surviving a filter change is only visible with both up.
+ *  `queried` collects the term every load asks for — the box's own reads are
+ *  the fetcher's, and the term it sends is what the grid is filtered by. */
+async function render_toolbar(entry: string, queried: string[] = []) {
   const Stub = createRoutesStub([
     {
       path: "/marketplace",
@@ -23,10 +25,26 @@ async function render_toolbar(entry: string) {
           <ActiveFilters />
         </>
       ),
-      loader: () => null,
+      loader: ({ request }) => {
+        queried.push(new URL(request.url).searchParams.get("query") ?? "");
+        return null;
+      },
     },
   ]);
   return render(<Stub initialEntries={[entry]} />);
+}
+
+/** react installs its own `value` setter on the node and compares against it to
+ *  decide whether a change event is real, so assigning `input.value` directly
+ *  makes react skip onChange. reaching the prototype setter is what lets a
+ *  keystroke and the click after it share one tick — a wall-clock gap between
+ *  them would let the debounce window close and the test assert nothing. */
+function keystroke(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value"
+  )?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 describe("marketplace search box", () => {
@@ -65,5 +83,29 @@ describe("marketplace search box", () => {
     await expect
       .element(screen.getByPlaceholder(/search organizations/i))
       .toHaveValue("");
+  });
+
+  // the box empties and the debounce timer does not: left running, it loads the
+  // typed term half a second after the clear, and the grid ends up filtered by
+  // a word that is in neither the box nor the url.
+  test("a keystroke still debouncing when Clear all fires never loads", async () => {
+    const queried: string[] = [];
+    const screen = await render_toolbar(
+      "/marketplace?query=clean%20water&countries=Japan,Kenya",
+      queried
+    );
+
+    const box = screen.getByPlaceholder(/search organizations/i);
+    await expect.element(box).toHaveValue("clean water");
+
+    keystroke(box.element() as HTMLInputElement, "kelp");
+    (
+      screen.getByRole("button", { name: "Clear all" }).element() as HTMLElement
+    ).click();
+
+    await expect.element(box).toHaveValue("");
+    await new Promise((r) => setTimeout(r, 700));
+
+    expect(queried).not.toContain("kelp");
   });
 });
