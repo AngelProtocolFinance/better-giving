@@ -13,6 +13,12 @@ const errors = {
 
 type ImgErr = (typeof errors)[keyof typeof errors];
 
+/**
+ * every value of `ImgOutput` that is a status rather than a url. derived from
+ * `errors` so a sentinel added there can't silently become a background url.
+ */
+export const sentinels: string[] = [...Object.values(errors), "loading"];
+
 export const img_output = ({ required = false } = {}) =>
   pipe(
     required ? $req : string(),

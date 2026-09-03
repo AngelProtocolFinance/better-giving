@@ -7,7 +7,7 @@ import { report_error } from "@/errors/report";
 import { humanize } from "@/helpers/decimal";
 import { AspectTooltip } from "./aspect-tooltip";
 import { ImgCropper } from "./img-cropper";
-import type { ControlledProps } from "./types";
+import { type ControlledProps, sentinels } from "./types";
 
 const BYTES_IN_MB = 1e6;
 
@@ -47,7 +47,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
         ? props.spec.type.includes(file.type as any)
           ? URL.createObjectURL(file)
           : ""
-        : props.value && !["invalid-type", "exceeds-size"].includes(props.value)
+        : props.value && !sentinels.includes(props.value)
           ? props.value
           : "",
     [file, props.spec.type, props.value]
