@@ -5,8 +5,8 @@ import { AppHeader, MarketingHeader } from "#/components/header";
 export type Chrome = "marketing" | "minimal" | "bare";
 
 // single source of truth for public chrome intent buckets. keyed by the first
-// path segment of every public route (routes under `_app.*` / `_landing.*` /
-// `_index`). the drift test in `public-chrome.test.tsx` enumerates the actual
+// path segment of every public route (routes under `_app.*` / `_landing.*`).
+// the drift test in `public-chrome.test.tsx` enumerates the actual
 // route table and fails if any public top-level segment is missing here — so a
 // new route becomes a red test, not a silent marketing misbucket.
 //

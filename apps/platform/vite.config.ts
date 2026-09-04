@@ -172,9 +172,6 @@ export default defineConfig((config) => {
           "src/routes/_landing/**",
           "src/routes/_landing.*/**",
 
-          // homepage
-          "src/routes/_index/**",
-
           // marketing / informational
           // about-us is excluded file-by-file: donate.tsx carries a live
           // donation mount and route.tsx a loader (base_url from the request

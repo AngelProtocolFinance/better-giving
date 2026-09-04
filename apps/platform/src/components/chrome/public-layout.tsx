@@ -27,9 +27,7 @@ export function PublicLayout() {
     // excludes the banner, so while the bar is visible the minimum document
     // height is `banner_h + 100dvh` and a short marketing page that used to end
     // exactly at the fold now carries the banner's height as dead scroll below
-    // the footer. `_index` doesn't share it — its `main` is `1fr` under
-    // `min-h-dvh`, so the banner comes out of the main track instead of adding
-    // to it.
+    // the footer.
     // `print:block` drops the grid on paper. viewport units resolve against the
     // page box when printing, so the `100dvh` minimum would reserve a full
     // sheet for the outlet whatever it contains — a page of white before the

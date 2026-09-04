@@ -29,14 +29,16 @@ function public_segment(path: string): string | null {
   } else if (file === "_landing" || file.startsWith("_landing.")) {
     inner = file.slice("_landing".length).replace(/^\./, "");
   } else {
-    return null; // _index, admin.*, dashboard.*, platform.*, api.*, etc.
+    return null; // admin.*, dashboard.*, platform.*, api.*, etc.
   }
 
   if (!inner) return null; // the wrapper route module itself
   // first flat segment; strip the trailing "_" escape flatRoutes allows.
   const seg = inner.split(".")[0].replace(/_$/, "");
   if (!seg || seg.startsWith("$")) return null; // dynamic-only first segment
-  if (seg.startsWith("_")) return null; // pathless index like _index/_steps
+  // the index route of a pathless wrapper (`_landing._index`) has no url
+  // segment of its own
+  if (seg.startsWith("_")) return null;
   return seg;
 }
 
