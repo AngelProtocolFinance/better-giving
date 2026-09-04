@@ -100,9 +100,9 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@types/ws": "8.18.1",
-    "@vitest/browser": "4.1.5",
-    "@vitest/browser-playwright": "4.1.5",
-    "@vitest/coverage-v8": "4.1.5",
+    "@vitest/browser": "5.0.0",
+    "@vitest/browser-playwright": "5.0.0",
+    "@vitest/coverage-v8": "5.0.0",
     "citty": "0.2.2",
     "drizzle-kit": "0.31.10",
     "msw": "2.14.5",
@@ -111,8 +111,8 @@
     "type-fest": "4.20.0",
     "typescript": "catalog:",
     "vite": "8.1.5",
-    "vitest": "4.1.5",
-    "vitest-browser-react": "2.2.0"
+    "vitest": "5.0.0",
+    "vitest-browser-react": "2.3.0"
   },
   "msw": {
     "workerDirectory": [

@@ -202,7 +202,7 @@ describe("user creates donation form", () => {
 
     await expect
       .element(screen.getByRole("combobox", { name: /select program/i }))
-      .toHaveTextContent("Youth Initiative");
+      .toMatchTextContent("Youth Initiative");
   });
 
   it("hides program selector when npo has no programs", async () => {

@@ -104,7 +104,9 @@ describe("disabled", () => {
     await expect.element(link).not.toHaveAttribute("disabled");
 
     dom_click(link.element());
-    await expect.element(screen.getByTestId("loc")).toHaveTextContent("/start");
+    await expect
+      .element(screen.getByTestId("loc"))
+      .toMatchTextContent("/start");
     expect(on_click).not.toHaveBeenCalled();
   });
 
@@ -117,7 +119,7 @@ describe("disabled", () => {
       </Router>
     );
     dom_click(screen.getByRole("link", { name: "go" }).element());
-    await expect.element(screen.getByTestId("loc")).toHaveTextContent("/next");
+    await expect.element(screen.getByTestId("loc")).toMatchTextContent("/next");
   });
 
   test("a raw anchor is intercepted the same way", async () => {
@@ -159,7 +161,7 @@ describe("in flight", () => {
     );
     await expect
       .element(screen.getByRole("button"))
-      .toHaveTextContent("Submitting...");
+      .toMatchTextContent("Submitting...");
   });
 
   test("loading_text overrides it", async () => {
@@ -169,8 +171,8 @@ describe("in flight", () => {
       </Button>
     );
     const btn = screen.getByRole("button");
-    await expect.element(btn).toHaveTextContent("Saving...");
-    await expect.element(btn).not.toHaveTextContent("Save");
+    await expect.element(btn).toMatchTextContent("Saving...");
+    await expect.element(btn).not.toMatchTextContent("Save");
   });
 
   test("a link in flight is announced and intercepted", async () => {
@@ -185,7 +187,9 @@ describe("in flight", () => {
     await expect.element(link).toHaveAttribute("aria-disabled", "true");
     await expect.element(link).toHaveClass("pending");
     dom_click(link.element());
-    await expect.element(screen.getByTestId("loc")).toHaveTextContent("/start");
+    await expect
+      .element(screen.getByTestId("loc"))
+      .toMatchTextContent("/start");
   });
 });
 

@@ -35,7 +35,7 @@ pnpm vitest run --bail 1 src/path/to/test.test.tsx
 
 Every test file imports `{ describe, expect, test, vi }` from `"vitest"` explicitly despite `globals: true` — line 1 of any new file.
 
-`fileParallelism: false` and `testTimeout: 15_000` (`vite.config.ts`), so files run one at a time and a slow flow needs no custom timeout until it passes 15s. A **second concurrent vitest run dies** with `Port NNNNN is already in use` — pass `--browser.api.port=<free port>` when running one alongside another.
+`fileParallelism: false` and `testTimeout: 15_000` (`vite.config.ts`), so files run one at a time and a slow flow needs no custom timeout until it passes 15s. A second concurrent vitest run takes the next free port (`api.strictPort: false` in `vite.config.ts`; without it vitest pins 63315 and the second run dies with `Port 63315 is already in use`).
 
 ## Rendering
 
@@ -84,7 +84,7 @@ screen.container.querySelectorAll('[data-testid="incrementer"]').length;
 
 ### Strict mode — use `{ exact: true }` for ambiguous text
 
-Locators match **substrings** by default. `getByText("tip")` matches "tip", "Tips", "Tooltip". Use `{ exact: true }` when the text is common:
+Locators match **substrings** by default (`browser.locators.exact: false` in `vite.config.ts`; vitest 5's own default is exact). `getByText("tip")` matches "tip", "Tips", "Tooltip". Use `{ exact: true }` when the text is common:
 
 ```tsx
 screen.getByText("tip", { exact: true })
@@ -174,7 +174,7 @@ await vi.waitFor(() => {
   document.dispatchEvent(
     new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
   );
-  expect(document.body).not.toHaveTextContent("modal body");
+  expect(document.body).not.toMatchTextContent("modal body");
 });
 ```
 
@@ -225,7 +225,7 @@ Custom timeout/interval:
 await expect.element(screen.getByText("slow"), { timeout: 5000 }).toBeVisible();
 ```
 
-Available matchers: `toBeVisible()`, `toBeInTheDocument()`, `toHaveTextContent()`, `toHaveAttribute()`, `toHaveClass()`, `toHaveStyle()`, `toBeDisabled()`, `toBeEnabled()`, `toBeChecked()`, `toHaveValue()`, `toHaveDisplayValue()`, `toHaveFocus()`, `toContainHTML()`.
+Available matchers: `toBeVisible()`, `toBeInTheDocument()`, `toMatchTextContent()` (substring or regex; `toHaveTextContent()` is exact-equality only), `toHaveAttribute()`, `toHaveClass()`, `toHaveStyle()`, `toBeDisabled()`, `toBeEnabled()`, `toBeChecked()`, `toHaveValue()`, `toHaveDisplayValue()`, `toHaveFocus()`, `toContainHTML()`.
 
 ### When to use `vi.waitFor` instead
 

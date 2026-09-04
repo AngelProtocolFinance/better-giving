@@ -423,7 +423,7 @@ describe("new banking action", () => {
     await expect.element(screen.getByTestId("action-response")).toBeVisible();
     await expect
       .element(screen.getByTestId("action-response"))
-      .toHaveTextContent("Max 10");
+      .toMatchTextContent("Max 10");
     await expect
       .element(screen.getByTestId("banking-list"))
       .not.toBeInTheDocument();

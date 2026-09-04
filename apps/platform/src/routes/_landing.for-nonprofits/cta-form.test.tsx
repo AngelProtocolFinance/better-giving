@@ -162,7 +162,7 @@ describe("CtaForm", () => {
       .element()
       .closest("[role=alert]");
     expect(notice).toHaveFocus();
-    expect(notice).toHaveTextContent("jane@acme.org");
+    expect(notice).toMatchTextContent("jane@acme.org");
 
     await expect
       .element(screen.getByLabelText(/nonprofit name/i))

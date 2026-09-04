@@ -109,7 +109,7 @@ describe("daf checkout: a grant that goes through but never lands", () => {
 
     // told the truth: the grant moved, so this is never worded as a failure
     const dialog = screen.getByRole("dialog");
-    await expect.element(dialog).toHaveTextContent(/donation went through/i);
+    await expect.element(dialog).toMatchTextContent(/donation went through/i);
 
     // dismissing it can't be what takes the receipt away: the donor keeps
     // reading "your donation went through" on the panel itself.

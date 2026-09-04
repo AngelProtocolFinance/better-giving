@@ -161,7 +161,7 @@ describe("stripe checkout", () => {
     //user sees modal on card error
     await donateBtn.click();
     const errorModal = screen.getByRole("dialog");
-    await expect.element(errorModal).toHaveTextContent(/invalid card/i);
+    await expect.element(errorModal).toMatchTextContent(/invalid card/i);
 
     // a wrong cvc is the donor's to fix, not ours. it must not page.
     expect(reported).toHaveLength(0);
@@ -184,7 +184,7 @@ describe("stripe checkout", () => {
 
     await donateBtn.click();
     const errorModal = screen.getByRole("dialog");
-    await expect.element(errorModal).toHaveTextContent(/must be at least/i);
+    await expect.element(errorModal).toMatchTextContent(/must be at least/i);
 
     expect(reported).toHaveLength(0);
   });
@@ -209,7 +209,7 @@ describe("stripe checkout", () => {
     const errorModal = screen.getByRole("dialog");
     const genericError =
       "An unexpected error occurred while processing payment and has been reported. Please get in touch with hi@better.giving if the problem persists.";
-    await expect.element(errorModal).toHaveTextContent(genericError);
+    await expect.element(errorModal).toMatchTextContent(genericError);
 
     // the other half of the rule — quieting card errors must not quiet these.
     expect(reported).toHaveLength(1);
@@ -252,7 +252,7 @@ describe("stripe checkout", () => {
 
     // told the truth: the money moved, so this is never worded as a failure
     const dialog = screen.getByRole("dialog");
-    await expect.element(dialog).toHaveTextContent(/donation went through/i);
+    await expect.element(dialog).toMatchTextContent(/donation went through/i);
 
     // and given the way out, which is the receipt — not the donate button
     const link = screen.getByRole("link", { name: /receipt/i });

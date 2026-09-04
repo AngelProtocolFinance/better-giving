@@ -631,7 +631,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
     await screen.getByTestId("express-stuck").click();
 
     const dialog = screen.getByRole("dialog");
-    await expect.element(dialog).toHaveTextContent(/donation went through/i);
+    await expect.element(dialog).toMatchTextContent(/donation went through/i);
     const link = screen.getByRole("link", { name: /receipt/i });
     await expect
       .element(link)

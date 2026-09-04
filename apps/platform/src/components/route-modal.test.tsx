@@ -60,7 +60,7 @@ describe("RouteModal", () => {
       document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
       );
-      expect(document.body).not.toHaveTextContent("modal body");
+      expect(document.body).not.toMatchTextContent("modal body");
     });
   });
 });

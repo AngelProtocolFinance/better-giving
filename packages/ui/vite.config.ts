@@ -17,12 +17,15 @@ export default defineConfig({
       headless: true,
       screenshotFailures: false,
       instances: [{ browser: "chromium" }],
-      // see apps/platform/vite.config.ts for why: vitest's browser api server
-      // defaults to a fixed port with strictPort effectively on, so this
-      // collides with platform's own browser-mode suite when both run
-      // concurrently under turbo.
-      api: { strictPort: false },
+      // v5 default is exact string matching; kept on v4 substring matching
+      // to match platform's suite.
+      locators: { exact: false },
     },
+    // see apps/platform/vite.config.ts for why: vitest's browser api server
+    // defaults to a fixed port with strictPort effectively on, so this
+    // collides with platform's own browser-mode suite when both run
+    // concurrently under turbo.
+    api: { strictPort: false },
     globals: true,
     testTimeout: 15_000,
     fileParallelism: false,

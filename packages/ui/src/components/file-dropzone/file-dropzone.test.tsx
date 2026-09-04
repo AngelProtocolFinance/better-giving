@@ -93,14 +93,14 @@ describe("FileDropzone", () => {
 
     const dropzone = screen.container.querySelector("[data-part='dropzone']");
     // the drop area shows the decoded name, not the whole url
-    expect(dropzone).toHaveTextContent("annual report.pdf");
-    expect(dropzone).not.toHaveTextContent("https://");
+    expect(dropzone).toMatchTextContent("annual report.pdf");
+    expect(dropzone).not.toMatchTextContent("https://");
 
     const link = screen.container.querySelector(
       "a[href='https://example.com/annual%20report.pdf']"
     );
     expect(link).not.toBeNull();
-    expect(link).toHaveTextContent("View uploaded file");
+    expect(link).toMatchTextContent("View uploaded file");
     // the whole point: a focusable link may not sit inside a role="button"
     expect(dropzone?.contains(link!)).toBe(false);
   });
@@ -283,7 +283,7 @@ describe("FileDropzone", () => {
     // always mounted, empty until there is something to say — an element
     // inserted at the same moment as its text is announced unreliably
     expect(status()).not.toBeNull();
-    expect(status()).toHaveTextContent("");
+    expect(status()).toMatchTextContent("");
 
     const input = screen.container.querySelector(
       "input[type='file']"
@@ -300,14 +300,14 @@ describe("FileDropzone", () => {
 
     put(new File(["data"], "notes.txt", { type: "text/plain" }));
     await vi.waitFor(() =>
-      expect(status()).toHaveTextContent(
+      expect(status()).toMatchTextContent(
         "Rejected notes.txt: not an accepted file type"
       )
     );
 
     put(new File(["img"], "photo.png", { type: "image/png" }));
     await vi.waitFor(() =>
-      expect(status()).toHaveTextContent("Uploaded photo.png")
+      expect(status()).toMatchTextContent("Uploaded photo.png")
     );
   });
 
@@ -325,7 +325,7 @@ describe("FileDropzone", () => {
     );
 
     const dropzone = screen.container.querySelector("[data-part='dropzone']");
-    expect(dropzone).toHaveTextContent("Not an accepted file type");
+    expect(dropzone).toMatchTextContent("Not an accepted file type");
     // the codes must not fall through to the url branch: href="invalid-type"
     expect(screen.container.querySelector("a")).toBeNull();
   });
@@ -413,6 +413,6 @@ describe("FileDropzone: focus target", () => {
 
     expect(
       screen.container.querySelector(`#${CSS.escape(err_id!)}`)
-    ).toHaveTextContent("required");
+    ).toMatchTextContent("required");
   });
 });

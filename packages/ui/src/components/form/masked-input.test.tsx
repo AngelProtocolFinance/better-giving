@@ -74,7 +74,7 @@ describe("MaskedInput", () => {
     await userEvent.type(input.element() as HTMLElement, "12345");
 
     await expect.element(input).toHaveValue("$ 12,345");
-    await expect.element(screen.getByTestId("raw")).toHaveTextContent("12345");
+    await expect.element(screen.getByTestId("raw")).toMatchTextContent("12345");
   });
 
   it("strips non-numeric characters", async () => {
@@ -85,7 +85,7 @@ describe("MaskedInput", () => {
     await userEvent.type(input.element() as HTMLElement, "5abc00");
 
     await expect.element(input).toHaveValue("$ 500");
-    await expect.element(screen.getByTestId("raw")).toHaveTextContent("500");
+    await expect.element(screen.getByTestId("raw")).toMatchTextContent("500");
   });
 
   it("handles clearing to empty then typing fresh value", async () => {
@@ -99,7 +99,7 @@ describe("MaskedInput", () => {
     await userEvent.type(input.element() as HTMLElement, "42");
 
     await expect.element(input).toHaveValue("$ 42");
-    await expect.element(screen.getByTestId("raw")).toHaveTextContent("42");
+    await expect.element(screen.getByTestId("raw")).toMatchTextContent("42");
   });
 
   it("formats large numbers with thousand separators", async () => {
@@ -142,7 +142,7 @@ describe("MaskedInput", () => {
 
     await expect
       .element(screen.getByTestId("submitted"))
-      .toHaveTextContent("7500");
+      .toMatchTextContent("7500");
   });
 
   it("works with react-hook-form: preserves default value", async () => {
@@ -155,7 +155,7 @@ describe("MaskedInput", () => {
 
     await expect
       .element(screen.getByTestId("submitted"))
-      .toHaveTextContent("25000");
+      .toMatchTextContent("25000");
   });
 
   it("forwards ref to the input element", async () => {
@@ -207,7 +207,7 @@ describe("MaskedInput: ein mask", () => {
     await expect.element(input).toHaveValue("12-3456789");
     await expect
       .element(screen.getByTestId("raw"))
-      .toHaveTextContent("12-3456789");
+      .toMatchTextContent("12-3456789");
   });
 
   it("stops at nine digits", async () => {
@@ -219,7 +219,7 @@ describe("MaskedInput: ein mask", () => {
     await expect.element(input).toHaveValue("12-3456789");
     await expect
       .element(screen.getByTestId("raw"))
-      .toHaveTextContent("12-3456789");
+      .toMatchTextContent("12-3456789");
   });
 
   it("keeps an already-dashed value pasted in whole", async () => {
@@ -231,7 +231,7 @@ describe("MaskedInput: ein mask", () => {
     await expect.element(input).toHaveValue("12-3456789");
     await expect
       .element(screen.getByTestId("raw"))
-      .toHaveTextContent("12-3456789");
+      .toMatchTextContent("12-3456789");
   });
 
   it("renders a stored bare-digit ein dashed", async () => {
@@ -277,7 +277,7 @@ describe("MaskedInput: disabled", () => {
     await userEvent.keyboard("42");
 
     await expect.element(input).toHaveValue("$ 1,000");
-    await expect.element(screen.getByTestId("raw")).toHaveTextContent("1000");
+    await expect.element(screen.getByTestId("raw")).toMatchTextContent("1000");
   });
 
   it("still submits its value while disabled", async () => {
@@ -311,7 +311,9 @@ describe("MaskedInput: disabled", () => {
     const screen = await render(<BlurHarness />);
     const input = screen.getByLabelText("EIN");
 
-    await expect.element(screen.getByTestId("touched")).toHaveTextContent("no");
+    await expect
+      .element(screen.getByTestId("touched"))
+      .toMatchTextContent("no");
 
     const el = input.element() as HTMLElement;
     el.focus();
@@ -319,7 +321,7 @@ describe("MaskedInput: disabled", () => {
 
     await expect
       .element(screen.getByTestId("touched"))
-      .toHaveTextContent("yes");
+      .toMatchTextContent("yes");
   });
 });
 

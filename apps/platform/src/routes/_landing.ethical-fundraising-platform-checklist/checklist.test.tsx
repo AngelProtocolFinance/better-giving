@@ -106,6 +106,6 @@ describe("Checklist", () => {
     // 1, not 2 — a stale id would push the score past the question count
     await expect
       .element(screen.getByRole("status"))
-      .toHaveTextContent(`1 of ${total}`);
+      .toMatchTextContent(`1 of ${total}`);
   });
 });

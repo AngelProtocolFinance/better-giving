@@ -30,13 +30,13 @@ describe("DonateMethods — keyboard reorder", () => {
     const screen = await render(<Harness initial={methods()} />);
 
     const order = screen.getByTestId("order");
-    await expect.element(order).toHaveTextContent("Card,Crypto,Stocks,DAF");
+    await expect.element(order).toMatchTextContent("Card,Crypto,Stocks,DAF");
 
     const card = screen.getByRole("button", { name: grip("Card") });
     (card.element() as HTMLElement).focus();
     await userEvent.keyboard("{ArrowDown}");
 
-    await expect.element(order).toHaveTextContent("Crypto,Card,Stocks,DAF");
+    await expect.element(order).toMatchTextContent("Crypto,Card,Stocks,DAF");
 
     // press-arrow-repeatedly is the whole interaction, so focus has to survive
     // the move
@@ -52,7 +52,7 @@ describe("DonateMethods — keyboard reorder", () => {
       .toBeVisible();
     await expect
       .element(screen.getByRole("status"))
-      .toHaveTextContent("Card moved to position 2 of 4");
+      .toMatchTextContent("Card moved to position 2 of 4");
   });
 
   it("moves a method up", async () => {
@@ -64,7 +64,7 @@ describe("DonateMethods — keyboard reorder", () => {
 
     await expect
       .element(screen.getByTestId("order"))
-      .toHaveTextContent("Crypto,Card,Stocks,DAF");
+      .toMatchTextContent("Crypto,Card,Stocks,DAF");
   });
 
   it("ignores the arrow key at the end it is moving toward", async () => {
@@ -76,7 +76,7 @@ describe("DonateMethods — keyboard reorder", () => {
 
     await expect
       .element(screen.getByTestId("order"))
-      .toHaveTextContent("Card,Crypto,Stocks,DAF");
+      .toMatchTextContent("Card,Crypto,Stocks,DAF");
     // nothing moved, so nothing is announced
     expect(screen.getByRole("status").element().textContent).toBe("");
   });

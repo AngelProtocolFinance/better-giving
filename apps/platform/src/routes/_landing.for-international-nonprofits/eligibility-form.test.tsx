@@ -174,7 +174,7 @@ describe("EligibilityForm", () => {
       .closest("[role=alert]");
     // the remedy is two actions; focus goes to it or the user never finds it
     expect(notice).toHaveFocus();
-    expect(notice).toHaveTextContent("jane@acme.org");
+    expect(notice).toMatchTextContent("jane@acme.org");
 
     await expect
       .element(screen.getByLabelText(/organization name/i))

@@ -116,15 +116,18 @@ export default defineConfig((config) => {
               headless: true,
               screenshotFailures: false,
               instances: [{ browser: "chromium" }],
-              // vitest's browser api server defaults to a fixed port (63315) with
-              // strictPort effectively on, so two browser-mode vitest processes
-              // (this one + packages/ui, running concurrently under turbo) crash
-              // one of them with "Port 63315 is already in use" instead of falling
-              // back — reported upstream as a silent "no tests" run, not a visible
-              // crash. explicit strictPort:false restores vite's normal
-              // try-next-port behavior. every browser-mode package needs this.
-              api: { strictPort: false },
+              // v5 default is exact string matching; the suite was written against
+              // v4 substring matching (~1.4k string locators) and keeps it.
+              locators: { exact: false },
             },
+            // vitest's browser api server defaults to a fixed port (63315) with
+            // strictPort effectively on, so two browser-mode vitest processes
+            // (this one + packages/ui, running concurrently under turbo) crash
+            // one of them with "Port 63315 is already in use" instead of falling
+            // back — reported upstream as a silent "no tests" run, not a visible
+            // crash. explicit strictPort:false restores vite's normal
+            // try-next-port behavior. every browser-mode package needs this.
+            api: { strictPort: false },
             env,
             globals: true,
             // *.node.test.ts is the node project's; without this exclude it
