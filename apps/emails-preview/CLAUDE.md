@@ -27,4 +27,4 @@ React Email preview site, workspace member `emails-preview` (private, app). Rend
 
 ## Coding style
 
-Follows the same conventions as the `emails` package — see `packages/emails/CLAUDE.md` (snake_case vars/functions, PascalCase components, kebab-case files, lowercase comments for code-readers).
+Follows the same conventions as the `emails` package — see `packages/emails/CLAUDE.md` (snake_case vars/functions, PascalCase components, kebab-case files).

@@ -19,12 +19,12 @@ Internal package (`private`), a **built** server-side PayPal SDK. Ships the `Pay
 `build` = `tsc` (per `tsconfig.json`) → `dist/`. Generated types are committed, so the build is compile-only (hermetic — no network). Runs in `turbo run build`; `outputs` caches `dist/**`, and it's built before platform (its consumer).
 
 - **`tsconfig.json` extends `tsconfig.base.json`** and adds the emit config raw `tsc` needs (see the tsconfig comments). Same built-member pattern as crypto, which emits via tsup instead.
-- **No pre-commit `type-check` hook** — matches the established built-member convention (see crypto). Type safety is enforced by the package's build in turbo/CI. After changing `src/`, run `pnpm --filter @better-giving/paypal build`.
+- After changing `src/`, run `pnpm --filter @better-giving/paypal build`.
 
 ## Conventions
 
-- **Biome** governs the whole member via the root `biome.json` (one repo pass); `dist/`, `specs/`, and `src/generated` are excluded there. Member `lint`/`format` scripts scope to `.` for granular `--filter` runs.
-- pin deps exact (repo-wide rule). No `catalog:` here (deliberate — kept on its own pinned `typescript`/`@types/node`); no `@biomejs/biome` devDep — root provides it.
+- biome excludes `dist/`, `specs/`, and `src/generated` (root `biome.json`).
+- No `catalog:` here (deliberate — kept on its own pinned `typescript`/`@types/node`); no `@biomejs/biome` devDep — root provides it.
 
 ## `generate` maintenance script
 

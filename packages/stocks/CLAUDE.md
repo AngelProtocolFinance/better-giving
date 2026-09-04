@@ -23,9 +23,9 @@ Internal package (`private`), a **built** stock ticker + broker-dealer data libr
 
 ## Conventions
 
-- **No pre-commit `type-check` hook** — matches the paypal/crypto precedent (see root `lefthook.yml`/`CLAUDE.md`). Type safety is enforced by the package's build in turbo/CI. After changing `src/`, run `pnpm --filter @better-giving/stocks build` to type-check.
-- **Biome** governs the whole member (root `pnpm lint`/`format` run one `biome check .` over the repo; this member's own `lint`/`format` scripts scope to `.`); `dist/` and `src/generated` are excluded in root `biome.json` (the data files are large + machine-generated). Root biome sets `noExplicitAny: off`, matching the source config.
-- pin deps exact (repo-wide rule). No `@biomejs/biome` devDep — root provides it.
+- After changing `src/`, run `pnpm --filter @better-giving/stocks build` to type-check.
+- biome excludes `dist/` and `src/generated` (root `biome.json`; the data files are large + machine-generated), and sets `noExplicitAny: off`, matching the source config.
+- No `@biomejs/biome` devDep — root provides it.
 
 ## maintenance scripts
 

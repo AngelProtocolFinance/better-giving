@@ -34,14 +34,6 @@ forgetting this means platform builds against stale types.
 - org: `oQxcQWCVV`
 - manage: https://www.sanity.io/manage/project/5820hdyj
 
-## AI
-
-Sanity Claude Code plugin (`sanity@claude-plugins-official`) is installed
-user-globally — provides the Sanity MCP server (`query_documents`,
-`create_documents`, `edit_document`, `deploy_schema`, etc.) and skills
-(`sanity:sanity-best-practices`, `sanity:content-modeling-best-practices`,
-`sanity:deploy-schema`, `sanity:typegen`, ...).
-
 ## Schema
 
 Document types live in `schemaTypes/` and are registered in

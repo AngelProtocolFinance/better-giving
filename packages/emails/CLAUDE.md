@@ -36,16 +36,3 @@ export const DonationForm = () => { ... };
 
 - **Props-based design**: Make components reusable by accepting configuration as props rather than deriving values internally. This improves SSR compatibility, testability, and flexibility
 - **Define interfaces**: Always define proper TypeScript interfaces for component props (e.g., `AccountSelectorProps` for `AccountSelector` component)
-- **Use existing patterns**: Check the codebase for existing design system classes and patterns before creating custom ones
-- **Provide fallbacks**: Use sensible fallbacks for optional props (e.g., `logo || default_logo`)
-- **Keep it concise**: Prefer compact, inline layouts over verbose sections with extra headings unless the UI demands it
-- **Component naming**: Keep component names clear and concise
-
-## Code Comments
-
-- **Comments are for code readers only**: Don't add comments intended for the prompter (e.g., "Add your API key here", "TODO: implement this feature"). Only add comments that help someone reading and maintaining the code understand what it does and why
-- **Use lowercase**: Write comments in lowercase as much as possible (e.g., `// submit form and navigate to next step` instead of `// Submit form and navigate to next step`)
-
-## Development Workflow
-
-- **Always check package.json for scripts**: Before running any npm/pnpm commands (like `pnpm test:run`, `pnpm build`, etc.), always check `package.json` first to see what scripts are actually available. Use the exact script names defined there

@@ -23,9 +23,9 @@ Internal package (`private`), a **built** crypto token + chain data library. Zer
 
 ## Conventions
 
-- **No pre-commit `type-check` hook** — matches the paypal precedent (see root `lefthook.yml`/`CLAUDE.md`). Type safety is enforced by the package's build in turbo/CI. crypto's `src/` imports committed JSON (present pre-commit, so a hook *could* work) but consistency with the established built-member convention wins. After changing `src/`, run `pnpm --filter @better-giving/crypto build` to type-check.
-- **Biome** governs the whole member (root `pnpm lint`/`format` run one `biome check .` over the repo; this member's own `lint`/`format` scripts scope to `.`); `dist/` and `src/generated/tokens` are excluded in root `biome.json`. Root biome sets `noExplicitAny: off`, matching the source config.
-- pin deps exact (repo-wide rule). No `@biomejs/biome` devDep — root provides it.
+- crypto's `src/` imports committed JSON (present pre-commit, so a type-check hook *could* work) but the built-member convention wins. After changing `src/`, run `pnpm --filter @better-giving/crypto build` to type-check.
+- biome excludes `dist/` and `src/generated/tokens` (root `biome.json`), and sets `noExplicitAny: off`, matching the source config.
+- No `@biomejs/biome` devDep — root provides it.
 
 ## `generate-tokens` maintenance script
 

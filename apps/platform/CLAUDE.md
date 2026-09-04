@@ -32,11 +32,9 @@ Three-layer structure:
 
 ## Testing
 
-- setup files: `src/setup-tests-browser.ts`, `src/__tests__/mocks/payment.tsx`
-- config in `vite.config.ts` under `test`
-- environment: vitest browser mode, headless chromium via playwright; globals enabled
+- two vitest projects in `vite.config.ts`: `browser` (the default — every `*.test.ts(x)`) and `node`, which takes only `*.node.test.ts` under `src/` and `jobs/` — the sweeps that read the tree off disk. `jobs/` has no browser project at all.
 - `.claude/**` is in vitest's `exclude` (defensive — Claude config lives in the root `.claude/`, not here)
-- **a run costs one headless chromium per test file, serially.** `fileParallelism: false` (`vite.config.ts:140`) walks all 131 browser test files one at a time, so the full suite is the expensive default. Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
+- **a run costs one headless chromium per test file, serially.** `fileParallelism: false` (`vite.config.ts`) walks every browser test file one at a time, so the full suite is the expensive default (~3 min measured 2026-09-04). Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
 
 ## Code Style
 
