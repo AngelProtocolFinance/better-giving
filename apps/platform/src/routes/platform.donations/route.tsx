@@ -41,10 +41,16 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
 /**
  * every stamp on the donation's match event, in lifecycle order.
  *
- * read-only, and there is no action here. nothing about a match is ours to
- * approve — no employer is resolved, no programme is known, and the sends are
- * claimed by the handlers themselves — so a button would only re-drive work
- * that is already at-most-once by construction.
+ * the stamps are read-only. nothing about a match is ours to approve — no
+ * employer is resolved, no programme is known, and the sends are claimed by the
+ * handlers themselves — so a button beside one would only re-drive work that is
+ * already at-most-once by construction.
+ *
+ * the void is the one action, and it is a different kind: it records a fact the
+ * app cannot observe. only the stripe refund seam voids an event on its own; a
+ * crypto, paypal or chariot refund happens entirely at the processor and no code
+ * path ever learns of it, so without this the chase and the pack keep treating a
+ * gift the donor already got back as matchable.
  *
  * this is also the only reader `send_failed_kind` has: a mail the provider
  * refused is otherwise recorded and invisible, answerable only by hand-written
@@ -84,6 +90,16 @@ function Match({ payment: c }: { payment: PaymentRow }) {
         <span className="text-destructive-subtle-fg text-xs font-semibold">
           {c.match_send_failed_kind} mail refused
         </span>
+      )}
+      {c.match_event_id && !c.match_voided_at && (
+        <NavLink
+          to={`${c.donation_id}/void-match`}
+          preventScrollReset
+          replace
+          className="btn-secondary btn btn-sm"
+        >
+          Void
+        </NavLink>
       )}
     </div>
   );
