@@ -17,7 +17,7 @@ export const meta: Route.MetaFunction = () =>
     description: `As a U.S. 501(c)(3), ${app_name} accepts tax-deductible gifts and grants on your behalf. Reach U.S. donors and foundations without your own 501(c)(3), for a 2.9% fee.`,
   });
 
-// striped bar mirrors the donut pattern in _mkt._index/grow-funds: tokens via css vars
+// striped bar mirrors the donut pattern in _landing._index/grow-funds: tokens via css vars
 const market_bar_bg = `repeating-linear-gradient(
   45deg,
   var(--color-secondary),

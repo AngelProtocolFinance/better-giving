@@ -200,6 +200,17 @@ describe("AnnouncementBanner", () => {
 });
 
 describe("PublicLayout banner gate", () => {
+  test("the homepage shows the bar", async () => {
+    const Stub = layout_stub();
+    const screen = await render(
+      <Stub initialEntries={["/"]} future={{ v8_middleware: true }} />
+    );
+
+    await expect.element(screen.getByText("home page")).toBeInTheDocument();
+    expect(root(screen.container)).not.toBeNull();
+    expect(row_tracks(screen.container)).toHaveLength(4);
+  });
+
   test("marketing route renders the bar in a fourth track above the 4rem header", async () => {
     const Stub = layout_stub();
     const screen = await render(
@@ -259,21 +270,18 @@ describe("PublicLayout banner gate", () => {
   });
 });
 
-// `_index` inlines its own shell instead of mounting PublicLayout, and its
-// route module pulls in the whole homepage section tree plus a loader — far
-// more than this seam needs. its template is pinned at the source level
-// instead; the rendered assertions above cover PublicLayout's.
-const sources = import.meta.glob<string>(
-  ["/src/root-layout.tsx", "/src/routes/_index/route.tsx"],
-  { query: "?raw", import: "default", eager: true }
-);
+// no rendered assertion reaches root-layout's pre-paint head script, so its
+// source is pinned; PublicLayout's own wiring is covered by the rendered
+// assertions above.
+const sources = import.meta.glob<string>(["/src/root-layout.tsx"], {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
 
 describe("campaign drift", () => {
-  test("glob resolved both sources", () => {
-    expect(Object.keys(sources).sort()).toEqual([
-      "/src/root-layout.tsx",
-      "/src/routes/_index/route.tsx",
-    ]);
+  test("glob resolved the source", () => {
+    expect(Object.keys(sources)).toEqual(["/src/root-layout.tsx"]);
   });
 
   test("the pre-paint script still reads the component's storage key", () => {
@@ -287,13 +295,5 @@ describe("campaign drift", () => {
     expect(sources["/src/root-layout.tsx"]).toContain(
       'document.documentElement.dataset.bannerDismissed="ncnp-endorsement"'
     );
-  });
-
-  test("_index keeps a track for the banner it mounts", () => {
-    const src = sources["/src/routes/_index/route.tsx"];
-    expect(src).toContain("<AnnouncementBanner />");
-    // four children (banner, header, main, footer) need four declared tracks —
-    // dropping one slides `main` into the header's row.
-    expect(src).toContain("grid-rows-[auto_auto_1fr_auto]");
   });
 });

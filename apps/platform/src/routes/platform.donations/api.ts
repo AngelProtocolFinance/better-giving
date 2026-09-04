@@ -26,6 +26,9 @@ export interface PaymentRow {
   via: string;
   created_at: string;
   status: string;
+  /** null when the donation never entered the match workflow — the one field
+   * that separates "no event" from "an event with nothing stamped yet" */
+  match_event_id: string | null;
   /** every stamp on the donation's match event; all null when it has none */
   match_pack_sent_at: string | null;
   match_chased_at: string | null;
@@ -59,6 +62,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
       via: donations.via,
       created_at: donations.created_at,
       status: donations.status,
+      match_event_id: donation_match_events.id,
       match_pack_sent_at: donation_match_events.pack_sent_at,
       match_chased_at: donation_match_events.chased_at,
       match_submitted_at: donation_match_events.submitted_at,
