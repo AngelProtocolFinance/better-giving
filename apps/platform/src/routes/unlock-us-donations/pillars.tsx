@@ -31,7 +31,7 @@ export function Pillars() {
   return (
     <section className="surface-primary py-20 md:py-24 relative overflow-hidden">
       {/* subtle diagonal accent */}
-      <div className="absolute -top-32 -right-32 size-96 bg-white/3 rotate-45 rounded" />
+      <div className="absolute -top-32 -right-32 size-96 bg-primary-fg/3 rotate-45 rounded" />
 
       <div className="page relative">
         <motion.div
@@ -44,7 +44,7 @@ export function Pillars() {
           <h2 className="section-heading font-bold">
             Three Pillars of Opportunity
           </h2>
-          <p className="section-body text-white/80 max-w-2xl mx-auto">
+          <p className="section-body text-primary-fg/80 max-w-2xl mx-auto">
             Unlock revenue streams that were previously out of reach for UK
             charities.
           </p>
@@ -54,17 +54,17 @@ export function Pillars() {
           {pillars.map((pillar, i) => (
             <motion.div
               key={pillar.title}
-              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded p-6 grid content-start gap-3"
+              className="bg-primary-fg/10 backdrop-blur-sm border border-primary-fg/20 rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
-              <div className="size-12 rounded bg-white/15 flex-center">
+              <div className="size-12 rounded bg-primary-fg/15 flex-center">
                 <pillar.icon size={24} />
               </div>
               <h3 className="text-xl font-bold">{pillar.title}</h3>
-              <p className="text-white/80">{pillar.body}</p>
+              <p className="text-primary-fg/80">{pillar.body}</p>
             </motion.div>
           ))}
         </div>

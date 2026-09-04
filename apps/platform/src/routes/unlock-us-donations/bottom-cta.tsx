@@ -9,7 +9,7 @@ export function BottomCta() {
         className="absolute inset-0 opacity-[0.03]"
         style={{
           backgroundImage:
-            "radial-gradient(circle, white 1px, transparent 1px)",
+            "radial-gradient(circle, var(--primary-fg) 1px, transparent 1px)",
           backgroundSize: "32px 32px",
         }}
       />
@@ -25,20 +25,20 @@ export function BottomCta() {
           <h2 className="section-heading font-bold">
             Ready to expand your reach?
           </h2>
-          <p className="section-body text-white/80">
+          <p className="section-body text-primary-fg/80">
             It costs nothing to explore. Sign up today and add a global revenue
             stream to your local mission.
           </p>
 
           <Link
             to={href("/register")}
-            className="btn btn-lg btn-primary bg-white text-primary hover:bg-white/90 active:bg-white/80 capitalize inline-flex items-center gap-2 mt-2"
+            className="btn btn-lg btn-primary bg-primary-fg text-primary hover:bg-primary-fg/90 active:bg-primary-fg/80 capitalize inline-flex items-center gap-2 mt-2"
           >
             Join Us Today!
             <ArrowRight size={18} />
           </Link>
 
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-primary-fg/50">
             Free to sign up. No interference with your existing UK Gift Aid or
             fundraising.
           </p>

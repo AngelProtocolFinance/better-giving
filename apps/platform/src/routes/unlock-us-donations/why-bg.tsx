@@ -35,7 +35,7 @@ const cards: ICard[] = [
 export function WhyBg() {
   return (
     <section className="surface-primary py-20 md:py-24 relative overflow-hidden">
-      <div className="absolute -bottom-24 -left-24 size-80 bg-white/3 rounded-full" />
+      <div className="absolute -bottom-24 -left-24 size-80 bg-primary-fg/3 rounded-full" />
 
       <div className="page relative">
         <motion.h2
@@ -52,17 +52,17 @@ export function WhyBg() {
           {cards.map((card, i) => (
             <motion.div
               key={card.title}
-              className="bg-white/10 backdrop-blur-sm border border-white/20 rounded p-6 grid content-start gap-3"
+              className="bg-primary-fg/10 backdrop-blur-sm border border-primary-fg/20 rounded p-6 grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
-              <div className="size-12 rounded bg-white/15 flex-center">
+              <div className="size-12 rounded bg-primary-fg/15 flex-center">
                 <card.icon size={24} />
               </div>
               <h3 className="text-xl font-bold">{card.title}</h3>
-              <p className="text-white/80">{card.body}</p>
+              <p className="text-primary-fg/80">{card.body}</p>
             </motion.div>
           ))}
         </div>
