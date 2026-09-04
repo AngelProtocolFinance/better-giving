@@ -83,7 +83,7 @@ export function AllocationSlider({
           />
           <Slider.Thumb
             index={1}
-            className="block size-5 rounded-full bg-panel shadow-track-fill border group-aria-disabled/slider:bg-gray-11"
+            className="block size-5 rounded-full bg-panel shadow-track-fill border-2 border-gray-11 group-aria-disabled/slider:bg-gray-11"
           />
         </Slider.Control>
       </Slider.Root>
