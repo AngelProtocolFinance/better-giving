@@ -121,7 +121,6 @@ describe("Crypto form: initial load", () => {
       )
       .toBeChecked();
 
-    // // incrementers not shown without selected token
     await vi.waitFor(() =>
       expect(
         screen.container.querySelectorAll('[data-testid="incrementer"]').length
@@ -204,10 +203,10 @@ describe("Crypto form: initial load", () => {
     // after select, input reflects the chosen symbol (itemToStringLabel)
     await expect.element(screen.getByRole("combobox")).toHaveValue("BTC");
 
-    // Submit to trigger validation - amount (0.5) is less than min (1)
+    // submit to trigger validation - amount (0.5) is less than min (1)
     await screen.getByRole("button", { name: /continue/i }).click();
 
-    // Should show "minimum of" error since 0.5 < 1
+    // should show "minimum of" error since 0.5 < 1
     await expect.element(screen.getByText(/minimum of/i)).toBeVisible();
 
     //user now inputs amount greater than minimum

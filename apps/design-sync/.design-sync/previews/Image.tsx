@@ -27,7 +27,7 @@ export const Loading = () => (
 );
 
 // no src (and not loading) falls back to ImagePlaceholder rather than a
-// broken-image glyph. Same fallback on an onError.
+// broken-image glyph. same fallback on an onError.
 export const MissingSrc = () => (
   <Image alt="Books for Kids logo" className="h-40 w-60 rounded border" />
 );

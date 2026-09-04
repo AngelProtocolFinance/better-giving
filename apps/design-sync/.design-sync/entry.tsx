@@ -52,8 +52,7 @@ export { MaskedInput } from "../../../packages/ui/src/components/form/masked-inp
 // mask presets for <MaskedInput mask={...} /> — each is a { format, unmask }
 // pair. lowercase, so the converter never mistakes them for components; they
 // ride on window.BetterGiving purely so a design can use the REAL ein/dollar
-// masks instead of reimplementing them. (found by the batch-A preview author,
-// which had to inline a copy.)
+// masks instead of reimplementing them.
 export * as masks from "../../../packages/ui/src/components/form/masks";
 export { PasswordInput } from "../../../packages/ui/src/components/form/password-input";
 export { UrlInput } from "../../../packages/ui/src/components/form/url-input";

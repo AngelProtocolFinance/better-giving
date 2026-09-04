@@ -9,7 +9,7 @@ export async function customer_with_currency(
   currency: string,
   email: string
 ): Promise<string> {
-  // Search for existing Stripe Customer data
+  // search for existing Stripe Customer data
   const actives: Stripe.Customer[] = [];
   let next_page: string | undefined;
   do {

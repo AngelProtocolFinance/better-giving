@@ -283,7 +283,7 @@ describe("refunds list — settled stripe donation", () => {
       .element(screen.getByRole("heading", { name: /refund preview/i }))
       .toBeVisible();
 
-    // confirm refund (native click — Base UI dialog overlay blocks playwright click)
+    // confirm refund (native click — the dialog overlay blocks playwright click)
     (
       screen
         .getByRole("button", { name: /confirm refund/i })

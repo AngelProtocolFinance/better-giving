@@ -237,7 +237,7 @@ const fund_select = {
   donation_total_usd: sql<number>`COALESCE(${v_donation_total_usd.total}, 0)`,
 };
 
-// pg_trgm fuzzy search — replaces fetch-all + Fuse.js
+// pg_trgm fuzzy search
 export async function fund_search(
   params: IFundsSearchObj
 ): Promise<IFundItemsPage> {

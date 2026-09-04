@@ -196,8 +196,6 @@
   border-radius: var(--radius);
 }
 
-/** page components */
-
 @utility btn-donate {
   border-radius: var(--radius);
   text-transform: none;

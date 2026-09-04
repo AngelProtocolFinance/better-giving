@@ -56,7 +56,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
   );
 
   // uploading is `aria-busy`, not `disabled`. routing it through zag's
-  // `disabled` used to strip the drop area's tabIndex mid-interaction, so the
+  // `disabled` strips the drop area's tabIndex mid-interaction, so the
   // element the user had just activated left the tab order and focus fell to
   // <body>. zag offers no busy state — `readOnly` and `disableClick` drop
   // tabIndex too (and `disableClick` swaps role=button for role=application) —

@@ -115,7 +115,7 @@ export interface IToken {
   /** coingecko id */
   cg_id: string;
 
-  // DISPLAY
+  // display
   /**
    *  NP: /path to logo - must be prepended with NP base url
    *  BG: logo url

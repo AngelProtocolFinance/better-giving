@@ -51,7 +51,7 @@ function load_env(mode: string) {
   for (const k of [...SERVER_KEYS, ...CLIENT_KEYS]) delete ambient[k];
   try {
     const files = loadEnv(mode, pkg_dir, "");
-    // a one-off `CHARIOT_API_KEY=<prod> pnpm dev` used to win and now loses,
+    // a one-off `CHARIOT_API_KEY=<prod> pnpm dev` loses to the files,
     // so say which keys the files took over rather than leaving the export
     // looking applied. keys the shell alone supplies come back through
     // loadEnv's own copy of process.env, identical, and never land here.

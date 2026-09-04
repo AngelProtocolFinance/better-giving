@@ -17,7 +17,7 @@ interface IFromAddress {
 
 // dedupe keys ship to qstash and gate at-most-once delivery — preserve
 // existing strings verbatim. reg-updated intentionally embeds Date.now(),
-// which disables dedupe for that kind; preserved as-is for now.
+// which disables dedupe for that kind.
 
 export interface IDonDistPayload {
   id: string;
@@ -139,7 +139,7 @@ export type Payloads = {
 export type Kind = keyof Payloads;
 
 // producer input types. for most kinds this is just Payloads[K]; reg-updated
-// historically accepted any {id: string | number}-shaped row because callers
+// accepts any {id: string | number}-shaped row because callers
 // pass drizzle outputs (string | null fields) that don't satisfy IReg's
 // string | undefined. wire payload is still the full row; the consumer
 // narrows back to IReg.

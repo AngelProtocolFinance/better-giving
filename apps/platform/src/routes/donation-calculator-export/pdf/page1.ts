@@ -28,7 +28,7 @@ export function draw_page1(
   const px = w["20"];
   const content_w = PAGE_W - px * 2;
 
-  // === HEADER ===
+  // === header ===
   const header_h = 110;
   draw_rect(page, 0, 0, PAGE_W, header_h, blue["9"]);
 
@@ -86,7 +86,7 @@ export function draw_page1(
   });
   add_link(doc, page, logo_x, logo_y_top, logo_w, logo_h, base_url);
 
-  // === SECTION 1: current online donations ===
+  // === section 1: current online donations ===
   y = header_h + w["24"];
   draw_text(
     page,
@@ -110,7 +110,7 @@ export function draw_page1(
     blue["9"]
   );
 
-  // KV pairs - two columns
+  // kv pairs - two columns
   y += fs.lg + w["10"];
   const col_w = (content_w - w["20"]) / 2;
   const kv_x1 = w["24"];
@@ -214,7 +214,7 @@ export function draw_page1(
     red["9"]
   );
 
-  // === SECTION 2: annual impact with BG ===
+  // === section 2: annual impact with BG ===
   y += box_h + w["24"];
   const s2_title = "ANNUAL DONATION PROCESSING IMPACT WITH BETTER GIVING";
   draw_text(page, s2_title, px, y + fs.lg, fonts.semibold, fs.lg, blue["9"]);
@@ -336,7 +336,7 @@ export function draw_page1(
     fs.base
   );
 
-  // === SECTION 3: long-term financial growth ===
+  // === section 3: long-term financial growth ===
   y += adv_h + w["30"];
   const s3_title = "LONG-TERM FINANCIAL GROWTH (ESTIMATED PREDICTIONS)";
   draw_text(page, s3_title, px, y + fs.lg, fonts.semibold, fs.lg, blue["9"]);

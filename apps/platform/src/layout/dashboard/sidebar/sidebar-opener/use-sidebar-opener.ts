@@ -20,8 +20,8 @@ export function use_sidebar_opener(
   const [open, set_open] = useState(false);
   const curr_path = useLocation().pathname;
 
-  // Explanation for the `reduce()` part:
-  // Since `matchPath` returns all paths that match the pattern and that
+  // explanation for the `reduce()` part:
+  // since `matchPath` returns all paths that match the pattern and that
   // includes all the parent paths, but we want to return only the "first parent" link
   // (the one with more path segments), we can find that "first parent" by simply checking the
   // `to` field length -> higher the length, more "recent" the parrent

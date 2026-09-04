@@ -13,7 +13,7 @@ interface Props extends View {
 
 export function Table({ classes = "", ...v }: Props) {
   const [tab, set_tab] = useState("1 Year");
-  // Array of time periods
+  // array of time periods
   const periods = [
     { label: "1 Year", value: 1 },
     { label: "5 Year", value: 5 },
@@ -56,7 +56,6 @@ export function Table({ classes = "", ...v }: Props) {
           />
         )}
       </div>
-      {/* Tabs */}
       <Tabs.Root value={tab} onValueChange={(e) => set_tab(e.value)}>
         <Tabs.List className="flex space-x-1 border-b mb-4">
           {periods.map((p) => (
@@ -70,7 +69,6 @@ export function Table({ classes = "", ...v }: Props) {
           ))}
         </Tabs.List>
 
-        {/* Table Panels */}
         {periods.map((p) => {
           const x = v.projection[p.value - 1];
           return (

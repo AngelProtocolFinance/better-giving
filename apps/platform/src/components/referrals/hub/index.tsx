@@ -61,7 +61,6 @@ export const Hub = ({ classes = "" }: Props) => {
           <div className="grid grid-rows-[auto_1fr] grid-cols-5 gap-x-8 min-w-max">
             {cards.map((card) => (
               <div
-                // to={card.to ?? "#"}
                 key={card.title}
                 className="grid grid-rows-subgrid row-span-2 content-start"
               >

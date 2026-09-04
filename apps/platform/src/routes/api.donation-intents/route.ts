@@ -29,7 +29,7 @@ const json_with_cookie_fn =
     const now = Date.now();
     const obj = existing || {};
 
-    // Remove expired keys
+    // remove expired keys
     for (const k of Object.keys(obj)) {
       if (obj[k] < now) {
         delete obj[k];

@@ -13,7 +13,6 @@ export function FormEmbedContainer({
 }: FormEmbedContainerProps) {
   useEffect(() => {
     // effect only runs client-side, so document is safe here.
-    // remove any existing embed scripts
     for (const s of document.querySelectorAll("script[data-bg-embed]")) {
       s.remove();
     }

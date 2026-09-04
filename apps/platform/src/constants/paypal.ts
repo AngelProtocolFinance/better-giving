@@ -54,9 +54,5 @@ export const paypal_currencies: Record<string, 0 | 2> = {
   // problematic – do not use (note 3)
   // these are **blocked** for non-local receivers → payment fails
   // ──────────────────────────────────────────────────────────────
-  // /** blocked – only in-country (china) paypal accounts can receive cny */
-  // CNY: 2,
-  //
-  // /** blocked – only in-country (malaysia) paypal accounts can receive myr */
-  // MYR: 2,
+  // cny and myr are blocked – only in-country paypal accounts can receive them
 };

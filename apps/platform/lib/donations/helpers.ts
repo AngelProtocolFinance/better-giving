@@ -110,14 +110,14 @@ export const via_name = (via: string): string => {
   if (via.startsWith("stripe")) {
     const [_, method] = via.split(":");
     switch (method as Stripe.PaymentMethod.Type) {
-      // Cards
+      // cards
       case "card":
       case "card_present":
         return "Card";
       case "kr_card":
         return "Card (Korea)";
 
-      // Digital Wallets
+      // digital wallets
       case "link":
         return "Link";
       case "paypal":
@@ -131,7 +131,7 @@ export const via_name = (via: string): string => {
       case "samsung_pay":
         return "Samsung Pay";
 
-      // Bank Transfers & Direct Debits
+      // bank transfers & direct debits
       case "us_bank_account":
         return "Bank Transfer (US)";
       case "acss_debit":
@@ -145,7 +145,7 @@ export const via_name = (via: string): string => {
       case "pay_by_bank":
         return "Bank Transfer";
 
-      // Buy Now Pay Later
+      // buy now pay later
       case "affirm":
         return "Affirm";
       case "afterpay_clearpay":
@@ -157,7 +157,7 @@ export const via_name = (via: string): string => {
       case "zip":
         return "Zip";
 
-      // Regional Payment Methods - Europe
+      // regional payment methods - europe
       case "bancontact":
         return "Bancontact";
       case "blik":
@@ -181,7 +181,7 @@ export const via_name = (via: string): string => {
       case "twint":
         return "TWINT";
 
-      // Regional Payment Methods - Asia Pacific
+      // regional payment methods - asia pacific
       case "alipay":
         return "Alipay";
       case "wechat_pay":
@@ -201,7 +201,7 @@ export const via_name = (via: string): string => {
       case "promptpay":
         return "PromptPay";
 
-      // Regional Payment Methods - Latin America
+      // regional payment methods - latin america
       case "boleto":
         return "Boleto";
       case "oxxo":
@@ -209,7 +209,7 @@ export const via_name = (via: string): string => {
       case "pix":
         return "Pix";
 
-      // Other
+      // other
       case "konbini":
         return "Konbini";
       case "customer_balance":

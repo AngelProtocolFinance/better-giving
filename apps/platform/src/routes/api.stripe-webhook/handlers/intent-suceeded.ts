@@ -25,8 +25,8 @@ import { settled_fn } from "../helpers/settled";
 export async function handle_intent_succeeded({
   object: intent,
 }: Stripe.PaymentIntentSucceededEvent.Data) {
-  // PaymentIntent Event does not have expandable field so we query for PaymentMethod
-  // Fetch settled amount and fee
+  // the PaymentIntent event has no expandable field, so the PaymentMethod is queried for
+  // fetch settled amount and fee
   const [{ fee, net }, pm] = await Promise.all([
     settled_fn(intent.id),
     payment_method(str_id(intent.payment_method)),

@@ -7,8 +7,7 @@ export default function Page() {
   const id = params.get("id");
   return (
     // not a page container: a 32rem success card in the auth funnel, whose
-    // chrome is flush-wide. it centers at every width now — only the
-    // centering used to carry the xl: variant, so it sat left below 1280.
+    // chrome is flush-wide. it centers at every width.
     <div className="grid mx-auto px-5 max-w-lg justify-items-center">
       <CircleCheck className="text-success" size={92} />
       <h1 className="text-3xl mt-10 text-center">

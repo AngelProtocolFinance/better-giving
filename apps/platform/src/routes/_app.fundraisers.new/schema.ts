@@ -49,7 +49,7 @@ export const schema = v.object({
       ({ requirement }) => `cannot have more than ${requirement} increments`
     )
   ),
-  // Honeypot field - should always be empty for legitimate users
+  // honeypot field - should always be empty for legitimate users
   website: v.optional(v.pipe(v.string(), v.trim())),
 });
 

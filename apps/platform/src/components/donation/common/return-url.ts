@@ -24,8 +24,8 @@ export interface IDonationReturnUrl {
   donor_name?: (string | undefined)[];
 }
 
-/** the one place the post-donation destination is decided. every rail used to
- * re-derive this, and they disagreed on the donor's name. */
+/** the one place the post-donation destination is decided — per-rail copies
+ * disagreed on the donor's name. */
 export function donation_return_url(x: IDonationReturnUrl): IDonationDest {
   const custom = x.success_redirect;
   const url = custom

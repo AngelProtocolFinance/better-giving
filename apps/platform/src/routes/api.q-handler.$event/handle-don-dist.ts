@@ -24,7 +24,7 @@ function YYWW(iso: string): number {
   return +`${year}${week_num}`;
 }
 
-// country metrics — replaces don-settled-country-metrics.ts DDB TransactWrite
+// country metrics
 async function update_country_metrics(
   db: DbOrTx,
   r: { npo: number; date: string; inc_amount: number }

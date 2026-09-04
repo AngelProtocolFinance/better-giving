@@ -1,7 +1,7 @@
 import { LoadingStatus } from "@better-giving/ui";
 
 // LoadingStatus is the pending branch of query-loader: flex row with a spinning
-// LoaderCircle. The spin is a CSS animation — a still capture shows one frame.
+// LoaderCircle. the spin is a CSS animation — a still capture shows one frame.
 
 export const Default = () => (
   <div className="flex flex-col gap-4 items-start">

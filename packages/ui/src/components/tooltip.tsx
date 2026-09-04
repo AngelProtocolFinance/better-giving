@@ -3,9 +3,9 @@ import { Tooltip as ArkTooltip } from "@ark-ui/react/tooltip";
 import { type ComponentProps, type ReactNode, useState } from "react";
 import { popup_anim, popup_shell } from "./popup";
 
-// kept as a no-op for back-compat: arrow is now rendered by `Tooltip` itself
+// no-op: the arrow is rendered by `Tooltip` itself
 // as a sibling of `Content` inside `Positioner` (the only structure ark-ui
-// will position via popper). callers can leave `<Arrow />` in place; it
+// will position via popper). callers may render `<Arrow />`; it
 // renders nothing.
 export function Arrow() {
   return null;

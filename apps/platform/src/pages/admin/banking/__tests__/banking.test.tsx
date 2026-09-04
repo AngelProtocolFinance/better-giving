@@ -651,7 +651,7 @@ describe("delete", () => {
     await screen.getByRole("link", { name: /delete/i }).click();
     await expect.element(screen.getByText(/are you sure/i)).toBeVisible();
 
-    // confirm — dispatch click via JS to bypass data-base-ui-inert overlay
+    // confirm — dispatch click via JS to bypass the dialog overlay
     const proceed_btn = screen.getByRole("button", { name: /proceed/i });
     (proceed_btn.element() as HTMLElement).click();
 
@@ -676,7 +676,7 @@ describe("delete", () => {
     await screen.getByRole("link", { name: /delete/i }).click();
     await expect.element(screen.getByText(/are you sure/i)).toBeVisible();
 
-    // cancel — dispatch click via JS to bypass data-base-ui-inert overlay
+    // cancel — dispatch click via JS to bypass the dialog overlay
     (
       screen.getByRole("link", { name: /cancel/i }).element() as HTMLElement
     ).click();

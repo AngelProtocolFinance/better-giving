@@ -53,7 +53,7 @@ export async function rev_log_update_status(
 
 // --- rev_ltd (view) ---
 
-/** all npo/type revenue totals — replaces rev_ltd singleton */
+/** all npo/type revenue totals, from the view */
 export async function rev_ltd_get(): Promise<IRevenueLtd | undefined> {
   const rows = await db.select().from(v_rev_ltd);
   if (rows.length === 0) return undefined;
@@ -116,7 +116,7 @@ export async function loss_log_put(db: DbOrTx, data: ILossLog) {
 
 // --- loss_ltd (view) ---
 
-/** all npo loss totals — replaces loss_ltd singleton */
+/** all npo loss totals, from the view */
 export async function loss_ltd_get(): Promise<ILossLtd | undefined> {
   const rows = await db.select().from(v_loss_ltd);
   if (rows.length === 0) return undefined;

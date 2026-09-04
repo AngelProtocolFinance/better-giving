@@ -30,7 +30,6 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
 
   return (
     <div className="space-y-3">
-      {/* Row 1: Color Picker | Radius Slider with value */}
       <div className="flex items-center gap-6 text-sm text-gray-11 border-b pb-4">
         <div className="inline-flex items-center gap-2">
           <ColorPicker
@@ -66,7 +65,6 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
         </div>
       </div>
 
-      {/* Row 2: Resizable Button */}
       <Resizable
         size={{ width: config.button_width, height: config.button_height }}
         minWidth={MIN_WIDTH}
@@ -109,12 +107,10 @@ export function DialogDemo({ id, config, on_config_change }: DialogDemoProps) {
         </button>
       </Resizable>
 
-      {/* Row 3: Size indicator */}
       <p className="text-sm text-gray-11">
         {config.button_width} × {config.button_height}
       </p>
 
-      {/* Simple Dialog */}
       <dialog
         ref={dialog_ref}
         className="p-0 rounded backdrop:bg-overlay"

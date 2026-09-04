@@ -86,7 +86,7 @@ describe("crypto direct mode: the donor says they've paid", () => {
   });
 
   test("an order that never arrived leaves nothing to press", async () => {
-    // the defect this replaces: the click threw, and the donor — who had
+    // the defect this guards against: the click threw, and the donor — who had
     // already sent crypto — got an error boundary instead of the address.
     mswWorker.use(
       http.post(href("/api/donation-intents"), () =>

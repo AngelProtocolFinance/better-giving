@@ -75,14 +75,13 @@
 #   2 - No eligible files found/processed
 # =================================================================
 
-# --- Configuration ---
+# --- configuration ---
 WEBP_QUALITY=80
 WEBP_COMPRESSION=6
 SVG_DENSITY=150 # Dots Per Inch for rasterizing SVG. Increase for higher resolution.
-# --- End Configuration ---
+# --- end configuration ---
 
-# Function to calculate and display size difference
-# (No changes needed from previous version)
+# function to calculate and display size difference
 display_size_comparison() {
     local original_file="$1"
     local converted_file="$2"
@@ -119,7 +118,7 @@ display_size_comparison() {
     echo
 }
 
-# Function to convert standard raster formats TO WebP using cwebp
+# function to convert standard raster formats TO WebP using cwebp
 convert_raster_to_webp_cwebp() {
     local input_file="$1"
     local base_name="${input_file%.*}"
@@ -146,7 +145,7 @@ convert_raster_to_webp_cwebp() {
     fi
 }
 
-# Function to convert images using ImageMagick (handles SVG input, WebP input/output, raster-to-raster)
+# function to convert images using ImageMagick (handles SVG input, WebP input/output, raster-to-raster)
 convert_using_imagemagick() {
     local input_file="$1"
     local target_format="$2"
@@ -158,22 +157,19 @@ convert_using_imagemagick() {
     echo "Converting (convert): $input_file to $target_format"
 
     local convert_options=()
-    # Add density option ONLY if input is SVG
+    # add density option ONLY if input is SVG
     if [[ "$input_ext_lower" == "svg" ]]; then
         convert_options+=("-density" "$SVG_DENSITY")
-        # Ensure background is transparent for formats that support it (like PNG, WebP)
-        # For formats without transparency (like JPG), you might want -background white -flatten
+        # ensure background is transparent for formats that support it (like PNG, WebP)
+        # for formats without transparency (like JPG), you might want -background white -flatten
         if [[ "$target_format" == "png" || "$target_format" == "webp" || "$target_format" == "gif" ]]; then
              convert_options+=("-background" "none")
-        # else # Optional: Handle formats without transparency (e.g., JPG)
-             # convert_options+=("-background" "white" "-flatten")
         fi
 
     fi
-     # Add input file AFTER density options
+     # add input file AFTER density options
     convert_options+=("$input_file")
-     # Add any output format specific options here if needed, before the output file
-    # Example: if [[ "$target_format" == "jpg" ]]; then convert_options+=("-quality" "85"); fi
+     # add any output format specific options here if needed, before the output file
     convert_options+=("$temp_output")
 
     if convert "${convert_options[@]}"; then
@@ -195,9 +191,9 @@ convert_using_imagemagick() {
 }
 
 
-# --- Main Script Logic ---
+# --- main script logic ---
 
-# Check arguments
+# check arguments
 if [ "$#" -ne 2 ]; then
     echo "Error: Invalid number of arguments."
     echo "Usage: $0 <target_format> <path>"
@@ -211,7 +207,7 @@ input_path="$2"
 files_processed=0 # Renamed from files_found for clarity
 conversion_errors=0
 
-# Validate target format
+# validate target format
 if [ -z "$target_format" ]; then
     echo "Error: Target format cannot be empty."
     exit 1
@@ -221,7 +217,7 @@ if [[ "$target_format" == "svg" ]]; then
     exit 1
 fi
 
-# Check necessary tools based on potential conversion paths
+# check necessary tools based on potential conversion paths
 tools_ok=1
 if ! command -v bc &> /dev/null; then
     echo "Error: 'bc' command not found. Please install it."
@@ -247,13 +243,13 @@ if [ "$tools_ok" -eq 0 ]; then
 fi
 
 
-# Check if input path exists
+# check if input path exists
 if [ ! -e "$input_path" ]; then
     echo "Error: Path does not exist: $input_path"
     exit 1
 fi
 
-# --- Processing ---
+# --- processing ---
 
 process_file() {
     local file_path="$1"
@@ -261,42 +257,39 @@ process_file() {
     local input_ext_lower=$(echo "${file_path##*.}" | tr '[:upper:]' '[:lower:]')
     local eligible_for_conversion=0
 
-    # Skip if the file is already in the target format
+    # skip if the file is already in the target format
     if [[ "$input_ext_lower" == "$target_fmt" ]]; then
-        # echo "Skipping $file_path (already .$target_fmt)"
         return 0
     fi
 
-    # Determine if conversion is needed and possible
+    # determine if conversion is needed and possible
     if [[ "$target_fmt" == "webp" ]]; then
-        # Target is WebP
+        # target is WebP
         if [[ "$input_ext_lower" == "svg" ]]; then
             # SVG -> WebP (use ImageMagick)
             eligible_for_conversion=1
             convert_using_imagemagick "$file_path" "$target_fmt" || conversion_errors=$((conversion_errors + 1))
         elif [[ "$input_ext_lower" =~ ^(jpe?g|png|gif|bmp|tiff?)$ ]]; then
-            # Raster -> WebP (use cwebp)
+            # raster -> WebP (use cwebp)
              eligible_for_conversion=1
             convert_raster_to_webp_cwebp "$file_path" || conversion_errors=$((conversion_errors + 1))
         else
-            # Other input types (including .webp) are skipped when target is webp
-            # echo "Skipping $file_path (unsupported source for -> WebP or already WebP)"
+            # other input types (including .webp) are skipped when target is webp
             return 0
         fi
     else
-        # Target is NOT WebP (e.g., jpg, png)
+        # target is NOT WebP (e.g., jpg, png)
         if [[ "$input_ext_lower" =~ ^(jpe?g|png|gif|bmp|tiff?|svg|webp)$ ]]; then
-             # Any supported input -> Other Raster (use ImageMagick)
+             # any supported input -> Other Raster (use ImageMagick)
              eligible_for_conversion=1
              convert_using_imagemagick "$file_path" "$target_fmt" || conversion_errors=$((conversion_errors + 1))
         else
-             # Unsupported input type for this target
-             # echo "Skipping $file_path (unsupported source for -> $target_fmt)"
+             # unsupported input type for this target
              return 0
         fi
     fi
 
-    # Increment processed count only if conversion was attempted
+    # increment processed count only if conversion was attempted
     if [ "$eligible_for_conversion" -eq 1 ]; then
          files_processed=$((files_processed + 1))
     fi
@@ -305,7 +298,7 @@ process_file() {
 }
 
 
-# Enable case-insensitive globbing and handle no matches gracefully
+# enable case-insensitive globbing and handle no matches gracefully
 shopt -s extglob nocaseglob nullglob
 
 if [ -d "$input_path" ]; then
@@ -314,15 +307,15 @@ if [ -d "$input_path" ]; then
     [ "$target_format" != "webp" ] && echo "SVG Rasterization Density: $SVG_DENSITY DPI"
     echo "----------------------------"
 
-    # Use find for robust recursive searching for all potentially relevant files
+    # use find for robust recursive searching for all potentially relevant files
     find "$input_path" -type f \( -iname \*.jpg -o -iname \*.jpeg -o -iname \*.png -o -iname \*.gif -o -iname \*.bmp -o -iname \*.tif -o -iname \*.tiff -o -iname \*.svg -o -iname \*.webp \) -print0 | while IFS= read -r -d $'\0' file; do
         process_file "$file" "$target_format"
     done
 
     if [ "$files_processed" -eq 0 ] && [ "$conversion_errors" -eq 0 ]; then
          echo "No eligible files found or processed in $input_path."
-         # Don't exit with error code 2 if errors occurred during processing attempts
-         # Let the final status check handle exit code based on errors.
+         # don't exit with error code 2 if errors occurred during processing attempts
+         # let the final status check handle exit code based on errors.
     fi
 
     echo "----------------------------"
@@ -345,10 +338,10 @@ else
     exit 1
 fi
 
-# Disable options
+# disable options
 shopt -u extglob nocaseglob nullglob
 
-# Final status
+# final status
 if [ "$conversion_errors" -gt 0 ]; then
     echo "Completed with $conversion_errors errors."
     exit 1
@@ -356,7 +349,7 @@ elif [ "$files_processed" -gt 0 ]; then
     echo "Processed $files_processed files successfully."
     exit 0
 else
-    # No errors, but also no files processed (likely none were eligible)
+    # no errors, but also no files processed (likely none were eligible)
     echo "No eligible files were processed."
     exit 2 # Exit code indicating nothing was done
 fi

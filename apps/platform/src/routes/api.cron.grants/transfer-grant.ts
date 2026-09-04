@@ -14,7 +14,7 @@ export async function transfer_grant(to: number, amount: number, ref: string) {
     targetAccount: to.toString(),
   });
 
-  // Initiating transfer
+  // initiating transfer
   const transfer = await wise.transfer({
     targetAccount: to.toString(),
     quoteUuid: quote.id,

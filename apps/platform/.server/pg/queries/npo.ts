@@ -190,7 +190,6 @@ export async function npo_balance_update(
         lock_units: sql`${npos.lock_units} + ${s * d.lock_units}`,
       }),
       ...(d.cash && { cash: sql`${npos.cash} + ${s * d.cash}` }),
-      // contributions_total/count eliminated — derived via v_contributions view
     })
     .where(eq(npos.id, id));
 }
@@ -213,7 +212,7 @@ export async function npo_all_liq(): Promise<{ id: number; liq: number }[]> {
 
 const HITS_PER_PAGE = 20;
 
-// pg_trgm fuzzy search — replaces fetch-all + Fuse.js
+// pg_trgm fuzzy search
 export async function npo_search(
   params: Omit<INposSearchObj, "fields">
 ): Promise<INposPage> {

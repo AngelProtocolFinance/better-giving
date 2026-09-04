@@ -194,7 +194,7 @@ export function EligibilityForm({
           </p>
         </div>
 
-        {/* the hero no longer carries a primary link — this is the page's only
+        {/* the hero carries no primary link — this is the page's only
             one, so it takes the hero's words */}
         <button type="submit" className="btn btn-lg btn-primary">
           <LoadText is_loading={pending} text="Submitting...">

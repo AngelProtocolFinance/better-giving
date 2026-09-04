@@ -273,7 +273,6 @@ export const faqs = [
     ],
   },
 ];
-//9 4 10
 
 export function FAQ({
   classes = "",

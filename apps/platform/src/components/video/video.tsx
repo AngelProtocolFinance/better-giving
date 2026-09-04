@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { static_url } from "#/constants/urls";
-// import about_subtitle from "./about.vtt";
 import about_poster from "./about.webp";
 import bg_calculator_poster from "./bg-calculator.webp";
 

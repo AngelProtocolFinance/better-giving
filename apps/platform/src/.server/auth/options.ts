@@ -109,7 +109,7 @@ const user_additional_fields = {
  * decides *behaviour* lives here so a test can build the same instance. */
 export const auth_options = (deps: AuthOptionDeps) => ({
   experimental: {
-    joins: true, // Enable database joins for better performance
+    joins: true,
   },
 
   emailAndPassword: {
@@ -158,7 +158,7 @@ export const auth_options = (deps: AuthOptionDeps) => ({
     user: {
       create: {
         after: async (user: { id: string; email: string }) => {
-          // generate referral code for new users (replaces post-confirm Lambda)
+          // generate referral code for new users
           const code = deps.referral_id();
           await db.execute(
             sql`UPDATE "user" SET referral_code = ${code}, signup_date = NOW() WHERE id = ${user.id}`

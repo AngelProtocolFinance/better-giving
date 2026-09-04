@@ -11,7 +11,7 @@ export async function handle_confirming(
   const order = await donation_get(payment.order_id);
 
   if (!order) throw new Error(`Record ${payment.order_id} not found!`);
-  /* ** EXTRACT TIP, FEE ALLOWANCE ** */
+  /* ** extract tip, fee allowance ** */
 
   const { usdpu } = await np.estimate(payment.pay_currency);
 

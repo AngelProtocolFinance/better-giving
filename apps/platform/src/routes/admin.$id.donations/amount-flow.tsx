@@ -9,7 +9,7 @@ import { humanize } from "@/helpers/decimal";
 
 interface Props {
   total: number;
-  font_size?: number; // Font size in pixels, defaults to 18
+  font_size?: number; // font size in pixels, defaults to 18
   allocation: IAllocation;
 }
 
@@ -51,9 +51,9 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
     branches.length * branch_spacing,
     60 * spacing_multiplier
   );
-  const icon_size = Math.max(16, font_size * 0.9); // Icon size scales with font
+  const icon_size = Math.max(16, font_size * 0.9); // icon size scales with font
 
-  // Calculate branch positions for consistent alignment between SVG and content
+  // calculate branch positions for consistent alignment between SVG and content
   const branch_positions = branches.map((_, index) => {
     const center_y = svg_height / 2;
     return branches.length === 1
@@ -63,7 +63,7 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Curved Branching Arrow */}
+      {/* curved Branching Arrow */}
       <div className="relative flex items-center">
         <svg
           aria-hidden="true"
@@ -72,7 +72,7 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
           className="overflow-visible"
           viewBox={`0 0 50 ${svg_height}`}
         >
-          {/* Main horizontal line */}
+          {/* main horizontal line */}
           <line
             x1="5"
             y1={svg_height / 2}
@@ -82,14 +82,14 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
             strokeWidth="1"
           />
 
-          {/* Curved branch lines with arrows */}
+          {/* curved branch lines with arrows */}
           {branch_positions.map((target_y, index) => {
             const center_y = svg_height / 2;
             const start_x = 20;
             const curve_end_x = 32.5;
             const end_x = 42.5;
 
-            // Create smooth S-curve using cubic Bézier, then add straight line
+            // create smooth S-curve using cubic Bézier, then add straight line
             const control1_x = start_x + 7.5;
             const control1_y = center_y;
             const control2_x = curve_end_x - 7.5;
@@ -99,14 +99,14 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
 
             return (
               <g key={index}>
-                {/* Smooth curved branch line with straight segment */}
+                {/* smooth curved branch line with straight segment */}
                 <path
                   d={path_data}
                   stroke="var(--gray-11)"
                   strokeWidth="1"
                   fill="none"
                 />
-                {/* Arrow head */}
+                {/* arrow head */}
                 <polygon
                   points={`${end_x},${target_y} ${end_x - 5},${target_y - 3} ${end_x - 5},${target_y + 3}`}
                   fill="var(--gray-11)"
@@ -117,7 +117,7 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
         </svg>
       </div>
 
-      {/* Branches content */}
+      {/* branches content */}
       <div
         className="flex flex-col justify-between"
         style={{
@@ -134,16 +134,16 @@ export function AmountFlow({ total, font_size = 14, allocation }: Props) {
       >
         {branches.map((item, index) => (
           <div key={index} className="flex items-center gap-x-1">
-            {/* Icon */}
+            {/* icon */}
             <item.Icon className={item.class} size={icon_size} />
-            {/* Amount */}
+            {/* amount */}
             <div
               className="text-sm shrink-0"
               style={{ fontSize: `${font_size}px` }}
             >
               ${humanize(item.amount)}
             </div>
-            {/* Optional text */}
+            {/* optional text */}
             {item.text && (
               <div
                 className="text-gray-11 whitespace-nowrap"

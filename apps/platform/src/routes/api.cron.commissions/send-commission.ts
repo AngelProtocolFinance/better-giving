@@ -18,7 +18,7 @@ export async function send_commission(
     targetAccount: to.toString(),
   });
 
-  // Initiating transfer
+  // initiating transfer
   const transfer = await wise.transfer({
     targetAccount: to.toString(),
     quoteUuid: quote.id,

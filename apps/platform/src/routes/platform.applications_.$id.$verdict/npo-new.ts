@@ -66,8 +66,8 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
   if (!registrant) throw new Error(`user not found for email ${r.r_id}`);
   const registrant_id = registrant.id;
 
-  ///////////// APPROVAL OF NEW ENDOWMENT /////////////
-  // npo_count_inc eliminated — PG IDENTITY auto-generates id
+  ///////////// approval of new endowment /////////////
+  // id is a PG IDENTITY column
   const wacc = await wise.v2_account(+r.o_bank_id);
 
   const new_endow: NpoInsert = {

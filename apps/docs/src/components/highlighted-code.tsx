@@ -10,9 +10,7 @@ interface UseHighlightedArgs {
   transformers?: ShikiTransformer[];
 }
 
-// shared shiki bridge. bg-docs re-implemented "highlight this snippet then
-// dangerouslySetInnerHTML it, with a plain-text fallback" on every page — this
-// consolidates it. highlighting runs client-side in an effect (shiki's wasm is
+// shared shiki bridge. highlighting runs client-side in an effect (shiki's wasm is
 // heavy + ssr-unsafe here); until it resolves the caller renders a plain <pre>
 // fallback, so ssr + no-js still shows the code, just unstyled.
 export function use_highlighted({
@@ -47,8 +45,8 @@ interface HighlightedCodeProps {
 }
 
 // renders a highlighted snippet, falling back to a plain <pre> until shiki
-// resolves (also the ssr / no-js render). the `[&_pre]:…` overrides bg-docs put
-// on the wrapper stay the caller's concern — pass them via `className`.
+// resolves (also the ssr / no-js render). the `[&_pre]:…` overrides on the
+// wrapper stay the caller's concern — pass them via `className`.
 export function HighlightedCode({
   code,
   lang,

@@ -2,8 +2,6 @@ import { FilterIcon } from "lucide-react";
 import { NavLink, useSearchParams } from "react-router";
 import { Search } from "./search";
 
-// import Sorter from "./Sorter";
-
 export function Toolbar({ classes = "" }: { classes?: string }) {
   const [params] = useSearchParams();
   return (
@@ -20,7 +18,6 @@ export function Toolbar({ classes = "" }: { classes?: string }) {
         <span>Filters</span>
       </NavLink>
       <Search classes="order-first col-span-2 md:order-0 md:col-span-1" />
-      {/* <Sorter /> */}
     </div>
   );
 }

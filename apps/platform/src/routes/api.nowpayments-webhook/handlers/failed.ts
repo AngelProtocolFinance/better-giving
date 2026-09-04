@@ -35,7 +35,7 @@ export async function handle_failed(payment: NP.PaymentPayload) {
 
   console.info("sent failure message", res.data?.id);
 
-  /// DELETE INTENT IF APPLICABLE ///
+  /// delete intent if applicable ///
   const outcome = await np.estimate(payment.outcome_currency);
 
   // denominated in outcome_currency

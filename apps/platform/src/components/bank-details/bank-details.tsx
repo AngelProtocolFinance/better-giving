@@ -54,8 +54,8 @@ export function BankDetails({
       set_submitting(true);
       await onSubmit(...params);
     } catch (error) {
-      // All errors should be handled in `onSubmit`.
-      // This try/catch is just to ensure that `is_submitting`
+      // all errors should be handled in `onSubmit`.
+      // this try/catch is just to ensure that `is_submitting`
       // is set to false at the end of the operation.
       report_error(error);
     } finally {

@@ -574,7 +574,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
   });
 
   test("a failure that repeats on every mount notices once, with nothing to dismiss", async () => {
-    // the defect this replaces: a modal unmounted the rail, closing it
+    // the defect this guards against: a modal unmounted the rail, closing it
     // remounted the rail, the rail failed the same way and re-prompted — on
     // /donate/:id the donor could never reach the other tabs.
     rails.sx_out = true;
@@ -608,7 +608,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
   });
 
   test("an in-flight error leaves the wallet element standing", async () => {
-    // the defect this replaces: the prompt unmounted <ExpressCheckout> — and
+    // the defect this guards against: the prompt unmounted <ExpressCheckout> — and
     // its <Elements> wrapper — while the donor's wallet sheet was still open,
     // so the sheet had nothing left to talk to.
     don_mock.value = init({ hide_unavailable_express: true });

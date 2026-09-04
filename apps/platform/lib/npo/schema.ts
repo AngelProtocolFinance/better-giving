@@ -142,7 +142,6 @@ export const npo_update = v.partial(
 const npo_fields = v.keyof(npo);
 export interface INpo extends v.InferOutput<typeof npo> {}
 export interface INpoUpdate extends v.InferOutput<typeof npo_update> {}
-/** for ein path, only fields in reg-num/env gsi is available */
 const npo_search = v.object({
   fields: v.optional(v.pipe(csv_strs, v.array(npo_fields))),
 });

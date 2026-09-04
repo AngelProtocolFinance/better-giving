@@ -56,7 +56,7 @@
 #
 # =================================================================
 
-# Function to display usage
+# function to display usage
 show_usage() {
     echo "Usage:"
     echo "  $0 <path>"
@@ -66,13 +66,13 @@ show_usage() {
     exit 1
 }
 
-# Check if path is provided
+# check if path is provided
 if [ $# -eq 0 ]; then
     echo "Error: No path provided"
     show_usage
 fi
 
-# Check if identify is installed
+# check if identify is installed
 if ! command -v identify &> /dev/null; then
     echo "Error: ImageMagick 'identify' command is not installed"
     echo "Please install ImageMagick using your package manager:"
@@ -83,13 +83,13 @@ fi
 
 input_path="$1"
 
-# Check if input path exists
+# check if input path exists
 if [ ! -e "$input_path" ]; then
     echo "Error: Path does not exist: $input_path"
     exit 1
 fi
 
-# Function to format file size in human-readable format
+# function to format file size in human-readable format
 format_file_size() {
     local size_in_bytes=$1
     
@@ -104,11 +104,11 @@ format_file_size() {
     fi
 }
 
-# Function to analyze a single image
+# function to analyze a single image
 analyze_image() {
     local input_file="$1"
     
-    # Check if file exists and is readable
+    # check if file exists and is readable
     if [ ! -r "$input_file" ]; then
         echo "Error: Cannot read file: $input_file"
         return 1
@@ -119,7 +119,7 @@ analyze_image() {
     echo "│ Property        │ Value                         │"
     echo "├─────────────────┼───────────────────────────────┤"
     
-    # Get file format
+    # get file format
     local format=$(identify -format "%m" "$input_file" 2>/dev/null)
     if [ $? -ne 0 ]; then
         echo "│ Error          │ Failed to read image            │"
@@ -129,40 +129,40 @@ analyze_image() {
     fi
     echo "│ Format          │ $format                        "
     
-    # Get dimensions
+    # get dimensions
     local dimensions=$(identify -format "%wx%h" "$input_file" 2>/dev/null)
     echo "│ Dimensions      │ $dimensions                    "
     
-    # Get resolution
+    # get resolution
     local resolution=$(identify -format "%x x %y %U" "$input_file" 2>/dev/null | sed 's/PixelsPerInch/DPI/')
     echo "│ Resolution      │ $resolution                    "
     
-    # Get file size
+    # get file size
     local file_size=$(stat -f %z "$input_file" 2>/dev/null || stat -c %s "$input_file")
     local formatted_size=$(format_file_size $file_size)
     echo "│ File Size       │ $formatted_size                "
     
-    # Get color space
+    # get color space
     local colorspace=$(identify -format "%r" "$input_file" 2>/dev/null)
     echo "│ Color Space     │ $colorspace                    "
     
-    # Get bit depth
+    # get bit depth
     local depth=$(identify -format "%z-bit" "$input_file" 2>/dev/null)
     echo "│ Bit Depth       │ $depth                         "
     
-    # Get creation date (if available)
+    # get creation date (if available)
     local date=$(identify -format "%[EXIF:DateTime]" "$input_file" 2>/dev/null)
     if [ -n "$date" ]; then
         echo "│ Creation Date   │ $date                "
     fi
     
-    # Get compression type (if available)
+    # get compression type (if available)
     local compression=$(identify -format "%C" "$input_file" 2>/dev/null)
     if [ -n "$compression" ] && [ "$compression" != "None" ]; then
         echo "│ Compression     │ $compression                    "
     fi
     
-    # Get orientation (if available)
+    # get orientation (if available)
     local orientation=$(identify -format "%[EXIF:Orientation]" "$input_file" 2>/dev/null)
     if [ -n "$orientation" ]; then
         echo "│ Orientation     │ $orientation                        "
@@ -172,15 +172,15 @@ analyze_image() {
     echo
 }
 
-# Function to process a directory recursively
+# function to process a directory recursively
 process_directory() {
     local dir="$1"
     local file
     
-    # Enable shell options for case-insensitive matching
+    # enable shell options for case-insensitive matching
     shopt -s nullglob nocaseglob
     
-    # Process files in current directory
+    # process files in current directory
     for ext in jpg jpeg png gif webp bmp tiff; do
         for file in "$dir"/*.$ext; do
             if [ -f "$file" ]; then
@@ -189,25 +189,25 @@ process_directory() {
         done
     done
     
-    # Process subdirectories recursively
+    # process subdirectories recursively
     for subdir in "$dir"/*/; do
         if [ -d "$subdir" ]; then
             process_directory "$subdir"
         fi
     done
     
-    # Disable shell options when done
+    # disable shell options when done
     shopt -u nullglob nocaseglob
 }
 
-# Process based on whether input is directory or file
+# process based on whether input is directory or file
 if [ -d "$input_path" ]; then
     echo "Processing directory: $input_path"
     echo "----------------------------"
     process_directory "$input_path"
     echo "Directory processing complete!"
 else
-    # Check if file is an image (case insensitive)
+    # check if file is an image (case insensitive)
     if [[ "$input_path" =~ \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ ]]; then
         analyze_image "$input_path"
     else

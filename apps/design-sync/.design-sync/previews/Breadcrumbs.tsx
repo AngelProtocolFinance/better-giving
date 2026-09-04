@@ -1,8 +1,8 @@
 import { Breadcrumbs } from "@better-giving/ui";
 
-// items are NavLinks separated by a literal ">". The crumb whose `to` matches
+// items are NavLinks separated by a literal ">". the crumb whose `to` matches
 // the current location renders bold and non-clickable; every other crumb is
-// underlined. Previews mount under a MemoryRouter sitting at "/", so a crumb
+// underlined. previews mount under a MemoryRouter sitting at "/", so a crumb
 // pointing at "/" is the one that shows the active style.
 
 export const Default = () => (

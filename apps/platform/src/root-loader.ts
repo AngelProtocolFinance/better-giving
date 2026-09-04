@@ -11,16 +11,16 @@ async function append_referrer(
 ): Promise<string | null> {
   const rc = await reg_cookie.parse(cookie_header).then((x) => x || {});
 
-  // Already has this referrer
+  // already has this referrer
   if (rc.referrer === referrer) return null;
 
-  // Has different unexpired referrer - keep the original
+  // has different unexpired referrer - keep the original
   if (rc.referrer && rc.referrer_expiry) {
     const expiry = new Date(rc.referrer_expiry);
     if (expiry > new Date()) return null;
   }
 
-  // Set new referrer
+  // set new referrer
   rc.referrer = referrer;
   rc.referrer_expiry = addDays(new Date(), 90).toISOString();
   return reg_cookie.serialize(rc);

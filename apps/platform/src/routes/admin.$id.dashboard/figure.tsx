@@ -37,7 +37,6 @@ export function Figure(props: Props) {
         </NavLink>
       </div>
       <div className="text-lg font-medium ">{props.amount}</div>
-      {/* {props.actions} */}
     </div>
   );
 }

@@ -19,7 +19,7 @@ const POSTS_Q = `*[_type=="post" && defined(slug.current)]{
   "slug": slug.current, _updatedAt
 } | order(_updatedAt desc)`;
 
-// Static URLs based on your route configuration
+// static urls
 const staticUrls: SitemapUrl[] = [
   { url: "/", changeFrequency: "daily", priority: 1.0 },
   { url: "/product", changeFrequency: "weekly", priority: 0.8 },

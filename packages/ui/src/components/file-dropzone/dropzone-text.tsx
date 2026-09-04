@@ -36,8 +36,8 @@ export function DropzoneText({ value, mbLimit }: Props) {
       </div>
     );
   }
-  // the three error codes are `value`s like any other — before this they fell
-  // through to the url branch and rendered as a link to `href="invalid-type"`.
+  // the three error codes are `value`s like any other, and must not fall
+  // through to the url branch, where they render as a link to `href="invalid-type"`.
   // they say what went wrong; the field error below says the field is invalid.
   if (value === "invalid-type") {
     return (

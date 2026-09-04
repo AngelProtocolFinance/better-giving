@@ -166,7 +166,7 @@ describe("marketplace — designation filter", () => {
     await expect
       .element(screen.getByRole("button", { name: "Charity", pressed: false }))
       .toBeVisible();
-    // base-ui inert overlay intercepts pointer events; use native DOM click
+    // the dialog overlay intercepts pointer events; use native DOM click
     (
       screen
         .getByRole("button", { name: "Charity", pressed: false })
@@ -191,7 +191,7 @@ describe("marketplace — country filter", () => {
     await expect.element(screen.getByText("US Org")).toBeInTheDocument();
     await expect.element(screen.getByText("CA Org")).toBeInTheDocument();
 
-    // apply country filter via URL (combobox inside base-ui dialog is not
+    // apply country filter via URL (combobox inside the dialog is not
     // pointer-accessible due to inert overlay in test environment)
     await cleanup();
     const filtered = await render_marketplace("/marketplace?countries=Canada");
@@ -213,7 +213,7 @@ describe("marketplace — country filter", () => {
       .element(screen.getByText("US HQ Active CA"))
       .toBeInTheDocument();
 
-    // apply country filter via URL (combobox inside base-ui dialog is not
+    // apply country filter via URL (combobox inside the dialog is not
     // pointer-accessible due to inert overlay in test environment)
     await cleanup();
     const filtered = await render_marketplace("/marketplace?countries=Canada");

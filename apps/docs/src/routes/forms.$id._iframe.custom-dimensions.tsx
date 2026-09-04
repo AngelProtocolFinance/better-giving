@@ -63,7 +63,6 @@ export default function CustomDimensions() {
 
   return (
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-12">Custom Dimensions</h1>
         <p className="text-sm text-gray-11 mt-1">
@@ -78,7 +77,6 @@ export default function CustomDimensions() {
         </a>
       </div>
 
-      {/* Note */}
       <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
         <Info size={18} className="text-primary shrink-0 mt-0.5" />
         <p className="text-gray-12">

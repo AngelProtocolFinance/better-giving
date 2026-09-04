@@ -326,7 +326,7 @@ describe("admin disables a form", () => {
       .element(screen.getByText(/are you sure you want to disable/i))
       .toBeVisible();
 
-    // confirm — native click bypasses Base UI inert overlay
+    // confirm — native click bypasses the dialog overlay
     (
       screen.getByRole("button", { name: "Proceed" }).element() as HTMLElement
     ).click();
@@ -371,7 +371,7 @@ describe("admin disables a form", () => {
       .element(screen.getByText(/are you sure you want to disable/i))
       .toBeVisible();
 
-    // cancel navigates back to parent — native click bypasses Base UI inert overlay
+    // cancel navigates back to parent — native click bypasses the dialog overlay
     (
       screen.getByRole("link", { name: "Cancel" }).element() as HTMLElement
     ).click();

@@ -1,5 +1,3 @@
-/** Layer 1 components */
-
 /* the height of a form control, declared once so it is reachable.
    `.field-input` composes to exactly this out of padding + line-height +
    border (14 + 20 + 14 + 2) — arithmetic nothing else can match without

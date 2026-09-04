@@ -32,7 +32,7 @@ interface Props extends IDonationIntent {
   order_id: string;
   bank_only?: boolean;
 }
-// Code inspired by React Stripe.js docs, see:
+// code inspired by react stripe.js docs, see:
 // https://stripe.com/docs/stripe-js/react#useelements-hook
 export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   const { don } = use_donation();
@@ -41,8 +41,8 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   const stripe = useStripe();
   const elements = useElements();
 
-  // There is a small delay before Stripe Payment Element starts to load.
-  // To avoid just showing the "Back" button with nothing else on screen,
+  // there is a small delay before stripe's payment element starts to load.
+  // to avoid just showing the "Back" button with nothing else on screen,
   // we first show a Loader ring and when the Stripe Element starts loading
   // (it has an inherent loading animation) that's when we hide the loader ring
   // and start showing the "Back" button
@@ -57,8 +57,8 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     e.preventDefault();
 
     if (!stripe || !elements) {
-      // Stripe.js hasn't yet loaded.
-      // Make sure to disable form submission until Stripe.js has loaded.
+      // stripe.js hasn't yet loaded.
+      // make sure to disable form submission until stripe.js has loaded.
       return;
     }
 
@@ -85,7 +85,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
     });
 
     // with redirect: "if_required", this point will be reached for both
-    // successful payments and errors. Handle both cases appropriately.
+    // successful payments and errors.
     if (error) {
       if (error.type === "card_error" || error.type === "validation_error") {
         // the donor's own input, echoed back to them — not a defect. see

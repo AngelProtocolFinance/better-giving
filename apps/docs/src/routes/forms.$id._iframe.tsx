@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { href: "with-content", label: "With Content", icon: FileText },
 ];
 
-// (iframe) pathless group layout under next: responsive grid nav (side nav on
+// pathless layout: responsive grid nav (side nav on
 // md+, hamburger on mobile) wrapping the playground pages in an
 // EmbedModeProvider. seeds the initial embed mode from ?mode=iframe|script.
 export default function IframeLayout() {

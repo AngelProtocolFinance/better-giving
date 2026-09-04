@@ -44,7 +44,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           classes="mt-6"
           submit_text="Continue"
           // the resume strip posts from the same url — only the event tells
-          // the two intents apart now
+          // the two intents apart
           event="reg_start"
           values={{
             o_type: "501c3",

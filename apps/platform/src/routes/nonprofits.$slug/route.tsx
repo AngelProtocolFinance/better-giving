@@ -40,23 +40,11 @@ const page_context: Record<string, PageContext> = {
   "public-safety": public_safety,
   "disease-awareness": disease_awareness,
   "medical-research": medical_research,
-  // "legal-justice": {},
-  // "job-training": {},
   "food-nutrition": food_nutrition,
   "housing-shelter": housing_shelter,
-  // "public-safety": {},
-  // "recreation-sports": {},
-  // "youth-development": {},
   "human-services": human_services,
-  // "international-aid": {},
-  // "civil-rights": {},
   "community-improvement": community_improvement,
-  // "philanthropy-volunteering": {},
-  // "science-technology": {},
-  // "social-science": {},
-  // "public-benefit": {},
   "religious-organizations": religious_organizations,
-  // "membership-organizations": {},
 };
 
 export const meta: Route.MetaFunction = ({ params: { slug = "" } }) => {

@@ -29,12 +29,12 @@ export function Card({
           onError={(e) => e.currentTarget.classList.add("bg-secondary")}
         />
         <div className="grid grid-rows-subgrid row-start-2 row-span-3 p-3 pb-16 gap-3">
-          {/* nonprofit NAME */}
+          {/* nonprofit name */}
           <h3 className="text-ellipsis line-clamp-2 text-center mb-2">
             <span className="inline">{name}</span>
           </h3>
 
-          {/* TAGLINE */}
+          {/* tagline */}
           {tagline && tagline !== PLACEHOLDER_TAGLINE ? (
             <p className="peer text-gray-11 text-sm -mt-2 mb-4">{tagline}</p>
           ) : (

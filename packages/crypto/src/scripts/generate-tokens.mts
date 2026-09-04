@@ -10,7 +10,7 @@ import {
   write_json,
 } from "./helpers.mts";
 
-/// CHECK FOR NEW CHAINS ///
+/// check for new chains ///
 // detect over the *raw* list, before get_tokens filters/probes — else a new
 // code/network is missed whenever its token is disabled, not conversion-ready,
 // or fails the min-amount probe, yet outputs still regenerate without it.

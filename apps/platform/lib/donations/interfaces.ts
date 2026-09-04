@@ -159,7 +159,6 @@ export interface ChariotMetadata {
   amount: IAmount;
 }
 
-// NOTE: add a `reversal_id` to don_db and once IReversal is complete, write some Reversal#{reversal_id} record so that reversal record is included in the transaction
 /** if any of the conditions are not met, the reversal will be skipped, and BG will absorb the loss */
 export interface IReversals {
   id: string;

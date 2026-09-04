@@ -24,6 +24,6 @@ export const action: ActionFunction = async ({ request }) => {
   // throttle in `request_login_link` keys on
   await request_login_link({ email, redirect_to, headers: request.headers });
 
-  // the counter resets off this, the same shape the old resend returned
+  // the counter resets off this
   return { time_remaining: 30 };
 };

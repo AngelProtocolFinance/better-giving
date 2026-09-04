@@ -52,13 +52,13 @@
 #
 # =================================================================
 
-# Default values
+# default values
 width=0
 height=0
 resize_type=""
 resize_value=0
 
-# Function to display usage
+# function to display usage
 show_usage() {
     echo "Usage:"
     echo "  $0 -w <width> <path>    # Resize by width"
@@ -69,7 +69,7 @@ show_usage() {
     exit 1
 }
 
-# Parse command-line options
+# parse command-line options
 while getopts "w:h:" opt; do
     case $opt in
         w)
@@ -88,22 +88,22 @@ while getopts "w:h:" opt; do
     esac
 done
 
-# Shift to get the path argument
+# shift to get the path argument
 shift $((OPTIND-1))
 
-# Check if path is provided
+# check if path is provided
 if [ $# -eq 0 ]; then
     echo "Error: No path provided"
     show_usage
 fi
 
-# Check if either width or height is specified
+# check if either width or height is specified
 if [ $width -eq 0 ] && [ $height -eq 0 ]; then
     echo "Error: Either width (-w) or height (-h) must be specified"
     show_usage
 fi
 
-# Check if convert is installed
+# check if convert is installed
 if ! command -v convert &> /dev/null; then
     echo "Error: ImageMagick 'convert' command is not installed"
     echo "Please install ImageMagick using your package manager:"
@@ -114,18 +114,18 @@ fi
 
 input_path="$1"
 
-# Check if input path exists
+# check if input path exists
 if [ ! -e "$input_path" ]; then
     echo "Error: Path does not exist: $input_path"
     exit 1
 fi
 
-# Function to resize a single image
+# function to resize a single image
 resize_image() {
     local input_file="$1"
     local temp_file="${input_file%.*}.temp.${input_file##*.}"
     
-    # Get original dimensions
+    # get original dimensions
     local dimensions=$(identify -format "%wx%h" "$input_file" 2>/dev/null)
     if [ $? -ne 0 ]; then
         echo "✗ Error: Failed to read dimensions of $input_file"
@@ -134,7 +134,7 @@ resize_image() {
     
     echo "Resizing: $input_file ($resize_type: ${resize_value}px)"
     
-    # Prepare the resize option
+    # prepare the resize option
     local resize_option=""
     if [ "$resize_type" = "width" ]; then
         resize_option="${width}x"
@@ -142,21 +142,21 @@ resize_image() {
         resize_option="x${height}"
     fi
     
-    # Resize the image to a temporary file
+    # resize the image to a temporary file
     if convert "$input_file" -resize "$resize_option" "$temp_file"; then
-        # Get original file size before removing
+        # get original file size before removing
         local original_size=$(stat -f %z "$input_file" 2>/dev/null || stat -c %s "$input_file")
         
-        # Replace the original with the resized version
+        # replace the original with the resized version
         mv "$temp_file" "$input_file"
         
-        # Get new dimensions
+        # get new dimensions
         local new_dimensions=$(identify -format "%wx%h" "$input_file")
         
-        # Get new file size
+        # get new file size
         local new_size=$(stat -f %z "$input_file" 2>/dev/null || stat -c %s "$input_file")
         
-        # Calculate size reduction percentage
+        # calculate size reduction percentage
         local reduction_percentage=$(echo "scale=2; (1 - $new_size/$original_size) * 100" | bc)
         
         echo "✓ Success: $input_file"
@@ -171,20 +171,20 @@ resize_image() {
     fi
 }
 
-# Process based on whether input is directory or file
+# process based on whether input is directory or file
 if [ -d "$input_path" ]; then
     echo "Processing directory: $input_path"
     echo "----------------------------"
     
-    # Process directory recursively
+    # process directory recursively
     process_directory() {
         local dir="$1"
         local file
         
-        # Enable shell options for case-insensitive matching
+        # enable shell options for case-insensitive matching
         shopt -s nullglob nocaseglob
         
-        # Process files in current directory
+        # process files in current directory
         for ext in jpg jpeg png gif webp bmp tiff; do
             for file in "$dir"/*.$ext; do
                 if [ -f "$file" ]; then
@@ -193,14 +193,14 @@ if [ -d "$input_path" ]; then
             done
         done
         
-        # Process subdirectories recursively
+        # process subdirectories recursively
         for subdir in "$dir"/*/; do
             if [ -d "$subdir" ]; then
                 process_directory "$subdir"
             fi
         done
         
-        # Disable shell options when done
+        # disable shell options when done
         shopt -u nullglob nocaseglob
     }
     
@@ -208,7 +208,7 @@ if [ -d "$input_path" ]; then
     
     echo "Directory processing complete!"
 else
-    # Check if file is an image (case insensitive)
+    # check if file is an image (case insensitive)
     if [[ "$input_path" =~ \.(jpg|jpeg|png|gif|webp|bmp|tiff)$ ]]; then
         resize_image "$input_path"
     else

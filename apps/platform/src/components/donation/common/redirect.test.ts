@@ -168,7 +168,7 @@ describe("post-donation redirect", () => {
   });
 
   test("a page frozen mid-wait resumes with its fallback intact", () => {
-    // the defect this replaces: a wallet sheet taking over the tab on mobile
+    // the defect this guards against: a wallet sheet taking over the tab on mobile
     // fires `pagehide`, which cancelled the fallback permanently — the donor
     // came back to a form that would never move again.
     const f = fake_win(true);

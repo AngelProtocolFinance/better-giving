@@ -24,9 +24,8 @@ interface CodeSnippetProps {
 }
 
 // marks the inclusive [start, end] line range with the `highlighted-line`
-// class the wrapper styles. bg-docs used shiki `decorations` here (line ranges
-// rather than single lines); a line transformer expresses the same span and
-// keeps every page on the shared HighlightedCode helper.
+// class the wrapper styles. a line transformer rather than shiki `decorations`,
+// so every page stays on the shared HighlightedCode helper.
 const highlight_range = (start: number, end: number): ShikiTransformer => ({
   name: "highlight-range",
   line(node, line) {
@@ -97,7 +96,7 @@ export function CodeSnippet({ id, config }: CodeSnippetProps) {
       : generate_script_code(id, config);
 
   const transformers = useMemo(() => {
-    // Find embed element lines to highlight (iframe or data-bg-form div)
+    // find embed element lines to highlight (iframe or data-bg-form div)
     const lines = code.split("\n");
     const iframe_start = lines.findIndex((line) => line.includes("<iframe"));
     const iframe_end = lines.findIndex((line) => line.includes("</iframe>"));

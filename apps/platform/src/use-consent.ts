@@ -192,11 +192,11 @@ export const useConsent = () => {
     if (path.startsWith("/forms")) return;
     if (path.startsWith("/donate-widget")) return;
 
-    // Initialize dataLayer
+    // initialize dataLayer
     window.dataLayer = window.dataLayer || [];
 
     const onConsentChange = () => {
-      // Push consent update to dataLayer for GTM
+      // push consent update to dataLayer for GTM
       window.dataLayer.push({
         event: "consent_update",
         cookie_consent: {

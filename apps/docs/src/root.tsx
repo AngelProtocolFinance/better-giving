@@ -110,9 +110,8 @@ function Footer() {
   );
 }
 
-// ported from bg-docs error.tsx. `reset` (next) has no rr7 equivalent; a
-// reload re-runs the failed render, matching the "try again" intent. also owns
-// the 404 ui for the splat route (routes/not-found.tsx), whose loader throws a
+// a reload re-runs the failed render, matching the "try again" intent. also
+// owns the 404 ui for the splat route (routes/$.tsx), whose loader throws a
 // 404 response that bubbles here.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error) && error.status === 404) {

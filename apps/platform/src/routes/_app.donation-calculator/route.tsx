@@ -68,7 +68,6 @@ export default function Page() {
         >
           Export to pdf
         </Link>
-        {/* <Exporter view={view} classes="col-start-2 justify-self-end mb-2" /> */}
 
         <div className="grid sm:grid-cols-subgrid col-span-2 bg-panel p-4 rounded">
           <Form1 state={state} setState={setState} classes="sm:border-r" />
@@ -103,7 +102,6 @@ export default function Page() {
                 ry="6"
                 filter="url(#blur)"
                 className="fill-neutral/30"
-                // className="blur-sm"
               />
             </svg>
           </div>
@@ -121,7 +119,6 @@ export default function Page() {
         <div className="grid sm:grid-cols-subgrid col-span-2 bg-panel p-4 rounded">
           <Form2 state={state} setState={setState} classes="sm:border-r" />
           <Table {...view} classes="" />
-          {/* <Result2 {...view} classes="" /> */}
         </div>
         <h2 className="text-balance text-2xl sm:text-3xl text-primary mt-12 mb-1 text-center col-span-2">
           Total Annual Impact

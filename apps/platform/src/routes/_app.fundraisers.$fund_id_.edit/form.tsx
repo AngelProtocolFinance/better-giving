@@ -36,7 +36,7 @@ export function Form({
   const is_closing_fund = is_submitting && !!(fetcher.json as any).close;
 
   const onSubmit: SubmitHandler<FV> = async ({ target, ...fv }) => {
-    /// BUILD UPDATE ///
+    /// build update ///
     const update: IFundUpdate = {};
 
     if (df.banner) update.banner = fv.banner;

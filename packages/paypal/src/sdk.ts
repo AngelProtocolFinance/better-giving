@@ -305,7 +305,7 @@ export class PayPalSDK {
       throw new Error(`Failed to deactivate plan: ${response.status} ${error}`);
     }
 
-    // 204 No Content - no response body
+    // 204 no content - no response body
   }
 
   /**
@@ -396,6 +396,6 @@ export class PayPalSDK {
       );
     }
 
-    // 204 No Content - no response body
+    // 204 no content - no response body
   }
 }

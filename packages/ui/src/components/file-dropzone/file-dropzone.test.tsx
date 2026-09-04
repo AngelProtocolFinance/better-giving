@@ -92,8 +92,7 @@ describe("FileDropzone", () => {
     );
 
     const dropzone = screen.container.querySelector("[data-part='dropzone']");
-    // the drop area shows the decoded name, not the whole url — the url used to
-    // be both the visible text and (via the nested anchor) the button's name
+    // the drop area shows the decoded name, not the whole url
     expect(dropzone).toHaveTextContent("annual report.pdf");
     expect(dropzone).not.toHaveTextContent("https://");
 
@@ -215,10 +214,8 @@ describe("FileDropzone", () => {
     Object.defineProperty(input, "files", { value: dt.files });
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
-    // first call: "loading"
     await vi.waitFor(() => expect(on_change).toHaveBeenCalledWith("loading"));
 
-    // second call: uploaded URL
     await vi.waitFor(() =>
       expect(on_change).toHaveBeenCalledWith(
         "https://cdn.example.com/uploaded.png"
@@ -329,7 +326,7 @@ describe("FileDropzone", () => {
 
     const dropzone = screen.container.querySelector("[data-part='dropzone']");
     expect(dropzone).toHaveTextContent("Not an accepted file type");
-    // the codes used to fall through to the url branch: href="invalid-type"
+    // the codes must not fall through to the url branch: href="invalid-type"
     expect(screen.container.querySelector("a")).toBeNull();
   });
 
@@ -347,7 +344,6 @@ describe("FileDropzone", () => {
       />
     );
 
-    // dropzone should have disabled data attribute
     await vi.waitFor(() => {
       const dropzone = screen.container.querySelector("[data-disabled]");
       expect(dropzone).not.toBeNull();

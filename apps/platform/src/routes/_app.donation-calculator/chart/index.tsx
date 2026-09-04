@@ -3,7 +3,7 @@ import { Info } from "lucide-react";
 import { useState } from "react";
 
 import { Chart as ChartComponent } from "../common/chart";
-import type { View } from "../types"; // Adjust the import path
+import type { View } from "../types";
 import { Splits } from "./splits";
 
 interface Props extends View {
@@ -13,7 +13,7 @@ interface Props extends View {
 export function Chart({ classes = "", ...v }: Props) {
   const [yrs, setYears] = useState(5);
 
-  // Generate chart data based on projection years
+  // generate chart data based on projection years
 
   const data = v.projection.slice(0, yrs).map((x, i) => {
     const y = i + 1;

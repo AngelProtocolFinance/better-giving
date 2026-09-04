@@ -42,10 +42,10 @@ export const action: ActionFunction = async ({ request }) => {
 
   const { data: d } = fv;
 
-  // Honeypot validation - reject if the honeypot field is filled
+  // honeypot validation - reject if the honeypot field is filled
   if (d.website && d.website !== "") {
     console.warn("Honeypot triggered - potential bot submission detected");
-    // Return a generic error to avoid revealing the honeypot
+    // return a generic error to avoid revealing the honeypot
     return resp.status(400);
   }
 
@@ -142,7 +142,7 @@ export const action: ActionFunction = async ({ request }) => {
 
   await db.transaction(async (tx) => {
     await fund_put(tx, fund);
-    // fund_lookup eliminated — UNIQUE constraint on funds.slug
+    // no slug lookup table — UNIQUE constraint on funds.slug
     await userxfund_put(tx, id, user.id);
   });
 

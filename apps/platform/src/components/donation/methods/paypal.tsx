@@ -54,7 +54,7 @@ const COMPONENTS = [
 ] as const satisfies readonly Components[];
 type Sdk = SdkInstance<typeof COMPONENTS>;
 
-// cache the namespace + sdk instance across mounts. v6 no longer carries
+// cache the namespace + sdk instance across mounts. v6 does not carry
 // currency in the script URL, so we don't re-init when currency changes.
 let _ns: Promise<PayPalV6Namespace | null> | null = null;
 let _sdk: Promise<Sdk> | null = null;
@@ -138,7 +138,7 @@ export function Paypal({
       const sdk = await retry_once(get_sdk);
       if (!mounted || !container_ref.current) return;
 
-      // v6 eligibility check replaces v5 enable/disable-funding URL params
+      // v6 eligibility check — funding methods are not chosen by url params
       const methods = await retry_once(() =>
         sdk.findEligibleMethods({
           currencyCode: currency,

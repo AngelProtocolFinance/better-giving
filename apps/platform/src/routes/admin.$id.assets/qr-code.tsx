@@ -110,7 +110,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
           ))}
         </Tabs.List>
 
-        {/* QR Code Panel */}
+        {/* qr code panel */}
         {tabs.map((tab) => (
           <Tabs.Content key={tab.id} value={tab.id}>
             <Ark.Root

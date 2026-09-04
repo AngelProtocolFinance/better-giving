@@ -61,7 +61,6 @@ export default function WithContent() {
 
   return (
     <div className="p-4 space-y-6 min-w-0 overflow-hidden">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-12">With Content</h1>
         <p className="text-sm text-gray-11 mt-1">
@@ -77,7 +76,6 @@ export default function WithContent() {
         </a>
       </div>
 
-      {/* Tip Note */}
       <div className="flex gap-3 p-3 bg-warning-subtle rounded text-sm">
         <Lightbulb
           size={18}

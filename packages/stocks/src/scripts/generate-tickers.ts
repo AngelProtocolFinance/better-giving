@@ -7,7 +7,6 @@ const output_dir = "./src/generated";
 const meta_file = path.join(output_dir, ".tickers-meta.json");
 const tickers_file = path.join(output_dir, "tickers.json");
 
-// check if today's data already exists
 if (fs.existsSync(meta_file)) {
   const meta = JSON.parse(fs.readFileSync(meta_file, "utf-8"));
   if (meta.day === today) {
@@ -44,7 +43,6 @@ for (let index = 0; index < data.length; index++) {
     stream.write("\n");
   }
 
-  // log progress every 1000 symbols
   if ((index + 1) % 1000 === 0) {
     console.info(`Progress: ${index + 1}/${data.length} symbols written`);
   }
@@ -56,7 +54,6 @@ await new Promise<void>((resolve, reject) => {
   stream.end();
 });
 
-// write meta file with generation date
 fs.writeFileSync(
   meta_file,
   JSON.stringify({ day: today, count: data.length }, null, 2)

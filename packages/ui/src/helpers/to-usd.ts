@@ -9,7 +9,7 @@ const usd = (decimals = 0) =>
 export function to_usd(num: number): string {
   const n = Math.abs(num);
   if (n < 1_000_000) {
-    return usd().format(num); // Exact whole-dollar amounts
+    return usd().format(num); // exact whole-dollar amounts
   }
 
   if (n < 1_000_000_000) {

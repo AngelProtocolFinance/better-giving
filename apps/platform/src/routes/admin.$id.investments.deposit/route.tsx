@@ -3,7 +3,7 @@ import { use_admin_data } from "#/pages/admin/use-admin-data";
 
 export default function Page() {
   const data = use_admin_data();
-  // Format NPO name for memo: replace spaces with underscores, uppercase
+  // format NPO name for memo: replace spaces with underscores, uppercase
   const npo_name = (data?.endow.name ?? "")
     .toUpperCase()
     .replace(/\s+/g, "_")

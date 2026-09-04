@@ -19,17 +19,17 @@ const project = (savAmt: number, susAmt: number, yrs: number): Growth[] => {
   let susTotal = 0;
 
   for (let year = 1; year <= yrs; year++) {
-    // Add annual investments
+    // add annual investments
     savTotal += savAmt;
     susTotal += susAmt;
 
-    // Apply daily compounding for one year
+    // apply daily compounding for one year
     for (let day = 0; day < daysPerYear; day++) {
       savTotal *= 1 + savDailyRate;
       susTotal *= 1 + susDailyRate;
     }
 
-    // Calculate growth by subtracting principal
+    // calculate growth by subtracting principal
     const savGrowth = savTotal - savAmt * year;
     const susGrowth = susTotal - susAmt * year;
 

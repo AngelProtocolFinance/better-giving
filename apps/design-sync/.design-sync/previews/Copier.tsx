@@ -2,7 +2,7 @@ import { Copier } from "@better-giving/ui";
 
 // click-to-copy: `text` is what lands on the clipboard, `children` render
 // inside the trigger beside the icon. `classes` is a string (→ container) or
-// `{ container, icon }`. The check-mark state only appears for 700ms after a
+// `{ container, icon }`. the check-mark state only appears for 700ms after a
 // real click, so every cell captures the resting copy icon.
 
 // the filing-details / deposit-panel row: value, then a bare icon trigger.

@@ -235,7 +235,7 @@ export async function action({ request }: Route.ActionArgs) {
           subscriber.shipping_address?.address
         );
 
-        // update onholddb with donor info
+        // update the donation with donor info
         const updated_don = await donation_update(db, don_id, donor);
         console.info("don donor info updated:", updated_don);
 

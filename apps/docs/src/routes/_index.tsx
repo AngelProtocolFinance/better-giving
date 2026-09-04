@@ -7,14 +7,12 @@ export default function Home() {
     <main className="flex-1 py-12">
       <div className="page">
         <div className="max-w-4xl mx-auto">
-          {/* Hero Section */}
           <div className="mb-12">
             <h1 className="text-3xl font-bold text-gray-12 mb-3">
               Better Giving Developer Resources
             </h1>
           </div>
 
-          {/* Feature Cards */}
           <div className="space-y-4">
             <div className="flex items-start gap-4 p-5 rounded border bg-panel max-w-md">
               <div className="p-3 rounded bg-secondary text-primary">

@@ -36,28 +36,28 @@ describe("payment method form state persistence", () => {
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // Wait for donate-methods to render
+    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
 
-    // Select crypto tab
+    // select crypto tab
     const crypto_tab = screen.getByRole("tab", { name: /crypto/i });
     await crypto_tab.click();
 
-    // Select token
+    // select token
     const token_selector = screen.getByRole("combobox");
     await token_selector.click();
     await expect.element(screen.getByRole("option")).toBeVisible();
     await screen.getByRole("option").first().click();
 
-    // Input amount
+    // input amount
     const amount_input = screen.getByPlaceholder(/enter amount/i);
     await amount_input.fill("2");
 
-    // Submit to donor step
+    // submit to donor step
     const continue_btn = screen.getByRole("button", { name: /continue/i });
     await continue_btn.click();
 
-    // Should be on donor step now - fill donor info
+    // should be on donor step now - fill donor info
     const email_input = screen.getByPlaceholder(/john@doe\.com/i);
     await expect.element(email_input).toBeVisible();
     await email_input.fill("john@doe.com");
@@ -70,11 +70,11 @@ describe("payment method form state persistence", () => {
     const last_name_input = screen.getByRole("textbox", { name: /last name/i });
     await last_name_input.fill("Doe");
 
-    // Continue to checkout
+    // continue to checkout
     const continue_btn2 = screen.getByRole("button", { name: /continue/i });
     await continue_btn2.click();
 
-    // Should be on checkout page - look for crypto-specific button
+    // should be on checkout page - look for crypto-specific button
     await expect
       .element(
         screen.getByRole("button", {
@@ -83,11 +83,11 @@ describe("payment method form state persistence", () => {
       )
       .toBeVisible();
 
-    // Go back to donor step
+    // go back to donor step
     const back_btn = screen.getByRole("button", { name: /go back/i });
     await back_btn.click();
 
-    // Verify donor state persists
+    // verify donor state persists
     await expect
       .element(screen.getByPlaceholder(/john@doe\.com/i))
       .toHaveValue("john@doe.com");
@@ -98,11 +98,11 @@ describe("payment method form state persistence", () => {
       .element(screen.getByRole("textbox", { name: /last name/i }))
       .toHaveValue("Doe");
 
-    // Go back to form
+    // go back to form
     const back_btn2 = screen.getByRole("button", { name: /go back/i });
     await back_btn2.click();
 
-    // Verify form state persists
+    // verify form state persists
     await expect
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("2");
@@ -121,10 +121,10 @@ describe("payment method form state persistence", () => {
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // Wait for donate-methods to render
+    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
 
-    // Select DAF tab
+    // select DAF tab
     const daf_tab = screen.getByRole("tab", { name: /donor advised fund/i });
     await daf_tab.click();
 
@@ -167,14 +167,14 @@ describe("payment method form state persistence", () => {
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // Wait for donate-methods to render
+    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
 
-    // Select stocks tab
+    // select stocks tab
     const stocks_tab = screen.getByRole("tab", { name: /stocks/i });
     await stocks_tab.click();
 
-    // Select ticker
+    // select ticker
     const ticker_selector = screen.getByRole("combobox");
     await ticker_selector.click();
     await expect.element(screen.getByRole("option")).toBeVisible();
@@ -217,10 +217,10 @@ describe("payment method form state persistence", () => {
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // Wait for donate-methods to render
+    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
 
-    // Select IRA/QCD tab
+    // select IRA/QCD tab
     const ira_tab = screen.getByRole("tab", { name: /ira \/ qcd/i });
     await ira_tab.click();
 
@@ -263,10 +263,10 @@ describe("payment method form state persistence", () => {
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // Wait for donate-methods to render
+    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
 
-    // Fill crypto form
+    // fill crypto form
     const crypto_tab = screen.getByRole("tab", { name: /crypto/i });
     await crypto_tab.click();
 
@@ -280,12 +280,12 @@ describe("payment method form state persistence", () => {
     await expect.element(amount_input).toBeVisible();
     await amount_input.fill("5");
 
-    // Submit to donor step
+    // submit to donor step
     const continue_btn = screen.getByRole("button", { name: /continue/i });
     await expect.element(continue_btn).toBeVisible();
     await continue_btn.click();
 
-    // Fill donor info
+    // fill donor info
     const email_input = screen.getByPlaceholder(/john@doe\.com/i);
     await expect.element(email_input).toBeVisible();
     await email_input.fill("alice@example.com");
@@ -298,11 +298,11 @@ describe("payment method form state persistence", () => {
     const last_name_input = screen.getByRole("textbox", { name: /last name/i });
     await last_name_input.fill("Smith");
 
-    // Submit to checkout to persist state in context
+    // submit to checkout to persist state in context
     const continue_btn2 = screen.getByRole("button", { name: /continue/i });
     await continue_btn2.click();
 
-    // Should be on checkout page
+    // should be on checkout page
     await expect
       .element(
         screen.getByRole("button", {
@@ -311,11 +311,11 @@ describe("payment method form state persistence", () => {
       )
       .toBeVisible();
 
-    // Go back to donor step
+    // go back to donor step
     const back_btn = screen.getByRole("button", { name: /go back/i });
     await back_btn.click();
 
-    // Verify donor info persists, then go back to form
+    // verify donor info persists, then go back to form
     await expect
       .element(screen.getByPlaceholder(/john@doe\.com/i))
       .toHaveValue("alice@example.com");
@@ -354,7 +354,7 @@ describe("payment method form state persistence", () => {
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("5");
 
-    // Switch back to DAF - form state should persist
+    // switch back to DAF - form state should persist
     const daf_tab2 = screen.getByRole("tab", { name: /donor advised fund/i });
     await daf_tab2.click();
 
@@ -376,10 +376,10 @@ describe("payment method form state persistence", () => {
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // Wait for donate-methods to render
+    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
 
-    // Fill and submit crypto form to checkout - this persists state in context
+    // fill and submit crypto form to checkout - this persists state in context
     const crypto_tab = screen.getByRole("tab", { name: /crypto/i });
     await crypto_tab.click();
 
@@ -396,7 +396,7 @@ describe("payment method form state persistence", () => {
     const continue_btn = screen.getByRole("button", { name: /continue/i });
     await continue_btn.click();
 
-    // Fill donor info
+    // fill donor info
     const email_input = screen.getByPlaceholder(/john@doe\.com/i);
     await expect.element(email_input).toBeVisible();
     await email_input.fill("bob@example.com");
@@ -412,7 +412,7 @@ describe("payment method form state persistence", () => {
     const continue_btn2 = screen.getByRole("button", { name: /continue/i });
     await continue_btn2.click();
 
-    // Should be on crypto checkout
+    // should be on crypto checkout
     await expect
       .element(
         screen.getByRole("button", {
@@ -421,11 +421,11 @@ describe("payment method form state persistence", () => {
       )
       .toBeVisible();
 
-    // Go back to donor step
+    // go back to donor step
     const back_btn = screen.getByRole("button", { name: /go back/i });
     await back_btn.click();
 
-    // Go back to form
+    // go back to form
     const back_btn2 = screen.getByRole("button", { name: /go back/i });
     await back_btn2.click();
 

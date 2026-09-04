@@ -924,7 +924,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
       .toBeInTheDocument();
     await expect.element(screen.getByText("Grant payout")).toBeInTheDocument();
 
-    // confirm refund → action runs PG reversals + stripe refund (native click — Base UI dialog overlay)
+    // confirm refund → action runs PG reversals + stripe refund (native click — the dialog overlay intercepts)
     (
       screen
         .getByRole("button", { name: /Confirm refund/i })

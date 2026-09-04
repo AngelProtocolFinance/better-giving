@@ -135,11 +135,9 @@ export const donation_settlements = pgTable(
   //   so their redelivery re-updates the same donation_id, and the duplicate
   //   dist and receipt it queues are absorbed downstream.
   //
-  // non-unique. the duplicate sweep this was waiting on has run and came back
-  // clean — 503 distinct sttl_ids over 503 rows, no pair sharing one. so
-  // UNIQUE is a viable follow-up rather than an open question: it would turn
-  // the guard from a convention into a constraint and cover the two handlers
-  // that don't check. deliberately not added here.
+  // non-unique. UNIQUE would turn the guard from a convention into a constraint
+  // and cover the two handlers that don't check, and a sweep found no two rows
+  // sharing a sttl_id — a viable follow-up, deliberately not added here.
   (t) => [index("donation_settlements_sttl_id_idx").on(t.sttl_id)]
 );
 

@@ -1,6 +1,6 @@
 import { PayoutStatus } from "@better-giving/ui";
 
-// PayoutStatus is a dot + label chip keyed off the payout's `type`. Note two
+// PayoutStatus is a dot + label chip keyed off the payout's `type`. note two
 // deliberate collapses in the component: `refunded_loss` renders as "Settled"
 // (success) and `refunded` renders as "Refunded" (destructive).
 

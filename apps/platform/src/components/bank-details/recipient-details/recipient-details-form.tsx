@@ -125,7 +125,7 @@ export function RecipientDetailsForm({
             return await onSubmit(data, bankStatement);
           }
 
-          //ERROR handling
+          //error handling
           if (res.status !== 422) throw res;
 
           //only handle 422
@@ -142,7 +142,7 @@ export function RecipientDetailsForm({
             });
           }
 
-          //SET field errors
+          //set field errors
           for (const v of validations) {
             setError(v.path, { message: v.message });
           }

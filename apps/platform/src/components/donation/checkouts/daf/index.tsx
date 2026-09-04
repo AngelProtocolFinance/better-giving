@@ -132,9 +132,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
 
       try {
         // stays up until the browser leaves or the redirect reports it never
-        // did — this used to clear the moment the intent was recorded, which
-        // handed the donor a panel that looks untouched while the trip to the
-        // receipt was still being attempted.
+        // did — clearing it the moment the intent is recorded would hand the
+        // donor a panel that looks untouched while the trip to the receipt is
+        // still being attempted.
         set_prompt_ref.current({
           type: "loading",
           children: "Processing payment",

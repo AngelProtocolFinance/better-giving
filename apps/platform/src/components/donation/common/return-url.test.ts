@@ -39,7 +39,7 @@ describe("where a completed donation lands", () => {
   });
 
   test("a name we don't have is left out, never guessed at", () => {
-    // a wallet mononym used to reach the merchant's page as "John undefined",
+    // a wallet mononym would reach the merchant's page as "John undefined",
     // and a donor who gave no name as the literal "Anonymous". both render
     // straight into someone's "Thank you, ___".
     const mononym = donation_return_url({

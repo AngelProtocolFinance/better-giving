@@ -110,7 +110,7 @@ export async function user_update(email: string, update: Partial<IUserDb>) {
     .where(eq(user.email, email));
 }
 
-// single query replaces DDB's 2-step (query xnpos + batch get users)
+// members joined with users in one query
 export async function npo_admins(npo_id: number): Promise<INpoAdmin[]> {
   const members = db
     .select({

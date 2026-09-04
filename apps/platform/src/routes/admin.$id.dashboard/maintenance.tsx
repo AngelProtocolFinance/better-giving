@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import laira_happy_jump from "#/assets/laira/laira-happy-jump.webp";
 
 export default function Component() {
-  const [time, setTime] = useState(120); // Start with 120 minutes (2 hours)
+  const [time, setTime] = useState(120); // start with 120 minutes (2 hours)
 
   useEffect(() => {
     const updateTime = () => {
@@ -17,14 +17,14 @@ export default function Component() {
         );
         setTime(remaining);
       } else if (now < startTime) {
-        setTime(120); // If before 6:30 UTC, show full 2 hours
+        setTime(120); // if before 6:30 UTC, show full 2 hours
       } else {
-        setTime(0); // If after 8:30 UTC, show 0
+        setTime(0); // if after 8:30 UTC, show 0
       }
     };
 
-    updateTime(); // Initial update
-    const interval = setInterval(updateTime, 60000); // Update every minute
+    updateTime(); // initial update
+    const interval = setInterval(updateTime, 60000); // update every minute
 
     return () => clearInterval(interval);
   }, []);

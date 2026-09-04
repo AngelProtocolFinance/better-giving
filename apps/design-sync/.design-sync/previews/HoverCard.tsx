@@ -2,7 +2,7 @@ import { HoverCard } from "@better-giving/ui";
 import { useEffect, useRef } from "react";
 
 // HoverCard has no `open` prop — it opens on pointer-enter (zag POINTER_ENTER)
-// or trigger focus. A static preview dispatches a mouse `pointerover` on the
+// or trigger focus. a static preview dispatches a mouse `pointerover` on the
 // trigger at mount, so the card is painted in the shot.
 // `Content` is not on the design-system export surface, so the tip is a plain
 // popover-styled div; Ark's Positioner places it and renders the arrow.

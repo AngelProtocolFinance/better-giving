@@ -321,7 +321,7 @@ describe("rejection", () => {
     await screen
       .getByLabelText(/reason for rejection/i)
       .fill("docs incomplete");
-    // base-ui inert overlay intercepts pointer events on the dialog;
+    // the dialog overlay intercepts pointer events;
     // use native DOM click to bypass
     (
       screen.getByRole("button", { name: /submit/i }).element() as HTMLElement
@@ -377,7 +377,7 @@ describe("approval", () => {
       .element(screen.getByText(/immediately payout all pending funds/i))
       .toBeInTheDocument();
 
-    // submit — base-ui inert overlay intercepts pointer events;
+    // submit — the dialog overlay intercepts pointer events;
     // use native DOM click to bypass
     (
       screen.getByRole("button", { name: /submit/i }).element() as HTMLElement

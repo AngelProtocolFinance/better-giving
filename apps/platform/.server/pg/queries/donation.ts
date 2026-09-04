@@ -712,7 +712,7 @@ export async function donation_update(
   );
 }
 
-// -- donation sub-table getters (kept for direct access) --
+// -- donation sub-table getters --
 
 export async function donation_recipient_get(
   donation_id: string

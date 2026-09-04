@@ -343,9 +343,9 @@ describe("stripe express: the wallet sheet is told when a payment dies", () => {
   });
 
   test("payment details the element itself rejects", async () => {
-    // this one used to be either/or: the sheet was told and the donor was
-    // not, so a wallet that closes quietly left them staring at an unchanged
-    // form with no idea why nothing happened.
+    // either/or is not enough: with the sheet told and the donor not, a
+    // wallet that closes quietly leaves them staring at an unchanged form
+    // with no idea why nothing happened.
     elements.value = {
       submit: async () => ({
         error: { message: "Your postal code is wrong." },

@@ -23,7 +23,6 @@ function get_previous_month_url(): string {
   let year = now.getUTCFullYear();
   let month = now.getUTCMonth(); // 0-indexed, current month
 
-  // get previous month
   if (month === 0) {
     year -= 1;
     month = 11; // december of previous year
@@ -44,7 +43,6 @@ function get_previous_month_string(): string {
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth();
 
-  // get previous month
   if (month === 0) {
     return `${year - 1}-12`;
   }

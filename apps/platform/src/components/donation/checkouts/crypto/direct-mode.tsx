@@ -56,7 +56,7 @@ export function DirectMode({
 
   const handle_continue = () => {
     // the button below is disabled until there's an order to continue with —
-    // this stays as a type guard, not as a way to fail. throwing here used to
+    // this stays as a type guard, not as a way to fail. a throw here would
     // put an error boundary in front of a donor who had already sent crypto.
     const id = data?.order_id;
     if (!id) return;

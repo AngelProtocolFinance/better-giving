@@ -12,20 +12,12 @@ const CUSTOM_SPECS_DIR = join(__dirname, "..", "custom_specs");
 const BASE_URL =
   "https://raw.githubusercontent.com/paypal/paypal-rest-api-specifications/main/openapi";
 
-// List of all PayPal OpenAPI specification files
+// spec files to download
 const SPEC_FILES = [
   "checkout_orders_v2.json",
   "payments_payment_v2.json",
   "billing_subscriptions_v1.json",
-  // "invoicing_v2.json",
-  // "payments_payouts_batch_v1.json",
-  // "vault_payment_tokens_v3.json",
-  // "customer_disputes_v1.json",
-  // "customer_partner_referrals_v2.json",
   "catalogs_products_v1.json",
-  // "shipping_shipment_tracking_v1.json",
-  // "payment-experience_web_experience_profiles_v1.json",
-  // "reporting_transactions_v1.json",
   "notifications_webhooks_v1.json",
 ];
 
@@ -56,7 +48,7 @@ async function copyCustomSpecs(): Promise<number> {
   console.log("\nCopying custom specifications...");
 
   try {
-    // Check if custom_specs directory exists
+    // check if custom_specs directory exists
     const entries = await readdir(CUSTOM_SPECS_DIR);
     let copiedCount = 0;
 
@@ -64,7 +56,7 @@ async function copyCustomSpecs(): Promise<number> {
       const entryPath = join(CUSTOM_SPECS_DIR, entry);
       const entryStat = await stat(entryPath);
 
-      // Only process directories (version folders like v1, v2, etc.)
+      // only process directories (version folders like v1, v2, etc.)
       if (entryStat.isDirectory()) {
         const files = await readdir(entryPath);
 
@@ -83,7 +75,7 @@ async function copyCustomSpecs(): Promise<number> {
 
     return copiedCount;
   } catch (_error) {
-    // Custom specs directory doesn't exist or is empty
+    // custom specs directory doesn't exist or is empty
     console.log("No custom specifications found (this is optional)");
     return 0;
   }
@@ -104,7 +96,7 @@ async function main(): Promise<void> {
     `\n✓ Downloaded ${successCount}/${SPEC_FILES.length} specifications`
   );
 
-  // Copy custom specifications
+  // copy custom specifications
   const customCount = await copyCustomSpecs();
 
   console.log(

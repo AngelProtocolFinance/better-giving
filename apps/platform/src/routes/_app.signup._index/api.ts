@@ -38,10 +38,10 @@ export const action: ActionFunction = async ({ request }) => {
   const p = await getValidatedFormData<ISignUp>(fv, valibotResolver(sign_up));
   if (p.errors) return p;
 
-  // Honeypot validation - reject if the honeypot field is filled
+  // honeypot validation - reject if the honeypot field is filled
   if (p.data.middle_name && p.data.middle_name !== "") {
     console.warn("Honeypot triggered - potential bot submission detected");
-    // Return a generic error to avoid revealing the honeypot
+    // return a generic error to avoid revealing the honeypot
     return resp.status(400);
   }
 

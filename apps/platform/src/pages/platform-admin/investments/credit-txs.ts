@@ -11,7 +11,6 @@ interface IArgs {
   ticker: string;
   to_credit_units: number;
   to_credit_usd: number;
-  // nav_ltd: ILog;
 }
 export async function credit_txs(db: DbOrTx, x: IArgs) {
   await npo_balance_adj(db, +x.npo, {

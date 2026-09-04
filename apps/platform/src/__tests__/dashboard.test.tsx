@@ -359,7 +359,7 @@ describe("dashboard — transfer savings → investments", () => {
     await expect
       .element(screen.getByRole("button", { name: /submit/i }))
       .toBeEnabled();
-    // base-ui inert overlay intercepts pointer events; use native DOM click
+    // the dialog overlay intercepts pointer events; use native DOM click
     (
       screen.getByRole("button", { name: /submit/i }).element() as HTMLElement
     ).click();

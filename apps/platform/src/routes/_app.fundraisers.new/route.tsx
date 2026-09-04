@@ -90,7 +90,7 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
       >
         <h4 className="font-semibold text-sm mb-4">Create your fundraiser</h4>
 
-        {/* Honeypot field - hidden from users but visible to bots */}
+        {/* honeypot field - hidden from users but visible to bots */}
         <input
           {...register("website")}
           type="text"

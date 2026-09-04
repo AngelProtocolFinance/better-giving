@@ -42,9 +42,8 @@ export default function DemoNonprofitPage() {
   const id = BG_FORM_ID;
   const dialog_ref = useRef<HTMLDialogElement>(null);
 
-  // replaces next/script <Script strategy="lazyOnload">. injecting in an effect
-  // keeps it client-only (ssr-safe) and lazy — the script wires up the
-  // data-bg-form containers on the page.
+  // injecting in an effect keeps it client-only (ssr-safe) and lazy — the
+  // script wires up the data-bg-form containers on the page.
   useEffect(() => {
     const src = "https://better.giving/form-embed.js";
     if (document.querySelector(`script[src="${src}"]`)) return;
@@ -56,7 +55,6 @@ export default function DemoNonprofitPage() {
 
   return (
     <main className="flex-1">
-      {/* Navigation */}
       <nav className="sticky top-0 bg-panel border-b px-6 py-3 z-10">
         <div className="max-w-6xl mx-auto flex flex-wrap gap-2 justify-center">
           {DEMO_SECTIONS.map((section) => (
@@ -71,7 +69,6 @@ export default function DemoNonprofitPage() {
         </div>
       </nav>
 
-      {/* Flexible Width - Hero Section */}
       <section
         id="flexible-width"
         className="px-6 py-16 bg-linear-to-br from-demo to-demo-dark scroll-mt-16"
@@ -102,7 +99,6 @@ export default function DemoNonprofitPage() {
         </div>
       </section>
 
-      {/* With Border - White background section */}
       <section id="with-border" className="px-6 py-16 bg-panel scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
@@ -125,7 +121,6 @@ export default function DemoNonprofitPage() {
         </div>
       </section>
 
-      {/* Donate Button - Program Cards */}
       <section id="donate-button" className="px-6 py-16 bg-gray-3 scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
@@ -167,7 +162,6 @@ export default function DemoNonprofitPage() {
             ))}
           </div>
 
-          {/* Donation Dialog */}
           <dialog
             ref={dialog_ref}
             className="p-0 rounded backdrop:bg-black/50 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 m-0 max-h-[90vh] overflow-y-auto"
@@ -188,7 +182,6 @@ export default function DemoNonprofitPage() {
         </div>
       </section>
 
-      {/* With Content - Donation Appeal */}
       <section id="with-content" className="px-6 py-16 bg-panel scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-2xl mx-auto">
@@ -219,14 +212,12 @@ export default function DemoNonprofitPage() {
         </div>
       </section>
 
-      {/* Fixed Dimensions - Sidebar Widget */}
       <section
         id="fixed-dimensions"
         className="px-6 py-16 bg-gray-3 scroll-mt-16"
       >
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-[1fr_350px] gap-8">
-            {/* Main content */}
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-gray-12">
                 Latest Updates
@@ -269,7 +260,6 @@ export default function DemoNonprofitPage() {
               ))}
             </div>
 
-            {/* Sidebar with fixed-dimension form */}
             <aside className="md:sticky md:top-20 self-start">
               <div className="bg-panel rounded border p-4">
                 <h3 className="font-semibold text-gray-12 mb-3 text-center text-sm">
@@ -289,7 +279,6 @@ export default function DemoNonprofitPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="px-6 py-8 bg-gray-12 text-background">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-background/70 text-sm">

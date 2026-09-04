@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 const SPECS_DIR = join(__dirname, "..", "specs");
 const GENERATED_DIR = join(__dirname, "..", "src", "generated");
 
-// Map of spec files to more friendly module names
+// map of spec files to more friendly module names
 const MODULE_NAMES: Record<string, string> = {
   "checkout_orders_v2.json": "orders",
   "payments_payment_v2.json": "payments",
@@ -46,8 +46,7 @@ async function generateTypes(specFile: string): Promise<GenerateResult> {
   console.log(`Generating types for ${moduleName}...`);
 
   try {
-    // Use the CLI to generate types
-    // Note: Removed --path-params-as-types to avoid TypeScript index signature conflicts
+    // no --path-params-as-types: it produces TypeScript index signature conflicts
     // pnpm exec (not npx) so the pinned workspace openapi-typescript runs — npx can fall back to a registry version and drift the committed types
     const command = `pnpm exec openapi-typescript "${inputPath}" -o "${outputPath}" --export-type`;
 

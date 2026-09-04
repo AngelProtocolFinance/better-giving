@@ -169,7 +169,7 @@ export declare namespace NP {
       order_id: string;
       order_description: string;
 
-      /// NOT USED in our flows ///
+      /// not used in our flows ///
       success_url?: string;
       cancel_url?: string;
       is_fixed_rate?: boolean;

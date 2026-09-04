@@ -227,7 +227,7 @@ describe("about-us base_url", () => {
     // what the mount got is the origin of the request the loader saw...
     expect(req_origin).toBeTruthy();
     expect(mounts.at(-1)).toBe(req_origin);
-    // ...and not the build-time const it used to read
+    // ...and not the build-time const
     expect(mounts.at(-1)).not.toBe(env_base_url);
   });
 });

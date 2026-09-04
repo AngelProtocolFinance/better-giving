@@ -943,7 +943,7 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
       name: /Confirm refund/i,
     });
     await expect.element(confirm_btn).toBeVisible();
-    // base-ui inert overlay intercepts pointer events; use native DOM click
+    // the dialog overlay intercepts pointer events; use native DOM click
     (confirm_btn.element() as HTMLElement).click();
 
     await expect

@@ -299,7 +299,7 @@ export async function dist_refund_update(
 ) {
   // failed dists keep status="settled" so they remain eligible for retry
   // (dists_for_refund filters status="settled"). completed/loss flip to
-  // refunded (preserves prior behavior).
+  // refunded.
   const status = data.refund_status === "failed" ? undefined : "refunded";
   await db
     .update(dists)

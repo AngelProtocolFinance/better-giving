@@ -39,7 +39,7 @@ export function Card({
         </div>
 
         <div className="grid grid-rows-subgrid row-span-3 p-3 pb-16 gap-3">
-          {/* nonprofit NAME */}
+          {/* nonprofit name */}
           <h3 className="text-ellipsis line-clamp-2 mt-4 -mb-2">
             <span className="inline">{name}</span>
           </h3>

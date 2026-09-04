@@ -113,7 +113,6 @@ export function Loaded({ classes = "", ...props }: Props) {
             </HoverContent>
           }
           amount={`$ ${humanize(props.bal_lock, 2)}`}
-          // perf={<SfPerf id={props.id} />}
         />
       </div>
       <div className="flex items-center gap-4 mt-4">

@@ -64,9 +64,7 @@ export function draw_chart(
       const x1 = xs(i);
       const x2 = xs(i + 1);
 
-      // draw as polygon using page.drawLine for edges, fill with thin rects
-      // simpler: just use moveTo/lineTo path operations
-      // pdf-lib doesn't have a fill-path API easily, so draw vertical strips
+      // pdf-lib has no fill-path api, so the area is drawn as vertical strips
       const steps = 20;
       const dx = (x2 - x1) / steps;
       for (let s = 0; s < steps; s++) {

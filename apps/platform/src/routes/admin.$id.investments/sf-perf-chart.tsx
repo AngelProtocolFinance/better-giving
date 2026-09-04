@@ -121,7 +121,6 @@ export function SfPerChart(
             type="monotone"
             dataKey="perf"
             stroke="var(--chart-2)"
-            // dot={false}
             strokeWidth={2}
           />
         </ComposedChart>

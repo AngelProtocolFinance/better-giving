@@ -72,7 +72,6 @@ export function Panel({
 
   return (
     <>
-      {/* Header */}
       <div className="p-6 md:p-8 border-b relative">
         <h2 className="text-2xl font-bold mb-2">Deposit Funds</h2>
         <p className="text-sm text-gray-11">
@@ -88,9 +87,7 @@ export function Panel({
         </button>
       </div>
 
-      {/* Content */}
       <div className="p-6 md:p-8">
-        {/* Account Selector */}
         {show_selector && (
           <AccountSelector
             value={account_type}
@@ -99,7 +96,6 @@ export function Panel({
           />
         )}
 
-        {/* Section 1: Bank Account Details */}
         <InfoSection title="Bank Account Details" classes="mb-6">
           <InfoRow label="Account name" value={BANK_DETAILS.account_name} />
           <InfoRow label="Account number" value={BANK_DETAILS.account_number} />
@@ -112,7 +108,6 @@ export function Panel({
           <InfoRow label="Bank address" value={BANK_DETAILS.bank_address} />
         </InfoSection>
 
-        {/* Section 2: Routing Codes */}
         <InfoSection title="Routing Codes" classes="mb-6">
           <InfoRowWithDetails
             label="ACH Routing"
@@ -126,10 +121,8 @@ export function Panel({
           />
         </InfoSection>
 
-        {/* Section 3: Reference Memo */}
         <MemoSection memo={memo} account_type={account_type} classes="mb-6" />
 
-        {/* Non-USD Note */}
         <p className="text-sm text-gray-11">
           For non-USD transfers, contact{" "}
           <a

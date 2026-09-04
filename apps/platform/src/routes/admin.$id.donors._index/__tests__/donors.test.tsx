@@ -16,7 +16,7 @@ import type { TestDb } from "$/pg/test-utils/pglite-browser";
 
 // --- mocks (hoisted) ---
 
-// pg/queries/helpers uses Node Buffer for base64url cursor encoding. Browser
+// pg/queries/helpers uses Node Buffer for base64url cursor encoding. browser
 // tests have no Buffer global, so shim it with btoa/atob.
 vi.hoisted(() => {
   if (typeof (globalThis as any).Buffer !== "undefined") return;
@@ -128,7 +128,7 @@ async function seed_donor(npo_id: number, email: string, amount_usd: number) {
 
 async function render_page(npo_id: number, search = "") {
   // both parent layout + _index child must be present to exercise the
-  // routing surface that broke before: fetcher.load("?index&next=…") only
+  // routing surface this guards: fetcher.load("?index&next=…") only
   // hits the _index loader when ?index is in the query.
   const Stub = createRoutesStub([
     {
@@ -222,8 +222,8 @@ describe("admin donor list — pagination via use_table", () => {
 
     await screen.getByRole("button", { name: /view more/i }).click();
 
-    // remaining 5 donors append (the regression: before the ?index fix the
-    // fetcher hit the parent layout loader and nothing was appended).
+    // remaining 5 donors append (the regression: without ?index the
+    // fetcher hits the parent layout loader and nothing is appended).
     await expect
       .element(screen.getByText("donor20", { exact: true }))
       .toBeVisible();

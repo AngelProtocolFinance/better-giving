@@ -1,7 +1,7 @@
 import { Field, Modal } from "@better-giving/ui";
 
 // Modal is always authored open here: closed it renders nothing at all.
-// It portals to document.body, and `size` carries the whole content-box
+// it portals to document.body, and `size` carries the whole content-box
 // geometry — centering, width, height cap, overflow. `classes` is left for
 // surface and padding only; a caller that hand-spells a width fights the tier.
 

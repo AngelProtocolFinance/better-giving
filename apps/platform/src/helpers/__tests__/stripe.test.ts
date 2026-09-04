@@ -96,7 +96,7 @@ describe("to_atomic_c", () => {
 
   test("handles special case currencies", () => {
     // ISK - zero-decimal but represented as two-decimal (always 00)
-    // To charge 5 ISK, provide amount value of 500
+    // to charge 5 ISK, provide amount value of 500
     expect(to_atomic_c("ISK")(5)).toBe(500);
     expect(to_atomic_c("ISK")(100)).toBe(10000);
     expect(to_atomic_c("ISK")(1)).toBe(100);
@@ -115,7 +115,7 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("TWD")(800.45)).toBe(80000); // rounds down to 800, then * 100
 
     // UGX - zero-decimal but represented as two-decimal (always 00)
-    // To charge 5 UGX, provide amount value of 500
+    // to charge 5 UGX, provide amount value of 500
     expect(to_atomic_c("UGX")(5)).toBe(500);
     expect(to_atomic_c("UGX")(100)).toBe(10000);
     expect(to_atomic_c("UGX")(1)).toBe(100);

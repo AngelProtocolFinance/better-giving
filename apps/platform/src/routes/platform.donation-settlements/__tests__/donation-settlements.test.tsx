@@ -266,7 +266,7 @@ describe("settle donation — full flow", () => {
       screen.getByRole("link", { name: /new/i }).element() as HTMLElement
     ).click();
 
-    // preview button should be enabled (always enabled now)
+    // preview button is always enabled
     const preview_btn = screen.getByRole("button", { name: /preview/i });
     await expect.element(preview_btn, { timeout: 3000 }).toBeEnabled();
 
@@ -425,8 +425,7 @@ describe("settle donation — full flow", () => {
 
   // regression: selecting an npo option must populate the combobox input
   // (the post-selection input-value-change must not trigger a refetch that
-  // clears state). asserting the input value catches what the previous
-  // submit-only assertion missed.
+  // clears state). the input value is asserted, not just the submit.
   it("selecting an option populates the combobox input", async () => {
     const screen = await render_app();
 
@@ -444,8 +443,8 @@ describe("settle donation — full flow", () => {
     await expect.element(opt, { timeout: 3000 }).toBeVisible();
     // playwright pointer click (not native DOM .click) — the option is
     // portaled outside the dialog, so the inert overlay doesn't intercept,
-    // and the real pointer path is what triggers Base UI's
-    // onInputValueChange(reason: "item-press") flow being regressed.
+    // and the real pointer path is what triggers ark's
+    // onInputValueChange(reason: "item-select") flow under test.
     await opt.click();
 
     // user-visible outcome: input now shows the selected nonprofit's name

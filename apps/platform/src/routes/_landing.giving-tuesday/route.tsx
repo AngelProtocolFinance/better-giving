@@ -26,9 +26,7 @@ export default function Page() {
       <Partners classes="page" />
       <Hero2 className="page" />
       <Features classes="page" />
-      {/* <Ctas classes="page" /> */}
       <Steps classes="page my-24" />
-      {/* <Testimonials classes="page mt-24 py-24" /> */}
       <Products classes="page mt-12" />
       <BottomCta className="my-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
     </>

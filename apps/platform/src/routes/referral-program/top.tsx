@@ -41,7 +41,6 @@ export function Top({ classes = "" }) {
               ry="6"
               filter="url(#blur)"
               className="fill-gray-3"
-              // className="blur-sm"
             />
           </svg>
         </div>
