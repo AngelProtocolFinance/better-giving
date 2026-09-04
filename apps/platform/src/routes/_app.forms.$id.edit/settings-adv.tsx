@@ -72,7 +72,9 @@ export function SettingsAdv({
             >
               URLSearchParams
             </ExtLink>{" "}
-            upon redirect.
+            upon redirect. A redirect only works with the script embed: if you
+            pasted the plain iframe before setting one, replace it with the
+            script snippet shown after you save.
           </p>
         }
         {...register("success_redirect")}
