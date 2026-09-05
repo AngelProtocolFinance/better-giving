@@ -1,5 +1,6 @@
 import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
+import { ErrorBand } from "../components/error-band";
 import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
@@ -54,9 +55,7 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
       </Text>
 
       {action === "rejected" && rejection_reason && (
-        <Text style={{ color: flat_colors.destructive }}>
-          Reason: {rejection_reason}
-        </Text>
+        <ErrorBand>Reason: {rejection_reason}</ErrorBand>
       )}
       {action !== "default" && (
         <Text style={{ marginTop: 4 }}>
