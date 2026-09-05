@@ -27,6 +27,17 @@ type Props = {
   tipv: number;
 };
 
+// the status rides with the message so reporting can tell an expected 4xx
+// from a server failure without reading the text
+class IntentError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   const res = await fetch(href("/api/donation-intents"), {
     method: "POST",
@@ -44,7 +55,7 @@ const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   // actual minimum. 5xx is an unhandled throw whose body is a framework error
   // page, so it keeps the generic message.
   const txt = res.status < 500 ? (await res.text().catch(() => "")).trim() : "";
-  throw new Error(txt);
+  throw new IntentError(res.status, txt);
 };
 
 export function DirectMode({
@@ -104,10 +115,10 @@ export function DirectMode({
 
   const { data, isLoading, error } = use_swr(intent, fetcher);
 
-  // an empty message is the fetcher's 5xx branch — a server failure worth
-  // paging on. the 4xx carries donor-facing text and is expected.
+  // report_error drops anything carrying a 4xx status, so the deliberate
+  // below-minimum answer never pages; a 5xx or a malformed body does
   useEffect(() => {
-    if (error instanceof Error && !error.message) report_error(error);
+    if (error) report_error(error);
   }, [error]);
 
   const total_disp_amnt = ru_vdec(
@@ -127,7 +138,7 @@ export function DirectMode({
         <ContentLoader className="size-48 rounded" />
       ) : error || !data ? (
         <ErrorStatus>
-          {error instanceof Error && error.message
+          {error instanceof IntentError && error.message
             ? error.message
             : "Failed to load donation address"}
         </ErrorStatus>
