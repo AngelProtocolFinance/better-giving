@@ -1,9 +1,7 @@
 import { Actions, Field, Label } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
-import { useEffect } from "react";
 import type { Resolver } from "react-hook-form";
 import { useController, useForm, useWatch } from "react-hook-form";
-import { useFetcher } from "react-router";
 import * as v from "valibot";
 import { NpoSelector } from "#/pages/shared/form-create/form/npo-selector";
 import type { IFormValues, INpoOpt } from "./types";
@@ -77,15 +75,6 @@ export function SettleForm({
   on_preview,
   on_close,
 }: IFormProps) {
-  const npo_fetcher = useFetcher({ key: "npo-search" });
-
-  // load initial NPO list
-  const loaded = npo_fetcher.data != null || npo_fetcher.state !== "idle";
-  const { load } = npo_fetcher;
-  useEffect(() => {
-    if (!loaded) load("/api/npos");
-  }, [loaded, load]);
-
   const {
     register,
     handleSubmit,
@@ -100,14 +89,6 @@ export function SettleForm({
   const from = useWatch({ control, name: "from" });
   const for_donation_id = useWatch({ control, name: "for_donation_id" });
   const from_gift = gift_decides({ from, for_donation_id });
-
-  const q = npo_fetcher.formData?.get("query")?.toString() ?? "";
-  const npo_opts: "loading" | string | INpoOpt[] =
-    npo_fetcher.state === "loading"
-      ? "loading"
-      : q && !npo_fetcher.data?.items?.length
-        ? q
-        : (npo_fetcher.data?.items ?? []);
 
   return (
     <form onSubmit={handleSubmit(on_preview)}>
@@ -133,16 +114,8 @@ export function SettleForm({
           <NpoSelector
             label="Nonprofit"
             required={!from_gift}
-            q={q}
-            on_q_change={(q) => {
-              npo_fetcher.submit(q ? { query: q } : {}, {
-                method: "GET",
-                action: "/api/npos",
-              });
-            }}
             value={npo_field.value}
             on_change={npo_field.onChange}
-            opts={npo_opts}
           />
           {/* the field goes optional without moving, so say why rather than
               leave the admin wondering which of the two is now in charge */}
