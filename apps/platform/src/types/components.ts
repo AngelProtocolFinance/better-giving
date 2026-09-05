@@ -47,7 +47,7 @@ export const richtext_content = ({
   });
 };
 
-/** query loader */
+/** the state of an in-flight fetch, as a hook returns it */
 export interface QueryState<T> {
   error?: unknown;
   data?: T | undefined;

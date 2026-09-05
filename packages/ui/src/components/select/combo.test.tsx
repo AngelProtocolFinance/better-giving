@@ -512,6 +512,25 @@ describe("Combo over an async source", () => {
       .toBeVisible();
   });
 
+  test("typing into a closed box searches the typed text, not the empty query", async () => {
+    const { props, search } = setup();
+    search.mockImplementation(async (q) =>
+      currencies.filter((c) => c.code.includes(q.toUpperCase()))
+    );
+    // nothing selected, so no row is rehydrated on top of the answer
+    const screen = await render(<Combo {...props} value={undefined} />);
+
+    // no click first: the keystroke is what opens the popup, and the open
+    // must not answer with the whole list on top of the query just typed
+    await screen.getByRole("combobox").fill("gb");
+    await expect
+      .element(screen.getByRole("option", { name: "GBP" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .not.toBeInTheDocument();
+  });
+
   test("a search in flight says so and leaves the control usable", async () => {
     const { props, search } = setup();
     // never resolves: the pending state has to hold on its own

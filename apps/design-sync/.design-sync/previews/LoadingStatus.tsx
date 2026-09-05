@@ -1,6 +1,6 @@
 import { LoadingStatus } from "@better-giving/ui";
 
-// LoadingStatus is the pending branch of query-loader: flex row with a spinning
+// LoadingStatus is the pending branch of a fetch: flex row with a spinning
 // LoaderCircle. the spin is a CSS animation — a still capture shows one frame.
 
 export const Default = () => (

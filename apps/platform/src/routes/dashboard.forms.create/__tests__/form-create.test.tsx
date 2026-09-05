@@ -1,4 +1,6 @@
-import { createRoutesStub, Outlet } from "react-router";
+import { HttpResponse, http } from "msw";
+import { createRoutesStub, href, Outlet } from "react-router";
+import { parse } from "valibot";
 import {
   afterAll,
   beforeAll,
@@ -9,6 +11,8 @@ import {
   vi,
 } from "vitest";
 import { render } from "vitest-browser-react";
+import { search } from "@/helpers/https";
+import { npos_search } from "@/npo/schema";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
 import type { TestDb } from "$/pg/test-utils/pglite-browser";
@@ -47,8 +51,10 @@ vi.mock("#/.server/toast", async () => {
 
 // --- imports (after mocks) ---
 
+import { get_npos } from "#/.server/npos";
 import Page from "#/pages/shared/form-create";
 import { loader } from "#/pages/shared/form-create/api";
+import { mswWorker } from "#/setup-tests-browser";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 
 // --- helpers ---
@@ -130,6 +136,14 @@ beforeEach(async () => {
   await test_db.current!.db.delete(programs);
   await test_db.current!.db.delete(npos);
   counter = 0;
+
+  // createRoutesStub serves route modules only, so the combobox's raw fetch to
+  // /api/npos needs the same pglite the loader reads.
+  mswWorker.use(
+    http.get(href("/api/npos"), async ({ request }) =>
+      HttpResponse.json(await get_npos(parse(npos_search, search(request))))
+    )
+  );
 });
 
 // --- tests ---

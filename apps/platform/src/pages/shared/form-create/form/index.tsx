@@ -13,7 +13,7 @@ interface Props extends ILoaderData {
 }
 
 export function Form({ classes = "", ...p }: Props) {
-  const [search, set_search] = useSearchParams();
+  const [, set_search] = useSearchParams();
   const f = useFetcher<ILoaderData>();
   const nav = useNavigation();
 
@@ -33,14 +33,6 @@ export function Form({ classes = "", ...p }: Props) {
     control,
   });
 
-  const q = f.formData?.get("q")?.toString() || search.get("q") || "";
-  const opts =
-    f.state === "loading"
-      ? "loading"
-      : q && !f.data?.npos?.opts.length
-        ? `${q} not found`
-        : (f.data?.npos?.opts ?? p.npos?.opts ?? []);
-
   return (
     <f.Form
       method="PUT"
@@ -49,14 +41,10 @@ export function Form({ classes = "", ...p }: Props) {
       autoComplete="off"
       autoSave="off"
     >
-      {p.npos?.opts && (
+      {p.npos && (
         <NpoSelector
           label="Select nonprofit"
           required
-          q={q}
-          on_q_change={(q) => {
-            if (q) f.submit({ q }, { method: "GET" });
-          }}
           value={p.npos.value}
           on_change={(opt) => {
             set_search((s) => {
@@ -64,7 +52,6 @@ export function Form({ classes = "", ...p }: Props) {
               return s;
             });
           }}
-          opts={opts}
         />
       )}
 

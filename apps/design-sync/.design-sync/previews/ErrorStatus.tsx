@@ -1,6 +1,6 @@
 import { ErrorStatus } from "@better-giving/ui";
 
-// ErrorStatus is the failure branch of query-loader: flex row, CircleAlert, text-destructive.
+// ErrorStatus is the failure branch of a fetch: flex row, CircleAlert, text-destructive.
 
 export const Default = () => (
   <div className="flex flex-col gap-4 items-start">

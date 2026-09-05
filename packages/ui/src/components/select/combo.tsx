@@ -105,6 +105,9 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
   const opt = use_opt(p);
   const src = use_source(p.options);
   const [query, set_query] = useState("");
+  // the open can fire in the same tick as the keystroke that caused it, before
+  // `query` state has settled — the ref is what the open reads
+  const query_ref = useRef("");
   const err_id = useId();
 
   const limit = p.limit ?? RESULT_LIMIT;
@@ -181,12 +184,13 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
         // spend a request on one: that would be a fetch per selection.
         onInputValueChange={(e) => {
           const typed = e.reason === "input-change";
-          set_query(typed ? e.inputValue : "");
+          query_ref.current = typed ? e.inputValue : "";
+          set_query(query_ref.current);
           if (typed) src.on_query(e.inputValue);
         }}
         // a searched source has nothing until it is asked
         onOpenChange={(e) => {
-          if (e.open) src.on_open();
+          if (e.open) src.on_open(query_ref.current);
         }}
         positioning={{ placement: "bottom-start", gutter: 8 }}
         allowCustomValue={allow_custom}

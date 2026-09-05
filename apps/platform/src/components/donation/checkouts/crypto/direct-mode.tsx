@@ -1,11 +1,16 @@
-import { ContentLoader, type IPrompt, Prompt } from "@better-giving/ui";
-import { useState } from "react";
+import {
+  ContentLoader,
+  ErrorStatus,
+  type IPrompt,
+  Prompt,
+} from "@better-giving/ui";
+import { useEffect, useState } from "react";
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
 import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
+import { report_error } from "@/errors/report";
 import { ru_vdec } from "@/helpers/decimal";
-import { QueryLoader } from "../../../query-loader";
 import { ContinueBtn } from "../../common/continue-btn";
 import { use_donation_redirect } from "../../common/redirect";
 import { donation_return_url } from "../../common/return-url";
@@ -21,6 +26,17 @@ type Props = {
   fee_allowance: number;
   tipv: number;
 };
+
+// the status rides with the message so reporting can tell an expected 4xx
+// from a server failure without reading the text
+class IntentError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
 
 const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   const res = await fetch(href("/api/donation-intents"), {
@@ -39,7 +55,7 @@ const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   // actual minimum. 5xx is an unhandled throw whose body is a framework error
   // page, so it keeps the generic message.
   const txt = res.status < 500 ? (await res.text().catch(() => "")).trim() : "";
-  throw new Error(txt);
+  throw new IntentError(res.status, txt);
 };
 
 export function DirectMode({
@@ -97,7 +113,13 @@ export function DirectMode({
   if (init.program) intent.program = init.program;
   if (init.config?.id) intent.form_id = init.config.id;
 
-  const { data, isLoading, error, isValidating } = use_swr(intent, fetcher);
+  const { data, isLoading, error } = use_swr(intent, fetcher);
+
+  // report_error drops anything carrying a 4xx status, so the deliberate
+  // below-minimum answer never pages; a 5xx or a malformed body does
+  useEffect(() => {
+    if (error) report_error(error);
+  }, [error]);
 
   const total_disp_amnt = ru_vdec(
     +fv.token.amount + tipv + fee_allowance,
@@ -112,29 +134,21 @@ export function DirectMode({
         &nbsp;
         {fv.token.symbol} from your crypto wallet to the address below
       </p>
-      <QueryLoader
-        queryState={{
-          is_loading: isLoading,
-          is_fetching: isValidating,
-          data: data,
-          is_error: !!error,
-        }}
-        messages={{
-          loading: <ContentLoader className="size-48 rounded" />,
-          error:
-            error instanceof Error && error.message
-              ? error.message
-              : "Failed to load donation address",
-        }}
-      >
-        {(payment) => (
-          <PayQr
-            token={fv.token}
-            recipient={payment.address}
-            extraId={payment.extra_address ?? null}
-          />
-        )}
-      </QueryLoader>
+      {isLoading ? (
+        <ContentLoader className="size-48 rounded" />
+      ) : error || !data ? (
+        <ErrorStatus>
+          {error instanceof IntentError && error.message
+            ? error.message
+            : "Failed to load donation address"}
+        </ErrorStatus>
+      ) : (
+        <PayQr
+          token={fv.token}
+          recipient={data.address}
+          extraId={data.extra_address ?? null}
+        />
+      )}
 
       <p className="text-sm text-gray-11 mt-4 indent-4 leading-normal">
         Please note that manual donations of cryptocurrencies using the QR code

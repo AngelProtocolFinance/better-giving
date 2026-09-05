@@ -1,5 +1,6 @@
 import { flat_colors } from "@better-giving/brand/flat";
 import { Text } from "react-email";
+import { ErrorBand } from "../components/error-band";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, EMAILS } from "../constants";
@@ -15,16 +16,7 @@ function Jsx({ donor_first_name, recipient_name, error_message }: IData) {
     <PublicLayout type="donation">
       <Text>Hi {donor_first_name},</Text>
       <Text>We were unable to process your donation to {recipient_name}.</Text>
-      <Text
-        style={{
-          background: flat_colors.destructive_subtle,
-          padding: "20px",
-          // the subtle pair: flat_colors.destructive only measures 3.92:1 on this fill
-          color: flat_colors.destructive_subtle_fg,
-        }}
-      >
-        {error_message}
-      </Text>
+      <ErrorBand>{error_message}</ErrorBand>
       <Text>
         We appreciate your intention to support our cause and would like to
         connect to resolve this issue. Please reach out to us via{" "}
