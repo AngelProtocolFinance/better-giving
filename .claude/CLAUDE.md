@@ -2,7 +2,7 @@
 
 Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **Each member's own `CLAUDE.md` is the authority on that member — read it before working there.** This file carries only what spans members.
 
-<!-- team-justin v0.59.0 · derived 2026-09-04 · /team-justin:setup to re-derive -->
+<!-- team-justin v0.61.0 · derived 2026-09-05 · /team-justin:setup to re-derive -->
 ## Team
 
 Load **`team-justin:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.
@@ -15,7 +15,7 @@ Load **`team-justin:lead`** before building, reviewing, or dispatching a seat �
 - **cms** → `team-justin:sanity-builder` — `apps/blog` + `@sanity/client` 7.22.1 in platform
 - **platform** → `team-justin:vercel-platform-engineer` — `@vercel/react-router` 1.3.1 + `vercelPreset`
 - **toolchain** → `team-justin:toolchain-engineer` — turbo 2.10.5, biome 2.4.15, pnpm 10.32.1
-- **skills** → `team-justin:drizzle`, `react-hook-form`, `vitest` — drizzle-orm 0.45.2, react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default. Validation is valibot, so no zod/conform row.
+- **skills** → `team-justin:drizzle`, `react-hook-form`, `valibot`, `vitest` — drizzle-orm 0.45.2, react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.3.1 (platform + `packages/ui` peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default.
 - **not a seat** — `next` 16.2.6 in `apps/emails-preview` is `email build`'s toolchain, which generates a throwaway Next app into `.react-email/`. No App Router source exists in the repo; routing off that manifest to `nextjs-builder` is a mis-route.
 - **project seats** — `.claude/skills/`: `platform-tests`, `db-admin`, `chariot-webhooks`, `upstash-manager`, `wise`. Prefer these over a plugin seat wherever they overlap; `platform-tests` outranks `test-writer` on platform's tests
 
