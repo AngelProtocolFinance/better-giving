@@ -21,8 +21,11 @@ export interface Resolved<T> {
 
 /** the two moments an async source has to hear about; inert for the rest. */
 export interface Notify {
-  /** the popup opened — the empty query is what fills the list before anything is typed */
-  on_open: () => void;
+  /**
+   * the popup opened, with whatever the box holds — the empty query before
+   * anything is typed, the typed text when the keystroke itself opened it
+   */
+  on_open: (q: string) => void;
   /** the donor typed */
   on_query: (q: string) => void;
 }
@@ -118,12 +121,14 @@ export function use_source<T>(source: Source<T>): Resolved<T> & Notify {
   };
 
   const notify: Notify = {
-    on_open: () => {
-      // opening is one event, not a burst, and the empty-query list is what
-      // fills the popup before anything is typed — a delay here buys nothing
-      // and shows an empty popup for the length of it.
+    on_open: (q) => {
+      // opening is one event, not a burst, and the list for what the box holds
+      // is what fills the popup — a delay here buys nothing and shows an empty
+      // popup for the length of it. a keystroke that opens a closed box
+      // reaches here after on_query, so firing "" would bury its query under
+      // the whole list.
       supersede();
-      fire("");
+      fire(q);
     },
     on_query: (q) => {
       // the sync arms hear the same callbacks and answer none of them; without

@@ -1,4 +1,6 @@
-import { createRoutesStub } from "react-router";
+import { HttpResponse, http } from "msw";
+import { createRoutesStub, href } from "react-router";
+import { parse } from "valibot";
 import {
   afterAll,
   afterEach,
@@ -54,6 +56,9 @@ vi.mock("remix-client-cache", () => ({
 // --- imports (after mocks) ---
 
 import { get_npos } from "#/.server/npos";
+import { mswWorker } from "#/setup-tests-browser";
+import { search } from "@/helpers/https";
+import { npos_search } from "@/npo/schema";
 import { create_test_db } from "$/pg/test-utils/pglite-browser";
 import {
   action as createAction,
@@ -145,14 +150,16 @@ function render_app(initial = "/platform/donation-settlements") {
         },
       ],
     },
-    {
-      path: "/api/npos",
-      loader: async ({ request }: { request: Request }) => {
-        const q = new URL(request.url).searchParams.get("query") ?? undefined;
-        return await get_npos({ query: q });
-      },
-    },
   ]);
+
+  // the npo combobox fetches /api/npos directly rather than through a router
+  // fetcher, so the stub's routes never see it — msw answers from the same
+  // pglite the loaders read
+  mswWorker.use(
+    http.get(href("/api/npos"), async ({ request }) =>
+      HttpResponse.json(await get_npos(parse(npos_search, search(request))))
+    )
+  );
 
   return render(<Stub initialEntries={[initial]} />);
 }
