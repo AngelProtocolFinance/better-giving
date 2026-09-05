@@ -1,11 +1,16 @@
-import { ContentLoader, type IPrompt, Prompt } from "@better-giving/ui";
-import { useState } from "react";
+import {
+  ContentLoader,
+  ErrorStatus,
+  type IPrompt,
+  Prompt,
+} from "@better-giving/ui";
+import { useEffect, useState } from "react";
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
 import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
+import { report_error } from "@/errors/report";
 import { ru_vdec } from "@/helpers/decimal";
-import { QueryLoader } from "../../../query-loader";
 import { ContinueBtn } from "../../common/continue-btn";
 import { use_donation_redirect } from "../../common/redirect";
 import { donation_return_url } from "../../common/return-url";
@@ -97,7 +102,13 @@ export function DirectMode({
   if (init.program) intent.program = init.program;
   if (init.config?.id) intent.form_id = init.config.id;
 
-  const { data, isLoading, error, isValidating } = use_swr(intent, fetcher);
+  const { data, isLoading, error } = use_swr(intent, fetcher);
+
+  // an empty message is the fetcher's 5xx branch — a server failure worth
+  // paging on. the 4xx carries donor-facing text and is expected.
+  useEffect(() => {
+    if (error instanceof Error && !error.message) report_error(error);
+  }, [error]);
 
   const total_disp_amnt = ru_vdec(
     +fv.token.amount + tipv + fee_allowance,
@@ -112,29 +123,21 @@ export function DirectMode({
         &nbsp;
         {fv.token.symbol} from your crypto wallet to the address below
       </p>
-      <QueryLoader
-        queryState={{
-          is_loading: isLoading,
-          is_fetching: isValidating,
-          data: data,
-          is_error: !!error,
-        }}
-        messages={{
-          loading: <ContentLoader className="size-48 rounded" />,
-          error:
-            error instanceof Error && error.message
-              ? error.message
-              : "Failed to load donation address",
-        }}
-      >
-        {(payment) => (
-          <PayQr
-            token={fv.token}
-            recipient={payment.address}
-            extraId={payment.extra_address ?? null}
-          />
-        )}
-      </QueryLoader>
+      {isLoading ? (
+        <ContentLoader className="size-48 rounded" />
+      ) : error || !data ? (
+        <ErrorStatus>
+          {error instanceof Error && error.message
+            ? error.message
+            : "Failed to load donation address"}
+        </ErrorStatus>
+      ) : (
+        <PayQr
+          token={fv.token}
+          recipient={data.address}
+          extraId={data.extra_address ?? null}
+        />
+      )}
 
       <p className="text-sm text-gray-11 mt-4 indent-4 leading-normal">
         Please note that manual donations of cryptocurrencies using the QR code

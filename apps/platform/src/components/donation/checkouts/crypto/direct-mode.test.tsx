@@ -109,4 +109,32 @@ describe("crypto direct mode: the donor says they've paid", () => {
     await expect.element(btn).toBeDisabled();
     expect(redirect_mock).not.toHaveBeenCalled();
   });
+
+  test("a server failure shows the generic message, not a blank frame", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.text("boom", { status: 500 })
+      )
+    );
+
+    const Stub = stb(
+      <DirectMode
+        fv={{ ...fv, token: { ...fv.token, amount: "0.7" } }}
+        init={init()}
+        donor={donor}
+        fee_allowance={0}
+        tipv={0}
+      />
+    );
+    const screen = await render(<Stub />);
+
+    // a 5xx body is a framework error page, so the donor gets the fallback —
+    // never the server's own text
+    await expect
+      .element(screen.getByText(/failed to load donation address/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /completed the payment/i }))
+      .toBeDisabled();
+  });
 });
