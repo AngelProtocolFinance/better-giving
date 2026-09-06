@@ -318,7 +318,7 @@ describe("application detail", () => {
     );
 
     await expect
-      .element(screen.getByText("Approve", { exact: true }))
+      .element(screen.getByText("Approved", { exact: true }))
       .toBeVisible();
 
     await expect
@@ -408,7 +408,7 @@ describe("approve flow", () => {
     const updated = await get_bapp(bapp_id);
     const screen2 = await render_detail(bapp_id, updated);
     await expect
-      .element(screen2.getByText("Approve", { exact: true }))
+      .element(screen2.getByText("Approved", { exact: true }))
       .toBeVisible();
 
     const events = await get_outbox_events();
@@ -459,7 +459,7 @@ describe("approve flow", () => {
     );
 
     await expect
-      .element(screen.getByText("Approve", { exact: true }))
+      .element(screen.getByText("Approved", { exact: true }))
       .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
