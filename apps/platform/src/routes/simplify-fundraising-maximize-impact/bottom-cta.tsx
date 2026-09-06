@@ -19,10 +19,10 @@ export function BottomCta({ className = "" }) {
       <div
         className={`${className} justify-items-center col-span-full grid w-full bg-linear-to-br from-primary to-transparent p-6 rounded`}
       >
-        <h3 className="text-center text-white @3xl:leading-snug  text-xl @sm:text-2xl mb-4 col-span-full">
+        <h3 className="text-center text-primary-fg @3xl:leading-snug  text-xl @sm:text-2xl mb-4 col-span-full">
           US 501(c)(3) Nonprofit?
         </h3>
-        <p className="text-white text-lg font-bold mb-2 text-center capitalize">
+        <p className="text-primary-fg text-lg font-bold mb-2 text-center capitalize">
           Register your nonprofit
         </p>
         <Image width={200} src={laira_shake_hands_x2} className="mt-4 mb-8" />

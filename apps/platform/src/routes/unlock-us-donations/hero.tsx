@@ -26,13 +26,13 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          <h1 className="hero-heading font-bold text-white drop-shadow-lg">
+          <h1 className="hero-heading font-bold text-primary-fg drop-shadow-lg">
             Local Mission.
             <br />
             Global Support.
           </h1>
 
-          <p className="text-base md:text-xl text-white drop-shadow">
+          <p className="text-base md:text-xl text-primary-fg drop-shadow">
             Tap into $499 Billion in US donations without the cost of setting up
             a US entity. Secure grants, DAFs, and crypto gifts for your UK
             charity.
@@ -49,7 +49,7 @@ export function Hero() {
             <Link
               to={BOOK_A_DEMO}
               target="_blank"
-              className="btn md:btn-lg btn-outline text-nowrap capitalize backdrop-blur-sm text-white"
+              className="btn md:btn-lg btn-outline text-nowrap capitalize backdrop-blur-sm text-primary-fg"
             >
               Or book a demo with our UK team
             </Link>
