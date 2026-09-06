@@ -291,10 +291,6 @@ export const ira_qcd_donation_details = v.pipe(
 
 export type Mode = "live" | "preview";
 
-export interface IStripeConfig {
-  amount_usd: string;
-}
-
 export type Config = {
   id: string | null;
   /** donation tabs follows the list order */
@@ -306,7 +302,9 @@ export type Config = {
   increments?: IIncrement[];
   success_redirect: string | undefined;
   freq_opts: TFrequency[] | undefined;
-  stripe: IStripeConfig | undefined;
+  /** amount the form opens with, in usd; the stored row still carries it
+   * under `defaults.stripe.amount_usd` and the loader flattens it here */
+  prefill_amount_usd?: string;
   /** origin of the page framing this form, when its embed script told us.
    * already validated (see `common/parent-origin.ts`); absent means the
    * wildcard every embed used before the parameter existed. */

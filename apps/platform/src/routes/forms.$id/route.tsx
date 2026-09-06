@@ -1,12 +1,8 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router";
-import {
-  type Config,
-  parent_origin,
-  Steps,
-  type TDonation,
-} from "#/components/donation";
+import { parent_origin, Steps, type TDonation } from "#/components/donation";
 import { donor_fv_blank } from "@/donations/schema";
+import type { IForm } from "@/forms/interfaces";
 import type { Route } from "./+types/route";
 
 export { headers, loader } from "./api";
@@ -41,7 +37,7 @@ export default function Page({ loaderData, params }: Route.ComponentProps) {
       increments: d.increments ?? undefined,
       success_redirect: d.success_redirect ?? undefined,
       freq_opts: d.freq_opts ?? undefined,
-      stripe: (d.defaults as any)?.stripe as Config["stripe"],
+      prefill_amount_usd: (d.defaults as IForm["defaults"])?.stripe?.amount_usd,
       parent_origin: host_origin,
     },
     program: d.program_id

@@ -77,7 +77,6 @@ function Page({ loaderData }: Route.ComponentProps) {
               freq_opts: (endow.donate_frequencies ?? undefined) as
                 | TFrequency[]
                 | undefined,
-              stripe: undefined,
             }}
             program={
               program ? { id: program.id, name: program.title } : undefined

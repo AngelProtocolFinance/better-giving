@@ -74,7 +74,6 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
                 freq_opts: undefined,
                 method_ids: fund.fund_donate_methods ?? undefined,
                 increments: fund.increments ?? undefined,
-                stripe: undefined,
               }}
               program={undefined}
               user={user}

@@ -50,7 +50,6 @@ export function Content({
     increments: incs,
     success_redirect: undefined,
     freq_opts: undefined,
-    stripe: undefined,
   };
 
   return (
