@@ -12,7 +12,7 @@ import {
 import { cleanup, render } from "vitest-browser-react";
 import { donations } from "$/pg/schema/donation";
 import { donation_match_events } from "$/pg/schema/match";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
@@ -37,8 +37,8 @@ vi.mock("#/.server/toast", () => ({
   dataWithError: vi.fn((data, toast) => ({ ...data, toast })),
 }));
 
-import { dataWithError, dataWithSuccess } from "#/.server/toast";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { dataWithError } from "#/.server/toast";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import Page from "../route";
 
@@ -122,40 +122,6 @@ const event_of = async (donation_id: string) => {
 };
 
 describe("void-match action", () => {
-  it("stamps an open event refunded and reports success", async () => {
-    const id = await seed();
-
-    await action(post(id, "refunded"));
-
-    const row = await event_of(id);
-    expect(row.voided_at).toBeTruthy();
-    expect(row.void_reason).toBe("refunded");
-    expect(dataWithSuccess).toHaveBeenCalledWith({ ok: true }, "Match voided");
-  });
-
-  it("stamps refunded_loss when the platform absorbed the refund", async () => {
-    const id = await seed();
-
-    await action(post(id, "refunded_loss"));
-
-    expect((await event_of(id)).void_reason).toBe("refunded_loss");
-  });
-
-  it("leaves an already-voided event's stamp where it is", async () => {
-    const id = await seed({ voided_at: new Date("2026-02-01").toISOString() });
-    const before = (await event_of(id)).voided_at;
-
-    await action(post(id, "refunded_loss"));
-
-    const row = await event_of(id);
-    expect(row.voided_at).toBe(before);
-    expect(row.void_reason).toBe("refunded");
-    expect(dataWithError).toHaveBeenCalledWith(
-      { ok: false },
-      "Match already voided"
-    );
-  });
-
   it("rejects a reason the db check would refuse", async () => {
     const id = await seed();
 

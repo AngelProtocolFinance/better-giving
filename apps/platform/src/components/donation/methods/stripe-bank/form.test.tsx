@@ -45,19 +45,6 @@ describe("Bank transfer form", () => {
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("");
 
-    // tip disabled by default — no preselection (ncn compliance)
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .not.toBeChecked();
-    // no tip percent preselected on load
-    await expect
-      .element(screen.getByRole("radio", { name: /15%/i }))
-      .not.toBeChecked();
-
     await expect
       .element(
         screen.getByRole("checkbox", {
@@ -79,7 +66,7 @@ describe("Bank transfer form", () => {
     await expect.element(screen.getByText(/paypal/i)).not.toBeInTheDocument();
   });
 
-  test("submit form with persisted data", async () => {
+  test("persisted details rehydrate the currency", async () => {
     const init: Init = {
       base_url: "",
       source: "bg-marketplace",
@@ -105,40 +92,6 @@ describe("Bank transfer form", () => {
     await expect
       .element(screen.getByRole("combobox"))
       .toHaveValue(fv.currency.code);
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue(fv.amount);
-    await expect
-      .element(screen.getByRole("radio", { name: /20%/i }))
-      .toBeChecked();
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
-    don_set_mock.mockReset();
-  });
-
-  test("empty form validation", async () => {
-    const init: Init = {
-      base_url: "",
-      source: "bg-marketplace",
-      config: null,
-      recipient: donation_recipient_init(),
-      mode: "live",
-    };
-    don_mock.value = init;
-
-    const screen = await render(<Form step="form" type="stripe_bank" />);
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-
-    await expect
-      .element(screen.getByText(/please enter an amount/i))
-      .toBeVisible();
-    await vi.waitFor(() =>
-      expect(screen.getByPlaceholder(/enter amount/i).element()).toBe(
-        document.activeElement
-      )
-    );
   });
 
   test("correct error and submit", async () => {

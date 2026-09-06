@@ -22,7 +22,7 @@ import { funds } from "$/pg/schema/fund";
 import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import { user_npo_memberships } from "$/pg/schema/user";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -79,7 +79,7 @@ vi.mock("#/helpers/confetti", () => ({
 import { ADDRESS, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { npo_donors } from "#/.server/npo-donors";
 import { emails } from "@/constants/common";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { PrivateMsgForm } from "../private-msg-form";
 import { PublicMsgForm } from "../public-msg-form";
 import Page, { action, loader } from "../route";

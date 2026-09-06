@@ -27,8 +27,7 @@ const ira_qcd_details = v.object({
 // duplicate. accepted trade-off — these notifications go to the internal team,
 // so an occasional duplicate is cheaper than a shared store on this path.
 const DEDUP_TTL = 5 * 60 * 1000;
-// exported for tests
-export const seen = new Map<string, number>();
+const seen = new Map<string, number>();
 
 // the caller names *which* recipient, never what the recipient is called or
 // where it lives. this route is unauthenticated by necessity — the stocks and

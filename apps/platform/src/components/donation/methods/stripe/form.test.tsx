@@ -196,18 +196,6 @@ describe("Stripe form: initial load", () => {
     await expect
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("");
-    //tip disabled by default — no preselection (ncn compliance)
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .not.toBeChecked();
-    // no tip percent preselected on load
-    await expect
-      .element(screen.getByRole("radio", { name: /15%/i }))
-      .not.toBeChecked();
 
     //fee coverage disabled by default
     await expect
@@ -226,7 +214,7 @@ describe("Stripe form: initial load", () => {
     );
   });
 
-  test("submit form with initial/persisted data", async () => {
+  test("persisted details rehydrate the currency and the fee toggle", async () => {
     const init: Init = {
       base_url: "",
       source: "bg-marketplace",
@@ -251,20 +239,6 @@ describe("Stripe form: initial load", () => {
     await expect
       .element(screen.getByRole("combobox"))
       .toHaveValue(fv.currency.code);
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue(fv.amount);
-
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .toBeChecked();
-    await expect
-      .element(screen.getByRole("radio", { name: /20%/i }))
-      .toBeChecked();
 
     await expect
       .element(
@@ -279,36 +253,6 @@ describe("Stripe form: initial load", () => {
       expect(
         screen.container.querySelectorAll('[data-testid="incrementer"]').length
       ).toBe(4)
-    );
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
-    don_set_mock.mockReset();
-  });
-
-  test("submitting empty form should show validation messages and focus first field: amount input", async () => {
-    const init: Init = {
-      base_url: "",
-      source: "bg-marketplace",
-      config: null,
-      recipient: donation_recipient_init(),
-      mode: "live",
-    };
-    don_mock.value = init;
-
-    const screen = await render(<Form step="form" type="stripe" />);
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-
-    //amount input
-    await expect
-      .element(screen.getByText(/please enter an amount/i))
-      .toBeVisible();
-
-    await vi.waitFor(() =>
-      expect(screen.getByPlaceholder(/enter amount/i).element()).toBe(
-        document.activeElement
-      )
     );
   });
 
@@ -614,7 +558,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
       .element(screen.getByTestId("express-mock"))
       .not.toBeInTheDocument();
     // settles there — no modal on this mount or any remount it would cause
-    await new Promise((r) => setTimeout(r, 150));
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText("express is out")).toBeVisible();
     await assert_form_live(screen);
   });

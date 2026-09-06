@@ -130,7 +130,11 @@ describe("calc_donation_settle - don-match", () => {
   });
 
   test("junk that survives normalization is still emitted", () => {
-    expect(match(settle({ from_company_name: "n/a" }))).toBeDefined();
+    // normalization decides emit-or-not; the name itself rides through raw
+    expect(match(settle({ from_company_name: "n/a" }))?.payload).toEqual({
+      id: "don-1",
+      from_company_name: "n/a",
+    });
   });
 
   test("emitted for the first charge of a subscription", () => {
@@ -141,7 +145,9 @@ describe("calc_donation_settle - don-match", () => {
       settlement: sttl(),
       subs_id: "sub_123",
     });
-    expect(match(r)).toBeDefined();
+    const m = match(r);
+    expect(m?.dedupe).toBe("don.match_don-1");
+    expect(m?.payload).toEqual({ id: "don-1", from_company_name: "Acme" });
   });
 
   test("never emitted for a rebill", () => {

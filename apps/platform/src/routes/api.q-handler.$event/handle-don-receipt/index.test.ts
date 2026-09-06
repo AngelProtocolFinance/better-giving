@@ -15,7 +15,7 @@ import {
   donations,
 } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -76,7 +76,7 @@ vi.mock("#/errors/report", () => ({ report_error }));
 // --- imports (after mocks) ---
 
 import { RECEIPT_LEASE_MS } from "$/pg/queries/donation";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { handle_don_receipt } from ".";
 
 // --- setup ---

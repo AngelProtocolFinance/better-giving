@@ -11,7 +11,7 @@ import {
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { registrations } from "$/pg/schema/registration";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -37,7 +37,7 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports (after mocks hoisted) ---
 
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { loader } from "../api";
 import Applications from "../route";
 
@@ -214,7 +214,7 @@ describe("applications — sort", () => {
     expect(
       pending.element().compareDocumentPosition(alpha.element()) &
         Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("renders rows in loader-provided order (name asc)", async () => {
@@ -239,7 +239,7 @@ describe("applications — sort", () => {
     expect(
       alpha.element().compareDocumentPosition(pending.element()) &
         Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
 

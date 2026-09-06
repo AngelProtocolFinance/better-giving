@@ -34,7 +34,7 @@ vi.mock("#/.server/registration/weld-data", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { loader } from "#/routes/dashboard.referrals.w-form-signed/api";
-import { action } from "#/routes/dashboard.referrals.w-form-start/api";
+import { action } from "./api";
 
 const OWNER = { id: "user-1", email: "one@example.com" };
 const OTHER = { id: "user-2", email: "two@example.com" };

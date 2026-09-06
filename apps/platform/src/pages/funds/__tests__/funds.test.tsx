@@ -10,9 +10,9 @@ import {
 } from "vitest";
 import { render } from "vitest-browser-react";
 import { user } from "$/pg/schema/auth";
-import { fund_members, funds } from "$/pg/schema/fund";
+import { funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -38,8 +38,9 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports (after mocks hoisted) ---
 
+import { seed_fund as insert_fund } from "#/__tests__/fixtures/funds";
 import FundsPage, { loader } from "#/routes/_app.fundraisers._index/route";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 // --- setup ---
 
@@ -52,22 +53,6 @@ const TEST_USER = {
 };
 
 let npo_id: number;
-
-function fund_seed(): Omit<typeof funds.$inferInsert, "id"> & {
-  members?: number[];
-} {
-  return {
-    name: "Test Fund",
-    description_pt: "A test fundraiser",
-    banner: "https://example.com/banner.jpg",
-    logo: "https://example.com/logo.jpg",
-    members: [npo_id],
-    published: true,
-    active: true,
-    npo_owner: npo_id,
-    creator_id: TEST_USER.id,
-  };
-}
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -130,27 +115,16 @@ async function seed_fund(
   } = {}
 ) {
   counter++;
-  const { members: seed_members, ...seed_rest } = fund_seed();
-  const { members: override_members, ...override_rest } = overrides;
-  const member_ids = override_members ?? seed_members ?? [];
-  const id = crypto.randomUUID();
-  const [row] = await test_db
-    .current!.db.insert(funds)
-    .values({
-      id,
-      ...seed_rest,
-      name: `Fund ${counter}`,
-      ...override_rest,
-    })
-    .returning();
-  if (member_ids.length > 0) {
-    await test_db
-      .current!.db.insert(fund_members)
-      .values(
-        member_ids.map((npo_id, i) => ({ fund_id: id, npo_id, position: i }))
-      );
-  }
-  return row;
+  return insert_fund(test_db.current!.db, {
+    id: crypto.randomUUID(),
+    name: `Fund ${counter}`,
+    description_pt: "A test fundraiser",
+    npo_owner: npo_id,
+    creator_id: TEST_USER.id,
+    members: [npo_id],
+    published: true,
+    ...overrides,
+  });
 }
 
 function render_funds(entry = "/fundraisers") {

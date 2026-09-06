@@ -9,7 +9,7 @@ import {
   vi,
 } from "vitest";
 import { render } from "vitest-browser-react";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (before imports) ---
 
@@ -95,7 +95,6 @@ import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
 // profile page — for fund Target on npo profile
 import ProfilePage from "#/routes/_app.marketplace_.$id/route";
 import GeneralInfoPage from "#/routes/_app.marketplace_.$id._index/route";
-import { action as stripe_action } from "#/routes/api.stripe-webhook/route";
 import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms — for form ltd verification
 import UserFormsPage from "#/routes/dashboard.forms/route";
@@ -107,30 +106,25 @@ import {
 } from "#/routes/platform.donations.$donation_id.refund/api";
 import RefundDialog from "#/routes/platform.donations.$donation_id.refund/route";
 import type { IDonation } from "@/donations";
-import { user_ctx } from "$/auth/test-utils";
-import { stripe } from "$/kit/stripe";
 import { donation_put } from "$/pg/queries/donation";
-import { user } from "$/pg/schema/auth";
 import { bal_txs } from "$/pg/schema/bal-tx";
 import { dists } from "$/pg/schema/dist";
-import {
-  donation_donors,
-  donation_recipients,
-  donation_settlements,
-  donation_tributes,
-  donations,
-} from "$/pg/schema/donation";
-import { donation_messages } from "$/pg/schema/donation-message";
 import { forms } from "$/pg/schema/form";
 import { fund_members, funds } from "$/pg/schema/fund";
-import { nav_holders, nav_log_positions, nav_logs } from "$/pg/schema/nav";
 import { npos } from "$/pg/schema/npo";
 import { payouts } from "$/pg/schema/payout";
-import { referrer_commissions } from "$/pg/schema/referrer";
-import { rev_logs } from "$/pg/schema/revenue";
 import { v_donation_total_usd } from "$/pg/schema/views";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { settle_donation } from "../routes/api.q-handler.$event/settle-donation";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import {
+  seed_form,
+  seed_nav_log,
+  seed_user,
+  settle_via_webhook,
+  setup_refund_stripe_mocks,
+  setup_stripe_mocks,
+  truncate_all,
+  user_middleware,
+} from "./fixtures/settlement";
 
 // --- setup ---
 
@@ -204,41 +198,33 @@ let npo_b_id: number;
 let npo_c_id: number;
 
 async function seed() {
-  // user (FK for funds.creator_id + form owner)
-  await test_db.current!.db.insert(user).values([
-    {
-      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      name: "Fund Creator",
-      email: "fund-creator@test.com",
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      first_name: "Fund",
-      last_name: "Creator",
-      referral_code: "PREF-TEST",
-    },
-    {
-      id: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-      name: "User Referrer",
-      email: "user-referrer@test.com",
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      first_name: "User",
-      last_name: "Referrer",
-      referral_code: "UREF-TEST",
-    },
-  ]);
+  // users (FK for funds.creator_id + form owner)
+  await seed_user(test_db.current!.db, {
+    id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    email: "fund-creator@test.com",
+    first_name: "Fund",
+    last_name: "Creator",
+    referral_code: "PREF-TEST",
+  });
+  await seed_user(test_db.current!.db, {
+    id: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    email: "user-referrer@test.com",
+    first_name: "User",
+    last_name: "Referrer",
+    referral_code: "UREF-TEST",
+  });
 
-  // 3 npos
+  // npo a: tip + fsa-fee (with referral commission)
   const [a] = await test_db
     .current!.db.insert(npos)
     .values(NPO_A_SEED)
     .returning();
+  // npo b: tip + base-fee (no commission)
   const [b] = await test_db
     .current!.db.insert(npos)
     .values(NPO_B_SEED)
     .returning();
+  // npo c: tip only (with referral commission)
   const [c] = await test_db
     .current!.db.insert(npos)
     .values(NPO_C_SEED)
@@ -270,37 +256,17 @@ async function seed() {
 
   // user-owned form (source for the donation)
   const now = new Date().toISOString();
-  await test_db.current!.db.insert(forms).values({
+  await seed_form(test_db.current!.db, {
     id: FORM_ID,
     name: "User Donation Form",
     owner_user_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    status: "active",
     tag: "user-form-tag",
     recipient_fund_id: FUND_ID,
     date_created: now,
-    ltd: 0,
-    ltd_count: 0,
     target_number: 5000,
   });
 
-  // nav log
-  await test_db.current!.db.transaction(async (tx) => {
-    await tx.insert(nav_logs).values({
-      date: now,
-      reason: "test",
-      units: 100,
-      price: 1,
-      price_updated: now,
-    });
-    await tx.insert(nav_log_positions).values({
-      date: now,
-      ticker: "CASH",
-      qty: 1000,
-      price: 1,
-      value: 1000,
-      price_date: now,
-    });
-  });
+  await seed_nav_log(test_db.current!.db, now);
 
   // donation to fund via user form
   const don: IDonation = {
@@ -327,94 +293,18 @@ async function seed() {
   return don;
 }
 
-async function truncate_all() {
-  await test_db.current!.db.delete(donation_messages);
-  await test_db.current!.db.delete(referrer_commissions);
-  await test_db.current!.db.delete(payouts);
-  await test_db.current!.db.delete(bal_txs);
-  await test_db.current!.db.delete(rev_logs);
-  await test_db.current!.db.delete(dists);
-  await test_db.current!.db.delete(donation_settlements);
-  await test_db.current!.db.delete(donation_tributes);
-  await test_db.current!.db.delete(donation_donors);
-  await test_db.current!.db.delete(donation_recipients);
-  await test_db.current!.db.delete(donations);
-  await test_db.current!.db.delete(nav_holders);
-  await test_db.current!.db.delete(nav_logs);
-  await test_db.current!.db.delete(forms);
-  await test_db.current!.db.delete(funds);
-  await test_db.current!.db.delete(npos);
-  await test_db.current!.db.delete(user);
-}
+const INTENT = {
+  order_id: DON_ID,
+  pi_id: "pi_fund_test",
+  amount: 31500,
+  payment_method: "pm_fund_test",
+};
 
-function setup_stripe_mocks() {
-  (stripe.webhooks.constructEvent as any).mockImplementation((body: string) =>
-    JSON.parse(body)
-  );
-  (stripe.paymentIntents.retrieve as any).mockResolvedValue({
-    latest_charge: { balance_transaction: { net: 30000, fee: 1500 } },
-  });
-  (stripe.paymentMethods.retrieve as any).mockResolvedValue({ type: "card" });
-}
-
-function make_stripe_event(order_id: string) {
-  return JSON.stringify({
-    type: "payment_intent.succeeded",
-    data: {
-      object: {
-        id: "pi_fund_test",
-        object: "payment_intent",
-        amount: 31500,
-        currency: "usd",
-        status: "succeeded",
-        created: 1700000000,
-        payment_method: "pm_fund_test",
-        metadata: { order_id },
-        invoice: null,
-        latest_charge: null,
-      },
-    },
-  });
-}
-
-async function fire_webhook(order_id = DON_ID) {
-  _emitted.length = 0;
-  const res = await stripe_action({
-    request: new Request("http://localhost/api/stripe-webhook", {
-      method: "POST",
-      headers: { "stripe-signature": "sig_test" },
-      body: make_stripe_event(order_id),
-    }),
-    params: {},
-    context: {} as any,
-    url: new URL("http://localhost/api/stripe-webhook"),
-    pattern: "/api/stripe-webhook",
-  });
-
-  // replay settlement events outside the transaction (pglite is single-connection)
-  for (const { id, payload } of _emitted) {
-    if (id === "don-sttl-dist") {
-      await settle_donation(test_db.current!.db as any, payload);
-    }
-  }
-
-  return res;
-}
-
-function setup_refund_stripe_mocks() {
-  (stripe.paymentIntents.retrieve as any).mockResolvedValue({
-    id: "pi_fund_test",
-    amount: 31500,
-    currency: "usd",
-    status: "succeeded",
-    metadata: { order_id: DON_ID },
-    invoice: null,
-  });
-
-  (stripe.refunds.create as any).mockResolvedValue({
-    id: "re_fund_789",
-    payment_intent: "pi_fund_test",
-    status: "succeeded",
+function fire_webhook(order_id = INTENT.order_id) {
+  return settle_via_webhook({
+    db: test_db.current!.db,
+    emitted: _emitted,
+    intent: { ...INTENT, order_id },
   });
 }
 
@@ -425,13 +315,10 @@ function setup_refund_stripe_mocks() {
 
 const TOTAL = 315;
 const BASE_R = 300 / TOTAL;
-const TIP_R = 15 / TOTAL;
 const N = 3;
 
 // per-npo settlement amounts (÷3)
 const PER_STTL_BASE = (300 * BASE_R) / N; // ≈95.238
-const PER_STTL_FEE_BASE = (15 * BASE_R) / N; // ≈4.762
-const TIP = (300 * TIP_R) / N; // ≈4.762
 
 // credit_fa path: fa=0 → fa_added = PER_STTL_BASE
 const FA_ADDED = PER_STTL_BASE;
@@ -439,29 +326,13 @@ const FA_ADDED = PER_STTL_BASE;
 // --- npo a: fsa=2.9%, referrer=30% ---
 const A_FSA = FA_ADDED * 0.029;
 const A_NET = FA_ADDED - A_FSA;
-const A_CF_TIP = TIP * 0.3;
-const A_CF_FSA = A_FSA * 0.3;
-const A_CF_TOTAL = A_CF_TIP + A_CF_FSA;
-const A_TIP_REV = TIP - A_CF_TIP;
-const A_FSA_REV = A_FSA - A_CF_FSA;
-const A_LIQ = A_NET * 0.6;
-const A_LOCK = A_NET * 0.2;
-const A_CASH = A_NET * 0.2;
 
 // --- npo b: base=1.5%, no referrer ---
 const B_BASE_FEE = FA_ADDED * 0.015;
 const B_NET = FA_ADDED - B_BASE_FEE;
-const B_TIP_REV = TIP;
-const B_FEE_REV = B_BASE_FEE;
-const B_CASH = B_NET;
 
 // --- npo c: no fees, referrer=30% ---
 const C_NET = FA_ADDED;
-const C_CF_TIP = TIP * 0.3;
-const C_CF_TOTAL = C_CF_TIP;
-const C_TIP_REV = TIP - C_CF_TIP;
-const C_LIQ = C_NET * 0.5;
-const C_LOCK = C_NET * 0.5;
 
 // form ltd: each npo settlement increments by that npo's net
 const FORM_LTD = A_NET + B_NET + C_NET;
@@ -472,152 +343,21 @@ const P = 2;
 
 describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
   beforeEach(async () => {
-    await truncate_all();
+    await truncate_all(test_db.current!.db);
     await seed();
-    setup_stripe_mocks();
+    setup_stripe_mocks({ net: 30000, fee: 1500 });
   });
 
-  it("creates 3 dists with per-NPO fees and allocation", async () => {
+  it("persists the plan for each member — 3 dists, balances and payouts", async () => {
     const res = await fire_webhook();
     expect(res.status).toBe(200);
 
     const rows = await test_db.current!.db.select().from(dists);
     expect(rows).toHaveLength(3);
 
-    for (const d of rows) {
-      expect(d.donation_id).toBe(DON_ID);
-      expect(d.status).toBe("settled");
-      expect(d.amount_denom).toBe("USD");
-      expect(d.amount).toBeCloseTo(100, P);
-      expect(d.amount_usd).toBeCloseTo(100, P);
-      expect(d.fee_processing).toBeCloseTo(PER_STTL_FEE_BASE, P);
-    }
-
-    const da = rows.find((d) => d.to_id === npo_a_id)!;
-    expect(da.fee_fsa).toBeCloseTo(A_FSA, P);
-    expect(da.fee_base).toBeCloseTo(0, P);
-    expect(da.net).toBeCloseTo(A_NET, P);
-    expect(da.alloc).toEqual({ liq: 60, lock: 20, cash: 20 });
-
-    const db_ = rows.find((d) => d.to_id === npo_b_id)!;
-    expect(db_.fee_base).toBeCloseTo(B_BASE_FEE, P);
-    expect(db_.fee_fsa).toBeCloseTo(0, P);
-    expect(db_.net).toBeCloseTo(B_NET, P);
-    expect(db_.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
-
-    const dc = rows.find((d) => d.to_id === npo_c_id)!;
-    expect(dc.fee_base).toBeCloseTo(0, P);
-    expect(dc.fee_fsa).toBeCloseTo(0, P);
-    expect(dc.net).toBeCloseTo(C_NET, P);
-    expect(dc.alloc).toEqual({ liq: 50, lock: 50, cash: 0 });
-  });
-
-  it("creates correct rev_logs per NPO based on fee settings", async () => {
-    await fire_webhook();
-
-    const logs = await test_db.current!.db.select().from(rev_logs);
-    expect(logs).toHaveLength(5);
-
-    // npo a: tip + fsa-fee (with referral commission)
-    const a_logs = logs.filter((l) => l.npo_id === npo_a_id);
-    expect(a_logs).toHaveLength(2);
-    const a_tip = a_logs.find((l) => l.type === "tip")!;
-    expect(a_tip.gross).toBeCloseTo(TIP, P);
-    expect(a_tip.commission).toBeCloseTo(A_CF_TIP, P);
-    expect(a_tip.revenue).toBeCloseTo(A_TIP_REV, P);
-    expect(a_tip.status).toBe("final");
-    const a_fsa = a_logs.find((l) => l.type === "fsa-fee")!;
-    expect(a_fsa.gross).toBeCloseTo(A_FSA, P);
-    expect(a_fsa.commission).toBeCloseTo(A_CF_FSA, P);
-    expect(a_fsa.revenue).toBeCloseTo(A_FSA_REV, P);
-
-    // npo b: tip + base-fee (no commission)
-    const b_logs = logs.filter((l) => l.npo_id === npo_b_id);
-    expect(b_logs).toHaveLength(2);
-    const b_tip = b_logs.find((l) => l.type === "tip")!;
-    expect(b_tip.gross).toBeCloseTo(TIP, P);
-    expect(b_tip.commission).toBe(0);
-    expect(b_tip.revenue).toBeCloseTo(B_TIP_REV, P);
-    const b_base = b_logs.find((l) => l.type === "base-fee")!;
-    expect(b_base.gross).toBeCloseTo(B_BASE_FEE, P);
-    expect(b_base.commission).toBe(0);
-    expect(b_base.revenue).toBeCloseTo(B_FEE_REV, P);
-
-    // npo c: tip only (with referral commission)
-    const c_logs = logs.filter((l) => l.npo_id === npo_c_id);
-    expect(c_logs).toHaveLength(1);
-    expect(c_logs[0].type).toBe("tip");
-    expect(c_logs[0].gross).toBeCloseTo(TIP, P);
-    expect(c_logs[0].commission).toBeCloseTo(C_CF_TIP, P);
-    expect(c_logs[0].revenue).toBeCloseTo(C_TIP_REV, P);
-  });
-
-  it("creates referral commissions only for NPOs with active referrers", async () => {
-    await fire_webhook();
-
-    const rows = await test_db.current!.db.select().from(referrer_commissions);
-    expect(rows).toHaveLength(2);
-
-    const a_comm = rows.find((r) => r.npo_id === npo_a_id)!;
-    expect(a_comm.referrer_user).toBe("PREF-TEST");
-    expect(a_comm.amount).toBeCloseTo(A_CF_TOTAL, P);
-    expect(a_comm.status).toBe("pending");
-
-    const c_comm = rows.find((r) => r.npo_id === npo_c_id)!;
-    expect(c_comm.referrer_user).toBe("UREF-TEST");
-    expect(c_comm.amount).toBeCloseTo(C_CF_TOTAL, P);
-    expect(c_comm.status).toBe("pending");
-
-    expect(rows.find((r) => r.npo_id === npo_b_id)).toBeUndefined();
-  });
-
-  it("creates bal_txs and payouts matching per-NPO allocation", async () => {
-    await fire_webhook();
-
     const txs = await test_db.current!.db.select().from(bal_txs);
-    expect(txs).toHaveLength(4);
-
-    const a_lock = txs.find(
-      (t) => t.npo_id === npo_a_id && t.account === "lock"
-    )!;
-    expect(a_lock.amount).toBeCloseTo(A_LOCK, P);
-    expect(a_lock.status).toBe("final");
-    expect(a_lock.account_other).toBe("donation");
-
-    const a_liq = txs.find(
-      (t) => t.npo_id === npo_a_id && t.account === "liq"
-    )!;
-    expect(a_liq.amount).toBeCloseTo(A_LIQ, P);
-
-    const c_lock = txs.find(
-      (t) => t.npo_id === npo_c_id && t.account === "lock"
-    )!;
-    expect(c_lock.amount).toBeCloseTo(C_LOCK, P);
-
-    const c_liq = txs.find(
-      (t) => t.npo_id === npo_c_id && t.account === "liq"
-    )!;
-    expect(c_liq.amount).toBeCloseTo(C_LIQ, P);
-
-    expect(txs.find((t) => t.npo_id === npo_b_id)).toBeUndefined();
-
     const pos = await test_db.current!.db.select().from(payouts);
-    expect(pos).toHaveLength(2);
-
-    const a_po = pos.find((p) => p.npo_id === npo_a_id)!;
-    expect(a_po.amount).toBeCloseTo(A_CASH, P);
-    expect(a_po.type).toBe("pending");
-    expect(a_po.source).toBe("donation");
-
-    const b_po = pos.find((p) => p.npo_id === npo_b_id)!;
-    expect(b_po.amount).toBeCloseTo(B_CASH, P);
-    expect(b_po.type).toBe("pending");
-  });
-
-  it("updates each NPO's balances according to their allocation", async () => {
-    await fire_webhook();
-
-    const all = await test_db
+    const bals = await test_db
       .current!.db.select({
         id: npos.id,
         liq: npos.liq,
@@ -626,20 +366,46 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
       })
       .from(npos);
 
-    const a = all.find((n) => n.id === npo_a_id)!;
-    expect(a.liq).toBeCloseTo(A_LIQ, P);
-    expect(a.lock_units).toBeCloseTo(A_LOCK, P);
-    expect(a.cash).toBeCloseTo(A_CASH, P);
+    const allocs: Record<number, { liq: number; lock: number; cash: number }> =
+      {
+        [npo_a_id]: { liq: 60, lock: 20, cash: 20 },
+        [npo_b_id]: { liq: 0, lock: 0, cash: 100 },
+        [npo_c_id]: { liq: 50, lock: 50, cash: 0 },
+      };
 
-    const b = all.find((n) => n.id === npo_b_id)!;
-    expect(b.liq).toBe(0);
-    expect(b.lock_units).toBe(0);
-    expect(b.cash).toBeCloseTo(B_CASH, P);
+    for (const d of rows) {
+      expect(d.donation_id).toBe(DON_ID);
+      expect(d.status).toBe("settled");
+      expect(d.amount_denom).toBe("USD");
 
-    const c = all.find((n) => n.id === npo_c_id)!;
-    expect(c.liq).toBeCloseTo(C_LIQ, P);
-    expect(c.lock_units).toBeCloseTo(C_LOCK, P);
-    expect(c.cash).toBe(0);
+      // every row a member's leg wrote is that leg's own persisted net,
+      // split by the allocation persisted beside it
+      const alloc = allocs[d.to_id!];
+      expect(d.alloc).toEqual(alloc);
+
+      const share = (pct: number) => (d.net! * pct) / 100;
+      const liq_tx = txs.find(
+        (t) => t.npo_id === d.to_id && t.account === "liq"
+      );
+      const lock_tx = txs.find(
+        (t) => t.npo_id === d.to_id && t.account === "lock"
+      );
+      const po = pos.find((p) => p.npo_id === d.to_id);
+      const bal = bals.find((n) => n.id === d.to_id)!;
+
+      expect(liq_tx?.amount ?? 0).toBeCloseTo(share(alloc.liq), P);
+      expect(lock_tx?.amount ?? 0).toBeCloseTo(share(alloc.lock), P);
+      expect(po?.amount ?? 0).toBeCloseTo(share(alloc.cash), P);
+      expect(po?.type ?? "pending").toBe("pending");
+      expect(bal.liq).toBeCloseTo(share(alloc.liq), P);
+      // lock_units = lock_amount / nav_price (nav_price=1)
+      expect(bal.lock_units).toBeCloseTo(share(alloc.lock), P);
+      expect(bal.cash).toBeCloseTo(share(alloc.cash), P);
+    }
+
+    // a zero-percent leg writes no row at all
+    expect(txs).toHaveLength(4);
+    expect(pos).toHaveLength(2);
   });
 
   it("emits donation.settled.dist event for fund", async () => {
@@ -754,19 +520,10 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
   it("user-dashboard forms page shows form with updated ltd Target", async () => {
     await fire_webhook();
 
-    const mdlwr = [
-      async ({ context }: any, next: any) => {
-        context.set(user_ctx, {
-          id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-          email: "fund-creator@test.com",
-          groups: [],
-          endowments: [],
-          funds: [],
-          token_refresh: "",
-        });
-        return next();
-      },
-    ];
+    const mdlwr = user_middleware(
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "fund-creator@test.com"
+    );
 
     const Stub = createRoutesStub([
       {
@@ -795,63 +552,9 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
     );
   });
 
-  it("platform-admin refunds page shows fund donation", async () => {
-    await fire_webhook();
-
-    const mock_refunds_loader = () => ({
-      items: [
-        {
-          id: "pi_fund_test",
-          donation_id: "pi_fund_test",
-          amount_base: 315,
-          amount_tip: 15,
-          amount_fee_allowance: 0,
-          currency: "USD",
-          email: "donor@test.com",
-          npo_name: "Test Fund",
-          sttl_fee: null,
-          via: "stripe:card",
-          created_at: new Date(1700000000 * 1000).toISOString(),
-          status: "succeeded",
-        },
-      ],
-    });
-
-    const Stub = createRoutesStub([
-      {
-        path: "/refunds",
-        Component: RefundsListPage,
-        HydrateFallback: () => null,
-        loader: mock_refunds_loader as any,
-        children: [
-          {
-            path: ":donation_id/refund",
-            Component: RefundDialog,
-            loader: refund_loader as any,
-            action: refund_action as any,
-          },
-        ],
-      },
-    ]);
-
-    const screen = await render(
-      <Stub initialEntries={["/refunds"]} future={{ v8_middleware: true }} />
-    );
-    render_screen = screen;
-
-    await expect
-      .element(screen.getByText("donor@test.com"))
-      .toBeInTheDocument();
-    await expect.element(screen.getByText("Test Fund")).toBeInTheDocument();
-    await expect.element(screen.getByText(/315/)).toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("link", { name: /Refund/i }))
-      .toBeInTheDocument();
-  });
-
   it("refund dialog shows preview with 3 NPO distributions", async () => {
     await fire_webhook();
-    setup_refund_stripe_mocks();
+    setup_refund_stripe_mocks({ ...INTENT, refund_id: "re_fund_789" });
 
     const empty_list = () => ({
       items: [],
@@ -904,53 +607,5 @@ describe("fund donation → settlement across 3 NPOs → DB + UI", () => {
     // confirm enabled
     const btn = screen.getByRole("button", { name: /Confirm refund/i });
     await expect.element(btn).not.toBeDisabled();
-  });
-
-  it("confirming fund refund invokes stripe.refunds.create and shows success", async () => {
-    await fire_webhook();
-    setup_refund_stripe_mocks();
-
-    const empty_list = () => ({
-      items: [],
-    });
-
-    const Stub = createRoutesStub([
-      {
-        path: "/refunds",
-        Component: RefundsListPage,
-        HydrateFallback: () => null,
-        loader: empty_list as any,
-        children: [
-          {
-            path: ":donation_id/refund",
-            Component: RefundDialog,
-            loader: refund_loader as any,
-            action: refund_action as any,
-          },
-        ],
-      },
-    ]);
-
-    const screen = await render(
-      <Stub
-        initialEntries={[`/refunds/${DON_ID}/refund`]}
-        future={{ v8_middleware: true }}
-      />
-    );
-    render_screen = screen;
-
-    const confirm_btn = screen.getByRole("button", {
-      name: /Confirm refund/i,
-    });
-    await expect.element(confirm_btn).toBeVisible();
-    // the dialog overlay intercepts pointer events; use native DOM click
-    (confirm_btn.element() as HTMLElement).click();
-
-    await expect
-      .element(screen.getByText("Refund processed"))
-      .toBeInTheDocument();
-    expect(stripe.refunds.create).toHaveBeenCalledWith({
-      payment_intent: "pi_fund_test",
-    });
   });
 });

@@ -106,7 +106,13 @@ describe("DonorStep: address required", () => {
 
     await screen.getByRole("button", { name: /continue/i }).click();
     await vi.waitFor(() => expect(on_change).toHaveBeenCalledOnce());
-    expect(on_change.mock.calls[0][0].address).toBeDefined();
+    expect(on_change.mock.calls[0][0].address).toEqual({
+      street: "123 Main St",
+      city: "New York",
+      state: "",
+      zip_code: "10001",
+      country: "Canada",
+    });
   });
 });
 
@@ -208,7 +214,8 @@ describe("DonorStep: in-flight submission", () => {
       />
     );
 
-    const btn = screen.getByRole("button", { name: "Continue" }).element();
+    const cont = screen.getByRole("button", { name: "Continue" });
+    const btn = cont.element();
     // native dispatches, not driven clicks: playwright waits for a control to
     // be enabled, and being unpressable is what is under test. the yield
     // between them is the browser's own doing — every user press is its own
@@ -216,13 +223,17 @@ describe("DonorStep: in-flight submission", () => {
     // arrives. two in a single task would beat the guard and no pointer can
     // produce that.
     (btn as HTMLElement).click();
-    await new Promise((r) => setTimeout(r, 0));
+    // the second press has to land inside the submission, which is exactly the
+    // window the button is disabled for
+    await expect.element(cont).toBeDisabled();
     (btn as HTMLElement).click();
 
     // no spinner and no label change — pressing Continue swaps the whole
     // screen, so the only observable the guard has is the call count
     await vi.waitFor(() => expect(on_change).toHaveBeenCalledOnce());
-    await new Promise((r) => setTimeout(r, 50));
+    // re-enabled means the submission finished; a leaked second one would have
+    // landed before it
+    await expect.element(cont).toBeEnabled();
     expect(on_change).toHaveBeenCalledOnce();
   });
 });

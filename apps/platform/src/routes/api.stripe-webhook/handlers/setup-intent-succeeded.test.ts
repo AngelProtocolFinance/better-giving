@@ -15,7 +15,7 @@ import {
 } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
 import { subscriptions } from "$/pg/schema/subscription";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -92,7 +92,7 @@ vi.mock("$/kit/stripe", () => ({
 
 // --- imports (after mocks) ---
 
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { handle_setup_intent_succeeded } from "./setup-intent-succeeded";
 
 // --- setup ---

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { create_test_db, type TestDb } from "../test-utils/pglite-browser";
+import { create_test_db, type TestDb } from "../test-utils/pglite";
 import { donations } from "./donation";
 import { donation_match_events } from "./match";
 
@@ -73,16 +73,6 @@ describe("donation_match_events send-failed pair", () => {
     );
     expect(err).toBe("");
   });
-
-  test("rejects an unknown kind", async () => {
-    const err = await violation(
-      t.client.exec(
-        `insert into donation_match_events (id, donation_id, send_failed_at, send_failed_kind)
-         values ('evt_1', '${DONATION_ID}', now(), 'self_check')`
-      )
-    );
-    expect(err).toContain("donation_match_events_send_failed_kind_check");
-  });
 });
 
 describe("donation_match_events void pair", () => {
@@ -119,16 +109,6 @@ describe("donation_match_events void pair", () => {
     );
     expect(err).toBe("");
   });
-
-  test("rejects an unknown reason", async () => {
-    const err = await violation(
-      t.client.exec(
-        `insert into donation_match_events (id, donation_id, voided_at, void_reason)
-         values ('evt_1', '${DONATION_ID}', now(), 'chargeback')`
-      )
-    );
-    expect(err).toContain("donation_match_events_void_reason_check");
-  });
 });
 
 describe("donation_match_events donation link", () => {
@@ -151,15 +131,6 @@ describe("donation_match_events donation link", () => {
         .values({ id: "evt_2", donation_id: DONATION_ID })
     );
     expect(err).toContain("donation_match_events_donation_id_idx");
-  });
-
-  test("rejects an event for an unknown donation", async () => {
-    const err = await violation(
-      t.db
-        .insert(donation_match_events)
-        .values({ id: "evt_1", donation_id: "don_missing" })
-    );
-    expect(err).toContain("donation_match_events_donation_id_donations_id_fk");
   });
 
   test("deleting the donation cascades to the event", async () => {

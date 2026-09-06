@@ -15,7 +15,7 @@ import { search } from "@/helpers/https";
 import { npos_search } from "@/npo/schema";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -55,7 +55,7 @@ import { get_npos } from "#/.server/npos";
 import Page from "#/pages/shared/form-create";
 import { loader } from "#/pages/shared/form-create/api";
 import { mswWorker } from "#/setup-tests-browser";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 // --- helpers ---
 

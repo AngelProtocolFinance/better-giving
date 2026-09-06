@@ -3,7 +3,7 @@ import { createRoutesStub } from "react-router";
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { npo_media, npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -48,9 +48,9 @@ import {
 } from "#/pages/admin/media/api";
 import VideoEditor from "#/pages/admin/media/video-editor";
 import { admin_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { loader } from "../routes/admin.$id.media/api";
-import MediaPage from "../routes/admin.$id.media/route";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import { loader } from "../api";
+import MediaPage from "../route";
 
 // --- setup ---
 

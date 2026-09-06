@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -39,7 +39,7 @@ import {
   user as user_table,
   verification,
 } from "$/pg/schema/auth";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { auth_options, login_link_plugin } from "./options";
 
 const BASE_URL = "http://localhost:4200";

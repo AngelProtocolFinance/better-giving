@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -61,7 +61,7 @@ import {
   user as user_table,
   verification,
 } from "$/pg/schema/auth";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { get_registrant, issue_draft_grant } from "./draft-grant";
 import { LINK_PER_EMAIL, LINK_PER_IP, request_login_link } from "./login-link";
 import { auth_options, login_link_plugin } from "./options";

@@ -9,7 +9,7 @@ import {
   vi,
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -172,7 +172,7 @@ import {
   user as user_table,
   verification,
 } from "$/pg/schema/auth";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 // --- constants ---
 

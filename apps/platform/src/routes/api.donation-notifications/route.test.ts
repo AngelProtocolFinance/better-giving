@@ -16,7 +16,9 @@ vi.mock("$/email", () => ({ send_email: send_email_mock }));
 vi.mock("$/env", () => ({ base_url: "https://bg.test" }));
 vi.mock("#/errors/report", () => ({ report_null: vi.fn() }));
 
-const { action, seen } = await import("./route");
+// re-imported per test (see beforeEach) — the route's dedup map is module
+// state, and a fresh module is what isolates one test's entries from the next
+let action: typeof import("./route").action;
 
 const DEDUP_TTL = 5 * 60 * 1000;
 const NPO_ID = "42";
@@ -40,10 +42,11 @@ const invoke = async (request: Request): Promise<Response> =>
 
 let now = 0;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
+  vi.resetModules();
+  ({ action } = await import("./route"));
   template_mock.mockReturnValue({ node: null, subject: "transfer notif" });
-  seen.clear();
   now = 1_700_000_000_000;
   vi.spyOn(Date, "now").mockImplementation(() => now);
   get_session_mock.mockResolvedValue({ user: { email: "a@b.co" } });
@@ -122,15 +125,17 @@ describe("api.donation-notifications recipient identity", () => {
 });
 
 describe("api.donation-notifications dedup guard", () => {
-  it("drops entries past the window when a later notification is admitted", async () => {
+  it("the sweep an admitted notification runs spares entries still in window", async () => {
+    // the sweep is age-based and runs on every admit — one that reclaimed the
+    // whole map would let a duplicate through the moment any other
+    // notification arrived
     await invoke(post(notif("AAPL")));
-    const stale_key = [...seen.keys()][0]!;
 
-    now += DEDUP_TTL + 1;
+    now += 60_000;
     await invoke(post(notif("MSFT")));
+    await invoke(post(notif("AAPL")));
 
-    expect(seen.has(stale_key)).toBe(false);
-    expect(seen.size).toBe(1);
+    expect(send_email_mock).toHaveBeenCalledTimes(2);
   });
 
   it("re-admits the same notification once its window has passed", async () => {

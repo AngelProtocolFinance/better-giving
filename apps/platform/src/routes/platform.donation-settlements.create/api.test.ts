@@ -23,7 +23,7 @@ import { nav_holders, nav_log_positions, nav_logs } from "$/pg/schema/nav";
 import { npos } from "$/pg/schema/npo";
 import { payouts } from "$/pg/schema/payout";
 import { rev_logs } from "$/pg/schema/revenue";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -62,7 +62,7 @@ vi.mock("$/kit/queue", () => ({ enqueue }));
 
 // --- imports (after mocks) ---
 
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "./api";
 
 // --- setup ---

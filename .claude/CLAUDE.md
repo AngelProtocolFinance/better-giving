@@ -2,7 +2,7 @@
 
 Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **Each member's own `CLAUDE.md` is the authority on that member — read it before working there.** This file carries only what spans members.
 
-<!-- team-justin v0.61.0 · derived 2026-09-05 · /team-justin:setup to re-derive -->
+<!-- team-justin v0.65.0 · derived 2026-09-06 · /team-justin:setup to re-derive -->
 ## Team
 
 Load **`team-justin:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.

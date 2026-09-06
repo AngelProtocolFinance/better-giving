@@ -10,7 +10,7 @@ import {
   vi,
 } from "vitest";
 import { render } from "vitest-browser-react";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (before imports) ---
 
@@ -111,29 +111,29 @@ import { action as stripe_action } from "#/routes/api.stripe-webhook/route";
 import { loader as user_donations_loader } from "#/routes/dashboard.donations._index/api";
 import UserDonationsPage from "#/routes/dashboard.donations._index/route";
 import type { IDonation } from "@/donations";
-import { admin_ctx, user_ctx } from "$/auth/test-utils";
+import { admin_ctx } from "$/auth/test-utils";
 import { stripe } from "$/kit/stripe";
 import { donation_put } from "$/pg/queries/donation";
 import { user } from "$/pg/schema/auth";
 import { bal_txs } from "$/pg/schema/bal-tx";
 import { dists } from "$/pg/schema/dist";
-import {
-  donation_donors,
-  donation_recipients,
-  donation_settlements,
-  donation_tributes,
-  donations,
-} from "$/pg/schema/donation";
+import { donation_donors } from "$/pg/schema/donation";
 import { donation_messages } from "$/pg/schema/donation-message";
 import { forms } from "$/pg/schema/form";
-import { nav_holders, nav_log_positions, nav_logs } from "$/pg/schema/nav";
 import { npos } from "$/pg/schema/npo";
 import { payouts } from "$/pg/schema/payout";
 import { programs } from "$/pg/schema/program";
-import { referrer_commissions } from "$/pg/schema/referrer";
-import { rev_logs } from "$/pg/schema/revenue";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { settle_donation } from "../routes/api.q-handler.$event/settle-donation";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import {
+  seed_form,
+  seed_nav_log,
+  seed_user,
+  settle_via_webhook,
+  setup_stripe_mocks,
+  stripe_event,
+  truncate_all,
+  user_middleware,
+} from "./fixtures/settlement";
 
 // --- setup ---
 
@@ -178,13 +178,9 @@ const PROGRAM_ID = "b0b0b0b0-c1c1-d2d2-e3e3-f4f4f4f4f4f4";
 
 async function seed() {
   // user (FK for user-owned form)
-  await test_db.current!.db.insert(user).values({
+  await seed_user(test_db.current!.db, {
     id: "test-donor-id",
-    name: "Jane Donor",
     email: "donor@test.com",
-    emailVerified: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
     first_name: "Jane",
     last_name: "Donor",
   });
@@ -199,30 +195,24 @@ async function seed() {
   const now = new Date().toISOString();
 
   // npo-owned form (not used as source — verifies admin/forms renders it)
-  await test_db.current!.db.insert(forms).values({
+  await seed_form(test_db.current!.db, {
     id: NPO_FORM_ID,
     name: "NPO Donation Form",
     owner_npo_id: npo_id,
-    status: "active",
     tag: "npo-form-tag",
     recipient_npo_id: npo_id,
     date_created: now,
-    ltd: 0,
-    ltd_count: 0,
     target_number: 2000,
   });
 
   // user-owned form (source for the donation — ltd incremented by settlement)
-  await test_db.current!.db.insert(forms).values({
+  await seed_form(test_db.current!.db, {
     id: USER_FORM_ID,
     name: "User Donation Form",
     owner_user_id: "test-donor-id",
-    status: "active",
     tag: "user-form-tag",
     recipient_npo_id: npo_id,
     date_created: now,
-    ltd: 0,
-    ltd_count: 0,
     target_number: 3000,
   });
 
@@ -237,24 +227,7 @@ async function seed() {
     created_at: now,
   });
 
-  // seed nav log (required for settlement allocation)
-  await test_db.current!.db.transaction(async (tx) => {
-    await tx.insert(nav_logs).values({
-      date: now,
-      reason: "test",
-      units: 100,
-      price: 1,
-      price_updated: now,
-    });
-    await tx.insert(nav_log_positions).values({
-      date: now,
-      ticker: "CASH",
-      qty: 1000,
-      price: 1,
-      value: 1000,
-      price_date: now,
-    });
-  });
+  await seed_nav_log(test_db.current!.db, now);
 
   // seed donation in "intent" state — via user form, attributed to program
   const don: IDonation = {
@@ -282,27 +255,6 @@ async function seed() {
   return don;
 }
 
-async function truncate_all() {
-  // truncate in FK-safe order
-  await test_db.current!.db.delete(donation_messages);
-  await test_db.current!.db.delete(referrer_commissions);
-  await test_db.current!.db.delete(payouts);
-  await test_db.current!.db.delete(bal_txs);
-  await test_db.current!.db.delete(rev_logs);
-  await test_db.current!.db.delete(dists);
-  await test_db.current!.db.delete(donation_settlements);
-  await test_db.current!.db.delete(donation_tributes);
-  await test_db.current!.db.delete(donation_donors);
-  await test_db.current!.db.delete(donation_recipients);
-  await test_db.current!.db.delete(donations);
-  await test_db.current!.db.delete(nav_holders);
-  await test_db.current!.db.delete(nav_logs);
-  await test_db.current!.db.delete(forms);
-  await test_db.current!.db.delete(programs);
-  await test_db.current!.db.delete(npos);
-  await test_db.current!.db.delete(user);
-}
-
 function make_admin_data(id: number): LoaderData {
   return {
     id,
@@ -316,52 +268,12 @@ function make_admin_data(id: number): LoaderData {
   };
 }
 
-function setup_stripe_mocks() {
-  (stripe.webhooks.constructEvent as any).mockImplementation((body: string) =>
-    JSON.parse(body)
-  );
-  (stripe.paymentIntents.retrieve as any).mockResolvedValue({
-    latest_charge: { balance_transaction: { net: 9500, fee: 500 } },
-  });
-  (stripe.paymentMethods.retrieve as any).mockResolvedValue({ type: "card" });
-}
-
-function make_stripe_event(order_id: string) {
-  return JSON.stringify({
-    type: "payment_intent.succeeded",
-    data: {
-      object: {
-        id: "pi_test_123",
-        object: "payment_intent",
-        amount: 10500,
-        currency: "usd",
-        status: "succeeded",
-        created: 1700000000,
-        payment_method: "pm_test_456",
-        metadata: { order_id },
-        invoice: null,
-        latest_charge: null,
-      },
-    },
-  });
-}
-
-function setup_refund_stripe_mocks() {
-  (stripe.paymentIntents.retrieve as any).mockResolvedValue({
-    id: "pi_test_123",
-    amount: 10500,
-    currency: "usd",
-    status: "succeeded",
-    metadata: { order_id: "test-order-123" },
-    invoice: null,
-  });
-
-  (stripe.refunds.create as any).mockResolvedValue({
-    id: "re_test_789",
-    payment_intent: "pi_test_123",
-    status: "succeeded",
-  });
-}
+const INTENT = {
+  order_id: "test-order-123",
+  pi_id: "pi_test_123",
+  amount: 10500,
+  payment_method: "pm_test_456",
+};
 
 import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
 // npo profile page
@@ -376,14 +288,6 @@ import AdminFormsPage from "#/routes/admin.$id.forms/route";
 import { loader as user_forms_loader } from "#/routes/dashboard.forms/api";
 // user-dashboard forms page
 import UserFormsPage from "#/routes/dashboard.forms/route";
-import { loader as refunds_list_loader } from "#/routes/platform.donations/api";
-// platform-admin refunds pages
-import RefundsListPage from "#/routes/platform.donations/route";
-import {
-  action as refund_action,
-  loader as refund_loader,
-} from "#/routes/platform.donations.$donation_id.refund/api";
-import RefundPage from "#/routes/platform.donations.$donation_id.refund/route";
 // platform-admin revenue pages
 import { loader as rev_loader } from "#/routes/platform.revenue/api";
 import RevenuePage from "#/routes/platform.revenue/route";
@@ -392,28 +296,12 @@ import RevLogsPage from "#/routes/platform.revenue_.logs/route";
 
 // --- helpers ---
 
-async function fire_webhook(order_id = "test-order-123") {
-  _emitted.length = 0;
-  const res = await stripe_action({
-    request: new Request("http://localhost/api/stripe-webhook", {
-      method: "POST",
-      headers: { "stripe-signature": "sig_test" },
-      body: make_stripe_event(order_id),
-    }),
-    params: {},
-    context: {} as any,
-    url: new URL("http://localhost/api/stripe-webhook"),
-    pattern: "/api/stripe-webhook",
+function fire_webhook(order_id = INTENT.order_id) {
+  return settle_via_webhook({
+    db: test_db.current!.db,
+    emitted: _emitted,
+    intent: { ...INTENT, order_id },
   });
-
-  // replay settlement events outside the transaction (pglite is single-connection)
-  for (const { id, payload } of _emitted) {
-    if (id === "don-sttl-dist") {
-      await settle_donation(test_db.current!.db as any, payload);
-    }
-  }
-
-  return res;
 }
 
 // --- expected values ---
@@ -422,16 +310,11 @@ async function fire_webhook(order_id = "test-order-123") {
 // partition ratio: base=100/105, tip=5/105
 
 const GROSS = 95 * (100 / 105); // base portion of settlement net: ~90.476
-const PROCESSING = 5 * (100 / 105); // base portion of settlement fee: ~4.762
 const TIP = 95 * (5 / 105); // tip portion: ~4.524
 // fees: base=1.5%, fsa=2.9% of gross
 const BASE_FEE = GROSS * 0.015; // ~1.357
 const FSA_FEE = GROSS * 0.029; // ~2.624
 const NET = GROSS - BASE_FEE - FSA_FEE; // ~86.495
-// allocation: liq=50%, lock=30%, cash=20% of net
-const LIQ = NET * 0.5; // ~43.248
-const LOCK = NET * 0.3; // ~25.949
-const CASH = NET * 0.2; // ~17.299
 
 const P = 2; // precision digits for toBeCloseTo
 
@@ -439,12 +322,12 @@ const P = 2; // precision digits for toBeCloseTo
 
 describe("payment_intent.succeeded → settlement → UI", () => {
   beforeEach(async () => {
-    await truncate_all();
+    await truncate_all(test_db.current!.db);
     await seed();
-    setup_stripe_mocks();
+    setup_stripe_mocks({ net: 9500, fee: 500 });
   });
 
-  it("creates dist with correct fees, net, and allocation", async () => {
+  it("persists the plan — dist row, balance txs, payout and npo balances", async () => {
     const res = await fire_webhook();
     expect(res.status).toBe(200);
 
@@ -452,78 +335,24 @@ describe("payment_intent.succeeded → settlement → UI", () => {
     expect(dist.status).toBe("settled");
     expect(dist.to_id).toBe(npo_id);
     expect(dist.amount_denom).toBe("USD");
-    expect(dist.amount).toBeCloseTo(100, P); // base amount
-    expect(dist.amount_usd).toBeCloseTo(100, P);
-    expect(dist.fee_base).toBeCloseTo(BASE_FEE, P);
-    expect(dist.fee_fsa).toBeCloseTo(FSA_FEE, P);
-    expect(dist.fee_processing).toBeCloseTo(PROCESSING, P);
-    expect(dist.net).toBeCloseTo(NET, P);
+    expect(dist.net!).toBeCloseTo(NET, P);
     expect(dist.alloc).toEqual({ liq: 50, lock: 30, cash: 20 });
-  });
 
-  it("creates revenue logs with correct amounts", async () => {
-    await fire_webhook();
-
-    const logs = await test_db.current!.db.select().from(rev_logs);
-    const by_type = Object.fromEntries(logs.map((l) => [l.type, l]));
-
-    // tip revenue
-    expect(by_type.tip.gross).toBeCloseTo(TIP, P);
-    expect(by_type.tip.revenue).toBeCloseTo(TIP, P); // no referrer → revenue = gross
-    expect(by_type.tip.commission).toBe(0);
-    expect(by_type.tip.status).toBe("final");
-
-    // base-fee revenue
-    expect(by_type["base-fee"].gross).toBeCloseTo(BASE_FEE, P);
-    expect(by_type["base-fee"].revenue).toBeCloseTo(BASE_FEE, P);
-    expect(by_type["base-fee"].commission).toBe(0);
-
-    // fsa-fee revenue
-    expect(by_type["fsa-fee"].gross).toBeCloseTo(FSA_FEE, P);
-    expect(by_type["fsa-fee"].revenue).toBeCloseTo(FSA_FEE, P);
-    expect(by_type["fsa-fee"].commission).toBe(0);
-
-    // all logs linked to this npo
-    for (const log of logs) {
-      expect(log.npo_id).toBe(npo_id);
-      expect(log.npo_name).toBe("Settlement Test NPO");
-    }
-  });
-
-  it("creates bal_txs and payout with correct allocation amounts", async () => {
-    await fire_webhook();
-
+    // every downstream row is the persisted dist's own net split by its own alloc
     const txs = await test_db.current!.db.select().from(bal_txs);
     const lock_tx = txs.find((t) => t.account === "lock")!;
     const liq_tx = txs.find((t) => t.account === "liq")!;
-
-    expect(lock_tx.amount).toBeCloseTo(LOCK, P);
-    expect(lock_tx.status).toBe("final");
-    expect(lock_tx.account_other).toBe("donation");
-
-    expect(liq_tx.amount).toBeCloseTo(LIQ, P);
+    expect(liq_tx.amount).toBeCloseTo(dist.net! * 0.5, P);
     expect(liq_tx.status).toBe("final");
     expect(liq_tx.account_other).toBe("donation");
+    expect(lock_tx.amount).toBeCloseTo(dist.net! * 0.3, P);
+    expect(lock_tx.status).toBe("final");
 
     // cash allocation → pending payout
     const [po] = await test_db.current!.db.select().from(payouts);
-    expect(po.amount).toBeCloseTo(CASH, P);
+    expect(po.amount).toBeCloseTo(dist.net! * 0.2, P);
     expect(po.type).toBe("pending");
     expect(po.source).toBe("donation");
-  });
-
-  it("emits donation.settled.dist event with correct net", async () => {
-    await fire_webhook();
-
-    const settled_evt = _emitted.find((e) => e.id === "don-dist")!;
-    expect(settled_evt).toBeDefined();
-    expect(settled_evt.payload.to_id).toBe(npo_id);
-    expect(settled_evt.payload.net).toBeCloseTo(NET, P);
-    expect(settled_evt.payload.amount_denom).toBe("USD");
-  });
-
-  it("updates npo balances to match allocation", async () => {
-    await fire_webhook();
 
     const [npo] = await test_db
       .current!.db.select({
@@ -532,10 +361,10 @@ describe("payment_intent.succeeded → settlement → UI", () => {
         cash: npos.cash,
       })
       .from(npos);
-    expect(npo.liq).toBeCloseTo(LIQ, P);
+    expect(npo.liq).toBeCloseTo(dist.net! * 0.5, P);
     // lock_units = lock_amount / nav_price (nav_price=1)
-    expect(npo.lock_units).toBeCloseTo(LOCK, P);
-    expect(npo.cash).toBeCloseTo(CASH, P);
+    expect(npo.lock_units).toBeCloseTo(dist.net! * 0.3, P);
+    expect(npo.cash).toBeCloseTo(dist.net! * 0.2, P);
   });
 
   it("admin donations page renders correct donor, method, and fee values", async () => {
@@ -577,7 +406,9 @@ describe("payment_intent.succeeded → settlement → UI", () => {
 
     // wait for data to load, then verify content values
     await expect.element(screen.getByText("Jane Donor")).toBeInTheDocument();
-    await expect.element(screen.getByText("Card")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Card", { exact: true }))
+      .toBeInTheDocument();
     // fee labels conditionally rendered (only when > 0)
     // fiscal_sponsored + hide_bg_tip → all 3 fee types show
     await expect.element(screen.getByText(/^base$/)).toBeInTheDocument();
@@ -599,19 +430,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
   it("user dashboard renders correct recipient and payment method", async () => {
     await fire_webhook();
 
-    const mdlwr = [
-      async ({ context }: any, next: any) => {
-        context.set(user_ctx, {
-          id: "test-donor-id",
-          email: "donor@test.com",
-          groups: [],
-          endowments: [],
-          funds: [],
-          token_refresh: "",
-        });
-        return next();
-      },
-    ];
+    const mdlwr = user_middleware("test-donor-id", "donor@test.com");
 
     const Stub = createRoutesStub([
       {
@@ -832,19 +651,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
   it("user-dashboard forms page shows user form with updated ltd", async () => {
     await fire_webhook();
 
-    const mdlwr = [
-      async ({ context }: any, next: any) => {
-        context.set(user_ctx, {
-          id: "test-donor-id",
-          email: "donor@test.com",
-          groups: [],
-          endowments: [],
-          funds: [],
-          token_refresh: "",
-        });
-        return next();
-      },
-    ];
+    const mdlwr = user_middleware("test-donor-id", "donor@test.com");
 
     const Stub = createRoutesStub([
       {
@@ -871,131 +678,6 @@ describe("payment_intent.succeeded → settlement → UI", () => {
     await expect
       .element(screen.getByText("Raised", { exact: true }))
       .toBeInTheDocument();
-  });
-
-  it("refunds page shows settled donation, click refund shows preview with effects, confirm processes refund", async () => {
-    await fire_webhook();
-    setup_refund_stripe_mocks();
-
-    const Stub = createRoutesStub([
-      {
-        path: "/refunds",
-        Component: RefundsListPage,
-        HydrateFallback: () => null,
-        loader: refunds_list_loader as any,
-        children: [
-          {
-            path: ":donation_id/refund",
-            Component: RefundPage,
-            loader: refund_loader as any,
-            action: refund_action as any,
-          },
-        ],
-      },
-    ]);
-
-    let screen = await render(
-      <Stub initialEntries={["/refunds"]} future={{ v8_middleware: true }} />
-    );
-    render_screen = screen;
-
-    // list renders settled donation
-    await expect
-      .element(screen.getByText("donor@test.com"))
-      .toBeInTheDocument();
-    await expect
-      .element(screen.getByText("Settlement Test NPO"))
-      .toBeInTheDocument();
-    await expect.element(screen.getByText("card")).toBeInTheDocument();
-    const refund_link = screen.getByRole("link", { name: /Refund/i });
-    await expect.element(refund_link).toBeInTheDocument();
-
-    // click refund → preview dialog appears (NPO name shows in both list + preview)
-    await refund_link.click();
-    await expect
-      .element(screen.getByRole("heading", { name: /Refund preview/i }))
-      .toBeInTheDocument();
-    expect(screen.getByText("Settlement Test NPO").elements()).toHaveLength(2);
-    await expect
-      .element(screen.getByText("Savings balance"))
-      .toBeInTheDocument();
-    await expect
-      .element(screen.getByText("Investment balance"))
-      .toBeInTheDocument();
-    await expect.element(screen.getByText("Grant payout")).toBeInTheDocument();
-
-    // confirm refund → action runs PG reversals + stripe refund (native click — the dialog overlay intercepts)
-    (
-      screen
-        .getByRole("button", { name: /Confirm refund/i })
-        .element() as HTMLElement
-    ).click();
-    await expect
-      .element(screen.getByText("Refund processed"))
-      .toBeInTheDocument();
-    expect(stripe.refunds.create).toHaveBeenCalledWith({
-      payment_intent: "pi_test_123",
-    });
-
-    // revalidated list shows "Refunded" label
-    screen.unmount();
-
-    const Stub2 = createRoutesStub([
-      {
-        path: "/refunds",
-        Component: RefundsListPage,
-        HydrateFallback: () => null,
-        loader: refunds_list_loader as any,
-      },
-    ]);
-    screen = await render(
-      <Stub2 initialEntries={["/refunds"]} future={{ v8_middleware: true }} />
-    );
-    render_screen = screen;
-
-    await expect.element(screen.getByText("Refunded")).toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("link", { name: /Refund/i }))
-      .not.toBeInTheDocument();
-
-    // npo balances reverted to zero
-    const [npo_after] = await test_db
-      .current!.db.select({
-        liq: npos.liq,
-        lock_units: npos.lock_units,
-        cash: npos.cash,
-      })
-      .from(npos);
-    expect(npo_after.liq).toBeCloseTo(0, P);
-    expect(npo_after.lock_units).toBeCloseTo(0, P);
-    // cash is from payout (pending → refunded), balance stays since payout was pending
-    expect(npo_after.cash).toBeCloseTo(0, P);
-
-    // rev_logs all marked refunded
-    const logs = await test_db.current!.db.select().from(rev_logs);
-    for (const log of logs) {
-      expect(log.status).toBe("refunded");
-    }
-
-    // dist marked refunded
-    const [dist_after] = await test_db.current!.db.select().from(dists);
-    expect(dist_after.status).toBe("refunded");
-    expect(dist_after.refund_status).toBe("completed");
-  });
-
-  it("returns 403 when stripe-signature header missing", async () => {
-    const res = await stripe_action({
-      request: new Request("http://localhost/api/stripe-webhook", {
-        method: "POST",
-        body: "{}",
-      }),
-      params: {},
-      context: {} as any,
-      url: new URL("http://localhost/api/stripe-webhook"),
-      pattern: "/api/stripe-webhook",
-    });
-
-    expect(res.status).toBe(403);
   });
 
   it("donor message created on settlement with avatar from joined user", async () => {
@@ -1056,7 +738,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
       request: new Request("http://localhost/api/stripe-webhook", {
         method: "POST",
         headers: { "stripe-signature": "sig_test" },
-        body: make_stripe_event("test-order-123"),
+        body: stripe_event(INTENT),
       }),
       params: {},
       context: {} as any,

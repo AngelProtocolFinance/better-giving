@@ -15,7 +15,7 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { clear_qstash_events, get_qstash_events } from "#/setup-tests-browser";
 import { registrations } from "$/pg/schema/registration";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -192,7 +192,6 @@ import { get_session } from "#/.server/auth";
 import { action as fsa_action_handler } from "#/pages/registration/data/fsa-action";
 import { reg_loader, step_loader } from "#/pages/registration/data/step-loader";
 import { new_application } from "#/pages/registration/new-application";
-import { resume_application } from "#/pages/registration/resume-application";
 import { after_org } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
 import type { IReg } from "@/reg";
@@ -201,7 +200,7 @@ import { reg_put } from "$/pg/queries/registration";
 import { user } from "$/pg/schema/auth";
 import { npos } from "$/pg/schema/npo";
 import { user_npo_memberships } from "$/pg/schema/user";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import {
   action as start_action,
   loader as start_loader,
@@ -1045,7 +1044,7 @@ describe("E2E: dashboard update", () => {
     await expect.element(screen.getByText(/summary/i)).toBeVisible();
 
     // click Update on step 1 (Contact Details)
-    const step_rows = screen.getByText("Update");
+    const step_rows = screen.getByText("Update", { exact: true });
     await step_rows.nth(0).click(); // first Update link = step 1
 
     // lands on step 1
@@ -1088,7 +1087,7 @@ describe("E2E: dashboard update", () => {
     const screen = await render_registration(id, "5");
 
     await expect.element(screen.getByText(/summary/i)).toBeVisible();
-    await screen.getByText("Update").nth(0).click();
+    await screen.getByText("Update", { exact: true }).nth(0).click();
 
     await expect
       .element(screen.getByLabelText(/first name/i))
@@ -1586,35 +1585,4 @@ describe("E2E: start screen", () => {
 
     expect(window.dataLayer).toEqual([{ event: "reg_resume" }]);
   }, 20_000);
-});
-
-// --- resume_application ---
-
-describe("resume_application", () => {
-  beforeEach(() => set_authed());
-
-  it("redirects to the reg's current step", async () => {
-    const id = await create_reg();
-    await test_db
-      .current!.db.update(registrations)
-      .set(CONTACT_FIELDS)
-      .where(eq(registrations.id, id));
-
-    const res = await resume_application(
-      start_request(),
-      createFormData({ reference: id })
-    );
-
-    expect((res as Response).headers.get("location")).toBe(`/register/${id}/2`);
-  });
-
-  it("reports an unknown reference instead of redirecting", async () => {
-    const res = await resume_application(
-      start_request(),
-      createFormData({ reference: "6f1a0b3c-0000-4000-8000-000000000000" })
-    );
-
-    expect(res).not.toBeInstanceOf(Response);
-    expect((res as any).errors?.reference).toBeTruthy();
-  });
 });

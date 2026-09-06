@@ -10,7 +10,7 @@ import {
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -36,9 +36,9 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports (after mocks hoisted) ---
 
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import MarketplacePage, { loader } from "../routes/_app.marketplace/route";
-import FilterPage from "../routes/_app.marketplace.filter/route";
+import FilterPage from "#/routes/_app.marketplace.filter/route";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import MarketplacePage, { loader } from "../route";
 
 // --- setup ---
 

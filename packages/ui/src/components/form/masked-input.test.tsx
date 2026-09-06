@@ -129,7 +129,7 @@ describe("MaskedInput", () => {
     await expect.element(screen.getByText("Required")).toBeVisible();
   });
 
-  it("works with react-hook-form: type, submit, and get correct numeric value", async () => {
+  it("submits the unmasked number the form field holds, not the displayed mask", async () => {
     const screen = await render(<RHFHarness />);
     const input = screen.getByLabelText("Donation");
 
@@ -145,7 +145,7 @@ describe("MaskedInput", () => {
       .toMatchTextContent("7500");
   });
 
-  it("works with react-hook-form: preserves default value", async () => {
+  it("shows a numeric default masked and submits it back unmasked", async () => {
     const screen = await render(<RHFHarness default_value={25000} />);
     const input = screen.getByLabelText("Donation");
 

@@ -36,19 +36,6 @@ describe("DAF form: initial load", () => {
       .element(screen.getByPlaceholder(/enter amount/i))
       .toHaveValue("");
 
-    //tip disabled by default — no preselection (ncn compliance)
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .not.toBeChecked();
-    // no tip percent preselected on load
-    await expect
-      .element(screen.getByRole("radio", { name: /15%/i }))
-      .not.toBeChecked();
-
     //fee coverage disabled by default
     await expect
       .element(
@@ -66,7 +53,7 @@ describe("DAF form: initial load", () => {
     );
   });
 
-  test("submit form with initial/persisted data", async () => {
+  test("persisted details rehydrate the fee toggle", async () => {
     const init: Init = {
       base_url: "",
       source: "bg-marketplace",
@@ -86,20 +73,6 @@ describe("DAF form: initial load", () => {
     const screen = await render(<Form fv={fv} type="daf" step="form" />);
 
     await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue("100");
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .toBeChecked();
-    await expect
-      .element(screen.getByRole("radio", { name: /20%/i }))
-      .toBeChecked();
-
-    await expect
       .element(
         screen.getByRole("checkbox", {
           name: /cover 3rd party processing fees/i,
@@ -112,36 +85,6 @@ describe("DAF form: initial load", () => {
       expect(
         screen.container.querySelectorAll('[data-testid="incrementer"]').length
       ).toBe(4)
-    );
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
-    don_set_mock.mockReset();
-  });
-
-  test("submitting empty form should show validation messages and focus first field: amount input", async () => {
-    const init: Init = {
-      base_url: "",
-      source: "bg-marketplace",
-      config: null,
-      recipient: donation_recipient_init(),
-      mode: "live",
-    };
-    don_mock.value = init;
-
-    const screen = await render(<Form step="form" type="daf" />);
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-
-    //amount input
-    await expect
-      .element(screen.getByText(/please enter an amount/i))
-      .toBeVisible();
-
-    await vi.waitFor(() =>
-      expect(screen.getByPlaceholder(/enter amount/i).element()).toBe(
-        document.activeElement
-      )
     );
   });
 

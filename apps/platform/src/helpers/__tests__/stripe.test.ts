@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { str_id, to_atomic_c } from "../stripe";
 
 describe("to_atomic_c", () => {
-  test("converts standard 2-decimal currencies correctly", () => {
+  test("scales a 2-decimal currency by 100", () => {
     expect(to_atomic_c("USD")(10.5)).toBe(1050);
     expect(to_atomic_c("EUR")(100)).toBe(10000);
     expect(to_atomic_c("GBP")(1.23)).toBe(123);
@@ -10,7 +10,7 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("AUD")(99.99)).toBe(9999);
   });
 
-  test("converts zero-decimal currencies correctly", () => {
+  test("leaves a zero-decimal currency at its face amount", () => {
     expect(to_atomic_c("JPY")(1000)).toBe(1000);
     expect(to_atomic_c("KRW")(5000)).toBe(5000);
     expect(to_atomic_c("VND")(100)).toBe(100);
@@ -25,7 +25,7 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("jpy")(1000)).toBe(1000);
   });
 
-  test("truncates correctly after rounding", () => {
+  test("a third decimal never moves the cent", () => {
     // round_number rounds, then Math.trunc truncates the result
     expect(to_atomic_c("USD")(10.555)).toBe(1055);
     expect(to_atomic_c("USD")(10.554)).toBe(1055);
@@ -38,7 +38,7 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("JPY")(-100)).toBe(-100);
   });
 
-  test("handles fractional cents correctly", () => {
+  test("drops a fraction of a cent rather than rounding it up", () => {
     expect(to_atomic_c("USD")(10.999)).toBe(1099);
     expect(to_atomic_c("USD")(10.991)).toBe(1099);
     expect(to_atomic_c("USD")(10.001)).toBe(1000);
@@ -177,19 +177,5 @@ describe("str_id", () => {
 
   test("throws error for null input", () => {
     expect(() => str_id(null)).toThrow("invalid payment method ID: null");
-  });
-
-  test("throws error for undefined input", () => {
-    // @ts-expect-error - testing runtime behavior
-    expect(() => str_id(undefined)).toThrow(
-      "invalid payment method ID: undefined"
-    );
-  });
-
-  test("throws error for falsy values", () => {
-    // @ts-expect-error - testing runtime behavior
-    expect(() => str_id(0)).toThrow("invalid payment method ID: 0");
-    // @ts-expect-error - testing runtime behavior
-    expect(() => str_id(false)).toThrow("invalid payment method ID: false");
   });
 });

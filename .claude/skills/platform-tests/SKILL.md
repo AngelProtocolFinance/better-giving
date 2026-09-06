@@ -10,7 +10,7 @@ globs:
 
 **Jurisdiction: `apps/platform/`.** Every path in this skill is relative to `apps/platform/`; run the commands from there (`pnpm --filter platform exec …` from the repo root works too).
 
-Tests run in **real headless Chromium** via `@vitest/browser` + Playwright. Render with `vitest-browser-react`. No jsdom, no happy-dom, no `@testing-library/*`.
+Two vitest projects, and the **file extension picks the project**: `*.test.ts` runs in the `node` project (forks, no browser — server modules, helpers, PGlite, sweeps), `*.test.tsx` runs in the `browser` project (real headless Chromium via `@vitest/browser` + Playwright, rendered with `vitest-browser-react`). A component test is `.tsx` and earns chromium by rendering; a test that never renders is `.ts`. No jsdom, no happy-dom, no `@testing-library/*` — a jsdom + RTL project was piloted on 5 files 2026-09-06 and reverted: no speedup (chromium amortizes one startup, jsdom pays setup per file), Ark UI's combobox does not type under user-event, and Tailwind 4's stylesheet fails jsdom's CSS parser so `hidden` passes `toBeVisible`.
 
 Setup is **two** files: `src/setup-tests-browser.ts` (MSW worker, qstash capture) and `src/__tests__/mocks/payment.tsx` (global payment-provider mocks — where a stripe/paypal mock you didn't write comes from).
 Config: `vite.config.ts` → `test.browser`. Env comes from `.env.test`.
@@ -22,7 +22,13 @@ found none of them when vitest was started from the repo root. Note process env
 beats the file: an `APP_SESSION_SECRET` exported in your shell overrides
 `.env.test` for the whole run.
 
-Tests live under `src/`, `lib/` and `.server/` — 13 of them are outside `src/`.
+Tests live under `src/`, `lib/` and `.server/`; `jobs/` has only `*.node.test.ts`.
+
+`src/__tests__/fixtures/` is the home for a fixture two or more test files share (seeds, builders, run wrappers) — `settlement.ts` and `funds.ts` are seeds, taking `db` as their first argument. A `vi.mock` factory cannot move there: it is hoisted above every import, so a factory closing over an imported binding hits the TDZ. Mock blocks stay in each test file; take the db and the captured-event array as arguments instead. A seed whose defaults differ per file is wrapped locally (`const seed_npo = (o) => insert_npo(db(), { registration_number: "EIN-FUNDS", ...o })`), which keeps the call sites unchanged.
+
+Two files testing sibling components with the same shape share a **behavior contract** instead: `lead-form-contract.tsx` exports `describe_lead_form(Component, case)`, which each file calls at top level with its own labels, values and error map. A behavior earns a place there only when both files assert it today — what one file asserts alone stays in that file. The same shape across the six donation method forms is `src/components/donation/methods/form-contract.test.tsx`, a `test.each` over the methods for the behaviors every form shares (error surface, amount rehydration, tip default and rehydration); each method's own `form.test.tsx` keeps only what is unique to it.
+
+`src/__tests__/conformance/walk.ts` is the corpus the seven `*-conformance.node.test.ts` sweeps read: `sources_of(import.meta.url)` returns every `.ts`/`.tsx`/`.css` file under `apps/platform/src` and `packages/ui/src` as `{ file, text }`, skipping the caller (which spells its own needles out). Pass a second argument to transform each file's text first — the elevation and motion sweeps blank comments that way, because the token file's prose quotes the very classes they search for.
 
 ## Running Tests
 
@@ -91,6 +97,8 @@ screen.getByText("tip", { exact: true })
 screen.getByText("US", { exact: true }) // avoids matching "USD"
 screen.getByRole("heading", { name: "Active", exact: true }) // avoids "Inactive"
 ```
+
+`exact: true` is **whole-string**, and vitest 4 ignored the option where 5 enforces it — so a prefix written under 4 passed and now fails. `getByText("Car", { exact: true })` does not match a cell reading "Card": pass the whole string, or drop `exact` to match the substring.
 
 ### Scoped locators
 
@@ -316,10 +324,10 @@ const screen = await render(<Component />);
 
 ### DB mock (integration tests)
 
-Proxy-based mock defers property access until `beforeAll` creates the PGLite instance. Paths below are for a test in `src/`; from a test **inside `.server/`** use the relative sibling path instead (`../pg/db`, `../pg/test-utils/pglite-browser`) — see `apps/platform/CLAUDE.md`.
+Proxy-based mock defers property access until `beforeAll` creates the PGLite instance. Paths below are for a test in `src/`; from a test **inside `.server/`** use the relative sibling path instead (`../pg/db`, `../pg/test-utils/pglite`) — see `apps/platform/CLAUDE.md`.
 
 ```tsx
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 vi.mock("$/pg/db", () => {
@@ -331,7 +339,7 @@ vi.mock("$/pg/db", () => {
 });
 
 beforeAll(async () => {
-  const { create_test_db } = await import("$/pg/test-utils/pglite-browser");
+  const { create_test_db } = await import("$/pg/test-utils/pglite");
   test_db.current = await create_test_db();
 });
 ```
