@@ -1,3 +1,8 @@
+// the browser suite renders real components, so every assertion about geometry
+// (a touch target, a truncating label, a gap) needs the style layer compiled and
+// applied — without this the tailwind classes are inert and the tests silently
+// measure unstyled boxes. packages/ui's test-setup.ts carries the same import.
+import "#/index.css";
 import { HttpResponse, http } from "msw";
 import { setupWorker } from "msw/browser";
 import { afterEach, beforeAll } from "vitest";

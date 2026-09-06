@@ -17,7 +17,9 @@ const don_mock = vi.hoisted(() => ({ value: {} }));
 // one-shot cases; these flags drive the persistent one.
 const rails = vi.hoisted(() => ({ pp_out: false, sx_out: false }));
 // mock express buttons — express checkout calls validate() on every click (reject-based),
-// paypal uses overlay gate (is_partial-based)
+// paypal uses overlay gate (is_partial-based). each carries its testid as text:
+// the suite runs with the stylesheet applied, and preflight collapses an empty
+// button to 0×0, which playwright refuses to click as "not visible".
 vi.mock("../paypal", () => ({
   Paypal: (props: any) => {
     // a rail reports itself unavailable once per mount, not once per render
@@ -32,19 +34,25 @@ vi.mock("../paypal", () => ({
             type="button"
             data-testid="paypal-gate"
             onClick={() => props.validate()}
-          />
+          >
+            paypal-gate
+          </button>
         )}
         {/* the rail's own failure classification, driven from the test */}
         <button
           type="button"
           data-testid="paypal-unavailable"
           onClick={() => props.on_unavailable?.("paypal is out")}
-        />
+        >
+          paypal-unavailable
+        </button>
         <button
           type="button"
           data-testid="paypal-error"
           onClick={() => props.on_error(<p>paypal died mid-payment</p>)}
-        />
+        >
+          paypal-error
+        </button>
         {/* its own donation, with its own receipt — the point of keeping these
             separate from the express rail's below. */}
         <button
@@ -56,7 +64,9 @@ vi.mock("../paypal", () => ({
               is_custom: false,
             })
           }
-        />
+        >
+          paypal-paid
+        </button>
         <button
           type="button"
           data-testid="paypal-stuck"
@@ -66,7 +76,9 @@ vi.mock("../paypal", () => ({
               is_custom: false,
             })
           }
-        />
+        >
+          paypal-stuck
+        </button>
       </div>
     );
   },
@@ -87,17 +99,23 @@ vi.mock("./express-checkout", () => ({
           type="button"
           data-testid="express-checkout-btn"
           onClick={() => props.validate()}
-        />
+        >
+          express-checkout-btn
+        </button>
         <button
           type="button"
           data-testid="express-unavailable"
           onClick={() => props.on_unavailable?.("express is out")}
-        />
+        >
+          express-unavailable
+        </button>
         <button
           type="button"
           data-testid="express-error"
           onClick={() => props.on_error("your card was declined")}
-        />
+        >
+          express-error
+        </button>
         {/* the charge landing and the trip to the receipt failing are two
             separate moments in the real rail, in this order — the gap between
             them is up to nine seconds long. */}
@@ -110,7 +128,9 @@ vi.mock("./express-checkout", () => ({
               is_custom: false,
             })
           }
-        />
+        >
+          express-paid
+        </button>
         <button
           type="button"
           data-testid="express-stuck"
@@ -122,7 +142,9 @@ vi.mock("./express-checkout", () => ({
             props.on_paid?.(dest);
             props.on_stuck?.(dest);
           }}
-        />
+        >
+          express-stuck
+        </button>
         <button
           type="button"
           data-testid="express-stuck-custom"
@@ -131,7 +153,9 @@ vi.mock("./express-checkout", () => ({
             props.on_paid?.(dest);
             props.on_stuck?.(dest);
           }}
-        />
+        >
+          express-stuck-custom
+        </button>
       </div>
     );
   },
@@ -405,7 +429,10 @@ describe("Stripe form: initial load", () => {
     await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
 
     // open currency selector — all 3 currencies visible
-    await screen.getByRole("combobox").click();
+
+    // via ark's trigger: it sits over the input and would intercept a click there
+
+    await screen.getByRole("button", { name: "Toggle suggestions" }).click();
     await expect
       .element(screen.getByRole("option", { name: "EUR" }))
       .toBeVisible();
@@ -807,7 +834,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
     await screen.getByTestId("express-unavailable").click();
     await expect.element(screen.getByText("express is out")).toBeVisible();
 
-    await screen.getByRole("combobox").click();
+    await screen.getByRole("button", { name: "Toggle suggestions" }).click();
     await screen.getByRole("option", { name: "EUR" }).click();
     await expect.element(screen.getByRole("combobox")).toHaveValue("EUR");
 
