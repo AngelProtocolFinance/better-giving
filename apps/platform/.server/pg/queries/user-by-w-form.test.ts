@@ -18,7 +18,7 @@ vi.mock("#/errors/report", () => ({ report_error }));
 // --- imports (after mocks) ---
 
 import { user } from "../schema/auth";
-import { create_test_db, type TestDb } from "../test-utils/pglite-browser";
+import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
 import { user_by_w_form } from "./user";
 

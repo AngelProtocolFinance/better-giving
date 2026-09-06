@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -95,7 +95,7 @@ import {
   verification,
 } from "$/pg/schema/auth";
 import { registrations } from "$/pg/schema/registration";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { handle_reg_created } from ".";
 
 const BASE_URL = "http://localhost:4200";

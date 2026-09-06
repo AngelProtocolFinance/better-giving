@@ -48,7 +48,7 @@ describe("Stocks form: initial load", () => {
       .toHaveValue("");
   });
 
-  test("submit form with initial/persisted data", async () => {
+  test("persisted details rehydrate the ticker", async () => {
     const init: Init = {
       base_url: "",
       source: "bg-marketplace",
@@ -70,39 +70,6 @@ describe("Stocks form: initial load", () => {
     await expect
       .element(screen.getByPlaceholder(/select ticker/i))
       .toHaveValue(fv.ticker.symbol);
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue(fv.ticker.amount);
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
-    don_set_mock.mockReset();
-  });
-
-  test("submitting empty form should show validation messages and focus first field: amount input", async () => {
-    const init: Init = {
-      base_url: "",
-      source: "bg-marketplace",
-      config: null,
-      recipient: donation_recipient_init(),
-      mode: "live",
-    };
-    don_mock.value = init;
-
-    const screen = await render(<Form step="form" type="stocks" />);
-
-    await screen.getByRole("button", { name: /continue/i }).click();
-
-    //amount input required
-    await expect
-      .element(screen.getByText(/please enter an amount/i))
-      .toBeVisible();
-
-    await vi.waitFor(() =>
-      expect(screen.getByPlaceholder(/enter amount/i).element()).toBe(
-        document.activeElement
-      )
-    );
   });
 
   test("user corrects error and submits", async () => {

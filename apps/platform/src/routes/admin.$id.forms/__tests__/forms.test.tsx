@@ -11,7 +11,7 @@ import {
 import { render } from "vitest-browser-react";
 import { forms } from "$/pg/schema/form";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -53,7 +53,7 @@ vi.mock("remix-client-cache", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { admin_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import DisablePrompt, {
   action as disableAction,
 } from "../../admin.$id.forms.$form_id.disable/route";

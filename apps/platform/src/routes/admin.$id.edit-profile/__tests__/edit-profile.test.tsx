@@ -13,7 +13,7 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -60,7 +60,7 @@ import ProfilePage from "#/routes/_app.marketplace_.$id/route";
 import { DetailsColumn } from "#/routes/_app.marketplace_.$id._index/details-column";
 import { admin_ctx } from "$/auth/test-utils";
 import { npo_get } from "$/pg/queries/npo";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import EditProfilePage from "../route";
 

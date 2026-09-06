@@ -14,7 +14,7 @@ import {
 } from "../schema/donation";
 import { donation_match_events } from "../schema/match";
 import { npos } from "../schema/npo";
-import { create_test_db, type TestDb } from "../test-utils/pglite-browser";
+import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
 import { claim_match_arrival } from "./match";
 

@@ -7,7 +7,7 @@ import {
   test,
   vi,
 } from "vitest";
-import type { TestDb } from "../test-utils/pglite-browser";
+import type { TestDb } from "../test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -34,7 +34,7 @@ vi.mock("../db", () => ({
 
 import { eq } from "drizzle-orm";
 import { registrations } from "../schema/registration";
-import { create_test_db } from "../test-utils/pglite-browser";
+import { create_test_db } from "../test-utils/pglite";
 import { reg_fsa_packet } from "./registration";
 
 const SEEN_AT = "2026-08-24T10:00:00.000Z";

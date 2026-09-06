@@ -1,6 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { registrations } from "$/pg/schema/registration";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -134,7 +134,7 @@ import {
 } from "$/pg/schema/auth";
 import { npos } from "$/pg/schema/npo";
 import { user_npo_memberships } from "$/pg/schema/user";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 const BASE_URL = "http://localhost:4200";
 const TEST_SECRET = "test-secret-at-least-32-characters-long!!";

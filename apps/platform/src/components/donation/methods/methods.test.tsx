@@ -7,6 +7,8 @@ import { Steps } from "../index";
 import { type Config, donation_recipient_init, type TDonation } from "../types";
 import { stb } from "./__tests__/test-data";
 
+type Screen = Awaited<ReturnType<typeof render>>;
+
 describe("payment method form state persistence", () => {
   const all_methods_config: Config = {
     success_redirect: undefined,
@@ -22,138 +24,90 @@ describe("payment method form state persistence", () => {
     id: null,
   };
 
-  test("crypto: form state persists when navigating to checkout and back", async () => {
-    const init: TDonation = {
-      base_url: "",
-      source: "bg-marketplace",
-      mode: "live",
-      recipient: donation_recipient_init({ hide_bg_tip: true }),
-      donor: donor_fv_blank,
-      config: all_methods_config,
+  const fill_donor = async (screen: Screen) => {
+    const email = screen.getByPlaceholder(/john@doe\.com/i);
+    await expect.element(email).toBeVisible();
+    await email.fill("john@doe.com");
+    await screen.getByRole("textbox", { name: /first name/i }).fill("John");
+    await screen.getByRole("textbox", { name: /last name/i }).fill("Doe");
+  };
+
+  interface Case {
+    method: TDonation["method"];
+    tab: RegExp;
+    /** methods whose amount field only becomes usable once an asset is picked */
+    asset?: true;
+    /** crypto is the only one of these routed through the donor step */
+    donor?: true;
+    amount: string;
+    /** what proves the trip reached this method's own checkout page */
+    arrived: (screen: Screen) => Promise<void>;
+  }
+
+  const cases: Case[] = [
+    {
       method: "crypto",
-    };
-    const Stub = stb(<Steps init={init} />);
-    const screen = await render(<Stub />);
-
-    // wait for donate-methods to render
-    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
-
-    // select crypto tab
-    const crypto_tab = screen.getByRole("tab", { name: /crypto/i });
-    await crypto_tab.click();
-
-    // select token
-    const token_selector = screen.getByRole("combobox");
-    await token_selector.click();
-    await expect.element(screen.getByRole("option")).toBeVisible();
-    await screen.getByRole("option").first().click();
-
-    // input amount
-    const amount_input = screen.getByPlaceholder(/enter amount/i);
-    await amount_input.fill("2");
-
-    // submit to donor step
-    const continue_btn = screen.getByRole("button", { name: /continue/i });
-    await continue_btn.click();
-
-    // should be on donor step now - fill donor info
-    const email_input = screen.getByPlaceholder(/john@doe\.com/i);
-    await expect.element(email_input).toBeVisible();
-    await email_input.fill("john@doe.com");
-
-    const first_name_input = screen.getByRole("textbox", {
-      name: /first name/i,
-    });
-    await first_name_input.fill("John");
-
-    const last_name_input = screen.getByRole("textbox", { name: /last name/i });
-    await last_name_input.fill("Doe");
-
-    // continue to checkout
-    const continue_btn2 = screen.getByRole("button", { name: /continue/i });
-    await continue_btn2.click();
-
-    // should be on checkout page - look for crypto-specific button
-    await expect
-      .element(
-        screen.getByRole("button", {
-          name: /i have completed the payment/i,
-        })
-      )
-      .toBeVisible();
-
-    // go back to donor step
-    const back_btn = screen.getByRole("button", { name: /go back/i });
-    await back_btn.click();
-
-    // verify donor state persists
-    await expect
-      .element(screen.getByPlaceholder(/john@doe\.com/i))
-      .toHaveValue("john@doe.com");
-    await expect
-      .element(screen.getByRole("textbox", { name: /first name/i }))
-      .toHaveValue("John");
-    await expect
-      .element(screen.getByRole("textbox", { name: /last name/i }))
-      .toHaveValue("Doe");
-
-    // go back to form
-    const back_btn2 = screen.getByRole("button", { name: /go back/i });
-    await back_btn2.click();
-
-    // verify form state persists
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue("2");
-  });
-
-  test("daf: form state persists when navigating to checkout and back", async () => {
-    const init: TDonation = {
-      base_url: "",
-      source: "bg-marketplace",
-      mode: "live",
-      recipient: donation_recipient_init({ hide_bg_tip: true }),
-      donor: donor_fv_blank,
-      config: all_methods_config,
+      tab: /crypto/i,
+      asset: true,
+      donor: true,
+      amount: "2",
+      arrived: async (screen) => {
+        await expect
+          .element(
+            screen.getByRole("button", {
+              name: /i have completed the payment/i,
+            })
+          )
+          .toBeVisible();
+      },
+    },
+    {
       method: "daf",
-    };
-    const Stub = stb(<Steps init={init} />);
-    const screen = await render(<Stub />);
+      tab: /donor advised fund/i,
+      amount: "500",
+      // daf's checkout is the chariot widget — nothing of its own to name, so
+      // leaving the form is the marker
+      arrived: async (screen) => {
+        await expect
+          .element(screen.getByTestId("donate-methods"))
+          .not.toBeInTheDocument();
+        await expect
+          .element(screen.getByRole("button", { name: /go back/i }))
+          .toBeVisible();
+      },
+    },
+    {
+      method: "stocks",
+      tab: /stocks/i,
+      asset: true,
+      amount: "10",
+      arrived: async (screen) => {
+        await expect
+          .element(screen.getByText(/donation pending/i))
+          .toBeVisible();
+        await expect
+          .element(screen.getByRole("link", { name: /generate email/i }))
+          .toBeVisible();
+      },
+    },
+    {
+      method: "ira_qcd",
+      tab: /ira \/ qcd/i,
+      amount: "300",
+      arrived: async (screen) => {
+        await expect
+          .element(screen.getByText(/ira donation pending/i))
+          .toBeVisible();
+        await expect
+          .element(screen.getByRole("link", { name: /generate email/i }))
+          .toBeVisible();
+      },
+    },
+  ];
 
-    // wait for donate-methods to render
-    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
-
-    // select DAF tab
-    const daf_tab = screen.getByRole("tab", { name: /donor advised fund/i });
-    await daf_tab.click();
-
-    // input amount
-    const amount_input = screen.getByPlaceholder(/enter amount/i);
-    await amount_input.fill("500");
-
-    // submit directly to checkout (donor step is skipped)
-    const continue_btn = screen.getByRole("button", { name: /continue/i });
-    await continue_btn.click();
-
-    // should be on checkout page - daf uses chariot widget, check we left the form
-    await expect
-      .element(screen.getByTestId("donate-methods"))
-      .not.toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("button", { name: /go back/i }))
-      .toBeVisible();
-
-    // go back to form (donor step is skipped)
-    const back_btn = screen.getByRole("button", { name: /go back/i });
-    await back_btn.click();
-
-    // verify form state persists
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue("500");
-  });
-
-  test("stocks: form state persists when navigating to checkout and back", async () => {
+  test.each(
+    cases
+  )("$method: form state persists when navigating to checkout and back", async (c) => {
     const init: TDonation = {
       base_url: "",
       source: "bg-marketplace",
@@ -161,92 +115,52 @@ describe("payment method form state persistence", () => {
       recipient: donation_recipient_init({ hide_bg_tip: true }),
       donor: donor_fv_blank,
       config: all_methods_config,
-      method: "stocks",
+      method: c.method,
     };
     const Stub = stb(<Steps init={init} />);
     const screen = await render(<Stub />);
 
-    // wait for donate-methods to render
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
+    await screen.getByRole("tab", { name: c.tab }).click();
 
-    // select stocks tab
-    const stocks_tab = screen.getByRole("tab", { name: /stocks/i });
-    await stocks_tab.click();
-
-    // select ticker
-    const ticker_selector = screen.getByRole("combobox");
-    await ticker_selector.click();
-    await expect.element(screen.getByRole("option")).toBeVisible();
-    await screen.getByRole("option").first().click();
+    if (c.asset) {
+      const selector = screen.getByRole("combobox");
+      await selector.click();
+      await expect.element(screen.getByRole("option")).toBeVisible();
+      await screen.getByRole("option").first().click();
+    }
 
     const amount_input = screen.getByPlaceholder(/enter amount/i);
     await expect.element(amount_input).toBeVisible();
-    await amount_input.fill("10");
+    await amount_input.fill(c.amount);
+    await screen.getByRole("button", { name: /continue/i }).click();
 
-    // submit directly to checkout (donor step is skipped)
-    const continue_btn = screen.getByRole("button", { name: /continue/i });
-    await continue_btn.click();
+    if (c.donor) {
+      await fill_donor(screen);
+      await screen.getByRole("button", { name: /continue/i }).click();
+    }
 
-    // should be on checkout page - look for stocks-specific text
-    await expect.element(screen.getByText(/donation pending/i)).toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: /generate email/i }))
-      .toBeVisible();
+    await c.arrived(screen);
 
-    // go back to form (donor step is skipped)
-    const back_btn = screen.getByRole("button", { name: /go back/i });
-    await back_btn.click();
+    await screen.getByRole("button", { name: /go back/i }).click();
 
-    // verify form state persists
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue("10");
-  });
+    if (c.donor) {
+      // the donor step sits between checkout and the form, and holds its own
+      await expect
+        .element(screen.getByPlaceholder(/john@doe\.com/i))
+        .toHaveValue("john@doe.com");
+      await expect
+        .element(screen.getByRole("textbox", { name: /first name/i }))
+        .toHaveValue("John");
+      await expect
+        .element(screen.getByRole("textbox", { name: /last name/i }))
+        .toHaveValue("Doe");
+      await screen.getByRole("button", { name: /go back/i }).click();
+    }
 
-  test("ira_qcd: form state persists when navigating to checkout and back", async () => {
-    const init: TDonation = {
-      base_url: "",
-      source: "bg-marketplace",
-      mode: "live",
-      recipient: donation_recipient_init({ hide_bg_tip: true }),
-      donor: donor_fv_blank,
-      config: all_methods_config,
-      method: "ira_qcd",
-    };
-    const Stub = stb(<Steps init={init} />);
-    const screen = await render(<Stub />);
-
-    // wait for donate-methods to render
-    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
-
-    // select IRA/QCD tab
-    const ira_tab = screen.getByRole("tab", { name: /ira \/ qcd/i });
-    await ira_tab.click();
-
-    // input amount
-    const amount_input = screen.getByPlaceholder(/enter amount/i);
-    await amount_input.fill("300");
-
-    // submit directly to checkout (donor step is skipped)
-    const continue_btn = screen.getByRole("button", { name: /continue/i });
-    await continue_btn.click();
-
-    // should be on checkout page - ira/qcd shows pending text
-    await expect
-      .element(screen.getByText(/ira donation pending/i))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: /generate email/i }))
-      .toBeVisible();
-
-    // go back to form (donor step is skipped)
-    const back_btn = screen.getByRole("button", { name: /go back/i });
-    await back_btn.click();
-
-    // verify form state persists
     await expect
       .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue("300");
+      .toHaveValue(c.amount);
   });
 
   test("form state persists when switching between payment methods after checkout", async () => {

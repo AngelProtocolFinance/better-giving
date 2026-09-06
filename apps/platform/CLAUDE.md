@@ -32,9 +32,9 @@ Three-layer structure:
 
 ## Testing
 
-- two vitest projects in `vite.config.ts`: `browser` (the default — every `*.test.ts(x)`) and `node`, which takes only `*.node.test.ts` under `src/` and `jobs/` — the sweeps that read the tree off disk. `jobs/` has no browser project at all.
+- two vitest projects in `vite.config.ts`, picked by extension: `browser` takes every `*.test.tsx`; `node` (forks, no chromium) takes every `*.test.ts` under `src/`, `lib/` and `.server/` plus `jobs/**/*.node.test.ts`. `jobs/` has no browser project at all. `src/setup-tests-node.ts` carries the node polyfills (`PageTransitionEvent`).
 - `.claude/**` is in vitest's `exclude` (defensive — Claude config lives in the root `.claude/`, not here)
-- **a run costs one headless chromium per test file, serially.** `fileParallelism: false` (`vite.config.ts`) walks every browser test file one at a time, so the full suite is the expensive default (~3 min measured 2026-09-04). Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
+- **a run costs one headless chromium per test file, serially.** `fileParallelism: false` (`vite.config.ts`) walks every browser test file one at a time, so the full suite is the expensive default (192s for 68 browser + 71 node files, measured 2026-09-06; the browser project alone is ~130s, the node project ~46s and never spawns chromium). Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
 
 ## Code Style
 

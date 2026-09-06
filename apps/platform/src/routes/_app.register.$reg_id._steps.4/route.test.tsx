@@ -2,7 +2,6 @@ import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import {
   afterAll,
-  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -12,7 +11,7 @@ import {
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import { registrations } from "$/pg/schema/registration";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -51,9 +50,9 @@ vi.mock("remix-client-cache", () => ({
   createClientLoaderCache: () => undefined,
 }));
 
-// the three mounts hand `BankDetails` an `onSubmit` and own no error surface of
-// their own — the wiring under test is what each mount does with the result, so
-// the form itself stands in as a button that fires the callback.
+// the step hands `BankDetails` an `onSubmit` and owns no error surface of its
+// own — the wiring under test is what the step does with the result, so the
+// form itself stands in as a button that fires the callback.
 const bank_statement = vi.hoisted(() => ({
   url: "https://example.com/bank.pdf",
 }));
@@ -80,13 +79,9 @@ vi.mock("#/components/bank-details", () => ({
 import { get_session } from "#/.server/auth";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { update_action } from "#/pages/registration/update-action";
-import Banking from "#/routes/_app.register.$reg_id._steps.4/route";
-import { action as bapp_action } from "#/routes/admin.$id.banking.new/api";
-import AdminBanking from "#/routes/admin.$id.banking.new/route";
-import Payout from "#/routes/dashboard.referrals_.payout/route";
-import { resp } from "@/helpers/https";
 import { reg_put } from "$/pg/queries/registration";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import Banking from "./route";
 
 const mock_get_session = vi.mocked(get_session);
 const TEST_EMAIL = "test@example.com";
@@ -119,10 +114,6 @@ beforeEach(async () => {
       last_name: "User",
     } as any,
   });
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
 });
 
 // --- helpers ---
@@ -215,76 +206,5 @@ describe("registration step 4: banking", () => {
       .from(registrations)
       .where(eq(registrations.id, id));
     expect(row.o_bank_id).toBe("999");
-  }, 30_000);
-});
-
-describe("referrals payout", () => {
-  it("surfaces the failure when the save is rejected", async () => {
-    const Stub = createRoutesStub([
-      {
-        path: "/dashboard/referrals/payout",
-        Component: Payout,
-        HydrateFallback: () => null,
-        action: () => resp.fail(400, "wise recipient not found"),
-      },
-      { path: "/dashboard/referrals", Component: () => <p>referrals</p> },
-    ]);
-    const screen = await render(
-      <Stub initialEntries={["/dashboard/referrals/payout"]} />
-    );
-
-    await screen.getByRole("button", { name: /submit bank details/i }).click();
-
-    await expect
-      .element(screen.getByText(/wise recipient not found/i))
-      .toBeInTheDocument();
-  }, 30_000);
-
-  it("falls back to the generic line when the failure is ours", async () => {
-    const Stub = createRoutesStub([
-      {
-        path: "/dashboard/referrals/payout",
-        Component: Payout,
-        HydrateFallback: () => null,
-        // the shape the real action returns when the write fails
-        action: () => resp.fail(500, "Could not save your payout account"),
-      },
-      { path: "/dashboard/referrals", Component: () => <p>referrals</p> },
-    ]);
-    const screen = await render(
-      <Stub initialEntries={["/dashboard/referrals/payout"]} />
-    );
-
-    await screen.getByRole("button", { name: /submit bank details/i }).click();
-
-    // a 5xx is ours: the user gets the generic line and it is reported
-    await expect
-      .element(screen.getByText(/while saving your payout account/i))
-      .toBeInTheDocument();
-  }, 30_000);
-});
-
-describe("admin: new payout method", () => {
-  it("surfaces the failure when the action rejects the submission", async () => {
-    // a bank statement url the action's schema rejects
-    bank_statement.url = "not-a-url";
-    const Stub = createRoutesStub([
-      {
-        path: "/admin/:id/banking/new",
-        Component: AdminBanking,
-        HydrateFallback: () => null,
-        action: bapp_action as any,
-      },
-      { path: "/admin/:id/banking", Component: () => <p>banking</p> },
-    ]);
-    const screen = await render(
-      <Stub initialEntries={["/admin/1/banking/new"]} />
-    );
-
-    await screen.getByRole("button", { name: /submit bank details/i }).click();
-
-    await expect
-      .element(screen.getByText(/received "not-a-url"/i))
-      .toBeInTheDocument();
   }, 30_000);
 });

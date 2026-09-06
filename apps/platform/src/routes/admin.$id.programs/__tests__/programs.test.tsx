@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -44,7 +44,7 @@ vi.mock("remix-client-cache", () => ({
 import { Programs as ProfilePrograms } from "#/routes/_app.marketplace_.$id._index/programs";
 import { admin_ctx } from "$/auth/test-utils";
 import { npo_programs } from "$/pg/queries/program";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import Page from "../route";
 

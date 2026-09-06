@@ -7,7 +7,7 @@ import {
   test,
   vi,
 } from "vitest";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -55,7 +55,7 @@ vi.mock("./helpers", () => ({
 
 import { eq } from "drizzle-orm";
 import { registrations } from "$/pg/schema/registration";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { etch_complete } from "./etch-complete";
 import type { EtchPacket } from "./types";
 

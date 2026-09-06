@@ -1,5 +1,5 @@
 import { createRoutesStub } from "react-router";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { ActiveFilters } from "../active-filters";
 import { Search } from "./search";
@@ -48,6 +48,10 @@ function keystroke(input: HTMLInputElement, value: string) {
 }
 
 describe("marketplace search box", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // the term has to round-trip out of the url as well as into it: a filtered
   // grid above an empty box reads as broken data, not as a filter to clear.
   test("a shared ?query= link shows its term in the box", async () => {
@@ -89,6 +93,9 @@ describe("marketplace search box", () => {
   // typed term half a second after the clear, and the grid ends up filtered by
   // a word that is in neither the box nor the url.
   test("a keystroke still debouncing when Clear all fires never loads", async () => {
+    // shouldAdvanceTime keeps playwright's own polling alive while the
+    // debounce timer stays ours to fire on demand
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const queried: string[] = [];
     const screen = await render_toolbar(
       "/marketplace?query=clean%20water&countries=Japan,Kenya",
@@ -104,7 +111,7 @@ describe("marketplace search box", () => {
     ).click();
 
     await expect.element(box).toHaveValue("");
-    await new Promise((r) => setTimeout(r, 700));
+    await vi.advanceTimersByTimeAsync(700);
 
     expect(queried).not.toContain("kelp");
   });

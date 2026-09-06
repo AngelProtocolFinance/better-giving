@@ -15,7 +15,7 @@ import {
 } from "$/pg/schema/donation";
 import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -47,7 +47,7 @@ vi.mock("$/email", () => ({ send_email, sender: "test@test.com" }));
 
 // --- imports (after mocks) ---
 
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { handle_don_match_chase } from "./handle-don-match-chase";
 
 // --- setup ---

@@ -20,7 +20,7 @@ import {
 import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
 import { rev_logs } from "$/pg/schema/revenue";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -81,7 +81,7 @@ import {
   loader as refund_loader,
 } from "#/routes/platform.donations.$donation_id.refund/api";
 import RefundPage from "#/routes/platform.donations.$donation_id.refund/route";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 // --- setup ---
 

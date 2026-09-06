@@ -1,6 +1,7 @@
 import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { describe_lead_form } from "#/__tests__/fixtures/lead-form-contract";
 import type { ILeadValues } from "@/reg/lead";
 import { EligibilityForm, type IEligibilityErrors } from "./eligibility-form";
 
@@ -51,28 +52,6 @@ const mount = (opts: Opts = {}) => {
 };
 
 describe("EligibilityForm", () => {
-  test("renders each field's error and focuses the first one that failed", async () => {
-    const screen = await mount({
-      errors: {
-        o_hq_country: "Select a country",
-        o_registration_number: "Required",
-        email: "Enter a valid email",
-      },
-    });
-
-    await expect.element(screen.getByText("Select a country")).toBeVisible();
-    await expect.element(screen.getByText("Required")).toBeVisible();
-    await expect.element(screen.getByText("Enter a valid email")).toBeVisible();
-
-    // country is the first failing field in ask order, so focus lands there
-    // rather than staying on the submit button the round trip came from
-    await expect
-      .element(
-        screen.getByRole("combobox", { name: /country of registration/i })
-      )
-      .toHaveFocus();
-  });
-
   test("an org-name error outranks the later ones for focus", async () => {
     const screen = await mount({
       errors: { o_name: "Required", email: "Enter a valid email" },
@@ -121,21 +100,15 @@ describe("EligibilityForm", () => {
     expect(fd.get("middle_name")).toBe("");
   });
 
-  test("a failed submit repopulates every field it came back with", async () => {
+  test("a failed submit repopulates the registration number and country", async () => {
     const screen = await mount({
       values: posted(),
       errors: { email: "That domain doesn't resolve" },
     });
 
     await expect
-      .element(screen.getByLabelText(/organization name/i))
-      .toHaveValue("Yamba Loves Uganda");
-    await expect
       .element(screen.getByLabelText(/registration number/i))
       .toHaveValue("1234567");
-    await expect
-      .element(screen.getByLabelText(/work email/i))
-      .toHaveValue("hello@yamba.org");
     // the combobox is the field most able to lose a selection silently: it is
     // controlled, so nothing in the markup carries it back on its own
     await expect
@@ -162,36 +135,29 @@ describe("EligibilityForm", () => {
     );
   });
 
-  test("a session mismatch takes focus and marks no field", async () => {
+  test("the session-mismatch notice offers the signed-in account", async () => {
     const screen = await mount({
       signed_in_as: "jane@acme.org",
       errors: {},
     });
 
-    const notice = screen
-      .getByText(/this browser is signed in as/i)
-      .element()
-      .closest("[role=alert]");
-    // the remedy is two actions; focus goes to it or the user never finds it
-    expect(notice).toHaveFocus();
-    expect(notice).toMatchTextContent("jane@acme.org");
-
-    await expect
-      .element(screen.getByLabelText(/organization name/i))
-      .not.toHaveAttribute("aria-invalid", "true");
     await expect
       .element(
         screen.getByRole("link", { name: /continue with this account/i })
       )
       .toBeVisible();
   });
+});
 
-  test("pending reports on the button and locks the fields", async () => {
-    const screen = await mount({ pending: true });
-
-    const btn = screen.getByRole("button", { name: /submitting/i });
-    await expect.element(btn).toBeVisible();
-    expect(btn.element()).toBeDisabled();
-    expect(screen.getByLabelText(/work email/i).element()).toBeDisabled();
-  });
+describe_lead_form(EligibilityForm, {
+  name_label: /organization name/i,
+  email_label: /work email/i,
+  values: posted(),
+  errors: {
+    o_hq_country: "Select a country",
+    o_registration_number: "Required",
+    email: "Enter a valid email",
+  } satisfies IEligibilityErrors,
+  first_marked: (screen) =>
+    screen.getByRole("combobox", { name: /country of registration/i }),
 });

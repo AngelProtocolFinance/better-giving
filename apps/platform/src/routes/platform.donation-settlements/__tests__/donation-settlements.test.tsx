@@ -18,7 +18,7 @@ import {
 } from "$/pg/schema/donation";
 import { donation_match_events } from "$/pg/schema/match";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -59,7 +59,7 @@ import { get_npos } from "#/.server/npos";
 import { mswWorker } from "#/setup-tests-browser";
 import { search } from "@/helpers/https";
 import { npos_search } from "@/npo/schema";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import {
   action as createAction,
   loader as createLoader,
@@ -413,7 +413,6 @@ describe("settle donation — full flow", () => {
       screen.getByRole("button", { name: /confirm/i }).element() as HTMLElement
     ).click();
 
-    await new Promise((r) => setTimeout(r, 2500));
     await expect
       .element(screen.getByText("Settlement created"), { timeout: 10_000 })
       .toBeInTheDocument();
@@ -459,14 +458,14 @@ describe("settle donation — full flow", () => {
       .element(combo, { timeout: 3000 })
       .toHaveValue("Freegan Food Foundation");
 
-    // and remains intact after the post-selection debounce window
-    await new Promise((r) => setTimeout(r, 800));
-    await expect.element(combo).toHaveValue("Freegan Food Foundation");
-
     await screen.getByPlaceholder("0.00").fill("100");
     await screen
       .getByPlaceholder("e.g. Fidelity deposit #123")
       .fill("ref-regression");
+
+    // and survives the post-selection debounce — the two fills above outlast
+    // the window a refetch would have fired in
+    await expect.element(combo).toHaveValue("Freegan Food Foundation");
 
     (
       screen.getByRole("button", { name: /preview/i }).element() as HTMLElement

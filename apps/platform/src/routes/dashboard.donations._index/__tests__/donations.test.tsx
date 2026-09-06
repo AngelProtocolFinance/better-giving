@@ -15,7 +15,7 @@ import {
   donations,
 } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -47,7 +47,7 @@ vi.mock("remix-client-cache", () => ({
 // --- imports after mocks ---
 
 import { user_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import DonationsLayout from "../../dashboard.donations/route";
 import DonationsPage, { loader } from "../../dashboard.donations._index/route";
 

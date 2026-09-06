@@ -7,7 +7,7 @@ import {
   test,
 } from "vitest";
 import { user } from "../schema/auth";
-import { create_test_db, type TestDb } from "../test-utils/pglite-browser";
+import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
 import { user_w_form_weld_eid, user_w_form_weld_eid_set } from "./user";
 

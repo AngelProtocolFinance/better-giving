@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { CsvExporter } from "../csv-exporter";
 
-describe("CsvExporter tests", () => {
+describe("CsvExporter", () => {
   test("downloads the file with provided name", async () => {
     const headers = [
       { key: "key1", label: "Key1" },

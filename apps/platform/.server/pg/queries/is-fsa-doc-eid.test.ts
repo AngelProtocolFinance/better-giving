@@ -7,7 +7,7 @@ import {
   test,
   vi,
 } from "vitest";
-import type { TestDb } from "../test-utils/pglite-browser";
+import type { TestDb } from "../test-utils/pglite";
 
 // --- hoisted refs ---
 
@@ -33,7 +33,7 @@ vi.mock("../db", () => ({
 // --- imports (after mocks) ---
 
 import { registrations } from "../schema/registration";
-import { create_test_db } from "../test-utils/pglite-browser";
+import { create_test_db } from "../test-utils/pglite";
 import { is_fsa_doc_eid } from "./registration";
 
 const EID = "docGroupAbc123";

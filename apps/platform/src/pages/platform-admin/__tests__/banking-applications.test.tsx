@@ -13,7 +13,7 @@ import { cleanup, render } from "vitest-browser-react";
 import { get_qstash_events } from "#/setup-tests-browser";
 import { banking_apps } from "$/pg/schema/banking";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -88,9 +88,13 @@ import ApprovePage from "#/routes/platform.banking-applications_.$id.approve/rou
 import RejectPage from "#/routes/platform.banking-applications_.$id.reject/route";
 import { wise } from "$/kit/wise";
 import { bapps_by_status } from "$/pg/queries/banking";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 // --- setup ---
+
+/** the base64url pair the bapp cursor rides on */
+const b64url = (x: string) =>
+  btoa(x).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
 let counter = 0;
 
@@ -313,7 +317,9 @@ describe("application detail", () => {
       <Stub initialEntries={[`/platform/banking-applications/${bapp_id}`]} />
     );
 
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approve", { exact: true }))
+      .toBeVisible();
 
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
@@ -344,7 +350,9 @@ describe("application detail", () => {
       <Stub initialEntries={[`/platform/banking-applications/${bapp_id}`]} />
     );
 
-    await expect.element(screen.getByText("Rejected")).toBeVisible();
+    await expect
+      .element(screen.getByText("Rejected", { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByText("Incomplete docs"))
       .toBeInTheDocument();
@@ -399,7 +407,9 @@ describe("approve flow", () => {
     await cleanup();
     const updated = await get_bapp(bapp_id);
     const screen2 = await render_detail(bapp_id, updated);
-    await expect.element(screen2.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen2.getByText("Approve", { exact: true }))
+      .toBeVisible();
 
     const events = await get_outbox_events();
     expect(events.some((e) => e.id === "banking-approved")).toBe(true);
@@ -448,7 +458,9 @@ describe("approve flow", () => {
       <Stub initialEntries={[`/platform/banking-applications/${bapp_id}`]} />
     );
 
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approve", { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
       .toHaveAttribute("aria-disabled", "true");
@@ -505,7 +517,9 @@ describe("reject flow", () => {
     await cleanup();
     const updated = await get_bapp(bapp_id);
     const screen2 = await render_detail(bapp_id, updated);
-    await expect.element(screen2.getByText("Rejected")).toBeVisible();
+    await expect
+      .element(screen2.getByText("Rejected", { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen2.getByText("Missing documentation"))
       .toBeInTheDocument();
@@ -552,7 +566,9 @@ describe("reject flow", () => {
       <Stub initialEntries={[`/platform/banking-applications/${bapp_id}`]} />
     );
 
-    await expect.element(screen.getByText("Rejected")).toBeVisible();
+    await expect
+      .element(screen.getByText("Rejected", { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("link", { name: /reject/i }))
       .toHaveAttribute("aria-disabled", "true");
@@ -647,7 +663,11 @@ describe("list loader", () => {
   });
 
   it("rejects a malformed endowmentID", async () => {
-    await expect(list("?status=&endowmentID=abc")).rejects.toBeDefined();
+    const thrown = await list("?status=&endowmentID=abc").catch(
+      (e: unknown) => e
+    );
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(400);
   });
 
   it("pages through rows that share an updated_at", async () => {
@@ -693,10 +713,7 @@ describe("list loader", () => {
       updated_at: "2024-01-01T00:00:00.000Z",
     });
 
-    const legacy = btoa(boundary)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    const legacy = b64url(boundary);
     const page = await bapps_by_status(["default"], { next: legacy });
 
     expect(page.items.map((x) => x.id).sort()).toEqual([...tied, older].sort());
@@ -711,15 +728,15 @@ describe("list loader", () => {
       await seed_bapp(npo.id, { status: "default", updated_at: boundary });
     }
 
-    const legacy = btoa(boundary)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
+    const legacy = b64url(boundary);
     const first = await bapps_by_status(["default"], {
       limit: 2,
       next: legacy,
     });
-    expect(first.next).toBeDefined();
+    // the issued cursor names the last row served — instant *and* id — which
+    // is what puts the next request back on the row comparison
+    const last = first.items[1]!;
+    expect(first.next).toBe(b64url(`${last.updated_at}|${last.id}`));
 
     const second = await bapps_by_status(["default"], {
       limit: 2,

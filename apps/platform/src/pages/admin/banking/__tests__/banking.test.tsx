@@ -13,7 +13,7 @@ import { cleanup, render } from "vitest-browser-react";
 import { get_qstash_events } from "#/setup-tests-browser";
 import { banking_apps } from "$/pg/schema/banking";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -91,7 +91,7 @@ import { action as new_banking_action } from "#/routes/admin.$id.banking.new/api
 import { admin_ctx } from "$/auth/test-utils";
 import { wise } from "$/kit/wise";
 import { bapp_delete } from "$/pg/queries/banking";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 
 // --- setup ---
 
@@ -273,8 +273,12 @@ describe("payout methods list", () => {
     await expect
       .element(screen.getByText("EUR account ending in 5678"))
       .toBeInTheDocument();
-    await expect.element(screen.getByText("Approved")).toBeInTheDocument();
-    await expect.element(screen.getByText("Under review")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Under review", { exact: true }))
+      .toBeInTheDocument();
   });
 
   it("clicks Details and navigates to detail page", async () => {
@@ -295,7 +299,9 @@ describe("payout methods list", () => {
 
     // detail page loaded — wait for detail-unique text first
     await expect.element(screen.getByText("Jane Doe")).toBeVisible();
-    await expect.element(screen.getByText("Approved")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeInTheDocument();
     await expect.element(screen.getByText("USD")).toBeInTheDocument();
   });
 
@@ -387,7 +393,9 @@ describe("new banking action", () => {
     // cross-page: render real banking list — new bapp with status visible
     await cleanup();
     const list = await render_list(npo.id);
-    await expect.element(list.getByText("Under review")).toBeInTheDocument();
+    await expect
+      .element(list.getByText("Under review", { exact: true }))
+      .toBeInTheDocument();
 
     const events = await get_outbox_events();
     expect(events.some((e) => e.id === "banking-new")).toBe(true);
@@ -527,7 +535,9 @@ describe("set default flow", () => {
       `/admin/${npo.id}/banking/100`
     );
 
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeVisible();
     await screen.getByRole("button", { name: /set default/i }).click();
 
     // revalidation: badge changes
@@ -555,7 +565,9 @@ describe("set default flow", () => {
       npo.id,
       `/admin/${npo.id}/banking/200`
     );
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeVisible();
     await screen.getByRole("button", { name: /set default/i }).click();
     await expect
       .element(screen.getByText("Default", { exact: true }))
@@ -645,7 +657,9 @@ describe("delete", () => {
       npo.id,
       `/admin/${npo.id}/banking/100`
     );
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeVisible();
 
     // click Delete link → modal
     await screen.getByRole("link", { name: /delete/i }).click();
@@ -670,7 +684,9 @@ describe("delete", () => {
       npo.id,
       `/admin/${npo.id}/banking/100`
     );
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeVisible();
 
     // click Delete link → modal
     await screen.getByRole("link", { name: /delete/i }).click();
@@ -682,7 +698,9 @@ describe("delete", () => {
     ).click();
 
     // still on detail
-    await expect.element(screen.getByText("Approved")).toBeVisible();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeVisible();
     await expect.element(screen.getByText("Jane Doe")).toBeInTheDocument();
   });
 });

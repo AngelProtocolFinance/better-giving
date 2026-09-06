@@ -1,7 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
+import { sources_of } from "./conformance/walk";
 
 /**
  * the names sweep for the three controls the system owns — the button, the
@@ -19,34 +17,7 @@ import { describe, expect, test } from "vitest";
  * which has no `node:fs`.
  */
 
-const here = fileURLToPath(new URL(".", import.meta.url));
-const repo = resolve(here, "..", "..", "..", "..");
-const self = relative(repo, fileURLToPath(import.meta.url))
-  .split(sep)
-  .join("/");
-
-const ROOTS = ["apps/platform/src", "packages/ui/src"];
-const EXTS = [".ts", ".tsx", ".css"];
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === "node_modules" || e.name.startsWith(".")) continue;
-    const p = join(dir, e.name);
-    if (e.isDirectory()) walk(p, out);
-    else if (EXTS.some((x) => e.name.endsWith(x))) out.push(p);
-  }
-  return out;
-}
-
-/** repo-relative path + text of every scanned file. this file is skipped: it
- *  spells the needles out itself. */
-const sources = ROOTS.flatMap((r) => walk(join(repo, r)))
-  .map((f) => ({
-    file: relative(repo, f).split(sep).join("/"),
-    text: readFileSync(f, "utf8"),
-  }))
-  .filter((x) => x.file !== self)
-  .sort((a, b) => a.file.localeCompare(b.file));
+const sources = sources_of(import.meta.url);
 
 const line_of = (text: string, i: number) =>
   text.slice(0, i).split("\n").length;

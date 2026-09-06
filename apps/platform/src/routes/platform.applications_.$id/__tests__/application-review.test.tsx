@@ -16,7 +16,7 @@ import { banking_apps } from "$/pg/schema/banking";
 import { npos } from "$/pg/schema/npo";
 import { registrations } from "$/pg/schema/registration";
 import { user_npo_memberships } from "$/pg/schema/user";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- test db (assigned in beforeAll, accessed via getter in mock) ---
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -94,15 +94,15 @@ import { step_loader } from "#/pages/registration/data/step-loader";
 import Dashboard from "#/routes/_app.register.$reg_id._steps.5/route";
 import { submit_action } from "#/routes/_app.register.$reg_id._steps.5/submit-action";
 import RegSuccess from "#/routes/_app.register.success/route";
+import Prompt, {
+  action,
+} from "#/routes/platform.applications_.$id.$verdict/route";
 import type { V2RecipientAccount } from "#/types/bank-details";
 import { wise } from "$/kit/wise";
 import { reg_get, reg_put } from "$/pg/queries/registration";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { loader as review_loader } from "../routes/platform.applications_.$id/api";
-import Page from "../routes/platform.applications_.$id/route";
-import Prompt, {
-  action,
-} from "../routes/platform.applications_.$id.$verdict/route";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import { loader as review_loader } from "../api";
+import Page from "../route";
 
 const mock_get_session = vi.mocked(get_session);
 const TEST_EMAIL = "admin@example.com";
@@ -331,7 +331,9 @@ describe("rejection", () => {
     await expect
       .element(screen.getByText(/review submitted/i))
       .toBeInTheDocument();
-    await expect.element(screen.getByText("Rejected")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Rejected", { exact: true }))
+      .toBeInTheDocument();
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
       .toHaveAttribute("aria-disabled", "true");
@@ -387,7 +389,9 @@ describe("approval", () => {
     await expect
       .element(screen.getByText(/review submitted/i))
       .toBeInTheDocument();
-    await expect.element(screen.getByText("Approved")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeInTheDocument();
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
       .toHaveAttribute("aria-disabled", "true");
@@ -421,7 +425,9 @@ describe("already decided", () => {
     const id = await seed_reg({ ...ALL_FIELDS, status: "03" });
     const screen = await render_review(id);
 
-    await expect.element(screen.getByText("Approved")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Approved", { exact: true }))
+      .toBeInTheDocument();
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))
       .toHaveAttribute("aria-disabled", "true");
@@ -438,7 +444,9 @@ describe("already decided", () => {
     });
     const screen = await render_review(id);
 
-    await expect.element(screen.getByText("Rejected")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Rejected", { exact: true }))
+      .toBeInTheDocument();
     await expect.element(screen.getByText("missing docs")).toBeInTheDocument();
     await expect
       .element(screen.getByRole("link", { name: /approve/i }))

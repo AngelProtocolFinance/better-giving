@@ -15,7 +15,7 @@ import { banking_apps } from "$/pg/schema/banking";
 import { nav_holders, nav_log_positions, nav_logs } from "$/pg/schema/nav";
 import { npos } from "$/pg/schema/npo";
 import { payouts, settlements } from "$/pg/schema/payout";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -58,37 +58,43 @@ vi.mock("swr/immutable", () => ({
 
 // --- imports after mocks ---
 
+import type { LoaderData } from "#/pages/admin/types";
 import { action as verdict_action } from "#/pages/platform-admin/redeem-requests/api";
-import { admin_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import type { LoaderData as AdminLayoutData } from "../routes/admin.$id/types";
-// dashboard for cross-page
-import {
-  endowUpdateAction as dash_action,
-  loader as dash_loader,
-} from "../routes/admin.$id.dashboard/api";
-import DashboardPage from "../routes/admin.$id.dashboard/route";
-import { loader as inv_loader } from "../routes/admin.$id.investments/api";
-import InvestmentsPage from "../routes/admin.$id.investments/route";
+import TransferPage, {
+  action as transfer_action,
+  loader as transfer_loader,
+} from "#/routes/admin.$id.dashboard.transfer/route";
+import WithdrawPage, {
+  action as withdraw_action,
+  loader as withdraw_loader,
+} from "#/routes/admin.$id.dashboard.withdraw/route";
+import { loader as inv_loader } from "#/routes/admin.$id.investments/api";
+import InvestmentsPage from "#/routes/admin.$id.investments/route";
 import InvTransferPage, {
   action as inv_transfer_action,
   loader as inv_transfer_loader,
-} from "../routes/admin.$id.investments.transfer/route";
+} from "#/routes/admin.$id.investments.transfer/route";
 import InvWithdrawPage, {
   action as inv_withdraw_action,
   loader as inv_withdraw_loader,
-} from "../routes/admin.$id.investments.withdraw/route";
-// platform admin redeem-requests for cross-page
-import { loader as redeem_loader } from "../routes/platform.redeem-requests/api";
-import RedeemRequestsPage from "../routes/platform.redeem-requests/route";
-import VerdictApprove from "../routes/platform.redeem-requests.$tx_id.approve/route";
-import VerdictReject from "../routes/platform.redeem-requests.$tx_id.reject/route";
+} from "#/routes/admin.$id.investments.withdraw/route";
+import { loader as redeem_loader } from "#/routes/platform.redeem-requests/api";
+import RedeemRequestsPage from "#/routes/platform.redeem-requests/route";
+import VerdictApprove from "#/routes/platform.redeem-requests.$tx_id.approve/route";
+import VerdictReject from "#/routes/platform.redeem-requests.$tx_id.reject/route";
+import { admin_ctx } from "$/auth/test-utils";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import {
+  endowUpdateAction as dashboard_action,
+  loader as dashboard_loader,
+} from "../api";
+import DashboardPage from "../route";
 
 // --- setup ---
 
 const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
-  registration_number: "EIN-INV",
-  name: "Investments Test NPO",
+  registration_number: "EIN-DASH",
+  name: "Admin Test NPO",
   endow_designation: "Charity",
   overview_pt: "[]",
   hq_country: "United States",
@@ -127,19 +133,6 @@ async function seed_npo(
   return row;
 }
 
-function make_composition(cash_value: number): IComposition {
-  const now = new Date().toISOString();
-  return {
-    CASH: {
-      id: "CASH",
-      qty: cash_value,
-      price_date: now,
-      price: 1,
-      value: cash_value,
-    },
-  };
-}
-
 async function seed_nav_log(opts: {
   price: number;
   units: number;
@@ -148,7 +141,15 @@ async function seed_nav_log(opts: {
   composition?: IComposition;
 }) {
   const now = new Date().toISOString();
-  const composition = opts.composition ?? make_composition(opts.value);
+  const composition: IComposition = opts.composition ?? {
+    CASH: {
+      id: "CASH",
+      qty: opts.value,
+      price_date: now,
+      price: 1,
+      value: opts.value,
+    },
+  };
   const positions = Object.values(composition);
   await test_db.current!.db.transaction(async (tx) => {
     await tx.insert(nav_logs).values({
@@ -182,20 +183,135 @@ async function seed_nav_log(opts: {
   });
 }
 
-function make_admin_data(npo_id: number): AdminLayoutData {
+function make_admin_data(npo_id: number): LoaderData {
   return {
     id: npo_id,
     user: { email: "test@test.com", sub: "sub-1" } as any,
     endow: {
       logo: null,
-      name: "Investments Test NPO",
+      name: "Admin Test NPO",
       allocation: null,
       payout_minimum: undefined as any,
     },
   };
 }
 
+const admin_mdlwr = (npo_id: number) => [
+  async ({ context }: any, next: any) => {
+    context.set(admin_ctx, npo_id);
+    return next();
+  },
+];
+
 // --- render helpers ---
+
+async function render_dashboard_with_transfer(npo_id: number) {
+  const mdlwr = admin_mdlwr(npo_id);
+  const Stub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/admin/:id",
+      Component: () => <Outlet />,
+      HydrateFallback: () => null,
+      loader: () => make_admin_data(npo_id),
+      children: [
+        {
+          id: "dashboard",
+          path: "dashboard",
+          Component: DashboardPage,
+          loader: dashboard_loader as any,
+          action: dashboard_action,
+          middleware: mdlwr,
+          children: [
+            {
+              path: "transfer",
+              Component: TransferPage,
+              loader: transfer_loader as any,
+              action: transfer_action,
+              middleware: mdlwr,
+            },
+          ],
+        },
+      ],
+    },
+  ]);
+  return await render(
+    <Stub
+      initialEntries={[`/admin/${npo_id}/dashboard`]}
+      future={{ v8_middleware: true }}
+    />
+  );
+}
+
+async function render_dashboard_with_withdraw(npo_id: number) {
+  const mdlwr = admin_mdlwr(npo_id);
+  const Stub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/admin/:id",
+      Component: () => <Outlet />,
+      HydrateFallback: () => null,
+      loader: () => make_admin_data(npo_id),
+      children: [
+        {
+          id: "dashboard",
+          path: "dashboard",
+          Component: DashboardPage,
+          loader: dashboard_loader as any,
+          action: dashboard_action,
+          middleware: mdlwr,
+          children: [
+            {
+              path: "withdraw",
+              Component: WithdrawPage,
+              loader: withdraw_loader as any,
+              action: withdraw_action,
+              middleware: mdlwr,
+            },
+          ],
+        },
+        {
+          path: "investments",
+          Component: () => <div data-testid="investments-redirect" />,
+        },
+      ],
+    },
+  ]);
+  return await render(
+    <Stub
+      initialEntries={[`/admin/${npo_id}/dashboard`]}
+      future={{ v8_middleware: true }}
+    />
+  );
+}
+
+async function render_dashboard(npo_id: number) {
+  const Stub = createRoutesStub([
+    {
+      id: "admin",
+      path: "/admin/:id",
+      Component: () => <Outlet />,
+      HydrateFallback: () => null,
+      loader: () => make_admin_data(npo_id),
+      children: [
+        {
+          id: "dashboard",
+          path: "dashboard",
+          Component: DashboardPage,
+          loader: dashboard_loader as any,
+          action: dashboard_action,
+          middleware: admin_mdlwr(npo_id),
+        },
+      ],
+    },
+  ]);
+  return await render(
+    <Stub
+      initialEntries={[`/admin/${npo_id}/dashboard`]}
+      future={{ v8_middleware: true }}
+    />
+  );
+}
 
 async function render_investments(npo_id: number) {
   const Stub = createRoutesStub([
@@ -204,12 +320,7 @@ async function render_investments(npo_id: number) {
       Component: InvestmentsPage,
       HydrateFallback: () => null,
       loader: inv_loader as any,
-      middleware: [
-        async ({ context }: any, next: any) => {
-          context.set(admin_ctx, npo_id);
-          return next();
-        },
-      ],
+      middleware: admin_mdlwr(npo_id),
     },
   ]);
   return await render(
@@ -221,12 +332,7 @@ async function render_investments(npo_id: number) {
 }
 
 async function render_investments_with_withdraw(npo_id: number) {
-  const mdlwr = [
-    async ({ context }: any, next: any) => {
-      context.set(admin_ctx, npo_id);
-      return next();
-    },
-  ];
+  const mdlwr = admin_mdlwr(npo_id);
   const Stub = createRoutesStub([
     {
       path: "/admin/:id",
@@ -259,12 +365,7 @@ async function render_investments_with_withdraw(npo_id: number) {
 }
 
 async function render_investments_with_transfer(npo_id: number) {
-  const mdlwr = [
-    async ({ context }: any, next: any) => {
-      context.set(admin_ctx, npo_id);
-      return next();
-    },
-  ];
+  const mdlwr = admin_mdlwr(npo_id);
   const Stub = createRoutesStub([
     {
       path: "/admin/:id",
@@ -300,39 +401,6 @@ async function render_investments_with_transfer(npo_id: number) {
   );
 }
 
-async function render_dashboard(npo_id: number) {
-  const Stub = createRoutesStub([
-    {
-      id: "admin",
-      path: "/admin/:id",
-      Component: () => <Outlet />,
-      HydrateFallback: () => null,
-      loader: () => make_admin_data(npo_id),
-      children: [
-        {
-          id: "dashboard",
-          path: "dashboard",
-          Component: DashboardPage,
-          loader: dash_loader as any,
-          action: dash_action,
-          middleware: [
-            async ({ context }: any, next: any) => {
-              context.set(admin_ctx, npo_id);
-              return next();
-            },
-          ],
-        },
-      ],
-    },
-  ]);
-  return await render(
-    <Stub
-      initialEntries={[`/admin/${npo_id}/dashboard`]}
-      future={{ v8_middleware: true }}
-    />
-  );
-}
-
 async function render_redeem_requests() {
   const Stub = createRoutesStub([
     {
@@ -358,6 +426,97 @@ async function render_redeem_requests() {
 }
 
 // --- tests ---
+
+describe("dashboard — transfer savings → investments", () => {
+  it("user sees dashboard, transfers savings, balances update on both pages", async () => {
+    const npo = await seed_npo({ liq: 1000, lock_units: 0 });
+    await seed_nav_log({ price: 1, units: 0, value: 0 });
+
+    let screen = await render_dashboard_with_transfer(npo.id);
+
+    // dashboard structure renders
+    await expect
+      .element(screen.getByRole("heading", { name: /dashboard/i }))
+      .toBeInTheDocument();
+    await expect.element(screen.getByText("Savings")).toBeInTheDocument();
+    await expect.element(screen.getByText("Investments")).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: /deposit/i }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: /withdraw/i }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: /transfer/i }))
+      .toBeInTheDocument();
+
+    // initial balances: savings $1,000, investments $0
+    await expect.element(screen.getByText("$1,000.00")).toBeInTheDocument();
+    await expect.element(screen.getByText(/\$ 0\.00/)).toBeInTheDocument();
+
+    // no activity yet
+    await expect
+      .element(screen.getByText(/no grant items/i))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/no payout records/i))
+      .toBeInTheDocument();
+
+    // user clicks Transfer
+    await screen.getByRole("link", { name: /transfer/i }).click();
+
+    await expect
+      .element(screen.getByRole("heading", { name: /transfer/i }))
+      .toBeInTheDocument();
+
+    // fill amount and submit
+    await screen.getByLabelText(/amount/i).fill("500");
+    await expect
+      .element(screen.getByRole("button", { name: /submit/i }))
+      .toBeEnabled();
+    // the dialog overlay intercepts pointer events; use native DOM click
+    (
+      screen.getByRole("button", { name: /submit/i }).element() as HTMLElement
+    ).click();
+
+    // dashboard reloads — savings decreased, investments increased
+    await expect.element(screen.getByText("$500.00")).toBeInTheDocument();
+    await expect.element(screen.getByText(/\$ 500\.00/)).toBeInTheDocument();
+
+    // cross-page: investments page shows the transfer tx
+    await cleanup();
+    screen = await render_investments(npo.id);
+
+    await expect
+      .element(screen.getByText(/transfer from savings/i))
+      .toBeInTheDocument();
+    await expect.element(screen.getByText(/final/i)).toBeInTheDocument();
+  });
+});
+
+describe("dashboard — withdraw dialog", () => {
+  it("opens withdraw dialog with account options", async () => {
+    const npo = await seed_npo({ liq: 200, lock_units: 100 });
+    await seed_nav_log({ price: 10, units: 100, value: 1000 });
+
+    const screen = await render_dashboard_with_withdraw(npo.id);
+
+    await expect.element(screen.getByText(/\$ 1,000\.00/)).toBeInTheDocument();
+
+    // click Withdraw link opens dialog
+    await screen.getByRole("link", { name: /withdraw/i }).click();
+
+    await expect
+      .element(screen.getByRole("heading", { name: /withdraw/i }))
+      .toBeInTheDocument();
+
+    // shows amount field and submit button
+    await expect.element(screen.getByLabelText(/amount/i)).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /submit/i }))
+      .toBeDisabled();
+  });
+});
 
 describe("investments — withdraw creates pending request", () => {
   it("user sees balance, withdraws, sees pending Grant tx", async () => {

@@ -11,7 +11,7 @@ import {
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -47,7 +47,7 @@ vi.mock("remix-client-cache", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { admin_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
+import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import SettingsPage from "../route";
 
@@ -352,15 +352,23 @@ describe("donation form tab — defaults", () => {
 
     // default donate method: only Card enabled
     // Card checkbox is checked, others unchecked
-    await expect.element(screen.getByText("Card")).toBeVisible();
+    await expect
+      .element(screen.getByText("Card", { exact: true }))
+      .toBeVisible();
     await vi.waitFor(() => {
-      const card_item = screen.getByText("Card").element().closest("[id]")!;
+      const card_item = screen
+        .getByText("Card", { exact: true })
+        .element()
+        .closest("[id]")!;
       const card_checkbox = card_item.querySelector(
         "input[type='checkbox']"
       ) as HTMLInputElement;
       expect(card_checkbox.checked).toBe(true);
 
-      const crypto_item = screen.getByText("Crypto").element().closest("[id]")!;
+      const crypto_item = screen
+        .getByText("Crypto", { exact: true })
+        .element()
+        .closest("[id]")!;
       const crypto_checkbox = crypto_item.querySelector(
         "input[type='checkbox']"
       ) as HTMLInputElement;
@@ -408,15 +416,23 @@ describe("donation form tab — pre-filled", () => {
     await screen.getByRole("tab", { name: /donation form/i }).click();
 
     // Card + Crypto enabled
-    await expect.element(screen.getByText("Card")).toBeVisible();
+    await expect
+      .element(screen.getByText("Card", { exact: true }))
+      .toBeVisible();
     await vi.waitFor(() => {
-      const card_item = screen.getByText("Card").element().closest("[id]")!;
+      const card_item = screen
+        .getByText("Card", { exact: true })
+        .element()
+        .closest("[id]")!;
       expect(
         (card_item.querySelector("input[type='checkbox']") as HTMLInputElement)
           .checked
       ).toBe(true);
 
-      const crypto_item = screen.getByText("Crypto").element().closest("[id]")!;
+      const crypto_item = screen
+        .getByText("Crypto", { exact: true })
+        .element()
+        .closest("[id]")!;
       expect(
         (
           crypto_item.querySelector(
@@ -467,9 +483,14 @@ describe("donation form tab — update methods", () => {
     await screen.getByRole("tab", { name: /donation form/i }).click();
 
     // uncheck Crypto
-    await expect.element(screen.getByText("Crypto")).toBeVisible();
+    await expect
+      .element(screen.getByText("Crypto", { exact: true }))
+      .toBeVisible();
     await vi.waitFor(async () => {
-      const crypto_item = screen.getByText("Crypto").element().closest("[id]")!;
+      const crypto_item = screen
+        .getByText("Crypto", { exact: true })
+        .element()
+        .closest("[id]")!;
       const crypto_checkbox = crypto_item.querySelector(
         "input[type='checkbox']"
       ) as HTMLInputElement;
@@ -485,14 +506,17 @@ describe("donation form tab — update methods", () => {
 
     // after revalidation, only Card should be enabled
     await vi.waitFor(() => {
-      const card_item = screen.getByText("Card").element().closest("[id]")!;
+      const card_item = screen
+        .getByText("Card", { exact: true })
+        .element()
+        .closest("[id]")!;
       expect(
         (card_item.querySelector("input[type='checkbox']") as HTMLInputElement)
           .checked
       ).toBe(true);
 
       const crypto_revalidated = screen
-        .getByText("Crypto")
+        .getByText("Crypto", { exact: true })
         .element()
         .closest("[id]")!;
       expect(

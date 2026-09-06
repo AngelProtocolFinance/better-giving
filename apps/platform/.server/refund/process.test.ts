@@ -14,7 +14,7 @@ import {
 } from "../pg/schema/donation";
 import { donation_match_events } from "../pg/schema/match";
 import { npos } from "../pg/schema/npo";
-import type { TestDb } from "../pg/test-utils/pglite-browser";
+import type { TestDb } from "../pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -45,7 +45,7 @@ vi.mock("../email", () => ({ send_email }));
 
 // --- imports (after mocks) ---
 
-import { create_test_db } from "../pg/test-utils/pglite-browser";
+import { create_test_db } from "../pg/test-utils/pglite";
 import { process_refund } from "./process";
 
 // --- setup ---

@@ -16,7 +16,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { npos } from "$/pg/schema/npo";
 import { milestones, programs } from "$/pg/schema/program";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks (hoisted) ---
 
@@ -51,15 +51,12 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports (after mocks hoisted) ---
 
+import { loader as profile_program_loader } from "#/routes/_app.marketplace_.$id.program.$program_id/api";
+import ProfileProgramPage from "#/routes/_app.marketplace_.$id.program.$program_id/route";
 import { admin_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { loader as profile_program_loader } from "../routes/_app.marketplace_.$id.program.$program_id/api";
-import ProfileProgramPage from "../routes/_app.marketplace_.$id.program.$program_id/route";
-import {
-  action,
-  loader,
-} from "../routes/admin.$id.program-editor.$program_id/api";
-import ProgramEditorPage from "../routes/admin.$id.program-editor.$program_id/route";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import { action, loader } from "../api";
+import ProgramEditorPage from "../route";
 
 // --- seed constants ---
 

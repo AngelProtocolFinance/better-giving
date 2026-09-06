@@ -22,7 +22,7 @@ function build(
 ) {
   function Page({ loaderData }: any) {
     const [params, set_params] = useSearchParams();
-    const { node, load } = use_table<Row>({
+    const { node, load, loading } = use_table<Row>({
       id: "t",
       filter_key: opts.keyed ? params.toString() : undefined,
       page1: loaderData,
@@ -46,6 +46,9 @@ function build(
         <button type="button" onClick={() => set_params({ q: "b" })}>
           change filter
         </button>
+        {/* the fetcher's own state, so a parked response can be waited on
+            landing rather than slept past */}
+        <p>fetcher:{loading ? "loading" : "idle"}</p>
         {node}
       </>
     );
@@ -94,7 +97,7 @@ describe("use_table", () => {
     await expect.element(screen.getByText("row:b")).toBeVisible();
 
     park.release();
-    await new Promise((r) => setTimeout(r, 500));
+    await expect.element(screen.getByText("fetcher:idle")).toBeVisible();
 
     expect(screen.getByText("row:slow").query()).toBeNull();
     await expect.element(screen.getByText("row:b")).toBeVisible();
@@ -117,7 +120,7 @@ describe("use_table", () => {
     await screen.getByRole("button", { name: "change filter" }).click();
 
     park.release();
-    await new Promise((r) => setTimeout(r, 500));
+    await expect.element(screen.getByText("fetcher:idle")).toBeVisible();
 
     expect(screen.getByText("row:slow").query()).toBeNull();
     await expect.element(screen.getByText("row:same")).toBeVisible();

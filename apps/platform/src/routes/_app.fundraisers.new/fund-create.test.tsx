@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import {
   afterAll,
@@ -8,12 +9,12 @@ import {
   it,
   vi,
 } from "vitest";
-import { cleanup, render } from "vitest-browser-react";
+import { render } from "vitest-browser-react";
 import { user } from "$/pg/schema/auth";
-import { funds as fund_table } from "$/pg/schema/fund";
+import { fund_members, funds as fund_table } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import { user_fund_memberships, user_npo_memberships } from "$/pg/schema/user";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -61,7 +62,7 @@ vi.mock("#/.server/toast", async () => {
 });
 
 // skip spam evaluation in tests
-vi.mock("../routes/_app.fundraisers.new/evaluate", () => ({
+vi.mock("./evaluate", () => ({
   evaluate: vi.fn(async () => undefined),
 }));
 
@@ -72,13 +73,15 @@ vi.mock("remix-client-cache", () => ({
 
 // --- imports after mocks ---
 
-import { admin_ctx, user_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { action } from "../routes/_app.fundraisers.new/api";
-import { loader as funds_loader } from "../routes/admin.$id.funds/api";
-import FundsPage from "../routes/admin.$id.funds/route";
-import { user_funds as dashboard_loader } from "../routes/dashboard.funds/api";
-import DashboardFundsPage from "../routes/dashboard.funds/route";
+import {
+  seed_npo as insert_npo,
+  seed_user as insert_user,
+} from "#/__tests__/fixtures/funds";
+import { user_funds as dashboard_loader } from "#/routes/dashboard.funds/api";
+import DashboardFundsPage from "#/routes/dashboard.funds/route";
+import { user_ctx } from "$/auth/test-utils";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import { action } from "./api";
 
 // --- setup ---
 
@@ -100,40 +103,27 @@ beforeEach(async () => {
 
 // --- helpers ---
 
-async function seed_npo(
-  overrides: Partial<Omit<typeof npos.$inferInsert, "id">> = {}
-) {
-  const [row] = await test_db
-    .current!.db.insert(npos)
-    .values({
-      registration_number: "EIN-CREATE",
-      name: "Create Test NPO",
-      endow_designation: "Charity",
-      overview_pt: "[]",
-      hq_country: "United States",
-      published: false,
-      active: true,
-      fund_opt_in: true,
-      ...overrides,
-    })
-    .returning();
-  return row;
-}
+const db = () => test_db.current!.db;
 
-async function seed_user(email: string, first = "Test", last = "User") {
-  const [row] = await test_db
-    .current!.db.insert(user)
-    .values({
-      id: crypto.randomUUID(),
-      name: `${first} ${last}`,
-      email,
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      first_name: first,
-      last_name: last,
-    })
-    .returning();
+const seed_npo = (
+  overrides: Partial<Omit<typeof npos.$inferInsert, "id">> = {}
+) =>
+  insert_npo(db(), {
+    registration_number: "EIN-CREATE",
+    name: "Create Test NPO",
+    fund_opt_in: true,
+    ...overrides,
+  });
+
+const seed_user = (email: string, first = "Test", last = "User") =>
+  insert_user(db(), email, first, last);
+
+/** the row the action wrote, read back by the name it was submitted under */
+async function fund_by_name(name: string) {
+  const [row] = await db()
+    .select()
+    .from(fund_table)
+    .where(eq(fund_table.name, name));
   return row;
 }
 
@@ -176,34 +166,6 @@ function make_request(fd: FormData, npo_id?: number) {
     ? `http://localhost/fundraisers/new?npo=${npo_id}`
     : "http://localhost/fundraisers/new";
   return new Request(url, { method: "POST", body: fd });
-}
-
-async function render_funds(npo_id: number) {
-  const mdlwr = [
-    async ({ context }: any, next: any) => {
-      context.set(admin_ctx, npo_id);
-      context.set(user_ctx, {
-        role: "admin",
-        endowments: [npo_id],
-      });
-      return next();
-    },
-  ];
-  const Stub = createRoutesStub([
-    {
-      path: "/admin/:id/funds",
-      Component: FundsPage,
-      HydrateFallback: () => null,
-      loader: funds_loader as any,
-      middleware: mdlwr,
-    },
-  ]);
-  return await render(
-    <Stub
-      initialEntries={[`/admin/${npo_id}/funds`]}
-      future={{ v8_middleware: true }}
-    />
-  );
 }
 
 async function render_dashboard(user_id: string) {
@@ -276,15 +238,18 @@ describe("fund creation", () => {
     expect(res.headers.get("Location")).toContain("/fundraisers/");
     expect(res.headers.get("Location")).toContain("/edit");
 
-    // fund visible on the member npo's admin page
-    let screen = await render_funds(npo.id);
-    await expect
-      .element(screen.getByText("Save The Whales"))
-      .toBeInTheDocument();
-    await cleanup();
+    // the row landed: creator's, no deadline, joined to the member npo
+    const row = await fund_by_name("Save The Whales");
+    expect(row.creator_id).toBe(u.id);
+    expect(row.expiration).toBeNull();
+    const members = await db()
+      .select()
+      .from(fund_members)
+      .where(eq(fund_members.fund_id, row.id));
+    expect(members.map((m) => m.npo_id)).toEqual([npo.id]);
 
     // fund visible on creator's dashboard
-    screen = await render_dashboard(u.id);
+    const screen = await render_dashboard(u.id);
     await expect
       .element(screen.getByText("Save The Whales"))
       .toBeInTheDocument();
@@ -311,10 +276,8 @@ describe("fund creation", () => {
 
     expect(res.status).toBe(302);
 
-    const screen = await render_funds(npo.id);
-    await expect
-      .element(screen.getByText("No Deadline Fund"))
-      .toBeInTheDocument();
+    const row = await fund_by_name("No Deadline Fund");
+    expect(row.expiration).toBeNull();
   });
 
   it("valid expiration date — fund created and visible", async () => {
@@ -341,7 +304,9 @@ describe("fund creation", () => {
 
     expect(res.status).toBe(302);
 
-    const screen = await render_funds(npo.id);
-    await expect.element(screen.getByText("Holiday Gala")).toBeInTheDocument();
+    const row = await fund_by_name("Holiday Gala");
+    expect(row.expiration?.slice(0, 10)).toBe(
+      future.toISOString().slice(0, 10)
+    );
   });
 });

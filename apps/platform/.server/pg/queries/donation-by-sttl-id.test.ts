@@ -25,7 +25,7 @@ import {
   donations,
 } from "../schema/donation";
 import { npos } from "../schema/npo";
-import { create_test_db, type TestDb } from "../test-utils/pglite-browser";
+import { create_test_db, type TestDb } from "../test-utils/pglite";
 import { donation_by_sttl_id } from "./donation";
 import type { DbOrTx } from "./helpers";
 

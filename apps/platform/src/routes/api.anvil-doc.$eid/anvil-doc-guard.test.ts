@@ -28,7 +28,7 @@ vi.mock("$/kit/anvil", () => ({ anvil: { downloadDocuments: download } }));
 
 // --- imports (after mocks hoisted) ---
 
-import { loader } from "#/routes/api.anvil-doc.$eid/route";
+import { loader } from "./route";
 
 const OWNER = { id: "user-1", email: "one@example.com" };
 const OTHER = { id: "user-2", email: "two@example.com" };

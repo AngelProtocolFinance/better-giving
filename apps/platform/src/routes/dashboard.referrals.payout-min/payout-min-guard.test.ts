@@ -16,7 +16,7 @@ vi.mock("$/pg/queries/user", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { config } from "#/pages/user-dashboard/referrals/config";
-import { action } from "#/routes/dashboard.referrals.payout-min/api";
+import { action } from "./api";
 
 const call = (body: string) =>
   (action as any)({

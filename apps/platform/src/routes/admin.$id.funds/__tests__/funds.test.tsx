@@ -10,9 +10,9 @@ import {
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
 import { user } from "$/pg/schema/auth";
-import { fund_members, funds as fund_table } from "$/pg/schema/fund";
+import { funds as fund_table } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
-import type { TestDb } from "$/pg/test-utils/pglite-browser";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
 
@@ -64,24 +64,19 @@ vi.mock("remix-client-cache", () => ({
 
 import { Suspense } from "react";
 import { Await } from "react-router";
+import {
+  seed_fund as insert_fund,
+  seed_npo as insert_npo,
+  seed_user as insert_user,
+} from "#/__tests__/fixtures/funds";
+import { loader as profile_loader } from "#/routes/_app.marketplace_.$id/api";
 import type { IFundItem } from "@/fundraiser";
 import { admin_ctx, user_ctx } from "$/auth/test-utils";
-import { create_test_db } from "$/pg/test-utils/pglite-browser";
-import { loader as profile_loader } from "../routes/_app.marketplace_.$id/api";
-import { action, loader } from "../routes/admin.$id.funds/api";
-import FundsPage from "../routes/admin.$id.funds/route";
+import { create_test_db } from "$/pg/test-utils/pglite";
+import { action, loader } from "../api";
+import FundsPage from "../route";
 
 // --- setup ---
-
-const NPO_SEED: Omit<typeof npos.$inferInsert, "id"> = {
-  registration_number: "EIN-FUNDS",
-  name: "Funds Test NPO",
-  endow_designation: "Charity",
-  overview_pt: "[]",
-  hq_country: "United States",
-  published: false,
-  active: true,
-};
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -100,64 +95,22 @@ beforeEach(async () => {
 
 // --- helpers ---
 
-async function seed_npo(
+const db = () => test_db.current!.db;
+
+const seed_npo = (
   overrides: Partial<Omit<typeof npos.$inferInsert, "id">> = {}
-) {
-  const [row] = await test_db
-    .current!.db.insert(npos)
-    .values({ ...NPO_SEED, ...overrides })
-    .returning();
-  return row;
-}
+) =>
+  insert_npo(db(), {
+    registration_number: "EIN-FUNDS",
+    name: "Funds Test NPO",
+    ...overrides,
+  });
 
-async function seed_user(email: string, first = "Test", last = "User") {
-  const [row] = await test_db
-    .current!.db.insert(user)
-    .values({
-      id: crypto.randomUUID(),
-      name: `${first} ${last}`,
-      email,
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      first_name: first,
-      last_name: last,
-    })
-    .returning();
-  return row;
-}
+const seed_user = (email: string, first = "Test", last = "User") =>
+  insert_user(db(), email, first, last);
 
-async function seed_fund(
-  vals: Partial<typeof fund_table.$inferInsert> & {
-    id: string;
-    npo_owner: number;
-    creator_id: string;
-    members?: number[];
-  }
-) {
-  const { members = [], ...rest } = vals;
-  const [row] = await test_db
-    .current!.db.insert(fund_table)
-    .values({
-      name: "Test Fund",
-      description_pt: "desc",
-      banner: "https://img.co/banner.png",
-      logo: "https://img.co/logo.png",
-      active: true,
-      ...rest,
-    })
-    .returning();
-  if (members.length > 0) {
-    await test_db.current!.db.insert(fund_members).values(
-      members.map((npo_id: number, i: number) => ({
-        fund_id: row.id,
-        npo_id,
-        position: i,
-      }))
-    );
-  }
-  return row;
-}
+const seed_fund = (vals: Parameters<typeof insert_fund>[1]) =>
+  insert_fund(db(), vals);
 
 const MOCK_USER = {
   token_refresh: "tok",
@@ -368,7 +321,7 @@ describe("funds — filter and display", () => {
     await seed_fund({
       id: "aaaaaaaa-0003-0003-0003-000000000003",
       name: "Community Fund",
-      npo_owner: null as any,
+      npo_owner: null,
       creator_id: creator.id,
       members: [npo.id],
     });

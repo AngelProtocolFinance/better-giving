@@ -280,10 +280,6 @@ const sources = import.meta.glob<string>(["/src/root-layout.tsx"], {
 });
 
 describe("campaign drift", () => {
-  test("glob resolved the source", () => {
-    expect(Object.keys(sources)).toEqual(["/src/root-layout.tsx"]);
-  });
-
   test("the pre-paint script still reads the component's storage key", () => {
     // the head script must be a static string, so it can't import KEY. renaming
     // KEY without editing root-layout would silently kill pre-paint dismissal

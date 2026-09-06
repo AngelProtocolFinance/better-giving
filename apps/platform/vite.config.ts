@@ -68,10 +68,13 @@ export default defineConfig((config) => {
     resolve: { tsconfigPaths: true },
     plugins,
     test: {
-      // two projects. `browser` runs every component and route test in
-      // headless chromium. `node` exists for the one thing browser mode cannot
-      // do: read the source tree off disk (`node:fs`), which is what the names
-      // sweeps need.
+      // two projects, split by extension, not by directory: `.test.tsx` goes
+      // to `browser` (renders through vitest-browser-react), `.test.ts` goes to
+      // `node` (pglite-in-wasm db tests, route actions, lib/.server logic —
+      // nothing that touches the DOM). the `*.node.test.ts` suffix selects a
+      // project only under `jobs/`, whose include names it; under `src/` the
+      // `.ts` extension already picks `node`, so the suffix there is a leftover
+      // of the earlier split.
       projects: [
         {
           // inherit this file's vite config (plugins, resolve, base).
@@ -130,15 +133,8 @@ export default defineConfig((config) => {
             api: { strictPort: false },
             env,
             globals: true,
-            // *.node.test.ts is the node project's; without this exclude it
-            // would also match the browser project's default include glob and
-            // run twice — once in a browser that has no `node:fs`.
-            exclude: [
-              "**/node_modules/**",
-              ".claude/**",
-              "jobs/**",
-              "**/*.node.test.ts",
-            ],
+            include: ["**/*.test.tsx"],
+            exclude: ["**/node_modules/**", ".claude/**", "jobs/**"],
             testTimeout: 15_000,
             fileParallelism: false,
           },
@@ -153,13 +149,29 @@ export default defineConfig((config) => {
             // resolution ignores the launch directory. forks is vitest's
             // current default; pinning it keeps that test off a default.
             pool: "forks",
+            // node has no DOM; this file polyfills the one browser global
+            // (`PageTransitionEvent`) a non-DOM test still constructs directly.
+            setupFiles: ["./src/setup-tests-node.ts"],
             // jobs/ is server-side and excluded from the browser project, so
             // this is the only project that can carry a test for it.
-            include: ["src/**/*.node.test.ts", "jobs/**/*.node.test.ts"],
+            include: [
+              "src/**/*.test.ts",
+              "lib/**/*.test.ts",
+              ".server/**/*.test.ts",
+              "jobs/**/*.node.test.ts",
+            ],
+            // same env as browser, so `import.meta.env.X` resolves here too —
+            // this project has no vite `define` block of its own.
+            env,
             globals: true,
+            // pglite boot exceeds the 5s default.
+            testTimeout: 15_000,
           },
         },
       ],
+      // spies-only: leaves module-scope `vi.fn().mockResolvedValue(...)`
+      // implementations intact across tests (mockReset would null them out).
+      restoreMocks: true,
       coverage: {
         provider: "v8",
         reporter: ["text"],
