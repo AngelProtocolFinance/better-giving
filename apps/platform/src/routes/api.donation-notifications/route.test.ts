@@ -14,7 +14,7 @@ vi.mock("#/.server/auth", () => ({ get_session: get_session_mock }));
 vi.mock("#/.server/donation-recipient", () => ({ to_fn: to_fn_mock }));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
 vi.mock("$/env", () => ({ base_url: "https://bg.test" }));
-vi.mock("@/errors/report", () => ({ report_null: vi.fn() }));
+vi.mock("#/errors/report", () => ({ report_null: vi.fn() }));
 
 const { action, seen } = await import("./route");
 

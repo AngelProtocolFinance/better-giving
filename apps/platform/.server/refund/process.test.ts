@@ -36,7 +36,7 @@ vi.mock("../pg/db", () => ({
 vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 
 const report_error = vi.hoisted(() => vi.fn());
-vi.mock("@/errors/report", () => ({ report_error }));
+vi.mock("#/errors/report", () => ({ report_error }));
 
 // the heads-up's only side effect. mocked at the module rather than at the
 // transport, so a test can make the send throw as well as refuse.

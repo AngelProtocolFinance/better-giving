@@ -57,8 +57,8 @@ vi.mock("../../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
 const reported = vi.hoisted(() => [] as [string, unknown][]);
-vi.mock("@/errors/report", async (orig) => ({
-  ...(await orig<typeof import("@/errors/report")>()),
+vi.mock("#/errors/report", async (orig) => ({
+  ...(await orig<typeof import("#/errors/report")>()),
   report_error: (e: unknown) => {
     reported.push(["error", e]);
   },

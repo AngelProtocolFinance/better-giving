@@ -1,5 +1,5 @@
 import { href } from "react-router";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { auth } from "./auth";
 import { client_ip, consume, type Quota } from "./rate-limit";
 

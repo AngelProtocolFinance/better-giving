@@ -7,9 +7,9 @@ import {
 import { useEffect, useState } from "react";
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
+import { report_error } from "#/errors/report";
 import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
-import { report_error } from "@/errors/report";
 import { ru_vdec } from "@/helpers/decimal";
 import { ContinueBtn } from "../../common/continue-btn";
 import { use_donation_redirect } from "../../common/redirect";

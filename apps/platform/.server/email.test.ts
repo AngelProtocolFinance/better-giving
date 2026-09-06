@@ -20,7 +20,7 @@ vi.mock("./env", () => ({
 vi.mock("react-email", () => ({ render: async () => "<p>hi</p>" }));
 
 const report_error = vi.hoisted(() => vi.fn());
-vi.mock("@/errors/report", () => ({ report_error }));
+vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 

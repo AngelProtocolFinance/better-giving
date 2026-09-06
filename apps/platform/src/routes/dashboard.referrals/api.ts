@@ -1,7 +1,7 @@
 import { user_ctx } from "#/.server/auth";
 import { referred_by } from "#/.server/referrals";
+import { report_degraded_null } from "#/errors/report";
 import type { Referred } from "#/types/referrals";
-import { report_degraded_null } from "@/errors/report";
 import type { IPageKeyed } from "@/types/api";
 import type { V2RecipientAccount } from "@/wise";
 import { wise } from "$/kit/wise";

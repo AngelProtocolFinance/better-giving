@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
-import { report_error } from "@/errors/report";
 
 type Generic = {
   /**
@@ -32,7 +32,7 @@ const generic_msg = (context?: string) =>
  * the processor rejected what the donor typed — a bad cvc, a declined card, an
  * amount under the currency minimum. the form shows them the message and stays
  * usable, so nothing here is broken and nobody needs paging. `is_user_error` in
- * `@/errors/report` already drops the 4xx server equivalent; this is the client
+ * `#/errors/report` already drops the 4xx server equivalent; this is the client
  * -side half of the same rule.
  *
  * only for a message the donor can act on — anything we can't attribute to

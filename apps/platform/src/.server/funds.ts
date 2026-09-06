@@ -1,4 +1,4 @@
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import type {
   IFundItem,
   IFundItemsPage,

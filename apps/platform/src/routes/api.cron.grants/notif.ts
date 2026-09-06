@@ -1,7 +1,7 @@
 import type { grants_schedule } from "emails";
 import { grants_schedule as gs } from "emails";
+import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
-import { report_error } from "@/errors/report";
 import { group_by } from "@/helpers/array";
 import { min_payout_amount } from "@/npo/schema";
 import { send_email } from "$/email";

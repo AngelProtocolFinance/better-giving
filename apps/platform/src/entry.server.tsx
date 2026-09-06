@@ -22,7 +22,7 @@ import {
   type EntryContext,
   ServerRouter,
 } from "react-router";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { sentry, stage } from "$/env";
 
 // only report from prod — preview/dev noise drowns out real signal.

@@ -1,4 +1,4 @@
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import type { INpoItem, INposPage } from "@/npo/interfaces";
 import type { INposSearchObj } from "@/npo/schema";
 import { npo_search } from "$/pg/queries/npo";

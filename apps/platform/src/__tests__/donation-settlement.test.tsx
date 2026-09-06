@@ -60,7 +60,7 @@ vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: vi.fn() },
 }));
 
-vi.mock("@/errors/report", () => ({
+vi.mock("#/errors/report", () => ({
   report_error: vi.fn(),
   report_degraded: vi.fn(),
   report_null: vi.fn(() => null),
@@ -1046,7 +1046,7 @@ describe("payment_intent.succeeded → settlement → UI", () => {
   });
 
   it("returns 400 on handler error", async () => {
-    const { report_error } = await import("@/errors/report");
+    const { report_error } = await import("#/errors/report");
     (report_error as any).mockClear();
     (stripe.paymentIntents.retrieve as any).mockRejectedValue(
       new Error("stripe api down")

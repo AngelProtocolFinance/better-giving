@@ -13,7 +13,7 @@ import {
 // refusing to name an owner is invisible to the caller — it looks like a form
 // nobody filed. the report is the only signal the duplicate exists.
 const report_error = vi.hoisted(() => vi.fn());
-vi.mock("@/errors/report", () => ({ report_error }));
+vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 

@@ -1,4 +1,4 @@
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { calc_settlement_plan } from "@/settlement/plan";
 import type { IInput } from "@/types/donation-dist";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
