@@ -8,7 +8,7 @@ const intent_succeeded_mock = vi.hoisted(() => vi.fn());
 vi.mock("$/kit/stripe", () => ({
   stripe: { webhooks: { constructEvent: construct_event_mock } },
 }));
-vi.mock("@/errors/report", () => ({ report_error: report_error_mock }));
+vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
 vi.mock("$/pg/queries/subscription", () => ({ sub_update: vi.fn() }));

@@ -1,5 +1,5 @@
 import { and, eq, gt, sql } from "drizzle-orm";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import type { INpoAdmin, IUserBookmark, IUserNpo } from "@/users/interfaces";
 import type { IInviteNew, IUserDb, IUserXNpoUpdate } from "@/users/schema";
 import { db } from "../db";

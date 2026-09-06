@@ -12,6 +12,7 @@ import { ErrorMessage } from "@hookform/error-message";
 import { useState } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
+import { report_error } from "#/errors/report";
 import { error_prompt } from "#/helpers/error-prompt";
 import { uploadFile } from "#/helpers/upload-file";
 import type {
@@ -20,7 +21,6 @@ import type {
   V1RecipientAccount,
   ValidationContent,
 } from "#/types/bank-details";
-import { report_error } from "@/errors/report";
 import type { IFormButtons, OnSubmit } from "../types";
 import { use_requirements } from "./use-requirements";
 

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
 import type { IPayout, IPendingStatus } from "@/payouts";
 import { stage } from "$/env";

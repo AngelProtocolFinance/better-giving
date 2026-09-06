@@ -5,13 +5,13 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { href } from "react-router";
+import { report_degraded, report_error } from "#/errors/report";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
 import type {
   IDonationIntent,
   IDonorAddressFv,
   IStripeIntentReturn,
 } from "@/donations";
-import { report_degraded, report_error } from "@/errors/report";
 import { use_donation_redirect } from "../../../common/redirect";
 import {
   donation_return_url,

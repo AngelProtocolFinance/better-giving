@@ -14,7 +14,7 @@ import {
 // means a guard failed upstream, and a query that silently picked one would
 // keep it invisible.
 const report_error = vi.hoisted(() => vi.fn());
-vi.mock("@/errors/report", () => ({ report_error }));
+vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 

@@ -193,7 +193,8 @@ describe("Bank transfer form", () => {
 
     await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
 
-    await screen.getByRole("combobox").click();
+    // via ark's trigger: it sits over the input and would intercept a click there
+    await screen.getByRole("button", { name: "Toggle suggestions" }).click();
     // stripe-bank narrows to USD/CAD only — EUR/GBP filtered out at form level
     await expect
       .element(screen.getByRole("option", { name: "CAD" }))

@@ -2,7 +2,7 @@ import { EMAILS } from "@better-giving/brand";
 import nodemailer from "nodemailer";
 import type { ReactElement } from "react";
 import { render } from "react-email";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { smtp, stage } from "./env";
 
 // zeptomail; swapping providers means editing these three + the SMTP_PASSWORD

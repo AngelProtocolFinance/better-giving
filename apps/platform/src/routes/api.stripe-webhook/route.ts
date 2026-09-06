@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { msg } from "@/queue";
 import type { ISubUpdate } from "@/subscriptions";
 import { stripe as stripe_env } from "$/env";

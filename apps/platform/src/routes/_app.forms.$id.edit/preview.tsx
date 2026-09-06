@@ -39,7 +39,7 @@ export function Preview({
       increments: f.increments ?? undefined,
       success_redirect: f.success_redirect ?? undefined,
       freq_opts: f.freq_opts ?? undefined,
-      stripe: { amount_usd: "10" },
+      prefill_amount_usd: "10",
     },
   };
 

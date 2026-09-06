@@ -6,8 +6,8 @@ import type {
 import { useEffect, useRef } from "react";
 import { href } from "react-router";
 import { paypal_client_id, stage } from "#/constants/env";
+import { report_degraded, report_error } from "#/errors/report";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
-import { report_degraded, report_error } from "@/errors/report";
 import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
 import { donation_return_url, type IDonationDest } from "../common/return-url";

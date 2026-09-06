@@ -63,7 +63,7 @@ export function Form(props: TMethodState<"stripe">) {
   };
 
   const fv = props.fv || {
-    amount: don.config?.stripe?.amount_usd || "",
+    amount: don.config?.prefill_amount_usd || "",
     currency: usd_option,
     frequency: "one-time",
     tip: "",

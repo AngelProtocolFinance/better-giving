@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import type { ICommission, IPayout } from "@/referrals";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";

@@ -20,7 +20,6 @@ describe("payment method form state persistence", () => {
     ] as DonateMethodId[],
     freq_opts: undefined,
     id: null,
-    stripe: undefined,
   };
 
   test("crypto: form state persists when navigating to checkout and back", async () => {

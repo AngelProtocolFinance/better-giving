@@ -3,8 +3,8 @@ import { type ActionFunction, redirect } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { safeParse } from "valibot";
 import { auth } from "#/.server/auth";
+import { report_error } from "#/errors/report";
 import type { IFormInvalid } from "#/types/action";
-import { report_error } from "@/errors/report";
 import { resp, search } from "@/helpers/https";
 import type { Route } from "./+types/route";
 import {

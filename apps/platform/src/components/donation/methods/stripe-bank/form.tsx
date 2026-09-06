@@ -29,7 +29,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
   const { don_set, don } = use_donation();
 
   const fv = props.fv || {
-    amount: don.config?.stripe?.amount_usd || "",
+    amount: don.config?.prefill_amount_usd || "",
     currency: usd_option,
     frequency: "one-time",
     tip: "",

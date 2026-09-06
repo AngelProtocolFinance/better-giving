@@ -523,7 +523,7 @@ describe("funds — edit visibility", () => {
     await expect.element(screen.getByText("Editable Fund")).toBeInTheDocument();
     await expect
       .element(screen.getByRole("link", { name: /^edit$/i }))
-      .not.toHaveClass("invisible");
+      .toBeVisible();
 
     await cleanup();
 
@@ -536,9 +536,13 @@ describe("funds — edit visibility", () => {
     await expect
       .element(screen.getByText("Supporter Fund"))
       .toBeInTheDocument();
+    // `invisible` is real visibility:hidden under the stylesheet, so the link
+    // leaves the accessibility tree and only an includeHidden query reaches it
     await expect
-      .element(screen.getByRole("link", { name: /^edit$/i }))
-      .toHaveClass("invisible");
+      .element(
+        screen.getByRole("link", { name: /^edit$/i, includeHidden: true })
+      )
+      .not.toBeVisible();
   });
 });
 

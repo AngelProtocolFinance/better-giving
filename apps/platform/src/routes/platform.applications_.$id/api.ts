@@ -1,5 +1,5 @@
 import { safeParse } from "valibot";
-import { report_degraded_null } from "@/errors/report";
+import { report_degraded_null } from "#/errors/report";
 import { resp } from "@/helpers/https";
 import type { IReg } from "@/reg";
 import { reg_id } from "@/reg/schema";

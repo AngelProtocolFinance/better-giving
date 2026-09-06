@@ -71,7 +71,7 @@ vi.mock("$/pg/queries/donation", async (orig) => {
 });
 
 const report_error = vi.hoisted(() => vi.fn());
-vi.mock("@/errors/report", () => ({ report_error }));
+vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 

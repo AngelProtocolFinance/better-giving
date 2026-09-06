@@ -1,4 +1,4 @@
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { anvil, base_url } from "$/env";
 import type { Route } from "./+types/route";
 import { etch_complete } from "./etch-complete";

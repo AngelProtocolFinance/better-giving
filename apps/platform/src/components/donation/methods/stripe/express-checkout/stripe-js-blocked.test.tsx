@@ -26,8 +26,8 @@ vi.mock("@stripe/stripe-js", () => ({
 }));
 
 const reported = vi.hoisted(() => [] as unknown[]);
-vi.mock("@/errors/report", async (orig) => ({
-  ...(await orig<typeof import("@/errors/report")>()),
+vi.mock("#/errors/report", async (orig) => ({
+  ...(await orig<typeof import("#/errors/report")>()),
   report_error: (e: unknown) => {
     reported.push(["error", e]);
   },

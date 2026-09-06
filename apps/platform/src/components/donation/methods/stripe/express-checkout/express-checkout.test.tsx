@@ -57,8 +57,8 @@ vi.mock("../../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
 const reported = vi.hoisted(() => [] as [string, unknown][]);
-vi.mock("@/errors/report", async (orig) => ({
-  ...(await orig<typeof import("@/errors/report")>()),
+vi.mock("#/errors/report", async (orig) => ({
+  ...(await orig<typeof import("#/errors/report")>()),
   report_error: (e: unknown) => {
     reported.push(["error", e]);
   },
@@ -88,6 +88,7 @@ vi.mock("@stripe/react-stripe-js", () => ({
         onLoadError({ elementType: "expressCheckout", error: el.error });
       }
     }, []);
+    // the label gives preflight a box to click; empty, the button is 0x0
     return (
       <button
         type="button"
@@ -99,7 +100,9 @@ vi.mock("@stripe/react-stripe-js", () => ({
             billingDetails: el.billing,
           })
         }
-      />
+      >
+        express-btn
+      </button>
     );
   },
   useStripe: () => stripe.value,

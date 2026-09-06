@@ -21,8 +21,8 @@ import { StripeCheckout as Checkout } from "./checkout";
 // `report_error`, so this is the only way to tell a paged defect apart from a
 // prompt the donor simply reads and corrects.
 const reported = vi.hoisted(() => [] as unknown[]);
-vi.mock("@/errors/report", async (orig) => ({
-  ...(await orig<typeof import("@/errors/report")>()),
+vi.mock("#/errors/report", async (orig) => ({
+  ...(await orig<typeof import("#/errors/report")>()),
   report_error: (e: unknown) => {
     reported.push(e);
   },
@@ -298,7 +298,6 @@ describe("stripe checkout", () => {
       increments: undefined,
       success_redirect: undefined,
       freq_opts: undefined,
-      stripe: undefined,
     } satisfies Config;
 
     try {

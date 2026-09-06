@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
+import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
-import { report_error } from "@/errors/report";
 import { deposit_addr } from "$/deposit-addr";
 import { coingecko } from "$/kit/coingecko";
 import { aws_monitor } from "$/kit/discord";

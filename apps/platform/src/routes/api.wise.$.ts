@@ -1,7 +1,7 @@
 import type { ActionFunction, LoaderFunction } from "react-router";
 import { get_session } from "#/.server/auth";
 import { sign_recipient } from "#/.server/wise-grant";
-import { report_error } from "@/errors/report";
+import { report_error } from "#/errors/report";
 import { resp } from "@/helpers/https";
 import { wise } from "$/env";
 

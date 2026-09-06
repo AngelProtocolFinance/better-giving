@@ -1,7 +1,7 @@
 import { Elements } from "@stripe/react-stripe-js";
 import type { StripeElementsOptions } from "@stripe/stripe-js";
 import { useEffect, useRef } from "react";
-import { report_degraded } from "@/errors/report";
+import { report_degraded } from "#/errors/report";
 import { stripe_load, stripe_promise } from "../../../common/stripe";
 import type { IStripeExpress } from "../use-rhf";
 import { Content, type IContentExternal, LOAD_FAILED } from "./content";

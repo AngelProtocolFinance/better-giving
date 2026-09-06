@@ -2,8 +2,8 @@ import {
   donation_private_message as dpm,
   donation_tribute_notif as dtn,
 } from "emails";
+import { report_error } from "#/errors/report";
 import type { IDonation } from "@/donations";
-import { report_error } from "@/errors/report";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";

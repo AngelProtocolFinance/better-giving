@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { report_resp } from "@/errors/report";
+import { report_resp } from "#/errors/report";
 import type { NP } from "@/nowpayments/types";
 import { nowpayments, stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
