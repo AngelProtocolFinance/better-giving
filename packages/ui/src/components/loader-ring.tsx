@@ -2,7 +2,7 @@ type Classes =
   | string
   | {
       container?: string;
-      ringToColor?: "to-primary" | "to-white" | "to-(--form-primary)";
+      ringToColor?: "to-primary" | "to-primary-fg" | "to-(--form-primary)";
     };
 
 export function LoaderRing({

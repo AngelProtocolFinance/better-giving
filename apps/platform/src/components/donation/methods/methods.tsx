@@ -91,7 +91,7 @@ export function DonateMethods(props: TDonation) {
       <Label className="p-4 pb-0 col-span-full @xl/steps:hidden font-bold">
         Payment method
       </Label>
-      <Tabs.List className="grid @md/steps:grid-cols-2 gap-2 @xl/steps:gap-0 p-4 @xl/steps:p-0 @xl/steps:grid-cols-[auto_1fr] @[42rem]/steps:min-w-48 content-start @xl/steps:divide-y @xl/steps:divide-white @xl/steps:border-r">
+      <Tabs.List className="grid @md/steps:grid-cols-2 gap-2 @xl/steps:gap-0 p-4 @xl/steps:p-0 @xl/steps:grid-cols-[auto_1fr] @[42rem]/steps:min-w-48 content-start @xl/steps:divide-y @xl/steps:divide-background @xl/steps:border-r">
         {tabs.map((tab) => (
           <Tabs.Trigger key={tab} value={tab} className={tab_classes}>
             {methods[tab].icon}
