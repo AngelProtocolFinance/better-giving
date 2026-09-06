@@ -1,5 +1,4 @@
 import { ExtLink } from "@better-giving/ui";
-import { href, Link } from "react-router";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import type { ILeadValues } from "@/reg/lead";
 import { EligibilityForm, type IEligibilityErrors } from "./eligibility-form";
@@ -42,11 +41,13 @@ export function Hero({
               the form is directly below, and its own submit is the primary
               action — two "unlock U.S. donors" buttons a screen apart is one
               too many. the demo link moves inside the form to keep that door
-              open. */}
+              open. the primary targets the form's first field: a fragment
+              navigation to a focusable element focuses it, and a plain <a>
+              keeps the hash away from the router. */}
           <div className="max-lg:hidden flex flex-wrap gap-3">
-            <Link to={href("/register")} className="btn btn-lg btn-primary">
+            <a href="#o_name" className="btn btn-lg btn-primary">
               Unlock U.S. donors
-            </Link>
+            </a>
             <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
               Book a demo
             </ExtLink>

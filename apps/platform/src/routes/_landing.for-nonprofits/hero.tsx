@@ -1,5 +1,4 @@
 import { ExtLink } from "@better-giving/ui";
-import { href, Link } from "react-router";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
 interface IHero {
@@ -22,11 +21,14 @@ export function Hero({ classes = "" }: IHero) {
       {/* only while the form sits beside this copy. once the columns stack the
           form is directly below, and its own submit is the primary action —
           two "join free forever" buttons a screen apart is one too many. the
-          demo link moves inside the form to keep that door open. */}
+          demo link moves inside the form to keep that door open. the primary
+          targets the form's first field: a fragment navigation to a focusable
+          element focuses it, and a plain <a> keeps the hash away from the
+          router. */}
       <div className="max-lg:hidden flex flex-wrap gap-3.5 mt-7">
-        <Link to={href("/register")} className="btn btn-lg btn-primary">
+        <a href="#o_ein" className="btn btn-lg btn-primary">
           Join free forever
-        </Link>
+        </a>
         <ExtLink href={BOOK_A_DEMO} className="btn btn-lg btn-secondary">
           Book a demo
         </ExtLink>
