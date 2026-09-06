@@ -871,14 +871,41 @@ rather than literal seconds, which works because these are `@theme` variables
 and therefore reach `:root` at runtime. A literal there would be invisible to
 every sweep this file describes.
 
+### `prefers-reduced-motion` is guarded on the ladder, not per call site
+
+Under `@media (prefers-reduced-motion: reduce)` the three speeds collapse to
+`0.01ms`, in a plain `:root` rule at the foot of `theme.css` — outside `@theme`,
+because a media query cannot live inside one, and unlayered, so it beats the
+`@layer theme` `:root` Tailwind emits the ladder into. Every transition and
+every `--animate-*` spends a named speed, so one override reaches all of them
+and none of them writes a `motion-reduce:` variant.
+
+**It covers the ladder and only the ladder.** Motion that never reads a named
+speed is not reached by it; the remainders are listed under *What is still
+open*.
+
+**`0.01ms`, not `0`.** A zero-duration transition never starts and fires no
+`transitionend`, so anything waiting on that event waits forever. Near-zero
+still completes, still fires, and is invisible.
+
+Durations only: a 0.01ms curve has nothing to shape, so the easings are
+untouched. The marquee is outside the ladder — its duration comes from the Ark
+machine's own var — and carries its own `motion-reduce:animate-none`.
+
 ### What is still open
 
-**Whether a popup animates at all, and a `prefers-reduced-motion` guard.** Of
-the app's dropdown implementations only some animate open/close, none checks
-the media query, and the shared popup shell left motion out rather than have a
-builder pick it. Both are design calls, both are parked, and neither is blocked
-by this ladder: naming the speeds is what a decision about them would have had
-to do first.
+**Whether a popup animates at all.** Of the app's dropdown implementations only
+some animate open/close, and the shared popup shell left motion out rather than
+have a builder pick it. That is a design call, it is parked, and it is not
+blocked by this ladder: naming the speeds is what a decision about it would have
+had to do first.
+
+**Two kinds of motion sit outside the ladder and outside its guard.**
+`motion/react` animates in a dozen files under `apps/platform/src` with the
+library's default `reducedMotion: "never"` and no `<MotionConfig>` anywhere, and
+Tailwind's stock `animate-spin` / `animate-pulse` carry `--animate-*` defaults
+the theme never resets. Neither reads a named speed, so neither collapses;
+guarding them is its own change.
 
 ## Decisions that look like bugs
 
