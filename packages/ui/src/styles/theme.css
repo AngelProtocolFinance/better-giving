@@ -553,11 +553,10 @@
    transitionend, so anything waiting on that event waits forever. a near-zero
    one still completes, still fires, and is invisible.
 
-   durations only. the curves stay as they are — there is nothing for a 0.01ms
-   easing to shape. the marquee is out of scope too and keeps the
-   `motion-reduce:animate-none` it already carries: its duration comes from the
-   ark machine's own var rather than this ladder, and it is a continuous loop
-   rather than a state change. */
+   durations only: there is nothing for a 0.01ms easing to shape. the marquee
+   keeps its own `motion-reduce:animate-none`: its duration comes from the ark
+   machine's var rather than this ladder, and it is a continuous loop rather
+   than a state change. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-fast: 0.01ms;
