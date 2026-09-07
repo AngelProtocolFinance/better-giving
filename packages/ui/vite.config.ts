@@ -2,6 +2,19 @@
 import tailwind from "@tailwindcss/vite";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vite";
+import type { BrowserCommand } from "vitest/node";
+
+// the tester runs inside the browser, where nothing can reach the playwright
+// session driving it — emulating a media preference has to happen server-side,
+// and a command is the only door back out. typed in
+// src/browser-commands.d.ts.
+const emulateMedia: BrowserCommand<
+  [{ reducedMotion: "reduce" | "no-preference" | null }]
+> = async (ctx, options) => {
+  if (ctx.provider.name !== "playwright")
+    throw new Error(`emulateMedia needs playwright, got ${ctx.provider.name}`);
+  await ctx.page.emulateMedia(options);
+};
 
 // the package runs its own browser-mode suite rather than borrowing platform's:
 // nothing here touches msw, the api mocks, or `process.env`, so platform's two
@@ -17,6 +30,7 @@ export default defineConfig({
       headless: true,
       screenshotFailures: false,
       instances: [{ browser: "chromium" }],
+      commands: { emulateMedia },
       // v5 default is exact string matching; kept on v4 substring matching
       // to match platform's suite.
       locators: { exact: false },
