@@ -3,7 +3,6 @@ import { and, eq } from "drizzle-orm";
 import { href } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { get_session, to_auth } from "#/.server/auth";
-import { get_npos } from "#/.server/npos";
 import { redirectWithSuccess } from "#/.server/toast";
 import type { IForm } from "@/forms";
 import { resp, search } from "@/helpers/https";
@@ -27,7 +26,6 @@ export interface ILoaderData {
   programs: IProgramDb[];
   /** for user creator */
   npos?: {
-    opts: INpoOpt[];
     value: INpoOpt | undefined;
   };
 }
@@ -68,16 +66,13 @@ export const loader = async ({
     } satisfies ILoaderData;
   }
 
-  const { npo_id, q } = search(request);
-  const npos = await get_npos({
-    query: q,
-  }).then((x) => x.items.map((n) => ({ id: n.id, name: n.name })));
+  const { npo_id } = search(request);
 
   if (!npo_id) {
     return {
       creator: "user",
       programs: [],
-      npos: { opts: npos, value: undefined },
+      npos: { value: undefined },
     } satisfies ILoaderData;
   }
 
@@ -90,7 +85,6 @@ export const loader = async ({
     creator: "user",
     programs: progs,
     npos: {
-      opts: npos,
       value: { id: +npo_id, name: npo.name },
     },
   } satisfies ILoaderData;

@@ -58,9 +58,11 @@ export const RingToColor = () => (
     <div className="flex flex-col items-center gap-3 rounded bg-primary p-6">
       <LoaderRing
         thickness={12}
-        classes={{ container: "w-20", ringToColor: "to-white" }}
+        classes={{ container: "w-20", ringToColor: "to-primary-fg" }}
       />
-      <span className="text-xs text-primary-fg">to-white — on primary</span>
+      <span className="text-xs text-primary-fg">
+        to-primary-fg — on primary
+      </span>
     </div>
   </div>
 );

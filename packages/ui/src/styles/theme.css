@@ -539,3 +539,28 @@
     }
   }
 }
+
+/* the reduced-motion guard is on the ladder, not on the call sites. every
+   transition and every --animate-* above spends one of the three named speeds,
+   so collapsing the three here reaches all of them and none of them needs a
+   `motion-reduce:` variant of its own. it covers the ladder and only the
+   ladder: motion that never reads a named speed is untouched (see
+   packages/brand/design-system.md → motion → what is still open). it sits
+   outside @theme because a media query cannot live inside one, and unlayered,
+   so it wins over the `@layer theme` :root tailwind emits the ladder into.
+
+   0.01ms rather than 0: a zero-duration transition never starts and fires no
+   transitionend, so anything waiting on that event waits forever. a near-zero
+   one still completes, still fires, and is invisible.
+
+   durations only: there is nothing for a 0.01ms easing to shape. the marquee
+   keeps its own `motion-reduce:animate-none`: its duration comes from the ark
+   machine's var rather than this ladder, and it is a continuous loop rather
+   than a state change. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0.01ms;
+    --duration-base: 0.01ms;
+    --duration-slow: 0.01ms;
+  }
+}
