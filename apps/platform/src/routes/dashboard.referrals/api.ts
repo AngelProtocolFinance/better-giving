@@ -37,7 +37,8 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
   const db_user = await user_get(user.email);
   if (!db_user) throw new Response("user not found", { status: 404 });
 
-  const referral_code = db_user.referral_code;
+  // non-null: see `IUserRow`'s doc comment
+  const referral_code = db_user.referral_code!;
 
   const [pending_total, referreds, earnings, p, payout_ltd] = await Promise.all(
     [
@@ -56,8 +57,9 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
     earnings,
     pending_total,
     payout: p,
-    payout_min: db_user.pay_min,
+    // non-null: see `IUserRow`'s doc comment
+    payout_min: db_user.pay_min!,
     payout_ltd,
-    w_form: db_user.w_form,
+    w_form: db_user.w_form ?? undefined,
   } satisfies LoaderData;
 };

@@ -2,13 +2,13 @@ import type { ActionFunction } from "react-router";
 import * as v from "valibot";
 import { user_ctx } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
-import type { IUserDb } from "@/users/schema";
+import type { IUserRow } from "@/users/schema";
 import { user_get, user_update } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
 import { schema } from "./types";
 
 export interface LoaderData {
-  db_user: IUserDb;
+  db_user: IUserRow;
 }
 
 export const loader = async ({ context }: Route.LoaderArgs) => {

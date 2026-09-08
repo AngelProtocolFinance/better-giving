@@ -27,7 +27,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   ]);
 
   const public_user: PublicUser = {
-    avatar_url: db_user?.avatar_url,
+    avatar_url: db_user?.avatar_url ?? undefined,
     is_admin: user.role === "admin",
     bookmarks,
     orgs,

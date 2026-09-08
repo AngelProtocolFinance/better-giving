@@ -24,7 +24,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
   return {
     name: `${user.first_name} ${user.last_name}`.trim(),
     email: user.email,
-    avatar_url: db_user?.avatar_url,
+    avatar_url: db_user?.avatar_url ?? undefined,
     is_admin: user.role === "admin",
     orgs,
     bookmarks,

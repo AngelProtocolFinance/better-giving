@@ -34,9 +34,38 @@ export interface IUserDb extends IUser {
   /** wise recipient id */
   pay_id?: string;
   /** document-group eid of the signed w9 or w8ben. the weld-data eid the form
-   * was minted from is a separate column this type does not declare — undeclared
-   * is not unreachable, since `user_get` selects the whole row */
+   * was minted from is a separate column this type does not declare, and
+   * `user_get`/`user_by_referral_code` project it away — read it through
+   * `user_w_form_weld_eid` */
   w_form?: string;
+}
+
+/**
+ * a `user` row as `user_get`/`user_by_referral_code` actually return it —
+ * `IUserDb` is what a validated *write* looks like, and the two disagree.
+ *
+ * nullability mirrors the table column-for-column, `referral_code`,
+ * `pref_currency` and `pay_min` included. better-auth's defaults and the
+ * `user.create.after` hook do fill those three on every row, and staging (2684
+ * rows) carries no null in any of them — so a caller that reads one
+ * non-null-asserts it at the point of use. that assumption lives at the few
+ * call sites it holds for rather than in this type: 9+ readers share it, and
+ * only a handful touch those three columns at all.
+ */
+export interface IUserRow {
+  email: string;
+  first_name: string;
+  last_name: string;
+  referral_code: string | null;
+  pref_currency: string | null;
+  pay_min: number | null;
+  avatar_url: string | null;
+  /** iso date string */
+  signup_date: string | null;
+  /** wise recipient id */
+  pay_id: string | null;
+  /** document-group eid of the signed w9 or w8ben */
+  w_form: string | null;
 }
 
 const userxnpo_update = v.object({

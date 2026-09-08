@@ -12,7 +12,8 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
   if (!db_user) throw new Response("user not found", { status: 404 });
   const { next } = search(request);
 
-  const page = await referrer_donations(db_user.referral_code, {
+  // non-null: see `IUserRow`'s doc comment
+  const page = await referrer_donations(db_user.referral_code!, {
     next: next,
     limit: 8,
   });

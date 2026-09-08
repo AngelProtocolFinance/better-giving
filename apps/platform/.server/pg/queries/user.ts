@@ -1,7 +1,12 @@
 import { and, eq, gt, sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import type { INpoAdmin, IUserBookmark, IUserNpo } from "@/users/interfaces";
-import type { IInviteNew, IUserDb, IUserXNpoUpdate } from "@/users/schema";
+import type {
+  IInviteNew,
+  IUserDb,
+  IUserRow,
+  IUserXNpoUpdate,
+} from "@/users/schema";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import {
@@ -12,19 +17,60 @@ import {
 } from "../schema/user";
 import type { DbOrTx } from "./helpers";
 
-export async function user_get(email: string): Promise<IUserDb | undefined> {
-  const [row] = await db.select().from(user).where(eq(user.email, email));
-  return row as unknown as IUserDb | undefined;
+/**
+ * this feeds dashboard loaders, whose return value reaches the browser, so
+ * `w_form_weld_eid` must not ride along — `user_w_form_weld_eid` is the reader
+ * for it.
+ *
+ * `IUserRow`, not `IUserDb`: the row is what the table holds, and the table
+ * leaves `avatar_url` (null in 99% of rows), `signup_date`, `pay_id`, `w_form`,
+ * `referral_code`, `pref_currency` and `pay_min` nullable.
+ */
+export async function user_get(
+  email: string,
+  tx: DbOrTx = db
+): Promise<IUserRow | undefined> {
+  const [row] = await tx
+    .select({
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      avatar_url: user.avatar_url,
+      pref_currency: user.pref_currency,
+      referral_code: user.referral_code,
+      signup_date: user.signup_date,
+      pay_id: user.pay_id,
+      pay_min: user.pay_min,
+      w_form: user.w_form,
+    })
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
+  return row;
 }
 
+/** same projection and same caveat as `user_get`, keyed on the referral code. */
 export async function user_by_referral_code(
-  code: string
-): Promise<IUserDb | undefined> {
-  const [row] = await db
-    .select()
+  code: string,
+  tx: DbOrTx = db
+): Promise<IUserRow | undefined> {
+  const [row] = await tx
+    .select({
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      avatar_url: user.avatar_url,
+      pref_currency: user.pref_currency,
+      referral_code: user.referral_code,
+      signup_date: user.signup_date,
+      pay_id: user.pay_id,
+      pay_min: user.pay_min,
+      w_form: user.w_form,
+    })
     .from(user)
-    .where(eq(user.referral_code, code));
-  return row as unknown as IUserDb | undefined;
+    .where(eq(user.referral_code, code))
+    .limit(1);
+  return row;
 }
 
 /**
@@ -86,9 +132,9 @@ export async function user_w_form_weld_eid_set(
 
 /**
  * the weld-data eid the server minted for this user, or null if they were never
- * sent to the form. its own reader because `user_get` casts the row to
- * `IUserDb`, which does not declare this column — the value survives the query
- * but not the type. undefined distinguishes "no such user" from "no eid yet".
+ * sent to the form. its own reader because `user_get` and
+ * `user_by_referral_code` project only the columns `IUserRow` declares, and this
+ * is not one of them. undefined distinguishes "no such user" from "no eid yet".
  */
 export async function user_w_form_weld_eid(
   email: string,
