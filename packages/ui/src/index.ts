@@ -15,6 +15,18 @@
  * collision.
  */
 
+// not in the published set: `AskHost` renders nothing of its own — it is where
+// `ask` mounts whatever it was handed — and `ask`/`ask_prompt` are functions.
+export {
+  _reset_asks,
+  type AskFn,
+  AskHost,
+  type AskOpts,
+  type AskProps,
+  ask,
+  use_ask,
+} from "./components/ask/ask";
+export { ask_prompt, use_ask_prompt } from "./components/ask/ask-prompt";
 export type { FileOutput, FileSpec } from "./components/file-dropzone/types";
 export {
   FloatingField,

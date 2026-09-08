@@ -1,3 +1,4 @@
+import { AskHost } from "@better-giving/ui";
 import type { Stripe, StripeError } from "@stripe/stripe-js";
 import { type ReactNode, useEffect } from "react";
 import { createRoutesStub } from "react-router";
@@ -81,8 +82,19 @@ vi.mock("@stripe/react-stripe-js", () => ({
   useElements: vi.fn(() => ({})),
 }));
 
+// the checkout's prompts are raised through `ask`, which mounts at `AskHost`
 const stb = (node: ReactNode) =>
-  createRoutesStub([{ path: "/", Component: () => node }]);
+  createRoutesStub([
+    {
+      path: "/",
+      Component: () => (
+        <>
+          {node}
+          <AskHost />
+        </>
+      ),
+    },
+  ]);
 
 const fv: StripeDonationDetails = {
   amount: "100",

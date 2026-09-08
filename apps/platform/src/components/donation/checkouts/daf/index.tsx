@@ -1,4 +1,4 @@
-import { ContentLoader, type IPrompt, Prompt } from "@better-giving/ui";
+import { ContentLoader, use_ask_prompt } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
 import { href } from "react-router";
 import { chariot_connect_id } from "#/constants/env";
@@ -32,10 +32,16 @@ import {
 import { DonationTerms } from "../donation-terms";
 
 const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
+/**
+ * one prompt slot for the whole checkout, so "processing payment" becomes the
+ * stuck message or the error in place rather than gaining a dialog on top of
+ * it — the non-dismissable loading prompt never resolves on its own.
+ */
+const PROMPT_SLOT = "daf-checkout";
 
 export function ChariotCheckout(props: DafDonationDetails) {
   const { don_set, don } = use_donation();
-  const [prompt, set_prompt] = useState<IPrompt>();
+  const ask_prompt = use_ask_prompt();
   // where a grant that has already been recommended ended up. set the moment
   // the money moves, not when the trip to the receipt is declared lost: what
   // comes between is up to nine seconds of a panel that looks exactly like one
@@ -62,8 +68,6 @@ export function ChariotCheckout(props: DafDonationDetails) {
   tipv_ref.current = tipv;
   const mfa_ref = useRef(mfa);
   mfa_ref.current = mfa;
-  const set_prompt_ref = useRef(set_prompt);
-  set_prompt_ref.current = set_prompt;
   const redirect = use_donation_redirect();
   const redirect_ref = useRef(redirect);
   redirect_ref.current = redirect;
@@ -135,11 +139,14 @@ export function ChariotCheckout(props: DafDonationDetails) {
         // did — clearing it the moment the intent is recorded would hand the
         // donor a panel that looks untouched while the trip to the receipt is
         // still being attempted.
-        set_prompt_ref.current({
-          type: "loading",
-          children: "Processing payment",
-          isDismissable: false,
-        });
+        ask_prompt(
+          {
+            type: "loading",
+            children: "Processing payment",
+            isDismissable: false,
+          },
+          { key: PROMPT_SLOT }
+        );
 
         /** user may input amount different from our donate form */
         const parts = partition(m.amount);
@@ -220,13 +227,13 @@ export function ChariotCheckout(props: DafDonationDetails) {
           on_stuck: () => {
             // the panel keeps saying it after the modal is gone
             set_stuck(true);
-            set_prompt_ref.current(stuck_prompt(dest));
+            ask_prompt(stuck_prompt(dest), { key: PROMPT_SLOT });
           },
         });
       } catch (err) {
-        set_prompt_ref.current(
-          error_prompt(err, { context: "processing donation" })
-        );
+        ask_prompt(error_prompt(err, { context: "processing donation" }), {
+          key: PROMPT_SLOT,
+        });
       }
     };
     el.addEventListener("CHARIOT_SUCCESS", on_success);
@@ -237,7 +244,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
       el.removeEventListener("CHARIOT_SUCCESS", on_success);
       container.removeChild(el);
     };
-  }, [script_ready]);
+  }, [script_ready, ask_prompt]);
 
   return (
     <Summary
@@ -272,7 +279,6 @@ export function ChariotCheckout(props: DafDonationDetails) {
         endowName={don.recipient.name}
         classes="border-t mt-5 pt-4 "
       />
-      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </Summary>
   );
 }

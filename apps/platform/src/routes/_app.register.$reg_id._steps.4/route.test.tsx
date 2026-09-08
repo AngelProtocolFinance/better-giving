@@ -1,5 +1,6 @@
+import { AskHost } from "@better-giving/ui";
 import { eq } from "drizzle-orm";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, Outlet } from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -149,6 +150,15 @@ function render_step_4(id: string) {
   const Stub = createRoutesStub([
     {
       path: "/register/:reg_id",
+      // the step's failure prompt is raised through `ask`, which mounts at
+      // `AskHost`. it goes on the layout rather than around the step, whose
+      // component takes `loaderData` as a prop.
+      Component: () => (
+        <>
+          <Outlet />
+          <AskHost />
+        </>
+      ),
       HydrateFallback: () => null,
       children: [
         {

@@ -1,3 +1,4 @@
+import { use_ask } from "@better-giving/ui";
 import { unpack } from "@better-giving/ui/helpers";
 import { ArrowUpFromLine, Crop, Undo } from "lucide-react";
 import type React from "react";
@@ -6,14 +7,14 @@ import { report_error } from "#/errors/report";
 import { uploadFile } from "#/helpers/upload-file";
 import { humanize } from "@/helpers/decimal";
 import { AspectTooltip } from "./aspect-tooltip";
-import { ImgCropper } from "./img-cropper";
+import { type IImgCropperProps, ImgCropper } from "./img-cropper";
 import { type ControlledProps, sentinels } from "./types";
 
 const BYTES_IN_MB = 1e6;
 
 export function ImgEditor({ ref, ...props }: ControlledProps) {
+  const ask = use_ask();
   const [file, setFile] = useState<File>();
-  const [open_cropper, set_open_cropper] = useState(false);
   const [drag_active, set_drag_active] = useState(false);
   const root_ref = useRef<HTMLDivElement>(null);
   const dropzone_ref = useRef<HTMLLabelElement>(null);
@@ -53,32 +54,25 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
     [file, props.spec.type, props.value]
   );
 
-  const handle_files = (files: File[]) => {
-    const newFile = files[0];
-    const size = newFile.size;
-    if (!newFile) return;
+  async function crop_and_upload(source: File) {
+    // shown behind the cropper, and what the undo/crop controls act on
+    setFile(source);
 
-    if (!props.spec.type.includes(newFile.type as any)) {
-      //don't show cropper, render blank preview
-      return props.on_change("invalid-type");
-    }
+    const cropped = await ask<File, IImgCropperProps>(
+      ImgCropper,
+      {
+        input: source,
+        aspect: props.spec.aspect,
+        rounded: props.spec.rounded,
+      },
+      // reachable from the dropzone and the crop button, neither disabled
+      // while it runs — one slot keeps a double press to one cropper
+      { key: "img-cropper" }
+    );
+    // dismissed: the staged file goes with it, so the dropzone reads empty
+    if (!cropped) return setFile(undefined);
 
-    if (props.spec.max_size && size > props.spec.max_size) {
-      return props.on_change("exceeds-size");
-    }
-
-    setFile(newFile);
-    set_open_cropper(true);
-  };
-
-  const styles = unpack(props.classes);
-  const is_loading = props.value === "loading";
-  const disabled = props.disabled || is_loading;
-  const overlay = `before:content-[''] before:grid before:place-items-center before:absolute before:inset-0 data-[drag="true"]:before:bg-secondary data-[loading="true"]:before:bg-secondary/90 data-[loading="true"]:before:content-['._._.'] before:text-xl before:font-bold `;
-
-  async function handleSave(cropped: File) {
     setFile(cropped);
-    set_open_cropper(false);
     if (props.spec.max_size && cropped.size > props.spec.max_size) {
       return props.on_change("exceeds-size");
     }
@@ -92,6 +86,27 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
       props.on_change("failure");
     }
   }
+
+  const handle_files = (files: File[]) => {
+    const newFile = files[0];
+    if (!newFile) return;
+
+    if (!props.spec.type.includes(newFile.type as any)) {
+      //don't show cropper, render blank preview
+      return props.on_change("invalid-type");
+    }
+
+    if (props.spec.max_size && newFile.size > props.spec.max_size) {
+      return props.on_change("exceeds-size");
+    }
+
+    crop_and_upload(newFile);
+  };
+
+  const styles = unpack(props.classes);
+  const is_loading = props.value === "loading";
+  const disabled = props.disabled || is_loading;
+  const overlay = `before:content-[''] before:grid before:place-items-center before:absolute before:inset-0 data-[drag="true"]:before:bg-secondary data-[loading="true"]:before:bg-secondary/90 data-[loading="true"]:before:content-['._._.'] before:text-xl before:font-bold `;
 
   const file_input = (
     <input
@@ -136,19 +151,6 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
         </span>{" "}
         <AspectTooltip aspect={props.spec.aspect} />
       </p>
-      {file && (
-        <ImgCropper
-          rounded={props.spec.rounded}
-          is_open={open_cropper}
-          input={file}
-          aspect={props.spec.aspect}
-          onSave={handleSave}
-          onClose={() => {
-            setFile(undefined);
-            set_open_cropper(false);
-          }}
-        />
-      )}
       {/* biome-ignore lint/a11y/noLabelWithoutControl: wraps file input */}
       <label
         ref={dropzone_ref}
@@ -222,7 +224,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
               <IconButton
                 onClick={(e) => {
                   e.stopPropagation();
-                  set_open_cropper(true);
+                  crop_and_upload(file);
                 }}
                 disabled={props.disabled}
               >

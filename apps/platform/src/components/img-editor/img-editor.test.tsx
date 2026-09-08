@@ -1,3 +1,4 @@
+import { AskHost } from "@better-giving/ui";
 import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
@@ -16,21 +17,33 @@ vi.mock("#/helpers/upload-file", () => ({
 // mock cropper — it requires canvas and stylesheet
 vi.mock("./img-cropper", () => ({
   ImgCropper: (props: {
-    is_open: boolean;
-    onSave: (f: File) => void;
-    onClose: () => void;
+    open: boolean;
     input: File;
+    resolve: (f?: File) => void;
+    on_closed: () => void;
   }) =>
-    props.is_open ? (
+    props.open ? (
       <div data-testid="mock-cropper">
         <button
           type="button"
-          onClick={() => props.onSave(props.input)}
+          // `on_closed` stands in for the exit-complete a real dialog fires;
+          // without it the ask sits mounted until its backstop
+          onClick={() => {
+            props.resolve(props.input);
+            props.on_closed();
+          }}
           data-testid="crop-save"
         >
           Save crop
         </button>
-        <button type="button" onClick={props.onClose} data-testid="crop-close">
+        <button
+          type="button"
+          onClick={() => {
+            props.resolve();
+            props.on_closed();
+          }}
+          data-testid="crop-close"
+        >
           Close crop
         </button>
       </div>
@@ -53,6 +66,16 @@ function make_props(overrides?: Partial<ControlledProps>): ControlledProps {
   };
 }
 
+/** the cropper is raised through `ask`, which mounts at `AskHost` — no host in
+ *  the tree and `crop_and_upload` waits on a promise nothing can settle. */
+const render_editor = (props: ControlledProps) =>
+  render(
+    <>
+      <ImgEditor {...props} />
+      <AskHost />
+    </>
+  );
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -60,7 +83,7 @@ afterEach(() => {
 describe("ImgEditor", () => {
   test("renders upload prompt and valid types when no image", async () => {
     const props = make_props();
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     await expect.element(screen.getByText(/upload file/i)).toBeVisible();
     await expect
@@ -72,7 +95,7 @@ describe("ImgEditor", () => {
 
   test("shows aspect ratio tooltip for known ratios", async () => {
     const props = make_props();
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     // 4:1 aspect shows recommended size
     await expect.element(screen.getByText(/4:1/)).toBeVisible();
@@ -81,7 +104,7 @@ describe("ImgEditor", () => {
   test("rejects invalid file type", async () => {
     const on_change = vi.fn();
     const props = make_props({ on_change });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     const input = screen.container.querySelector(
       "input[type='file']"
@@ -104,7 +127,7 @@ describe("ImgEditor", () => {
   test("rejects file exceeding size limit", async () => {
     const on_change = vi.fn();
     const props = make_props({ on_change });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     const input = screen.container.querySelector(
       "input[type='file']"
@@ -129,7 +152,7 @@ describe("ImgEditor", () => {
     upload_mock.mockResolvedValue("https://cdn.example.com/cropped.png");
     const on_change = vi.fn();
     const props = make_props({ on_change });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     const input = screen.container.querySelector(
       "input[type='file']"
@@ -163,7 +186,7 @@ describe("ImgEditor", () => {
     upload_mock.mockRejectedValue(new Error("upload failed"));
     const on_change = vi.fn();
     const props = make_props({ on_change });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     const input = screen.container.querySelector(
       "input[type='file']"
@@ -187,7 +210,7 @@ describe("ImgEditor", () => {
 
   test("disabled state prevents interaction", async () => {
     const props = make_props({ disabled: true });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     await vi.waitFor(() => {
       const dropzone = screen.container.querySelector('[data-disabled="true"]');
@@ -197,7 +220,7 @@ describe("ImgEditor", () => {
 
   test("shows error message", async () => {
     const props = make_props({ error: "invalid file type" });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     await expect.element(screen.getByText("invalid file type")).toBeVisible();
   });
@@ -214,7 +237,7 @@ describe("ImgEditor", () => {
     "failure",
   ] as const)("the %s sentinel is not rendered as a background url", async (sentinel) => {
     const props = make_props({ value: sentinel });
-    const screen = await render(<ImgEditor {...props} />);
+    const screen = await render_editor(props);
 
     await vi.waitFor(() => {
       const dropzone = screen.container.querySelector("label");

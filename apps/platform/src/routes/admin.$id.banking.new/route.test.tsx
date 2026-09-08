@@ -1,3 +1,4 @@
+import { AskHost } from "@better-giving/ui";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
@@ -73,7 +74,13 @@ describe("admin: new payout method", () => {
     const Stub = createRoutesStub([
       {
         path: "/admin/:id/banking/new",
-        Component: AdminBanking,
+        // the failure prompt is raised through `ask`, which mounts at `AskHost`
+        Component: () => (
+          <>
+            <AdminBanking />
+            <AskHost />
+          </>
+        ),
         HydrateFallback: () => null,
         action: action as any,
       },

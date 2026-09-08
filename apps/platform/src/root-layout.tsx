@@ -1,4 +1,4 @@
-import { Toaster } from "@better-giving/ui";
+import { AskHost, Toaster } from "@better-giving/ui";
 import { MotionConfig } from "motion/react";
 import type { PropsWithChildren } from "react";
 import { preconnect } from "react-dom";
@@ -53,6 +53,10 @@ export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {
         <MotionConfig reducedMotion="user">
           <NavProgress />
           <Toaster>{children}</Toaster>
+          {/* renders nothing until something is asked, and what it mounts
+              portals to body — so its position here decides nothing but needs
+              to stay inside the router. */}
+          <AskHost />
         </MotionConfig>
         <ScrollRestoration />
         <Scripts />

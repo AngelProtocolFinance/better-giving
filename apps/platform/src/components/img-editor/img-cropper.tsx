@@ -1,26 +1,25 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
+import type { AskProps } from "@better-giving/ui";
 import { Save } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { Cropper, type ICropperHandle } from "./cropper";
 
-interface IImgCropperProps {
+export interface IImgCropperProps {
   rounded?: boolean;
-  is_open: boolean;
-  onClose(): void;
   input: File;
   aspect: [number, number];
-  onSave(cropped: File): void;
 }
 
+/** asked, never mounted directly — `await ask<File>(ImgCropper, { input, aspect })`. */
 export function ImgCropper({
   input,
   aspect,
-  onSave,
-  is_open,
-  onClose,
   rounded,
-}: IImgCropperProps) {
+  open,
+  resolve,
+  on_closed,
+}: IImgCropperProps & AskProps<File>) {
   const [x, y] = aspect;
   const cropper_ref = useRef<ICropperHandle>(null);
   const src = useMemo(() => URL.createObjectURL(input), [input]);
@@ -30,7 +29,7 @@ export function ImgCropper({
     const cropped = blob
       ? new File([blob], input.name, { type: input.type })
       : input;
-    return onSave(cropped);
+    return resolve(cropped);
   }
 
   // content area fills viewport constrained by aspect ratio
@@ -41,12 +40,14 @@ export function ImgCropper({
 
   return (
     <Dialog.Root
-      open={is_open}
+      open={open}
       onOpenChange={(e) => {
-        if (!e.open) onClose();
+        // dismissed — no file, and `ask` answers undefined
+        if (!e.open) resolve();
       }}
       lazyMount
       unmountOnExit
+      onExitComplete={on_closed}
     >
       <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim" />

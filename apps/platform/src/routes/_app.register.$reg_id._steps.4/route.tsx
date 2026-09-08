@@ -1,4 +1,4 @@
-import { Actions, ExtLink, type IPrompt, Prompt } from "@better-giving/ui";
+import { Actions, ExtLink, use_ask_prompt } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
@@ -21,7 +21,7 @@ export default CacheRoute(Page);
 function Page({ loaderData: reg }: Route.ComponentProps) {
   const [is_changing, set_is_changing] = useState(false);
   const fetcher = useFetcher();
-  const [prompt, set_prompt] = useState<IPrompt>();
+  const ask_prompt = use_ask_prompt();
   const back = before_banking(reg.o_type);
   // stable identity — BankDetails renders it as a component
   const FormButtons = useMemo(() => form_buttons(back), [back]);
@@ -43,12 +43,13 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
   // while a landed save redirects and never lands here.
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data?.message) return;
-    set_prompt(
+    ask_prompt(
       submit_error_prompt(fetcher.data, {
         context: "saving your banking details",
-      })
+      }),
+      { key: "reg-banking-submit-error" }
     );
-  }, [fetcher.state, fetcher.data]);
+  }, [fetcher.state, fetcher.data, ask_prompt]);
 
   if (reg.o_bank_id && !is_changing) {
     return (
@@ -111,7 +112,6 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
         onSubmit={submit}
         is_loading={fetcher.state !== "idle"}
       />
-      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </div>
   );
 }

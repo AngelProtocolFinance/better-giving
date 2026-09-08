@@ -32,16 +32,21 @@ vi.mock("#/hooks/use-session", () => ({
 // mock cropper — it requires canvas and stylesheet
 vi.mock("#/components/img-editor/img-cropper", () => ({
   ImgCropper: (props: {
-    is_open: boolean;
-    onSave: (f: File) => void;
-    onClose: () => void;
+    open: boolean;
     input: File;
+    resolve: (f?: File) => void;
+    on_closed: () => void;
   }) =>
-    props.is_open ? (
+    props.open ? (
       <div data-testid="mock-cropper">
         <button
           type="button"
-          onClick={() => props.onSave(props.input)}
+          // `on_closed` stands in for the exit-complete a real dialog fires;
+          // without it the ask sits mounted until its backstop
+          onClick={() => {
+            props.resolve(props.input);
+            props.on_closed();
+          }}
           data-testid="crop-save"
         >
           Save crop
@@ -52,7 +57,8 @@ vi.mock("#/components/img-editor/img-cropper", () => ({
 
 // --- imports ---
 
-import { createRoutesStub } from "react-router";
+import { AskHost } from "@better-giving/ui";
+import { createRoutesStub, Outlet } from "react-router";
 import Page from "./route";
 
 // --- helpers ---
@@ -72,14 +78,28 @@ async function render_page(loader_data = MOCK_LOADER) {
   const Stub = createRoutesStub([
     {
       path: "/dashboard/edit-profile",
-      Component: Page,
+      // a layout above the page rather than a wrapper around it: the route
+      // component takes `loaderData` as a prop, so wrapping it drops the data.
+      // the cropper is raised through `ask` and mounts at `AskHost`.
+      Component: () => (
+        <>
+          <Outlet />
+          <AskHost />
+        </>
+      ),
       HydrateFallback: () => null,
-      loader: () => loader_data,
-      action: async ({ request }) => {
-        const body = await request.json();
-        action_spy(body);
-        return { toast: "User profile updated" };
-      },
+      children: [
+        {
+          index: true,
+          Component: Page,
+          loader: () => loader_data,
+          action: async ({ request }) => {
+            const body = await request.json();
+            action_spy(body);
+            return { toast: "User profile updated" };
+          },
+        },
+      ],
     },
   ]);
 

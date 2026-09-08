@@ -2,14 +2,12 @@ import {
   FileDropzone,
   type FileOutput,
   Form,
-  type IPrompt,
   Label,
-  Prompt,
   Select,
+  use_ask_prompt,
 } from "@better-giving/ui";
 import { fileOutput } from "@better-giving/ui/helpers";
 import { ErrorMessage } from "@hookform/error-message";
-import { useState } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
 import { report_error } from "#/errors/report";
@@ -40,6 +38,12 @@ interface FV extends Record<string, any> {
   bankStatement: FileOutput;
 }
 
+/**
+ * one prompt slot: every raise replaces the one on screen rather than stacking
+ * over it.
+ */
+const PROMPT_SLOT = "recipient-validation";
+
 export function RecipientDetailsForm({
   fields,
   currency,
@@ -51,6 +55,7 @@ export function RecipientDetailsForm({
   FormButtons,
   verified,
 }: Props) {
+  const ask_prompt = use_ask_prompt();
   const {
     control,
     register,
@@ -62,7 +67,6 @@ export function RecipientDetailsForm({
     getFieldState,
   } = useForm<FV>({ disabled, shouldUnregister: true });
 
-  const [prompt, set_prompt] = useState<IPrompt>();
   const { update_requirements } = use_requirements(
     !amount ? null : { amount, currency }
   );
@@ -136,10 +140,11 @@ export function RecipientDetailsForm({
           const validations = _errs.filter((err) => err.code === "NOT_VALID");
 
           if (validations.length === 0) {
-            return set_prompt({
-              type: "error",
-              children: _errs[0].message,
-            });
+            ask_prompt(
+              { type: "error", children: _errs[0].message },
+              { key: PROMPT_SLOT }
+            );
+            return;
           }
 
           //set field errors
@@ -153,8 +158,9 @@ export function RecipientDetailsForm({
             //wait a bit for `isSubmitting:false`, as disabled fields can't be focused
           }, 50);
         } catch (err) {
-          const prmpt = error_prompt(err, { context: "validating" });
-          set_prompt(prmpt);
+          ask_prompt(error_prompt(err, { context: "validating" }), {
+            key: PROMPT_SLOT,
+          });
         }
       })}
       className="grid gap-5"
@@ -370,7 +376,6 @@ export function RecipientDetailsForm({
         disabled={disabled || bankStatement.value === "loading"}
         is_submitting={isSubmitting}
       />
-      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </Form>
   );
 }

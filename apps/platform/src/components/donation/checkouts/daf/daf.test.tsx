@@ -1,3 +1,4 @@
+import { AskHost } from "@better-giving/ui";
 import { HttpResponse, http } from "msw";
 import type { ReactNode } from "react";
 import { createRoutesStub, href } from "react-router";
@@ -63,9 +64,19 @@ const success_detail = {
   },
 };
 
+// the checkout's prompts are raised through `ask`, which mounts at `AskHost`
 const stb = (node: ReactNode) =>
   createRoutesStub([
-    { path: "/", Component: () => node, HydrateFallback: () => null },
+    {
+      path: "/",
+      Component: () => (
+        <>
+          {node}
+          <AskHost />
+        </>
+      ),
+      HydrateFallback: () => null,
+    },
   ]);
 
 describe("daf checkout: a grant that goes through but never lands", () => {
