@@ -128,7 +128,7 @@ export function CodeSnippet({ id, config }: CodeSnippetProps) {
           code={code}
           lang="html"
           transformers={transformers}
-          className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_.highlighted-line]:bg-warning/20"
+          classes="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto [&_.highlighted-line]:bg-warning/20"
           fallback_class_name="p-4 m-0 overflow-x-auto text-gray-11"
         />
       </div>

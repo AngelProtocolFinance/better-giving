@@ -1,8 +1,8 @@
 import { brands } from "#/content/brands";
 
-export function Brands({ className = "" }) {
+export function Brands({ classes = "" }) {
   return (
-    <section className={`${className} grid`}>
+    <section className={`${classes} grid`}>
       <h2 className="text-center text-3xl/tight md:text-4.5xl/tight text-pretty mb-16 px-4 capitalize">
         Over $6 million donations <br /> processed for nonprofits worldwide
       </h2>

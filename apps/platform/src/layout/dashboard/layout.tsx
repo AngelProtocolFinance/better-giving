@@ -31,12 +31,12 @@ export function Layout({
       <AppHeader variant={headerVariant} classes="sticky z-sticky -top-px" />
       <div className="grid max-md:content-start md:grid-cols-[auto_1fr] border-b">
         <SidebarOpener
-          className="md:hidden"
+          classes="md:hidden"
           linkGroups={linkGroups}
           rootRoute={rootRoute}
         />
         <Sidebar
-          className="max-md:hidden"
+          classes="max-md:hidden"
           linkGroups={linkGroups}
           sidebarHeader={sidebarHeader}
         />

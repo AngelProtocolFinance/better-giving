@@ -1,10 +1,10 @@
 import { href, Link } from "react-router";
 import { BOOK_A_DEMO } from "#/constants/urls";
 
-export function BottomCta({ className = "" }) {
+export function BottomCta({ classes = "" }) {
   return (
     <div
-      className={`${className} grid bg-linear-to-br from-primary to-secondary rounded md:rounded px-10 py-12 md:px-16`}
+      className={`${classes} grid bg-linear-to-br from-primary to-secondary rounded md:rounded px-10 py-12 md:px-16`}
     >
       <h3 className="text-center md:text-left article-heading text-primary-fg mb-9">
         The all-in-one fundraising solution you deserve is only a few clicks

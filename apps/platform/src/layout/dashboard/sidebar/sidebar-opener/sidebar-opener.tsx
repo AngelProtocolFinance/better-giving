@@ -3,13 +3,9 @@ import type { LinkGroup } from "../types";
 import { ToggleableSidebar } from "./toggleable-sidebar";
 import { use_sidebar_opener } from "./use-sidebar-opener";
 
-type Props = { className?: string; linkGroups: LinkGroup[]; rootRoute: string };
+type Props = { classes?: string; linkGroups: LinkGroup[]; rootRoute: string };
 
-export function SidebarOpener({
-  className = "",
-  linkGroups,
-  rootRoute,
-}: Props) {
+export function SidebarOpener({ classes = "", linkGroups, rootRoute }: Props) {
   const { open, active_link, set_open } = use_sidebar_opener(
     linkGroups,
     rootRoute
@@ -21,7 +17,7 @@ export function SidebarOpener({
       <button
         type="button"
         onClick={() => set_open(true)}
-        className={`flex items-center gap-2 py-5 px-6 border-b font-bold text-sm text-primary ${className}`}
+        className={`flex items-center gap-2 py-5 px-6 border-b font-bold text-sm text-primary ${classes}`}
       >
         <Ico {...active_link.icon} />
         {active_link.title}

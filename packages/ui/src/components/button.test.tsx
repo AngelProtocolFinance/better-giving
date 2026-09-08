@@ -247,7 +247,7 @@ describe("the closed class sets", () => {
 
   test("the caller's className is appended last", async () => {
     const screen = await render(
-      <Button variant="primary" className="w-full">
+      <Button variant="primary" classes="w-full">
         x
       </Button>
     );

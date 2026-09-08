@@ -155,7 +155,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
               </div>
             ))}
           </div>
-          <Share recipientName={fund.name} url={url} className="mt-auto" />
+          <Share recipientName={fund.name} url={url} classes="mt-auto" />
         </div>
       </div>
     </section>

@@ -62,10 +62,10 @@ const solutions = [
   },
 ];
 
-export function ProbSol({ className = "" }) {
+export function ProbSol({ classes = "" }) {
   return (
     <section
-      className={`${className} grid justify-items-center gap-10 @6xl:justify-items-start @6xl:grid-cols-[2fr_1fr] py-24`}
+      className={`${classes} grid justify-items-center gap-10 @6xl:justify-items-start @6xl:grid-cols-[2fr_1fr] py-24`}
     >
       <div className="order-2 @6xl:order-1">
         <h4 className="text-center @6xl:text-left @6xl:text-lg uppercase text-primary mb-5">

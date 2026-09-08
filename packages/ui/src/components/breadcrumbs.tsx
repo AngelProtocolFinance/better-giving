@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { NavLink } from "react-router";
 
 type Props = {
-  className?: string;
+  classes?: string;
   items: {
     title: string;
     to: string;
@@ -10,9 +10,9 @@ type Props = {
   }[];
 };
 
-export function Breadcrumbs({ items, className = "" }: Props) {
+export function Breadcrumbs({ items, classes = "" }: Props) {
   return (
-    <div className={`flex justify-center items-center gap-1 ${className}`}>
+    <div className={`flex justify-center items-center gap-1 ${classes}`}>
       {items.map((item, i) => (
         <Fragment key={i}>
           <NavLink

@@ -5,20 +5,20 @@ import { type PropsWithChildren, useId } from "react";
  *  reader can jump to, an unnamed one is a `<div>` with extra letters, so the
  *  name is wired rather than left to the heading sitting nearby. */
 export function Group({
-  className = "",
+  classes = "",
   description,
   title,
   children,
 }: PropsWithChildren<{
   title?: string;
   description?: string;
-  className?: string;
+  classes?: string;
 }>) {
   const id = useId();
   return (
     <section
       aria-labelledby={title ? id : undefined}
-      className={`grid w-full gap-6 p-6 border rounded bg-panel ${className}`}
+      className={`grid w-full gap-6 p-6 border rounded bg-panel ${classes}`}
     >
       {/* the heading pair is one grid child, not two: as two, the section's
           own `gap-6` falls between title and description, and closing it back

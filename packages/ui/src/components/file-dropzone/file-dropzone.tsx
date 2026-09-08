@@ -14,7 +14,7 @@ interface Props {
   value: FileOutput;
   onChange: (val: FileOutput) => void;
   disabled?: boolean;
-  className?: string;
+  classes?: string;
   specs: FileSpec;
   error?: string;
   /** hands the accepted file to the app's upload endpoint and resolves to the
@@ -102,7 +102,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
   return (
     <FileUpload.Root
       ref={root_ref}
-      className={`${props.className ?? ""} scroll-mt-24`}
+      className={`${props.classes ?? ""} scroll-mt-24`}
       translations={{ dropzone: props.dropzone_name }}
       accept={props.specs.mimeTypes}
       maxFileSize={props.specs.mbLimit * 1e6}

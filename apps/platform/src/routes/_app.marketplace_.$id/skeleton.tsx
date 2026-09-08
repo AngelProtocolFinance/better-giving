@@ -6,7 +6,7 @@ export default function Skeleton() {
       <Banner />
 
       <div className="page grid lg:grid-cols-[4fr_2fr] gap-6 content-start">
-        <Logo className="col-span-full" />
+        <Logo classes="col-span-full" />
         {/** header */}
         <ContentLoader className="h-40 lg:h-20 mt-20 col-span-full" />
         {/** content */}
@@ -29,10 +29,10 @@ function Banner() {
   );
 }
 
-function Logo({ className = "" }) {
+function Logo({ classes = "" }) {
   return (
     <div
-      className={`h-0 relative flex max-lg:justify-center items-center ${className}`}
+      className={`h-0 relative flex max-lg:justify-center items-center ${classes}`}
     >
       <div className="size-40 sm:size-44 rounded-full bg-secondary" />
     </div>

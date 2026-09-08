@@ -4,12 +4,12 @@ import { BOOK_A_DEMO } from "#/constants/urls";
 import type { PageContext } from "./types";
 
 interface Props extends PageContext {
-  className?: string;
+  classes?: string;
 }
-export function Hero({ className = "", ...props }: Props) {
+export function Hero({ classes = "", ...props }: Props) {
   return (
     <section
-      className={`${className} grid justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pb-24 pt-20`}
+      className={`${classes} grid justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pb-24 pt-20`}
     >
       <div className="max-w-2xl order-2 xl:order-1">
         <p className="text-center xl:text-left pre-heading text-primary mb-5">

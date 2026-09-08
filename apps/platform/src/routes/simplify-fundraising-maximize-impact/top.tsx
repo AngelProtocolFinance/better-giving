@@ -4,12 +4,12 @@ import { useLocation } from "react-router";
 import laira_pointing from "#/assets/laira/laira-pointing.webp";
 import { benefits } from "#/content/benefits";
 
-export function Top({ className = "" }) {
+export function Top({ classes = "" }) {
   const location = useLocation();
   const is_page_b = location.pathname.endsWith("s");
   return (
     <section
-      className={`${className} grid justify-items-center gap-10 @6xl:justify-items-start @6xl:grid-cols-2 pt-12 pb-24`}
+      className={`${classes} grid justify-items-center gap-10 @6xl:justify-items-start @6xl:grid-cols-2 pt-12 pb-24`}
     >
       <div className="max-w-2xl order-2 @6xl:order-1 grid">
         <h4 className="text-center @6xl:text-left @6xl:text-lg uppercase text-primary mb-5">
@@ -48,7 +48,7 @@ export function Top({ className = "" }) {
             Register Your Nonprofit Now
             <ArrowRight size={18} />
           </button>
-          <Tooltip className="max-sm:hidden absolute left-[110%] top-3" />
+          <Tooltip classes="max-sm:hidden absolute left-[110%] top-3" />
           {is_page_b && (
             <div className="absolute top-1.5 max-sm:hidden -left-15 isolate">
               <Image
@@ -91,9 +91,9 @@ export function Top({ className = "" }) {
   );
 }
 
-function Tooltip({ className = "" }) {
+function Tooltip({ classes = "" }) {
   return (
-    <span className={className}>
+    <span className={classes}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="82"

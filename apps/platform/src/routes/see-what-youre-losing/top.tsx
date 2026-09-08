@@ -13,7 +13,7 @@ export function Top({ classes = "" }) {
       className={`${classes} grid grid-cols-1 lg:grid-cols-2 gap-12 py-4 @container`}
     >
       <div className="h-fit self-center relative">
-        <Tooltip className="max-xl:hidden absolute -right-24 z-10" />
+        <Tooltip classes="max-xl:hidden absolute -right-24 z-10" />
         <Video
           vid={videos.donation_calculator}
           classes="relative shadow-lift-media rounded"
@@ -74,9 +74,9 @@ export function Top({ classes = "" }) {
   );
 }
 
-function Tooltip({ className = "" }) {
+function Tooltip({ classes = "" }) {
   return (
-    <span className={className}>
+    <span className={classes}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="99"

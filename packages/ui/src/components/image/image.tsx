@@ -34,7 +34,7 @@ export function Image({
   );
 
   if ((!props.src && !isSrcLoading) || is_error) {
-    return <ImagePlaceholder className={className} />;
+    return <ImagePlaceholder classes={className} />;
   }
 
   /**

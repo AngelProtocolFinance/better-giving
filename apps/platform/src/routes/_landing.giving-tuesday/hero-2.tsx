@@ -3,10 +3,10 @@ import { app_name } from "#/constants/env";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import hero_img from "./hero-2-img.png";
 
-export function Hero2({ className = "" }) {
+export function Hero2({ classes = "" }) {
   return (
     <section
-      className={`${className} grid content-start justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 py-28`}
+      className={`${classes} grid content-start justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 py-28`}
     >
       <div className="max-w-2xl order-2 xl:order-1">
         <h1 className="text-center xl:text-left mb-4 section-heading">

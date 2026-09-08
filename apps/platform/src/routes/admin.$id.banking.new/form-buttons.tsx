@@ -12,7 +12,7 @@ export function FormButtons({
         type="submit"
         disabled={disabled}
         is_loading={is_submitting}
-        className="gap-1"
+        classes="gap-1"
       >
         Submit
       </Button>

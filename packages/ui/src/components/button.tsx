@@ -53,7 +53,7 @@ interface IShared {
   disabled?: boolean;
   /** appended last. padding belongs to the tier and width to the caller, so no
    *  `px-*` and no `w-*` from here. */
-  className?: string;
+  classes?: string;
   children?: ReactNode;
 }
 
@@ -86,7 +86,7 @@ export function Button(props: IButton) {
     variant_class[props.variant],
     props.icon ? "btn-icon" : "",
     props.is_loading ? "pending" : "",
-    props.className ?? "",
+    props.classes ?? "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -107,7 +107,7 @@ export function Button(props: IButton) {
       is_loading,
       loading_text,
       disabled,
-      className,
+      classes: _classes,
       children,
       to,
       nav,
@@ -133,7 +133,7 @@ export function Button(props: IButton) {
       is_loading,
       loading_text,
       disabled,
-      className,
+      classes: _classes,
       children,
       href,
       ...rest
@@ -152,7 +152,7 @@ export function Button(props: IButton) {
     is_loading,
     loading_text,
     disabled,
-    className,
+    classes: _classes,
     children,
     type = "button",
     ...rest

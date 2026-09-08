@@ -22,13 +22,13 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <>
-      <Hero className="page" />
+      <Hero classes="page" />
       <Partners classes="page" />
-      <Hero2 className="page" />
+      <Hero2 classes="page" />
       <Features classes="page" />
       <Steps classes="page my-24" />
       <Products classes="page mt-12" />
-      <BottomCta className="my-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
+      <BottomCta classes="my-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
     </>
   );
 }

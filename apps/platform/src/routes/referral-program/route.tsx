@@ -71,10 +71,10 @@ export default function Referrals() {
         <Top />
       </div>
       <div className="bg-linear-to-bl from-peach/50 via-transparent via-50% to-lilac/50">
-        <Feature className="page" />
+        <Feature classes="page" />
       </div>
       <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
-        <Feature2 className="page" />
+        <Feature2 classes="page" />
       </div>
       <Faq classes="page mt-10" />
 

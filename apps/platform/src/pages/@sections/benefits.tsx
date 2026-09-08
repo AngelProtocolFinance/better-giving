@@ -2,7 +2,7 @@ import { Image } from "@better-giving/ui";
 import type { Benefit as TBenefit } from "#/content/benefits";
 
 type Props = {
-  className?: string;
+  classes?: string;
   items: TBenefit[];
   subheading?: string;
   heading: string;
@@ -10,7 +10,7 @@ type Props = {
 };
 export function Benefits(props: Props) {
   return (
-    <section className={`grid ${props.className ?? ""}`}>
+    <section className={`grid ${props.classes ?? ""}`}>
       {props.subheading && (
         <h4 className="text-lg uppercase text-primary text-center mb-4">
           {props.subheading}

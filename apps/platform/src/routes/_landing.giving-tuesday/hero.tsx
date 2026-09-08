@@ -3,10 +3,10 @@ import { app_name } from "#/constants/env";
 import { BOOK_A_DEMO } from "#/constants/urls";
 import hero_img from "./hero-img.png";
 
-export function Hero({ className = "" }) {
+export function Hero({ classes = "" }) {
   return (
     <section
-      className={`${className} grid content-start justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pt-20 xl:pt-40  pb-24`}
+      className={`${classes} grid content-start justify-items-center gap-10 xl:justify-items-start xl:grid-cols-2 pt-20 xl:pt-40  pb-24`}
     >
       <div className="max-w-2xl order-2 xl:order-1">
         <h4 className="pre-heading text-primary text-center xl:text-left  uppercase mb-5">

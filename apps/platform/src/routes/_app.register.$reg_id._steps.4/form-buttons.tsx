@@ -24,7 +24,7 @@ function Submit({
         variant="secondary"
         to={`../${back}`}
         disabled={is_submitting}
-        className="min-w-32"
+        classes="min-w-32"
       >
         Back
       </Button>
@@ -32,7 +32,7 @@ function Submit({
         variant="primary"
         type="submit"
         is_loading={is_submitting}
-        className="min-w-32"
+        classes="min-w-32"
       >
         Submit
       </Button>

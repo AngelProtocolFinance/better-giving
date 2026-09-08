@@ -1,10 +1,8 @@
 import { Image } from "lucide-react";
 
-export function ImagePlaceholder({ className = "" }) {
+export function ImagePlaceholder({ classes = "" }) {
   return (
-    <div
-      className={`${className} flex items-center justify-center bg-secondary`}
-    >
+    <div className={`${classes} flex items-center justify-center bg-secondary`}>
       <Image className="w-1/2 h-1/2 text-gray-12" />
     </div>
   );

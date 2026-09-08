@@ -3,13 +3,13 @@ import { useEffect } from "react";
 interface FormEmbedContainerProps {
   id: string;
   style?: React.CSSProperties;
-  className?: string;
+  classes?: string;
 }
 
 export function FormEmbedContainer({
   id,
   style,
-  className,
+  classes,
 }: FormEmbedContainerProps) {
   useEffect(() => {
     // effect only runs client-side, so document is safe here.
@@ -25,5 +25,5 @@ export function FormEmbedContainer({
     document.body.appendChild(script);
   }, []);
 
-  return <div data-bg-form={id} style={style} className={className} />;
+  return <div data-bg-form={id} style={style} className={classes} />;
 }

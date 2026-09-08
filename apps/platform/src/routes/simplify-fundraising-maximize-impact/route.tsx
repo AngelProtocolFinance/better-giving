@@ -47,22 +47,22 @@ export default function Component() {
       </div>
 
       <div className="bg-linear-to-br from-50% from-transparent to-peach/50">
-        <Top className="page bg-transparent" />
+        <Top classes="page bg-transparent" />
       </div>
       <div className="bg-linear-to-bl via-transparent via-50% from-peach/50 to-lilac/50">
-        <Brands className="my-20 xl:my-56" />
+        <Brands classes="my-20 xl:my-56" />
       </div>
       <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
-        <Feature className="page" />
+        <Feature classes="page" />
       </div>
       <div className="bg-linear-to-br from-transparent via-transparent via-50% to-lilac/50">
-        <DonationFormInfo className="mt-20 xl:mt-60 page" />
+        <DonationFormInfo classes="mt-20 xl:mt-60 page" />
       </div>
       <div className="bg-linear-to-bl from-lilac/50 via-50% via-transparent to-transparent">
         <Testimonials classes="page" />
       </div>
       <div className="my-20 xl:my-40">
-        <BottomCta className="max-w-4xl w-full justify-self-center px-5 md:px-10" />
+        <BottomCta classes="max-w-4xl w-full justify-self-center px-5 md:px-10" />
       </div>
       <Footer />
     </main>

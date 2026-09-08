@@ -3,9 +3,9 @@ import { Star } from "lucide-react";
 import { StepsCarousel } from "#/components/donation";
 import { benefits } from "#/content/benefits";
 
-export function DonationFormInfo({ className = "" }) {
+export function DonationFormInfo({ classes = "" }) {
   return (
-    <section className={`${className} grid @6xl:grid-cols-2 gap-x-16`}>
+    <section className={`${classes} grid @6xl:grid-cols-2 gap-x-16`}>
       <h4 className="mb-4 col-span-full text-lg text-primary uppercase text-center">
         Your all-in-one donation portal
       </h4>

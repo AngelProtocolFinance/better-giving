@@ -48,16 +48,16 @@ export default function Component() {
         <Top classes="-mt-24" />
       </div>
       <div className="bg-linear-to-bl via-transparent via-50% from-peach/50 to-lilac/50">
-        <Brands className="my-20 xl:my-56" />
+        <Brands classes="my-20 xl:my-56" />
       </div>
       <div className="bg-linear-to-br from-lilac/50 via-transparent via-50% to-transparent">
-        <Feature className="page" />
+        <Feature classes="page" />
       </div>
       <div className="bg-linear-to-br from-transparent via-transparent via-50% to-lilac/50">
-        <ProbSol className="page pt-40" />
+        <ProbSol classes="page pt-40" />
       </div>
       <div className="bg-linear-to-bl from-lilac/50 via-transparent to-transparent mb-40 px-5 md:px-10">
-        <BottomCta className="max-w-2xl xl:max-w-4xl mx-auto" />
+        <BottomCta classes="max-w-2xl xl:max-w-4xl mx-auto" />
       </div>
       <Footer />
     </main>

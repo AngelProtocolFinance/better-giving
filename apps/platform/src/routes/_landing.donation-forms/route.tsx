@@ -28,7 +28,7 @@ export default function Page() {
       <Ctas classes="page" />
       <Steps classes="page" />
       <Members classes="page" />
-      <BottomCta className="mb-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
+      <BottomCta classes="mb-20 max-w-5xl sm:max-w-6xl justify-self-center mx-4 [28rem]:mx-10" />
       <FAQ classes="page my-24" items={[faqs[1], faqs[2], faqs[3], faqs[4]]} />
     </>
   );

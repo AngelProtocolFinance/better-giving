@@ -28,10 +28,10 @@ type InitState = {
 };
 
 type Props = {
-  className?: string;
+  classes?: string;
 } & (Components | InitState);
 
-export function Donation({ className = "", ...props }: Props) {
+export function Donation({ classes = "", ...props }: Props) {
   const state = "init" in props ? props.init : init_state(props);
 
   const styles: Record<string, string | undefined> = {
@@ -43,7 +43,7 @@ export function Donation({ className = "", ...props }: Props) {
     <div
       id="donation-container"
       style={styles}
-      className={`grid ${className} w-full @container/steps overflow-clip bg-background min-h-96`}
+      className={`grid ${classes} w-full @container/steps overflow-clip bg-background min-h-96`}
     >
       <Context {...("init" in props ? props.init : init_state(props))}>
         <CurrentStep />

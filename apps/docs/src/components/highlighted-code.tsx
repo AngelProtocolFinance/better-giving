@@ -39,20 +39,20 @@ interface HighlightedCodeProps {
   lang?: BundledLanguage;
   theme?: string;
   transformers?: ShikiTransformer[];
-  className?: string;
+  classes?: string;
   // classes for the plain-text <pre> fallback shown before shiki resolves.
   fallback_class_name?: string;
 }
 
 // renders a highlighted snippet, falling back to a plain <pre> until shiki
 // resolves (also the ssr / no-js render). the `[&_pre]:…` overrides on the
-// wrapper stay the caller's concern — pass them via `className`.
+// wrapper stay the caller's concern — pass them via `classes`.
 export function HighlightedCode({
   code,
   lang,
   theme,
   transformers,
-  className,
+  classes,
   fallback_class_name,
 }: HighlightedCodeProps) {
   const html = use_highlighted({ code, lang, theme, transformers });
@@ -67,7 +67,7 @@ export function HighlightedCode({
 
   return (
     <div
-      className={className}
+      className={classes}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: shiki output of a static, in-repo code string
       dangerouslySetInnerHTML={{ __html: html }}
     />

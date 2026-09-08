@@ -3,21 +3,21 @@ import { NavLink } from "react-router";
 import type { LinkGroup } from "./types";
 
 type Props = {
-  className?: string;
+  classes?: string;
   linkGroups: LinkGroup[];
   sidebarHeader?: ReactNode;
   onChange?: () => void;
 };
 
 export function Sidebar({
-  className = "",
+  classes = "",
   linkGroups,
   onChange,
   sidebarHeader,
 }: Props) {
   return (
     <div
-      className={`flex flex-col w-72 md:w-64 h-full bg-sidebar border-r ${className}`}
+      className={`flex flex-col w-72 md:w-64 h-full bg-sidebar border-r ${classes}`}
     >
       {sidebarHeader}
       <div className="grid grid-cols-[auto_1fr] py-3 gap-x-2">

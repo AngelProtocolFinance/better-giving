@@ -35,10 +35,10 @@ const items: TListItem[] = [
   },
 ];
 
-export function Feature({ className = "" }) {
+export function Feature({ classes = "" }) {
   return (
     <section
-      className={`${className} pt-10 pb-20 lg:pb-0 lg:grid-cols-2 lg:gap-10 grid content-start`}
+      className={`${classes} pt-10 pb-20 lg:pb-0 lg:grid-cols-2 lg:gap-10 grid content-start`}
     >
       <div className="self-center max-lg:contents">
         <h3 className="max-lg:text-center text-3xl md:text-4.5xl text-balance mb-6 max-lg:px-4">

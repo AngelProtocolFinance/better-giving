@@ -77,7 +77,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
               }}
               program={undefined}
               user={user}
-              className="md:border rounded row-start-2"
+              classes="md:border rounded row-start-2"
             />
           )}
         </div>

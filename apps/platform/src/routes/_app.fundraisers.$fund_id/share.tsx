@@ -36,13 +36,13 @@ const socials: SocialMedia[] = [
 
 type ShareProps = {
   recipientName: string;
-  className?: string;
+  classes?: string;
   url: string;
 };
 
 export function Share(props: ShareProps) {
   return (
-    <div className={`${props.className ?? ""} grid py-2`}>
+    <div className={`${props.classes ?? ""} grid py-2`}>
       <h2 className="w-full pt-2 font-bold text-primary mb-2">
         Spread the word!
       </h2>

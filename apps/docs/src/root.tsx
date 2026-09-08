@@ -122,7 +122,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           <p className="text-sm text-gray-11">
             The page you're looking for doesn't exist.
           </p>
-          <Button variant="primary" to="/" className="inline-flex">
+          <Button variant="primary" to="/" classes="inline-flex">
             Go home
           </Button>
         </div>

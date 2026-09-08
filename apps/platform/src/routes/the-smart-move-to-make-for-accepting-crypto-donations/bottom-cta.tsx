@@ -3,10 +3,10 @@ import { href, Link } from "react-router";
 import logo from "#/assets/images/bg-logo.webp";
 import laira_pointing from "#/assets/laira/laira-pointing.webp";
 
-export function BottomCta({ className = "" }) {
+export function BottomCta({ classes = "" }) {
   return (
     <div
-      className={`${className} grid sm:grid-cols-[3fr_1fr] bg-linear-to-tr from-primary to-primary-fg rounded sm:rounded px-8 py-8 sm:px-12 sm:py-12`}
+      className={`${classes} grid sm:grid-cols-[3fr_1fr] bg-linear-to-tr from-primary to-primary-fg rounded sm:rounded px-8 py-8 sm:px-12 sm:py-12`}
     >
       <div className="order-2 sm:order-1">
         <h4 className="text-center sm:text-left uppercase sm:text-lg text-primary-fg leading-normal mb-6">

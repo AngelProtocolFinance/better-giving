@@ -32,7 +32,7 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
           variant="secondary"
           to={`../${steps.banking}`}
           disabled={is_submitting}
-          className="min-w-32"
+          classes="min-w-32"
         >
           Back
         </Button>
@@ -40,7 +40,7 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
           variant="primary"
           type="submit"
           is_loading={is_submitting}
-          className="min-w-32"
+          classes="min-w-32"
         >
           Continue
         </Button>
@@ -64,7 +64,7 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
           variant="primary"
           type="submit"
           is_loading={is_submitting}
-          className="min-w-32"
+          classes="min-w-32"
         >
           Resubmit
         </Button>

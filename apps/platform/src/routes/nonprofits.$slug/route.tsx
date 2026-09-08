@@ -88,7 +88,7 @@ export default function Page({ loaderData: ctx }: Route.ComponentProps) {
           <DappLogo classes="h-12" />
         </div>
       </div>
-      <Hero className="page" {...ctx} />
+      <Hero classes="page" {...ctx} />
       <Partners of_what={ctx.partners} classes="page my-10 xl:my-20" />
       <Steps classes="page my-10 xl:my-20" />
       <Products classes="page my-10 xl:my-20" />

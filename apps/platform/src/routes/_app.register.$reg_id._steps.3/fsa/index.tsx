@@ -62,7 +62,7 @@ export function FsaForm(props: Props) {
       <FileDropzone
         ref={poi.ref}
         dropzone_name="Government issued ID"
-        className="mt-1"
+        classes="mt-1"
         label={
           <Label required className="mb-2">
             Please provide passport, driver's license, or ID card.
@@ -88,7 +88,7 @@ export function FsaForm(props: Props) {
       <FileDropzone
         ref={por.ref}
         dropzone_name="Proof of registration"
-        className="mt-10"
+        classes="mt-10"
         label={
           <Label className="mb-2" required>
             Proof of registration as a 501(c)(3) nonprofit or equivalent

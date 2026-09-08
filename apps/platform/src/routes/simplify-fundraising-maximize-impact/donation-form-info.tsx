@@ -37,10 +37,10 @@ const items: TListItem[] = [
   },
 ];
 
-export function DonationFormInfo({ className = "" }) {
+export function DonationFormInfo({ classes = "" }) {
   return (
     <section
-      className={`${className} grid @6xl:grid-cols-2 gap-x-16 content-start`}
+      className={`${classes} grid @6xl:grid-cols-2 gap-x-16 content-start`}
     >
       <h4 className="mb-4 col-span-full text-lg text-primary uppercase text-center">
         Your all-in-one donation form

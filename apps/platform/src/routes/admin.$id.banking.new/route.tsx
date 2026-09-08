@@ -57,7 +57,7 @@ export default function Banking() {
         <span>Back</span>
       </Link>
       <Group
-        className="max-w-4xl"
+        classes="max-w-4xl"
         title="Bank account details"
         description="The following information will be used to register your bank account that will be used to withdraw your funds."
       >

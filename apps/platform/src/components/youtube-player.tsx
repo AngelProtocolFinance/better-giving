@@ -8,7 +8,7 @@ export function extract_youtube_id(url: string): string | null {
 
 interface IYouTubePlayer {
   url: string;
-  className?: string;
+  classes?: string;
 }
 
 interface IYouTubeEmbed extends IYouTubePlayer {
@@ -32,7 +32,7 @@ export function YouTubePlayer(props: YouTubePlayerProps) {
   if ("thumbnail" in props && props.thumbnail) {
     return (
       <img
-        className={`${style} object-cover ${props.className ?? ""}`}
+        className={`${style} object-cover ${props.classes ?? ""}`}
         src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`}
         alt=""
         loading="lazy"
@@ -43,7 +43,7 @@ export function YouTubePlayer(props: YouTubePlayerProps) {
   const controls = props.controls ?? true;
   return (
     <iframe
-      className={`${style} ${props.className ?? ""}`}
+      className={`${style} ${props.classes ?? ""}`}
       src={`https://www.youtube-nocookie.com/embed/${id}${controls ? "" : "?controls=0"}`}
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowFullScreen

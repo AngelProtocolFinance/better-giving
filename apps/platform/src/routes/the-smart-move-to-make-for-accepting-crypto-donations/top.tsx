@@ -87,15 +87,15 @@ export const Top = ({ classes = "" }) => {
           <ArrowRight size={18} />
         </Link>
 
-        <Tooltip className="max-sm:hidden absolute left-[110%] top-3" />
+        <Tooltip classes="max-sm:hidden absolute left-[110%] top-3" />
       </div>
     </section>
   );
 };
 
-function Tooltip({ className = "" }) {
+function Tooltip({ classes = "" }) {
   return (
-    <span className={className}>
+    <span className={classes}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="82"

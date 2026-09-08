@@ -64,7 +64,7 @@ export function Preview({
             <Steps
               key={JSON.stringify(init_state)}
               init={init_state}
-              className="rounded"
+              classes="rounded"
             />
           </div>
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded">
@@ -75,7 +75,7 @@ export function Preview({
         <Steps
           key={JSON.stringify(init_state)}
           init={init_state}
-          className="rounded border"
+          classes="rounded border"
         />
       )}
     </div>

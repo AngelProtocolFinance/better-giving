@@ -102,7 +102,7 @@ export default function WithBorder() {
           code={code_snippet}
           lang="html"
           transformers={transformers}
-          className="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
+          classes="[&_pre]:p-4 [&_pre]:m-0 [&_pre]:overflow-x-auto"
           fallback_class_name="p-4 m-0 overflow-x-auto text-gray-11"
         />
       </div>

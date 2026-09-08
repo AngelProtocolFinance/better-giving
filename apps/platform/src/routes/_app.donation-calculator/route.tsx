@@ -126,7 +126,7 @@ export default function Page() {
         <Chart {...view} classes="mt-6 max-sm:col-span-2 row-span-3" />
         <Benefits classes="mt-6 max-sm:col-span-2" />
         <Docs classes="mt-6 self-start col-start-2 max-sm:col-span-2" />
-        <BottomCta className="col-span-2 sm:grid-cols-2 mt-6" />
+        <BottomCta classes="col-span-2 sm:grid-cols-2 mt-6" />
       </div>
     </div>
   );

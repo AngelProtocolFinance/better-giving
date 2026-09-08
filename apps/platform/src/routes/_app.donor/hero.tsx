@@ -2,10 +2,10 @@ import { Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import { benefits } from "#/content/benefits";
 
-export function Hero({ className = "" }) {
+export function Hero({ classes = "" }) {
   return (
     <section
-      className={`${className} grid justify-items-center gap-y-10 @6xl:justify-items-start @6xl:grid-cols-[3fr_2fr] py-24`}
+      className={`${classes} grid justify-items-center gap-y-10 @6xl:justify-items-start @6xl:grid-cols-[3fr_2fr] py-24`}
     >
       <div className="grid content-start max-w-2xl order-2 @6xl:order-1">
         <h4 className="text-center @6xl:text-left @6xl:text-lg uppercase mb-5">

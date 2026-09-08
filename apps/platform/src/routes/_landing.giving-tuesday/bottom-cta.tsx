@@ -1,10 +1,10 @@
 import { href, Link } from "react-router";
 import { app_name } from "#/constants/env";
 
-export function BottomCta({ className = "" }) {
+export function BottomCta({ classes = "" }) {
   return (
     <div
-      className={`${className} bg-linear-to-br from-primary to-secondary rounded md:rounded px-10 py-12 md:px-16 lg:px-20 lg:py-16`}
+      className={`${classes} bg-linear-to-br from-primary to-secondary rounded md:rounded px-10 py-12 md:px-16 lg:px-20 lg:py-16`}
     >
       <h2 className="text-center text-4xl md:text-5xl lg:text-5xl text-primary-fg mb-6 leading-tight">
         Join nonprofits who keep the Giving Tuesday spirit alive, all year.
