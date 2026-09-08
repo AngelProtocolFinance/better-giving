@@ -7,13 +7,17 @@ const options: FilterOption<boolean>[] = [
   { displayText: "Not Required", value: false, key: "false" },
 ];
 
-export default function KYCFilter() {
+interface Props {
+  classes?: string;
+}
+
+export default function KYCFilter({ classes = "" }: Props) {
   const [params, setParams] = useSearchParams();
   const { kyc_only: pkycs = [], ...p } = toParsed(params);
 
   return (
     <FlatFilter
-      classes="mt-2"
+      classes={classes}
       label="Donor verification"
       selectedValues={pkycs}
       options={options}

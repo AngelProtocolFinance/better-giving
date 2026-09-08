@@ -15,7 +15,7 @@ export default function Layout() {
       <ProgressIndicator
         step={new Progress(reg).step}
         o_type={reg.o_type}
-        classes="md:min-w-48 lg:min-w-62"
+        classes="md:min-w-48 lg:min-w-62 md:mr-14"
       />
 
       <div className="grid z-10 w-full px-6 py-8 md:p-0 md:pr-8">

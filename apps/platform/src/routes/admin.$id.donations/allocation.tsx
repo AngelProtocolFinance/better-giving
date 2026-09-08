@@ -11,7 +11,7 @@ interface Props {
 }
 export function Allocation(props: Props) {
   return (
-    <div className={`grid rounded mt-4 ${props.classes ?? ""}`}>
+    <div className={`grid rounded ${props.classes ?? ""}`}>
       <div className="flex items-baseline gap-x-2 mb-1">
         <h2 className="mb-1">Distribution</h2>
 

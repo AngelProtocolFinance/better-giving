@@ -9,7 +9,11 @@ const groups = Object.entries(categories).map(
   ([group, val]) => [+group, val.sdgs] as [SDGGroup, UnSdgNum[]]
 );
 
-export default function Categories() {
+interface Props {
+  classes?: string;
+}
+
+export default function Categories({ classes = "" }: Props) {
   const [params, setParams] = useSearchParams();
   const { sdgs: psdgs = [], ...p } = toParsed(params);
   const activeGroups = groups
@@ -18,7 +22,7 @@ export default function Categories() {
 
   return (
     <FlatFilter
-      classes="mt-2"
+      classes={classes}
       label="Categories"
       selectedValues={activeGroups}
       options={Object.entries(categories).map(([num, { name }]) => ({

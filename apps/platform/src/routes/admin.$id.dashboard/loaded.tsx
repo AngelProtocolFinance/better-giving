@@ -32,7 +32,7 @@ export function Loaded({ classes = "", ...props }: Props) {
   const payout_min = data?.endow.payout_minimum ?? min_payout_amount;
 
   return (
-    <div className={`${classes} mt-6`}>
+    <div className={classes}>
       <div className="grid gap-4 @lg:grid-cols-2">
         <Figure
           title="Savings"

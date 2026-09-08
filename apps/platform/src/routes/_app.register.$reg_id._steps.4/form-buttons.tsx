@@ -19,7 +19,7 @@ function Submit({
   back: string;
 }) {
   return (
-    <Actions classes="mt-8">
+    <Actions>
       <Button
         variant="secondary"
         to={`../${back}`}

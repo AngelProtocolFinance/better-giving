@@ -1252,6 +1252,9 @@ edge, and the corner that clips them, belong to the shell.** A child inside one
 carries its own margins, gaps and type; it does not carry the shell's padding,
 and it does not draw a second corner.
 
+**Outer margin runs the other way**: a root carries none of its own, and the
+caller spends it through `classes`.
+
 The reason this is worth stating is that **both spellings render identically**. A
 card carrying `p-6`, and a card carrying nothing while each of its children
 carries `p-6`, are the same picture: pixel for pixel, at every viewport. They

@@ -33,7 +33,7 @@ export function EndowAlertForm({ classes = "", user_npos }: Props) {
   const { fields } = useFieldArray({ control, name: "items" });
 
   if (user_npos.length === 0) {
-    return <EmptyState classes="mt-4">No organizations yet</EmptyState>;
+    return <EmptyState classes={classes}>No organizations yet</EmptyState>;
   }
 
   const onSubmit: SubmitHandler<FV> = async (fv) => {

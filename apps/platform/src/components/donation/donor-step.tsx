@@ -115,6 +115,7 @@ export function DonorStep({ classes = "", on_change, value }: Props) {
 
       {don.recipient.donor_address_required && (
         <AddressFields
+          classes="mt-2"
           control={control}
           register={register}
           errors={errors}
@@ -140,11 +141,13 @@ function AddressFields({
   register,
   errors,
   popup_vars,
+  classes = "",
 }: {
   control: Control<FV>;
   register: UseFormRegister<FV>;
   errors: ReturnType<typeof useForm<FV>>["formState"]["errors"];
   popup_vars: Record<string, string | undefined>;
+  classes?: string;
 }) {
   const { field: country } = useController<FV, "address.country">({
     control,
@@ -159,7 +162,7 @@ function AddressFields({
   });
 
   return (
-    <Fieldset.Root className="grid gap-4 mt-2">
+    <Fieldset.Root className={`grid gap-4 ${classes}`}>
       <Fieldset.Legend className="label mb-3">Your address</Fieldset.Legend>
       <FloatingField
         required

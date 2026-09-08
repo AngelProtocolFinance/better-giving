@@ -61,8 +61,8 @@ export default function Filter({ classes = "" }: { classes?: string }) {
 
             <div className="px-2 divide-y divide-gray-6">
               <Designations />
-              <KYCFilter />
-              <Categories />
+              <KYCFilter classes="mt-2" />
+              <Categories classes="mt-2" />
             </div>
           </Dialog.Content>
         </Dialog.Positioner>
