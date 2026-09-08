@@ -9,6 +9,8 @@ export interface IPrompt extends PropsWithChildren {
   open?: boolean;
   onClose?: () => void;
   isDismissable?: boolean;
+  /** fired once the close animation has finished and the content is unmounted. */
+  onExitComplete?: () => void;
 }
 
 export function Prompt({
@@ -17,6 +19,7 @@ export function Prompt({
   onClose,
   open,
   isDismissable = true,
+  onExitComplete,
 }: IPrompt) {
   const navigate = useNavigate();
   function close() {
@@ -28,6 +31,7 @@ export function Prompt({
     <Modal
       open={open ?? true}
       onClose={close}
+      onExitComplete={onExitComplete}
       classes="grid bg-panel text-gray-12"
     >
       <div className="flex justify-end p-4 border-b">

@@ -16,6 +16,12 @@ interface Props extends PropsWithChildren {
   size?: ModalSize | "none";
   open: boolean;
   onClose: () => void;
+  /**
+   * fired once the close animation has finished and the content is unmounted.
+   * for a caller that owns this dialog's own mount and has to hold it until
+   * then.
+   */
+  onExitComplete?: () => void;
 }
 export function Modal({ size = "sm", ...props }: Props) {
   return (
@@ -26,6 +32,7 @@ export function Modal({ size = "sm", ...props }: Props) {
       }}
       lazyMount
       unmountOnExit
+      onExitComplete={props.onExitComplete}
     >
       <Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />

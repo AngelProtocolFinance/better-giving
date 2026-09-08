@@ -1,5 +1,5 @@
 import { tokens_map } from "@better-giving/crypto";
-import { type IPrompt, Modal, Prompt, show_toast } from "@better-giving/ui";
+import { Modal, show_toast, use_ask_prompt } from "@better-giving/ui";
 import { useState } from "react";
 import { PayQr } from "#/components/donation";
 import { error_prompt } from "#/helpers/error-prompt";
@@ -16,9 +16,9 @@ interface Props {
   amount: number;
 }
 export function PaymentResumer({ payment_id, classes, amount }: Props) {
+  const ask_prompt = use_ask_prompt();
   const [intent_state, set_intent_state] = useState<"pending">();
   const [qr, set_qr] = useState<IQrModal>();
-  const [prompt, set_prompt] = useState<IPrompt>();
 
   return (
     <>
@@ -44,7 +44,7 @@ export function PaymentResumer({ payment_id, classes, amount }: Props) {
             });
           } catch (err) {
             set_qr(undefined);
-            set_prompt(error_prompt(err));
+            ask_prompt(error_prompt(err), { key: "payment-resume" });
           } finally {
             set_intent_state(undefined);
           }
@@ -53,7 +53,6 @@ export function PaymentResumer({ payment_id, classes, amount }: Props) {
         {intent_state === "pending" ? "Loading..." : "Finish paying"}
       </button>
       {qr && <QrModal {...qr} on_close={() => set_qr(undefined)} />}
-      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </>
   );
 }

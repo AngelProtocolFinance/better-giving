@@ -63,7 +63,17 @@ beforeAll(async () => {
 });
 
 // reset handlers after each test — important for test isolation
-afterEach(() => {
+afterEach(async () => {
   mswWorker.resetHandlers();
   clear_qstash_events();
+  // ask's store is module state and outlives the rendered tree, so a test that
+  // raises a dialog without answering it leaks that dialog into the next one.
+  //
+  // imported here rather than at the top: a static import of the barrel from a
+  // setup file lands before a test file's own `vi.mock("@better-giving/ui")`
+  // and defeats it (registration.test.tsx's FileDropzone stub stops applying).
+  // a file that replaces the barrel outright has no `_reset_asks` to call, and
+  // no ask store of its own to leak either.
+  const ui = await import("@better-giving/ui");
+  ui._reset_asks?.();
 });

@@ -1,6 +1,6 @@
-import { Group, type IPrompt, Prompt } from "@better-giving/ui";
+import { Group, use_ask_prompt } from "@better-giving/ui";
 import { ChevronLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useFetcher, useParams } from "react-router";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
 import { submit_error_prompt } from "#/helpers/error-prompt";
@@ -12,7 +12,7 @@ export { action } from "./api";
 export default function Banking() {
   const { id: endowIdParam = "" } = useParams();
   const fetcher = useFetcher();
-  const [prompt, setPrompt] = useState<IPrompt>();
+  const ask_prompt = use_ask_prompt();
 
   const submit: OnSubmit = async (recipient, bankStatementUrl) => {
     const { id, details, currency } = recipient;
@@ -40,12 +40,13 @@ export default function Banking() {
   // one redirects and never lands here.
   useEffect(() => {
     if (fetcher.state !== "idle" || !fetcher.data?.message) return;
-    setPrompt(
+    ask_prompt(
       submit_error_prompt(fetcher.data, {
         context: "submitting banking application",
-      })
+      }),
+      { key: "banking-submit-error" }
     );
-  }, [fetcher.state, fetcher.data]);
+  }, [fetcher.state, fetcher.data, ask_prompt]);
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8">
@@ -68,7 +69,6 @@ export default function Banking() {
           is_loading={fetcher.state !== "idle"}
         />
       </Group>
-      {prompt && <Prompt {...prompt} onClose={() => setPrompt(undefined)} />}
     </div>
   );
 }

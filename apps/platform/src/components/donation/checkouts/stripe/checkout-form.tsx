@@ -1,4 +1,4 @@
-import { type IPrompt, LoadText, Prompt } from "@better-giving/ui";
+import { LoadText, use_ask_prompt } from "@better-giving/ui";
 import {
   PaymentElement,
   useElements,
@@ -34,10 +34,16 @@ interface Props extends IDonationIntent {
 }
 // code inspired by react stripe.js docs, see:
 // https://stripe.com/docs/stripe-js/react#useelements-hook
+/**
+ * one prompt slot: every raise replaces the one on screen rather than stacking
+ * over it.
+ */
+const PROMPT_SLOT = "stripe-checkout";
+
 export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
   const { don } = use_donation();
+  const ask_prompt = use_ask_prompt();
   const [complete, set_complete] = useState(false);
-  const [prompt, set_prompt] = useState<IPrompt>();
   const stripe = useStripe();
   const elements = useElements();
 
@@ -91,9 +97,11 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         // the donor's own input, echoed back to them — not a defect. see
         // `user_error_prompt`; the stripe webhook handlers skip `card_error`
         // for the same reason.
-        set_prompt(user_error_prompt(error.message));
+        ask_prompt(user_error_prompt(error.message), { key: PROMPT_SLOT });
       } else {
-        set_prompt(error_prompt(error, { context: "processing payment" }));
+        ask_prompt(error_prompt(error, { context: "processing payment" }), {
+          key: PROMPT_SLOT,
+        });
       }
       set_status("ready");
     } else {
@@ -104,7 +112,7 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         on_stuck: () => {
           set_status("done");
           set_stuck(dest);
-          set_prompt(stuck_prompt(dest));
+          ask_prompt(stuck_prompt(dest), { key: PROMPT_SLOT });
         },
       });
     }
@@ -154,7 +162,6 @@ export function Checkout({ order_id, donor, bank_only, ...intent }: Props) {
         </button>
       )}
       {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
-      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </form>
   );
 }

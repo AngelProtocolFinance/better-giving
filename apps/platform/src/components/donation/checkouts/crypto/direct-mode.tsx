@@ -1,10 +1,5 @@
-import {
-  ContentLoader,
-  ErrorStatus,
-  type IPrompt,
-  Prompt,
-} from "@better-giving/ui";
-import { useEffect, useState } from "react";
+import { ContentLoader, ErrorStatus, use_ask_prompt } from "@better-giving/ui";
+import { useEffect } from "react";
 import { href, useNavigation } from "react-router";
 import use_swr from "swr/immutable";
 import { report_error } from "#/errors/report";
@@ -58,6 +53,12 @@ const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   throw new IntentError(res.status, txt);
 };
 
+/**
+ * one prompt slot: every raise replaces the one on screen rather than stacking
+ * over it.
+ */
+const PROMPT_SLOT = "crypto-checkout";
+
 export function DirectMode({
   fv,
   init,
@@ -66,8 +67,8 @@ export function DirectMode({
   fee_allowance,
   tipv,
 }: Props) {
+  const ask_prompt = use_ask_prompt();
   const navigation = useNavigation();
-  const [prompt, set_prompt] = useState<IPrompt>();
   const redirect = use_donation_redirect();
 
   const handle_continue = () => {
@@ -91,7 +92,7 @@ export function DirectMode({
       dest,
       form_id: init.config?.id,
       parent_origin: init.config?.parent_origin,
-      on_stuck: () => set_prompt(stuck_prompt(dest)),
+      on_stuck: () => ask_prompt(stuck_prompt(dest), { key: PROMPT_SLOT }),
     });
   };
 
@@ -170,7 +171,6 @@ export function DirectMode({
         text="I have completed the payment"
         className="justify-self-stretch mt-8"
       />
-      {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
     </div>
   );
 }
