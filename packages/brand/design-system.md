@@ -1025,6 +1025,7 @@ and the components beside them. `n/a` means the state does not apply to that con
 | `.btn` + 7 variants | ✓ | ✓ | ✓ | ✓¹ | ✓ | ✓ | n/a | n/a |
 | `.field-input` (input, textarea) | ✓ | | ✓² | n/a | ✓ | | ✓ | ✓³ |
 | `.field-input-container` (composite field) | ✓ | | ✓² | n/a | ✓ | | ✓ | ✓³ |
+| `DateInput.Segment` (date field) | ✓ | | ✓⁸ | n/a | | | n/a⁸ | n/a |
 | `checkbox` / `check-field` | ✓ | | ✓ | | ✓ | | ⁴ | n/a |
 | `radio` | ✓ | | ✓ | | ✓ | | ⁴ | n/a |
 | `Toggle` (switch) | ✓⁵ | | ✓ | n/a | ✓ | | ⁴ | n/a |
@@ -1051,6 +1052,12 @@ and the components beside them. `n/a` means the state does not apply to that con
    no paint at all**: zag emits `data-disabled` and `option_cls` in
    `packages/ui/src/components/select/classes.ts` does not read it, so an
    unselectable row is indistinguishable from a selectable one.
+8. Two cues at two levels: the `SegmentGroup` draws the field's `focus-within`
+   ring, and the segment paints which of day/month/year the caret is on. A
+   placeholder segment scopes its resting ink to `not-focus-visible` so the
+   focused pair wins — the two rules are the same specificity, and the
+   `data-placeholder` one is emitted later. `data-invalid` lands on the group,
+   so the segment carries no invalid paint of its own.
 
 **One focus trigger: `focus-visible`, never `focus`.** Applied at every control
 in the table. Browsers withhold `:focus-visible` from a pointer press on
