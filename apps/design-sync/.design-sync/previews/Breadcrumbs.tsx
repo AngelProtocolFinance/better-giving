@@ -18,7 +18,7 @@ export const Default = () => (
 // the real marketplace profile header: two crumbs, small type.
 export const MarketplaceProfile = () => (
   <Breadcrumbs
-    className="text-xs sm:text-sm"
+    classes="text-xs sm:text-sm"
     items={[
       { title: "Marketplace", to: "/marketplace", end: true },
       { title: "Ocean Conservancy", to: "/marketplace/24" },

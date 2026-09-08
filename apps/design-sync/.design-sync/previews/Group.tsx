@@ -5,7 +5,7 @@ import { Field, Group, Select } from "@better-giving/ui";
 
 export const ProfileSection = () => (
   <Group
-    className="max-w-2xl"
+    classes="max-w-2xl"
     title="Public profile information"
     description="The following information will be used to populate your public profile."
   >
@@ -29,7 +29,7 @@ export const ProfileSection = () => (
 
 export const BankAccountSection = () => (
   <Group
-    className="max-w-2xl"
+    classes="max-w-2xl"
     title="Bank account details"
     description="Used to register the account your funds are withdrawn to."
   >
@@ -60,7 +60,7 @@ export const BankAccountSection = () => (
 
 // no description: the leaner variant used on the program editor.
 export const TitleOnly = () => (
-  <Group className="max-w-2xl" title="Next payout">
+  <Group classes="max-w-2xl" title="Next payout">
     <dl className="grid gap-4">
       <div className="flex items-baseline justify-between">
         <dt className="text-sm text-gray-11">Available balance</dt>
@@ -82,7 +82,7 @@ export const TitleOnly = () => (
 
 // children only — the plain bordered panel, no heading at all.
 export const Untitled = () => (
-  <Group className="max-w-2xl">
+  <Group classes="max-w-2xl">
     <p className="text-sm text-gray-11">
       Ocean Conservancy has no fundraisers yet. Create one to start collecting
       donations.
