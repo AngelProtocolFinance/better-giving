@@ -20,17 +20,6 @@ export const popup_cls =
 export const popup_scrollbar_cls = "scrollbars";
 
 /**
- * popup enter/exit. deliberately not folded into `popup_cls`: not every popup
- * animates, and an exit animation only moves when ark fires `onExitComplete`.
- * unifying it is a design-system call, not a class collapse.
- *
- * `prefers-reduced-motion` needs nothing here — the guard is on the speed
- * ladder in `styles/theme.css`, which `--animate-popup-in|out` spend.
- */
-export const popup_motion_cls =
-  "origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out";
-
-/**
  * one option row.
  *
  * both zag machines emit `data-state="checked"` for the selected row and

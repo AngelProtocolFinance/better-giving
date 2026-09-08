@@ -892,13 +892,24 @@ Durations only: a 0.01ms curve has nothing to shape, so the easings are
 untouched. The marquee is outside the ladder — its duration comes from the Ark
 machine's own var — and carries its own `motion-reduce:animate-none`.
 
-### What is still open
+### A popup animates, on one named pair
 
-**Whether a popup animates at all.** Of the app's dropdown implementations only
-some animate open/close, and the shared popup shell left motion out rather than
-have a builder pick it. That is a design call, it is parked, and it is not
-blocked by this ladder: naming the speeds is what a decision about it would have
-had to do first.
+Every anchored popup — menu, select, combobox, tooltip, hovercard, popover,
+toast — enters on `--animate-popup-in` and leaves on `--animate-popup-out`,
+scaling from `--transform-origin` so it grows out of its trigger. That is
+`popup_anim` in `packages/ui/src/components/popup.ts`, the one spelling; the
+shared select/combobox shell reads it, tooltip and hovercard read it, and the
+app imports it from `@better-giving/ui` rather than re-typing the three
+classes. Both halves run at `duration-fast`, which is what the ladder's row for
+a popup opening already said.
+
+The one carve-out is a popup that unmounts on close. `RouteModal` closes by
+navigating, so the route is gone before Ark can flip `data-state` to closed,
+and a `data-[state=closed]:` class there would never fire — it runs the enter
+half only, and its own comment says so. Decided 2026-09-08; until then it was
+2-of-5 by accident and parked as a design call.
+
+### What is still open
 
 **Two kinds of motion sit outside the ladder and outside its guard.**
 `motion/react` animates in a dozen files under `apps/platform/src` with the

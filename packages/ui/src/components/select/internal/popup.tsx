@@ -1,6 +1,7 @@
 import { Portal } from "@ark-ui/react/portal";
 import type { ComponentType, CSSProperties, ReactNode, RefObject } from "react";
-import { popup_cls, popup_motion_cls, popup_scrollbar_cls } from "../classes";
+import { popup_anim } from "../../popup";
+import { popup_cls, popup_scrollbar_cls } from "../classes";
 
 interface IPopup {
   /**
@@ -41,7 +42,7 @@ export function Popup({ parts: { Positioner, Content }, ...p }: IPopup) {
       <Positioner>
         <Content
           style={p.vars as CSSProperties | undefined}
-          className={`${popup_cls} ${popup_scrollbar_cls} ${popup_motion_cls} ${
+          className={`${popup_cls} ${popup_scrollbar_cls} ${popup_anim} ${
             p.width ?? "w-(--reference-width)"
           } ${p.classes ?? ""}`}
         >

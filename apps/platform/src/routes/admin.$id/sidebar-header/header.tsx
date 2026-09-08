@@ -1,6 +1,6 @@
 import { Menu } from "@ark-ui/react/menu";
 import { Portal } from "@ark-ui/react/portal";
-import { Image } from "@better-giving/ui";
+import { Image, popup_anim } from "@better-giving/ui";
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { href, Link, useParams } from "react-router";
 import flying_character from "#/assets/images/flying-character.webp";
@@ -34,7 +34,9 @@ export function Loader({ name, logo = flying_character }: IEndow) {
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
-          <Menu.Content className="z-floating grid w-max min-w-56 p-2 rounded bg-panel text-gray-12 shadow-floating origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+          <Menu.Content
+            className={`z-floating grid w-max min-w-56 p-2 rounded bg-panel text-gray-12 shadow-floating ${popup_anim}`}
+          >
             {list.map((org) => {
               const is_current = org.id.toString() === current_id;
               return (

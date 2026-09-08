@@ -1,5 +1,5 @@
 import { Popover } from "@ark-ui/react/popover";
-import { Actions, DateRangeField, Select } from "@better-giving/ui";
+import { Actions, DateRangeField, popup_anim, Select } from "@better-giving/ui";
 import { toYYYMMDD } from "@better-giving/ui/helpers";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import type { FC } from "react";
@@ -41,7 +41,7 @@ export const Form: FC<Props> = ({ onReset, onSubmit, params }) => {
   return (
     <Popover.Content
       asChild
-      className="grid content-start gap-4 w-(--reference-width) rounded border bg-panel text-gray-12 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out"
+      className={`grid content-start gap-4 w-(--reference-width) rounded border bg-panel text-gray-12 ${popup_anim}`}
     >
       <form
         onSubmit={handleSubmit(onSubmit, (err) => {

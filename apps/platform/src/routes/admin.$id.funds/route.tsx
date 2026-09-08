@@ -1,6 +1,6 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
-import { DrawerIcon, EmptyState } from "@better-giving/ui";
+import { DrawerIcon, EmptyState, popup_anim } from "@better-giving/ui";
 import { href, Link, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import type { Route } from "./+types/route";
@@ -59,7 +59,9 @@ function Page({ loaderData }: Route.ComponentProps) {
             </Select.Trigger>
             <Portal>
               <Select.Positioner>
-                <Select.Content className="rounded border bg-panel text-gray-12 min-w-(--reference-width) w-max z-10 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+                <Select.Content
+                  className={`rounded border bg-panel text-gray-12 min-w-(--reference-width) w-max z-10 ${popup_anim}`}
+                >
                   {OPTIONS.map((val) => (
                     <Select.Item
                       key={val || "all"}

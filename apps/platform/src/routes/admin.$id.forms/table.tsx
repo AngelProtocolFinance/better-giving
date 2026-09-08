@@ -1,6 +1,6 @@
 import { Portal } from "@ark-ui/react/portal";
 import { createListCollection, Select } from "@ark-ui/react/select";
-import { EmptyRow, LoadMoreRow, Target } from "@better-giving/ui";
+import { EmptyRow, LoadMoreRow, popup_anim, Target } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { ChevronDownIcon, TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
@@ -176,7 +176,9 @@ function StatusFilter({ value }: { value: Filter }) {
       </Select.Trigger>
       <Portal>
         <Select.Positioner>
-          <Select.Content className="rounded border bg-panel text-gray-12 min-w-28 overflow-hidden origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out z-10">
+          <Select.Content
+            className={`rounded border bg-panel text-gray-12 min-w-28 overflow-hidden z-10 ${popup_anim}`}
+          >
             {FILTER_OPTS.map((v) => (
               <Select.Item key={v} item={v} className="selector-opt text-sm">
                 <Select.ItemText>{FILTER_LABEL[v]}</Select.ItemText>

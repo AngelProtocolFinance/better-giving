@@ -1,6 +1,6 @@
 import { Menu } from "@ark-ui/react/menu";
 import { Portal } from "@ark-ui/react/portal";
-import { Image } from "@better-giving/ui";
+import { Image, popup_anim } from "@better-giving/ui";
 import { LinkIcon, MailIcon, ShareIcon } from "lucide-react";
 import type React from "react";
 import facebook from "#/assets/icons/social/facebook.webp";
@@ -70,7 +70,9 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
-            <Menu.Content className="z-floating grid grid-cols-2 w-max p-3 rounded bg-panel text-gray-12 shadow-floating origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out">
+            <Menu.Content
+              className={`z-floating grid grid-cols-2 w-max p-3 rounded bg-panel text-gray-12 shadow-floating ${popup_anim}`}
+            >
               {menuItems.map((item) => (
                 <Menu.Item key={item.name} value={item.name} asChild>
                   <a

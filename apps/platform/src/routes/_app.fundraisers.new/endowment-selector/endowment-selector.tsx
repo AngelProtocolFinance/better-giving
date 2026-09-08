@@ -1,6 +1,6 @@
 import { Combobox, createListCollection } from "@ark-ui/react/combobox";
 import { Portal } from "@ark-ui/react/portal";
-import { Image } from "@better-giving/ui";
+import { Image, popup_anim } from "@better-giving/ui";
 import { Check, Search, X } from "lucide-react";
 import type React from "react";
 import { useMemo, useRef, useState } from "react";
@@ -153,7 +153,9 @@ export function EndowmentSelector(props: Props) {
 
         <Portal>
           <Combobox.Positioner>
-            <Combobox.Content className="z-floating w-(--reference-width) bg-panel text-gray-12 text-sm border max-h-40 scrollbars overflow-y-auto rounded shadow-floating">
+            <Combobox.Content
+              className={`${popup_anim} z-floating w-(--reference-width) bg-panel text-gray-12 text-sm border max-h-40 scrollbars overflow-y-auto rounded shadow-floating`}
+            >
               {get_status() ? (
                 <p className="p-2 text-sm text-gray-11">{get_status()}</p>
               ) : (

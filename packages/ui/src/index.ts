@@ -27,6 +27,7 @@ export type { Classes as FormClasses } from "./components/form/types";
 // state at all, so there is nothing for the design agent to see or vary.
 export { Honeypot } from "./components/honeypot";
 export type { PayoutStatusType } from "./components/payout-status";
+export { popup_anim } from "./components/popup";
 export type { IPrompt } from "./components/prompt/prompt";
 export type { Props as ComboProps } from "./components/select/combo";
 export type { Props as MultiComboProps } from "./components/select/multi-combo";

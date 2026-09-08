@@ -1,6 +1,12 @@
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
-import { Actions, DrawerIcon, Field, Select } from "@better-giving/ui";
+import {
+  Actions,
+  DrawerIcon,
+  Field,
+  popup_anim,
+  Select,
+} from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { FilterIcon } from "lucide-react";
 import { useState } from "react";
@@ -86,7 +92,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
           <Popover.Positioner>
             <Popover.Content
               asChild
-              className="grid content-start gap-4 w-(--reference-width) rounded border bg-panel text-gray-12 origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out"
+              className={`grid content-start gap-4 w-(--reference-width) rounded border bg-panel text-gray-12 ${popup_anim}`}
             >
               <form
                 onSubmit={handleSubmit(submit)}

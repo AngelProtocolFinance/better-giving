@@ -1,4 +1,14 @@
-/** the open/close motion every anchored popup runs: tooltip, hovercard. */
+/**
+ * the open/close motion every anchored popup runs — tooltip, hovercard, the
+ * shared select/combo/multi-combo shell, and the app's own popups through the
+ * barrel. one spelling: a popup that animates spends this, not a respelling.
+ *
+ * the only popup that runs the enter half alone is one that unmounts on close,
+ * which never reaches `data-[state=closed]`.
+ *
+ * `prefers-reduced-motion` needs nothing here — the guard is on the speed
+ * ladder in `styles/theme.css`, which `--animate-popup-in|out` spend.
+ */
 export const popup_anim =
   "origin-(--transform-origin) data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out";
 
