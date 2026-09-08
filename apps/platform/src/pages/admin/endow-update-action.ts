@@ -29,7 +29,13 @@ export const endowUpdate =
       }
     }
 
-    await npo_update_db(db, id, { ...rest, ...from_target(target) });
+    // transport is json, so an absent key is a form that does not manage the
+    // goal — never a clear. clearing sends target "0" (goal-selector's
+    // to_target), which still writes.
+    await npo_update_db(db, id, {
+      ...rest,
+      ...(target !== undefined && from_target(target)),
+    });
 
     if ("success" in next) {
       return dataWithSuccess(null, next.success);
