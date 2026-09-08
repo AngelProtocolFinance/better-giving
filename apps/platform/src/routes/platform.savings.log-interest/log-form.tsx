@@ -62,7 +62,7 @@ export function LogForm({ classes = "", on_submit, init }: Props) {
         error={errors.total?.message}
         classes={{ container: "mb-4", label: "" }}
       />
-      <div className="grid gap-x-4.5 grid-cols-2">
+      <div className="grid gap-x-5 grid-cols-2">
         <p className="col-span-full label">Accrual period</p>
         <Field
           {...register("date_start")}

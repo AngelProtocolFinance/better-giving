@@ -48,7 +48,7 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
             </p>
           </div>
         </div>
-        <p className="mt-4.5 text-xs text-gray-11 text-center">
+        <p className="mt-5 text-xs text-gray-11 text-center">
           *Past performance is not indicative of future results; all investments
           carry risk.
         </p>

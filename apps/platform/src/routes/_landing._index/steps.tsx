@@ -38,7 +38,7 @@ export function Steps({ classes = "" }: ISteps) {
         <h2 id="steps-heading" className="section-heading text-center">
           Easy as 1-2-3
         </h2>
-        <div className="grid gap-8 md:grid-cols-3 mt-13">
+        <div className="grid gap-8 md:grid-cols-3 mt-14">
           {steps.map((s) => (
             <div
               key={s.step}

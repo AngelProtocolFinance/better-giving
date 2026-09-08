@@ -55,7 +55,7 @@ const steps = [
 export default function Page() {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-band pt-16 pb-18">
+      <div className="bg-linear-to-b from-background to-band pt-16 pb-20">
         <div className="page grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
           <div className="grid gap-5 justify-items-start">
             <p className="text-xs font-bold uppercase tracking-wider text-primary">
@@ -91,7 +91,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="page py-22">
+      <div className="page py-24">
         <div className="max-w-5xl mx-auto">
           <h2 className="section-heading text-center max-w-2xl mx-auto text-pretty">
             2.9%, the lowest sponsorship fee we know of
@@ -102,14 +102,14 @@ export default function Page() {
             donor-coverable, so you'd keep 100%.
           </p>
           <div className="grid gap-4 mt-11">
-            <div className="grid sm:grid-cols-[220px_1fr] gap-x-4.5 gap-y-1.5 items-center">
+            <div className="grid sm:grid-cols-[220px_1fr] gap-x-5 gap-y-1.5 items-center">
               <span className="font-bold sm:text-right">Better Giving</span>
               <div className="flex items-center gap-3">
                 <div className="w-[29%] h-9.5 rounded bg-primary" />
                 <span className="text-lg font-bold">2.9%</span>
               </div>
             </div>
-            <div className="grid sm:grid-cols-[220px_1fr] gap-x-4.5 gap-y-1.5 items-center">
+            <div className="grid sm:grid-cols-[220px_1fr] gap-x-5 gap-y-1.5 items-center">
               <span className="text-gray-11 sm:text-right">
                 Typical market range
               </span>
@@ -125,7 +125,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="bg-band py-22">
+      <div className="bg-band py-24">
         <div className="page">
           <h2 className="section-heading text-center max-w-2xl mx-auto">
             Who fiscal sponsorship is for
@@ -144,7 +144,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="py-22">
+      <div className="py-24">
         <div className="page">
           <h2 className="section-heading text-center max-w-2xl mx-auto">
             How it works

@@ -80,7 +80,7 @@ export default function Referrals() {
 
       {/* the card paints its own fill and owns its inner padding, so the page
           container is the element around it, not the card itself. */}
-      <div className="page my-10 xl:my-30">
+      <div className="page my-10 xl:my-32">
         <Bottom />
       </div>
       <Footer />

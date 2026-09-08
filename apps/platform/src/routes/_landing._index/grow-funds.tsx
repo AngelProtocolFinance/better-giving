@@ -21,7 +21,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
   return (
     <section className={classes} aria-labelledby="grow-funds-heading">
       <div className="page grid gap-14 lg:grid-cols-2 items-center">
-        <div className="grid gap-4.5 content-start">
+        <div className="grid gap-5 content-start">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Grow your funds
           </p>
@@ -32,7 +32,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             Route any share of your donations into two places money grows:
           </p>
           <div className="grid gap-3.5">
-            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-4.5">
+            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-5">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -47,7 +47,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-4.5">
+            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-5">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden

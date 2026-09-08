@@ -73,7 +73,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
           </div>
         </div>
 
-        <div className="grid gap-4.5 content-start">
+        <div className="grid gap-5 content-start">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Governance
           </p>
@@ -84,7 +84,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
             {pillars.map((p) => (
               <div
                 key={p.title}
-                className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-4.5"
+                className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-5"
               >
                 <span
                   className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"

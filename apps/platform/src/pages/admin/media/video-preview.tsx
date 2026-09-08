@@ -59,7 +59,7 @@ export function VideoPreview(props: IMedia) {
         </CRUDBtn>
       </div>
       {/** render only thumbnails on lists */}
-      <div className="relative pt-[56.25%] aspect-video rounded overflow-clip">
+      <div className="relative aspect-video rounded overflow-clip">
         <YouTubePlayer url={props.url} thumbnail />
       </div>
     </div>

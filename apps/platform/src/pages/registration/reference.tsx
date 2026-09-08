@@ -28,10 +28,7 @@ export default function Reference({ id, classes = "" }: Props) {
             </Content>
           }
         >
-          <CircleHelp
-            size={13}
-            className="hidden md:inline-block ml-[1.333rem]"
-          />
+          <CircleHelp size={13} className="hidden md:inline-block ml-5" />
         </Tooltip>
         <button
           type="button"

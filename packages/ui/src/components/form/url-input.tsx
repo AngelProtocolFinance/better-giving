@@ -49,7 +49,7 @@ export function UrlInput(props: Props) {
           aria-invalid={!!error}
           disabled={props.disabled}
           aria-errormessage={error_id}
-          className={`${style.input} field-input pl-15 absolute inset-0`}
+          className={`${style.input} field-input pl-16 absolute inset-0`}
           autoComplete="off"
           spellCheck={false}
         />

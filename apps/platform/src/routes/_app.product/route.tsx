@@ -23,8 +23,8 @@ export default function Page() {
   return (
     <main>
       <Hero />
-      <GiftTypes classes="py-22" />
-      <Features classes="bg-band py-22" />
+      <GiftTypes classes="py-24" />
+      <Features classes="bg-band py-24" />
       <MembershipAdvantage classes="py-24" />
       <Portability classes="py-24" />
       <CtaBand

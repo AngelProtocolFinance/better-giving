@@ -189,7 +189,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
             tabIndex={-1}
           >
             {file_input}
-            <ArrowUpFromLine size={22} className="mb-4.5" />
+            <ArrowUpFromLine size={22} className="mb-5" />
             <p className="font-semibold mb-1">Upload file</p>
             <span className="text-center">
               Click to Browse or Drag &amp; Drop

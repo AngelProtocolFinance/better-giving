@@ -18,7 +18,7 @@ export const meta: Route.MetaFunction = () =>
 export default function Page() {
   return (
     <main>
-      <div className="bg-linear-to-b from-background to-band pt-18 pb-16 text-center">
+      <div className="bg-linear-to-b from-background to-band pt-20 pb-16 text-center">
         <div className="page">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">
             Pricing
@@ -26,17 +26,17 @@ export default function Page() {
           <h1 className="hero-heading mt-4 max-w-3xl mx-auto">
             Free. Forever. <span className="text-primary">Really.</span>
           </h1>
-          <p className="mt-4.5 text-lg text-gray-11 max-w-2xl mx-auto text-pretty">
+          <p className="mt-5 text-lg text-gray-11 max-w-2xl mx-auto text-pretty">
             Not free-then-paid. Not free-with-gated-features. We're a nonprofit
             like you. We grant out 100% of donations and never take a cut.
           </p>
         </div>
       </div>
 
-      <PriceCards classes="bg-band pt-4 pb-22" />
+      <PriceCards classes="bg-band pt-4 pb-24" />
 
-      <div className="page py-22">
-        <div className="max-w-3xl mx-auto grid gap-4.5 justify-items-center text-center">
+      <div className="page py-24">
+        <div className="max-w-3xl mx-auto grid gap-5 justify-items-center text-center">
           <h2 className="section-heading">So who pays for all this?</h2>
           <p className="text-gray-11 leading-relaxed max-w-2xl text-pretty">
             Donors do, voluntarily. At checkout, donors can add an optional

@@ -24,7 +24,7 @@ export function FlatFilter<T>({ classes = "", ...props }: GroupProps<T>) {
                 selected
                   ? "border-primary text-gray-12 bg-secondary-active"
                   : ""
-              } border select-none rounded-full capitalize text-xs pt-1 pb-[.3rem] px-4`}
+              } border select-none rounded-full capitalize text-xs pt-1 pb-1 px-4`}
             >
               {option.displayText}
             </button>
