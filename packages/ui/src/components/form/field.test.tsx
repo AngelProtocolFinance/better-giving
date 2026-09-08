@@ -101,3 +101,93 @@ describe("Field: error announcement", () => {
       .toHaveAccessibleDescription("");
   });
 });
+
+describe("Field: required announcement", () => {
+  it("announces requiredness the control's own attribute cannot", async () => {
+    const screen = await render(
+      <Field label="Nonprofit name" name="o_name" required />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Nonprofit name"))
+      .toHaveAttribute("aria-required", "true");
+  });
+
+  it("leaves an optional field unmarked", async () => {
+    const screen = await render(<Field label="Address" name="street" />);
+
+    await expect
+      .element(screen.getByLabelText("Address"))
+      .not.toHaveAttribute("aria-required");
+  });
+});
+
+describe("Field: help text announcement", () => {
+  it("describes the control by its sub note", async () => {
+    const screen = await render(
+      <Field
+        label="Work email"
+        name="email"
+        sub="We'll send your donation receipt to this email."
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Work email"))
+      .toHaveAccessibleDescription(
+        "We'll send your donation receipt to this email."
+      );
+  });
+
+  it("describes the control by its tooltip", async () => {
+    const screen = await render(
+      <Field
+        label="EIN"
+        name="ein"
+        tooltip="The 9-digit number the IRS issued to your organization."
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription(
+        "The 9-digit number the IRS issued to your organization."
+      );
+  });
+
+  it("takes a caller's own id, for help text this component did not render", async () => {
+    const screen = await render(
+      <>
+        <p id="outside_note">Only numbers and letters are permitted.</p>
+        <Field label="Custom URL" name="slug" describedby="outside_note" />
+      </>
+    );
+
+    await expect
+      .element(screen.getByLabelText("Custom URL"))
+      .toHaveAccessibleDescription("Only numbers and letters are permitted.");
+  });
+
+  it("adds the error to the list rather than replacing it", async () => {
+    const screen = await render(
+      <Field
+        label="Work email"
+        name="email"
+        sub="We'll send your donation receipt to this email."
+        error="Enter a valid address"
+      />
+    );
+    const input = screen.getByLabelText("Work email").element();
+
+    expect(input.getAttribute("aria-describedby")).toBe(
+      "__sub_email __error_email"
+    );
+  });
+
+  it("describes nothing when there is no help text and no error", async () => {
+    const screen = await render(<Field label="Address" name="street" />);
+    const input = screen.getByLabelText("Address").element();
+
+    expect(input.getAttribute("aria-describedby")).toBe(null);
+  });
+});

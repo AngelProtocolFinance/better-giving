@@ -5,7 +5,6 @@ import {
   Field,
   Group,
   Info,
-  Label,
   MultiCombo,
   Prompt,
   Select,
@@ -22,7 +21,7 @@ import type { EndowDesignation } from "@/npo";
 import type { OrgDesignation } from "@/schemas";
 import type { FV } from "./schema";
 import { bannerSpec, cardImgSpec, logoSpec, MAX_CHARS } from "./schema";
-import { Slug } from "./slug";
+import { Slug, slug_notes } from "./slug";
 import { use_edit_npo } from "./use-edit-profile";
 import { use_rhf } from "./use-rhf";
 
@@ -88,7 +87,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           error={rhf.errors.registration_number?.message}
           required
         />
-        <Label className="-mb-4">Banner image of your organization</Label>
+        <p className="label -mb-4">Banner image of your organization</p>
         <ImgEditor
           ref={rhf.banner.ref}
           value={rhf.banner.value}
@@ -105,7 +104,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           classes={{ container: "mb-4", dropzone: "w-full aspect-4/1" }}
           error={rhf.errors.image?.message}
         />
-        <Label className="-mb-4">Logo of your organization</Label>
+        <p className="label -mb-4">Logo of your organization</p>
         <ImgEditor
           ref={rhf.logo.ref}
           value={rhf.logo.value}
@@ -124,9 +123,9 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           }}
           error={rhf.errors.logo?.message}
         />
-        <Label className="-mb-4">
+        <p className="label -mb-4">
           Marketplace Card image for your organization
-        </Label>
+        </p>
         <ImgEditor
           ref={rhf.card_img.ref}
           value={rhf.card_img.value}
@@ -145,7 +144,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           }}
           error={rhf.errors.card_img?.message}
         />
-        <Label className="-mb-4">Description of your organization</Label>
+        <p className="label -mb-4">Description of your organization</p>
         <RichText
           ref={rhf.overview.ref}
           content={rhf.overview.value}
@@ -182,6 +181,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             <Field
               {...rhf.register("slug")}
               label="Custom Profile URL"
+              describedby={slug_notes}
               placeholder="myNonprofit"
               error={rhf.errors.slug?.message}
             />
@@ -211,8 +211,8 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           error={rhf.errors.hq_country?.message}
           ref={rhf.hqCountry.ref}
         />
-        <Label className="-mb-4">Active countries</Label>
         <MultiCombo
+          label="Active countries"
           values={rhf.activityCountries.value}
           on_change={rhf.activityCountries.onChange}
           ref={rhf.activityCountries.ref}

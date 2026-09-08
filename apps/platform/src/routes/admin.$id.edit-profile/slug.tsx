@@ -4,6 +4,14 @@ import { href, Link } from "react-router";
 const gen_link = (slug: string, base_url: string) =>
   `${base_url}${href("/marketplace/:id", { id: slug })}`;
 
+const note_id = "slug_note";
+const example_id = "slug_example";
+
+/** the two notes below the field, for the caller's `describedby`. the field is
+ * built at the call site and passed in as `slug_field`, so nothing here can
+ * reach the control to wire it. */
+export const slug_notes = `${note_id} ${example_id}`;
+
 interface Props {
   init_slug?: string;
   new_slug: string;
@@ -29,7 +37,7 @@ export function Slug({
           </Link>
         </div>
       )}
-      <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
+      <p id={note_id} className="text-xs sm:text-sm text-gray-11 italic mt-2">
         Change your nonprofit's profile URL ending segment from the default
         numeric ID to a more human-readable value for better SEO and donor
         recognition. Only numbers and letters are permitted! Your numeric ID URL
@@ -37,7 +45,10 @@ export function Slug({
         have been shared.
       </p>
 
-      <p className="text-xs sm:text-sm text-gray-11 italic mt-2">
+      <p
+        id={example_id}
+        className="text-xs sm:text-sm text-gray-11 italic mt-2"
+      >
         Example: {gen_link(new_slug || "myNonprofit", base_url)}
       </p>
     </div>
