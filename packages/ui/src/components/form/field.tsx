@@ -40,9 +40,10 @@ type Props<T extends InputType> = Omit<
   tooltip?: ReactNode;
   label: string | ReactElement;
   sub?: ReactNode;
-  /** id(s) of help text rendered by the CALLER, joined onto the ids this
-   * component mints. the escape hatch for a `sub` passed as a ReactNode —
-   * that markup is the caller's and cannot be given an id from here. */
+  /** id(s) of help text the caller renders OUTSIDE this component, joined onto
+   * the ids this component mints. nothing here can reach that markup, so its
+   * id has to be handed in — notes sitting below a field built at the call
+   * site, say. a `sub` needs none of this: it is described either way. */
   describedby?: string;
   type?: T;
 };
@@ -78,7 +79,7 @@ export function Field<T extends InputType = InputType>({
   // only the error loses the guidance that would fix it.
   const described =
     [
-      typeof props.sub === "string" ? subId : undefined,
+      props.sub ? subId : undefined,
       tooltip ? tooltipId : undefined,
       describedby,
       error ? errorId : undefined,
@@ -101,7 +102,11 @@ export function Field<T extends InputType = InputType>({
             {props.sub}
           </p>
         ) : (
-          props.sub
+          // `sub` is a ReactNode and callers pass a paragraph, so the wrapper
+          // has to hold block markup — inside a span that is invalid nesting
+          // the browser is free to restructure, carrying the content out from
+          // under the id
+          <div id={subId}>{props.sub}</div>
         )
       ) : null}
 

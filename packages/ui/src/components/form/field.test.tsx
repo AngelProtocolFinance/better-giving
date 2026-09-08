@@ -139,6 +139,27 @@ describe("Field: help text announcement", () => {
       );
   });
 
+  it("describes the control by a sub note passed as markup", async () => {
+    const screen = await render(
+      <Field
+        label="Redirect URL"
+        name="redirect_url"
+        sub={
+          <p>
+            The URL to redirect to after a successful donation, with{" "}
+            <code>donor_name</code> appended.
+          </p>
+        }
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("Redirect URL"))
+      .toHaveAccessibleDescription(
+        "The URL to redirect to after a successful donation, with donor_name appended."
+      );
+  });
+
   it("describes the control by its tooltip", async () => {
     const screen = await render(
       <Field
@@ -181,6 +202,27 @@ describe("Field: help text announcement", () => {
 
     expect(input.getAttribute("aria-describedby")).toBe(
       "__sub_email __error_email"
+    );
+  });
+
+  it("lists every id in reading order, whatever shape the sub note is", async () => {
+    const screen = await render(
+      <>
+        <p id="outside_note">Only numbers and letters are permitted.</p>
+        <Field
+          label="Custom URL"
+          name="slug"
+          sub={<p>Your page lives at better.giving/&#123;slug&#125;.</p>}
+          tooltip="Lowercase only."
+          describedby="outside_note"
+          error="Already taken"
+        />
+      </>
+    );
+    const input = screen.getByLabelText("Custom URL").element();
+
+    expect(input.getAttribute("aria-describedby")).toBe(
+      "__sub_slug __tooltip_slug outside_note __error_slug"
     );
   });
 
