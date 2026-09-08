@@ -52,6 +52,19 @@ describe("speed ladder", () => {
     expect(secs(getComputedStyle(pop).animationDuration)).toBeLessThan(0.001);
   });
 
+  test("stills the spin and pulse loops under prefers-reduced-motion", async () => {
+    await commands.emulateMedia({ reducedMotion: "reduce" });
+
+    expect(token("--animate-spin")).toBe("none");
+    expect(token("--animate-pulse")).toBe("none");
+
+    const screen = await render(
+      <div data-testid="spinner" className="animate-spin" />
+    );
+    const spinner = screen.getByTestId("spinner").element();
+    expect(getComputedStyle(spinner).animationName).toBe("none");
+  });
+
   test("a collapsed transition still fires transitionend", async () => {
     await commands.emulateMedia({ reducedMotion: "reduce" });
 
