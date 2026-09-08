@@ -39,7 +39,8 @@ export async function get_referrer(
     name: `${user.first_name} ${user.last_name}`,
     email: user.email,
     pay_id: user.pay_id ? +user.pay_id : undefined,
-    pay_min: user.pay_min,
-    id: user.referral_code,
+    // non-null: see `IUserRow`'s doc comment
+    pay_min: user.pay_min!,
+    id: user.referral_code!,
   };
 }

@@ -10,5 +10,6 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
   if (!db_user) throw new Response("user not found", { status: 404 });
 
   const { nextKey: next } = search(request);
-  return referrer_payout_list(db_user.referral_code, { next, limit: 8 });
+  // non-null: see `IUserRow`'s doc comment
+  return referrer_payout_list(db_user.referral_code!, { next, limit: 8 });
 };

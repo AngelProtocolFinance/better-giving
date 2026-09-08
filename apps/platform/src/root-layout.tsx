@@ -1,4 +1,5 @@
 import { Toaster } from "@better-giving/ui";
+import { MotionConfig } from "motion/react";
 import type { PropsWithChildren } from "react";
 import { preconnect } from "react-dom";
 import { Links, Meta, Scripts, ScrollRestoration } from "react-router";
@@ -44,8 +45,15 @@ export function Layout({ children }: PropsWithChildren<{ classes?: string }>) {
         <style />
       </head>
       <body className="">
-        <NavProgress />
-        <Toaster>{children}</Toaster>
+        {/* motion's default is reducedMotion: "never" — it reads the os
+            preference only when told to, and the css ladder guard in
+            packages/ui/src/styles/theme.css cannot reach a js-driven
+            animation. "user" defers to the os setting, dropping transform and
+            layout animations while opacity still fades. */}
+        <MotionConfig reducedMotion="user">
+          <NavProgress />
+          <Toaster>{children}</Toaster>
+        </MotionConfig>
         <ScrollRestoration />
         <Scripts />
       </body>
