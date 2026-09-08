@@ -1,5 +1,6 @@
+import { eq } from "drizzle-orm";
 import { HttpResponse, http } from "msw";
-import { createRoutesStub, useOutletContext } from "react-router";
+import { createRoutesStub, useFetcher, useOutletContext } from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -10,7 +11,7 @@ import {
   vi,
 } from "vitest";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { cleanup, render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
@@ -58,6 +59,7 @@ import MarketplacePage, {
 } from "#/routes/_app.marketplace/route";
 import ProfilePage from "#/routes/_app.marketplace_.$id/route";
 import { DetailsColumn } from "#/routes/_app.marketplace_.$id._index/details-column";
+import type { INpoUpdate } from "@/npo";
 import { admin_ctx } from "$/auth/test-utils";
 import { npo_get } from "$/pg/queries/npo";
 import { create_test_db } from "$/pg/test-utils/pglite";
@@ -734,5 +736,124 @@ describe("edit profile — focus on error", () => {
         banner_editor(screen).querySelector("input[type='file']")
       );
     });
+  });
+});
+
+/** target lives in the npos row as an XOR pair, not as the domain's single
+ * `target` field — read the columns directly so a wipe can't hide behind
+ * `to_target`'s undefined */
+async function target_cols(npo_id: number) {
+  const [row] = await test_db
+    .current!.db.select({
+      target_number: npos.target_number,
+      target_smart: npos.target_smart,
+    })
+    .from(npos)
+    .where(eq(npos.id, npo_id));
+  return row;
+}
+
+describe("edit profile — fundraising goal", () => {
+  it("a save that sends no target leaves the existing goal alone", async () => {
+    const npo = await seed_npo({ target_number: 25_000 });
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.clear();
+    await tagline.fill("New tagline");
+
+    await screen.getByRole("button", { name: /submit changes/i }).click();
+
+    await expect
+      .element(screen.getByLabelText(/tagline/i))
+      .toHaveDisplayValue("New tagline");
+    // isDirty resets async — one render after values sync
+    await expect
+      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .toBeDisabled();
+
+    expect(await target_cols(npo.id)).toEqual({
+      target_number: 25_000,
+      target_smart: null,
+    });
+  });
+});
+
+/** edit profile itself never sends `target` — only the settings donation form
+ * does. this drives the same action over the same json transport so the
+ * sent-target half of the contract is covered here too. */
+async function submit_json(npo_id: number, body: INpoUpdate) {
+  const Stub = createRoutesStub([
+    {
+      path: "/admin/:id/edit-profile",
+      Component: function JsonSubmitter() {
+        const f = useFetcher();
+        return (
+          <button
+            type="button"
+            onClick={() =>
+              f.submit(body, { method: "post", encType: "application/json" })
+            }
+          >
+            save
+          </button>
+        );
+      },
+      action: action as any,
+      middleware: [
+        async ({ context }, next) => {
+          context.set(admin_ctx, npo_id);
+          return next();
+        },
+      ],
+    },
+  ]);
+
+  const screen = await render(
+    <Stub
+      initialEntries={[`/admin/${npo_id}/edit-profile`]}
+      future={{ v8_middleware: true }}
+    />
+  );
+  await screen.getByRole("button", { name: "save" }).click();
+}
+
+describe("edit profile — fundraising goal, sent", () => {
+  it("a sent target still writes: smart, then a fixed number", async () => {
+    const npo = await seed_npo({ target_number: 25_000 });
+
+    await submit_json(npo.id, { target: "smart" });
+    await vi.waitFor(async () =>
+      expect(await target_cols(npo.id)).toEqual({
+        target_number: null,
+        target_smart: true,
+      })
+    );
+
+    await cleanup();
+    await submit_json(npo.id, { target: "9000" });
+    await vi.waitFor(async () =>
+      expect(await target_cols(npo.id)).toEqual({
+        target_number: 9000,
+        target_smart: null,
+      })
+    );
+  });
+
+  it('target "0" — the deliberate "no goal" clear — still writes', async () => {
+    const npo = await seed_npo({ target_smart: true });
+
+    await submit_json(npo.id, { tagline: "New tagline", target: "0" });
+
+    await vi.waitFor(async () =>
+      // "0" is the domain's "no goal": target_number 0, not the null pair
+      expect(await target_cols(npo.id)).toEqual({
+        target_number: 0,
+        target_smart: null,
+      })
+    );
+    expect((await npo_get(npo.id))?.target).toBe("0");
   });
 });
