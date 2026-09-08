@@ -160,10 +160,18 @@ function start<T, P extends object>(
     // own, so nothing will ever come back for it.
     held?.settle(undefined);
 
+    // a host above the caller subscribes after the caller's own mount effect,
+    // so an ask raised on mount finds no listener yet. the check waits a task
+    // for that subscription to land; still none by then and nothing will ever
+    // answer this one.
     if (!listeners.size) {
-      console.error(
-        "ask(): no <AskHost /> is mounted, so this promise will never settle"
-      );
+      setTimeout(() => {
+        if (done || listeners.size) return;
+        console.error(
+          "ask(): no <AskHost /> is mounted, so this question can't be shown"
+        );
+        cancel();
+      });
     }
   });
   return [promise, cancel];

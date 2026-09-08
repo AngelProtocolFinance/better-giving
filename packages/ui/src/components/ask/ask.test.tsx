@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { _reset_asks, AskHost, type AskProps, ask, use_ask } from "./ask";
@@ -139,13 +139,41 @@ describe("ask", () => {
       .not.toBeInTheDocument();
   });
 
-  test("without a host nothing renders and the caller is told why", async () => {
+  test("without a host the caller is told why and answers undefined", async () => {
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     await render(<div>no host</div>);
 
-    ask<string, { label: string }>(Question, { label: "unheard" });
+    const answer = await ask<string, { label: string }>(Question, {
+      label: "unheard",
+    });
 
+    expect(answer).toBeUndefined();
     expect(err).toHaveBeenCalledWith(expect.stringContaining("<AskHost />"));
+    err.mockRestore();
+  });
+
+  test("an ask raised on mount survives the host subscribing after it", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    function Asker() {
+      useEffect(() => {
+        ask<string, { label: string }>(Question, { label: "on mount" });
+      }, []);
+      return null;
+    }
+
+    // the host is the parent, so its subscription lands after Asker's effect
+    const screen = await render(
+      <>
+        <Asker />
+        <AskHost />
+      </>
+    );
+
+    await expect
+      .element(screen.getByText("on mount", { exact: true }))
+      .toBeVisible();
+    expect(err).not.toHaveBeenCalled();
     err.mockRestore();
   });
 });
