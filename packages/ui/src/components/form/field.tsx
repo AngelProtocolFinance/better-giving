@@ -40,6 +40,11 @@ type Props<T extends InputType> = Omit<
   tooltip?: ReactNode;
   label: string | ReactElement;
   sub?: ReactNode;
+  /** id(s) of help text the caller renders OUTSIDE this component, joined onto
+   * the ids this component mints. nothing here can reach that markup, so its
+   * id has to be handed in — notes sitting below a field built at the call
+   * site, say. a `sub` needs none of this: it is described either way. */
+  describedby?: string;
   type?: T;
 };
 
@@ -48,6 +53,7 @@ export function Field<T extends InputType = InputType>({
   label,
   classes,
   tooltip,
+  describedby,
   required, //extract from props to disable native validation
   // off by default: most fields here are somebody else's data (a nonprofit's
   // details, a donation's recipient), which the browser must not prefill from
@@ -64,7 +70,22 @@ export function Field<T extends InputType = InputType>({
 
   const id = `__${String(props.name)}`;
   const errorId = `__error_${String(props.name)}`;
+  const subId = `__sub_${String(props.name)}`;
+  const tooltipId = `__tooltip_${String(props.name)}`;
   const mode = unconstrained[type as string];
+
+  // every piece of help text on screen for this render, in reading order. the
+  // error joins the list rather than standing in for it — a reader that hears
+  // only the error loses the guidance that would fix it.
+  const described =
+    [
+      props.sub ? subId : undefined,
+      tooltip ? tooltipId : undefined,
+      describedby,
+      error ? errorId : undefined,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <div className={`${style.container} `}>
@@ -77,9 +98,15 @@ export function Field<T extends InputType = InputType>({
       </Label>
       {props.sub ? (
         typeof props.sub === "string" ? (
-          <p className="text-gray-11 text-sm mb-2">{props.sub}</p>
+          <p id={subId} className="text-gray-11 text-sm mb-2">
+            {props.sub}
+          </p>
         ) : (
-          props.sub
+          // `sub` is a ReactNode and callers pass a paragraph, so the wrapper
+          // has to hold block markup — inside a span that is invalid nesting
+          // the browser is free to restructure, carrying the content out from
+          // under the id
+          <div id={subId}>{props.sub}</div>
         )
       ) : null}
 
@@ -98,12 +125,15 @@ export function Field<T extends InputType = InputType>({
         id,
         "aria-invalid": !!error,
         "aria-disabled": props.disabled,
+        // native `required` is withheld (see `unconstrained` above), so this
+        // is the only thing that announces the asterisk the label draws
+        "aria-required": required || undefined,
         // both, because neither alone is enough: `aria-errormessage` is the
         // right relationship but several screen readers still ignore it, and
-        // `aria-describedby` is the one they all honour. conditional so a
-        // field with no error is not described by an empty paragraph.
+        // `aria-describedby` is the one they all honour. it is absent when
+        // nothing is rendered to describe, so no empty node is announced.
         "aria-errormessage": errorId,
-        "aria-describedby": error ? errorId : undefined,
+        "aria-describedby": described,
         className: `${style.input} field-input`,
         autoComplete,
         spellCheck: false,
@@ -111,11 +141,15 @@ export function Field<T extends InputType = InputType>({
 
       {(tooltip && ( //tooltip in normal flow
         <p className={`${style.error} text-left mt-1 left-0 text-xs`}>
-          {typeof tooltip === "string" ? (
-            <span className="text-gray-11">{tooltip}</span>
-          ) : (
-            tooltip
-          )}{" "}
+          {/* the id sits on the tooltip alone, not the paragraph around it:
+              the paragraph also holds the error span, and describing the
+              control by both would read the message out twice. */}
+          <span
+            id={tooltipId}
+            className={typeof tooltip === "string" ? "text-gray-11" : ""}
+          >
+            {tooltip}
+          </span>{" "}
           <span
             id={errorId}
             className="empty:hidden text-destructive-subtle-fg text-xs before:content-['('] before:mr-0.5 after:content-[')'] after:ml-0.5 empty:before:hidden empty:after:hidden"

@@ -65,6 +65,7 @@ import { npo_get } from "$/pg/queries/npo";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { action, loader } from "../api";
 import EditProfilePage from "../route";
+import { slug_notes } from "../slug";
 
 // --- setup ---
 
@@ -855,5 +856,56 @@ describe("edit profile — fundraising goal, sent", () => {
       })
     );
     expect((await npo_get(npo.id))?.target).toBe("0");
+  });
+});
+
+describe("edit profile — every caption names something", () => {
+  it("names the active-countries control", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // by role, not by label: the combobox's popup borrows the same label id
+    // through `aria-labelledby`, so a label query resolves to two elements
+    await expect
+      .element(screen.getByRole("combobox", { name: "Active countries" }))
+      .toBeVisible();
+  });
+
+  it("has no <label> pointing at a control that does not exist", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    // ark's `Select.Label` points `htmlFor` at the `HiddenSelect` that
+    // `packages/ui/src/components/select/select.tsx` never renders. a shared
+    // component's gap, not one of this form's captions.
+    const known_gap = "Organization Designation";
+
+    // `.control` resolves both spellings — htmlFor and nesting — so a null is
+    // a caption wearing a <label> element and naming nothing
+    const orphaned = [
+      ...document.querySelectorAll<HTMLLabelElement>("form label"),
+    ]
+      .filter((l) => l.control == null)
+      .map((l) => l.textContent?.trim())
+      .filter((text) => text !== known_gap);
+
+    expect(orphaned).toEqual([]);
+  });
+
+  it("describes the slug input by both of the Slug notes", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    const slug = screen.getByLabelText("Custom Profile URL");
+    await expect.element(slug).toBeVisible();
+
+    expect(slug.element().getAttribute("aria-describedby")).toBe(slug_notes);
+    await expect
+      .element(slug)
+      .toHaveAccessibleDescription(/human-readable value.*Example:/s);
   });
 });
