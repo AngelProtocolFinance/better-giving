@@ -342,18 +342,26 @@
      `shadow-lg`, --inset-shadow-track is `shadow-inner`, --shadow-track-fill is
      `shadow-xs`. codifying the majority is what keeps the migration onto these
      names a pixel change at the outliers only.
-     the shadow COLOR is stock for the same reason: plain rgb(0 0 0 / …), not a
-     ramp step. no rung of the grey ramp is an alpha black, so deriving one is a
-     palette decision and not one to make while transcribing.
+     the shadow COLOR is the ramp's darkest rung at those same alphas:
+     color-mix(in oklch, var(--gray-12) <alpha>, transparent), which is the
+     construction --overlay (packages/brand/src/colors.css) already uses to reach
+     a translucent value off a solid step. no rung of the ramp is an alpha black,
+     so the alpha is made rather than picked — and this ramp's grey carries a
+     blue cast, so every floating layer, track and handle reads faintly blue
+     rather than neutral. that is the point of putting them on the ramp, not a
+     tint to compensate for.
 
      --inset-shadow-track sits in the --inset-shadow-* namespace rather than
      --shadow-*, and that is not cosmetic: the two are separate box-shadow slots
      that compose, while `shadow-inner` is a DEPRECATED alias v4 still carries in
      the --shadow-* namespace. same paint today, and it outlives the alias. */
   --shadow-floating:
-    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --inset-shadow-track: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-  --shadow-track-fill: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    0 10px 15px -3px color-mix(in oklch, var(--gray-12) 10%, transparent),
+    0 4px 6px -4px color-mix(in oklch, var(--gray-12) 10%, transparent);
+  --inset-shadow-track: inset 0 2px 4px 0
+    color-mix(in oklch, var(--gray-12) 5%, transparent);
+  --shadow-track-fill: 0 1px 2px 0
+    color-mix(in oklch, var(--gray-12) 5%, transparent);
 
   /* the marketing lift — a treatment, not a rung, and named apart precisely so
      the app cannot pick it up by reaching for a level. three surfaces on the
@@ -386,10 +394,12 @@
      it exists as a name because the call site spelled a bare `shadow`, which
      reads the DEFAULT --shadow key — deprecated in v4, and stripped along with
      the rest of the namespace by the reset, silently and with no build error.
-     the value is exactly what that key resolved to at the pinned version, so
-     naming it moved nothing. */
+     the geometry and the alphas are exactly what that key resolved to at the
+     pinned version, so naming it moved nothing; the hue is the ramp's, with the
+     rest of the elevation set above. */
   --shadow-handle:
-    0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    0 1px 3px 0 color-mix(in oklch, var(--gray-12) 10%, transparent),
+    0 1px 2px -1px color-mix(in oklch, var(--gray-12) 10%, transparent);
 
   /* the stacking ladder. each elevation level binds its own step, ordered so a
      popup opened INSIDE a dialog clears it without a hand-picked value — which

@@ -756,13 +756,13 @@ migrating onto it moved pixels at the outliers only.
 
 | token | value | what it was |
 | --- | --- | --- |
-| `--shadow-floating` | `0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)` | Tailwind's stock `shadow-lg`, already on most floating sites |
-| `--inset-shadow-track` | `inset 0 2px 4px 0 rgb(0 0 0 / 0.05)` | Tailwind's `shadow-inner`, on every track site |
-| `--shadow-track-fill` | `0 1px 2px 0 rgb(0 0 0 / 0.05)` | Tailwind's stock `shadow-xs` |
+| `--shadow-floating` | `0 10px 15px -3px` + `0 4px 6px -4px`, both `gray-12` at 10% | Tailwind's stock `shadow-lg`, already on most floating sites |
+| `--inset-shadow-track` | `inset 0 2px 4px 0`, `gray-12` at 5% | Tailwind's `shadow-inner`, on every track site |
+| `--shadow-track-fill` | `0 1px 2px 0`, `gray-12` at 5% | Tailwind's stock `shadow-xs` |
 | `--shadow-lift-card` | `shadow-floating`'s geometry, tinted `--primary` at 5% | `shadow-lg shadow-primary/5`, verbatim on the marketing cards |
 | `--shadow-lift-cta` | the same geometry, tinted `--primary` at 25% | `shadow-lg shadow-primary/25`, on every hero CTA |
 | `--shadow-lift-media` | `0 25px 50px -12px`, tinted `--color-black` at 10% | `shadow-2xl shadow-black/10` |
-| `--shadow-handle` | `0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)` | the bare `shadow` on the crop handle, see above |
+| `--shadow-handle` | `0 1px 3px 0` + `0 1px 2px -1px`, both `gray-12` at 10% | the bare `shadow` on the crop handle, see above |
 
 The `color-mix()` in the three lift tokens is exactly what Tailwind compiles a
 `/<alpha>` shadow modifier to, so each token paints identically to the pair it
@@ -776,11 +776,15 @@ onto primary and paints nothing: the black-tinted rung is the only one of the
 three that reads there, and the card is a raised object on a coloured ground,
 which is what that rung names.
 
-**The shadow color is stock and off-ramp, and that is a transcription, not a
-choice.** Every neutral shadow here is a plain `rgb(0 0 0 / …)`. No rung of the
-grey ramp is an alpha black, so deriving a shadow color from the palette is a
-palette decision to take back to the ramp, not one to make while codifying what
-the tree already paints.
+**The geometry and the alphas are the transcription; the color is the ramp.**
+Every neutral shadow spells
+`color-mix(in oklch, var(--gray-12) <alpha>, transparent)` at the alpha its
+stock Tailwind source carried — the same construction `--overlay` uses to reach
+a translucent value off a solid step, which is what answers the objection that
+no rung of the ramp is an alpha black: the alpha is *made*, not picked off a
+step. **This grey carries a blue cast, so every floating layer, track and handle
+reads faintly blue rather than neutral.** That is the intended consequence of
+putting them on the ramp and is not to be compensated for with a counter-tint.
 
 **`--inset-shadow-track` is in the `--inset-shadow-*` namespace, not
 `--shadow-*`.** They are two separate `box-shadow` slots that compose, and
