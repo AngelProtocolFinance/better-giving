@@ -28,8 +28,8 @@
     "@ark-ui/react": "^5.37.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router": "^7.16.0",
-    "valibot": "^1.3.1"
+    "react-router": "^7.18.3",
+    "valibot": "^1.5.0"
   },
   "dependencies": {
     "@better-giving/brand": "workspace:*",
@@ -47,10 +47,10 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-hook-form": "7.75.0",
-    "react-router": "7.16.0",
+    "react-router": "7.18.3",
     "tailwindcss": "4.3.1",
     "typescript": "catalog:",
-    "valibot": "1.3.1",
+    "valibot": "1.5.0",
     "vite": "8.1.5",
     "vitest": "5.0.0",
     "vitest-browser-react": "2.3.0"
