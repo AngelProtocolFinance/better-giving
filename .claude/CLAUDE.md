@@ -7,7 +7,7 @@ Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **E
 
 Load **`team-justin:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.
 
-- **routes** → `team-justin:react-router-builder` — react-router 7.16.0 + `@react-router/fs-routes` (platform, docs)
+- **routes** → `team-justin:react-router-builder` — react-router 7.18.3 + `@react-router/fs-routes` (platform, docs)
 - **ui** → `team-justin:react-ui-builder` — `@ark-ui/react` 5.37.2 + tailwind 4.3.1 over `packages/ui`
 - **data** → `team-justin:postgres-architect` — drizzle-orm 0.45.2 + `@neondatabase/serverless`; drizzle-kit migrations, `@electric-sql/pglite` in tests
 - **auth** → `team-justin:better-auth-specialist` — better-auth 1.6.22
@@ -15,8 +15,8 @@ Load **`team-justin:lead`** before building, reviewing, or dispatching a seat �
 - **cms** → `team-justin:sanity-builder` — `apps/blog` + `@sanity/client` 7.22.1 in platform
 - **platform** → `team-justin:vercel-platform-engineer` — `@vercel/react-router` 1.3.1 + `vercelPreset`
 - **toolchain** → `team-justin:toolchain-engineer` — turbo 2.10.5, biome 2.4.15, pnpm 10.32.1
-- **skills** → `team-justin:drizzle`, `react-hook-form`, `valibot`, `vitest` — drizzle-orm 0.45.2, react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.3.1 (platform + `packages/ui` peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default.
-- **not a seat** — `next` 16.2.6 in `apps/emails-preview` is `email build`'s toolchain, which generates a throwaway Next app into `.react-email/`. No App Router source exists in the repo; routing off that manifest to `nextjs-builder` is a mis-route.
+- **skills** → `team-justin:drizzle`, `react-hook-form`, `valibot`, `vitest` — drizzle-orm 0.45.2, react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.5.0 (platform + `packages/ui` peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default.
+- **not a seat** — `next` 16.3.3 in `apps/emails-preview` is `email build`'s toolchain, which generates a throwaway Next app into `.react-email/`. No App Router source exists in the repo; routing off that manifest to `nextjs-builder` is a mis-route.
 - **project seats** — `.claude/skills/`: `platform-tests`, `db-admin`, `chariot-webhooks`, `upstash-manager`, `wise`. Prefer these over a plugin seat wherever they overlap; `platform-tests` outranks `test-writer` on platform's tests
 
 A slice reaching a stack no seat above covers is a question for the user, naming the seat it would need — never a nearby seat pressed into the gap.
