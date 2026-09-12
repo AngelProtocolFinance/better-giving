@@ -106,16 +106,14 @@ ink has no token: `--fg`, `--card-fg`, `--popover-fg`, `--secondary-fg`,
 `--sidebar-fg` and `--muted-fg` all resolved to one of two rungs and always would,
 because every surface they sat on is light. A call site writes `text-gray-12` or
 `text-gray-11`. `--muted` went the same way: it named the disabled fill and nothing
-read it. Step 7 has no token for that same reason, and it is no longer
-unclaimed: Radix reserves it for a control's own edge, and the control recipes in
+read it. Step 7 has no token for that same reason. Radix reserves it for a
+control's own edge, and the control recipes in
 `packages/ui/src/styles/components.css` (`.field-input`,
 `.field-input-container`, `.btn-secondary`, and `.selector-btn` through the
-`.field-input` it composes with) spend it as a bare `var(--gray-7)`. No
-`--border-field` was minted: a neutral line is a rung and nothing else, and
-`--border` is the one exception only because `surface-primary` rebinds it.
-`--border` keeps step 6 and the separator job — dividers, panel hairlines,
-table rules, card edges — and app call sites that spell `border-gray-6` on a
-control were not swept.
+`.field-input` it composes with) spend it as a bare `var(--gray-7)`. `--border`
+keeps step 6 and the separator job: dividers, panel hairlines, table rules, card
+edges. The split reaches the shared recipes only, so app call sites that spell
+`border-gray-6` on a control still draw a separator-weight edge.
 
 `--overlay` is the one token off the solid ramp on purpose: `gray-12` at 30%,
 via `color-mix()`, for a dialog scrim.
@@ -777,14 +775,12 @@ three that reads there, and the card is a raised object on a coloured ground,
 which is what that rung names.
 
 **The geometry and the alphas are the transcription; the color is the ramp.**
-Every neutral shadow spells
-`color-mix(in oklch, var(--gray-12) <alpha>, transparent)` at the alpha its
-stock Tailwind source carried — the same construction `--overlay` uses to reach
-a translucent value off a solid step, which is what answers the objection that
-no rung of the ramp is an alpha black: the alpha is *made*, not picked off a
-step. **This grey carries a blue cast, so every floating layer, track and handle
-reads faintly blue rather than neutral.** That is the intended consequence of
-putting them on the ramp and is not to be compensated for with a counter-tint.
+Every neutral shadow mixes `gray-12` down to the alpha its stock Tailwind source
+carried, the same construction `--overlay` uses to reach a translucent value off
+a solid step. No rung of the ramp is an alpha black; the alpha is *made*, not
+picked off a step. **This grey carries a blue cast, so every floating layer,
+track and handle reads faintly blue rather than neutral.** That is deliberate.
+Do not add a counter-tint to neutralise it.
 
 **`--inset-shadow-track` is in the `--inset-shadow-*` namespace, not
 `--shadow-*`.** They are two separate `box-shadow` slots that compose, and
@@ -950,8 +946,8 @@ Recorded so they are not "fixed" by someone reading them as oversights.
   `--panel` the field also reads by fill, one rung lighter than its container;
   that is separation, not contrast, and it does not rescue the boundary. Note
   which rung is doing the work: step 7 is the ramp's *element border* and step 6
-  the separator, and the two are now split — the shared control recipes draw on
-  `gray-7`, `--border` keeps step 6 for separators. The 1.36:1 above is that
+  the separator, and the two are split. The shared control recipes draw on
+  `gray-7`; `--border` keeps step 6 for separators. The 1.36:1 above is that
   separator rung; **`gray-7` on the page is not measured anywhere in this file**,
   so a field's boundary figure is open. Change one rung and re-check the other;
   `colors.css` carries the short form of this at `--border`.

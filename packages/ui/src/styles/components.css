@@ -32,6 +32,12 @@
     border-radius: var(--radius);
   }
 
+  /* gray-7 is the ramp's ELEMENT-BORDER rung and every control recipe in this
+     file spells it — not --border, which is gray-6, the separator rung that
+     dividers, panel hairlines and table rules keep. spelled as the step rather
+     than as a token because a neutral line has no semantic name here: the
+     --color-* comment block in ./theme.css has the rule. */
+
   /* --surface, not --panel: this is a control, and --surface is the fill a
      control carries — on a --panel it is what lifts the button off its
      container. on the bare page it is fill-identical instead and reads by its
@@ -39,12 +45,6 @@
   /* a tinted control presses UP its scale: resting tint → -active, which is the
      ramp's own selected rung. it does not darken toward black, which on a
      near-white tint would carry the surface away from the ink sitting on it. */
-  /* gray-7 is the ramp's ELEMENT-BORDER rung and every control recipe in this
-     file spells it — not --border, which is gray-6, the separator rung that
-     dividers, panel hairlines and table rules keep. spelled as the step rather
-     than as a token because a neutral line has no semantic name here: see the
-     --color-* comment block in ./theme.css, where --border is the one exception
-     and only because `surface-primary` rebinds it. */
   .btn-secondary {
     background-color: var(--surface);
     color: var(--gray-12);

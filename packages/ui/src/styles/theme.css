@@ -342,14 +342,12 @@
      `shadow-lg`, --inset-shadow-track is `shadow-inner`, --shadow-track-fill is
      `shadow-xs`. codifying the majority is what keeps the migration onto these
      names a pixel change at the outliers only.
-     the shadow COLOR is the ramp's darkest rung at those same alphas:
-     color-mix(in oklch, var(--gray-12) <alpha>, transparent), which is the
-     construction --overlay (packages/brand/src/colors.css) already uses to reach
-     a translucent value off a solid step. no rung of the ramp is an alpha black,
-     so the alpha is made rather than picked — and this ramp's grey carries a
-     blue cast, so every floating layer, track and handle reads faintly blue
-     rather than neutral. that is the point of putting them on the ramp, not a
-     tint to compensate for.
+     the shadow COLOR is the ramp's darkest rung at those same alphas. no rung
+     of the ramp is an alpha black, so the alpha is made rather than picked —
+     the construction --overlay (packages/brand/src/colors.css) already uses to
+     reach a translucent value off a solid step. this ramp's grey carries a blue
+     cast, so every floating layer, track and handle reads faintly blue rather
+     than neutral: deliberate, not a tint to correct.
 
      --inset-shadow-track sits in the --inset-shadow-* namespace rather than
      --shadow-*, and that is not cosmetic: the two are separate box-shadow slots
