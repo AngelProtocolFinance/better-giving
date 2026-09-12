@@ -94,6 +94,7 @@ tokens resolves to a step (or to `#ffffff`, or to a `color-mix()` off one).
 | 3 | `--secondary` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | |
 | 5 | `--secondary-active` | `--destructive-subtle-active` | | | |
 | 6 | | | | | `--border` |
+| 7 | | | | | *no token: the control recipes spell `gray-7`* |
 | 8 | `--ring` | | | | |
 | 9 | `--primary` | `--destructive` | `--success` | `--warning` | |
 | 10 | `--primary-hover` | `--destructive-hover` | `--success-hover` | `--warning-hover` | |
@@ -105,8 +106,16 @@ ink has no token: `--fg`, `--card-fg`, `--popover-fg`, `--secondary-fg`,
 `--sidebar-fg` and `--muted-fg` all resolved to one of two rungs and always would,
 because every surface they sat on is light. A call site writes `text-gray-12` or
 `text-gray-11`. `--muted` went the same way: it named the disabled fill and nothing
-read it. Step 7 is unclaimed: Radix reserves it for a control's own edge, and
-`--border` (step 6, the separator rung) is currently doing both jobs.
+read it. Step 7 has no token for that same reason, and it is no longer
+unclaimed: Radix reserves it for a control's own edge, and the control recipes in
+`packages/ui/src/styles/components.css` (`.field-input`,
+`.field-input-container`, `.btn-secondary`, and `.selector-btn` through the
+`.field-input` it composes with) spend it as a bare `var(--gray-7)`. No
+`--border-field` was minted: a neutral line is a rung and nothing else, and
+`--border` is the one exception only because `surface-primary` rebinds it.
+`--border` keeps step 6 and the separator job — dividers, panel hairlines,
+table rules, card edges — and app call sites that spell `border-gray-6` on a
+control were not swept.
 
 `--overlay` is the one token off the solid ramp on purpose: `gray-12` at 30%,
 via `color-mix()`, for a dialog scrim.
@@ -936,9 +945,12 @@ Recorded so they are not "fixed" by someone reading them as oversights.
   by its boundary alone, and that boundary is intentionally faint. Inside a
   `--panel` the field also reads by fill, one rung lighter than its container;
   that is separation, not contrast, and it does not rescue the boundary. Note
-  which rung is doing the work: step 7 is the ramp's *element border*, step 6 the
-  separator, and `--border` is spending step 6 on both. Change one and re-check
-  the other; `colors.css` carries the short form of this at both tokens.
+  which rung is doing the work: step 7 is the ramp's *element border* and step 6
+  the separator, and the two are now split — the shared control recipes draw on
+  `gray-7`, `--border` keeps step 6 for separators. The 1.36:1 above is that
+  separator rung; **`gray-7` on the page is not measured anywhere in this file**,
+  so a field's boundary figure is open. Change one rung and re-check the other;
+  `colors.css` carries the short form of this at `--border`.
 - **`--destructive` is red-9 and clears every surface in the palette** (5.48:1 on
   the page, 4.95:1 on `gray-3`, 5.00:1 on `--secondary`, 4.90:1 on
   `--destructive-subtle`). The tinted case is still served by
