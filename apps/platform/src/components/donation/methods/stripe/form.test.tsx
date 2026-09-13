@@ -256,6 +256,16 @@ describe("Stripe form: initial load", () => {
     await expect
       .element(screen.getByRole("option", { name: "USD" }))
       .toBeVisible();
+
+    // the fallback is the way forward, so the donor can still continue
+    await screen.getByRole("option", { name: "USD" }).click();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
+    await screen.getByPlaceholder(/enter amount/i).fill("10");
+    const cont = screen.getByRole("button", { name: /continue/i });
+    await expect.element(cont).toBeEnabled();
+    await cont.click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    don_set_mock.mockReset();
   });
 
   test("currencies that fail to load are not re-requested", async () => {

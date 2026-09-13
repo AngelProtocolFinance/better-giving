@@ -198,10 +198,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
 
       <button
         disabled={
-          currency.isLoading ||
-          currency.isValidating ||
-          !!currency.error ||
-          rhf.isSubmitting
+          currency.isLoading || currency.isValidating || rhf.isSubmitting
         }
         className="mt-auto btn btn-form-primary"
         type="submit"
