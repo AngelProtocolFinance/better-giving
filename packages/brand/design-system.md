@@ -94,7 +94,7 @@ tokens resolves to a step (or to `#ffffff`, or to a `color-mix()` off one).
 | 3 | `--secondary` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | |
 | 5 | `--secondary-active` | `--destructive-subtle-active` | | | |
 | 6 | | | | | `--border` |
-| 7 | | | | | *no token: the control recipes spell `gray-7`* |
+| 7 | | | | | *no token: the control recipes spell `gray-7` (Lc 23.8, 1.52:1 on the page)* |
 | 8 | `--ring` | | | | |
 | 9 | `--primary` | `--destructive` | `--success` | `--warning` | |
 | 10 | `--primary-hover` | `--destructive-hover` | `--success-hover` | `--warning-hover` | |
@@ -948,8 +948,11 @@ Recorded so they are not "fixed" by someone reading them as oversights.
   which rung is doing the work: step 7 is the ramp's *element border* and step 6
   the separator, and the two are split. The shared control recipes draw on
   `gray-7`; `--border` keeps step 6 for separators. The 1.36:1 above is that
-  separator rung; **`gray-7` on the page is not measured anywhere in this file**,
-  so a field's boundary figure is open. Change one rung and re-check the other;
+  separator rung. A field's own boundary is `gray-7` at **1.52:1** on the page
+  and 1.48:1 on `--panel`: stronger than the separator, and still half the 3:1.
+  In APCA, the measure the rungs are tuned in, the three read **Lc 17.4 / 23.8 /
+  34.3** (steps 6 / 7 / 8) on the page and Lc 15.5 / 21.8 / 32.4 on `--panel`.
+  Change one rung and re-check the other;
   `colors.css` carries the short form of this at `--border`.
 - **`--destructive` is red-9 and clears every surface in the palette** (5.48:1 on
   the page, 4.95:1 on `gray-3`, 5.00:1 on `--secondary`, 4.90:1 on

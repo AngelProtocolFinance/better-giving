@@ -112,8 +112,8 @@
      panel it is on, and the tinted fill is the opt-in `soft` variant. it is
      also the only direction available here — --surface is already step 1 and
      there is no rung above it, so the separation has to come from moving the
-     container down. NOT a substitute for the border: --border is 1.36:1 and
-     step 1 on step 2 is fainter still. the two together are what makes a field
+     container down. NOT a substitute for the border: a field's step-7 edge is
+     Lc 21.8 (1.48:1) on this rung and step 1 on step 2 is fainter still. the two together are what makes a field
      findable; neither does it alone.
      one name covers the card and the floating layer alike: radix files panels,
      menus, dialogs and popovers under a single rung, and a second name holding
@@ -206,13 +206,18 @@
      the band stays far clear, so it also takes neutral body copy. */
   --warning-subtle: var(--amber-3);
   --warning-subtle-fg: var(--amber-11);
-  /* dividers, panel hairlines, and control edges alike. 1.36:1 on
-     --background, so a field's boundary is under the 3:1 of WCAG 1.4.11.
-     the ramp's border rungs are tuned in apca, which certifies them for
-     non-text use where WCAG 2's contrast formula does not; taking them as
-     generated is the deliberate call. NOT compensated for by the focus ring
-     below, which is fainter still — the boundary and the ring are both under
-     the threshold, and neither rescues the other. */
+  /* the separator rung: dividers, panel hairlines, table rules, card edges,
+     and whatever the base `*` rule reaches. Lc 17.4 (1.36:1) on --background.
+     a control's edge is step 7 in the shared recipes (packages/ui
+     components.css), Lc 23.8 (1.52:1) on --background and Lc 21.8 (1.48:1) on
+     --panel; an app call site spelling
+     border-gray-6 on a control still draws this rung. both are under the 3:1
+     WCAG 1.4.11 asks of a control boundary. the ramp's border rungs are tuned
+     in apca, which certifies them for non-text use where WCAG 2's contrast
+     formula does not; taking them as generated is the deliberate call. NOT
+     compensated for by the focus ring below, which is fainter still — the
+     boundary and the ring are both under the threshold, and neither rescues
+     the other. */
   --border: var(--gray-6);
   /* the fill a form control carries — radix's --color-surface, and the reason
      the container moved rather than this: step 1 is the lightest rung there is,
