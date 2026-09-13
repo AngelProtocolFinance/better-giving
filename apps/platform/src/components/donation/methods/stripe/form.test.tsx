@@ -1,8 +1,11 @@
+import { HttpResponse, http } from "msw";
 import { type ReactNode, useEffect } from "react";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, href } from "react-router";
+import { SWRConfig } from "swr";
 import { afterAll, afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mock_usd } from "#/services/api/mock";
+import { mswWorker } from "#/setup-tests-browser";
 import {
   donation_recipient_init,
   type Init,
@@ -212,6 +215,93 @@ describe("Stripe form: initial load", () => {
         screen.container.querySelectorAll('[data-testid="incrementer"]').length
       ).toBe(4)
     );
+  });
+
+  test("currencies that fail to load still offer USD", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+    mswWorker.use(
+      http.get(href("/api/currencies"), () =>
+        HttpResponse.text("Too many requests", { status: 429 })
+      )
+    );
+
+    // a selection is always kept in the list, so a persisted non-USD one is
+    // what shows whether USD is offered beside it
+    const fv: StripeDonationDetails = {
+      amount: "100",
+      currency: { code: "EUR", rate: 0.92, min: 0.92 },
+      frequency: "one-time",
+      cover_processing_fee: false,
+      tip: "",
+      tip_format: "none",
+    };
+
+    // fresh cache: an earlier test's cached currencies would skip the request
+    const screen = await render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <Form fv={fv} step="form" type="stripe" />
+      </SWRConfig>
+    );
+
+    await expect.element(screen.getByRole("combobox")).toHaveValue("EUR");
+    // via ark's trigger: it sits over the input and would intercept a click there
+    await screen.getByRole("button", { name: "Toggle suggestions" }).click();
+    await expect
+      .element(screen.getByRole("option", { name: "USD" }))
+      .toBeVisible();
+
+    // the fallback is the way forward, so the donor can still continue
+    await screen.getByRole("option", { name: "USD" }).click();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("USD");
+    await screen.getByPlaceholder(/enter amount/i).fill("10");
+    const cont = screen.getByRole("button", { name: /continue/i });
+    await expect.element(cont).toBeEnabled();
+    await cont.click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    don_set_mock.mockReset();
+  });
+
+  test("currencies that fail to load are not re-requested", async () => {
+    const init: Init = {
+      base_url: "",
+      source: "bg-marketplace",
+      config: null,
+      recipient: donation_recipient_init(),
+      mode: "live",
+    };
+    don_mock.value = init;
+    // a retry re-asks an endpoint that is already refusing
+    let calls = 0;
+    mswWorker.use(
+      http.get(href("/api/currencies"), () => {
+        calls++;
+        return HttpResponse.text("Too many requests", { status: 429 });
+      })
+    );
+
+    // fast retry interval so a retry, if one were allowed, lands in the test
+    await render(
+      <SWRConfig
+        value={{
+          provider: () => new Map(),
+          errorRetryInterval: 10,
+          dedupingInterval: 0,
+        }}
+      >
+        <Form step="form" type="stripe" />
+      </SWRConfig>
+    );
+
+    await vi.waitFor(() => expect(calls).toBe(1));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(calls).toBe(1);
   });
 
   test("persisted details rehydrate the currency and the fee toggle", async () => {

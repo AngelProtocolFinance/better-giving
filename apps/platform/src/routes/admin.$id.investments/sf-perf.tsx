@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import use_swr from "swr/immutable";
 import type { INpoMetrics } from "#/types/npo-sf-metrics";
+import { json_ok } from "@/helpers/https";
 import { SfPerChart } from "./sf-perf-chart";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 }
 
 const fetcher = (path: string) =>
-  fetch(path).then<INpoMetrics>((res) => res.json());
+  fetch(path).then((res) => json_ok<INpoMetrics>(res));
 
 export function SfPerf({ id, classes = "" }: Props) {
   const [expanded, expand] = useState(false);

@@ -1,10 +1,13 @@
+import { ErrorStatus } from "@better-giving/ui";
 import { Elements } from "@stripe/react-stripe-js";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
+import { report_error } from "#/errors/report";
 import { PROCESSING_RATES } from "@/constants/common";
 import type { IDonationIntent, IStripeIntentReturn } from "@/donations";
 import { min_fee_allowance } from "@/helpers/donation";
-import { ErrorBoundaryClass, ErrorTrigger } from "../../../error";
+import { HttpError, json_ok } from "@/helpers/https";
+import { ErrorBoundaryClass } from "../../../error";
 import { currency as currencyfn } from "../../common/currency";
 import { stripe_promise } from "../../common/stripe";
 import { Summary } from "../../common/summary";
@@ -18,7 +21,7 @@ const fetcher = async (intent: IDonationIntent) =>
   fetch(href("/api/donation-intents"), {
     method: "POST",
     body: JSON.stringify(intent),
-  }).then<IStripeIntentReturn>((res) => res.json());
+  }).then((res) => json_ok<IStripeIntentReturn>(res));
 
 interface IStripeCheckoutProps extends StripeDonationDetails {
   bank_only?: boolean;
@@ -69,7 +72,13 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
   if (don.program) intent.program = don.program;
   if (don.config?.id) intent.form_id = don.config.id;
 
-  const { data, error, isLoading } = use_swr(intent, fetcher);
+  // each request creates a donation row and a stripe intent
+  const { data, error, isLoading } = use_swr(intent, fetcher, {
+    shouldRetryOnError: false,
+    // wrapped: swr's second arg is the key — the donor's intent — which
+    // `report_error` would send along as context
+    onError: (e) => report_error(e),
+  });
 
   return (
     <Summary
@@ -89,7 +98,11 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
         {isLoading ? (
           <Loader msg="Loading payment form.." />
         ) : error || !data ? (
-          <ErrorTrigger error={error} />
+          <ErrorStatus>
+            {error instanceof HttpError && error.message
+              ? error.message
+              : "We couldn't start the payment. Please try again or choose a different payment method."}
+          </ErrorStatus>
         ) : (
           <Elements
             options={{

@@ -10,6 +10,7 @@ import { href } from "react-router";
 import use_swr from "swr/immutable";
 import type { ICurrenciesFv } from "#/types/currency";
 import { ru_vdec } from "@/helpers/decimal";
+import { json_ok } from "@/helpers/https";
 import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
@@ -86,8 +87,9 @@ export function Form(props: TMethodState<"stripe">) {
 
   const currency = use_swr(
     href("/api/currencies"),
-    (path) => fetch(path).then<ICurrenciesFv>((res) => res.json()),
+    (path) => fetch(path).then((res) => json_ok<ICurrenciesFv>(res)),
     {
+      shouldRetryOnError: false,
       // only runs once
       onSuccess: (data) => {
         if (!data.pref) return;
@@ -101,7 +103,7 @@ export function Form(props: TMethodState<"stripe">) {
       },
     }
   );
-  const opts = currency.data?.all || [];
+  const opts = currency.data?.all || [usd_option];
 
   const freqs = freqs_shown(don.config?.freq_opts);
 
@@ -304,7 +306,6 @@ export function Form(props: TMethodState<"stripe">) {
           paid ||
           currency.isLoading ||
           currency.isValidating ||
-          !!currency.error ||
           rhf.isSubmitting
         }
         className="mt-auto btn btn-form-primary"

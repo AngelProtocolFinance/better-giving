@@ -5,7 +5,8 @@ vi.mock("@sentry/react-router", () => ({
   captureException: (...args: unknown[]) => capture_exception(...args),
 }));
 
-const { report_unhandled } = await import("./report");
+const { report_error, report_unhandled } = await import("./report");
+const { HttpError } = await import("@/helpers/https");
 
 // the `report` tag IS the contract: `report:bug` is meant to read as a list of
 // our own bugs, so anything a third party throws that leaves the ui working has
@@ -64,5 +65,23 @@ describe("report_unhandled", () => {
     report_unhandled(undefined);
     expect(level()).toBe("error");
     expect(report()).toBe("bug");
+  });
+});
+
+describe("report_error", () => {
+  beforeEach(() => {
+    capture_exception.mockClear();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  // a refusal the donor reads and acts on is not a defect
+  test("keeps a 4xx HttpError off sentry", () => {
+    report_error(new HttpError(400, "The minimum donation is $2."));
+    expect(capture_exception).not.toHaveBeenCalled();
+  });
+
+  test("reports a 5xx HttpError", () => {
+    report_error(new HttpError(500, ""));
+    expect(capture_exception).toHaveBeenCalledOnce();
   });
 });

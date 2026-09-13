@@ -1,7 +1,9 @@
 import { AskHost } from "@better-giving/ui";
 import type { Stripe, StripeError } from "@stripe/stripe-js";
+import { HttpResponse, http } from "msw";
 import { type ReactNode, useEffect } from "react";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, href } from "react-router";
+import { SWRConfig } from "swr";
 import {
   afterAll,
   afterEach,
@@ -116,22 +118,81 @@ describe("stripe checkout", () => {
     reported.length = 0;
   });
 
-  test("failed to get client secret", async () => {
-    // suppress jsdom's reportException noise from error boundary
-    const stop = (e: Event) => e.preventDefault();
-    window.addEventListener("error", stop);
+  const crash_msg = /unexpected error occurred and has been reported/i;
+  const generic_msg =
+    "We couldn't start the payment. Please try again or choose a different payment method.";
+
+  // fresh cache per render; a fast retry interval so a retry, if one were
+  // allowed, lands well inside the test
+  const fresh_swr = (node: ReactNode) => (
+    <SWRConfig
+      value={{
+        provider: () => new Map(),
+        errorRetryInterval: 10,
+        dedupingInterval: 0,
+      }}
+    >
+      {node}
+    </SWRConfig>
+  );
+
+  test("a refused intent shows the server's sentence, not the crash screen", async () => {
+    const sentence =
+      "This amount is above the limit for this payment method. Try a smaller amount or a different payment method.";
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.text(sentence, { status: 400 })
+      )
+    );
+    const screen = await render(fresh_swr(<Checkout {...fv} />));
+
+    await expect.element(screen.getByText(sentence)).toBeVisible();
+    expect(screen.getByText(crash_msg).query()).toBeNull();
+    // handed over with its 4xx status, which `is_user_error` keeps off sentry
+    expect(reported).toMatchObject([{ status: 400 }]);
+  });
+
+  test("a failed intent shows the generic sentence, not the error page", async () => {
+    const page = "<!doctype html><h1>Application Error</h1>";
+    mswWorker.use(
+      http.post(
+        href("/api/donation-intents"),
+        () =>
+          new HttpResponse(page, {
+            status: 500,
+            headers: { "content-type": "text/html" },
+          })
+      )
+    );
+    const screen = await render(fresh_swr(<Checkout {...fv} />));
+
+    await expect.element(screen.getByText(generic_msg)).toBeVisible();
+    expect(screen.getByText(/application error/i).query()).toBeNull();
+    expect(screen.getByText(crash_msg).query()).toBeNull();
+    expect(reported).toMatchObject([{ status: 500 }]);
+  });
+
+  test("a network failure shows the generic sentence", async () => {
     mswWorker.use(don_intents_error_handler);
-    const screen = await render(<Checkout {...fv} />);
+    const screen = await render(fresh_swr(<Checkout {...fv} />));
+    await expect.element(screen.getByText(generic_msg)).toBeVisible();
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toBeInstanceOf(TypeError);
+  });
 
-    //getting client secret from proxy
-    await expect
-      .element(screen.getByText(/loading payment form../i))
-      .toBeVisible();
-
-    const errorMsg =
-      "An unexpected error occurred and has been reported. Please get in touch with hi@better.giving if the problem persists.";
-    await expect.element(screen.getByText(errorMsg)).toBeVisible();
-    window.removeEventListener("error", stop);
+  test("a failed intent is not retried", async () => {
+    // each request creates a donation row and a stripe intent
+    let calls = 0;
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () => {
+        calls++;
+        return HttpResponse.text("nope", { status: 400 });
+      })
+    );
+    const screen = await render(fresh_swr(<Checkout {...fv} />));
+    await expect.element(screen.getByText("nope")).toBeVisible();
+    await new Promise((r) => setTimeout(r, 300));
+    expect(calls).toBe(1);
   });
 
   test("stripe loading", async () => {

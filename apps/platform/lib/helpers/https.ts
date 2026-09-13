@@ -29,6 +29,31 @@ class Resp {
 
 export const resp = new Resp();
 
+/** `status` is what `is_user_error` reads to keep a 4xx off sentry */
+export class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * parsed body of an ok response; otherwise throws `HttpError`. only a
+ * `text/plain` 4xx body becomes the message — the shape our routes answer a
+ * refusal in; an edge/firewall html page or any 5xx leaves it empty, and the
+ * caller decides whether to show it.
+ */
+export async function json_ok<T>(res: Response): Promise<T> {
+  if (res.ok) return res.json();
+  const is_text =
+    res.status < 500 &&
+    (res.headers.get("content-type") ?? "").startsWith("text/plain");
+  const txt = is_text ? (await res.text().catch(() => "")).trim() : "";
+  throw new HttpError(res.status, txt);
+}
+
 type R = { [k: string]: string | undefined };
 
 export function search<T extends { [k: string]: string }>(

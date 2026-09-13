@@ -1,10 +1,11 @@
 import use_swr from "swr/immutable";
 import type { WiseCurrency } from "#/types/bank-details";
 import type { QueryState, WiseCurrencyOption } from "#/types/components";
+import { json_ok } from "@/helpers/https";
 
 async function get_currencies(path: string) {
   return fetch(path)
-    .then<WiseCurrency[]>((res) => res.json())
+    .then((res) => json_ok<WiseCurrency[]>(res))
     .then((data) =>
       data.map<WiseCurrencyOption>((r) => ({
         rate: null,

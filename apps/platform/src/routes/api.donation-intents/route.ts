@@ -69,13 +69,19 @@ export const action: ActionFunction = async ({ request }) => {
   const parsed = safeParse(schema, await request.json());
   if (parsed.issues) {
     const i = parsed.issues[0];
-    return resp.status(400, `${getDotPath(i)}: ${i.message}`);
+    // a 4xx body reaches the donor verbatim; the detail stays in the log
+    console.info(`[resp] 400 - ${getDotPath(i)}: ${i.message}`);
+    return resp.txt(
+      "We couldn't process this donation. Please refresh the page and try again.",
+      400
+    );
   }
   const { to_id, via, via_extra, donor, ...intent } = parsed.output;
 
   const to = await to_fn(to_id);
   if (!to) {
-    return resp.txt(`Recipient:${to_id} not found`, 404);
+    console.info(`[resp] 404 - Recipient:${to_id} not found`);
+    return resp.txt("This nonprofit isn't accepting donations right now.", 404);
   }
   const from = to_from(donor);
 
