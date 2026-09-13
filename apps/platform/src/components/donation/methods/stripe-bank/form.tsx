@@ -10,6 +10,7 @@ import { href } from "react-router";
 import use_swr from "swr/immutable";
 import type { ICurrenciesFv } from "#/types/currency";
 import { ru_vdec } from "@/helpers/decimal";
+import { json_ok } from "@/helpers/https";
 import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
@@ -52,8 +53,9 @@ export function Form(props: TMethodState<"stripe_bank">) {
 
   const currency = use_swr(
     href("/api/currencies"),
-    (path) => fetch(path).then<ICurrenciesFv>((res) => res.json()),
+    (path) => fetch(path).then((res) => json_ok<ICurrenciesFv>(res)),
     {
+      shouldRetryOnError: false,
       onSuccess: (data) => {
         if (!data.pref || !bank_currencies.has(data.pref.code)) return;
         rhf.currency.onChange(data.pref);
@@ -65,7 +67,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
       },
     }
   );
-  const opts = (currency.data?.all || []).filter((c) =>
+  const opts = (currency.data?.all || [usd_option]).filter((c) =>
     bank_currencies.has(c.code)
   );
 

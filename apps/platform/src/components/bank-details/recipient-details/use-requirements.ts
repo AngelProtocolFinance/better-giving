@@ -5,6 +5,7 @@ import type {
   CreateRecipientRequest,
   Quote,
 } from "#/types/bank-details";
+import { json_ok } from "@/helpers/https";
 
 interface Input {
   amount: number;
@@ -35,14 +36,12 @@ const requirements: Fetcher<RequirementsOutput, Input | null> = async (
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(quote_payload),
-  }).then<Quote>((res) => {
-    return res.json();
-  });
+  }).then((res) => json_ok<Quote>(res));
 
   const requirements = await fetch(
     `/api/wise/v1/quotes/${quote.id}/account-requirements`,
     { headers: { "accept-minor-version": "1" } }
-  ).then<AccountRequirements[]>((res) => res.json());
+  ).then((res) => json_ok<AccountRequirements[]>(res));
 
   return { requirements, quoteId: quote.id };
 };

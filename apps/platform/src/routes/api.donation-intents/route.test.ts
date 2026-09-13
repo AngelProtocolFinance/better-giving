@@ -137,11 +137,29 @@ describe("api.donation-intents action", () => {
     await expect(res!.json()).resolves.toEqual({ id: "don-5" });
   });
 
-  it("returns 404 when recipient not found", async () => {
+  // the checkout renders a 4xx text body to the donor verbatim
+  it("returns a donor sentence with 404 when recipient not found", async () => {
     to_fn_mock.mockResolvedValueOnce(undefined);
     const res = await invoke(post(valid_body("card")));
 
     expect(res!.status).toBe(404);
+    expect(res!.headers.get("content-type")).toBe("text/plain");
+    await expect(res!.text()).resolves.toBe(
+      "This nonprofit isn't accepting donations right now."
+    );
+    expect(stripe_intent_mock).not.toHaveBeenCalled();
+  });
+
+  it("returns a donor sentence with 400 when the intent fails the schema", async () => {
+    const res = await invoke(
+      post({ ...(valid_body("card") as object), to_id: 5 })
+    );
+
+    expect(res!.status).toBe(400);
+    expect(res!.headers.get("content-type")).toBe("text/plain");
+    await expect(res!.text()).resolves.toBe(
+      "We couldn't process this donation. Please refresh the page and try again."
+    );
     expect(stripe_intent_mock).not.toHaveBeenCalled();
   });
 
