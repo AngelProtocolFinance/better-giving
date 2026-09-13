@@ -204,9 +204,9 @@
 @utility btn-form-primary {
   background-color: var(--form-primary);
   color: var(--primary-fg);
-  /* --ring, not --secondary: --secondary is a near-white tint at 1.17:1
-     against the page. --ring is remapped to --form-primary inside
-     #donation-container, so the ring follows
+  /* --ring, not --secondary: --secondary is a near-white tint at Lc 0.0
+     against the page, under what apca can measure. --ring is remapped to
+     --form-primary inside #donation-container, so the ring follows
      the host org's brand rather than pinning a value that may collide with an
      unknown host page. */
   &:focus-visible {

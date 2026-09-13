@@ -69,7 +69,7 @@ export function Cropper({ src, aspect, rounded, ref }: ICropperProps) {
         {/* the focus ring is the system's standard 2px --ring at offset 2, but
             here it is drawn over the donor's own photograph behind the scrim,
             so its contrast against the backdrop is whatever they uploaded and
-            can fall under the 3:1 WCAG 1.4.11 asks of a non-text indicator.
+            can fall under the apca Lc 30 a semantic non-text indicator needs.
             the selection edge goes fully opaque white on focus to pair a
             light boundary with the dark-ish blue one: against pale imagery the
             blue reads, against dark imagery the white does. no new token —

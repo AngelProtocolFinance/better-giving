@@ -22,9 +22,10 @@
 
 @theme {
   /* decorative marketing washes — NOT the semantic palette. flat grounds behind
-     marketing copy; --fg is the only ink any of them carries (peach 14.58:1,
-     lilac 14.26:1, mint 16.68:1, cream 16.51:1, sky 15.92:1). named by hue, not
-     by role, so nobody reads one as a system surface. never in product UI — a
+     marketing copy; gray-12 is the only ink any of them carries (peach Lc 89.8,
+     lilac Lc 88.4, mint Lc 98.6, cream Lc 97.9, sky Lc 95.5; all clear the Lc
+     75 body text needs). named by hue, not by role, so nobody reads one as a
+     system surface. never in product UI — a
      dashboard, form, table or badge takes the semantic set from
      packages/brand/src/colors.css. a wash that needs a second ink has stopped
      being decorative and is a mint request against that palette instead. */

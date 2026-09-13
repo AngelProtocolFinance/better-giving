@@ -153,10 +153,10 @@
   /* one focus indicator for every variant. the per-variant outline colors this
      replaces were tints of the button's own fill and were invisible against it;
      one ring for every variant is the fix, and the offset is what makes it
-     work rather than the color. --ring is the ramp's step 8, 2.30:1 against the
-     page — under 3:1, taken as radix assigns it, so the ring is legible by
-     being detached and continuous, not by contrast alone. on a .btn-primary
-     fill it measures 2.32:1, which is why the offset stays and why a
+     work rather than the color. --ring is the ramp's step 8, Lc 44.6 against
+     the page — clear of the Lc 30 a focus indicator needs, taken as radix
+     assigns it. on a .btn-primary fill it measures Lc 30.0, on that line and
+     not over it, which is why the offset stays and why a
      --primary-filled panel still scopes with `surface-primary`. */
   .btn,
   .btn-sm,

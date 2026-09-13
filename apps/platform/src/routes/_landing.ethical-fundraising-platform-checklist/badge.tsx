@@ -3,7 +3,8 @@ import type { PropsWithChildren } from "react";
 export type Tone = "neutral" | "warning" | "success";
 
 /* filled chip + its own -fg. this is the one warning treatment that is NOT the
-   subtle band: --warning against --warning-fg measures 6.97:1, while the band
+   subtle band: --warning-fg on --warning measures Lc 52.1 (under the Lc 60 a
+   label needs; an accepted miss, see the ledger), while the band
    shape (bg-warning-subtle / text-warning-subtle-fg) is for a tinted surface
    carrying body copy. see packages/brand/design-system.md. */
 const TONES: Record<Tone, string> = {
