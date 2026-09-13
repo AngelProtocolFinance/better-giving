@@ -17,7 +17,8 @@ export function ErrorBand({ style, ...props }: ErrorBandProps) {
       style={{
         backgroundColor: flat_colors.destructive_subtle,
         padding: "20px",
-        // the subtle pair: flat_colors.destructive only measures 3.92:1 on this fill
+        // the subtle pair: flat_colors.destructive measures Lc 66.7 on this fill and the
+        // pair's own ink Lc 64.8, both over Lc 60; the ink is the pair's, not the fill's
         color: flat_colors.destructive_subtle_fg,
         ...style,
       }}

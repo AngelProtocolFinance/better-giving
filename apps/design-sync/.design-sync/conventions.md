@@ -117,9 +117,9 @@ are the semantic tokens:
 | other lines | `ring` |
 
 Use them as `bg-panel`, `text-gray-11`, `border-gray-6`, and so on. **A fill token is not
-automatically a text color.** `text-warning` is illegible at 2.15:1 — use `text-warning-subtle-fg`,
+automatically a text color.** `text-warning` is illegible at Lc 39.9 — use `text-warning-subtle-fg`,
 which is the warning ink on *every* surface. Never pair an alpha tint with its own ink
-(`bg-destructive/10 text-destructive` measures 3.92:1); use the authored pair
+(`bg-warning/10 text-warning` measures Lc 34.9, and no tint's figure survives a change of ground); use the authored pair
 `bg-destructive-subtle text-destructive-subtle-fg`, and set the surface and its ink **on the same
 element** — a child's own color utility wins over an inherited one.
 
@@ -132,8 +132,7 @@ For a brand-filled panel that contains a control, use the `surface-primary` util
 `ring-primary-ring` utility, so `surface-primary` is the way to reach it.
 
 **On a `--primary` fill, state is never carried by hue.** Every semantic ink in the palette is
-authored for light surfaces and collapses on primary (destructive 1.06:1, warning 1.04:1, success
-1.08:1). Carry state there with weight, an icon and the words instead.
+authored for light surfaces and collapses on primary (destructive, warning and success inks each Lc 0.0). Carry state there with weight, an icon and the words instead.
 
 Dimmer text is `text-gray-11`, never `text-gray-12` at reduced opacity.
 

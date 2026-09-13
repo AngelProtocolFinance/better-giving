@@ -22,9 +22,10 @@ export function VideoPreview(props: IMedia) {
           featured={props.featured}
         >
           {/* the fill is the only visual carrier of "featured" — a meaningful
-              icon, so it takes the 3:1 floor. --warning is a fill token and
-              measures 2.15:1 on white; --warning-subtle-fg is the warning ink
-              (5.70:1). stroke matches so the whole glyph reads as one state. */}
+              icon, a fine-detail pictogram, so it takes the apca Lc 45 floor.
+              --warning is a fill token and measures Lc 41.8 on white, under it;
+              --warning-subtle-fg is the warning ink (Lc 71.2). stroke matches
+              so the whole glyph reads as one state. */}
           <Star
             size={16}
             className={`${

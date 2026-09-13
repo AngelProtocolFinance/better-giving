@@ -113,15 +113,15 @@
      also the only direction available here — --surface is already step 1 and
      there is no rung above it, so the separation has to come from moving the
      container down. NOT a substitute for the border: a field's step-7 edge is
-     Lc 21.8 (1.48:1) on this rung and step 1 on step 2 is fainter still. the two together are what makes a field
-     findable; neither does it alone.
+     Lc 21.8 on this rung and step 1 on step 2 is fainter still. the two
+     together are what makes a field findable; neither does it alone.
      one name covers the card and the floating layer alike: radix files panels,
      menus, dialogs and popovers under a single rung, and a second name holding
      the same value is the drift the -fg twins were deleted for. lifting a
      popover off panels later means splitting this back out — greppable, and
      nothing in the product asks for it today. */
   --panel: var(--gray-2);
-  --primary: var(--blue-9); /* 5.48:1 white-on-fill */
+  --primary: var(--blue-9); /* white-on-fill Lc 82.3 */
   /* the hovered rung of the filled control, and its pressed rung too. the ramp
      gives a solid fill two steps, 9 and 10; steps 11 and 12 are text and both
      sit LIGHTER than 10, so there is no third rung to press to. */
@@ -130,12 +130,13 @@
   --primary-fg: oklch(1 0 0);
   /* the dark brand ground: a full-bleed marketing hero, and the scrim that puts
      copy over a photograph. --primary is a control color tuned for white ink at
-     5.48:1 — enough for a button, not enough to survive a translucent scrim over
+     Lc 82.3 — enough for a button, not enough to survive a translucent scrim over
      pixels you don't control. step 12 sits far enough down the ramp to carry
-     --primary-fg with headroom, and headroom is what a scrim spends. at the 70%
-     every hero scrim uses, over a white worst-case photograph, white ink lands
-     at 4.65:1 — clears the body floor with 0.15 to spare. 65% would be 4.04:1
-     and fail, so the opacity is a measured value, not a taste one. ink is
+     --primary-fg with headroom (Lc 99.6), and headroom is what a scrim spends.
+     at the 70% every hero scrim uses, over a white worst-case photograph, white
+     ink lands at Lc 77.7 — clears the Lc 75 body text needs with 2.7 to spare.
+     65% would be Lc 73.2 and fail; the Lc 75 line itself falls at 68% (Lc 75.9),
+     so 70 is the nearest 5% step over the floor, not the floor itself. ink is
      --primary-fg; there is no -deep-fg, because a second name for #ffffff is a
      drift trap the test can't catch. */
   --primary-deep: var(--blue-12);
@@ -152,9 +153,9 @@
   --band: var(--blue-2);
   --secondary: var(--blue-3);
   --secondary-active: var(--blue-5);
-  /* the filled error control: white ink at 5.62:1. a tinted band carrying
+  /* the filled error control: white ink at Lc 81.3. a tinted band carrying
      error copy takes --destructive-subtle/-fg below instead — that pair clears
-     AA on its own band, which is a fill's job to do, not this one's. */
+     Lc 60 on its own band, which is a fill's job to do, not this one's. */
   --destructive: var(--red-9);
   /* hovered and pressed rung of the filled error control — one step for both,
      see --primary-hover. */
@@ -162,10 +163,12 @@
   --destructive-fg: oklch(1 0 0); /* #ffffff */
   /* de-emphasised destructive surface: an error panel, banner, or row that
      carries error ink as body copy rather than a filled control. step 11 on
-     step 3 is 4.57:1. --destructive-subtle-fg is the error ink EVERYWHERE, the
-     page included, not only on this band — --destructive is a fill, and step 9
-     read as text clears AA only because red's step 9 happens to sit dark. the
-     other two status hues don't, so ink follows the rung, not the luck. an
+     step 3 is Lc 64.8, over the Lc 60 status ink needs. --destructive-subtle-fg
+     is the error ink EVERYWHERE, the page included, not only on this band —
+     --destructive is a fill, and step 9 read as text clears Lc 60 (Lc 74.1 on
+     the page) only because red's step 9 happens to sit dark. green's clears it
+     too (Lc 67.0) and amber's does not (Lc 39.9), so ink follows the rung, not
+     the luck. an
      icon is a shape, not text, and keeps step 9. */
   --destructive-subtle: var(--red-3);
   --destructive-subtle-fg: var(--red-11);
@@ -174,7 +177,7 @@
      black)` ladder the filled .btn variants use: on a near-white band that
      moves the surface away from the ink sitting on it and the pair fails. */
   --destructive-subtle-active: var(--red-5);
-  /* 4.25:1 white-on-fill — an accepted miss, under AA */
+  /* white-on-fill Lc 74.3 — clears the Lc 60 a button label needs */
   --success: var(--green-9);
   /* hovered and pressed rung of the filled success control — one step for both,
      see --primary-hover. */
@@ -183,9 +186,10 @@
   /* de-emphasised success surface, same shape as the destructive and warning
      bands: a confirmation panel, status pill, or row carrying success copy
      rather than a filled control. --success itself is a FILL and must never be
-     painted on it — at 4.25:1 it is under AA as text on the page too, not just
-     on a tint; --success-subtle-fg is the success ink everywhere, 4.45:1 here —
-     an accepted miss, taken as the ramp generates it. an icon is a shape, not
+     painted on it — as text on the page it is Lc 67.0, clear of Lc 60 but under
+     the Lc 75 body copy needs, and a step 9 is a fill by the ramp's rule either
+     way; --success-subtle-fg is the success ink everywhere, Lc 66.1 here — over
+     Lc 60, taken as the ramp generates it. an icon is a shape, not
      text, and keeps step 9. gray-12 on the band stays far clear, so it also takes
      neutral body copy. */
   --success-subtle: var(--green-3);
@@ -194,30 +198,31 @@
   /* hovered and pressed rung of the filled warning control — one step for both,
      see --primary-hover. a fill like --warning; --warning-fg is its ink. */
   --warning-hover: var(--amber-10);
-  /* dark ink on the amber fill, 5.28:1. not white: the palette tool emitted
-     #fff for this scale (2.15:1) while stock radix amber pairs dark text with
+  /* dark ink on the amber fill, Lc 52.1 — under the Lc 60 a button label
+     needs, an accepted miss. not white: the palette tool emitted #fff for this
+     scale (Lc 46.4, weaker still) while stock radix amber pairs dark text with
      it, so this is a generator artifact corrected, not a radix value
      overridden. */
   --warning-fg: var(--amber-12);
   /* de-emphasised warning surface: an advisory panel, banner, or row carrying
      warning copy rather than a filled control. --warning is a FILL and is not
      legible as text at any size; --warning-subtle-fg is the warning ink
-     everywhere — 4.00:1 on this band, the worst of the accepted misses. gray-12 on
+     everywhere — Lc 62.5 on this band, over Lc 60 by the narrowest margin of
+     any resting band. gray-12 on
      the band stays far clear, so it also takes neutral body copy. */
   --warning-subtle: var(--amber-3);
   --warning-subtle-fg: var(--amber-11);
   /* the separator rung: dividers, panel hairlines, table rules, card edges,
-     and whatever the base `*` rule reaches. Lc 17.4 (1.36:1) on --background.
+     and whatever the base `*` rule reaches. Lc 17.4 on --background and 15.5
+     on --panel, over the Lc 15 a separator needs.
      a control's edge is step 7 in the shared recipes (packages/ui
-     components.css), Lc 23.8 (1.52:1) on --background and Lc 21.8 (1.48:1) on
-     --panel; an app call site spelling
-     border-gray-6 on a control still draws this rung. both are under the 3:1
-     WCAG 1.4.11 asks of a control boundary. the ramp's border rungs are tuned
-     in apca, which certifies them for non-text use where WCAG 2's contrast
-     formula does not; taking them as generated is the deliberate call. NOT
-     compensated for by the focus ring below, which is fainter still — the
-     boundary and the ring are both under the threshold, and neither rescues
-     the other. */
+     components.css), Lc 23.8 on --background and Lc 21.8 on --panel; an app
+     call site spelling border-gray-6 on a control still draws the separator
+     rung. both are under the Lc 30 a control boundary needs — an accepted miss.
+     step 8 would clear it (Lc 34.3 / 32.4); step 7 stays because it is
+     radix's element-border rung, taken as generated. NOT compensated for by
+     the focus ring below: the ring clears its own Lc 30, but it draws only on
+     focus, so it does not rescue a resting boundary. */
   --border: var(--gray-6);
   /* the fill a form control carries — radix's --color-surface, and the reason
      the container moved rather than this: step 1 is the lightest rung there is,
@@ -229,11 +234,12 @@
      that one names what fills it; this one names what sits on a fill. */
   --surface: var(--gray-1);
   /* step 8 is the ramp's focus rung, and deliberately not --primary: a ring
-     that equals the fill it surrounds measures 1.00:1 against it and is not
-     there at all. on a --primary fill step 8 reaches 2.32:1 — still thin, which
-     is the job the `surface-primary` utility keeps.
-     against the page the ring is 2.30:1 — the rung radix assigns, taken as
-     generated, and well under what a sole indicator would need. */
+     that equals the fill it surrounds measures Lc 0.0 against it and is not
+     there at all. on a --primary fill step 8 reaches Lc 30.0 — on the Lc 30 a
+     focus indicator needs, not over it, which is the job the `surface-primary`
+     utility keeps.
+     against the page the ring is Lc 44.6 — the rung radix assigns, taken as
+     generated, and clear of Lc 30. */
   --ring: var(--blue-8);
   /* the scrim a dialog lays over the page — radix's --color-overlay. gray-12
      at 30%, which is what all four dialog backdrops already carried; naming it
@@ -252,9 +258,9 @@
      dialogs, so it needs none. */
   --overlay: color-mix(in oklch, var(--gray-12) 30%, transparent);
   /* ring + hairline for controls drawn ON a --primary fill.
-     5.48:1 and 4.08:1 on --primary respectively — the second is a color-mix
-     with no email twin and no checked value; read it out of a browser before
-     leaning on the last digit. */
+     Lc 82.3 and about Lc 61 on --primary respectively — the second is a
+     color-mix with no email twin and no checked value; read it out of a
+     browser before leaning on the last digit. */
   --primary-ring: var(--primary-fg);
   --primary-border: color-mix(in oklch, var(--primary-fg) 80%, var(--primary));
 

@@ -11,17 +11,32 @@ ledger would only be a second place to go stale. See "One face, two roles, and
 four closed ladders" and "Elevation: four levels, and one treatment that is not
 a rung".
 
-Contrast figures are WCAG 2.x ratios measured on the **shipped hex** (the sRGB
-round-trip of the `oklch()`), not on the raw oklch. AA body text needs 4.5:1;
-large text (≥24px, or ≥18.66px bold) and meaningful non-text need 3:1.
+Contrast figures are **APCA Lc** values (`apca-w3` 0.1.9), measured on the
+**shipped hex** (the sRGB round-trip of the `oklch()`), not on the raw oklch:
+text or foreground first, ground second, alpha and `color-mix()` composited over
+the named ground first, and written unsigned (APCA reports light-on-dark as
+negative). The measure is APCA because the palette is Radix and Radix tunes its
+steps in APCA. `apca-w3` reports any pair under its low clip (about Lc 7) as
+**Lc 0.0**: not identical, just below what it measures.
+
+Thresholds are APCA **Bronze Simple Mode**:
+
+| Lc | minimum for | in this palette |
+| --- | --- | --- |
+| 90 | preferred body text | |
+| 75 | body and column text | paragraph copy, hero copy over a scrim |
+| 60 | content text that is not body | labels, a filled button's label, status ink on a band, step-11 ink generally |
+| 45 | headlines (≥36px normal, ≥24px bold) and fine-detail pictograms | icons: Lucide's thin-stroke glyphs |
+| 30 | any other text (spot-readable, placeholder, disabled) and solid semantic non-text | a control boundary, the focus ring |
+| 15 | non-semantic non-text; below it, treat as invisible | separators, hairlines, table rules |
 
 Every color in the palette comes off a **generated 12-step ramp** (see "The
 ramp", below) and every semantic token is an alias onto one of its steps. No
 token holds a hand-authored color, and a value the ramp does not have is a gap
 to take back to the palette, not one to author at a call site.
 
-**Two kinds of number live in this file and they age differently.** A **ratio**
-is measured against a token value and only changes if that value changes: trust
+**Two kinds of number live in this file and they age differently.** A **contrast
+figure** is measured against a token value and only changes if that value changes: trust
 it. A **call-site count** is a grep over `apps/platform/src` at the time of
 writing and drifts with every commit; each one is labelled and carries the
 command that produced it. Re-run it rather than quoting it.
@@ -69,6 +84,11 @@ and it is what replaced a set of hand-mixed values:
 | 11 | low-contrast text |
 | 12 | high-contrast text |
 
+Our gray tracks official Radix slate (`@radix-ui/colors` 3.0.0) within 0.6 Lc at
+every rung measured against its own step 1: steps 6 / 7 / 8 / 11 / 12 read Lc
+17.4 / 23.8 / 34.3 / 77.7 / 101.5 here and 17.8 / 24.2 / 34.7 / 78.0 / 101.6 in
+slate.
+
 Three properties of the generated set travel with it:
 
 - **Each step is authored as the `oklch()` its source hex converts to**, and the
@@ -94,7 +114,7 @@ tokens resolves to a step (or to `#ffffff`, or to a `color-mix()` off one).
 | 3 | `--secondary` | `--destructive-subtle` | `--success-subtle` | `--warning-subtle` | |
 | 5 | `--secondary-active` | `--destructive-subtle-active` | | | |
 | 6 | | | | | `--border` |
-| 7 | | | | | *no token: the control recipes spell `gray-7` (Lc 23.8, 1.52:1 on the page)* |
+| 7 | | | | | *no token: the control recipes spell `gray-7` (Lc 23.8 on the page)* |
 | 8 | `--ring` | | | | |
 | 9 | `--primary` | `--destructive` | `--success` | `--warning` | |
 | 10 | `--primary-hover` | `--destructive-hover` | `--success-hover` | `--warning-hover` | |
@@ -124,39 +144,39 @@ each scale's own `contrast` color. `--primary-ring` is `--primary-fg`;
 `--sidebar` alias app tokens. `--form-primary` / `--form-secondary` are tenant
 values. `--chart-1…5` are stock shadcn defaults and are **not** on the ramp.
 
-## Where Radix and WCAG 2 disagree: the accepted misses
+## The accepted misses (APCA)
 
-**Radix certifies its steps in APCA, not in WCAG 2.** Steps 11 and 12 are
-generated to hit Lc 60 and Lc 90 against their own scale's step 2, and the border
-rungs are tuned the same way. WCAG 2's contrast formula is a different measure
-and disagrees with APCA on saturated hues in particular. **The standing policy is
-to take Radix's pairings as generated**: asked with the measurements on the
-table and reaffirmed. So a sub-4.5:1 WCAG 2 figure on a pair *Radix itself
-assigns* (an own-scale step 11 or 12 on an own-scale surface) is a known
+**Radix certifies its steps in APCA.** Steps 11 and 12 are generated to hit
+Lc 60 and Lc 90 against their own scale's step 2, and the border rungs are tuned
+the same way. **The standing policy is to take Radix's pairings as generated**:
+asked with the measurements on the table and reaffirmed. So a figure under its
+threshold on a pair *Radix itself assigns* (an own-scale step 11 or 12 on an
+own-scale surface, or a scale's own contrast ink on its step 9) is a known
 consequence of the scale, not a mistake in the mapping.
 
-Five pairings land under the floor and are **accepted**, not defects:
+Four pairings land under their threshold and are **accepted**, not defects:
 
-| pairing | measured | |
-| --- | --- | --- |
-| `--warning-subtle-fg` on `--warning-subtle` (amber-11 on amber-3) | **4.00:1** | the worst of them; the warning band |
-| `--warning-subtle-fg` on the `amber-2` band (amber-11 on amber-2) | **4.30:1** | no token takes `amber-2` today; this is the pairing Radix certifies, and it is the clearest evidence for the policy: the guaranteed combination misses in WCAG 2 terms |
-| `--success-subtle-fg` on `--success-subtle` (green-11 on green-3) | **4.45:1** | the success band |
-| `--success-fg` on `--success` (white on green-9) | **4.25:1** | the filled success button's own label |
-| `--destructive-subtle-fg` on `--destructive-subtle-active` (red-11 on red-5) | **3.70:1** | the pressed rung of a subtle error control; transient |
+| pairing | measured | threshold | |
+| --- | --- | --- | --- |
+| control boundary `gray-7` on `--background` / `--panel` | **Lc 23.8 / 21.8** | Lc 30 | the element-border rung the shared control recipes draw; `gray-8` would clear and was declined, see "Decisions that look like bugs" |
+| `--destructive-subtle-fg` on `--destructive-subtle-active` (red-11 on red-5) | **Lc 51.7** | Lc 60 | the pressed rung of a subtle error control; transient |
+| `--warning-fg` on `--warning` (amber-12 on amber-9) | **Lc 52.1** | Lc 60 | the filled warning button's label and the checklist badge; white would be weaker still at Lc 46.4 |
+| `--warning` as a meaningful icon on `--background` / white | **Lc 39.9 / 41.8** | Lc 45 | a fill, not an icon ink: a meaningful amber glyph takes `--warning-subtle-fg` (Lc 69.3 / 71.2) |
 
-The last one is the shape of the whole policy in one row. Radix guarantees step
-11 only against step **2**, so a step-11 ink degrades predictably as the surface
-climbs the same scale: 4.97:1 on red-2, 4.57:1 on red-3, 4.08:1 on red-4,
-3.70:1 on red-5. Nothing is wrong at red-5; the guarantee simply ran out three
-steps earlier.
+Every own-scale band pairing clears: amber-11 is Lc 62.5 on amber-3 and Lc 67.2
+on amber-2, green-11 is Lc 66.1 on green-3, and white on green-9 is Lc 74.3.
+
+The first row is the shape of the whole policy. Radix guarantees step 11 only
+against step **2**, so a step-11 ink degrades predictably as the surface climbs
+the same scale: Lc 70.3 on red-2, 64.8 on red-3, 57.6 on red-4, 51.7 on red-5.
+Nothing is wrong at red-5; the guarantee simply ran out at red-4.
 
 **What this policy does not cover is a pairing Radix never made.** An own-scale
 ink on a *different* scale's surface, amber-11 on `gray-3` or green-11
 on `--secondary` (blue-3), is the palette's own combination, and this file's rule
 applies instead: *a fill and an ink are only safe together if someone measured
-that combination*. Those figures are in the sections below, and several of them
-also sit under 4.5:1.
+that combination*. Those figures are in the sections below; the ones under
+Lc 60 are the step-11 inks on the `blue-5` pressed rung.
 
 ## Two consumers, one palette
 
@@ -175,8 +195,7 @@ Three rules fall out of that test, and all three are load-bearing:
   tokens are aliases onto ramp steps: 40 of the 42 get a twin; the two
   `color-mix()`es (`--primary-border`, `--overlay`) have no literal behind them. `flat_colors.primary` is `#1e6dab` because
   the mirror resolved `var(--blue-9)`, not because anyone typed it twice.
-  A `color-mix()` has no single literal behind it and is left out by rule:
-  `--primary-border` has no flat twin, and neither does anything minted as a mix.
+  Anything minted as a mix is left out by rule.
 - **Adding a literal `oklch()` token to `:root` means adding its hex to
   `colors.ts` in the same commit**, or `colors.test.ts` fails: `packages/brand`
   has no build step, so the test is the whole gate. The mirror is mechanically
@@ -197,10 +216,10 @@ is the brand action color. The two blues split a ground from an element: see
 
 | token | what it is |
 | --- | --- |
-| `--background` | the page itself: `gray-1`, `#fbfcfe`. The page ground is **not** `#ffffff`, and every ratio in this file is measured against the real ground rather than white. `--surface` is set to this same value on purpose; see "decisions that look like bugs". Ink is `text-gray-12`; there is no `--fg` |
-| `--panel` | every container lifted off the page, in the flow or over it: panel, tile, table shell, row, and the transient layers too (menu, combobox and select list, dialog, toast). Radix files all of them under one rung and so does this. `gray-2`, one step below the page, so a panel reads by its fill *and* its `--border`; that matters because the border alone is 1.36:1. Splitting a floating layer back out later is a grep |
+| `--background` | the page itself: `gray-1`, `#fbfcfe`. The page ground is **not** `#ffffff`, and every contrast figure in this file is measured against the real ground rather than white. `--surface` is set to this same value on purpose; see "decisions that look like bugs". Ink is `text-gray-12`; there is no `--fg` |
+| `--panel` | every container lifted off the page, in the flow or over it: panel, tile, table shell, row, and the transient layers too (menu, combobox and select list, dialog, toast). Radix files all of them under one rung and so does this. `gray-2`, one step below the page, so a panel reads by its fill *and* its `--border`; that matters because the border alone is Lc 17.4. Splitting a floating layer back out later is a grep |
 | `--surface` | the fill a form control carries: Radix's `--color-surface`. `gray-1`, so on a `--panel` it sits one step *lighter* than its container, which is the direction Radix uses and the only one available: step 1 is the lightest rung there is. On the bare page it is fill-identical and reads by its border alone. Not fields only: `.btn-secondary` and the file dropzone rest here too, for the same reason: a control is a control wherever it sits |
-| `--overlay` | the scrim a dialog lays over the page: `gray-12` at 30%, via `color-mix()`. The four `Dialog.Backdrop` sites all carried this value already; the token is what stops a fifth being picked by eye. It is the whole of the `modal` level's color: that level carries no shadow, so the scrim and the stacking step are what define it; see "Elevation". **Every backdrop in the app now spells it**: the four ark backdrops, the dashboard drawer (a `Modal size="none"`, so it takes the house backdrop rather than one of its own), and the single native `<dialog>`, whose `backdrop:` pseudo-element takes the same token. `apps/docs` spells it too, in the embed playground's `<dialog>`: that page is our own docs chrome around an embedded form, not a stand-in for a customer's site. The one backdrop outside this token is `demo-nonprofit`'s, and only because that whole page impersonates a fictional nonprofit's website: a system token there would stop it demonstrating the one thing it is for |
+| `--overlay` | the scrim a dialog lays over the page: `gray-12` at 30%, via `color-mix()`. The token is what stops a backdrop being picked by eye. It is the whole of the `modal` level's color: that level carries no shadow, so the scrim and the stacking step are what define it; see "Elevation". **Every backdrop in the app spells it** (the sites are listed under "Dialogs carry no shadow"). `apps/docs` spells it too, in the embed playground's `<dialog>`: that page is our own docs chrome around an embedded form, not a stand-in for a customer's site. The one backdrop outside this token is `demo-nonprofit`'s, and only because that whole page impersonates a fictional nonprofit's website: a system token there would stop it demonstrating the one thing it is for |
 | `--secondary` | second-tier action, plus chips and tags. The button does **not** rest on it: `.btn-secondary` rests on `--surface` with a `--border` (it is a control, and `--surface` is the fill a control carries) and takes `--secondary` (`blue-3`) on hover and `--secondary-active` (`blue-5`) pressed. So `--secondary` is a *state* fill for the button and a *resting* fill for chips: check which one you are in before assuming its ink. Ink is `text-gray-12` |
 | `--band` | the alternating full-bleed section on the marketing pages, and the far stop of the hero's `--background` → tint gradient. `blue-2`, the ramp's page-level subtle ground: **not** a UI element, and nothing hovers it. It is a *lighter* rung than `--secondary`, so every ink figure recorded below against `blue-3` is a floor for this band, not a ceiling |
 | `--sidebar-*` (6 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other five alias `--primary` / `--primary-fg` / `--secondary` / `--border` / `--ring`. Its two `-fg` twins went with the rest of the neutral ink. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
@@ -217,26 +236,29 @@ steps are 11 and 12. A semantic token that names a fill (`--primary`,
 be legible as text is a measurement, not a licence.
 
 Every figure below is measured against `--background` (`gray-1`), the real page
-ground. `--panel` now sits a rung lower at `gray-2`, so these are a ceiling for
-ink on a panel, not its value: nothing here has been re-measured against it.
+ground. `--panel` sits a rung lower at `gray-2`, so these are a ceiling for
+ink on a panel, not its value. Panel figures, where measured, are in each
+token's own section: `--success-subtle-fg`, `--destructive-subtle-fg` and
+`--warning-subtle-fg` below, and `--destructive` under "The rule only closes
+when one element carries both".
 
 | token | fill | legible as text | on `--background` | notes |
 | --- | --- | --- | --- | --- |
-| `--primary` | yes | **yes** | 5.34:1 | also the ink for text-only controls. `--ring` is a separate token (`blue-8`) |
-| `--primary-deep` | yes | **no, by rule** | 10.95:1 | dark enough to be legible, but `gray-12` is the app's dark ink and a second one is drift. Fill only, see its section |
-| `--success` | yes | **no** | **4.14:1** | green-9 is a solid, and it does not clear the body floor as text on the page. The green ink is `--success-subtle-fg` (green-11) at 4.84:1, on every surface, the same way `--warning-subtle-fg` is the warning ink |
-| `--success-subtle-fg` | no | yes | 4.84:1 | ink for `--success-subtle` (4.45:1: accepted miss) and the app's only legible green. 4.38:1 on `gray-3` and 4.42:1 on `--secondary`, both under the floor |
-| `--destructive` | yes | **yes** | 5.48:1 | 4.95:1 on `gray-3`, 5.00:1 on `--secondary`, 4.90:1 on `--destructive-subtle`: red-9 clears the body floor on every surface in the palette |
-| `--warning` | yes | **no, at any size** | 2.09:1 | fill only. Never `text-warning`. Use `--warning-subtle-fg` |
-| `gray-12` | no | yes | 15.95:1 | |
-| `gray-11` | no | yes | 5.75:1 | 5.20:1 on `gray-3`, 5.25:1 on `--secondary`, 4.44:1 on the `blue-5` pressed rung |
+| `--primary` | yes | **yes** | Lc 75.1 | also the ink for text-only controls. `--ring` is a separate token (`blue-8`) |
+| `--primary-deep` | yes | **no, by rule** | Lc 93.9 | dark enough to be legible, but `gray-12` is the app's dark ink and a second one is drift. Fill only, see its section |
+| `--success` | yes | **no, by rule** | Lc 67.0 | green-9 is a solid. It clears Lc 60 as text on the page and misses the Lc 75 body copy needs, so the ramp's role decides it, not the measurement. The green ink is `--success-subtle-fg` (green-11) at Lc 72.0, on every surface, the same way `--warning-subtle-fg` is the warning ink |
+| `--success-subtle-fg` | no | yes | Lc 72.0 | ink for `--success-subtle` (Lc 66.1) and the app's green ink. Lc 65.1 on `gray-3` and Lc 65.8 on `--secondary`, both over Lc 60 |
+| `--destructive` | yes | **yes** | Lc 74.1 | Lc 67.3 on `gray-3`, Lc 68.0 on `--secondary`, Lc 66.7 on `--destructive-subtle`: red-9 clears Lc 60 on every surface in the palette |
+| `--warning` | yes | **no, at any size** | Lc 39.9 | under even the Lc 45 a headline needs. Fill only. Never `text-warning`. Use `--warning-subtle-fg` |
+| `gray-12` | no | yes | Lc 101.5 | |
+| `gray-11` | no | yes | Lc 77.7 | Lc 70.9 on `gray-3`, Lc 71.5 on `--secondary`, Lc 60.9 on the `blue-5` pressed rung |
 | `--*-fg` | no | yes | n/a | the four per-ramp contrast inks (`--primary-fg`, `--destructive-fg`, `--success-fg`, `--warning-fg`) each legible on its own step-9 fill and nowhere else |
 
 Icons are Lucide. A *meaningful* icon (one carrying information no adjacent text
-carries) needs 3:1, so `stroke-warning` on the page at 2.09:1 does not qualify:
-give it `--warning-subtle-fg`. A decorative icon beside a text label is exempt.
-`stroke-success` at 4.14:1 does clear the 3:1 non-text floor, so a green glyph is
-fine where green *text* is not.
+carries) is a fine-detail pictogram, since Lucide draws in thin strokes, and
+needs Lc 45. `stroke-warning` on the page at Lc 39.9 does not qualify: give it
+`--warning-subtle-fg` (Lc 69.3). A decorative icon beside a text label is exempt.
+`stroke-success` at Lc 67.0 clears Lc 45, so a green glyph is fine.
 
 ## The pair rule
 
@@ -252,10 +274,10 @@ before assuming, and measure before assuming it is fine:
 
 | band | measured | |
 | --- | --- | --- |
-| `bg-warning/10 text-warning` | **1.95:1** | illegible; the case that forced the pair |
-| `bg-success/10 text-success` | **3.66:1** | fails body, and `--success` is not a text color anywhere |
-| `bg-destructive/10 text-destructive` | 4.63:1 | passes, on the page ground only |
-| `bg-primary/10 text-primary` | 4.67:1 | passes |
+| `bg-warning/10 text-warning` | **Lc 34.9** | illegible; the case that forced the pair |
+| `bg-success/10 text-success` | **Lc 58.6** | under Lc 60, and `--success` is not a text color anywhere |
+| `bg-destructive/10 text-destructive` | Lc 63.1 | passes Lc 60, on the page ground only |
+| `bg-primary/10 text-primary` | Lc 66.0 | passes Lc 60 |
 
 Two of those pass, and passing is not the point: **an alpha of a fill is a value
 nobody generated and nobody re-measures when the fill moves.** All four figures
@@ -270,13 +292,14 @@ call-site edit to notice. Use an authored pair wherever one exists.
 | `--success-subtle` / `--success-subtle-fg` | success band, same shape: confirmation panel, `completed`/`active` status pill, badge |
 | `--destructive-subtle-active` | **fill only.** The pressed rung of a control whose hover is `--destructive-subtle`; its ink stays `--destructive-subtle-fg` |
 
-All three bands also take neutral body copy: `gray-12` measures 14.41:1 on
-`--warning-subtle`, 14.28:1 on `--destructive-subtle` and 14.64:1 on
-`--success-subtle`. Only the *semantically colored* copy needs the `-fg`, and on
+All three bands also take neutral body copy: `gray-12` measures Lc 94.6 on
+`--warning-subtle`, Lc 94.0 on `--destructive-subtle` and Lc 95.7 on
+`--success-subtle`, over the Lc 90 preferred for body text. Only the *semantically colored* copy needs the `-fg`, and on
 two of the three bands that ink is the tighter of the two by a wide margin.
 
 For a filled control, the pair is the fill and its own `-fg`
-(`--warning` + `--warning-fg`, 5.28:1): that is a different job from the band.
+(`--warning` + `--warning-fg`, Lc 52.1: an accepted miss): that is a different
+job from the band.
 
 ### The rule only closes when one element carries both
 
@@ -291,16 +314,16 @@ sites**: check for these before assuming a band is a one-line fix:
   the winner is **stylesheet order, not attribute order**, so a
   `text-destructive-subtle-fg` container loses to the child's own utility. And the
   child cannot simply switch: `Usd` also renders on `--panel`, where
-  `--destructive` passes at 5.48:1. The combination measures 4.63:1 and clears
-  the floor, which changes the urgency and not the shape: the pair is still open,
+  `--destructive` passes at Lc 72.2. The combination measures Lc 63.1 and clears
+  Lc 60, which changes the urgency and not the shape: the pair is still open,
   nothing measures it, and the case wants a variant rather than a swap.
 - **The tint is an interaction state with two rungs** (one site).
   `hover:bg-destructive/10 active:bg-destructive/20`
   (`dashboard.subscriptions/route.tsx`). The pair covers hover only, see the
   named gap below.
 - **The pairing was never the alpha convention** (one site, now **fixed**).
-  `bg-primary text-destructive` at **1.03:1** (`_app.marketplace_.$id/page-error.tsx`),
-  whose link's `hover:text-primary` on that same parent was **1:1**. Worse than
+  `bg-primary text-destructive` at **Lc 0.0** (`_app.marketplace_.$id/page-error.tsx`),
+  whose link's `hover:text-primary` on that same parent was the fill itself. Worse than
   anything the alpha convention produced, and invisible to a sweep grepping for
   `destructive/`. Both now take `--primary-fg`, and the page is the precedent for
   the rule in "semantic hue on a `--primary` fill" below.
@@ -324,39 +347,38 @@ controls darken toward their step 10, which is written for a fill whose ink is
 white. On a near-white band the ink is dark, so darkening the surface moves it
 *toward* its own ink and the pair collapses. Two alternatives, measured:
 
-- `destructive/20` (an alpha of the fill) is **3.92:1** with the ink it
-  carries and **3.66:1** with `--destructive-subtle-fg` on it, and it is a value
-  nothing generated.
+- `destructive/20` (an alpha of the fill) is **Lc 52.6** with the ink it
+  carries and **Lc 50.8** with `--destructive-subtle-fg` on it, both under
+  Lc 60, and it is a value nothing generated.
 - `color-mix(… 85%, black)`: the shape a *filled* control's darkening ladder
   has, fails faster still on a light band, for the reason above.
 
-**Measured: `--destructive-subtle-fg` is 3.70:1 on `--destructive-subtle-active`
-an accepted miss**, and the one that shows the policy's mechanism most plainly
-(see "Where Radix and WCAG 2 disagree"). Radix guarantees a step-11 ink against
+**Measured: `--destructive-subtle-fg` is Lc 51.7 on `--destructive-subtle-active`,
+an accepted miss** under Lc 60, and the one that shows the policy's mechanism
+most plainly (see "The accepted misses"). Radix guarantees a step-11 ink against
 step 2; by step 5 that guarantee has run out. The state is transient and the
-control's resting rung carries the pair at 4.57:1.
+control's resting rung carries the pair at Lc 64.8.
 
 Being a plain `var()` alias, it **mirrors into email** like every other step,
-the pressed state is app-only and no email will render it, but the mirror is
-mechanically complete rather than curated.
+though no email renders a pressed state; see "Two consumers, one palette".
 
 `--warning-subtle` and `--success-subtle` have **no pressed rung yet** and no
 control hovers into either. When one does, it is `amber-5` / `green-5`, the same
 3 → 5 shape, named here as a token, not spelled at a call site.
 
-### `--success-subtle` / `-fg`: the band, and the only legible green
+### `--success-subtle` / `-fg`: the band, and the green ink
 
 The band that keeps `bg-<token>/10 text-<token>` out of the success case.
-Surface `green-3`, ink `green-11`. **Measured: 4.45:1 ink on `--success-subtle`
-(an accepted miss, the pairing Radix itself assigns); 4.84:1 on
-`--panel`/`--background`, 4.73:1 on the `green-2` band, 4.38:1 on `gray-3`,
-4.42:1 on `--secondary`, 3.73:1 on the `blue-5` pressed rung;
-`gray-12` on the band is 14.64:1, so it also takes neutral body copy.**
+Surface `green-3`, ink `green-11`. **Measured: Lc 66.1 ink on `--success-subtle`
+(the pairing Radix itself assigns); Lc 70.0 on `--panel` and Lc 72.0 on
+`--background`, Lc 70.3 on the `green-2` band, Lc 65.1 on `gray-3`,
+Lc 65.8 on `--secondary`, Lc 55.1 on the `blue-5` pressed rung;
+`gray-12` on the band is Lc 95.7, so it also takes neutral body copy.**
 
 The three cross-scale figures in that list (green ink on a gray or blue surface)
 are **not** covered by the accepted-misses policy, which only speaks for
-pairings the ramp generated. They are the palette's own combinations and two of
-them sit under the floor. Green copy on `gray-3` or `--secondary` is a pairing to
+pairings the ramp generated. They are the palette's own combinations and one of
+them sits under Lc 60. Green copy on the `blue-5` pressed rung is a pairing to
 avoid, not one to quote.
 
 Being `var()` aliases, both halves mirror into `colors.ts` and are available to
@@ -365,7 +387,7 @@ exactly the shape a receipt or confirmation mail reaches for.
 
 **`--success-subtle-fg` is *the* green ink, on every surface**, the same shape
 `--warning-subtle-fg` has. `--success` is a step 9: a solid fill whose only
-authored ink is white, and 4.14:1 as text on the page. There is one legible green
+authored ink is white, and Lc 67.0 as text on the page. There is one green ink
 in this palette and one place to reach for it; there is no "green ink for cards"
 and "green ink for bands" split to keep straight.
 
@@ -390,30 +412,27 @@ The other `bg-<token>/10` family, `bg-primary/10 text-primary` at three sites,
 is **not** an instance of the anti-pattern and needs no pair: all three are
 icon-only badges (`routes/dashboard._index.tsx:80`,
 `routes/unlock-us-donations/{scenarios,borders}.tsx`) with no text node, and the
-combination measures 4.67:1 regardless.
+combination measures Lc 66.0 regardless, over the Lc 45 an icon needs.
 
 ### Semantic hue on a `--primary` fill: the rule, and why no token closes it
 
-Ratios below are WCAG 2.x, measured on the shipped hex: the sRGB the `oklch()`
-in `colors.css` renders, which is also what `colors.ts` holds.
-
 Every semantic ink in this palette is a step 11 or 12: **dark, for light
-surfaces**. On `--primary` (`blue-9`, `#1e6dab`, relative luminance 0.1415) they
+surfaces**. On `--primary` (`blue-9`, `#1e6dab`) they
 all land within a hair of the fill's own luminance and vanish:
 
 | ink on a `--primary` fill | measured | |
 | --- | --- | --- |
-| `--destructive-subtle-fg` | **1.05:1** | invisible |
-| `--warning-subtle-fg` | **1.20:1** | invisible |
-| `--success-subtle-fg` | **1.10:1** | invisible |
-| `--success` | **1.29:1** | invisible, and **live**, at `components/footer/newsletter-form.tsx:42` (the green `Check` beside the success message) |
-| `--warning` | **2.55:1** | the shipped `text-warning` at `newsletter-form.tsx:37,48` |
-| `--destructive` | 1.03:1 | was live at `_app.marketplace_.$id/page-error.tsx`; fixed |
-| `--primary-fg` | **5.48:1** | the only legible ink on this fill |
+| `--destructive-subtle-fg` | **Lc 0.0** | invisible |
+| `--warning-subtle-fg` | **Lc 0.0** | invisible |
+| `--success-subtle-fg` | **Lc 0.0** | invisible |
+| `--success` | **Lc 0.0** | invisible, and **live**, at `components/footer/newsletter-form.tsx:42` (the green `Check` beside the success message) |
+| `--warning` | **Lc 34.8** | the shipped `text-warning` at `newsletter-form.tsx:37,48`; under the Lc 60 its copy needs |
+| `--destructive` | Lc 0.0 | was live at `_app.marketplace_.$id/page-error.tsx`; fixed |
+| `--primary-fg` | **Lc 82.3** | the only legible ink on this fill |
 
 **There is no token for this, and minting one would not close the gap.** An "error ink
 legible on `--primary`" fixes one row of that table and leaves a green check at
-1.29:1 inside the same `<form>`: the two branches of one control held to
+Lc 0.0 inside the same `<form>`: the two branches of one control held to
 different standards again. Closing the *class* with tokens means a parallel
 semantic palette for a single fill: three measured pairs plus their state rungs,
 spent on a surface whose entire language is monochrome-on-blue. It is also a name
@@ -432,14 +451,14 @@ app's most severe error on this fill (a whole-page load failure) and it carries
 `text-primary-fg` with a `TriangleAlert` and no red at all. **Nothing quieter
 than that page may be louder than it**, which is what rules out the other
 candidate fix: giving a footer newsletter validation message its own
-`bg-destructive-subtle` node is legible (4.57:1 internal, 4.78:1 against the
-footer) but puts a pale-pink chip announcing "invalid email" above a full-screen
+`bg-destructive-subtle` node is legible (Lc 64.8 internal, the chip Lc 72.0
+against the footer) but puts a pale-pink chip announcing "invalid email" above a full-screen
 failure in the severity order. Severity is set by the message, not by the surface
 it happens to land on.
 
 An **authored band on its own node** remains the right shape where the message is
 genuinely a panel rather than a line of annotation: the band is self-contained
-and measures the same 4.57:1 over any fill. That is a decision about the
+and measures the same Lc 64.8 over any fill. That is a decision about the
 message's weight, not a workaround for the hue.
 
 `routes/_landing.fund-management/grow-places.tsx:40` is the third site and was
@@ -459,25 +478,25 @@ that nobody checked; two rungs fail. Composited over `--primary` and measured:
 
 | rung | over `--primary` | |
 | --- | --- | --- |
-| `text-primary-fg` | 5.48:1 | passes |
-| `text-primary-fg/90` | 4.77:1 | passes: the nav/social links (`footer.tsx:33,161,171`) |
-| `text-primary-fg/80` | **4.14:1** | **fails** body: the success message, `newsletter-form.tsx:41` |
-| `text-primary-fg/60` | **3.04:1** | **fails** body: the legal links, `footer.tsx:179` |
-| `text-primary-fg/50` | 2.56:1 | the input placeholder, `newsletter-form.tsx:23`. Placeholders are not required content, but this is not a usable one |
-| `border-primary-fg/20` | 1.48:1 | the field boundary, `newsletter-form.tsx:23`. `--primary-border` exists for exactly this job at 4.08:1 |
+| `text-primary-fg` | Lc 82.3 | passes Lc 75 body |
+| `text-primary-fg/90` | Lc 71.9 | passes Lc 60: the nav/social links (`footer.tsx:33,161,171`) |
+| `text-primary-fg/80` | Lc 62.0 | passes Lc 60, by 2.0: the success message, `newsletter-form.tsx:41` |
+| `text-primary-fg/60` | **Lc 43.3** | **fails** Lc 60: the legal links, `footer.tsx:179` |
+| `text-primary-fg/50` | Lc 34.6 | the input placeholder, `newsletter-form.tsx:23`. Clears the Lc 30 a placeholder needs, and no more |
+| `border-primary-fg/20` | **Lc 11.6** | **fails** the Lc 30 of a control boundary: the field, `newsletter-form.tsx:23`. `--primary-border` exists for exactly this job at about Lc 61 |
 
-**`/90` is the floor for body copy on `--primary`.** Below it the ladder is
-decorative only. This is not an authored scale and should not become one by
+**`/80` is the floor for a label or a short message on `--primary`, and only
+full ink holds body copy.** Below `/80` the ladder is decorative only. This is not an authored scale and should not become one by
 accretion: a rung that carries text is a value someone has to measure.
 
 ### `--destructive-subtle` / `-fg`
 
-Surface `red-3`, ink `red-11`: **4.57:1** ink on surface, 5.11:1 ink on `--panel`,
-4.62:1 on `gray-3`, 4.67:1 on `--secondary`. It is the one authored
-band whose own pairing clears the body floor as generated.
+Surface `red-3`, ink `red-11`: **Lc 64.8** ink on surface, Lc 70.3 ink on `--panel`,
+Lc 65.4 on `gray-3`, Lc 66.1 on `--secondary`. All three authored bands clear
+Lc 60 on their own pairing as generated.
 
-`--destructive` (red-9) measures 4.90:1 on the subtle surface, so painting the
-fill on its own band clears the body floor. It is still the wrong token: the
+`--destructive` (red-9) measures Lc 66.7 on the subtle surface, so painting the
+fill on its own band clears Lc 60, by more than the band's own ink does. It is still the wrong token: the
 band's ink is `--destructive-subtle-fg`, and a fill used as ink is how a pair
 stops being a pair.
 
@@ -489,30 +508,31 @@ all. Unlike destructive, where `--destructive` is a legible ink on the page and
 `-subtle-fg` is the tighter ink for the tint, `--warning` is legible nowhere, so
 **`--warning-subtle-fg` is *the* warning ink everywhere**, including on `--panel`
 and `--background`. One value, one name; a second name for the same value would
-be a drift trap the test cannot catch. Green now has the same shape (see
+be a drift trap the test cannot catch. Green has the same shape (see
 `--success-subtle`), which leaves red as the one hue with a fill that also reads
 as text.
 
 `--warning-subtle-fg` is `amber-11`, `#ac6500`. **It is the tightest ink in the
-palette and it does not clear 4.5:1 anywhere**, measured:
+palette: it clears Lc 60 on every resting surface and misses on the pressed
+`blue-5` rung**, measured:
 
-| on | ratio | |
+| on | Lc | |
 | --- | --- | --- |
-| `--panel` / `--background` | **4.43:1** | |
-| the `amber-2` band | **4.30:1** | accepted miss: Radix's own pairing |
-| `--secondary` (blue-3) | **4.05:1** | cross-scale; the palette's own pairing |
-| `gray-3` (gray-3) | **4.01:1** | cross-scale |
-| `--warning-subtle` (amber-3) | **4.00:1** | accepted miss: the worst pairing in the system |
-| `--secondary-active` (blue-5) | **3.42:1** | cross-scale |
+| `--background` | Lc 69.3 | |
+| `--panel` | Lc 67.4 | |
+| the `amber-2` band | Lc 67.2 | Radix's own pairing |
+| `--secondary` (blue-3) | Lc 63.2 | cross-scale; the palette's own pairing |
+| `gray-3` | Lc 62.5 | cross-scale |
+| `--warning-subtle` (amber-3) | Lc 62.5 | Radix's own pairing; the tightest band in the system |
+| `--secondary-active` (blue-5) | **Lc 52.5** | cross-scale; under Lc 60 |
 
 The two amber-on-amber rows are the ramp's own assignments and stand under the
-standing policy. The other four are cross-scale (amber ink on a grey or blue
+standing policy. The rest are cross-scale (amber ink on a grey or blue
 surface) and are what "measure the combination" means in practice: those are
-pairings the palette makes, not ones Radix generated. The page itself is one of
-them, which is why the warning ink misses even there.
+pairings the palette makes, not ones Radix generated.
 
 `--warning-fg` (`amber-12`) is the scale's other ink and clears every surface
-here (11.04:1 on the page, 9.98:1 on the warning band) but it is authored as
+here (Lc 94.2 on the page, Lc 87.3 on the warning band) but it is authored as
 the label for the `--warning` **fill**, and which ink a band carries is a palette
 decision, not a call-site one. Warning copy takes `--warning-subtle-fg` today,
 with the figures above.
@@ -524,29 +544,31 @@ ground. That is the one place this palette spends a step 12 as a fill, and it is
 deliberate: nothing else on the ramp is dark enough for the job.
 
 It closes a hole `--primary` genuinely could not fill. `--primary` is a *control*
-color tuned for white ink at 5.48:1: enough for a button, not enough for a
+color tuned for white ink at Lc 82.3: enough for a button, not enough for a
 full-bleed hero that puts body copy over a photograph. `--primary-deep` carries
-white at **11.24:1**, and that headroom is the entire point: it is what lets a
-translucent scrim still clear AA over an image whose pixels you do not control.
+white at **Lc 99.6**, and that headroom is the entire point: it is what lets a
+translucent scrim still clear Lc 75 over an image whose pixels you do not control.
 
-**The 70% scrim opacity is a measured floor, not a taste value.** Over the
+**The 70% scrim opacity is measured, not a taste value.** Over the
 worst case a photo can present (a pure-white region) a `primary-deep/70` scrim
-composites to `#60778c`, where `--color-white` measures **4.65:1**. At 65% the
-same stack is **4.04:1** and fails; at 60% it is 3.52:1. The floor holds on
-`blue-12` with 0.15 to spare. Do not thin the scrim without re-measuring.
+composites to `#60778c`, where `--color-white` measures **Lc 77.7** against the
+Lc 75 body copy needs. At 65% the same stack is **Lc 73.2** and fails; at 60%
+it is Lc 68.4. The Lc 75 line itself falls at 68% (Lc 75.9), so 70% is the
+nearest 5% step over the floor with 2.7 to spare, not the floor itself. Do not
+thin the scrim without re-measuring.
 
 Two consequences of that number:
 
 - **Text on the scrim takes full `--color-white`, never an alpha rung.**
-  `text-white/90` over the same worst case is **4.11:1**: a fail. The
-  `--primary-fg` alpha-ladder section above says the same thing about a
+  `text-white/90` over the same worst case is **Lc 68.5**: a fail for body copy.
+  The `--primary-fg` alpha-ladder section above says the same thing about a
   `--primary` fill; this is that hole again, one surface over.
 - Over the **opaque** token (the desktop gradient's solid end, the section fill)
-  white is 11.24:1 and `white/90` is 9.46:1, so both are fine there. The failure
+  white is Lc 99.6 and `white/90` is Lc 86.6, so both are fine there. The failure
   is specific to the translucent branch, which is the mobile one.
 
-`border-white/40` on the deep fill measures **3.19:1**: it clears WCAG 1.4.11
-for a control boundary, which is worth recording because `--border` deliberately
+`border-white/40` on the deep fill measures **Lc 30.4**: it clears the Lc 30 of
+a control boundary, by 0.4, which is worth recording because `--border` deliberately
 does not (see "decisions that look like bugs"). It is the outline CTA on the
 `unlock-us-donations` hero; leave it alone.
 
@@ -559,13 +581,11 @@ purpose, a `-dark` suffix reads as "the dark-mode primary" to the next person.
 `-deep` says depth, which is what it is.
 
 Being a `var()` alias onto a ramp step it mirrors into `colors.ts` and the drift
-guard sees it. No email uses it and a hero scrim is not an email shape; the
-mirror is mechanically complete rather than curated, so it costs nothing to be
-in there.
+guard sees it, though no email uses it; see "Two consumers, one palette".
 
 The hero it grounds (`routes/unlock-us-donations/hero.tsx`) carries the token
-at all five of the sites that once held a hardcoded hex. A hero ground is a
-palette value, and this is where it is named.
+at all five sites. A hero ground is a palette value, and this is where it is
+named.
 
 ## The tint ladder: `--band`, `--secondary`, `--secondary-active`
 
@@ -585,17 +605,17 @@ hovers to step 3. A declared token with no consumer is drift bait, so it is left
 undeclared until something rests on the tint.
 
 The band job constrains the lighter rung: a resting band carries de-emphasised
-body copy, so `gray-11` on it has to hold. It measures **5.25:1** on `blue-3`;
-`--band` is a lighter step than that, so the band clears by more than the figure
-recorded here. On the pressed rung (`blue-5`) `gray-11` falls to 4.44:1, which
-is a transient state and not a band.
+body copy, so `gray-11` on it has to hold its Lc 60. It measures **Lc 71.5** on
+`blue-3`; `--band` is a lighter step than that, so the band clears by more than
+the figure recorded here. On the pressed rung (`blue-5`) `gray-11` falls to
+Lc 60.9, which is a transient state and not a band.
 
 Neither tint carries brand hue as a resting fill beyond that. Brand action color
 is `--primary`.
 
 ## Elevation: four levels, and one treatment that is not a rung
 
-The seventh foundation, and the last one to get a set. Its values are **not** in
+Its values are **not** in
 this package: the shadow tokens and the stacking steps live in
 `packages/ui/src/styles/theme.css`, because a box-shadow is not a color and
 `colors.css` is parsed token-by-token by `colors.test.ts` and
@@ -646,8 +666,7 @@ The heaviest layer in the app is the flattest one. **The scrim is what separates
 a dialog from the page**, and a shadow laid on top of an already dimmed page is
 decoration that no reader can attribute to a state. So `modal` is defined by
 `--overlay` and its two stacking steps, and there is deliberately no
-`--shadow-modal` to reach for. Recorded here so a later sweep finds a decision
-rather than a hole.
+`--shadow-modal` to reach for.
 
 Every backdrop in the app spells `bg-overlay`: the four `Dialog.Backdrop`
 sites, the dashboard drawer (which is a `Modal size="none"` and takes the house
@@ -707,8 +726,7 @@ controls. A `filter: drop-shadow` follows the glyph outlines, which a
 
 Closing that namespace would mean authoring a text-legibility scale for two call
 sites, and the scale is not the elevation ladder: nothing that spends it is
-sitting at a level. Recorded here so a later sweep finds a decision rather than
-an oversight.
+sitting at a level.
 
 ### The stacking ladder
 
@@ -748,8 +766,8 @@ table, so re-verify it on a Tailwind major.
 
 ### Where the values came from
 
-**From the dominant spelling already in the tree, not from invention.** There was
-no canvas turn for this foundation; the ladder codifies the majority so that
+**From the dominant spelling already in the tree, not from invention.** The
+ladder codifies the majority so that
 migrating onto it moved pixels at the outliers only.
 
 | token | value | what it was |
@@ -868,8 +886,7 @@ scale lookup. There is nothing to reset and `duration-200` will always compile.
 So the three steps are bound by `@utility` in `styles/utilities.css`, the same
 way `rounded` is bound to `--radius`, and what keeps a literal out of a call
 site is the sweep and review rather than the compiler. That is a weaker
-guarantee than the closed ladders have, and it is written down here so a later
-reader finds the limit rather than assuming the same protection.
+guarantee than the closed ladders have.
 
 ### Raw transition strings read the tokens too
 
@@ -883,7 +900,7 @@ every sweep this file describes.
 ### `prefers-reduced-motion` is guarded on the ladder, not per call site
 
 Under `@media (prefers-reduced-motion: reduce)` the three speeds collapse to
-`0.01ms`, in a plain `:root` rule at the foot of `theme.css` — outside `@theme`,
+`0.01ms`, in a plain `:root` rule at the foot of `theme.css`: outside `@theme`,
 because a media query cannot live inside one, and unlayered, so it beats the
 `@layer theme` `:root` Tailwind emits the ladder into. Every transition and
 every `--animate-*` spends a named speed, so one override reaches all of them
@@ -898,13 +915,13 @@ open*.
 still completes, still fires, and is invisible.
 
 Durations only: a 0.01ms curve has nothing to shape, so the easings are
-untouched. The marquee is outside the ladder — its duration comes from the Ark
-machine's own var — and carries its own `motion-reduce:animate-none`.
+untouched. The marquee is outside the ladder (its duration comes from the Ark
+machine's own var) and carries its own `motion-reduce:animate-none`.
 
 ### A popup animates, on one named pair
 
-Every anchored popup — menu, select, combobox, tooltip, hovercard, popover,
-toast — enters on `--animate-popup-in` and leaves on `--animate-popup-out`,
+Every anchored popup (menu, select, combobox, tooltip, hovercard, popover,
+toast) enters on `--animate-popup-in` and leaves on `--animate-popup-out`,
 scaling from `--transform-origin` so it grows out of its trigger. That is
 `popup_anim` in `packages/ui/src/components/popup.ts`, the one spelling; the
 shared select/combobox shell reads it, tooltip and hovercard read it, and the
@@ -914,9 +931,8 @@ a popup opening already said.
 
 The one carve-out is a popup that unmounts on close. `RouteModal` closes by
 navigating, so the route is gone before Ark can flip `data-state` to closed,
-and a `data-[state=closed]:` class there would never fire — it runs the enter
-half only, and its own comment says so. Decided 2026-09-08; until then it was
-2-of-5 by accident and parked as a design call.
+and a `data-[state=closed]:` class there would never fire, so it runs the enter
+half only, and its own comment says so. Decided 2026-09-08.
 
 ### What is still open
 
@@ -931,43 +947,41 @@ guarding them is its own change.
 
 Recorded so they are not "fixed" by someone reading them as oversights.
 
-- **`--border` and `--ring` are both below 3:1, and neither rescues the other.**
-  `--border` is `gray-6` at **1.36:1** on the page; `--ring` is `blue-8` at
-  **2.30:1**. WCAG 1.4.11 asks 3:1 of a control boundary and of a focus
-  indicator, and the palette clears it for neither. **The ramp's border and focus
-  rungs are APCA-tuned (6/7/8 are generated as separator, element border and
-  focus ring), and taking them as generated is the deliberate call**, the same
-  standing policy as the accepted misses. What it is *not* is a trade: a faint
-  boundary is not compensated for by the ring, because the ring is fainter still.
-  Even `gray-8`, the strongest neutral rung, reaches only 1.85:1 on the page,
-  there is no lighter-touch fix inside the scale. It compounds with `--surface`,
-  which is the page color (`gray-1`): a field **on the bare page** is identified
-  by its boundary alone, and that boundary is intentionally faint. Inside a
-  `--panel` the field also reads by fill, one rung lighter than its container;
-  that is separation, not contrast, and it does not rescue the boundary. Note
-  which rung is doing the work: step 7 is the ramp's *element border* and step 6
-  the separator, and the two are split. The shared control recipes draw on
-  `gray-7`; `--border` keeps step 6 for separators. The 1.36:1 above is that
-  separator rung. A field's own boundary is `gray-7` at **1.52:1** on the page
-  and 1.48:1 on `--panel`: stronger than the separator, and still half the 3:1.
-  In APCA, the measure the rungs are tuned in, the three read **Lc 17.4 / 23.8 /
-  34.3** (steps 6 / 7 / 8) on the page and Lc 15.5 / 21.8 / 32.4 on `--panel`.
-  Change one rung and re-check the other;
+- **A control's boundary is under its threshold, and the ring does not rescue it.**
+  `--border` is `gray-6` at **Lc 17.4** on the page and Lc 15.5 on `--panel`: a
+  separator, over the Lc 15 a separator needs. `--ring` is `blue-8` at
+  **Lc 44.6** on the page, clear of the Lc 30 a focus indicator needs. A control
+  boundary also needs Lc 30, and the shared recipes draw it in `gray-7` at
+  **Lc 23.8** on the page and Lc 21.8 on `--panel`: under. **The ramp's border
+  and focus rungs are APCA-tuned (6/7/8 are generated as separator, element
+  border and focus ring), and taking them as generated is the deliberate call**,
+  the same standing policy as the accepted misses. What it is *not* is a trade: a
+  faint boundary is not compensated for by the ring, because the ring draws only
+  on focus. The fix inside the scale exists and is not taken: `gray-8` reads
+  Lc 34.3 on the page and Lc 32.4 on `--panel`, both over Lc 30, and moving
+  fields and secondary buttons to it was declined on 2026-09-13 to keep Radix's
+  element-border rung as generated. The `gray-7` boundary is an accepted miss. It compounds
+  with `--surface`, which is the page color (`gray-1`): a field **on the bare
+  page** is identified by its boundary alone, and that boundary is intentionally
+  faint. Inside a `--panel` the field also reads by fill, one rung lighter than
+  its container; that is separation, not contrast, and it does not rescue the
+  boundary. The 6 / 7 split is under "Which step each token points at";
+  change one rung and re-check the other;
   `colors.css` carries the short form of this at `--border`.
-- **`--destructive` is red-9 and clears every surface in the palette** (5.48:1 on
-  the page, 4.95:1 on `gray-3`, 5.00:1 on `--secondary`, 4.90:1 on
-  `--destructive-subtle`). The tinted case is still served by
+- **`--destructive` is red-9 and clears every surface in the palette** (Lc 74.1 on
+  the page, Lc 67.3 on `gray-3`, Lc 68.0 on `--secondary`, Lc 66.7 on
+  `--destructive-subtle`, all over Lc 60). The tinted case is still served by
   `--destructive-subtle` / `-fg`, because a band is a pair and a fill is not an
   ink, not because the fill fails there.
 - **`--ring` is `blue-8`, a different value from `--primary`.** A focus ring
-  drawn flush on a brand fill measures **2.32:1** against it; a ring equal to the
-  fill would measure 1.00:1, which is the defect the `surface-primary` utility
+  drawn flush on a brand fill measures **Lc 30.0** against it, on the Lc 30 line
+  and not over it; a ring equal to the fill would measure Lc 0.0, which is the defect the `surface-primary` utility
   was minted for. Two mitigations remain, both intentional: `outline-offset: 2px`
   on every `.btn`, and the `surface-primary` utility, which rebinds
   `--ring`/`--border` to `--primary-ring`/`--primary-border` on a brand-filled
-  panel. **The ring rebind is the whole of its color value**, 2.32:1 → 5.48:1,
+  panel. **The ring rebind is the whole of its color value**, Lc 30.0 → 82.3,
   while its border rebind is close to redundant: `gray-6` on `--primary` is
-  already 3.92:1 against `--primary-border`'s 4.08:1. Use `surface-primary`, not
+  already Lc 58.6 against `--primary-border`'s about Lc 61. Use `surface-primary`, not
   bare `bg-primary`, whenever the fill contains a control: it also sets the ink,
   which is the larger half of what it does.
 - **`--form-primary` / `--form-secondary` are tenant values**, set at runtime from
@@ -987,11 +1001,11 @@ Recorded so they are not "fixed" by someone reading them as oversights.
 
 **They agree, and a test is what makes them agree.** Every ramp step carries a
 trailing `/* #hex */`, and `colors.test.ts` converts that step's `oklch()` back
-to sRGB and fails if the two differ. The comment is therefore not provenance any
-more (it is an assertion, re-checked on every run) and a hand-tuned step or a
-stale comment fails the suite instead of shipping.
+to sRGB and fails if the two differ. The comment is therefore an assertion
+re-checked on every run, not provenance, and a hand-tuned step or a stale
+comment fails the suite instead of shipping.
 
-Two rules survive the fix, because a test only guards what it can parse:
+Two rules remain, because a test only guards what it can parse:
 
 - **For math, use the rendered hex.** `colors.ts` holds it for every literal and
   for every `var()` alias, resolved. For "what brand color is this", the comment:
@@ -999,7 +1013,8 @@ Two rules survive the fix, because a test only guards what it can parse:
 - **A `color-mix()` has no checked value.** `--primary-border` is the only one,
   and what it renders depends on how the mix resolves hue between an achromatic
   white and the brand blue. Read it out of a browser before quoting anything
-  tighter than "clears 3:1 on `--primary`, misses 4.5:1".
+  tighter than "about Lc 61 on `--primary`": the two hue resolutions measure
+  Lc 60.9 and 61.8.
 
 ## State ladder
 
@@ -1081,7 +1096,7 @@ and the components beside them. `n/a` means the state does not apply to that con
 8. Two cues at two levels: the `SegmentGroup` draws the field's `focus-within`
    ring, and the segment paints which of day/month/year the caret is on. A
    placeholder segment scopes its resting ink to `not-focus-visible` so the
-   focused pair wins — the two rules are the same specificity, and the
+   focused pair wins: the two rules are the same specificity, and the
    `data-placeholder` one is emitted later. `data-invalid` lands on the group,
    so the segment carries no invalid paint of its own.
 
@@ -1134,8 +1149,9 @@ claim about the action, not a way to make a row look less grey.
 - Fill-vs-ink contrast for `--success` and `--warning` is a separate question and
   is in *The pair rule*, above. Neither is a text color: `--warning` is legible
   as text nowhere, and `--success` is a solid whose green ink is
-  `--success-subtle-fg`. The `btn-success` label is white on the fill at 4.25:1,
-  an accepted miss, and the only one that lands on a filled control.
+  `--success-subtle-fg`. The `btn-success` label is white on the fill at Lc 74.3,
+  over Lc 60. The filled control that misses is warning's: `--warning-fg` on the
+  fill is Lc 52.1, an accepted miss.
 
 ### `btn-outline`: the variant that has no color of its own
 
@@ -1261,7 +1277,7 @@ pinned at 4px.
 
 `var(--radius)` is also the only **integer** step in the ladder (xs 1.6 / sm 2.4 /
 md 3.2 / lg 4.0 px), and `.btn-secondary` draws a 1px `--border` that is
-deliberately faint at 1.36:1: a fractional radius on a faint border is where an
+deliberately faint at Lc 17.4: a fractional radius on a faint border is where an
 uneven corner shows.
 
 **Consequence, not yet decided:** `.field-input` and `.field-input-container`
@@ -1295,8 +1311,7 @@ name fail to compile: `--color-*`, `--radius-*`, `--shadow-*` are reset to
 `initial` in `packages/ui/src/styles/theme.css`, but `p-6` on a parent and `p-6`
 on its children are both legal spellings of a legal step, so biome, tsc and the
 `*-conformance.node.test.ts` sweeps all pass either way. This rule has no
-compiler half at all. It is a rule and only a rule, which is why it is written
-here rather than left implied by the shells that already obey it.
+compiler half at all.
 
 What follows from it:
 
@@ -1379,8 +1394,6 @@ dialog footer's tinted surface included.
   stretch`, which is what makes the buttons full-width down there: no child
   selector, no `w-full` on each control. A dialog still showing two side-by-side
   buttons at 320px is not on this row.
-- **The gap is `gap-4`.** The spacing the dialog set sits at, held at every
-  width.
 - **`actions-band` is the only place a `bg-gray-3 border-t` strip is authored.**
   The sweep fails on any other class string carrying both.
 
@@ -1408,11 +1421,14 @@ only ink any of them carries:
 
 | token | value | `gray-12` on it | where |
 | --- | --- | --- | --- |
-| `--color-peach` | `#fde3d8` | 13.38:1 | gradient washes, 3 marketing routes |
-| `--color-lilac` | `#eae2fc` | 13.09:1 | gradient washes; benefits card rotation |
-| `--color-mint` | `#EDFCE2` | 15.30:1 | benefits card rotation |
-| `--color-cream` | `#FCF6E2` | 15.14:1 | benefits card rotation |
-| `--color-sky` | `#EDF2FE` | 14.61:1 | benefits card rotation |
+| `--color-peach` | `#fde3d8` | Lc 89.8 | gradient washes, 3 marketing routes |
+| `--color-lilac` | `#eae2fc` | Lc 88.4 | gradient washes; benefits card rotation |
+| `--color-mint` | `#EDFCE2` | Lc 98.6 | benefits card rotation |
+| `--color-cream` | `#FCF6E2` | Lc 97.9 | benefits card rotation |
+| `--color-sky` | `#EDF2FE` | Lc 95.5 | benefits card rotation |
+
+All five clear the Lc 75 body text needs; peach and lilac sit under the Lc 90
+preferred.
 
 Three rules, and they are what make this a decision instead of a leak:
 
@@ -1421,7 +1437,7 @@ Three rules, and they are what make this a decision instead of a leak:
 - **Marketing surfaces only. Never product UI.** A dashboard, form, table or
   badge takes the semantic set. This is the rule that decides the `templates`
   badge in `_app.resources/resource-card.tsx`, which was reaching for `lilac/40`
-  with an invented purple ink: it takes `bg-gray-3 text-gray-11` (5.20:1)
+  with an invented purple ink: it takes `bg-gray-3 text-gray-11` (Lc 70.9)
   instead, alongside its two siblings which already use authored pairs.
 - **`gray-12` is the only ink they carry, and it is measured above.** A decorative
   wash that needs a *second* ink has stopped being decorative; that is a mint
@@ -1436,18 +1452,18 @@ part of this layer.
 and it must never enter `colors.css`, which is *our* identity.
 
 **Where it is permitted:** inside the vendor's own mark, a logo or wordmark
-asset (an inline SVG's `fill`, an `<img>`). There it is a logotype, and WCAG
-1.4.3 exempts text that is part of a logo or brand name from contrast entirely.
+asset (an inline SVG's `fill`, an `<img>`). There it is a logotype, and text that is
+part of a logo or brand name is exempt from contrast minimums entirely.
 Declare it as a named constant beside the component that owns the mark, with a
 comment naming the brand.
 
 **Where it is not:** on our own text, chrome, borders or icons. The moment a
 vendor hue lands on an `<h4>` in our layout it is our text, styled by us, and
-1.4.3 does not apply. That is exactly the shipped case,
+the exemption does not apply. That is exactly the shipped case,
 `routes/admin.$id.integrations/route.tsx:12` paints the heading "Zapier" in
-`#FF4F00`, which measures **3.21:1** on `--panel` at `text-xl font-semibold`.
-20px at weight 600 is not WCAG "large text" (that is 24px, or 18.66px **bold**),
-so the floor is 4.5:1 and it **fails**. The heading takes plain `gray-12`; if a
+`#FF4F00`, which measures **Lc 55.1** on `--panel` at `text-xl font-semibold`.
+20px at weight 600 is under APCA's headline size (36px normal, 24px bold), so
+the floor is Lc 60 and it **fails**. The heading takes plain `gray-12`; if a
 Zapier brand presence is wanted there, it is a logo, and sourcing the official
 mark is a `graphic-designer` job.
 
@@ -1526,12 +1542,12 @@ control.
 All three are documented **fills**, which is the only role used here: no ink
 lands on the track.
 
-Adjacent-segment contrast on the token values: grant↔savings **1.89:1**,
-savings↔investment **1.98:1**. Both are under
-3:1, and that is fine rather than overlooked: WCAG 1.4.11 binds a graphic
-*required to understand the content*, and each segment's value is already printed
-as text in the legend directly above, so the bands are redundant. A thumb sits on
-each boundary besides.
+Adjacent-segment contrast on the token values, the lower of the two polarities:
+grant↔savings **Lc 33.1**, savings↔investment **Lc 24.9**. The second is under
+the Lc 30 of semantic non-text, and that is fine rather than overlooked: that
+floor binds a graphic *required to understand the content*, and each segment's value is already printed
+as text in the legend directly above, so the bands are redundant and owe only the Lc 15 both
+clear. A thumb sits on each boundary besides.
 
 **One real bug falls out.** The disabled track color has never rendered:
 `group-aria-disabled/slider:bg-[#f5e09d]` sets `background-color` on the same
@@ -1542,15 +1558,14 @@ the flat `gray-3` fill shows, which is also what makes the disabled state match
 the thumbs, both of which already go `gray-11`.
 
 Unrelated to the literals, and **not** fixed here: thumb 1 is `bg-panel` with a
-`--border` hairline, so at 1.36:1 it is a control identified by an edge the
+`--border` hairline, so at Lc 17.4, under a control boundary's Lc 30, it is a control identified by an edge the
 "decisions that look like bugs" entry deliberately keeps faint. On a draggable
 thumb that call is sharper than on a panel. Recorded, not decided.
 
 ## One face, two roles, and four closed ladders
 
-Type is the second axis in this system to get a structural gate, after color and
-radius. The face is settled; what is new is that the *ladders* (size, weight,
-leading, tracking) are now closed sets in
+The face is settled, and the *ladders* (size, weight, leading, tracking) are
+closed sets in
 `packages/ui/src/styles/theme.css`, so a step nobody picked compiles to no rule
 at all rather than drifting in one call site at a time.
 
@@ -1701,7 +1716,7 @@ no-op, and `widest` because retaining it as a reference point for the two
 authored values would be the same drift this reset exists to close, with a
 nicer reason attached.
 
-**One honest note on tracking**, and it is the larger one: the raw
+**Tracking has an open sweep.** The raw
 `tracking-wide`/`tracking-wider` sites are mostly
 `text-xs font-bold uppercase tracking-wider text-primary`,
 i.e. eyebrows, which is exactly what `tracking-label` and the `eyebrow` utility
@@ -1759,7 +1774,7 @@ date) takes it. Tables do **not** get it automatically.
 `slashed-zero` looks like the same category and is **not**. It sits at 4 call
 sites (`pages/@sections/trust-bar.tsx`, `_landing.for-international-nonprofits/`
 ×3) and it works: Quicksand draws a dotted-zero alternate behind the `zero`
-feature, and the self-hosted subsets keep that feature (see "The faces" above).
+feature, and the self-hosted subsets keep that feature (see "The faces" below).
 
 The asymmetry between the two is the thing worth carrying: a dead
 `font-variant-*` rule can have either of two causes, and they differ in whether
@@ -1770,11 +1785,11 @@ feature Quicksand does not draw.
 
 ### The limitation: closing a scale stops names, not brackets
 
-This is the honest edge of the whole gate, and it is the same one `--color-*` has.
+This is the edge of the whole gate, and it is the same one `--color-*` has.
 
 `--text-*: initial` makes **`text-8xl` fail to compile**. It does nothing at all
 about **`text-[11px]`**, which compiles fine and lands off the ladder.
-compiler problem, and nothing here closes them.
+Brackets are a lint problem, not a compiler problem, and nothing here closes them.
 
 There is one legitimate arbitrary use, and it is not a type step at all:
 
@@ -1859,7 +1874,7 @@ Two seams this does **not** close, both deliberate:
 bar the five `--sidebar-*` aliases noted above. The palette is the whole
 contract: a semantic name that ships here is a name the app paints with.
 
-**The 60 ramp steps are reachable too.**
+**The 60 ramp steps are reachable too**,
 as `--color-<scale>-<step>`, so `bg-gray-3` and `text-blue-11` compile. The two
 sets divide by whether the name carries meaning: a semantic token says what a
 fill is *for* and survives a retheme, a step says which rung it is and is what
@@ -1892,7 +1907,7 @@ rg -c 'bg-warning-subtle|text-warning-subtle-fg' apps/platform/src
 ```
 
 `text-warning` remains legitimate for a **fill or a glyph**, never for text: it is
-2.09:1 on the page and fails at any size. Text on a warning surface takes
+Lc 39.9 on the page and fails at any size. Text on a warning surface takes
 `--warning-subtle` + `--warning-subtle-fg`; an icon that carries meaning on its
-own still owes the 3:1 non-text floor, which `--warning` does not clear on the
-page either.
+own owes the Lc 45 of a fine-detail pictogram, which `--warning` does not clear on
+the page either.
