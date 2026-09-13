@@ -416,17 +416,19 @@ combination measures Lc 66.0 regardless, over the Lc 45 an icon needs.
 
 ### Semantic hue on a `--primary` fill: the rule, and why no token closes it
 
-Every semantic ink in this palette is a step 11 or 12: **dark, for light
-surfaces**. On `--primary` (`blue-9`, `#1e6dab`) they
-all land within a hair of the fill's own luminance and vanish:
+The semantic state colors are step 9 solids and step 11 subtle inks: **built for
+light surfaces**. The `*-fg` inks that sit on a solid (white, or `amber-12` for
+warning) are the exception and are not in this table. On `--primary` (`blue-9`,
+`#1e6dab`) all but one land within a hair of the fill's own luminance and
+vanish:
 
 | ink on a `--primary` fill | measured | |
 | --- | --- | --- |
 | `--destructive-subtle-fg` | **Lc 0.0** | invisible |
 | `--warning-subtle-fg` | **Lc 0.0** | invisible |
 | `--success-subtle-fg` | **Lc 0.0** | invisible |
-| `--success` | **Lc 0.0** | invisible, and **live**, at `components/footer/newsletter-form.tsx:42` (the green `Check` beside the success message) |
-| `--warning` | **Lc 34.8** | the shipped `text-warning` at `newsletter-form.tsx:37,48`; under the Lc 60 its copy needs |
+| `--success` | **Lc 0.0** | invisible; was live on the `Check` beside the footer newsletter's success message, now `--primary-fg` |
+| `--warning` | **Lc 34.8** | under the Lc 60 its copy needs; was live on the footer newsletter's field error, now `--primary-fg` |
 | `--destructive` | Lc 0.0 | was live at `_app.marketplace_.$id/page-error.tsx`; fixed |
 | `--primary-fg` | **Lc 82.3** | the only legible ink on this fill |
 
@@ -474,16 +476,15 @@ does not).
 The same hole this file names elsewhere (*a fill and an ink are only safe
 together if someone measured that combination*) applies to a token mixed with
 its **own** fill. `components/footer/` runs an alpha ladder on `--primary-fg`
-that nobody checked; two rungs fail. Composited over `--primary` and measured:
+that nobody checked; two uses fall short. Composited over `--primary` and measured:
 
 | rung | over `--primary` | |
 | --- | --- | --- |
 | `text-primary-fg` | Lc 82.3 | passes Lc 75 body |
-| `text-primary-fg/90` | Lc 71.9 | passes Lc 60: the nav/social links (`footer.tsx:33,161,171`) |
-| `text-primary-fg/80` | Lc 62.0 | passes Lc 60, by 2.0: the success message, `newsletter-form.tsx:41` |
-| `text-primary-fg/60` | **Lc 43.3** | **fails** Lc 60: the legal links, `footer.tsx:179` |
-| `text-primary-fg/50` | Lc 34.6 | the input placeholder, `newsletter-form.tsx:23`. Clears the Lc 30 a placeholder needs, and no more |
-| `border-primary-fg/20` | **Lc 11.6** | **fails** the Lc 30 of a control boundary: the field, `newsletter-form.tsx:23`. `--primary-border` exists for exactly this job at about Lc 61 |
+| `text-primary-fg/90` | Lc 71.9 | passes Lc 60: every secondary line in the footer, the nav and legal links (`link_cls` and the legal row), the success message in `newsletter-form.tsx`. **Misses** Lc 75 where it carries body copy: the tagline and the 501(c)(3) line under the logo |
+| `text-primary-fg/80` | Lc 62.0 | passes Lc 60, by 2.0. No footer use |
+| `text-primary-fg/50` | Lc 34.6 | the input placeholder in `newsletter-form.tsx`. Clears the Lc 30 a placeholder needs, and no more |
+| `border-primary-fg/20` | **Lc 11.6** | **fails** the Lc 30 of a control boundary: the email field in `newsletter-form.tsx`. `--primary-border` exists for exactly this job at about Lc 61 |
 
 **`/80` is the floor for a label or a short message on `--primary`, and only
 full ink holds body copy.** Below `/80` the ladder is decorative only. This is not an authored scale and should not become one by
