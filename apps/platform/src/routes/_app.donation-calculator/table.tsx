@@ -1,5 +1,4 @@
-import { Tabs } from "@ark-ui/react/tabs";
-import { Image } from "@better-giving/ui";
+import { Image, TabPanel, Tabs } from "@better-giving/ui";
 import { to_usd } from "@better-giving/ui/helpers";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
@@ -56,23 +55,16 @@ export function Table({ classes = "", ...v }: Props) {
           />
         )}
       </div>
-      <Tabs.Root value={tab} onValueChange={(e) => set_tab(e.value)}>
-        <Tabs.List className="flex space-x-1 border-b mb-4">
-          {periods.map((p) => (
-            <Tabs.Trigger
-              key={p.value}
-              value={p.label}
-              className="flex-1 py-2.5 font-medium leading-5 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-gray-12 hover:text-primary data-selected:border-b-2 data-selected:border-primary data-selected:text-primary"
-            >
-              {p.label}
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
-
+      <Tabs
+        stretch
+        items={periods.map((p) => ({ value: p.label, label: p.label }))}
+        value={tab}
+        onValueChange={set_tab}
+      >
         {periods.map((p) => {
           const x = v.projection[p.value - 1];
           return (
-            <Tabs.Content key={p.value} value={p.label}>
+            <TabPanel key={p.value} value={p.label} className="mt-4">
               <div className="table-scroll">
                 <table className="table">
                   <thead>
@@ -105,10 +97,10 @@ export function Table({ classes = "", ...v }: Props) {
                   </tbody>
                 </table>
               </div>
-            </Tabs.Content>
+            </TabPanel>
           );
         })}
-      </Tabs.Root>
+      </Tabs>
     </div>
   );
 }

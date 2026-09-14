@@ -1,4 +1,4 @@
-import { ExtLink, Image } from "@better-giving/ui";
+import { Badge, ExtLink, Image } from "@better-giving/ui";
 import { href, Link } from "react-router";
 import donation_form from "#/assets/images/donation-form.png";
 import laira_heart from "#/assets/laira/laira-heart.webp";
@@ -27,12 +27,12 @@ export function Hero({ classes = "" }: IHero) {
       <div className="page grid gap-12 lg:grid-cols-[minmax(22rem,1fr)_minmax(18rem,33rem)] items-center">
         <div className="grid gap-5 justify-items-start">
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs font-bold bg-secondary text-gray-12 border border-gray-6 rounded-full px-4 py-2">
+            <Badge size="md" tone="secondary">
               Built by and for nonprofits
-            </span>
-            <span className="text-xs font-bold bg-secondary text-gray-12 border border-gray-6 rounded-full px-4 py-2">
+            </Badge>
+            <Badge size="md" tone="secondary">
               Open source
-            </span>
+            </Badge>
           </div>
           <h1 className="hero-heading">
             Every way to give.
@@ -46,12 +46,9 @@ export function Hero({ classes = "" }: IHero) {
           </p>
           <div className="flex flex-wrap gap-2 max-w-lg">
             {gift_types.map((g) => (
-              <span
-                key={g}
-                className="text-xs font-medium bg-secondary text-gray-12 rounded-full px-3.5 py-1.5"
-              >
+              <Badge key={g} size="md" tone="secondary">
                 {g}
-              </span>
+              </Badge>
             ))}
           </div>
           <div className="flex max-sm:flex-col max-sm:w-full sm:flex-wrap sm:items-center gap-3.5 mt-2">

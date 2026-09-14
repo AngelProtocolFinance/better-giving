@@ -1,5 +1,4 @@
-import { Tabs } from "@ark-ui/react/tabs";
-import { Actions } from "@better-giving/ui";
+import { Actions, TabPanel, Tabs } from "@better-giving/ui";
 import { CodeIcon, TableIcon } from "lucide-react";
 import { humanize } from "@/helpers/decimal";
 import type { IFormValues, ISettlementPreview } from "./types";
@@ -89,25 +88,32 @@ export function Preview({
   );
 }
 
-const tab_cls =
-  "px-3 py-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 text-gray-11 hover:text-gray-12 data-selected:text-gray-12 data-selected:border-b-2 data-selected:border-primary flex items-center gap-1";
+const record_tabs = [
+  {
+    value: "table",
+    label: (
+      <>
+        <TableIcon size={14} />
+        Records
+      </>
+    ),
+  },
+  {
+    value: "json",
+    label: (
+      <>
+        <CodeIcon size={14} />
+        JSON
+      </>
+    ),
+  },
+];
 
 function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
   return (
     <section className="mb-4">
-      <Tabs.Root defaultValue="table">
-        <Tabs.List className="flex border-b mb-3">
-          <Tabs.Trigger value="table" className={tab_cls}>
-            <TableIcon size={14} />
-            Records
-          </Tabs.Trigger>
-          <Tabs.Trigger value="json" className={tab_cls}>
-            <CodeIcon size={14} />
-            JSON
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="table">
+      <Tabs size="sm" items={record_tabs} defaultValue="table">
+        <TabPanel value="table" className="mt-3">
           <table className="table w-full">
             <thead>
               <tr>
@@ -125,14 +131,14 @@ function RecordsTabs({ preview }: { preview: ISettlementPreview }) {
               ))}
             </tbody>
           </table>
-        </Tabs.Content>
+        </TabPanel>
 
-        <Tabs.Content value="json">
+        <TabPanel value="json" className="mt-3">
           <pre className="text-xs bg-gray-3 rounded p-3 overflow-x-auto max-h-60 overflow-y-auto scrollbars">
             {JSON.stringify(preview.txs, null, 2)}
           </pre>
-        </Tabs.Content>
-      </Tabs.Root>
+        </TabPanel>
+      </Tabs>
     </section>
   );
 }

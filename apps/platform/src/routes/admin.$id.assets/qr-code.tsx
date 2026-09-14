@@ -1,5 +1,5 @@
 import { QrCode as Ark } from "@ark-ui/react/qr-code";
-import { Tabs } from "@ark-ui/react/tabs";
+import { TabPanel, Tabs } from "@better-giving/ui";
 import { ArrowDownToLineIcon } from "lucide-react";
 import { useState } from "react";
 import org_building from "#/assets/icons/org-building.svg";
@@ -93,26 +93,15 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
     <div className={classes}>
       <h2 className="text-2xl font-bold mb-2">QR Code</h2>
 
-      <Tabs.Root
+      <Tabs
         className="w-96"
+        items={tabs.map((tab) => ({ value: tab.id, label: tab.name }))}
         defaultValue="profile"
-        onValueChange={(e) => set_selected_tab(e.value as QRCodeType)}
+        onValueChange={set_selected_tab}
       >
-        <Tabs.List className="flex gap-2 mb-6 border-b">
-          {tabs.map((tab) => (
-            <Tabs.Trigger
-              key={tab.id}
-              value={tab.id}
-              className="px-4 border-b-2 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 border-transparent text-gray-11 hover:text-gray-12 data-selected:border-primary data-selected:text-primary"
-            >
-              {tab.name}
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
-
         {/* qr code panel */}
         {tabs.map((tab) => (
-          <Tabs.Content key={tab.id} value={tab.id}>
+          <TabPanel key={tab.id} value={tab.id} className="mt-6">
             <Ark.Root
               value={urls[tab.id]}
               pixelSize={256}
@@ -139,7 +128,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
               {tab.name}:{" "}
               <span className="font-mono text-xs">{urls[tab.id]}</span>
             </p>
-          </Tabs.Content>
+          </TabPanel>
         ))}
 
         <div className="mt-4 flex gap-x-2 items-center justify-items-center">
@@ -172,7 +161,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
           <ArrowDownToLineIcon size={14} />
           Download
         </button>
-      </Tabs.Root>
+      </Tabs>
     </div>
   );
 }

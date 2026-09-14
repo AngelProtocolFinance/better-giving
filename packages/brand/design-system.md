@@ -391,11 +391,10 @@ authored ink is white, and Lc 67.0 as text on the page. There is one green ink
 in this palette and one place to reach for it; there is no "green ink for cards"
 and "green ink for bands" split to keep straight.
 
-Five sites, all carrying real text (counted, will drift):
+Three sites, all carrying real text (counted, will drift):
 
-- `routes/_app.resources/resource-card.tsx:7`: "guides" badge
-- `routes/dashboard.funds/fund.tsx:29`: `completed` status
-- `routes/admin.$id.funds/fund-item.tsx:36`: `completed` status
+- `packages/ui/src/components/badge.tsx`: the `success` tone — the resources
+  "guides" badge and the funds' `completed` status reach it through `Badge`
 - `routes/admin.$id.forms/table.tsx:146`: active/inactive pill
 - `routes/dashboard.forms/table.tsx:145`: active/inactive pill
 

@@ -1,3 +1,5 @@
+import { Badge } from "@better-giving/ui";
+
 interface IGrowPlaces {
   classes?: string;
 }
@@ -14,9 +16,9 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
         </h2>
         <div className="grid gap-6 md:grid-cols-2 mt-11">
           <div className="bg-secondary border border-gray-6 rounded p-9 grid gap-3.5 content-start">
-            <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-secondary text-gray-12 rounded-full px-3 py-1.5">
+            <Badge size="md" tone="secondary" className="justify-self-start">
               No market risk
-            </span>
+            </Badge>
             <h3 className="text-2xl font-bold">High-yield savings</h3>
             <span className="text-4xl font-bold text-primary">
               ~3-4%{" "}
@@ -31,9 +33,9 @@ export function GrowPlaces({ classes = "" }: IGrowPlaces) {
             </p>
           </div>
           <div className="surface-primary rounded p-9 grid gap-3.5 content-start">
-            <span className="justify-self-start text-xs font-bold uppercase tracking-wider bg-primary-fg/15 rounded-full px-3 py-1.5">
+            <Badge size="md" tone="on-primary" className="justify-self-start">
               Long-term growth
-            </span>
+            </Badge>
             <h3 className="text-2xl font-bold">Sustainability Fund</h3>
             <span className="text-4xl font-bold">
               ~11%{" "}

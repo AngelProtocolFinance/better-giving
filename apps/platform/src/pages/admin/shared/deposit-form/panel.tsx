@@ -1,7 +1,6 @@
-import { RadioGroup } from "@ark-ui/react/radio-group";
 import { EMAILS } from "@better-giving/brand";
-import { Copier } from "@better-giving/ui";
-import { Check, X } from "lucide-react";
+import { Copier, RadioGroup } from "@better-giving/ui";
+import { X } from "lucide-react";
 import { useState } from "react";
 
 type AccountType = "savings" | "investments";
@@ -144,41 +143,18 @@ function AccountSelector({
   classes = "",
 }: AccountSelectorProps) {
   return (
-    <div className={classes}>
-      <p className="label mb-2">Deposit to</p>
-      <RadioGroup.Root
-        value={value}
-        onValueChange={(e) => onChange(e.value as AccountType)}
-        className="grid grid-cols-2 gap-3"
-      >
-        <RadioGroup.Item
-          value={"savings" satisfies AccountType}
-          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-secondary-active transition-colors flex items-center justify-between"
-        >
-          <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
-            Savings account
-          </RadioGroup.ItemText>
-          <Check
-            size={18}
-            className="text-transparent group-data-[state=checked]:text-primary"
-          />
-          <RadioGroup.ItemHiddenInput />
-        </RadioGroup.Item>
-        <RadioGroup.Item
-          value={"investments" satisfies AccountType}
-          className="group border rounded p-4 data-[state=checked]:border-primary data-[state=checked]:bg-secondary-active transition-colors flex items-center justify-between"
-        >
-          <RadioGroup.ItemText className="text-sm font-medium group-data-[state=checked]:text-primary">
-            Investments account
-          </RadioGroup.ItemText>
-          <Check
-            size={18}
-            className="text-transparent group-data-[state=checked]:text-primary"
-          />
-          <RadioGroup.ItemHiddenInput />
-        </RadioGroup.Item>
-      </RadioGroup.Root>
-    </div>
+    <RadioGroup
+      variant="tile"
+      columns={2}
+      label="Deposit to"
+      value={value}
+      onValueChange={onChange}
+      className={classes}
+      items={[
+        { value: "savings", label: "Savings account" },
+        { value: "investments", label: "Investments account" },
+      ]}
+    />
   );
 }
 
