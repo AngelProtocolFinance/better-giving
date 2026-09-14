@@ -65,8 +65,6 @@ pnpm install
 pnpm --filter @better-giving/paypal build
 ```
 
-Scripts live in `package.json`.
-
 ## Updating Types
 
 To update the types when PayPal releases new API specifications, regenerate the committed `src/generated/**` (then commit it):
