@@ -2,8 +2,7 @@
 
 Sanity Studio backing the `better-giving` web app's `/blog`.
 
-- projectId: `5820hdyj`
-- dataset: `production`
+- projectId + dataset: `sanity.cli.ts`
 - manage: https://www.sanity.io/manage/project/5820hdyj
 
 ## Local
