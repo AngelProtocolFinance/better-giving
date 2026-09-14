@@ -1,6 +1,6 @@
 import { Target, to_target } from "@better-giving/ui";
 import { href, Link } from "react-router";
-import { FundStatus, status_fn } from "#/components/fundraiser";
+import { FundStatusBadge, status_fn } from "#/components/fundraiser";
 import type { IFundRow } from "$/pg/queries/fund";
 
 export const Fund = (props: IFundRow) => {
@@ -19,16 +19,7 @@ export const Fund = (props: IFundRow) => {
           alt=""
         />
 
-        <FundStatus
-          status={status}
-          classes={{
-            container: "px-3 py-1 rounded-full text-xs",
-            active: "",
-            inactive: "bg-destructive-subtle text-destructive-subtle-fg",
-            expired: "bg-gray-3 text-gray-11",
-            completed: "bg-success-subtle text-success-subtle-fg",
-          }}
-        />
+        <FundStatusBadge status={status} />
       </div>
 
       <Link

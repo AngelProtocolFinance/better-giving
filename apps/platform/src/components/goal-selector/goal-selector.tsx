@@ -1,13 +1,33 @@
-import { RadioGroup } from "@ark-ui/react/radio-group";
+import { RadioGroup } from "@better-giving/ui";
 import { Arrow, Content, Tooltip } from "@better-giving/ui/tooltip";
 import { CircleHelp } from "lucide-react";
+import type { ReactNode } from "react";
 import type { TargetType } from "./types";
 
-const options: { [T in TargetType]: string } = {
-  smart: "Use smart milestones",
-  none: "No goal or progress bar",
-  fixed: "Set my own goal",
-};
+const options: { value: TargetType; label: ReactNode }[] = [
+  {
+    value: "smart",
+    label: (
+      <>
+        Use smart milestones{" "}
+        <Tooltip
+          tip={
+            <Content className="max-w-xs text-center text-xs">
+              Smart milestones will dynamically update your goal amount as
+              donors contribute, providing a moving target that grows with your
+              success
+              <Arrow />
+            </Content>
+          }
+        >
+          <CircleHelp size={14} className="relative inline" />
+        </Tooltip>
+      </>
+    ),
+  },
+  { value: "none", label: "No goal or progress bar" },
+  { value: "fixed", label: "Set my own goal" },
+];
 
 interface Props {
   value: TargetType;
@@ -16,41 +36,13 @@ interface Props {
 }
 export function GoalSelector(props: Props) {
   return (
-    <RadioGroup.Root
+    <RadioGroup
+      label="Fundraiser Goal"
+      hideLabel
       value={props.value}
-      onValueChange={(e) => props.onChange(e.value as TargetType)}
-      aria-label="Fundraiser Goal"
-      className={`${props.classes ?? ""} grid gap-y-2`}
-    >
-      {Object.entries(options).map(([value, label]) => (
-        <RadioGroup.Item
-          key={value}
-          value={value}
-          className="flex items-center gap-2"
-        >
-          <RadioGroup.ItemControl className="group flex size-5 items-center justify-center rounded-full border bg-surface data-[state=checked]:bg-primary">
-            <span className="invisible size-2 rounded-full bg-panel group-data-[state=checked]:visible" />
-          </RadioGroup.ItemControl>
-          <RadioGroup.ItemText className="text-sm">
-            {label}{" "}
-            {value === "smart" && (
-              <Tooltip
-                tip={
-                  <Content className="max-w-xs text-center text-xs">
-                    Smart milestones will dynamically update your goal amount as
-                    donors contribute, providing a moving target that grows with
-                    your success
-                    <Arrow />
-                  </Content>
-                }
-              >
-                <CircleHelp size={14} className="relative inline" />
-              </Tooltip>
-            )}
-          </RadioGroup.ItemText>
-          <RadioGroup.ItemHiddenInput />
-        </RadioGroup.Item>
-      ))}
-    </RadioGroup.Root>
+      onValueChange={props.onChange}
+      className={props.classes}
+      items={options}
+    />
   );
 }

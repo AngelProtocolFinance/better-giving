@@ -1,5 +1,5 @@
 /**
- * the published component set — these 47 names, and only these, are what
+ * the published component set — these names, and only these, are what
  * `.design-sync/config.json` → `componentSrcMap` lists. it lives in its own
  * module so the set stays greppable: a component the design agent can't see
  * is a component the next screen invents from scratch instead, and an export
@@ -9,6 +9,7 @@
  * constants, schema builders, types — goes in `./index`, never here.
  */
 export { Amount } from "./components/amount";
+export { Badge } from "./components/badge";
 export { Breadcrumbs } from "./components/breadcrumbs";
 export { Button } from "./components/button";
 export { ContentLoader } from "./components/content-loader";
@@ -45,6 +46,7 @@ export { LoaderRing } from "./components/loader-ring";
 export { Modal } from "./components/modal";
 export { PayoutStatus } from "./components/payout-status";
 export { Prompt } from "./components/prompt/prompt";
+export { RadioGroup } from "./components/radio-group";
 export { Combo } from "./components/select/combo";
 export { MultiCombo } from "./components/select/multi-combo";
 export { Select } from "./components/select/select";
@@ -54,6 +56,7 @@ export { ErrorStatus } from "./components/status/error-status";
 export { Info } from "./components/status/info";
 export { LoadingStatus } from "./components/status/loading-status";
 export { Status } from "./components/status/status";
+export { Tabs } from "./components/tabs";
 export { Target } from "./components/target";
 export { Toaster } from "./components/toaster";
 export { Toggle } from "./components/toggle";

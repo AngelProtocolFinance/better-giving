@@ -24,6 +24,7 @@ export function DsProvider({ children }: { children: ReactNode }) {
 
 // content
 export { Amount } from "../../../packages/ui/src/components/amount";
+export { Badge } from "../../../packages/ui/src/components/badge";
 export { Breadcrumbs } from "../../../packages/ui/src/components/breadcrumbs";
 // the button, and every button-shaped link. first in the file because it is
 // the one name a design reaches for before any other.
@@ -81,6 +82,7 @@ export { LoaderRing } from "../../../packages/ui/src/components/loader-ring";
 export { Modal } from "../../../packages/ui/src/components/modal";
 export { PayoutStatus } from "../../../packages/ui/src/components/payout-status";
 export { Prompt } from "../../../packages/ui/src/components/prompt/prompt";
+export { RadioGroup } from "../../../packages/ui/src/components/radio-group";
 // selection
 export { Combo } from "../../../packages/ui/src/components/select/combo";
 export { MultiCombo } from "../../../packages/ui/src/components/select/multi-combo";
@@ -92,6 +94,12 @@ export { Info } from "../../../packages/ui/src/components/status/info";
 export { LoadingStatus } from "../../../packages/ui/src/components/status/loading-status";
 // feedback
 export { Status } from "../../../packages/ui/src/components/status/status";
+// `TabPanel` is a part of `Tabs`, not a card of its own — see the tooltip parts
+// below.
+export {
+  TabPanel,
+  Tabs,
+} from "../../../packages/ui/src/components/tabs";
 export { Target } from "../../../packages/ui/src/components/target";
 // `show_toast` rides along with `Toaster` because it is the component's only
 // way to show anything: toasts are pushed imperatively into a module-scope

@@ -2,7 +2,11 @@ import { Target, to_target } from "@better-giving/ui";
 import { fromUnixTime } from "date-fns";
 import { LoaderCircle, Split } from "lucide-react";
 import { href, Link, NavLink, useFetcher } from "react-router";
-import { FundCreator, FundStatus, status_fn } from "#/components/fundraiser";
+import {
+  FundCreator,
+  FundStatusBadge,
+  status_fn,
+} from "#/components/fundraiser";
 import type { IFundItem } from "@/fundraiser";
 
 interface Props extends IFundItem {
@@ -26,16 +30,7 @@ export const FundItem = (props: Props) => {
           className="object-cover aspect-square rounded-full"
           alt=""
         />
-        <FundStatus
-          status={status}
-          classes={{
-            container: "px-3 py-1 rounded-full text-xs",
-            active: "",
-            inactive: "bg-destructive-subtle text-destructive-subtle-fg",
-            expired: "bg-gray-3 text-gray-11",
-            completed: "bg-success-subtle text-success-subtle-fg",
-          }}
-        />
+        <FundStatusBadge status={status} />
       </div>
 
       <Link

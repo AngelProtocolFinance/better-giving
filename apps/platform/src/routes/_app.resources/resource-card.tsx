@@ -1,11 +1,12 @@
+import { Badge, type BadgeTone } from "@better-giving/ui";
 import { Download, ExternalLink, FileText } from "lucide-react";
 import { useState } from "react";
 import { type Resource, type ResourceType, TYPE_LABELS } from "./data";
 
-const badge_styles: Record<ResourceType, string> = {
-  templates: "bg-gray-3 text-gray-11",
-  guides: "bg-success-subtle text-success-subtle-fg",
-  whitepapers: "bg-secondary text-primary",
+const badge_tones: Record<ResourceType, BadgeTone> = {
+  templates: "neutral",
+  guides: "success",
+  whitepapers: "primary",
 };
 
 export function ResourceCard({ resource }: { resource: Resource }) {
@@ -14,11 +15,9 @@ export function ResourceCard({ resource }: { resource: Resource }) {
     <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-panel p-5 gap-3">
       <div className="flex items-center gap-3">
         <FileText size={20} className="text-primary shrink-0" />
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge_styles[resource.type]}`}
-        >
+        <Badge tone={badge_tones[resource.type]}>
           {TYPE_LABELS[resource.type]}
-        </span>
+        </Badge>
       </div>
 
       <h3 className="font-semibold leading-snug">{resource.name}</h3>
