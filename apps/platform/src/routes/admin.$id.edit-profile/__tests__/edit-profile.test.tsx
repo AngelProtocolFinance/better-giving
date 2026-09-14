@@ -257,12 +257,17 @@ describe("edit profile — text fields", () => {
     await address.fill("456 New Ave");
 
     // tagline + registration are general's, address is organization's
-    await screen.getByRole("button", { name: "Save general" }).click();
+    const general = screen.getByRole("button", { name: "Save general" });
+    await general.click();
     const organization = screen.getByRole("button", {
       name: "Save organization",
     });
-    // the fieldset disables it in flight; enabled again means general landed
-    await expect.element(organization).toBeEnabled();
+    // both hold only once general has settled: before the save its button is
+    // still enabled, and in flight the fieldset disables the tagline
+    await vi.waitFor(() => {
+      expect(general.element()).toBeDisabled();
+      expect(tagline.element()).toBeEnabled();
+    });
     await organization.click();
     await expect.element(tagline).toBeEnabled();
     await expect.element(organization).toBeDisabled();
