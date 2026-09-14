@@ -61,7 +61,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
       <h1 className="text-3xl font-bold">Public profile information</h1>
-      <Group>
+      <Group title="General" hide_title>
         <Field
           {...rhf.register("name")}
           label="Name of your organization"
