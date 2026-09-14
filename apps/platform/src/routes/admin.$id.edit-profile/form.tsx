@@ -72,7 +72,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
       // saves go through each group's button; an untyped nested button or an
       // enter keypress must not fire a native GET submission
       onSubmit={(e) => e.preventDefault()}
-      className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid content-start gap-6"
+      className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid grid-cols-1 content-start gap-6"
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
       <h1 className="text-3xl font-bold">Public profile information</h1>
