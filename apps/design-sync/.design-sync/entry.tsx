@@ -23,6 +23,7 @@ export function DsProvider({ children }: { children: ReactNode }) {
 }
 
 // content
+export { Accordion } from "../../../packages/ui/src/components/accordion";
 export { Amount } from "../../../packages/ui/src/components/amount";
 export { Badge } from "../../../packages/ui/src/components/badge";
 export { Breadcrumbs } from "../../../packages/ui/src/components/breadcrumbs";
@@ -88,6 +89,7 @@ export { Combo } from "../../../packages/ui/src/components/select/combo";
 export { MultiCombo } from "../../../packages/ui/src/components/select/multi-combo";
 export { Select } from "../../../packages/ui/src/components/select/select";
 export { Separator } from "../../../packages/ui/src/components/separator";
+export { Slider } from "../../../packages/ui/src/components/slider";
 export { Confirmed } from "../../../packages/ui/src/components/status/confirmed";
 export { ErrorStatus } from "../../../packages/ui/src/components/status/error-status";
 export { Info } from "../../../packages/ui/src/components/status/info";

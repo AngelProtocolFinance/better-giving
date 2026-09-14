@@ -1,4 +1,4 @@
-import { Switch } from "@ark-ui/react/switch";
+import { Toggle } from "@better-giving/ui";
 import { useState } from "react";
 import { useFetcher } from "react-router";
 import { RouteModal } from "#/components/route-modal";
@@ -40,17 +40,13 @@ function Content(props: IAllocation) {
         }}
       />
 
-      <Switch.Root
-        checked={is_custom}
-        onCheckedChange={(e) => set_is_custom(e.checked)}
-        className="flex items-center gap-x-2 mt-4"
+      <Toggle
+        value={is_custom}
+        onChange={set_is_custom}
+        classes={{ container: "mt-4" }}
       >
-        <Switch.Control className="group relative flex h-6 w-10 rounded-full bg-gray-3 p-1 transition-colors duration-base focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 data-[state=checked]:bg-primary inset-shadow-track">
-          <Switch.Thumb className="pointer-events-none inline-block size-4 translate-x-0 rounded-full bg-panel ring-0 shadow-track-fill transition duration-base group-data-[state=checked]:translate-x-4" />
-        </Switch.Control>
-        <Switch.Label>Set custom allocation</Switch.Label>
-        <Switch.HiddenInput />
-      </Switch.Root>
+        Set custom allocation
+      </Toggle>
       {is_custom && (
         <AllocationSlider
           disabled={is_loading}

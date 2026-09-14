@@ -8,6 +8,7 @@
  * everything else the app imports — react-router-bound form wrappers, class
  * constants, schema builders, types — goes in `./index`, never here.
  */
+export { Accordion } from "./components/accordion";
 export { Amount } from "./components/amount";
 export { Badge } from "./components/badge";
 export { Breadcrumbs } from "./components/breadcrumbs";
@@ -51,6 +52,7 @@ export { Combo } from "./components/select/combo";
 export { MultiCombo } from "./components/select/multi-combo";
 export { Select } from "./components/select/select";
 export { Separator } from "./components/separator";
+export { Slider } from "./components/slider";
 export { Confirmed } from "./components/status/confirmed";
 export { ErrorStatus } from "./components/status/error-status";
 export { Info } from "./components/status/info";

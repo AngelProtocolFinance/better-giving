@@ -1,4 +1,4 @@
-import { Slider } from "@ark-ui/react/slider";
+import { Slider } from "@better-giving/ui";
 import { Info } from "lucide-react";
 import { useState } from "react";
 
@@ -47,25 +47,15 @@ export function Chart({ classes = "", ...v }: Props) {
           <span>Long-term (exponential growth)</span>
         </div>
 
-        <Slider.Root
-          className="relative flex items-center select-none touch-none w-full h-5"
-          value={[yrs]}
-          onValueChange={(e) => setYears(e.value[0])}
+        <Slider
+          label="Years"
+          hideLabel
+          value={yrs}
+          onValueChange={setYears}
           max={20}
           min={5}
           step={5}
-          aria-label={["Years"]}
-        >
-          <Slider.Control className="flex w-full items-center">
-            <Slider.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-gray-3 inset-shadow-track">
-              <Slider.Range className="absolute h-full bg-primary" />
-            </Slider.Track>
-            <Slider.Thumb
-              index={0}
-              className="block size-4 rounded-full border-2 border-primary bg-background shadow-track-fill focus-visible:outline-2 focus-visible:outline-ring"
-            />
-          </Slider.Control>
-        </Slider.Root>
+        />
 
         <div className="flex justify-between mt-1 text-sm">
           <span>5 years</span>

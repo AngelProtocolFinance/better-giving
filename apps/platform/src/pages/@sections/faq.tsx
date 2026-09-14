@@ -1,5 +1,4 @@
-import { Accordion } from "@ark-ui/react/accordion";
-import { DrawerIcon, ExtLink } from "@better-giving/ui";
+import { Accordion, ExtLink } from "@better-giving/ui";
 import { ArrowRight } from "lucide-react";
 import type React from "react";
 import { Fragment } from "react";
@@ -299,30 +298,16 @@ export function FAQ({
           {sub}
         </p>
       )}
-      <Accordion.Root collapsible className="divide-y divide-gray-6">
-        {items.map((faq) => (
-          <Accordion.Item key={faq.id} value={String(faq.id)} className="group">
-            <Accordion.ItemTrigger className="flex items-center justify-between gap-2 w-full py-6 px-4">
-              {/* font-normal: override h3 inherited bold from base.css */}
-              <span className="text-left font-normal group-data-[state=open]:font-semibold">
-                {faq.question}
-              </span>
-              <DrawerIcon
-                size={18}
-                is_open={false}
-                className="shrink-0 group-data-[state=open]:rotate-180"
-              />
-            </Accordion.ItemTrigger>
-            <Accordion.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-              <div className="pb-4 px-4">
-                {faq.paragraphs.map((p, idx) => (
-                  <Fragment key={idx}>{p}</Fragment>
-                ))}
-              </div>
-            </Accordion.ItemContent>
-          </Accordion.Item>
-        ))}
-      </Accordion.Root>
+      <Accordion
+        variant="divided"
+        items={items.map((faq) => ({
+          value: String(faq.id),
+          trigger: faq.question,
+          content: faq.paragraphs.map((p, idx) => (
+            <Fragment key={idx}>{p}</Fragment>
+          )),
+        }))}
+      />
       <footer className="grid pt-8">
         <ExtLink
           href={INTERCOM_HELP}
