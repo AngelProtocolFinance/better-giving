@@ -250,6 +250,8 @@ itself calls expected; there is nothing to set `cfg.tokensPkg` to.
 `cardMode: "single"` for the ones that paint outside their cell (`Modal`, `Tooltip`, `HoverCard`,
 `Prompt`, `Toaster`). `HeaderButton` and `LoadMoreRow` joined the `column` set on 2026-08-28: a
 table is wider than a grid cell by nature, so every component that renders one lands here.
+`Accordion`, `Tabs`, `RadioGroup` and `Slider` joined it on 2026-09-14, their first sync: each
+stretches to its container, so a story wider than a grid cell is the component working as designed.
 The validator's remediation text names `preview-rebuild.mjs` (`.ds-sync/lib/preview-rebuild.mjs`); a full
 `package-build.mjs` run does the same job and is what the driver runs.
 
