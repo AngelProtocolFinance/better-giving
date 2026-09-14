@@ -14,6 +14,12 @@ interface Props extends PropsWithChildren {
   error?: string;
 }
 
+/**
+ * switch height is `--toggle-h` (default `1lh`, so it tracks the text size set
+ * on `classes.container`), width `--toggle-w` (default twice the height). set
+ * either on `classes.container`, e.g. `[--toggle-h:1.5rem]`; thumb diameter and
+ * travel derive from both.
+ */
 export const Toggle = ({ children, ...props }: Props) => {
   const cls = unpack(props.classes);
   return (
@@ -30,8 +36,9 @@ export const Toggle = ({ children, ...props }: Props) => {
         onCheckedChange={(e) => props.onChange(e.checked)}
         className="contents"
       >
-        <Switch.Control className="bg-surface relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-ring data-disabled:bg-gray-3 data-disabled:cursor-default">
-          <Switch.Thumb className="translate-x-1 bg-gray-11 data-[state=checked]:translate-x-6.5 data-[state=checked]:bg-primary inline-block size-6 transform rounded-full transition-transform" />
+        {/* focus lands on the hidden input, so :focus-visible never matches here */}
+        <Switch.Control className="[--th:var(--toggle-h,1lh)] [--tw:var(--toggle-w,calc(var(--th)*2))] [--inset:calc(var(--th)*0.1)] relative inline-flex shrink-0 items-center h-(--th) w-(--tw) rounded-full bg-gray-3 inset-shadow-track inset-ring inset-ring-gray-7 transition-colors not-data-disabled:data-[state=checked]:bg-primary not-data-disabled:data-[state=checked]:inset-ring-primary data-focus-visible:outline-2 data-focus-visible:outline-ring data-disabled:cursor-default">
+          <Switch.Thumb className="pointer-events-none inline-block size-[calc(var(--th)-2*var(--inset))] translate-x-(--inset) data-[state=checked]:translate-x-[calc(var(--tw)-var(--th)+var(--inset))] rounded-full bg-background shadow-track-fill transition-transform" />
         </Switch.Control>
         <Switch.Label
           className={`${cls.label} ${
