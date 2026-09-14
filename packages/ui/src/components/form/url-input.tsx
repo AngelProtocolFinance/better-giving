@@ -41,7 +41,15 @@ export function UrlInput(props: Props) {
         {label}
       </Label>
 
-      <div className="relative px-3 py-4">
+      {/* prefix as a flex sibling, not an overlay: a fixed input padding can
+          never equal the rendered width of "https://" */}
+      <div className="field-input-container flex min-h-(--field-size)">
+        <label
+          htmlFor={id}
+          className="flex items-center pl-4 text-gray-11 select-none"
+        >
+          https://
+        </label>
         <input
           ref={ref}
           {...p}
@@ -49,13 +57,10 @@ export function UrlInput(props: Props) {
           aria-invalid={!!error}
           disabled={props.disabled}
           aria-errormessage={error_id}
-          className={`${style.input} field-input pl-16 absolute inset-0`}
+          className={`${style.input} min-w-0 flex-1 bg-transparent pr-4 py-3.5 outline-none`}
           autoComplete="off"
           spellCheck={false}
         />
-        <span className="relative text-sm text-gray-11 pointer-events-none">
-          https://
-        </span>
       </div>
 
       <p id={error_id} className={`${style.error} field-err mt-1 empty:hidden`}>

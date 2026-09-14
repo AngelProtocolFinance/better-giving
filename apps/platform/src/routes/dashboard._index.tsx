@@ -47,7 +47,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 export default function Page({ loaderData: d }: Route.ComponentProps) {
   return (
-    <div className="grid content-start relative px-6 py-4 md:px-10 md:py-8">
+    <div className="grid grid-cols-1 content-start relative px-6 py-4 md:px-10 md:py-8">
       {/* identity header — name is the page's primary heading */}
       <div className="flex items-center gap-x-4 mb-8">
         <UserAvatar avatar={d.avatar_url} classes="size-16" />
@@ -92,7 +92,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
         >
           My Organizations
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {d.orgs.map((org) => (
             <Link
               key={org.id}
@@ -133,7 +133,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           >
             My Favorites
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {d.bookmarks.map((b) => (
               <FavoriteCard key={b.id} fav={b} />
             ))}

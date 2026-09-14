@@ -8,9 +8,13 @@ export function Group({
   classes = "",
   description,
   title,
+  hide_title,
   children,
 }: PropsWithChildren<{
   title?: string;
+  /** keeps the section named for screen readers when the page heading already
+   *  says what it holds */
+  hide_title?: boolean;
   description?: string;
   classes?: string;
 }>) {
@@ -18,15 +22,20 @@ export function Group({
   return (
     <section
       aria-labelledby={title ? id : undefined}
-      className={`grid w-full gap-6 p-6 border rounded bg-panel ${classes}`}
+      className={`grid grid-cols-1 w-full gap-6 p-6 border rounded bg-panel ${classes}`}
     >
       {/* the heading pair is one grid child, not two: as two, the section's
           own `gap-6` falls between title and description, and closing it back
           up pins their spacing to whatever that gap happens to be. */}
-      {(title || description) && (
+      {title && hide_title && !description && (
+        <h3 id={id} className="sr-only">
+          {title}
+        </h3>
+      )}
+      {((title && !hide_title) || description) && (
         <div className="grid gap-2">
           {title && (
-            <h3 id={id} className="text-2xl">
+            <h3 id={id} className={hide_title ? "sr-only" : "text-2xl"}>
               {title}
             </h3>
           )}

@@ -32,7 +32,7 @@ export function Slug({
       {link && (
         <div className="text-sm italic mt-1">
           <span>Current URL:</span>{" "}
-          <Link to={link} className="text-primary hover:underline">
+          <Link to={link} className="text-primary hover:underline break-all">
             {link}
           </Link>
         </div>
@@ -47,7 +47,7 @@ export function Slug({
 
       <p
         id={example_id}
-        className="text-xs sm:text-sm text-gray-11 italic mt-2"
+        className="text-xs sm:text-sm text-gray-11 italic mt-2 break-all"
       >
         Example: {gen_link(new_slug || "myNonprofit", base_url)}
       </p>
