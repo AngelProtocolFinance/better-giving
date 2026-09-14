@@ -1,5 +1,5 @@
 import type { IPrompt } from "@better-giving/ui";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FieldNamesMarkedBoolean, UseFormReturn } from "react-hook-form";
 import { useFetcher } from "react-router";
 import * as v from "valibot";
@@ -46,6 +46,10 @@ export const is_group_dirty = (df: DirtyFields, group: GroupId) =>
   groups[group].some((name) => is_marked(df[name]));
 
 type Rhf = Pick<UseFormReturn<FV>, "trigger" | "getValues" | "resetField">;
+type Settle = (data: unknown) => void;
+
+/** `endowUpdate`'s confirmed write; a refusal is `{ ok: false }` */
+const saved = v.object({ ok: v.literal(true) });
 
 export function use_edit_npo(
   df: DirtyFields,
@@ -57,16 +61,41 @@ export function use_edit_npo(
   const [pending, set_pending] = useState(false);
   const dirty = (name: keyof FV) => is_marked(df[name]);
 
-  /** resolves once the loader has revalidated. that re-seed keeps every dirty
-   * value (`keepDirtyValues`), so the fields this PATCH carried are settled
-   * here — not on `fetcher.state`, whose submitting/loading renders can batch
-   * away entirely */
+  const committed_data = useRef<unknown>(fetcher.data);
+  const settle = useRef<{ baseline: unknown; resolve: Settle }>(undefined);
+  // `fetcher.submit` resolves when router state updates, not when react
+  // commits it (a transition), so its result is read from the committed
+  // render. the first idle commit after a submit is that submit's settle: its
+  // submitting/loading renders can batch away, but its data can't — every
+  // response decodes to a fresh object, so unchanged data means no result
+  useEffect(() => {
+    committed_data.current = fetcher.data;
+    const waiting = settle.current;
+    if (fetcher.state !== "idle" || !waiting) return;
+    settle.current = undefined;
+    waiting.resolve(
+      fetcher.data === waiting.baseline ? undefined : fetcher.data
+    );
+  }, [fetcher.state, fetcher.data]);
+
+  /** settles after the loader has revalidated. that re-seed keeps every dirty
+   * value (`keepDirtyValues`), so the fields this PATCH carried are marked
+   * saved here — and only when the action confirms the write */
   const submit = async (update: Update, names: (keyof FV)[]) => {
+    const result = new Promise<unknown>((resolve) => {
+      settle.current = { baseline: committed_data.current, resolve };
+    });
     await fetcher.submit(update, {
       method: "PATCH",
       action: ".",
       encType: "application/json",
     });
+    const data = await result;
+    // a bare `Response` failure (the 400) reaches the client as its text
+    if (typeof data === "string" && data) {
+      set_prompt({ type: "error", children: data });
+    }
+    if (!v.is(saved, data)) return;
     for (const name of names) {
       resetField(name, { defaultValue: getValues(name) });
     }

@@ -37,9 +37,10 @@ vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock()
 );
 
+// the client reads the action's data, so the toast wrappers pass it through
 vi.mock("#/.server/toast", () => ({
-  dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
-  dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
+  dataWithSuccess: vi.fn((d: unknown, _msg: string) => d),
+  dataWithError: vi.fn((d: unknown, _msg: string) => d),
 }));
 
 vi.mock("remix-client-cache", () => ({
@@ -54,6 +55,7 @@ vi.mock("#/.server/funds", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { Target, to_target } from "@better-giving/ui";
+import { dataWithError } from "#/.server/toast";
 import MarketplacePage, {
   loader as marketplace_loader,
 } from "#/routes/_app.marketplace/route";
@@ -118,7 +120,7 @@ async function seed_npo(
   return row;
 }
 
-async function render_edit(npo_id: number) {
+async function render_edit(npo_id: number, route_action: unknown = action) {
   const Stub = createRoutesStub(
     [
       {
@@ -126,7 +128,7 @@ async function render_edit(npo_id: number) {
         Component: EditProfilePage,
         HydrateFallback: () => null,
         loader: loader as any,
-        action: action as any,
+        action: route_action as any,
         middleware: [
           async ({ context }, next) => {
             context.set(admin_ctx, npo_id);
@@ -546,6 +548,40 @@ describe("edit profile — published toggle", () => {
       .element(marketplace.getByText("Test Charity"))
       .toBeInTheDocument();
   });
+
+  it("a refused publish stays unsaved through a later save's re-seed", async () => {
+    const npo = await seed_npo({ published: false });
+    let calls = 0;
+    const refuse_first: typeof action = async (args) =>
+      calls++ === 0 ? { ok: false } : action(args);
+    const screen = await render_edit(npo.id, refuse_first);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+
+    (
+      screen
+        .getByRole("checkbox", { name: /publish profile/i })
+        .element() as HTMLElement
+    ).click();
+    await vi.waitFor(() => expect(calls).toBe(1));
+    await expect.element(tagline).toBeEnabled();
+
+    // a save's loader re-seed keeps only dirty values: a `published` wrongly
+    // marked saved would flip back to the stored `false`
+    await tagline.fill("New tagline");
+    await screen.getByRole("button", { name: "Save general" }).click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("New tagline")
+    );
+    await expect
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeDisabled();
+    await expect.element(tagline).toBeEnabled();
+
+    expect((await npo_get(npo.id))?.published).toBe(false);
+    expect(screen.getByText(/profile is not visible/i).query()).toBeNull();
+  });
 });
 
 describe("edit profile — slug taken", () => {
@@ -586,6 +622,46 @@ describe("edit profile — slug taken", () => {
     await expect
       .element(screen.getByText(/taken-slug.*already taken/i))
       .toBeInTheDocument();
+
+    vi.restoreAllMocks();
+  });
+
+  it("a slug the action refuses stays unsaved: save re-arms, value kept", async () => {
+    const npo = await seed_npo();
+    await seed_npo({ registration_number: "OTHER789", slug: "server-taken" });
+
+    // the client check misses (claimed between check and save), so only the
+    // action catches it
+    const og_fetch = globalThis.fetch;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.startsWith("/api/npos/")) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
+      return og_fetch(input, init as RequestInit);
+    });
+
+    const screen = await render_edit(npo.id);
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+
+    const slug_input = screen.getByLabelText(/custom profile url/i);
+    await slug_input.fill("server-taken");
+    await screen.getByRole("button", { name: "Save general" }).click();
+
+    await vi.waitFor(() =>
+      expect(dataWithError).toHaveBeenCalledWith(
+        { ok: false },
+        expect.stringMatching(/server-taken/)
+      )
+    );
+    // the fieldset re-enables once the save settles
+    await expect.element(tagline).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeEnabled();
+    await expect.element(slug_input).toHaveDisplayValue("server-taken");
+    expect((await npo_get(npo.id))?.slug).toBeFalsy();
 
     vi.restoreAllMocks();
   });

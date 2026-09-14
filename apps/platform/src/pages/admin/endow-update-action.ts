@@ -25,7 +25,10 @@ export const endowUpdate =
     if (rest.slug) {
       const res = await npo_by_slug(rest.slug);
       if (res && res.id !== id) {
-        return dataWithError(null, `Slug ${rest.slug} is already taken`);
+        return dataWithError(
+          { ok: false },
+          `Slug ${rest.slug} is already taken`
+        );
       }
     }
 
@@ -38,7 +41,7 @@ export const endowUpdate =
     });
 
     if ("success" in next) {
-      return dataWithSuccess(null, next.success);
+      return dataWithSuccess({ ok: true }, next.success);
     }
 
     return redirect(next.redirect);
