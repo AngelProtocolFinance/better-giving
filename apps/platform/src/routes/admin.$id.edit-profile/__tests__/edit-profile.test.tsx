@@ -229,7 +229,7 @@ describe("edit profile — renders pre-filled", () => {
 
     // submit disabled when not dirty
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .element(screen.getByRole("button", { name: "Save general" }))
       .toBeDisabled();
   });
 });
@@ -254,17 +254,17 @@ describe("edit profile — text fields", () => {
     await address.clear();
     await address.fill("456 New Ave");
 
-    // submit
-    await screen.getByRole("button", { name: /submit changes/i }).click();
-
-    // revalidation completes → form resets dirty
-    await expect
-      .element(screen.getByLabelText(/tagline/i))
-      .toHaveDisplayValue("New tagline");
-    // isDirty resets async — one render after values sync
-    await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
-      .toBeDisabled();
+    // tagline + registration are general's, address is organization's
+    await screen.getByRole("button", { name: "Save general" }).click();
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    // the fieldset disables it in flight; enabled again means general landed
+    await expect.element(organization).toBeEnabled();
+    await organization.click();
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(organization).toBeDisabled();
+    await expect.element(tagline).toHaveDisplayValue("New tagline");
 
     // verify on profile page
     await screen.unmount();
@@ -302,7 +302,7 @@ describe("edit profile — organization fields", () => {
     await screen.getByRole("option", { name: /Canada/i }).click();
 
     // submit
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save organization" }).click();
 
     // revalidation completes → form resets dirty
     // combo display value + isDirty reset async after revalidation
@@ -311,7 +311,7 @@ describe("edit profile — organization fields", () => {
       .toHaveDisplayValue("Canada");
     // isDirty resets async after values sync
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .element(screen.getByRole("button", { name: "Save organization" }))
       .toBeDisabled();
 
     // verify on profile page
@@ -330,9 +330,6 @@ describe("edit profile — organization fields", () => {
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
-    // tagline edit makes the form dirty so submit is enabled
-    await screen.getByLabelText(/tagline/i).fill("New tagline");
-
     const country_input = screen.getByPlaceholder("Select a country");
     await expect.element(country_input).toHaveDisplayValue("United States");
 
@@ -342,13 +339,17 @@ describe("edit profile — organization fields", () => {
     const buttons = page.elementLocator(combo_row).getByRole("button");
     await buttons.nth(1).click();
 
-    // submit empty → required error renders, form does not persist
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    // submit empty → required error renders, form does not persist. clearing
+    // reopens the country popup over the save — native click bypasses it
+    (
+      screen
+        .getByRole("button", { name: "Save organization" })
+        .element() as HTMLElement
+    ).click();
     await expect.element(screen.getByText(/required/i).first()).toBeVisible();
 
     const reloaded = await npo_get(npo.id);
     expect(reloaded?.hq_country).toBe("United States"); // unchanged
-    expect(reloaded?.tagline).toBe("Helping the world"); // unchanged
 
     // refill via filter + select → submit succeeds
     await country_input.fill("Fran");
@@ -357,18 +358,14 @@ describe("edit profile — organization fields", () => {
       .toBeVisible();
     await screen.getByRole("option", { name: /France/i }).click();
 
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save organization" }).click();
 
     await expect
       .element(screen.getByPlaceholder("Select a country"))
       .toHaveDisplayValue("France");
-    await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
-      .toBeDisabled();
-
-    const persisted = await npo_get(npo.id);
-    expect(persisted?.hq_country).toBe("France");
-    expect(persisted?.tagline).toBe("New tagline");
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.hq_country).toBe("France")
+    );
   });
 
   it("hq_country combo: clear button refocuses input and reopens dropdown", async () => {
@@ -457,7 +454,7 @@ describe("edit profile — active countries (multi-combo)", () => {
     (multi_input.element() as HTMLInputElement).dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
     );
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save organization" }).click();
 
     await vi.waitFor(async () => {
       const reloaded = await npo_get(npo.id);
@@ -477,7 +474,7 @@ describe("edit profile — social media", () => {
     await screen.getByLabelText(/linkedin/i).fill("linkedin.com/in/testorg");
 
     // submit
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save social media" }).click();
 
     // revalidation completes → form resets dirty
     await expect
@@ -485,7 +482,7 @@ describe("edit profile — social media", () => {
       .toHaveDisplayValue("facebook.com/testorg");
     // isDirty resets async — one render after values sync
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .element(screen.getByRole("button", { name: "Save social media" }))
       .toBeDisabled();
 
     // verify on profile page — socials renders ExtLinks
@@ -508,7 +505,7 @@ describe("edit profile — social media", () => {
 });
 
 describe("edit profile — published toggle", () => {
-  it("toggles published status", async () => {
+  it("flipping publish saves it on the spot, leaving other edits unsent", async () => {
     const npo = await seed_npo({ published: false });
     const screen = await render_edit(npo.id);
 
@@ -517,6 +514,9 @@ describe("edit profile — published toggle", () => {
       .element(screen.getByText(/not visible in the marketplace/i))
       .toBeVisible();
 
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.fill("Unsaved tagline");
+
     // click toggle — dispatch via JS (element below fold, not visible to Playwright)
     (
       screen
@@ -524,18 +524,16 @@ describe("edit profile — published toggle", () => {
         .element() as HTMLElement
     ).click();
 
-    // ui updates
-    await expect
-      .element(screen.getByText(/visible in the marketplace/i))
-      .toBeInTheDocument();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.published).toBe(true)
+    );
+    expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
 
-    // submit
-    await screen.getByRole("button", { name: /submit changes/i }).click();
-
-    // isDirty resets async — one render after values sync
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(tagline).toHaveDisplayValue("Unsaved tagline");
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
-      .toBeDisabled();
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeEnabled();
     await expect
       .element(screen.getByText(/your profile is visible in the marketplace/i))
       .toBeInTheDocument();
@@ -582,7 +580,7 @@ describe("edit profile — slug taken", () => {
     const slug_input = screen.getByLabelText(/custom profile url/i);
     await slug_input.fill("taken-slug");
 
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save general" }).click();
 
     // error prompt appears → action was blocked, no DB write
     await expect
@@ -593,42 +591,107 @@ describe("edit profile — slug taken", () => {
   });
 });
 
-describe("edit profile — submit button state", () => {
-  it("is disabled when form is not dirty", async () => {
+describe("edit profile — per-group save", () => {
+  it("each group's save stays disabled until that group is dirty", async () => {
     const npo = await seed_npo();
     const screen = await render_edit(npo.id);
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
+    const general = screen.getByRole("button", { name: "Save general" });
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    const social = screen.getByRole("button", { name: "Save social media" });
+    await expect.element(general).toBeDisabled();
+    await expect.element(organization).toBeDisabled();
+    await expect.element(social).toBeDisabled();
+
+    await screen.getByLabelText(/tagline/i).fill("New tagline");
+    await expect.element(general).toBeEnabled();
+    await expect.element(organization).toBeDisabled();
+    await expect.element(social).toBeDisabled();
+
+    await screen.getByLabelText(/facebook/i).fill("facebook.com/testorg");
+    await expect.element(social).toBeEnabled();
+    await expect.element(organization).toBeDisabled();
+  });
+
+  it("saving organization sends only its fields; a dirty general edit survives unsent", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
+
+    await screen.getByLabelText(/tagline/i).fill("Unsaved tagline");
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
+
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    await organization.click();
+
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
+    );
+    expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
+
+    // the fieldset disables every button in flight, so general's save coming
+    // back enabled is what marks the fetcher idle
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeEnabled();
+    await expect
+      .element(screen.getByLabelText(/tagline/i))
+      .toHaveDisplayValue("Unsaved tagline");
+    await expect
+      .element(screen.getByLabelText(/address/i))
+      .toHaveDisplayValue("456 New Ave");
+    await expect.element(organization).toBeDisabled();
+
+    await screen.getByRole("button", { name: "Save general" }).click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("Unsaved tagline")
+    );
+    await expect.element(screen.getByLabelText(/tagline/i)).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Save general" }))
       .toBeDisabled();
   });
 
-  it("is disabled again after successful submission", async () => {
+  it("an invalid general field does not block saving organization", async () => {
     const npo = await seed_npo();
     const screen = await render_edit(npo.id);
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
-    // make a change
-    const address = screen.getByLabelText(/address/i);
-    await address.clear();
-    await address.fill("999 New Rd");
+    await screen.getByLabelText(/tagline/i).clear();
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
 
-    const submit = screen.getByRole("button", { name: /submit changes/i });
-    await expect.element(submit).toBeEnabled();
+    await screen.getByRole("button", { name: "Save organization" }).click();
 
-    await submit.click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
+    );
+    expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
+    // general validates only on its own save
+    expect(screen.getByText(/required/i).query()).toBeNull();
+  });
 
-    // loader revalidates → useForm receives new values → dirty resets
-    await expect
-      .element(screen.getByLabelText(/address/i))
-      .toHaveDisplayValue("999 New Rd");
-    // isDirty resets async — one render after values sync
-    await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
-      .toBeDisabled();
+  it("a field's error clears as it is fixed after a failed save", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.clear();
+
+    await screen.getByRole("button", { name: "Save general" }).click();
+    await expect.element(screen.getByText(/required/i).first()).toBeVisible();
+
+    await tagline.fill("Fixed tagline");
+    await expect.element(screen.getByText(/required/i)).not.toBeInTheDocument();
+    expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
   });
 });
 
@@ -647,11 +710,11 @@ describe("edit profile — validation", () => {
     await regnum.clear();
 
     // submit — client-side validation blocks the action
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save general" }).click();
 
     // form stays on page, submit still enabled (dirty + invalid)
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .element(screen.getByRole("button", { name: "Save general" }))
       .toBeEnabled();
   });
 });
@@ -679,36 +742,7 @@ describe("edit profile — focus on error", () => {
     await tagline.clear();
     await tagline.fill("Still helping the world");
 
-    await screen.getByRole("button", { name: /submit changes/i }).click();
-
-    await vi.waitFor(() => {
-      expect(document.activeElement).toBe(
-        banner_editor(screen).querySelector("input[type='file']")
-      );
-    });
-  });
-
-  it("reset → re-dirty → submit still focuses the banner", async () => {
-    // `rhf.reset()` empties RHF's `_fields`/`_names.mount`, and `useController`
-    // registers on mount only — so if reset drops controller registration the
-    // focus pass has no `_f.ref.focus` to call and the submit reads as doing
-    // nothing again.
-    const npo = await seed_npo({ image: "" });
-    const screen = await render_edit(npo.id);
-
-    await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
-
-    const tagline = screen.getByLabelText(/tagline/i);
-    await tagline.clear();
-    await tagline.fill("Still helping the world");
-
-    await screen.getByRole("button", { name: /reset changes/i }).click();
-
-    // re-dirty: submit is disabled until the form is dirty again
-    await tagline.clear();
-    await tagline.fill("Helping the world, again");
-
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save general" }).click();
 
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(
@@ -718,9 +752,9 @@ describe("edit profile — focus on error", () => {
   });
 
   it("all three images missing → the banner wins, not the card image", async () => {
-    // the controllers all register before the form's own fields, so RHF's focus
-    // pass walks them in useController order — which has to match DOM order or
-    // the user is sent to the card image at the bottom of the form
+    // focus on error follows the general group's field list passed to
+    // `trigger` — which has to match DOM order or the user is sent to the card
+    // image at the bottom of the group
     const npo = await seed_npo({ image: "", logo: "", card_img: "" });
     const screen = await render_edit(npo.id);
 
@@ -730,7 +764,7 @@ describe("edit profile — focus on error", () => {
     await tagline.clear();
     await tagline.fill("Still helping the world");
 
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save general" }).click();
 
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(
@@ -765,14 +799,14 @@ describe("edit profile — fundraising goal", () => {
     await tagline.clear();
     await tagline.fill("New tagline");
 
-    await screen.getByRole("button", { name: /submit changes/i }).click();
+    await screen.getByRole("button", { name: "Save general" }).click();
 
     await expect
       .element(screen.getByLabelText(/tagline/i))
       .toHaveDisplayValue("New tagline");
     // isDirty resets async — one render after values sync
     await expect
-      .element(screen.getByRole("button", { name: /submit changes/i }))
+      .element(screen.getByRole("button", { name: "Save general" }))
       .toBeDisabled();
 
     expect(await target_cols(npo.id)).toEqual({

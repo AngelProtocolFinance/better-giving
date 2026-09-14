@@ -1,5 +1,4 @@
 import {
-  Actions,
   Confirmed,
   Form as F,
   Field,
@@ -22,7 +21,7 @@ import type { OrgDesignation } from "@/schemas";
 import type { FV } from "./schema";
 import { bannerSpec, cardImgSpec, logoSpec, MAX_CHARS } from "./schema";
 import { Slug, slug_notes } from "./slug";
-import { use_edit_npo } from "./use-edit-profile";
+import { type GroupId, is_group_dirty, use_edit_npo } from "./use-edit-profile";
 import { use_rhf } from "./use-rhf";
 
 const endowDesignations: EndowDesignation[] = [
@@ -41,22 +40,38 @@ interface Props {
 }
 
 export function Form({ init_slug = "", init, id, base_url }: Props) {
-  const { dirtyFields, handleSubmit, ...rhf } = use_rhf(init);
-  const { onSubmit, state, prompt, set_prompt } = use_edit_npo(dirtyFields, id);
+  const { dirtyFields, ...rhf } = use_rhf(init);
+  const { save, publish, busy, prompt, set_prompt } = use_edit_npo(
+    dirtyFields,
+    rhf,
+    id
+  );
   const isUploading = [
     rhf.logo.value,
     rhf.card_img.value,
     rhf.banner.value,
   ].some((v) => v === "loading");
 
+  const save_button = (group: GroupId, label: string, blocked = false) => (
+    <button
+      type="button"
+      disabled={!is_group_dirty(dirtyFields, group) || blocked}
+      onClick={() => save(group)}
+      // three identical "Save" buttons on one page: the group rides in the
+      // accessible name so each still announces what it saves
+      aria-label={label}
+      className="btn btn-primary justify-self-end"
+    >
+      Save
+    </button>
+  );
+
   return (
     <F
-      disabled={rhf.isSubmitting || state !== "idle"}
-      onReset={(e) => {
-        e.preventDefault();
-        rhf.reset();
-      }}
-      onSubmit={handleSubmit(onSubmit)}
+      disabled={busy}
+      // saves go through each group's button; an untyped nested button or an
+      // enter keypress must not fire a native GET submission
+      onSubmit={(e) => e.preventDefault()}
       className="px-6 py-4 md:px-10 md:py-8 w-full max-w-4xl grid content-start gap-6"
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
@@ -184,6 +199,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             />
           }
         />
+        {save_button("general", "Save general", isUploading)}
       </Group>
 
       <Group title="Organization">
@@ -225,6 +241,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           label="Address"
           error={rhf.errors.street_address?.message}
         />
+        {save_button("organization", "Save organization")}
       </Group>
 
       <Group title="Social Media">
@@ -270,6 +287,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           placeholder="discord.com/"
           error={rhf.errors.social_media_urls?.discord?.message}
         />
+        {save_button("social_media", "Save social media")}
       </Group>
 
       <div
@@ -289,7 +307,10 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         <div className="flex items-center gap-x-2">
           <Toggle
             value={rhf.published.value}
-            onChange={rhf.published.onChange}
+            onChange={(published) => {
+              rhf.published.onChange(published);
+              publish(published);
+            }}
             classes={{ container: "ml-auto text-sm" }}
             error={rhf.errors.published?.message}
           >
@@ -306,22 +327,6 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
         </div>
       </div>
 
-      <Actions classes="group-disabled:hidden">
-        <button
-          disabled={!rhf.isDirty}
-          type="reset"
-          className="btn-secondary btn"
-        >
-          Reset changes
-        </button>
-        <button
-          disabled={!rhf.isDirty || isUploading}
-          type="submit"
-          className="btn btn-primary"
-        >
-          Submit changes
-        </button>
-      </Actions>
       {/** success prompts */}
       <Outlet />
     </F>
