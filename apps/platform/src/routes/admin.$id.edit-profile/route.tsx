@@ -39,8 +39,10 @@ function Page({ loaderData: endow }: Route.ComponentProps) {
     overview: to_content(endow.overview_pt),
   };
 
+  // the groups seed from `init` once; another profile needs a fresh mount
   return (
     <Form
+      key={endow.id}
       init_slug={endow.slug ?? undefined}
       init={defaults}
       id={endow.id}

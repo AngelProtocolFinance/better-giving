@@ -3,6 +3,7 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { useEffect, useState } from "react";
 import {
   type FieldValues,
+  type Path,
   type UseFormReturn,
   useController,
   useForm,
@@ -65,6 +66,18 @@ function use_revalidate_errored<T extends FieldValues>({
   }, [watch, getFieldState, trigger]);
 }
 
+/** moves the baseline to what was sent, keeping every current value. the
+ * held fieldset misses custom controls, so an edit can land mid-save: RHF's
+ * own compare against the new baseline leaves just those fields dirty */
+function mark_saved<T extends FieldValues>(form: UseFormReturn<T>, sent: T) {
+  const current = form.getValues();
+  // clears dirty state wholesale; the loop re-marks it against `sent`
+  form.reset(sent, { keepValues: true });
+  for (const name of Object.keys(current) as Path<T>[]) {
+    form.setValue(name, current[name], { shouldDirty: true });
+  }
+}
+
 /** validates with focus-on-error before the group's save holds its controls —
  * a disabled input can't take focus. marks saved the values it sent */
 function use_group<T extends FieldValues>(
@@ -77,10 +90,11 @@ function use_group<T extends FieldValues>(
     build: (values: T) => Update | undefined | Promise<Update | undefined>
   ) => {
     if (!(await form.trigger(names, { shouldFocus: true }))) return;
-    const values = form.getValues();
+    // `getValues` copies shallowly: a nested edit would write through
+    const values = structuredClone(form.getValues());
     await save(
       () => build(values),
-      () => form.reset(values)
+      () => mark_saved(form, values)
     );
   };
   return { submit, busy };

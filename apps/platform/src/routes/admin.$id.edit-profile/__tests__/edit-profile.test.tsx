@@ -1,6 +1,12 @@
 import { eq } from "drizzle-orm";
 import { HttpResponse, http } from "msw";
-import { createRoutesStub, useFetcher, useOutletContext } from "react-router";
+import {
+  createRoutesStub,
+  Link,
+  Outlet,
+  useFetcher,
+  useOutletContext,
+} from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -10,7 +16,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
@@ -669,6 +675,52 @@ describe("edit profile — slug taken", () => {
   });
 });
 
+describe("edit profile — switching profiles", () => {
+  it("navigating to another profile shows that profile's values", async () => {
+    const first = await seed_npo();
+    const second = await seed_npo({
+      registration_number: "SECOND456",
+      tagline: "Second tagline",
+    });
+    const Stub = createRoutesStub([
+      {
+        Component: () => (
+          <>
+            <Link to={`/admin/${second.id}/edit-profile`}>Second profile</Link>
+            <Outlet />
+          </>
+        ),
+        children: [
+          {
+            path: "/admin/:id/edit-profile",
+            Component: EditProfilePage,
+            HydrateFallback: () => null,
+            loader: loader as any,
+            action: action as any,
+            middleware: [
+              async ({ context, params }, next) => {
+                context.set(admin_ctx, Number(params.id));
+                return next();
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const screen = await render(
+      <Stub
+        initialEntries={[`/admin/${first.id}/edit-profile`]}
+        future={{ v8_middleware: true }}
+      />
+    );
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toHaveDisplayValue("Helping the world");
+    await screen.getByRole("link", { name: "Second profile" }).click();
+    await expect.element(tagline).toHaveDisplayValue("Second tagline");
+  });
+});
+
 describe("edit profile — per-group save", () => {
   it("each group's save stays disabled until that group is dirty", async () => {
     const npo = await seed_npo();
@@ -754,6 +806,52 @@ describe("edit profile — per-group save", () => {
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
     // general validates only on its own save
     expect(screen.getByText(/required/i).query()).toBeNull();
+  });
+
+  it("an edit made while a save is in flight survives it, unsaved", async () => {
+    const npo = await seed_npo();
+    let open_gate = () => {};
+    const gate = new Promise<void>((r) => {
+      open_gate = r;
+    });
+    const gated: typeof action = async (args) => {
+      await gate;
+      return action(args);
+    };
+    const screen = await render_edit(npo.id, gated);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+    const general = screen.getByRole("button", { name: "Save general" });
+    await general.click();
+    await expect.element(tagline).toBeDisabled();
+
+    // the fieldset holds native inputs only; the rich text stays editable
+    const editor = () =>
+      screen.container.querySelector<HTMLElement>('[contenteditable="true"]');
+    await vi.waitFor(() => expect(editor()).not.toBeNull());
+    const counted = screen.getByText(/chars :/).element().textContent!;
+    const before = Number(counted.match(/\d+/));
+    await userEvent.click(editor()!);
+    await userEvent.keyboard(" More");
+    // the counter reads the form's value, not the editor's DOM
+    const counter = screen.getByText(`chars : ${before + 5} `);
+    await expect.element(counter).toBeInTheDocument();
+
+    open_gate();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("New tagline")
+    );
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(counter).toBeInTheDocument();
+    await expect.element(general).toBeEnabled();
+
+    await general.click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.overview_v2).toMatch(/More/)
+    );
+    await expect.element(general).toBeDisabled();
   });
 
   it("a field's error clears as it is fixed after a failed save", async () => {
