@@ -47,7 +47,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
         </div>
         <nav
           aria-label="Marketing"
-          className="hidden min-[75rem]:flex items-center gap-x-6"
+          className="hidden nav:flex items-center gap-x-6"
         >
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} className={link_cls}>
@@ -56,7 +56,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
           ))}
         </nav>
         {/* fixed cta/avatar slot: anon->avatar swap doesn't shift the nav */}
-        <div className="hidden min-[75rem]:flex items-center justify-end gap-3">
+        <div className="hidden nav:flex items-center justify-end gap-3">
           {is_signed_in ? (
             <Link
               to={href("/dashboard")}
@@ -84,7 +84,7 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
           onClick={() => set_open((o) => !o)}
           aria-label="Navigation menu"
           aria-expanded={open}
-          className="min-[75rem]:hidden text-gray-12"
+          className="nav:hidden text-gray-12"
         >
           {open ? <XIcon size={26} /> : <MenuIcon size={26} />}
         </button>
@@ -102,9 +102,9 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
             type="button"
             aria-label="Close navigation menu"
             onClick={close}
-            className="min-[75rem]:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
+            className="nav:hidden absolute inset-x-0 top-full h-[calc(100dvh_-_100%)] cursor-default bg-gray-12/40 backdrop-blur-sm"
           />
-          <div className="min-[75rem]:hidden absolute inset-x-0 top-full bg-panel border-b border-secondary shadow-floating">
+          <div className="nav:hidden absolute inset-x-0 top-full bg-panel border-b border-secondary shadow-floating">
             <nav aria-label="Marketing" className="grid gap-1 p-4">
               {links.map((l) => (
                 <NavLink

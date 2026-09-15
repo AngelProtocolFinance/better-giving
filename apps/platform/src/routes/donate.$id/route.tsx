@@ -55,7 +55,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/** small screen but space is still enough to render sidebar */}
-        <div className="mx-0 border-b md:contents min-[445px]:border min-[445px]:mx-4 rounded">
+        <div className="mx-0 border-b md:contents xs:border xs:mx-4 rounded">
           <Steps
             base_url={base_url}
             source="bg-marketplace"

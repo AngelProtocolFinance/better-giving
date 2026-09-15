@@ -1363,6 +1363,32 @@ A shell drawn at a padding three quarters of the tree does not already use is a
 thirty-first spelling, not a convergence. The rule stands on its own until a role
 converges enough to name.
 
+### Breakpoints
+
+Viewport breakpoints are Tailwind's ladder plus two names of ours, declared in
+`packages/ui/src/styles/theme.css`. The `--breakpoint-*` namespace is **not**
+reset: the stock steps are the right ones, so the two additions sort in by value.
+
+| name | value | what it is for |
+| --- | --- | --- |
+| `xs` | 445px | the donate card's bordered inset (`donate.$id`, `fundraisers.$fund_id.donate`): below this the card runs edge to edge, and `sm` is too wide to start the inset |
+| `sm` | 40rem | |
+| `md` | 48rem | |
+| `lg` | 64rem | |
+| `nav` | 75rem | the marketing header's switch from the mobile menu to the desktop nav: the full link row needs more room than `lg` gives it |
+| `xl` | 80rem | |
+| `2xl` | 96rem | |
+
+**Each name replaces a bracket** (`min-[445px]:`, `min-[75rem]:`) that was
+hand-spelled at its call sites, at the same value, so naming them moved nothing.
+A new width is a row here and a line in `theme.css`, not a `min-[…]:` at a call
+site. Like every other bracket, `min-[…]:` still compiles, so review is what
+keeps one out.
+
+**Container queries are a separate ladder** (`@container`, `@sm:` …, the
+`--container-*` namespace) and nothing here governs them: they answer to the
+width of a box, not the viewport.
+
 ## The form action row
 
 One row, authored in `packages/ui/src/styles/utilities.css` and spent through
