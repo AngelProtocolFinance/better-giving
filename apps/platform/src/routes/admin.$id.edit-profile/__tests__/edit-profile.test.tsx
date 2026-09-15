@@ -554,7 +554,7 @@ describe("edit profile — published toggle", () => {
       .toBeInTheDocument();
   });
 
-  it("a refused publish stays unsaved through a later save's re-seed", async () => {
+  it("a refused publish stays unsaved through a later save's revalidation", async () => {
     const npo = await seed_npo({ published: false });
     let calls = 0;
     const refuse_first: typeof action = async (args) =>
@@ -564,16 +564,13 @@ describe("edit profile — published toggle", () => {
     const tagline = screen.getByLabelText(/tagline/i);
     await expect.element(tagline).toBeVisible();
 
-    (
-      screen
-        .getByRole("checkbox", { name: /publish profile/i })
-        .element() as HTMLElement
-    ).click();
+    const toggle = screen.getByRole("checkbox", { name: /publish profile/i });
+    (toggle.element() as HTMLElement).click();
     await vi.waitFor(() => expect(calls).toBe(1));
-    await expect.element(tagline).toBeEnabled();
+    await expect.element(toggle).toBeEnabled();
 
-    // a save's loader re-seed keeps only dirty values: a `published` wrongly
-    // marked saved would flip back to the stored `false`
+    // the save revalidates the loader, which holds the stored `false`: a form
+    // re-seeded from it would flip the toggle back
     await tagline.fill("New tagline");
     await screen.getByRole("button", { name: "Save general" }).click();
     await vi.waitFor(async () =>
@@ -717,18 +714,18 @@ describe("edit profile — per-group save", () => {
     );
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
 
-    // the fieldset disables every button in flight, so general's save coming
-    // back enabled is what marks the fetcher idle
+    // organization's save disarms only once its write is confirmed, after the
+    // loader has revalidated — general is read past that point
+    await expect.element(organization).toBeDisabled();
     await expect
-      .element(screen.getByRole("button", { name: "Save general" }))
-      .toBeEnabled();
+      .element(screen.getByLabelText(/address/i))
+      .toHaveDisplayValue("456 New Ave");
     await expect
       .element(screen.getByLabelText(/tagline/i))
       .toHaveDisplayValue("Unsaved tagline");
     await expect
-      .element(screen.getByLabelText(/address/i))
-      .toHaveDisplayValue("456 New Ave");
-    await expect.element(organization).toBeDisabled();
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeEnabled();
 
     await screen.getByRole("button", { name: "Save general" }).click();
     await vi.waitFor(async () =>
@@ -773,6 +770,121 @@ describe("edit profile — per-group save", () => {
     await tagline.fill("Fixed tagline");
     await expect.element(screen.getByText(/required/i)).not.toBeInTheDocument();
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
+  });
+});
+
+/** native clicks, dispatched in one tick, so the saves are in flight together
+ * rather than one after another's actionability wait */
+const press = (...locators: { element: () => Element }[]) => {
+  for (const l of locators) (l.element() as HTMLElement).click();
+};
+
+describe("edit profile — back-to-back saves", () => {
+  it("a general save and a publish fired together both write and settle", async () => {
+    const npo = await seed_npo({ published: false });
+    const screen = await render_edit(npo.id);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    press(general, screen.getByRole("checkbox", { name: /publish profile/i }));
+
+    await vi.waitFor(async () => {
+      const row = await npo_get(npo.id);
+      expect(row?.tagline).toBe("New tagline");
+      expect(row?.published).toBe(true);
+    });
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(general).toBeDisabled();
+    await expect
+      .element(screen.getByText(/your profile is visible in the marketplace/i))
+      .toBeInTheDocument();
+  });
+
+  it("two group saves fired together both write and settle", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    press(general, organization);
+
+    await vi.waitFor(async () => {
+      const row = await npo_get(npo.id);
+      expect(row?.tagline).toBe("New tagline");
+      expect(row?.street_address).toBe("456 New Ave");
+    });
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(general).toBeDisabled();
+    await expect.element(organization).toBeDisabled();
+  });
+
+  it("a refused save fired just before a confirmed one stays unsaved", async () => {
+    const npo = await seed_npo();
+    let calls = 0;
+    const refuse_first: typeof action = async (args) =>
+      calls++ === 0 ? { ok: false } : action(args);
+    const screen = await render_edit(npo.id, refuse_first);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("Refused tagline");
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    press(general, organization);
+
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
+    );
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(organization).toBeDisabled();
+    await expect.element(general).toBeEnabled();
+    await expect.element(tagline).toHaveDisplayValue("Refused tagline");
+    expect(calls).toBe(2);
+    expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
+  });
+
+  it("the action's schema refusal prompts its message, on the retry too", async () => {
+    const npo = await seed_npo();
+    // the client schema never lets this body out, so the action gets it forged
+    const malformed: typeof action = (args) =>
+      action({
+        ...args,
+        request: new Request(args.request.url, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tagline: "x".repeat(141) }),
+        }),
+      });
+    const screen = await render_edit(npo.id, malformed);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    const message = screen.getByText(/invalid length/i);
+    const close = screen.getByRole("button", { name: "Close" });
+    for (const _ of [1, 2]) {
+      await general.click();
+      await expect.element(message).toBeVisible();
+      press(close);
+      await expect.element(message).not.toBeInTheDocument();
+      await expect.element(general).toBeEnabled();
+    }
   });
 });
 

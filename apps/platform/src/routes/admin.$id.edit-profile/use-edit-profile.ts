@@ -1,40 +1,48 @@
 import type { IPrompt } from "@better-giving/ui";
-import { useEffect, useRef, useState } from "react";
-import type { FieldNamesMarkedBoolean, UseFormReturn } from "react-hook-form";
-import { useFetcher } from "react-router";
+import { valibotResolver } from "@hookform/resolvers/valibot";
+import { useEffect, useState } from "react";
+import {
+  type FieldValues,
+  type UseFormReturn,
+  useController,
+  useForm,
+  useWatch,
+} from "react-hook-form";
 import * as v from "valibot";
 import { to_text } from "#/components/rich-text";
-import { error_prompt } from "#/helpers/error-prompt";
-import type { EndowmentProfileUpdate } from "#/types/npo";
 import { type FV, schema } from "./schema";
+import { type Update, use_save } from "./use-save";
 
-type DirtyFields = FieldNamesMarkedBoolean<FV>;
-type Update = Partial<EndowmentProfileUpdate>;
+type SetPrompt = (p: IPrompt) => void;
 
 /** each group's fields in the order the form renders them — `trigger`'s
- * focus-on-error walks this order */
-export const groups = {
-  general: [
-    "name",
-    "tagline",
-    "registration_number",
-    "image",
-    "logo",
-    "card_img",
-    "overview",
-    "url",
-    "slug",
-  ],
-  organization: [
-    "endow_designation",
-    "hq_country",
-    "active_in_countries",
-    "street_address",
-  ],
-  social_media: ["social_media_urls"],
-} as const satisfies Record<string, readonly (keyof FV)[]>;
+ * focus-on-error walks this order, not the order they register in */
+const general_fields = [
+  "name",
+  "tagline",
+  "registration_number",
+  "image",
+  "logo",
+  "card_img",
+  "overview",
+  "url",
+  "slug",
+] as const satisfies (keyof FV)[];
 
-export type GroupId = keyof typeof groups;
+const organization_fields = [
+  "endow_designation",
+  "hq_country",
+  "active_in_countries",
+  "street_address",
+] as const satisfies (keyof FV)[];
+
+const general_schema = v.pick(schema, general_fields);
+const organization_schema = v.pick(schema, organization_fields);
+const social_media_schema = v.pick(schema, ["social_media_urls"]);
+
+type General = v.InferInput<typeof general_schema>;
+type Organization = v.InferInput<typeof organization_schema>;
+type SocialMedia = v.InferInput<typeof social_media_schema>;
 
 /** a dirty-fields entry is `true`, or an object/array of entries for a nested
  * field — which RHF can leave behind empty once every leaf is reverted */
@@ -42,155 +50,201 @@ const is_marked = (x: unknown): boolean =>
   x === true ||
   (typeof x === "object" && x !== null && Object.values(x).some(is_marked));
 
-export const is_group_dirty = (df: DirtyFields, group: GroupId) =>
-  groups[group].some((name) => is_marked(df[name]));
-
-type Rhf = Pick<UseFormReturn<FV>, "trigger" | "getValues" | "resetField">;
-type Settle = (data: unknown) => void;
-
-/** `endowUpdate`'s confirmed write; a refusal is `{ ok: false }` */
-const saved = v.object({ ok: v.literal(true) });
-
-export function use_edit_npo(
-  df: DirtyFields,
-  { trigger, getValues, resetField }: Rhf,
-  npo_id: number
-) {
-  const fetcher = useFetcher();
-  const [prompt, set_prompt] = useState<IPrompt>();
-  const [pending, set_pending] = useState(false);
-  const dirty = (name: keyof FV) => is_marked(df[name]);
-
-  const committed_data = useRef<unknown>(fetcher.data);
-  const settle = useRef<{ baseline: unknown; resolve: Settle }>(undefined);
-  // `fetcher.submit` resolves when router state updates, not when react
-  // commits it (a transition), so its result is read from the committed
-  // render. the first idle commit after a submit is that submit's settle: its
-  // submitting/loading renders can batch away, but its data can't — every
-  // response decodes to a fresh object, so unchanged data means no result
+/** validation runs through `trigger`, which never marks the form submitted,
+ * so `reValidateMode` never engages — an errored field re-validates here */
+function use_revalidate_errored<T extends FieldValues>({
+  watch,
+  getFieldState,
+  trigger,
+}: UseFormReturn<T>) {
   useEffect(() => {
-    committed_data.current = fetcher.data;
-    const waiting = settle.current;
-    if (fetcher.state !== "idle" || !waiting) return;
-    settle.current = undefined;
-    waiting.resolve(
-      fetcher.data === waiting.baseline ? undefined : fetcher.data
+    const sub = watch((_, { name }) => {
+      if (name && getFieldState(name).error) trigger(name);
+    });
+    return () => sub.unsubscribe();
+  }, [watch, getFieldState, trigger]);
+}
+
+/** validates with focus-on-error before the group's save holds its controls —
+ * a disabled input can't take focus. marks saved the values it sent */
+function use_group<T extends FieldValues>(
+  form: UseFormReturn<T>,
+  set_prompt: SetPrompt
+) {
+  const { save, busy } = use_save(set_prompt);
+  const submit = async (
+    names: Parameters<UseFormReturn<T>["trigger"]>[0],
+    build: (values: T) => Update | undefined | Promise<Update | undefined>
+  ) => {
+    if (!(await form.trigger(names, { shouldFocus: true }))) return;
+    const values = form.getValues();
+    await save(
+      () => build(values),
+      () => form.reset(values)
     );
-  }, [fetcher.state, fetcher.data]);
-
-  /** settles after the loader has revalidated. that re-seed keeps every dirty
-   * value (`keepDirtyValues`), so the fields this PATCH carried are marked
-   * saved here — and only when the action confirms the write */
-  const submit = async (update: Update, names: (keyof FV)[]) => {
-    const result = new Promise<unknown>((resolve) => {
-      settle.current = { baseline: committed_data.current, resolve };
-    });
-    await fetcher.submit(update, {
-      method: "PATCH",
-      action: ".",
-      encType: "application/json",
-    });
-    const data = await result;
-    // a bare `Response` failure (the 400) reaches the client as its text
-    if (typeof data === "string" && data) {
-      set_prompt({ type: "error", children: data });
-    }
-    if (!v.is(saved, data)) return;
-    for (const name of names) {
-      resetField(name, { defaultValue: getValues(name) });
-    }
   };
+  return { submit, busy };
+}
 
-  const general = async (): Promise<Update | undefined> => {
-    const fv = v.parse(v.pick(schema, groups.general), getValues());
-    const update: Update = {};
-    if (dirty("slug")) {
-      if (fv.slug !== "") {
-        const npo = await fetch(`/api/npos/${fv.slug}?fields=id`).then((r) =>
-          r.status === 404 ? undefined : r.json()
-        );
+export function use_general(init: FV, npo_id: number, set_prompt: SetPrompt) {
+  const form = useForm<General>({
+    // seeded once, never from `values`: another group's save revalidates the
+    // loader, and a re-seed would wipe unsaved edits here
+    defaultValues: {
+      name: init.name,
+      tagline: init.tagline,
+      registration_number: init.registration_number,
+      image: init.image,
+      logo: init.logo,
+      card_img: init.card_img,
+      overview: init.overview,
+      url: init.url,
+      slug: init.slug,
+    },
+    resolver: valibotResolver(general_schema),
+  });
+  use_revalidate_errored(form);
+  const { control } = form;
+  const { errors, dirtyFields, isDirty } = form.formState;
+  const { submit, busy } = use_group(form, set_prompt);
+  const dirty = (name: keyof General) => is_marked(dirtyFields[name]);
 
-        if (npo?.id && npo.id !== npo_id) {
-          set_prompt({
-            type: "error",
-            children: `Slug "${fv.slug}" is already taken`,
-          });
-          return;
+  const { field: banner } = useController({ control, name: "image" });
+  const { field: logo } = useController({ control, name: "logo" });
+  const { field: card_img } = useController({ control, name: "card_img" });
+  const { field: overview } = useController({ control, name: "overview" });
+  const slug = useWatch({ control, name: "slug" });
+
+  const save = () =>
+    submit([...general_fields], async (values) => {
+      const fv = v.parse(general_schema, values);
+      const update: Update = {};
+      if (dirty("slug")) {
+        if (fv.slug !== "") {
+          const npo = await fetch(`/api/npos/${fv.slug}?fields=id`).then((r) =>
+            r.status === 404 ? undefined : r.json()
+          );
+
+          if (npo?.id && npo.id !== npo_id) {
+            set_prompt({
+              type: "error",
+              children: `Slug "${fv.slug}" is already taken`,
+            });
+            return;
+          }
         }
+        update.slug = fv.slug;
       }
-      update.slug = fv.slug;
-    }
-    if (dirty("name")) update.name = fv.name;
-    if (dirty("tagline")) update.tagline = fv.tagline;
-    if (dirty("registration_number")) {
-      update.registration_number = fv.registration_number;
-    }
-    if (dirty("logo")) update.logo = fv.logo;
-    if (dirty("image")) update.image = fv.image;
-    if (dirty("card_img")) update.card_img = fv.card_img;
-    if (dirty("overview")) {
-      update.overview_pt = fv.overview.value;
-      update.overview_v2 = to_text(fv.overview.value);
-    }
-    if (dirty("url")) update.url = fv.url;
-    return update;
-  };
-
-  const organization = (): Update => {
-    const fv = v.parse(v.pick(schema, groups.organization), getValues());
-    const update: Update = {};
-    if (dirty("endow_designation")) {
-      update.endow_designation = fv.endow_designation;
-    }
-    if (dirty("hq_country")) update.hq_country = fv.hq_country;
-    if (dirty("active_in_countries")) {
-      update.active_in_countries = fv.active_in_countries;
-    }
-    if (dirty("street_address")) update.street_address = fv.street_address;
-    return update;
-  };
-
-  const social_media = (): Update => {
-    const fv = v.parse(v.pick(schema, groups.social_media), getValues());
-    return { social_media_urls: fv.social_media_urls };
-  };
-
-  const run = async (work: () => Promise<void>) => {
-    set_pending(true);
-    try {
-      await work();
-    } catch (err) {
-      set_prompt(error_prompt(err, { context: "applying profile changes" }));
-    } finally {
-      set_pending(false);
-    }
-  };
-
-  const save = async (group: GroupId) => {
-    const names = [...groups[group]];
-    // before `run`: its pending state disables the fieldset, and a disabled
-    // input can't take the focus-on-error
-    if (!(await trigger(names, { shouldFocus: true }))) return;
-    await run(async () => {
-      const update =
-        group === "general"
-          ? await general()
-          : group === "organization"
-            ? organization()
-            : social_media();
-      if (!update) return;
-      await submit(update, names.filter(dirty));
+      if (dirty("name")) update.name = fv.name;
+      if (dirty("tagline")) update.tagline = fv.tagline;
+      if (dirty("registration_number")) {
+        update.registration_number = fv.registration_number;
+      }
+      if (dirty("logo")) update.logo = fv.logo;
+      if (dirty("image")) update.image = fv.image;
+      if (dirty("card_img")) update.card_img = fv.card_img;
+      if (dirty("overview")) {
+        update.overview_pt = fv.overview.value;
+        update.overview_v2 = to_text(fv.overview.value);
+      }
+      if (dirty("url")) update.url = fv.url;
+      return update;
     });
-  };
-
-  const publish = (published: boolean) =>
-    run(() => submit({ published }, ["published"]));
 
   return {
+    ...form,
+    errors,
+    is_dirty: isDirty,
+    busy,
     save,
-    publish,
-    busy: pending,
-    prompt,
-    set_prompt,
+    banner,
+    logo,
+    card_img,
+    overview,
+    slug,
   };
+}
+
+export function use_organization(init: FV, set_prompt: SetPrompt) {
+  const form = useForm<Organization>({
+    defaultValues: {
+      endow_designation: init.endow_designation,
+      hq_country: init.hq_country,
+      active_in_countries: init.active_in_countries,
+      street_address: init.street_address,
+    },
+    resolver: valibotResolver(organization_schema),
+  });
+  use_revalidate_errored(form);
+  const { control } = form;
+  const { errors, dirtyFields, isDirty } = form.formState;
+  const { submit, busy } = use_group(form, set_prompt);
+  const dirty = (name: keyof Organization) => is_marked(dirtyFields[name]);
+
+  const { field: designation } = useController({
+    control,
+    name: "endow_designation",
+  });
+  const { field: hq_country } = useController({ control, name: "hq_country" });
+  const { field: active_in_countries } = useController({
+    control,
+    name: "active_in_countries",
+  });
+
+  const save = () =>
+    submit([...organization_fields], (values) => {
+      const fv = v.parse(organization_schema, values);
+      const update: Update = {};
+      if (dirty("endow_designation")) {
+        update.endow_designation = fv.endow_designation;
+      }
+      if (dirty("hq_country")) update.hq_country = fv.hq_country;
+      if (dirty("active_in_countries")) {
+        update.active_in_countries = fv.active_in_countries;
+      }
+      if (dirty("street_address")) update.street_address = fv.street_address;
+      return update;
+    });
+
+  return {
+    ...form,
+    errors,
+    is_dirty: isDirty,
+    busy,
+    save,
+    designation,
+    hq_country,
+    active_in_countries,
+  };
+}
+
+export function use_social_media(init: FV, set_prompt: SetPrompt) {
+  const form = useForm<SocialMedia>({
+    defaultValues: { social_media_urls: init.social_media_urls },
+    resolver: valibotResolver(social_media_schema),
+  });
+  use_revalidate_errored(form);
+  const { errors, isDirty } = form.formState;
+  const { submit, busy } = use_group(form, set_prompt);
+
+  const save = () =>
+    submit("social_media_urls", (values) => {
+      const fv = v.parse(social_media_schema, values);
+      return { social_media_urls: fv.social_media_urls };
+    });
+
+  return { ...form, errors, is_dirty: isDirty, busy, save };
+}
+
+/** saves on flip. a refused flip keeps showing what the user chose — nothing
+ * re-seeds it */
+export function use_publish(init: FV, set_prompt: SetPrompt) {
+  const [published, set_published] = useState(init.published);
+  const { save, busy } = use_save(set_prompt);
+  const publish = (next: boolean) =>
+    save(() => {
+      set_published(next);
+      return { published: next };
+    });
+  return { published, publish, busy };
 }
