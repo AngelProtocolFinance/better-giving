@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -7,6 +8,10 @@ import {
   test,
   vi,
 } from "vitest";
+import { dist_refund_update, dists_for_refund } from "../pg/queries/dist";
+import type { DbOrTx } from "../pg/queries/helpers";
+import { bal_txs } from "../pg/schema/bal-tx";
+import { dists } from "../pg/schema/dist";
 import {
   donation_donors,
   donation_recipients,
@@ -50,6 +55,7 @@ import { process_refund } from "./process";
 
 // --- setup ---
 
+const as_db = (x: unknown) => x as DbOrTx;
 const ctx = { form_id: null, program_id: null, alert_from: "test" };
 let counter = 0;
 
@@ -64,6 +70,8 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   send_email.mockResolvedValue({ data: { id: "msg-1" }, error: null });
+  await test_db.current!.db.delete(bal_txs);
+  await test_db.current!.db.delete(dists);
   await test_db.current!.db.delete(donation_match_events);
   await test_db.current!.db.delete(donation_donors);
   await test_db.current!.db.delete(donation_recipients);
@@ -129,7 +137,7 @@ async function seed(o?: {
       ...o?.stamps,
     });
   }
-  return { id, npo_name: npo!.name };
+  return { id, npo_id: npo!.id, npo_name: npo!.name };
 }
 
 const events = () => test_db.current!.db.select().from(donation_match_events);
@@ -226,5 +234,72 @@ describe("process_refund — the filed-claim heads-up", () => {
       failures: [],
     });
     expect((await dons())[0]!.status).toBe("refunded");
+  });
+});
+
+describe("process_refund — concurrent runs", () => {
+  test("two runs on the same stale graphs reverse the dist once", async () => {
+    const { id, npo_id } = await seed({
+      stamps: { submitted_at: "2026-07-02T00:00:00.000Z" },
+    });
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ liq: 1000, lock_units: 0, cash: 0 })
+      .where(eq(npos.id, npo_id));
+    await db.insert(dists).values({
+      id: `dist-${id}`,
+      donation_id: id,
+      status: "settled",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id: npo_id,
+      to_name: "npo",
+      amount: 100,
+      amount_denom: "USD",
+      net: 100,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      alloc: { liq: 100, lock: 0, cash: 0 },
+    });
+
+    // a redelivery racing the original: both loaded before either committed
+    const graphs = await dists_for_refund(id);
+    await Promise.all([
+      process_refund(id, graphs, ctx),
+      process_refund(id, graphs, ctx),
+    ]);
+
+    const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
+    expect(npo!.liq).toBe(900);
+    expect(await db.select().from(bal_txs)).toHaveLength(1);
+    const [dist] = await db.select().from(dists);
+    expect(dist!.status).toBe("refunded");
+    expect(dist!.refund_status).toBe("completed");
+    expect((await dons())[0]!.status).toBe("refunded");
+    expect(send_email).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failure write does not land on a dist another run reversed", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    const db = test_db.current!.db;
+    await db.insert(dists).values({
+      id: `dist-${id}`,
+      donation_id: id,
+      status: "refunded",
+      refund_status: "completed",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id: npo_id,
+      amount_denom: "USD",
+    });
+
+    await dist_refund_update(as_db(db), `dist-${id}`, {
+      refund_status: "failed",
+      refund_error: "boom",
+    });
+
+    const [dist] = await db.select().from(dists);
+    expect(dist!.refund_status).toBe("completed");
+    expect(dist!.refund_error).toBeNull();
   });
 });
