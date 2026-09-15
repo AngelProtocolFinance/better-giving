@@ -27,10 +27,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
       <Menu.Trigger className="group flex items-center gap-2 w-full py-4 px-5 border-b text-left focus-visible:outline-2 focus-visible:outline-ring">
         <Image className="size-14 shrink-0" src={logo || flying_character} />
         <h5 className="text-sm font-bold truncate flex-1">{name}</h5>
-        <ChevronsUpDownIcon
-          size={16}
-          className="shrink-0 text-gray-11 group-hover:text-gray-12"
-        />
+        <ChevronsUpDownIcon className="shrink-0 text-gray-11 group-hover:text-gray-12 icon-md" />
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
@@ -51,7 +48,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
                     />
                     <span className="text-sm truncate flex-1">{org.name}</span>
                     {is_current && (
-                      <CheckIcon size={16} className="shrink-0 text-primary" />
+                      <CheckIcon className="shrink-0 text-primary icon-md" />
                     )}
                   </Link>
                 </Menu.Item>
@@ -62,7 +59,7 @@ export function Loader({ name, logo = flying_character }: IEndow) {
                 to={href("/register")}
                 className="hover:bg-gray-3 data-highlighted:bg-gray-3 data-highlighted:text-gray-12 data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t mt-1 flex items-center gap-2 px-2 py-2 rounded text-gray-11 hover:text-gray-12"
               >
-                <PlusIcon size={16} className="shrink-0" />
+                <PlusIcon className="shrink-0 icon-md" />
                 <span className="text-sm">Register another org</span>
               </Link>
             </Menu.Item>

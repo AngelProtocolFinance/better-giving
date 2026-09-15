@@ -40,7 +40,7 @@ export function Toaster({ children }: { children: React.ReactNode }) {
               {toast.description}
             </Toast.Description>
             <Toast.CloseTrigger className="glyph-btn text-gray-11 hover:text-gray-12">
-              <X size={16} />
+              <X className="icon-md" />
             </Toast.CloseTrigger>
           </Toast.Root>
         )}

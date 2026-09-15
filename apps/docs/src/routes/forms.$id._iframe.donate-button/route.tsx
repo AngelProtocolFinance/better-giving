@@ -28,7 +28,7 @@ export default function DonateButton() {
           href="/demo-nonprofit#donate-button"
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
-          <ArrowRight size={14} />
+          <ArrowRight className="icon-sm" />
           See it in action on a demo page
         </a>
       </div>

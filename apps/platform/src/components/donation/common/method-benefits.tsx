@@ -72,7 +72,7 @@ export function MethodBenefits({ classes = "", subject }: Props) {
           aria-controls={details_id}
           className="flex items-center -mt-4 justify-self-start text-xs text-primary hover:underline"
         >
-          read more <ChevronDown size={16} />
+          read more <ChevronDown className="icon-md" />
         </button>
       )}
       <div id={details_id} hidden={!expanded} className="grid gap-y-2">

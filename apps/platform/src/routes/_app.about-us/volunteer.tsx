@@ -41,7 +41,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
             className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
           >
             Volunteer with us
-            <ArrowRight className="size-4" />
+            <ArrowRight className="icon-md" />
           </a>
         </div>
       </div>

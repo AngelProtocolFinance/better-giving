@@ -11,7 +11,7 @@ function Check({ children, dark }: ICheck) {
   return (
     <span className="flex gap-2.5 text-sm/normal">
       <CheckIcon
-        className={`flex-none size-4 mt-0.5 ${dark ? "text-success" : "text-primary"}`}
+        className={`flex-none icon-md mt-0.5 ${dark ? "text-success" : "text-primary"}`}
         strokeWidth={3}
         aria-hidden
       />

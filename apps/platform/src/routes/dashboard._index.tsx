@@ -181,7 +181,7 @@ function FavoriteCard({ fav }: { fav: IFavorite }) {
           aria-label={`Remove ${fav.name} from favorites`}
           className="grid place-items-center size-7 rounded-full text-gray-11 transition-colors hover:bg-gray-3 hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring"
         >
-          <XIcon size={16} />
+          <XIcon className="icon-md" />
         </button>
       </fetcher.Form>
     </div>

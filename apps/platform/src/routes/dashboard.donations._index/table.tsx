@@ -177,7 +177,7 @@ function RowAction({ row }: { row: IRow }) {
         aria-label="View receipt"
         className="w-full flex justify-center"
       >
-        <ArrowDownToLine size={20} />
+        <ArrowDownToLine className="icon-lg" />
       </Link>
     );
   }

@@ -16,7 +16,7 @@ export default function Home() {
           <div className="space-y-4">
             <div className="flex items-start gap-4 p-5 rounded border bg-panel max-w-md">
               <div className="p-3 rounded bg-secondary text-primary">
-                <Code size={24} />
+                <Code className="icon-xl" />
               </div>
               <div className="flex-1">
                 <h2 className="font-semibold text-gray-12">Form Embedding</h2>
@@ -30,14 +30,14 @@ export default function Home() {
                     className="text-sm text-primary hover:text-primary-deep flex items-center gap-1"
                   >
                     See examples
-                    <ArrowRight size={14} />
+                    <ArrowRight className="icon-sm" />
                   </Link>
                   <Link
                     to="/demo-nonprofit"
                     className="text-sm text-primary hover:text-primary-deep flex items-center gap-1"
                   >
                     View demo page
-                    <ArrowRight size={14} />
+                    <ArrowRight className="icon-sm" />
                   </Link>
                 </div>
               </div>

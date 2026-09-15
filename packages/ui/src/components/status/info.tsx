@@ -12,10 +12,7 @@ export function Info({ classes = "", children }: Props) {
       inline
       classes={`${classes} text-sm text-gray-11`}
       icon={
-        <CircleAlert
-          size={16}
-          className="mr-2 bottom-[2px] inline-block relative"
-        />
+        <CircleAlert className="mr-2 bottom-[2px] inline-block relative icon-md" />
       }
     >
       {children}

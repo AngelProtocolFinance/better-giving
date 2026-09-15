@@ -12,7 +12,7 @@ export interface Props extends IPaginator<IBalanceTx> {}
 
 export function FlowIcon(this_account: string, data: IBalanceTx): ReactNode {
   if (data.account === this_account) {
-    return <ArrowRight size={16} className="text-success" />;
+    return <ArrowRight className="text-success icon-md" />;
   }
 }
 
@@ -56,10 +56,7 @@ export function Table({
                         </Content>
                       }
                     >
-                      <InfoIcon
-                        size={14}
-                        className="text-gray-11 absolute -left-5 top-0.5"
-                      />
+                      <InfoIcon className="text-gray-11 absolute -left-5 top-0.5 icon-sm" />
                     </Tooltip>
                   )}
                   ${humanize(r.amount)}{" "}

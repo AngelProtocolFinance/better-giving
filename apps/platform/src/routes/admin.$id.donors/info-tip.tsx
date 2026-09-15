@@ -16,7 +16,7 @@ export function InfoTip({ label }: IProps) {
       }
     >
       <span className="inline-flex cursor-help text-gray-11">
-        <InfoIcon size={12} />
+        <InfoIcon className="icon-xs" />
       </span>
     </Tooltip>
   );

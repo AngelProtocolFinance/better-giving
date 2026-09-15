@@ -149,7 +149,7 @@ export function Checklist({ classes = "" }: IChecklist) {
           onClick={() => window.print()}
           className="btn btn-secondary gap-2"
         >
-          <Printer size={16} />
+          <Printer className="icon-md" />
           Print or save as PDF
         </button>
         <button
@@ -157,7 +157,7 @@ export function Checklist({ classes = "" }: IChecklist) {
           onClick={() => commit(new Set())}
           className="btn btn-ghost gap-2 border border-gray-6"
         >
-          <RotateCcw size={16} />
+          <RotateCcw className="icon-md" />
           Reset all
         </button>
       </div>

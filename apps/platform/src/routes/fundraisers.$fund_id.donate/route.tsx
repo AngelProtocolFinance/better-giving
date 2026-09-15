@@ -50,7 +50,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
           />
         </div>
         {/** small screen but space is still enough to render sidebar */}
-        <div className="mx-0 border-b md:contents min-[445px]:border min-[445px]:mx-4 rounded">
+        <div className="mx-0 border-b md:contents xs:border xs:mx-4 rounded">
           {is_closed(fund.active, fund.expiration ?? undefined) ? (
             <Info classes="row-start-2 self-center bg-panel rounded h-80 content-center justify-items-center grid">
               This fundraiser is already closed and can't accept any more

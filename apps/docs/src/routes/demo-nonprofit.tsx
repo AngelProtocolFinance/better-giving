@@ -173,7 +173,7 @@ export default function DemoNonprofitPage() {
                   aria-label="Close"
                   className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-secondary text-gray-11"
                 >
-                  <X size={20} />
+                  <X className="icon-lg" />
                 </button>
               </form>
               <div data-bg-form={id} className="w-[90vw] max-w-150" />
@@ -289,7 +289,7 @@ export default function DemoNonprofitPage() {
             className="inline-flex items-center gap-2 mt-3 text-demo-on-dark-faint hover:text-demo-on-dark-dim text-sm"
           >
             View all embed options
-            <ExternalLink size={14} />
+            <ExternalLink className="icon-sm" />
           </Link>
         </div>
       </footer>

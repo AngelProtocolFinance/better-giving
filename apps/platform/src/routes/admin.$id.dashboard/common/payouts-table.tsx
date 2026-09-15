@@ -34,7 +34,7 @@ export function PayoutsTable({
           {items.map((payout, idx) => (
             <tr key={idx}>
               <td className="w-8">
-                <ArrowRightIcon size={14} className="inline stroke-success" />
+                <ArrowRightIcon className="inline stroke-success icon-sm" />
               </td>
               <td>
                 <span

@@ -239,7 +239,7 @@ export function Combo<T>({ ref, ...p }: Props<T>) {
                   }}
                   className={`${ornament_end_cls} disabled:text-gray-11 text-destructive hover:text-destructive active:text-destructive`}
                 >
-                  <X size={16} />
+                  <X className="icon-md" />
                 </Combobox.ClearTrigger>
               )}
             </Combobox.Context>

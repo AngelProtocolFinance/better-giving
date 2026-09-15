@@ -76,7 +76,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 : `${data.to_name.toLowerCase().endsWith("s") ? "'" : "'s"} profile.`}
             </span>
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
@@ -109,7 +109,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             )}
 
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
@@ -132,7 +132,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               Dedicate your donation
             </span>
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
@@ -163,11 +163,11 @@ function Page({ loaderData: data }: Route.ComponentProps) {
         <Collapsible.Root className="mt-2 w-full border bg-panel rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
-              <StarIcon className="stroke-warning fill-warning" size={14} />
+              <StarIcon className="stroke-warning fill-warning icon-sm" />
             </span>
             <span className="text-sm font-semibold">Spread the word!</span>
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="size-5 group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">

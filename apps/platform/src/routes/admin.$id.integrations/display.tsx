@@ -27,7 +27,11 @@ export function Display({ apiKey, classes = "" }: Props) {
           className="btn btn-field btn-icon btn-secondary"
           aria-label={keyShown ? "Hide API Key" : "Show API Key"}
         >
-          {keyShown ? <EyeOff size={16} /> : <Eye size={16} />}
+          {keyShown ? (
+            <EyeOff className="icon-md" />
+          ) : (
+            <Eye className="icon-md" />
+          )}
         </button>
         <Copier
           text={apiKey}

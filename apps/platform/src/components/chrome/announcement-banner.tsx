@@ -84,7 +84,7 @@ export function AnnouncementBanner() {
             aria-label="Dismiss announcement"
             className="glyph-btn text-primary-fg/70 hover:text-primary-fg focus-visible:text-primary-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-fg"
           >
-            <XIcon size={16} />
+            <XIcon className="icon-md" />
           </button>
         </div>
       )}

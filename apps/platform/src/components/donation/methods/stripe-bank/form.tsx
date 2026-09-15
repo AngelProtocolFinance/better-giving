@@ -105,7 +105,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
       options={opts}
       // the control is as narrow as a currency code; the list is not
       popup_width="w-56"
-      indicator={<CheckIcon size={14} className="text-gray-11" />}
+      indicator={<CheckIcon className="text-gray-11 icon-sm" />}
       popup_vars={popup_vars}
       value={rhf.currency.value}
       // the schema has no empty currency, and the seam only emits undefined

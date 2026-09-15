@@ -32,7 +32,7 @@ export function LoadMoreTr({
           type="button"
         >
           <LoaderCircle
-            className={`size-5 ${loading ? "animate-spin" : "invisible"}`}
+            className={`icon-lg ${loading ? "animate-spin" : "invisible"}`}
           />
           {loading ? "Loading..." : "View More"}
         </button>

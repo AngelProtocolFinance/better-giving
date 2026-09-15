@@ -56,10 +56,7 @@ function Funds({ loaderData: page1 }: Route.ComponentProps) {
       <div className="page mt-8 pb-8">
         <div className="grid grid-cols-[1fr_auto] gap-x-2">
           <div className="relative">
-            <Search
-              size={20}
-              className="ml-2 absolute top-1/2 -translate-y-1/2 left-2"
-            />
+            <Search className="ml-2 absolute top-1/2 -translate-y-1/2 left-2 icon-lg" />
             <input
               type="search"
               name="query"

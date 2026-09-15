@@ -20,7 +20,7 @@ export function Videos({ classes = "", ...props }: IVideos) {
           type="button"
           className="text-success"
         >
-          <Plus size={16} />
+          <Plus className="icon-md" />
         </button>
       </div>
       <p id="videos-description" className="text-gray-11 text-sm mb-2">

@@ -89,7 +89,7 @@ function Row(f: FormRow) {
         </NavLink>
         {f.tag && (
           <p className="flex items-center gap-1 text-xs text-gray-11 mt-0.5">
-            <TagIcon size={12} className="shrink-0" />
+            <TagIcon className="shrink-0 icon-xs" />
             {f.tag}
           </p>
         )}
@@ -171,7 +171,7 @@ function StatusFilter({ value }: { value: Filter }) {
     >
       <Select.Trigger className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide cursor-pointer">
         <Select.ValueText placeholder="Status" />
-        <ChevronDownIcon size={14} className="text-gray-11" />
+        <ChevronDownIcon className="text-gray-11 icon-sm" />
       </Select.Trigger>
       <Portal>
         <Select.Positioner>

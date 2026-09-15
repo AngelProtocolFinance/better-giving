@@ -46,7 +46,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
                   className="flex-none size-5.5 rounded-full bg-success text-success-fg grid place-items-center"
                   aria-hidden
                 >
-                  <Check className="size-3.5" strokeWidth={3} />
+                  <Check className="icon-sm" strokeWidth={3} />
                 </span>
                 {p}
               </span>
@@ -57,7 +57,7 @@ export function OpenSource({ classes = "" }: IOpenSource) {
             className="btn btn-lg btn-secondary gap-2 mt-2"
           >
             View the repository
-            <ArrowRight className="size-4" />
+            <ArrowRight className="icon-md" />
           </ExtLink>
         </div>
 

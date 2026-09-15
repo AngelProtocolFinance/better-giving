@@ -67,10 +67,7 @@ export function LogsTable({
                       </Content>
                     }
                   >
-                    <InfoIcon
-                      size={14}
-                      className="inline ml-1 text-destructive"
-                    />
+                    <InfoIcon className="inline ml-1 text-destructive icon-sm" />
                   </Tooltip>
                 )}
               </td>

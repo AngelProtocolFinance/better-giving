@@ -100,7 +100,7 @@ export function Chart({ points }: Props) {
           dataKey="liq"
           stackId="1"
           name="Savings Returns"
-          fill="#ffc977"
+          fill="#f19a00"
           stroke="#f59e0b"
         />
         <Area

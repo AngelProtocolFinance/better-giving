@@ -108,7 +108,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
               />
             ))}
             <div className="bg-surface inline-flex items-center gap-2 text-gray-11 pl-3 rounded">
-              <Search size={20} />
+              <Search className="icon-lg" />
               {/* the one focusable input in this control: it is both the search
                   box and what an external `ref` (RHF error focus) lands on. */}
               <Combobox.Input
@@ -157,7 +157,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
             items={rows}
             item_key={opt.key}
             render={opt.render}
-            indicator={<Check size={16} className="text-primary" />}
+            indicator={<Check className="text-primary icon-md" />}
             classes={p.classes?.option}
           />
           <Status query={query} count={rows.length} />
@@ -187,7 +187,7 @@ function Tag(p: { label: ReactNode; name: string; on_remove: () => void }) {
           p.on_remove();
         }}
       >
-        <X size={16} />
+        <X className="icon-md" />
       </button>
     </div>
   );

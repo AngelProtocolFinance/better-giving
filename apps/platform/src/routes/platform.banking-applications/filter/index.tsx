@@ -83,7 +83,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
           disabled={isDisabled}
           className="w-full flex justify-center items-center p-3 rounded bg-primary text-primary-fg lg:text-gray-11 lg:bg-surface lg:w-[22.3rem] lg:justify-between disabled:bg-gray-11 disabled:text-gray-11 lg:disabled:bg-gray-3 lg:border focus-visible:outline-none"
         >
-          <FilterIcon className="mr-1 lg:hidden" size={16} />
+          <FilterIcon className="mr-1 lg:hidden icon-md" />
           <div className="font-semibold text-sm">Filter</div>
           <DrawerIcon is_open={open} className="hidden lg:inline" size={21} />
         </Popover.Trigger>

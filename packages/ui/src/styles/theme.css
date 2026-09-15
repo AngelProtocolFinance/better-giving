@@ -130,6 +130,14 @@
   --font-mono:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
     monospace;
+
+  /* the --breakpoint-* namespace stays OPEN: tailwind's sm–2xl ladder is
+     inherited, and these two are added to it, sorted in by value. ledger
+     entry in packages/brand/design-system.md.
+     xs:  the donate card's bordered inset, below sm.
+     nav: the marketing header's desktop nav, which needs more room than lg. */
+  --breakpoint-xs: 445px;
+  --breakpoint-nav: 75rem;
 }
 
 /* the embed's two accent slots. this package references them — btn-form-primary,

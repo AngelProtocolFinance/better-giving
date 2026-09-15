@@ -38,7 +38,7 @@ export default function Page({
         to={back_to}
         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-11 hover:text-gray-12"
       >
-        <ArrowLeft size={16} />
+        <ArrowLeft className="icon-md" />
         {back_label}
       </Link>
 
@@ -177,7 +177,7 @@ function SubscriptionPills({
               cancelled ? "border-dashed border-gray-6" : "border-gray-6"
             }`}
           >
-            <RefreshCw size={12} style={{ color: sub_color(idx) }} />
+            <RefreshCw className="icon-xs" style={{ color: sub_color(idx) }} />
             <span className="font-semibold">
               ${amount.toLocaleString("en-US", { maximumFractionDigits: 0 })}
             </span>

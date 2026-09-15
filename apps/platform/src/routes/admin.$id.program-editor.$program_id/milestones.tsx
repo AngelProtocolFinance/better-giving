@@ -37,7 +37,7 @@ export function Milestones({ programId, milestones }: Props) {
           }
           className="btn-secondary btn w-full @md:w-52"
         >
-          <Plus className="mr-2" size={16} />
+          <Plus className="mr-2 icon-md" />
           <span>
             {fetcher.state === "submitting" ? "Adding.." : "Add"} milestone
           </span>

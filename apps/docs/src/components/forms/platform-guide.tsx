@@ -58,7 +58,7 @@ export function PlatformGuide() {
             className="inline-flex items-center gap-1 text-sm text-gray-11 hover:text-gray-12 transition-colors"
           >
             {name}
-            <ExternalLink size={12} className="text-gray-11" />
+            <ExternalLink className="text-gray-11 icon-xs" />
           </ExtLink>
         ))}
       </div>

@@ -69,7 +69,7 @@ export function RebalanceForm({
                   type="button"
                   onClick={() => txs.append(default_tx)}
                 >
-                  <PlusIcon size={16} className="stroke-success" />
+                  <PlusIcon className="stroke-success icon-md" />
                 </button>
               </th>
               <th>Out</th>
@@ -92,7 +92,7 @@ export function RebalanceForm({
                       onClick={() => txs.remove(idx)}
                       className="px-2 align-middle"
                     >
-                      <MinusIcon size={16} className="stroke-destructive" />
+                      <MinusIcon className="stroke-destructive icon-md" />
                     </button>
                   </td>
                   <FieldCell

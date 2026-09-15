@@ -51,7 +51,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
               className="flex items-center gap-x-1 active:-translate-x-1"
               to="../fundraisers"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft className="icon-md" />
               <span>Fundraisers</span>
             </Link>
             <FundStatus

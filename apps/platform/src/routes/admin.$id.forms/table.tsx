@@ -83,7 +83,7 @@ function Row(f: FormRow) {
       {/* form tag/name → links to edit */}
       <td>
         <div className="flex items-center gap-2">
-          <TagIcon size={14} className="shrink-0 text-gray-11" />
+          <TagIcon className="shrink-0 text-gray-11 icon-sm" />
           <NavLink
             to={href("/forms/:id/edit", { id: f.id })}
             className="font-medium hover:text-primary"
@@ -172,7 +172,7 @@ function StatusFilter({ value }: { value: Filter }) {
     >
       <Select.Trigger className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide cursor-pointer">
         <Select.ValueText placeholder="Status" />
-        <ChevronDownIcon size={14} className="text-gray-11" />
+        <ChevronDownIcon className="text-gray-11 icon-sm" />
       </Select.Trigger>
       <Portal>
         <Select.Positioner>

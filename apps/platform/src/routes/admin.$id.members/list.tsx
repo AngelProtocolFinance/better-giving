@@ -8,7 +8,7 @@ export function List(props: IList) {
   return (
     <div className="table-scroll">
       <NavLink className="justify-self-end btn btn-primary gap-2 mb-2" to="add">
-        <Plus size={16} />
+        <Plus className="icon-md" />
         <span>Invite user</span>
       </NavLink>
       <Loaded {...props} />

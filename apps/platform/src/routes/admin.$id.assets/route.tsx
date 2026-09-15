@@ -41,7 +41,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
               )
             }
           >
-            <ArrowDownToLineIcon size={14} />
+            <ArrowDownToLineIcon className="icon-sm" />
             Download
           </button>
         </div>
@@ -63,7 +63,7 @@ function Page({ loaderData: d, params }: Route.ComponentProps) {
               )
             }
           >
-            <ArrowDownToLineIcon size={14} />
+            <ArrowDownToLineIcon className="icon-sm" />
             Download
           </button>
         </div>

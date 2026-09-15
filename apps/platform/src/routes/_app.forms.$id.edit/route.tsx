@@ -39,7 +39,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             to={back_url}
             className="flex text-primary hover:text-primary items-center gap-x-1"
           >
-            <ChevronLeftIcon size={16} />
+            <ChevronLeftIcon className="icon-md" />
             <span className="text-sm">Forms</span>
           </NavLink>
           {d.tag && (

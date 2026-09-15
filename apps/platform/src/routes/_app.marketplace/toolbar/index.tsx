@@ -14,7 +14,7 @@ export function Toolbar({ classes = "" }: { classes?: string }) {
         to={{ pathname: "filter", search: params.toString() }}
         className="btn btn-primary justify-start justify-self-start"
       >
-        <FilterIcon size={16} className="mr-2" />
+        <FilterIcon className="mr-2 icon-md" />
         <span>Filters</span>
       </NavLink>
       <Search classes="order-first col-span-2 md:order-0 md:col-span-1" />

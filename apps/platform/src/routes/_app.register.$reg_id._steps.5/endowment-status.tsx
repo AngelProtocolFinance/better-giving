@@ -55,7 +55,7 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
         className={`max-sm:grid text-destructive-subtle-fg ${classes} content-start`}
       >
         <p className="mb-6 max-sm:grid justify-items-center gap-2">
-          <CircleAlert className="inline relative bottom-px mr-2" size={20} />
+          <CircleAlert className="inline relative bottom-px mr-2 icon-lg" />
           <span className="max-sm:text-center">
             Your nonprofit's application has been rejected.
           </span>

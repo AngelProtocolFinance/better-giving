@@ -47,7 +47,7 @@ export function Table({
                           </Content>
                         }
                       >
-                        <Info size={16} className="absolute -left-5 top-0.5" />
+                        <Info className="absolute -left-5 top-0.5 icon-md" />
                       </Tooltip>
                     )}
                     ${humanize(payout.amount)}{" "}

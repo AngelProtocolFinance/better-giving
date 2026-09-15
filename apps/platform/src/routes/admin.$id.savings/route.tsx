@@ -30,7 +30,7 @@ function Page({ loaderData }: Route.ComponentProps) {
             </Content>
           }
         >
-          <CircleHelp size={16} className="text-gray-11 ml-1" />
+          <CircleHelp className="text-gray-11 ml-1 icon-md" />
         </Tooltip>
       </div>
       <p className="text-xl font-semibold bg-panel border p-4 rounded">
@@ -38,15 +38,15 @@ function Page({ loaderData }: Route.ComponentProps) {
       </p>
       <div className="flex items-center gap-4 mt-4">
         <NavLink to="deposit" className="btn btn-secondary gap-2">
-          <ArrowUpFromLineIcon size={16} />
+          <ArrowUpFromLineIcon className="icon-md" />
           Deposit
         </NavLink>
         <NavLink to="withdraw" className="btn btn-secondary gap-2">
-          <ArrowDownToLineIcon size={16} />
+          <ArrowDownToLineIcon className="icon-md" />
           Withdraw
         </NavLink>
         <NavLink to="transfer" className="btn btn-secondary gap-2">
-          <ArrowLeftRightIcon size={16} />
+          <ArrowLeftRightIcon className="icon-md" />
           Transfer
         </NavLink>
       </div>

@@ -103,10 +103,7 @@ export function Form1({ classes = "", state, setState }: Props) {
             </Content>
           }
         >
-          <CircleHelpIcon
-            size={14}
-            className="relative inline bottom-px ml-1"
-          />
+          <CircleHelpIcon className="relative inline bottom-px ml-1 icon-sm" />
         </Tooltip>
       </p>
       <div className="grid gap-y-1 mt-2 @md:grid-cols-2 @lg:grid-cols-3">

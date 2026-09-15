@@ -65,9 +65,9 @@ export const FundItem = (props: Props) => {
             disabled={fetcher.state !== "idle" || !props.active}
           >
             {fetcher.state === "submitting" ? (
-              <LoaderCircle size={12} className="animate-spin" />
+              <LoaderCircle className="animate-spin icon-xs" />
             ) : (
-              <Split size={12} className="rotate-90" />
+              <Split className="rotate-90 icon-xs" />
             )}
 
             <span>

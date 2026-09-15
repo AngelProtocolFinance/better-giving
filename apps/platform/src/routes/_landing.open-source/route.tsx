@@ -62,7 +62,7 @@ export default function Page() {
                 className="btn btn-lg btn-secondary gap-2"
               >
                 View the repository
-                <ArrowRight className="size-4" />
+                <ArrowRight className="icon-md" />
               </ExtLink>
               <Link to={href("/register")} className="btn btn-lg btn-outline">
                 Join free forever
@@ -123,7 +123,7 @@ export default function Page() {
             className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
           >
             Contribute on GitHub
-            <ArrowRight className="size-4" />
+            <ArrowRight className="icon-md" />
           </ExtLink>
         </div>
       </div>

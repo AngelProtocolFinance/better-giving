@@ -117,7 +117,7 @@ export function TipField({ classes = "", ...p }: Props) {
           aria-label="Custom amount"
         >
           <RadioGroup.ItemText>
-            <PencilIcon aria-hidden className="inline-block size-3 " />
+            <PencilIcon aria-hidden className="inline-block icon-xs " />
           </RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>

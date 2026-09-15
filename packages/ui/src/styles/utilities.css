@@ -196,6 +196,40 @@
   border-radius: var(--radius);
 }
 
+/* icon size ladder, for lucide glyphs. css inline-/block-size beat the svg's
+   own width/height attributes, so the class alone sets the box. flex-shrink is baked in for the reason glyph-btn bakes it:
+   an svg is overflow:hidden, so its flex min-size is 0 and a row of text beside
+   it squeezes the glyph. ledger entry in packages/brand/design-system.md. */
+@utility icon-xs {
+  inline-size: calc(var(--spacing) * 3) /* 12px */;
+  block-size: calc(var(--spacing) * 3) /* 12px */;
+  flex-shrink: 0;
+}
+
+@utility icon-sm {
+  inline-size: calc(var(--spacing) * 3.5) /* 14px */;
+  block-size: calc(var(--spacing) * 3.5) /* 14px */;
+  flex-shrink: 0;
+}
+
+@utility icon-md {
+  inline-size: calc(var(--spacing) * 4) /* 16px */;
+  block-size: calc(var(--spacing) * 4) /* 16px */;
+  flex-shrink: 0;
+}
+
+@utility icon-lg {
+  inline-size: calc(var(--spacing) * 5) /* 20px */;
+  block-size: calc(var(--spacing) * 5) /* 20px */;
+  flex-shrink: 0;
+}
+
+@utility icon-xl {
+  inline-size: calc(var(--spacing) * 6) /* 24px */;
+  block-size: calc(var(--spacing) * 6) /* 24px */;
+  flex-shrink: 0;
+}
+
 @utility btn-donate {
   border-radius: var(--radius);
   text-transform: none;

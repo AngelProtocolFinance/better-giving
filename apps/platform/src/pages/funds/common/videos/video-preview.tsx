@@ -22,7 +22,7 @@ export function VideoPreview(props: IVideoPreview) {
       />
       <div className="flex justify-end mb-1">
         <CRUDBtn onClick={() => set_open(true)}>
-          <Pencil size={12} />
+          <Pencil className="icon-xs" />
         </CRUDBtn>
         <CRUDBtn onClick={() => props.onDelete(props.idx)}>
           <Minus className="text-destructive" />

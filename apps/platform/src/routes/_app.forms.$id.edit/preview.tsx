@@ -47,7 +47,7 @@ export function Preview({
     <div className={classes}>
       <div className="mb-2 flex justify-between">
         <div className="text-sm flex items-center gap-x-1">
-          <EyeIcon size={16} />
+          <EyeIcon className="icon-md" />
           <span>Live form preview</span>
         </div>
         <ExtLink
@@ -55,7 +55,7 @@ export function Preview({
           href={`${DEV_DOCS_BASE_URL}/forms/${form_id}?mode=${type}`}
         >
           Embed examples
-          <ExternalLinkIcon size={12} />
+          <ExternalLinkIcon className="icon-xs" />
         </ExtLink>
       </div>
       {f.status === "inactive" ? (

@@ -87,7 +87,7 @@ export function TwoPaths({ classes = "" }: ITwoPaths) {
               className="btn btn-secondary gap-2 self-start mt-auto"
             >
               Get the code
-              <ArrowRight className="size-4" />
+              <ArrowRight className="icon-md" />
             </ExtLink>
           </div>
         </div>
