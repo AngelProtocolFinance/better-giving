@@ -9,6 +9,7 @@ import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
+import { donation_has_dists } from "$/pg/queries/dist";
 import {
   donation_by_sttl_id,
   donation_settle_state_locked,
@@ -23,7 +24,7 @@ import { transition } from "../status";
 
 export type SettleOutcome =
   | { op: "settled"; id: string; late: boolean }
-  /** this payment already settled the row; its messages were queued again */
+  /** this payment already settled the row; its messages were queued again unless it distributed */
   | { op: "duplicate"; id: string }
   /** the row is closed under another outcome; nothing written */
   | { op: "refused"; id: string }
@@ -57,11 +58,14 @@ const settle_blocked = (
 
 /**
  * the enqueue sits after the commit, so a delivery can leave a settled row
- * whose messages never went out; a redelivery re-sends them
+ * whose messages never went out; a redelivery re-sends them. dist rows mean
+ * they landed — the receipt queued beside them has no guard past the queue's
+ * dedupe window, so nothing goes out again.
  */
 const requeue = async (row: IDonation | undefined) => {
   if (!row?.settlement)
     throw new Error("duplicate settle without a settlement");
+  if (await donation_has_dists(row.id)) return;
   await enqueue(
     ...settle_msgs({ ...row, settlement: row.settlement }, { match: true })
   );

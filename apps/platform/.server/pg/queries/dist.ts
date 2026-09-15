@@ -227,6 +227,18 @@ export async function user_donations(
   };
 }
 
+/** true once any dist row exists for this donation, whatever its status */
+export async function donation_has_dists(
+  donation_id: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: dists.id })
+    .from(dists)
+    .where(eq(dists.donation_id, donation_id))
+    .limit(1);
+  return !!row;
+}
+
 // -- refund support --
 
 export interface DistRefundGraph {

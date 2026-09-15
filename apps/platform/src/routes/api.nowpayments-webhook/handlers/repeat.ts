@@ -3,6 +3,7 @@ import type { NP } from "@/nowpayments/types";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
+import { donation_has_dists } from "$/pg/queries/dist";
 import {
   donation_by_sttl_id,
   donation_put_once,
@@ -11,8 +12,8 @@ import {
 import { alert, alert_all } from "./alert";
 import { paid_amount, ref_of, to_settlement } from "./payment";
 import { settle_rates } from "./rates";
+import { handle_refund } from "./refund";
 import { transition } from "./status";
-import { write_on } from "./write";
 
 const REPEAT = { repeat: true };
 
@@ -32,8 +33,10 @@ export async function handle_repeat(
   const sttl_id = payment.payment_id.toString();
 
   // a clone's enqueue sits after its commit; a redelivery re-sends its messages
+  // until dist rows show they landed — the receipt has no guard of its own
   const requeue = async (own: IDonation | undefined) => {
     if (!own?.settlement) throw new Error(`clone ${sttl_id} not found`);
+    if (await donation_has_dists(own.id)) return log("already distributed");
     await enqueue(
       ...settle_msgs({ ...own, settlement: own.settlement }, { match: false })
     );
@@ -68,9 +71,7 @@ export async function handle_repeat(
 
     case "refund": {
       if (!own) throw new Error(`clone ${sttl_id} not found`);
-      const now = await write_on(own.id, payment, REPEAT, "refund", {
-        status: "refunded",
-      });
+      const now = await handle_refund(own, payment, REPEAT);
       if (now.op !== "refund")
         return log(`refund lost the row lock: ${now.op}`);
       if (now.was_settled) {

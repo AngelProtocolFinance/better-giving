@@ -33,6 +33,15 @@ vi.mock("$/kit/discord", () => ({
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
+// the refund plan's own suite covers reversing a dist; here it is the boundary
+vi.mock("$/refund/process", () => ({
+  process_refund: vi.fn(async () => ({
+    failures: [],
+    loss_msgs: [],
+    has_loss: false,
+    applied: 1,
+  })),
+}));
 vi.mock("$/kit/nowpayments", () => ({
   np: {
     estimate: vi.fn(async (code: string) => {
@@ -72,6 +81,8 @@ const { handle_settled } = await import("./handlers/settled");
 const { handle_confirming } = await import("./handlers/confirming");
 const { handle_failed } = await import("./handlers/failed");
 const { np } = await import("$/kit/nowpayments");
+const { process_refund } = await import("$/refund/process");
+const { dists } = await import("$/pg/schema/dist");
 const { donation_by_sttl_id, donation_get, donation_put } = await import(
   "$/pg/queries/donation"
 );
@@ -164,6 +175,21 @@ const seed_donation = async (o: Record<string, unknown> = {}) => {
   );
 };
 
+/** the row `settle_npo` inserts once a settle's distribution message lands */
+const seed_dist = async (donation_id: string) => {
+  await db()
+    .insert(dists)
+    .values({
+      id: `dist-${donation_id}`,
+      donation_id,
+      status: "settled",
+      date_created: new Date().toISOString(),
+      to_id: npo_id,
+      amount_denom: "USD",
+      net: 990,
+    });
+};
+
 const settlements = () => db().select().from(donation_settlements);
 /** the queue's dedupe keys of the nth enqueue — what makes a re-send a no-op */
 const dedupes = (nth: number): string[] =>
@@ -182,6 +208,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   send_alert_mock.mockReset();
+  await db().delete(dists);
   await db().delete(donation_settlements);
   await db().delete(donation_donors);
   await db().delete(donation_recipients);
@@ -253,6 +280,20 @@ describe("nowpayments ipn settlement", () => {
     expect(enqueue_mock).toHaveBeenCalledTimes(2);
     expect(dedupes(1)).toEqual(dedupes(0));
     expect(alert_titles()).toEqual(["Donation settled"]);
+  });
+
+  // dist rows are written only after the first enqueue's messages landed; the
+  // receipt beside them has no guard of its own past the queue's dedupe window
+  it("queues nothing for a redelivered finished payment once it distributed", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await seed_dist(ORDER_ID);
+    enqueue_mock.mockClear();
+
+    const res = await deliver(payment());
+
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   it("settles once when two deliveries read the donation before either wrote", async () => {
@@ -372,23 +413,53 @@ describe("nowpayments ipn settlement", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
-  it("refunds a settled donation and alerts", async () => {
+  it("reverses a settled donation's distributions when refunded, and alerts", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await seed_dist(ORDER_ID);
+    send_alert_mock.mockClear();
+
+    const res = await deliver(payment({ payment_status: "refunded" }));
+
+    expect(res.status).toBe(200);
+    expect(process_refund).toHaveBeenCalledOnce();
+    const [id, graphs, ctx] = vi.mocked(process_refund).mock.calls[0];
+    expect(id).toBe(ORDER_ID);
+    expect(graphs.map((g) => g.dist.id)).toEqual([`dist-${ORDER_ID}`]);
+    expect(ctx.alert_from).toBe("nowpayments-refunded");
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5001");
+  });
+
+  it("answers 500 to a refund on a settled donation not yet distributed, writing nothing", async () => {
     await seed_donation();
     await deliver(payment());
     send_alert_mock.mockClear();
 
     const res = await deliver(payment({ payment_status: "refunded" }));
 
+    expect(res.status).toBe(500);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+    expect(process_refund).not.toHaveBeenCalled();
+    expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+
+  it("marks a never-settled donation refunded without reversing anything", async () => {
+    await seed_donation();
+
+    const res = await deliver(payment({ payment_status: "refunded" }));
+
     expect(res.status).toBe(200);
     expect((await donation_get(ORDER_ID))!.status).toBe("refunded");
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5001");
+    expect(process_refund).not.toHaveBeenCalled();
+    expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
   it("acknowledges a finished redelivered after its refund without alerting", async () => {
     await seed_donation();
     await deliver(payment());
-    await deliver(payment({ payment_status: "refunded" }));
+    // what process_refund writes once every dist is reversed
+    await db().update(donations).set({ status: "refunded" });
     enqueue_mock.mockClear();
     send_alert_mock.mockClear();
 
@@ -447,6 +518,22 @@ describe("nowpayments ipn settlement", () => {
     // parent, child, and the child's redelivery queueing the clone's again
     expect(enqueue_mock).toHaveBeenCalledTimes(3);
     expect(dedupes(2)).toEqual(dedupes(1));
+  });
+
+  it("queues nothing for a redelivered repeated deposit once it distributed", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await deliver(child());
+    const [child_row] = (await settlements()).filter(
+      (r) => r.sttl_id === "5002"
+    );
+    await seed_dist(child_row.donation_id);
+    enqueue_mock.mockClear();
+
+    const res = await deliver(child());
+
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   it("treats a repeated deposit a concurrent delivery already cloned as a duplicate", async () => {
@@ -629,24 +716,45 @@ describe("nowpayments ipn settlement", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
-  it("marks a refunded repeated deposit's own donation refunded", async () => {
+  it("reverses a settled repeated deposit's own donation, leaving the parent", async () => {
     await seed_donation();
     await deliver(payment());
     await deliver(child());
+    const [child_row] = (await settlements()).filter(
+      (r) => r.sttl_id === "5002"
+    );
+    await seed_dist(ORDER_ID);
+    await seed_dist(child_row.donation_id);
     send_alert_mock.mockClear();
 
     const res = await deliver(child({ payment_status: "refunded" }));
 
     expect(res.status).toBe(200);
-    const [child_row] = (await settlements()).filter(
-      (r) => r.sttl_id === "5002"
-    );
-    expect((await donation_get(child_row.donation_id))!.status).toBe(
-      "refunded"
-    );
+    expect(process_refund).toHaveBeenCalledOnce();
+    const [id, graphs, ctx] = vi.mocked(process_refund).mock.calls[0];
+    expect(id).toBe(child_row.donation_id);
+    expect(graphs.map((g) => g.dist.id)).toEqual([
+      `dist-${child_row.donation_id}`,
+    ]);
+    expect(ctx.alert_from).toBe("nowpayments-refunded");
     expect((await donation_get(ORDER_ID))!.status).toBe("settled");
     expect(send_alert_mock).toHaveBeenCalledOnce();
     expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5002");
+  });
+
+  it("answers 500 to a refund on a settled repeated deposit not yet distributed", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await deliver(child());
+    const [child_row] = (await settlements()).filter(
+      (r) => r.sttl_id === "5002"
+    );
+
+    const res = await deliver(child({ payment_status: "refunded" }));
+
+    expect(res.status).toBe(500);
+    expect((await donation_get(child_row.donation_id))!.status).toBe("settled");
+    expect(process_refund).not.toHaveBeenCalled();
   });
 
   it("acknowledges a refunded repeated deposit that never settled", async () => {

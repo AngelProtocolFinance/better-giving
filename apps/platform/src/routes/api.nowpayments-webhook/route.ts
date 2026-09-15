@@ -9,6 +9,7 @@ import { alert } from "./handlers/alert";
 import { handle_confirming } from "./handlers/confirming";
 import { handle_failed } from "./handlers/failed";
 import { ref_of } from "./handlers/payment";
+import { handle_refund } from "./handlers/refund";
 import { handle_repeat } from "./handlers/repeat";
 import { handle_settled } from "./handlers/settled";
 import { transition } from "./handlers/status";
@@ -155,12 +156,10 @@ async function dispatch(payment: NP.PaymentPayload): Promise<void> {
     }
 
     case "refund": {
-      const now = await write_on(prior.id, payment, ORDER, "refund", {
-        status: "refunded",
-      });
+      const now = await handle_refund(prior, payment, ORDER);
       if (now.op !== "refund") return log(`refunded, ${now.op}`, ref);
       log(`refunded prior:${prior.status}`, ref);
-      // a settled donation already queued its distribution and receipt
+      // a settled donation already sent its receipt
       if (now.was_settled) {
         await alert({ title: "Settled donation refunded", body: ref });
       }
