@@ -29,6 +29,12 @@ export type SettleInputs =
       prior: IDonationSettled;
       subs_id: string;
       new_id: string;
+    })
+  | (CommonInputs & {
+      /** another deposit to an already-used address, settled apart from its order */
+      kind: "redeposit";
+      prior: IDonation;
+      new_id: string;
     });
 
 export type SettleResult =
@@ -108,7 +114,7 @@ export function settle_msgs(
  * enqueue. msgs are precomputed from the projected post-write donation.
  */
 export function calc_donation_settle(i: SettleInputs): SettleResult {
-  if (i.kind === "rebill") {
+  if (i.kind === "rebill" || i.kind === "redeposit") {
     const row: IDonationSettled = {
       ...i.prior,
       id: i.new_id,
@@ -121,7 +127,7 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
       created_at: i.settlement.date,
       updated_at: i.settlement.date,
       settlement: i.settlement,
-      subscription_id: i.subs_id,
+      ...(i.kind === "rebill" ? { subscription_id: i.subs_id } : {}),
       ...(i.via ? { via: i.via } : {}),
     };
     return {
@@ -129,7 +135,8 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
       row,
       // no don-match: rebills are deliberately excluded from employer matching
       // (v1 policy — no monthly filing packs for subscribers). the first charge
-      // of the subscription already produced one.
+      // of the subscription already produced one, as the order row of a
+      // redeposit did.
       msgs: settle_msgs(row, { match: false }),
     };
   }
@@ -137,8 +144,9 @@ export function calc_donation_settle(i: SettleInputs): SettleResult {
   // a redelivered settle event lands on the donation the refund already
   // reversed. writing "settled" over it would contradict the dist row, which
   // stays "refunded", and re-mail a receipt for money the donor got back.
-  // rebills are exempt: their prior is the order row, not the row being
-  // settled, so its status says nothing about the charge that just cleared.
+  // rebills and redeposits are exempt: their prior is the order row, not the
+  // row being settled, so its status says nothing about the charge that just
+  // cleared.
   if (is_reversed(i.prior.status)) {
     return { op: "noop", order_id: i.order_id, msgs: [] };
   }

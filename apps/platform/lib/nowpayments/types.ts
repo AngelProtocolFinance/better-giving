@@ -177,7 +177,25 @@ export declare namespace NP {
     }
   }
 
+  /** `GET /v1/estimate` */
   export interface Estimate {
+    currency_from: string;
+    amount_from: number;
+    currency_to: string;
+    /** denominated in currency_to */
+    estimated_amount: number;
+  }
+
+  export namespace Estimate {
+    interface Params {
+      amount: string;
+      currency_from: string;
+      currency_to: string;
+    }
+  }
+
+  /** `GET /v1/min-amount` */
+  export interface MinAmount {
     currency_from: string;
     currency_to: string;
     /** denominated in currency_from */
@@ -187,7 +205,7 @@ export declare namespace NP {
     fiat_equivalent?: number;
   }
 
-  export namespace Estimate {
+  export namespace MinAmount {
     interface Params {
       currency_from: string;
       currency_to?: string;

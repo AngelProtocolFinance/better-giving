@@ -1,51 +1,125 @@
-import { tokens_map } from "@better-giving/crypto";
-import { calc_donation_settle, type ISettlement } from "@/donations";
+import {
+  calc_donation_settle,
+  type IDonation,
+  type IDonationUpdate,
+  settle_msgs,
+} from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { donation_get, donation_update } from "$/pg/queries/donation";
+import {
+  donation_by_sttl_id,
+  donation_settle_state_locked,
+  donation_update,
+  type SettleState,
+  settle_state_of,
+} from "$/pg/queries/donation";
+import { alert_all } from "../alert";
+import { paid_amount, to_settlement } from "../payment";
+import { settle_rates } from "../rates";
+import { transition } from "../status";
+
+export type SettleOutcome =
+  | { op: "settled"; id: string; late: boolean }
+  /** this payment already settled the row; its messages were queued again */
+  | { op: "duplicate"; id: string }
+  /** the row is closed under another outcome; nothing written */
+  | { op: "refused"; id: string }
+  /** nothing written, nothing to raise */
+  | { op: "ignored"; id: string; why: string };
+
+const ORDER = { repeat: false };
+
+type Blocked = Exclude<SettleOutcome, { op: "settled" }>;
+
+/** the outcome a row in `state` forces on this payment, or the settle it allows */
+const settle_blocked = (
+  id: string,
+  state: SettleState,
+  payment: NP.PaymentPayload
+): Blocked | { op: "settle"; late: boolean } => {
+  const action = transition(state, payment, ORDER);
+  switch (action.op) {
+    case "settle":
+      return action;
+    case "duplicate":
+      return { op: "duplicate", id };
+    case "refuse":
+      return { op: "refused", id };
+    case "ignore":
+      return { op: "ignored", id, why: action.why };
+    default:
+      throw new Error(`unexpected ${action.op} on a nowpayments settle`);
+  }
+};
 
 /**
- * fees, outcomes, are all denominated in the same currency
- * settlement currency is USDC ( set in account), regardless of chain
- * fiat equivalents (actual_paid_amount_fiat) in "usd" set in account
- *
+ * the enqueue sits after the commit, so a delivery can leave a settled row
+ * whose messages never went out; a redelivery re-sends them
  */
-export const handle_settled = async (payment: NP.PaymentPayload) => {
-  const { usdpu: outcome_usdpu } = await np.estimate(payment.outcome_currency);
-  const outcome_token = tokens_map[payment.outcome_currency.toUpperCase()];
-  /** all in usd */
-  const settlement: ISettlement = {
-    id: payment.payment_id.toString(),
-    date: new Date().toISOString(),
-    net: payment.outcome_amount * outcome_usdpu,
-    fee:
-      payment.fee.depositFee +
-      payment.fee.serviceFee +
-      payment.fee.withdrawalFee,
-    currency: outcome_token.code,
-  };
+const requeue = async (row: IDonation | undefined) => {
+  if (!row?.settlement)
+    throw new Error("duplicate settle without a settlement");
+  await enqueue(
+    ...settle_msgs({ ...row, settlement: row.settlement }, { match: true })
+  );
+};
 
-  const prior = await donation_get(payment.order_id);
-  if (!prior) throw new Error(`donation not found: ${payment.order_id}`);
+export const handle_settled = async (
+  payment: NP.PaymentPayload,
+  prior: IDonation
+): Promise<SettleOutcome> => {
+  // spares a redelivery the rate lookups; rechecked under the row lock below
+  const early = settle_blocked(prior.id, settle_state_of(prior), payment);
+  if (early.op === "duplicate") await requeue(prior);
+  if (early.op !== "settle") return early;
+
+  const rates = await settle_rates(payment);
+  const sttl = to_settlement(payment, rates, new Date().toISOString());
+  await alert_all(sttl.warnings);
+
+  // an underpayment is accepted as a donation of what arrived
+  const paid: IDonationUpdate =
+    payment.payment_status === "partially_paid"
+      ? {
+          amount: paid_amount(payment, prior, nowpayments.is_sandbox),
+          currency: prior.currency,
+          upusd: 1 / (await np.estimate(payment.pay_currency)).usdpu,
+        }
+      : {};
 
   const result = calc_donation_settle({
     kind: "one-time",
-    order_id: payment.order_id,
-    prior,
-    settlement,
+    order_id: prior.id,
+    prior: { ...prior, ...paid },
+    settlement: sttl.value,
   });
-  // the refund already reversed this donation; nothing to write, and no throw
-  // — nowpayments reads a 5xx as an endpoint to keep retrying.
-  if (result.op === "noop") return { id: prior.id };
-  if (result.op !== "update")
-    throw new Error("unexpected put for nowpayments one-time");
+  if (result.op !== "update") {
+    throw new Error(`unexpected ${result.op} for nowpayments one-time`);
+  }
 
-  const order = await db.transaction((tx) =>
-    donation_update(tx, result.order_id, result.patch)
-  );
+  // the settlement upsert's arbiter is donation_id, so a concurrent delivery of
+  // this payment updates the same row in place — the sttl_id unique index never
+  // fires here, and only the lock serializes the two
+  const locked = await db.transaction(async (tx) => {
+    const state = await donation_settle_state_locked(tx, result.order_id);
+    if (!state) throw new Error(`donation ${result.order_id} not found`);
+    const now = settle_blocked(result.order_id, state, payment);
+    if (now.op === "duplicate") {
+      const row = await donation_by_sttl_id(payment.payment_id.toString(), tx);
+      return { now, row };
+    }
+    if (now.op === "settle") {
+      await donation_update(tx, result.order_id, { ...paid, ...result.patch });
+    }
+    return { now, row: undefined };
+  });
+
+  if (locked.now.op === "duplicate") await requeue(locked.row);
+  if (locked.now.op !== "settle") return locked.now;
+
   await enqueue(...result.msgs);
-
-  return { id: order.id };
+  return { op: "settled", id: result.order_id, late: locked.now.late };
 };
