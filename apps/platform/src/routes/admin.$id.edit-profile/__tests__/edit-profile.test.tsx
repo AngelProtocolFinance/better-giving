@@ -560,7 +560,7 @@ describe("edit profile — published toggle", () => {
       .toBeInTheDocument();
   });
 
-  it("a refused publish stays unsaved through a later save's revalidation", async () => {
+  it("a refused publish reverts to the stored value, through a later save's revalidation", async () => {
     const npo = await seed_npo({ published: false });
     let calls = 0;
     const refuse_first: typeof action = async (args) =>
@@ -574,9 +574,11 @@ describe("edit profile — published toggle", () => {
     (toggle.element() as HTMLElement).click();
     await vi.waitFor(() => expect(calls).toBe(1));
     await expect.element(toggle).toBeEnabled();
+    await expect.element(toggle).not.toBeChecked();
+    await expect
+      .element(screen.getByText(/profile is not visible/i))
+      .toBeVisible();
 
-    // the save revalidates the loader, which holds the stored `false`: a form
-    // re-seeded from it would flip the toggle back
     await tagline.fill("New tagline");
     await screen.getByRole("button", { name: "Save general" }).click();
     await vi.waitFor(async () =>
@@ -588,7 +590,10 @@ describe("edit profile — published toggle", () => {
     await expect.element(tagline).toBeEnabled();
 
     expect((await npo_get(npo.id))?.published).toBe(false);
-    expect(screen.getByText(/profile is not visible/i).query()).toBeNull();
+    await expect.element(toggle).not.toBeChecked();
+    await expect
+      .element(screen.getByText(/profile is not visible/i))
+      .toBeVisible();
   });
 });
 

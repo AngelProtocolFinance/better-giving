@@ -250,15 +250,18 @@ export function use_social_media(init: FV, set_prompt: SetPrompt) {
   return { ...form, errors, is_dirty: isDirty, busy, save };
 }
 
-/** saves on flip. a refused flip keeps showing what the user chose — nothing
- * re-seeds it */
+/** saves on flip. shows the requested value while the save is in flight, then
+ * the stored one: the flip on a confirmed write, the prior value otherwise */
 export function use_publish(init: FV, set_prompt: SetPrompt) {
   const [published, set_published] = useState(init.published);
+  const [requested, set_requested] = useState(init.published);
   const { save, busy } = use_save(set_prompt);
-  const publish = (next: boolean) =>
-    save(() => {
-      set_published(next);
-      return { published: next };
-    });
-  return { published, publish, busy };
+  const publish = (next: boolean) => {
+    set_requested(next);
+    save(
+      () => ({ published: next }),
+      () => set_published(next)
+    );
+  };
+  return { published: busy ? requested : published, publish, busy };
 }
