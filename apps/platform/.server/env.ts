@@ -1,5 +1,4 @@
 export const stage = process.env.STAGE;
-export const base_url = process.env.BASE_URL;
 
 // the value is passed in rather than looked up by name: the browser test
 // bundle gets these as per-key `process.env.X` defines (vite.config.ts), and a
@@ -10,6 +9,8 @@ const required = (name: string, value: string | undefined): string => {
   if (!value) throw new Error(`${name} is not set`);
   return value;
 };
+
+export const base_url = required("BASE_URL", process.env.BASE_URL);
 
 // the app's own crypto keys, checked where they are produced so a miss names
 // itself. an absent signing secret is otherwise silent: `secrets: [undefined]`
@@ -94,10 +95,26 @@ export const hubspot = {
   deal_stage_id: process.env.HUBSPOT_DEAL_STAGE_ID,
 } as const;
 
+const np_api_url = required(
+  "NOWPAYMENTS_API_URL",
+  process.env.NOWPAYMENTS_API_URL
+);
+// sandbox is a separate account on its own host; the host, not STAGE, decides
+// whether payments are simulated
+const np_is_sandbox = new URL(np_api_url).hostname.startsWith("api-sandbox");
+if (stage === "production" && np_is_sandbox) {
+  throw new Error("NOWPAYMENTS_API_URL is the sandbox host in production");
+}
+
 export const nowpayments = {
   api_key: process.env.NOWPAYMENTS_API_KEY,
-  api_url: process.env.NOWPAYMENTS_API_URL,
-  ipn_secret: process.env.NOWPAYMENTS_IPN_SECRET,
+  api_url: np_api_url,
+  is_sandbox: np_is_sandbox,
+  // trimmed: a pasted trailing newline fails every signature, silently
+  ipn_secret: required(
+    "NOWPAYMENTS_IPN_SECRET",
+    process.env.NOWPAYMENTS_IPN_SECRET?.trim()
+  ),
 } as const;
 
 export const openexchange = {

@@ -1,8 +1,14 @@
-import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import { report_error } from "#/errors/report";
-import type { IDonation, IDonationUpdate, IDonsFromOpts } from "@/donations";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import type {
+  IDonation,
+  IDonationSettled,
+  IDonationUpdate,
+  IDonsFromOpts,
+} from "@/donations";
 import { db } from "../db";
+import { is_unique_violation } from "../errors";
 import {
+  DONATION_SETTLEMENTS_STTL_ID_IDX,
   donation_donors,
   donation_recipients,
   donation_settlements,
@@ -745,14 +751,78 @@ export async function donation_settlement_get(
 }
 
 /**
+ * inserts a settled clone unless a donation already records its settlement id;
+ * null when one does. the sttl_id unique index is the arbiter, so of two
+ * concurrent puts of one settlement exactly one lands.
+ */
+export async function donation_put_once(
+  row: IDonationSettled
+): Promise<IDonationSettled | null> {
+  return db
+    .transaction(async (tx) => {
+      await donation_put(tx, row);
+      return row;
+    })
+    .catch((err) => {
+      if (is_unique_violation(err, DONATION_SETTLEMENTS_STTL_ID_IDX)) {
+        return null;
+      }
+      throw err;
+    });
+}
+
+/** the two fields a provider's settle guard decides on */
+export interface SettleState {
+  status: IDonation["status"];
+  sttl_id?: string;
+}
+
+export const settle_state_of = (d: IDonation): SettleState => ({
+  status: d.status,
+  sttl_id: d.settlement?.id,
+});
+
+/**
+ * a donation's status and settlement id, with its row locked for the rest of
+ * `tx`.
+ *
+ * for a settle handler that read the donation before opening its transaction:
+ * a concurrent delivery holding the lock commits first, and this then reads what
+ * it wrote. two statements, not a join — under read committed a join re-checks
+ * only the locked row after the wait and keeps the settlement it saw before.
+ */
+export async function donation_settle_state_locked(
+  tx: DbOrTx,
+  id: string
+): Promise<SettleState | undefined> {
+  const [don] = await tx
+    .select({ status: donations.status })
+    .from(donations)
+    .where(eq(donations.id, id))
+    .for("update");
+  if (!don) return undefined;
+
+  const [sttl] = await tx
+    .select({ sttl_id: donation_settlements.sttl_id })
+    .from(donation_settlements)
+    .where(eq(donation_settlements.donation_id, id));
+  return {
+    status: don.status as IDonation["status"],
+    sttl_id: sttl?.sttl_id,
+  };
+}
+
+/**
  * check if a settlement with this sttl_id already exists (idempotency guard).
  *
  * the handle is what lets this be read inside the transaction holding the order
  * row's write lock — but no caller passes one today. paypal's two call sites
  * are the only ones, and both read on the default handle, outside any
  * transaction: two concurrent deliveries of the same capture or sale both see
- * "no settlement" and both go on to write one. that race is paypal's live
- * state, not a hypothetical the parameter prevents.
+ * "no settlement". a sale cloned into a new donation then loses on the sttl_id
+ * unique index and errors; a write to the order row's own settlement updates in
+ * place, so both deliveries succeed and both enqueue. that race is paypal's
+ * live state, not a hypothetical the parameter prevents.
  *
  * kept because closing it is exactly "pass the tx", the shape the stripe
  * handler already uses for `donation_by_sttl_id` below.
@@ -777,13 +847,6 @@ export async function settlement_exists(
  * queue messages, because the enqueue sits outside the transaction and may
  * never have happened. takes a handle so it can be read inside the tx holding
  * the order row's write lock, which is where the stripe handler calls it.
- *
- * ordered and capped rather than "whatever the join returns first": sttl_id has
- * no UNIQUE behind it, and this returns a row the caller acts on — a
- * non-deterministic pick would flip both the donation id it recovers and the
- * `match` flag it derives between two deliveries of the same event. the second
- * row is fetched only to notice it: that state means a guard failed upstream
- * and should be visible, not quietly resolved by an ORDER BY.
  */
 export async function donation_by_sttl_id(
   sttl_id: string,
@@ -794,20 +857,10 @@ export async function donation_by_sttl_id(
     .from(donation_settlements)
     .innerJoin(donations, eq(donations.id, donation_settlements.donation_id))
     .where(eq(donation_settlements.sttl_id, sttl_id))
-    // oldest first: the row the first delivery wrote is the one a recovery is
-    // recovering. id breaks a tie between two rows created in the same instant.
-    .orderBy(asc(donations.created_at), asc(donations.id))
-    .limit(2);
+    .limit(1);
 
   const row = rows[0];
   if (!row) return undefined;
-
-  if (rows.length > 1) {
-    report_error(
-      new Error(`settlement id on more than one donation: ${sttl_id}`),
-      { sttl_id, donation_id: row.don.id }
-    );
-  }
 
   const subs = await fetch_subtables(row.don.id, tx);
   return to_donation(

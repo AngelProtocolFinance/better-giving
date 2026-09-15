@@ -7,6 +7,7 @@ import {
   jsonb,
   pgTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { IAddr } from "@/types/donation";
 import { numeric_as_number, timestamptz, timestamptz_now } from "./columns";
@@ -109,6 +110,9 @@ export const donation_donors = pgTable(
   (t) => [index("donation_donors_email_idx").on(t.email)]
 );
 
+export const DONATION_SETTLEMENTS_STTL_ID_IDX =
+  "donation_settlements_sttl_id_idx";
+
 export const donation_settlements = pgTable(
   "donation_settlements",
   {
@@ -131,14 +135,18 @@ export const donation_settlements = pgTable(
   // - paypal reads it too, but only to *bail* — it answers 200 and queues
   //   nothing, so a first delivery that committed and then failed to enqueue
   //   stays that way. it is a duplicate guard, not a recovery.
-  // - chariot and nowpayments do not read it at all. both are one-time-only,
-  //   so their redelivery re-updates the same donation_id, and the duplicate
-  //   dist and receipt it queues are absorbed downstream.
+  // - nowpayments recovers like stripe: a redelivered settle whose payment id is
+  //   already the order row's sttl_id, or a repeated deposit's clone (its own
+  //   payment id), re-queues that row's messages and writes nothing.
+  // - chariot does not read it at all. it is one-time-only, so its redelivery
+  //   re-updates the same donation_id, and the duplicate dist and receipt it
+  //   queues are absorbed downstream.
   //
-  // non-unique. UNIQUE would turn the guard from a convention into a constraint
-  // and cover the two handlers that don't check, and a sweep found no two rows
-  // sharing a sttl_id — a viable follow-up, deliberately not added here.
-  (t) => [index("donation_settlements_sttl_id_idx").on(t.sttl_id)]
+  // UNIQUE: two concurrent deliveries can both pass a read guard, and a clone
+  // (rebill, redeposit) is a new donation_id, so only this stops the second
+  // one. it does not cover a redelivery settling the *same* row: that upsert's
+  // arbiter is donation_id, so it updates in place rather than violating.
+  (t) => [uniqueIndex(DONATION_SETTLEMENTS_STTL_ID_IDX).on(t.sttl_id)]
 );
 
 export const donation_tributes = pgTable("donation_tributes", {

@@ -227,6 +227,18 @@ export async function user_donations(
   };
 }
 
+/** true once any dist row exists for this donation, whatever its status */
+export async function donation_has_dists(
+  donation_id: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: dists.id })
+    .from(dists)
+    .where(eq(dists.donation_id, donation_id))
+    .limit(1);
+  return !!row;
+}
+
 // -- refund support --
 
 export interface DistRefundGraph {
@@ -289,6 +301,20 @@ export async function donation_has_refund_loss(
   return !!row;
 }
 
+/**
+ * the dist's refund state, row-locked for the rest of the transaction. a
+ * concurrent refund run holding the lock commits first, and this then reads
+ * what it wrote.
+ */
+export async function dist_refund_state_locked(tx: DbOrTx, id: string) {
+  const [row] = await tx
+    .select({ status: dists.status, refund_status: dists.refund_status })
+    .from(dists)
+    .where(eq(dists.id, id))
+    .for("update");
+  return row;
+}
+
 export async function dist_refund_update(
   db: DbOrTx,
   id: string,
@@ -299,12 +325,15 @@ export async function dist_refund_update(
 ) {
   // failed dists keep status="settled" so they remain eligible for retry
   // (dists_for_refund filters status="settled"). completed/loss flip to
-  // refunded.
-  const status = data.refund_status === "failed" ? undefined : "refunded";
+  // refunded. a failed write never lands on a dist a concurrent run already
+  // reversed.
+  const failed = data.refund_status === "failed";
   await db
     .update(dists)
-    .set({ ...(status && { status }), ...data })
-    .where(eq(dists.id, id));
+    .set({ ...(!failed && { status: "refunded" as const }), ...data })
+    .where(
+      and(eq(dists.id, id), failed ? eq(dists.status, "settled") : undefined)
+    );
 }
 
 /** paginated donations by npo referrer */

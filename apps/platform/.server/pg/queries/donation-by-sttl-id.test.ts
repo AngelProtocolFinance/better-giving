@@ -5,19 +5,7 @@ import {
   describe,
   expect,
   test,
-  vi,
 } from "vitest";
-
-// --- mocks (hoisted) ---
-
-// the duplicate branch reports rather than resolving: two rows on one sttl_id
-// means a guard failed upstream, and a query that silently picked one would
-// keep it invisible.
-const report_error = vi.hoisted(() => vi.fn());
-vi.mock("#/errors/report", () => ({ report_error }));
-
-// --- imports (after mocks) ---
-
 import {
   donation_donors,
   donation_recipients,
@@ -48,7 +36,6 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  vi.clearAllMocks();
   const db = test_db.db;
   await db.delete(donation_settlements);
   await db.delete(donation_donors);
@@ -70,7 +57,7 @@ beforeEach(async () => {
 });
 
 /** a settled donation carrying `sttl_id`, created at `created_at` */
-async function seed(id: string, created_at: string, sttl_id = STTL_ID) {
+async function seed(id: string, created_at: string) {
   const db = test_db.db;
   await db.insert(donations).values({
     id,
@@ -99,7 +86,7 @@ async function seed(id: string, created_at: string, sttl_id = STTL_ID) {
   });
   await db.insert(donation_settlements).values({
     donation_id: id,
-    sttl_id,
+    sttl_id: STTL_ID,
     date: created_at,
     currency: "USD",
     net: 95,
@@ -116,44 +103,9 @@ describe("donation_by_sttl_id", () => {
     expect(row?.id).toBe("don-1");
   });
 
-  test("a settlement id on two donations resolves to the same one every time", async () => {
-    // sttl_id has no UNIQUE behind it, so nothing at the db level stops this.
-    // the caller derives both its `match` flag and the donation id it returns
-    // from whichever row comes back — unordered, a redelivery could recover a
-    // different donation than the one before it did.
-    await seed("don-newer", "2026-02-01T00:00:00.000Z");
-    await seed("don-older", "2026-01-01T00:00:00.000Z");
-
-    const a = await donation_by_sttl_id(STTL_ID, as_db(test_db.db));
-    const b = await donation_by_sttl_id(STTL_ID, as_db(test_db.db));
-
-    // the oldest row is the one the first delivery wrote — the donation the
-    // recovery is meant to be recovering.
-    expect(a?.id).toBe("don-older");
-    expect(b?.id).toBe("don-older");
-  });
-
-  test("a settlement id on two donations is reported", async () => {
-    await seed("don-newer", "2026-02-01T00:00:00.000Z");
-    await seed("don-older", "2026-01-01T00:00:00.000Z");
-
-    await donation_by_sttl_id(STTL_ID, as_db(test_db.db));
-
-    expect(report_error).toHaveBeenCalledOnce();
-  });
-
-  test("the ordinary single-row lookup reports nothing", async () => {
-    await seed("don-1", "2026-01-01T00:00:00.000Z");
-
-    await donation_by_sttl_id(STTL_ID, as_db(test_db.db));
-
-    expect(report_error).not.toHaveBeenCalled();
-  });
-
   test("an unknown settlement id is undefined, not an error", async () => {
     const row = await donation_by_sttl_id("pi_never_seen", as_db(test_db.db));
 
     expect(row).toBeUndefined();
-    expect(report_error).not.toHaveBeenCalled();
   });
 });

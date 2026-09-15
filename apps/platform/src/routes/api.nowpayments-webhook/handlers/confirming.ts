@@ -1,34 +1,21 @@
-import { amnt_sum, partition } from "@/donations/helpers";
+import type { IDonation } from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
-import { db } from "$/pg/db";
-import { donation_get, donation_update } from "$/pg/queries/donation";
+import { paid_amount } from "./payment";
+import type { Action } from "./status";
+import { write_on } from "./write";
 
 export async function handle_confirming(
   payment: NP.PaymentPayload,
-  stage: "staging" | "production" | "local"
-) {
-  const order = await donation_get(payment.order_id);
-
-  if (!order) throw new Error(`Record ${payment.order_id} not found!`);
-  /* ** extract tip, fee allowance ** */
-
+  order: IDonation
+): Promise<Action> {
   const { usdpu } = await np.estimate(payment.pay_currency);
 
-  const total = amnt_sum(order.amount);
-
-  // in staging, use fake amount
-  const paid = stage === "production" ? payment.actually_paid : total;
-
-  // proportion tip and fees based on actual paid
-  const parts = partition(order.amount);
-  const actual = parts(paid);
-
-  const updated = await donation_update(db, order.id, {
+  return write_on(order.id, payment, { repeat: false }, "confirm", {
     status: "confirmed",
-    amount: actual,
+    amount: paid_amount(payment, order, nowpayments.is_sandbox),
     currency: order.currency,
     upusd: 1 / usdpu,
   });
-  return updated;
 }

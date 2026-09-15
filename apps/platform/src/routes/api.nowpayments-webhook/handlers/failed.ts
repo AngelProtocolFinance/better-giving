@@ -1,28 +1,54 @@
 import { donation_error as email } from "emails";
+import { report_error } from "#/errors/report";
+import type { IDonation } from "@/donations";
 import type { NP } from "@/nowpayments/types";
 import { send_email } from "$/email";
 import { np } from "$/kit/nowpayments";
-import { db } from "$/pg/db";
-import { donation_get, donation_update } from "$/pg/queries/donation";
+import { alert, alert_all } from "./alert";
+import { fee_usd, ref_of } from "./payment";
+import { settle_rates } from "./rates";
+import type { Action } from "./status";
+import { write_on } from "./write";
 
 /**
  * reasons:
  *  - paid below minimum amount
  *  - ???
+ *
+ * the donor is emailed once, only by the delivery whose locked write moved the
+ * row to `failed`.
  */
-export async function handle_failed(payment: NP.PaymentPayload) {
-  const pay = await np.estimate(payment.pay_currency);
+export async function handle_failed(
+  payment: NP.PaymentPayload,
+  order: IDonation
+): Promise<Action> {
+  const rates = await settle_rates(payment);
+  const fee = fee_usd(payment, rates.fee_usdpu);
+  await alert_all(fee.warnings);
+
+  // ops reprocesses it, so the donor is not told it failed and the row stays
+  // open for the `finished` that follows
+  const reprocessing_net = payment.actually_paid_at_fiat - 2 * fee.value;
+  if (reprocessing_net > 0) {
+    await alert({
+      title: "Failed payment can be reprocessed",
+      body: `${ref_of(payment)} net:${reprocessing_net}`,
+    });
+    return { op: "ignore", why: "reprocessable" };
+  }
+
+  // before the write: a throw after it would redeliver onto a `failed` row,
+  // which never emails
+  const pay = await np.min_amount(payment.pay_currency);
   const failure_reason =
     payment.actually_paid < pay.min
       ? `Paid amount: ${payment.actually_paid} ${payment.pay_currency} is less than the minimum processing amount: ${pay.min} ${payment.pay_currency}`
       : "Unknown error occurred";
 
-  const order = await donation_get(payment.order_id);
-  if (!order) {
-    throw new Error(
-      `notif recipient not found for failed payment:${payment.payment_id}`
-    );
-  }
+  const now = await write_on(order.id, payment, { repeat: false }, "fail", {
+    status: "failed",
+  });
+  if (now.op !== "fail") return now;
 
   const x: email.IData = {
     recipient_name: order.to_name,
@@ -31,25 +57,13 @@ export async function handle_failed(payment: NP.PaymentPayload) {
   };
   const { node, subject } = email.template(x);
 
-  const res = await send_email({ node, subject, to: [order.from_email] });
-
-  console.info("sent failure message", res.data?.id);
-
-  /// delete intent if applicable ///
-  const outcome = await np.estimate(payment.outcome_currency);
-
-  // denominated in outcome_currency
-  const fees_usdc =
-    payment.fee.serviceFee + payment.fee.depositFee + payment.fee.withdrawalFee;
-
-  const fees_usd = fees_usdc * outcome.usdpu;
-
-  const reprocessing_net = payment.actually_paid_at_fiat - 2 * fees_usd;
-  if (reprocessing_net > 0) {
-    throw new Error(
-      `payment:${payment.payment_id} failed but can be reprocessed for an net of ${reprocessing_net}`
+  // after the write, for the same reason: a send failure is reported rather
+  // than retried
+  await send_email({ node, subject, to: [order.from_email] })
+    .then((res) => console.info("sent failure message", res.data?.id))
+    .catch((err) =>
+      report_error(err, { payment_id: payment.payment_id, order_id: order.id })
     );
-  }
 
-  return donation_update(db, payment.order_id, { status: "failed" });
+  return now;
 }

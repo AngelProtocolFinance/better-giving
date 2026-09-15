@@ -11,7 +11,8 @@ Load **`team-justin:lead`** before building, reviewing, or dispatching a seat �
 - **ui** → `team-justin:react-ui-builder` — `@ark-ui/react` 5.37.2 + tailwind 4.3.1 over `packages/ui`
 - **data** → `team-justin:postgres-architect` — drizzle-orm 0.45.2 + `@neondatabase/serverless`; drizzle-kit migrations, `@electric-sql/pglite` in tests
 - **auth** → `team-justin:better-auth-specialist` — better-auth 1.6.22
-- **payments** → `team-justin:stripe-specialist` — stripe 22.6.0. Stripe only; no seat owns the paypal/chariot/crypto/stocks SDKs
+- **payments** → `team-justin:stripe-specialist` — stripe 22.6.0. Stripe only; no seat owns the paypal/chariot/stocks SDKs
+- **crypto payments** → `team-justin:nowpayments-specialist` — NOWPayments REST via the hand-written client in `apps/platform/lib/nowpayments/` (no SDK installed): invoice + invoice-payment creation, `api.nowpayments-webhook` IPN listener, min-amount/estimate. `packages/crypto`'s token list is app-curated data, not this seat's
 - **cms** → `team-justin:sanity-builder` — `apps/blog` + `@sanity/client` 7.22.1 in platform
 - **platform** → `team-justin:vercel-platform-engineer` — `@vercel/react-router` 1.3.1 + `vercelPreset`
 - **toolchain** → `team-justin:toolchain-engineer` — turbo 2.10.5, biome 2.4.15, pnpm 10.32.1

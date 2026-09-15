@@ -8,6 +8,7 @@ import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import {
   type DistRefundGraph,
+  dist_refund_state_locked,
   dist_refund_update,
   donation_has_refund_loss,
 } from "../pg/queries/dist";
@@ -41,9 +42,19 @@ export interface RefundResult {
 // dists already terminally processed (completed or settled-with-loss) are
 // skipped defensively. failed dists are intentionally NOT skipped — they're
 // the retry target. dists_for_refund already filters dist.status="settled",
-// so completed/loss should never reach here in practice; the skip is defense
-// against inconsistent rows.
+// so on a fresh graph completed/loss never reach here; the pre-check is
+// defense against inconsistent rows.
 const SKIP_STATUSES = new Set(["completed", "loss"]);
+
+// the authoritative check, run on the row read under its lock inside the apply
+// transaction. the graph a run was handed can be stale — a concurrent run on
+// the same donation may have reversed the dist since.
+function is_reversed(d: { status: string; refund_status: string | null }) {
+  return (
+    d.status !== "settled" ||
+    (!!d.refund_status && SKIP_STATUSES.has(d.refund_status))
+  );
+}
 
 /** project a rich DistRefundGraph + fetched npo/nav into the pure calc inputs */
 function project_inputs(
@@ -150,12 +161,19 @@ export async function process_refund(
         strict: true,
       });
 
-      const loss = await db.transaction((tx) => apply_refund_plan(tx, plan));
-
-      const status = plan.is_loss ? "loss" : "completed";
-      await dist_refund_update(db, g.dist.id, { refund_status: status });
+      const res = await db.transaction(async (tx) => {
+        const cur = await dist_refund_state_locked(tx, g.dist.id);
+        if (!cur || is_reversed(cur)) return { skipped: true } as const;
+        const loss = await apply_refund_plan(tx, plan);
+        await dist_refund_update(tx, g.dist.id, {
+          refund_status: plan.is_loss ? "loss" : "completed",
+        });
+        return { skipped: false, loss } as const;
+      });
+      if (res.skipped) continue;
       applied += 1;
 
+      const { loss } = res;
       if (loss) {
         loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
       }

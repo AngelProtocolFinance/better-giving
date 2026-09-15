@@ -1,5 +1,5 @@
 import type { Payment } from "#/types/crypto";
-import { stage } from "$/env";
+import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 
 export interface Order {
@@ -26,8 +26,8 @@ export async function crypto_payment(
     iid: invoice.id,
     pay_currency: order.currency,
     order_description: order.description,
-    // nowpayments only simulates in test
-    case: stage === "production" ? undefined : "success",
+    // simulated outcome; only the sandbox host accepts it
+    case: nowpayments.is_sandbox ? "success" : undefined,
   });
 
   return {
