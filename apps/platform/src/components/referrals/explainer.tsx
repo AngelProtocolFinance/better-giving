@@ -83,14 +83,14 @@ export function Explainer({ classes = "" }) {
               to={href("/terms-of-use-referrals")}
               className="inline-flex items-center text-primary text-sm hover:text-primary font-medium"
             >
-              <LinkIcon className="size-4 mr-1" />
+              <LinkIcon className="icon-md mr-1" />
               View Full Program Terms
             </Link>
             <ExtLink
               href={referrals_hub}
               className="inline-flex items-center text-primary text-sm hover:text-primary font-medium"
             >
-              <QuestionMarkCircleIcon className="size-4 mr-1" />
+              <QuestionMarkCircleIcon className="icon-md mr-1" />
               Referral FAQ
             </ExtLink>
           </div>

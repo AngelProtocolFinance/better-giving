@@ -89,7 +89,7 @@ function Content({
 
       {has_warnings && (
         <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning-subtle border border-warning flex items-center gap-2 text-sm text-warning-subtle-fg">
-          <AlertTriangleIcon size={16} className="shrink-0" />
+          <AlertTriangleIcon className="shrink-0 icon-md" />
           <span>
             ${humanize(data.total_loss)} will be recorded as platform loss
           </span>
@@ -134,7 +134,7 @@ function PreviewRow({ preview: p }: { preview: DistPreview }) {
         <div className="flex flex-col gap-0.5">
           {p.effects.map((e, i) => (
             <span key={i} className="flex items-center gap-1 text-xs">
-              <CheckCircle2Icon className="text-success shrink-0" size={14} />
+              <CheckCircle2Icon className="text-success shrink-0 icon-sm" />
               <span>
                 {e.label}
                 {e.reason && (
@@ -152,7 +152,7 @@ function PreviewRow({ preview: p }: { preview: DistPreview }) {
         <div className="flex flex-col gap-0.5">
           {p.warnings.map((w, i) => (
             <span key={i} className="flex items-center gap-1 text-xs">
-              <AlertTriangleIcon className="text-warning shrink-0" size={14} />
+              <AlertTriangleIcon className="text-warning shrink-0 icon-sm" />
               <span>
                 {w.label}
                 {w.reason && (
@@ -170,7 +170,7 @@ function PreviewRow({ preview: p }: { preview: DistPreview }) {
         <div className="flex flex-col gap-0.5">
           {p.blockers.map((b, i) => (
             <span key={i} className="flex items-center gap-1 text-xs">
-              <XCircleIcon className="text-destructive shrink-0" size={14} />
+              <XCircleIcon className="text-destructive shrink-0 icon-sm" />
               <span>
                 {b.label}
                 {b.reason && (

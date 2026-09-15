@@ -15,7 +15,7 @@ export function Docs({ classes = "" }) {
         aria-controls={details_id}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <Info size={20} className="text-gray-11" />
+        <Info className="text-gray-11 icon-lg" />
         <span className="text-lg sm:text-xl font-bold">
           Calculation Details
         </span>

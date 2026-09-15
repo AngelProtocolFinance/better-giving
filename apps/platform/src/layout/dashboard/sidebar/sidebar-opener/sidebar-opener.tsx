@@ -21,7 +21,7 @@ export function SidebarOpener({ classes = "", linkGroups, rootRoute }: Props) {
       >
         <Ico {...active_link.icon} />
         {active_link.title}
-        <ChevronRight size={20} className="ml-auto" />
+        <ChevronRight className="ml-auto icon-lg" />
       </button>
       <ToggleableSidebar
         open={open}

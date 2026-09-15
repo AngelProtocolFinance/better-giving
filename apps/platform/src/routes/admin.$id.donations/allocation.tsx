@@ -23,13 +23,13 @@ export function Allocation(props: Props) {
           aria-disabled={props.disabled}
           className="hover:text-primary disabled:text-gray-11 [.pending]:text-gray-11"
         >
-          <Pencil size={14} />
+          <Pencil className="icon-sm" />
         </NavLink>
       </div>
 
       <div className="flex flex-wrap gap-4 items-center">
         <Row
-          icon={<HandCoins className="size-4 mr-2 text-gray-11" />}
+          icon={<HandCoins className="icon-md mr-2 text-gray-11" />}
           title={
             <div className="flex items-center">
               <span>Grants</span>
@@ -42,7 +42,7 @@ export function Allocation(props: Props) {
                   </Content>
                 }
               >
-                <CircleHelp size={14} className="text-gray-11 ml-1" />
+                <CircleHelp className="text-gray-11 ml-1 icon-sm" />
               </Tooltip>
             </div>
           }
@@ -55,7 +55,7 @@ export function Allocation(props: Props) {
         />
 
         <Row
-          icon={<Sprout size={20} className="mr-2 text-success" />}
+          icon={<Sprout className="mr-2 text-success icon-lg" />}
           title={<span>Investments</span>}
           pct={props.allocation.lock}
         />

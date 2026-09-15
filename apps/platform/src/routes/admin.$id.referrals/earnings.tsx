@@ -60,14 +60,8 @@ export function Earnings({
               to="payouts"
               className="group flex items-center @max-lg:mt-2 gap-x-1 text-primary hover:text-primary"
             >
-              <HistoryIcon
-                size={20}
-                className="group-hover:hidden @max-lg:hidden"
-              />
-              <ArrowRightIcon
-                size={20}
-                className=" @max-lg:hidden hidden @lg:group-hover:block group-active:translate-x-0.5"
-              />
+              <HistoryIcon className="group-hover:hidden @max-lg:hidden icon-lg" />
+              <ArrowRightIcon className=" @max-lg:hidden hidden @lg:group-hover:block group-active:translate-x-0.5 icon-lg" />
               <div className="text-xl font-bold text-gray-11">
                 ${humanize(payout_ltd)}
               </div>

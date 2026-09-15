@@ -14,7 +14,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
   return (
     <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-panel p-5 gap-3">
       <div className="flex items-center gap-3">
-        <FileText size={20} className="text-primary shrink-0" />
+        <FileText className="text-primary shrink-0 icon-lg" />
         <Badge tone={badge_tones[resource.type]}>
           {TYPE_LABELS[resource.type]}
         </Badge>
@@ -46,7 +46,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
           }}
           className="btn btn-sm btn-primary gap-1.5"
         >
-          <Download size={14} />
+          <Download className="icon-sm" />
           {pending ? "Downloading..." : "Download"}
         </button>
         <a
@@ -55,7 +55,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
           rel="noopener noreferrer"
           className="btn btn-sm btn-secondary gap-1.5"
         >
-          <ExternalLink size={14} />
+          <ExternalLink className="icon-sm" />
           View
         </a>
       </div>

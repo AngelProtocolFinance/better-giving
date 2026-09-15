@@ -228,7 +228,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
                 }}
                 disabled={props.disabled}
               >
-                <Crop size={16} />
+                <Crop className="icon-md" />
               </IconButton>
             )}
           </div>

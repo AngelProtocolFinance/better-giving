@@ -11,7 +11,7 @@ export interface Props extends IPaginator<ILog> {}
 
 export function FlowIcon(this_account: string, data: IBalanceTx): ReactNode {
   if (data.account === this_account) {
-    return <ArrowRight size={16} className="text-success" />;
+    return <ArrowRight className="text-success icon-md" />;
   }
 }
 

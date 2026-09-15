@@ -17,7 +17,7 @@ const donut_bg = `conic-gradient(
 
 const pillars = [
   {
-    icon: <Scale className="size-5" />,
+    icon: <Scale className="icon-lg" />,
     title: "Investment-committee governed",
     body: "Professional oversight of strategy and risk, rebalanced quarterly to the target allocation.",
   },
@@ -27,7 +27,7 @@ const pillars = [
     body: "No setup, AUM, or performance fees. Unheard of in fund management. The commons covers it.",
   },
   {
-    icon: <ArrowLeftRight className="size-5" />,
+    icon: <ArrowLeftRight className="icon-lg" />,
     title: "Your money stays yours",
     body: "Adjust your grant/save/invest split anytime, and withdraw with 5-working-day electronic payouts.",
   },

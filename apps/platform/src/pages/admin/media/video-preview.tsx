@@ -27,8 +27,7 @@ export function VideoPreview(props: IMedia) {
               --warning-subtle-fg is the warning ink (Lc 71.2). stroke matches
               so the whole glyph reads as one state. */}
           <Star
-            size={16}
-            className={`${
+            className={`icon-md ${
               props.featured
                 ? "fill-warning-subtle-fg stroke-warning-subtle-fg"
                 : ""
@@ -46,7 +45,7 @@ export function VideoPreview(props: IMedia) {
           }}
           className="glyph-btn p-1.5 hover:bg-secondary group aria-disabled:text-gray-11"
         >
-          <Pencil size={16} />
+          <Pencil className="icon-md" />
         </Link>
         <CRUDBtn
           name="intent"
@@ -56,7 +55,7 @@ export function VideoPreview(props: IMedia) {
           id={props.id}
           disabled={allControlsDisabled}
         >
-          <Minus size={16} />
+          <Minus className="icon-md" />
         </CRUDBtn>
       </div>
       {/** render only thumbnails on lists */}
@@ -82,7 +81,7 @@ function CRUDBtn({ className, children, featured, ...props }: ICRUDBtn) {
         className={`glyph-btn p-1.5 hover:bg-secondary group disabled:text-gray-11 group aria-disabled:text-gray-11 ${className}`}
       >
         {fetcher.state === "submitting" ? (
-          <LoaderCircle size={16} className="animate-spin" />
+          <LoaderCircle className="animate-spin icon-md" />
         ) : (
           children
         )}

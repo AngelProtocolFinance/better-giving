@@ -61,7 +61,7 @@ export function Pillars({ classes = "" }: IPillars) {
                 className="inline-flex items-center gap-1.5 font-bold text-sm text-primary hover:underline mt-auto pt-2"
               >
                 {p.cta}
-                <ArrowRight className="size-4" />
+                <ArrowRight className="icon-md" />
               </Link>
             </div>
           ))}
@@ -78,7 +78,7 @@ export function Pillars({ classes = "" }: IPillars) {
               className="inline-flex items-center gap-1.5 font-bold text-sm hover:underline mt-auto pt-2"
             >
               Read the code
-              <ArrowRight className="size-4" />
+              <ArrowRight className="icon-md" />
             </Link>
           </div>
         </div>

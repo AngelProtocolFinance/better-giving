@@ -1286,6 +1286,57 @@ stay at `--radius-sm`, so a button and the input beside it stop matching.
 on the value but right that the two should share one; moving the fields to
 `var(--radius)` is the companion fix and is the user's call.
 
+## Icon size ladder
+
+Five steps, bound by `@utility` in `packages/ui/src/styles/utilities.css`,
+every one on the 4px ladder. The icon source is `lucide-react` and nothing else.
+
+| step | size | what it is for |
+| --- | --- | --- |
+| `icon-xs` | 12px | a glyph inside `text-xs` copy: the external-link mark, a pencil in a dense row |
+| `icon-sm` | 14px | a glyph beside `text-sm` copy: an arrow in a link, a check in a list |
+| `icon-md` | 16px | the default: a glyph beside body text, in a menu row, in a `btn-sm` |
+| `icon-lg` | 20px | a standalone glyph: a close `X`, a field ornament, a status spinner |
+| `icon-xl` | 24px | a glyph that heads something: a card or feature icon |
+
+Each sets `inline-size`, `block-size` and `flex-shrink: 0`. CSS size beats the
+SVG's own `width`/`height` attributes, so `icon-md` renders the box `size={16}`
+did. The shrink is part of the step because an SVG is `overflow: hidden`, which
+drops its flex minimum to 0: beside a line of text it gets squeezed. A call
+site's `shrink-0` next to `icon-*` is now redundant, not wrong.
+
+**`size={n}` and `size-*` on an icon are the old spellings.** They were the same
+axis in two syntaxes (`size={16}` and `size-4` are both 16px) and every call
+site on one of the five values has moved. A new icon writes `icon-*`; the size
+prop stays unset and so does `size-*`.
+
+**Off-ladder sizes are still open, pending a design call.** Snapping them is a
+visual change, so they were left as written. Figures drift: re-count before
+quoting.
+
+| still written | n |
+| --- | --- |
+| `size={18}` | 54 |
+| `size={40}` | 13 |
+| `size={15}` | 12 |
+| `size={22}` | 9 |
+| `size={30}` | 8 |
+| `size={13}`, `size={80}` | 6 each |
+| `size={19}` | 4 |
+| `size={17}`, `size={26}` | 3 each |
+| `size={70}`, `size={92}` | 2 each |
+| `size={10}`, `size={11}`, `size={28}`, `size={35}`, `size={48}` | 1 each |
+| `size-8` / `sm:size-10`, `size-4.5` / `sm:size-6`, `size-10`, `size-16` / `sm:size-20`, `size-full` | 9 / 9, 6 / 5, 3, 2 / 2, 1 |
+
+Plus three variable sizes (`Copier`'s `check`/`copy`, `VerifiedIcon`'s `size`),
+components that take a numeric `size` and forward it to lucide, and four
+`size={16}` sites the move could not reach: three with a computed `className`
+in `routes/donations.$id/route.tsx`, and `method-benefits.tsx`'s lightbulb,
+whose height comes from `h-lh`.
+
+**Stroke width is unstated.** Lucide's default of 2 renders wherever
+`strokeWidth` is not written, and no rule says when to write it.
+
 ## A shell owns its padding and radius, its contents own none
 
 A shell is a container with a fill, an edge and an inside: `page`, `solo-card`,

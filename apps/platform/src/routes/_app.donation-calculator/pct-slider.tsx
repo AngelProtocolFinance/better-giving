@@ -25,7 +25,7 @@ export function PctSlider({ classes = "", ...p }: ProcessingFeeSliderProps) {
               </Content>
             }
           >
-            <CircleHelpIcon size={14} className="relative inline" />
+            <CircleHelpIcon className="relative inline icon-sm" />
           </Tooltip>
         )}
       </div>

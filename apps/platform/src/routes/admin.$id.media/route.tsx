@@ -60,7 +60,7 @@ function Media({ loaderData: page1 }: Route.ComponentProps) {
             />
           </div>
           <NavLink to="new" className="btn-secondary btn gap-1">
-            <Plus size={16} />
+            <Plus className="icon-md" />
             <span>Add Video</span>
           </NavLink>
         </div>

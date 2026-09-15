@@ -85,7 +85,7 @@ export function BankDetails({
         classes={{ control: "w-full md:w-80" }}
         adornment={(open, state) =>
           state === "loading" ? (
-            <LoaderCircle className="text-gray-11 animate-spin" size={20} />
+            <LoaderCircle className="text-gray-11 animate-spin icon-lg" />
           ) : (
             <DrawerIcon
               is_open={open}

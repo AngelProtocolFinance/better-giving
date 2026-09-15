@@ -127,7 +127,7 @@ export function FsaForm(props: Props) {
           href={props.o_fsa_signed_doc_url}
           className="text-sm text-primary hover:text-primary/80 flex items-center gap-2"
         >
-          <SquareArrowOutUpRight size={20} />
+          <SquareArrowOutUpRight className="icon-lg" />
           <span>Signed Fiscal sponsorship agreement</span>
         </ExtLink>
       ) : null}

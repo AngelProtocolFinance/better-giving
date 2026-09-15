@@ -118,10 +118,10 @@ function Toolbar() {
   );
   return (
     <div className="flex items-center gap-0.5 pb-2 border-b border-gray-3">
-      <DecoratorBtn name="strong" icon={<BoldIcon size={16} />} />
-      <DecoratorBtn name="em" icon={<ItalicIcon size={16} />} />
-      <ListBtn name="number" icon={<ListOrderedIcon size={16} />} />
-      <ListBtn name="bullet" icon={<ListIcon size={16} />} />
+      <DecoratorBtn name="strong" icon={<BoldIcon className="icon-md" />} />
+      <DecoratorBtn name="em" icon={<ItalicIcon className="icon-md" />} />
+      <ListBtn name="number" icon={<ListOrderedIcon className="icon-md" />} />
+      <ListBtn name="bullet" icon={<ListIcon className="icon-md" />} />
       <button
         type="button"
         aria-label={link_active ? "Remove link" : "Insert link"}
@@ -148,7 +148,7 @@ function Toolbar() {
           editor.send({ type: "focus" });
         }}
       >
-        <LinkIcon size={16} />
+        <LinkIcon className="icon-md" />
       </button>
     </div>
   );

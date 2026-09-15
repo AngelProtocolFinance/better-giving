@@ -20,7 +20,7 @@ const options: { value: TargetType; label: ReactNode }[] = [
             </Content>
           }
         >
-          <CircleHelp size={14} className="relative inline" />
+          <CircleHelp className="relative inline icon-sm" />
         </Tooltip>
       </>
     ),

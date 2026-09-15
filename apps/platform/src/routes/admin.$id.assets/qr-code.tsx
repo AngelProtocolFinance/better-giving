@@ -158,7 +158,7 @@ export function QrCode({ classes = "", logo, profile_url, donate_url }: Props) {
           type="button"
           onClick={handle_download}
         >
-          <ArrowDownToLineIcon size={14} />
+          <ArrowDownToLineIcon className="icon-sm" />
           Download
         </button>
       </Tabs>

@@ -71,14 +71,14 @@ export function Body({ classes = "", npo, children, program }: Props) {
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center w-full font-semibold">
             {npo.hq_country && (
               <span className="flex items-center gap-2 uppercase">
-                <MapPin className="text-primary" size={20} />
+                <MapPin className="text-primary icon-lg" />
                 {npo.hq_country}
               </span>
             )}
 
             {npo.url && (
               <span className="flex items-center gap-2">
-                <Globe className="text-primary" size={20} />
+                <Globe className="text-primary icon-lg" />
                 <ExtLink
                   href={npo.url}
                   title="organization website"

@@ -39,7 +39,7 @@ export function SettingsAdv({
     >
       <h5>Advanced Settings</h5>
       <p className="mb-4">
-        <InfoIcon size={14} className="relative inline bottom-px" />{" "}
+        <InfoIcon className="relative inline bottom-px icon-sm" />{" "}
         <span className="text-sm">
           Additional setup is required on your embed for these settings to take
           effect.

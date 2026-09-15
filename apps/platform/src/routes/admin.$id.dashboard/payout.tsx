@@ -30,7 +30,7 @@ export function Payout({ classes = "", ...p }: Props) {
             aria-label="Edit payout threshold"
             className="text-xs inline-block"
           >
-            <PencilIcon size={12} />
+            <PencilIcon className="icon-xs" />
           </Link>
         </div>
       </div>

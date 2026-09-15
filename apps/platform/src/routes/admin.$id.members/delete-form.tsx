@@ -38,9 +38,9 @@ export function DeleteForm({ user, to_remove, pending_email, label }: Props) {
         className=" disabled:text-gray-11 hover:text-destructive active:text-destructive absolute-center"
       >
         {fetcher.state !== "idle" ? (
-          <LoaderCircle size={16} className="animate-spin" />
+          <LoaderCircle className="animate-spin icon-md" />
         ) : (
-          <Minus size={16} />
+          <Minus className="icon-md" />
         )}
       </button>
     </fetcher.Form>

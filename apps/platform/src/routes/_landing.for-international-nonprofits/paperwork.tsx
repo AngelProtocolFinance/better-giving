@@ -30,8 +30,7 @@ export function Paperwork({ classes = "" }) {
               className="flex items-start gap-2.5 bg-panel border border-gray-6 rounded px-4 py-3.5 text-sm/relaxed"
             >
               <Check
-                size={16}
-                className="shrink-0 text-success mt-0.5"
+                className="shrink-0 text-success mt-0.5 icon-md"
                 aria-hidden
               />
               {i}

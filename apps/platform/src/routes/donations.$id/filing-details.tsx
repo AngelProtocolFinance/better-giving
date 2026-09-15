@@ -62,7 +62,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
       >
         <div className="flex items-start gap-x-2 p-4">
           <span className="h-lh flex items-center shrink-0">
-            <BuildingIcon className="stroke-gray-11" size={16} />
+            <BuildingIcon className="stroke-gray-11 icon-md" />
           </span>
           <div>
             <h3 className="text-sm font-semibold">
@@ -90,7 +90,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
       >
         <div className="flex items-start gap-x-2 p-4">
           <span className="h-lh flex items-center shrink-0">
-            <CheckCircle2Icon className="stroke-success" size={16} />
+            <CheckCircle2Icon className="stroke-success icon-md" />
           </span>
           <div>
             <h3 className="text-sm font-semibold">
@@ -118,7 +118,7 @@ export function FilingDetails({ classes = "", ...p }: IFilingDetails) {
     >
       <div className="flex items-start gap-x-2 p-4">
         <span className="h-lh flex items-center shrink-0">
-          <BuildingIcon className="stroke-primary" size={16} />
+          <BuildingIcon className="stroke-primary icon-md" />
         </span>
         <div>
           <h3 className="text-sm font-semibold">
@@ -219,7 +219,7 @@ function FiledBtn({ filed }: IFiledBtn) {
     return (
       <p className="flex items-start gap-x-2 text-sm">
         <span className="h-lh flex items-center shrink-0">
-          <CheckCircle2Icon className="stroke-success" size={16} />
+          <CheckCircle2Icon className="stroke-success icon-md" />
         </span>
         <span>
           <span className="font-semibold">You told us you filed this.</span>{" "}

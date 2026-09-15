@@ -34,9 +34,9 @@ export function SfPerf({ id, classes = "" }: Props) {
         }`}
       >
         {data.total_return > 0 ? (
-          <ArrowUp className="relative bottom-px inline mr-0.5" size={14} />
+          <ArrowUp className="relative bottom-px inline mr-0.5 icon-sm" />
         ) : data.total_return < 0 ? (
-          <ArrowDown className="relative bottom-px inline mr-0.5" size={14} />
+          <ArrowDown className="relative bottom-px inline mr-0.5 icon-sm" />
         ) : (
           ""
         )}

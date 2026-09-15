@@ -66,7 +66,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
           href={reg.o_bank_statement}
           className="flex items-center gap-2 text-primary hover:text-primary"
         >
-          <SquareArrowOutUpRight size={16} />
+          <SquareArrowOutUpRight className="icon-md" />
           <span>Bank statement</span>
         </ExtLink>
         <button

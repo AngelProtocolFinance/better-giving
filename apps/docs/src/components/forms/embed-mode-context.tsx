@@ -99,7 +99,7 @@ function SetupModal({ id }: { id: string }) {
             aria-label="Close setup instructions"
             className="p-1.5 rounded hover:bg-secondary text-gray-11"
           >
-            <X size={20} />
+            <X className="icon-lg" />
           </button>
         </div>
 
@@ -176,7 +176,7 @@ export function ScriptSetupBanner() {
 
   return (
     <div className="flex items-start gap-2 p-3 bg-warning-subtle rounded text-sm">
-      <Info size={16} className="text-warning-subtle-fg shrink-0 mt-0.5" />
+      <Info className="text-warning-subtle-fg shrink-0 mt-0.5 icon-md" />
       <span className="text-warning-subtle-fg">
         This snippet requires additional setup. <SetupModal id={id} />
       </span>

@@ -72,7 +72,7 @@ export default function CustomDimensions() {
           href="/demo-nonprofit#fixed-dimensions"
           className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
         >
-          <ExternalLink size={14} />
+          <ExternalLink className="icon-sm" />
           See it in action on a demo page
         </a>
       </div>

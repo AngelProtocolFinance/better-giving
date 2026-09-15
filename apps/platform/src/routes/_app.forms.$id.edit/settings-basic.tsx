@@ -117,10 +117,7 @@ export function SettingsBasic({
           <>
             <BaseField.Root className="grid grid-rows-subgrid row-span-2">
               <div className="relative w-full">
-                <DollarSign
-                  size={14}
-                  className="text-gray-11 absolute top-1/2 left-3 -translate-y-1/2"
-                />
+                <DollarSign className="text-gray-11 absolute top-1/2 left-3 -translate-y-1/2 icon-sm" />
                 <input
                   type="number"
                   placeholder="0.00"

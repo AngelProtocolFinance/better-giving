@@ -53,7 +53,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
     },
     {
       name: "Email",
-      icon: <MailIcon size={16} />,
+      icon: <MailIcon className="icon-md" />,
       getShareLink: ($) =>
         `mailto:?subject=${encodeURIComponent(`Support ${$.orgName}`)}`,
     },
@@ -66,7 +66,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
           aria-label="Share"
           className="glyph-btn focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 text-primary hover:text-primary transition-colors duration-base"
         >
-          <ShareIcon size={20} />
+          <ShareIcon className="icon-lg" />
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
@@ -101,7 +101,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
                     "hover:bg-gray-3 data-highlighted:bg-gray-3 data-highlighted:text-gray-12 data-highlighted:outline-2 data-highlighted:outline-ring data-highlighted:-outline-offset-2 border-t text-sm col-span-full flex items-center gap-3 w-full px-3 py-2 rounded hover:text-gray-12"
                   }
                 >
-                  <LinkIcon size={16} />
+                  <LinkIcon className="icon-md" />
                   Copy Link
                 </button>
               </Menu.Item>

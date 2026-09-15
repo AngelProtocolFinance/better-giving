@@ -36,20 +36,20 @@ export function NewsletterForm() {
       </div>
       {errors.email?.message && (
         <p className="text-xs font-medium text-primary-fg mt-1.5 flex items-center gap-1">
-          <TriangleAlert size={14} className="shrink-0" />
+          <TriangleAlert className="shrink-0 icon-sm" />
           {errors.email.message}
         </p>
       )}
       {fetcher.data === "success" && (
         <p className="text-xs text-primary-fg/90 mt-1.5">
-          <Check size={14} className="stroke-primary-fg inline mr-0.5" />
+          <Check className="stroke-primary-fg inline mr-0.5 icon-sm" />
           The form was sent successfully. By doing so, you have agreed to our
           privacy policy
         </p>
       )}
       {fetcher.data === "error" && (
         <p className="text-xs font-medium text-primary-fg mt-1.5 flex items-center gap-1">
-          <TriangleAlert size={14} className="shrink-0" />
+          <TriangleAlert className="shrink-0 icon-sm" />
           Failed to subscribe
         </p>
       )}

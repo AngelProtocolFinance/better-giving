@@ -26,28 +26,28 @@ export const row_meta = (data: IBalanceTx): IRowMeta => {
   // always positive
   if (data.account_other === "donation") {
     return {
-      icon: <ArrowRight size={16} className="text-success" />,
+      icon: <ArrowRight className="text-success icon-md" />,
       description: <Description text="Donation" id={data.account_other_id!} />,
     };
   }
 
   if (data.account_other === "dividend") {
     return {
-      icon: <ArrowRight size={16} className="text-success" />,
+      icon: <ArrowRight className="text-success icon-md" />,
       description: <Description text="Dividend" id={data.account_other_id!} />,
     };
   }
   // always negative
   if (data.account_other === "refund") {
     return {
-      icon: <ArrowLeft size={16} className="text-destructive" />,
+      icon: <ArrowLeft className="text-destructive icon-md" />,
       description: <Description text="Refund" id={data.account_other_id!} />,
     };
   }
   // always negative
   if (data.account_other === "grant") {
     return {
-      icon: <ArrowLeft size={16} className="text-destructive" />,
+      icon: <ArrowLeft className="text-destructive icon-md" />,
       description: <Description text="Grant" id={data.account_other_id!} />,
     };
   }
@@ -56,9 +56,9 @@ export const row_meta = (data: IBalanceTx): IRowMeta => {
   return {
     icon:
       flow === "in" ? (
-        <ArrowRight size={16} className="text-success" />
+        <ArrowRight className="text-success icon-md" />
       ) : (
-        <ArrowLeft size={16} className="text-destructive" />
+        <ArrowLeft className="text-destructive icon-md" />
       ),
     description: (
       <Description

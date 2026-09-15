@@ -55,7 +55,7 @@ export function Table({ items, load_next, loading, disabled }: Props) {
                   </Content>
                 }
               >
-                <InfoIcon size={14} className="text-gray-11" />
+                <InfoIcon className="text-gray-11 icon-sm" />
               </Tooltip>
             </div>
           </th>

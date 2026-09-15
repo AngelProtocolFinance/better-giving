@@ -7,8 +7,7 @@ export const btn_disp = (open: boolean, btn: TTokenState, classes?: string) => {
     return (
       <LoaderCircleIcon
         test-id="token-loader"
-        className={`animate-spin ${classes}`}
-        size={20}
+        className={`icon-lg animate-spin ${classes}`}
       />
     );
   }
@@ -16,8 +15,7 @@ export const btn_disp = (open: boolean, btn: TTokenState, classes?: string) => {
     return (
       <CircleAlertIcon
         test-id="token-error"
-        className={`text-destructive ${classes}`}
-        size={20}
+        className={`icon-lg text-destructive ${classes}`}
       />
     );
   }

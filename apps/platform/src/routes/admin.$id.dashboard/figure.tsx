@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function Figure(props: Props) {
-  const icon = <CircleHelp size={14} className="text-gray-11 ml-1" />;
+  const icon = <CircleHelp className="text-gray-11 ml-1 icon-sm" />;
 
   return (
     <div className="@container rounded border bg-panel p-4">

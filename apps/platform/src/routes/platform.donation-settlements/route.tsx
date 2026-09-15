@@ -29,7 +29,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           replace
           className="btn btn-primary flex items-center gap-1"
         >
-          <PlusIcon size={16} />
+          <PlusIcon className="icon-md" />
           New
         </NavLink>
       </div>

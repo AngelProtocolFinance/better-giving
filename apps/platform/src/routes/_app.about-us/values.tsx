@@ -50,7 +50,7 @@ export function Values({ classes = "" }: IValues) {
             className="font-bold text-primary hover:underline"
           >
             View our transparency profile on Candid{" "}
-            <ArrowRight className="inline size-4 align-middle" />
+            <ArrowRight className="inline icon-md align-middle" />
           </ExtLink>
         </p>
       </div>

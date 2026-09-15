@@ -86,7 +86,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                   </Content>
                 }
               >
-                <InfoIcon size={14} className="text-gray-11" />
+                <InfoIcon className="text-gray-11 icon-sm" />
               </Tooltip>
             </div>
           </th>
@@ -108,7 +108,10 @@ export function GiftsTable({ dists, subs }: IProps) {
               </td>
               <td className="w-px whitespace-nowrap px-1 border-l-0">
                 {m && (
-                  <RefreshCw size={14} style={{ color: sub_color(m.idx) }} />
+                  <RefreshCw
+                    className="icon-sm"
+                    style={{ color: sub_color(m.idx) }}
+                  />
                 )}
               </td>
               <td className="w-px whitespace-nowrap pl-0 border-l-0">

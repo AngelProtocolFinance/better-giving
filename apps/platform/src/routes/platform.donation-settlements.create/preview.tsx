@@ -93,7 +93,7 @@ const record_tabs = [
     value: "table",
     label: (
       <>
-        <TableIcon size={14} />
+        <TableIcon className="icon-sm" />
         Records
       </>
     ),
@@ -102,7 +102,7 @@ const record_tabs = [
     value: "json",
     label: (
       <>
-        <CodeIcon size={14} />
+        <CodeIcon className="icon-sm" />
         JSON
       </>
     ),

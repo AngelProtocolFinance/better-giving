@@ -82,10 +82,7 @@ export function Result1({ classes = "", ...v }: Props) {
                 </Content>
               }
             >
-              <CircleHelpIcon
-                size={14}
-                className="relative inline bottom-px ml-1"
-              />
+              <CircleHelpIcon className="relative inline bottom-px ml-1 icon-sm" />
             </Tooltip>
           </p>
 
