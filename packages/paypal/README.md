@@ -1,6 +1,6 @@
 # PayPal TypeScript Types
 
-TypeScript type definitions automatically generated from [PayPal's official OpenAPI specifications](https://github.com/paypal/paypal-rest-api-specifications).
+TypeScript type definitions generated from [PayPal's official OpenAPI specifications](https://github.com/paypal/paypal-rest-api-specifications).
 
 ## Modules
 
