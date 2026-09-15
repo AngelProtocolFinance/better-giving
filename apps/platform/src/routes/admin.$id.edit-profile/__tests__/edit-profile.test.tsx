@@ -1,6 +1,12 @@
 import { eq } from "drizzle-orm";
 import { HttpResponse, http } from "msw";
-import { createRoutesStub, useFetcher, useOutletContext } from "react-router";
+import {
+  createRoutesStub,
+  Link,
+  Outlet,
+  useFetcher,
+  useOutletContext,
+} from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -10,7 +16,7 @@ import {
   it,
   vi,
 } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
@@ -37,9 +43,10 @@ vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock()
 );
 
+// the client reads the action's data, so the toast wrappers pass it through
 vi.mock("#/.server/toast", () => ({
-  dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
-  dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
+  dataWithSuccess: vi.fn((d: unknown, _msg: string) => d),
+  dataWithError: vi.fn((d: unknown, _msg: string) => d),
 }));
 
 vi.mock("remix-client-cache", () => ({
@@ -54,6 +61,7 @@ vi.mock("#/.server/funds", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { Target, to_target } from "@better-giving/ui";
+import { dataWithError } from "#/.server/toast";
 import MarketplacePage, {
   loader as marketplace_loader,
 } from "#/routes/_app.marketplace/route";
@@ -118,7 +126,7 @@ async function seed_npo(
   return row;
 }
 
-async function render_edit(npo_id: number) {
+async function render_edit(npo_id: number, route_action: unknown = action) {
   const Stub = createRoutesStub(
     [
       {
@@ -126,7 +134,7 @@ async function render_edit(npo_id: number) {
         Component: EditProfilePage,
         HydrateFallback: () => null,
         loader: loader as any,
-        action: action as any,
+        action: route_action as any,
         middleware: [
           async ({ context }, next) => {
             context.set(admin_ctx, npo_id);
@@ -255,12 +263,17 @@ describe("edit profile — text fields", () => {
     await address.fill("456 New Ave");
 
     // tagline + registration are general's, address is organization's
-    await screen.getByRole("button", { name: "Save general" }).click();
+    const general = screen.getByRole("button", { name: "Save general" });
+    await general.click();
     const organization = screen.getByRole("button", {
       name: "Save organization",
     });
-    // the fieldset disables it in flight; enabled again means general landed
-    await expect.element(organization).toBeEnabled();
+    // both hold only once general has settled: before the save its button is
+    // still enabled, and in flight the fieldset disables the tagline
+    await vi.waitFor(() => {
+      expect(general.element()).toBeDisabled();
+      expect(tagline.element()).toBeEnabled();
+    });
     await organization.click();
     await expect.element(tagline).toBeEnabled();
     await expect.element(organization).toBeDisabled();
@@ -546,6 +559,42 @@ describe("edit profile — published toggle", () => {
       .element(marketplace.getByText("Test Charity"))
       .toBeInTheDocument();
   });
+
+  it("a refused publish reverts to the stored value, through a later save's revalidation", async () => {
+    const npo = await seed_npo({ published: false });
+    let calls = 0;
+    const refuse_first: typeof action = async (args) =>
+      calls++ === 0 ? { ok: false } : action(args);
+    const screen = await render_edit(npo.id, refuse_first);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+
+    const toggle = screen.getByRole("checkbox", { name: /publish profile/i });
+    (toggle.element() as HTMLElement).click();
+    await vi.waitFor(() => expect(calls).toBe(1));
+    await expect.element(toggle).toBeEnabled();
+    await expect.element(toggle).not.toBeChecked();
+    await expect
+      .element(screen.getByText(/profile is not visible/i))
+      .toBeVisible();
+
+    await tagline.fill("New tagline");
+    await screen.getByRole("button", { name: "Save general" }).click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("New tagline")
+    );
+    await expect
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeDisabled();
+    await expect.element(tagline).toBeEnabled();
+
+    expect((await npo_get(npo.id))?.published).toBe(false);
+    await expect.element(toggle).not.toBeChecked();
+    await expect
+      .element(screen.getByText(/profile is not visible/i))
+      .toBeVisible();
+  });
 });
 
 describe("edit profile — slug taken", () => {
@@ -588,6 +637,92 @@ describe("edit profile — slug taken", () => {
       .toBeInTheDocument();
 
     vi.restoreAllMocks();
+  });
+
+  it("a slug the action refuses stays unsaved: save re-arms, value kept", async () => {
+    const npo = await seed_npo();
+    await seed_npo({ registration_number: "OTHER789", slug: "server-taken" });
+
+    // the client check misses (claimed between check and save), so only the
+    // action catches it
+    const og_fetch = globalThis.fetch;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.startsWith("/api/npos/")) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
+      return og_fetch(input, init as RequestInit);
+    });
+
+    const screen = await render_edit(npo.id);
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+
+    const slug_input = screen.getByLabelText(/custom profile url/i);
+    await slug_input.fill("server-taken");
+    await screen.getByRole("button", { name: "Save general" }).click();
+
+    await vi.waitFor(() =>
+      expect(dataWithError).toHaveBeenCalledWith(
+        { ok: false },
+        expect.stringMatching(/server-taken/)
+      )
+    );
+    // the fieldset re-enables once the save settles
+    await expect.element(tagline).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeEnabled();
+    await expect.element(slug_input).toHaveDisplayValue("server-taken");
+    expect((await npo_get(npo.id))?.slug).toBeFalsy();
+
+    vi.restoreAllMocks();
+  });
+});
+
+describe("edit profile — switching profiles", () => {
+  it("navigating to another profile shows that profile's values", async () => {
+    const first = await seed_npo();
+    const second = await seed_npo({
+      registration_number: "SECOND456",
+      tagline: "Second tagline",
+    });
+    const Stub = createRoutesStub([
+      {
+        Component: () => (
+          <>
+            <Link to={`/admin/${second.id}/edit-profile`}>Second profile</Link>
+            <Outlet />
+          </>
+        ),
+        children: [
+          {
+            path: "/admin/:id/edit-profile",
+            Component: EditProfilePage,
+            HydrateFallback: () => null,
+            loader: loader as any,
+            action: action as any,
+            middleware: [
+              async ({ context, params }, next) => {
+                context.set(admin_ctx, Number(params.id));
+                return next();
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const screen = await render(
+      <Stub
+        initialEntries={[`/admin/${first.id}/edit-profile`]}
+        future={{ v8_middleware: true }}
+      />
+    );
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toHaveDisplayValue("Helping the world");
+    await screen.getByRole("link", { name: "Second profile" }).click();
+    await expect.element(tagline).toHaveDisplayValue("Second tagline");
   });
 });
 
@@ -636,18 +771,18 @@ describe("edit profile — per-group save", () => {
     );
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
 
-    // the fieldset disables every button in flight, so general's save coming
-    // back enabled is what marks the fetcher idle
+    // organization's save disarms only once its write is confirmed, after the
+    // loader has revalidated — general is read past that point
+    await expect.element(organization).toBeDisabled();
     await expect
-      .element(screen.getByRole("button", { name: "Save general" }))
-      .toBeEnabled();
+      .element(screen.getByLabelText(/address/i))
+      .toHaveDisplayValue("456 New Ave");
     await expect
       .element(screen.getByLabelText(/tagline/i))
       .toHaveDisplayValue("Unsaved tagline");
     await expect
-      .element(screen.getByLabelText(/address/i))
-      .toHaveDisplayValue("456 New Ave");
-    await expect.element(organization).toBeDisabled();
+      .element(screen.getByRole("button", { name: "Save general" }))
+      .toBeEnabled();
 
     await screen.getByRole("button", { name: "Save general" }).click();
     await vi.waitFor(async () =>
@@ -678,6 +813,52 @@ describe("edit profile — per-group save", () => {
     expect(screen.getByText(/required/i).query()).toBeNull();
   });
 
+  it("an edit made while a save is in flight survives it, unsaved", async () => {
+    const npo = await seed_npo();
+    let open_gate = () => {};
+    const gate = new Promise<void>((r) => {
+      open_gate = r;
+    });
+    const gated: typeof action = async (args) => {
+      await gate;
+      return action(args);
+    };
+    const screen = await render_edit(npo.id, gated);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+    const general = screen.getByRole("button", { name: "Save general" });
+    await general.click();
+    await expect.element(tagline).toBeDisabled();
+
+    // the fieldset holds native inputs only; the rich text stays editable
+    const editor = () =>
+      screen.container.querySelector<HTMLElement>('[contenteditable="true"]');
+    await vi.waitFor(() => expect(editor()).not.toBeNull());
+    const counted = screen.getByText(/chars :/).element().textContent!;
+    const before = Number(counted.match(/\d+/));
+    await userEvent.click(editor()!);
+    await userEvent.keyboard(" More");
+    // the counter reads the form's value, not the editor's DOM
+    const counter = screen.getByText(`chars : ${before + 5} `);
+    await expect.element(counter).toBeInTheDocument();
+
+    open_gate();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.tagline).toBe("New tagline")
+    );
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(counter).toBeInTheDocument();
+    await expect.element(general).toBeEnabled();
+
+    await general.click();
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.overview_v2).toMatch(/More/)
+    );
+    await expect.element(general).toBeDisabled();
+  });
+
   it("a field's error clears as it is fixed after a failed save", async () => {
     const npo = await seed_npo();
     const screen = await render_edit(npo.id);
@@ -692,6 +873,121 @@ describe("edit profile — per-group save", () => {
     await tagline.fill("Fixed tagline");
     await expect.element(screen.getByText(/required/i)).not.toBeInTheDocument();
     expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
+  });
+});
+
+/** native clicks, dispatched in one tick, so the saves are in flight together
+ * rather than one after another's actionability wait */
+const press = (...locators: { element: () => Element }[]) => {
+  for (const l of locators) (l.element() as HTMLElement).click();
+};
+
+describe("edit profile — back-to-back saves", () => {
+  it("a general save and a publish fired together both write and settle", async () => {
+    const npo = await seed_npo({ published: false });
+    const screen = await render_edit(npo.id);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    press(general, screen.getByRole("checkbox", { name: /publish profile/i }));
+
+    await vi.waitFor(async () => {
+      const row = await npo_get(npo.id);
+      expect(row?.tagline).toBe("New tagline");
+      expect(row?.published).toBe(true);
+    });
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(general).toBeDisabled();
+    await expect
+      .element(screen.getByText(/your profile is visible in the marketplace/i))
+      .toBeInTheDocument();
+  });
+
+  it("two group saves fired together both write and settle", async () => {
+    const npo = await seed_npo();
+    const screen = await render_edit(npo.id);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    press(general, organization);
+
+    await vi.waitFor(async () => {
+      const row = await npo_get(npo.id);
+      expect(row?.tagline).toBe("New tagline");
+      expect(row?.street_address).toBe("456 New Ave");
+    });
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(general).toBeDisabled();
+    await expect.element(organization).toBeDisabled();
+  });
+
+  it("a refused save fired just before a confirmed one stays unsaved", async () => {
+    const npo = await seed_npo();
+    let calls = 0;
+    const refuse_first: typeof action = async (args) =>
+      calls++ === 0 ? { ok: false } : action(args);
+    const screen = await render_edit(npo.id, refuse_first);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("Refused tagline");
+    await screen.getByLabelText(/address/i).fill("456 New Ave");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    const organization = screen.getByRole("button", {
+      name: "Save organization",
+    });
+    press(general, organization);
+
+    await vi.waitFor(async () =>
+      expect((await npo_get(npo.id))?.street_address).toBe("456 New Ave")
+    );
+    await expect.element(tagline).toBeEnabled();
+    await expect.element(organization).toBeDisabled();
+    await expect.element(general).toBeEnabled();
+    await expect.element(tagline).toHaveDisplayValue("Refused tagline");
+    expect(calls).toBe(2);
+    expect((await npo_get(npo.id))?.tagline).toBe("Helping the world");
+  });
+
+  it("the action's schema refusal prompts its message, on the retry too", async () => {
+    const npo = await seed_npo();
+    // the client schema never lets this body out, so the action gets it forged
+    const malformed: typeof action = (args) =>
+      action({
+        ...args,
+        request: new Request(args.request.url, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tagline: "x".repeat(141) }),
+        }),
+      });
+    const screen = await render_edit(npo.id, malformed);
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await expect.element(tagline).toBeVisible();
+    await tagline.fill("New tagline");
+
+    const general = screen.getByRole("button", { name: "Save general" });
+    const message = screen.getByText(/invalid length/i);
+    const close = screen.getByRole("button", { name: "Close" });
+    for (const _ of [1, 2]) {
+      await general.click();
+      await expect.element(message).toBeVisible();
+      press(close);
+      await expect.element(message).not.toBeInTheDocument();
+      await expect.element(general).toBeEnabled();
+    }
   });
 });
 

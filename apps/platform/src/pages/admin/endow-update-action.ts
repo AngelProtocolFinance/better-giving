@@ -1,8 +1,7 @@
-import { type ActionFunction, redirect } from "react-router";
+import { type ActionFunction, data, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
-import { resp } from "@/helpers/https";
 import type { INpoUpdate } from "@/npo";
 import { npo_update } from "@/npo/schema";
 import { db } from "$/pg/db";
@@ -18,14 +17,19 @@ export const endowUpdate =
 
     const update: INpoUpdate = await args.request.json();
     const p = safeParse(npo_update, update);
-    if (p.issues) return resp.status(400, p.issues[0].message);
+    if (p.issues) {
+      return data({ ok: false, error: p.issues[0].message }, { status: 400 });
+    }
     const { target, ...rest } = p.output;
 
     // check if new slug is already taken (allow npo's own slug)
     if (rest.slug) {
       const res = await npo_by_slug(rest.slug);
       if (res && res.id !== id) {
-        return dataWithError(null, `Slug ${rest.slug} is already taken`);
+        return dataWithError(
+          { ok: false },
+          `Slug ${rest.slug} is already taken`
+        );
       }
     }
 
@@ -38,7 +42,7 @@ export const endowUpdate =
     });
 
     if ("success" in next) {
-      return dataWithSuccess(null, next.success);
+      return dataWithSuccess({ ok: true }, next.success);
     }
 
     return redirect(next.redirect);
