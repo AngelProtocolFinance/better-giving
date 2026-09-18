@@ -22,7 +22,7 @@ export function Breadcrumbs({ items, classes = "" }: Props) {
               `max-w-xs truncate ${
                 isActive
                   ? "font-bold cursor-default pointer-events-none"
-                  : "underline hover:text-primary"
+                  : "link underline"
               }`
             }
           >

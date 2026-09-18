@@ -82,7 +82,7 @@ export function Body({ classes = "", npo, children, program }: Props) {
                 <ExtLink
                   href={npo.url}
                   title="organization website"
-                  className="underline decoration-1 hover:text-primary hover:decoration-2"
+                  className="underline decoration-1 link"
                 >
                   {npo.url.replace(/^https?:\/\//i, "")}
                 </ExtLink>

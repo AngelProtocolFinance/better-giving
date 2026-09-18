@@ -61,17 +61,11 @@ const faqs = (_: number) => [
       </p>,
       <p key={2}>
         To access your receipts or a year-end donation summary,{" "}
-        <Link
-          to={href("/signup")}
-          className="text-primary hover:text-primary/80"
-        >
+        <Link to={href("/signup")} className="link">
           create a free donor account
         </Link>{" "}
         (
-        <ExtLink
-          href="https://youtu.be/74kEk7aQauA"
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href="https://youtu.be/74kEk7aQauA" className="link">
           video guide
         </ExtLink>
         ).

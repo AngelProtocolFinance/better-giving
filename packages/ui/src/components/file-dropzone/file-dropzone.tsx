@@ -168,10 +168,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
           focusable link inside a role="button" — in the tab order, and folded
           into the button's accessible name, so the button announced a url. */}
       {is_url(props.value) && (
-        <ExtLink
-          href={props.value}
-          className="text-sm text-primary hover:text-primary/80 mt-1 inline-block"
-        >
+        <ExtLink href={props.value} className="text-sm link mt-1 inline-block">
           View uploaded file
         </ExtLink>
       )}

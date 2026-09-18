@@ -115,10 +115,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       <div className="flex items-center justify-between mt-8 mb-4">
         <h4 className="text-lg">Recent changes</h4>
         {recent_logs.next && (
-          <Link
-            to="nav-history"
-            className="text-sm text-primary hover:text-primary"
-          >
+          <Link to="nav-history" className="text-sm link">
             See All
           </Link>
         )}

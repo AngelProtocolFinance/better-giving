@@ -37,10 +37,7 @@ export function Earnings({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl capitalize">My earnings</h2>
         {earnings.see_all && (
-          <Link
-            to={earnings.see_all}
-            className="text-sm text-primary hover:text-primary"
-          >
+          <Link to={earnings.see_all} className="text-sm link">
             View All
           </Link>
         )}
@@ -60,7 +57,7 @@ export function Earnings({
             <Link
               aria-disabled={payout_ltd === 0}
               to="payouts"
-              className="group flex items-center @max-lg:mt-2 gap-x-1 text-primary hover:text-primary"
+              className="group flex items-center @max-lg:mt-2 gap-x-1 link"
             >
               <HistoryIcon className="group-hover:hidden @max-lg:hidden icon-lg" />
               <ArrowRightIcon className=" @max-lg:hidden hidden @lg:group-hover:block group-active:translate-x-0.5 icon-lg" />

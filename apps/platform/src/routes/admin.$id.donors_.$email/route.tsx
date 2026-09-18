@@ -36,7 +36,7 @@ export default function Page({
     <div className="px-6 py-4 md:px-10 md:py-8">
       <Link
         to={back_to}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-11 hover:text-gray-12"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-medium link"
       >
         <ArrowLeft className="icon-md" />
         {back_label}

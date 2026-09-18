@@ -30,7 +30,7 @@ export default function WpPlugin() {
             Download the {app_name}{" "}
             <ExtLink
               href="https://github.com/AngelProtocolFinance/bg-donation-plugins/releases/download/v0.2/wordpress.zip"
-              className="text-primary hover:text-primary/80"
+              className="link"
             >
               Wordpress Plugin
             </ExtLink>{" "}

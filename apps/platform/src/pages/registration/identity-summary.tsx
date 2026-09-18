@@ -37,7 +37,7 @@ export function IdentitySummary({ reg, classes = "" }: Props) {
       {reg.status === "01" && (
         <NavLink
           to={href("/register/:reg_id/identity", { reg_id: reg.id })}
-          className="ml-auto underline hover:text-gray-12"
+          className="ml-auto underline link"
         >
           Change
         </NavLink>

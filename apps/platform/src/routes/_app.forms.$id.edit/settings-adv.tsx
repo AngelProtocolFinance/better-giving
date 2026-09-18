@@ -67,7 +67,7 @@ export function SettingsAdv({
             </code>{" "}
             would be included on the{" "}
             <ExtLink
-              className="font-mono text-primary hover:text-primary text-xs"
+              className="font-mono link text-xs"
               href="https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams"
             >
               URLSearchParams

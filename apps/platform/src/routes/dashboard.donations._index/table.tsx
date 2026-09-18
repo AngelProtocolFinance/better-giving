@@ -91,7 +91,7 @@ export function Table({
                         to={href("/marketplace/:id", {
                           id: row.recipient_id,
                         })}
-                        className="flex items-center justify-between gap-1 text-primary hover:text-primary"
+                        className="flex items-center justify-between gap-1 link"
                       >
                         <span className="truncate max-w-48">
                           {row.recipient_name}
@@ -102,7 +102,7 @@ export function Table({
                         to={href("/fundraisers/:fund_id", {
                           fund_id: row.recipient_id,
                         })}
-                        className="flex items-center justify-between gap-1 text-primary hover:text-primary"
+                        className="flex items-center justify-between gap-1 link"
                       >
                         <span className="truncate max-w-48">
                           {row.recipient_name}
@@ -111,7 +111,7 @@ export function Table({
                     )}
                     {row.program_id && row.recipient_type === "npo" && (
                       <Link
-                        className="text-primary hover:text-primary"
+                        className="link"
                         to={href("/marketplace/:id/program/:program_id", {
                           id: row.recipient_id,
                           program_id: row.program_id,
@@ -194,10 +194,7 @@ function RowAction({ row }: { row: IRow }) {
   // stripe bank verification
   if (row.via_id.startsWith("stripe") && row.via_extra) {
     return (
-      <ExtLink
-        href={row.via_extra}
-        className="text-xs text-primary hover:text-primary font-semibold"
-      >
+      <ExtLink href={row.via_extra} className="text-xs link font-semibold">
         Verify Bank
       </ExtLink>
     );

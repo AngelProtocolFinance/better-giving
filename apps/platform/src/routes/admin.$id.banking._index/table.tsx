@@ -30,7 +30,7 @@ export function Table({ methods, classes = "" }: Props) {
             <td>
               <NavLink
                 to={row.id}
-                className="[.pending]:text-gray-11 text-center w-full inline-block hover:text-primary"
+                className="[.pending]:text-gray-11 text-center w-full inline-block link"
               >
                 <FolderIcon
                   size={22}

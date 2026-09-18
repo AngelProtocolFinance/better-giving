@@ -42,10 +42,7 @@ export function Values({ classes = "" }: IValues) {
         </div>
         <p className="mt-8 text-center text-sm/relaxed text-gray-11 max-w-2xl mx-auto">
           Better Giving is a registered 501(c)(3) public charity, EIN {EIN}.{" "}
-          <ExtLink
-            href={guidestar.profile}
-            className="font-bold text-primary hover:underline"
-          >
+          <ExtLink href={guidestar.profile} className="font-bold link">
             View our transparency profile on Candid{" "}
             <ArrowRight className="inline icon-md align-middle" />
           </ExtLink>

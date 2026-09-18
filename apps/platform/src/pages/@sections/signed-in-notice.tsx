@@ -28,10 +28,7 @@ export function SignedInNotice({ classes = "", email, ref }: ISignedInNotice) {
         you entered. An application belongs to the account that starts it.
       </p>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-        <Link
-          to={href("/register")}
-          className="font-semibold text-primary hover:underline"
-        >
+        <Link to={href("/register")} className="font-semibold link">
           Continue with this account
         </Link>
         <Form method="post" action={href("/logout")}>

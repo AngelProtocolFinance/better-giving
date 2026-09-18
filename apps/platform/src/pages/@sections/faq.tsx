@@ -311,7 +311,7 @@ export function FAQ({
       <footer className="grid pt-8">
         <ExtLink
           href={INTERCOM_HELP}
-          className="justify-self-center flex items-center gap-x-2 text-primary hover:text-primary md:text-lg font-semibold"
+          className="justify-self-center flex items-center gap-x-2 link md:text-lg font-semibold"
         >
           <span>Complete FAQs</span>
           <ArrowRight size={15} />

@@ -26,7 +26,7 @@ export function FundCreator(props: IFundCreator) {
 
   return (
     <Link
-      className={`${props.classes} hover:text-primary`}
+      className={`${props.classes} link`}
       to={href("/marketplace/:id", { id: props.id })}
     >
       {props.name}

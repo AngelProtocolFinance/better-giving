@@ -19,7 +19,7 @@ export const InSentence = () => (
     By donating you agree to our{" "}
     <ExtLink
       href="https://app.better.giving/terms-of-use-donors"
-      className="text-primary hover:underline"
+      className="link"
     >
       terms of use
     </ExtLink>{" "}
@@ -29,22 +29,16 @@ export const InSentence = () => (
 
 export const FooterLinks = () => (
   <nav className="grid gap-2 text-sm">
-    <ExtLink
-      href="https://www.irs.gov/charities-non-profits"
-      className="text-primary hover:underline"
-    >
+    <ExtLink href="https://www.irs.gov/charities-non-profits" className="link">
       IRS charities and non-profits
     </ExtLink>
     <ExtLink
       href="https://www.guidestar.org/profile/87-3758939"
-      className="text-primary hover:underline"
+      className="link"
     >
       Candid profile — EIN 87-3758939
     </ExtLink>
-    <ExtLink
-      href="https://oceanconservancy.org"
-      className="text-primary hover:underline"
-    >
+    <ExtLink href="https://oceanconservancy.org" className="link">
       Ocean Conservancy
     </ExtLink>
   </nav>
@@ -59,7 +53,7 @@ export const WithIcon = () => (
     </p>
     <ExtLink
       href="https://booksforkids.org"
-      className="inline-flex items-center gap-1.5 text-primary hover:underline text-sm font-medium justify-self-start"
+      className="inline-flex items-center gap-1.5 link text-sm font-medium justify-self-start"
     >
       Visit booksforkids.org
       <span aria-hidden className="text-xs">

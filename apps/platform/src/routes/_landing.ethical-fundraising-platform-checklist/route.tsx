@@ -82,7 +82,7 @@ export default function Page() {
           <p className="mt-5 border-t border-gray-6 pt-4 text-xs print:hidden">
             <Link
               to={href("/blog/:slug", { slug: BANNER_POST_SLUG })}
-              className="font-bold text-primary hover:underline"
+              className="font-bold link"
             >
               Why {app_name} endorses these principles →
             </Link>

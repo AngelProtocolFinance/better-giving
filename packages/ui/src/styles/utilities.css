@@ -268,6 +268,48 @@
   }
 }
 
+/* the link primitive: a run of text that navigates. ink, hover ink and focus —
+   the whole of a text link's treatment — and nothing else. size, weight,
+   spacing and display stay the caller's, the same split the type roles keep
+   below.
+
+   both rungs are the ramp's, read off the state ladder's filled row rather than
+   picked: step 9 at rest, step 10 hovered. `--primary` is the ledger's one
+   blessed ink for a text-only control; `--primary-hover` is the step the solid
+   variants already hover to, so a link and a button move together.
+
+   the hover is that colour shift and nothing else, in every context. the six
+   spellings this replaces across 139 sites included two that were not a colour
+   at all (`hover:underline`, `hover:no-underline`) and one that was a no-op at
+   51 of them (`text-primary hover:text-primary`), which is what a treatment
+   with no name costs. a RESTING underline is still the caller's and sixteen
+   sites keep one.
+
+   no `:not([aria-disabled="true"])` guard on the hover, unlike the button
+   variants: `styles/base.css` gives a disabled anchor `pointer-events: none`,
+   so the hover cannot fire and the call site's `aria-disabled:text-gray-11`
+   outranks both rules anyway.
+
+   focus-visible, never focus — the house trigger, the same one `.btn` and every
+   control in styles/components.css carries. stated in full rather than left to
+   the UA outline that `styles/base.css` already colours: the width and the
+   offset are the ledger's focus row, and a UA outline has neither.
+
+   a link whose ink is NOT the brand colour is a different thing and keeps its
+   own: the contrast ink on a brand fill (the footer, the announcement banner),
+   the error ink in a destructive band. `link-conformance.node.test.ts` names
+   that set. */
+@utility link {
+  color: var(--primary);
+  &:hover {
+    color: var(--primary-hover);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
 /* a band or panel filled with --primary. use instead of bare `bg-primary`
    whenever the fill contains a control: it rebinds --ring and --border for
    everything inside, because the page-level values are drawn against the page

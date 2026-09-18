@@ -83,7 +83,7 @@ function Row(f: FormRow) {
       <td>
         <NavLink
           to={href("/forms/:id/edit", { id: f.id })}
-          className="font-medium hover:text-primary"
+          className="font-medium link"
         >
           {f.name}
         </NavLink>

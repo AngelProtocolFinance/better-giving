@@ -32,7 +32,7 @@ export function Slug({
       {link && (
         <div className="text-sm italic mt-1">
           <span>Current URL:</span>{" "}
-          <Link to={link} className="text-primary hover:underline break-all">
+          <Link to={link} className="link break-all">
             {link}
           </Link>
         </div>

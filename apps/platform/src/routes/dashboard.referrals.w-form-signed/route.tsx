@@ -29,7 +29,7 @@ function Content(props: LoaderData) {
       <a
         download
         href={`/api/anvil-doc/${props.doc_eid}`}
-        className="text-primary hover:text-primary active:text-primary mb-4 inline-block"
+        className="link mb-4 inline-block"
       >
         <ArrowDownToLine size={18} className="inline bottom-px relative mr-1" />
         <span className="text-sm font-semibold">Download</span>

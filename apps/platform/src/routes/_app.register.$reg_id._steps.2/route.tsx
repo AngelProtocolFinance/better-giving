@@ -105,10 +105,7 @@ function Page({ loaderData: reg }: Route.ComponentProps) {
       <p className="text-sm mt-4">
         By submitting this information, you declare that you have read and
         agreed to our{" "}
-        <ExtLink
-          className="underline text-primary hover:text-primary"
-          href={TERMS_OF_USE_NPO}
-        >
+        <ExtLink className="underline link" href={TERMS_OF_USE_NPO}>
           Terms & Conditions
         </ExtLink>
         .

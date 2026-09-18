@@ -30,7 +30,7 @@ export default function Payout() {
     <div className="px-6 py-4 md:px-10 md:py-8">
       <Link
         to={"../referrals"}
-        className="flex items-center gap-1 mb-4 text-primary hover:text-primary/80 text-sm"
+        className="flex items-center gap-1 mb-4 link text-sm"
       >
         <ChevronLeft size={18} />
         <span>Back</span>

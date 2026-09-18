@@ -45,10 +45,7 @@ export default function Component() {
               </h3>
               <p className="mt-1 text-sm">
                 If you need any additional support, please reach out to{" "}
-                <a
-                  href={`mailto:${emails.hi}`}
-                  className="text-primary hover:underline"
-                >
+                <a href={`mailto:${emails.hi}`} className="link">
                   {emails.hi}
                 </a>
                 .
@@ -67,10 +64,7 @@ const steps = [
     content: (
       <p>
         Don&apos;t have Zapier yet?{" "}
-        <a
-          href="https://zapier.com/sign-up/"
-          className="text-primary hover:underline"
-        >
+        <a href="https://zapier.com/sign-up/" className="link">
           Create a new account
         </a>
         .
@@ -82,10 +76,7 @@ const steps = [
     content: (
       <>
         <p>
-          <a
-            href={`https://${apex_domain}`}
-            className="text-primary hover:underline"
-          >
+          <a href={`https://${apex_domain}`} className="link">
             Go to your Better Giving NPO dashboard
           </a>{" "}
           and navigate to the API section to find your API key.

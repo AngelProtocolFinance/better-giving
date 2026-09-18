@@ -44,7 +44,7 @@ export function Grow({ classes = "" }: IGrow) {
           </p>
           <Link
             to={href("/fund-management")}
-            className="inline-block mt-6 font-semibold text-primary hover:underline"
+            className="inline-block mt-6 font-semibold link"
           >
             See how fund management works
           </Link>

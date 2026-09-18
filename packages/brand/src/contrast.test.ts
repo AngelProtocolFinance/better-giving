@@ -128,6 +128,17 @@ const pairings: Pairing[] = [
 
   // --- fill or ink: every token measured on the real page ground
   p("--primary on --background", colors.primary, page, 75.1, min.content),
+  // the hover rung of the `link` recipe, and the first place step 10 is spent
+  // as ink rather than as a fill. the ramp pairs a step 10 with nothing, so
+  // this is the palette's own combination and is measured rather than inferred
+  // from the step below it.
+  p(
+    "--primary-hover on --background",
+    colors.primary_hover,
+    page,
+    80.7,
+    min.content
+  ),
   // fill only by rule (gray-12 is the app's dark ink), so no threshold binds.
   p("--primary-deep on --background", colors.primary_deep, page, 93.9, null),
   p("--success glyph on --background", colors.success, page, 67.0, min.detail),

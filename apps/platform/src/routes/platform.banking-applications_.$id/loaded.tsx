@@ -62,10 +62,7 @@ export function Loaded(props: LoaderData) {
           </>
         )}
         <Row label="Bank statement">
-          <ExtLink
-            href={props.ba.bank_statement_url}
-            className="text-primary hover:text-primary"
-          >
+          <ExtLink href={props.ba.bank_statement_url} className="link">
             <span className="break-all">{props.ba.bank_statement_url}</span>
             <SquareArrowOutUpRight
               className="inline relative bottom-px ml-2"

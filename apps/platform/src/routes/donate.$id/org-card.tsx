@@ -26,7 +26,7 @@ export function OrgCard({ classes = "", program, ...props }: Props) {
         />
         <Link
           to={href("/marketplace/:id", { id: props.id.toString() })}
-          className="hover:text-primary text-ellipsis overflow-hidden text-nowrap @xl/org-card:text-balance col-start-2 w-full"
+          className="link text-ellipsis overflow-hidden text-nowrap @xl/org-card:text-balance col-start-2 w-full"
         >
           <span>{props.name}</span>
           {program ? (

@@ -13,10 +13,7 @@ export function Items({ classes = "" }) {
           Raise more with a conversion-optimized form-cash, stock, and crypto in
           one flow.
         </p>
-        <NavLink
-          to={href("/donation-forms")}
-          className="mt-4 text-primary hover:underline"
-        >
+        <NavLink to={href("/donation-forms")} className="mt-4 link">
           Learn more about donation forms
         </NavLink>
       </article>
@@ -29,10 +26,7 @@ export function Items({ classes = "" }) {
           Turn today's gifts into tomorrow's reserves with Savings and a pooled
           Growth Fund.
         </p>
-        <NavLink
-          to={href("/fund-management")}
-          className="mt-4 text-primary hover:underline"
-        >
+        <NavLink to={href("/fund-management")} className="mt-4 link">
           Learn more about fund management
         </NavLink>
       </article>
@@ -45,10 +39,7 @@ export function Items({ classes = "" }) {
           Accept U.S. tax-deductible donations globally without legal or tax
           barriers.
         </p>
-        <NavLink
-          to={href("/fiscal-sponsorship")}
-          className="mt-4 text-primary hover:underline"
-        >
+        <NavLink to={href("/fiscal-sponsorship")} className="mt-4 link">
           Learn more about fiscal sponsorship
         </NavLink>
       </article>

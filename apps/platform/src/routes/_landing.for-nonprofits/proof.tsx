@@ -33,7 +33,7 @@ export function Proof({ classes = "" }: IProof) {
           </p>
           <Link
             to={href("/open-source")}
-            className="inline-block mt-6 font-semibold text-primary hover:underline"
+            className="inline-block mt-6 font-semibold link"
           >
             Have the code audited
           </Link>

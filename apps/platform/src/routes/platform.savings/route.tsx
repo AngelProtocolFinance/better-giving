@@ -89,10 +89,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <div className="flex items-center justify-between mt-8 mb-4">
             <h4 className="text-lg">Recent balance snapshots</h4>
             {logs_bal_next && (
-              <Link
-                to="balance-history"
-                className="text-sm text-primary hover:text-primary"
-              >
+              <Link to="balance-history" className="text-sm link">
                 See All
               </Link>
             )}
@@ -114,10 +111,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           Log Interest
         </NavLink>
         {logs_intr_next && (
-          <Link
-            to="interest-history"
-            className="ml-auto text-sm text-primary hover:text-primary"
-          >
+          <Link to="interest-history" className="ml-auto text-sm link">
             See All
           </Link>
         )}

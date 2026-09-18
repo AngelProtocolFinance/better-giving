@@ -17,7 +17,7 @@ function Page({ loaderData: program }: Route.ComponentProps) {
     <div className="grid px-6 py-4 md:px-10 md:py-8">
       <Link
         to={`../${routes.programs}`}
-        className="flex items-center gap-2 text-primary hover:text-primary"
+        className="flex items-center gap-2 link"
       >
         <ChevronLeft />
         <span>Back</span>

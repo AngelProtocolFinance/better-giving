@@ -34,7 +34,7 @@ export function Expired(props: Props) {
 
       <Link
         to={href("/login")}
-        className="mt-5 text-primary hover:text-primary active:text-primary max-sm:text-sm font-medium underline text-center"
+        className="mt-5 link max-sm:text-sm font-medium underline text-center"
       >
         Back to Sign In
       </Link>

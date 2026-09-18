@@ -34,7 +34,7 @@ export default function Loaded(
       )}
       {props.status_approved_npo_id && (
         <NavLink
-          className="text-primary [.pending]:text-gray-11 hover:underline block -mt-4 text-sm"
+          className="link [.pending]:text-gray-11 block -mt-4 text-sm"
           to={href("/marketplace/:id", {
             id: props.status_approved_npo_id.toString(),
           })}
@@ -154,7 +154,7 @@ export default function Loaded(
 
 function DocLink({ url }: { url: string }) {
   return (
-    <ExtLink href={url} className="text-primary hover:text-primary">
+    <ExtLink href={url} className="link">
       <span className="break-all">{url}</span>
       <SquareArrowOutUpRight
         className="inline relative bottom-px ml-2"

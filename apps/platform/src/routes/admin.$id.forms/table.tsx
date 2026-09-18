@@ -86,7 +86,7 @@ function Row(f: FormRow) {
           <TagIcon className="shrink-0 text-gray-11 icon-sm" />
           <NavLink
             to={href("/forms/:id/edit", { id: f.id })}
-            className="font-medium hover:text-primary"
+            className="font-medium link"
           >
             {f.tag || f.name}
           </NavLink>

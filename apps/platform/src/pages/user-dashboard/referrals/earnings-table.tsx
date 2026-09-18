@@ -45,7 +45,7 @@ export function EarningsHistory({
                       to={href("/marketplace/:id", {
                         id: String(p.to_id ?? 0),
                       })}
-                      className="text-primary hover:text-primary"
+                      className="link"
                     >
                       {p.to_name}
                     </Link>

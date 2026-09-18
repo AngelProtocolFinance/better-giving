@@ -90,10 +90,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         <p className="text-center text-xs sm:text-sm text-gray-11 mt-3">
           Links expire in 1 hour and work only once. If yours hasn't arrived,
           check your spam folder or email{" "}
-          <a
-            className="underline hover:text-gray-12"
-            href={`mailto:${EMAILS.support}`}
-          >
+          <a className="underline link" href={`mailto:${EMAILS.support}`}>
             {EMAILS.support}
           </a>
           .
@@ -103,7 +100,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             here is otherwise a dead end with no link out of it */}
         <NavLink
           to={href("/signup")}
-          className="text-center text-xs sm:text-sm text-gray-11 underline hover:text-gray-12 mt-3"
+          className="text-center text-xs sm:text-sm link underline mt-3"
         >
           Wrong address? Start over
         </NavLink>

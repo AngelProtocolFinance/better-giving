@@ -18,7 +18,7 @@ export function Row(props: IRow) {
       <td>
         {props.program_id ? (
           <Link
-            className="text-primary hover:text-primary"
+            className="link"
             to={href("/marketplace/:id/program/:program_id", {
               id: props.recipient_id.toString(),
               program_id: props.program_id,

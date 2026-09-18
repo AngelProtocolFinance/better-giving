@@ -21,7 +21,7 @@ export function Allocation(props: Props) {
           replace
           preventScrollReset
           aria-disabled={props.disabled}
-          className="hover:text-primary disabled:text-gray-11 [.pending]:text-gray-11"
+          className="link disabled:text-gray-11 [.pending]:text-gray-11"
         >
           <Pencil className="icon-sm" />
         </NavLink>

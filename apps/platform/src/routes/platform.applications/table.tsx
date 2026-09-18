@@ -106,7 +106,7 @@ export function Table({
                         ? href("/register/:reg_id", { reg_id: row.id })
                         : href("/platform/applications/:id", { id: row.id })
                     }
-                    className="text-center w-full inline-block [.pending]:text-gray-11 hover:text-primary"
+                    className="text-center w-full inline-block [.pending]:text-gray-11 link"
                   >
                     <Folder
                       size={22}

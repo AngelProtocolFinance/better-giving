@@ -35,7 +35,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <DappLogo classes="h-12" />
         <Link
           to={href("/marketplace/:id", { id: endow.id.toString() })}
-          className="font-semibold  hover:text-primary"
+          className="font-semibold link"
         >
           Cancel
         </Link>
@@ -89,7 +89,7 @@ function Page({ loaderData }: Route.ComponentProps) {
         <p className="max-md:px-4 mb-4 max-mbcol-start-1 text-sm leading-normal text-left text-gray-11">
           <span className="block mb-0.5">
             Need help? See{" "}
-            <Link to="./#faqs" className="hover:underline font-medium">
+            <Link to="./#faqs" className="link font-medium">
               FAQs
             </Link>{" "}
             or contact us at our <A href={INTERCOM_HELP}>Help Center</A>.
@@ -109,10 +109,5 @@ function Page({ loaderData }: Route.ComponentProps) {
 }
 
 const A: typeof ExtLink = ({ className, ...props }) => {
-  return (
-    <ExtLink
-      {...props}
-      className={`${className} font-medium hover:underline`}
-    />
-  );
+  return <ExtLink {...props} className={`${className} font-medium link`} />;
 };

@@ -173,7 +173,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           Already have an account?
           <Link
             to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-            className="text-primary hover:text-primary active:text-primary aria-disabled:text-gray-11 font-medium underline"
+            className="link aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >
             Login
@@ -183,27 +183,18 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
 
       <span className="text-xs sm:text-sm text-center w-80">
         By signing up, you agree to our{" "}
-        <ExtLink
-          href={href("/privacy-policy")}
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href={href("/privacy-policy")} className="link">
           Privacy Policy
         </ExtLink>
         , {!terms_1 && " and  "}
         {terms_0 && (
-          <ExtLink
-            href={terms_0.to}
-            className="text-primary hover:text-primary/80"
-          >
+          <ExtLink href={terms_0.to} className="link">
             {terms_0.title}
           </ExtLink>
         )}
         {terms_0 && terms_1 && ", and  "}
         {terms_1 && (
-          <ExtLink
-            href={terms_1.to}
-            className="text-primary hover:text-primary/80"
-          >
+          <ExtLink href={terms_1.to} className="link">
             {terms_1.title}
           </ExtLink>
         )}

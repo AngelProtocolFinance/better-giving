@@ -61,10 +61,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           </>
         )}
         <Row label="Bank statement">
-          <ExtLink
-            href={d.ba.bank_statement_url}
-            className="text-primary hover:text-primary"
-          >
+          <ExtLink href={d.ba.bank_statement_url} className="link">
             <span className="break-all">{d.ba.bank_statement_url}</span>
             <SquareArrowOutUpRight
               className="inline relative bottom-px ml-2"

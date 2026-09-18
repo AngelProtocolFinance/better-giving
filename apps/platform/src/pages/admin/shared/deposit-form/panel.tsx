@@ -124,10 +124,7 @@ export function Panel({
 
         <p className="text-sm text-gray-11">
           For non-USD transfers, contact{" "}
-          <a
-            href={`mailto:${EMAILS.hi}`}
-            className="text-primary underline hover:no-underline"
-          >
+          <a href={`mailto:${EMAILS.hi}`} className="link underline">
             {EMAILS.hi}
           </a>{" "}
           for specific instructions.

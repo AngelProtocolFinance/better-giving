@@ -35,10 +35,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     <div>
       <div className="grid py-4 content-start grid-rows-[auto_auto_1fr] lg:container lg:mx-auto px-4 lg:grid-cols-2 gap-4">
         <header className="col-span-full lg:mb-6">
-          <NavLink
-            to={back_url}
-            className="flex text-primary hover:text-primary items-center gap-x-1"
-          >
+          <NavLink to={back_url} className="flex link items-center gap-x-1">
             <ChevronLeftIcon className="icon-md" />
             <span className="text-sm">Forms</span>
           </NavLink>

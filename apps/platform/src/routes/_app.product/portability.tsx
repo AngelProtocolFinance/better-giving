@@ -65,10 +65,7 @@ export function Portability({ classes = "" }: IPortability) {
           processor. Where a direct transfer isn't permitted, we hand over the
           full recurring-gift schedule and support a re-authorization campaign.
           We will never be the obstacle. Invoke it anytime:{" "}
-          <a
-            href={`mailto:${EMAILS.support}`}
-            className="font-bold text-primary hover:underline"
-          >
+          <a href={`mailto:${EMAILS.support}`} className="font-bold link">
             {EMAILS.support}
           </a>
         </p>

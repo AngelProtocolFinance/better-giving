@@ -23,7 +23,7 @@ export function FundCard({ classes = "", ...props }: Props) {
         />
         <Link
           to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-          className="hover:text-primary text-ellipsis overflow-hidden text-nowrap @xl/fund-card:text-balance col-start-2 w-full"
+          className="link text-ellipsis overflow-hidden text-nowrap @xl/fund-card:text-balance col-start-2 w-full"
         >
           {props.name}
         </Link>

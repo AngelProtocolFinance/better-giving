@@ -26,7 +26,7 @@ export default function Success({
       <a
         download
         href={`/api/anvil-doc/${documentGroupEid}`}
-        className="text-primary hover:text-primary active:text-primary mb-4 inline-block"
+        className="link mb-4 inline-block"
       >
         <ArrowDownToLine size={18} className="inline bottom-px relative mr-1" />
         <span className="text-sm font-semibold">Download</span>

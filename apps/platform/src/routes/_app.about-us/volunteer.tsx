@@ -38,7 +38,7 @@ export function Volunteer({ classes = "" }: IVolunteer) {
           </p>
           <a
             href={`mailto:${EMAILS.support}`}
-            className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 font-bold link"
           >
             Volunteer with us
             <ArrowRight className="icon-md" />

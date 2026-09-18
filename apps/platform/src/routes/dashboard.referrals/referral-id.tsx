@@ -50,7 +50,7 @@ export function ReferralId({ classes = "", ...p }: Props) {
         <Link
           target="_blank"
           to={href("/terms-of-use-referrals")}
-          className="text-primary hover:text-primary"
+          className="link"
         >
           Referral Program Terms of Use
         </Link>

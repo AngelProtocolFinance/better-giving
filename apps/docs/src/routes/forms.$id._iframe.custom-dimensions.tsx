@@ -70,7 +70,7 @@ export default function CustomDimensions() {
         </p>
         <a
           href="/demo-nonprofit#fixed-dimensions"
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-deep mt-2"
+          className="inline-flex items-center gap-1.5 text-sm link mt-2"
         >
           <ExternalLink className="icon-sm" />
           See it in action on a demo page

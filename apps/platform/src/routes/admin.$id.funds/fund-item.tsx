@@ -35,7 +35,7 @@ export const FundItem = (props: Props) => {
 
       <Link
         to={href("/fundraisers/:fund_id", { fund_id: props.id })}
-        className="mt-4 font-semibold text-gray-11 hover:text-primary "
+        className="mt-4 font-semibold link"
       >
         {props.name}
       </Link>

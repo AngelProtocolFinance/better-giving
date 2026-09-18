@@ -55,7 +55,7 @@ export function PlatformGuide() {
           <ExtLink
             key={name}
             href={url}
-            className="inline-flex items-center gap-1 text-sm text-gray-11 hover:text-gray-12 transition-colors"
+            className="inline-flex items-center gap-1 text-sm link transition-colors"
           >
             {name}
             <ExternalLink className="text-gray-11 icon-xs" />

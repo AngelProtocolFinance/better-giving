@@ -58,7 +58,7 @@ export function Pillars({ classes = "" }: IPillars) {
               <p className="text-sm/relaxed">{p.body}</p>
               <Link
                 to={p.to}
-                className="inline-flex items-center gap-1.5 font-bold text-sm text-primary hover:underline mt-auto pt-2"
+                className="inline-flex items-center gap-1.5 font-bold text-sm link mt-auto pt-2"
               >
                 {p.cta}
                 <ArrowRight className="icon-md" />

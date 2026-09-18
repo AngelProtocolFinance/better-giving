@@ -44,10 +44,7 @@ export function Payout({ classes = "", ...p }: Props) {
         {progress < 1 ? "Once desired amount is accumulated, " : ""}
         will be paid out to{" "}
         {
-          <Link
-            to="../banking"
-            className="text-primary hover:text-primary font-medium"
-          >
+          <Link to="../banking" className="link font-medium">
             {p.pm?.bank_summary || "your default payout method"}
           </Link>
         }{" "}

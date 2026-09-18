@@ -32,7 +32,7 @@ function Fund(props: IFundItem) {
         className="row-span-2 shrink-0"
       />
       <Link
-        className="hover:text-primary"
+        className="link"
         to={href("/fundraisers/:fund_id", {
           fund_id: props.id,
         })}

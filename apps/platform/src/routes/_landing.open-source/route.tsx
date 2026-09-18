@@ -120,7 +120,7 @@ export default function Page() {
           </p>
           <ExtLink
             href={GITHUB_REPO}
-            className="inline-flex items-center gap-1.5 font-bold text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 font-bold link"
           >
             Contribute on GitHub
             <ArrowRight className="icon-md" />

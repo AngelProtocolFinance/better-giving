@@ -142,17 +142,11 @@ export function Form({ classes = "", user }: IForm) {
       />
       <p className="text-sm col-span-full">
         By submitting this information, you agree to our{" "}
-        <ExtLink
-          href={PRIVACY_POLICY}
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href={PRIVACY_POLICY} className="link">
           Privacy Policy
         </ExtLink>{" "}
         and{" "}
-        <ExtLink
-          href={TERMS_OF_USE_DONOR}
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href={TERMS_OF_USE_DONOR} className="link">
           Terms of Use
         </ExtLink>
         .

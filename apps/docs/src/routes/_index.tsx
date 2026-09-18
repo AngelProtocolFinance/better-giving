@@ -27,14 +27,14 @@ export default function Home() {
                 <div className="flex flex-wrap gap-4 mt-3">
                   <Link
                     to={`/forms/${BG_FORM_ID}/flexible-width`}
-                    className="text-sm text-primary hover:text-primary-deep flex items-center gap-1"
+                    className="text-sm link flex items-center gap-1"
                   >
                     See examples
                     <ArrowRight className="icon-sm" />
                   </Link>
                   <Link
                     to="/demo-nonprofit"
-                    className="text-sm text-primary hover:text-primary-deep flex items-center gap-1"
+                    className="text-sm link flex items-center gap-1"
                   >
                     View demo page
                     <ArrowRight className="icon-sm" />

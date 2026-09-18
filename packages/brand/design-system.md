@@ -245,6 +245,7 @@ when one element carries both".
 | token | fill | legible as text | on `--background` | notes |
 | --- | --- | --- | --- | --- |
 | `--primary` | yes | **yes** | Lc 75.1 | also the ink for text-only controls. `--ring` is a separate token (`blue-8`) |
+| `--primary-hover` | yes | **yes** | Lc 80.7 | step 10, the fill every solid variant hovers to and the `link` recipe's hover ink. The ramp pairs a step 10 with nothing, so this one is measured, not inferred from the step below it |
 | `--primary-deep` | yes | **no, by rule** | Lc 93.9 | dark enough to be legible, but `gray-12` is the app's dark ink and a second one is drift. Fill only, see its section |
 | `--success` | yes | **no, by rule** | Lc 67.0 | green-9 is a solid. It clears Lc 60 as text on the page and misses the Lc 75 body copy needs, so the ramp's role decides it, not the measurement. The green ink is `--success-subtle-fg` (green-11) at Lc 72.0, on every surface, the same way `--warning-subtle-fg` is the warning ink |
 | `--success-subtle-fg` | no | yes | Lc 72.0 | ink for `--success-subtle` (Lc 66.1) and the app's green ink. Lc 65.1 on `gray-3` and Lc 65.8 on `--secondary`, both over Lc 60 |
@@ -1026,6 +1027,7 @@ rung is a named token off the ramp**: nothing is mixed at a use-site.
 | filled (`.btn-primary` and the three semantic variants) | step 9: `--primary`, `--destructive`, `--success`, `--warning` | step 10: `--*-hover` | **step 10 + `translateY(1px)`** |
 | tinted / ghost (`.btn-secondary`, `.btn-ghost`) | `--panel` or transparent | step 3: `--secondary` | step 5: `--secondary-active` |
 | a subtle band that is also a control | `--destructive-subtle` (step 3) | n/a | `--destructive-subtle-active` (step 5) |
+| text-only (`link`) | step 9: `--primary` | step 10: `--primary-hover` | n/a: the two solid rungs are spent, and a run of text has no press affordance to spend instead |
 
 | state | value |
 | --- | --- |
@@ -1064,6 +1066,7 @@ and the components beside them. `n/a` means the state does not apply to that con
 | control | rest | hover | focus-visible | active | disabled | pending | invalid | read-only |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `.btn` + 7 variants | ✓ | ✓ | ✓ | ✓¹ | ✓ | ✓ | n/a | n/a |
+| `link` (a text link) | ✓ | ✓ | ✓ | | ⁹ | ⁹ | n/a | n/a |
 | `.field-input` (input, textarea) | ✓ | | ✓² | n/a | ✓ | | ✓ | ✓³ |
 | `.field-input-container` (composite field) | ✓ | | ✓² | n/a | ✓ | | ✓ | ✓³ |
 | `DateInput.Segment` (date field) | ✓ | | ✓⁸ | n/a | | | n/a⁸ | n/a |
@@ -1099,6 +1102,11 @@ and the components beside them. `n/a` means the state does not apply to that con
    focused pair wins: the two rules are the same specificity, and the
    `data-placeholder` one is emitted later. `data-invalid` lands on the group,
    so the segment carries no invalid paint of its own.
+9. The recipe carries three states and stops. Both `aria-disabled` and react
+   router's `.pending` reach a link, and both are painted at the call sites that
+   have one (`aria-disabled:text-gray-11`, `[.pending]:text-gray-11`) rather
+   than by the recipe: `styles/base.css` already gives a disabled anchor
+   `pointer-events: none`, so what is missing is the ink, not the behaviour.
 
 **One focus trigger: `focus-visible`, never `focus`.** Applied at every control
 in the table. Browsers withhold `:focus-visible` from a pointer press on
@@ -1110,7 +1118,7 @@ observable.
 
 Two things the table shows and no single component would:
 
-- **Nothing has a hover state but the button and the option row.** A checkbox, a
+- **Nothing has a hover state but the button, the link and the option row.** A checkbox, a
   radio and a switch are all pointer targets that give no acknowledgement until
   they are pressed.
 - **`pending` reaches the button alone.** A form whose submit is in flight has
@@ -1285,6 +1293,69 @@ stay at `--radius-sm`, so a button and the input beside it stop matching.
 `.design-sync/conventions.md:77` ("`rounded-sm` for buttons and inputs") is wrong
 on the value but right that the two should share one; moving the fields to
 `var(--radius)` is the companion fix and is the user's call.
+
+## The link primitive
+
+`link`, an `@utility` in `packages/ui/src/styles/utilities.css`: **ink, hover ink
+and focus, and nothing else.**
+
+| rung | value |
+| --- | --- |
+| rest | `--primary` (blue-9) |
+| hover | `--primary-hover` (blue-10) |
+| focus | `outline: 2px solid var(--ring)`, `outline-offset: 2px`, on `:focus-visible` |
+
+Both rungs are read off the ramp rather than picked, and they are the state
+ladder's filled row: `--primary` is the one fill token this file blesses as ink
+(Lc 75.1 on the page, see "Fill or ink"), and `--primary-hover` is the step every
+solid variant already hovers to — so a link and the button beside it move
+together. The focus ring is the house one, restated rather than left to the UA
+outline `styles/base.css` colours, because the width and the offset are what the
+state ladder specifies and a UA outline has neither.
+
+**The hover is that colour shift, in every context, and never an underline.**
+Decided with the trade-off on the table: an underline is the stronger
+affordance, and one treatment everywhere is worth more here than a second one
+per context. A *resting* underline is still the caller's and sixteen sites keep
+one.
+
+**What it does not carry**: size, weight, spacing, display — the same split the
+type roles keep by holding no colour, and the reason 139 call sites could take
+the name without moving a pixel of layout. Nor a pressed rung: a solid has two
+rungs, both spent, and a run of text has no `translateY` to spend instead.
+
+It replaced **six spellings across 139 call sites** —
+`hover:text-primary` (73), `hover:underline` (29), `hover:text-primary/80` (22),
+`hover:text-gray-12` (8), `hover:text-primary-deep` (7),
+`hover:no-underline` (1) — one of which, `text-primary hover:text-primary`, was a
+no-op at 51 of them. Every value on both sides was on-system, which is what
+`apps/platform/src/__tests__/link-conformance.node.test.ts` exists for: nothing
+but that sweep separates a link from a seventh way of writing one.
+
+### Three shapes are not this
+
+- **A link that paints a surface of its own** — a menu row, a dashboard tile, a
+  tab. Its ink moves with a fill or an edge, and `link`'s brand ink at rest is
+  wrong on every one. The sweep reads the surface off the class string and
+  leaves them alone.
+- **Semantic ink on a coloured ground.** The footer, the announcement banner,
+  the marketplace page-error and the one `bg-primary` pillar tile all sit on a
+  brand fill and take the contrast ink; a row action in a destructive column
+  takes the error ink. Converting either would break a pairing measured above.
+- **A nav whose current item is its ink** (the dashboard sidebar, the marketing
+  header). `link` paints every item the brand colour and the current one stops
+  being visible. The blank in the state table is that state; nothing fills it
+  yet.
+
+### The gap: a link on a brand ground has no hover rung
+
+The second exemption is a hole rather than a decision. `--primary-fg` on
+`--primary` is where a link on a brand fill starts, and the ladder under it is
+unmeasured — see "`--primary-fg` alpha steps are an unmeasured ladder", whose
+rule is that it must not become an authored scale by accretion. So the sites on
+a brand ground keep what they had: the footer's `/90 → full` step, and a hover
+underline on the three that carry no second ink. **A hover ink for a brand ground is a value someone has to measure**,
+and until then the recipe covers the page and not the band.
 
 ## Icon size ladder
 

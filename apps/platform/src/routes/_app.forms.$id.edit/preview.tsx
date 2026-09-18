@@ -51,7 +51,7 @@ export function Preview({
           <span>Live form preview</span>
         </div>
         <ExtLink
-          className="text-sm text-primary hover:text-primary inline-flex items-center gap-1"
+          className="text-sm link inline-flex items-center gap-1"
           href={`${DEV_DOCS_BASE_URL}/forms/${form_id}?mode=${type}`}
         >
           Embed examples

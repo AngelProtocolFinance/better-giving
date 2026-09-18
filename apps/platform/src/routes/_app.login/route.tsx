@@ -230,7 +230,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           />
           <Link
             to={`${href("/login/reset")}?redirect=${encodeURIComponent(to)}`}
-            className="font-medium text-gray-11 hover:text-gray-12 active:text-gray-12 text-xs sm:text-sm justify-self-end hover:underline"
+            className="font-medium link text-xs sm:text-sm justify-self-end"
           >
             Forgot password?
           </Link>
@@ -247,7 +247,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           Don't have an account?
           <Link
             to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
-            className="text-primary hover:text-primary active:text-primary aria-disabled:text-gray-11 font-medium underline"
+            className="link aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >
             Sign up
@@ -256,24 +256,15 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
       </div>
       <span className="text-xs sm:text-sm text-center w-80">
         By signing in, you agree to our{" "}
-        <ExtLink
-          href={href("/privacy-policy")}
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href={href("/privacy-policy")} className="link">
           Privacy Policy
         </ExtLink>
         ,{" "}
-        <ExtLink
-          href={href("/terms-of-use")}
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href={href("/terms-of-use")} className="link">
           Terms of Use (Donors)
         </ExtLink>
         , and{" "}
-        <ExtLink
-          href={href("/terms-of-use-npo")}
-          className="text-primary hover:text-primary/80"
-        >
+        <ExtLink href={href("/terms-of-use-npo")} className="link">
           Terms of Use (Nonprofits)
         </ExtLink>
       </span>

@@ -88,7 +88,7 @@ function Page({ loaderData }: Route.ComponentProps) {
       <div className="flex items-center justify-between mt-8">
         <h4 className="font-bold text-lg mb-1">Recent revenues</h4>
         {logs_next && (
-          <Link to="logs" className="text-sm text-primary hover:text-primary">
+          <Link to="logs" className="text-sm link">
             See All
           </Link>
         )}

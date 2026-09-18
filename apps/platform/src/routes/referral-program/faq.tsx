@@ -55,7 +55,7 @@ export function Faq({ classes = "" }) {
       </ul>
       <ExtLink
         href={referrals_hub}
-        className="justify-self-center flex mt-8 items-center gap-x-2 text-primary hover:text-primary md:text-lg font-semibold"
+        className="justify-self-center flex mt-8 items-center gap-x-2 link md:text-lg font-semibold"
       >
         <span>Complete FAQs</span>
         <ArrowRight size={15} />

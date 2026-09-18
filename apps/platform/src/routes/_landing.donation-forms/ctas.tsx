@@ -43,7 +43,7 @@ export function Ctas({ classes = "" }) {
               <Link
                 target="_blank"
                 to={BOOK_A_DEMO}
-                className="text-sm indent-3 mt-2 underline hover:text-primary"
+                className="text-sm indent-3 mt-2 underline link"
               >
                 Get a Demo
               </Link>
@@ -91,7 +91,7 @@ export function Ctas({ classes = "" }) {
               <Link
                 target="_blank"
                 to={BOOK_A_DEMO}
-                className="text-sm indent-3 mt-2 underline hover:text-primary"
+                className="text-sm indent-3 mt-2 underline link"
               >
                 Get a Demo
               </Link>
@@ -128,7 +128,7 @@ export function Ctas({ classes = "" }) {
               <Link
                 target="_blank"
                 to={BOOK_A_DEMO}
-                className="text-sm indent-3 mt-2 underline hover:text-primary"
+                className="text-sm indent-3 mt-2 underline link"
               >
                 Get a Demo
               </Link>
@@ -176,7 +176,7 @@ export function Ctas({ classes = "" }) {
               <Link
                 target="_blank"
                 to={BOOK_A_DEMO}
-                className="text-sm indent-3 mt-2 underline hover:text-primary"
+                className="text-sm indent-3 mt-2 underline link"
               >
                 Get a Demo
               </Link>

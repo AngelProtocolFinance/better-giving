@@ -335,7 +335,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           <Link
             target="_blank"
             to={href("/marketplace/:id", { id: id.toString() })}
-            className="text-primary hover:text-gray-12 text-sm flex items-center gap-1"
+            className="link text-sm flex items-center gap-1"
           >
             View Profile
           </Link>
