@@ -55,7 +55,7 @@ export function Feature({ classes = "" }) {
         className="btn btn-lg btn-primary mt-8 justify-self-center col-span-full ml-1 font-bold inline-flex items-center gap-1"
       >
         Become an Affiliate
-        <ArrowRight size={18} />
+        <ArrowRight className="icon-lg" />
       </Link>
     </section>
   );

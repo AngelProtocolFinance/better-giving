@@ -84,7 +84,7 @@ export const Top = ({ classes = "" }) => {
           className="btn btn-lg btn-primary ml-1 font-bold inline-flex items-center gap-1"
         >
           Join Better Giving Today!
-          <ArrowRight size={18} />
+          <ArrowRight className="icon-lg" />
         </Link>
 
         <Tooltip classes="max-sm:hidden absolute left-[110%] top-3" />

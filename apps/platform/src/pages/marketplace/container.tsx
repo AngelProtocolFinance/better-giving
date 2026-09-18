@@ -57,7 +57,11 @@ function Header(props: {
         className="flex items-center justify-center p-px size-10 border rounded"
         aria-label="toggle section content's visibility"
       >
-        {props.is_open ? <Minus size={18} /> : <Plus size={18} />}
+        {props.is_open ? (
+          <Minus className="icon-lg" />
+        ) : (
+          <Plus className="icon-lg" />
+        )}
       </button>
     </StaticHeader>
   );

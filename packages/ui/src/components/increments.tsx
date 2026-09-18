@@ -71,7 +71,7 @@ export function Increments({
                   type="button"
                   onClick={() => onRemove(idx)}
                 >
-                  <Minus strokeWidth={3} size={18} />
+                  <Minus className="icon-lg" strokeWidth={3} />
                 </button>
                 <div />
               </div>

@@ -219,12 +219,18 @@
 }
 
 @utility icon-lg {
+  inline-size: calc(var(--spacing) * 4.5) /* 18px */;
+  block-size: calc(var(--spacing) * 4.5) /* 18px */;
+  flex-shrink: 0;
+}
+
+@utility icon-xl {
   inline-size: calc(var(--spacing) * 5) /* 20px */;
   block-size: calc(var(--spacing) * 5) /* 20px */;
   flex-shrink: 0;
 }
 
-@utility icon-xl {
+@utility icon-2xl {
   inline-size: calc(var(--spacing) * 6) /* 24px */;
   block-size: calc(var(--spacing) * 6) /* 24px */;
   flex-shrink: 0;

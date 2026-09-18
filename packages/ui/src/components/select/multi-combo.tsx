@@ -108,7 +108,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
               />
             ))}
             <div className="bg-surface inline-flex items-center gap-2 text-gray-11 pl-3 rounded">
-              <Search className="icon-lg" />
+              <Search className="icon-xl" />
               {/* the one focusable input in this control: it is both the search
                   box and what an external `ref` (RHF error focus) lands on. */}
               <Combobox.Input
@@ -127,7 +127,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
               glyph and leaves it pinned. */}
           <Combobox.Trigger className={ornament_row_cls}>
             <Combobox.Context>
-              {(api) => <DrawerIcon is_open={api.open} className="icon-lg" />}
+              {(api) => <DrawerIcon is_open={api.open} className="icon-xl" />}
             </Combobox.Context>
           </Combobox.Trigger>
         </Combobox.Control>

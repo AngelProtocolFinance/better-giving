@@ -46,9 +46,8 @@ export function Accordion({
           <Ark.ItemTrigger className={look.trigger}>
             <span className={look.label}>{it.trigger}</span>
             <DrawerIcon
-              size={18}
               is_open={false}
-              className="shrink-0 group-data-[state=open]:rotate-180"
+              className="icon-lg shrink-0 group-data-[state=open]:rotate-180"
             />
           </Ark.ItemTrigger>
           <Ark.ItemContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">

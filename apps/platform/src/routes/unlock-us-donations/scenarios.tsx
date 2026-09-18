@@ -56,7 +56,7 @@ export function Scenarios() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
               <div className="size-12 rounded bg-primary/10 flex-center text-primary">
-                <scenario.icon className="icon-xl" />
+                <scenario.icon className="icon-2xl" />
               </div>
               <h3 className="text-xl font-bold">{scenario.title}</h3>
               <p className="text-gray-11">{scenario.body}</p>

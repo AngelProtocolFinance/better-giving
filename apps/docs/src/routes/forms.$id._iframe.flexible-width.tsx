@@ -69,7 +69,7 @@ export default function FlexibleWidth() {
       </div>
 
       <div className="flex gap-3 p-3 bg-secondary rounded text-sm">
-        <Info size={18} className="text-primary shrink-0 mt-0.5" />
+        <Info className="icon-lg text-primary shrink-0 mt-0.5" />
         <p className="text-gray-12">
           Set <code className="bg-panel px-1 rounded">width: 100%</code> and a{" "}
           <code className="bg-panel px-1 rounded">max-width</code> to ensure the

@@ -12,7 +12,7 @@ export function LoadingStatus({
     <Status
       {...rest}
       classes={classes}
-      icon={<LoaderCircle className="animate-spin icon-lg" />}
+      icon={<LoaderCircle className="animate-spin icon-xl" />}
     >
       {children}
     </Status>

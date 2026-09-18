@@ -31,7 +31,7 @@ function Content(props: LoaderData) {
         href={`/api/anvil-doc/${props.doc_eid}`}
         className="link mb-4 inline-block"
       >
-        <ArrowDownToLine size={18} className="inline bottom-px relative mr-1" />
+        <ArrowDownToLine className="icon-lg inline bottom-px relative mr-1" />
         <span className="text-sm font-semibold">Download</span>
       </a>
 

@@ -110,7 +110,7 @@ export function RadioGroup<T extends string>({
               </span>
               <Check
                 aria-hidden
-                className="icon-lg shrink-0 text-transparent group-data-[state=checked]:text-primary"
+                className="icon-xl shrink-0 text-transparent group-data-[state=checked]:text-primary"
               />
               {/* zag names the input by ItemText alone, so the description reaches a screen reader only through aria-describedby */}
               <Ark.ItemHiddenInput

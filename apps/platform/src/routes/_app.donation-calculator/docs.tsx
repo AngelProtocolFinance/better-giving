@@ -15,11 +15,11 @@ export function Docs({ classes = "" }) {
         aria-controls={details_id}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <Info className="text-gray-11 icon-lg" />
+        <Info className="text-gray-11 icon-xl" />
         <span className="text-lg sm:text-xl font-bold">
           Calculation Details
         </span>
-        <DrawerIcon is_open={isExpanded} className="icon-lg ml-auto" />
+        <DrawerIcon is_open={isExpanded} className="icon-xl ml-auto" />
       </button>
 
       <div id={details_id} hidden={!isExpanded} className="mt-8 space-y-8">

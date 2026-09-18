@@ -104,7 +104,7 @@ function Prompt({
           onClick={() => set_open(false)}
           className="absolute top-1/2 transform -translate-y-1/2 right-4 size-10 border rounded "
         >
-          <X className="absolute-center icon-lg" />
+          <X className="absolute-center icon-xl" />
         </button>
       </div>
       <p

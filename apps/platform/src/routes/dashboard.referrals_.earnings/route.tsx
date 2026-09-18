@@ -28,7 +28,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
         to="../referrals"
         className="flex items-center gap-1s link text-sm -ml-2 mb-2"
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft className="icon-lg" />
         <span>Back</span>
       </Link>
       {node}

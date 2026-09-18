@@ -24,7 +24,7 @@ Three-layer structure:
 ## Stack
 
 - **Framework**: React Router v7 (SSR, framework mode)
-- **DB**: PostgreSQL via drizzle-orm (neon everywhere — dev/staging share one branch, prod is its own); DynamoDB + dynamodb-toolbox v2 (legacy, migrating)
+- **DB**: PostgreSQL via drizzle-orm (neon everywhere — dev/staging share one branch, prod is its own)
 - **Validation**: valibot
 - **Forms**: react-hook-form + remix-hook-form
 - **UI**: Tailwind v4, Ark UI, Lucide icons, Motion
@@ -34,7 +34,7 @@ Three-layer structure:
 
 - two vitest projects in `vite.config.ts`, picked by extension: `browser` takes every `*.test.tsx`; `node` (forks, no chromium) takes every `*.test.ts` under `src/`, `lib/` and `.server/` plus `jobs/**/*.node.test.ts`. `jobs/` has no browser project at all. `src/setup-tests-node.ts` carries the node polyfills (`PageTransitionEvent`).
 - `.claude/**` is in vitest's `exclude` (defensive — Claude config lives in the root `.claude/`, not here)
-- **a run costs one headless chromium per test file, serially.** `fileParallelism: false` (`vite.config.ts`) walks every browser test file one at a time, so the full suite is the expensive default (192s for 68 browser + 71 node files, measured 2026-09-06; the browser project alone is ~130s, the node project ~46s and never spawns chromium). Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
+- **a run walks one file at a time in both projects** — `fileParallelism: false` (`vite.config.ts`) — so the full suite is the expensive default, and **the node project is now the expensive half**: 367s over 85 files against the browser project's 113s over 70 (test time only, no startup; last full run's `node_modules/.vite/vitest/*/results.json`, read 2026-09-19). The node tail is the pglite-backed ones — `.server/pg/queries/*` and the webhook/queue handlers run ~20-25s apiece. Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
 
 ## Code Style
 
@@ -54,6 +54,7 @@ Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style 
 
 ## UI
 
+- **the sweeps are the gate, and each one's header carries its own rationale.** Eleven `src/__tests__/*-conformance.node.test.ts` files (shell, link, page-width, icon-size, spacing, elevation, surface, controls, modal, motion, container-query) walk `apps/platform/src` + `packages/ui/src` through `__tests__/conformance/walk.ts` and fail on a hand-spelled value that renders correctly, reviews correctly and is off the ladder. They sit in the `node` project because browser mode has no `node:fs`; `apps/docs/src` is outside the corpus, so a ladder value written there fails nothing. Read the sweep's header before changing what it allows — the rules below are the ones whose *reason* no sweep can state.
 - always use the project's existing theme, design tokens, and component styles — never introduce new colors, spacing scales, or utility classes outside the system
 - Tailwind v4 `@theme` resets all default colors (`--color-*: initial`); only the semantic tokens are available — never use raw Tailwind palette names (`gray-500`, `green`, `red`, etc.). The tokens are declared in `packages/brand/src/colors.css` and mapped to utilities in `packages/ui/src/styles/theme.css` (`@theme` + `@theme inline`); **`packages/brand/design-system.md` is the ledger** — what each token is for, which are fills vs. legible text (with measured contrast), and the decisions that look like bugs. Read it before reaching for a color.
 - a tinted band is an authored surface + its own `-fg` (`destructive-subtle`/`-fg`, `warning-subtle`/`-fg`) — never `bg-<token>/10 text-<token>`, which measures as low as Lc 34.9 (warning) and moves whenever the fill does. `text-warning` is not legible at any size (Lc 39.9 on the page); use `text-warning-subtle-fg`.

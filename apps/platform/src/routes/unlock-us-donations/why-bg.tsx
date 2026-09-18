@@ -59,7 +59,7 @@ export function WhyBg() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
               <div className="size-12 rounded bg-primary-fg/15 flex-center">
-                <card.icon className="icon-xl" />
+                <card.icon className="icon-2xl" />
               </div>
               <h3 className="text-xl font-bold">{card.title}</h3>
               <p className="text-primary-fg/80">{card.body}</p>

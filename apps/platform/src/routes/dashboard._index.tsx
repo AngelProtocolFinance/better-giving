@@ -65,7 +65,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
             aria-label="Log Out"
             className="flex items-center gap-x-2 text-sm text-gray-11 transition-colors hover:text-destructive-subtle-fg focus-visible:outline-2 focus-visible:outline-ring rounded"
           >
-            <LogOutIcon size={18} className="shrink-0" />
+            <LogOutIcon className="icon-lg shrink-0" />
             <span className="max-sm:sr-only">Log Out</span>
           </button>
         </Form>
@@ -78,7 +78,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           className="card flex items-center gap-x-3 mb-8 transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
         >
           <span className="size-8 rounded-full bg-primary/10 text-primary grid place-items-center shrink-0">
-            <ShieldIcon size={18} />
+            <ShieldIcon className="icon-lg" />
           </span>
           <span className="text-sm font-medium">Platform Admin</span>
         </Link>
@@ -115,7 +115,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
           >
             {/* placeholder slot sized to match the org logos */}
             <span className="size-8 rounded-full bg-gray-3 grid place-items-center shrink-0">
-              <PlusIcon size={18} />
+              <PlusIcon className="icon-lg" />
             </span>
             <span className="text-sm font-medium">
               Register an organization

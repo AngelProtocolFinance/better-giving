@@ -19,7 +19,7 @@ export function Bottom({ classes = "" }) {
         className="btn btn-lg btn-primary text-balance justify-self-center w-fit mx-auto font-bold inline-flex items-center gap-1"
       >
         Get Your Referral Link Now
-        <ArrowRight size={18} className="shrink-0" />
+        <ArrowRight className="icon-lg shrink-0" />
       </Link>
     </section>
   );

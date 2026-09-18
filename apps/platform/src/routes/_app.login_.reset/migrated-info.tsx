@@ -19,7 +19,7 @@ export function MigratedInfo(props: Props) {
       </p>
 
       <div className="mt-5 w-full rounded bg-secondary/60 px-4 py-3 flex items-start gap-3">
-        <Mail className="icon-lg shrink-0 text-primary mt-0.5" />
+        <Mail className="icon-xl shrink-0 text-primary mt-0.5" />
         <p className="max-sm:text-sm leading-relaxed">
           A reset link was sent to{" "}
           <span className="font-medium">{props.email}</span>. Check your inbox

@@ -37,7 +37,7 @@ export default function Component() {
         <div className="mt-8 p-4 bg-gray-3 border-l-4 border-primary rounded-r">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="shrink-0">
-              <AlertCircle className="icon-lg text-primary" />
+              <AlertCircle className="icon-xl text-primary" />
             </div>
             <div>
               <h3 className="text-sm font-medium text-primary">

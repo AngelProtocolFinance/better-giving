@@ -32,7 +32,7 @@ export default function Payout() {
         to={"../referrals"}
         className="flex items-center gap-1 mb-4 link text-sm"
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft className="icon-lg" />
         <span>Back</span>
       </Link>
       <BankDetails

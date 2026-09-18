@@ -53,10 +53,7 @@ export default function Resources() {
             to power your nonprofit's growth.
           </p>
           <div className="relative w-full max-w-md mt-4">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-11"
-            />
+            <Search className="icon-lg absolute left-3 top-1/2 -translate-y-1/2 text-gray-11" />
             <input
               type="text"
               placeholder="Search resources..."

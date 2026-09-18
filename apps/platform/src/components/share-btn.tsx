@@ -66,7 +66,7 @@ export function ShareButton({ classes = "", ...p }: IShareButton) {
           aria-label="Share"
           className="glyph-btn focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 text-primary hover:text-primary transition-colors duration-base"
         >
-          <ShareIcon className="icon-lg" />
+          <ShareIcon className="icon-xl" />
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>

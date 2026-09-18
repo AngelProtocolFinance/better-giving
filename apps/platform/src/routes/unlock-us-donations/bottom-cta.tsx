@@ -35,7 +35,7 @@ export function BottomCta() {
             className="btn btn-lg btn-primary bg-primary-fg text-primary hover:bg-primary-fg/90 active:bg-primary-fg/80 capitalize inline-flex items-center gap-2 mt-2"
           >
             Join Us Today!
-            <ArrowRight size={18} />
+            <ArrowRight className="icon-lg" />
           </Link>
 
           <p className="text-sm text-primary-fg/50">

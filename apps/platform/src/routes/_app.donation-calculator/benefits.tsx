@@ -36,7 +36,7 @@ export function Benefits({ classes = "" }: Props) {
       <div className="space-y-8">
         {benefits.map((benefit, index) => (
           <div key={index} className="flex gap-4">
-            <Check className="shrink-0 text-success mt-1.5 icon-lg" />
+            <Check className="shrink-0 text-success mt-1.5 icon-xl" />
             <div>
               <h4 className="font-semibold mb-1">{benefit.title}</h4>
               <p className="text-gray-11">{benefit.description}</p>

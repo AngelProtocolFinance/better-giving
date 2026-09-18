@@ -23,7 +23,7 @@ export function DropzoneText({ value, mbLimit }: Props) {
   if (value == null || value === "") {
     return (
       <div className="grid justify-items-center text-sm text-gray-11 select-none">
-        <ArrowUpFromLine className="mb-5 icon-lg" />
+        <ArrowUpFromLine className="mb-5 icon-xl" />
         <p className="font-semibold mb-1">Upload file</p>
         <span>Click to Browse or Drag &amp; Drop</span>
       </div>

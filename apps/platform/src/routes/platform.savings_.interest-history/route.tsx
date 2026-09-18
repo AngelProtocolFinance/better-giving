@@ -28,7 +28,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
   return (
     <div className="px-6 py-4 md:px-10 md:py-8">
       <Link to={".."} className="flex items-center gap-1 mb-4 link text-sm">
-        <ChevronLeftIcon size={18} />
+        <ChevronLeftIcon className="icon-lg" />
         <span>Back</span>
       </Link>
       {node}

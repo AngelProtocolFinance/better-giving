@@ -52,7 +52,7 @@ export function Borders() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
               <div className="size-12 rounded bg-primary/10 flex-center text-primary">
-                <card.icon className="icon-xl" />
+                <card.icon className="icon-2xl" />
               </div>
               <h3 className="text-xl font-bold">{card.title}</h3>
               <p className="text-gray-11">{card.body}</p>

@@ -46,7 +46,7 @@ function Content({ verdict }: Props) {
 
       <div className="flex items-center gap-2 mb-6">
         <Status classes="bg-gray-11">Pending</Status>
-        <ChevronRight className="icon-lg" />
+        <ChevronRight className="icon-xl" />
         {verdict === "approve" ? (
           <Status classes="bg-success">Approved</Status>
         ) : (

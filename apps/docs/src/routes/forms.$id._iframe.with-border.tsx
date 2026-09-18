@@ -69,10 +69,7 @@ export default function WithBorder() {
       </div>
 
       <div className="flex gap-3 p-3 bg-warning-subtle rounded text-sm">
-        <Lightbulb
-          size={18}
-          className="text-warning-subtle-fg shrink-0 mt-0.5"
-        />
+        <Lightbulb className="icon-lg text-warning-subtle-fg shrink-0 mt-0.5" />
         <p className="text-warning-subtle-fg">
           Use a subtle border color like{" "}
           <code className="bg-panel px-1 rounded">lightgray</code> or{" "}

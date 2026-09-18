@@ -143,7 +143,7 @@ export default function DemoNonprofitPage() {
                 <div
                   className={`w-12 h-12 rounded flex items-center justify-center ${program.color} mb-4`}
                 >
-                  <program.icon className="icon-xl" />
+                  <program.icon className="icon-2xl" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-12 mb-2">
                   {program.title}
@@ -173,7 +173,7 @@ export default function DemoNonprofitPage() {
                   aria-label="Close"
                   className="absolute right-2 top-2 z-10 p-1 rounded hover:bg-secondary text-gray-11"
                 >
-                  <X className="icon-lg" />
+                  <X className="icon-xl" />
                 </button>
               </form>
               <div data-bg-form={id} className="w-[90vw] max-w-150" />

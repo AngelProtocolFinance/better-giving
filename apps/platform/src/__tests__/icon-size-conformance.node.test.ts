@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { sources_of } from "./conformance/walk";
 
 /**
- * the icon-size sweep. the five steps are `icon-xs|sm|md|lg|xl`, bound by
+ * the icon-size sweep. the six steps are `icon-xs|sm|md|lg|xl|2xl`, bound by
  * `@utility` in packages/ui/src/styles/utilities.css and tabled in
  * packages/brand/design-system.md; `size={n}` is the spelling they replaced.
  * both spell the same box, so a site that goes back to the prop renders
@@ -31,9 +31,12 @@ const LADDER: Record<number, string> = {
   12: "icon-xs",
   14: "icon-sm",
   16: "icon-md",
-  20: "icon-lg",
-  24: "icon-xl",
+  18: "icon-lg",
+  20: "icon-xl",
+  24: "icon-2xl",
 };
+
+const STEPS = new Set(Object.values(LADDER));
 
 interface Sized {
   name: string;
@@ -130,6 +133,42 @@ const unreachable: Record<string, string[]> = {
   ],
 };
 
+/** every `class`/`className`/`classes` value in a file, plus every `@apply`,
+ *  with the line each sits on. a step reaches the DOM through one of those and
+ *  never through a table, and reading only them keeps prose out of the search:
+ *  `icon-only` is a word in a `describe` title, not a class anyone wrote. */
+function class_values(text: string): { n: number; body: string }[] {
+  const out: { n: number; body: string }[] = [];
+  const re = /\bclass(?:Name|es)?\s*=|@apply\b/g;
+  let m: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: the exec loop idiom
+  while ((m = re.exec(text)) !== null) {
+    let i = m.index + m[0].length;
+    const n = text.slice(0, m.index).split("\n").length;
+    if (m[0] === "@apply") {
+      const end = text.indexOf(";", i);
+      out.push({ n, body: text.slice(i, end < 0 ? undefined : end) });
+      continue;
+    }
+    const open = text[i];
+    if (open === '"' || open === "'") {
+      const end = text.indexOf(open, i + 1);
+      out.push({ n, body: text.slice(i + 1, end < 0 ? undefined : end) });
+      continue;
+    }
+    if (open !== "{") continue;
+    // brace-balanced, so a `classes={{ container: "icon-md" }}` and a template
+    // literal holding a ternary both come back whole.
+    let depth = 0;
+    for (; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}" && --depth === 0) break;
+    }
+    out.push({ n, body: text.slice(m.index + m[0].length, i + 1) });
+  }
+  return out;
+}
+
 const allowed = (file: string, name: string) =>
   forwards_size.includes(name) || (unreachable[file] ?? []).includes(name);
 
@@ -141,7 +180,7 @@ const glyphs = sources.flatMap(({ file, text }) =>
 
 describe("an icon box is spent by name", () => {
   test("no glyph writes a ladder value as a numeric size prop", () => {
-    // the five steps and the five numbers are the same boxes in two
+    // the six steps and the six numbers are the same boxes in two
     // syntaxes, so this is the only thing that keeps the prop from coming
     // back one site at a time.
     const offenders = glyphs
@@ -156,14 +195,29 @@ describe("an icon box is spent by name", () => {
   test("the off-ladder sizes are the ones already here", () => {
     // values, never counts: a count moves with ordinary feature work and
     // would make this a chore, while a value the set does not hold means a
-    // sixth size was invented. a new entry is a design call, not a test to
+    // seventh size was invented. a new entry is a design call, not a test to
     // update — snapping these to the ladder is a visual change and the user's
     // to make, so take it there before touching this list.
     const seen = [...new Set(glyphs.map((g) => g.size))]
       .filter((s) => !(s in LADDER))
       .sort((a, b) => a - b);
     expect(seen).toEqual([
-      11, 13, 15, 17, 18, 19, 21, 22, 26, 28, 30, 35, 40, 48, 70, 80, 92,
+      11, 13, 15, 17, 19, 21, 22, 26, 28, 30, 35, 40, 48, 70, 80, 92,
     ]);
+  });
+
+  test("no class spends an icon name off the ladder", () => {
+    // a name outside the six draws nothing: tailwind emits no rule for it,
+    // so it paints nothing, errors nowhere and reads correctly in review.
+    // that is a retired step and a typo both, and renumbering the ladder is
+    // when they arrive — nothing else here would see one.
+    const offenders = sources.flatMap(({ file, text }) =>
+      class_values(text).flatMap(({ n, body }) =>
+        [...body.matchAll(/(?<![-\w])icon-[\w-]+/g)]
+          .filter((m) => !STEPS.has(m[0]))
+          .map((m) => `${file}:${n} ${m[0]}`)
+      )
+    );
+    expect(offenders).toEqual([]);
   });
 });

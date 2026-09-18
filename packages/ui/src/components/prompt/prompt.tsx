@@ -41,7 +41,7 @@ export function Prompt({
           aria-label="Close"
           className="btn btn-icon btn-secondary"
         >
-          <X className="icon-lg" />
+          <X className="icon-xl" />
         </button>
       </div>
 

@@ -75,7 +75,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
                 : `${data.to_name.toLowerCase().endsWith("s") ? "'" : "'s"} profile.`}
             </span>
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-xl group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
@@ -107,7 +107,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             )}
 
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-xl group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
@@ -129,7 +129,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
               Dedicate your donation
             </span>
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-xl group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">
@@ -164,7 +164,7 @@ function Page({ loaderData: data }: Route.ComponentProps) {
             </span>
             <span className="text-sm font-semibold">Spread the word!</span>
             <span className="ml-auto h-lh flex items-center shrink-0">
-              <ChevronDownIcon className="icon-lg group-data-[state=open]:rotate-180 transition-transform" />
+              <ChevronDownIcon className="icon-xl group-data-[state=open]:rotate-180 transition-transform" />
             </span>
           </Collapsible.Trigger>
           <Collapsible.Content className="p-4 border-t">

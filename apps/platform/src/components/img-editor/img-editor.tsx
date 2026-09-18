@@ -216,7 +216,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
                     props.on_undo(e);
                   }}
                 >
-                  <Undo size={18} />
+                  <Undo className="icon-lg" />
                 </IconButton>
               )
             }

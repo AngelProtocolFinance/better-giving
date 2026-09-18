@@ -20,9 +20,9 @@ export function show_toast(opts: {
 }
 
 const icons: Record<string, React.ReactNode> = {
-  success: <CircleCheck size={18} className="text-success shrink-0" />,
-  error: <CircleAlert size={18} className="text-destructive shrink-0" />,
-  info: <Info size={18} className="text-primary shrink-0" />,
+  success: <CircleCheck className="icon-lg text-success shrink-0" />,
+  error: <CircleAlert className="icon-lg text-destructive shrink-0" />,
+  info: <Info className="icon-lg text-primary shrink-0" />,
 };
 
 export function Toaster({ children }: { children: React.ReactNode }) {

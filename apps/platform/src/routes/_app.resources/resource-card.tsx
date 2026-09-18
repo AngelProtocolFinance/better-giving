@@ -14,7 +14,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
   return (
     <div className="card grid grid-rows-[auto_auto_1fr_auto_auto] gap-3">
       <div className="flex items-center gap-3">
-        <FileText className="text-primary shrink-0 icon-lg" />
+        <FileText className="text-primary shrink-0 icon-xl" />
         <Badge tone={badge_tones[resource.type]}>
           {TYPE_LABELS[resource.type]}
         </Badge>

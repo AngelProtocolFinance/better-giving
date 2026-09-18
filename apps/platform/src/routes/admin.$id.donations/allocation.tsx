@@ -55,7 +55,7 @@ export function Allocation(props: Props) {
         />
 
         <Row
-          icon={<Sprout className="mr-2 text-success icon-lg" />}
+          icon={<Sprout className="mr-2 text-success icon-xl" />}
           title={<span>Investments</span>}
           pct={props.allocation.lock}
         />

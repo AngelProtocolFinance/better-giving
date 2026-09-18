@@ -33,7 +33,7 @@ export function Figure(props: Props) {
           aria-label={`View ${props.title}`}
           className="ml-auto link active:translate-x-0.5"
         >
-          <ArrowRightIcon size={18} />
+          <ArrowRightIcon className="icon-lg" />
         </NavLink>
       </div>
       <div className="text-lg font-medium ">{props.amount}</div>

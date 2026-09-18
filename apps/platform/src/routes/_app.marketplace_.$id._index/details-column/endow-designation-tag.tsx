@@ -29,7 +29,7 @@ export function EndowDesignationTag({
   return (
     <div className="space-y-3">
       <Tag>
-        <Ico className="icon-lg" /> {endow_designation}
+        <Ico className="icon-xl" /> {endow_designation}
       </Tag>
     </div>
   );

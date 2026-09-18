@@ -54,7 +54,11 @@ export default function IframeLayout() {
               className="rounded hover:bg-secondary"
               aria-label={is_open ? "Close menu" : "Open menu"}
             >
-              {is_open ? <X size={18} /> : <Menu size={18} />}
+              {is_open ? (
+                <X className="icon-lg" />
+              ) : (
+                <Menu className="icon-lg" />
+              )}
             </button>
             {active_item && !is_open && (
               <span className="text-sm font-medium text-gray-12">
@@ -90,8 +94,7 @@ export default function IframeLayout() {
                     {({ isActive }) => (
                       <>
                         <Icon
-                          size={18}
-                          className={isActive ? "text-gray-12" : "text-gray-11"}
+                          className={`icon-lg ${isActive ? "text-gray-12" : "text-gray-11"}`}
                         />
                         <span className="whitespace-nowrap">{label}</span>
                       </>

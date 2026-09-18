@@ -46,7 +46,7 @@ export function Top({ classes = "" }) {
             className="btn btn-lg btn-primary ml-1 font-bold inline-flex items-center gap-1"
           >
             Register Your Nonprofit Now
-            <ArrowRight size={18} />
+            <ArrowRight className="icon-lg" />
           </button>
           <Tooltip classes="max-sm:hidden absolute left-[110%] top-3" />
           {is_page_b && (

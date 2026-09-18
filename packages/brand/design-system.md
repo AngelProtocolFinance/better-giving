@@ -1392,16 +1392,18 @@ and until then the recipe covers the page and not the band.
 
 ## Icon size ladder
 
-Five steps, bound by `@utility` in `packages/ui/src/styles/utilities.css`,
-every one on the 4px ladder. The icon source is `lucide-react` and nothing else.
+Six steps, bound by `@utility` in `packages/ui/src/styles/utilities.css`, every
+one a multiple of `--spacing`, two of them on its half-step. The icon source is
+`lucide-react` and nothing else.
 
 | step | size | what it is for |
 | --- | --- | --- |
 | `icon-xs` | 12px | a glyph inside `text-xs` copy: the external-link mark, a pencil in a dense row |
 | `icon-sm` | 14px | a glyph beside `text-sm` copy: an arrow in a link, a check in a list |
 | `icon-md` | 16px | the default: a glyph beside body text, in a menu row, in a `btn-sm` |
-| `icon-lg` | 20px | a standalone glyph: a close `X`, a field ornament, a status spinner |
-| `icon-xl` | 24px | a glyph that heads something: a card or feature icon |
+| `icon-lg` | 18px | a glyph riding inside a control: a back chevron, a CTA's arrow, a `+`/`−` toggle, a check in a claim |
+| `icon-xl` | 20px | a standalone glyph: a close `X`, a field ornament, a status spinner |
+| `icon-2xl` | 24px | a glyph that heads something: a card or feature icon |
 
 Each sets `inline-size`, `block-size` and `flex-shrink: 0`. CSS size beats the
 SVG's own `width`/`height` attributes, so `icon-md` renders the box `size={16}`
@@ -1418,9 +1420,13 @@ reverts renders right, reviews right and is off the ladder. A new icon writes
 call site on one of the five values; 31 of them were writing the prop again by
 2026-09-19, because nothing refused it. `apps/platform/src/__tests__/icon-size-conformance.node.test.ts`
 is what refuses it now, over `apps/platform/src` + `packages/ui/src`:
-a ladder value written as a numeric size prop fails, and the off-ladder set
-below is pinned by value so a sixth size fails too. `apps/docs/src` is on the
-same steps and outside that corpus.
+a ladder value written as a numeric size prop fails, the off-ladder set below
+is pinned by value so a seventh size fails too, and a class spending an
+`icon-*` name that is not one of the six fails — the one that matters after a
+renumbering, since a name the rename missed compiles, paints nothing and reads
+correctly. `apps/docs/src` is on the same steps and swept by hand with them —
+it spends no ladder value as a prop either — but it sits outside that corpus,
+so nothing refuses a new one there. Widening the corpus is its own slice.
 
 **Off-ladder sizes are still open, pending a design call.** Snapping them is a
 visual change, so they were left as written — which is why the sweep pins the
@@ -1429,7 +1435,6 @@ before quoting.
 
 | still written | n |
 | --- | --- |
-| `size={18}` | 49 |
 | `size={40}` | 13 |
 | `size={15}` | 12 |
 | `size={22}` | 9 |

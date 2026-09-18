@@ -139,12 +139,12 @@ export function EndowmentSelector(props: Props) {
                   props.onChange(props.values.filter((x) => x.id !== v.id));
                 }}
               >
-                <X className="icon-lg" />
+                <X className="icon-xl" />
               </button>
             </div>
           ))}
 
-          <Search className="text-gray-11 ml-2 shrink-0 icon-lg" />
+          <Search className="text-gray-11 ml-2 shrink-0 icon-xl" />
           <Combobox.Input
             className="appearance-none bg-transparent focus:outline-hidden h-10 min-w-30 flex-1"
             ref={props.ref}

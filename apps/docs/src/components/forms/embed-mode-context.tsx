@@ -99,7 +99,7 @@ function SetupModal({ id }: { id: string }) {
             aria-label="Close setup instructions"
             className="p-1.5 rounded hover:bg-secondary text-gray-11"
           >
-            <X className="icon-lg" />
+            <X className="icon-xl" />
           </button>
         </div>
 

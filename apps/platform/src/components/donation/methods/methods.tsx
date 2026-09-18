@@ -29,17 +29,17 @@ const methods: {
 } = {
   stripe: {
     name: "Card",
-    icon: <CreditCard className="shrink-0" size={18} />,
+    icon: <CreditCard className="icon-lg shrink-0" />,
     panel: Stripe,
   },
   stripe_bank: {
     name: "Bank Transfer",
-    icon: <Landmark className="shrink-0" size={18} />,
+    icon: <Landmark className="icon-lg shrink-0" />,
     panel: StripeBank,
   },
   stocks: {
     name: "Stocks",
-    icon: <ChartSpline className="shrink-0" size={18} />,
+    icon: <ChartSpline className="icon-lg shrink-0" />,
     panel: Stocks,
   },
   daf: {
@@ -49,7 +49,7 @@ const methods: {
   },
   ira_qcd: {
     name: "IRA / QCD",
-    icon: <Building2 className="shrink-0" size={18} />,
+    icon: <Building2 className="icon-lg shrink-0" />,
     panel: IraQcd,
   },
   crypto: {

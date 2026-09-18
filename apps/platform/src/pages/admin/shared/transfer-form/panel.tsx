@@ -72,11 +72,11 @@ export function Panel(props: Props) {
             <div className="absolute-center">
               <MoveLeft
                 strokeWidth={2}
-                className="relative top-1.5 right-1 group-active:right-1.5 stroke-gray-11 icon-lg"
+                className="relative top-1.5 right-1 group-active:right-1.5 stroke-gray-11 icon-xl"
               />
               <MoveRight
                 strokeWidth={2}
-                className={`icon-lg relative bottom-1.5 left-1 group-active:left-1.5 ${source.value === "liq" ? "stroke-success" : "stroke-warning"}`}
+                className={`icon-xl relative bottom-1.5 left-1 group-active:left-1.5 ${source.value === "liq" ? "stroke-success" : "stroke-warning"}`}
               />
             </div>
           </button>

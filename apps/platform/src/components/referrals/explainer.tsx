@@ -41,10 +41,7 @@ export function Explainer({ classes = "" }) {
         </p>
         <Collapsible.Content className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
           <div className="flex items-start gap-3 mt-4 max-w-4xl relative">
-            <BrainIcon
-              size={18}
-              className="max-md:hidden text-primary absolute -left-6 top-1"
-            />
+            <BrainIcon className="icon-lg max-md:hidden text-primary absolute -left-6 top-1" />
             <div>
               <p>
                 {app_name} doesn't charge fees — instead, donors can choose to
@@ -61,18 +58,18 @@ export function Explainer({ classes = "" }) {
 
           <div className="mt-4 space-y-2 max-w-4xl">
             <div className="flex items-start gap-2">
-              <CheckIcon size={18} className="text-success shrink-0 mt-0.5" />
+              <CheckIcon className="icon-lg text-success shrink-0 mt-0.5" />
               <p>
                 Open to all {app_name} users — including donors, nonprofit
                 staff, consultants, and fundraising pros
               </p>
             </div>
             <div className="flex items-start gap-2">
-              <CheckIcon size={18} className="text-success shrink-0 mt-0.5" />
+              <CheckIcon className="icon-lg text-success shrink-0 mt-0.5" />
               <p>Share your unique referral link or code</p>
             </div>
             <div className="flex items-start gap-2">
-              <CheckIcon size={18} className="text-success shrink-0 mt-0.5" />
+              <CheckIcon className="icon-lg text-success shrink-0 mt-0.5" />
               <p>Track your referrals and payouts in this dashboard</p>
             </div>
           </div>
@@ -102,7 +99,7 @@ export function Explainer({ classes = "" }) {
           <span className="text-sm font-medium mr-1">
             {open ? "Show less" : "Read more"}
           </span>
-          <DrawerIcon is_open={open} size={18} />
+          <DrawerIcon className="icon-lg" is_open={open} />
         </Collapsible.Trigger>
       </Collapsible.Root>
     </div>

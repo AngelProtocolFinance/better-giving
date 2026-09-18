@@ -77,10 +77,7 @@ export default function WithContent() {
       </div>
 
       <div className="flex gap-3 p-3 bg-warning-subtle rounded text-sm">
-        <Lightbulb
-          size={18}
-          className="text-warning-subtle-fg shrink-0 mt-0.5"
-        />
+        <Lightbulb className="icon-lg text-warning-subtle-fg shrink-0 mt-0.5" />
         <p className="text-warning-subtle-fg">
           Use compelling copy that explains your mission and impact. A brief
           description above the form can significantly increase conversion

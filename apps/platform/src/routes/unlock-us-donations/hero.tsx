@@ -44,7 +44,7 @@ export function Hero() {
               className="btn md:btn-lg btn-primary text-nowrap capitalize inline-flex items-center gap-2"
             >
               Join us today!
-              <ArrowRight size={18} />
+              <ArrowRight className="icon-lg" />
             </Link>
             <Link
               to={BOOK_A_DEMO}

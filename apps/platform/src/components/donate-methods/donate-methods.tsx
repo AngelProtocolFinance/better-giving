@@ -140,7 +140,7 @@ function Method({ value, index, total, hint_id, move, updator }: IMethod) {
         }}
         disabled={value.disabled}
       >
-        <GripVertical className="icon-lg" />
+        <GripVertical className="icon-xl" />
       </button>
     </Reorder.Item>
   );

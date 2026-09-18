@@ -82,7 +82,7 @@ export function Panel({
           onClick={onClose}
           className="absolute top-6 md:top-8 right-6 md:right-8 p-2 rounded border hover:bg-gray-3 transition-colors"
         >
-          <X className="text-gray-11 icon-xl" />
+          <X className="text-gray-11 icon-2xl" />
         </button>
       </div>
 

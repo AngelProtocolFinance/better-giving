@@ -18,7 +18,11 @@ export function Container({ title, children, classes = "" }: Props) {
           className="flex items-center justify-center p-px size-6 border rounded"
           aria-label="toggle section content's visibility"
         >
-          {is_open ? <Minus size={18} /> : <Plus size={18} />}
+          {is_open ? (
+            <Minus className="icon-lg" />
+          ) : (
+            <Plus className="icon-lg" />
+          )}
         </button>
         <p className="uppercase text-sm font-bold">{title}</p>
       </div>

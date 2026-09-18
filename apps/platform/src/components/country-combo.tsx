@@ -42,7 +42,7 @@ export function CountryCombo({
         return flag ? (
           <span className="text-2xl">{flag}</span>
         ) : (
-          <DrawerIcon is_open={open} className="icon-lg" />
+          <DrawerIcon is_open={open} className="icon-xl" />
         );
       }}
     />

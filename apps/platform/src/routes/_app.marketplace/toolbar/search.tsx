@@ -32,7 +32,7 @@ export function Search({ classes = "" }: { classes?: string }) {
     <div
       className={`${classes} field-input-container flex gap-2 items-center relative`}
     >
-      <SearchIcon className="absolute origin-center left-3 top-1/2 -translate-y-1/2 icon-lg" />
+      <SearchIcon className="absolute origin-center left-3 top-1/2 -translate-y-1/2 icon-xl" />
       <input
         // keyed on the url term so a change made while the marketplace stays
         // mounted reaches the box. typing never writes to the url (the handler

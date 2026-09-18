@@ -16,7 +16,7 @@ export function Tags(props: Props) {
       {<EndowDesignationTag endow_designation={props.designation} />}
       {props.kyc_donors_only && (
         <Tag>
-          <Fingerprint className="icon-lg" /> Donor Verification required
+          <Fingerprint className="icon-xl" /> Donor Verification required
         </Tag>
       )}
       {props.sdgs.map((unsdg_num) => (
