@@ -1409,18 +1409,27 @@ did. The shrink is part of the step because an SVG is `overflow: hidden`, which
 drops its flex minimum to 0: beside a line of text it gets squeezed. A call
 site's `shrink-0` next to `icon-*` is now redundant, not wrong.
 
-**`size={n}` and `size-*` on an icon are the old spellings.** They were the same
-axis in two syntaxes (`size={16}` and `size-4` are both 16px) and every call
-site on one of the five values has moved. A new icon writes `icon-*`; the size
-prop stays unset and so does `size-*`.
+**`size={n}` and `size-*` on an icon are the old spellings.** They are the same
+axis in two syntaxes (`size={16}` and `size-4` are both 16px), so a site that
+reverts renders right, reviews right and is off the ladder. A new icon writes
+`icon-*`; the size prop stays unset and so does `size-*`.
+
+**The prop came back once, and is now swept.** An earlier move claimed every
+call site on one of the five values; 31 of them were writing the prop again by
+2026-09-19, because nothing refused it. `apps/platform/src/__tests__/icon-size-conformance.node.test.ts`
+is what refuses it now, over `apps/platform/src` + `packages/ui/src`:
+a ladder value written as a numeric size prop fails, and the off-ladder set
+below is pinned by value so a sixth size fails too. `apps/docs/src` is on the
+same steps and outside that corpus.
 
 **Off-ladder sizes are still open, pending a design call.** Snapping them is a
-visual change, so they were left as written. Figures drift: re-count before
-quoting.
+visual change, so they were left as written — which is why the sweep pins the
+set and not the counts. Counts drift with ordinary feature work: re-count
+before quoting.
 
 | still written | n |
 | --- | --- |
-| `size={18}` | 54 |
+| `size={18}` | 49 |
 | `size={40}` | 13 |
 | `size={15}` | 12 |
 | `size={22}` | 9 |
@@ -1428,15 +1437,18 @@ quoting.
 | `size={13}`, `size={80}` | 6 each |
 | `size={19}` | 4 |
 | `size={17}`, `size={26}` | 3 each |
-| `size={70}`, `size={92}` | 2 each |
-| `size={10}`, `size={11}`, `size={28}`, `size={35}`, `size={48}` | 1 each |
+| `size={21}`, `size={70}`, `size={92}` | 2 each |
+| `size={11}`, `size={28}`, `size={35}`, `size={48}` | 1 each |
 | `size-8` / `sm:size-10`, `size-4.5` / `sm:size-6`, `size-10`, `size-16` / `sm:size-20`, `size-full` | 9 / 9, 6 / 5, 3, 2 / 2, 1 |
 
-Plus three variable sizes (`Copier`'s `check`/`copy`, `VerifiedIcon`'s `size`),
-components that take a numeric `size` and forward it to lucide, and four
-`size={16}` sites the move could not reach: three with a computed `className`
-in `routes/donations.$id/route.tsx`, and `method-benefits.tsx`'s lightbulb,
-whose height comes from `h-lh`.
+Plus three variable sizes (`Copier`'s `check`/`copy`, `VerifiedIcon`'s `size`)
+and the components that take a numeric `size` and forward it to lucide. **One
+glyph the ladder cannot claim**: `method-benefits.tsx`'s lightbulb, whose height
+is `h-lh` so it matches the line it sits beside, which a step would override.
+Three more were recorded here as unreachable for a computed `className` — that
+was never an obstacle, a template literal reaches one, and they have moved. The
+sweep exempts the lightbulb and the forwarding components by name, and the
+social row's marks, whose number is an `<img>` width rather than a glyph box.
 
 **Stroke width is unstated.** Lucide's default of 2 renders wherever
 `strokeWidth` is not written, and no rule says when to write it.

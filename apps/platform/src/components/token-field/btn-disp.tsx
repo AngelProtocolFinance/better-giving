@@ -19,5 +19,5 @@ export const btn_disp = (open: boolean, btn: TTokenState, classes?: string) => {
       />
     );
   }
-  return <DrawerIcon size={20} is_open={open} className={classes} />;
+  return <DrawerIcon is_open={open} className={`icon-lg ${classes}`} />;
 };

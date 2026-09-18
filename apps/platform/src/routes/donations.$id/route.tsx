@@ -58,12 +58,11 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
-                className={
+                className={`icon-md ${
                   data.from_public_msg_to_npo
                     ? "stroke-success"
                     : "stroke-gray-11 fill-gray-3"
-                }
-                size={16}
+                }`}
               />
             </span>
             <span className="text-sm font-semibold">
@@ -89,12 +88,11 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
-                className={
+                className={`icon-md ${
                   data.from_private_msg_to_npo
                     ? "stroke-success"
                     : "stroke-gray-11 fill-gray-3"
-                }
-                size={16}
+                }`}
               />
             </span>
             {widget_version ? (
@@ -122,10 +120,9 @@ function Page({ loaderData: data }: Route.ComponentProps) {
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
               <CheckCircle2Icon
-                className={
+                className={`icon-md ${
                   data.tribute ? "stroke-success" : "stroke-gray-11 fill-gray-3"
-                }
-                size={16}
+                }`}
               />
             </span>
             <span className="text-sm font-semibold">

@@ -35,7 +35,7 @@ export function NpoSelector(p: Props) {
       options={{ search: search_npos }}
       item_key={(o) => o.id.toString()}
       item_text={(o) => o.name}
-      adornment={(open) => <DrawerIcon is_open={open} size={20} />}
+      adornment={(open) => <DrawerIcon is_open={open} className="icon-lg" />}
       value={p.value}
       // the control offers no clear trigger, so undefined never arrives
       on_change={(o) => o && p.on_change(o)}

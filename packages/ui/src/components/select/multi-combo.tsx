@@ -127,7 +127,7 @@ export function MultiCombo<T>({ ref, ...p }: Props<T>) {
               glyph and leaves it pinned. */}
           <Combobox.Trigger className={ornament_row_cls}>
             <Combobox.Context>
-              {(api) => <DrawerIcon is_open={api.open} size={20} />}
+              {(api) => <DrawerIcon is_open={api.open} className="icon-lg" />}
             </Combobox.Context>
           </Combobox.Trigger>
         </Combobox.Control>

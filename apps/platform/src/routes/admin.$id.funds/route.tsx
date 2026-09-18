@@ -49,11 +49,7 @@ function Page({ loaderData }: Route.ComponentProps) {
               <Select.ValueText placeholder="All" />
               <Select.Context>
                 {(api) => (
-                  <DrawerIcon
-                    is_open={api.open}
-                    size={16}
-                    className="shrink-0"
-                  />
+                  <DrawerIcon is_open={api.open} className="icon-md shrink-0" />
                 )}
               </Select.Context>
             </Select.Trigger>

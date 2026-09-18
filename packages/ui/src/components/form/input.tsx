@@ -19,10 +19,7 @@ export function Input(props: Props) {
     <div className={style.container}>
       <div className="relative">
         {props.icon && (
-          <props.icon
-            className="text-gray-11 absolute top-1/2 -translate-y-1/2 left-4"
-            size={20}
-          />
+          <props.icon className="icon-lg text-gray-11 absolute top-1/2 -translate-y-1/2 left-4" />
         )}
         <input
           {...rest}

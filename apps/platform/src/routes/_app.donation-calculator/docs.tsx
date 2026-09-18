@@ -19,7 +19,7 @@ export function Docs({ classes = "" }) {
         <span className="text-lg sm:text-xl font-bold">
           Calculation Details
         </span>
-        <DrawerIcon size={20} is_open={isExpanded} className="ml-auto" />
+        <DrawerIcon is_open={isExpanded} className="icon-lg ml-auto" />
       </button>
 
       <div id={details_id} hidden={!isExpanded} className="mt-8 space-y-8">

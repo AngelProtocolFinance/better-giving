@@ -41,8 +41,7 @@ export function Milestone(props: Props) {
         <Collapsible.Trigger className="absolute right-4 top-1/2 -translate-y-1/2 group">
           <DrawerIcon
             is_open={false}
-            size={20}
-            className="group-data-[state=open]:rotate-180"
+            className="icon-lg group-data-[state=open]:rotate-180"
           />
         </Collapsible.Trigger>
       </div>

@@ -89,8 +89,7 @@ export function BankDetails({
           ) : (
             <DrawerIcon
               is_open={open}
-              size={20}
-              className={state === "error" ? "text-destructive" : ""}
+              className={`icon-lg ${state === "error" ? "text-destructive" : ""}`}
             />
           )
         }

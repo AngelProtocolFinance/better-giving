@@ -91,8 +91,7 @@ export function Select<T extends string>({
             {(api) => (
               <DrawerIcon
                 is_open={api.open}
-                size={20}
-                className="justify-self-end shrink-0"
+                className="icon-lg justify-self-end shrink-0"
               />
             )}
           </ArkSelect.Context>

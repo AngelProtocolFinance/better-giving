@@ -85,7 +85,7 @@ export function ProgressIndicator({ step, o_type, classes = "" }: Props) {
                     aria-label={is_expanded ? "Collapse steps" : "Expand steps"}
                     aria-expanded={is_expanded}
                   >
-                    <DrawerIcon is_open={is_expanded} size={20} />
+                    <DrawerIcon is_open={is_expanded} className="icon-lg" />
                   </button>
                 )}
               </div>

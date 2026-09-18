@@ -143,7 +143,7 @@ export default function DemoNonprofitPage() {
                 <div
                   className={`w-12 h-12 rounded flex items-center justify-center ${program.color} mb-4`}
                 >
-                  <program.icon size={24} />
+                  <program.icon className="icon-xl" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-12 mb-2">
                   {program.title}

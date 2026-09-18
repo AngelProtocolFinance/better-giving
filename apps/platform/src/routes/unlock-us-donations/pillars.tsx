@@ -61,7 +61,7 @@ export function Pillars() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
             >
               <div className="size-12 rounded bg-primary-fg/15 flex-center">
-                <pillar.icon size={24} />
+                <pillar.icon className="icon-xl" />
               </div>
               <h3 className="text-xl font-bold">{pillar.title}</h3>
               <p className="text-primary-fg/80">{pillar.body}</p>
