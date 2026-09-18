@@ -32,7 +32,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             Route any share of your donations into two places money grows:
           </p>
           <div className="grid gap-3.5">
-            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-5">
+            <div className="card flex gap-3.5 items-start">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -47,7 +47,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3.5 items-start bg-panel border border-gray-6 rounded px-5 py-5">
+            <div className="card flex gap-3.5 items-start">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -70,7 +70,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </p>
         </div>
 
-        <div className="bg-panel border rounded p-10 shadow-lift-card grid gap-6 justify-items-center">
+        <div className="card shadow-lift-card grid gap-6 justify-items-center">
           <span className="text-lg font-bold">
             Sustainability Fund target allocation
           </span>

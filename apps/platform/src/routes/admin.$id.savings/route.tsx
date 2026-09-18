@@ -33,9 +33,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <CircleHelp className="text-gray-11 ml-1 icon-md" />
         </Tooltip>
       </div>
-      <p className="text-xl font-semibold bg-panel border p-4 rounded">
-        ${humanize(bal_liq)}
-      </p>
+      <p className="card text-xl font-semibold">${humanize(bal_liq)}</p>
       <div className="flex items-center gap-4 mt-4">
         <NavLink to="deposit" className="btn btn-secondary gap-2">
           <ArrowUpFromLineIcon className="icon-md" />

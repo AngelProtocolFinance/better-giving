@@ -13,7 +13,7 @@ export function FeeGap({ classes = "" }) {
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2 max-w-3xl figures slashed-zero">
-          <div className="bg-panel border border-gray-6 rounded p-6">
+          <div className="card">
             <p className="eyebrow text-gray-11">Typical fiscal sponsor</p>
             <p className="text-5xl/tight font-bold mt-3">4-10%</p>
             <p className="text-sm text-gray-11 mt-2">You keep</p>

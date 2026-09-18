@@ -15,7 +15,7 @@ interface Props extends Pick<DonateData, "program"> {
 export function OrgCard({ classes = "", program, ...props }: Props) {
   return (
     <div
-      className={`grid @xl/org-card:grid-cols-[3fr_2fr] gap-x-4 gap-y-6 p-4 md:bg-panel rounded md:border ${classes}`}
+      className={`md:card max-md:p-4 grid @xl/org-card:grid-cols-[3fr_2fr] gap-x-4 gap-y-6 ${classes}`}
     >
       <div className="grid grid-cols-[auto-1fr] gap-x-4 justify-start order-2 @xl/org-card:order-1">
         <Image

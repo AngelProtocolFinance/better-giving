@@ -27,7 +27,7 @@ export function Paperwork({ classes = "" }) {
           {items.map((i) => (
             <li
               key={i}
-              className="flex items-start gap-2.5 bg-panel border border-gray-6 rounded px-4 py-3.5 text-sm/relaxed"
+              className="card flex items-start gap-2.5 text-sm/relaxed"
             >
               <Check
                 className="shrink-0 text-success mt-0.5 icon-md"

@@ -91,7 +91,7 @@ function Page({ loaderData }: Route.ComponentProps) {
           <CircleHelp className="text-gray-11 ml-1 icon-md" />
         </HoverCard>
       </div>
-      <div className="text-xl font-semibold bg-panel border p-4 rounded">
+      <div className="card text-xl font-semibold">
         ${humanize(bal_lock)} <SfPerf id={id} />
       </div>
       <div className="flex items-center gap-4 mt-4">

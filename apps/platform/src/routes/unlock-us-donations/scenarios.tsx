@@ -49,7 +49,7 @@ export function Scenarios() {
           {scenarios.map((scenario, i) => (
             <motion.div
               key={scenario.title}
-              className="bg-panel border border-gray-6 rounded p-6 grid content-start gap-3"
+              className="card grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}

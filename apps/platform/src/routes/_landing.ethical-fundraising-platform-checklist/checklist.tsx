@@ -175,7 +175,7 @@ export function Checklist({ classes = "" }: IChecklist) {
           <section
             key={section.id}
             aria-labelledby={`${section.id}-heading`}
-            className="rounded border border-gray-6 bg-panel p-5"
+            className="card"
           >
             <h2 id={`${section.id}-heading`} className="article-heading">
               {section.title}

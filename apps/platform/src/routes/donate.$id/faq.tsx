@@ -9,9 +9,7 @@ interface Props {
 
 export function FAQ({ classes = "" }: Props) {
   return (
-    <div
-      className={`${classes} md:bg-panel md:border md:md:p-4 md:rounded grid gap-2 md:gap-4`}
-    >
+    <div className={`${classes} md:card grid gap-2 md:gap-4`}>
       <h2 id="faqs">Frequently asked questions</h2>
       <Accordion
         items={faqs.map((faq) => ({

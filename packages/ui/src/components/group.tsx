@@ -22,7 +22,7 @@ export function Group({
   return (
     <section
       aria-labelledby={title ? id : undefined}
-      className={`grid grid-cols-1 w-full gap-6 p-6 border rounded bg-panel ${classes}`}
+      className={`card grid grid-cols-1 w-full gap-6 ${classes}`}
     >
       {/* the heading pair is one grid child, not two: as two, the section's
           own `gap-6` falls between title and description, and closing it back

@@ -40,10 +40,7 @@ export function DonorMsgs({ classes = "", id }: Props) {
       <h2 className="text-xl font-bold mb-2">Donors</h2>
       <div className="grid gap-y-4 sm:grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-4">
         {items.map((donor) => (
-          <div
-            key={donor.id}
-            className="flex bg-panel items-start gap-4 border p-4 rounded"
-          >
+          <div key={donor.id} className="card flex items-start gap-4">
             <Image
               src={donor.photo || laira}
               alt={donor.name}

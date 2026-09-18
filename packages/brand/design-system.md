@@ -1384,7 +1384,7 @@ What follows from it:
   arrangement is the caller's.
 - **A named shell is where the rule becomes checkable.** Once an inset lives
   inside an `@utility`, a sweep can fail any class string that respells it. That
-  is how `page`, `table-scroll` and `actions-band` are held today
+  is how `page`, `table-scroll`, `actions-band` and `card` are held today
   (`page-width-conformance.node.test.ts`, `shell-conformance.node.test.ts`); an
   unnamed shape has nothing to sweep for.
 
@@ -1403,16 +1403,44 @@ a scroller. `shell-conformance.node.test.ts` fails a `Content` whose class
 string carries anything the shell owns: a fill, an edge, a shadow, a radius, a
 padding, a z-index, the ink.
 
-**The card is not a named shell, and this rule does not make one.** Measured
-2026-09-03 across `apps/platform/src` and `packages/ui/src`: the in-flow,
-rounded, padded panel-shaped surfaces spell **30 different insets across 131
-sites**: `p-4` 24%, `p-6` 16%, `p-3` 14%, `p-8` 8%, with 15 spellings used
-exactly once, and the padding tracks the *role* (marketing card, dashboard tile,
-list row, alert strip), not the shell. The small inline chip is worse: 22
-spellings, over two radii (`rounded` and `rounded-full`), top spelling under 20%.
-A shell drawn at a padding three quarters of the tree does not already use is a
-thirty-first spelling, not a convergence. The rule stands on its own until a role
-converges enough to name.
+**The card is named: `card` in `packages/ui/src/styles/utilities.css`.** It is
+`bg-panel border rounded p-6` — the four things this rule assigns to a shell,
+and nothing else. The inset is **24px in every role and at every width**: no
+tier, no responsive step. A marketing card, a dashboard tile, a figure, a
+callout and a link tile are all the same box.
+
+The count it replaced, measured 2026-09-03: the in-flow, rounded, padded
+panel-shaped surfaces spelled **30 different insets across 131 sites** — `p-4`
+24%, `p-6` 16%, `p-3` 14%, `p-8` 8%, 15 spellings used exactly once — and the
+padding tracked the *file* rather than the role it was supposed to track. 24px
+is the plurality spelling among the surfaces that are cards, which is why it is
+the one: it moves the fewest pixels. 49 sites were converted onto it
+2026-09-18.
+
+What `card` deliberately does not carry:
+
+- **No shadow.** `flush` is a card's elevation and is written by writing no
+  shadow at all. The marketing cards that lift spend `shadow-lift-card` beside
+  the name — one named level at one call site, rather than a level baked in
+  that every other caller would have to cancel with a `shadow-none` the closed
+  `--shadow-*` namespace does not leave available.
+- **No layout and no type.** `grid`, `flex`, a `gap`, a `divide-y`, a heading
+  size are the arrangement of the contents, and the arrangement is the
+  caller's — the same split `solo-card` records. So is the outer margin.
+- **The edge is `border`, not `border-gray-6`.** The bare utility reads
+  `--border` through the base `*` rule, so `surface-primary`'s rebind reaches
+  inside a card and its hairline is drawn against the brand fill rather than
+  against the page. gray-7 is the ELEMENT-BORDER rung `./components.css`
+  spells on controls; a card is a container, and takes the separator rung.
+
+**What is not a card keeps its own shape.** A surface with no inset has
+delegated it (table shell, `divide-y` list, `overflow-hidden` media frame); a
+transient layer over the page is `floating`, not a card; a control's box is
+`components.css`'s. `shell-conformance.node.test.ts` fails the four spellings
+written out together, exempting nine surfaces by file with a reason each, and
+fails a second fill, edge, corner or inset written beside `card`. The small
+inline chip is still unnamed and still the worse spread: 22 spellings, over two
+radii (`rounded` and `rounded-full`), top spelling under 20%.
 
 ### Breakpoints
 

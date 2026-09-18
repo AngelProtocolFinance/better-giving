@@ -71,7 +71,7 @@ interface IRow {
 }
 function Row(props: IRow) {
   return (
-    <div className="flex items-center bg-panel border rounded p-4">
+    <div className="card flex items-center">
       {props.icon}
       {props.title}
       <span className="ml-12 text-gray-11 font-medium text-sm ">

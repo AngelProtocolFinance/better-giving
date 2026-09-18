@@ -45,7 +45,7 @@ export function Borders() {
           {cards.map((card, i) => (
             <motion.div
               key={card.title}
-              className="bg-panel border border-gray-6 rounded p-6 grid content-start gap-3"
+              className="card grid content-start gap-3"
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}

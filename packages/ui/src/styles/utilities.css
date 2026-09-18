@@ -319,6 +319,42 @@
   }
 }
 
+/* the in-flow panel-shaped container: a marketing card, a dashboard tile, a
+   figure, a callout, a link tile. the fill, the edge, the corner and the inset
+   — the four things the ownership rule in packages/brand/design-system.md
+   assigns to a shell — and nothing else.
+
+   the inset is one value at every width and in every role. it was 30 spellings
+   across 131 sites when it was hand-assembled, and no tier survived the count:
+   p-4, p-6, p-3 and p-8 each held a quarter or less of the tree and none of
+   them tracked anything but the file it was written in. 24px is the plurality
+   spelling among the surfaces that are cards, so naming it moves the fewest
+   pixels.
+
+   no shadow: `flush` is the elevation a card sits at and it is written by
+   writing no shadow at all. a marketing card that lifts spends
+   `shadow-lift-card` BESIDE this name, which is one named level at one call
+   site rather than a level baked into the shell every caller then has to
+   cancel.
+
+   no layout and no type. `grid`, `flex`, a `gap`, a `divide-y`, a heading size
+   are the arrangement of the contents, and the arrangement stays the caller's
+   — the same split `solo-card` records below. a card that needs an outer
+   margin takes it from the caller too.
+
+   the edge is `border`, which reads --border through the base `*` rule, not
+   `border-gray-6` which pins the step. that is what lets `surface-primary`
+   rebind the hairline inside a brand fill, and it is the separator rung on
+   purpose: gray-7 is the ELEMENT-BORDER rung that ./components.css spells on
+   controls, and a card is a container, not a control.
+
+   a surface with no inset has delegated it and is a different shell — a table
+   shell, a `divide-y` list, an `overflow-hidden` media frame. it is not this
+   one, and `shell-conformance.node.test.ts` is written to leave it alone. */
+@utility card {
+  @apply bg-panel border rounded p-6;
+}
+
 /* the card that is the whole of a single-purpose screen — login, signup,
    check-email, and the five password-reset panels each sit alone on an
    otherwise empty page in exactly this shape. not a narrower `page`: that one

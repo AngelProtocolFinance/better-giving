@@ -69,9 +69,7 @@ export function EligibilityForm({
   }, [errors, signed_in_as]);
 
   return (
-    <div
-      className={`${classes} bg-panel border border-gray-6 rounded p-5 sm:p-6`}
-    >
+    <div className={`${classes} card`}>
       <h2 className="text-xl font-bold">
         Check if your organization qualifies
       </h2>

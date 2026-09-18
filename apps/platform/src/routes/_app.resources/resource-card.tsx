@@ -12,7 +12,7 @@ const badge_tones: Record<ResourceType, BadgeTone> = {
 export function ResourceCard({ resource }: { resource: Resource }) {
   const [pending, set_pending] = useState(false);
   return (
-    <div className="grid grid-rows-[auto_auto_1fr_auto_auto] rounded border bg-panel p-5 gap-3">
+    <div className="card grid grid-rows-[auto_auto_1fr_auto_auto] gap-3">
       <div className="flex items-center gap-3">
         <FileText className="text-primary shrink-0 icon-lg" />
         <Badge tone={badge_tones[resource.type]}>
