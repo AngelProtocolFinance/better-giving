@@ -307,12 +307,9 @@
    blessed ink for a text-only control; `--primary-hover` is the step the solid
    variants already hover to, so a link and a button move together.
 
-   the hover is that colour shift and nothing else, in every context. the six
-   spellings this replaces across 139 sites included two that were not a colour
-   at all (`hover:underline`, `hover:no-underline`) and one that was a no-op at
-   51 of them (`text-primary hover:text-primary`), which is what a treatment
-   with no name costs. a RESTING underline is still the caller's and sixteen
-   sites keep one.
+   the hover is that colour shift and nothing else, in every context — an
+   underline that appears or disappears on hover is not this recipe. a RESTING
+   underline is still the caller's and sixteen sites keep one.
 
    no `:not([aria-disabled="true"])` guard on the hover, unlike the button
    variants: `styles/base.css` gives a disabled anchor `pointer-events: none`,
@@ -395,12 +392,8 @@
    — the four things the ownership rule in packages/brand/design-system.md
    assigns to a shell — and nothing else.
 
-   the inset is one value at every width and in every role. it was 30 spellings
-   across 131 sites when it was hand-assembled, and no tier survived the count:
-   p-4, p-6, p-3 and p-8 each held a quarter or less of the tree and none of
-   them tracked anything but the file it was written in. 24px is the plurality
-   spelling among the surfaces that are cards, so naming it moves the fewest
-   pixels.
+   the inset is one value at every width and in every role — no tier, and no
+   per-file variant.
 
    no shadow: `flush` is the elevation a card sits at and it is written by
    writing no shadow at all. a marketing card that lifts spends

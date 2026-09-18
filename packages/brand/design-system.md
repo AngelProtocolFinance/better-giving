@@ -1227,7 +1227,7 @@ spent through exactly two tokens.
 `--field-size` is the number `.field-input` already composed to out of padding
 + line-height + border (14 + 20 + 14 + 2). Naming it changed no pixel; it made
 the number **reachable**, so a control beside a field can track it instead of
-copying it. The pin on `.field-input` is a no-op today and that is the point —
+copying it. The pin on `.field-input` is a no-op today and that is the point:
 retune the token and the field follows, rather than the arithmetic quietly
 disagreeing with it.
 
@@ -1239,7 +1239,7 @@ tier class.
 **`btn-field` is 50px and `btn-lg` is 52px, and those two are not a collision
 to reconcile.** They answer different questions: `btn-lg` is how tall a large
 button is, `btn-field` is how tall *the field beside it* is. A fourth tier with
-its own number would be the drift — `btn-field` deliberately has no height of
+its own number would be the drift. `btn-field` deliberately has no height of
 its own, so the pair cannot separate. Changing either is a look decision, and
 changing `--field-size` moves the field and the button together by
 construction.
@@ -1341,7 +1341,7 @@ and focus, and nothing else.**
 Both rungs are read off the ramp rather than picked, and they are the state
 ladder's filled row: `--primary` is the one fill token this file blesses as ink
 (Lc 75.1 on the page, see "Fill or ink"), and `--primary-hover` is the step every
-solid variant already hovers to — so a link and the button beside it move
+solid variant already hovers to, so a link and the button beside it move
 together. The focus ring is the house one, restated rather than left to the UA
 outline `styles/base.css` colours, because the width and the offset are what the
 state ladder specifies and a UA outline has neither.
@@ -1352,22 +1352,22 @@ affordance, and one treatment everywhere is worth more here than a second one
 per context. A *resting* underline is still the caller's and sixteen sites keep
 one.
 
-**What it does not carry**: size, weight, spacing, display — the same split the
-type roles keep by holding no colour, and the reason 139 call sites could take
-the name without moving a pixel of layout. Nor a pressed rung: a solid has two
+**What it does not carry**: size, weight, spacing, display. That is the same
+split the type roles keep by holding no colour, and the reason 139 call sites
+could take the name without moving a pixel of layout. Nor a pressed rung: a solid has two
 rungs, both spent, and a run of text has no `translateY` to spend instead.
 
-It replaced **six spellings across 139 call sites** —
+It replaced **six spellings across 139 call sites**:
 `hover:text-primary` (73), `hover:underline` (29), `hover:text-primary/80` (22),
 `hover:text-gray-12` (8), `hover:text-primary-deep` (7),
-`hover:no-underline` (1) — one of which, `text-primary hover:text-primary`, was a
-no-op at 51 of them. Every value on both sides was on-system, which is what
+`hover:no-underline` (1). One of them, `text-primary hover:text-primary`, was a
+no-op at 51 sites. Every value on both sides was on-system, which is what
 `apps/platform/src/__tests__/link-conformance.node.test.ts` exists for: nothing
 but that sweep separates a link from a seventh way of writing one.
 
 ### Three shapes are not this
 
-- **A link that paints a surface of its own** — a menu row, a dashboard tile, a
+- **A link that paints a surface of its own**: a menu row, a dashboard tile, a
   tab. Its ink moves with a fill or an edge, and `link`'s brand ink at rest is
   wrong on every one. The sweep reads the surface off the class string and
   leaves them alone.
@@ -1384,11 +1384,12 @@ but that sweep separates a link from a seventh way of writing one.
 
 The second exemption is a hole rather than a decision. `--primary-fg` on
 `--primary` is where a link on a brand fill starts, and the ladder under it is
-unmeasured — see "`--primary-fg` alpha steps are an unmeasured ladder", whose
+unmeasured. See "`--primary-fg` alpha steps are an unmeasured ladder", whose
 rule is that it must not become an authored scale by accretion. So the sites on
 a brand ground keep what they had: the footer's `/90 → full` step, and a hover
-underline on the three that carry no second ink. **A hover ink for a brand ground is a value someone has to measure**,
-and until then the recipe covers the page and not the band.
+underline on the three that carry no second ink. **A hover ink for a brand
+ground is a value someone has to measure**, and until then the recipe covers the
+page and not the band.
 
 ## Icon size ladder
 
@@ -1433,7 +1434,7 @@ multiples of `--spacing`, one on its half-step.
 
 **The two ladders split on what the glyph is measured against.** An icon sits
 beside text and is sized against it, which is why its steps track the type
-scale and stop at 24px. A pictogram has no text beside it to match — it heads a
+scale and stop at 24px. A pictogram has no text beside it to match: it heads a
 card, a panel or a page, and is sized against that surface. Sizing one off the
 icon ladder was what produced the eight hand-picked values between 28 and 92
 that this ladder replaced.
@@ -1441,12 +1442,9 @@ that this ladder replaced.
 **Both ladders are swept, and the prop is now the whole offence.**
 `apps/platform/src/__tests__/icon-size-conformance.node.test.ts` fails a glyph
 that writes *any* numeric `size` prop, and a class spending an `icon-*` or
-`pictogram-*` name that is not one of the nine — the second matters after a
+`pictogram-*` name that is not one of the nine. The second matters after a
 renumbering, since a name the rename missed compiles, paints nothing and reads
-correctly. The sweep once pinned the ladder values and froze the off-ladder set
-beside them; both were approximating the single assertion, and a frozen list
-that must stay empty is better written as the rule that nothing may join it.
-Its corpus is `apps/platform/src` + `packages/ui/src`. `apps/docs/src` is on
+correctly. Its corpus is `apps/platform/src` + `packages/ui/src`. `apps/docs/src` is on
 the same steps and swept by hand with them, but sits outside that corpus, so
 nothing refuses a new one there. Widening it is its own slice.
 
@@ -1468,7 +1466,8 @@ lightbulb, whose height is `h-lh` so it matches the line it sits beside, which a
 step would override. Plus the components that declare a numeric `size` of their
 own and forward it (`Copier`'s `check`/`copy` pair, `VerifiedIcon`). The sweep
 exempts those by name, and the social row's marks, whose number is an `<img>`
-width rather than a glyph box — seven sizes tuned to each mark's optical weight.
+width rather than a glyph box, at seven sizes tuned to each mark's optical
+weight.
 
 ## A shell owns its padding and radius, its contents own none
 
@@ -1537,29 +1536,28 @@ string carries anything the shell owns: a fill, an edge, a shadow, a radius, a
 padding, a z-index, the ink.
 
 **The card is named: `card` in `packages/ui/src/styles/utilities.css`.** It is
-`bg-panel border rounded p-6` — the four things this rule assigns to a shell,
+`bg-panel border rounded p-6`: the four things this rule assigns to a shell,
 and nothing else. The inset is **24px in every role and at every width**: no
 tier, no responsive step. A marketing card, a dashboard tile, a figure, a
 callout and a link tile are all the same box.
 
 The count it replaced, measured 2026-09-03: the in-flow, rounded, padded
-panel-shaped surfaces spelled **30 different insets across 131 sites** — `p-4`
-24%, `p-6` 16%, `p-3` 14%, `p-8` 8%, 15 spellings used exactly once — and the
+panel-shaped surfaces spelled **30 different insets across 131 sites** (`p-4`
+24%, `p-6` 16%, `p-3` 14%, `p-8` 8%, 15 spellings used exactly once), and the
 padding tracked the *file* rather than the role it was supposed to track. 24px
 is the plurality spelling among the surfaces that are cards, which is why it is
-the one: it moves the fewest pixels. 49 sites were converted onto it
-2026-09-18.
+the one: it moves the fewest pixels.
 
 What `card` deliberately does not carry:
 
 - **No shadow.** `flush` is a card's elevation and is written by writing no
   shadow at all. The marketing cards that lift spend `shadow-lift-card` beside
-  the name — one named level at one call site, rather than a level baked in
+  the name: one named level at one call site, rather than a level baked in
   that every other caller would have to cancel with a `shadow-none` the closed
   `--shadow-*` namespace does not leave available.
 - **No layout and no type.** `grid`, `flex`, a `gap`, a `divide-y`, a heading
   size are the arrangement of the contents, and the arrangement is the
-  caller's — the same split `solo-card` records. So is the outer margin.
+  caller's, the same split `solo-card` records. So is the outer margin.
 - **The edge is `border`, not `border-gray-6`.** The bare utility reads
   `--border` through the base `*` rule, so `surface-primary`'s rebind reaches
   inside a card and its hairline is drawn against the brand fill rather than
@@ -1603,9 +1601,9 @@ a box, not the viewport.
 ### Container queries
 
 A container query answers to the width of a box rather than the viewport, so a
-card that goes two-up does it wherever it is mounted — in a dashboard column, in
-a full-bleed marketing band, inside the embedded donation form — without the
-route it landed in being named anywhere. The steps come from Tailwind's
+card that goes two-up does it wherever it is mounted (a dashboard column, a
+full-bleed marketing band, inside the embedded donation form) without the route
+it landed in being named anywhere. The steps come from Tailwind's
 `--container-*` namespace, and these nine are the ones the product stands on.
 
 | name | value | what it is for |
@@ -1613,18 +1611,18 @@ route it landed in being named anywhere. The steps come from Tailwind's
 | `sm` | 24rem | the first point at which two things fit side by side: the submit row's buttons stop stretching full-width (`platform.applications`, `platform.banking-applications`), a CTA headline takes its next size up |
 | `md` | 28rem | the dense panel's two-up: the calculator's result tables split into two divided columns (`_app.donation-calculator/result1`, `result2`, `table`), a milestone's label and value go inline, the donation form's method tiles go two-across (`@md/steps`) |
 | `lg` | 32rem | the dashboard table's second column: the columns held back at narrow widths appear (`admin.$id.referrals/earnings`, `dashboard.referrals/earnings`), the program editor and the calculator's split chart go two-up |
-| `xl` | 36rem | the card grid's second column (funds, media, videos, investments) — and, named, the donation form's method rail moving from a row above the steps to a column beside them (`@xl/steps`), which is the form's one structural switch |
+| `xl` | 36rem | the card grid's second column (funds, media, videos, investments); and, named, the donation form's method rail moving from a row above the steps to a column beside them (`@xl/steps`), which is the form's one structural switch |
 | `2xl` | 42rem | the card grid's third column (`@xl:grid-cols-2 @2xl:grid-cols-3`), and the marketing benefit band's alternating two-up |
 | `3xl` | 48rem | the marketing section stops being centered: copy goes left-aligned and the art it was suppressing comes back (`nonprofits.$slug/features`, `faq`) |
 | `4xl` | 56rem | the figure row at four across (`platform.investments`) |
 | `5xl` | 64rem | the marketing CTA panel's two-up at its full inset (`@5xl:grid-cols-2` with `@5xl:px-16 @5xl:py-20`) |
-| `6xl` | 72rem | the marketing hero and feature band's copy-beside-art split — the widest switch in the product |
+| `6xl` | 72rem | the marketing hero and feature band's copy-beside-art split, the widest switch in the product |
 
 **The namespace is not closed, and cannot be.** `max-w-*` reads the same keys:
 182 sites spend them that way, so a `--container-*: initial` written for the
 nine rows above would take every one of those widths down with it, silently.
-`xs` is a live key with no row here — 24 `max-w-xs` caps and no container query
-— and `3xs`, `2xs` and `7xl` are spent by neither. The gate is
+`xs` is a live key with no row here (24 `max-w-xs` caps and no container
+query), and `3xs`, `2xs` and `7xl` are spent by neither. The gate is
 `apps/platform/src/__tests__/container-query-conformance.node.test.ts`, which
 reads container-query variants only and leaves `max-w-*` alone: same posture as
 the spacing and motion ladders, where the sweep is the whole gate rather than
@@ -1634,8 +1632,8 @@ the part the compiler cannot reach.
 read from either side, and the sweep treats them as one. A step is a row here
 because something switches at it, not because both directions are in use.
 
-**`@[42rem]/steps:` was the one bracket** (the donation form's method rail) and
-is now `@2xl/steps:` — Tailwind declares `--container-2xl` as `42rem`, so the
+**No bracket step survives.** The one that existed, the donation form's method
+rail, is `@2xl/steps:`: Tailwind declares `--container-2xl` as `42rem`, so the
 rename moved nothing. Like `min-[…]:` on the viewport side, `@[…]:`, `@min-[…]:`
 and `@max-[…]:` still compile; unlike it, the sweep now fails them.
 

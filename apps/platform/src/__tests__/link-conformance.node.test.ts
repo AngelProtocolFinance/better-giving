@@ -52,7 +52,7 @@ function link_tags(text: string) {
 
 /** a class constant declared beside the component rather than on the tag. the
  *  tag scan cannot see one, and it is where the two largest hand-spellings
- *  lived — a whole footer and a whole marketing nav each. */
+ *  live — a whole footer and a whole marketing nav each. */
 function link_consts(text: string) {
   const lines = text.split("\n");
   return lines.flatMap((line, i) => {

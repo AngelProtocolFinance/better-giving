@@ -126,11 +126,10 @@ const not_a_glyph: Record<string, string[]> = {
  *  writing a box. */
 const forwards_size = ["Copier"];
 
-/** the one glyph neither ladder can claim. packages/brand/design-system.md used
- *  to record four, but a computed className was never the obstacle it read as
- *  — a template literal reaches one — so the three in `donations.$id/route.tsx`
- *  moved and only this is left: its box is `h-lh`, which a step would override,
- *  and matching the line it sits on is the whole point of the site. */
+/** the one glyph neither ladder can claim: its box is `h-lh`, which a step
+ *  would override, and matching the line it sits on is the whole point of the
+ *  site. a computed className is not a reason to be here — a template literal
+ *  reaches one. */
 const unreachable: Record<string, string[]> = {
   "apps/platform/src/components/donation/common/method-benefits.tsx": [
     "LightbulbIcon",
@@ -184,10 +183,9 @@ const glyphs = sources.flatMap(({ file, text }) =>
 
 describe("a glyph box is spent by name", () => {
   test("no glyph writes a numeric size prop", () => {
-    // every size either ladder covers now has a name, so the prop has no
-    // remaining job here — which makes the whole spelling the offence, not a
-    // list of values. an earlier shape pinned the ladder values and froze the
-    // off-ladder ones; both were approximating this.
+    // every size either ladder covers has a name, so the prop has no remaining
+    // job here — which makes the whole spelling the offence, not a list of
+    // values.
     const offenders = glyphs
       .filter((g) => !allowed(g.file, g.name))
       .map((g) => `${g.file}:${g.n} <${g.name} size={${g.size}}>`);

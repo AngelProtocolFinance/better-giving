@@ -53,10 +53,10 @@ than a fourth size — it squares the control on whichever tier it accompanies. 
 `btn btn-md`: bare `.btn` is that tier, and `btn-md` exists only to step *down* responsively
 (`btn-lg md:btn-md`).
 
-A **text link** — a run of text that navigates, rather than a button-shaped one — is `.link`. It
+A **text link**, a run of text that navigates rather than a button-shaped one, is `.link`. It
 carries the ink, the hover ink and the focus ring and nothing else, so size, weight and spacing stay
 yours. Never hand-spell one (`text-primary hover:underline`): the hover is a colour shift in every
-context and never an underline. Two things are not this — a link that paints a surface of its own (a
+context and never an underline. Two things are not this: a link that paints a surface of its own (a
 menu row, a tile, a tab), and a link on a `.surface-primary` band, which keeps the contrast ink it
 inherits.
 
