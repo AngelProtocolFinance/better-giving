@@ -6,9 +6,6 @@ The web app — a workspace member (`better-giving`) of the Better Giving monore
 
 Resolved via `tsconfig.json` (+ vite `resolve.tsconfigPaths`):
 
-- `#/` → `src/`
-- `@/` → `lib/`
-- `$/` → `.server/`
 - inside `lib/` and `.server/`, use relative paths (`../foo`) for siblings — `@/` and `$/` are for cross-layer imports only. `lib/` stays portable; `.server/` stays coherent.
 - inside `src/`, use `#/` freely — routes are deeply nested (filesystem-routed) and `../../../components/foo` is worse than `#/components/foo`. Reserve relative paths for tight co-located groups (a route folder importing its own `./api`, `./schema`).
 
@@ -55,7 +52,6 @@ Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style 
 ## UI
 
 - **the sweeps are the gate, and each one's header carries its own rationale.** Eleven `src/__tests__/*-conformance.node.test.ts` files (shell, link, page-width, icon-size, spacing, elevation, surface, controls, modal, motion, container-query) walk `apps/platform/src` + `packages/ui/src` through `__tests__/conformance/walk.ts` and fail on a hand-spelled value that renders correctly, reviews correctly and is off the ladder. They sit in the `node` project because browser mode has no `node:fs`; `apps/docs/src` is outside the corpus, so a ladder value written there fails nothing. Read the sweep's header before changing what it allows — the rules below are the ones whose *reason* no sweep can state.
-- always use the project's existing theme, design tokens, and component styles — never introduce new colors, spacing scales, or utility classes outside the system
 - Tailwind v4 `@theme` resets all default colors (`--color-*: initial`); only the semantic tokens are available — never use raw Tailwind palette names (`gray-500`, `green`, `red`, etc.). The tokens are declared in `packages/brand/src/colors.css` and mapped to utilities in `packages/ui/src/styles/theme.css` (`@theme` + `@theme inline`); **`packages/brand/design-system.md` is the ledger** — what each token is for, which are fills vs. legible text (with measured contrast), and the decisions that look like bugs. Read it before reaching for a color.
 - a tinted band is an authored surface + its own `-fg` (`destructive-subtle`/`-fg`, `warning-subtle`/`-fg`) — never `bg-<token>/10 text-<token>`, which measures as low as Lc 34.9 (warning) and moves whenever the fill does. `text-warning` is not legible at any size (Lc 39.9 on the page); use `text-warning-subtle-fg`.
 - spacing/layout that affects external flow (margin, position, z-index) must be applied by the caller, not hardcoded inside the component
@@ -77,9 +73,7 @@ Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style 
 
 - **`required` on a `Field.Root` wrapping an Ark combobox silently breaks form submission.** `useCombobox` reads `required` off the field context and zag puts it on the **search input** (`getInputProps`); native constraint validation then swallows the form's submit event, so react-hook-form never runs its resolver, no message renders, and nothing logs. `packages/ui/src/components/select/internal/field-frame.tsx` withholds `required` from `Field.Root` for this reason — the asterisk comes from the label's `data-required`, the control carries `aria-required` itself, and requiredness is enforced by the schema.
 
-- biome, not eslint — `pnpm format` to fix, `pnpm lint` to check
 - biome enforces `useImportType` (warn) and `noUnusedImports` (warn) — use `import type` where possible
-- formatter: spaces (not tabs), es5 trailing commas
 - build output dir is `build/` (i.e. `apps/platform/build/`), not `dist/`
 - resource routes (loader returns a `Response`, no component export — e.g. `api.*` endpoints) do NOT run the route `headers` export; React Router returns the loader `Response` as-is. Set `cache-control` (and any other headers) directly on the `Response` — e.g. `resp.json(x, 200, { "cache-control": ... })`. The `headers` export only applies to document routes (those with a default component).
 

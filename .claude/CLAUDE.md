@@ -54,7 +54,6 @@ Task scripts live in the root `package.json`; run them from the root and turbo d
 - `pnpm dev` serves platform alone, on :4200.
 - `docs` has no root alias — `pnpm --filter docs dev`.
 - `lint`/`format` are one root `biome check` pass, deliberately not a turbo task (see Tooling → Biome).
-- Invoke any member binary from anywhere: `pnpm --filter <pkg> exec <bin>`.
 - `pnpm test` at root runs platform's and ui's suites concurrently under turbo — two chromiums at once (the `strictPort` comment in each `vite.config.ts` exists for that collision). Scope to one member: `pnpm --filter <pkg> test`.
 
 ## Tooling (repo root)
@@ -81,6 +80,5 @@ Task scripts live in the root `package.json`; run them from the root and turbo d
   - **The gate covers only the production custom domain.** The `staging` custom environment deploys ungated, and that is a platform limit, not an oversight: Vercel defines deployment checks as conditions for promoting to *production* and requires production automatic aliasing, so custom environments have no equivalent. Gating from the GitHub side doesn't work either — required status checks gate *merges*, and `staging` receives feature-branch tips pushed directly.
 ## Git
 
-- prod branch is `main` (not `master`).
 - **`main` takes direct pushes** — no PR requirement, no required status check on merge. The only rules are `deletion` + `non_fast_forward` (github ruleset `default`, **no bypass actors**, admins included), so history can't be rewritten or the branch dropped. Gating happens at *release*, not at merge: a red commit still builds, it just never reaches the production domain (Deploy → CI gate). Direct-to-`main` is deliberate — ask before adding a PR or status-check rule.
 - base PRs on the current working branch, not hardcoded to `main`.
