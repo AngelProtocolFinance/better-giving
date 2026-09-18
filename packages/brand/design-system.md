@@ -1436,9 +1436,60 @@ A new width is a row here and a line in `theme.css`, not a `min-[…]:` at a cal
 site. Like every other bracket, `min-[…]:` still compiles, so review is what
 keeps one out.
 
-**Container queries are a separate ladder** (`@container`, `@sm:` …, the
-`--container-*` namespace) and nothing here governs them: they answer to the
-width of a box, not the viewport.
+**Container queries are a separate ladder**, next: they answer to the width of
+a box, not the viewport.
+
+### Container queries
+
+A container query answers to the width of a box rather than the viewport, so a
+card that goes two-up does it wherever it is mounted — in a dashboard column, in
+a full-bleed marketing band, inside the embedded donation form — without the
+route it landed in being named anywhere. The steps come from Tailwind's
+`--container-*` namespace, and these nine are the ones the product stands on.
+
+| name | value | what it is for |
+| --- | --- | --- |
+| `sm` | 24rem | the first point at which two things fit side by side: the submit row's buttons stop stretching full-width (`platform.applications`, `platform.banking-applications`), a CTA headline takes its next size up |
+| `md` | 28rem | the dense panel's two-up: the calculator's result tables split into two divided columns (`_app.donation-calculator/result1`, `result2`, `table`), a milestone's label and value go inline, the donation form's method tiles go two-across (`@md/steps`) |
+| `lg` | 32rem | the dashboard table's second column: the columns held back at narrow widths appear (`admin.$id.referrals/earnings`, `dashboard.referrals/earnings`), the program editor and the calculator's split chart go two-up |
+| `xl` | 36rem | the card grid's second column (funds, media, videos, investments) — and, named, the donation form's method rail moving from a row above the steps to a column beside them (`@xl/steps`), which is the form's one structural switch |
+| `2xl` | 42rem | the card grid's third column (`@xl:grid-cols-2 @2xl:grid-cols-3`), and the marketing benefit band's alternating two-up |
+| `3xl` | 48rem | the marketing section stops being centered: copy goes left-aligned and the art it was suppressing comes back (`nonprofits.$slug/features`, `faq`) |
+| `4xl` | 56rem | the figure row at four across (`platform.investments`) |
+| `5xl` | 64rem | the marketing CTA panel's two-up at its full inset (`@5xl:grid-cols-2` with `@5xl:px-16 @5xl:py-20`) |
+| `6xl` | 72rem | the marketing hero and feature band's copy-beside-art split — the widest switch in the product |
+
+**The namespace is not closed, and cannot be.** `max-w-*` reads the same keys:
+182 sites spend them that way, so a `--container-*: initial` written for the
+nine rows above would take every one of those widths down with it, silently.
+`xs` is a live key with no row here — 24 `max-w-xs` caps and no container query
+— and `3xs`, `2xs` and `7xl` are spent by neither. The gate is
+`apps/platform/src/__tests__/container-query-conformance.node.test.ts`, which
+reads container-query variants only and leaves `max-w-*` alone: same posture as
+the spacing and motion ladders, where the sweep is the whole gate rather than
+the part the compiler cannot reach.
+
+**Each step is spent in both directions.** `@max-md:` and `@md:` are one rung
+read from either side, and the sweep treats them as one. A step is a row here
+because something switches at it, not because both directions are in use.
+
+**`@[42rem]/steps:` was the one bracket** (the donation form's method rail) and
+is now `@2xl/steps:` — Tailwind declares `--container-2xl` as `42rem`, so the
+rename moved nothing. Like `min-[…]:` on the viewport side, `@[…]:`, `@min-[…]:`
+and `@max-[…]:` still compile; unlike it, the sweep now fails them.
+
+**Two steps disagree about the CTA panel.** `simplify-fundraising-maximize-impact/bottom-cta.tsx`
+goes two-up at `4xl`, while the same panel in `_app.donor/bottom-cta.tsx`,
+`_app.blog_.$slug/post-cta.tsx` and `_app.donation-calculator/bottom-cta.tsx`
+waits for `5xl`. Both are on the ladder, so nothing fails; recorded because the
+next CTA has two precedents to copy and no way to tell which is the choice.
+
+**A container name earns nothing until a variant addresses it.** `steps`,
+`org-card`, `fund-card` and `frequency` are addressed by name because something
+inside them is nested under another container and has to reach past it.
+`configurer`, `period` and `solution` are declared and addressed by nobody: the
+variants inside them are unnamed and resolve to the nearest context, which is
+these. The names cost nothing and document the box, but they are not in use.
 
 ## The form action row
 
