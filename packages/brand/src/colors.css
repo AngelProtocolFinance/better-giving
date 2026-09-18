@@ -264,12 +264,13 @@
   --primary-ring: var(--primary-fg);
   --primary-border: color-mix(in oklch, var(--primary-fg) 80%, var(--primary));
 
+  /* the dashboard sidebar's own ground. same step as --background today, and
+     named separately so the sidebar can leave the page's ground without
+     touching its one call site. it is the ONLY --sidebar-* token: the five
+     that shadowed --primary / --primary-fg / --secondary / --border / --ring
+     were aliases nothing ever spent, and a reskin had to answer for them. a
+     sidebar that later needs its own accent adds the one token it needs. */
   --sidebar: var(--gray-1);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-fg: var(--primary-fg);
-  --sidebar-accent: var(--secondary);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
 
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);

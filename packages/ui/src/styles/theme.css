@@ -283,11 +283,6 @@
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-fg: var(--sidebar-primary-fg);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
   /* the radius ladder is closed, the same way --color-* is. this repo has ONE
      corner: `rounded`, bound to --radius by @utility in styles/utilities.css.
      the seven steps this scale would define are fractions and multiples of

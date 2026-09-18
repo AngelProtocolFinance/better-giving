@@ -1180,14 +1180,17 @@ fails where the band forgot to declare itself, not quietly at the button.
 
 ## Button size scale
 
-Three sizes, authored in `packages/ui/src/styles/components.css`. Every value
-is on the 4px ladder (`--spacing: 0.25rem`).
+Three sizes plus one that borrows its height. Bare `.btn` is authored in
+`packages/ui/src/styles/components.css`; the named tiers are `@utility` in
+`packages/ui/src/styles/utilities.css` so they are variant-capable
+(`xl:btn-lg`). Every value is on the 4px ladder (`--spacing: 0.25rem`).
 
 | name | py | px | font-size | min-height |
 | --- | --- | --- | --- | --- |
 | `btn-sm` | 4px | 12px | `--text-xs` | 24px |
 | `btn` (default) | 8px | 24px | `--text-sm` | 36px |
 | `btn-lg` | 12px | 32px | `--text-lg` | 52px |
+| `btn-field` | 8px | 24px | `--text-sm` | `--field-size` (50px) |
 
 Four rules travel with it:
 
@@ -1210,6 +1213,36 @@ Four rules travel with it:
   of 24px: the pin is what guarantees the floor, not the arithmetic. The tier is
   deliberately *not* inflated past 24px; it clears, and growing it would be a
   look change made on an accessibility pretext.
+
+### The density ladder: `--field-size` and `--btn-size`
+
+Control height is its own ladder, kept apart from space and radius, and it is
+spent through exactly two tokens.
+
+| token | declared in | value | what reads it |
+| --- | --- | --- | --- |
+| `--field-size` | `styles/components.css`, on `:root` | 50px | `.field-input` pins itself to it; `btn-field` takes it as its height |
+| `--btn-size` | each button tier publishes its own | 24 / 36 / 52px, or `--field-size` | `min-block-size` on the tier, and every side of `btn-icon` |
+
+`--field-size` is the number `.field-input` already composed to out of padding
++ line-height + border (14 + 20 + 14 + 2). Naming it changed no pixel; it made
+the number **reachable**, so a control beside a field can track it instead of
+copying it. The pin on `.field-input` is a no-op today and that is the point —
+retune the token and the field follows, rather than the arithmetic quietly
+disagreeing with it.
+
+`--btn-size` is not a global: each tier declares its own, so `btn-icon` can
+square a button on whatever tier it composes with without knowing which one.
+Bare `.btn` declares the md value in the components layer because it carries no
+tier class.
+
+**`btn-field` is 50px and `btn-lg` is 52px, and those two are not a collision
+to reconcile.** They answer different questions: `btn-lg` is how tall a large
+button is, `btn-field` is how tall *the field beside it* is. A fourth tier with
+its own number would be the drift — `btn-field` deliberately has no height of
+its own, so the pair cannot separate. Changing either is a look decision, and
+changing `--field-size` moves the field and the button together by
+construction.
 
 ### `btn-icon`: the square icon-only shape
 
