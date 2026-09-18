@@ -18,7 +18,7 @@ export default function Success({
 
   return (
     <>
-      <CircleCheck className="text-success" size={70} />
+      <CircleCheck className="text-success pictogram-lg" />
       <h1 className="text-2xl uppercase text-center mt-10 mb-4">
         Fiscal Sponsorship Agreement signature was successfully saved!
       </h1>

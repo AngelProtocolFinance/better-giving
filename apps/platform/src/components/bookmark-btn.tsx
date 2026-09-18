@@ -15,7 +15,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
 
   if (user === "loading") {
     return (
-      <Heart size={19} className={`${classes} text-gray-11 animate-pulse`} />
+      <Heart className={`${classes} text-gray-11 animate-pulse icon-xl`} />
     );
   }
 
@@ -29,7 +29,7 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
           </Content>
         }
       >
-        <Heart size={19} className={`${classes} text-gray-11`} />
+        <Heart className={`${classes} text-gray-11 icon-xl`} />
       </Tooltip>
     );
   }
@@ -59,8 +59,9 @@ export function BookmarkBtn({ classes = "", npo }: Props) {
         }}
       >
         <Heart
-          size={19}
-          className={is_bookmarked ? "fill-destructive text-destructive" : ""}
+          className={`icon-xl ${
+            is_bookmarked ? "fill-destructive text-destructive" : ""
+          }`}
         />
       </button>
     </Tooltip>

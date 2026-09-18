@@ -29,7 +29,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     <div className="w-full max-w-lg px-5">
       <div className="card">
         <div className="grid justify-items-center text-center">
-          <CircleCheck className="text-success" size={40} />
+          <CircleCheck className="text-success pictogram-md" />
           <h1 className="text-2xl font-bold mt-3 text-balance">
             Register your nonprofit
           </h1>

@@ -22,7 +22,7 @@ function Page({ loaderData }: Route.ComponentProps) {
   if (!fund.active) {
     return (
       <div className="grid content-start place-items-center pt-40 pb-20">
-        <CircleAlert size={80} className="text-destructive" />
+        <CircleAlert className="text-destructive pictogram-lg" />
         <p className="text-xl mt-8">This fund is already closed</p>
       </div>
     );

@@ -20,7 +20,6 @@ export function ReferralId({ classes = "", ...p }: Props) {
               container: "text-gray-11 hover:text-gray-12",
               icon: "size-5",
             }}
-            size={20}
           />
         </div>
       </div>
@@ -40,7 +39,6 @@ export function ReferralId({ classes = "", ...p }: Props) {
               container: "text-gray-11 hover:text-gray-12 ml-2",
               icon: "size-5",
             }}
-            size={20}
           />
         </div>
       </div>

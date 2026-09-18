@@ -173,10 +173,7 @@ export function Form({
           <>
             <BaseField.Root className="grid grid-rows-subgrid row-span-2">
               <div className="relative w-full">
-                <DollarSign
-                  size={15}
-                  className="text-gray-11 absolute top-1/2 left-2 transform -translate-y-1/2"
-                />
+                <DollarSign className="text-gray-11 absolute top-1/2 left-2 transform -translate-y-1/2 icon-md" />
                 <input
                   type="number"
                   {...rhf.register(`increments.${idx}.value`)}

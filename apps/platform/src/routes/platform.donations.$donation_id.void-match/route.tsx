@@ -52,7 +52,7 @@ function Content({
   if (fetcher.data?.ok) {
     return (
       <div className="p-6 sm:p-8 text-center">
-        <CheckCircle2Icon className="mx-auto mb-3 text-success" size={40} />
+        <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
         <h3 className="text-lg font-bold mb-1">Match voided</h3>
         <p className="text-sm text-gray-11 mb-4">
           Nothing further is chased or filed for this gift.

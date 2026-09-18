@@ -18,19 +18,19 @@ const items: IListItem[] = [
     title: "Make an Impact",
     description:
       "Every nonprofit you refer can access free, powerful fundraising tools.",
-    icon: <SproutIcon size={40} className="text-success" />,
+    icon: <SproutIcon className="text-success pictogram-md" />,
   },
   {
     title: "Earn Effortlessly",
     description:
       "Share your unique link and earn whenever your nonprofits receive donations.",
-    icon: <DollarSignIcon size={40} className="text-primary" />,
+    icon: <DollarSignIcon className="text-primary pictogram-md" />,
   },
   {
     title: "Be Part of a Movement",
     description:
       "Join a growing community of supporters, fundraisers, and changemakers.",
-    icon: <Handshake className="text-warning" size={35} />,
+    icon: <Handshake className="text-warning pictogram-sm" />,
   },
 ];
 

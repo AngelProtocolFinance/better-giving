@@ -59,10 +59,7 @@ function Applications({ loaderData: page1 }: Route.ComponentProps) {
           onSubmit={handle_search}
           className="field-input-container relative flex items-center @sm:flex-1"
         >
-          <Search
-            size={22}
-            className="absolute top-1/2 -translate-y-1/2 left-3"
-          />
+          <Search className="absolute top-1/2 -translate-y-1/2 left-3 icon-xl" />
           <input
             disabled={loading}
             name="query"

@@ -54,7 +54,7 @@ const methods: {
   },
   crypto: {
     name: "Crypto",
-    icon: <Coins className="shrink-0" size={22} />,
+    icon: <Coins className="shrink-0 icon-xl" />,
     panel: Crypto,
   },
 };

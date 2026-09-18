@@ -37,7 +37,7 @@ export function Increments({
           className="glyph-btn font-bold text-success"
           onClick={() => onAdd("")}
         >
-          <Plus size={17} strokeWidth={3} />
+          <Plus strokeWidth={3} className="icon-md" />
         </button>
       </div>
       <p className="text-xs text-destructive-subtle-fg empty:hidden col-span-3">

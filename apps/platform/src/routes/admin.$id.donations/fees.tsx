@@ -32,10 +32,7 @@ export function Fees({ classes = "", ...f }: Props) {
               ${humanize(f.processing, 3)}
             </span>
             {covered_by_donor && (
-              <SparklesIcon
-                className="fill-success stroke-success ml-1"
-                size={13}
-              />
+              <SparklesIcon className="fill-success stroke-success ml-1 icon-xs" />
             )}
           </p>
         </div>

@@ -49,7 +49,7 @@ export function Faq({ classes = "" }: { classes?: string }) {
             className="flex @max-3xl:flex-col gap-y-4 items-center gap-x-8 last:mb-0 bg-panel p-8 rounded shadow-lift-card"
           >
             <div className="flex items-center justify-center p-4 rounded-full bg-gray-3">
-              <CircleQuestionMark className="text-primary" size={30} />
+              <CircleQuestionMark className="text-primary pictogram-sm" />
             </div>
             <div className="ml-4">
               <h4 className="text-2xl @max-3xl:text-center font-semibold">
@@ -69,7 +69,7 @@ export function Faq({ classes = "" }: { classes?: string }) {
           className="justify-self-center flex items-center gap-x-2 link md:text-lg font-semibold"
         >
           <span>Complete FAQs</span>
-          <ArrowRight size={15} />
+          <ArrowRight className="icon-md" />
         </ExtLink>
         <button
           type="button"

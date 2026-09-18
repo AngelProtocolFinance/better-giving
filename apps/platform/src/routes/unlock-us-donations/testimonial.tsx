@@ -13,8 +13,7 @@ export function Testimonial() {
           transition={{ duration: 0.4 }}
         >
           <Quote
-            size={48}
-            className="text-primary/20 justify-self-center"
+            className="text-primary/20 justify-self-center pictogram-md"
             strokeWidth={1.5}
           />
           <p className="text-xl md:text-2xl/relaxed text-pretty italic">

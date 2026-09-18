@@ -314,7 +314,7 @@ export function FAQ({
           className="justify-self-center flex items-center gap-x-2 link md:text-lg font-semibold"
         >
           <span>Complete FAQs</span>
-          <ArrowRight size={15} />
+          <ArrowRight className="icon-md" />
         </ExtLink>
         <button
           type="button"

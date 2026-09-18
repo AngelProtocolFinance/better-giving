@@ -35,7 +35,7 @@ export function Row(props: IRow) {
           <div>
             <span className="whitespace-nowrap">Donation Form</span>
             <span className="text-xs mt-0.5 flex items-center gap-1 whitespace-nowrap">
-              <TagIcon size={13} className="shrink-0" />
+              <TagIcon className="shrink-0 icon-xs" />
               {props.donation_origin_tag || props.donation_origin_id}
             </span>
           </div>

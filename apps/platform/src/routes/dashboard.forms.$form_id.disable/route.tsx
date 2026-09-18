@@ -46,7 +46,7 @@ function Content() {
           Disable form
         </p>
       </div>
-      <CircleAlert size={80} className="mt-6 text-destructive" />
+      <CircleAlert className="mt-6 text-destructive pictogram-lg" />
       <div className="p-6 text-center text-gray-11">
         Are you sure you want to disable this form? It will no longer accept
         donations.

@@ -47,7 +47,7 @@ export function Table({
           data={items}
           filename="my_donations.csv"
         >
-          <ArrowDownToLine size={17} />
+          <ArrowDownToLine className="icon-md" />
         </CsvExporter>
       </div>
       <table className="table">

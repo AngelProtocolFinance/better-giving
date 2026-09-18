@@ -33,9 +33,8 @@ export function Table({ methods, classes = "" }: Props) {
                 className="[.pending]:text-gray-11 text-center w-full inline-block link"
               >
                 <FolderIcon
-                  size={22}
                   aria-label="bank statement file"
-                  className="inline-block"
+                  className="inline-block icon-xl"
                 />
               </NavLink>
             </td>

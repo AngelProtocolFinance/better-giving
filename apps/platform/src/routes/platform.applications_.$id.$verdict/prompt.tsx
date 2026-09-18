@@ -56,7 +56,7 @@ function Content() {
           <X className="size-4.5 sm:size-6" />
         </Link>
       </div>
-      <CircleAlert size={80} className="my-6 text-destructive" />
+      <CircleAlert className="my-6 text-destructive pictogram-lg" />
 
       <h3 className="text-center text-2xl mb-2 leading-tight px-3 sm:px-8">
         <div className="uppercase">{verdict}</div>

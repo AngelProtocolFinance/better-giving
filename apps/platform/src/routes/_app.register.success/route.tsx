@@ -9,7 +9,7 @@ export default function Page() {
     // not a page container: a 32rem success card in the auth funnel, whose
     // chrome is flush-wide. it centers at every width.
     <div className="grid mx-auto px-5 max-w-lg justify-items-center">
-      <CircleCheck className="text-success" size={92} />
+      <CircleCheck className="text-success pictogram-lg" />
       <h1 className="text-3xl mt-10 text-center">
         {name}’s account has been created!
       </h1>

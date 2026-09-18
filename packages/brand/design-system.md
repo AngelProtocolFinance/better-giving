@@ -1403,7 +1403,7 @@ one a multiple of `--spacing`, two of them on its half-step. The icon source is
 | `icon-md` | 16px | the default: a glyph beside body text, in a menu row, in a `btn-sm` |
 | `icon-lg` | 18px | a glyph riding inside a control: a back chevron, a CTA's arrow, a `+`/`−` toggle, a check in a claim |
 | `icon-xl` | 20px | a standalone glyph: a close `X`, a field ornament, a status spinner |
-| `icon-2xl` | 24px | a glyph that heads something: a card or feature icon |
+| `icon-2xl` | 24px | the biggest glyph still sized against what holds it: a modal's close `X`, a carousel chevron, a mark in a dense card |
 
 Each sets `inline-size`, `block-size` and `flex-shrink: 0`. CSS size beats the
 SVG's own `width`/`height` attributes, so `icon-md` renders the box `size={16}`
@@ -1416,47 +1416,59 @@ axis in two syntaxes (`size={16}` and `size-4` are both 16px), so a site that
 reverts renders right, reviews right and is off the ladder. A new icon writes
 `icon-*`; the size prop stays unset and so does `size-*`.
 
-**The prop came back once, and is now swept.** An earlier move claimed every
-call site on one of the five values; 31 of them were writing the prop again by
-2026-09-19, because nothing refused it. `apps/platform/src/__tests__/icon-size-conformance.node.test.ts`
-is what refuses it now, over `apps/platform/src` + `packages/ui/src`:
-a ladder value written as a numeric size prop fails, the off-ladder set below
-is pinned by value so a seventh size fails too, and a class spending an
-`icon-*` name that is not one of the six fails — the one that matters after a
-renumbering, since a name the rename missed compiles, paints nothing and reads
-correctly. `apps/docs/src` is on the same steps and swept by hand with them —
-it spends no ladder value as a prop either — but it sits outside that corpus,
-so nothing refuses a new one there. Widening the corpus is its own slice.
-
-**Off-ladder sizes are still open, pending a design call.** Snapping them is a
-visual change, so they were left as written — which is why the sweep pins the
-set and not the counts. Counts drift with ordinary feature work: re-count
-before quoting.
-
-| still written | n |
-| --- | --- |
-| `size={40}` | 13 |
-| `size={15}` | 12 |
-| `size={22}` | 9 |
-| `size={30}` | 8 |
-| `size={13}`, `size={80}` | 6 each |
-| `size={19}` | 4 |
-| `size={17}`, `size={26}` | 3 each |
-| `size={21}`, `size={70}`, `size={92}` | 2 each |
-| `size={11}`, `size={28}`, `size={35}`, `size={48}` | 1 each |
-| `size-8` / `sm:size-10`, `size-4.5` / `sm:size-6`, `size-10`, `size-16` / `sm:size-20`, `size-full` | 9 / 9, 6 / 5, 3, 2 / 2, 1 |
-
-Plus three variable sizes (`Copier`'s `check`/`copy`, `VerifiedIcon`'s `size`)
-and the components that take a numeric `size` and forward it to lucide. **One
-glyph the ladder cannot claim**: `method-benefits.tsx`'s lightbulb, whose height
-is `h-lh` so it matches the line it sits beside, which a step would override.
-Three more were recorded here as unreachable for a computed `className` — that
-was never an obstacle, a template literal reaches one, and they have moved. The
-sweep exempts the lightbulb and the forwarding components by name, and the
-social row's marks, whose number is an `<img>` width rather than a glyph box.
-
 **Stroke width is unstated.** Lucide's default of 2 renders wherever
 `strokeWidth` is not written, and no rule says when to write it.
+
+## Pictogram size ladder
+
+Three steps, bound by `@utility` beside the icon steps in the same file, over
+the same `lucide-react` glyphs and setting the same three properties. Two are
+multiples of `--spacing`, one on its half-step.
+
+| step | size | what it is for |
+| --- | --- | --- |
+| `pictogram-sm` | 30px | a feature mark heading a card in a marketing grid |
+| `pictogram-md` | 40px | an outcome mark heading a panel: the check on a settled action, the alert in a modal |
+| `pictogram-lg` | 80px | an outcome mark that *is* the page: a full-page success, a destructive prompt |
+
+**The two ladders split on what the glyph is measured against.** An icon sits
+beside text and is sized against it, which is why its steps track the type
+scale and stop at 24px. A pictogram has no text beside it to match — it heads a
+card, a panel or a page, and is sized against that surface. Sizing one off the
+icon ladder was what produced the eight hand-picked values between 28 and 92
+that this ladder replaced.
+
+**Both ladders are swept, and the prop is now the whole offence.**
+`apps/platform/src/__tests__/icon-size-conformance.node.test.ts` fails a glyph
+that writes *any* numeric `size` prop, and a class spending an `icon-*` or
+`pictogram-*` name that is not one of the nine — the second matters after a
+renumbering, since a name the rename missed compiles, paints nothing and reads
+correctly. The sweep once pinned the ladder values and froze the off-ladder set
+beside them; both were approximating the single assertion, and a frozen list
+that must stay empty is better written as the rule that nothing may join it.
+Its corpus is `apps/platform/src` + `packages/ui/src`. `apps/docs/src` is on
+the same steps and swept by hand with them, but sits outside that corpus, so
+nothing refuses a new one there. Widening it is its own slice.
+
+**What is left outside both ladders is now short enough to list exactly.**
+
+| outside | where |
+| --- | --- |
+| `size-8` / `sm:size-10` | 9: the six donation-calculator trend glyphs, three `login_.reset` marks |
+| `size-4.5` / `sm:size-6` | 5 prompt close `X`es; plus `donor/donation-form-info.tsx`'s star, whose second box is `@6xl:size-5` |
+| `size-16` / `sm:size-20` | 2: the `signup.success` and `login_.reset/success` checks |
+| `size-10` | 3 `giving-tuesday` feature marks |
+| `size-full` | 1: `user-avatar.tsx`'s fallback, which fills its frame |
+| `size-4`, `size-5` | 5, through `Copier`'s `classes.icon` |
+
+A responsive pair is two boxes and a step is one, so those have no step to move
+to; the single-value ones are `size-*`, the other old spelling, which no rule
+has claimed yet. **One glyph neither ladder can claim**: `method-benefits.tsx`'s
+lightbulb, whose height is `h-lh` so it matches the line it sits beside, which a
+step would override. Plus the components that declare a numeric `size` of their
+own and forward it (`Copier`'s `check`/`copy` pair, `VerifiedIcon`). The sweep
+exempts those by name, and the social row's marks, whose number is an `<img>`
+width rather than a glyph box — seven sizes tuned to each mark's optical weight.
 
 ## A shell owns its padding and radius, its contents own none
 

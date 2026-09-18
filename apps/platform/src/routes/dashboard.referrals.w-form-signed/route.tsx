@@ -21,7 +21,7 @@ function Content(props: LoaderData) {
 
   return (
     <>
-      <CircleCheck className="text-success mx-auto" size={70} />
+      <CircleCheck className="text-success mx-auto pictogram-lg" />
       <h1 className="text-2xl uppercase text-center mt-10 mb-4">
         Tax Form submission saved!
       </h1>

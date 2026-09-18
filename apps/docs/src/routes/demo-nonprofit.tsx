@@ -308,7 +308,7 @@ function ViewCodeLink({ href, light }: { href: string; light?: boolean }) {
       }`}
     >
       View code
-      <ExternalLink size={10} />
+      <ExternalLink className="icon-xs" />
     </Link>
   );
 }

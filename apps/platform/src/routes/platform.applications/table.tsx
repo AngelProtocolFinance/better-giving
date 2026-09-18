@@ -109,9 +109,8 @@ export function Table({
                     className="text-center w-full inline-block [.pending]:text-gray-11 link"
                   >
                     <Folder
-                      size={22}
                       aria-label="application details"
-                      className="inline-block"
+                      className="inline-block icon-xl"
                     />
                   </NavLink>
                 </td>

@@ -51,7 +51,7 @@ function Content({ isDefault, isWithHeir }: Props) {
           <X className="size-4.5 sm:size-6" />
         </NavLink>
       </div>
-      <CircleAlert size={80} className="mt-6 text-destructive" />
+      <CircleAlert className="mt-6 text-destructive pictogram-lg" />
 
       <div className="p-6 text-center text-gray-11">{message}</div>
 

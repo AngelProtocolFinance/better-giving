@@ -274,7 +274,6 @@ function Row({ label, value, children, last }: IRow) {
             container: "text-gray-11 hover:text-gray-12 shrink-0",
             icon: "size-4",
           }}
-          size={16}
         />
       </dd>
       {!last && (

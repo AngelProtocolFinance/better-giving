@@ -2,8 +2,10 @@ import { describe, expect, test } from "vitest";
 import { sources_of } from "./conformance/walk";
 
 /**
- * the icon-size sweep. the six steps are `icon-xs|sm|md|lg|xl|2xl`, bound by
- * `@utility` in packages/ui/src/styles/utilities.css and tabled in
+ * the glyph-size sweep, over two closed ladders: `icon-xs|sm|md|lg|xl|2xl` for
+ * a glyph sized against the text beside it, `pictogram-sm|md|lg` for one sized
+ * against the surface it heads. both are bound by `@utility` in
+ * packages/ui/src/styles/utilities.css and tabled in
  * packages/brand/design-system.md; `size={n}` is the spelling they replaced.
  * both spell the same box, so a site that goes back to the prop renders
  * correctly, reviews correctly, and is off the ladder — nothing but this sweep
@@ -27,16 +29,17 @@ const uncommented = (text: string) =>
 
 const sources = sources_of(import.meta.url, uncommented);
 
-const LADDER: Record<number, string> = {
-  12: "icon-xs",
-  14: "icon-sm",
-  16: "icon-md",
-  18: "icon-lg",
-  20: "icon-xl",
-  24: "icon-2xl",
-};
-
-const STEPS = new Set(Object.values(LADDER));
+const STEPS = new Set([
+  "icon-xs",
+  "icon-sm",
+  "icon-md",
+  "icon-lg",
+  "icon-xl",
+  "icon-2xl",
+  "pictogram-sm",
+  "pictogram-md",
+  "pictogram-lg",
+]);
 
 interface Sized {
   name: string;
@@ -107,7 +110,8 @@ function sized_tags(text: string): Sized[] {
   return out;
 }
 
-/** a numeric `size` here is not an icon box, so neither assertion applies. */
+/** a numeric `size` here is not a glyph box, so the prop assertion does not
+ *  apply. */
 const not_a_glyph: Record<string, string[]> = {
   // the social row's marks are raster/svg assets in an <img>, and the number
   // is its `width`. they sit off the ladder on purpose, at seven sizes tuned
@@ -122,7 +126,7 @@ const not_a_glyph: Record<string, string[]> = {
  *  writing a box. */
 const forwards_size = ["Copier"];
 
-/** the one glyph the ladder cannot claim. packages/brand/design-system.md used
+/** the one glyph neither ladder can claim. packages/brand/design-system.md used
  *  to record four, but a computed className was never the obstacle it read as
  *  — a template literal reaches one — so the three in `donations.$id/route.tsx`
  *  moved and only this is left: its box is `h-lh`, which a step would override,
@@ -178,42 +182,26 @@ const glyphs = sources.flatMap(({ file, text }) =>
     .map((t) => ({ file, ...t }))
 );
 
-describe("an icon box is spent by name", () => {
-  test("no glyph writes a ladder value as a numeric size prop", () => {
-    // the six steps and the six numbers are the same boxes in two
-    // syntaxes, so this is the only thing that keeps the prop from coming
-    // back one site at a time.
+describe("a glyph box is spent by name", () => {
+  test("no glyph writes a numeric size prop", () => {
+    // every size either ladder covers now has a name, so the prop has no
+    // remaining job here — which makes the whole spelling the offence, not a
+    // list of values. an earlier shape pinned the ladder values and froze the
+    // off-ladder ones; both were approximating this.
     const offenders = glyphs
-      .filter((g) => g.size in LADDER && !allowed(g.file, g.name))
-      .map(
-        (g) =>
-          `${g.file}:${g.n} <${g.name} size={${g.size}}> → ${LADDER[g.size]}`
-      );
+      .filter((g) => !allowed(g.file, g.name))
+      .map((g) => `${g.file}:${g.n} <${g.name} size={${g.size}}>`);
     expect(offenders).toEqual([]);
   });
 
-  test("the off-ladder sizes are the ones already here", () => {
-    // values, never counts: a count moves with ordinary feature work and
-    // would make this a chore, while a value the set does not hold means a
-    // seventh size was invented. a new entry is a design call, not a test to
-    // update — snapping these to the ladder is a visual change and the user's
-    // to make, so take it there before touching this list.
-    const seen = [...new Set(glyphs.map((g) => g.size))]
-      .filter((s) => !(s in LADDER))
-      .sort((a, b) => a - b);
-    expect(seen).toEqual([
-      11, 13, 15, 17, 19, 21, 22, 26, 28, 30, 35, 40, 48, 70, 80, 92,
-    ]);
-  });
-
-  test("no class spends an icon name off the ladder", () => {
-    // a name outside the six draws nothing: tailwind emits no rule for it,
+  test("no class spends a glyph name off either ladder", () => {
+    // a name outside the nine draws nothing: tailwind emits no rule for it,
     // so it paints nothing, errors nowhere and reads correctly in review.
-    // that is a retired step and a typo both, and renumbering the ladder is
+    // that is a retired step and a typo both, and renumbering a ladder is
     // when they arrive — nothing else here would see one.
     const offenders = sources.flatMap(({ file, text }) =>
       class_values(text).flatMap(({ n, body }) =>
-        [...body.matchAll(/(?<![-\w])icon-[\w-]+/g)]
+        [...body.matchAll(/(?<![-\w])(?:icon|pictogram)-[\w-]+/g)]
           .filter((m) => !STEPS.has(m[0]))
           .map((m) => `${file}:${n} ${m[0]}`)
       )

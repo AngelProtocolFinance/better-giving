@@ -77,10 +77,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                     <p>charged by payment processor (Stripe, Chariot, etc.)</p>
                     <p>
                       covered by donor
-                      <SparklesIcon
-                        className="fill-success stroke-success ml-1 inline"
-                        size={13}
-                      />
+                      <SparklesIcon className="fill-success stroke-success ml-1 inline icon-xs" />
                     </p>
                     <Arrow />
                   </Content>
@@ -158,10 +155,7 @@ export function GiftsTable({ dists, subs }: IProps) {
                             }
                           >
                             <span className="inline-flex cursor-help items-center gap-0.5 text-xs font-semibold text-gray-11 figures">
-                              <SparklesIcon
-                                className="fill-success stroke-success"
-                                size={11}
-                              />
+                              <SparklesIcon className="fill-success stroke-success icon-xs" />
                               ${humanize(d.amount_fee_allowance_usd, 2)}
                             </span>
                           </Tooltip>

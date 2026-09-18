@@ -102,12 +102,9 @@ export function Result1({ classes = "", ...v }: Props) {
         className={`${v.advantage > 0 ? "bg-success-subtle" : v.advantage < 0 ? "bg-destructive-subtle" : "bg-gray-3"} p-4 @md:p-6 rounded @md:flex items-center gap-4`}
       >
         {v.advantage > 0 ? (
-          <TrendingUp size={40} className="size-8 sm:size-10 text-success" />
+          <TrendingUp className="size-8 sm:size-10 text-success" />
         ) : v.advantage < 0 ? (
-          <TrendingDown
-            size={40}
-            className="size-8 sm:size-10 text-destructive"
-          />
+          <TrendingDown className="size-8 sm:size-10 text-destructive" />
         ) : null}
         <div>
           <p className="sm:text-lg font-bold text-balance">

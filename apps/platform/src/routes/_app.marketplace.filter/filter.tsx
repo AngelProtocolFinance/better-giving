@@ -51,7 +51,7 @@ export default function Filter({ classes = "" }: { classes?: string }) {
                 aria-label="Close filters"
                 className="active:text-primary"
               >
-                <X size={22} />
+                <X className="icon-xl" />
               </Link>
             </div>
 

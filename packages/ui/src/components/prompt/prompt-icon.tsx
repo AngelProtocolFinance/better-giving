@@ -9,9 +9,11 @@ export function PromptIcon({
   const common = `justify-self-center ${classes}`;
   switch (type) {
     case "success":
-      return <CircleCheck size={92} className={`${common} text-success`} />;
+      return <CircleCheck className={`${common} text-success pictogram-lg`} />;
     case "error":
-      return <CircleAlert size={80} className={`${common} text-destructive`} />;
+      return (
+        <CircleAlert className={`${common} text-destructive pictogram-lg`} />
+      );
     case "loading":
       return <LoaderRing thickness={12} classes={`${common} h-24`} />;
     default:

@@ -60,7 +60,7 @@ export function ImgCropper({
                 className="glyph-btn hover:text-primary"
                 onClick={handle_save}
               >
-                <Save size={22} />
+                <Save className="icon-xl" />
               </button>
             </div>
             <div style={content_style}>

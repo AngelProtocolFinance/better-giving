@@ -49,10 +49,7 @@ function Page({ loaderData: page1 }: Route.ComponentProps) {
       <h3 className="font-bold text-2xl">Banking Applications</h3>
       <div className="flex flex-wrap gap-3">
         <div className="field-input-container relative flex items-center @sm:flex-1">
-          <Search
-            size={22}
-            className="absolute top-1/2 -translate-y-1/2 left-3"
-          />
+          <Search className="absolute top-1/2 -translate-y-1/2 left-3 icon-xl" />
           <input
             disabled={loading}
             value={query}

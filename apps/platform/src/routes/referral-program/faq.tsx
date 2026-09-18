@@ -58,7 +58,7 @@ export function Faq({ classes = "" }) {
         className="justify-self-center flex mt-8 items-center gap-x-2 link md:text-lg font-semibold"
       >
         <span>Complete FAQs</span>
-        <ArrowRight size={15} />
+        <ArrowRight className="icon-md" />
       </ExtLink>
     </section>
   );

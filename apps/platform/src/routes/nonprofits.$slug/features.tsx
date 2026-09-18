@@ -22,7 +22,7 @@ export const items: Item[] = [
     description:
       "Accept cash, credit, stock, crypto, DAF donations. One simple form. No multiple platforms. No complexity.",
     result: "Result: Never lose a donor due to payment limitations.",
-    icon: <TargetIcon className="text-primary-fg" size={30} />,
+    icon: <TargetIcon className="text-primary-fg pictogram-sm" />,
   },
   {
     emoji: "⚡",
@@ -30,7 +30,7 @@ export const items: Item[] = [
     description:
       "Start accepting donations fast - no fees, no complex tech, no waiting weeks.",
     result: "Result: Grow your impact and savings from day one.   ",
-    icon: <ZapIcon className="text-primary-fg" size={30} />,
+    icon: <ZapIcon className="text-primary-fg pictogram-sm" />,
   },
   {
     emoji: "🛡️",
@@ -38,7 +38,7 @@ export const items: Item[] = [
     description:
       "FDIC-insured. PCI-compliant. Built by a 501(c)(3). Your donors' data is fortress-protected.",
     result: "Result: Sleep easy knowing everything's secure.",
-    icon: <Shield className="text-primary-fg" size={30} />,
+    icon: <Shield className="text-primary-fg pictogram-sm" />,
   },
   {
     emoji: "📊",
@@ -47,7 +47,7 @@ export const items: Item[] = [
       "See every donation, track growth, download reports instantly. No more manual tracking.",
     result: "Result: Financial clarity in seconds, not hours.",
     icon: (
-      <ChartNoAxesColumnIncreasingIcon className="text-primary-fg" size={30} />
+      <ChartNoAxesColumnIncreasingIcon className="text-primary-fg pictogram-sm" />
     ),
   },
   {
@@ -56,7 +56,7 @@ export const items: Item[] = [
     description:
       "Withdraw funds anytime. Choose savings or investment options. You stay in complete control.",
     result: "Result: Flexibility without sacrificing growth.",
-    icon: <DollarSignIcon className="text-primary-fg" size={30} />,
+    icon: <DollarSignIcon className="text-primary-fg pictogram-sm" />,
   },
 ];
 

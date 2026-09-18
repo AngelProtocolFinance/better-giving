@@ -43,7 +43,7 @@ export function DonationsTable({ classes = "", items, ...props }: Props) {
           data={items.map<IRow>(to_csv_row)}
           filename="received_donations.csv"
         >
-          <ArrowDownToLine size={17} />
+          <ArrowDownToLine className="icon-md" />
         </CsvExporter>
       </div>
 

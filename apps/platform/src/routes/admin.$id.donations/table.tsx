@@ -46,10 +46,7 @@ export function Table({ items, load_next, loading, disabled }: Props) {
                     <p>charged by payment processor (Stripe, Chariot, etc.)</p>
                     <p>
                       covered by donor
-                      <SparklesIcon
-                        className="fill-success stroke-success ml-1 inline"
-                        size={13}
-                      />
+                      <SparklesIcon className="fill-success stroke-success ml-1 inline icon-xs" />
                     </p>
                     <Arrow />
                   </Content>

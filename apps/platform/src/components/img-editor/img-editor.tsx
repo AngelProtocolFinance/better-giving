@@ -191,7 +191,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
             tabIndex={-1}
           >
             {file_input}
-            <ArrowUpFromLine size={22} className="mb-5" />
+            <ArrowUpFromLine className="mb-5 icon-xl" />
             <p className="font-semibold mb-1">Upload file</p>
             <span className="text-center">
               Click to Browse or Drag &amp; Drop
@@ -204,7 +204,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
           <div className="absolute-center hidden group-hover:flex">
             <div className={buttonStyle}>
               {file_input}
-              <ArrowUpFromLine size={15} />
+              <ArrowUpFromLine className="icon-md" />
             </div>
             {
               /** only show controls if new file is uploaded */

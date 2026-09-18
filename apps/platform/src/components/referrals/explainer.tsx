@@ -27,10 +27,7 @@ export function Explainer({ classes = "" }) {
     <div className={`w-full ${classes}`}>
       <Collapsible.Root open={open} onOpenChange={(e) => set_open(e.open)}>
         <div className="flex items-center gap-x-1 mb-1 relative">
-          <LightBulbIcon
-            className="max-md:hidden text-primary shrink-0 absolute -left-6"
-            size={19}
-          />
+          <LightBulbIcon className="max-md:hidden text-primary shrink-0 absolute -left-6 icon-xl" />
           <h3 className="text-lg">About the {app_name} Referral Program</h3>
         </div>
         <p>

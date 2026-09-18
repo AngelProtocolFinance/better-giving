@@ -236,6 +236,29 @@
   flex-shrink: 0;
 }
 
+/* pictogram ladder, a second closed set for the same lucide glyphs. an icon is
+   sized against the text beside it; a pictogram is sized against the surface it
+   heads — a feature mark atop a marketing card, or the outcome check or alert
+   that IS a panel's or page's message. neither ladder reaches the other's job,
+   which is why there are two. ledger entry in packages/brand/design-system.md. */
+@utility pictogram-sm {
+  inline-size: calc(var(--spacing) * 7.5) /* 30px */;
+  block-size: calc(var(--spacing) * 7.5) /* 30px */;
+  flex-shrink: 0;
+}
+
+@utility pictogram-md {
+  inline-size: calc(var(--spacing) * 10) /* 40px */;
+  block-size: calc(var(--spacing) * 10) /* 40px */;
+  flex-shrink: 0;
+}
+
+@utility pictogram-lg {
+  inline-size: calc(var(--spacing) * 20) /* 80px */;
+  block-size: calc(var(--spacing) * 20) /* 80px */;
+  flex-shrink: 0;
+}
+
 @utility btn-donate {
   border-radius: var(--radius);
   text-transform: none;

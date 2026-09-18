@@ -86,7 +86,11 @@ export function MarketingHeader({ classes = "" }: IMarketingHeader) {
           aria-expanded={open}
           className="nav:hidden text-gray-12"
         >
-          {open ? <XIcon size={26} /> : <MenuIcon size={26} />}
+          {open ? (
+            <XIcon className="icon-2xl" />
+          ) : (
+            <MenuIcon className="icon-2xl" />
+          )}
         </button>
       </div>
 

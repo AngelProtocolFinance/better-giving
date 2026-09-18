@@ -49,7 +49,7 @@ export function Filter({ classes = "", isDisabled }: Props) {
         >
           <FilterIcon className="mr-1 lg:hidden icon-md" />
           <div className="font-semibold text-sm">Filter</div>
-          <DrawerIcon is_open={open} className="hidden lg:inline" size={21} />
+          <DrawerIcon is_open={open} className="hidden lg:inline icon-xl" />
         </Popover.Trigger>
 
         <Portal>

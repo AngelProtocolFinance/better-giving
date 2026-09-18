@@ -34,12 +34,9 @@ export function Table({ classes = "", ...v }: Props) {
         } p-4 @md:p-6 rounded @md:flex items-center gap-4 mb-2`}
       >
         {p.total > 0 ? (
-          <TrendingUp size={40} className="size-8 sm:size-10 text-success" />
+          <TrendingUp className="size-8 sm:size-10 text-success" />
         ) : p.total < 0 ? (
-          <TrendingDown
-            size={40}
-            className="size-8 sm:size-10 text-destructive"
-          />
+          <TrendingDown className="size-8 sm:size-10 text-destructive" />
         ) : null}
         <div>
           <p className="sm:text-lg font-bold text-balance">

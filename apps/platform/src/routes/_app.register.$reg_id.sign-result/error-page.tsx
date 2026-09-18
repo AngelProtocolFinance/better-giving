@@ -9,7 +9,7 @@ export default function ErrorPage(props: ErrorQueryParams) {
   return (
     <fetcher.Form method="POST">
       <div className="bg-destructive rounded-full aspect-square grid place-items-center mb-4 size-16">
-        <CircleAlert size={30} className="text-destructive-fg" />
+        <CircleAlert className="text-destructive-fg pictogram-sm" />
       </div>
       <h1 className="text-2xl uppercase text-center">Signing failed</h1>
       <p className="bg-gray-3 p-4 text-sm text-gray-11 mt-4">

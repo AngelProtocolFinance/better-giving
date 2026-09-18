@@ -156,10 +156,7 @@ function DocLink({ url }: { url: string }) {
   return (
     <ExtLink href={url} className="link">
       <span className="break-all">{url}</span>
-      <SquareArrowOutUpRight
-        className="inline relative bottom-px ml-2"
-        size={15}
-      />
+      <SquareArrowOutUpRight className="inline relative bottom-px ml-2 icon-md" />
     </ExtLink>
   );
 }

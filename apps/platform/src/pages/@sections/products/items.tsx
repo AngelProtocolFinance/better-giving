@@ -18,7 +18,7 @@ export function Items({ classes = "" }) {
         </NavLink>
       </article>
       <article className="grid p-4 pb-8 rounded bg-panel justify-items-center">
-        <SproutIcon className="stroke-success" size={26} aria-hidden="true" />
+        <SproutIcon className="stroke-success icon-2xl" aria-hidden="true" />
         <h3 className="mt-2 capitalize text-center font-bold text-lg md:text-xl">
           Sustainability fund management
         </h3>

@@ -59,7 +59,7 @@ export function Panel(props: Props) {
 
       {source.value && (
         <div className="text-sm text-warning-subtle-fg bg-warning-subtle rounded p-2 mt-4">
-          <InfoIcon className="inline relative bottom-px" size={15} /> This
+          <InfoIcon className="inline relative bottom-px icon-md" /> This
           operation is irreversible. Withdrawing from{" "}
           {source.value === "liq"
             ? "savings"
