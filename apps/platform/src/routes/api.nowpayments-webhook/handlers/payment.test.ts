@@ -22,12 +22,12 @@ describe("paid_amount", () => {
   it.each([
     { is_sandbox: true, base: 1 },
     { is_sandbox: false, base: 0.4 },
-  ])("credits the order's own amount only on the sandbox host (sandbox: $is_sandbox)", ({
-    is_sandbox,
-    base,
-  }) => {
-    expect(paid_amount(payment(), order, is_sandbox).base).toBe(base);
-  });
+  ])(
+    "credits the order's own amount only on the sandbox host (sandbox: $is_sandbox)",
+    ({ is_sandbox, base }) => {
+      expect(paid_amount(payment(), order, is_sandbox).base).toBe(base);
+    }
+  );
 });
 
 describe("to_settlement", () => {

@@ -21,16 +21,19 @@ describe("json_ok", () => {
   test.each([
     ["an html page", "text/html", "<!doctype html><h1>Forbidden</h1>"],
     ["json", "application/json", '{"error":"rate limited"}'],
-  ])("4xx with %s throws with the status and no message", async (_, type, body) => {
-    const res = new Response(body, {
-      status: 429,
-      headers: { "content-type": type },
-    });
-    const err = await json_ok<never>(res).catch((e: HttpError) => e);
-    expect(err).toBeInstanceOf(HttpError);
-    expect(err.status).toBe(429);
-    expect(err.message).toBe("");
-  });
+  ])(
+    "4xx with %s throws with the status and no message",
+    async (_, type, body) => {
+      const res = new Response(body, {
+        status: 429,
+        headers: { "content-type": type },
+      });
+      const err = await json_ok<never>(res).catch((e: HttpError) => e);
+      expect(err).toBeInstanceOf(HttpError);
+      expect(err.status).toBe(429);
+      expect(err.message).toBe("");
+    }
+  );
 
   test("5xx throws with the status and no message", async () => {
     const res = new Response("<!doctype html><h1>Application Error</h1>", {

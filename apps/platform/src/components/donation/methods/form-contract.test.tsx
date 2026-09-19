@@ -132,77 +132,72 @@ beforeEach(() => {
 });
 
 describe("every donate method's form keeps the same shell", () => {
-  test.each(
-    methods
-  )("$label: an empty submit names the missing amount and puts focus on it", async ({
-    blank,
-  }) => {
-    const screen = await render(blank);
+  test.each(methods)(
+    "$label: an empty submit names the missing amount and puts focus on it",
+    async ({ blank }) => {
+      const screen = await render(blank);
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+      await screen.getByRole("button", { name: /continue/i }).click();
 
-    await expect
-      .element(screen.getByText(/please enter an amount/i))
-      .toBeVisible();
-    await vi.waitFor(() =>
-      expect(screen.getByPlaceholder(/enter amount/i).element()).toBe(
-        document.activeElement
-      )
-    );
-  });
+      await expect
+        .element(screen.getByText(/please enter an amount/i))
+        .toBeVisible();
+      await vi.waitFor(() =>
+        expect(screen.getByPlaceholder(/enter amount/i).element()).toBe(
+          document.activeElement
+        )
+      );
+    }
+  );
 
-  test.each(
-    methods
-  )("$label: persisted details rehydrate the amount, and continue hands them on", async ({
-    saved,
-    amount,
-  }) => {
-    const screen = await render(saved);
+  test.each(methods)(
+    "$label: persisted details rehydrate the amount, and continue hands them on",
+    async ({ saved, amount }) => {
+      const screen = await render(saved);
 
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue(amount);
+      await expect
+        .element(screen.getByPlaceholder(/enter amount/i))
+        .toHaveValue(amount);
 
-    await screen.getByRole("button", { name: /continue/i }).click();
-    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
-  });
+      await screen.getByRole("button", { name: /continue/i }).click();
+      await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+    }
+  );
 
-  test.each(
-    methods
-  )("$label: the tip is off on a fresh mount, with no percent preselected", async ({
-    blank,
-  }) => {
-    const screen = await render(blank);
+  test.each(methods)(
+    "$label: the tip is off on a fresh mount, with no percent preselected",
+    async ({ blank }) => {
+      const screen = await render(blank);
 
-    // ncn compliance: nothing is opted in on the donor's behalf
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .not.toBeChecked();
-    await expect
-      .element(screen.getByRole("radio", { name: /15%/i }))
-      .not.toBeChecked();
-  });
+      // ncn compliance: nothing is opted in on the donor's behalf
+      await expect
+        .element(
+          screen.getByRole("checkbox", {
+            name: /support free fundraising tools/i,
+          })
+        )
+        .not.toBeChecked();
+      await expect
+        .element(screen.getByRole("radio", { name: /15%/i }))
+        .not.toBeChecked();
+    }
+  );
 
-  test.each(
-    methods
-  )("$label: a persisted tip format turns the tip on at that percent", async ({
-    saved,
-  }) => {
-    const screen = await render(saved);
+  test.each(methods)(
+    "$label: a persisted tip format turns the tip on at that percent",
+    async ({ saved }) => {
+      const screen = await render(saved);
 
-    await expect
-      .element(
-        screen.getByRole("checkbox", {
-          name: /support free fundraising tools/i,
-        })
-      )
-      .toBeChecked();
-    await expect
-      .element(screen.getByRole("radio", { name: /20%/i }))
-      .toBeChecked();
-  });
+      await expect
+        .element(
+          screen.getByRole("checkbox", {
+            name: /support free fundraising tools/i,
+          })
+        )
+        .toBeChecked();
+      await expect
+        .element(screen.getByRole("radio", { name: /20%/i }))
+        .toBeChecked();
+    }
+  );
 });

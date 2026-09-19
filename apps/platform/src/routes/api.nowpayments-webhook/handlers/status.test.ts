@@ -35,12 +35,12 @@ describe("transition on the order row", () => {
     }
   });
 
-  it.each([
-    "confirmed",
-    "sending",
-  ] as const)("%s is acknowledged without a write", (status) => {
-    expect(transition(row("intent"), ipn(status), ORDER).op).toBe("ignore");
-  });
+  it.each(["confirmed", "sending"] as const)(
+    "%s is acknowledged without a write",
+    (status) => {
+      expect(transition(row("intent"), ipn(status), ORDER).op).toBe("ignore");
+    }
+  );
 
   it("ignores a status outside the documented set", () => {
     const status = "on_hold" as NP.Payment.Status;
@@ -85,13 +85,12 @@ describe("transition on the order row", () => {
     expect(transition(row(prior), ipn("refunded"), ORDER)).toEqual(action);
   });
 
-  it.each([
-    "refunded",
-    "refunded_loss",
-    "cancelled",
-  ] as const)("refunded never overwrites a %s row", (prior) => {
-    expect(transition(row(prior), ipn("refunded"), ORDER).op).toBe("ignore");
-  });
+  it.each(["refunded", "refunded_loss", "cancelled"] as const)(
+    "refunded never overwrites a %s row",
+    (prior) => {
+      expect(transition(row(prior), ipn("refunded"), ORDER).op).toBe("ignore");
+    }
+  );
 });
 
 describe("transition on a repeated deposit", () => {
@@ -108,24 +107,24 @@ describe("transition on a repeated deposit", () => {
     );
   });
 
-  it.each([
-    "failed",
-    "expired",
-  ] as const)("alerts on %s without a write", (status) => {
-    expect(transition(null, ipn(status), REPEAT)).toMatchObject({
-      op: "ignore",
-      alert: true,
-    });
-  });
+  it.each(["failed", "expired"] as const)(
+    "alerts on %s without a write",
+    (status) => {
+      expect(transition(null, ipn(status), REPEAT)).toMatchObject({
+        op: "ignore",
+        alert: true,
+      });
+    }
+  );
 
-  it.each([
-    "waiting",
-    "confirming",
-  ] as const)("ignores %s silently", (status) => {
-    const action = transition(null, ipn(status), REPEAT);
-    expect(action.op).toBe("ignore");
-    expect(action).not.toHaveProperty("alert");
-  });
+  it.each(["waiting", "confirming"] as const)(
+    "ignores %s silently",
+    (status) => {
+      const action = transition(null, ipn(status), REPEAT);
+      expect(action.op).toBe("ignore");
+      expect(action).not.toHaveProperty("alert");
+    }
+  );
 
   it("refunds its clone, or nothing when none settled", () => {
     expect(transition(row("settled", "7"), ipn("refunded"), REPEAT)).toEqual({

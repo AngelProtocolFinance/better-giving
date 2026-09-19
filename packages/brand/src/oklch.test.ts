@@ -37,15 +37,14 @@ describe("hex_to_oklch round-trips through oklch_to_hex", () => {
     expect(hex_to_oklch("1E6DAB")).toEqual(hex_to_oklch("#1e6dab"));
   });
 
-  it.each([
-    "#ffffff",
-    "#808080",
-    "#000000",
-  ])("gives the achromatic %s no chroma and no hue", (hex) => {
-    const [, C, h] = hex_to_oklch(hex);
-    expect(C).toBe(0);
-    expect(h).toBe(0);
-  });
+  it.each(["#ffffff", "#808080", "#000000"])(
+    "gives the achromatic %s no chroma and no hue",
+    (hex) => {
+      const [, C, h] = hex_to_oklch(hex);
+      expect(C).toBe(0);
+      expect(h).toBe(0);
+    }
+  );
 
   it("rejects a value that isn't a 6-digit sRGB hex", () => {
     expect(() => hex_to_oklch("#fff")).toThrow();

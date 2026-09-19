@@ -19,11 +19,11 @@
     "node": "24.x"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
+    "@biomejs/biome": "2.5.14",
     "@types/node": "catalog:",
-    "lefthook": "1.13.0",
+    "lefthook": "2.1.14",
     "tsc-files": "1.1.4",
-    "turbo": "2.10.5",
+    "turbo": "2.11.2",
     "typescript": "catalog:",
     "vitest": "5.0.0"
   },

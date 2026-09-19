@@ -411,6 +411,7 @@ export type POST_QUERY_RESULT = {
 
 // Query TypeMap
 import "@sanity/client";
+
 declare module "@sanity/client" {
   interface SanityQueries {
     '{\n  "items": *[_type=="post" && defined(slug.current)] | order(publishedAt desc)[$from...$to]{\n    _id, title, slug, publishedAt, excerpt, image{asset, hotspot, crop, alt}, "authorName": author->name\n  },\n  "total": count(*[_type=="post" && defined(slug.current)])\n}': POSTS_QUERY_RESULT;

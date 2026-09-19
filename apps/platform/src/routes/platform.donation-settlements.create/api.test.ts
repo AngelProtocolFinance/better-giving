@@ -705,19 +705,19 @@ describe("settlement create — the nonprofit is told about the money", () => {
     expect(msgs.map((m) => m.payload.net)).toEqual([25, 25]);
   });
 
-  test.each([
-    "cheque",
-    "daf",
-  ] as const)("%s enqueues too — the notification is not a match feature", async (from) => {
-    const res = await settle({ from, net: "250" });
+  test.each(["cheque", "daf"] as const)(
+    "%s enqueues too — the notification is not a match feature",
+    async (from) => {
+      const res = await settle({ from, net: "250" });
 
-    expect(res).toEqual({ ok: true });
+      expect(res).toEqual({ ok: true });
 
-    const msgs = enqueued("don-dist");
-    expect(msgs).toHaveLength(1);
-    expect(msgs[0]!.payload.to_id).toBe(npo_id);
-    expect(msgs[0]!.payload.net).toBeCloseTo(250, 6);
-  });
+      const msgs = enqueued("don-dist");
+      expect(msgs).toHaveLength(1);
+      expect(msgs[0]!.payload.to_id).toBe(npo_id);
+      expect(msgs[0]!.payload.net).toBeCloseTo(250, 6);
+    }
+  );
 
   test("a queue that refuses does not fail a settlement already committed", async () => {
     enqueue.mockRejectedValueOnce(new Error("qstash down"));
@@ -828,26 +828,26 @@ describe("settlement create — an unattributable match", () => {
 });
 
 describe("settlement create — the paths that came before", () => {
-  test.each([
-    "cheque",
-    "daf",
-  ] as const)("%s still records the donor's own details and sends nothing", async (from) => {
-    const res = await settle({
-      from,
-      donor_name: "Doug Mendenhall",
-      reference: "Fidelity deposit #789",
-      net: "250",
-    });
+  test.each(["cheque", "daf"] as const)(
+    "%s still records the donor's own details and sends nothing",
+    async (from) => {
+      const res = await settle({
+        from,
+        donor_name: "Doug Mendenhall",
+        reference: "Fidelity deposit #789",
+        net: "250",
+      });
 
-    expect(res).toEqual({ ok: true });
-    const [row] = await dons();
-    expect(row!.via).toBe(from);
-    expect((await donor_of(row!.id)).name).toBe("Doug Mendenhall");
-    expect(row!.via_extra).toBe("Fidelity deposit #789");
-    expect(row!.amount_base).toBe(250);
-    expect(await events()).toHaveLength(0);
-    expect(send_email).not.toHaveBeenCalled();
-  });
+      expect(res).toEqual({ ok: true });
+      const [row] = await dons();
+      expect(row!.via).toBe(from);
+      expect((await donor_of(row!.id)).name).toBe("Doug Mendenhall");
+      expect(row!.via_extra).toBe("Fidelity deposit #789");
+      expect(row!.amount_base).toBe(250);
+      expect(await events()).toHaveLength(0);
+      expect(send_email).not.toHaveBeenCalled();
+    }
+  );
 
   test("an omitted donor name still lands as Anonymous", async () => {
     await settle({ from: "cheque" });
