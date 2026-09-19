@@ -636,7 +636,7 @@ pnpm i --ignore-workspace esbuild ts-morph @types/react
 ```
 
 `--ignore-workspace` because `.ds-sync/` is not a workspace member. pnpm blocks postinstall scripts
-by default and esbuild needs its own, so add `"pnpm": {"onlyBuiltDependencies": ["esbuild"]}` to
+by default and esbuild needs its own, so add `"pnpm": {"allowBuilds": {"esbuild": true}}` to
 that `package.json`, but add it *alongside* the dependencies, not by rewriting the file, or the
 next install removes all three packages.
 
