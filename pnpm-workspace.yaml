@@ -9,8 +9,8 @@ packages:
   - packages/types/*
   - packages/ui
 catalog:
-  typescript: 5.9.2
-  '@types/node': 24.0.4
+  typescript: 5.9.3
+  '@types/node': 24.13.6
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - '@tailwindcss/oxide'

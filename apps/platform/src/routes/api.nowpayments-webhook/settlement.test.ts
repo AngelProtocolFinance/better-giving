@@ -400,18 +400,18 @@ describe("nowpayments ipn settlement", () => {
     expect(send_email_mock).toHaveBeenCalledOnce();
   });
 
-  it.each([
-    "refunded_loss",
-    "cancelled",
-  ])("keeps a %s donation's status when refunded arrives", async (status) => {
-    await seed_donation({ status });
+  it.each(["refunded_loss", "cancelled"])(
+    "keeps a %s donation's status when refunded arrives",
+    async (status) => {
+      await seed_donation({ status });
 
-    const res = await deliver(payment({ payment_status: "refunded" }));
+      const res = await deliver(payment({ payment_status: "refunded" }));
 
-    expect(res.status).toBe(200);
-    expect((await donation_get(ORDER_ID))!.status).toBe(status);
-    expect(send_alert_mock).not.toHaveBeenCalled();
-  });
+      expect(res.status).toBe(200);
+      expect((await donation_get(ORDER_ID))!.status).toBe(status);
+      expect(send_alert_mock).not.toHaveBeenCalled();
+    }
+  );
 
   it("reverses a settled donation's distributions when refunded, and alerts", async () => {
     await seed_donation();
@@ -557,59 +557,62 @@ describe("nowpayments ipn settlement", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    "confirming",
-    "waiting",
-  ])("writes nothing for a repeated deposit still %s", async (payment_status) => {
-    await seed_donation({ status: "intent" });
+  it.each(["confirming", "waiting"])(
+    "writes nothing for a repeated deposit still %s",
+    async (payment_status) => {
+      await seed_donation({ status: "intent" });
 
-    const res = await deliver(child({ payment_status }));
+      const res = await deliver(child({ payment_status }));
 
-    expect(res.status).toBe(200);
-    const parent = await donation_get(ORDER_ID);
-    expect(parent!.status).toBe("intent");
-    expect(parent!.via_extra).toBe("5001");
-  });
+      expect(res.status).toBe(200);
+      const parent = await donation_get(ORDER_ID);
+      expect(parent!.status).toBe("intent");
+      expect(parent!.via_extra).toBe("5001");
+    }
+  );
 
-  it.each([
-    "failed",
-    "expired",
-  ])("alerts on a %s repeated deposit without writing or emailing", async (payment_status) => {
-    await seed_donation();
-    await deliver(payment());
-    send_alert_mock.mockClear();
+  it.each(["failed", "expired"])(
+    "alerts on a %s repeated deposit without writing or emailing",
+    async (payment_status) => {
+      await seed_donation();
+      await deliver(payment());
+      send_alert_mock.mockClear();
 
-    const res = await deliver(child({ payment_status }));
+      const res = await deliver(child({ payment_status }));
 
-    expect(res.status).toBe(200);
-    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
-    expect(await settlements()).toHaveLength(1);
-    expect(send_email_mock).not.toHaveBeenCalled();
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    expect(send_alert_mock.mock.calls[0][0].body).toContain("parent:5001");
-  });
+      expect(res.status).toBe(200);
+      expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+      expect(await settlements()).toHaveLength(1);
+      expect(send_email_mock).not.toHaveBeenCalled();
+      expect(send_alert_mock).toHaveBeenCalledOnce();
+      expect(send_alert_mock.mock.calls[0][0].body).toContain("parent:5001");
+    }
+  );
 
-  it.each([
-    "confirming",
-    "finished",
-    "partially_paid",
-  ])("holds a %s deposit in another asset than the order's", async (payment_status) => {
-    await seed_donation();
+  it.each(["confirming", "finished", "partially_paid"])(
+    "holds a %s deposit in another asset than the order's",
+    async (payment_status) => {
+      await seed_donation();
 
-    const res = await deliver(
-      payment({ payment_status, pay_currency: "usdterc20", actually_paid: 50 })
-    );
+      const res = await deliver(
+        payment({
+          payment_status,
+          pay_currency: "usdterc20",
+          actually_paid: 50,
+        })
+      );
 
-    expect(res.status).toBe(200);
-    const don = await donation_get(ORDER_ID);
-    expect(don!.status).toBe("confirmed");
-    expect(don!.amount.base).toBe(0.5);
-    expect(await settlements()).toHaveLength(0);
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    const [a] = send_alert_mock.mock.calls[0];
-    expect(`${a.title} ${a.body}`).toMatch(/USDTERC20.*ETH|ETH.*USDTERC20/);
-    expect(a.body).toContain("payment:5001");
-  });
+      expect(res.status).toBe(200);
+      const don = await donation_get(ORDER_ID);
+      expect(don!.status).toBe("confirmed");
+      expect(don!.amount.base).toBe(0.5);
+      expect(await settlements()).toHaveLength(0);
+      expect(send_alert_mock).toHaveBeenCalledOnce();
+      const [a] = send_alert_mock.mock.calls[0];
+      expect(`${a.title} ${a.body}`).toMatch(/USDTERC20.*ETH|ETH.*USDTERC20/);
+      expect(a.body).toContain("payment:5001");
+    }
+  );
 
   it("records a fee charged in another currency at that currency's usd rate", async () => {
     await seed_donation();
@@ -693,18 +696,23 @@ describe("nowpayments ipn settlement", () => {
     ["finished", "failed"],
     ["finished", "expired"],
     ["partially_paid", "expired"],
-  ])("settles a late %s on a %s donation and alerts", async (payment_status, status) => {
-    await seed_donation({ status });
+  ])(
+    "settles a late %s on a %s donation and alerts",
+    async (payment_status, status) => {
+      await seed_donation({ status });
 
-    const res = await deliver(payment({ payment_status, actually_paid: 0.4 }));
+      const res = await deliver(
+        payment({ payment_status, actually_paid: 0.4 })
+      );
 
-    expect(res.status).toBe(200);
-    const don = await donation_get(ORDER_ID);
-    expect(don!.status).toBe("settled");
-    expect(don!.settlement!.id).toBe("5001");
-    expect(enqueue_mock).toHaveBeenCalledOnce();
-    expect(alert_titles()).toContainEqual(expect.stringMatching(/late/i));
-  });
+      expect(res.status).toBe(200);
+      const don = await donation_get(ORDER_ID);
+      expect(don!.status).toBe("settled");
+      expect(don!.settlement!.id).toBe("5001");
+      expect(enqueue_mock).toHaveBeenCalledOnce();
+      expect(alert_titles()).toContainEqual(expect.stringMatching(/late/i));
+    }
+  );
 
   it("refuses a finished payment on a refunded donation", async () => {
     await seed_donation({ status: "refunded" });
@@ -769,17 +777,17 @@ describe("nowpayments ipn settlement", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    "failed",
-    "expired",
-  ])("ignores %s after the donation settled", async (payment_status) => {
-    await seed_donation();
-    await deliver(payment());
+  it.each(["failed", "expired"])(
+    "ignores %s after the donation settled",
+    async (payment_status) => {
+      await seed_donation();
+      await deliver(payment());
 
-    const res = await deliver(payment({ payment_status }));
+      const res = await deliver(payment({ payment_status }));
 
-    expect(res.status).toBe(200);
-    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
-    expect(send_email_mock).not.toHaveBeenCalled();
-  });
+      expect(res.status).toBe(200);
+      expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+      expect(send_email_mock).not.toHaveBeenCalled();
+    }
+  );
 });

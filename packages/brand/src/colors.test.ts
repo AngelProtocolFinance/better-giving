@@ -91,11 +91,12 @@ describe("colors.ts matches colors.css", () => {
     expect(Object.keys(colors).sort()).toEqual([...css_tokens.keys()].sort());
   });
 
-  it.each([
-    ...css_tokens.entries(),
-  ])("%s converts to the value in colors.ts", (key, hex) => {
-    expect(colors[key as keyof typeof colors]).toBe(hex);
-  });
+  it.each([...css_tokens.entries()])(
+    "%s converts to the value in colors.ts",
+    (key, hex) => {
+      expect(colors[key as keyof typeof colors]).toBe(hex);
+    }
+  );
 });
 
 // the reason the mirror resolves var() at all: a semantic token authored as an
@@ -132,9 +133,10 @@ describe("the ramp round-trips to its source hex", () => {
     expect(ramp_steps.length).toBe(60);
   });
 
-  it.each(
-    ramp_steps.map((m) => [m[1], m[2], m[3]])
-  )("--%s is %s, which is %s", (name, _value, hex) => {
-    expect(hex_of(name)).toBe(hex);
-  });
+  it.each(ramp_steps.map((m) => [m[1], m[2], m[3]]))(
+    "--%s is %s, which is %s",
+    (name, _value, hex) => {
+      expect(hex_of(name)).toBe(hex);
+    }
+  );
 });

@@ -649,13 +649,12 @@ describe("the pairings the ledger records under their threshold still are", () =
   it("finds the recorded misses", () => {
     expect(misses.length).toBeGreaterThan(0);
   });
-  it.each(misses)("$what is under Lc $min — $miss", ({
-    fg,
-    ground,
-    min: floor,
-  }) => {
-    expect(lc(fg, ground)).toBeLessThan(floor as number);
-  });
+  it.each(misses)(
+    "$what is under Lc $min — $miss",
+    ({ fg, ground, min: floor }) => {
+      expect(lc(fg, ground)).toBeLessThan(floor as number);
+    }
+  );
 });
 
 // --- the two color-mix() tokens

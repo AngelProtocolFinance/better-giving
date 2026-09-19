@@ -78,11 +78,12 @@ describe("chrome seam drift", () => {
     expect(public_segments.length).toBeGreaterThan(0);
   });
 
-  test.each(
-    public_segments
-  )("public segment %s is intentionally classified", (segment) => {
-    expect(CHROME_BY_SEGMENT).toHaveProperty(segment);
-  });
+  test.each(public_segments)(
+    "public segment %s is intentionally classified",
+    (segment) => {
+      expect(CHROME_BY_SEGMENT).toHaveProperty(segment);
+    }
+  );
 
   test("no stale entries: every classified segment maps to a real route", () => {
     const stale = Object.keys(CHROME_BY_SEGMENT).filter(

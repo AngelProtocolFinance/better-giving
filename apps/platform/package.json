@@ -106,7 +106,7 @@
     "citty": "0.2.2",
     "drizzle-kit": "0.31.10",
     "msw": "2.14.5",
-    "playwright": "1.59.1",
+    "playwright": "1.63.0",
     "tailwindcss": "4.3.1",
     "type-fest": "4.20.0",
     "typescript": "catalog:",

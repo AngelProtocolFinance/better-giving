@@ -205,25 +205,24 @@ describe("crypto_intent", () => {
   it.each([
     { is_sandbox: true, stage: "production", sent: "success" },
     { is_sandbox: false, stage: "staging", sent: undefined },
-  ])("the api host, not the stage, decides the simulated case (sandbox: $is_sandbox)", async ({
-    is_sandbox,
-    stage,
-    sent,
-  }) => {
-    env_mock.nowpayments.is_sandbox = is_sandbox;
-    env_mock.stage = stage;
-    try {
-      const spy = np_server();
-      await crypto_intent(
-        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
-      );
-      const [p] = await bodies(spy, "/v1/invoice-payment");
-      expect(p.case).toBe(sent);
-    } finally {
-      env_mock.nowpayments.is_sandbox = true;
-      env_mock.stage = "staging";
+  ])(
+    "the api host, not the stage, decides the simulated case (sandbox: $is_sandbox)",
+    async ({ is_sandbox, stage, sent }) => {
+      env_mock.nowpayments.is_sandbox = is_sandbox;
+      env_mock.stage = stage;
+      try {
+        const spy = np_server();
+        await crypto_intent(
+          ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+        );
+        const [p] = await bodies(spy, "/v1/invoice-payment");
+        expect(p.case).toBe(sent);
+      } finally {
+        env_mock.nowpayments.is_sandbox = true;
+        env_mock.stage = "staging";
+      }
     }
-  });
+  );
 
   it("nowpayments' pay_amount under the pair floor is a 400 with no row", async () => {
     np_server({

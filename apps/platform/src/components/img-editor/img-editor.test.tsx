@@ -230,22 +230,20 @@ describe("ImgEditor", () => {
   // and puts the file input under `hidden group-hover:flex` — a pointer-only
   // way out of a state the user never chose. reachable without a local `file`:
   // a value restored from the server, or written back after the file cleared.
-  test.each([
-    "loading",
-    "invalid-type",
-    "exceeds-size",
-    "failure",
-  ] as const)("the %s sentinel is not rendered as a background url", async (sentinel) => {
-    const props = make_props({ value: sentinel });
-    const screen = await render_editor(props);
+  test.each(["loading", "invalid-type", "exceeds-size", "failure"] as const)(
+    "the %s sentinel is not rendered as a background url",
+    async (sentinel) => {
+      const props = make_props({ value: sentinel });
+      const screen = await render_editor(props);
 
-    await vi.waitFor(() => {
-      const dropzone = screen.container.querySelector("label");
-      expect(dropzone?.style.background).toBe("");
-    });
-    // no preview means the upload prompt, not the hover-only control
-    await expect.element(screen.getByText("Upload file")).toBeVisible();
-  });
+      await vi.waitFor(() => {
+        const dropzone = screen.container.querySelector("label");
+        expect(dropzone?.style.background).toBe("");
+      });
+      // no preview means the upload prompt, not the hover-only control
+      await expect.element(screen.getByText("Upload file")).toBeVisible();
+    }
+  );
 });
 
 /** what the call sites render immediately before the editor. the editor's own

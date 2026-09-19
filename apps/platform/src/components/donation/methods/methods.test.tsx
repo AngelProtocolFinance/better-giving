@@ -105,63 +105,64 @@ describe("payment method form state persistence", () => {
     },
   ];
 
-  test.each(
-    cases
-  )("$method: form state persists when navigating to checkout and back", async (c) => {
-    const init: TDonation = {
-      base_url: "",
-      source: "bg-marketplace",
-      mode: "live",
-      recipient: donation_recipient_init({ hide_bg_tip: true }),
-      donor: donor_fv_blank,
-      config: all_methods_config,
-      method: c.method,
-    };
-    const Stub = stb(<Steps init={init} />);
-    const screen = await render(<Stub />);
+  test.each(cases)(
+    "$method: form state persists when navigating to checkout and back",
+    async (c) => {
+      const init: TDonation = {
+        base_url: "",
+        source: "bg-marketplace",
+        mode: "live",
+        recipient: donation_recipient_init({ hide_bg_tip: true }),
+        donor: donor_fv_blank,
+        config: all_methods_config,
+        method: c.method,
+      };
+      const Stub = stb(<Steps init={init} />);
+      const screen = await render(<Stub />);
 
-    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
-    await screen.getByRole("tab", { name: c.tab }).click();
+      await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
+      await screen.getByRole("tab", { name: c.tab }).click();
 
-    if (c.asset) {
-      const selector = screen.getByRole("combobox");
-      await selector.click();
-      await expect.element(screen.getByRole("option")).toBeVisible();
-      await screen.getByRole("option").first().click();
-    }
+      if (c.asset) {
+        const selector = screen.getByRole("combobox");
+        await selector.click();
+        await expect.element(screen.getByRole("option")).toBeVisible();
+        await screen.getByRole("option").first().click();
+      }
 
-    const amount_input = screen.getByPlaceholder(/enter amount/i);
-    await expect.element(amount_input).toBeVisible();
-    await amount_input.fill(c.amount);
-    await screen.getByRole("button", { name: /continue/i }).click();
-
-    if (c.donor) {
-      await fill_donor(screen);
+      const amount_input = screen.getByPlaceholder(/enter amount/i);
+      await expect.element(amount_input).toBeVisible();
+      await amount_input.fill(c.amount);
       await screen.getByRole("button", { name: /continue/i }).click();
-    }
 
-    await c.arrived(screen);
+      if (c.donor) {
+        await fill_donor(screen);
+        await screen.getByRole("button", { name: /continue/i }).click();
+      }
 
-    await screen.getByRole("button", { name: /go back/i }).click();
+      await c.arrived(screen);
 
-    if (c.donor) {
-      // the donor step sits between checkout and the form, and holds its own
-      await expect
-        .element(screen.getByPlaceholder(/john@doe\.com/i))
-        .toHaveValue("john@doe.com");
-      await expect
-        .element(screen.getByRole("textbox", { name: /first name/i }))
-        .toHaveValue("John");
-      await expect
-        .element(screen.getByRole("textbox", { name: /last name/i }))
-        .toHaveValue("Doe");
       await screen.getByRole("button", { name: /go back/i }).click();
-    }
 
-    await expect
-      .element(screen.getByPlaceholder(/enter amount/i))
-      .toHaveValue(c.amount);
-  });
+      if (c.donor) {
+        // the donor step sits between checkout and the form, and holds its own
+        await expect
+          .element(screen.getByPlaceholder(/john@doe\.com/i))
+          .toHaveValue("john@doe.com");
+        await expect
+          .element(screen.getByRole("textbox", { name: /first name/i }))
+          .toHaveValue("John");
+        await expect
+          .element(screen.getByRole("textbox", { name: /last name/i }))
+          .toHaveValue("Doe");
+        await screen.getByRole("button", { name: /go back/i }).click();
+      }
+
+      await expect
+        .element(screen.getByPlaceholder(/enter amount/i))
+        .toHaveValue(c.amount);
+    }
+  );
 
   test("form state persists when switching between payment methods after checkout", async () => {
     const init: TDonation = {

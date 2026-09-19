@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "vcs": {
     "enabled": true,
@@ -10,6 +10,7 @@
     "includes": [
       "**",
       "!**/package.json",
+      "!**/*.svg",
       "!apps/platform/public/scripts/**/*",
       "!apps/platform/src/scripts/**/*.json",
       "!apps/platform/.server/pg/migrations",
@@ -34,10 +35,11 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noExplicitAny": "off",
-        "noArrayIndexKey": "off"
+        "noArrayIndexKey": "off",
+        "noUndeclaredEnvVars": "off"
       },
       "style": {
         "useImportType": "warn",
