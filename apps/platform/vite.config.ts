@@ -30,8 +30,10 @@ export default defineConfig((config) => {
   // `base + filename` for ssr-manifest module urls.
   const asset_base = env.ASSET_BASE_URL;
   const rr7 = !is_test && reactRouter();
-  // vercel sets VERCEL_GIT_COMMIT_SHA on deploys; not part of the check_env list
-  // since sentry uploads only run on vercel (where SENTRY_AUTH_TOKEN is set).
+  // VERCEL_GIT_COMMIT_SHA is vercel's own, not a check_env key. both terms are
+  // load-bearing: SENTRY_AUTH_TOKEN is optional (lib/env.ts) and a deploy
+  // environment opts out of sourcemap upload by leaving it absent — staging
+  // does, and dropping the term puts the plugin back on a build with no token.
   const sentry =
     !is_test &&
     !!env.SENTRY_AUTH_TOKEN &&
@@ -60,7 +62,14 @@ export default defineConfig((config) => {
   const plugins = [devtools_json(), inline_binary(), rr7, tailwind(), sentry];
   return {
     base: asset_base,
-    build: { outDir: "build", target: "es2022", sourcemap: "hidden" },
+    // maps only where sentry will consume them: sentryOnBuildEnd is what
+    // deletes them after upload (react-router.config.ts) and it runs only with
+    // the token, so emitting them without it ships them in the build output.
+    build: {
+      outDir: "build",
+      target: "es2022",
+      sourcemap: !!env.SENTRY_AUTH_TOKEN && "hidden",
+    },
     // `emails` exports raw .tsx (no build step); bundle it into the ssr build so
     // node never tries to import untranspiled tsx at runtime (api/auth email paths).
     ssr: { noExternal: ["emails"] },

@@ -3,6 +3,8 @@ import { loadEnv } from "vite";
 import {
   CLIENT_KEYS,
   type ClientKey,
+  OPTIONAL_KEYS,
+  type OptionalKey,
   SERVER_KEYS,
   type ServerKey,
 } from "../lib/env";
@@ -18,9 +20,9 @@ const pkg_dir = resolve(import.meta.dirname, "..");
 
 type RequiredKey = ServerKey | ClientKey;
 
-// keys allowed to be "" as an opt-out signal. SENTRY_AUTH_TOKEN gates sourcemap
-// upload in vite.config.ts — empty = skip upload locally.
-const OPT_OUT_KEYS: readonly RequiredKey[] = ["SENTRY_AUTH_TOKEN"] as const;
+// OPTIONAL_KEYS is a literal tuple, so `.includes` rejects a plain RequiredKey
+// argument — hence the wider type on this binding.
+const optional: readonly RequiredKey[] = OPTIONAL_KEYS;
 
 // ProcessEnv declares every required key (lib/types/env.d.ts), so a key is not
 // optional to `delete` without widening first.
@@ -69,6 +71,14 @@ function load_env(mode: string) {
   }
 }
 
+// an optional key is satisfied by anything, absence included — the app reads it
+// as a flag and runs without it. every other key has to carry non-whitespace:
+// a lone space is what an operator types at a field that refuses to be blank.
+export function missing_keys(env: Record<string, string | undefined>) {
+  const required = [...SERVER_KEYS, ...CLIENT_KEYS];
+  return required.filter((k) => !optional.includes(k) && !env[k]?.trim());
+}
+
 // validates required env keys, merges loaded .env values into process.env (so
 // runtime code via process.env still works), and returns a typed view for the
 // vite config factory to read from instead of process.env.
@@ -81,10 +91,7 @@ export function check_env(mode: string, validate = true) {
   Object.assign(process.env, env);
 
   if (validate) {
-    const required = [...SERVER_KEYS, ...CLIENT_KEYS];
-    const missing = required.filter((k) =>
-      OPT_OUT_KEYS.includes(k) ? env[k] === undefined : !env[k]
-    );
+    const missing = missing_keys(env);
     if (missing.length) {
       throw new Error(
         `missing env vars (${missing.length}):\n  - ${missing.join("\n  - ")}`
@@ -102,10 +109,11 @@ export function check_env(mode: string, validate = true) {
   // STAGE/VITE_STAGE narrowed to the validated union (checked above) so the
   // returned view satisfies test.env's Partial<ProcessEnv> in vite.config.ts.
   // sound only where validate ran — the callers that skip it don't read stage.
-  return env as unknown as Record<ServerKey | ClientKey, string> & {
-    STAGE: "staging" | "production" | "local";
-    VITE_STAGE: "staging" | "production" | "local";
-    VERCEL_GIT_COMMIT_SHA?: string;
-    VITEST?: string;
-  };
+  return env as unknown as Record<Exclude<RequiredKey, OptionalKey>, string> &
+    Partial<Record<OptionalKey, string>> & {
+      STAGE: "staging" | "production" | "local";
+      VITE_STAGE: "staging" | "production" | "local";
+      VERCEL_GIT_COMMIT_SHA?: string;
+      VITEST?: string;
+    };
 }

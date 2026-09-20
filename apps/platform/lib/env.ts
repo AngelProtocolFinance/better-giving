@@ -76,3 +76,18 @@ export const CLIENT_KEYS = [
 
 export type ServerKey = (typeof SERVER_KEYS)[number];
 export type ClientKey = (typeof CLIENT_KEYS)[number];
+
+// keys the app runs without: absent and "" both mean "not configured", and the
+// env check (utils/check-env.ts) lets both through. vercel's dashboard rejects
+// a blank value, so absence is the only opt-out a deploy environment can spell.
+// bounded to ServerKey on purpose: the widening in lib/types/env.d.ts is
+// expressed over ServerKey, so a client key here would widen nothing while
+// ImportMetaEnv went on declaring it `string`.
+export const OPTIONAL_KEYS = [
+  // gates sourcemap upload in vite.config.ts
+  "SENTRY_AUTH_TOKEN",
+  // read only inside that upload call, which is itself gated on the token
+  "SENTRY_PROJECT",
+] as const satisfies readonly ServerKey[];
+
+export type OptionalKey = (typeof OPTIONAL_KEYS)[number];
