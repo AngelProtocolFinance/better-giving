@@ -142,8 +142,6 @@ export const qstash = {
 
 export const sentry = {
   dsn: process.env.SENTRY_DSN,
-  auth_token: process.env.SENTRY_AUTH_TOKEN,
-  project: process.env.SENTRY_PROJECT,
 } as const;
 
 export const smtp = {

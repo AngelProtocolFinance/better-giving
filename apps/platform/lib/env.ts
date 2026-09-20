@@ -76,3 +76,58 @@ export const CLIENT_KEYS = [
 
 export type ServerKey = (typeof SERVER_KEYS)[number];
 export type ClientKey = (typeof CLIENT_KEYS)[number];
+
+// keys the app runs without. check_env (utils/check-env.ts) collapses absent,
+// "" and whitespace into absence for these, so `!!env.X` is the whole test at
+// every consumer. vercel's dashboard rejects a blank value, so absence is the
+// only opt-out a deploy environment can spell.
+// bounded to ServerKey on purpose: the widening in lib/types/env.d.ts is
+// expressed over ServerKey, so a client key here would widen nothing while
+// ImportMetaEnv went on declaring it `string`.
+export const OPTIONAL_KEYS = [
+  // gates sourcemap upload in vite.config.ts
+  "SENTRY_AUTH_TOKEN",
+  // optional alone — staging sets it with no token — but check_env refuses the
+  // token without it, since that pair uploads nothing and still builds green
+  "SENTRY_PROJECT",
+] as const satisfies readonly ServerKey[];
+
+export type OptionalKey = (typeof OPTIONAL_KEYS)[number];
+
+// OPTIONAL_KEYS is a literal tuple, so `.includes` rejects any argument wider
+// than its own members. the widening cast lives here once instead of at each
+// caller, which is also the only place it can carry the guard's return type.
+export const is_optional = (k: string): k is OptionalKey =>
+  (OPTIONAL_KEYS as readonly string[]).includes(k);
+
+// sourcemaps are all-or-nothing across two config files that cannot import one
+// another: vite.config.ts emits the maps and installs the upload plugin,
+// react-router.config.ts's buildEnd uploads and deletes them. sentryOnBuildEnd
+// reads its whole configuration off that plugin, so a buildEnd running without
+// one destructures an absent config and fails the build, and a map nothing
+// deletes is copied into .vercel/output/static and served. both gates call
+// this, which is the only thing keeping them from drifting apart.
+//
+// the token is how a deploy environment opts out (staging does); the project
+// names what the upload targets; the sha is the release identifier bugsink
+// matches incoming events against. VERCEL_GIT_COMMIT_SHA is vercel's own, not
+// a declared key — absent on any build vercel does not drive from git
+// metadata, `vercel build --prebuilt` included.
+//
+// takes the env rather than reading process.env, because the two callers hold
+// different objects: check_env's returned view on one side, the ambient
+// environment on the other.
+//
+// trims rather than testing truthiness, so the answer holds for any env handed
+// to it. check_env's normalization covers only the callers downstream of it,
+// and the sha never passes through it at all — left untrimmed, a whitespace
+// release name reaches bugsink as the identifier every event is matched
+// against.
+export const uploads_sourcemaps = (env: {
+  SENTRY_AUTH_TOKEN?: string;
+  SENTRY_PROJECT?: string;
+  VERCEL_GIT_COMMIT_SHA?: string;
+}) =>
+  !!env.SENTRY_AUTH_TOKEN?.trim() &&
+  !!env.SENTRY_PROJECT?.trim() &&
+  !!env.VERCEL_GIT_COMMIT_SHA?.trim();

@@ -3,11 +3,15 @@ import { loadEnv } from "vite";
 import {
   CLIENT_KEYS,
   type ClientKey,
+  is_optional,
+  OPTIONAL_KEYS,
+  type OptionalKey,
   SERVER_KEYS,
   type ServerKey,
 } from "../lib/env";
 
-const STAGES = ["staging", "production", "local"];
+const STAGES = ["staging", "production", "local"] as const;
+type Stage = (typeof STAGES)[number];
 
 // the `.env*` files live in this package and nowhere else in the monorepo, so
 // resolution has to be anchored here rather than at the launch directory —
@@ -17,10 +21,6 @@ const STAGES = ["staging", "production", "local"];
 const pkg_dir = resolve(import.meta.dirname, "..");
 
 type RequiredKey = ServerKey | ClientKey;
-
-// keys allowed to be "" as an opt-out signal. SENTRY_AUTH_TOKEN gates sourcemap
-// upload in vite.config.ts — empty = skip upload locally.
-const OPT_OUT_KEYS: readonly RequiredKey[] = ["SENTRY_AUTH_TOKEN"] as const;
 
 // ProcessEnv declares every required key (lib/types/env.d.ts), so a key is not
 // optional to `delete` without widening first.
@@ -69,43 +69,94 @@ function load_env(mode: string) {
   }
 }
 
+// an optional key's whole opt-out is a blank-ish value, so the three spellings
+// — absent, "", "   " — collapse to absence here and `!!env.X` is the correct
+// test at every consumer downstream. the ambient delete carries as much weight
+// as the loaded one: an exported whitespace value would otherwise survive
+// check_env's merge and reach react-router.config.ts's buildEnd gate, which
+// reads process.env rather than this view.
+function normalize_optional(env: Record<string, string | undefined>) {
+  for (const k of OPTIONAL_KEYS) {
+    const v = env[k];
+    if (v === undefined || v.trim()) continue;
+    delete env[k];
+    delete ambient[k];
+  }
+}
+
+// every key has to carry non-whitespace: a lone space is what an operator types
+// at a field that refuses to be blank. the optional ones are exempt from
+// presence only — normalize_optional has already turned their blank spellings
+// into absence by the time this runs.
+//
+// the parameter stays wider than the registries on purpose: this is the test
+// surface, and the suite hands it objects it built rather than a loaded env.
+export function missing_keys(env: Record<string, string | undefined>) {
+  const required = [...SERVER_KEYS, ...CLIENT_KEYS];
+  return required.filter((k) => !is_optional(k) && !env[k]?.trim());
+}
+
+// the other half of validation, named so it is testable the same way.
+export function invalid_stages(env: Record<string, string | undefined>) {
+  return (["STAGE", "VITE_STAGE"] as const).filter(
+    (k) => !(STAGES as readonly string[]).includes(env[k] ?? "")
+  );
+}
+
+type Validated = Record<Exclude<RequiredKey, OptionalKey>, string> &
+  Partial<Record<OptionalKey, string>> & {
+    STAGE: Stage;
+    VITE_STAGE: Stage;
+    VERCEL_GIT_COMMIT_SHA?: string;
+    VITEST?: string;
+  };
+
 // validates required env keys, merges loaded .env values into process.env (so
 // runtime code via process.env still works), and returns a typed view for the
 // vite config factory to read from instead of process.env.
 //
 // `validate` stands the throw down for commands that load the vite config
 // without ever needing real values — the merge and the typed view still happen,
-// only the assertions are skipped. defaults on so a new caller fails loud.
+// only the assertions are skipped. defaults on so a new caller fails loud. the
+// return type follows it: without the assertions nothing has established that a
+// required key is there, so the view is Partial and a caller handles absence.
+export function check_env(mode: string, validate?: true): Validated;
+export function check_env(mode: string, validate: boolean): Partial<Validated>;
 export function check_env(mode: string, validate = true) {
   const env = load_env(mode);
-  Object.assign(process.env, env);
+  normalize_optional(env);
 
   if (validate) {
-    const required = [...SERVER_KEYS, ...CLIENT_KEYS];
-    const missing = required.filter((k) =>
-      OPT_OUT_KEYS.includes(k) ? env[k] === undefined : !env[k]
-    );
+    const missing = missing_keys(env);
     if (missing.length) {
       throw new Error(
         `missing env vars (${missing.length}):\n  - ${missing.join("\n  - ")}`
       );
     }
 
-    for (const k of ["STAGE", "VITE_STAGE"] as const) {
-      const v = env[k];
-      if (!v || !STAGES.includes(v)) {
-        throw new Error(`${k}=${v} must be one of ${STAGES.join(",")}`);
-      }
+    const [bad_stage] = invalid_stages(env);
+    if (bad_stage) {
+      throw new Error(
+        `${bad_stage}=${env[bad_stage]} must be one of ${STAGES.join(",")}`
+      );
+    }
+
+    // one-directional: a project with no token is staging's live shape — upload
+    // off, slug still set — and has to keep deploying. a token with no project
+    // is the state the sdk only warns about: it uploads nothing and the build
+    // still goes green, so it throws here instead.
+    if (env.SENTRY_AUTH_TOKEN && !env.SENTRY_PROJECT) {
+      throw new Error(
+        "SENTRY_AUTH_TOKEN is set without SENTRY_PROJECT — sourcemap upload needs both"
+      );
     }
   }
 
+  // merged after the assertions so a build that is about to throw has not
+  // already written its values into the ambient environment.
+  Object.assign(process.env, env);
+
   // STAGE/VITE_STAGE narrowed to the validated union (checked above) so the
   // returned view satisfies test.env's Partial<ProcessEnv> in vite.config.ts.
-  // sound only where validate ran — the callers that skip it don't read stage.
-  return env as unknown as Record<ServerKey | ClientKey, string> & {
-    STAGE: "staging" | "production" | "local";
-    VITE_STAGE: "staging" | "production" | "local";
-    VERCEL_GIT_COMMIT_SHA?: string;
-    VITEST?: string;
-  };
+  return env as unknown as Validated;
 }

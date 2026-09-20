@@ -4,6 +4,7 @@ import { sentryReactRouter } from "@sentry/react-router";
 import tailwind from "@tailwindcss/vite";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vite";
+import { uploads_sourcemaps } from "./lib/env";
 import { devtools_json } from "./plugins/devtools-json";
 import { inline_binary } from "./plugins/inline-binary";
 import { BUGSINK_URL } from "./utils/bugsink";
@@ -27,15 +28,18 @@ export default defineConfig((config) => {
   const env = check_env(config.mode, !is_test && !is_typegen);
   // vite base for content-hashed client assets: "/" locally, blob origin on
   // deployed stages (skew protection). MUST end in "/" — vite concatenates
-  // `base + filename` for ssr-manifest module urls.
-  const asset_base = env.ASSET_BASE_URL;
+  // `base + filename` for ssr-manifest module urls. the fallback covers the
+  // runs that stood the guard down — neither typegen nor vitest resolves an
+  // asset url, so neither needs a real base.
+  const asset_base = env.ASSET_BASE_URL ?? "/";
   const rr7 = !is_test && reactRouter();
-  // vercel sets VERCEL_GIT_COMMIT_SHA on deploys; not part of the check_env list
-  // since sentry uploads only run on vercel (where SENTRY_AUTH_TOKEN is set).
+  // the predicate is shared with react-router.config.ts's buildEnd gate, which
+  // is what uploads and deletes what this emits (lib/env.ts states the pair).
+  // the extra `!is_test` term is not a divergence from that gate: vitest never
+  // builds, so buildEnd never runs there at all.
+  const sentry_upload = !is_test && uploads_sourcemaps(env);
   const sentry =
-    !is_test &&
-    !!env.SENTRY_AUTH_TOKEN &&
-    !!env.VERCEL_GIT_COMMIT_SHA &&
+    sentry_upload &&
     sentryReactRouter(
       {
         sentryUrl: BUGSINK_URL,
@@ -54,13 +58,26 @@ export default defineConfig((config) => {
           finalize: false,
           deploy: false,
         },
+        // pinned rather than left to the sdk: 10.53.1 deletes
+        // `<buildDirectory>/**/*.map` when this is unset, while its published
+        // type says `@default []` and its source-map plugin's docstring says an
+        // explicitly-set `sourcemap` opts out of deletion. a `todo(v11)` sits
+        // over that path, and a map that survives the build is copied into
+        // .vercel/output/static and served.
+        sourcemaps: { filesToDeleteAfterUpload: ["build/**/*.map"] },
       },
       config
     );
   const plugins = [devtools_json(), inline_binary(), rr7, tailwind(), sentry];
   return {
     base: asset_base,
-    build: { outDir: "build", target: "es2022", sourcemap: "hidden" },
+    // emission rides the same flag — an emitted map is deleted by the upload
+    // (lib/env.ts states the pair) and by nothing else.
+    build: {
+      outDir: "build",
+      target: "es2022",
+      sourcemap: sentry_upload && "hidden",
+    },
     // `emails` exports raw .tsx (no build step); bundle it into the ssr build so
     // node never tries to import untranspiled tsx at runtime (api/auth email paths).
     ssr: { noExternal: ["emails"] },
