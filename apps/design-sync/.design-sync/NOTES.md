@@ -632,13 +632,14 @@ first**: that takes the installed deps with it and the driver dies on
 ```sh
 cd apps/design-sync/.ds-sync
 echo '{"name":"ds-sync-deps","private":true}' > package.json
-pnpm i --ignore-workspace esbuild ts-morph @types/react
+pnpm i --ignore-workspace --allow-build=esbuild esbuild ts-morph @types/react
 ```
 
 `--ignore-workspace` because `.ds-sync/` is not a workspace member. pnpm blocks postinstall scripts
-by default and esbuild needs its own, so add `"pnpm": {"onlyBuiltDependencies": ["esbuild"]}` to
-that `package.json`, but add it *alongside* the dependencies, not by rewriting the file, or the
-next install removes all three packages.
+by default and esbuild needs its own, so the build approval rides on the command: pnpm 12 reads
+settings from `pnpm-workspace.yaml` only, and `--ignore-workspace` is what stops it reading the
+repo's. A `"pnpm"` field in that `package.json` is ignored with a warning and the install then
+fails on `ERR_PNPM_IGNORED_BUILDS`.
 
 ## Motion reached the header, 2026-08-28, and the safelist is what made it true
 

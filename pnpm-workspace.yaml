@@ -11,9 +11,17 @@ packages:
 catalog:
   typescript: 5.9.3
   '@types/node': 24.13.6
-onlyBuiltDependencies:
-  - '@biomejs/biome'
-  - '@tailwindcss/oxide'
-  - esbuild
-  - lefthook
-  - msw
+allowBuilds:
+  esbuild: true
+  lefthook: true
+  msw: true
+  # pnpm fails the install on a transitive build script with no verdict here,
+  # so every one of them needs a line. these five stay unbuilt: the three
+  # sqlite/prisma drivers are optional peers of drizzle-orm and better-auth
+  # that nothing imports, and the other two ship prebuilt platform binaries as
+  # optional deps, so their scripts are only the build-from-source fallback.
+  '@parcel/watcher': false
+  '@prisma/client': false
+  '@sentry/cli': false
+  better-sqlite3: false
+  sqlite3: false
