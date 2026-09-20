@@ -1,6 +1,7 @@
 import type { Config } from "@react-router/dev/config";
 import { sentryOnBuildEnd } from "@sentry/react-router";
 import { vercelPreset } from "@vercel/react-router/vite";
+import { uploads_sourcemaps } from "./lib/env";
 import { BUGSINK_URL } from "./utils/bugsink";
 export default {
   ssr: true,
@@ -8,7 +9,10 @@ export default {
   future: { v8_middleware: true },
   presets: [vercelPreset()],
   buildEnd: async (args) => {
-    if (process.env.SENTRY_AUTH_TOKEN) {
+    // the same predicate vite.config.ts gates map emission and the upload
+    // plugin on: sentryOnBuildEnd reads its options off that plugin, so either
+    // the two agree or this call destructures a config that was never set.
+    if (uploads_sourcemaps(process.env)) {
       // sentryOnBuildEnd builds its own sentry-cli and forwards only authToken,
       // org and project — never the instance url — so without this every call
       // it makes resolves against sentry.io and 404s on an org that only
