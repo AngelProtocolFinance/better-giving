@@ -32,7 +32,7 @@ import {
   settlement_exists,
 } from "$/pg/queries/donation";
 import { sub_put } from "$/pg/queries/subscription";
-import type { Route } from "./+types/api.paypal-webhook";
+import type { Route } from "./+types/route";
 
 type TIntervalFrom = "DAY" | "WEEK" | "MONTH" | "YEAR";
 const to_interval = (from: TIntervalFrom): TInterval => {

@@ -79,7 +79,7 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-const { action } = await import("./api.paypal-webhook");
+const { action } = await import("./route");
 const { donation_get, donation_put, donation_update } = await import(
   "$/pg/queries/donation"
 );
