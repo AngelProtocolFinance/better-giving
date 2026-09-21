@@ -815,17 +815,15 @@ export async function donation_settle_state_locked(
 /**
  * check if a settlement with this sttl_id already exists (idempotency guard).
  *
- * the handle is what lets this be read inside the transaction holding the order
- * row's write lock — but no caller passes one today. paypal's two call sites
- * are the only ones, and both read on the default handle, outside any
- * transaction: two concurrent deliveries of the same capture or sale both see
- * "no settlement". a sale cloned into a new donation then loses on the sttl_id
- * unique index and errors; a write to the order row's own settlement updates in
- * place, so both deliveries succeed and both enqueue. that race is paypal's
- * live state, not a hypothetical the parameter prevents.
+ * the handle is the whole guard: read on the default handle this answers from
+ * a snapshot taken before the caller's transaction opened, so two concurrent
+ * deliveries of one charge both see "no settlement" and both settle it. pass
+ * the tx that holds the order row's write lock and the loser reads what the
+ * winner committed instead.
  *
- * kept because closing it is exactly "pass the tx", the shape the stripe
- * handler already uses for `donation_by_sttl_id` below.
+ * a caller may still read it on the default handle first, to spare a
+ * redelivery the provider fetches and the settle math — but that read decides
+ * nothing the locked one does not decide again.
  */
 export async function settlement_exists(
   sttl_id: string,
@@ -845,8 +843,9 @@ export async function settlement_exists(
  * row rather than just bail: a settle handler whose guard fired needs the
  * donation the earlier delivery wrote so it can recompute that delivery's
  * queue messages, because the enqueue sits outside the transaction and may
- * never have happened. takes a handle so it can be read inside the tx holding
- * the order row's write lock, which is where the stripe handler calls it.
+ * never have happened. pass the tx that holds the order row's write lock:
+ * read outside it, this can run before a concurrent delivery commits and miss
+ * the settlement that delivery wrote.
  */
 export async function donation_by_sttl_id(
   sttl_id: string,

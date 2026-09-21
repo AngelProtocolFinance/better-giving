@@ -46,6 +46,15 @@ export function MaskedInput(props: Props) {
   // extract `required` to disable native validation
   const style = unpack(props.classes);
   const errorId = `error_${props.id}`;
+  const subId = `sub_${props.id}`;
+
+  // every piece of help text on screen for this render, in reading order. the
+  // error joins the list rather than standing in for it — a reader that hears
+  // only the error loses the guidance that would fix it.
+  const described =
+    [props.sub ? subId : undefined, props.error ? errorId : undefined]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   const input_ref = useRef<El>(null);
   const cursor_ref = useRef<number | null>(null);
@@ -118,9 +127,14 @@ export function MaskedInput(props: Props) {
       </label>
       {props.sub ? (
         typeof props.sub === "string" ? (
-          <p className="text-gray-11 text-sm mb-2">{props.sub}</p>
+          <p id={subId} className="text-gray-11 text-sm mb-2">
+            {props.sub}
+          </p>
         ) : (
-          props.sub
+          // `sub` is a ReactNode and callers pass block markup, so the wrapper
+          // has to hold it — inside a span that is invalid nesting the browser
+          // is free to restructure, carrying the content out from under the id
+          <div id={subId}>{props.sub}</div>
         )
       ) : null}
 
@@ -133,11 +147,16 @@ export function MaskedInput(props: Props) {
         placeholder={props.placeholder}
         value={props.value}
         aria-invalid={!!props.error}
+        // native `required` is withheld (see `required` above), so this is the
+        // only requiredness a screen reader hears — absent, never "false"
+        aria-required={props.required || undefined}
         readOnly={props.disabled}
         // see `field.tsx`: the errormessage relationship is the correct one and
         // the describedby is the one every screen reader reads
         aria-errormessage={errorId}
-        aria-describedby={props.error ? errorId : undefined}
+        // absent when nothing is rendered to describe, so no empty node is
+        // announced
+        aria-describedby={described}
         className={`${style.input} field-input`}
         autoComplete="off"
         spellCheck={false}
