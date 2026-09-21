@@ -156,18 +156,17 @@ const requeue = async (row: IDonation | undefined, order_id: string) => {
 /**
  * `requeue` for a sale settled on an earlier delivery. the match flag needs the
  * order id, and only the subscription's custom_id carries it — nothing on the
- * settled row tells the order row from a rebill clone. the settlement is
- * already written, so a failed lookup is reported rather than answered with a
- * redelivery.
+ * settled row tells the order row from a rebill clone.
+ *
+ * a failed fetch throws through to a non-2xx: this redelivery is usually the
+ * one recovering messages an earlier delivery never sent, and a 200 here would
+ * stop paypal retrying with the dist still unsent. a missing subs id or
+ * custom_id is reported and answered 200 instead — no retry can supply either.
  */
 const requeue_sale = async (sale_id: string, subs_id: string | undefined) => {
-  let order_id: string | undefined;
-  try {
-    if (subs_id) order_id = (await paypal.get_subscription(subs_id))?.custom_id;
-  } catch (error) {
-    report_error(error, { sale_id, subs_id });
-    return;
-  }
+  const order_id = subs_id
+    ? (await paypal.get_subscription(subs_id))?.custom_id
+    : undefined;
   if (!order_id) {
     report_error(new Error(`no order id to requeue sale ${sale_id}`), {
       sale_id,
@@ -491,8 +490,8 @@ export async function action({ request }: Route.ActionArgs) {
         if (!sale_id) return new Response("missing sale id", { status: 400 });
 
         // idempotency: already processed this sale. rechecked under the order
-        // row's lock below — this one spares a redelivery the plan fetch and
-        // the settle math, and answers it 200 even while paypal's api is down.
+        // row's lock below — this one only spares a redelivery the plan fetch
+        // and the settle math.
         if (await settlement_exists(sale_id)) {
           console.info(
             `[paypal webhook] sale ${sale_id} already settled, skipping`

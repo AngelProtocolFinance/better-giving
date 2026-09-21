@@ -325,7 +325,7 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect(all_kinds()).toEqual(["don-sttl-dist", "don-sttl-receipt"]);
   });
 
-  it("answers 200 for a settled sale while paypal's api is down", async () => {
+  it("asks for redelivery of a settled sale while paypal's api is down", async () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
     enqueue_mock.mockClear();
@@ -333,9 +333,23 @@ describe("PAYMENT.SALE.COMPLETED", () => {
 
     const res = await deliver(sale_ev());
 
+    expect(res.ok).toBe(false);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toHaveLength(1);
+  });
+
+  it("answers 200 for a settled sale whose subscription has no order id", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+    const { custom_id: _, ...sub } = await get_subscription_mock();
+    get_subscription_mock.mockResolvedValue(sub);
+
+    const res = await deliver(sale_ev());
+
     expect(res.status).toBe(200);
     expect(report_error_mock).toHaveBeenCalled();
-    expect(await settlements()).toHaveLength(1);
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   it("settles one first-recurring sale once when two deliveries race", async () => {
