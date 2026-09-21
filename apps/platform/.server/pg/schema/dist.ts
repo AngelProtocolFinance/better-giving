@@ -14,6 +14,8 @@ import { numeric_as_number, timestamptz } from "./columns";
 import { donations } from "./donation";
 import { npos } from "./npo";
 
+export const DISTS_DONATION_ID_TO_ID_UNIQ = "dists_donation_id_to_id_uniq";
+
 export const dists = pgTable(
   "dists",
   {
@@ -65,6 +67,6 @@ export const dists = pgTable(
       .on(t.to_id, t.donation_id)
       .where(sql`${t.status} = 'settled'`),
     // idempotency: one dist per parent donation per npo
-    unique("dists_donation_id_to_id_uniq").on(t.donation_id, t.to_id),
+    unique(DISTS_DONATION_ID_TO_ID_UNIQ).on(t.donation_id, t.to_id),
   ]
 );
