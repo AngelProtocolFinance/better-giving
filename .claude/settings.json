@@ -1,0 +1,7 @@
+{
+  "extraKnownMarketplaces": {
+    "kru": { "source": { "source": "github", "repo": "ap-justin/kru" } }
+  },
+  "enabledPlugins": { "kru@kru": true },
+  "env": { "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1" }
+}
