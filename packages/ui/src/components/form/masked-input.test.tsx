@@ -346,7 +346,130 @@ describe("MaskedInput: error announcement", () => {
   });
 
   // conditional, so a valid field is not described by its own empty paragraph
-  it("describes nothing when there is no error", async () => {
+  it("describes nothing when there is neither sub nor error", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+      />
+    );
+
+    const input = screen.getByLabelText("EIN");
+    // the computed "" alone would also pass on an empty or dangling reference
+    expect(input.element().getAttribute("aria-describedby")).toBe(null);
+    await expect.element(input).toHaveAccessibleDescription("");
+  });
+
+  it("names a string sub as the input's description", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        sub="Found on your IRS determination letter"
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription("Found on your IRS determination letter");
+  });
+
+  // the live callers pass block markup, which the string branch never wraps
+  it("names a ReactNode sub as the input's description", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        sub={
+          <p className="text-sm">
+            Found on your <strong>IRS determination letter</strong>
+          </p>
+        }
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription("Found on your IRS determination letter");
+  });
+
+  // the error joins the guidance rather than replacing it: a reader that hears
+  // only the error loses the guidance that would fix it
+  it("describes sub and error together, in reading order", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        sub="Found on your IRS determination letter"
+        error="Enter a valid EIN"
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription(
+        "Found on your IRS determination letter Enter a valid EIN"
+      );
+  });
+
+  it("describes a ReactNode sub and error together, in reading order", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        sub={
+          <p className="text-sm">
+            Found on your <strong>IRS determination letter</strong>
+          </p>
+        }
+        error="Enter a valid EIN"
+      />
+    );
+
+    await expect
+      .element(screen.getByLabelText("EIN"))
+      .toHaveAccessibleDescription(
+        "Found on your IRS determination letter Enter a valid EIN"
+      );
+  });
+});
+
+describe("MaskedInput: required announcement", () => {
+  // native `required` is withheld, so the label's asterisk is all a sighted
+  // user gets and nothing reaches a screen reader without this
+  it("announces requiredness on the control, without native required", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        required
+      />
+    );
+
+    const input = screen.getByLabelText("EIN");
+    await expect.element(input).toHaveAttribute("aria-required", "true");
+    await expect.element(input).not.toHaveAttribute("required");
+  });
+
+  it("leaves an optional field unmarked", async () => {
     const screen = await render(
       <MaskedInput
         id="ein"
@@ -359,6 +482,6 @@ describe("MaskedInput: error announcement", () => {
 
     await expect
       .element(screen.getByLabelText("EIN"))
-      .toHaveAccessibleDescription("");
+      .not.toHaveAttribute("aria-required");
   });
 });
