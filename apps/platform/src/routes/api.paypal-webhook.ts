@@ -13,6 +13,8 @@ import {
   type IDonation,
   type IDonationSettled,
   type IDonationUpdate,
+  is_reversed,
+  settle_msgs,
 } from "@/donations";
 import { paypal_donor_update } from "@/donations/helpers";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
@@ -22,8 +24,10 @@ import { paypal } from "$/kit/paypal";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import {
+  donation_by_sttl_id,
   donation_get,
   donation_put,
+  donation_settle_state_locked,
   donation_update,
   settlement_exists,
 } from "$/pg/queries/donation";
@@ -122,6 +126,57 @@ const donor_update = (
   address?: IAddress | undefined
 ): IDonationUpdate =>
   paypal_donor_update({ email_address: email, name, address });
+
+/**
+ * the enqueue sits after the commit, so a delivery can leave a settled row
+ * whose messages never went out, or only some of them; the delivery whose
+ * settle guard fires re-sends them all. a duplicate costs nothing — the dist is
+ * absorbed by unique(donation_id, to_id), the match event by its unique
+ * donation_id, the receipt by its send claim.
+ *
+ * a reversed row is the one case that must not be recomputed: the settle path
+ * refuses to write over a refund, and re-queuing here would walk around that
+ * with a dist and a receipt for money the donor already got back.
+ */
+const requeue = async (row: IDonation | undefined, order_id: string) => {
+  if (!row?.settlement)
+    throw new Error("duplicate settle without a settlement");
+  if (is_reversed(row.status)) return;
+  await enqueue(
+    ...settle_msgs(
+      { ...row, settlement: row.settlement },
+      // the settlement living on the order row means this was the charge that
+      // opened the donation; on any other row it is a rebill clone, which is
+      // excluded from employer matching.
+      { match: row.id === order_id }
+    )
+  );
+};
+
+/**
+ * `requeue` for a sale settled on an earlier delivery. the match flag needs the
+ * order id, and only the subscription's custom_id carries it — nothing on the
+ * settled row tells the order row from a rebill clone. the settlement is
+ * already written, so a failed lookup is reported rather than answered with a
+ * redelivery.
+ */
+const requeue_sale = async (sale_id: string, subs_id: string | undefined) => {
+  let order_id: string | undefined;
+  try {
+    if (subs_id) order_id = (await paypal.get_subscription(subs_id))?.custom_id;
+  } catch (error) {
+    report_error(error, { sale_id, subs_id });
+    return;
+  }
+  if (!order_id) {
+    report_error(new Error(`no order id to requeue sale ${sale_id}`), {
+      sale_id,
+      subs_id,
+    });
+    return;
+  }
+  await requeue(await donation_by_sttl_id(sale_id), order_id);
+};
 
 // -- signature verification --
 
@@ -295,12 +350,19 @@ export async function action({ request }: Route.ActionArgs) {
           supplementary_data,
         } = ev.resource as Capture;
         if (!cid) return new Response("missing capture id", { status: 400 });
+        if (!don_id)
+          return new Response(`missing onhold id for capture: ${cid}`, {
+            status: 400,
+          });
 
-        // idempotency: already processed this capture
+        // idempotency: already processed this capture. rechecked under the
+        // order row's lock below — this one only spares a redelivery the order
+        // fetch and the settle math.
         if (await settlement_exists(cid)) {
           console.info(
             `[paypal webhook] capture ${cid} already settled, skipping`
           );
+          await requeue(await donation_by_sttl_id(cid), don_id);
           return new Response("already processed", { status: 200 });
         }
 
@@ -319,11 +381,6 @@ export async function action({ request }: Route.ActionArgs) {
           }
           return { net: +n, fee: +p, c };
         })(b.exchange_rate?.value);
-
-        if (!don_id)
-          return new Response(`missing onhold id for capture: ${cid}`, {
-            status: 400,
-          });
 
         // fetch order to get real payer email before settling
         const order_id = supplementary_data?.related_ids?.order_id;
@@ -381,13 +438,45 @@ export async function action({ request }: Route.ActionArgs) {
         if (result.op !== "update")
           throw new Error("unexpected put for paypal capture");
 
-        const payload = await db.transaction((tx) =>
-          donation_update(tx, result.order_id, result.patch)
+        const p = await db.transaction(
+          async (
+            tx
+          ): Promise<
+            | { op: "dup"; row: IDonation | undefined }
+            | { op: "reversed" }
+            | { op: "settled"; row: IDonation }
+          > => {
+            // the guard above read outside this transaction, so two concurrent
+            // deliveries of one capture can both pass it. re-decide under the
+            // order row's write lock, where the loser reads what the winner
+            // committed.
+            const state = await donation_settle_state_locked(
+              tx,
+              result.order_id
+            );
+            if (!state) throw new Error(`donation not found: ${don_id}`);
+            if (await settlement_exists(cid, tx))
+              return { op: "dup", row: await donation_by_sttl_id(cid, tx) };
+            // `result.patch` was computed from a read taken before the lock; a
+            // refund committed since then must not be written back to settled.
+            if (is_reversed(state.status)) return { op: "reversed" };
+            return {
+              op: "settled",
+              row: await donation_update(tx, result.order_id, result.patch),
+            };
+          }
         );
+
+        if (p.op === "reversed")
+          return Response.json({ id: don_id }, { status: 200 });
+        if (p.op === "dup") {
+          await requeue(p.row, don_id);
+          return new Response("already processed", { status: 200 });
+        }
         await enqueue(...result.msgs);
 
-        console.info(`donation settled: ${payload.id}`);
-        return Response.json({ id: payload.id });
+        console.info(`donation settled: ${p.row.id}`);
+        return Response.json({ id: p.row.id });
       }
       case "PAYMENT.SALE.COMPLETED": {
         const {
@@ -401,11 +490,14 @@ export async function action({ request }: Route.ActionArgs) {
         } = ev.resource as Sale;
         if (!sale_id) return new Response("missing sale id", { status: 400 });
 
-        // idempotency: already processed this sale
+        // idempotency: already processed this sale. rechecked under the order
+        // row's lock below — this one spares a redelivery the plan fetch and
+        // the settle math, and answers it 200 even while paypal's api is down.
         if (await settlement_exists(sale_id)) {
           console.info(
             `[paypal webhook] sale ${sale_id} already settled, skipping`
           );
+          await requeue_sale(sale_id, subs_id);
           return new Response("already processed", { status: 200 });
         }
 
@@ -474,6 +566,20 @@ export async function action({ request }: Route.ActionArgs) {
         };
 
         const p = await db.transaction(async (tx) => {
+          // the guard above read outside this transaction, so two concurrent
+          // deliveries of one sale can both pass it. re-decide under the order
+          // row's write lock: without it the loser sees the settlement the
+          // winner wrote, takes the rebill branch, and clones a donation that
+          // loses on the sttl_id unique index.
+          const state = await donation_settle_state_locked(tx, don_id);
+          if (!state) throw new Error(`don record not found: ${don_id}`);
+          if (await settlement_exists(sale_id, tx))
+            return {
+              dup: true as const,
+              row: await donation_by_sttl_id(sale_id, tx),
+              msgs: [],
+            };
+
           const don = await donation_update(tx, don_id, { ...donor });
           // upsert subscription row before referencing its FK on the donation;
           // BILLING.SUBSCRIPTION.ACTIVATED may not have landed yet (paypal does
@@ -500,14 +606,25 @@ export async function action({ request }: Route.ActionArgs) {
           // noop reaches here only from the first-recurring branch — a rebill
           // clones the order row rather than settling it, so it never yields
           // one. the order row it would have settled is already reversed.
-          if (result.op === "noop") return { row: don, msgs: [] };
+          if (result.op === "noop")
+            return { dup: false as const, row: don, msgs: [] };
           return result.op === "update"
             ? {
+                dup: false as const,
                 row: await donation_update(tx, result.order_id, result.patch),
                 msgs: result.msgs,
               }
-            : { row: await donation_put(tx, result.row), msgs: result.msgs };
+            : {
+                dup: false as const,
+                row: await donation_put(tx, result.row),
+                msgs: result.msgs,
+              };
         });
+
+        if (p.dup) {
+          await requeue(p.row, don_id);
+          return new Response("already processed", { status: 200 });
+        }
         await enqueue(...p.msgs);
 
         return Response.json({ id: p.row.id });
