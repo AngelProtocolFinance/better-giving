@@ -1,8 +1,10 @@
 import { report_error } from "#/errors/report";
+import { is_reversed } from "@/donations/settle";
 import { calc_settlement_plan } from "@/settlement/plan";
 import type { IInput } from "@/types/donation-dist";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
 import { dist_put } from "$/pg/queries/dist";
+import { donation_status_shared } from "$/pg/queries/donation";
 import { donation_message_put } from "$/pg/queries/donation-message";
 import { form_ltd_inc } from "$/pg/queries/form";
 import type { DbOrTx } from "$/pg/queries/helpers";
@@ -14,6 +16,16 @@ import { commission_put } from "$/pg/queries/referrer";
 import { rev_log_put } from "$/pg/queries/revenue";
 
 export async function settle_npo(db: DbOrTx, i: IInput) {
+  // the payload's status can predate a refund; the row's is what counts.
+  // still open: a dist committed between the refund's dists_for_refund read and its status flip
+  const status = await donation_status_shared(db, i.prnt.id);
+  if (status && is_reversed(status)) {
+    console.info(
+      `skipped npo ${i.id}: donation ${i.prnt.id} is ${status}, no dist written`
+    );
+    return { msgs: [], txs: [] };
+  }
+
   const npo = await npo_get(+i.id, db);
   if (!npo) throw new Error(`npo:${i.id} not found`);
   if (npo.active === false) {

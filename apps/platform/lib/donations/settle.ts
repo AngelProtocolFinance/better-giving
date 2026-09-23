@@ -55,8 +55,12 @@ export type SettleResult =
       msgs: IMsg[];
     };
 
-/** statuses that mean the money went back — settling over one is never right */
-const reversed = new Set<IDonation["status"]>(["refunded", "refunded_loss"]);
+/** statuses that mean the money went back — settling over one, or mailing its receipt, is never right */
+export const reversed_statuses = [
+  "refunded",
+  "refunded_loss",
+] as const satisfies readonly IDonation["status"][];
+const reversed = new Set<IDonation["status"]>(reversed_statuses);
 
 /**
  * has a refund already taken this donation's money back?

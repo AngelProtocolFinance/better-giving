@@ -1,9 +1,20 @@
-import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
-import type {
-  IDonation,
-  IDonationSettled,
-  IDonationUpdate,
-  IDonsFromOpts,
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
+import {
+  type IDonation,
+  type IDonationSettled,
+  type IDonationUpdate,
+  type IDonsFromOpts,
+  reversed_statuses,
 } from "@/donations";
 import { db } from "../db";
 import { is_unique_violation } from "../errors";
@@ -791,6 +802,22 @@ export const settle_state_of = (d: IDonation): SettleState => ({
  * it wrote. two statements, not a join — under read committed a join re-checks
  * only the locked row after the wait and keeps the settlement it saw before.
  */
+/**
+ * the donation's status under a share lock: a concurrent writer of the row
+ * (the refund's status flip) commits first, and this then reads what it wrote.
+ */
+export async function donation_status_shared(
+  tx: DbOrTx,
+  id: string
+): Promise<IDonation["status"] | undefined> {
+  const [don] = await tx
+    .select({ status: donations.status })
+    .from(donations)
+    .where(eq(donations.id, id))
+    .for("share");
+  return don?.status as IDonation["status"] | undefined;
+}
+
 export async function donation_settle_state_locked(
   tx: DbOrTx,
   id: string
@@ -891,6 +918,11 @@ export const RECEIPT_LEASE_MS = 15 * 60 * 1000;
  * false is the ordinary outcome for a redelivery — the receipts already went
  * out, or another delivery is mailing them right now — not a failure.
  *
+ * also false when the row's status is one of `reversed_statuses`. the queue
+ * message's payload is a snapshot taken before enqueue, so a refund that
+ * commits after it was built still reads "settled" there; the row is the only
+ * place that knows the money went back, and no receipt goes out for it.
+ *
  * the claim is burnt before the send, so two deliveries racing the sends
  * cannot both mail the donor: there is no unsend, and a receipt carries a tax
  * id, so two of them for one gift is worse than none. it is a *lease*, not a
@@ -917,6 +949,7 @@ export async function claim_receipt_send(
     .where(
       and(
         eq(donations.id, donation_id),
+        notInArray(donations.status, [...reversed_statuses]),
         isNull(donations.receipt_sent_at),
         or(
           isNull(donations.receipt_claimed_at),

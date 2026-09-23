@@ -19,6 +19,7 @@ export type {
 export {
   calc_donation_settle,
   is_reversed,
+  reversed_statuses,
   type SettleInputs,
   type SettleResult,
   settle_msgs,
