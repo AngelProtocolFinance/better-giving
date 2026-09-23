@@ -75,7 +75,7 @@ vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 
-import { RECEIPT_LEASE_MS } from "$/pg/queries/donation";
+import { claim_receipt_send, RECEIPT_LEASE_MS } from "$/pg/queries/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { handle_don_receipt } from ".";
 
@@ -177,6 +177,47 @@ describe("handle_don_receipt - queue redelivery", () => {
       ([i]) => (i as any).node.props.tax_receipt_id
     );
     expect(new Set(ids).size).toBe(1);
+  });
+});
+
+describe("claim_receipt_send - a refund that landed first", () => {
+  const set_status = async (status: IDonation["status"]) => {
+    const db = test_db.current!.db;
+    await db.update(donations).set({ status }).where(eq(donations.id, DON_ID));
+  };
+
+  const claimed_at = async () => {
+    const db = test_db.current!.db;
+    const [row] = await db
+      .select({ at: donations.receipt_claimed_at })
+      .from(donations)
+      .where(eq(donations.id, DON_ID));
+    return row!.at;
+  };
+
+  test("a settled donation with no receipt sent is claimed", async () => {
+    expect(await claim_receipt_send(DON_ID)).toBe(true);
+    expect(await claimed_at()).not.toBeNull();
+  });
+
+  test.each(["refunded", "refunded_loss"] as const)(
+    "a %s donation is refused and left unclaimed",
+    async (status) => {
+      await set_status(status);
+
+      expect(await claim_receipt_send(DON_ID)).toBe(false);
+      expect(await claimed_at()).toBeNull();
+    }
+  );
+
+  test("a receipt message still saying settled mails nothing for a refunded row", async () => {
+    await set_status("refunded");
+
+    // the payload was built before the refund committed, so it is the row, not
+    // the message, that has to stop the tax receipt for money that went back
+    await handle_don_receipt(don());
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 });
 

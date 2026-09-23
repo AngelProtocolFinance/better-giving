@@ -263,7 +263,9 @@ export async function action({ request }: Route.ActionArgs) {
 
     const ev: WebhookEvent = JSON.parse(result.body);
 
-    console.info("[paypal webhook] received:", JSON.stringify(ev, null, 2));
+    console.info(
+      `[paypal webhook] received: ${ev.event_type} ${ev.id} resource ${ev.resource?.id}`
+    );
 
     switch (ev.event_type) {
       case "BILLING.SUBSCRIPTION.ACTIVATED": {
@@ -291,7 +293,7 @@ export async function action({ request }: Route.ActionArgs) {
 
         // update the donation with donor info
         const updated_don = await donation_update(db, don_id, donor);
-        console.info("don donor info updated:", updated_don);
+        console.info(`don donor info updated: ${updated_don.id}`);
 
         if (!subs_id)
           return new Response("missing subscription id", { status: 400 });
@@ -629,7 +631,9 @@ export async function action({ request }: Route.ActionArgs) {
         return Response.json({ id: p.row.id });
       }
     }
-    console.info(JSON.stringify(ev, null, 2));
+    console.info(
+      `[paypal webhook] not handled: ${ev.event_type} ${ev.id} resource ${ev.resource?.id}`
+    );
     return new Response(`event type not handled: ${ev.event_type}`, {
       status: 201,
     });

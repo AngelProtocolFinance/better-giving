@@ -83,9 +83,8 @@ const { handle_failed } = await import("./handlers/failed");
 const { np } = await import("$/kit/nowpayments");
 const { process_refund } = await import("$/refund/process");
 const { dists } = await import("$/pg/schema/dist");
-const { donation_by_sttl_id, donation_get, donation_put } = await import(
-  "$/pg/queries/donation"
-);
+const { donation_by_sttl_id, donation_get, donation_put, donation_update } =
+  await import("$/pg/queries/donation");
 const {
   donation_donors,
   donation_recipients,
@@ -282,10 +281,28 @@ describe("nowpayments ipn settlement", () => {
     expect(alert_titles()).toEqual(["Donation settled"]);
   });
 
-  // dist rows are written only after the first enqueue's messages landed; the
-  // receipt beside them has no guard of its own past the queue's dedupe window
-  it("queues nothing for a redelivered finished payment once it distributed", async () => {
+  it("re-sends the dist for a redelivered finished payment whose first enqueue failed", async () => {
     await seed_donation();
+    enqueue_mock.mockRejectedValueOnce(new Error("queue down"));
+    const first = await deliver(payment());
+    enqueue_mock.mockClear();
+
+    const res = await deliver(payment());
+
+    expect(first.status).toBe(500);
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock.mock.calls[0].map((m: any) => m.id)).toEqual([
+      "don-sttl-dist",
+      "don-sttl-receipt",
+    ]);
+  });
+
+  // the enqueue sends one message at a time, dist first: a delivery that failed
+  // on the receipt leaves dist rows and an unsent receipt. the dist is held
+  // back — a re-run recomputes a fund's split and would over-distribute
+  it("re-sends the receipt and match, not the dist, for a redelivered finished payment that already distributed", async () => {
+    await seed_donation({ from_company_name: "Acme Corp" });
     await deliver(payment());
     await seed_dist(ORDER_ID);
     enqueue_mock.mockClear();
@@ -293,7 +310,11 @@ describe("nowpayments ipn settlement", () => {
     const res = await deliver(payment());
 
     expect(res.status).toBe(200);
-    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock.mock.calls[0].map((m: any) => m.id)).toEqual([
+      "don-sttl-receipt",
+      "don-match",
+    ]);
   });
 
   it("settles once when two deliveries read the donation before either wrote", async () => {
@@ -520,7 +541,7 @@ describe("nowpayments ipn settlement", () => {
     expect(dedupes(2)).toEqual(dedupes(1));
   });
 
-  it("queues nothing for a redelivered repeated deposit once it distributed", async () => {
+  it("re-sends the receipt, not the dist, for a redelivered repeated deposit that already distributed", async () => {
     await seed_donation();
     await deliver(payment());
     await deliver(child());
@@ -533,7 +554,10 @@ describe("nowpayments ipn settlement", () => {
     const res = await deliver(child());
 
     expect(res.status).toBe(200);
-    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock.mock.calls[0].map((m: any) => m.id)).toEqual([
+      "don-sttl-receipt",
+    ]);
   });
 
   it("treats a repeated deposit a concurrent delivery already cloned as a duplicate", async () => {
@@ -555,6 +579,27 @@ describe("nowpayments ipn settlement", () => {
     expect(enqueue_mock).toHaveBeenCalledOnce();
     expect(dedupes(0)).toEqual(cloned);
     expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+
+  it("queues nothing for a repeated deposit a concurrent delivery cloned and a refund reversed", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await deliver(child());
+    const [child_row] = (await settlements()).filter(
+      (r) => r.sttl_id === "5002"
+    );
+    // what the refund plan leaves once it reverses the clone's dist
+    await donation_update(db() as any, child_row.donation_id, {
+      status: "refunded",
+    });
+    enqueue_mock.mockClear();
+    // the guard misses, so the clone is re-read after the put instead
+    vi.mocked(donation_by_sttl_id).mockResolvedValueOnce(undefined);
+
+    const res = await deliver(child());
+
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   it.each(["confirming", "waiting"])(

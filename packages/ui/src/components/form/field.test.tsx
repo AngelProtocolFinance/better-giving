@@ -232,4 +232,28 @@ describe("Field: help text announcement", () => {
 
     expect(input.getAttribute("aria-describedby")).toBe(null);
   });
+
+  it("keeps sub off the control — it is the note's text, not an attribute", async () => {
+    const screen = await render(
+      <Field
+        label="Work email"
+        name="email"
+        sub="We'll send your donation receipt to this email."
+      />
+    );
+    const input = screen.getByLabelText("Work email").element();
+
+    expect(input.hasAttribute("sub")).toBe(false);
+    expect(input.getAttribute("aria-describedby")).toBe("__sub_email");
+  });
+
+  it("treats a whitespace-only sub as absent: no note, nothing described", async () => {
+    const screen = await render(
+      <Field label="Address" name="street" sub="   " />
+    );
+    const input = screen.getByLabelText("Address").element();
+
+    expect(input.getAttribute("aria-describedby")).toBe(null);
+    expect(document.getElementById("__sub_street")).toBe(null);
+  });
 });

@@ -305,8 +305,7 @@ describe("fund creation", () => {
     expect(res.status).toBe(302);
 
     const row = await fund_by_name("Holiday Gala");
-    expect(row.expiration?.slice(0, 10)).toBe(
-      future.toISOString().slice(0, 10)
-    );
+    // pglite renders timestamptz text in the runtime's zone — compare instants, not strings
+    expect(new Date(row.expiration!).getTime()).toBe(future.getTime());
   });
 });

@@ -39,6 +39,10 @@ type Props<T extends InputType> = Omit<
   classes?: Classes | string;
   tooltip?: ReactNode;
   label: string | ReactElement;
+  /** help text under the label. a string empty after trim counts as absent;
+   * any other truthy value counts as present, so a ReactNode must render
+   * text — one that renders nothing leaves the control described by an empty
+   * node. */
   sub?: ReactNode;
   /** id(s) of help text the caller renders OUTSIDE this component, joined onto
    * the ids this component mints. nothing here can reach that markup, so its
@@ -53,6 +57,7 @@ export function Field<T extends InputType = InputType>({
   label,
   classes,
   tooltip,
+  sub,
   describedby,
   required, //extract from props to disable native validation
   // off by default: most fields here are somebody else's data (a nonprofit's
@@ -73,13 +78,14 @@ export function Field<T extends InputType = InputType>({
   const subId = `__sub_${String(props.name)}`;
   const tooltipId = `__tooltip_${String(props.name)}`;
   const mode = unconstrained[type as string];
+  const has_sub = typeof sub === "string" ? sub.trim() !== "" : !!sub;
 
   // every piece of help text on screen for this render, in reading order. the
   // error joins the list rather than standing in for it — a reader that hears
   // only the error loses the guidance that would fix it.
   const described =
     [
-      props.sub ? subId : undefined,
+      has_sub ? subId : undefined,
       tooltip ? tooltipId : undefined,
       describedby,
       error ? errorId : undefined,
@@ -90,23 +96,23 @@ export function Field<T extends InputType = InputType>({
   return (
     <div className={`${style.container} `}>
       <Label
-        className={`${style.label} label ${props.sub ? "" : "mb-1"}`}
+        className={`${style.label} label ${has_sub ? "" : "mb-1"}`}
         required={required}
         htmlFor={id}
       >
         {label}
       </Label>
-      {props.sub ? (
-        typeof props.sub === "string" ? (
+      {has_sub ? (
+        typeof sub === "string" ? (
           <p id={subId} className="text-gray-11 text-sm mb-2">
-            {props.sub}
+            {sub}
           </p>
         ) : (
           // `sub` is a ReactNode and callers pass a paragraph, so the wrapper
           // has to hold block markup — inside a span that is invalid nesting
           // the browser is free to restructure, carrying the content out from
           // under the id
-          <div id={subId}>{props.sub}</div>
+          <div id={subId}>{sub}</div>
         )
       ) : null}
 
@@ -130,8 +136,9 @@ export function Field<T extends InputType = InputType>({
         "aria-required": required || undefined,
         // both, because neither alone is enough: `aria-errormessage` is the
         // right relationship but several screen readers still ignore it, and
-        // `aria-describedby` is the one they all honour. it is absent when
-        // nothing is rendered to describe, so no empty node is announced.
+        // `aria-describedby` is the one they all honour. it is absent when no
+        // help text is present — a ReactNode `sub` is taken at its word (see
+        // the prop).
         "aria-errormessage": errorId,
         "aria-describedby": described,
         className: `${style.input} field-input`,

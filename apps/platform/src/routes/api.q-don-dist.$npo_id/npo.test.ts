@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -31,6 +31,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { handle_npo } = await import("./npo");
+const { reversed_statuses } = await import("@/donations/settle");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { dists } = await import("$/pg/schema/dist");
 const { donations } = await import("$/pg/schema/donation");
@@ -196,4 +197,21 @@ describe("handle_npo", () => {
       /not found/
     );
   });
+});
+
+describe("handle_npo on a donation a refund already reversed", () => {
+  it.each(reversed_statuses)(
+    "writes no dist and enqueues nothing when the row is %s though the payload says settled",
+    async (status) => {
+      await db()
+        .update(donations)
+        .set({ status })
+        .where(eq(donations.id, DON_ID));
+
+      await expect(handle_npo(make_input(npo_id))).resolves.toBeUndefined();
+      expect(await db().select().from(dists)).toHaveLength(0);
+      expect(enqueue_mock).not.toHaveBeenCalled();
+      expect(report_error_mock).not.toHaveBeenCalled();
+    }
+  );
 });
