@@ -1,6 +1,8 @@
 // the "two deliveries race" tests run on pglite, a single connection: two
 // db.transaction() calls queue rather than overlap. they prove the guard reads
 // committed state under the tx, not that the order row's lock contends.
+
+import { inspect } from "node:util";
 import {
   afterAll,
   beforeAll,
@@ -369,5 +371,137 @@ describe("PAYMENT.SALE.COMPLETED", () => {
       "don-sttl-dist",
       "don-sttl-receipt",
     ]);
+  });
+});
+
+describe("logging", () => {
+  const DONOR = {
+    email: "payer-pii@example.com",
+    given_name: "Janepii",
+    surname: "Payerpii",
+    line_1: "742 Piistreet Ave",
+  };
+  const donor_name = { given_name: DONOR.given_name, surname: DONOR.surname };
+  const donor_address = {
+    address_line_1: DONOR.line_1,
+    admin_area_2: "Springfield",
+    postal_code: "12345",
+    country_code: "US",
+  };
+  const CONSOLE_METHODS = ["log", "info", "warn", "error", "debug"] as const;
+
+  let spies: { mock: { calls: unknown[][] } }[];
+  beforeEach(() => {
+    spies = CONSOLE_METHODS.map((m) =>
+      vi.spyOn(console, m).mockImplementation(() => {})
+    );
+  });
+
+  /** every console call's and error report's arguments, deeply rendered —
+   * inspect reaches an Error's message, cause and own props where JSON drops them */
+  const logged_text = () =>
+    [...spies, report_error_mock]
+      .flatMap((s) => s.mock.calls.flat())
+      .map((a) => (typeof a === "string" ? a : inspect(a, { depth: null })))
+      .join("\n");
+
+  const expect_no_donor_pii = () => {
+    const text = logged_text();
+    expect(text).not.toBe("");
+    for (const v of Object.values(DONOR)) expect(text).not.toContain(v);
+  };
+
+  it("keeps the payer out of the log of an approved order", async () => {
+    await seed_donation();
+
+    const res = await deliver({
+      id: "WH-1",
+      event_type: "CHECKOUT.ORDER.APPROVED",
+      resource: {
+        id: "ORDER-1",
+        payment_source: {
+          paypal: {
+            email_address: DONOR.email,
+            name: donor_name,
+            address: donor_address,
+          },
+        },
+        purchase_units: [{ custom_id: ORDER_ID }],
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect_no_donor_pii();
+  });
+
+  it("keeps the payer out of the log of a completed capture", async () => {
+    await seed_donation();
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      payment_source: {
+        paypal: {
+          email_address: DONOR.email,
+          name: donor_name,
+          address: donor_address,
+        },
+      },
+    });
+    const ev = capture_ev();
+
+    const res = await deliver({
+      ...ev,
+      id: "WH-4",
+      resource: {
+        ...ev.resource,
+        supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).toHaveBeenCalledWith("ORDER-1");
+    expect((await donation_get(ORDER_ID))!.from_email).toBe(DONOR.email);
+    expect_no_donor_pii();
+  });
+
+  it("keeps the subscriber out of the log of an activated subscription", async () => {
+    await seed_donation({ frequency: "monthly" });
+
+    const res = await deliver({
+      id: "WH-3",
+      event_type: "BILLING.SUBSCRIPTION.ACTIVATED",
+      resource: {
+        id: SUBS_ID,
+        plan_id: "P-1",
+        custom_id: ORDER_ID,
+        subscriber: {
+          email_address: DONOR.email,
+          name: donor_name,
+          shipping_address: { address: donor_address },
+        },
+        billing_info: { next_billing_time: "2026-02-01T00:00:00.000Z" },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect_no_donor_pii();
+  });
+
+  it("keeps the payer out of the log of an unhandled event", async () => {
+    const res = await deliver({
+      id: "WH-2",
+      event_type: "PAYMENT.CAPTURE.REFUNDED",
+      resource: {
+        id: "REFUND-1",
+        payer: {
+          email_address: DONOR.email,
+          name: donor_name,
+          address: donor_address,
+        },
+      },
+    });
+
+    expect(res.status).toBe(201);
+    expect(await res.text()).toContain("event type not handled");
+    expect_no_donor_pii();
   });
 });
