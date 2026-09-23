@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react-router";
+import { DrizzleQueryError } from "drizzle-orm/errors";
 
 // user errors (4xx Responses, thrown data() with 4xx status) are expected and
 // must not page the team. only unexpected exceptions / 5xx bubble to sentry.
@@ -58,11 +59,54 @@ function is_apple_pay_insecure_parent(err: unknown): boolean {
   );
 }
 
+// pg/neon error fields that name schema, never row values. `detail` and
+// `message` are left behind: `Key (email)=(…) already exists` echoes the row.
+const PG_FIELDS = ["code", "constraint", "table", "column", "routine"] as const;
+
+/**
+ * a failed drizzle query's message ends in `params: …` — every bound value, a
+ * donor's email, name and address included — and its stack header repeats it.
+ * swapped for the query text plus the pg error's schema-only fields before
+ * anything reaches the console or sentry.
+ */
+function scrub_query_error(err: DrizzleQueryError): Error {
+  const scrubbed = new Error(`Failed query: ${err.query}`);
+  const header = `${err.name}: ${err.message}`;
+  if (err.stack?.startsWith(header)) {
+    scrubbed.stack = `Error: ${scrubbed.message}${err.stack.slice(header.length)}`;
+  }
+  const pg: unknown = err.cause;
+  if (pg && typeof pg === "object") {
+    for (const f of PG_FIELDS) {
+      if (f in pg)
+        Object.assign(scrubbed, { [f]: (pg as Record<string, unknown>)[f] });
+    }
+  }
+  return scrubbed;
+}
+
+// callers wrap: `new Error("…", { cause })`. the chain is copied down to the
+// query error rather than mutated — the caller may still rethrow its error.
+function scrub(error: unknown, seen = new Set<unknown>()): unknown {
+  if (error instanceof DrizzleQueryError) return scrub_query_error(error);
+  if (!(error instanceof Error) || seen.has(error)) return error;
+  seen.add(error);
+  const cause = scrub(error.cause, seen);
+  if (cause === error.cause) return error;
+  const copy: Error = Object.create(
+    Object.getPrototypeOf(error),
+    Object.getOwnPropertyDescriptors(error)
+  );
+  copy.cause = cause;
+  return copy;
+}
+
 function capture(
-  error: unknown,
+  raw: unknown,
   level: "error" | "warning",
   context?: Record<string, unknown>
 ): void {
+  const error = scrub(raw);
   if (level === "error") console.error(error, context);
   else console.warn(error, context);
   if (is_user_error(error)) return;

@@ -7,6 +7,8 @@ vi.mock("@sentry/react-router", () => ({
 
 const { report_error, report_unhandled } = await import("./report");
 const { HttpError } = await import("@/helpers/https");
+const { DrizzleQueryError } = await import("drizzle-orm/errors");
+let console_error: ReturnType<typeof vi.spyOn>;
 
 // the `report` tag IS the contract: `report:bug` is meant to read as a list of
 // our own bugs, so anything a third party throws that leaves the ui working has
@@ -83,5 +85,68 @@ describe("report_error", () => {
   test("reports a 5xx HttpError", () => {
     report_error(new HttpError(500, ""));
     expect(capture_exception).toHaveBeenCalledOnce();
+  });
+});
+
+// drizzle's DrizzleQueryError message ends in `params: …` — the bound values,
+// here a donor's email — and postgres' own `detail` echoes them again
+describe("report_error with a failed query", () => {
+  const email = "donor@example.com";
+  const query = 'update "donations" set "email" = $1 where "id" = $2';
+  const failed_query = () => {
+    const pg = Object.assign(
+      new Error(`duplicate key value violates unique constraint "don_email"`),
+      {
+        code: "23505",
+        constraint: "don_email",
+        table: "donations",
+        detail: `Key (email)=(${email}) already exists.`,
+      }
+    );
+    return new DrizzleQueryError(query, [email, "don-1"], pg);
+  };
+  const logged = () =>
+    JSON.stringify(
+      [console_error.mock.calls, capture_exception.mock.calls],
+      (_, v) =>
+        v instanceof Error
+          ? { ...v, message: v.message, stack: v.stack, cause: v.cause }
+          : v
+    );
+
+  beforeEach(() => {
+    capture_exception.mockClear();
+    console_error = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  test("keeps bound values out of the log and sentry", () => {
+    report_error(failed_query());
+    expect(capture_exception).toHaveBeenCalledOnce();
+    expect(logged()).not.toContain(email);
+    const sent = capture_exception.mock.calls[0]![0] as Error & {
+      code: unknown;
+      constraint: unknown;
+    };
+    expect(sent.message).toContain(query);
+    expect(sent.code).toBe("23505");
+    expect(sent.constraint).toBe("don_email");
+  });
+
+  test("scrubs a failed query wrapped as another error's cause", () => {
+    report_error(new Error("settle failed", { cause: failed_query() }));
+    expect(capture_exception).toHaveBeenCalledOnce();
+    expect(logged()).not.toContain(email);
+    const sent = capture_exception.mock.calls[0]![0] as Error;
+    expect(sent.message).toBe("settle failed");
+    const cause = sent.cause as Error & { code: unknown };
+    expect(cause.message).toContain(query);
+    expect(cause.code).toBe("23505");
+  });
+
+  test("reports any other error as thrown", () => {
+    const err = new Error("boom", { cause: new Error("inner") });
+    report_error(err);
+    expect(console_error.mock.calls[0]![0]).toBe(err);
+    expect(capture_exception.mock.calls[0]![0]).toBe(err);
   });
 });
