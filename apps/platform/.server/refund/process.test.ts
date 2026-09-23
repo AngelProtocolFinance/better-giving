@@ -303,3 +303,66 @@ describe("process_refund — concurrent runs", () => {
     expect(dist!.refund_error).toBeNull();
   });
 });
+
+describe("process_refund — a dist written mid-refund", () => {
+  async function seed_dist(
+    donation_id: string,
+    to_id: number | null,
+    amount = 100
+  ) {
+    await test_db.current!.db.insert(dists).values({
+      id: `dist-${donation_id}-${to_id}`,
+      donation_id,
+      status: "settled",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id,
+      to_name: "npo",
+      amount,
+      amount_denom: "USD",
+      net: amount,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      alloc: { liq: 100, lock: 0, cash: 0 },
+    });
+  }
+
+  test("a dist committed after the snapshot is reversed before the flip", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ liq: 1000, lock_units: 0, cash: 0 })
+      .where(eq(npos.id, npo_id));
+    // the caller's snapshot saw no dists; a stale settle_npo commits one after
+    const graphs = await dists_for_refund(id);
+    await seed_dist(id, npo_id);
+
+    const res = await process_refund(id, graphs, ctx);
+
+    expect(res.failures).toEqual([]);
+    expect(res.applied).toBe(1);
+    const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
+    expect(npo!.liq).toBe(900);
+    const [dist] = await db.select().from(dists);
+    expect(dist!.status).toBe("refunded");
+    expect(dist!.refund_status).toBe("completed");
+    expect((await dons())[0]!.status).toBe("refunded");
+  });
+
+  test("a straggler that fails to reverse leaves the donation settled", async () => {
+    const { id } = await seed({ event: false });
+    const graphs = await dists_for_refund(id);
+    // no npo to reverse against: the plan load throws
+    await seed_dist(id, null);
+
+    const res = await process_refund(id, graphs, ctx);
+
+    expect(res.failures).toHaveLength(1);
+    expect(report_error).toHaveBeenCalled();
+    const [dist] = await test_db.current!.db.select().from(dists);
+    expect(dist!.status).toBe("settled");
+    expect(dist!.refund_status).toBe("failed");
+    expect((await dons())[0]!.status).toBe("settled");
+  });
+});

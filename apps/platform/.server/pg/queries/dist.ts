@@ -315,6 +315,20 @@ export async function dist_refund_state_locked(tx: DbOrTx, id: string) {
   return row;
 }
 
+/** the donation's dists still settled, failed reversals included */
+export async function dists_settled_of(tx: DbOrTx, donation_id: string) {
+  return tx
+    .select({
+      id: dists.id,
+      status: dists.status,
+      refund_status: dists.refund_status,
+    })
+    .from(dists)
+    .where(
+      and(eq(dists.donation_id, donation_id), eq(dists.status, "settled"))
+    );
+}
+
 export async function dist_refund_update(
   db: DbOrTx,
   id: string,

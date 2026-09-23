@@ -17,7 +17,6 @@ import { rev_log_put } from "$/pg/queries/revenue";
 
 export async function settle_npo(db: DbOrTx, i: IInput) {
   // the payload's status can predate a refund; the row's is what counts.
-  // still open: a dist committed between the refund's dists_for_refund read and its status flip
   const status = await donation_status_shared(db, i.prnt.id);
   if (status && is_reversed(status)) {
     console.info(

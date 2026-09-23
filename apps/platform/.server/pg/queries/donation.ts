@@ -818,6 +818,15 @@ export async function donation_status_shared(
   return don?.status as IDonation["status"] | undefined;
 }
 
+/** row lock only: waits out a writer holding the row, blocks one arriving after */
+export async function donation_lock(tx: DbOrTx, id: string) {
+  await tx
+    .select({ id: donations.id })
+    .from(donations)
+    .where(eq(donations.id, id))
+    .for("update");
+}
+
 export async function donation_settle_state_locked(
   tx: DbOrTx,
   id: string
