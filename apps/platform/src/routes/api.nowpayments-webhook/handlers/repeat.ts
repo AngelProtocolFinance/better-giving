@@ -8,6 +8,7 @@ import type { NP } from "@/nowpayments/types";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
+import { donation_has_dists } from "$/pg/queries/dist";
 import {
   donation_by_sttl_id,
   donation_put_once,
@@ -37,18 +38,21 @@ export async function handle_repeat(
   const sttl_id = payment.payment_id.toString();
 
   // a clone's enqueue sits after its commit, so a delivery can leave some or
-  // all of its messages unsent; a redelivery re-sends them all. the dist is
-  // absorbed per destination by unique(donation_id, to_id) — a fund's split is
-  // recomputed on each run, so a member activated in between gets a share the
-  // first run didn't count — the receipt by its send claim.
+  // all of its messages unsent; a redelivery re-sends the receipt, absorbed by
+  // its send claim. the dist goes only while the clone has no dist row: a
+  // fund's split is recomputed on each run, so a member activated in between
+  // would get a share the first run didn't count.
   // a clone re-read after a lost put never passed `transition`, so it can be
   // one a refund reversed — re-sending would dist and receipt refunded money
   const requeue = async (own: IDonation | undefined) => {
     if (!own?.settlement) throw new Error(`clone ${sttl_id} not found`);
     if (is_reversed(own.status)) return log(`reversed prior:${own.status}`);
-    await enqueue(
-      ...settle_msgs({ ...own, settlement: own.settlement }, { match: false })
-    );
+    const distributed = await donation_has_dists(own.id);
+    const msgs = settle_msgs(
+      { ...own, settlement: own.settlement },
+      { match: false }
+    ).filter((m) => !(distributed && m.id === "don-sttl-dist"));
+    await enqueue(...msgs);
     log("already settled");
   };
 

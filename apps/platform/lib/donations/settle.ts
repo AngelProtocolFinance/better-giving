@@ -82,8 +82,10 @@ export function is_reversed(status: IDonation["status"]): boolean {
  * fired computes them again for the row a previous delivery already wrote —
  * the enqueue happens after the commit, so a delivery can leave a settled
  * donation whose msgs never went out, and the redelivery is the only thing
- * left that can send them. every kind here absorbs a duplicate downstream, so
- * re-sending is cheap and dropping is not.
+ * left that can send them. every kind here but the dist absorbs a duplicate
+ * downstream, so re-sending is cheap and dropping is not. the dist is absorbed
+ * per destination only: a fund's split is recomputed on each run, so a member
+ * activated since the first run gets a fresh share.
  *
  * `match` is the caller's call rather than something read off the row: it is
  * false for a rebill and true for the charge that opened the subscription, and
