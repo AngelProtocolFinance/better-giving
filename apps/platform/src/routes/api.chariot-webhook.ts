@@ -34,7 +34,10 @@ export async function action({ request }: Route.ActionArgs) {
     const payload = JSON.parse(body);
     // https://docs.givechariot.com/api/webhooks
     const grant = await chariot.get_grant(payload.associated_object_id);
-    console.info(payload, grant);
+    // grant carries donor name, email, phone, address — log ids/status only
+    console.info(
+      `[chariot webhook] received: ${payload.category} grant ${grant.id} status ${grant.status}`
+    );
     const { don_id } = grant.metadata as unknown as ChariotMetadata;
 
     if (grant.status === "Canceled") {
