@@ -29,6 +29,10 @@ interface Props extends Base {
   placeholder?: string;
   classes?: Classes | string;
   label: string | ReactElement;
+  /** help text under the label. a string empty after trim counts as absent;
+   * any other truthy value counts as present, so a ReactNode must render
+   * text — one that renders nothing leaves the control described by an empty
+   * node. */
   sub?: ReactNode;
   required?: boolean; // extract to disable native validation
   onChange: (val: string) => void;
@@ -42,17 +46,18 @@ interface Props extends Base {
   ref?: React.Ref<El>;
 }
 
-export function MaskedInput(props: Props) {
+export function MaskedInput({ sub, ...props }: Props) {
   // extract `required` to disable native validation
   const style = unpack(props.classes);
   const errorId = `error_${props.id}`;
   const subId = `sub_${props.id}`;
+  const has_sub = typeof sub === "string" ? sub.trim() !== "" : !!sub;
 
   // every piece of help text on screen for this render, in reading order. the
   // error joins the list rather than standing in for it — a reader that hears
   // only the error loses the guidance that would fix it.
   const described =
-    [props.sub ? subId : undefined, props.error ? errorId : undefined]
+    [has_sub ? subId : undefined, props.error ? errorId : undefined]
       .filter(Boolean)
       .join(" ") || undefined;
 
@@ -120,21 +125,21 @@ export function MaskedInput(props: Props) {
     <div className={`${style.container} `}>
       <label
         data-required={props.required}
-        className={`${style.label} label ${props.sub ? "" : "mb-2"}`}
+        className={`${style.label} label ${has_sub ? "" : "mb-2"}`}
         htmlFor={props.id}
       >
         {props.label}
       </label>
-      {props.sub ? (
-        typeof props.sub === "string" ? (
+      {has_sub ? (
+        typeof sub === "string" ? (
           <p id={subId} className="text-gray-11 text-sm mb-2">
-            {props.sub}
+            {sub}
           </p>
         ) : (
           // `sub` is a ReactNode and callers pass block markup, so the wrapper
           // has to hold it — inside a span that is invalid nesting the browser
           // is free to restructure, carrying the content out from under the id
-          <div id={subId}>{props.sub}</div>
+          <div id={subId}>{sub}</div>
         )
       ) : null}
 
@@ -154,8 +159,8 @@ export function MaskedInput(props: Props) {
         // see `field.tsx`: the errormessage relationship is the correct one and
         // the describedby is the one every screen reader reads
         aria-errormessage={errorId}
-        // absent when nothing is rendered to describe, so no empty node is
-        // announced
+        // absent when no help text is present — a ReactNode `sub` is taken at
+        // its word (see the prop)
         aria-describedby={described}
         className={`${style.input} field-input`}
         autoComplete="off"

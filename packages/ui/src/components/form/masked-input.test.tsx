@@ -363,6 +363,23 @@ describe("MaskedInput: error announcement", () => {
     await expect.element(input).toHaveAccessibleDescription("");
   });
 
+  it("treats a whitespace-only sub as absent: no note, nothing described", async () => {
+    const screen = await render(
+      <MaskedInput
+        id="ein"
+        label="EIN"
+        mask={ein}
+        value=""
+        onChange={() => {}}
+        sub="   "
+      />
+    );
+
+    const input = screen.getByLabelText("EIN");
+    expect(input.element().getAttribute("aria-describedby")).toBe(null);
+    expect(document.getElementById("sub_ein")).toBe(null);
+  });
+
   it("names a string sub as the input's description", async () => {
     const screen = await render(
       <MaskedInput
