@@ -9,7 +9,6 @@ import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { donation_has_dists } from "$/pg/queries/dist";
 import {
   donation_by_sttl_id,
   donation_settle_state_locked,
@@ -24,7 +23,7 @@ import { transition } from "../status";
 
 export type SettleOutcome =
   | { op: "settled"; id: string; late: boolean }
-  /** this payment already settled the row; its messages were queued again unless it distributed */
+  /** this payment already settled the row; its messages were queued again */
   | { op: "duplicate"; id: string }
   /** the row is closed under another outcome; nothing written */
   | { op: "refused"; id: string }
@@ -58,14 +57,20 @@ const settle_blocked = (
 
 /**
  * the enqueue sits after the commit, so a delivery can leave a settled row
- * whose messages never went out; a redelivery re-sends them. dist rows mean
- * they landed — the receipt queued beside them has no guard past the queue's
- * dedupe window, so nothing goes out again.
+ * whose messages never went out, or only some of them; the delivery that finds
+ * the row settled re-sends them all. a duplicate is absorbed per destination
+ * by unique(donation_id, to_id) — a fund's split is recomputed on each run, so
+ * a member activated in between gets a share the first run didn't count — the
+ * match event by its unique donation_id, the receipt by its send claim.
+ *
+ * `row` was read `settled`: `transition` answers `duplicate` on no other
+ * status. a refund can still commit between that read and the enqueue, so the
+ * consumers re-check the row — `settle_npo` and `claim_receipt_send` skip a
+ * reversed donation.
  */
 const requeue = async (row: IDonation | undefined) => {
   if (!row?.settlement)
     throw new Error("duplicate settle without a settlement");
-  if (await donation_has_dists(row.id)) return;
   await enqueue(
     ...settle_msgs({ ...row, settlement: row.settlement }, { match: true })
   );
