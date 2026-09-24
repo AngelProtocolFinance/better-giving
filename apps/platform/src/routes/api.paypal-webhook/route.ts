@@ -379,13 +379,14 @@ export async function action({ request }: Route.ActionArgs) {
           return new Response("already processed", { status: 200 });
         }
 
-        if (!b?.net_amount || !b.paypal_fee)
-          return unroutable(ev, `missing breakdown for capture ${cid}`);
+        if (!b?.gross_amount)
+          return unroutable(ev, `missing gross amount for capture ${cid}`);
 
+        // only gross_amount is required in the breakdown; fee and net may be absent
         const settled = ((r): ISettlement => {
-          const n = b.net_amount.value;
-          const p = b.paypal_fee.value;
-          const c = b.net_amount.currency_code;
+          const p = b.paypal_fee?.value ?? 0;
+          const n = b.net_amount?.value ?? +b.gross_amount.value - +p;
+          const c = b.net_amount?.currency_code ?? b.gross_amount.currency_code;
           if (r) {
             return { net: +n * +r, fee: +p * +r, c };
           }
@@ -511,17 +512,13 @@ export async function action({ request }: Route.ActionArgs) {
           return new Response("already processed", { status: 200 });
         }
 
-        const tf = transaction_fee?.value;
-        // receivable_amount only present on currency conversions
-        const net =
-          receivable_amount?.value ??
-          (sale_amount?.total && tf
-            ? String(+sale_amount.total - +tf)
-            : undefined);
-        const cur = receivable_amount?.currency ?? sale_amount?.currency;
+        if (!sale_amount?.total)
+          return unroutable(ev, `missing total for sale: ${sale_id}`);
 
-        if (!net || !tf || !cur)
-          return unroutable(ev, `missing amounts for sale: ${sale_id}`);
+        const tf = transaction_fee?.value ?? 0;
+        // receivable_amount only present on currency conversions
+        const net = receivable_amount?.value ?? +sale_amount.total - +tf;
+        const cur = receivable_amount?.currency ?? sale_amount.currency;
 
         const settled: ISettlement = {
           net: +net,

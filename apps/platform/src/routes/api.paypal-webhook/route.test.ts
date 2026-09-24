@@ -124,6 +124,7 @@ const capture_ev = () => ({
     create_time: "2026-01-02T00:00:00.000Z",
     custom_id: ORDER_ID,
     seller_receivable_breakdown: {
+      gross_amount: { value: "100", currency_code: "USD" },
       net_amount: { value: "96.5", currency_code: "USD" },
       paypal_fee: { value: "3.5" },
     },
@@ -313,6 +314,24 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
     expect(res.status).toBe(200);
     expect(all_kinds()).toContain("don-sttl-receipt");
   });
+
+  it("settles a capture paypal charged no fee at its gross", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: CAPTURE_ID, net: 100, fee: 0 }),
+    ]);
+  });
 });
 
 describe("PAYMENT.SALE.COMPLETED", () => {
@@ -376,6 +395,19 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
   });
 
+  it("settles a sale paypal charged no fee at its total", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { transaction_fee: _, ...resource } = sale_ev().resource;
+
+    const res = await deliver({ ...sale_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 100, fee: 0 }),
+    ]);
+  });
+
   it("settles one first-recurring sale once when two deliveries race", async () => {
     await seed_donation({ frequency: "monthly" });
 
@@ -402,6 +434,24 @@ describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no donation id", async () => {
     await seed_donation();
     const { custom_id: _, ...resource } = capture_ev().resource;
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports a capture with no gross amount", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        net_amount: { value: "96.5", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+      },
+    };
 
     const res = await deliver({ ...capture_ev(), resource });
 
