@@ -238,23 +238,46 @@ const CERT_FETCH_TIMEOUT_MS = 5_000;
 const cert_cache = new Map<string, crypto.X509Certificate>();
 /** throws on anything but paypal's current signing cert, caching only that */
 async function download_and_cache_cert(
-  cert_url: string
+  cert_url: URL
 ): Promise<crypto.X509Certificate> {
-  const cached = cert_cache.get(cert_url);
+  const cached = cert_cache.get(cert_url.href);
   if (cached && is_current(cached)) return cached;
-  cert_cache.delete(cert_url);
+  cert_cache.delete(cert_url.href);
+  // the allowlist vetted this url only; a followed redirect would fetch the key
+  // from wherever the hop points
   const res = await fetch(cert_url, {
+    redirect: "error",
     signal: AbortSignal.timeout(CERT_FETCH_TIMEOUT_MS),
   });
-  if (!res.ok) throw res;
+  // neither the Response nor an error with a `status` prop: report_error keeps
+  // a 4xx of either out of sentry, and a 403/404 here drops every event
+  if (!res.ok)
+    throw new Error(
+      `[paypal webhook] cert host ${cert_url.host} answered ${res.status}`
+    );
   const cert = new crypto.X509Certificate(await res.text());
   if (!is_paypal_signing_cert(cert))
     throw new Error("[paypal webhook] cert is not paypal's signing cert");
   if (!is_current(cert))
     throw new Error("[paypal webhook] paypal's signing cert is not current");
-  cert_cache.set(cert_url, cert);
+  cert_cache.set(cert_url.href, cert);
   return cert;
 }
+
+/** the id and type off a body whose signature failed — anyone's input, so
+ * nothing else of it is read */
+const unverified_event_ref = (body: string) => {
+  const ev = ((): { id?: unknown; event_type?: unknown } => {
+    try {
+      const v: unknown = JSON.parse(body);
+      return v && typeof v === "object" ? v : {};
+    } catch {
+      return {};
+    }
+  })();
+  const str = (v: unknown) => (typeof v === "string" ? v : null);
+  return { event_id: str(ev.id), event_type: str(ev.event_type) };
+};
 
 type VerifyResult =
   | { error: true; status: number; message: string; body?: undefined }
@@ -309,33 +332,28 @@ async function verified_body(
       crc_body,
     ].join("|");
 
-    const cert = await download_and_cache_cert(cert_url.href).catch(
-      (error: unknown) => {
-        report_error(error);
-        return null;
-      }
-    );
-    // a cert paypal's host failed to serve says nothing about the event; a
-    // non-2xx keeps paypal redelivering it
-    if (cert === null)
-      return { error: true, status: 503, message: "cert unavailable" };
-
+    const cert = await download_and_cache_cert(cert_url);
     const verifier = crypto.createVerify("SHA256");
     verifier.update(message);
 
     const signature_buffer = Buffer.from(signature, "base64");
     const is_valid = verifier.verify(cert.publicKey, signature_buffer);
-    if (!is_valid)
+    // still a 2xx: no retry makes a forged signature verify. reported because
+    // paypal's own events land here too when our webhook id or crc is wrong
+    if (!is_valid) {
+      report_error(new Error("[paypal webhook] signature does not verify"), {
+        ...unverified_event_ref(body),
+        cert_host: cert_url.host,
+      });
       return { error: true, status: 201, message: "invalid signature" };
+    }
 
     return { error: false, body };
   } catch (error) {
+    // a cert paypal's host failed to serve, or a key this code can't verify
+    // with, says nothing about the event; a non-2xx keeps paypal redelivering it
     report_error(error);
-    return {
-      error: true,
-      status: 201,
-      message: "signature verification error",
-    };
+    return { error: true, status: 503, message: "signature unverifiable" };
   }
 }
 
