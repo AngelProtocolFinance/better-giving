@@ -3,6 +3,7 @@ import { target } from "#/components/goal-selector";
 import { img_output } from "#/components/img-editor";
 import { video } from "#/pages/funds/common/videos";
 import { richtext_content } from "#/types/components";
+import { fund_is_open } from "@/fundraiser/is-open";
 import { increment, MAX_NUM_INCREMENTS } from "@/schemas";
 
 const str = v.pipe(v.string("required"), v.trim());
@@ -35,8 +36,12 @@ export const schema = v.object({
         str,
         v.transform((val) => new Date(val)),
         v.date("invalid date"),
-        v.minValue(new Date(), "must be in the future"),
-        v.transform((val) => val.toISOString())
+        v.transform((val) => val.toISOString()),
+        // open anywhere on earth, so the submitter's today passes in every zone
+        v.check(
+          (iso) => fund_is_open({ active: true, expiration: iso }, new Date()),
+          "must be today or later"
+        )
       );
     })
   ),

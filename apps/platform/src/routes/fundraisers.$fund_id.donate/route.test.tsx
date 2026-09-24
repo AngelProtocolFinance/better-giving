@@ -41,8 +41,10 @@ import { create_test_db } from "$/pg/test-utils/pglite";
 import { loader } from "./api";
 import DonatePage from "./route";
 
-// midday utc, so "earlier today" and "later today" share the utc date
+// the closing instant of a Sep 22 end date: Sep 22 has just ended in UTC-12
 const NOW = new Date("2027-09-23T12:00:00.000Z");
+const ms_before = (d: Date, ms: number) => new Date(d.getTime() - ms);
+const DAY_MS = 86_400_000;
 const closed_notice = /this fundraiser is already closed/i;
 
 let creator_id: string;
@@ -65,7 +67,11 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function open_donate_page(expiration: string | null) {
+/** `server` is the clock the loader runs on, `browser` the one the page renders on */
+async function open_donate_page(
+  expiration: string | null,
+  { server = NOW, browser = server }: { server?: Date; browser?: Date } = {}
+) {
   const fund = await seed_fund(test_db.current!.db, {
     id: crypto.randomUUID(),
     npo_owner: npo_id,
@@ -73,13 +79,17 @@ async function open_donate_page(expiration: string | null) {
     members: [npo_id],
     expiration,
   });
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(NOW);
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   const Stub = createRoutesStub([
     {
       path: "/fundraisers/:fund_id/donate",
       Component: DonatePage as any,
-      loader: loader as any,
+      loader: async (args: any) => {
+        vi.setSystemTime(server);
+        const data = await loader(args);
+        vi.setSystemTime(browser);
+        return data;
+      },
       HydrateFallback: () => null,
     },
   ]);
@@ -87,14 +97,14 @@ async function open_donate_page(expiration: string | null) {
 }
 
 describe("fundraiser donate page", () => {
-  test("takes donations from a fund expiring later today", async () => {
-    const screen = await open_donate_page("2027-09-23T18:00:00.000Z");
+  test("takes donations on its end date after that date began in UTC", async () => {
+    const screen = await open_donate_page("2027-09-23T00:00:00.000Z");
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
     expect(screen.getByText(closed_notice).query()).toBeNull();
   });
 
-  test("is closed for a fund that expired earlier today", async () => {
-    const screen = await open_donate_page("2027-09-23T06:00:00.000Z");
+  test("is closed once its end date has ended everywhere", async () => {
+    const screen = await open_donate_page("2027-09-22T00:00:00.000Z");
     await expect.element(screen.getByText(closed_notice)).toBeVisible();
     expect(screen.getByTestId("donate-methods").query()).toBeNull();
   });
@@ -112,9 +122,38 @@ describe("fundraiser donate page", () => {
     expect(screen.getByText(closed_notice).query()).toBeNull();
   });
 
-  test("takes donations from a fund expiring microseconds from now", async () => {
-    const screen = await open_donate_page("2027-09-23T12:00:00.000003Z");
+  test("reads an expiration stored with microsecond precision", async () => {
+    const screen = await open_donate_page("2027-09-22T23:59:59.999999Z", {
+      server: ms_before(NOW, 1),
+    });
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
     expect(screen.getByText(closed_notice).query()).toBeNull();
+  });
+
+  test("is closed by the server's clock when the browser's runs behind", async () => {
+    const screen = await open_donate_page("2027-09-22T00:00:00.000Z", {
+      browser: ms_before(NOW, DAY_MS),
+    });
+    await expect.element(screen.getByText(closed_notice)).toBeVisible();
+    expect(screen.getByTestId("donate-methods").query()).toBeNull();
+  });
+
+  test("closes once mounted when served from before closing to a browser past it", async () => {
+    const screen = await open_donate_page("2027-09-22T00:00:00.000Z", {
+      server: ms_before(NOW, 1),
+      browser: NOW,
+    });
+    await expect.element(screen.getByText(closed_notice)).toBeVisible();
+    expect(screen.getByTestId("donate-methods").query()).toBeNull();
+  });
+
+  test("closes without a reload once the closing instant passes", async () => {
+    const screen = await open_donate_page("2027-09-22T00:00:00.000Z", {
+      server: ms_before(NOW, 1),
+    });
+    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect.element(screen.getByText(closed_notice)).toBeVisible();
+    expect(screen.getByTestId("donate-methods").query()).toBeNull();
   });
 });

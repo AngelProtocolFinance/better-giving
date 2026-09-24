@@ -237,6 +237,12 @@ const fund_select = {
   donation_total_usd: sql<number>`COALESCE(${v_donation_total_usd.total}, 0)`,
 };
 
+// open through the end of its end date (the utc date of `expiration`) in
+// utc−12, i.e. while NOW() < that date + 36h. same instant as `fund_is_open`.
+// written as the equivalent bound "end date >= today in utc−12", so the
+// column stays bare and the session time zone never enters.
+const fund_is_open_sql = sql`(${funds.expiration} IS NULL OR ${funds.expiration} >= (date_trunc('day', (NOW() AT TIME ZONE 'UTC') - interval '12 hours') AT TIME ZONE 'UTC'))`;
+
 // pg_trgm fuzzy search
 export async function fund_search(
   params: IFundsSearchObj
@@ -246,7 +252,7 @@ export async function fund_search(
   const conditions: SQL[] = [
     eq(funds.active, true),
     eq(funds.published, true),
-    sql`(${funds.expiration} IS NULL OR ${funds.expiration} >= NOW())`,
+    fund_is_open_sql,
   ];
 
   if (q) {
@@ -310,7 +316,7 @@ export async function fund_npo_memberof(
     conditions.push(
       eq(funds.published, true),
       eq(funds.active, true),
-      sql`(${funds.expiration} IS NULL OR ${funds.expiration} >= NOW())`
+      fund_is_open_sql
     );
   }
 

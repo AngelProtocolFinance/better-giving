@@ -48,13 +48,7 @@ const fund_new = object({
     maxLength(10)
   ),
   published: boolean(),
-  expiration: optional(
-    pipe(
-      $,
-      isoTimestamp("invalid date"),
-      minValue(new Date().toISOString()) //created each parsing
-    )
-  ),
+  expiration: optional(pipe($, isoTimestamp("invalid date"))),
   /** `"0"` - none, {"number"} = fixed */
   target: target,
   videos: array(pipe($, url())),

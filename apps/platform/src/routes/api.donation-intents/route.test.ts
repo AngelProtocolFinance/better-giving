@@ -219,9 +219,9 @@ describe("api.donation-intents action", () => {
         vi.useRealTimers();
       });
 
-      it("refuses a fund that expired a millisecond before the request", async () => {
+      it("refuses a fund whose end date ended everywhere at the request", async () => {
         fund_get_mock.mockResolvedValueOnce(
-          fund_row({ active: true, expiration: "2099-06-15T11:59:59.999Z" })
+          fund_row({ active: true, expiration: "2099-06-14T00:00:00.000Z" })
         );
         const res = await invoke(post(fund_body()));
 
@@ -229,9 +229,10 @@ describe("api.donation-intents action", () => {
         expect(stripe_intent_mock).not.toHaveBeenCalled();
       });
 
-      it("accepts a fund that expires a millisecond after the request", async () => {
+      it("accepts a fund whose end date ends everywhere a millisecond after the request", async () => {
+        vi.setSystemTime(new Date("2099-06-15T11:59:59.999Z"));
         fund_get_mock.mockResolvedValueOnce(
-          fund_row({ active: true, expiration: "2099-06-15T12:00:00.001Z" })
+          fund_row({ active: true, expiration: "2099-06-14T00:00:00.000Z" })
         );
         stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
         const res = await invoke(post(fund_body()));

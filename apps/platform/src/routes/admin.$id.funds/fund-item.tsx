@@ -8,6 +8,7 @@ import {
   status_fn,
 } from "#/components/fundraiser";
 import type { IFundItem } from "@/fundraiser";
+import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface Props extends IFundItem {
   isSelf: boolean;
@@ -15,8 +16,10 @@ interface Props extends IFundItem {
 }
 export const FundItem = (props: Props) => {
   const fetcher = useFetcher({ key: `fund-${props.id}` });
+  // the list query sends the max-expiration sentinel for a fund with no end date
+  const has_end = props.expiration * 1000 < Date.parse(MAX_EXPIRATION_ISO);
   const status = status_fn(
-    fromUnixTime(props.expiration).toISOString(),
+    has_end ? fromUnixTime(props.expiration).toISOString() : undefined,
     props.active,
     props.donation_total_usd
   );

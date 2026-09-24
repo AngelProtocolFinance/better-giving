@@ -11,6 +11,8 @@ import type { Route } from "./+types/route";
 export interface LoaderData {
   user: AuthUser | undefined;
   fund: IFund;
+  /** the request's time as ISO, so server and client first render one state */
+  now: string;
   base_url: string;
 }
 
@@ -27,6 +29,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   return {
     user,
     fund,
+    now: new Date().toISOString(),
     base_url: new URL(request.url).origin,
   } satisfies LoaderData;
 };

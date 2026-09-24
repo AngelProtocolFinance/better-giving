@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fund_is_open } from "./is-open";
+import { fund_closes_at, fund_is_open } from "./is-open";
 
 const now = new Date("2027-09-23T12:00:00.000Z");
 
@@ -14,19 +14,34 @@ describe("fund_is_open", () => {
     expect(fund_is_open(f, now)).toBe(false);
   });
 
-  test("closes once its expiration has passed", () => {
-    const f = { active: true, expiration: "2027-09-23T11:59:59.999Z" };
-    expect(fund_is_open(f, now)).toBe(false);
-  });
+  describe("an end date of Oct 1, stored as midnight UTC", () => {
+    const f = { active: true, expiration: "2027-10-01T00:00:00.000Z" };
 
-  test("stays open while its expiration is still ahead", () => {
-    const f = { active: true, expiration: "2027-09-23T12:00:00.001Z" };
-    expect(fund_is_open(f, now)).toBe(true);
-  });
+    test("is open late on Oct 1 in Pacific time", () => {
+      expect(fund_is_open(f, new Date("2027-10-02T06:00:00.000Z"))).toBe(true);
+    });
 
-  test("a microsecond-precision expiration just after now is open", () => {
-    // "…00.000003Z" sorts below "…00.000Z" as text
-    const f = { active: true, expiration: "2027-09-23T12:00:00.000003Z" };
-    expect(fund_is_open(f, now)).toBe(true);
+    test("is open until Oct 1 has ended in UTC-12", () => {
+      expect(fund_is_open(f, new Date("2027-10-02T11:59:59.999Z"))).toBe(true);
+    });
+
+    test("closes once Oct 1 has ended everywhere", () => {
+      expect(fund_is_open(f, new Date("2027-10-02T12:00:00.000Z"))).toBe(false);
+    });
   });
+});
+
+describe("fund_closes_at", () => {
+  test.each([
+    ["midnight", "2027-10-01T00:00:00.000Z"],
+    ["a time of day", "2027-10-01T15:00:00.000Z"],
+    ["the last microsecond of the day", "2027-10-01T23:59:59.999999Z"],
+  ])(
+    "an Oct 1 expiration stored at %s closes when Oct 1 has ended everywhere",
+    (_, expiration) => {
+      expect(fund_closes_at(expiration).toISOString()).toBe(
+        "2027-10-02T12:00:00.000Z"
+      );
+    }
+  );
 });
