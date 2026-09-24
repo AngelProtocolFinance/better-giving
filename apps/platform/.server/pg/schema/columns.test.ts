@@ -1,15 +1,17 @@
 import { PGlite } from "@electric-sql/pglite";
+import { sql } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import {
-  afterEach,
+  afterAll,
+  beforeAll,
   beforeEach,
   describe,
   expect,
   onTestFinished,
   test,
 } from "vitest";
-import { timestamp_as_iso } from "./columns";
+import { pg_text_to_iso, timestamp_as_iso } from "./columns";
 
 const stamps = pgTable("stamps", {
   id: text("id").primaryKey(),
@@ -20,7 +22,7 @@ const stamps = pgTable("stamps", {
 let client: PGlite;
 let db: ReturnType<typeof drizzle>;
 
-beforeEach(async () => {
+beforeAll(async () => {
   client = new PGlite();
   await client.exec(
     "create table stamps (id text primary key, tz timestamptz, bare timestamp)"
@@ -28,8 +30,12 @@ beforeEach(async () => {
   db = drizzle(client);
 });
 
-afterEach(async () => {
+afterAll(async () => {
   await client.close();
+});
+
+beforeEach(async () => {
+  await client.exec("set time zone 'UTC'; truncate stamps");
 });
 
 describe("timestamp_as_iso", () => {
@@ -50,12 +56,43 @@ describe("timestamp_as_iso", () => {
     expect(row.tz).toBe("2027-09-23T12:55:37.123456Z");
   });
 
-  test("keeps the microseconds postgres stores", async () => {
-    await client.exec(
-      "insert into stamps (id, tz) values ('a', '2027-09-23 12:55:37.123456+00')"
-    );
+  test("reads a negative whole-hour session offset as the same instant", async () => {
+    await client.exec(`
+      set time zone 'America/Los_Angeles';
+      insert into stamps (id, tz) values
+        ('winter', '2027-01-15 12:00:00.1234+00'),
+        ('summer', '2027-07-15 12:00:00.12345+00');
+    `);
+    const rows = await db.select().from(stamps).orderBy(stamps.id);
+    expect(rows.map((r) => r.tz)).toEqual([
+      "2027-07-15T12:00:00.12345Z",
+      "2027-01-15T12:00:00.1234Z",
+    ]);
+  });
+
+  test("reads a +05:45 session offset as the same instant", async () => {
+    await client.exec(`
+      set time zone 'Asia/Kathmandu';
+      insert into stamps (id, tz) values ('a', '2027-09-23 12:55:37+00');
+    `);
     const [row] = await db.select().from(stamps);
-    expect(row.tz).toBe("2027-09-23T12:55:37.123456Z");
+    expect(row.tz).toBe("2027-09-23T12:55:37.000Z");
+  });
+
+  test("a timestamptz inside json decodes through the same normalizer", async () => {
+    await client.exec(`
+      set time zone 'America/Los_Angeles';
+      insert into stamps (id, tz) values ('a', '2027-09-23 12:55:37.1234+00');
+    `);
+    const [row] = await db
+      .select({ j: sql<{ tz: string }>`json_build_object('tz', ${stamps.tz})` })
+      .from(stamps);
+    expect(pg_text_to_iso(row.j.tz)).toBe("2027-09-23T12:55:37.1234Z");
+  });
+
+  test("a Date from the driver degrades to millisecond ISO", () => {
+    const at = new Date("2027-09-23T12:55:37.123Z");
+    expect(stamps.tz.mapFromDriverValue(at)).toBe("2027-09-23T12:55:37.123Z");
   });
 
   test("pads a short fraction to milliseconds", async () => {

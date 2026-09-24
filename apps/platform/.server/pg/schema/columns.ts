@@ -25,9 +25,11 @@ export const numeric_as_number = customType<{
 // driver hands over postgres text ("2027-09-23 12:55:37.123456+05:30"), never a
 // Date. ' ' < 'T', so that text string-compares wrong against toISOString().
 // the fraction bypasses Date, which would cut microseconds and break keyset
-// cursors fed back as `created_at < cursor`; padded to 3 so the common case
-// stays byte-identical to toISOString().
-const pg_text_to_iso = (pg: string): string => {
+// cursors fed back as `created_at < cursor`. output carries 3–6 fraction digits
+// (postgres trims trailing zeros; padded to 3), so a string compare only orders
+// values that differ at the millisecond — compare instants for ordering.
+// also reads json's timestamptz form ("2027-09-23T12:55:37.123456+05:30").
+export const pg_text_to_iso = (pg: string): string => {
   const iso = pg.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00");
   const fraction = iso.match(/\.(\d+)/)?.[1] ?? "";
   const whole = iso.replace(/\.\d+/, "");
@@ -39,13 +41,15 @@ const pg_text_to_iso = (pg: string): string => {
 // domain interfaces expect a full ISO-8601 UTC string, as Date.toISOString() writes it.
 export const timestamp_as_iso = customType<{
   data: string;
-  driverData: string;
+  driverData: string | Date;
   config: { withTimezone?: boolean };
 }>({
   dataType(config) {
     return config?.withTimezone ? "timestamptz" : "timestamp";
   },
-  fromDriver(value: string): string {
+  fromDriver(value: string | Date): string {
+    // a driver whose parser override is gone hands over a Date: ms precision, but no throw
+    if (value instanceof Date) return value.toISOString();
     return pg_text_to_iso(value);
   },
   toDriver(value: string | Date): string {

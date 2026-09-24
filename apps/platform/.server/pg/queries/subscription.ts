@@ -7,6 +7,7 @@ import {
   type TStatus,
 } from "@/subscriptions";
 import { db } from "../db";
+import { pg_text_to_iso } from "../schema/columns";
 import { dists } from "../schema/dist";
 import {
   donation_donors,
@@ -120,7 +121,9 @@ export async function npo_subscriptions(
   const rows = await db
     .select({
       from_id: subscriptions.from_id,
-      since: sql<string>`min(${subscriptions.created_at})`,
+      since: sql`min(${subscriptions.created_at})`.mapWith(
+        subscriptions.created_at
+      ),
       active_count: sql<number>`count(*) filter (where ${subscriptions.status} = 'active')::int`,
       has_inactive: sql<boolean>`bool_or(${subscriptions.status} = 'inactive')`,
       monthly_usd: sql<number>`coalesce(sum(
@@ -138,9 +141,10 @@ export async function npo_subscriptions(
       sub_ids: sql<
         string[]
       >`array_agg(${subscriptions.id} order by ${subscriptions.created_at})`,
-      next_billing: sql<
-        string | null
-      >`min(${subscriptions.next_billing}) filter (where ${subscriptions.status} = 'active')`,
+      next_billing:
+        sql`min(${subscriptions.next_billing}) filter (where ${subscriptions.status} = 'active')`
+          .mapWith(subscriptions.next_billing)
+          .as<string | null>(),
       subs: sql<INpoSubDetail[]>`json_agg(json_build_object(
         'id', ${subscriptions.id},
         'amount_usd', ${subscriptions.amount_usd}::float8,
@@ -190,7 +194,11 @@ export async function npo_subscriptions(
     has_inactive: r.has_inactive,
     sub_ids: r.sub_ids,
     next_billing: r.next_billing,
-    subs: r.subs,
+    // json_agg bypasses column decoders
+    subs: r.subs.map((s) => ({
+      ...s,
+      next_billing: pg_text_to_iso(s.next_billing),
+    })),
   }));
 
   return {
