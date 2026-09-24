@@ -40,6 +40,12 @@ const fields = [
   }),
   field({ key: "sortCode", name: "Sort code", example: "40-30-20" }),
   field({ key: "accountNumber", name: "Account number", example: "12345678" }),
+  field({
+    key: "dateOfBirth",
+    name: "Date of birth",
+    example: "1990-01-31",
+    type: "date",
+  }),
 ];
 
 function FormButtons({ disabled }: FormButtonsProps) {
@@ -139,10 +145,15 @@ describe("RecipientDetailsForm", () => {
     const sort_code = screen.getByPlaceholder("40-30-20");
     await expect.element(sort_code).toHaveFocus();
     await expect.element(sort_code).toHaveAttribute("aria-invalid", "true");
-    await expect.element(screen.getByText("invalid sortCode")).toBeVisible();
     await expect
-      .element(screen.getByText("invalid accountNumber"))
-      .toBeVisible();
+      .element(sort_code)
+      .toHaveAccessibleDescription("invalid sortCode");
+    await expect
+      .element(screen.getByPlaceholder("12345678"))
+      .toHaveAccessibleDescription("invalid accountNumber");
+    await expect
+      .element(screen.getByPlaceholder("Jane Doe"))
+      .not.toHaveAttribute("aria-describedby");
 
     // the click focuses the button once; a second entry is the fieldset
     // handing focus back, announced before the field takes it
@@ -160,8 +171,30 @@ describe("RecipientDetailsForm", () => {
 
     const trigger = screen.getByRole("combobox");
     await expect.element(trigger).toHaveFocus();
-    await expect.element(screen.getByText("invalid accountType")).toBeVisible();
+    await expect.element(trigger).toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(trigger)
+      .toHaveAccessibleDescription("invalid accountType");
+    expect(screen.getByText("invalid accountType").elements()).toHaveLength(1);
     expect(await focus.settle()).toEqual(["Continue", "combobox"]);
+  });
+
+  test("a refusal naming a date field lands focus on it, described by Wise's message", async () => {
+    refuse("dateOfBirth");
+    const { screen } = await render_form();
+    await fill_all(screen);
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    const dob = screen.getByPlaceholder("1990-01-31");
+    await expect.element(dob).toHaveFocus();
+    await expect.element(dob).toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(dob)
+      .toHaveAccessibleDescription("invalid dateOfBirth");
+    await expect
+      .element(screen.getByPlaceholder("40-30-20"))
+      .not.toHaveAttribute("aria-describedby");
   });
 
   test("a required field left empty takes focus without handing it back to the submit button first", async () => {

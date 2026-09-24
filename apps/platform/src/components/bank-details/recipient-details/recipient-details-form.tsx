@@ -8,7 +8,7 @@ import {
 } from "@better-giving/ui";
 import { fileOutput } from "@better-giving/ui/helpers";
 import { ErrorMessage } from "@hookform/error-message";
-import { type RefObject, useLayoutEffect, useRef } from "react";
+import { type RefObject, useId, useLayoutEffect, useRef } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
 import { report_error } from "#/errors/report";
@@ -74,6 +74,12 @@ export function RecipientDetailsForm({
   });
 
   const form = useRef<HTMLFormElement>(null);
+  const uid = useId();
+  const err_id = (key: string) => `${uid}-${key}-err`;
+  // only while `ErrorMessage` renders the element it names
+  const described_by = (key: string) =>
+    get(errors, key)?.message ? err_id(key) : undefined;
+
   const first_invalid = useRef<string | null>(null);
   // rhf's `setFocus` defers its `.focus()` to a timeout, which lands after
   // `Fieldset` has already handed focus back to the submit button
@@ -230,7 +236,7 @@ export function RecipientDetailsForm({
                 }}
                 render={({ field: { name, value, onChange, ref } }) => (
                   <Select
-                    aria-invalid={!!get(errors, name)?.message}
+                    error={get(errors, name)?.message}
                     onChange={(value) => {
                       onChange(value);
                       if (f.refreshRequirementsOnChange) refresh();
@@ -244,12 +250,6 @@ export function RecipientDetailsForm({
                     classes={{ options: "text-sm" }}
                   />
                 )}
-              />
-              <ErrorMessage
-                name={f.key}
-                errors={errors}
-                as="p"
-                className="field-err mt-1 empty:hidden"
               />
             </div>
           );
@@ -309,6 +309,7 @@ export function RecipientDetailsForm({
               <input
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
+                aria-describedby={described_by(f.key)}
                 type="text"
                 placeholder={f.example}
                 {...register(f.key, {
@@ -354,6 +355,7 @@ export function RecipientDetailsForm({
               />
               <ErrorMessage
                 as="p"
+                id={err_id(f.key)}
                 className="field-err mt-1 empty:hidden"
                 errors={errors}
                 name={f.key}
@@ -371,6 +373,7 @@ export function RecipientDetailsForm({
               <input
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
+                aria-describedby={described_by(f.key)}
                 type="text"
                 placeholder={f.example}
                 {...register(f.key, {
@@ -386,6 +389,7 @@ export function RecipientDetailsForm({
               />
               <ErrorMessage
                 as="p"
+                id={err_id(f.key)}
                 className="field-err mt-1 empty:hidden"
                 errors={errors}
                 name={f.key}
