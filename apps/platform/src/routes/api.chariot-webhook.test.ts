@@ -151,6 +151,7 @@ describe("chariot webhook signature header", () => {
   it.each([
     ["no header", undefined],
     ["no timestamp", `v1=${sign(body)}`],
+    ["only a non-v1 scheme", `t=${T},v0=${sign(body)}`],
   ])("refuses %s with a 400", async (_, header) => {
     quiet_console();
     const res = await post(body, header);
@@ -176,24 +177,34 @@ describe("chariot webhook signature header", () => {
   it.each([
     ["a wrong signature", sign(body, "whsec-other")],
     ["a wrong-length signature", sign(body).slice(0, 10)],
-  ])("rejects %s without fetching the grant", async (_, v1) => {
-    quiet_console();
+  ])("rejects %s with a 401, warning without the body", async (_, v1) => {
+    const [, , warn] = quiet_console();
     const res = await post(body, `t=${T},v1=${v1}`);
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(401);
     expect(get_grant_mock).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    const line = warn!.mock.calls.flat().join(" ");
+    expect(line).toContain(T);
+    expect(line).toContain("1 v1");
+    expect(line).not.toContain("ev-4");
+    expect(line).not.toContain(v1);
   });
 
-  it("accepts when any v1 signature matches", async () => {
+  const other = `v1=${sign(body, "whsec-other")}`;
+  const valid = `v1=${sign(body)}`;
+  it.each([
+    ["first", `${valid},${other}`],
+    ["last", `${other},${valid}`],
+  ])("accepts when the matching v1 comes %s", async (_, sigs) => {
     quiet_console();
     get_grant_mock.mockResolvedValue({
       id: "grant-4",
       status: "Initiated",
       metadata: { don_id: "don-4" },
     });
-    const stale = sign(body, "whsec-rotated-out");
 
-    const res = await post(body, `t=${T},v1=${stale},v1=${sign(body)}`);
+    const res = await post(body, `t=${T},${sigs}`);
 
     expect(get_grant_mock).toHaveBeenCalledWith("grant-4");
     expect(res.status).toBe(203);

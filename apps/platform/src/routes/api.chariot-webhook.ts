@@ -12,15 +12,16 @@ import { db } from "$/pg/db";
 import { donation_get, donation_update } from "$/pg/queries/donation";
 import type { Route } from "./+types/api.chariot-webhook";
 
-/** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — several `v1` during secret rotation; other schemes ignored */
+/** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — collects every `v1`, any of which may match; non-`v1` schemes are ignored (downgrade) */
 function parse_signature(header: string): { t: string; v1: string[] } | null {
   let t = "";
   const v1: string[] = [];
   for (const part of header.split(",")) {
     const eq = part.indexOf("=");
+    if (eq < 1) continue;
     const key = part.slice(0, eq).trim();
     const value = part.slice(eq + 1).trim();
-    if (eq < 1 || !value) continue;
+    if (!value) continue;
     if (key === "t") t = value;
     else if (key === "v1") v1.push(value);
   }
@@ -49,8 +50,16 @@ export async function action({ request }: Route.ActionArgs) {
       .update(signed)
       .digest("hex");
 
-    if (!parsed.v1.some((v) => safe_equals(hash, v)))
-      return new Response("", { status: 201 });
+    // 4xx, not 2xx: chariot reads 2xx as delivered, so a signing-key mismatch
+    // would drop every grant silently; a 4xx is redelivered in production and,
+    // failing 5 days, flags the subscription `requires_attention`.
+    // warn, not report_error — forgeries are free.
+    if (!parsed.v1.some((v) => safe_equals(hash, v))) {
+      console.warn(
+        `[chariot webhook] signature mismatch: t=${parsed.t}, ${parsed.v1.length} v1`
+      );
+      return new Response("signature mismatch", { status: 401 });
+    }
 
     const payload = JSON.parse(body);
     // https://docs.givechariot.com/api/webhooks
