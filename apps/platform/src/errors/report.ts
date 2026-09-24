@@ -133,13 +133,15 @@ export function report_error(
 
 /**
  * a third party we don't control was unreachable from the visitor's browser —
- * a blocked script, a dropped fetch, an sdk that never came up. nothing in this
- * repo is broken when one fires, and they outnumber real defects by orders of
- * magnitude, so they're kept at warning level and tagged `report:degraded`:
- * `report:bug` stays a queryable list of our own bugs, while a provider outage
- * is still visible as a rate change.
+ * a blocked script, a dropped fetch, an sdk that never came up — or from our
+ * server, a provider's host down. nothing in this repo is broken when one
+ * fires, and they outnumber real defects by orders of magnitude, so they're
+ * kept at warning level and tagged `report:degraded`: `report:bug` stays a
+ * queryable list of our own bugs, while a provider outage is still visible as
+ * a rate change.
  *
- * only for failures already handled — the caller must have degraded the ui.
+ * only for failures already handled — the caller must have degraded the ui, or
+ * answered so the provider retries.
  */
 export function report_degraded(
   error: unknown,
