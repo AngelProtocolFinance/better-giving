@@ -12,24 +12,45 @@ import { db } from "$/pg/db";
 import { donation_get, donation_update } from "$/pg/queries/donation";
 import type { Route } from "./+types/api.chariot-webhook";
 
+/** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — several `v1` during secret rotation; other schemes ignored */
+function parse_signature(header: string): { t: string; v1: string[] } | null {
+  let t = "";
+  const v1: string[] = [];
+  for (const part of header.split(",")) {
+    const eq = part.indexOf("=");
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (eq < 1 || !value) continue;
+    if (key === "t") t = value;
+    else if (key === "v1") v1.push(value);
+  }
+  return t && v1.length ? { t, v1 } : null;
+}
+
+function safe_equals(expected: string, received: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  // timingSafeEqual throws on unequal lengths
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function action({ request }: Route.ActionArgs) {
   try {
     const sig = request.headers.get("chariot-webhook-signature");
     const body = await request.text();
 
-    if (!sig) return new Response("missig signature header", { status: 403 });
+    const parsed = parse_signature(sig ?? "");
+    if (!parsed)
+      return new Response("malformed signature header", { status: 400 });
 
-    // verify received payload
-    const timestamp = sig.match(/[^t=]*Z/g)![0];
-    const sig_hash = sig.split("v1=")[1];
-
-    const signed = `${timestamp}.${body}`;
+    const signed = `${parsed.t}.${body}`;
     const hash = crypto
       .createHmac("sha256", chariot_env.signing_key)
       .update(signed)
       .digest("hex");
 
-    if (hash !== sig_hash) return new Response("", { status: 201 });
+    if (!parsed.v1.some((v) => safe_equals(hash, v)))
+      return new Response("", { status: 201 });
 
     const payload = JSON.parse(body);
     // https://docs.givechariot.com/api/webhooks
