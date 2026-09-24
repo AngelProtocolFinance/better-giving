@@ -27,22 +27,27 @@ vi.mock("../db", () => ({
 }));
 
 import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
+import { fund_closes_at, fund_is_open } from "@/fundraiser/is-open";
 import { fund_members, funds } from "../schema/fund";
 import { npos } from "../schema/npo";
 import { create_test_db } from "../test-utils/pglite";
 import { fund_npo_memberof, fund_search } from "./fund";
 
-// an end date of oct 1 closes at the end of oct 1 in utc−12
 const OCT_1 = "2026-10-01T00:00:00Z";
-const CLOSES_AT = "2026-10-02T12:00:00Z";
-const MINUTE_BEFORE_CLOSE = "2026-10-02T11:59:00Z";
-const MINUTE_AFTER_CLOSE = "2026-10-02T12:01:00Z";
+// from the ts rule, so the sql rule drifting from it fails this suite
+const CLOSES_AT = fund_closes_at(OCT_1);
+const MINUTE_BEFORE_CLOSE = shift(CLOSES_AT, -60_000);
+const MINUTE_AFTER_CLOSE = shift(CLOSES_AT, 60_000);
+
+function shift(at: Date, ms: number) {
+  return new Date(at.getTime() + ms);
+}
 
 let npo_id: number;
 let creator_id: string;
 
-async function freeze_now(iso: string) {
-  await test_db.current!.client.exec(`set test.now = '${iso}'`);
+async function freeze_now(at: Date) {
+  await test_db.current!.client.exec(`set test.now = '${at.toISOString()}'`);
 }
 
 async function seed_listed_fund(id: string, expiration: string | null) {
@@ -74,7 +79,14 @@ beforeAll(async () => {
   await test_db.current.client.exec(`
     create schema test_clock;
     create function test_clock.now() returns timestamptz
-      language sql stable as $$ select current_setting('test.now')::timestamptz $$;
+      language plpgsql stable as $$
+      declare frozen text := nullif(current_setting('test.now', true), '');
+      begin
+        if frozen is null then
+          raise exception 'test.now is unset: call freeze_now() first';
+        end if;
+        return frozen::timestamptz;
+      end $$;
     set search_path = test_clock, pg_catalog, public;
   `);
 }, 30_000);
@@ -85,9 +97,12 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const { db, client } = test_db.current!;
-  // the utc date of the end date is the rule; a non-utc session zone exposes
-  // any part of the expression that reads the session's zone instead
+  // not utc on purpose: a bound that drops either `at time zone 'utc'` reads
+  // this zone instead, and only a non-utc session makes that change the answer
   await client.exec("set time zone 'America/Los_Angeles'");
+  // a set is session-wide: without this a test that skips freeze_now runs on
+  // the previous test's clock
+  await client.exec("reset test.now");
   await db.delete(fund_members);
   await db.delete(funds);
   await db.delete(npos);
@@ -127,10 +142,40 @@ describe.each(Object.entries(listers))("%s", (_, list_ids) => {
     expect(await list_ids()).toEqual([]);
   });
 
+  test("lists exactly the funds the ts rule calls open, at each closing instant", async () => {
+    const expirations = [
+      "2026-10-01T00:00:00Z",
+      "2026-10-15T18:30:00Z",
+      "2026-10-31T23:59:59.999Z",
+      "2026-12-31T00:00:00Z",
+    ];
+    for (const e of expirations) await seed_listed_fund(e, e);
+
+    for (const e of expirations) {
+      for (const offset of [-1, 0, 1]) {
+        const now = shift(fund_closes_at(e), offset);
+        await freeze_now(now);
+
+        const open = expirations.filter((x) =>
+          fund_is_open({ active: true, expiration: x }, now)
+        );
+        expect((await list_ids()).sort(), now.toISOString()).toEqual(
+          open.sort()
+        );
+      }
+    }
+  });
+
   test("a fund with no end date is listed", async () => {
     await seed_listed_fund("no-end", null);
-    await freeze_now("9999-12-31T00:00:00Z");
+    await freeze_now(new Date("9999-12-31T00:00:00Z"));
 
     expect(await list_ids()).toEqual(["no-end"]);
+  });
+});
+
+test("a query before freeze_now fails instead of reading the previous test's clock", async () => {
+  await expect(listers.fund_search()).rejects.toMatchObject({
+    cause: { message: expect.stringMatching(/freeze_now/) },
   });
 });
