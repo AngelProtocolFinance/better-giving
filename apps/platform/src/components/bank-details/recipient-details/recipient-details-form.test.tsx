@@ -56,24 +56,30 @@ function FormButtons({ disabled }: FormButtonsProps) {
   );
 }
 
-/** answers the create call with a 422 naming `paths`; the delay keeps the request in flight long enough to act during it */
-function refuse(...paths: string[]) {
+type Refusal = ValidationContent["errors"][number];
+
+const not_valid = (path: string): Refusal => ({
+  code: "NOT_VALID",
+  path,
+  message: `invalid ${path}`,
+  arguments: [],
+});
+
+/** answers the create call with a 422 carrying `errors`; the delay keeps the request in flight long enough to act during it */
+function refuse_with(...errors: Refusal[]) {
   mswWorker.use(
     http.post("/api/wise/v1/accounts", async () => {
       await delay(200);
       const content: ValidationContent = {
         timestamp: "2026-09-24T00:00:00Z",
-        errors: paths.map((path) => ({
-          code: "NOT_VALID",
-          path,
-          message: `invalid ${path}`,
-          arguments: [],
-        })),
+        errors,
       };
       return HttpResponse.json(content, { status: 422 });
     })
   );
 }
+
+const refuse = (...paths: string[]) => refuse_with(...paths.map(not_valid));
 
 function record_focus() {
   const focused: string[] = [];
@@ -231,6 +237,56 @@ describe("RecipientDetailsForm", () => {
       .element(screen.getByText("invalid accountNumber"))
       .toBeVisible();
     expect(await focus.settle()).toEqual(["Continue", "accountNumber"]);
+  });
+
+  test("a refusal naming a field on screen and a path with none marks the field and shows the other message above the buttons, until the next submit", async () => {
+    refuse("sortCode", "iban");
+    const { screen } = await render_form();
+    await fill_all(screen);
+
+    const focus = record_focus();
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).not.toMatchTextContent("invalid iban");
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    const sort_code = screen.getByPlaceholder("40-30-20");
+    await expect.element(sort_code).toHaveFocus();
+    await expect
+      .element(sort_code)
+      .toHaveAccessibleDescription("invalid sortCode");
+    await expect.element(alert).toMatchTextContent("invalid iban");
+    await expect.element(screen.getByText("invalid iban")).toBeVisible();
+    expect(await focus.settle()).toEqual(["Continue", "sortCode"]);
+    expect(screen.getByRole("dialog").query()).toBeNull();
+
+    // the same answer again, so only a clear at submit can empty the block
+    refuse("sortCode", "iban");
+    await screen.getByRole("button", { name: "Continue" }).click();
+    await expect.element(alert).not.toMatchTextContent("invalid iban");
+    await expect.element(alert).toMatchTextContent("invalid iban");
+  });
+
+  test("a refusal pairing a field's NOT_VALID with another code shows the other code's message too", async () => {
+    refuse_with(not_valid("sortCode"), {
+      code: "NOT_UNIQUE",
+      path: "accountNumber",
+      message: "This account is already registered",
+      arguments: [],
+    });
+    const { screen } = await render_form();
+    await fill_all(screen);
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    await expect
+      .element(screen.getByPlaceholder("40-30-20"))
+      .toHaveAccessibleDescription("invalid sortCode");
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent("This account is already registered");
+    await expect
+      .element(screen.getByText("This account is already registered"))
+      .toBeVisible();
   });
 
   test("a refusal naming no field on screen shows its message in a prompt, and the next submit goes through", async () => {
