@@ -332,6 +332,63 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       expect.objectContaining({ sttl_id: CAPTURE_ID, net: 100, fee: 0 }),
     ]);
   });
+
+  it("takes platform fees out of a net paypal left off the capture", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "2", currency_code: "USD" } }],
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: CAPTURE_ID, net: 94.5, fee: 3.5 }),
+    ]);
+  });
+
+  it("settles at paypal's net whatever platform fees ride along", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "1.85", currency_code: "EUR" } }],
+        net_amount: { value: "94.5", currency_code: "USD" },
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ net: 94.5, fee: 3.5 }),
+    ]);
+  });
+
+  it("derives a fallback net to the cent", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "50.00", currency_code: "USD" },
+        paypal_fee: { value: "2.24", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "0.70", currency_code: "USD" } }],
+      },
+    };
+
+    await deliver({ ...capture_ev(), resource });
+
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ net: 47.06 }),
+    ]);
+  });
 });
 
 describe("PAYMENT.SALE.COMPLETED", () => {
@@ -450,6 +507,25 @@ describe("an event no redelivery can route", () => {
       seller_receivable_breakdown: {
         net_amount: { value: "96.5", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports a capture with no net and a platform fee in another currency", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "2", currency_code: "EUR" } }],
       },
     };
 

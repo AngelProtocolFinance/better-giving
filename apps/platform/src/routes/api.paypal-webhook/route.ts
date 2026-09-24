@@ -123,6 +123,17 @@ interface ISettlement {
   c: string;
 }
 
+// paypal amounts are decimal strings; as floats 50 − 2.24 − 0.7 is
+// 47.059999999999995, so this subtracts in the finest minor unit the operands use
+const dec_sub = (from: string, parts: string[]): number => {
+  const dp = Math.max(
+    ...[from, ...parts].map((v) => v.split(".")[1]?.length ?? 0)
+  );
+  const k = 10 ** dp;
+  const minor = (v: string) => Math.round(+v * k);
+  return parts.reduce((acc, v) => acc - minor(v), minor(from)) / k;
+};
+
 // paypal hands the three parts separately at every call site — an order's
 // payment source, a subscriber, a shipping address — so they are gathered here
 // rather than at each of the four
@@ -382,10 +393,28 @@ export async function action({ request }: Route.ActionArgs) {
         if (!b?.gross_amount)
           return unroutable(ev, `missing gross amount for capture ${cid}`);
 
+        const platform_fees = b.platform_fees ?? [];
+        // a fallback net subtracts these from gross, which only works in one currency
+        if (
+          !b.net_amount &&
+          platform_fees.some(
+            (f) => f.amount.currency_code !== b.gross_amount.currency_code
+          )
+        )
+          return unroutable(
+            ev,
+            `platform fee currency differs from gross for capture ${cid}`
+          );
+
         // only gross_amount is required in the breakdown; fee and net may be absent
         const settled = ((r): ISettlement => {
-          const p = b.paypal_fee?.value ?? 0;
-          const n = b.net_amount?.value ?? +b.gross_amount.value - +p;
+          const p = b.paypal_fee?.value ?? "0";
+          const n =
+            b.net_amount?.value ??
+            dec_sub(b.gross_amount.value, [
+              p,
+              ...platform_fees.map((f) => f.amount.value),
+            ]);
           const c = b.net_amount?.currency_code ?? b.gross_amount.currency_code;
           if (r) {
             return { net: +n * +r, fee: +p * +r, c };
