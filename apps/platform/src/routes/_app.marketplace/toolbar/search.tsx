@@ -1,31 +1,36 @@
 import { SearchIcon } from "lucide-react";
-import { type ChangeEventHandler, useEffect } from "react";
-import { useFetcher, useSearchParams } from "react-router";
+import { type ChangeEventHandler, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router";
 import { use_debounce } from "#/hooks/use-debounce";
-import type { EndowCardsPage } from "#/types/npo";
 
 export function Search({ classes = "" }: { classes?: string }) {
-  const [params] = useSearchParams();
-  const { load } = useFetcher<EndowCardsPage>({
-    key: "marketplace",
-  }); //initially undefined
+  const [params, set_params] = useSearchParams();
+  const url_query = params.get("query") ?? "";
+  const input = useRef<HTMLInputElement>(null);
+  // the term this box last put in the url. the url commits only once the
+  // loader lands, so by then the box may already hold more letters — its own
+  // write arriving must not be mistaken for a change made elsewhere.
+  const written = useRef(url_query);
+
   const onChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+    const term = e.target.value;
     const n = new URLSearchParams(params);
-    n.set("query", e.target.value);
-    load(`?${n.toString()}`);
+    if (term) n.set("query", term);
+    else n.delete("query");
+    written.current = term;
+    set_params(n, { replace: true, preventScrollReset: true });
   };
 
   const debounced_change = use_debounce(onChange, 500);
-  const url_query = params.get("query") ?? "";
 
-  // a keystroke still inside the debounce window when the url's term changes
-  // under it — "Clear all" wipes `query` — is void. left pending it fires after
-  // the revalidation and refills the grid with results for a term that is in
-  // neither the box nor the url. typing never changes the url, so this cancels
-  // nothing a user is still in the middle of.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: url_query is the trigger, not a read
+  // a term that changed under the box — "Clear all", back/forward — replaces
+  // what is typed, and a keystroke still inside the debounce window is void:
+  // left pending it would put the typed term back in the url after the clear.
   useEffect(() => {
+    if (url_query === written.current) return;
+    written.current = url_query;
     debounced_change.cancel();
+    if (input.current) input.current.value = url_query;
   }, [url_query, debounced_change]);
 
   return (
@@ -34,11 +39,7 @@ export function Search({ classes = "" }: { classes?: string }) {
     >
       <SearchIcon className="absolute origin-center left-3 top-1/2 -translate-y-1/2 icon-xl" />
       <input
-        // keyed on the url term so a change made while the marketplace stays
-        // mounted reaches the box. typing never writes to the url (the handler
-        // loads a fetcher), so the key holds still under the keystrokes it
-        // would otherwise remount on.
-        key={url_query}
+        ref={input}
         type="search"
         name="query"
         // uncontrolled on purpose: the handler is debounced and must not

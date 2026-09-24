@@ -1,5 +1,6 @@
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, useLocation } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ActiveFilters } from "../active-filters";
 import { Search } from "./search";
@@ -11,10 +12,15 @@ async function render_search(entry: string) {
   return render(<Stub initialEntries={[entry]} />);
 }
 
+/** the stub's memory router has no address bar to read the term off */
+function UrlProbe() {
+  return <output data-testid="url-search">{useLocation().search}</output>;
+}
+
 /** the box and the chip row are separate components over one set of search
  *  params, so a term surviving a filter change is only visible with both up.
- *  `queried` collects the term every load asks for — the box's own reads are
- *  the fetcher's, and the term it sends is what the grid is filtered by. */
+ *  `queried` collects the term every loader run asks for — the term in the url
+ *  is what the grid is filtered by. */
 async function render_toolbar(entry: string, queried: string[] = []) {
   const Stub = createRoutesStub([
     {
@@ -23,6 +29,7 @@ async function render_toolbar(entry: string, queried: string[] = []) {
         <>
           <Search />
           <ActiveFilters />
+          <UrlProbe />
         </>
       ),
       loader: ({ request }) => {
@@ -114,5 +121,36 @@ describe("marketplace search box", () => {
     await vi.advanceTimersByTimeAsync(700);
 
     expect(queried).not.toContain("kelp");
+  });
+
+  // the term lands in the url half a second after the last keystroke, often
+  // mid-word. a box that remounts or blurs on that write eats the next letter.
+  test("typing keeps focus and caret across the debounced url write", async () => {
+    const screen = await render_toolbar("/marketplace");
+    const box = screen.getByPlaceholder(/search organizations/i);
+
+    await box.fill("kelp");
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toMatchTextContent("query=kelp");
+
+    await expect.element(box).toHaveFocus();
+    await userEvent.keyboard(" farms");
+    await expect.element(box).toHaveValue("kelp farms");
+  });
+
+  // `?query=` is a shared link naming a filter that isn't there
+  test("clearing the box takes query out of the url", async () => {
+    const screen = await render_toolbar(
+      "/marketplace?query=kelp&countries=Japan"
+    );
+    const box = screen.getByPlaceholder(/search organizations/i);
+    await expect.element(box).toHaveValue("kelp");
+
+    await box.clear();
+
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?countries=Japan");
   });
 });

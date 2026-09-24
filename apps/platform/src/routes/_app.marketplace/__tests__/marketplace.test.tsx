@@ -1,4 +1,4 @@
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, Outlet, useLocation } from "react-router";
 import {
   afterAll,
   beforeAll,
@@ -103,17 +103,34 @@ async function seed_npo(
   return row;
 }
 
+/** the stub's memory router has no address bar, so the url a user would
+ *  share is read off the location instead */
+function UrlProbe() {
+  const { search } = useLocation();
+  return (
+    <>
+      <output data-testid="url-search">{search}</output>
+      <Outlet />
+    </>
+  );
+}
+
 function render_marketplace(entry = "/marketplace") {
   const Stub = createRoutesStub([
     {
-      path: "/marketplace",
-      Component: MarketplacePage,
-      HydrateFallback: () => null,
-      loader,
+      Component: UrlProbe,
       children: [
         {
-          path: "filter",
-          Component: FilterPage,
+          path: "/marketplace",
+          Component: MarketplacePage,
+          HydrateFallback: () => null,
+          loader,
+          children: [
+            {
+              path: "filter",
+              Component: FilterPage,
+            },
+          ],
         },
       ],
     },
@@ -404,7 +421,7 @@ describe("marketplace — combined filters", () => {
 });
 
 describe("marketplace — search", () => {
-  it("filters by typing in search bar", async () => {
+  it("typing a term filters the grid and puts the term in the url", async () => {
     await seed_npo({
       name: "Oxfam International",
       tagline: "Fighting poverty",
@@ -418,12 +435,87 @@ describe("marketplace — search", () => {
       .toBeInTheDocument();
     await expect.element(screen.getByText("Red Cross")).toBeInTheDocument();
 
-    // type in search bar — 500ms debounce then fetcher.load
     await screen.getByPlaceholder("Search organizations...").fill("Oxfam");
 
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toMatchTextContent("query=Oxfam");
     await expect.element(screen.getByText("Red Cross")).not.toBeInTheDocument();
     await expect
       .element(screen.getByText("Oxfam International"))
       .toBeInTheDocument();
-  }, 10_000);
+  });
+
+  // the next page is built from the url; a term held anywhere else pages
+  // through the unfiltered set under a filtered first page
+  it("loading more after a search appends only matches", async () => {
+    for (let i = 1; i <= 21; i++) await seed_npo({ name: `Match Org ${i}` });
+    // sorted by name, so the unfiltered first page is all non-matches
+    for (let i = 1; i <= 25; i++) await seed_npo({ name: `Alpha Org ${i}` });
+    const screen = await render_marketplace();
+    const matches = () => screen.getByText(/^Match Org \d+$/).elements();
+
+    await screen.getByPlaceholder("Search organizations...").fill("Match");
+    await expect
+      .element(screen.getByText(/^Alpha Org/).first())
+      .not.toBeInTheDocument();
+
+    await screen
+      .getByRole("button", { name: /load more organizations/i })
+      .click();
+
+    await vi.waitFor(() => expect(matches()).toHaveLength(21));
+    await expect
+      .element(screen.getByRole("button", { name: /load more organizations/i }))
+      .not.toBeInTheDocument();
+    expect(screen.getByText(/^Alpha Org/).elements()).toHaveLength(0);
+  });
+
+  it("removing a filter chip keeps the term in the box and the results", async () => {
+    await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Oxfam Kenya", hq_country: "Kenya" });
+    const screen = await render_marketplace(
+      "/marketplace?countries=Canada,Kenya"
+    );
+    const box = screen.getByPlaceholder("Search organizations...");
+
+    await box.fill("Oxfam");
+    await expect
+      .element(screen.getByText("Red Cross Canada"))
+      .not.toBeInTheDocument();
+
+    await screen.getByRole("button", { name: "Kenya", exact: true }).click();
+
+    await expect
+      .element(screen.getByText("Oxfam Kenya"))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("Red Cross Canada").query()).toBeNull();
+    await expect.element(screen.getByText("Oxfam Canada")).toBeVisible();
+    await expect.element(box).toHaveValue("Oxfam");
+  });
+
+  it("Clear all after a search empties the box and unfilters the grid", async () => {
+    await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Unicef Japan", hq_country: "Japan" });
+    const screen = await render_marketplace(
+      "/marketplace?countries=Canada,Kenya"
+    );
+    const box = screen.getByPlaceholder("Search organizations...");
+
+    await box.fill("Oxfam");
+    await expect
+      .element(screen.getByText("Red Cross Canada"))
+      .not.toBeInTheDocument();
+
+    await screen.getByRole("button", { name: "Clear all" }).click();
+
+    await expect.element(screen.getByText("Unicef Japan")).toBeVisible();
+    await expect.element(screen.getByText("Red Cross Canada")).toBeVisible();
+    await expect.element(box).toHaveValue("");
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .not.toMatchTextContent("query");
+  });
 });
