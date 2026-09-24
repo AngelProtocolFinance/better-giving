@@ -65,14 +65,28 @@ export function RecipientDetailsForm({
     setError,
     formState: { errors, isSubmitting },
     getFieldState,
-  } = useForm<FV>({ disabled, shouldUnregister: true });
+  } = useForm<FV>({
+    disabled,
+    shouldUnregister: true,
+    // rhf focuses while the fieldset is still disabled, then retries in a
+    // timeout that lands after `Fieldset` has handed focus back to the button
+    shouldFocusError: false,
+  });
 
+  const form = useRef<HTMLFormElement>(null);
   const first_invalid = useRef<string | null>(null);
   // rhf's `setFocus` defers its `.focus()` to a timeout, which lands after
   // `Fieldset` has already handed focus back to the submit button
   function focus_now(path: string) {
     const f = get(control._fields, path)?._f;
     (f?.refs?.[0] ?? f?.ref)?.focus?.();
+  }
+
+  /** keys with a control on screen, top to bottom — a key rhf holds no field for renders none */
+  function on_screen(): string[] {
+    const keys = fields.map((f) => f.key);
+    if (verified) keys.push("bankStatement");
+    return keys.filter((k) => get(control._fields, k)?._f);
   }
 
   const { update_requirements } = use_requirements(
@@ -112,67 +126,91 @@ export function RecipientDetailsForm({
 
   return (
     <Form
+      ref={form}
       disabled={isSubmitting}
-      onSubmit={handleSubmit(async (fv) => {
-        try {
-          const { accountHolderName, bankStatement, ...details } = fv;
+      onSubmit={handleSubmit(
+        async (fv) => {
+          try {
+            const { accountHolderName, bankStatement, ...details } = fv;
 
-          const payload: CreateRecipientRequest = {
-            accountHolderName,
-            currency,
-            ownedByCustomer: false,
-            profile: "{{profileId}}",
-            type,
-            details,
-          };
+            const payload: CreateRecipientRequest = {
+              accountHolderName,
+              currency,
+              ownedByCustomer: false,
+              profile: "{{profileId}}",
+              type,
+              details,
+            };
 
-          const res = await fetch("/api/wise/v1/accounts", {
-            method: "POST",
-            body: JSON.stringify(payload),
-            headers: { "content-type": "application/json" },
-          });
+            const res = await fetch("/api/wise/v1/accounts", {
+              method: "POST",
+              body: JSON.stringify(payload),
+              headers: { "content-type": "application/json" },
+            });
 
-          if (res.ok) {
-            const data: V1RecipientAccount = await res.json();
-            return await onSubmit(data, bankStatement);
-          }
+            if (res.ok) {
+              const data: V1RecipientAccount = await res.json();
+              return await onSubmit(data, bankStatement);
+            }
 
-          //error handling
-          if (res.status !== 422) throw res;
+            //error handling
+            if (res.status !== 422) throw res;
 
-          //only handle 422
-          const content: ValidationContent = await res.json();
+            //only handle 422
+            const content: ValidationContent = await res.json();
 
-          //filter "NOT_VALID"
-          const _errs = content.errors;
-          const validations = _errs.filter((err) => err.code === "NOT_VALID");
+            //filter "NOT_VALID"
+            const _errs = content.errors;
+            const validations = _errs.filter((err) => err.code === "NOT_VALID");
 
-          if (validations.length === 0) {
-            ask_prompt(
-              { type: "error", children: _errs[0].message },
-              { key: PROMPT_SLOT }
+            if (validations.length === 0) {
+              ask_prompt(
+                { type: "error", children: _errs[0].message },
+                { key: PROMPT_SLOT }
+              );
+              return;
+            }
+
+            const rejected = new Map(
+              validations.map((v) => [v.path, v.message])
             );
-            return;
-          }
+            const shown = on_screen().filter((k) => rejected.has(k));
 
-          //set field errors
-          for (const v of validations) {
-            setError(v.path, { message: v.message });
-          }
+            if (shown.length === 0) {
+              ask_prompt(
+                {
+                  type: "error",
+                  children: [...rejected].map(([path, message]) => (
+                    <p key={path}>{message}</p>
+                  )),
+                },
+                { key: PROMPT_SLOT }
+              );
+              return;
+            }
 
-          // fieldset is still disabled here; focused once the submit settles
-          first_invalid.current = validations[0].path;
-        } catch (err) {
-          ask_prompt(error_prompt(err, { context: "validating" }), {
-            key: PROMPT_SLOT,
-          });
+            // an error set on a key with no field is never cleared by the next
+            // submit's validation, so it would refuse every submit after it
+            for (const k of shown) setError(k, { message: rejected.get(k) });
+
+            // fieldset is still disabled here; focused once the submit settles
+            first_invalid.current = shown[0];
+          } catch (err) {
+            ask_prompt(error_prompt(err, { context: "validating" }), {
+              key: PROMPT_SLOT,
+            });
+          }
+        },
+        (errs) => {
+          first_invalid.current = on_screen().find((k) => get(errs, k)) ?? null;
         }
-      })}
+      )}
       className="grid gap-5"
     >
       <FocusFirstInvalid
         submitting={isSubmitting}
         path={first_invalid}
+        form={form}
         focus={focus_now}
       />
       {fields.map((f) => {
@@ -392,7 +430,9 @@ export function RecipientDetailsForm({
 
 interface IFocusFirstInvalid {
   submitting: boolean;
+  /** written by the submit handler, consumed by the first settled commit */
   path: RefObject<string | null>;
+  form: RefObject<HTMLFormElement | null>;
   focus: (path: string) => void;
 }
 
@@ -400,12 +440,25 @@ interface IFocusFirstInvalid {
  * mounted inside the form's fieldset: a descendant's layout effect runs after
  * the fieldset re-enables but before `Fieldset`'s own, which would otherwise
  * hand focus back to the submit button first.
+ *
+ * like `Fieldset`, it leaves focus alone if the user put it outside the form
+ * during the request.
  */
-function FocusFirstInvalid({ submitting, path, focus }: IFocusFirstInvalid) {
+function FocusFirstInvalid({
+  submitting,
+  path,
+  form,
+  focus,
+}: IFocusFirstInvalid) {
+  // no deps: `path` is a ref, so no render reports its write; every commit checks it
   useLayoutEffect(() => {
-    if (submitting || !path.current) return;
-    focus(path.current);
+    const target = path.current;
+    if (submitting || !target) return;
     path.current = null;
-  }, [submitting, path, focus]);
+    const active = document.activeElement;
+    const unclaimed =
+      !active || active === document.body || form.current?.contains(active);
+    if (unclaimed) focus(target);
+  });
   return null;
 }
