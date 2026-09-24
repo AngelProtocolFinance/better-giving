@@ -1,0 +1,116 @@
+name: Smoke
+
+# boots the deployment vercel just built and requests a few paths on its own
+# url, so a server that crashes at import time (every request a 500
+# FUNCTION_INVOCATION_FAILED) fails a check before promotion. ci.yml's jobs
+# never run the built server, so they pass on exactly that failure.
+#
+# fires on `vercel.deployment.ready`, not `.success`: per vercel's deployment
+# checks docs, `ready` is sent after the deployment is built and before checks
+# are evaluated. a production deployment held by a required check doesn't
+# reach success, so a success-triggered check would never run.
+#
+# repository_dispatch runs this file as it exists on the default branch, so an
+# edit on another branch has no effect until it lands on main.
+on:
+  repository_dispatch:
+    types: [vercel.deployment.ready]
+
+run-name: smoke ${{ github.event.client_payload.project.name }} (${{ github.event.client_payload.environment }}) ${{ github.event.client_payload.git.shortSha }}
+
+# a dispatch run's own check run lands on main's HEAD, not the deployed sha,
+# so the result vercel reads is the commit status written below. these
+# permissions are for that status and nothing else.
+permissions:
+  statuses: write
+
+# no concurrency block — same reason as ci.yml: a cancelled run must never be
+# what vercel reads. the final status step maps a cancelled job to failure.
+
+jobs:
+  # this job's name is not the check to require in vercel — its check run sits
+  # on main's HEAD. require the commit status `smoke (production)`.
+  smoke:
+    name: smoke-dispatch
+    # docs and emails-preview share this repo and dispatch the same event;
+    # their runs skip here and write no status. only platform is gated.
+    if: github.event.client_payload.project.id == 'prj_xpN1ud1WKyuw84TLzlhXyAzYNo3f'
+    # a curl loop — 2 vcpu is plenty. the label is the whole blacksmith
+    # integration (see ci.yml).
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ github.event.client_payload.git.sha }}
+      # environment in the name: a sha fast-forwarded to main already carries
+      # its preview deployment's result, which a bare `smoke` status would
+      # hand to the production deployment before its own run starts.
+      STATUS_CONTEXT: smoke (${{ github.event.client_payload.environment }})
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # hand-written, not vercel/repository-dispatch/actions/status: that
+      # action reports success for any job without a failed step, so a
+      # cancelled or timed-out run would read green.
+      - name: status pending
+        run: |
+          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
+            -H "accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -d "{\"state\":\"pending\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
+            -o /dev/null
+
+      - name: request paths
+        env:
+          DEPLOYMENT_URL: ${{ github.event.client_payload.url }}
+          # the project's bot protection challenges every non-browser client,
+          # this runner included; the `smoke check bypass` waf rule lets a
+          # request through when x-smoke-key matches this secret. the rule only
+          # matches *.vercel.app hosts and the paths below, so a path added
+          # here is challenged until it's added to the rule too.
+          SMOKE_KEY: ${{ secrets.SMOKE_BYPASS_KEY }}
+        run: |
+          set -uo pipefail
+          case "$DEPLOYMENT_URL" in
+            http://* | https://*) base="$DEPLOYMENT_URL" ;;
+            *) base="https://$DEPLOYMENT_URL" ;;
+          esac
+          base="${base%/}"
+          failed=0
+          # each path runs through a server function, so a boot crash 500s all three
+          for path in / /api/currencies /form-embed.js; do
+            for attempt in 1 2 3; do
+              # 000 = no http response (dns, tls, timeout)
+              out=$(curl -sS -o /dev/null --connect-timeout 5 --max-time 20 \
+                -H "x-smoke-key: $SMOKE_KEY" \
+                -w '%{http_code} %header{x-vercel-mitigated}' "$base$path" 2>/dev/null) || true
+              code="${out%% *}"; code="${code:-000}"
+              mitigated="${out#"$code"}"; mitigated="${mitigated# }"
+              case "$code" in 2?? | 3??) break ;; esac
+              [ "$attempt" -lt 3 ] && sleep 5
+            done
+            case "$code" in
+              2?? | 3??) echo "pass $path $code (attempt $attempt)" ;;
+              *)
+                failed=1
+                if [ -n "$mitigated" ]; then
+                  # a challenge means the function was never reached — fail, never pass
+                  echo "::error::$path $code — firewall $mitigated; SMOKE_BYPASS_KEY missing or doesn't match the smoke check bypass rule"
+                else
+                  echo "::error::$path $code after $attempt attempts"
+                fi
+                ;;
+            esac
+          done
+          exit "$failed"
+
+      - name: status final
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state=failure
+          [ "$JOB_STATUS" = success ] && state=success
+          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
+            -H "accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -d "{\"state\":\"$state\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
+            -o /dev/null
