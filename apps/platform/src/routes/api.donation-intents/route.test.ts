@@ -7,7 +7,8 @@ const paypal_intent_mock = vi.hoisted(() => vi.fn());
 const crypto_intent_mock = vi.hoisted(() => vi.fn());
 const chariot_intent_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
-const to_fn_mock = vi.hoisted(() => vi.fn());
+const npo_get_mock = vi.hoisted(() => vi.fn());
+const fund_get_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("./stripe", () => ({ stripe_intent: stripe_intent_mock }));
 vi.mock("./paypal", () => ({ paypal_intent: paypal_intent_mock }));
@@ -22,7 +23,8 @@ const cookie_serialize_mock = vi.hoisted(() =>
   vi.fn().mockResolvedValue("donations=stub")
 );
 
-vi.mock("#/.server/donation-recipient", () => ({ to_fn: to_fn_mock }));
+vi.mock("$/pg/queries/npo", () => ({ npo_get: npo_get_mock }));
+vi.mock("$/pg/queries/fund", () => ({ fund_get: fund_get_mock }));
 vi.mock("#/.server/cookie", () => ({
   donations_cookie: {
     parse: cookie_parse_mock,
@@ -39,6 +41,8 @@ const to_stub = {
   to_tip_allowed: true,
   to_members: [],
 };
+
+const npo_row = { name: "ACME", active: true, hide_bg_tip: false };
 
 const valid_body = (via: IDonationIntent["via"]): unknown => ({
   via,
@@ -71,7 +75,7 @@ const ok_result = (
 
 beforeEach(() => {
   vi.clearAllMocks();
-  to_fn_mock.mockResolvedValue(to_stub);
+  npo_get_mock.mockResolvedValue(npo_row);
 });
 
 describe("api.donation-intents action", () => {
@@ -139,12 +143,89 @@ describe("api.donation-intents action", () => {
 
   // the checkout renders a 4xx text body to the donor verbatim
   it("returns a donor sentence with 404 when recipient not found", async () => {
-    to_fn_mock.mockResolvedValueOnce(undefined);
+    npo_get_mock.mockResolvedValueOnce(undefined);
     const res = await invoke(post(valid_body("card")));
 
     expect(res!.status).toBe(404);
     expect(res!.headers.get("content-type")).toBe("text/plain");
     await expect(res!.text()).resolves.toBe(
+      "This nonprofit isn't accepting donations right now."
+    );
+    expect(stripe_intent_mock).not.toHaveBeenCalled();
+  });
+
+  describe("fund recipient", () => {
+    const fund_id = "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9";
+    const fund_row = (o: { active: boolean; expiration: string | null }) => ({
+      id: fund_id,
+      name: "Relief Fund",
+      hide_bg_tip: false,
+      members: [7, 9],
+      ...o,
+    });
+    const fund_body = () => ({
+      ...(valid_body("card") as object),
+      to_id: fund_id,
+    });
+
+    it("refuses an expired fund with the not-accepting 404 and creates no intent", async () => {
+      fund_get_mock.mockResolvedValueOnce(
+        fund_row({ active: true, expiration: "2020-01-01T00:00:00.000Z" })
+      );
+      const res = await invoke(post(fund_body()));
+
+      expect(res.status).toBe(404);
+      await expect(res.text()).resolves.toBe(
+        "This nonprofit isn't accepting donations right now."
+      );
+      expect(stripe_intent_mock).not.toHaveBeenCalled();
+      expect(cookie_serialize_mock).not.toHaveBeenCalled();
+    });
+
+    it("refuses an inactive fund with the not-accepting 404", async () => {
+      fund_get_mock.mockResolvedValueOnce(
+        fund_row({ active: false, expiration: null })
+      );
+      const res = await invoke(post(fund_body()));
+
+      expect(res.status).toBe(404);
+      await expect(res.text()).resolves.toBe(
+        "This nonprofit isn't accepting donations right now."
+      );
+      expect(stripe_intent_mock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a future expiration", "2999-01-01T00:00:00.000Z"],
+      ["no expiration", null],
+    ])(
+      "creates the intent for an active fund with %s",
+      async (_, expiration) => {
+        fund_get_mock.mockResolvedValueOnce(
+          fund_row({ active: true, expiration })
+        );
+        stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
+        const res = await invoke(post(fund_body()));
+
+        expect(res.status).toBe(200);
+        const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+        expect(ctx.to).toEqual({
+          to_id: fund_id,
+          to_type: "fund",
+          to_name: "Relief Fund",
+          to_tip_allowed: true,
+          to_members: ["7", "9"],
+        });
+      }
+    );
+  });
+
+  it("refuses an inactive nonprofit with the not-accepting 404", async () => {
+    npo_get_mock.mockResolvedValueOnce({ ...npo_row, active: false });
+    const res = await invoke(post(valid_body("card")));
+
+    expect(res.status).toBe(404);
+    await expect(res.text()).resolves.toBe(
       "This nonprofit isn't accepting donations right now."
     );
     expect(stripe_intent_mock).not.toHaveBeenCalled();
