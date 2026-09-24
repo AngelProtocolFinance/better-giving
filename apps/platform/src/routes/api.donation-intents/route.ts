@@ -80,8 +80,12 @@ export const action: ActionFunction = async ({ request }) => {
 
   const to = await to_fn(to_id, { open_at: new Date() });
   if (!to) {
-    console.info(`[resp] 404 - Recipient:${to_id} not found or closed`);
-    return resp.txt("This nonprofit isn't accepting donations right now.", 404);
+    const recipient = typeof to_id === "number" ? "nonprofit" : "fundraiser";
+    console.info(`[resp] 404 - ${recipient}:${to_id} not found or closed`);
+    return resp.txt(
+      `This ${recipient} isn't accepting donations right now.`,
+      404
+    );
   }
   const from = to_from(donor);
 

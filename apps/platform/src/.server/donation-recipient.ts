@@ -5,7 +5,6 @@ import { npo_get } from "$/pg/queries/npo";
 
 /**
  * @param id - endow id or fund uuid
- * @param dynamo - dynamodb client that has access to the tables
  * @param opts.open_at - also refuse a fund that is closed (inactive or expired) at this instant
  */
 export async function to_fn(

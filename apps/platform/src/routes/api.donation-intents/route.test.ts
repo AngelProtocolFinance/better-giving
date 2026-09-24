@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IDonationIntent } from "@/donations/schema";
 import type { Ctx, IntentResult } from "./types";
 
@@ -168,7 +168,7 @@ describe("api.donation-intents action", () => {
       to_id: fund_id,
     });
 
-    it("refuses an expired fund with the not-accepting 404 and creates no intent", async () => {
+    it("refuses an expired fund with the fundraiser 404 and creates no intent", async () => {
       fund_get_mock.mockResolvedValueOnce(
         fund_row({ active: true, expiration: "2020-01-01T00:00:00.000Z" })
       );
@@ -176,13 +176,13 @@ describe("api.donation-intents action", () => {
 
       expect(res.status).toBe(404);
       await expect(res.text()).resolves.toBe(
-        "This nonprofit isn't accepting donations right now."
+        "This fundraiser isn't accepting donations right now."
       );
       expect(stripe_intent_mock).not.toHaveBeenCalled();
       expect(cookie_serialize_mock).not.toHaveBeenCalled();
     });
 
-    it("refuses an inactive fund with the not-accepting 404", async () => {
+    it("refuses an inactive fund with the fundraiser 404", async () => {
       fund_get_mock.mockResolvedValueOnce(
         fund_row({ active: false, expiration: null })
       );
@@ -190,9 +190,55 @@ describe("api.donation-intents action", () => {
 
       expect(res.status).toBe(404);
       await expect(res.text()).resolves.toBe(
-        "This nonprofit isn't accepting donations right now."
+        "This fundraiser isn't accepting donations right now."
       );
       expect(stripe_intent_mock).not.toHaveBeenCalled();
+    });
+
+    it("refuses a well-formed uuid naming no fund with the fundraiser 404", async () => {
+      fund_get_mock.mockResolvedValueOnce(undefined);
+      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+      const res = await invoke(post(fund_body()));
+
+      expect(res.status).toBe(404);
+      await expect(res.text()).resolves.toBe(
+        "This fundraiser isn't accepting donations right now."
+      );
+      expect(info).toHaveBeenCalledWith(
+        expect.stringContaining(`fundraiser:${fund_id}`)
+      );
+      expect(stripe_intent_mock).not.toHaveBeenCalled();
+    });
+
+    // a request instant hoisted to module scope would freeze at cold start
+    describe("against the request's own clock", () => {
+      beforeEach(() => {
+        vi.setSystemTime(new Date("2099-06-15T12:00:00.000Z"));
+      });
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it("refuses a fund that expired a millisecond before the request", async () => {
+        fund_get_mock.mockResolvedValueOnce(
+          fund_row({ active: true, expiration: "2099-06-15T11:59:59.999Z" })
+        );
+        const res = await invoke(post(fund_body()));
+
+        expect(res.status).toBe(404);
+        expect(stripe_intent_mock).not.toHaveBeenCalled();
+      });
+
+      it("accepts a fund that expires a millisecond after the request", async () => {
+        fund_get_mock.mockResolvedValueOnce(
+          fund_row({ active: true, expiration: "2099-06-15T12:00:00.001Z" })
+        );
+        stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
+        const res = await invoke(post(fund_body()));
+
+        expect(res.status).toBe(200);
+        expect(stripe_intent_mock).toHaveBeenCalledOnce();
+      });
     });
 
     it.each([
@@ -222,12 +268,14 @@ describe("api.donation-intents action", () => {
 
   it("refuses an inactive nonprofit with the not-accepting 404", async () => {
     npo_get_mock.mockResolvedValueOnce({ ...npo_row, active: false });
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const res = await invoke(post(valid_body("card")));
 
     expect(res.status).toBe(404);
     await expect(res.text()).resolves.toBe(
       "This nonprofit isn't accepting donations right now."
     );
+    expect(info).toHaveBeenCalledWith(expect.stringContaining("nonprofit:1"));
     expect(stripe_intent_mock).not.toHaveBeenCalled();
   });
 
