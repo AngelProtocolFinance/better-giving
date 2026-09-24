@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -306,5 +307,51 @@ describe("fund creation", () => {
 
     const row = await fund_by_name("Holiday Gala");
     expect(row.expiration).toBe(future.toISOString());
+  });
+
+  describe("end date", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function create_ending(expiration: string) {
+      const npo = await seed_npo({ registration_number: "EIN-END" });
+      const u = await seed_user("end@test.com");
+      session_mock.user = { id: u.id, email: u.email, role: "admin" };
+      return create_fund(
+        build_fund_form({
+          name: "Ends Soon",
+          description: "fundraiser with an end date",
+          banner: "https://img.co/banner.png",
+          logo: "https://img.co/logo.png",
+          members: [{ id: npo.id, name: npo.name }],
+          expiration,
+        })
+      );
+    }
+
+    it.each([
+      ["in UTC", "2027-10-01T15:00:00.000Z"],
+      ["in Pacific time after UTC has moved on", "2027-10-02T02:00:00.000Z"],
+    ])("accepts today's date %s", async (_, now) => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(now));
+
+      const res = await create_ending("2027-10-01");
+
+      expect(res.status).toBe(302);
+      const row = await fund_by_name("Ends Soon");
+      expect(row.expiration).toBe("2027-10-01T00:00:00.000Z");
+    });
+
+    it("rejects yesterday's date", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2027-10-01T15:00:00.000Z"));
+
+      const res: any = await create_ending("2027-09-30");
+
+      expect(res.errors.expiration.message).toBe("must be today or later");
+      expect(await fund_by_name("Ends Soon")).toBeUndefined();
+    });
   });
 });

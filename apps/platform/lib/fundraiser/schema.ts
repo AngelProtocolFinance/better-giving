@@ -1,6 +1,7 @@
 import {
   array,
   boolean,
+  check,
   type InferOutput,
   integer,
   isoTimestamp,
@@ -25,6 +26,7 @@ import {
   slug,
   target,
 } from "../schemas";
+import { fund_closes_at } from "./is-open";
 
 export type { DonateMethodId } from "../schemas";
 export type { Environment } from "../types/list";
@@ -52,7 +54,10 @@ const fund_new = object({
     pipe(
       $,
       isoTimestamp("invalid date"),
-      minValue(new Date().toISOString()) //created each parsing
+      check(
+        (iso) => Date.now() < fund_closes_at(iso).getTime(),
+        "must be today or later"
+      )
     )
   ),
   /** `"0"` - none, {"number"} = fixed */

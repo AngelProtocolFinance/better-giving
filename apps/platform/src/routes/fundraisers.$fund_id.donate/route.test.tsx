@@ -87,14 +87,14 @@ async function open_donate_page(expiration: string | null) {
 }
 
 describe("fundraiser donate page", () => {
-  test("takes donations from a fund expiring later today", async () => {
-    const screen = await open_donate_page("2027-09-23T18:00:00.000Z");
+  test("takes donations on its end date after that date began in UTC", async () => {
+    const screen = await open_donate_page("2027-09-23T00:00:00.000Z");
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
     expect(screen.getByText(closed_notice).query()).toBeNull();
   });
 
-  test("is closed for a fund that expired earlier today", async () => {
-    const screen = await open_donate_page("2027-09-23T06:00:00.000Z");
+  test("is closed once its end date has ended everywhere", async () => {
+    const screen = await open_donate_page("2027-09-22T00:00:00.000Z");
     await expect.element(screen.getByText(closed_notice)).toBeVisible();
     expect(screen.getByTestId("donate-methods").query()).toBeNull();
   });
@@ -112,7 +112,7 @@ describe("fundraiser donate page", () => {
     expect(screen.getByText(closed_notice).query()).toBeNull();
   });
 
-  test("takes donations from a fund expiring microseconds from now", async () => {
+  test("reads an expiration stored with microsecond precision", async () => {
     const screen = await open_donate_page("2027-09-23T12:00:00.000003Z");
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
     expect(screen.getByText(closed_notice).query()).toBeNull();

@@ -1,7 +1,7 @@
 import { Badge, type BadgeTone } from "@better-giving/ui";
 import { unpack } from "@better-giving/ui/helpers";
 import { formatDistance } from "date-fns";
-import { fund_is_open } from "@/fundraiser/is-open";
+import { fund_closes_at, fund_is_open } from "@/fundraiser/is-open";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface IStatus {
@@ -27,7 +27,7 @@ export const status = (
 
   return {
     active: true,
-    text: `ends in ${formatDistance(new Date(expiry), now)}`,
+    text: `ends in ${formatDistance(fund_closes_at(expiry), now)}`,
   };
 };
 
