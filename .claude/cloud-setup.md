@@ -14,11 +14,8 @@ Custom, "include defaults" on, plus:
 get.pnpm.io
 cdn.playwright.dev
 playwright.download.prss.microsoft.com
+ppa.launchpadcontent.net
 ```
-
-## Plugins
-
-Enable on the claude.ai account: kru, vercel.
 
 ## Setup script
 
@@ -44,6 +41,12 @@ ln -sf "$PNPM_HOME/bin/pnpm" /usr/local/bin/pnpm || true
 
 # chromium
 npx -y playwright@1.63.0 install --with-deps chromium || true
+
+# plugins
+claude plugin marketplace add ap-justin/kru || true
+claude plugin install kru@kru --scope user || true
+claude plugin install vercel@claude-plugins-official --scope user || true
+claude plugin list || true
 
 node --version; pnpm --version
 exit 0
