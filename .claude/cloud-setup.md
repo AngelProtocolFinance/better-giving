@@ -22,32 +22,38 @@ ppa.launchpadcontent.net
 ```bash
 #!/bin/bash
 set -uo pipefail
+exec > >(tee -a /tmp/setup.log) 2>&1
+
+try() {
+  for _ in 1 2 3; do "$@" && return 0; sleep 2; done
+  echo "SETUP FAIL: $*"
+}
 
 # kru store
-git clone -q https://github.com/ap-justin/kru-store ~/.kru || true
-[ -f ~/.kru/setup.sh ] && bash ~/.kru/setup.sh || true
+try git clone -q https://github.com/ap-justin/kru-store ~/.kru
+[ -f ~/.kru/setup.sh ] && try bash ~/.kru/setup.sh
 
 # node 24
 node_tar=$(curl -fsSL https://nodejs.org/dist/latest-v24.x/SHASUMS256.txt \
   | grep -o 'node-v24[^ ]*-linux-x64.tar.xz' | head -n 1)
-[ -n "$node_tar" ] && curl -fsSL "https://nodejs.org/dist/latest-v24.x/$node_tar" \
-  | tar -xJ -C /usr/local --strip-components=1 || true
+[ -n "$node_tar" ] && try sh -c "curl -fsSL https://nodejs.org/dist/latest-v24.x/$node_tar \
+  | tar -xJ -C /usr/local --strip-components=1"
 hash -r
 
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
-curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.4.2 SHELL=/bin/bash sh - || true
-ln -sf "$PNPM_HOME/bin/pnpm" /usr/local/bin/pnpm || true
+try sh -c 'curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.4.2 SHELL=/bin/bash sh -'
+ln -sf "$PNPM_HOME/bin/pnpm" /usr/local/bin/pnpm
 
 # chromium
-npx -y playwright@1.63.0 install --with-deps chromium || true
+try npx -y playwright@1.63.0 install --with-deps chromium
 
 # plugins
-claude plugin marketplace add ap-justin/kru || true
-claude plugin install kru@kru --scope user || true
-claude plugin install vercel@claude-plugins-official --scope user || true
-claude plugin list || true
+try claude plugin marketplace add anthropics/claude-plugins-official
+try claude plugin marketplace add ap-justin/kru
+try claude plugin install kru@kru --scope user
+try claude plugin install vercel@claude-plugins-official --scope user
 
-node --version; pnpm --version
+node --version; pnpm --version; claude plugin list
 exit 0
 ```
