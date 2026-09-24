@@ -198,24 +198,31 @@ const requeue_sale = async (sale_id: string, subs_id: string | undefined) => {
 
 // paypal serves webhook certs from the classic `api.` host, not the `api-m.`
 // one the rest client calls. an api url off this map leaves no cert host, so
-// every delivery fails verification
+// every delivery is answered 503 until the config is fixed
 const CERT_HOST_BY_API_HOST: Record<string, string> = {
   "api-m.paypal.com": "api.paypal.com",
   "api.paypal.com": "api.paypal.com",
   "api-m.sandbox.paypal.com": "api.sandbox.paypal.com",
   "api.sandbox.paypal.com": "api.sandbox.paypal.com",
 };
-const paypal_cert_host =
+const paypal_api_host =
   paypal_env.api_url && URL.canParse(paypal_env.api_url)
-    ? CERT_HOST_BY_API_HOST[new URL(paypal_env.api_url).host]
-    : undefined;
+    ? new URL(paypal_env.api_url).host
+    : null;
+const paypal_cert_host = paypal_api_host
+  ? CERT_HOST_BY_API_HOST[paypal_api_host]
+  : undefined;
 
 /** the header names the key the signature is checked against, so a url
  * anywhere but paypal's lets the sender sign with a key of their own */
 const is_paypal_cert_url = (url: URL) =>
   url.protocol === "https:" &&
   url.host === paypal_cert_host &&
-  url.pathname.startsWith("/v1/notifications/certs/");
+  url.pathname.startsWith("/v1/notifications/certs/") &&
+  !url.username &&
+  !url.password &&
+  !url.search &&
+  !url.hash;
 
 // the subject rule paypal's own java sdk applied (SSLUtil.validateCertificateChain):
 // messageverificationcerts.paypal.com live, .sandbox.paypal.com in sandbox
@@ -317,6 +324,14 @@ async function verified_body(
     const cert_url = URL.canParse(cert_url_header)
       ? new URL(cert_url_header)
       : null;
+    // our config, not the sender's url: a non-2xx holds paypal's genuine
+    // deliveries for redelivery once PAYPAL_API_URL is fixed
+    if (cert_url && !paypal_cert_host) {
+      report_error(new Error("[paypal webhook] cert host is not configured"), {
+        api_host: paypal_api_host,
+      });
+      return { error: true, status: 503, message: "signature unverifiable" };
+    }
     if (!cert_url || !is_paypal_cert_url(cert_url)) {
       report_error(new Error("[paypal webhook] cert url is not paypal's"), {
         cert_host: cert_url?.host ?? null,

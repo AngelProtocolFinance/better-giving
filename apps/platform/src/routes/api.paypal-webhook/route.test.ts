@@ -41,15 +41,14 @@ vi.mock("@sentry/react-router", async (io) => ({
   ...(await io<typeof import("@sentry/react-router")>()),
   captureException: sentry_capture_mock,
 }));
-vi.mock("$/env", () => ({
-  paypal: {
-    webhook_id: "wh-1",
-    client_id: "c",
-    client_secret: "s",
-    api_url: "https://api-m.sandbox.paypal.com",
-  },
-  stage: "production",
+/** read by the route once, at import — a change reaches only a fresh import */
+const paypal_env = vi.hoisted(() => ({
+  webhook_id: "wh-1",
+  client_id: "c",
+  client_secret: "s",
+  api_url: "https://api-m.sandbox.paypal.com",
 }));
+vi.mock("$/env", () => ({ paypal: paypal_env, stage: "production" }));
 vi.mock("$/kit/paypal", () => ({
   paypal: {
     get_order: get_order_mock,
@@ -168,7 +167,8 @@ const IMPOSTOR_CERT_URL =
 const deliver = (
   ev: Record<string, unknown>,
   headers: Record<string, string | null> = {},
-  signer: ISigner = PAYPAL
+  signer: ISigner = PAYPAL,
+  route: typeof action = action
 ) => {
   const body = JSON.stringify(ev);
   const unsigned: Record<string, string | null> = {
@@ -189,7 +189,7 @@ const deliver = (
       .sign(signer.key, "base64"),
     ...unsigned,
   };
-  return action({
+  return route({
     request: new Request("https://x/api/paypal-webhook", {
       method: "POST",
       body,
@@ -728,6 +728,26 @@ describe("signature verification", () => {
       "https://api.sandbox.paypal.com:8443/v1/notifications/certs/CERT-1",
       "api.sandbox.paypal.com:8443",
     ],
+    [
+      "carrying credentials",
+      "https://user:pass@api.sandbox.paypal.com/v1/notifications/certs/CERT-1",
+      "api.sandbox.paypal.com",
+    ],
+    [
+      "carrying only a password",
+      "https://:pass@api.sandbox.paypal.com/v1/notifications/certs/CERT-1",
+      "api.sandbox.paypal.com",
+    ],
+    [
+      "carrying a query",
+      "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1?x=1",
+      "api.sandbox.paypal.com",
+    ],
+    [
+      "carrying a fragment",
+      "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1#f",
+      "api.sandbox.paypal.com",
+    ],
     ["that does not parse", "not a url", null],
   ])(
     "rejects a cert url %s without fetching it",
@@ -748,6 +768,27 @@ describe("signature verification", () => {
       expect(await settlements()).toHaveLength(0);
     }
   );
+
+  it("asks for redelivery, reporting once, while PAYPAL_API_URL maps to no cert host", async () => {
+    await seed_donation();
+    const configured = paypal_env.api_url;
+    paypal_env.api_url = "https://api.example.com";
+    vi.resetModules();
+    const { action: misconfigured } = await import("./route");
+    paypal_env.api_url = configured;
+
+    const res = await deliver(capture_ev(), {}, PAYPAL, misconfigured);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: "[paypal webhook] cert host is not configured",
+      }),
+      { api_host: "api.example.com" }
+    );
+    expect(await settlements()).toHaveLength(0);
+  });
 
   it("asks for redelivery when paypal's cert url answers 200 with no certificate, and caches nothing", async () => {
     await seed_donation();
