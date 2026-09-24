@@ -2,7 +2,13 @@
 // db.transaction() calls queue rather than overlap. they prove the guard reads
 // committed state under the tx, not that the order row's lock contends.
 
+import { execFileSync } from "node:child_process";
+import { createSign, generateKeyPairSync, type KeyObject } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { inspect } from "node:util";
+import { crc32 } from "node:zlib";
 import {
   afterAll,
   beforeAll,
@@ -26,20 +32,6 @@ const before_lock = vi.hoisted(() => ({
   current: null as null | ((tx: any, id: string) => Promise<void>),
 }));
 
-const sig_valid = vi.hoisted(() => ({ current: true }));
-
-// the route verifies a real paypal signature against a downloaded cert; the
-// bytes are paypal's, not this route's logic, so the verifier is stubbed to
-// `sig_valid`
-vi.mock("node:crypto", async (io) => {
-  const actual = await io<typeof import("node:crypto")>();
-  const patched = {
-    ...actual,
-    createVerify: () => ({ update: () => {}, verify: () => sig_valid.current }),
-  };
-  return { ...patched, default: patched };
-});
-
 vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
   report_resp: (e: any) => new Response(e?.message ?? "error", { status: 500 }),
@@ -49,7 +41,7 @@ vi.mock("$/env", () => ({
     webhook_id: "wh-1",
     client_id: "c",
     client_secret: "s",
-    api_url: "https://paypal.test",
+    api_url: "https://api-m.sandbox.paypal.com",
   },
   stage: "production",
 }));
@@ -106,22 +98,86 @@ const CAPTURE_ID = "capture-1";
 const SALE_ID = "sale-1";
 const SUBS_ID = "I-SUBS-1";
 
-/** `headers` overrides the signed defaults; a null drops that header */
+interface ISigner {
+  key: KeyObject;
+  pem: string;
+}
+
+/** a key pair and a self-signed cert for it, via the openssl cli — node can
+ * parse an X.509 cert but not issue one */
+const self_signed = (subject: string): ISigner => {
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const dir = mkdtempSync(join(tmpdir(), "paypal-webhook-test-"));
+  try {
+    const key_file = join(dir, "key.pem");
+    writeFileSync(
+      key_file,
+      privateKey.export({ type: "pkcs8", format: "pem" }) as string
+    );
+    const pem = execFileSync(
+      "openssl",
+      [
+        "req",
+        "-new",
+        "-x509",
+        "-key",
+        key_file,
+        "-subj",
+        subject,
+        "-days",
+        "2",
+      ],
+      { encoding: "utf8" }
+    );
+    return { key: privateKey, pem };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+// issued in beforeAll, under its 30s timeout: rsa keygen + openssl are slow
+let PAYPAL: ISigner;
+/** holds a cert whose subject claims to be paypal's — only the url stops it */
+let IMPOSTOR: ISigner;
+/** a well-formed cert that is not paypal's signing cert */
+let STRANGER: ISigner;
+
+const CERT_URL =
+  "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-360caa42-fca2a594-ab66f33d";
+/** the fetch stub serves IMPOSTOR's cert here, PAYPAL's everywhere else */
+const IMPOSTOR_CERT_URL =
+  "https://attacker.example/v1/notifications/certs/CERT-1";
+
+/** `headers` overrides the defaults; a null drops that header. the body is
+ * signed over the final headers, as paypal does, with `signer`'s key */
 const deliver = (
   ev: Record<string, unknown>,
-  headers: Record<string, string | null> = {}
+  headers: Record<string, string | null> = {},
+  signer: ISigner = PAYPAL
 ) => {
-  const merged: Record<string, string | null> = {
+  const body = JSON.stringify(ev);
+  const unsigned: Record<string, string | null> = {
     "paypal-transmission-id": "t-1",
     "paypal-transmission-time": "2026-01-01T00:00:00Z",
-    "paypal-cert-url": "https://paypal.test/cert.pem",
-    "paypal-transmission-sig": Buffer.from("sig").toString("base64"),
+    "paypal-cert-url": CERT_URL,
     ...headers,
+  };
+  const message = [
+    unsigned["paypal-transmission-id"],
+    unsigned["paypal-transmission-time"],
+    "wh-1",
+    crc32(body),
+  ].join("|");
+  const merged = {
+    "paypal-transmission-sig": createSign("SHA256")
+      .update(message)
+      .sign(signer.key, "base64"),
+    ...unsigned,
   };
   return action({
     request: new Request("https://x/api/paypal-webhook", {
       method: "POST",
-      body: JSON.stringify(ev),
+      body,
       headers: Object.entries(merged).filter(
         (e): e is [string, string] => e[1] !== null
       ),
@@ -207,9 +263,21 @@ const all_kinds = () =>
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
+  PAYPAL = self_signed(
+    "/O=PayPal, Inc./CN=messageverificationcerts.sandbox.paypal.com"
+  );
+  IMPOSTOR = self_signed(
+    "/O=PayPal, Inc./CN=messageverificationcerts.sandbox.paypal.com"
+  );
+  STRANGER = self_signed("/CN=certs.example.com");
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => new Response("cert"))
+    vi.fn(
+      async (url: string | URL) =>
+        new Response(
+          String(url) === IMPOSTOR_CERT_URL ? IMPOSTOR.pem : PAYPAL.pem
+        )
+    )
   );
 }, 30_000);
 
@@ -221,7 +289,6 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
-  sig_valid.current = true;
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
     plan_id: "P-1",
@@ -503,7 +570,7 @@ describe("PAYMENT.SALE.COMPLETED", () => {
 describe("signature verification", () => {
   it("asks for redelivery while paypal's cert host errors, then settles the redelivery", async () => {
     await seed_donation();
-    const cert_url = { "paypal-cert-url": "https://paypal.test/cert-5xx.pem" };
+    const cert_url = { "paypal-cert-url": `${CERT_URL}-5xx` };
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response("unavailable", { status: 503 })
     );
@@ -525,7 +592,7 @@ describe("signature verification", () => {
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
 
     const res = await deliver(capture_ev(), {
-      "paypal-cert-url": "https://paypal.test/cert-unreachable.pem",
+      "paypal-cert-url": `${CERT_URL}-unreachable`,
     });
 
     expect(res.status).toBe(503);
@@ -535,13 +602,131 @@ describe("signature verification", () => {
     expect(await settlements()).toHaveLength(0);
   });
 
+  it("rejects a cert hosted off paypal without fetching it, even when it verifies", async () => {
+    await seed_donation();
+
+    const res = await deliver(
+      capture_ev(),
+      { "paypal-cert-url": IMPOSTOR_CERT_URL },
+      IMPOSTOR
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toBe(201);
+    expect(await res.text()).toBe("invalid signature");
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Error),
+      { cert_host: "attacker.example" }
+    );
+    expect(await settlements()).toHaveLength(0);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "over http",
+      "http://api.sandbox.paypal.com/v1/notifications/certs/CERT-1",
+    ],
+    [
+      "off the certs path",
+      "https://api.sandbox.paypal.com/v1/uploads/cert.pem",
+    ],
+    [
+      "climbing out of the certs path",
+      "https://api.sandbox.paypal.com/v1/notifications/certs/../../uploads/c",
+    ],
+    [
+      "on live's host from sandbox",
+      "https://api.paypal.com/v1/notifications/certs/CERT-1",
+    ],
+    [
+      "on the rest client's api-m host",
+      "https://api-m.sandbox.paypal.com/v1/notifications/certs/CERT-1",
+    ],
+    [
+      "on a non-default port",
+      "https://api.sandbox.paypal.com:8443/v1/notifications/certs/CERT-1",
+    ],
+    ["that does not parse", "not a url"],
+  ])("rejects a cert url %s without fetching it", async (_, cert_url) => {
+    await seed_donation();
+
+    const res = await deliver(capture_ev(), { "paypal-cert-url": cert_url });
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toBe(201);
+    expect(await res.text()).toBe("invalid signature");
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("asks for redelivery when paypal's cert url answers 200 with no certificate, and caches nothing", async () => {
+    await seed_donation();
+    const cert_url = `${CERT_URL}-not-a-cert`;
+    vi.mocked(fetch).mockResolvedValueOnce(new Response("<html>ok</html>"));
+
+    const garbled = await deliver(capture_ev(), {
+      "paypal-cert-url": cert_url,
+    });
+
+    expect(garbled.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+
+    const redelivered = await deliver(capture_ev(), {
+      "paypal-cert-url": cert_url,
+    });
+
+    expect(redelivered.status).toBe(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(fetch).mock.calls.map(([u]) => String(u))).toEqual([
+      cert_url,
+      cert_url,
+    ]);
+    expect(await settlements()).toHaveLength(1);
+  });
+
+  it("asks for redelivery when paypal's cert url serves a cert not issued to paypal's signer", async () => {
+    await seed_donation();
+    const cert_url = `${CERT_URL}-stranger`;
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(STRANGER.pem));
+
+    const res = await deliver(
+      capture_ev(),
+      { "paypal-cert-url": cert_url },
+      STRANGER
+    );
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("asks for redelivery once paypal's cert has expired, cached or not", async () => {
+    await seed_donation();
+    // prime the cache with the cert while it is current
+    await deliver({ event_type: "PING" });
+    // the test certs are issued for 2 days
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+    try {
+      const res = await deliver(capture_ev());
+
+      expect(res.status).toBe(503);
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await settlements()).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // a redelivery repeats the same headers and signature, so neither case below
   // can come right on retry
   it("acknowledges a delivery whose signature does not verify", async () => {
     await seed_donation();
-    sig_valid.current = false;
 
-    const res = await deliver(capture_ev());
+    const res = await deliver(capture_ev(), {}, STRANGER);
 
     expect(res.status).toBe(201);
     expect(await res.text()).toBe("invalid signature");

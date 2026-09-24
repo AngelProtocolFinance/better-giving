@@ -196,12 +196,62 @@ const requeue_sale = async (sale_id: string, subs_id: string | undefined) => {
 
 // -- signature verification --
 
-const cert_cache = new Map<string, string>();
-async function download_and_cache_cert(cert_url: string): Promise<string> {
-  if (cert_cache.has(cert_url)) return cert_cache.get(cert_url)!;
-  const res = await fetch(cert_url);
+// paypal serves webhook certs from the classic `api.` host, not the `api-m.`
+// one the rest client calls. an api url off this map leaves no cert host, so
+// every delivery fails verification
+const CERT_HOST_BY_API_HOST: Record<string, string> = {
+  "api-m.paypal.com": "api.paypal.com",
+  "api.paypal.com": "api.paypal.com",
+  "api-m.sandbox.paypal.com": "api.sandbox.paypal.com",
+  "api.sandbox.paypal.com": "api.sandbox.paypal.com",
+};
+const paypal_cert_host =
+  paypal_env.api_url && URL.canParse(paypal_env.api_url)
+    ? CERT_HOST_BY_API_HOST[new URL(paypal_env.api_url).host]
+    : undefined;
+
+/** the header names the key the signature is checked against, so a url
+ * anywhere but paypal's lets the sender sign with a key of their own */
+const is_paypal_cert_url = (url: URL) =>
+  url.protocol === "https:" &&
+  url.host === paypal_cert_host &&
+  url.pathname.startsWith("/v1/notifications/certs/");
+
+// the subject rule paypal's own java sdk applied (SSLUtil.validateCertificateChain):
+// messageverificationcerts.paypal.com live, .sandbox.paypal.com in sandbox
+const is_paypal_signing_cert = (cert: crypto.X509Certificate) =>
+  cert.subject
+    .split("\n")
+    .some(
+      (rdn) =>
+        rdn.startsWith("CN=messageverificationcerts") &&
+        rdn.endsWith(".paypal.com")
+    );
+
+const is_current = (cert: crypto.X509Certificate) => {
+  const now = new Date();
+  return cert.validFromDate <= now && now <= cert.validToDate;
+};
+
+const CERT_FETCH_TIMEOUT_MS = 5_000;
+
+const cert_cache = new Map<string, crypto.X509Certificate>();
+/** throws on anything but paypal's current signing cert, caching only that */
+async function download_and_cache_cert(
+  cert_url: string
+): Promise<crypto.X509Certificate> {
+  const cached = cert_cache.get(cert_url);
+  if (cached && is_current(cached)) return cached;
+  cert_cache.delete(cert_url);
+  const res = await fetch(cert_url, {
+    signal: AbortSignal.timeout(CERT_FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw res;
-  const cert = await res.text();
+  const cert = new crypto.X509Certificate(await res.text());
+  if (!is_paypal_signing_cert(cert))
+    throw new Error("[paypal webhook] cert is not paypal's signing cert");
+  if (!is_current(cert))
+    throw new Error("[paypal webhook] paypal's signing cert is not current");
   cert_cache.set(cert_url, cert);
   return cert;
 }
@@ -217,7 +267,7 @@ async function verified_body(
   try {
     const transmission_id = headers.get("paypal-transmission-id");
     const timestamp = headers.get("paypal-transmission-time");
-    const cert_url = headers.get("paypal-cert-url");
+    const cert_url_header = headers.get("paypal-cert-url");
     const signature = headers.get("paypal-transmission-sig");
 
     if (!transmission_id)
@@ -232,7 +282,7 @@ async function verified_body(
         status: 201,
         message: "missing paypal-transmission-time",
       };
-    if (!cert_url)
+    if (!cert_url_header)
       return { error: true, status: 201, message: "missing paypal-cert-url" };
     if (!signature)
       return {
@@ -240,6 +290,16 @@ async function verified_body(
         status: 201,
         message: "missing paypal-transmission-sig",
       };
+
+    const cert_url = URL.canParse(cert_url_header)
+      ? new URL(cert_url_header)
+      : null;
+    if (!cert_url || !is_paypal_cert_url(cert_url)) {
+      report_error(new Error("[paypal webhook] cert url is not paypal's"), {
+        cert_host: cert_url?.host ?? null,
+      });
+      return { error: true, status: 201, message: "invalid signature" };
+    }
 
     const crc_body = crc32(body);
     const message = [
@@ -249,22 +309,22 @@ async function verified_body(
       crc_body,
     ].join("|");
 
-    const cert = await download_and_cache_cert(cert_url).catch(
+    const cert = await download_and_cache_cert(cert_url.href).catch(
       (error: unknown) => {
         report_error(error);
         return null;
       }
     );
-    // an unreachable cert host says nothing about the event; a non-2xx keeps
-    // paypal redelivering it
+    // a cert paypal's host failed to serve says nothing about the event; a
+    // non-2xx keeps paypal redelivering it
     if (cert === null)
-      return { error: true, status: 503, message: "cert download failed" };
+      return { error: true, status: 503, message: "cert unavailable" };
 
     const verifier = crypto.createVerify("SHA256");
     verifier.update(message);
 
     const signature_buffer = Buffer.from(signature, "base64");
-    const is_valid = verifier.verify(cert, signature_buffer);
+    const is_valid = verifier.verify(cert.publicKey, signature_buffer);
     if (!is_valid)
       return { error: true, status: 201, message: "invalid signature" };
 
