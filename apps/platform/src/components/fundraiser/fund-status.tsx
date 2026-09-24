@@ -1,7 +1,6 @@
 import { Badge, type BadgeTone } from "@better-giving/ui";
 import { unpack } from "@better-giving/ui/helpers";
-import { formatDistance } from "date-fns";
-import { fund_closes_at, fund_is_open } from "@/fundraiser/is-open";
+import { fund_is_open } from "@/fundraiser/is-open";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface IStatus {
@@ -9,26 +8,50 @@ interface IStatus {
   text?: "closed" | "completed" | "expired" | (string & {});
 }
 
+// compared as instants: the same sentinel arrives as `…59Z` and `…59.000Z`
+const NO_END_MS = Date.parse(MAX_EXPIRATION_ISO);
+
+// fixed locale + UTC, so server and client render the creator's date identically
+const month_day = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+const month_day_year = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
 export const status = (
   expiry: string | undefined,
   active: boolean,
-  progress: number
+  progress: number,
+  now: Date = new Date()
 ): IStatus => {
   if (!active) return { active: false, text: "closed" };
 
-  if (!expiry || expiry === MAX_EXPIRATION_ISO) return { active: true };
+  if (!expiry || Date.parse(expiry) >= NO_END_MS) return { active: true };
 
-  const now = new Date();
   if (!fund_is_open({ active, expiration: expiry }, now))
     return {
       active: false,
       text: progress ? "completed" : "expired",
     };
 
-  return {
-    active: true,
-    text: `ends in ${formatDistance(fund_closes_at(expiry), now)}`,
-  };
+  const end = new Date(expiry);
+  const end_date_starts = Date.UTC(
+    end.getUTCFullYear(),
+    end.getUTCMonth(),
+    end.getUTCDate()
+  );
+  if (now.getTime() >= end_date_starts)
+    return { active: true, text: "last day" };
+
+  const fmt =
+    end.getUTCFullYear() === now.getUTCFullYear() ? month_day : month_day_year;
+  return { active: true, text: `ends ${fmt.format(end)}` };
 };
 
 interface IFundStatus {
