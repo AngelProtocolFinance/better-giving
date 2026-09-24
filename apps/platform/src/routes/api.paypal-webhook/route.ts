@@ -242,8 +242,12 @@ const is_current = (cert: crypto.X509Certificate) => {
 
 const CERT_FETCH_TIMEOUT_MS = 5_000;
 
-/** paypal's cert host did not serve the cert — its outage, not a bad cert */
-class CertHostUnreachable extends Error {}
+/** paypal's cert host is down or shedding load — a network error, a timeout, a
+ * 5xx or a 429 — which heals with no change on either side. a 4xx, a redirect
+ * or a 200 that isn't a cert does not, and is a plain Error */
+class CertHostUnreachable extends Error {
+  override name = "CertHostUnreachable";
+}
 
 const cert_cache = new Map<string, crypto.X509Certificate>();
 /** throws on anything but paypal's current signing cert, caching only that */
@@ -253,24 +257,27 @@ async function download_and_cache_cert(
   const cached = cert_cache.get(cert_url.href);
   if (cached && is_current(cached)) return cached;
   cert_cache.delete(cert_url.href);
-  // the allowlist vetted this url only; a followed redirect would fetch the key
-  // from wherever the hop points
-  const res = await fetch(cert_url, {
-    redirect: "error",
-    signal: AbortSignal.timeout(CERT_FETCH_TIMEOUT_MS),
-  }).catch((cause: unknown) => {
+  // the network failing or the timeout firing, while connecting or mid-body
+  const unreachable = (cause: unknown) => {
     throw new CertHostUnreachable(
       `[paypal webhook] cert host ${cert_url.host} unreachable`,
       { cause }
     );
-  });
-  // neither the Response nor an error with a `status` prop: report_degraded
-  // keeps a 4xx of either out of sentry, and a 403/404 here drops every event
-  if (!res.ok)
-    throw new CertHostUnreachable(
-      `[paypal webhook] cert host ${cert_url.host} answered ${res.status}`
-    );
-  const cert = new crypto.X509Certificate(await res.text());
+  };
+  // the allowlist vetted this url only; a followed redirect would fetch the key
+  // from wherever the hop points. "manual" hands the 3xx back as a status, where
+  // "error" would reject exactly like the network failing
+  const res = await fetch(cert_url, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(CERT_FETCH_TIMEOUT_MS),
+  }).catch(unreachable);
+  // neither the Response nor an error with a `status` prop: the reporters keep
+  // a 4xx of either out of sentry, and a 403/404 here drops every event
+  const answered = `[paypal webhook] cert host ${cert_url.host} answered ${res.status}`;
+  if (res.status >= 500 || res.status === 429)
+    throw new CertHostUnreachable(answered);
+  if (!res.ok) throw new Error(answered);
+  const cert = new crypto.X509Certificate(await res.text().catch(unreachable));
   if (!is_paypal_signing_cert(cert))
     throw new Error("[paypal webhook] cert is not paypal's signing cert");
   if (!is_current(cert))
@@ -279,9 +286,16 @@ async function download_and_cache_cert(
   return cert;
 }
 
-/** the id and type off a body whose signature failed or went unchecked —
- * anyone's input, so nothing else of it is read */
-const unverified_event_ref = (body: string) => {
+const UNVERIFIED_MAX_CHARS = 128;
+
+/** which delivery a report is about. the signature failed or went unchecked,
+ * so every field is the sender's say-so, and only the body's id and type are
+ * read */
+const delivery_ref = (
+  body: string,
+  transmission_id: string,
+  cert_url: URL | null
+) => {
   const ev = ((): { id?: unknown; event_type?: unknown } => {
     try {
       const v: unknown = JSON.parse(body);
@@ -290,18 +304,16 @@ const unverified_event_ref = (body: string) => {
       return {};
     }
   })();
-  const str = (v: unknown) => (typeof v === "string" ? v : null);
-  return { event_id: str(ev.id), event_type: str(ev.event_type) };
-};
-
-/** which delivery a report is about, from anything the sender sent */
-const delivery_ref = (body: string, headers: Headers) => {
-  const cert_url = headers.get("paypal-cert-url");
+  // a sender sets each to any length, and each lands in logs and sentry
+  const clip = (v: unknown) =>
+    typeof v === "string" ? v.slice(0, UNVERIFIED_MAX_CHARS) : null;
   return {
-    transmission_id: headers.get("paypal-transmission-id"),
-    ...unverified_event_ref(body),
-    cert_host:
-      cert_url && URL.canParse(cert_url) ? new URL(cert_url).host : null,
+    unverified: {
+      transmission_id: clip(transmission_id),
+      event_id: clip(ev.id),
+      event_type: clip(ev.event_type),
+      cert_host: clip(cert_url?.host),
+    },
   };
 };
 
@@ -313,51 +325,50 @@ async function verified_body(
   body: string,
   headers: Headers
 ): Promise<VerifyResult> {
+  const transmission_id = headers.get("paypal-transmission-id");
+  const timestamp = headers.get("paypal-transmission-time");
+  const cert_url_header = headers.get("paypal-cert-url");
+  const signature = headers.get("paypal-transmission-sig");
+
+  if (!transmission_id)
+    return {
+      error: true,
+      status: 201,
+      message: "missing paypal-transmission-id",
+    };
+  if (!timestamp)
+    return {
+      error: true,
+      status: 201,
+      message: "missing paypal-transmission-time",
+    };
+  if (!cert_url_header)
+    return { error: true, status: 201, message: "missing paypal-cert-url" };
+  if (!signature)
+    return {
+      error: true,
+      status: 201,
+      message: "missing paypal-transmission-sig",
+    };
+
+  const cert_url = URL.canParse(cert_url_header)
+    ? new URL(cert_url_header)
+    : null;
+  const ref = () => delivery_ref(body, transmission_id, cert_url);
+  // our config, not the sender's url: a non-2xx holds paypal's genuine
+  // deliveries for redelivery once PAYPAL_API_URL is fixed
+  if (cert_url && !paypal_cert_host) {
+    report_error(new Error("[paypal webhook] cert host is not configured"), {
+      api_host: paypal_api_host,
+    });
+    return { error: true, status: 503, message: "signature unverifiable" };
+  }
+  if (!cert_url || !is_paypal_cert_url(cert_url)) {
+    report_error(new Error("[paypal webhook] cert url is not paypal's"), ref());
+    return { error: true, status: 201, message: "invalid signature" };
+  }
+
   try {
-    const transmission_id = headers.get("paypal-transmission-id");
-    const timestamp = headers.get("paypal-transmission-time");
-    const cert_url_header = headers.get("paypal-cert-url");
-    const signature = headers.get("paypal-transmission-sig");
-
-    if (!transmission_id)
-      return {
-        error: true,
-        status: 201,
-        message: "missing paypal-transmission-id",
-      };
-    if (!timestamp)
-      return {
-        error: true,
-        status: 201,
-        message: "missing paypal-transmission-time",
-      };
-    if (!cert_url_header)
-      return { error: true, status: 201, message: "missing paypal-cert-url" };
-    if (!signature)
-      return {
-        error: true,
-        status: 201,
-        message: "missing paypal-transmission-sig",
-      };
-
-    const cert_url = URL.canParse(cert_url_header)
-      ? new URL(cert_url_header)
-      : null;
-    // our config, not the sender's url: a non-2xx holds paypal's genuine
-    // deliveries for redelivery once PAYPAL_API_URL is fixed
-    if (cert_url && !paypal_cert_host) {
-      report_error(new Error("[paypal webhook] cert host is not configured"), {
-        api_host: paypal_api_host,
-      });
-      return { error: true, status: 503, message: "signature unverifiable" };
-    }
-    if (!cert_url || !is_paypal_cert_url(cert_url)) {
-      report_error(new Error("[paypal webhook] cert url is not paypal's"), {
-        cert_host: cert_url?.host ?? null,
-      });
-      return { error: true, status: 201, message: "invalid signature" };
-    }
-
     const crc_body = crc32(body);
     const message = [
       transmission_id,
@@ -377,7 +388,7 @@ async function verified_body(
     if (!is_valid) {
       report_error(
         new Error("[paypal webhook] signature does not verify"),
-        delivery_ref(body, headers)
+        ref()
       );
       return { error: true, status: 201, message: "invalid signature" };
     }
@@ -388,7 +399,7 @@ async function verified_body(
     // with, says nothing about the event; a non-2xx keeps paypal redelivering it
     const report =
       error instanceof CertHostUnreachable ? report_degraded : report_error;
-    report(error, delivery_ref(body, headers));
+    report(error, ref());
     return { error: true, status: 503, message: "signature unverifiable" };
   }
 }
