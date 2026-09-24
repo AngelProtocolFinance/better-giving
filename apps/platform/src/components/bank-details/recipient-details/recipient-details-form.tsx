@@ -8,6 +8,7 @@ import {
 } from "@better-giving/ui";
 import { fileOutput } from "@better-giving/ui/helpers";
 import { ErrorMessage } from "@hookform/error-message";
+import { type RefObject, useLayoutEffect, useRef } from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
 import { report_error } from "#/errors/report";
@@ -62,10 +63,17 @@ export function RecipientDetailsForm({
     handleSubmit,
     getValues,
     setError,
-    setFocus,
     formState: { errors, isSubmitting },
     getFieldState,
   } = useForm<FV>({ disabled, shouldUnregister: true });
+
+  const first_invalid = useRef<string | null>(null);
+  // rhf's `setFocus` defers its `.focus()` to a timeout, which lands after
+  // `Fieldset` has already handed focus back to the submit button
+  function focus_now(path: string) {
+    const f = get(control._fields, path)?._f;
+    (f?.refs?.[0] ?? f?.ref)?.focus?.();
+  }
 
   const { update_requirements } = use_requirements(
     !amount ? null : { amount, currency }
@@ -152,11 +160,8 @@ export function RecipientDetailsForm({
             setError(v.path, { message: v.message });
           }
 
-          setTimeout(() => {
-            //focus 1st error only
-            setFocus(validations[0].path);
-            //wait a bit for `isSubmitting:false`, as disabled fields can't be focused
-          }, 50);
+          // fieldset is still disabled here; focused once the submit settles
+          first_invalid.current = validations[0].path;
         } catch (err) {
           ask_prompt(error_prompt(err, { context: "validating" }), {
             key: PROMPT_SLOT,
@@ -165,6 +170,11 @@ export function RecipientDetailsForm({
       })}
       className="grid gap-5"
     >
+      <FocusFirstInvalid
+        submitting={isSubmitting}
+        path={first_invalid}
+        focus={focus_now}
+      />
       {fields.map((f) => {
         const labelRequired = f.required ? true : undefined;
         if (f.type === "select") {
@@ -378,4 +388,24 @@ export function RecipientDetailsForm({
       />
     </Form>
   );
+}
+
+interface IFocusFirstInvalid {
+  submitting: boolean;
+  path: RefObject<string | null>;
+  focus: (path: string) => void;
+}
+
+/**
+ * mounted inside the form's fieldset: a descendant's layout effect runs after
+ * the fieldset re-enables but before `Fieldset`'s own, which would otherwise
+ * hand focus back to the submit button first.
+ */
+function FocusFirstInvalid({ submitting, path, focus }: IFocusFirstInvalid) {
+  useLayoutEffect(() => {
+    if (submitting || !path.current) return;
+    focus(path.current);
+    path.current = null;
+  }, [submitting, path, focus]);
+  return null;
 }
