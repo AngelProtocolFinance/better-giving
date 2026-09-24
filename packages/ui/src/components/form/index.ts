@@ -1,7 +1,7 @@
 export { Actions } from "./actions";
 export { CheckField } from "./check-field";
 export { Field } from "./field";
-export { Form, RmxForm, useRmxForm } from "./form";
+export { Fieldset, Form, RmxForm, useRmxForm } from "./form";
 export { toYYYMMDD } from "./helpers";
 export { Input } from "./input";
 export { Label } from "./label";
