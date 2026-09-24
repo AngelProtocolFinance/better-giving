@@ -279,8 +279,8 @@ async function download_and_cache_cert(
   return cert;
 }
 
-/** the id and type off a body whose signature failed — anyone's input, so
- * nothing else of it is read */
+/** the id and type off a body whose signature failed or went unchecked —
+ * anyone's input, so nothing else of it is read */
 const unverified_event_ref = (body: string) => {
   const ev = ((): { id?: unknown; event_type?: unknown } => {
     try {
@@ -375,10 +375,10 @@ async function verified_body(
     // still a 2xx: no retry makes a forged signature verify. reported because
     // paypal's own events land here too when our webhook id or crc is wrong
     if (!is_valid) {
-      report_error(new Error("[paypal webhook] signature does not verify"), {
-        ...unverified_event_ref(body),
-        cert_host: cert_url.host,
-      });
+      report_error(
+        new Error("[paypal webhook] signature does not verify"),
+        delivery_ref(body, headers)
+      );
       return { error: true, status: 201, message: "invalid signature" };
     }
 

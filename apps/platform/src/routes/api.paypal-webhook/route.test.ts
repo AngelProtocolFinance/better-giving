@@ -953,6 +953,7 @@ describe("signature verification", () => {
         message: "[paypal webhook] signature does not verify",
       }),
       {
+        transmission_id: "t-1",
         event_id: "WH-BAD",
         event_type: "PAYMENT.CAPTURE.COMPLETED",
         cert_host: "api.sandbox.paypal.com",
