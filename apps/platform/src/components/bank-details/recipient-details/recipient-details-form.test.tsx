@@ -50,7 +50,20 @@ const fields = [
     example: "1990-01-31",
     type: "date",
   }),
+  field({
+    key: "legalType",
+    name: "Recipient type",
+    example: "",
+    type: "radio",
+    valuesAllowed: [
+      { key: "PRIVATE", name: "Person" },
+      { key: "BUSINESS", name: "Business" },
+    ],
+  }),
 ];
+
+const with_fields = (overrides: Record<string, Partial<Group>>) =>
+  fields.map((f) => ({ ...f, ...overrides[f.key] }));
 
 function FormButtons({ disabled }: FormButtonsProps) {
   return (
@@ -109,22 +122,25 @@ function record_focus() {
 }
 
 /** the refusal prompt mounts at `AskHost`, and `Prompt` reads the router */
-async function render_form(form_fields: Group[] = fields) {
+async function render_form(form_fields: Group[] = fields, form_count = 1) {
   const on_submit = vi.fn();
   const Stub = createRoutesStub([
     {
       path: "/",
       Component: () => (
         <>
-          <RecipientDetailsForm
-            fields={form_fields}
-            currency="GBP"
-            amount={0}
-            type="sort_code"
-            quoteId="quote-1"
-            FormButtons={FormButtons}
-            onSubmit={on_submit}
-          />
+          {Array.from({ length: form_count }, (_, i) => (
+            <RecipientDetailsForm
+              key={i}
+              fields={form_fields}
+              currency="GBP"
+              amount={0}
+              type="sort_code"
+              quoteId="quote-1"
+              FormButtons={FormButtons}
+              onSubmit={on_submit}
+            />
+          ))}
           <button type="button">Elsewhere</button>
           <AskHost />
         </>
@@ -366,13 +382,17 @@ describe("RecipientDetailsForm", () => {
     const cell = (trigger.element() as HTMLElement).closest(
       '[data-scope="select"][data-part="root"]'
     )?.parentElement;
-    const shown_labels = [...(cell?.querySelectorAll("label") ?? [])].filter(
-      (l) => l.checkVisibility()
-    );
-    expect(shown_labels.map((l) => l.textContent)).toEqual(["Account type"]);
+    // hidden ones too: an empty label is hidden and still names the trigger
+    const labels = [...(cell?.querySelectorAll("label") ?? [])];
+    expect(labels.map((l) => l.textContent)).toEqual(["Account type"]);
 
     await trigger.click();
     await screen.getByRole("option", { name: "Savings" }).click();
+    // the input is 0x0 under its tile; the tile's label is what takes the click
+    await screen
+      .getByRole("radiogroup", { name: "Recipient type" })
+      .getByText("Business", { exact: true })
+      .click();
     await screen.getByRole("button", { name: "Continue" }).click();
 
     await vi.waitFor(() => expect(on_submit).toHaveBeenCalledOnce());
@@ -383,6 +403,7 @@ describe("RecipientDetailsForm", () => {
         sortCode: "40-30-20",
         accountNumber: "12345678",
         dateOfBirth: "1990-01-31",
+        legalType: "BUSINESS",
       },
     });
   });
@@ -403,8 +424,139 @@ describe("RecipientDetailsForm", () => {
     const trigger = screen.getByRole("combobox", { name: "Account type" });
     await expect.element(trigger).toHaveAttribute("aria-invalid", "true");
     await expect.element(trigger).toHaveAttribute("aria-required", "true");
+    const dob = screen.getByLabelText("Date of birth");
+    await expect.element(dob).toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(screen.getByLabelText("Account holder"))
+      .toHaveAttribute("aria-required", "true");
+    await expect.element(dob).toHaveAttribute("aria-required", "true");
+    const group = screen.getByRole("radiogroup", { name: "Recipient type" });
+    await expect.element(group).toHaveAttribute("aria-required", "true");
+    await expect.element(group).toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(group.getByRole("radio", { name: "Person" }))
+      .toHaveAccessibleDescription("required");
+  });
+
+  test("a refusal naming a radio field lands focus on its first option, inside the group it names and described by Wise's message", async () => {
+    refuse("legalType");
+    const { screen } = await render_form();
+    await fill_all(screen);
+
+    const focus = record_focus();
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    const group = screen.getByRole("radiogroup", { name: "Recipient type" });
+    const person = group.getByRole("radio", { name: "Person" });
+    await expect.element(person).toHaveFocus();
+    await expect.element(group).toHaveAttribute("aria-invalid", "true");
+    await expect.element(group).not.toHaveAttribute("aria-required");
+    for (const radio of group.getByRole("radio").all()) {
+      await expect
+        .element(radio)
+        .toHaveAccessibleDescription("invalid legalType");
+    }
+    expect(screen.getByText("invalid legalType").elements()).toHaveLength(1);
+    expect(await focus.settle()).toEqual(["Continue", "legalType"]);
+  });
+
+  test("two radio fields sharing an option key each check their own option", async () => {
+    const { screen } = await render_form([
+      ...fields,
+      field({
+        key: "accountUse",
+        name: "Account use",
+        example: "",
+        type: "radio",
+        valuesAllowed: [
+          { key: "PRIVATE", name: "Personal account" },
+          { key: "BUSINESS", name: "Company account" },
+        ],
+      }),
+    ]);
+
+    const recipient = screen.getByRole("radiogroup", {
+      name: "Recipient type",
+    });
+    const use = screen.getByRole("radiogroup", { name: "Account use" });
+    await use.getByText("Company account", { exact: true }).click();
+
+    await expect
+      .element(use.getByRole("radio", { name: "Company account" }))
+      .toBeChecked();
+    await expect
+      .element(recipient.getByRole("radio", { name: "Business" }))
+      .not.toBeChecked();
+  });
+
+  test("two forms on one page share no element id, and each option label checks its own form's radio", async () => {
+    const { screen } = await render_form(fields, 2);
+
+    const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+
+    const groups = screen
+      .getByRole("radiogroup", { name: "Recipient type" })
+      .all();
+    expect(groups).toHaveLength(2);
+    await groups[1].getByText("Business", { exact: true }).click();
+    await expect
+      .element(groups[1].getByRole("radio", { name: "Business" }))
+      .toBeChecked();
+    await expect
+      .element(groups[0].getByRole("radio", { name: "Business" }))
+      .not.toBeChecked();
+  });
+
+  test("a pattern refusal suggests the field's example, and a field with no example says the format is invalid", async () => {
+    const { screen } = await render_form(
+      with_fields({
+        sortCode: { validationRegexp: "^\\d{2}-\\d{2}-\\d{2}$" },
+        dateOfBirth: {
+          example: "",
+          validationRegexp: "^\\d{4}-\\d{2}-\\d{2}$",
+        },
+      })
+    );
+    await fill_all(screen);
+    await screen.getByLabelText("Sort code").fill("403020");
+    await screen.getByLabelText("Date of birth").fill("31/01/1990");
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    await expect
+      .element(screen.getByLabelText("Sort code"))
+      .toHaveAccessibleDescription("invalid, e.g. 40-30-20");
     await expect
       .element(screen.getByLabelText("Date of birth"))
-      .toHaveAttribute("aria-invalid", "true");
+      .toHaveAccessibleDescription("invalid format");
+  });
+
+  test("a check Wise refuses on its own endpoint suggests the field's example", async () => {
+    mswWorker.use(
+      http.get(
+        "/api/wise/v1/validators/sort-code",
+        () => new HttpResponse(null, { status: 400 })
+      )
+    );
+    const { screen } = await render_form(
+      with_fields({
+        sortCode: {
+          validationAsync: {
+            url: "https://api.wise.com/v1/validators/sort-code",
+            params: [
+              { key: "sortCode", parameterName: "sortCode", required: true },
+            ],
+          },
+        },
+      })
+    );
+    await fill_all(screen);
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    await expect
+      .element(screen.getByLabelText("Sort code"))
+      .toHaveAccessibleDescription("invalid, e.g. 40-30-20");
   });
 });

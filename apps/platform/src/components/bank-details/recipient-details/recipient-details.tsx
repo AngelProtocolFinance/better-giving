@@ -1,4 +1,4 @@
-import { Info, Label, LoadingStatus, Select } from "@better-giving/ui";
+import { Info, LoadingStatus, Select } from "@better-giving/ui";
 import { memo, useState } from "react";
 import type { IFormButtons, OnSubmit } from "../types";
 import { RecipientDetailsForm } from "./recipient-details-form";
@@ -59,19 +59,16 @@ function _RecipientDetails({
           Refreshing requirements..
         </LoadingStatus>
       )}
-      <div className="">
-        <Label required className="mb-2">
-          Transfer type
-        </Label>
-        <Select
-          value={selected_idx.toString()}
-          onChange={(value) => set_selected_idx(+value)}
-          options={requirements.map((_, i) => i.toString())}
-          option_disp={(x) => requirements[+x].title}
-          disabled={disabled || isValidating}
-          classes={{ options: "text-sm" }}
-        />
-      </div>
+      <Select
+        label="Transfer type"
+        required
+        value={selected_idx.toString()}
+        onChange={(value) => set_selected_idx(+value)}
+        options={requirements.map((_, i) => i.toString())}
+        option_disp={(x) => requirements[+x].title}
+        disabled={disabled || isValidating}
+        classes={{ options: "text-sm" }}
+      />
 
       <RecipientDetailsForm
         verified={verified}
