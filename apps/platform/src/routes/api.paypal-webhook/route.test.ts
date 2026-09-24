@@ -354,6 +354,28 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
+  it("asks for redelivery of a sale that lands before its subscription activates", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { billing_info: _, ...active } = await get_subscription_mock();
+    get_subscription_mock.mockResolvedValue({ ...active, status: "APPROVED" });
+
+    const early = await deliver(sale_ev());
+
+    expect(early.ok).toBe(false);
+    expect(await settlements()).toHaveLength(0);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+
+    get_subscription_mock.mockResolvedValue({
+      ...active,
+      status: "ACTIVE",
+      billing_info: { next_billing_time: "2026-02-01T00:00:00.000Z" },
+    });
+    const redelivered = await deliver(sale_ev());
+
+    expect(redelivered.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
+  });
+
   it("settles one first-recurring sale once when two deliveries race", async () => {
     await seed_donation({ frequency: "monthly" });
 
@@ -383,7 +405,8 @@ describe("an event no redelivery can route", () => {
 
     const res = await deliver({ ...capture_ev(), resource });
 
-    expect(res.ok).toBe(true);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(await settlements()).toHaveLength(0);
   });
@@ -400,7 +423,8 @@ describe("an event no redelivery can route", () => {
       },
     });
 
-    expect(res.ok).toBe(true);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect((await donation_get(ORDER_ID))!.from_email).toBe("donor@test.com");
   });
@@ -418,7 +442,8 @@ describe("an event no redelivery can route", () => {
       },
     });
 
-    expect(res.ok).toBe(true);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(await db().select().from(subscriptions)).toHaveLength(0);
   });
@@ -429,7 +454,8 @@ describe("an event no redelivery can route", () => {
 
     const res = await deliver({ ...sale_ev(), resource });
 
-    expect(res.ok).toBe(true);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(await settlements()).toHaveLength(0);
   });

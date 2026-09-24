@@ -49,8 +49,11 @@ const to_interval = (from: TIntervalFrom): TInterval => {
 };
 
 // builds an ISub from a paypal subscription resource + donation context.
-// returns a string naming what the subscription or its plan lacks — a gap no
-// redelivery fills — else the record.
+// returns a string naming what the subscription or its plan lacks, else the
+// record. ACTIVATED passes its event payload, which a redelivery repeats, so it
+// acknowledges the gap; SALE passes the live subscription, which can still be
+// APPROVED with no billing_info when the first sale lands, so it asks for a
+// redelivery.
 async function build_sub_record(args: {
   subs_id: string;
   sub: Subs;
@@ -530,8 +533,11 @@ export async function action({ request }: Route.ActionArgs) {
         const sub = await paypal.get_subscription(subs_id);
         if (!sub)
           return new Response("subscription not found", { status: 400 });
-        // the subscriber and custom_id are fixed before the first charge, so a
-        // subscription that bills without one never gains it
+        // no redelivery supplies either on its own. custom_id is patchable
+        // (subscriptions PATCH, add/replace); after patching it, resend this
+        // event by the event_id in the report. of the subscriber, only
+        // shipping_address is patchable, so a missing subscriber or email has
+        // no recovery.
         if (!sub.subscriber) return unroutable(ev, "missing subscriber info");
         if (!sub.custom_id) return unroutable(ev, "missing onhold id");
         const don_id = sub.custom_id;
@@ -555,7 +561,10 @@ export async function action({ request }: Route.ActionArgs) {
           // placeholder, and sub_put's onConflictDoNothing would freeze it in.
           from_email: email,
         });
-        if (typeof subs_db === "string") return unroutable(ev, subs_db);
+        if (typeof subs_db === "string")
+          return new Response(`subscription not ready: ${subs_db}`, {
+            status: 400,
+          });
 
         const sttl_record = {
           id: sale_id,
