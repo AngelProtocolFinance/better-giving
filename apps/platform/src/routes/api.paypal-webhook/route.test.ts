@@ -374,6 +374,74 @@ describe("PAYMENT.SALE.COMPLETED", () => {
   });
 });
 
+// a non-2xx buys up to 25 redeliveries over 3 days; a payload missing what the
+// route needs arrives identical every time, so it is reported and acknowledged
+describe("an event no redelivery can route", () => {
+  it("acknowledges and reports a capture with no donation id", async () => {
+    await seed_donation();
+    const { custom_id: _, ...resource } = capture_ev().resource;
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.ok).toBe(true);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports an approved order with no donation id", async () => {
+    await seed_donation();
+
+    const res = await deliver({
+      event_type: "CHECKOUT.ORDER.APPROVED",
+      resource: {
+        id: "ORDER-1",
+        payment_source: { paypal: { email_address: "payer@test.com" } },
+        purchase_units: [{}],
+      },
+    });
+
+    expect(res.ok).toBe(true);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect((await donation_get(ORDER_ID))!.from_email).toBe("donor@test.com");
+  });
+
+  it("acknowledges and reports an activated subscription with no donation id", async () => {
+    await seed_donation({ frequency: "monthly" });
+
+    const res = await deliver({
+      event_type: "BILLING.SUBSCRIPTION.ACTIVATED",
+      resource: {
+        id: SUBS_ID,
+        plan_id: "P-1",
+        subscriber: { email_address: "subscriber@test.com" },
+        billing_info: { next_billing_time: "2026-02-01T00:00:00.000Z" },
+      },
+    });
+
+    expect(res.ok).toBe(true);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await db().select().from(subscriptions)).toHaveLength(0);
+  });
+
+  it("acknowledges and reports a sale with no subscription id", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { billing_agreement_id: _, ...resource } = sale_ev().resource;
+
+    const res = await deliver({ ...sale_ev(), resource });
+
+    expect(res.ok).toBe(true);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("asks for redelivery of a capture whose donation row is not there yet", async () => {
+    const res = await deliver(capture_ev());
+
+    expect(res.ok).toBe(false);
+    expect(await settlements()).toHaveLength(0);
+  });
+});
+
 describe("logging", () => {
   const DONOR = {
     email: "payer-pii@example.com",
