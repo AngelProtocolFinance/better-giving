@@ -37,13 +37,19 @@ type JoinedRow = NpoRow & {
   contributions_count: number;
 };
 
+// sql<T> alone skips the columns' decoders, and numeric and int8 arrive as text
+const contributions = {
+  contributions_total: sql`COALESCE(${v_contributions.total}, 0)`.mapWith(
+    v_contributions.total
+  ),
+  contributions_count: sql`COALESCE(${v_contributions.count}, 0)`.mapWith(
+    v_contributions.count
+  ),
+};
+
 function joined_select(conn: DbOrTx = db) {
   return conn
-    .select({
-      ...npo_cols,
-      contributions_total: sql<number>`COALESCE(${v_contributions.total}, 0)`,
-      contributions_count: sql<number>`COALESCE(${v_contributions.count}, 0)`,
-    })
+    .select({ ...npo_cols, ...contributions })
     .from(npos)
     .leftJoin(v_contributions, eq(v_contributions.npo_id, npos.id));
 }
@@ -283,9 +289,8 @@ export async function npo_search(
       fund_opt_in: npos.fund_opt_in,
       target_number: npos.target_number,
       target_smart: npos.target_smart,
-      contributions_total: sql<number>`COALESCE(${v_contributions.total}, 0)`,
-      contributions_count: sql<number>`COALESCE(${v_contributions.count}, 0)`,
-      total: sql<number>`COUNT(*) OVER()`,
+      ...contributions,
+      total: sql`COUNT(*) OVER()`.mapWith(Number),
     })
     .from(npos)
     .leftJoin(v_contributions, eq(v_contributions.npo_id, npos.id))
