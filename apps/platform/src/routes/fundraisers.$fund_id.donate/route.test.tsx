@@ -65,7 +65,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function open_donate_page(expiration: string) {
+async function open_donate_page(expiration: string | null) {
   const fund = await seed_fund(test_db.current!.db, {
     id: crypto.randomUUID(),
     npo_owner: npo_id,
@@ -97,5 +97,24 @@ describe("fundraiser donate page", () => {
     const screen = await open_donate_page("2027-09-23T06:00:00.000Z");
     await expect.element(screen.getByText(closed_notice)).toBeVisible();
     expect(screen.getByTestId("donate-methods").query()).toBeNull();
+  });
+
+  test("takes donations from a fund with no expiration", async () => {
+    const screen = await open_donate_page(null);
+    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
+    expect(screen.getByText(closed_notice).query()).toBeNull();
+  });
+
+  test("takes donations until an expiry that falls on the next local day", async () => {
+    // 20:00Z is 01:30 the next day in the session's Asia/Kolkata
+    const screen = await open_donate_page("2027-09-23T20:00:00.000Z");
+    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
+    expect(screen.getByText(closed_notice).query()).toBeNull();
+  });
+
+  test("takes donations from a fund expiring microseconds from now", async () => {
+    const screen = await open_donate_page("2027-09-23T12:00:00.000003Z");
+    await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
+    expect(screen.getByText(closed_notice).query()).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { Badge, type BadgeTone } from "@better-giving/ui";
 import { unpack } from "@better-giving/ui/helpers";
 import { formatDistance } from "date-fns";
+import { fund_is_open } from "@/fundraiser/is-open";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 
 interface IStatus {
@@ -18,7 +19,7 @@ export const status = (
   if (!expiry || expiry === MAX_EXPIRATION_ISO) return { active: true };
 
   const now = new Date();
-  if (now.toISOString() > expiry)
+  if (!fund_is_open({ active, expiration: expiry }, now))
     return {
       active: false,
       text: progress ? "completed" : "expired",
