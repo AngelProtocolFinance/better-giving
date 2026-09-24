@@ -12,24 +12,55 @@ import { db } from "$/pg/db";
 import { donation_get, donation_update } from "$/pg/queries/donation";
 import type { Route } from "./+types/api.chariot-webhook";
 
+/** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — collects every `v1`, any of which may match; other schemes are ignored so a weaker one can't stand in for `v1` */
+function parse_signature(header: string): { t: string; v1: string[] } | null {
+  let t = "";
+  const v1: string[] = [];
+  for (const part of header.split(",")) {
+    const eq = part.indexOf("=");
+    if (eq < 1) continue;
+    const key = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (!value) continue;
+    if (key === "t") t = value;
+    else if (key === "v1") v1.push(value);
+  }
+  return t && v1.length ? { t, v1 } : null;
+}
+
+function safe_equals(expected: string, received: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  // timingSafeEqual throws on unequal lengths
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export async function action({ request }: Route.ActionArgs) {
   try {
     const sig = request.headers.get("chariot-webhook-signature");
     const body = await request.text();
 
-    if (!sig) return new Response("missig signature header", { status: 403 });
+    const parsed = parse_signature(sig ?? "");
+    if (!parsed)
+      return new Response("malformed signature header", { status: 400 });
 
-    // verify received payload
-    const timestamp = sig.match(/[^t=]*Z/g)![0];
-    const sig_hash = sig.split("v1=")[1];
-
-    const signed = `${timestamp}.${body}`;
+    const signed = `${parsed.t}.${body}`;
     const hash = crypto
       .createHmac("sha256", chariot_env.signing_key)
       .update(signed)
       .digest("hex");
 
-    if (hash !== sig_hash) return new Response("", { status: 201 });
+    // 4xx, not 2xx: chariot reads 2xx as delivered, so a signing-key mismatch
+    // would drop every grant silently; a 4xx is redelivered in production and,
+    // after 5 days of failures, flags the subscription `requires_attention`.
+    // warn, not report_error: anyone can send a forgery, so each one would
+    // raise a report.
+    if (!parsed.v1.some((v) => safe_equals(hash, v))) {
+      console.warn(
+        `[chariot webhook] signature mismatch: t=${parsed.t}, ${parsed.v1.length} v1`
+      );
+      return new Response("signature mismatch", { status: 401 });
+    }
 
     const payload = JSON.parse(body);
     // https://docs.givechariot.com/api/webhooks

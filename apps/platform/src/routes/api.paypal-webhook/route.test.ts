@@ -124,6 +124,7 @@ const capture_ev = () => ({
     create_time: "2026-01-02T00:00:00.000Z",
     custom_id: ORDER_ID,
     seller_receivable_breakdown: {
+      gross_amount: { value: "100", currency_code: "USD" },
       net_amount: { value: "96.5", currency_code: "USD" },
       paypal_fee: { value: "3.5" },
     },
@@ -313,6 +314,81 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
     expect(res.status).toBe(200);
     expect(all_kinds()).toContain("don-sttl-receipt");
   });
+
+  it("settles a capture paypal charged no fee at its gross", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: CAPTURE_ID, net: 100, fee: 0 }),
+    ]);
+  });
+
+  it("takes platform fees out of a net paypal left off the capture", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "2", currency_code: "USD" } }],
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: CAPTURE_ID, net: 94.5, fee: 3.5 }),
+    ]);
+  });
+
+  it("settles at paypal's net whatever platform fees ride along", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "1.85", currency_code: "EUR" } }],
+        net_amount: { value: "94.5", currency_code: "USD" },
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ net: 94.5, fee: 3.5 }),
+    ]);
+  });
+
+  it("derives a fallback net to the cent", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "50.00", currency_code: "USD" },
+        paypal_fee: { value: "2.24", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "0.70", currency_code: "USD" } }],
+      },
+    };
+
+    await deliver({ ...capture_ev(), resource });
+
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ net: 47.06 }),
+    ]);
+  });
 });
 
 describe("PAYMENT.SALE.COMPLETED", () => {
@@ -354,6 +430,41 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
+  it("asks for redelivery of a sale that lands before its subscription activates", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { billing_info: _, ...active } = await get_subscription_mock();
+    get_subscription_mock.mockResolvedValue({ ...active, status: "APPROVED" });
+
+    const early = await deliver(sale_ev());
+
+    expect(early.ok).toBe(false);
+    expect(await settlements()).toHaveLength(0);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+
+    get_subscription_mock.mockResolvedValue({
+      ...active,
+      status: "ACTIVE",
+      billing_info: { next_billing_time: "2026-02-01T00:00:00.000Z" },
+    });
+    const redelivered = await deliver(sale_ev());
+
+    expect(redelivered.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
+  });
+
+  it("settles a sale paypal charged no fee at its total", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { transaction_fee: _, ...resource } = sale_ev().resource;
+
+    const res = await deliver({ ...sale_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 100, fee: 0 }),
+    ]);
+  });
+
   it("settles one first-recurring sale once when two deliveries race", async () => {
     await seed_donation({ frequency: "monthly" });
 
@@ -371,6 +482,115 @@ describe("PAYMENT.SALE.COMPLETED", () => {
       "don-sttl-dist",
       "don-sttl-receipt",
     ]);
+  });
+});
+
+// a non-2xx buys up to 25 redeliveries over 3 days; a payload missing what the
+// route needs arrives identical every time, so it is reported and acknowledged
+describe("an event no redelivery can route", () => {
+  it("acknowledges and reports a capture with no donation id", async () => {
+    await seed_donation();
+    const { custom_id: _, ...resource } = capture_ev().resource;
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports a capture with no gross amount", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        net_amount: { value: "96.5", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports a capture with no net and a platform fee in another currency", async () => {
+    await seed_donation();
+    const resource = {
+      ...capture_ev().resource,
+      seller_receivable_breakdown: {
+        gross_amount: { value: "100", currency_code: "USD" },
+        paypal_fee: { value: "3.5", currency_code: "USD" },
+        platform_fees: [{ amount: { value: "2", currency_code: "EUR" } }],
+      },
+    };
+
+    const res = await deliver({ ...capture_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports an approved order with no donation id", async () => {
+    await seed_donation();
+
+    const res = await deliver({
+      event_type: "CHECKOUT.ORDER.APPROVED",
+      resource: {
+        id: "ORDER-1",
+        payment_source: { paypal: { email_address: "payer@test.com" } },
+        purchase_units: [{}],
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect((await donation_get(ORDER_ID))!.from_email).toBe("donor@test.com");
+  });
+
+  it("acknowledges and reports an activated subscription with no donation id", async () => {
+    await seed_donation({ frequency: "monthly" });
+
+    const res = await deliver({
+      event_type: "BILLING.SUBSCRIPTION.ACTIVATED",
+      resource: {
+        id: SUBS_ID,
+        plan_id: "P-1",
+        subscriber: { email_address: "subscriber@test.com" },
+        billing_info: { next_billing_time: "2026-02-01T00:00:00.000Z" },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await db().select().from(subscriptions)).toHaveLength(0);
+  });
+
+  it("acknowledges and reports a sale with no subscription id", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { billing_agreement_id: _, ...resource } = sale_ev().resource;
+
+    const res = await deliver({ ...sale_ev(), resource });
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("asks for redelivery of a capture whose donation row is not there yet", async () => {
+    const res = await deliver(capture_ev());
+
+    expect(res.ok).toBe(false);
+    expect(await settlements()).toHaveLength(0);
   });
 });
 

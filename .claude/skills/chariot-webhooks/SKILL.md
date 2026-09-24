@@ -46,11 +46,11 @@ curl -s -X POST "{api_url}/v1/event_subscriptions" \
   }' | python3 -m json.tool
 ```
 
-**The field is `signingSecret`, camelCase.** Unknown fields are ignored and the spec defaults the secret to a random string, so a misspelling creates a live subscription signed with a secret nobody holds — and `src/routes/api.chariot-webhook.ts:28-32` returns `201` on HMAC mismatch, so every webhook is silently dropped. Nothing surfaces until donations stop settling.
+**The field is `signingSecret`, camelCase.** Unknown fields are ignored and the spec defaults the secret to a random string, so a misspelling creates a live subscription signed with a secret nobody holds. The route's HMAC-mismatch branch in `action` (`src/routes/api.chariot-webhook.ts`) answers `401` and logs a `[chariot webhook] signature mismatch` warning, so production redelivers and, after 5 days of failures, the subscription reads `requires_attention`. Sandbox never retries, so there the warning line in the logs is the only signal.
 
 Categories (8, all of them): `grant.created`, `grant.updated`, `unintegrated_grant.created`, `unintegrated_grant.updated`, `disbursement.created`, `disbursement.updated`, `inbound_transfer.created`, `inbound_transfer.updated`.
 
-The route only handles grants — `api.chariot-webhook.ts:36` calls `chariot.get_grant(payload.associated_object_id)` and branches on `grant.status`. Subscribe `grant.updated`; any other category posts an object the handler cannot resolve.
+The route only handles grants — `action` in `api.chariot-webhook.ts` calls `chariot.get_grant(payload.associated_object_id)` for `associated_object_type: "grant"` and branches on `grant.status`; any other object type is acked with a `200` and an `ignored` log line. Subscribe `grant.updated`; a category posting any other object type reaches only that `ignored` branch.
 
 ### Enable / disable / delete subscription
 
@@ -68,6 +68,8 @@ Settable statuses: `active`, `disabled`, `deleted`. A listed subscription may al
 ## Webhook Route
 
 `src/routes/api.chariot-webhook.ts` → `/api/chariot-webhook`. Production URL: `https://better.giving/api/chariot-webhook`.
+
+Signature check: `parse_signature` reads the `Chariot-Webhook-Signature` header (`t=<iso-8601>,v1=<hex>[,v1=…]`). A missing header, a missing `t`, or no `v1` gets a `400` (a header carrying only `v0` counts as no `v1`). If no `v1` matches the HMAC of `t + "." + raw body` under `CHARIOT_SIGNING_KEY`, the mismatch branch answers `401`.
 
 ## Rules
 

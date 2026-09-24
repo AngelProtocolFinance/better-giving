@@ -1,12 +1,16 @@
 import type { ITo } from "@/donations";
+import { fund_is_open } from "@/fundraiser/is-open";
 import { fund_get } from "$/pg/queries/fund";
 import { npo_get } from "$/pg/queries/npo";
 
 /**
  * @param id - endow id or fund uuid
- * @param dynamo - dynamodb client that has access to the tables
+ * @param opts.open_at - also refuse a fund that is closed (inactive or expired) at this instant
  */
-export async function to_fn(id: string | number): Promise<ITo | undefined> {
+export async function to_fn(
+  id: string | number,
+  opts: { open_at?: Date } = {}
+): Promise<ITo | undefined> {
   //recipient is endowment
   if (typeof id === "number") {
     const npo = await npo_get(id);
@@ -25,6 +29,7 @@ export async function to_fn(id: string | number): Promise<ITo | undefined> {
 
   return fund_get(id).then((data) => {
     if (!data) return undefined;
+    if (opts.open_at && !fund_is_open(data, opts.open_at)) return undefined;
     const recipient: ITo = {
       to_id: data.id,
       to_type: "fund",

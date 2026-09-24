@@ -20,19 +20,22 @@ vi.mock("#/errors/report", () => ({
 
 const { action } = await import("./api.chariot-webhook");
 
-const deliver = (ev: Record<string, unknown>) => {
-  const body = JSON.stringify(ev);
-  const t = "2026-09-23T00:00:00.000Z";
-  const v1 = createHmac("sha256", "whsec-test")
-    .update(`${t}.${body}`)
-    .digest("hex");
-  return action({
+const T = "2026-09-23T00:00:00.000Z";
+const sign = (body: string, secret = "whsec-test") =>
+  createHmac("sha256", secret).update(`${T}.${body}`).digest("hex");
+
+const post = (body: string, signature?: string) =>
+  action({
     request: new Request("https://x/api/chariot-webhook", {
       method: "POST",
       body,
-      headers: { "chariot-webhook-signature": `t=${t},v1=${v1}` },
+      headers: signature ? { "chariot-webhook-signature": signature } : {},
     }),
   } as any) as Promise<Response>;
+
+const deliver = (ev: Record<string, unknown>) => {
+  const body = JSON.stringify(ev);
+  return post(body, `t=${T},v1=${sign(body)}`);
 };
 
 afterEach(() => {
@@ -134,5 +137,76 @@ describe("chariot webhook grant fetch", () => {
     const line = info!.mock.calls.flat().join(" ");
     expect(line).toContain("ev-3");
     expect(line).toContain("grant.updated");
+  });
+});
+
+describe("chariot webhook signature header", () => {
+  const body = JSON.stringify({
+    id: "ev-4",
+    category: "grant.updated",
+    associated_object_type: "grant",
+    associated_object_id: "grant-4",
+  });
+
+  it.each([
+    ["no header", undefined],
+    ["no timestamp", `v1=${sign(body)}`],
+    ["only a non-v1 scheme", `t=${T},v0=${sign(body)}`],
+  ])("refuses %s with a 400", async (_, header) => {
+    quiet_console();
+    const res = await post(body, header);
+
+    expect(res.status).toBe(400);
+    expect(get_grant_mock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a single valid signature", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      id: "grant-4",
+      status: "Initiated",
+      metadata: { don_id: "don-4" },
+    });
+
+    const res = await post(body, `t=${T},v1=${sign(body)}`);
+
+    expect(get_grant_mock).toHaveBeenCalledWith("grant-4");
+    expect(res.status).toBe(203);
+  });
+
+  it.each([
+    ["a wrong signature", sign(body, "whsec-other")],
+    ["a wrong-length signature", sign(body).slice(0, 10)],
+  ])("rejects %s with a 401, warning without the body", async (_, v1) => {
+    const [, , warn] = quiet_console();
+    const res = await post(body, `t=${T},v1=${v1}`);
+
+    expect(res.status).toBe(401);
+    expect(get_grant_mock).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    const line = warn!.mock.calls.flat().join(" ");
+    expect(line).toContain(T);
+    expect(line).toContain("1 v1");
+    expect(line).not.toContain("ev-4");
+    expect(line).not.toContain(v1);
+  });
+
+  const other = `v1=${sign(body, "whsec-other")}`;
+  const valid = `v1=${sign(body)}`;
+  it.each([
+    ["first", `${valid},${other}`],
+    ["last", `${other},${valid}`],
+  ])("accepts when the matching v1 comes %s", async (_, sigs) => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      id: "grant-4",
+      status: "Initiated",
+      metadata: { don_id: "don-4" },
+    });
+
+    const res = await post(body, `t=${T},${sigs}`);
+
+    expect(get_grant_mock).toHaveBeenCalledWith("grant-4");
+    expect(res.status).toBe(203);
   });
 });

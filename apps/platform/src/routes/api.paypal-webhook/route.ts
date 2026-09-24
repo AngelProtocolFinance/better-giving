@@ -49,7 +49,11 @@ const to_interval = (from: TIntervalFrom): TInterval => {
 };
 
 // builds an ISub from a paypal subscription resource + donation context.
-// returns a string error message on missing data, else the record.
+// returns a string naming what the subscription or its plan lacks, else the
+// record. ACTIVATED passes its event payload, which a redelivery repeats, so it
+// acknowledges the gap; SALE passes the live subscription, which can still be
+// APPROVED with no billing_info when the first sale lands, so it asks for a
+// redelivery.
 async function build_sub_record(args: {
   subs_id: string;
   sub: Subs;
@@ -66,7 +70,9 @@ async function build_sub_record(args: {
 
   if (!sub.plan_id) return "missing subscription plan id";
   const plan = await paypal.get_plan(sub.plan_id);
-  if (!plan) return "plan not found";
+  // get_plan throws on a non-2xx; a 2xx with no body is the fetch's fault, not
+  // the payload's, so it throws to a redelivery rather than returning a gap
+  if (!plan) throw new Error(`plan not found: ${sub.plan_id}`);
   const cycle = plan.billing_cycles?.[0];
   if (!cycle) return "missing plan billing cycle";
   const interval = cycle.frequency?.interval_unit;
@@ -116,6 +122,17 @@ interface ISettlement {
   fee: number;
   c: string;
 }
+
+// paypal amounts are decimal strings; as floats 50 − 2.24 − 0.7 is
+// 47.059999999999995, so this subtracts in the finest minor unit the operands use
+const dec_sub = (from: string, parts: string[]): number => {
+  const dp = Math.max(
+    ...[from, ...parts].map((v) => v.split(".")[1]?.length ?? 0)
+  );
+  const k = 10 ** dp;
+  const minor = (v: string) => Math.round(+v * k);
+  return parts.reduce((acc, v) => acc - minor(v), minor(from)) / k;
+};
 
 // paypal hands the three parts separately at every call site — an order's
 // payment source, a subscriber, a shipping address — so they are gathered here
@@ -254,6 +271,20 @@ async function verified_body(
 
 // -- route action --
 
+/**
+ * paypal redelivers any non-2xx up to 25 times over 3 days, always with the
+ * same payload — so a delivery missing what the route needs is reported and
+ * acknowledged. anything a later attempt could fix keeps its non-2xx.
+ */
+const unroutable = (ev: WebhookEvent, reason: string) => {
+  report_error(new Error(`[paypal webhook] unroutable: ${reason}`), {
+    event_id: ev.id,
+    event_type: ev.event_type,
+    resource_id: ev.resource?.id,
+  });
+  return new Response(`not routable: ${reason}`, { status: 200 });
+};
+
 export async function action({ request }: Route.ActionArgs) {
   try {
     const body = await request.text();
@@ -277,13 +308,13 @@ export async function action({ request }: Route.ActionArgs) {
           update_time = new Date().toISOString(),
         } = ev.resource as Subs;
 
-        if (!don_id) return new Response("missing don id", { status: 400 });
+        if (!don_id) return unroutable(ev, "missing don id");
         const don = await donation_get(don_id);
         if (!don) return new Response("don record not found", { status: 500 });
 
         //create subs record
         if (!subscriber?.email_address)
-          return new Response("missing subscriber email", { status: 400 });
+          return unroutable(ev, "missing subscriber email");
 
         const donor = donor_update(
           subscriber.email_address,
@@ -295,8 +326,7 @@ export async function action({ request }: Route.ActionArgs) {
         const updated_don = await donation_update(db, don_id, donor);
         console.info(`don donor info updated: ${updated_don.id}`);
 
-        if (!subs_id)
-          return new Response("missing subscription id", { status: 400 });
+        if (!subs_id) return unroutable(ev, "missing subscription id");
 
         const subs_db = await build_sub_record({
           subs_id,
@@ -306,8 +336,7 @@ export async function action({ request }: Route.ActionArgs) {
           create_time,
           update_time,
         });
-        if (typeof subs_db === "string")
-          return new Response(subs_db, { status: 400 });
+        if (typeof subs_db === "string") return unroutable(ev, subs_db);
 
         await sub_put(db, subs_db);
         return new Response(`created subscription record ${subs_id}`, {
@@ -321,23 +350,19 @@ export async function action({ request }: Route.ActionArgs) {
           purchase_units,
         } = ev.resource as Order;
 
-        if (!order_id) return new Response("missing order id", { status: 400 });
+        if (!order_id) return unroutable(ev, "missing order id");
 
         const ps = payment_source?.venmo || payment_source?.paypal;
 
         /** we only expect paypal and venmo */
-        if (!ps)
-          return new Response("paypal and venmo not found", { status: 400 });
+        if (!ps) return unroutable(ev, "paypal and venmo not found");
         if (!ps.email_address)
-          return new Response("missing payer email address", { status: 400 });
+          return unroutable(ev, "missing payer email address");
         const donor = donor_update(ps.email_address, ps.name, ps.address);
 
         const don_id = purchase_units?.[0]?.custom_id;
-        if (!don_id) {
-          return new Response(`missing onhold id for order: ${order_id}`, {
-            status: 400,
-          });
-        }
+        if (!don_id)
+          return unroutable(ev, `missing onhold id for order: ${order_id}`);
         await donation_update(db, don_id, donor);
 
         return new Response("updated onhold donor info", { status: 200 });
@@ -350,11 +375,9 @@ export async function action({ request }: Route.ActionArgs) {
           seller_receivable_breakdown: b,
           supplementary_data,
         } = ev.resource as Capture;
-        if (!cid) return new Response("missing capture id", { status: 400 });
+        if (!cid) return unroutable(ev, "missing capture id");
         if (!don_id)
-          return new Response(`missing onhold id for capture: ${cid}`, {
-            status: 400,
-          });
+          return unroutable(ev, `missing onhold id for capture: ${cid}`);
 
         // idempotency: already processed this capture. rechecked under the
         // order row's lock below — this one only spares a redelivery the order
@@ -367,16 +390,32 @@ export async function action({ request }: Route.ActionArgs) {
           return new Response("already processed", { status: 200 });
         }
 
-        if (!b?.net_amount || !b.paypal_fee) {
-          return new Response(`missing breakdown for capture ${cid}`, {
-            status: 400,
-          });
-        }
+        if (!b?.gross_amount)
+          return unroutable(ev, `missing gross amount for capture ${cid}`);
 
+        const platform_fees = b.platform_fees ?? [];
+        // a fallback net subtracts these from gross, which only works in one currency
+        if (
+          !b.net_amount &&
+          platform_fees.some(
+            (f) => f.amount.currency_code !== b.gross_amount.currency_code
+          )
+        )
+          return unroutable(
+            ev,
+            `platform fee currency differs from gross for capture ${cid}`
+          );
+
+        // only gross_amount is required in the breakdown; fee and net may be absent
         const settled = ((r): ISettlement => {
-          const n = b.net_amount.value;
-          const p = b.paypal_fee.value;
-          const c = b.net_amount.currency_code;
+          const p = b.paypal_fee?.value ?? "0";
+          const n =
+            b.net_amount?.value ??
+            dec_sub(b.gross_amount.value, [
+              p,
+              ...platform_fees.map((f) => f.amount.value),
+            ]);
+          const c = b.net_amount?.currency_code ?? b.gross_amount.currency_code;
           if (r) {
             return { net: +n * +r, fee: +p * +r, c };
           }
@@ -489,7 +528,7 @@ export async function action({ request }: Route.ActionArgs) {
           amount: sale_amount,
           exchange_rate: rate, // unit per usd
         } = ev.resource as Sale;
-        if (!sale_id) return new Response("missing sale id", { status: 400 });
+        if (!sale_id) return unroutable(ev, "missing sale id");
 
         // idempotency: already processed this sale. rechecked under the order
         // row's lock below — this one only spares a redelivery the plan fetch
@@ -502,19 +541,13 @@ export async function action({ request }: Route.ActionArgs) {
           return new Response("already processed", { status: 200 });
         }
 
-        const tf = transaction_fee?.value;
-        // receivable_amount only present on currency conversions
-        const net =
-          receivable_amount?.value ??
-          (sale_amount?.total && tf
-            ? String(+sale_amount.total - +tf)
-            : undefined);
-        const cur = receivable_amount?.currency ?? sale_amount?.currency;
+        if (!sale_amount?.total)
+          return unroutable(ev, `missing total for sale: ${sale_id}`);
 
-        if (!net || !tf || !cur)
-          return new Response(`missing amounts for sale: ${sale_id}`, {
-            status: 400,
-          });
+        const tf = transaction_fee?.value ?? 0;
+        // receivable_amount only present on currency conversions
+        const net = receivable_amount?.value ?? +sale_amount.total - +tf;
+        const cur = receivable_amount?.currency ?? sale_amount.currency;
 
         const settled: ISettlement = {
           net: +net,
@@ -522,19 +555,20 @@ export async function action({ request }: Route.ActionArgs) {
           c: cur,
         };
 
-        if (!subs_id)
-          return new Response("missing billing agreement id", { status: 400 });
+        if (!subs_id) return unroutable(ev, "missing billing agreement id");
         const sub = await paypal.get_subscription(subs_id);
         if (!sub)
           return new Response("subscription not found", { status: 400 });
-        if (!sub.subscriber)
-          return new Response("missing subscriber info", { status: 400 });
-        if (!sub.custom_id)
-          return new Response("missing onhold id", { status: 400 });
+        // no redelivery supplies either on its own. custom_id is patchable
+        // (subscriptions PATCH, add/replace); after patching it, resend this
+        // event by the event_id in the report. of the subscriber, only
+        // shipping_address is patchable, so a missing subscriber or email has
+        // no recovery.
+        if (!sub.subscriber) return unroutable(ev, "missing subscriber info");
+        if (!sub.custom_id) return unroutable(ev, "missing onhold id");
         const don_id = sub.custom_id;
         const { email_address: email, shipping_address, name } = sub.subscriber;
-        if (!email)
-          return new Response("missing subscriber email", { status: 400 });
+        if (!email) return unroutable(ev, "missing subscriber email");
 
         const donor = donor_update(email, name, shipping_address?.address);
 
@@ -554,7 +588,7 @@ export async function action({ request }: Route.ActionArgs) {
           from_email: email,
         });
         if (typeof subs_db === "string")
-          return new Response(`paypal sale.completed: ${subs_db}`, {
+          return new Response(`subscription not ready: ${subs_db}`, {
             status: 400,
           });
 

@@ -8,6 +8,13 @@ import {
 } from "@better-giving/ui";
 import { fileOutput } from "@better-giving/ui/helpers";
 import { ErrorMessage } from "@hookform/error-message";
+import {
+  type RefObject,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Controller, get, useController, useForm } from "react-hook-form";
 import { safeParse } from "valibot";
 import { report_error } from "#/errors/report";
@@ -62,10 +69,39 @@ export function RecipientDetailsForm({
     handleSubmit,
     getValues,
     setError,
-    setFocus,
     formState: { errors, isSubmitting },
     getFieldState,
-  } = useForm<FV>({ disabled, shouldUnregister: true });
+  } = useForm<FV>({
+    disabled,
+    shouldUnregister: true,
+    // rhf focuses while the fieldset is still disabled, then retries in a
+    // timeout that lands after `Fieldset` has handed focus back to the button
+    shouldFocusError: false,
+  });
+
+  const form = useRef<HTMLFormElement>(null);
+  // a 422's messages that no rendered field can carry
+  const [unplaced, set_unplaced] = useState<string[]>([]);
+  const uid = useId();
+  const err_id = (key: string) => `${uid}-${key}-err`;
+  // only while `ErrorMessage` renders the element it names
+  const described_by = (key: string) =>
+    get(errors, key)?.message ? err_id(key) : undefined;
+
+  const first_invalid = useRef<string | null>(null);
+  // rhf's `setFocus` defers its `.focus()` to a timeout, which lands after
+  // `Fieldset` has already handed focus back to the submit button
+  function focus_now(path: string) {
+    const f = get(control._fields, path)?._f;
+    (f?.refs?.[0] ?? f?.ref)?.focus?.();
+  }
+
+  /** keys with a control on screen, top to bottom — a key rhf holds no field for renders none */
+  function on_screen(): string[] {
+    const keys = fields.map((f) => f.key);
+    if (verified) keys.push("bankStatement");
+    return keys.filter((k) => get(control._fields, k)?._f);
+  }
 
   const { update_requirements } = use_requirements(
     !amount ? null : { amount, currency }
@@ -102,69 +138,105 @@ export function RecipientDetailsForm({
     });
   }
 
+  const submit = handleSubmit(
+    async (fv) => {
+      try {
+        const { accountHolderName, bankStatement, ...details } = fv;
+
+        const payload: CreateRecipientRequest = {
+          accountHolderName,
+          currency,
+          ownedByCustomer: false,
+          profile: "{{profileId}}",
+          type,
+          details,
+        };
+
+        const res = await fetch("/api/wise/v1/accounts", {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "content-type": "application/json" },
+        });
+
+        if (res.ok) {
+          const data: V1RecipientAccount = await res.json();
+          return await onSubmit(data, bankStatement);
+        }
+
+        //error handling
+        if (res.status !== 422) throw res;
+
+        //only handle 422
+        const content: ValidationContent = await res.json();
+
+        //filter "NOT_VALID"
+        const _errs = content.errors;
+        const validations = _errs.filter((err) => err.code === "NOT_VALID");
+        const others = _errs.filter((err) => err.code !== "NOT_VALID");
+
+        if (validations.length === 0) {
+          ask_prompt(
+            { type: "error", children: _errs[0].message },
+            { key: PROMPT_SLOT }
+          );
+          return;
+        }
+
+        const rejected = new Map(validations.map((v) => [v.path, v.message]));
+        const shown = on_screen().filter((k) => rejected.has(k));
+
+        if (shown.length === 0) {
+          ask_prompt(
+            {
+              type: "error",
+              children: [...rejected].map(([path, message]) => (
+                <p key={path}>{message}</p>
+              )),
+            },
+            { key: PROMPT_SLOT }
+          );
+          return;
+        }
+
+        // an error set on a key with no field is never cleared by the next
+        // submit's validation, so it would refuse every submit after it
+        for (const k of shown) setError(k, { message: rejected.get(k) });
+        const unrendered = [...rejected]
+          .filter(([path]) => !shown.includes(path))
+          .map(([, message]) => message);
+        set_unplaced([
+          ...new Set([...unrendered, ...others.map((e) => e.message)]),
+        ]);
+
+        // fieldset is still disabled here; focused once the submit settles
+        first_invalid.current = shown[0];
+      } catch (err) {
+        ask_prompt(error_prompt(err, { context: "validating" }), {
+          key: PROMPT_SLOT,
+        });
+      }
+    },
+    (errs) => {
+      first_invalid.current = on_screen().find((k) => get(errs, k)) ?? null;
+    }
+  );
+
   return (
     <Form
+      ref={form}
       disabled={isSubmitting}
-      onSubmit={handleSubmit(async (fv) => {
-        try {
-          const { accountHolderName, bankStatement, ...details } = fv;
-
-          const payload: CreateRecipientRequest = {
-            accountHolderName,
-            currency,
-            ownedByCustomer: false,
-            profile: "{{profileId}}",
-            type,
-            details,
-          };
-
-          const res = await fetch("/api/wise/v1/accounts", {
-            method: "POST",
-            body: JSON.stringify(payload),
-            headers: { "content-type": "application/json" },
-          });
-
-          if (res.ok) {
-            const data: V1RecipientAccount = await res.json();
-            return await onSubmit(data, bankStatement);
-          }
-
-          //error handling
-          if (res.status !== 422) throw res;
-
-          //only handle 422
-          const content: ValidationContent = await res.json();
-
-          //filter "NOT_VALID"
-          const _errs = content.errors;
-          const validations = _errs.filter((err) => err.code === "NOT_VALID");
-
-          if (validations.length === 0) {
-            ask_prompt(
-              { type: "error", children: _errs[0].message },
-              { key: PROMPT_SLOT }
-            );
-            return;
-          }
-
-          //set field errors
-          for (const v of validations) {
-            setError(v.path, { message: v.message });
-          }
-
-          setTimeout(() => {
-            //focus 1st error only
-            setFocus(validations[0].path);
-            //wait a bit for `isSubmitting:false`, as disabled fields can't be focused
-          }, 50);
-        } catch (err) {
-          ask_prompt(error_prompt(err, { context: "validating" }), {
-            key: PROMPT_SLOT,
-          });
-        }
-      })}
+      onSubmit={(e) => {
+        set_unplaced([]);
+        return submit(e);
+      }}
       className="grid gap-5"
     >
+      <FocusFirstInvalid
+        submitting={isSubmitting}
+        path={first_invalid}
+        form={form}
+        focus={focus_now}
+      />
       {fields.map((f) => {
         const labelRequired = f.required ? true : undefined;
         if (f.type === "select") {
@@ -182,7 +254,7 @@ export function RecipientDetailsForm({
                 }}
                 render={({ field: { name, value, onChange, ref } }) => (
                   <Select
-                    aria-invalid={!!get(errors, name)?.message}
+                    error={get(errors, name)?.message}
                     onChange={(value) => {
                       onChange(value);
                       if (f.refreshRequirementsOnChange) refresh();
@@ -196,12 +268,6 @@ export function RecipientDetailsForm({
                     classes={{ options: "text-sm" }}
                   />
                 )}
-              />
-              <ErrorMessage
-                name={f.key}
-                errors={errors}
-                as="p"
-                className="field-err mt-1 empty:hidden"
               />
             </div>
           );
@@ -261,6 +327,7 @@ export function RecipientDetailsForm({
               <input
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
+                aria-describedby={described_by(f.key)}
                 type="text"
                 placeholder={f.example}
                 {...register(f.key, {
@@ -306,6 +373,7 @@ export function RecipientDetailsForm({
               />
               <ErrorMessage
                 as="p"
+                id={err_id(f.key)}
                 className="field-err mt-1 empty:hidden"
                 errors={errors}
                 name={f.key}
@@ -323,6 +391,7 @@ export function RecipientDetailsForm({
               <input
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
+                aria-describedby={described_by(f.key)}
                 type="text"
                 placeholder={f.example}
                 {...register(f.key, {
@@ -338,6 +407,7 @@ export function RecipientDetailsForm({
               />
               <ErrorMessage
                 as="p"
+                id={err_id(f.key)}
                 className="field-err mt-1 empty:hidden"
                 errors={errors}
                 name={f.key}
@@ -372,10 +442,55 @@ export function RecipientDetailsForm({
         />
       )}
 
-      <FormButtons
-        disabled={disabled || bankStatement.value === "loading"}
-        is_submitting={isSubmitting}
-      />
+      {/* one grid cell with the buttons: an empty region in the form's own
+          grid would still open a gap above them */}
+      <div>
+        {/* rendered while empty, so its first message is announced as a change */}
+        <div role="alert" className="field-err not-empty:mb-5">
+          {unplaced.map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </div>
+        <FormButtons
+          disabled={disabled || bankStatement.value === "loading"}
+          is_submitting={isSubmitting}
+        />
+      </div>
     </Form>
   );
+}
+
+interface IFocusFirstInvalid {
+  submitting: boolean;
+  /** written by the submit handler, consumed by the first settled commit */
+  path: RefObject<string | null>;
+  form: RefObject<HTMLFormElement | null>;
+  focus: (path: string) => void;
+}
+
+/**
+ * mounted inside the form's fieldset: a descendant's layout effect runs after
+ * the fieldset re-enables but before `Fieldset`'s own, which would otherwise
+ * hand focus back to the submit button first.
+ *
+ * like `Fieldset`, it leaves focus alone if the user put it outside the form
+ * during the request.
+ */
+function FocusFirstInvalid({
+  submitting,
+  path,
+  form,
+  focus,
+}: IFocusFirstInvalid) {
+  // no deps: `path` is a ref, so no render reports its write; every commit checks it
+  useLayoutEffect(() => {
+    const target = path.current;
+    if (submitting || !target) return;
+    path.current = null;
+    const active = document.activeElement;
+    const unclaimed =
+      !active || active === document.body || form.current?.contains(active);
+    if (unclaimed) focus(target);
+  });
+  return null;
 }
