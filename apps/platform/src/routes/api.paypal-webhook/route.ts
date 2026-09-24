@@ -249,7 +249,17 @@ async function verified_body(
       crc_body,
     ].join("|");
 
-    const cert = await download_and_cache_cert(cert_url);
+    const cert = await download_and_cache_cert(cert_url).catch(
+      (error: unknown) => {
+        report_error(error);
+        return null;
+      }
+    );
+    // an unreachable cert host says nothing about the event; a non-2xx keeps
+    // paypal redelivering it
+    if (cert === null)
+      return { error: true, status: 503, message: "cert download failed" };
+
     const verifier = crypto.createVerify("SHA256");
     verifier.update(message);
 

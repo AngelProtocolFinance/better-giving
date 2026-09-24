@@ -26,13 +26,16 @@ const before_lock = vi.hoisted(() => ({
   current: null as null | ((tx: any, id: string) => Promise<void>),
 }));
 
+const sig_valid = vi.hoisted(() => ({ current: true }));
+
 // the route verifies a real paypal signature against a downloaded cert; the
-// bytes are paypal's, not this route's logic, so the verifier is stubbed true
+// bytes are paypal's, not this route's logic, so the verifier is stubbed to
+// `sig_valid`
 vi.mock("node:crypto", async (io) => {
   const actual = await io<typeof import("node:crypto")>();
   const patched = {
     ...actual,
-    createVerify: () => ({ update: () => {}, verify: () => true }),
+    createVerify: () => ({ update: () => {}, verify: () => sig_valid.current }),
   };
   return { ...patched, default: patched };
 });
@@ -103,19 +106,28 @@ const CAPTURE_ID = "capture-1";
 const SALE_ID = "sale-1";
 const SUBS_ID = "I-SUBS-1";
 
-const deliver = (ev: Record<string, unknown>) =>
-  action({
+/** `headers` overrides the signed defaults; a null drops that header */
+const deliver = (
+  ev: Record<string, unknown>,
+  headers: Record<string, string | null> = {}
+) => {
+  const merged: Record<string, string | null> = {
+    "paypal-transmission-id": "t-1",
+    "paypal-transmission-time": "2026-01-01T00:00:00Z",
+    "paypal-cert-url": "https://paypal.test/cert.pem",
+    "paypal-transmission-sig": Buffer.from("sig").toString("base64"),
+    ...headers,
+  };
+  return action({
     request: new Request("https://x/api/paypal-webhook", {
       method: "POST",
       body: JSON.stringify(ev),
-      headers: {
-        "paypal-transmission-id": "t-1",
-        "paypal-transmission-time": "2026-01-01T00:00:00Z",
-        "paypal-cert-url": "https://paypal.test/cert.pem",
-        "paypal-transmission-sig": Buffer.from("sig").toString("base64"),
-      },
+      headers: Object.entries(merged).filter(
+        (e): e is [string, string] => e[1] !== null
+      ),
     }),
   } as any) as Promise<Response>;
+};
 
 const capture_ev = () => ({
   event_type: "PAYMENT.CAPTURE.COMPLETED",
@@ -209,6 +221,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
+  sig_valid.current = true;
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
     plan_id: "P-1",
@@ -482,6 +495,69 @@ describe("PAYMENT.SALE.COMPLETED", () => {
       "don-sttl-dist",
       "don-sttl-receipt",
     ]);
+  });
+});
+
+// the route caches each cert by url for the life of the module, so a case that
+// needs the download to run takes a url no other case has fetched
+describe("signature verification", () => {
+  it("asks for redelivery while paypal's cert host errors, then settles the redelivery", async () => {
+    await seed_donation();
+    const cert_url = { "paypal-cert-url": "https://paypal.test/cert-5xx.pem" };
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("unavailable", { status: 503 })
+    );
+
+    const down = await deliver(capture_ev(), cert_url);
+
+    expect(down.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalled();
+    expect(await settlements()).toHaveLength(0);
+
+    const redelivered = await deliver(capture_ev(), cert_url);
+
+    expect(redelivered.status).toBe(200);
+    expect(await settlements()).toHaveLength(1);
+  });
+
+  it("asks for redelivery when the cert download fails on the network", async () => {
+    await seed_donation();
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    const res = await deliver(capture_ev(), {
+      "paypal-cert-url": "https://paypal.test/cert-unreachable.pem",
+    });
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "fetch failed" })
+    );
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  // a redelivery repeats the same headers and signature, so neither case below
+  // can come right on retry
+  it("acknowledges a delivery whose signature does not verify", async () => {
+    await seed_donation();
+    sig_valid.current = false;
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(201);
+    expect(await res.text()).toBe("invalid signature");
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("acknowledges a delivery missing a signature header", async () => {
+    await seed_donation();
+
+    const res = await deliver(capture_ev(), {
+      "paypal-transmission-sig": null,
+    });
+
+    expect(res.status).toBe(201);
+    expect(await res.text()).toBe("missing paypal-transmission-sig");
+    expect(await settlements()).toHaveLength(0);
   });
 });
 
