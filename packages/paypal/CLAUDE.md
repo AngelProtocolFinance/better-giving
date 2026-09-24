@@ -23,7 +23,6 @@ Internal package (`private`), a **built** server-side PayPal SDK. Ships the `Pay
 
 ## Conventions
 
-- biome excludes `dist/`, `specs/`, and `src/generated` (root `biome.json`).
 - No `catalog:` here (deliberate — kept on its own pinned `typescript`/`@types/node`); no `@biomejs/biome` devDep — root provides it.
 
 ## `generate` maintenance script

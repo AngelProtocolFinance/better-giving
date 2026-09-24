@@ -24,7 +24,6 @@ Internal package (`private`), a **built** crypto token + chain data library. Zer
 ## Conventions
 
 - crypto's `src/` imports committed JSON (present pre-commit, so a type-check hook *could* work) but the built-member convention wins. After changing `src/`, run `pnpm --filter @better-giving/crypto build` to type-check.
-- biome excludes `dist/` and `src/generated/tokens` (root `biome.json`), and sets `noExplicitAny: off`, matching the source config.
 - No `@biomejs/biome` devDep — root provides it.
 
 ## `generate-tokens` maintenance script

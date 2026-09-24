@@ -1,6 +1,6 @@
 # Better Giving Web App
 
-The web app — a workspace member (`better-giving`) of the Better Giving monorepo. Repo-wide layout, commands, tooling, deploy, and package-management rules live in the root `CLAUDE.md`; this file covers app-internal conventions. Paths here are relative to `apps/platform/`.
+Paths here are relative to `apps/platform/`.
 
 ## Path Aliases
 
@@ -17,21 +17,12 @@ Three-layer structure:
 - **`lib/`** — shared business logic, types, schemas (isomorphic)
 - **`.server/`** — server-only code, pg schema, migrations, auth, queues
 - also: `jobs/` (one-off jobs), `scripts/` (dev/tooling), `plugins/`, `utils/`, `public/`
-
-## Stack
-
-- **Framework**: React Router v7 (SSR, framework mode)
-- **DB**: PostgreSQL via drizzle-orm (neon everywhere — dev/staging share one branch, prod is its own)
-- **Validation**: valibot
-- **Forms**: react-hook-form + remix-hook-form
-- **UI**: Tailwind v4, Ark UI, Lucide icons, Motion
-- **Testing**: Vitest browser mode (playwright/chromium) + vitest-browser-react + MSW
+- **DB**: neon everywhere — dev/staging share one branch, prod is its own.
 
 ## Testing
 
 - two vitest projects in `vite.config.ts`, picked by extension: `browser` takes every `*.test.tsx`; `node` (forks, no chromium) takes every `*.test.ts` under `src/`, `lib/` and `.server/` plus `jobs/**/*.node.test.ts`. `jobs/` has no browser project at all. `src/setup-tests-node.ts` carries the node polyfills (`PageTransitionEvent`).
-- `.claude/**` is in vitest's `exclude` (defensive — Claude config lives in the root `.claude/`, not here)
-- **a run walks one file at a time in both projects** — `fileParallelism: false` (`vite.config.ts`) — so the full suite is the expensive default, and **the node project is now the expensive half**: 367s over 85 files against the browser project's 113s over 70 (test time only, no startup; last full run's `node_modules/.vite/vitest/*/results.json`, read 2026-09-19). The node tail is the pglite-backed ones — `.server/pg/queries/*` and the webhook/queue handlers run ~20-25s apiece. Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
+- **a run walks one file at a time in both projects** — `fileParallelism: false` (`vite.config.ts`) — so the full suite is the expensive default, and **the node project is the expensive half**: 258s over ≤93 files against the browser project's 101s over ≤71 (test time only, no startup; file counts include deleted files; last full run's `node_modules/.vite/vitest/*/results.json`, read 2026-09-24). The node tail is the pglite-backed ones — `.server/pg/queries/*` and the webhook/queue handlers run ~20-25s apiece. Scope every run to what changed — `pnpm vitest run --bail 1 <path>`, or `--changed`.
 
 ## Code Style
 
@@ -73,8 +64,6 @@ Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style 
 
 - **`required` on a `Field.Root` wrapping an Ark combobox silently breaks form submission.** `useCombobox` reads `required` off the field context and zag puts it on the **search input** (`getInputProps`); native constraint validation then swallows the form's submit event, so react-hook-form never runs its resolver, no message renders, and nothing logs. `packages/ui/src/components/select/internal/field-frame.tsx` withholds `required` from `Field.Root` for this reason — the asterisk comes from the label's `data-required`, the control carries `aria-required` itself, and requiredness is enforced by the schema.
 
-- biome enforces `useImportType` (warn) and `noUnusedImports` (warn) — use `import type` where possible
-- build output dir is `build/` (i.e. `apps/platform/build/`), not `dist/`
 - resource routes (loader returns a `Response`, no component export — e.g. `api.*` endpoints) do NOT run the route `headers` export; React Router returns the loader `Response` as-is. Set `cache-control` (and any other headers) directly on the `Response` — e.g. `resp.json(x, 200, { "cache-control": ... })`. The `headers` export only applies to document routes (those with a default component).
 
 ## Skew Protection

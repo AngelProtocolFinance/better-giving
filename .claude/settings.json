@@ -2,6 +2,31 @@
   "extraKnownMarketplaces": {
     "kru": { "source": { "source": "github", "repo": "ap-justin/kru" } }
   },
-  "enabledPlugins": { "kru@kru": true },
-  "env": { "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1" }
+  "enabledPlugins": {
+    "kru@kru": true,
+    "vercel@claude-plugins-official": true
+  },
+  "env": { "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1" },
+  "permissions": {
+    "additionalDirectories": ["~/.kru"],
+    "allow": [
+      "Read(~/.kru/**)",
+      "Edit(~/.kru/**)",
+      "Bash(rm /root/.kru/audit/*)",
+      "Bash(rm /root/.kru/management/*/issues/*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/cloud-install.sh"
+          }
+        ]
+      }
+    ]
+  }
 }

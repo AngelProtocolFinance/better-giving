@@ -22,7 +22,6 @@ Internal package (`private`), a **built** server-side Chariot SDK. Ships the `Ch
 
 ## Conventions
 
-- biome excludes `dist/` and `src/generated` (root `biome.json`).
 - shared `typescript`/`@types/node` via `catalog:`. No `@biomejs/biome` devDep — root provides it.
 
 ## `generate` maintenance script

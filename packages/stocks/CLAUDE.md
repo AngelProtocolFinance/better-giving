@@ -24,7 +24,6 @@ Internal package (`private`), a **built** stock ticker + broker-dealer data libr
 ## Conventions
 
 - After changing `src/`, run `pnpm --filter @better-giving/stocks build` to type-check.
-- biome excludes `dist/` and `src/generated` (root `biome.json`; the data files are large + machine-generated), and sets `noExplicitAny: off`, matching the source config.
 - No `@biomejs/biome` devDep — root provides it.
 
 ## maintenance scripts

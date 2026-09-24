@@ -7,33 +7,7 @@ React Email templates as a pure component library, workspace member `emails` (pr
 - **error copy**: a **quoted reason** — text relayed from elsewhere, a processor's error message or a reviewer's rejection reason — renders as `ErrorBand` (`src/components/error-band.tsx`), never bare coloured text. Inline emphasis on a number or phrase inside a sentence we wrote stays coloured text.
 - **previewing templates** lives in the sibling `emails-preview` member (`pnpm dev:emails-preview`), which depends on this package and renders each template. See `emails-preview/CLAUDE.md`.
 
-# Coding Style Preferences
+## Code Style
 
-## Naming Conventions
-
-- **Variables and functions**: Use `snake_case` as much as possible
-- **React components**: Use `PascalCase` (e.g., `MyComponent`)
-- **File names**: Use `kebab-case` (e.g., `my-component.tsx`)
-
-## Examples
-
-```typescript
-// Variables and functions
-const user_name = "John";
-const fetch_user_data = async () => { ... };
-
-// React components
-function UserProfile() { ... }
-export const DonationForm = () => { ... };
-
-// File names
-// ✓ user-profile.tsx
-// ✓ donation-form.tsx
-// ✗ UserProfile.tsx
-// ✗ donation_form.tsx
-```
-
-## React Component Design
-
-- **Props-based design**: Make components reusable by accepting configuration as props rather than deriving values internally. This improves SSR compatibility, testability, and flexibility
-- **Define interfaces**: Always define proper TypeScript interfaces for component props (e.g., `AccountSelectorProps` for `AccountSelector` component)
+- casing: `snake_case` (vars/fns), `PascalCase` (components), `kebab-case` (filenames)
+- component props: declare a named interface (`IFoo`)
