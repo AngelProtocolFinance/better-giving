@@ -33,7 +33,12 @@ export {
   FloatingField,
   FloatingInput,
 } from "./components/form/floating-field";
-export { Form, RmxForm, useRmxForm } from "./components/form/form";
+export {
+  Fieldset,
+  Form,
+  RmxForm,
+  useRmxForm,
+} from "./components/form/form";
 export { ornament_end_cls } from "./components/form/ornament";
 export type { Classes as FormClasses } from "./components/form/types";
 // not in the published set: it renders an sr-only bait input with no visual

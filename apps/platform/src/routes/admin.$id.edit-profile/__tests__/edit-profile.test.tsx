@@ -1024,6 +1024,45 @@ const banner_editor = (screen: {
   screen.getByText("Banner image of your organization").element()
     .nextElementSibling as HTMLElement;
 
+describe("edit profile — focus after a keyboard save", () => {
+  // a saved group's button disarms (nothing dirty), so the focus its
+  // fieldset ejected lands on the form, not <body>
+  it.each([
+    { group: "general", field: /tagline/i, value: "New tagline" },
+    { group: "organization", field: /address/i, value: "456 New Ave" },
+    {
+      group: "social media",
+      field: /facebook/i,
+      value: "facebook.com/testorg",
+    },
+  ])(
+    "saving $group returns focus to the form",
+    async ({ group, field, value }) => {
+      const npo = await seed_npo();
+      const screen = await render_edit(npo.id);
+
+      const input = screen.getByLabelText(field);
+      await expect.element(input).toBeVisible();
+      await input.fill(value);
+
+      const save = screen.getByRole("button", { name: `Save ${group}` });
+      await expect.element(save).toBeEnabled();
+      (save.element() as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+
+      await vi.waitFor(() => {
+        expect(save.element()).toBeDisabled();
+        expect(input.element()).toBeEnabled();
+      });
+      await vi.waitFor(() =>
+        expect(document.activeElement).toBe(
+          (save.element() as HTMLElement).closest("form")
+        )
+      );
+    }
+  );
+});
+
 describe("edit profile — focus on error", () => {
   it("missing banner image takes focus on submit", async () => {
     // without the scroll the banner goes to its error state off-screen, so the

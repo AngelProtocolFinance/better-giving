@@ -33,8 +33,17 @@ export async function action({ request }: Route.ActionArgs) {
 
     const payload = JSON.parse(body);
     // https://docs.givechariot.com/api/webhooks
+    const category = payload.category ?? "unknown";
+    if (payload.associated_object_type !== "grant") {
+      console.info(
+        `[chariot webhook] ignored: event ${payload.id} ${category} ${payload.associated_object_type}`
+      );
+      return new Response("", { status: 200 });
+    }
+    console.info(`[chariot webhook] received: event ${payload.id} ${category}`);
     const grant = await chariot.get_grant(payload.associated_object_id);
-    console.info(payload, grant);
+    // grant carries donor name, email, phone, address — log ids/status only
+    console.info(`[chariot webhook] grant ${grant.id} status ${grant.status}`);
     const { don_id } = grant.metadata as unknown as ChariotMetadata;
 
     if (grant.status === "Canceled") {

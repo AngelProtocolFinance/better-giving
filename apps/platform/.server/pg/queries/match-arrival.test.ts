@@ -117,9 +117,6 @@ async function seed_match() {
 
 const now = "2026-07-10T00:00:00.000Z";
 const events = () => test_db.db.select().from(donation_match_events);
-// timestamptz comes back in the session's zone ("2026-07-10 08:00:00+08"), so
-// compare instants rather than text
-const at = (s?: string | null) => (s ? new Date(s).toISOString() : s);
 
 describe("claim_match_arrival", () => {
   test("stamps the employer's gift onto the donor's event", async () => {
@@ -128,7 +125,7 @@ describe("claim_match_arrival", () => {
 
     const row = await claim_match_arrival(as_db(test_db.db), id, match_id, now);
 
-    expect(at(row?.matched_at)).toBe(now);
+    expect(row?.matched_at).toBe(now);
     // the pair is what says whose money arrived: the event still hangs off the
     // donor's original gift, and points at the employer's second one
     expect(row?.donation_id).toBe(id);
@@ -152,7 +149,7 @@ describe("claim_match_arrival", () => {
     // repoint the event at a second gift
     expect(second).toBeNull();
     const [row] = await events();
-    expect(at(row!.matched_at)).toBe(now);
+    expect(row!.matched_at).toBe(now);
     expect(row!.matched_donation_id).toBe(first_match);
   });
 

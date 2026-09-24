@@ -182,12 +182,7 @@ describe("process_refund — the filed-claim heads-up", () => {
     expect(data.employer_name).toBe("Acme Inc");
     expect(data.donor_email).toBe("donor@test.com");
     expect(data.to_name).toBe(npo_name);
-    // compared as an instant: pglite hands back timestamptz in a local offset
-    // where neon's driver hands back a Date, and the template only ever
-    // subtracts the two stamps
-    expect(new Date(data.filed_at).toISOString()).toBe(
-      "2026-07-02T00:00:00.000Z"
-    );
+    expect(data.filed_at).toBe("2026-07-02T00:00:00.000Z");
     expect(data.void_reason).toBe("refunded");
   });
 

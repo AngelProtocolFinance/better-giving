@@ -7,14 +7,10 @@ import { DappLogo } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { INTERCOM_HELP, PRIVACY_POLICY } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
+import { fund_is_open } from "@/fundraiser/is-open";
 import type { Route } from "./+types/route";
 import FAQ from "./faq";
 import { FundCard } from "./fund-card";
-
-const is_closed = (active: boolean, expiration?: string): boolean => {
-  const isExpired = expiration ? expiration < new Date().toISOString() : false;
-  return !active || isExpired;
-};
 
 export { loader } from "./api";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
@@ -51,7 +47,7 @@ function Page({ loaderData: { fund, user, base_url } }: Route.ComponentProps) {
         </div>
         {/** small screen but space is still enough to render sidebar */}
         <div className="mx-0 border-b md:contents xs:border xs:mx-4 rounded">
-          {is_closed(fund.active, fund.expiration ?? undefined) ? (
+          {!fund_is_open(fund, new Date()) ? (
             <Info classes="row-start-2 self-center bg-panel rounded h-80 content-center justify-items-center grid">
               This fundraiser is already closed and can't accept any more
               donations

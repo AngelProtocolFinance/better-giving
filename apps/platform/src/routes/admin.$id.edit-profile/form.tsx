@@ -2,6 +2,7 @@ import {
   Confirmed,
   Form as F,
   Field,
+  Fieldset,
   Group,
   Info,
   type IPrompt,
@@ -88,7 +89,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
     >
       {prompt && <Prompt {...prompt} onClose={() => set_prompt(undefined)} />}
       <h1 className="text-3xl font-bold">Public profile information</h1>
-      <fieldset disabled={general.busy} className="contents">
+      <Fieldset disabled={general.busy} className="contents">
         <Group title="General" hide_title>
           <Field
             {...general.register("name")}
@@ -214,9 +215,9 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           />
           {save_button(general, "Save general", isUploading)}
         </Group>
-      </fieldset>
+      </Fieldset>
 
-      <fieldset disabled={organization.busy} className="contents">
+      <Fieldset disabled={organization.busy} className="contents">
         <Group title="Organization">
           <Select<OrgDesignation>
             required
@@ -258,9 +259,9 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           />
           {save_button(organization, "Save organization")}
         </Group>
-      </fieldset>
+      </Fieldset>
 
-      <fieldset disabled={social_media.busy} className="contents">
+      <Fieldset disabled={social_media.busy} className="contents">
         <Group title="Social Media">
           <UrlInput
             {...social_media.register("social_media_urls.facebook")}
@@ -306,7 +307,7 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
           />
           {save_button(social_media, "Save social media")}
         </Group>
-      </fieldset>
+      </Fieldset>
 
       <div
         className={`flex flex-wrap justify-between items-center border rounded p-3 gap-4 ${
