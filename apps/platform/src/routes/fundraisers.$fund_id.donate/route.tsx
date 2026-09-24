@@ -7,6 +7,8 @@ import { DappLogo } from "#/components/image";
 import { app_name } from "#/constants/env";
 import { INTERCOM_HELP, PRIVACY_POLICY } from "#/constants/urls";
 import { metas } from "#/helpers/seo";
+import { use_now } from "#/hooks/use-now";
+import { fund_closes_at, fund_is_open } from "@/fundraiser/is-open";
 import type { Route } from "./+types/route";
 import FAQ from "./faq";
 import { FundCard } from "./fund-card";
@@ -21,8 +23,13 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 
 export default CacheRoute(Page);
 function Page({
-  loaderData: { fund, is_open, user, base_url },
+  loaderData: { fund, now: loader_now, user, base_url },
 }: Route.ComponentProps) {
+  const now = use_now(
+    loader_now,
+    fund.expiration ? fund_closes_at(fund.expiration) : undefined
+  );
+  const is_open = fund_is_open(fund, now);
   return (
     <div className="w-full">
       <div className="bg-panel h-14.75 w-full flex items-center justify-between px-10 mb-4">

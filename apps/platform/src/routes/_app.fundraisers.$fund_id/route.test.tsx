@@ -75,7 +75,7 @@ async function open_fund_page(
     members: [npo_id],
     expiration,
   });
-  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   const Stub = createRoutesStub([
     {
       path: "/fundraisers/:fund_id",
@@ -105,17 +105,31 @@ describe("fundraiser page", () => {
     expect(screen.getByText("last day", { exact: true }).query()).toBeNull();
   });
 
-  test("keeps a fund open by the server's clock when the browser's runs ahead", async () => {
+  test("closes once mounted when served from before closing to a browser past it", async () => {
     const screen = await open_fund_page("2027-09-22T00:00:00.000Z", {
       server: ms_before(NOW, 1),
       browser: NOW,
     });
-    await expect
-      .element(screen.getByText("last day", { exact: true }))
-      .toBeVisible();
     // one of the two donate links is display:none at any width
     await expect
       .element(screen.getByRole("link", { name: /donate now/i }))
-      .toHaveAttribute("aria-disabled", "false");
+      .toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("last day", { exact: true }).query()).toBeNull();
+  });
+
+  test("closes without a reload once the closing instant passes", async () => {
+    const at = ms_before(NOW, 1);
+    const screen = await open_fund_page("2027-09-22T00:00:00.000Z", {
+      server: at,
+      browser: at,
+    });
+    await expect
+      .element(screen.getByText("last day", { exact: true }))
+      .toBeVisible();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect
+      .element(screen.getByRole("link", { name: /donate now/i }))
+      .toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("last day", { exact: true }).query()).toBeNull();
   });
 });

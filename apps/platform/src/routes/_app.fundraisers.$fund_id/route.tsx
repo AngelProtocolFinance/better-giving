@@ -9,7 +9,9 @@ import { FundCreator, FundStatus, status_fn } from "#/components/fundraiser";
 import { RichText, richtext_styles, to_text } from "#/components/rich-text";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
+import { use_now } from "#/hooks/use-now";
 import type { IFund } from "#/types/fund";
+import { fund_closes_at } from "@/fundraiser/is-open";
 import { MAX_EXPIRATION_ISO } from "@/fundraiser/schema";
 import type { Route } from "./+types/route";
 import { Share } from "./share";
@@ -34,8 +36,11 @@ export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Fund);
 
 function Fund({ loaderData }: Route.ComponentProps) {
-  const { url, now: now_iso, ...fund } = loaderData;
-  const now = new Date(now_iso);
+  const { url, now: loader_now, ...fund } = loaderData;
+  const now = use_now(
+    loader_now,
+    fund.expiration ? fund_closes_at(fund.expiration) : undefined
+  );
 
   const status = status_fn(
     fund.expiration ?? MAX_EXPIRATION_ISO,

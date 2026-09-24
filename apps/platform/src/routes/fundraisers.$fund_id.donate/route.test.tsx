@@ -79,7 +79,7 @@ async function open_donate_page(
     members: [npo_id],
     expiration,
   });
-  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   const Stub = createRoutesStub([
     {
       path: "/fundraisers/:fund_id/donate",
@@ -138,12 +138,22 @@ describe("fundraiser donate page", () => {
     expect(screen.getByTestId("donate-methods").query()).toBeNull();
   });
 
-  test("takes donations by the server's clock when the browser's runs ahead", async () => {
+  test("closes once mounted when served from before closing to a browser past it", async () => {
     const screen = await open_donate_page("2027-09-22T00:00:00.000Z", {
       server: ms_before(NOW, 1),
       browser: NOW,
     });
+    await expect.element(screen.getByText(closed_notice)).toBeVisible();
+    expect(screen.getByTestId("donate-methods").query()).toBeNull();
+  });
+
+  test("closes without a reload once the closing instant passes", async () => {
+    const screen = await open_donate_page("2027-09-22T00:00:00.000Z", {
+      server: ms_before(NOW, 1),
+    });
     await expect.element(screen.getByTestId("donate-methods")).toBeVisible();
-    expect(screen.getByText(closed_notice).query()).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect.element(screen.getByText(closed_notice)).toBeVisible();
+    expect(screen.getByTestId("donate-methods").query()).toBeNull();
   });
 });
