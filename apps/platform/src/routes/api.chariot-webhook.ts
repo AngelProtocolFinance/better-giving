@@ -12,7 +12,7 @@ import { db } from "$/pg/db";
 import { donation_get, donation_update } from "$/pg/queries/donation";
 import type { Route } from "./+types/api.chariot-webhook";
 
-/** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — collects every `v1`, any of which may match; non-`v1` schemes are ignored (downgrade) */
+/** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — collects every `v1`, any of which may match; other schemes are ignored so a weaker one can't stand in for `v1` */
 function parse_signature(header: string): { t: string; v1: string[] } | null {
   let t = "";
   const v1: string[] = [];
@@ -52,8 +52,9 @@ export async function action({ request }: Route.ActionArgs) {
 
     // 4xx, not 2xx: chariot reads 2xx as delivered, so a signing-key mismatch
     // would drop every grant silently; a 4xx is redelivered in production and,
-    // failing 5 days, flags the subscription `requires_attention`.
-    // warn, not report_error — forgeries are free.
+    // after 5 days of failures, flags the subscription `requires_attention`.
+    // warn, not report_error: anyone can send a forgery, so each one would
+    // raise a report.
     if (!parsed.v1.some((v) => safe_equals(hash, v))) {
       console.warn(
         `[chariot webhook] signature mismatch: t=${parsed.t}, ${parsed.v1.length} v1`

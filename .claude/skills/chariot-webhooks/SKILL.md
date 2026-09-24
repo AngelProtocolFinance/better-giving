@@ -50,7 +50,7 @@ curl -s -X POST "{api_url}/v1/event_subscriptions" \
 
 Categories (8, all of them): `grant.created`, `grant.updated`, `unintegrated_grant.created`, `unintegrated_grant.updated`, `disbursement.created`, `disbursement.updated`, `inbound_transfer.created`, `inbound_transfer.updated`.
 
-The route only handles grants — `action` in `api.chariot-webhook.ts` calls `chariot.get_grant(payload.associated_object_id)` for `associated_object_type: "grant"` and branches on `grant.status`; any other object type is acked with a `200` and an `ignored` log line. Subscribe `grant.updated`; any other category posts an object the handler cannot resolve.
+The route only handles grants — `action` in `api.chariot-webhook.ts` calls `chariot.get_grant(payload.associated_object_id)` for `associated_object_type: "grant"` and branches on `grant.status`; any other object type is acked with a `200` and an `ignored` log line. Subscribe `grant.updated`; a category posting any other object type reaches only that `ignored` branch.
 
 ### Enable / disable / delete subscription
 
