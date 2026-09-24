@@ -34,12 +34,14 @@ export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Fund);
 
 function Fund({ loaderData }: Route.ComponentProps) {
-  const { url, ...fund } = loaderData;
+  const { url, now: now_iso, ...fund } = loaderData;
+  const now = new Date(now_iso);
 
   const status = status_fn(
     fund.expiration ?? MAX_EXPIRATION_ISO,
     fund.active,
-    fund.donation_total_usd
+    fund.donation_total_usd,
+    now
   );
 
   return (
@@ -91,6 +93,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
               </div>
               <DonateSection
                 {...fund}
+                open={status.active}
                 classes={{
                   container: "col-span-full md:hidden",
                   target: "mt-8",
@@ -134,6 +137,7 @@ function Fund({ loaderData }: Route.ComponentProps) {
           {" "}
           <DonateSection
             {...fund}
+            open={status.active}
             classes={{ container: "max-md:hidden", link: "mb-4 order-first" }}
           />
           <p className="text-gray-11 md:mt-8 mb-2 font-bold uppercase text-xs">
@@ -168,6 +172,7 @@ interface Classes {
   target?: string;
 }
 interface IDonateSection extends IFund {
+  open: boolean;
   classes?: Classes | string;
 }
 function DonateSection(props: IDonateSection) {
@@ -183,13 +188,7 @@ function DonateSection(props: IDonateSection) {
         />
       )}
       <NavLink
-        aria-disabled={
-          !status_fn(
-            props.expiration ?? MAX_EXPIRATION_ISO,
-            props.active,
-            props.donation_total_usd
-          ).active
-        }
+        aria-disabled={!props.open}
         to={href("/donate-fund/:fund_id", { fund_id: props.id })}
         className={`w-full btn btn-primary ${s.link} ${s.container}`}
       >

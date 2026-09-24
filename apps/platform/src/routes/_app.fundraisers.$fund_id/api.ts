@@ -8,6 +8,8 @@ import type { Route } from "./+types/route";
 
 export interface LoaderData extends IFund {
   url: string;
+  /** the request's time as ISO, so server and client render one status */
+  now: string;
 }
 
 export const headers: Route.HeadersFunction = () => ({
@@ -22,5 +24,9 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
   if (p.issues) throw resp.status(400, p.issues[0].message);
   const fund = await get_fund(p.output);
   if (!fund) throw new Response(null, { status: 404 });
-  return { ...fund, url: url.toString() };
+  return {
+    ...fund,
+    url: url.toString(),
+    now: new Date().toISOString(),
+  } satisfies LoaderData;
 };

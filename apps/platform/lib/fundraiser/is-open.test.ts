@@ -36,7 +36,6 @@ describe("fund_closes_at", () => {
     ["midnight", "2027-10-01T00:00:00.000Z"],
     ["a time of day", "2027-10-01T15:00:00.000Z"],
     ["the last microsecond of the day", "2027-10-01T23:59:59.999999Z"],
-    ["a postgres offset", "2027-10-01 18:30:00+00"],
   ])(
     "an Oct 1 expiration stored at %s closes when Oct 1 has ended everywhere",
     (_, expiration) => {

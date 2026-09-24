@@ -4,6 +4,7 @@ import { get_fund } from "#/.server/fund";
 import { segment } from "#/api/schema/segment";
 import type { AuthUser } from "#/types/auth";
 import type { IFund } from "#/types/fund";
+import { fund_is_open } from "@/fundraiser/is-open";
 import { fund_id } from "@/fundraiser/schema";
 import { resp } from "@/helpers/https";
 import type { Route } from "./+types/route";
@@ -11,6 +12,8 @@ import type { Route } from "./+types/route";
 export interface LoaderData {
   user: AuthUser | undefined;
   fund: IFund;
+  /** by the request's clock, so the render can't disagree with the intent gate */
+  is_open: boolean;
   base_url: string;
 }
 
@@ -27,6 +30,7 @@ export const loader = async ({ params, request }: Route.LoaderArgs) => {
   return {
     user,
     fund,
+    is_open: fund_is_open(fund, new Date()),
     base_url: new URL(request.url).origin,
   } satisfies LoaderData;
 };

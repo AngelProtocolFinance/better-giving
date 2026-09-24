@@ -1,7 +1,6 @@
 import {
   array,
   boolean,
-  check,
   type InferOutput,
   integer,
   isoTimestamp,
@@ -26,7 +25,6 @@ import {
   slug,
   target,
 } from "../schemas";
-import { fund_closes_at } from "./is-open";
 
 export type { DonateMethodId } from "../schemas";
 export type { Environment } from "../types/list";
@@ -50,16 +48,7 @@ const fund_new = object({
     maxLength(10)
   ),
   published: boolean(),
-  expiration: optional(
-    pipe(
-      $,
-      isoTimestamp("invalid date"),
-      check(
-        (iso) => Date.now() < fund_closes_at(iso).getTime(),
-        "must be today or later"
-      )
-    )
-  ),
+  expiration: optional(pipe($, isoTimestamp("invalid date"))),
   /** `"0"` - none, {"number"} = fixed */
   target: target,
   videos: array(pipe($, url())),

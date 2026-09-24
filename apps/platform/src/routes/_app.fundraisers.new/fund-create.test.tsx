@@ -344,6 +344,26 @@ describe("fund creation", () => {
       expect(row.expiration).toBe("2027-10-01T00:00:00.000Z");
     });
 
+    // an Oct 1 end date closes at 2027-10-02T12:00Z
+    it("accepts an end date that closes 1 ms from now", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2027-10-02T11:59:59.999Z"));
+
+      const res = await create_ending("2027-10-01");
+
+      expect(res.status).toBe(302);
+    });
+
+    it("rejects an end date that closes exactly now", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2027-10-02T12:00:00.000Z"));
+
+      const res: any = await create_ending("2027-10-01");
+
+      expect(res.errors.expiration.message).toBe("must be today or later");
+      expect(await fund_by_name("Ends Soon")).toBeUndefined();
+    });
+
     it("rejects yesterday's date", async () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2027-10-01T15:00:00.000Z"));

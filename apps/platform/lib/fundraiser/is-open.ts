@@ -4,10 +4,10 @@
  * the next day. The fund-list SQL in `.server/pg/queries/fund.ts` applies the same rule.
  */
 export const fund_closes_at = (expiration: string): Date => {
-  const d = new Date(expiration);
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 12)
-  );
+  // reads carry 3–6 fraction digits and Date's parser is only specified for 3;
+  // the date part is all the rule needs, and reads are normalised to UTC `…Z`
+  const [y, m, d] = expiration.slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1, 12));
 };
 
 export const fund_is_open = (
