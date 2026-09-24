@@ -115,7 +115,10 @@ function UrlProbe() {
   );
 }
 
-function render_marketplace(entry = "/marketplace") {
+function render_marketplace(
+  entry = "/marketplace",
+  route_loader: typeof loader = loader
+) {
   const Stub = createRoutesStub([
     {
       Component: UrlProbe,
@@ -124,7 +127,7 @@ function render_marketplace(entry = "/marketplace") {
           path: "/marketplace",
           Component: MarketplacePage,
           HydrateFallback: () => null,
-          loader,
+          loader: route_loader,
           children: [
             {
               path: "filter",
@@ -517,5 +520,43 @@ describe("marketplace — search", () => {
     await expect
       .element(screen.getByTestId("url-search"))
       .not.toMatchTextContent("query");
+  });
+
+  // a chip built from the committed url cuts off the search still loading.
+  // the url that lands never had the term, so the box must not keep it.
+  it("a chip clicked while a search loads leaves box, url and grid agreeing", async () => {
+    await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Oxfam Kenya", hq_country: "Kenya" });
+    let release = () => {};
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    let searching = false;
+    const screen = await render_marketplace(
+      "/marketplace?countries=Canada,Kenya",
+      async (args) => {
+        if (new URL(args.request.url).searchParams.has("query")) {
+          searching = true;
+          await gate;
+        }
+        return loader(args);
+      }
+    );
+    const box = screen.getByPlaceholder("Search organizations...");
+
+    await box.fill("Oxfam");
+    await vi.waitFor(() => expect(searching).toBe(true));
+    await screen.getByRole("button", { name: "Kenya", exact: true }).click();
+    await expect
+      .element(screen.getByText("Oxfam Kenya"))
+      .not.toBeInTheDocument();
+    release();
+
+    await expect.element(box).toHaveValue("");
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .not.toMatchTextContent("query");
+    await expect.element(screen.getByText("Red Cross Canada")).toBeVisible();
   });
 });

@@ -96,32 +96,46 @@ describe("marketplace search box", () => {
       .toHaveValue("");
   });
 
-  // the box empties and the debounce timer does not: left running, it loads the
-  // typed term half a second after the clear, and the grid ends up filtered by
-  // a word that is in neither the box nor the url.
-  test("a keystroke still debouncing when Clear all fires never loads", async () => {
-    // shouldAdvanceTime keeps playwright's own polling alive while the
-    // debounce timer stays ours to fire on demand
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    const queried: string[] = [];
-    const screen = await render_toolbar(
+  // the box empties and the debounce timer does not: left running, it writes
+  // the typed term half a second after the clear, and the url and the grid end
+  // up filtered by a word the clear was meant to drop. with no term in the url
+  // the clear leaves the term unchanged, so only the landing can tell.
+  test.each([
+    [
+      "a term",
       "/marketplace?query=clean%20water&countries=Japan,Kenya",
-      queried
-    );
+      "clean water",
+    ],
+    ["no term", "/marketplace?countries=Japan,Kenya", ""],
+  ])(
+    "a keystroke still debouncing when Clear all fires never loads (url with %s)",
+    async (_, entry, term) => {
+      // shouldAdvanceTime keeps playwright's own polling alive while the
+      // debounce timer stays ours to fire on demand
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const queried: string[] = [];
+      const screen = await render_toolbar(entry, queried);
 
-    const box = screen.getByPlaceholder(/search organizations/i);
-    await expect.element(box).toHaveValue("clean water");
+      const box = screen.getByPlaceholder(/search organizations/i);
+      await expect.element(box).toHaveValue(term);
 
-    keystroke(box.element() as HTMLInputElement, "kelp");
-    (
-      screen.getByRole("button", { name: "Clear all" }).element() as HTMLElement
-    ).click();
+      keystroke(box.element() as HTMLInputElement, "kelp");
+      (
+        screen
+          .getByRole("button", { name: "Clear all" })
+          .element() as HTMLElement
+      ).click();
 
-    await expect.element(box).toHaveValue("");
-    await vi.advanceTimersByTimeAsync(700);
+      await expect
+        .element(screen.getByTestId("url-search"))
+        .toHaveTextContent("?page=1");
+      await expect.element(box).toHaveValue("");
+      await vi.advanceTimersByTimeAsync(700);
 
-    expect(queried).not.toContain("kelp");
-  });
+      expect(queried).not.toContain("kelp");
+      await expect.element(box).toHaveValue("");
+    }
+  );
 
   // the term lands in the url half a second after the last keystroke, often
   // mid-word. a box that remounts or blurs on that write eats the next letter.
@@ -152,5 +166,17 @@ describe("marketplace search box", () => {
     await expect
       .element(screen.getByTestId("url-search"))
       .toHaveTextContent("?countries=Japan");
+  });
+
+  // a new term starts its own results; a page kept from the last term reads
+  // as an empty or wrong page of the new one
+  test("typing a new term drops the page from the url", async () => {
+    const screen = await render_toolbar("/marketplace?page=3&countries=Japan");
+
+    await screen.getByPlaceholder(/search organizations/i).fill("kelp");
+
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?countries=Japan&query=kelp");
   });
 });
