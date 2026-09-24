@@ -38,7 +38,9 @@ const fund_cols = getTableColumns(funds);
 const fund_with_joined = {
   ...fund_cols,
   creator_name: sql<string>`${user.first_name} || ' ' || ${user.last_name}`,
-  donation_total_usd: sql<number>`COALESCE(${v_donation_total_usd.total}, 0)`,
+  donation_total_usd: sql`COALESCE(${v_donation_total_usd.total}, 0)`.mapWith(
+    v_donation_total_usd.total
+  ),
 };
 
 type FundRow = typeof funds.$inferSelect & {

@@ -36,6 +36,8 @@ vi.mock("swr/immutable", () => ({
 }));
 
 import { seed_fund, seed_npo, seed_user } from "#/__tests__/fixtures/funds";
+import { dists } from "$/pg/schema/dist";
+import { donations } from "$/pg/schema/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { loader } from "./api";
 import FundPage from "./route";
@@ -47,6 +49,7 @@ const DAY_MS = 86_400_000;
 
 let creator_id: string;
 let npo_id: number;
+let served: Awaited<ReturnType<typeof loader>>;
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
@@ -63,10 +66,44 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** one settled donation to the fund per net */
+async function seed_settled(fund_id: string, nets: number[]) {
+  const db = test_db.current!.db;
+  for (const net of nets) {
+    const donation_id = crypto.randomUUID();
+    await db.insert(donations).values({
+      id: donation_id,
+      upusd: net,
+      status: "settled",
+      amount_base: net,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "stripe",
+      via: "card",
+    });
+    await db.insert(dists).values({
+      id: crypto.randomUUID(),
+      donation_id,
+      status: "settled",
+      date_created: new Date().toISOString(),
+      to_id: npo_id,
+      amount_denom: "USD",
+      net,
+      fund_id,
+    });
+  }
+}
+
 /** `server` is the clock the loader runs on, `browser` the one the page renders on */
 async function open_fund_page(
   expiration: string,
-  { server, browser }: { server: Date; browser: Date }
+  {
+    server,
+    browser,
+    nets = [],
+  }: { server: Date; browser: Date; nets?: number[] }
 ) {
   const fund = await seed_fund(test_db.current!.db, {
     id: crypto.randomUUID(),
@@ -75,6 +112,7 @@ async function open_fund_page(
     members: [npo_id],
     expiration,
   });
+  await seed_settled(fund.id, nets);
   vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   const Stub = createRoutesStub([
     {
@@ -82,9 +120,9 @@ async function open_fund_page(
       Component: FundPage as any,
       loader: async (args: any) => {
         vi.setSystemTime(server);
-        const data = await loader(args);
+        served = await loader(args);
         vi.setSystemTime(browser);
-        return data;
+        return served;
       },
       HydrateFallback: () => null,
     },
@@ -131,5 +169,28 @@ describe("fundraiser page", () => {
       .element(screen.getByRole("link", { name: /donate now/i }))
       .toHaveAttribute("aria-disabled", "true");
     expect(screen.getByText("last day", { exact: true }).query()).toBeNull();
+  });
+
+  test("reads expired when it closed with no settled donations", async () => {
+    const screen = await open_fund_page("2027-09-22T00:00:00.000Z", {
+      server: NOW,
+      browser: NOW,
+    });
+    await expect
+      .element(screen.getByText("expired", { exact: true }))
+      .toBeVisible();
+    expect(served.donation_total_usd).toBe(0);
+  });
+
+  test("reads completed when it closed with settled donations", async () => {
+    const screen = await open_fund_page("2027-09-22T00:00:00.000Z", {
+      server: NOW,
+      browser: NOW,
+      nets: [4.53, 10.25],
+    });
+    await expect
+      .element(screen.getByText("completed", { exact: true }))
+      .toBeVisible();
+    expect(served.donation_total_usd).toBe(14.78);
   });
 });
