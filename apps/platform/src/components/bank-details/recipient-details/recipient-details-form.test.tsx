@@ -4,7 +4,11 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
-import type { Group, ValidationContent } from "#/types/bank-details";
+import type {
+  CreateRecipientRequest,
+  Group,
+  ValidationContent,
+} from "#/types/bank-details";
 import type { FormButtonsProps } from "../types";
 import { RecipientDetailsForm } from "./recipient-details-form";
 
@@ -134,9 +138,9 @@ async function render_form(form_fields: Group[] = fields) {
 async function fill_all(
   screen: Awaited<ReturnType<typeof render_form>>["screen"]
 ) {
-  await screen.getByPlaceholder("Jane Doe").fill("Jane Doe");
-  await screen.getByPlaceholder("40-30-20").fill("00-00-00");
-  await screen.getByPlaceholder("12345678").fill("00000000");
+  await screen.getByLabelText("Account holder").fill("Jane Doe");
+  await screen.getByLabelText("Sort code").fill("00-00-00");
+  await screen.getByLabelText("Account number").fill("00000000");
 }
 
 describe("RecipientDetailsForm", () => {
@@ -148,17 +152,17 @@ describe("RecipientDetailsForm", () => {
     const focus = record_focus();
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const sort_code = screen.getByPlaceholder("40-30-20");
+    const sort_code = screen.getByLabelText("Sort code");
     await expect.element(sort_code).toHaveFocus();
     await expect.element(sort_code).toHaveAttribute("aria-invalid", "true");
     await expect
       .element(sort_code)
       .toHaveAccessibleDescription("invalid sortCode");
     await expect
-      .element(screen.getByPlaceholder("12345678"))
+      .element(screen.getByLabelText("Account number"))
       .toHaveAccessibleDescription("invalid accountNumber");
     await expect
-      .element(screen.getByPlaceholder("Jane Doe"))
+      .element(screen.getByLabelText("Account holder"))
       .not.toHaveAttribute("aria-describedby");
 
     // the click focuses the button once; a second entry is the fieldset
@@ -175,7 +179,7 @@ describe("RecipientDetailsForm", () => {
     const focus = record_focus();
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const trigger = screen.getByRole("combobox");
+    const trigger = screen.getByRole("combobox", { name: "Account type" });
     await expect.element(trigger).toHaveFocus();
     await expect.element(trigger).toHaveAttribute("aria-invalid", "true");
     await expect
@@ -192,14 +196,14 @@ describe("RecipientDetailsForm", () => {
 
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const dob = screen.getByPlaceholder("1990-01-31");
+    const dob = screen.getByLabelText("Date of birth");
     await expect.element(dob).toHaveFocus();
     await expect.element(dob).toHaveAttribute("aria-invalid", "true");
     await expect
       .element(dob)
       .toHaveAccessibleDescription("invalid dateOfBirth");
     await expect
-      .element(screen.getByPlaceholder("40-30-20"))
+      .element(screen.getByLabelText("Sort code"))
       .not.toHaveAttribute("aria-describedby");
   });
 
@@ -215,7 +219,7 @@ describe("RecipientDetailsForm", () => {
     const focus = record_focus();
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const sort_code = screen.getByPlaceholder("40-30-20");
+    const sort_code = screen.getByLabelText("Sort code");
     await expect.element(sort_code).toHaveFocus();
     await expect.element(sort_code).toHaveAttribute("aria-invalid", "true");
     expect(await focus.settle()).toEqual(["Continue", "sortCode"]);
@@ -231,7 +235,7 @@ describe("RecipientDetailsForm", () => {
     const focus = record_focus();
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const account_number = screen.getByPlaceholder("12345678");
+    const account_number = screen.getByLabelText("Account number");
     await expect.element(account_number).toHaveFocus();
     await expect
       .element(screen.getByText("invalid accountNumber"))
@@ -249,7 +253,7 @@ describe("RecipientDetailsForm", () => {
     await expect.element(alert).not.toMatchTextContent("invalid iban");
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const sort_code = screen.getByPlaceholder("40-30-20");
+    const sort_code = screen.getByLabelText("Sort code");
     await expect.element(sort_code).toHaveFocus();
     await expect
       .element(sort_code)
@@ -279,7 +283,7 @@ describe("RecipientDetailsForm", () => {
     await screen.getByRole("button", { name: "Continue" }).click();
 
     await expect
-      .element(screen.getByPlaceholder("40-30-20"))
+      .element(screen.getByLabelText("Sort code"))
       .toHaveAccessibleDescription("invalid sortCode");
     await expect
       .element(screen.getByRole("alert"))
@@ -322,7 +326,7 @@ describe("RecipientDetailsForm", () => {
     const focus = record_focus();
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const sort_code = screen.getByPlaceholder("40-30-20");
+    const sort_code = screen.getByLabelText("Sort code");
     await expect.element(sort_code).toHaveFocus();
     expect(await focus.settle()).toEqual(["Continue", "sortCode"]);
   });
@@ -340,5 +344,67 @@ describe("RecipientDetailsForm", () => {
     await expect.element(screen.getByText("invalid sortCode")).toBeVisible();
     expect(await focus.settle()).toEqual(["Continue", "Elsewhere"]);
     await expect.element(elsewhere).toHaveFocus();
+  });
+
+  test("each field is filled through its label, and those values are what gets submitted", async () => {
+    let sent: CreateRecipientRequest | undefined;
+    mswWorker.use(
+      http.post("/api/wise/v1/accounts", async ({ request }) => {
+        sent = (await request.json()) as CreateRecipientRequest;
+        return HttpResponse.json({ id: 1 });
+      })
+    );
+    const { screen, on_submit } = await render_form();
+
+    await screen.getByLabelText("Account holder").fill("Jane Doe");
+    await screen.getByLabelText("Sort code").fill("40-30-20");
+    await screen.getByLabelText("Account number").fill("12345678");
+    await screen.getByLabelText("Date of birth").fill("1990-01-31");
+
+    const trigger = screen.getByRole("combobox", { name: "Account type" });
+    // the select's own label names it, with no second one beside it
+    const cell = (trigger.element() as HTMLElement).closest(
+      '[data-scope="select"][data-part="root"]'
+    )?.parentElement;
+    const shown_labels = [...(cell?.querySelectorAll("label") ?? [])].filter(
+      (l) => l.checkVisibility()
+    );
+    expect(shown_labels.map((l) => l.textContent)).toEqual(["Account type"]);
+
+    await trigger.click();
+    await screen.getByRole("option", { name: "Savings" }).click();
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    await vi.waitFor(() => expect(on_submit).toHaveBeenCalledOnce());
+    expect(sent).toMatchObject({
+      accountHolderName: "Jane Doe",
+      details: {
+        accountType: "SAVINGS",
+        sortCode: "40-30-20",
+        accountNumber: "12345678",
+        dateOfBirth: "1990-01-31",
+      },
+    });
+  });
+
+  test("a required field keeps its marker, and submitting it empty marks it invalid", async () => {
+    const { screen } = await render_form(
+      fields.map((f) => ({ ...f, required: true }))
+    );
+
+    for (const f of fields) {
+      const label = screen.getByText(f.name, { exact: true }).element();
+      expect(getComputedStyle(label, "::after").content, f.name).toBe('" *"');
+    }
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    await expect.element(screen.getByLabelText("Account holder")).toHaveFocus();
+    const trigger = screen.getByRole("combobox", { name: "Account type" });
+    await expect.element(trigger).toHaveAttribute("aria-invalid", "true");
+    await expect.element(trigger).toHaveAttribute("aria-required", "true");
+    await expect
+      .element(screen.getByLabelText("Date of birth"))
+      .toHaveAttribute("aria-invalid", "true");
   });
 });

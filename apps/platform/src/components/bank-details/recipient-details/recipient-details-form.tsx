@@ -83,7 +83,8 @@ export function RecipientDetailsForm({
   // a 422's messages that no rendered field can carry
   const [unplaced, set_unplaced] = useState<string[]>([]);
   const uid = useId();
-  const err_id = (key: string) => `${uid}-${key}-err`;
+  const input_id = (key: string) => `${uid}-${key}`;
+  const err_id = (key: string) => `${input_id(key)}-err`;
   // only while `ErrorMessage` renders the element it names
   const described_by = (key: string) =>
     get(errors, key)?.message ? err_id(key) : undefined;
@@ -242,9 +243,6 @@ export function RecipientDetailsForm({
         if (f.type === "select") {
           return (
             <div key={f.key}>
-              <Label required={labelRequired} htmlFor={f.key} className="mb-2">
-                {f.name}
-              </Label>
               <Controller
                 control={control}
                 defaultValue=""
@@ -254,6 +252,8 @@ export function RecipientDetailsForm({
                 }}
                 render={({ field: { name, value, onChange, ref } }) => (
                   <Select
+                    label={f.name}
+                    required={labelRequired}
                     error={get(errors, name)?.message}
                     onChange={(value) => {
                       onChange(value);
@@ -321,10 +321,15 @@ export function RecipientDetailsForm({
         if (f.type === "text") {
           return (
             <div key={f.key} className="">
-              <Label required={labelRequired} htmlFor={f.key} className="mb-2">
+              <Label
+                required={labelRequired}
+                htmlFor={input_id(f.key)}
+                className="mb-2"
+              >
                 {f.name}
               </Label>
               <input
+                id={input_id(f.key)}
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
                 aria-describedby={described_by(f.key)}
@@ -385,10 +390,11 @@ export function RecipientDetailsForm({
         if (f.type === "date") {
           return (
             <div key={f.key} className="">
-              <Label required={labelRequired} htmlFor={f.key}>
+              <Label required={labelRequired} htmlFor={input_id(f.key)}>
                 {f.name}
               </Label>
               <input
+                id={input_id(f.key)}
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
                 aria-describedby={described_by(f.key)}
