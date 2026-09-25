@@ -47,12 +47,13 @@ describe("create_order purchase unit", () => {
     });
   });
 
-  it("carries no items when there is no tip or fee coverage", async () => {
+  it("names the nonprofit on a donation with no tip or fee coverage", async () => {
     const u = await unit_for("USD", 25, 0, 0);
+    expect(u.items?.map((i) => i.name)).toEqual(["Donation to Acme"]);
     expect(values(u)).toEqual({
       total: "25.00",
-      item_total: undefined,
-      items: undefined,
+      item_total: "25.00",
+      items: ["25.00"],
     });
   });
 
@@ -72,6 +73,15 @@ describe("create_order purchase unit", () => {
       "Fee coverage",
     ]);
     expect(values(u).item_total).toBe("26.03");
+  });
+
+  it("leaves out a tip that truncates to zero minor units", async () => {
+    const u = await unit_for("USD", 25, 0.004, 1.03);
+    expect(u.items?.map((i) => i.name)).toEqual([
+      "Donation to Acme",
+      "Fee coverage",
+    ]);
+    expect(values(u).total).toBe("26.03");
   });
 
   it("sends whole numbers in a zero-decimal currency", async () => {
