@@ -4,7 +4,7 @@ import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type { DistPreview } from "./api";
+import type { action, DistPreview } from "./api";
 
 export { action, loader } from "./api";
 
@@ -27,14 +27,14 @@ function Content({
   data: Route.ComponentProps["loaderData"];
   on_close: () => void;
 }) {
-  const fetcher = useFetcher();
-  const done = fetcher.data != null;
+  const fetcher = useFetcher<typeof action>();
+  const failures = fetcher.data?.ok === false ? fetcher.data.failures : [];
   const submitting = fetcher.state !== "idle";
   const has_blockers = data.previews.some((p) => p.blockers.length > 0);
   const no_dists = data.previews.length === 0;
   const has_warnings = data.total_loss > 0;
 
-  if (done) {
+  if (fetcher.data?.ok === true) {
     return (
       <div className="p-6 sm:p-8 text-center">
         <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
@@ -96,6 +96,24 @@ function Content({
         </div>
       )}
 
+      <div role="alert" id="refund-failures">
+        {failures.length > 0 && (
+          <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg">
+            <p className="font-semibold">Refund not completed</p>
+            <p>
+              Some distributions couldn't be reversed, so no Stripe refund was
+              issued and the donation is still settled. Resolve these before
+              retrying:
+            </p>
+            <ul className="list-disc pl-5 mt-1">
+              {failures.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
       <Actions band>
         <button
           type="button"
@@ -110,6 +128,7 @@ function Content({
           disabled={
             submitting || data.already_refunded || has_blockers || no_dists
           }
+          aria-describedby="refund-failures"
           onClick={() => fetcher.submit(null, { method: "post" })}
           className="btn btn-primary"
         >

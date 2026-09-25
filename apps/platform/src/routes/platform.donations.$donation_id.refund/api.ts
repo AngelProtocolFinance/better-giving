@@ -177,7 +177,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
   // already-refunded 400 will bounce; failed dists must be fixed first.
   if (result.failures.length > 0) {
     return dataWithError(
-      { ok: false, failures: result.failures },
+      { ok: false as const, failures: result.failures },
       `Refund partial: ${result.failures.length} dist(s) failed`
     );
   }
@@ -199,5 +199,5 @@ export const action = async ({ params }: Route.ActionArgs) => {
     }
   }
 
-  return dataWithSuccess({ ok: true }, "Refund processed");
+  return dataWithSuccess({ ok: true as const }, "Refund processed");
 };
