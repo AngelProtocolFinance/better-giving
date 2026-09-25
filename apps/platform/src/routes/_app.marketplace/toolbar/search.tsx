@@ -19,6 +19,8 @@ interface IWriteState {
    *  the search started from */
   marketplace_pushed?: true;
 }
+const pushed_of = (l: Location) =>
+  (l.state as IWriteState | null)?.marketplace_pushed === true;
 const term_of = (l: Location) =>
   new URLSearchParams(l.search).get("query") ?? "";
 const write_id = (l: Location): string | undefined =>
@@ -58,19 +60,16 @@ export function Search({ classes = "" }: { classes?: string }) {
   const is_own = (l: Location) =>
     in_flight.current !== null && write_id(l) === in_flight.current;
 
-  /** set by a clear that steps back, until the step lands */
-  const stepping_back = useRef(false);
+  /** the current entry began as the box's push. other writers replace it
+   *  without the box's state, so this outlives the marker on their replaces. */
+  const on_search = useRef(pushed_of(location));
+  /** where a clear that steps back meant to land, until the step lands */
+  const stepping_back = useRef<{ pathname: string; search: string } | null>(
+    null
+  );
 
   const write = (term: string, { replace }: { replace?: boolean } = {}) => {
     const current = router.state.location;
-    const pushed = (current.state as IWriteState | null)?.marketplace_pushed;
-    // the entry is the search; clearing it returns to the list it was pushed
-    // over rather than stacking a second copy of that list
-    if (!term && pushed) {
-      stepping_back.current = true;
-      navigate(-1);
-      return;
-    }
     const n = new URLSearchParams(current.search);
     // a term onto a url without one is a new search and gets its own entry;
     // refining it replaces
@@ -78,10 +77,21 @@ export function Search({ classes = "" }: { classes?: string }) {
     if (term) n.set("query", term);
     else n.delete("query");
     n.delete("page");
+    // the entry is the search; clearing it returns to the list it was pushed
+    // over rather than stacking a second copy of that list
+    if (!term && on_search.current) {
+      const search = n.toString();
+      stepping_back.current = {
+        pathname: current.pathname,
+        search: search ? `?${search}` : "",
+      };
+      navigate(-1);
+      return;
+    }
     const id = crypto.randomUUID();
     in_flight.current = id;
     const state: IWriteState = { marketplace_search: id };
-    if (push || pushed) state.marketplace_pushed = true;
+    if (push || on_search.current) state.marketplace_pushed = true;
     set_params(n, { replace: !push, preventScrollReset: true, state });
   };
 
@@ -101,7 +111,8 @@ export function Search({ classes = "" }: { classes?: string }) {
   // term written over it, replacing: it repairs that landing, it isn't a new
   // search. one that changed the term, Clear all, and back/forward instead set
   // the box to the url and void a keystroke still debouncing. the clear's own
-  // step back keeps what was typed while it loaded.
+  // step back keeps what was typed while it loaded, and the filters changed
+  // since the push.
   const landed = useRef({ key: location.key, query: url_query });
   // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the trigger — a landed navigation, not a read
   useEffect(() => {
@@ -112,30 +123,54 @@ export function Search({ classes = "" }: { classes?: string }) {
     const box = input.current;
     if (!box) return;
 
-    if (is_own(location)) {
+    const own = is_own(location);
+    // a foreign replace keeps the entry's place in history, and so what it
+    // began as
+    if (own || navigation_type !== "REPLACE") {
+      on_search.current = pushed_of(location);
+    }
+    if (own) {
       in_flight.current = null;
       return;
     }
-    const stepped_back = stepping_back.current;
-    stepping_back.current = false;
+    const step = stepping_back.current;
+    stepping_back.current = null;
     const pop = navigation_type === "POP";
 
-    if (
-      !stepped_back &&
-      (pop || is_clear_all(location) || url_query !== prev.query)
-    ) {
+    if (!step && (pop || is_clear_all(location) || url_query !== prev.query)) {
       debounced_write.cancel();
       box.value = url_query;
       return;
     }
-    if (box.value === url_query) return;
     // a click since this landing already moved on; its landing writes the term
     const now = router.state;
-    if (now.navigation.state !== "idle" || now.location.key !== location.key) {
+    const moved_on =
+      now.navigation.state !== "idle" || now.location.key !== location.key;
+    // the entry behind the search predates the filters changed on the
+    // search's own entry, which stay changed
+    if (
+      step &&
+      !moved_on &&
+      (location.pathname !== step.pathname || location.search !== step.search)
+    ) {
+      const n = new URLSearchParams(step.search);
+      if (box.value) n.set("query", box.value);
+      const id = crypto.randomUUID();
+      in_flight.current = id;
+      debounced_write.cancel();
+      navigate(
+        { pathname: step.pathname, search: `?${n}` },
+        {
+          replace: true,
+          preventScrollReset: true,
+          state: { marketplace_search: id } satisfies IWriteState,
+        }
+      );
       return;
     }
+    if (box.value === url_query || moved_on) return;
     debounced_write.cancel();
-    write(box.value, { replace: stepped_back ? undefined : true });
+    write(box.value, { replace: step ? undefined : true });
   }, [location.key]);
 
   return (

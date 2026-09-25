@@ -451,6 +451,32 @@ describe("marketplace search box", () => {
     await expect.element(screen.getByText("other page")).toBeVisible();
   });
 
+  // a chip removal replaces the search's entry in place, so it is still the
+  // entry the term pushed; the chips it removed stay removed after the clear
+  test("clearing a pushed term after chip removals leaves one Back to the page before the list", async () => {
+    const screen = await render_toolbar([
+      "/other",
+      "/marketplace?countries=Japan,Kenya,Chile",
+    ]);
+    const box = screen.getByPlaceholder(/search organizations/i);
+    const url = screen.getByTestId("url-search");
+
+    await box.fill("kelp");
+    await expect.element(url).toMatchTextContent("query=kelp");
+    await screen.getByRole("button", { name: "Kenya", exact: true }).click();
+    await expect
+      .element(url)
+      .toHaveTextContent("?query=kelp&countries=Japan%2CChile");
+    await screen.getByRole("button", { name: "Chile", exact: true }).click();
+    await expect.element(url).toHaveTextContent("?query=kelp&countries=Japan");
+    await box.clear();
+
+    await expect.element(url).toHaveTextContent("?countries=Japan");
+    await expect.element(box).toHaveValue("");
+    await screen.getByRole("button", { name: "Back" }).click();
+    await expect.element(screen.getByText("other page")).toBeVisible();
+  });
+
   test("a term typed while clearing steps back survives the step", async () => {
     let armed = false;
     const g = gate((url) => armed && !url.searchParams.has("query"));
