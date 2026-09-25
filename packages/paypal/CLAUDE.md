@@ -21,10 +21,6 @@ Internal package (`private`), a **built** server-side PayPal SDK. Ships the `Pay
 - **`tsconfig.json` extends `tsconfig.base.json`** and adds the emit config raw `tsc` needs (see the tsconfig comments). Same built-member pattern as crypto, which emits via tsup instead.
 - After changing `src/`, run `pnpm --filter @better-giving/paypal build`.
 
-## Conventions
-
-- No `catalog:` here (deliberate — kept on its own pinned `typescript`/`@types/node`).
-
 ## `generate` maintenance script
 
 `pnpm --filter @better-giving/paypal generate` = `download-specs` (fetch official PayPal specs → `specs/`, copy `custom_specs/**` in) then `generate-types` (`openapi-typescript` → `src/generated/**`). Offline/occasional; regenerates the committed `src/generated`, which you then commit. Edit `scripts/download-specs.ts`'s `SPEC_FILES` to add an API surface.
