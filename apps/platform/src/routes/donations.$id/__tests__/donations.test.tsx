@@ -65,11 +65,6 @@ vi.mock("#/.server/toast", () => ({
   dataWithSuccess: vi.fn((data, msg) => ({ data, toast: msg })),
 }));
 
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: any) => Component,
-  createClientLoaderCache: () => undefined,
-}));
-
 vi.mock("#/helpers/confetti", () => ({
   confetti: vi.fn().mockResolvedValue(undefined),
 }));

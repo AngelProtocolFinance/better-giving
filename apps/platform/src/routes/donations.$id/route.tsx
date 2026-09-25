@@ -3,7 +3,6 @@ import { Image } from "@better-giving/ui";
 import { CheckCircle2Icon, ChevronDownIcon, StarIcon } from "lucide-react";
 import { useRef } from "react";
 import { href, Link, NavLink } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import char from "#/assets/images/celebrating-character.webp";
 import laira_gift from "#/assets/laira/laira-gift.webp";
 import { confetti } from "#/helpers/confetti";
@@ -16,7 +15,6 @@ import { ShareBtn, socials } from "./share";
 import { TributeForm } from "./tribute-form";
 
 export { action, loader } from "./api";
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
 export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   if (!d) return [];
@@ -29,9 +27,8 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 };
 
 export { ErrorBoundary } from "#/components/error";
-export default CacheRoute(Page);
 
-function Page({ loaderData: data }: Route.ComponentProps) {
+export default function Page({ loaderData: data }: Route.ComponentProps) {
   const widget_version = data.source === "bg-widget";
   const confetti_fired = useRef(false);
 
