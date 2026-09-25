@@ -28,7 +28,6 @@ const assert_fund_editor = async (
   fund: Pick<IFund, "id" | "npo_owner">
 ) => {
   if (user.role === "admin") return;
-  // check fund membership
   const [fund_mem] = await db
     .select({ fund_id: user_fund_memberships.fund_id })
     .from(user_fund_memberships)
@@ -41,7 +40,6 @@ const assert_fund_editor = async (
     .limit(1);
 
   if (!fund_mem && fund.npo_owner) {
-    // fallback: check npo ownership of the fund's parent npo
     const [npo_mem] = await db
       .select({ npo_id: user_npo_memberships.npo_id })
       .from(user_npo_memberships)
@@ -84,7 +82,6 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
   if (p_id.issues) throw resp.status(400, p_id.issues[0].message);
   const id = p_id.output;
 
-  // authz needs only these two; `get_fund` would hydrate every member npo
   const [fund] = await db
     .select({ id: funds.id, npo_owner: funds.npo_owner })
     .from(funds)
