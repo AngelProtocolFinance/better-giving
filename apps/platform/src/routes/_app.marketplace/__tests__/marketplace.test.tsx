@@ -614,7 +614,7 @@ describe("marketplace — search", () => {
   });
 
   // the box's write is a navigation and cuts off whichever one is loading;
-  // a chip whose loader outlasts the debounce window would come back
+  // a removed chip whose loader outlasts the debounce window would come back
   it("a keystroke whose debounce fires while a chip removal loads keeps both", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });

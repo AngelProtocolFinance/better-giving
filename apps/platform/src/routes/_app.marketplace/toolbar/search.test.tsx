@@ -20,8 +20,9 @@ async function render_search(entry: string) {
   return render(<Stub initialEntries={[entry]} />);
 }
 
-/** the url the probe shows is the committed one; `nav-state` shows a
- *  navigation still loading, which is when a debounced write can race it */
+/** the stub's memory router has no address bar, so the probe shows the
+ *  committed url; `nav-state` shows a navigation still loading, which is when
+ *  a debounced write can race it */
 function RouterProbe() {
   const navigate = useNavigate();
   return (
@@ -512,8 +513,8 @@ describe("marketplace search box", () => {
     expect(g.held.count).toBe(1);
   });
 
-  // history hands back the state an entry was written with, so the entry the
-  // box wrote reads as the box's own write every time it is returned to
+  // history hands back the state an entry was written with; returning to an
+  // entry the box wrote is not the box's own write landing
   test("Forward onto an entry the box wrote puts its term back in the box", async () => {
     const screen = await render_toolbar("/marketplace");
     const box = screen.getByPlaceholder(/search organizations/i);

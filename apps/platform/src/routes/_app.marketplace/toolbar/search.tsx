@@ -36,8 +36,9 @@ export function use_search_pending() {
   return navigation.state !== "idle" && !!write_id(navigation.location);
 }
 
-/** the router's state as of now. `useNavigation` renders it in a transition,
- *  which lags the click that started a navigation. */
+/** the router's state as of now, off `UNSAFE_DataRouterContext`:
+ *  `useNavigation` renders it in a transition, which lags the click that
+ *  started a navigation. */
 function use_live_router() {
   const ctx = useContext(UNSAFE_DataRouterContext);
   if (!ctx) throw new Error("Search renders under a data router");
@@ -98,9 +99,9 @@ export function Search({ classes = "" }: { classes?: string }) {
   // other writers build from the committed url, blind to a term the box holds
   // but hasn't landed. one that carried the old term forward gets the box's
   // term written over it, replacing: it repairs that landing, it isn't a new
-  // search. one that changed the term, Clear all and back/forward set the box
-  // to the url and void a keystroke still debouncing. the clear's own step
-  // back keeps what was typed while it loaded.
+  // search. one that changed the term, Clear all, and back/forward instead set
+  // the box to the url and void a keystroke still debouncing. the clear's own
+  // step back keeps what was typed while it loaded.
   const landed = useRef({ key: location.key, query: url_query });
   // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the trigger — a landed navigation, not a read
   useEffect(() => {

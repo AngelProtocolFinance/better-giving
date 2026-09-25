@@ -265,8 +265,8 @@ async function download_and_cache_cert(
     );
   };
   // the allowlist vetted this url only; a followed redirect would fetch the key
-  // from wherever the hop points. "manual" hands the 3xx back as a status, where
-  // "error" would reject exactly like the network failing
+  // from wherever the hop points. "manual" hands the 3xx back as a status, so
+  // the checks below report a redirect as a bug, not as the host being down
   const res = await fetch(cert_url, {
     redirect: "manual",
     signal: AbortSignal.timeout(CERT_FETCH_TIMEOUT_MS),
