@@ -21,7 +21,7 @@ export function escape_cell(value: unknown): string {
   // strings only: a negative number must stay a number, not become text
   const str =
     typeof value === "string" && FORMULA_LEAD.test(raw) ? `'${raw}` : raw;
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+  if (/[,"\n\r]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;

