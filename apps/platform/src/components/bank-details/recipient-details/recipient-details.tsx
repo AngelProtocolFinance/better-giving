@@ -24,13 +24,18 @@ function _RecipientDetails({
   const { req } = use_requirements(!amount ? null : { amount, currency });
   const { data, isLoading, isValidating, error } = req;
   const requirements = data?.requirements || [];
-  const [selected_idx, set_selected_idx] = useState(0);
+  // the picked type, not its index: a new amount can return the same types
+  // reordered. null shows the first
+  const [picked, set_picked] = useState<string | null>(null);
+  const picked_idx = requirements.findIndex((r) => r.type === picked);
+  const req_idx = Math.max(picked_idx, 0);
 
-  // a loaded list that shrinks below the pick drops it for good: a later
-  // refresh that restores the option must not switch the form back under the
-  // user. no data (a new amount's request in flight) is not a shrink
-  const req_idx = selected_idx < requirements.length ? selected_idx : 0;
-  if (data && req_idx !== selected_idx) set_selected_idx(req_idx);
+  // a loaded list without the pick drops it for good, for its first type: a
+  // later refresh that restores the option must not switch the form back under
+  // the user. no data (a new amount's request in flight) is not a drop
+  if (data && picked !== null && picked_idx === -1) {
+    set_picked(requirements[0]?.type ?? null);
+  }
 
   if (isLoading) {
     return (
@@ -66,7 +71,7 @@ function _RecipientDetails({
         label="Transfer type"
         required
         value={req_idx.toString()}
-        onChange={(value) => set_selected_idx(+value)}
+        onChange={(value) => set_picked(requirements[+value].type)}
         options={requirements.map((_, i) => i.toString())}
         option_disp={(x) => requirements[+x].title}
         disabled={disabled || isValidating}

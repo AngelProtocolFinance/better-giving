@@ -59,6 +59,30 @@ function quote_answers(requirements: AccountRequirements[]) {
   );
 }
 
+/** 100 answers `before`; 200 answers `after` once `after_held` settles */
+function amount_answers(
+  before: AccountRequirements[],
+  after: AccountRequirements[],
+  after_held: Promise<void> = Promise.resolve()
+) {
+  mswWorker.use(
+    http.post("/api/wise/v3/profiles/:profile/quotes", async ({ request }) => {
+      const { sourceAmount } = (await request.json()) as {
+        sourceAmount: number;
+      };
+      return HttpResponse.json({ id: `quote-${sourceAmount}` });
+    }),
+    http.get(
+      "/api/wise/v1/quotes/:quote/account-requirements",
+      async ({ params }) => {
+        if (params.quote === "quote-100") return HttpResponse.json(before);
+        await after_held;
+        return HttpResponse.json(after);
+      }
+    )
+  );
+}
+
 interface IDetails {
   amount: number;
 }
@@ -160,30 +184,11 @@ describe("RecipientDetails", () => {
     const new_amount_held = new Promise<void>((resolve) => {
       answer_new_amount = resolve;
     });
-    mswWorker.use(
-      http.post(
-        "/api/wise/v3/profiles/:profile/quotes",
-        async ({ request }) => {
-          const { sourceAmount } = (await request.json()) as {
-            sourceAmount: number;
-          };
-          return HttpResponse.json({ id: `quote-${sourceAmount}` });
-        }
-      ),
-      http.get(
-        "/api/wise/v1/quotes/:quote/account-requirements",
-        async ({ params }) => {
-          if (params.quote === "quote-100") {
-            return HttpResponse.json([local, iban]);
-          }
-          await new_amount_held;
-          // the first type under a new title, so the list's arrival is visible
-          return HttpResponse.json([
-            requirement("sort_code", "UK bank account"),
-            iban,
-          ]);
-        }
-      )
+    // the first type under a new title, so the list's arrival is visible
+    amount_answers(
+      [local, iban],
+      [requirement("sort_code", "UK bank account"), iban],
+      new_amount_held
     );
     const screen = await render_details(AmountChange);
 
@@ -204,5 +209,42 @@ describe("RecipientDetails", () => {
     await expect
       .element(screen.getByRole("option", { name: "UK bank account" }))
       .toBeVisible();
+  });
+
+  test("a new amount that reorders the transfer types keeps the picked type in the picker and the form", async () => {
+    const iban = requirement("iban", "IBAN", [iban_number]);
+    // the other type under a new title, so the reordered list's arrival is visible
+    amount_answers(
+      [local, iban],
+      [iban, requirement("sort_code", "UK bank account")]
+    );
+    const screen = await render_details(AmountChange);
+
+    const trigger = screen.getByRole("combobox", { name: "Transfer type" });
+    await trigger.click();
+    await screen.getByRole("option", { name: "IBAN" }).click();
+    await expect.element(screen.getByLabelText("IBAN number")).toBeVisible();
+
+    await screen.getByRole("button", { name: "Change amount" }).click();
+    await trigger.click();
+    await expect
+      .element(screen.getByRole("option", { name: "UK bank account" }))
+      .toBeVisible();
+    await expect.element(trigger).toMatchTextContent("IBAN");
+    await expect.element(screen.getByLabelText("IBAN number")).toBeVisible();
+  });
+
+  test("with no pick yet, a new amount that reorders the transfer types shows the new first type", async () => {
+    const iban = requirement("iban", "IBAN", [iban_number]);
+    amount_answers([local, iban], [iban, local]);
+    const screen = await render_details(AmountChange);
+
+    const trigger = screen.getByRole("combobox", { name: "Transfer type" });
+    await expect.element(trigger).toMatchTextContent("Local bank account");
+    expect(screen.getByLabelText("IBAN number").query()).toBeNull();
+
+    await screen.getByRole("button", { name: "Change amount" }).click();
+    await expect.element(trigger).toMatchTextContent("IBAN");
+    await expect.element(screen.getByLabelText("IBAN number")).toBeVisible();
   });
 });
