@@ -9,7 +9,7 @@ import {
   vi,
 } from "vitest";
 import { cleanup, render } from "vitest-browser-react";
-import { donations } from "$/pg/schema/donation";
+import { donation_settlements, donations } from "$/pg/schema/donation";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -113,6 +113,17 @@ async function seed_donation() {
   return id;
 }
 
+async function seed_settlement(donation_id: string, sttl_id: string) {
+  await test_db.current!.db.insert(donation_settlements).values({
+    donation_id,
+    sttl_id,
+    date: new Date().toISOString(),
+    currency: "USD",
+    net: 95,
+    fee: 5,
+  });
+}
+
 async function open_and_confirm(donation_id: string) {
   const Stub = createRoutesStub([
     {
@@ -133,7 +144,7 @@ async function open_and_confirm(donation_id: string) {
 }
 
 describe("refund modal", () => {
-  it("reports a refund whose reversals all landed as processed", async () => {
+  it("reports a refund with no settlement to charge back as records-only", async () => {
     const id = await seed_donation();
 
     const screen = await open_and_confirm(id);
@@ -141,6 +152,24 @@ describe("refund modal", () => {
     await expect
       .element(screen.getByText("Refund processed"))
       .toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/no money was moved/i))
+      .toBeInTheDocument();
+    expect(screen.getByText(/stripe refund issued/i).query()).toBeNull();
+    expect(refunds_create).not.toHaveBeenCalled();
+  });
+
+  it("reports the stripe refund when the settlement's payment was refunded", async () => {
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const screen = await open_and_confirm(id);
+
+    await expect
+      .element(screen.getByText(/stripe refund issued/i))
+      .toBeInTheDocument();
+    expect(screen.getByText(/no money was moved/i).query()).toBeNull();
+    expect(refunds_create).toHaveBeenCalledWith({ payment_intent: `pi_${id}` });
   });
 
   it("keeps a refund with a failed reversal open, listing what failed", async () => {

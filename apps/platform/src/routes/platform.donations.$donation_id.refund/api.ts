@@ -199,5 +199,8 @@ export const action = async ({ params }: Route.ActionArgs) => {
     }
   }
 
-  return dataWithSuccess({ ok: true as const }, "Refund processed");
+  return dataWithSuccess(
+    { ok: true as const, stripe_refunded: !!intent_id },
+    "Refund processed"
+  );
 };

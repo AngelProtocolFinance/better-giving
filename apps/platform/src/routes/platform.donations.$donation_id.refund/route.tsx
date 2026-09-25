@@ -40,7 +40,9 @@ function Content({
         <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
         <h3 className="text-lg font-bold mb-1">Refund processed</h3>
         <p className="text-sm text-gray-11 mb-4">
-          All records have been reversed and Stripe refund issued.
+          {fetcher.data.stripe_refunded
+            ? "All records have been reversed and a Stripe refund issued."
+            : "All records have been reversed. No Stripe refund was issued, so no money was moved."}
         </p>
         <button type="button" onClick={on_close} className="btn btn-primary">
           Close
