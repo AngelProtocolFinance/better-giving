@@ -12,6 +12,7 @@ import {
   fund_close,
   fund_update as fund_update_fn,
 } from "$/pg/queries/fund";
+import { funds } from "$/pg/schema/fund";
 import { user_fund_memberships, user_npo_memberships } from "$/pg/schema/user";
 import type { Route } from "./+types/route";
 
@@ -20,6 +21,43 @@ export interface LoaderData {
   base_url: string;
   user: AuthUser;
 }
+
+/** throws the 403 both loader and action answer a non-editor with */
+const assert_fund_editor = async (
+  user: AuthUser,
+  fund: Pick<IFund, "id" | "npo_owner">
+) => {
+  if (user.role === "admin") return;
+  // check fund membership
+  const [fund_mem] = await db
+    .select({ fund_id: user_fund_memberships.fund_id })
+    .from(user_fund_memberships)
+    .where(
+      and(
+        eq(user_fund_memberships.user_id, user.id),
+        eq(user_fund_memberships.fund_id, fund.id)
+      )
+    )
+    .limit(1);
+
+  if (!fund_mem && fund.npo_owner) {
+    // fallback: check npo ownership of the fund's parent npo
+    const [npo_mem] = await db
+      .select({ npo_id: user_npo_memberships.npo_id })
+      .from(user_npo_memberships)
+      .where(
+        and(
+          eq(user_npo_memberships.user_id, user.id),
+          eq(user_npo_memberships.npo_id, fund.npo_owner)
+        )
+      )
+      .limit(1);
+    if (!npo_mem) throw resp.status(403);
+  } else if (!fund_mem) {
+    throw resp.status(403);
+  }
+};
+
 export const loader = async ({ request, params }: Route.LoaderArgs) => {
   const { user } = await get_session(request);
   if (!user) return to_auth(request);
@@ -31,36 +69,7 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
   const fund = await get_fund(id);
   if (!fund) throw resp.status(404);
 
-  if (user.role !== "admin") {
-    // check fund membership
-    const [fund_mem] = await db
-      .select({ fund_id: user_fund_memberships.fund_id })
-      .from(user_fund_memberships)
-      .where(
-        and(
-          eq(user_fund_memberships.user_id, user.id),
-          eq(user_fund_memberships.fund_id, id)
-        )
-      )
-      .limit(1);
-
-    if (!fund_mem && fund.npo_owner) {
-      // fallback: check npo ownership of the fund's parent npo
-      const [npo_mem] = await db
-        .select({ npo_id: user_npo_memberships.npo_id })
-        .from(user_npo_memberships)
-        .where(
-          and(
-            eq(user_npo_memberships.user_id, user.id),
-            eq(user_npo_memberships.npo_id, fund.npo_owner)
-          )
-        )
-        .limit(1);
-      if (!npo_mem) throw resp.status(403);
-    } else if (!fund_mem) {
-      throw resp.status(403);
-    }
-  }
+  await assert_fund_editor(user, fund);
 
   const base_url = new URL(request.url).origin;
 
@@ -74,6 +83,14 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
   const p_id = safeParse(fund_id, params.fund_id);
   if (p_id.issues) throw resp.status(400, p_id.issues[0].message);
   const id = p_id.output;
+
+  // authz needs only these two; `get_fund` would hydrate every member npo
+  const [fund] = await db
+    .select({ id: funds.id, npo_owner: funds.npo_owner })
+    .from(funds)
+    .where(eq(funds.id, id));
+  if (!fund) throw resp.status(404);
+  await assert_fund_editor(user, fund);
 
   const { close = false, ...update } = await request.json();
 
