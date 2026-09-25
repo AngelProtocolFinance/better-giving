@@ -18,10 +18,11 @@ export default defineCliConfig({
     // and emits the result types + @sanity/client overload into the shared
     // `blog-types` package's generated `types.ts`. the query STRINGS are
     // separately copied into the package (see the `typegen` npm script) so
-    // platform can run them without importing blog. paths resolve to blog cwd.
+    // platform can run them without importing blog. paths resolve against
+    // apps/blog, so the repo root is two levels up.
     path: "./queries.ts",
     schema: "./schema.json",
-    generates: "../packages/types/blog/types.ts",
+    generates: "../../packages/types/blog/types.ts",
     overloadClientMethods: true,
   },
 });
