@@ -25,6 +25,15 @@ const term_of = (l: Location) =>
   new URLSearchParams(l.search).get("query") ?? "";
 const write_id = (l: Location): string | undefined =>
   (l.state as IWriteState | null)?.marketplace_search;
+/** same keys and values in any key order: a shared link spells `,` raw where
+ *  `URLSearchParams` writes `%2C` */
+const same_params = (a: string, b: string) => {
+  const x = new URLSearchParams(a);
+  const y = new URLSearchParams(b);
+  x.sort();
+  y.sort();
+  return x.toString() === y.toString();
+};
 
 /** location state Clear all navigates with: the one writer allowed to
  *  discard a term the box holds but the url doesn't yet */
@@ -67,6 +76,9 @@ export function Search({ classes = "" }: { classes?: string }) {
   const stepping_back = useRef<{ pathname: string; search: string } | null>(
     null
   );
+  /** the step's landing is being replaced with the filters the step meant;
+   *  a term typed meanwhile waits for that replace, then pushes */
+  const repairing = useRef(false);
 
   const write = (term: string, { replace }: { replace?: boolean } = {}) => {
     const current = router.state.location;
@@ -101,6 +113,8 @@ export function Search({ classes = "" }: { classes?: string }) {
     // the write is a navigation and would cut off one still loading, built
     // from a url that one is about to replace. its landing writes the term.
     if (loading && !is_own(navigation.location)) return;
+    // a write now would cut off the repair, leaving the step's landing stale
+    if (loading && repairing.current) return;
     // the url it would write is already there or on its way
     if (term === term_of(loading ? navigation.location : location)) return;
     write(term);
@@ -122,6 +136,12 @@ export function Search({ classes = "" }: { classes?: string }) {
     landed.current = { key: location.key, query: url_query };
     const box = input.current;
     if (!box) return;
+    const repaired = repairing.current;
+    repairing.current = false;
+    // a click since this landing already moved on; its landing writes the term
+    const now = router.state;
+    const moved_on =
+      now.navigation.state !== "idle" || now.location.key !== location.key;
 
     const own = is_own(location);
     // a foreign replace keeps the entry's place in history, and so what it
@@ -131,6 +151,12 @@ export function Search({ classes = "" }: { classes?: string }) {
     }
     if (own) {
       in_flight.current = null;
+      // the list the step meant is in place; a term typed during the step is
+      // a new search over it
+      if (repaired && box.value !== url_query && !moved_on) {
+        debounced_write.cancel();
+        write(box.value);
+      }
       return;
     }
     const step = stepping_back.current;
@@ -142,30 +168,23 @@ export function Search({ classes = "" }: { classes?: string }) {
       box.value = url_query;
       return;
     }
-    // a click since this landing already moved on; its landing writes the term
-    const now = router.state;
-    const moved_on =
-      now.navigation.state !== "idle" || now.location.key !== location.key;
     // the entry behind the search predates the filters changed on the
     // search's own entry, which stay changed
     if (
       step &&
       !moved_on &&
-      (location.pathname !== step.pathname || location.search !== step.search)
+      (location.pathname !== step.pathname ||
+        !same_params(location.search, step.search))
     ) {
-      const n = new URLSearchParams(step.search);
-      if (box.value) n.set("query", box.value);
       const id = crypto.randomUUID();
       in_flight.current = id;
+      repairing.current = true;
       debounced_write.cancel();
-      navigate(
-        { pathname: step.pathname, search: `?${n}` },
-        {
-          replace: true,
-          preventScrollReset: true,
-          state: { marketplace_search: id } satisfies IWriteState,
-        }
-      );
+      navigate(step, {
+        replace: true,
+        preventScrollReset: true,
+        state: { marketplace_search: id } satisfies IWriteState,
+      });
       return;
     }
     if (box.value === url_query || moved_on) return;

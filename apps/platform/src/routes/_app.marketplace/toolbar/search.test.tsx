@@ -39,6 +39,20 @@ function RouterProbe() {
   );
 }
 
+/** the router's state once the box has seen each landing: effects run in
+ *  tree order, so the box's own has run before this later sibling's */
+interface IAfterLanding {
+  log: string[];
+}
+function AfterLanding({ log }: IAfterLanding) {
+  const { search } = useLocation();
+  const router = useContext(UNSAFE_DataRouterContext)?.router;
+  useEffect(() => {
+    log.push(`${search} ${router?.state.navigation.state}`);
+  }, [search, router, log]);
+  return null;
+}
+
 /** the box and the chip row are separate components over one set of search
  *  params, so a term surviving a filter change is only visible with both up.
  *  `queried` collects the term every loader run asks for — the term in the url
@@ -48,7 +62,12 @@ async function render_toolbar(
   {
     queried = [],
     wait,
-  }: { queried?: string[]; wait?: (url: URL) => Promise<void> } = {}
+    landings = [],
+  }: {
+    queried?: string[];
+    wait?: (url: URL) => Promise<void>;
+    landings?: string[];
+  } = {}
 ) {
   const Stub = createRoutesStub([
     {
@@ -58,6 +77,7 @@ async function render_toolbar(
           <Search />
           <ActiveFilters />
           <RouterProbe />
+          <AfterLanding log={landings} />
         </>
       ),
       loader: async ({ request }) => {
@@ -309,17 +329,7 @@ describe("marketplace search box", () => {
   // a chip carries the box's term forward itself; writing it again is a
   // second trip through every loader for the url already on screen
   test("removing a chip under a term the url carries starts no second navigation", async () => {
-    /** the router's state once the box has seen each landing: effects run
-     *  in tree order, so the box's own has run before this later sibling's */
     const after_landing: string[] = [];
-    function AfterLanding() {
-      const { search } = useLocation();
-      const router = useContext(UNSAFE_DataRouterContext)?.router;
-      useEffect(() => {
-        after_landing.push(`${search} ${router?.state.navigation.state}`);
-      }, [search, router]);
-      return null;
-    }
     const Stub = createRoutesStub([
       {
         path: "/marketplace",
@@ -327,7 +337,7 @@ describe("marketplace search box", () => {
           <>
             <Search />
             <ActiveFilters />
-            <AfterLanding />
+            <AfterLanding log={after_landing} />
           </>
         ),
         loader: () => null,
@@ -494,6 +504,77 @@ describe("marketplace search box", () => {
 
     await expect.element(url).toHaveTextContent("?query=oxfam");
     await expect.element(box).toHaveValue("oxfam");
+  });
+
+  // the step back lands on the list from before the chip removals and is
+  // repaired to the filters that stayed changed; a term typed meanwhile is a
+  // new search on its own entry, not the repaired list's
+  test.each([
+    ["the step back", "Japan,Kenya"],
+    ["its repair", "Japan"],
+  ])(
+    "a term typed while clearing over chip removals loads (%s) gets its own entry",
+    async (_, held_countries) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let armed = false;
+      const g = gate(
+        (url) =>
+          armed &&
+          !url.searchParams.has("query") &&
+          url.searchParams.get("countries") === held_countries
+      );
+      const screen = await render_toolbar(
+        ["/other", "/marketplace?countries=Japan,Kenya"],
+        { wait: g.wait }
+      );
+      const box = screen.getByPlaceholder(/search organizations/i);
+      const url = screen.getByTestId("url-search");
+      await box.fill("kelp");
+      await expect.element(url).toMatchTextContent("query=kelp");
+      await screen.getByRole("button", { name: "Kenya", exact: true }).click();
+      await expect
+        .element(url)
+        .toHaveTextContent("?query=kelp&countries=Japan");
+      armed = true;
+
+      await box.clear();
+      await vi.advanceTimersByTimeAsync(700);
+      await vi.waitFor(() => expect(g.held.count).toBe(1));
+      keystroke(box.element() as HTMLInputElement, "oxfam");
+      await vi.advanceTimersByTimeAsync(700);
+      g.release();
+
+      await expect
+        .element(url)
+        .toHaveTextContent("?countries=Japan&query=oxfam");
+      await expect.element(box).toHaveValue("oxfam");
+      await screen.getByRole("button", { name: "Back" }).click();
+      await expect.element(url).toHaveTextContent("?countries=Japan");
+      await expect.element(box).toHaveValue("");
+      await screen.getByRole("button", { name: "Back" }).click();
+      await expect.element(screen.getByText("other page")).toBeVisible();
+    }
+  );
+
+  // a shared link spells the comma raw where the box's writes encode it; the
+  // step back onto that entry already is the list the clear meant
+  test("clearing a pushed term back onto a raw-comma link starts no second navigation", async () => {
+    const landings: string[] = [];
+    const screen = await render_toolbar("/marketplace?countries=Japan,Kenya", {
+      landings,
+    });
+    const box = screen.getByPlaceholder(/search organizations/i);
+    await box.fill("kelp");
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toMatchTextContent("query=kelp");
+
+    await box.clear();
+
+    await vi.waitFor(() =>
+      expect(landings.at(-1)).toMatch(/^\?countries=Japan,Kenya /)
+    );
+    expect(landings.at(-1)).toBe("?countries=Japan,Kenya idle");
   });
 
   // a write onto the url it would produce re-runs every loader for nothing
