@@ -23,6 +23,7 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
+const report_degraded_mock = vi.hoisted(() => vi.fn());
 const sentry_capture_mock = vi.hoisted(() => vi.fn());
 const get_order_mock = vi.hoisted(() => vi.fn());
 const get_subscription_mock = vi.hoisted(() => vi.fn());
@@ -35,6 +36,7 @@ const before_lock = vi.hoisted(() => ({
 
 vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
+  report_degraded: report_degraded_mock,
   report_resp: (e: any) => new Response(e?.message ?? "error", { status: 500 }),
 }));
 vi.mock("@sentry/react-router", async (io) => ({
@@ -163,14 +165,15 @@ const IMPOSTOR_CERT_URL =
   "https://attacker.example/v1/notifications/certs/CERT-1";
 
 /** `headers` overrides the defaults; a null drops that header. the body is
- * signed over the final headers, as paypal does, with `signer`'s key */
+ * signed over the final headers, as paypal does, with `signer`'s key; a string
+ * `ev` is sent as the raw body */
 const deliver = (
-  ev: Record<string, unknown>,
+  ev: Record<string, unknown> | string,
   headers: Record<string, string | null> = {},
   signer: ISigner = PAYPAL,
   route: typeof action = action
 ) => {
-  const body = JSON.stringify(ev);
+  const body = typeof ev === "string" ? ev : JSON.stringify(ev);
   const unsigned: Record<string, string | null> = {
     "paypal-transmission-id": "t-1",
     "paypal-transmission-time": "2026-01-01T00:00:00Z",
@@ -587,31 +590,67 @@ describe("PAYMENT.SALE.COMPLETED", () => {
 // the route caches each cert by url for the life of the module, so a case that
 // needs the download to run takes a url no other case has fetched
 describe("signature verification", () => {
-  it("asks for redelivery while paypal's cert host errors, then settles the redelivery", async () => {
+  it("reports paypal's cert host erroring as degraded, naming the delivery, then settles the redelivery", async () => {
     await seed_donation();
+    const ev = { ...capture_ev(), id: "WH-5XX" };
     const cert_url = { "paypal-cert-url": `${CERT_URL}-5xx` };
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response("unavailable", { status: 503 })
     );
 
-    const down = await deliver(capture_ev(), cert_url);
+    const down = await deliver(ev, cert_url);
 
     expect(down.status).toBe(503);
-    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+    expect(await down.text()).toBe("signature unverifiable");
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
+        name: "CertHostUnreachable",
         message:
           "[paypal webhook] cert host api.sandbox.paypal.com answered 503",
-      })
+      }),
+      {
+        unverified: {
+          transmission_id: "t-1",
+          event_id: "WH-5XX",
+          event_type: "PAYMENT.CAPTURE.COMPLETED",
+          cert_host: "api.sandbox.paypal.com",
+        },
+      }
     );
     expect(await settlements()).toHaveLength(0);
 
-    const redelivered = await deliver(capture_ev(), cert_url);
+    const redelivered = await deliver(ev, cert_url);
 
     expect(redelivered.status).toBe(200);
     expect(await settlements()).toHaveLength(1);
   });
 
-  it("reports a 4xx from paypal's cert host to sentry, naming the status and host, and asks for redelivery", async () => {
+  it("reports paypal's cert host rate-limiting as degraded, and asks for redelivery", async () => {
+    await seed_donation();
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("slow down", { status: 429 })
+    );
+
+    const res = await deliver(capture_ev(), {
+      "paypal-cert-url": `${CERT_URL}-429`,
+    });
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        name: "CertHostUnreachable",
+        message:
+          "[paypal webhook] cert host api.sandbox.paypal.com answered 429",
+      }),
+      { unverified: expect.objectContaining({ transmission_id: "t-1" }) }
+    );
+  });
+
+  // a 4xx is not the host shedding load, so it is triaged as a bug; the 503
+  // holds the event while someone looks
+  it("reports a 4xx from paypal's cert host to sentry as a bug, naming the status and host, and asks for redelivery", async () => {
     await seed_donation();
     report_error_mock.mockImplementationOnce(real_report_error);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -624,8 +663,16 @@ describe("signature verification", () => {
     });
 
     expect(res.status).toBe(503);
+    expect(report_degraded_mock).not.toHaveBeenCalled();
     expect(sentry_capture_mock).toHaveBeenCalledOnce();
-    const [reported] = sentry_capture_mock.mock.calls[0]!;
+    const [reported, hint] = sentry_capture_mock.mock.calls[0]!;
+    expect(hint).toMatchObject({
+      level: "error",
+      tags: { report: "bug" },
+      extra: {
+        unverified: expect.objectContaining({ transmission_id: "t-1" }),
+      },
+    });
     expect(reported).toBeInstanceOf(Error);
     expect(reported.message).toMatch(/404/);
     expect(reported.message).toContain("api.sandbox.paypal.com");
@@ -634,11 +681,15 @@ describe("signature verification", () => {
     expect(await settlements()).toHaveLength(0);
   });
 
-  it("does not follow a redirect off paypal's cert url, and asks for redelivery", async () => {
+  it("does not follow a redirect off paypal's cert url, reports it as a bug, and asks for redelivery", async () => {
     await seed_donation();
-    // a followed redirect lands on IMPOSTOR's cert; with redirect: "error", fetch
-    // rejects as it does on a network failure
+    // a followed redirect lands on IMPOSTOR's cert
     vi.mocked(fetch).mockImplementationOnce(async (_, init) => {
+      if (init?.redirect === "manual")
+        return new Response(null, {
+          status: 302,
+          headers: { location: IMPOSTOR_CERT_URL },
+        });
       if (init?.redirect === "error")
         throw new TypeError("fetch failed", {
           cause: new Error("unexpected redirect"),
@@ -653,26 +704,117 @@ describe("signature verification", () => {
     );
 
     expect(res.status).toBe(503);
+    expect(report_degraded_mock).not.toHaveBeenCalled();
     expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ message: "fetch failed" })
+      expect.objectContaining({
+        message:
+          "[paypal webhook] cert host api.sandbox.paypal.com answered 302",
+      }),
+      { unverified: expect.objectContaining({ transmission_id: "t-1" }) }
     );
     expect(await settlements()).toHaveLength(0);
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
-  it("asks for redelivery when the cert download fails on the network", async () => {
+  it("reports a cert download that fails on the network as degraded, naming the delivery as unverified, and asks for redelivery", async () => {
     await seed_donation();
-    vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed"));
+    const network = new TypeError("fetch failed");
+    vi.mocked(fetch).mockRejectedValueOnce(network);
 
-    const res = await deliver(capture_ev(), {
-      "paypal-cert-url": `${CERT_URL}-unreachable`,
+    const res = await deliver(
+      { ...capture_ev(), id: "WH-UNREACHABLE" },
+      {
+        "paypal-cert-url": `${CERT_URL}-unreachable`,
+        "paypal-transmission-id": "t-unreachable",
+      }
+    );
+
+    expect(res.status).toBe(503);
+    expect(await res.text()).toBe("signature unverifiable");
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message:
+          "[paypal webhook] cert host api.sandbox.paypal.com unreachable",
+        cause: network,
+      }),
+      {
+        unverified: {
+          transmission_id: "t-unreachable",
+          event_id: "WH-UNREACHABLE",
+          event_type: "PAYMENT.CAPTURE.COMPLETED",
+          cert_host: "api.sandbox.paypal.com",
+        },
+      }
+    );
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  // the fetch's timeout signal also covers the body stream, so a host that
+  // sends headers and stalls times out in the read
+  it.each([
+    ["connecting", (timeout: DOMException) => Promise.reject(timeout)],
+    [
+      "reading the body",
+      async (timeout: DOMException) =>
+        new Response(new ReadableStream({ start: (c) => c.error(timeout) })),
+    ],
+  ])(
+    "reports paypal's cert host timing out while %s as degraded, and asks for redelivery",
+    async (when, respond) => {
+      await seed_donation();
+      const timeout = new DOMException(
+        "The operation was aborted due to timeout",
+        "TimeoutError"
+      );
+      vi.mocked(fetch).mockImplementationOnce(() => respond(timeout));
+
+      const res = await deliver(capture_ev(), {
+        "paypal-cert-url": `${CERT_URL}-timeout-${when.replaceAll(" ", "-")}`,
+      });
+
+      expect(res.status).toBe(503);
+      expect(report_error_mock).not.toHaveBeenCalled();
+      expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          name: "CertHostUnreachable",
+          message:
+            "[paypal webhook] cert host api.sandbox.paypal.com unreachable",
+          cause: timeout,
+        }),
+        { unverified: expect.objectContaining({ transmission_id: "t-1" }) }
+      );
+      expect(await settlements()).toHaveLength(0);
+    }
+  );
+
+  it("reports a cert outage on a body that does not parse as degraded, naming the transmission", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("unavailable", { status: 502 })
+    );
+
+    const res = await deliver("{not json", {
+      "paypal-cert-url": `${CERT_URL}-garbled-body`,
+      "paypal-transmission-id": "t-garbled",
     });
 
     expect(res.status).toBe(503);
-    expect(report_error_mock).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "fetch failed" })
+    expect(await res.text()).toBe("signature unverifiable");
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message:
+          "[paypal webhook] cert host api.sandbox.paypal.com answered 502",
+      }),
+      {
+        unverified: {
+          transmission_id: "t-garbled",
+          event_id: null,
+          event_type: null,
+          cert_host: "api.sandbox.paypal.com",
+        },
+      }
     );
-    expect(await settlements()).toHaveLength(0);
   });
 
   it("rejects a cert hosted off paypal without fetching it, even when it verifies", async () => {
@@ -691,7 +833,14 @@ describe("signature verification", () => {
       expect.objectContaining({
         message: "[paypal webhook] cert url is not paypal's",
       }),
-      { cert_host: "attacker.example" }
+      {
+        unverified: {
+          transmission_id: "t-1",
+          event_id: null,
+          event_type: "PAYMENT.CAPTURE.COMPLETED",
+          cert_host: "attacker.example",
+        },
+      }
     );
     expect(await settlements()).toHaveLength(0);
     expect(enqueue_mock).not.toHaveBeenCalled();
@@ -763,7 +912,14 @@ describe("signature verification", () => {
         expect.objectContaining({
           message: "[paypal webhook] cert url is not paypal's",
         }),
-        { cert_host }
+        {
+          unverified: {
+            transmission_id: "t-1",
+            event_id: null,
+            event_type: "PAYMENT.CAPTURE.COMPLETED",
+            cert_host,
+          },
+        }
       );
       expect(await settlements()).toHaveLength(0);
     }
@@ -790,7 +946,8 @@ describe("signature verification", () => {
     expect(await settlements()).toHaveLength(0);
   });
 
-  it("asks for redelivery when paypal's cert url answers 200 with no certificate, and caches nothing", async () => {
+  // a 200 that isn't a cert is not the host shedding load: triaged as a bug
+  it("reports paypal's cert url answering 200 with no certificate as a bug, asks for redelivery, and caches nothing", async () => {
     await seed_donation();
     const cert_url = `${CERT_URL}-not-a-cert`;
     vi.mocked(fetch).mockResolvedValueOnce(new Response("<html>ok</html>"));
@@ -800,8 +957,10 @@ describe("signature verification", () => {
     });
 
     expect(garbled.status).toBe(503);
+    expect(report_degraded_mock).not.toHaveBeenCalled();
     expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ code: "ERR_OSSL_PEM_NO_START_LINE" })
+      expect.objectContaining({ code: "ERR_OSSL_PEM_NO_START_LINE" }),
+      { unverified: expect.objectContaining({ transmission_id: "t-1" }) }
     );
     expect(await settlements()).toHaveLength(0);
 
@@ -818,22 +977,32 @@ describe("signature verification", () => {
     expect(await settlements()).toHaveLength(1);
   });
 
-  it("asks for redelivery when paypal's cert url serves a cert not issued to paypal's signer", async () => {
+  it("reports paypal's cert url serving a cert not issued to paypal's signer as a bug, naming the delivery, and asks for redelivery", async () => {
     await seed_donation();
     const cert_url = `${CERT_URL}-stranger`;
     vi.mocked(fetch).mockResolvedValueOnce(new Response(STRANGER.pem));
 
     const res = await deliver(
-      capture_ev(),
+      { ...capture_ev(), id: "WH-STRANGER" },
       { "paypal-cert-url": cert_url },
       STRANGER
     );
 
     expect(res.status).toBe(503);
+    expect(await res.text()).toBe("signature unverifiable");
+    expect(report_degraded_mock).not.toHaveBeenCalled();
     expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         message: "[paypal webhook] cert is not paypal's signing cert",
-      })
+      }),
+      {
+        unverified: {
+          transmission_id: "t-1",
+          event_id: "WH-STRANGER",
+          event_type: "PAYMENT.CAPTURE.COMPLETED",
+          cert_host: "api.sandbox.paypal.com",
+        },
+      }
     );
     expect(await settlements()).toHaveLength(0);
   });
@@ -853,7 +1022,8 @@ describe("signature verification", () => {
       expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           message: "[paypal webhook] paypal's signing cert is not current",
-        })
+        }),
+        { unverified: expect.objectContaining({ transmission_id: "t-1" }) }
       );
       expect(await settlements()).toHaveLength(0);
     } finally {
@@ -871,7 +1041,8 @@ describe("signature verification", () => {
 
     expect(res.status).toBe(503);
     expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ code: "ERR_CRYPTO_UNSUPPORTED_OPERATION" })
+      expect.objectContaining({ code: "ERR_CRYPTO_UNSUPPORTED_OPERATION" }),
+      { unverified: expect.objectContaining({ transmission_id: "t-1" }) }
     );
     expect(await settlements()).toHaveLength(0);
   });
@@ -891,12 +1062,39 @@ describe("signature verification", () => {
         message: "[paypal webhook] signature does not verify",
       }),
       {
-        event_id: "WH-BAD",
-        event_type: "PAYMENT.CAPTURE.COMPLETED",
-        cert_host: "api.sandbox.paypal.com",
+        unverified: {
+          transmission_id: "t-1",
+          event_id: "WH-BAD",
+          event_type: "PAYMENT.CAPTURE.COMPLETED",
+          cert_host: "api.sandbox.paypal.com",
+        },
       }
     );
     expect(await settlements()).toHaveLength(0);
+  });
+
+  it("cuts each unverified id it reports to 128 characters", async () => {
+    const long = (c: string) => c.repeat(4096);
+
+    await deliver(
+      { id: long("e"), event_type: long("y") },
+      { "paypal-transmission-id": long("t") },
+      STRANGER
+    );
+
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: "[paypal webhook] signature does not verify",
+      }),
+      {
+        unverified: {
+          transmission_id: "t".repeat(128),
+          event_id: "e".repeat(128),
+          event_type: "y".repeat(128),
+          cert_host: "api.sandbox.paypal.com",
+        },
+      }
+    );
   });
 
   it("acknowledges a delivery missing a signature header, unreported", async () => {
@@ -1045,10 +1243,10 @@ describe("logging", () => {
     );
   });
 
-  /** every console call's and error report's arguments, deeply rendered —
-   * inspect reaches an Error's message, cause and own props where JSON drops them */
+  /** every console call's and report's arguments, deeply rendered — inspect
+   * reaches an Error's message, cause and own props where JSON drops them */
   const logged_text = () =>
-    [...spies, report_error_mock]
+    [...spies, report_error_mock, report_degraded_mock]
       .flatMap((s) => s.mock.calls.flat())
       .map((a) => (typeof a === "string" ? a : inspect(a, { depth: null })))
       .join("\n");
@@ -1131,6 +1329,44 @@ describe("logging", () => {
     });
 
     expect(res.status).toBe(200);
+    expect_no_donor_pii();
+  });
+
+  const payer_capture_ev = () => {
+    const ev = capture_ev();
+    return {
+      ...ev,
+      id: "WH-5",
+      resource: {
+        ...ev.resource,
+        payer: {
+          email_address: DONOR.email,
+          name: donor_name,
+          address: donor_address,
+        },
+      },
+    };
+  };
+
+  it("keeps the payer out of the report of a delivery whose signature does not verify", async () => {
+    const res = await deliver(payer_capture_ev(), {}, STRANGER);
+
+    expect(res.status).toBe(201);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect_no_donor_pii();
+  });
+
+  it("keeps the payer out of the report of a cert outage", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response("unavailable", { status: 503 })
+    );
+
+    const res = await deliver(payer_capture_ev(), {
+      "paypal-cert-url": `${CERT_URL}-pii-outage`,
+    });
+
+    expect(res.status).toBe(503);
+    expect(report_degraded_mock).toHaveBeenCalledOnce();
     expect_no_donor_pii();
   });
 

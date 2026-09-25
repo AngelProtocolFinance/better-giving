@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 /** the debounced fn, plus a `cancel` for callers whose pending call can be
- *  voided by something other than another keystroke — a url change under a
- *  search box, say, whose late callback would land after the revalidation. */
+ *  voided by something other than another keystroke — a search box whose term
+ *  another control just cleared, say, where the late call would write it back. */
 export type Debounced<T extends (...args: any[]) => void> = T & {
   cancel: () => void;
 };

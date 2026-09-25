@@ -13,6 +13,7 @@ import { Cards } from "./cards";
 import { Hero } from "./hero";
 import hero from "./hero.webp?url";
 import { Toolbar } from "./toolbar";
+import { use_search_pending } from "./toolbar/search";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const p_s = safeParse(npos_search, search(request));
@@ -40,19 +41,21 @@ export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Page);
 function Page({ loaderData: page1 }: Route.ComponentProps) {
   const [params] = useSearchParams();
+  // the box's search is a navigation, not this table's fetcher
+  const searching = use_search_pending();
   const { node } = use_table({
     id: "marketplace",
     // the url's filters, not the shape of page 1: two different filters can
     // return the same first card and the same count, and the shape heuristic
-    // reads that as no change — which would let a search still in flight
-    // repaint the grid the new filter just drew.
+    // reads that as no change — which would let a load-more still in flight
+    // append the old filter's page to the grid the new filter just drew.
     filter_key: params.toString(),
     page1,
     table: (props) =>
       props.items.length === 0 ? (
         <EmptyState classes={props.classes}>No organisations found</EmptyState>
       ) : (
-        <Cards {...props} />
+        <Cards {...props} loading={props.loading || searching} />
       ),
     gen_loader: (load, next) => () => {
       const p = new URLSearchParams(params);

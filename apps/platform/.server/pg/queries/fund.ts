@@ -34,17 +34,18 @@ import { type DbOrTx, decode_date_cursor, encode_date_cursor } from "./helpers";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const fund_cols = getTableColumns(funds);
-const fund_with_joined = {
-  ...fund_cols,
+// a select spreading these joins `user` and left-joins `v_donation_total_usd`
+const joined_cols = {
   creator_name: sql<string>`${user.first_name} || ' ' || ${user.last_name}`,
-  donation_total_usd: sql<number>`COALESCE(${v_donation_total_usd.total}, 0)`,
+  // sql<T> alone skips the column's decoder, and numeric arrives as text
+  donation_total_usd: sql`COALESCE(${v_donation_total_usd.total}, 0)`.mapWith(
+    v_donation_total_usd.total
+  ),
 };
 
-type FundRow = typeof funds.$inferSelect & {
-  creator_name: string;
-  donation_total_usd: number;
-};
+const fund_with_joined = { ...getTableColumns(funds), ...joined_cols };
+
+type FundRow = Awaited<ReturnType<typeof fund_query>>[number];
 
 // consumers use this type directly — no IFund cast needed
 export type IFundRow = Omit<FundRow, "target_number" | "target_smart"> & {
@@ -232,9 +233,8 @@ const fund_select = {
   target_number: funds.target_number,
   target_smart: funds.target_smart,
   creator_id: funds.creator_id,
-  creator_name: sql<string>`${user.first_name} || ' ' || ${user.last_name}`,
   expiration: funds.expiration,
-  donation_total_usd: sql<number>`COALESCE(${v_donation_total_usd.total}, 0)`,
+  ...joined_cols,
 };
 
 // open through the end of its end date (the utc date of `expiration`) in
@@ -276,7 +276,7 @@ export async function fund_search(
   const rows = await db
     .select({
       ...fund_select,
-      total: sql<number>`COUNT(*) OVER()`,
+      total: sql`COUNT(*) OVER()`.mapWith(Number),
     })
     .from(funds)
     .innerJoin(user, eq(user.id, funds.creator_id))

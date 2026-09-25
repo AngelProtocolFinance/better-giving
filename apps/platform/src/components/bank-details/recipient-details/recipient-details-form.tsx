@@ -51,6 +51,10 @@ interface FV extends Record<string, any> {
  */
 const PROMPT_SLOT = "recipient-validation";
 
+/** Wise's `example` is `""` on fields that have none */
+const suggest = (example: string) =>
+  example ? `invalid, e.g. ${example}` : undefined;
+
 export function RecipientDetailsForm({
   fields,
   currency,
@@ -83,7 +87,8 @@ export function RecipientDetailsForm({
   // a 422's messages that no rendered field can carry
   const [unplaced, set_unplaced] = useState<string[]>([]);
   const uid = useId();
-  const err_id = (key: string) => `${uid}-${key}-err`;
+  const input_id = (key: string) => `${uid}-${key}`;
+  const err_id = (key: string) => `${input_id(key)}-err`;
   // only while `ErrorMessage` renders the element it names
   const described_by = (key: string) =>
     get(errors, key)?.message ? err_id(key) : undefined;
@@ -242,9 +247,6 @@ export function RecipientDetailsForm({
         if (f.type === "select") {
           return (
             <div key={f.key}>
-              <Label required={labelRequired} htmlFor={f.key} className="mb-2">
-                {f.name}
-              </Label>
               <Controller
                 control={control}
                 defaultValue=""
@@ -254,6 +256,8 @@ export function RecipientDetailsForm({
                 }}
                 render={({ field: { name, value, onChange, ref } }) => (
                   <Select
+                    label={f.name}
+                    required={labelRequired}
                     error={get(errors, name)?.message}
                     onChange={(value) => {
                       onChange(value);
@@ -274,14 +278,26 @@ export function RecipientDetailsForm({
         }
 
         if (f.type === "radio") {
+          const label_id = `${input_id(f.key)}-label`;
+          const invalid = !!getFieldState(f.key).error;
           return (
-            <div key={f.key} className="grid gap-2">
+            <div
+              key={f.key}
+              role="radiogroup"
+              aria-labelledby={label_id}
+              aria-required={labelRequired}
+              aria-invalid={invalid}
+              className="grid gap-2"
+            >
               <div className="flex gap-3 items-center">
-                <Label required={labelRequired}>{f.name}</Label>
+                <Label id={label_id} required={labelRequired}>
+                  {f.name}
+                </Label>
                 <ErrorMessage
                   errors={errors}
                   name={f.key}
                   as="p"
+                  id={err_id(f.key)}
                   className="field-err empty:hidden"
                 />
               </div>
@@ -290,12 +306,15 @@ export function RecipientDetailsForm({
                   <div
                     key={v.key}
                     className={`relative border ${
-                      getFieldState(f.key).error ? "border-destructive" : ""
+                      invalid ? "border-destructive" : ""
                     } rounded px-4 py-3.5 text-sm has-checked:border-primary has-disabled:bg-gray-3 w-32 focus-within:outline-2 focus-within:outline-ring`}
                   >
                     <input
-                      className="appearance none w-0 h-0"
-                      id={`radio__${v.key}`}
+                      className="appearance-none w-0 h-0"
+                      id={`${input_id(f.key)}-${v.key}`}
+                      // on each radio, not the group: focus lands on a radio,
+                      // and screen readers don't reliably read a group's description then
+                      aria-describedby={described_by(f.key)}
                       type="radio"
                       value={v.key}
                       {...register(f.key, {
@@ -306,7 +325,7 @@ export function RecipientDetailsForm({
                       })}
                     />
                     <label
-                      htmlFor={`radio__${v.key}`}
+                      htmlFor={`${input_id(f.key)}-${v.key}`}
                       className="absolute inset-0 w-full grid place-items-center"
                     >
                       {v.name}
@@ -321,13 +340,19 @@ export function RecipientDetailsForm({
         if (f.type === "text") {
           return (
             <div key={f.key} className="">
-              <Label required={labelRequired} htmlFor={f.key} className="mb-2">
+              <Label
+                required={labelRequired}
+                htmlFor={input_id(f.key)}
+                className="mb-2"
+              >
                 {f.name}
               </Label>
               <input
+                id={input_id(f.key)}
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
                 aria-describedby={described_by(f.key)}
+                aria-required={labelRequired}
                 type="text"
                 placeholder={f.example}
                 {...register(f.key, {
@@ -347,7 +372,7 @@ export function RecipientDetailsForm({
                   pattern: f.validationRegexp
                     ? {
                         value: new RegExp(f.validationRegexp),
-                        message: "invalid",
+                        message: suggest(f.example) ?? "invalid format",
                       }
                     : undefined,
 
@@ -360,7 +385,7 @@ export function RecipientDetailsForm({
                             `/api/wise/${path.slice(1)}?${params[0].key}=${v}`
                           );
 
-                          return res.ok || "invalid";
+                          return res.ok || (suggest(f.example) ?? "invalid");
                         } catch (err) {
                           report_error(err);
                           return "Validation of banking details failed unexpectedly";
@@ -385,13 +410,19 @@ export function RecipientDetailsForm({
         if (f.type === "date") {
           return (
             <div key={f.key} className="">
-              <Label required={labelRequired} htmlFor={f.key}>
+              <Label
+                required={labelRequired}
+                htmlFor={input_id(f.key)}
+                className="mb-2"
+              >
                 {f.name}
               </Label>
               <input
+                id={input_id(f.key)}
                 className="field-input"
                 aria-invalid={!!getFieldState(f.key).error}
                 aria-describedby={described_by(f.key)}
+                aria-required={labelRequired}
                 type="text"
                 placeholder={f.example}
                 {...register(f.key, {
@@ -399,7 +430,7 @@ export function RecipientDetailsForm({
                   pattern: f.validationRegexp
                     ? {
                         value: new RegExp(f.validationRegexp),
-                        message: `format ${f.example}`,
+                        message: suggest(f.example) ?? "invalid format",
                       }
                     : undefined,
                   onBlur: f.refreshRequirementsOnChange ? refresh : undefined,

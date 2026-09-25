@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 import { categories, sdgGroups } from "#/constants/unsdgs";
 import { toParsed, toRaw } from "#/pages/marketplace/helpers";
 import type { UnSdgNum } from "@/schemas";
+import { CLEAR_ALL } from "./toolbar/search";
 
 export function ActiveFilters() {
   const [params, setParams] = useSearchParams();
@@ -104,6 +105,7 @@ export function ActiveFilters() {
             setParams(toRaw({ query: "", page: 1 }), {
               replace: true,
               preventScrollReset: true,
+              state: CLEAR_ALL,
             })
           }
           className="text-primary hover:text-primary/80 text-sm ml-1"
