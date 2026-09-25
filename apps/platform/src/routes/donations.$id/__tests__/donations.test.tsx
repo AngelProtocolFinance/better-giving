@@ -165,7 +165,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   send_email_mock.mockClear();
-  get_session_mock.mockReset();
+  get_session_mock.mockReset().mockResolvedValue({ user: undefined });
   to_auth_mock.mockClear();
   cookie_parse_mock.mockReset().mockResolvedValue({});
   enqueue_mock.mockClear();
@@ -943,6 +943,8 @@ describe("Integration — loader", () => {
   it("matched: reports the amount off the employer's own donation row", async () => {
     const npo = await seed_npo();
     await seed_donation(npo.id, { status: "settled" });
+    // the match outcome is the donor's alone
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
 
     // the employer's payment is a second, born-settled donation row — the only
     // place the amount that actually arrived is written. the donor's own row
@@ -980,6 +982,8 @@ describe("Integration — loader", () => {
   it("unmatched: reports no arrival for an event that only got as far as filed", async () => {
     const npo = await seed_npo();
     await seed_donation(npo.id, { status: "settled" });
+    // the match outcome is the donor's alone
+    cookie_parse_mock.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
     await test_db.current!.db.insert(donation_match_events).values({
       id: globalThis.crypto.randomUUID(),
       donation_id: DON_ID,
