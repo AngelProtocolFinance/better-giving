@@ -62,7 +62,7 @@ function _RecipientDetails({
       <Select
         label="Transfer type"
         required
-        value={selected_idx.toString()}
+        value={req_idx.toString()}
         onChange={(value) => set_selected_idx(+value)}
         options={requirements.map((_, i) => i.toString())}
         option_disp={(x) => requirements[+x].title}
