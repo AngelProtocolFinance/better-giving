@@ -31,9 +31,30 @@ describe("handle_sub_deactivated paypal cancel reason", () => {
     expect(reason).toBe("Moving abroad. Please stop billing me.");
   });
 
+  // line terminators java's `.` excludes, so `^.*$` fails on them at paypal
+  it.each([
+    ["next line", "\u0085"],
+    ["line separator", "\u2028"],
+    ["paragraph separator", "\u2029"],
+  ])("replaces a %s with a space", async (_, terminator) => {
+    const reason = await cancel_on_paypal(`Too expensive.${terminator}Bye`);
+    expect(reason).toBe("Too expensive. Bye");
+  });
+
   it("caps a 200-character reason at paypal's 128", async () => {
     const reason = await cancel_on_paypal("x".repeat(200));
     expect(reason).toBe("x".repeat(128));
+  });
+
+  it.each([
+    // 3 bytes per character: 42 fit in 128
+    ["a japanese reason", "解約します。".repeat(20), "解約します。".repeat(7)],
+    // precomposed é, 2 bytes each: 64 fit in 128
+    ["an accented reason", "é".repeat(100), "é".repeat(64)],
+  ])("caps %s at 128 utf-8 bytes", async (_, given, expected) => {
+    const reason = await cancel_on_paypal(given);
+    expect(reason).toBe(expected);
+    expect(new TextEncoder().encode(reason).length).toBeLessThanOrEqual(128);
   });
 
   it("drops the trailing space a cut at a word gap leaves", async () => {
@@ -49,8 +70,13 @@ describe("handle_sub_deactivated paypal cancel reason", () => {
     expect(reason).toBe("no reason provided");
   });
 
-  it("never splits an emoji at the cut", async () => {
-    const reason = await cancel_on_paypal(`${"a".repeat(127)}😀`);
-    expect(reason).toBe("a".repeat(127));
+  // each suffix is one grapheme crossing byte 128
+  it.each([
+    ["an emoji", 127, "😀"],
+    ["a flag", 121, "🇯🇵"],
+    ["an accented e", 126, "e\u0301"],
+  ])("never splits %s at the cut", async (_, pad, suffix) => {
+    const reason = await cancel_on_paypal(`${"a".repeat(pad)}${suffix}`);
+    expect(reason).toBe("a".repeat(pad));
   });
 });

@@ -2,16 +2,24 @@ import type { ISubDeactivatedPayload } from "@/queue";
 import { paypal } from "$/kit/paypal";
 import { stripe } from "$/kit/stripe";
 
-const PAYPAL_CANCEL_REASON_MAX = 128;
+const PAYPAL_CANCEL_REASON_MAX_BYTES = 128;
 
-/** paypal's spec: 1-128 chars matching `^.*$` — no line breaks (`\u0085` too, which js `\s` misses) */
+const utf8 = new TextEncoder();
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * paypal's spec: 1-128 chars matching `^.*$` — no line breaks (`\u0085` too, which js `\s` misses).
+ * capped in utf-8 bytes: never fewer than code units or code points, so it holds under whichever count paypal uses;
+ * cut on a grapheme boundary so no flag, emoji or combining accent is split.
+ */
 const paypal_cancel_reason = (reason: string | null | undefined): string => {
   const one_line = (reason ?? "").replace(/[\s\u0085]+/g, " ").trim();
   let capped = "";
-  // by code point, so the cut never leaves half a surrogate pair
-  for (const ch of one_line) {
-    if (capped.length + ch.length > PAYPAL_CANCEL_REASON_MAX) break;
-    capped += ch;
+  let bytes = 0;
+  for (const { segment } of graphemes.segment(one_line)) {
+    bytes += utf8.encode(segment).length;
+    if (bytes > PAYPAL_CANCEL_REASON_MAX_BYTES) break;
+    capped += segment;
   }
   return capped.trimEnd() || "no reason provided";
 };
