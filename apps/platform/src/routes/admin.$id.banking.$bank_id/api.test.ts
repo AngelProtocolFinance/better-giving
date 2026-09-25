@@ -19,6 +19,7 @@ vi.mock("#/.server/auth", async () =>
 );
 vi.mock("#/.server/toast", () => ({
   dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
+  dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
 }));
 
 // --- imports (after mocks hoisted) ---
@@ -62,26 +63,26 @@ describe("set default payout method", () => {
     );
   });
 
-  it("answers 404 for another nonprofit's method and promotes nothing", async () => {
+  it("tells the admin another nonprofit's method is not found and promotes nothing", async () => {
     q.bapp_get.mockResolvedValue(
       row({ npo_id: OTHER_NPO, status: "approved" })
     );
 
     const res = await call();
 
-    expect(res.status).toBe(404);
+    expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
     expect(q.bapp_set_default).not.toHaveBeenCalled();
     expect(q.enqueue).not.toHaveBeenCalled();
   });
 
   it.each(["under-review", "rejected"])(
-    "refuses a %s method and promotes nothing",
+    "tells the admin a method that is %s can't be default, promoting nothing",
     async (status) => {
       q.bapp_get.mockResolvedValue(row({ status }));
 
       const res = await call();
 
-      expect(res.status).toBe(409);
+      expect(res).toEqual({ error: expect.stringMatching(/approved/i) });
       expect(q.bapp_set_default).not.toHaveBeenCalled();
       expect(q.enqueue).not.toHaveBeenCalled();
     }

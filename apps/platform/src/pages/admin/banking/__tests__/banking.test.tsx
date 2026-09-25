@@ -63,6 +63,7 @@ vi.mock("#/.server/toast", async () => {
   const { redirect } = await import("react-router");
   return {
     dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
+    dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
     redirectWithSuccess: vi.fn((url: string, _msg: string) => redirect(url)),
   };
 });
@@ -78,11 +79,11 @@ vi.mock("$/kit/wise", () => ({
 
 // --- imports (after mocks hoisted) ---
 
+import { delete_action } from "#/pages/admin/banking/delete-action";
 import { loader as list_loader } from "#/routes/admin.$id.banking._index/api";
 import PayoutMethodsList from "#/routes/admin.$id.banking._index/route";
 import {
   default_action,
-  delete_action,
   loader as detail_loader,
 } from "#/routes/admin.$id.banking.$bank_id/api";
 import PayoutMethodDetail from "#/routes/admin.$id.banking.$bank_id/route";

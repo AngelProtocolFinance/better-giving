@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { admin_ctx } from "#/.server/auth";
-import { dataWithSuccess } from "#/.server/toast";
+import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { report_degraded_null } from "#/errors/report";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
@@ -26,8 +26,6 @@ export const loader = async (args: Route.LoaderArgs) => {
   return { ...(y ?? {}), id: bank_id, ba: x, wacc_unavailable: !y };
 };
 
-export { delete_action } from "#/pages/admin/banking/delete-action";
-
 export const default_action = async (args: Route.ActionArgs) => {
   const p_id = v.safeParse($int_gte1, args.params.bank_id);
   if (p_id.issues) return resp.status(400, p_id.issues[0].message);
@@ -35,12 +33,17 @@ export const default_action = async (args: Route.ActionArgs) => {
   const npo_id = args.context.get(admin_ctx);
 
   const x = await bapp_get(bank_id.toString());
-  if (!x || x.npo_id !== npo_id) return resp.status(404);
+  if (!x || x.npo_id !== npo_id) {
+    return dataWithError(null, "Payout method not found");
+  }
   if (x.status === "default") {
     return dataWithSuccess(null, "Payout method set as default");
   }
   if (x.status !== "approved") {
-    return resp.status(409, "Only an approved payout method can be default");
+    return dataWithError(
+      null,
+      "Only an approved payout method can be set as default"
+    );
   }
 
   await bapp_set_default(bank_id.toString(), npo_id);

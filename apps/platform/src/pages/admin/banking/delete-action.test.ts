@@ -13,7 +13,10 @@ vi.mock("#/.server/auth", async () =>
 );
 vi.mock("#/.server/toast", async () => {
   const { redirect } = await import("react-router");
-  return { redirectWithSuccess: vi.fn((url: string) => redirect(url)) };
+  return {
+    redirectWithSuccess: vi.fn((url: string) => redirect(url)),
+    dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
+  };
 });
 
 // --- imports (after mocks hoisted) ---
@@ -46,21 +49,21 @@ describe("delete payout method", () => {
     expect(q.bapp_delete).toHaveBeenCalledWith(String(BANK_ID));
   });
 
-  it("answers 404 for another nonprofit's method and deletes nothing", async () => {
+  it("tells the admin another nonprofit's method is not found and deletes nothing", async () => {
     q.bapp_get.mockResolvedValue({ id: String(BANK_ID), npo_id: OTHER_NPO });
 
-    const res: Response = await call();
+    const res = await call();
 
-    expect(res.status).toBe(404);
+    expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
     expect(q.bapp_delete).not.toHaveBeenCalled();
   });
 
-  it("answers 404 for a method that does not exist", async () => {
+  it("tells the admin a method that does not exist is not found", async () => {
     q.bapp_get.mockResolvedValue(undefined);
 
-    const res: Response = await call();
+    const res = await call();
 
-    expect(res.status).toBe(404);
+    expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
     expect(q.bapp_delete).not.toHaveBeenCalled();
   });
 });
