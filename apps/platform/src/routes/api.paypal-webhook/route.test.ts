@@ -648,8 +648,8 @@ describe("signature verification", () => {
     );
   });
 
-  // no retry fixes a 4xx without a change on our side or paypal's, so it is
-  // triaged as a bug; the 503 holds the event while someone looks
+  // a 4xx is not the host shedding load, so it is triaged as a bug; the 503
+  // holds the event while someone looks
   it("reports a 4xx from paypal's cert host to sentry as a bug, naming the status and host, and asks for redelivery", async () => {
     await seed_donation();
     report_error_mock.mockImplementationOnce(real_report_error);
@@ -946,8 +946,7 @@ describe("signature verification", () => {
     expect(await settlements()).toHaveLength(0);
   });
 
-  // a maintenance page served as 200 is as likely paypal moving its certs as a
-  // blip, and either way no retry of ours fixes it: triaged as a bug
+  // a 200 that isn't a cert is not the host shedding load: triaged as a bug
   it("reports paypal's cert url answering 200 with no certificate as a bug, asks for redelivery, and caches nothing", async () => {
     await seed_donation();
     const cert_url = `${CERT_URL}-not-a-cert`;
