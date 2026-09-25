@@ -35,7 +35,13 @@ export const default_action = async (args: Route.ActionArgs) => {
   const npo_id = args.context.get(admin_ctx);
 
   const x = await bapp_get(bank_id.toString());
-  if (!x) return { status: 404, statusText: `Bank:${bank_id} not found` };
+  if (!x || x.npo_id !== npo_id) return resp.status(404);
+  if (x.status === "default") {
+    return dataWithSuccess(null, "Payout method set as default");
+  }
+  if (x.status !== "approved") {
+    return resp.status(409, "Only an approved payout method can be default");
+  }
 
   await bapp_set_default(bank_id.toString(), npo_id);
   await enqueue(msg("banking-default", { npo_id }));
