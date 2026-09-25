@@ -1,65 +1,106 @@
 import { SearchIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import {
   type Location,
+  UNSAFE_DataRouterContext,
   useLocation,
+  useNavigate,
   useNavigation,
   useNavigationType,
   useSearchParams,
 } from "react-router";
 import { use_debounce } from "#/hooks/use-debounce";
-import { toRaw } from "#/pages/marketplace/helpers";
 
-/** location state marking a navigation as this box's own write. compared by
- *  field: browser history structured-clones state, so identity is lost. */
-const OWN_WRITE = { marketplace_search: true };
-const is_own_write = (l: Location) => l.state?.marketplace_search === true;
+/** location state on the box's writes. history keeps it and hands it back
+ *  on back/forward, so only the id of the write in flight marks one as own. */
+interface IWriteState {
+  marketplace_search: string;
+  /** the entry began as this box's push, so the one behind it is the list
+   *  the search started from */
+  marketplace_pushed?: true;
+}
+const term_of = (l: Location) =>
+  new URLSearchParams(l.search).get("query") ?? "";
+const write_id = (l: Location): string | undefined =>
+  (l.state as IWriteState | null)?.marketplace_search;
 
-/** the url active-filters' Clear all lands on: the one writer allowed to
+/** location state Clear all navigates with: the one writer allowed to
  *  discard a term the box holds but the url doesn't yet */
-const CLEARED = `?${toRaw({ query: "", page: 1 })}`;
+export const CLEAR_ALL = { marketplace_clear: true };
+const is_clear_all = (l: Location) => l.state?.marketplace_clear === true;
 
-/** true while the box's own write is loading */
+/** true while a navigation onto an entry the box wrote is loading: its own
+ *  write, or back/forward onto one */
 export function use_search_pending() {
   const navigation = useNavigation();
-  return navigation.state !== "idle" && is_own_write(navigation.location);
+  return navigation.state !== "idle" && !!write_id(navigation.location);
+}
+
+/** the router's state as of now. `useNavigation` renders it in a transition,
+ *  which lags the click that started a navigation. */
+function use_live_router() {
+  const ctx = useContext(UNSAFE_DataRouterContext);
+  if (!ctx) throw new Error("Search renders under a data router");
+  return ctx.router;
 }
 
 export function Search({ classes = "" }: { classes?: string }) {
   const [params, set_params] = useSearchParams();
+  const navigate = useNavigate();
   const location = useLocation();
-  const navigation = useNavigation();
+  const router = use_live_router();
   const navigation_type = useNavigationType();
   const url_query = params.get("query") ?? "";
   const input = useRef<HTMLInputElement>(null);
+  /** the id of the box's latest write, until it lands */
+  const in_flight = useRef<string | null>(null);
+  const is_own = (l: Location) =>
+    in_flight.current !== null && write_id(l) === in_flight.current;
 
-  const write = (term: string) => {
-    const n = new URLSearchParams(params);
+  /** set by a clear that steps back, until the step lands */
+  const stepping_back = useRef(false);
+
+  const write = (term: string, { replace }: { replace?: boolean } = {}) => {
+    const current = router.state.location;
+    const pushed = (current.state as IWriteState | null)?.marketplace_pushed;
+    // the entry is the search; clearing it returns to the list it was pushed
+    // over rather than stacking a second copy of that list
+    if (!term && pushed) {
+      stepping_back.current = true;
+      navigate(-1);
+      return;
+    }
+    const n = new URLSearchParams(current.search);
+    // a term onto a url without one is a new search and gets its own entry;
+    // refining it replaces
+    const push = replace === undefined ? !!term && !n.has("query") : !replace;
     if (term) n.set("query", term);
     else n.delete("query");
     n.delete("page");
-    set_params(n, {
-      // a visit's first term gets its own entry, so Back returns to the
-      // unfiltered list; refining or clearing that term doesn't
-      replace: !term || params.has("query"),
-      preventScrollReset: true,
-      state: OWN_WRITE,
-    });
+    const id = crypto.randomUUID();
+    in_flight.current = id;
+    const state: IWriteState = { marketplace_search: id };
+    if (push || pushed) state.marketplace_pushed = true;
+    set_params(n, { replace: !push, preventScrollReset: true, state });
   };
 
   const debounced_write = use_debounce((term: string) => {
+    const { navigation, location } = router.state;
+    const loading = navigation.state !== "idle";
     // the write is a navigation and would cut off one still loading, built
     // from a url that one is about to replace. its landing writes the term.
-    if (navigation.state !== "idle" && !is_own_write(navigation.location)) {
-      return;
-    }
+    if (loading && !is_own(navigation.location)) return;
+    // the url it would write is already there or on its way
+    if (term === term_of(loading ? navigation.location : location)) return;
     write(term);
   }, 500);
 
   // other writers build from the committed url, blind to a term the box holds
   // but hasn't landed. one that carried the old term forward gets the box's
-  // term written over it; one that changed the term, Clear all and back/forward
-  // set the box to the url and void a keystroke still debouncing.
+  // term written over it, replacing: it repairs that landing, it isn't a new
+  // search. one that changed the term, Clear all and back/forward set the box
+  // to the url and void a keystroke still debouncing. the clear's own step
+  // back keeps what was typed while it loaded.
   const landed = useRef({ key: location.key, query: url_query });
   // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the trigger — a landed navigation, not a read
   useEffect(() => {
@@ -70,19 +111,30 @@ export function Search({ classes = "" }: { classes?: string }) {
     const box = input.current;
     if (!box) return;
 
-    // history restores state on POP, so an entry the box wrote reads as own
+    if (is_own(location)) {
+      in_flight.current = null;
+      return;
+    }
+    const stepped_back = stepping_back.current;
+    stepping_back.current = false;
     const pop = navigation_type === "POP";
-    if (!pop && is_own_write(location)) return;
 
-    if (pop || location.search === CLEARED || url_query !== prev.query) {
+    if (
+      !stepped_back &&
+      (pop || is_clear_all(location) || url_query !== prev.query)
+    ) {
       debounced_write.cancel();
       box.value = url_query;
       return;
     }
-    if (box.value !== url_query) {
-      debounced_write.cancel();
-      write(box.value);
+    if (box.value === url_query) return;
+    // a click since this landing already moved on; its landing writes the term
+    const now = router.state;
+    if (now.navigation.state !== "idle" || now.location.key !== location.key) {
+      return;
     }
+    debounced_write.cancel();
+    write(box.value, { replace: stepped_back ? undefined : true });
   }, [location.key]);
 
   return (

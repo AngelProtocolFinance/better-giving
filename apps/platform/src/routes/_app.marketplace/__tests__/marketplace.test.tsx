@@ -2,6 +2,7 @@ import {
   createRoutesStub,
   Outlet,
   useLocation,
+  useNavigate,
   useNavigation,
 } from "react-router";
 import {
@@ -45,6 +46,7 @@ vi.mock("remix-client-cache", () => ({
 import FilterPage from "#/routes/_app.marketplace.filter/route";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import MarketplacePage, { loader } from "../route";
+import { gate, keystroke } from "./helpers";
 
 // --- setup ---
 
@@ -118,44 +120,21 @@ async function seed_npo(
  *  still loading, which is when a debounced write can race it. */
 function UrlProbe() {
   const { search } = useLocation();
+  const navigate = useNavigate();
   return (
     <>
       <output data-testid="url-search">{search}</output>
       <output data-testid="nav-state">{useNavigation().state}</output>
+      <button type="button" onClick={() => navigate(-1)}>
+        Back
+      </button>
       <Outlet />
     </>
   );
 }
 
-/** a loader run `hold` picks waits until `release` */
-function gate(hold: (url: URL) => boolean) {
-  let release = () => {};
-  const opened = new Promise<void>((r) => {
-    release = r;
-  });
-  const held = { count: 0 };
-  const wait = async (url: URL) => {
-    if (!hold(url)) return;
-    held.count++;
-    await opened;
-  };
-  return { release: () => release(), held, wait };
-}
-
-/** react installs its own `value` setter on the node and compares against it to
- *  decide whether a change event is real, so assigning `input.value` directly
- *  makes react skip onChange. the prototype setter lets a keystroke and the
- *  click after it share one debounce window. */
-function keystroke(input: HTMLInputElement, value: string) {
-  Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value"
-  )?.set?.call(input, value);
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-}
-
 function render_marketplace(
-  entry = "/marketplace",
+  entry: string | string[] = "/marketplace",
   route_loader: typeof loader = loader,
   /** stand in for the latency of routes whose module or data isn't loaded yet */
   wait: {
@@ -183,6 +162,7 @@ function render_marketplace(
             },
           ],
         },
+        { path: "/other", Component: () => <p>other page</p> },
         {
           path: "/marketplace/:id",
           Component: () => <p>org page</p>,
@@ -194,7 +174,9 @@ function render_marketplace(
       ],
     },
   ]);
-  return render(<Stub initialEntries={[entry]} />);
+  return render(
+    <Stub initialEntries={Array.isArray(entry) ? entry : [entry]} />
+  );
 }
 
 // --- tests ---
@@ -670,13 +652,17 @@ describe("marketplace — search", () => {
 
   // the Filters link and a card are navigations too; a route whose module is
   // still downloading when the debounce fires would never open
-  it("a keystroke whose debounce fires while the Filters link loads opens the dialog over the term", async () => {
+  it("a keystroke whose debounce fires while the Filters link loads opens the dialog over the term, with no stop at the dialog behind it", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     await seed_npo({ name: "Oxfam Canada" });
     const g = gate(() => true);
-    const screen = await render_marketplace("/marketplace", loader, {
-      filter: g.wait,
-    });
+    const screen = await render_marketplace(
+      ["/other", "/marketplace"],
+      loader,
+      {
+        filter: g.wait,
+      }
+    );
     const box = screen.getByPlaceholder("Search organizations...");
     await expect.element(screen.getByText("Oxfam Canada")).toBeVisible();
 
@@ -695,6 +681,19 @@ describe("marketplace — search", () => {
       .element(screen.getByTestId("url-search"))
       .toHaveTextContent("?query=Oxfam");
     await expect.element(box).toHaveValue("Oxfam");
+
+    // writing the term repaired the Filters landing; it is not a stop of its
+    // own for Back to reopen the dialog at
+    (
+      screen
+        .getByRole("link", { name: "Close filters" })
+        .element() as HTMLElement
+    ).click();
+    await expect
+      .element(screen.getByRole("button", { name: "Charity" }))
+      .not.toBeInTheDocument();
+    await screen.getByRole("button", { name: "Back" }).click();
+    await expect.element(screen.getByText("other page")).toBeVisible();
   });
 
   it("a keystroke whose debounce fires while a card's page loads lets the card open", async () => {
