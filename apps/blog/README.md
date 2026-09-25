@@ -27,5 +27,5 @@ After first deploy, add the Vercel URL as a CORS origin in [Sanity manage](https
 ### Sanity-hosted (alternative)
 
 ```sh
-pnpm deploy   # publishes to <hostname>.sanity.studio
+pnpm --filter blog run deploy   # publishes to <hostname>.sanity.studio
 ```

@@ -11,14 +11,14 @@ repo root (turbo delegates) or scope with `--filter`:
 - `pnpm build` (root, whole graph) or `pnpm --filter blog build` — production build (outputs to `apps/blog/dist`)
 - `pnpm --filter blog schema` — extract schema → `schema.json` (SLOW, re-bundles studio)
 - `pnpm --filter blog typegen` — regen `types.ts` + copy `queries.ts` into `blog-types` (FAST, offline)
-- `pnpm --filter blog deploy` — `schema` + `typegen` + `sanity deploy` (push hosted studio)
+- `pnpm --filter blog run deploy` — `schema` + `typegen` + `sanity deploy` (push hosted studio)
 
 ## AFTER YOU EDIT (required)
 
 there is NO drift guard in lefthook — stale types ship silently if you skip
 this. so whenever you change:
 
-- **`schemaTypes/`** (document shape) → run `pnpm --filter blog deploy`
+- **`schemaTypes/`** (document shape) → run `pnpm --filter blog run deploy`
   (regens types AND pushes the hosted studio so live schema matches).
 - **`queries.ts`** (groq only, no schema change) → run `pnpm --filter blog typegen`
   (regens `types.ts` + copies queries into `blog-types`; no deploy needed).
