@@ -13,8 +13,14 @@ interface ICsvExporterProps {
   children: ReactNode;
 }
 
-function escape_cell(value: unknown): string {
-  const str = value == null ? "" : String(value);
+// a spreadsheet evaluates a cell starting with one of these as a formula
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+export function escape_cell(value: unknown): string {
+  const raw = value == null ? "" : String(value);
+  // strings only: a negative number must stay a number, not become text
+  const str =
+    typeof value === "string" && FORMULA_LEAD.test(raw) ? `'${raw}` : raw;
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
