@@ -361,6 +361,12 @@ describe("new banking action", () => {
     const Stub = createRoutesStub([
       {
         path: "/admin/:id",
+        middleware: [
+          async ({ context }, next) => {
+            context.set(admin_ctx, npo_id);
+            return next();
+          },
+        ],
         children: [
           {
             path: "banking",
@@ -376,7 +382,10 @@ describe("new banking action", () => {
     ]);
 
     return await render(
-      <Stub initialEntries={[`/admin/${npo_id}/banking/new`]} />
+      <Stub
+        initialEntries={[`/admin/${npo_id}/banking/new`]}
+        future={{ v8_middleware: true }}
+      />
     );
   }
 
