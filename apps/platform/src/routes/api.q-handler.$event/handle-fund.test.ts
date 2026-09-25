@@ -31,7 +31,7 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-// the smtp hop is the only fake: the creator lookup runs against real postgres.
+// smtp and error reporting are the fakes: the creator lookup runs against real postgres.
 const send_email_or_throw = vi.hoisted(() =>
   vi.fn(async (_i: { node: ReactElement; to: string[]; subject: string }) => ({
     id: "email-1",
@@ -76,7 +76,7 @@ async function seed_opt_out(creator_id: string) {
 }
 
 describe("handle_fund_member_removed", () => {
-  test("mails the fund creator at their address, greeted by their own name", async () => {
+  test("mails the fund creator at their address, greeted by their own name, naming the nonprofit", async () => {
     const creator = await seed_user(db(), "ada@test.com", "Ada", "Lovelace");
     await seed_fund(db(), {
       id: "fund-1",
@@ -89,11 +89,23 @@ describe("handle_fund_member_removed", () => {
     await handle_fund_member_removed(payload);
 
     expect(send_email_or_throw).toHaveBeenCalledOnce();
-    const [{ node, to }] = send_email_or_throw.mock.calls[0];
+    const [{ node, to, subject }] = send_email_or_throw.mock.calls[0];
     expect(to).toEqual(["ada@test.com"]);
+    expect(subject).toMatch(/Save the Whales/);
     const text = await render(node, { plainText: true });
     expect(text).toMatch(/Hello Ada,/);
     expect(text).toMatch(/Save the Whales has opted out of your fundraiser/);
+  });
+
+  test("greets a creator who has no first name as there", async () => {
+    const creator = await seed_user(db(), "anon@test.com", "", "");
+    const payload = await seed_opt_out(creator.id);
+
+    await handle_fund_member_removed(payload);
+
+    const [{ node }] = send_email_or_throw.mock.calls[0];
+    const text = await render(node, { plainText: true });
+    expect(text).toMatch(/Hello there,/);
   });
 
   test("a creator with no user row is reported, not mailed, and not retried", async () => {

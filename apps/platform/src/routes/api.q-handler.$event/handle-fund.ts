@@ -23,7 +23,7 @@ export async function handle_fund_member_removed(
     const npo = await npo_get(npo_id);
     if (!npo) continue;
     const { node, subject } = fund_opt_out_notif.template({
-      to_name: creator.first_name,
+      to_name: creator.first_name || "there",
       opted_out_name: npo.name,
     });
     const res = await send_email_or_throw({
