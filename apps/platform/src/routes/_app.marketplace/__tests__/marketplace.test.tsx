@@ -1,6 +1,12 @@
-import { createRoutesStub, Outlet, useLocation } from "react-router";
+import {
+  createRoutesStub,
+  Outlet,
+  useLocation,
+  useNavigation,
+} from "react-router";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -78,6 +84,10 @@ afterAll(async () => {
   await test_db.current?.client.close();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 let counter = 0;
 beforeEach(async () => {
   await cleanup();
@@ -104,20 +114,54 @@ async function seed_npo(
 }
 
 /** the stub's memory router has no address bar, so the url a user would
- *  share is read off the location instead */
+ *  share is read off the location instead. `nav-state` shows a navigation
+ *  still loading, which is when a debounced write can race it. */
 function UrlProbe() {
   const { search } = useLocation();
   return (
     <>
       <output data-testid="url-search">{search}</output>
+      <output data-testid="nav-state">{useNavigation().state}</output>
       <Outlet />
     </>
   );
 }
 
+/** a loader run `hold` picks waits until `release` */
+function gate(hold: (url: URL) => boolean) {
+  let release = () => {};
+  const opened = new Promise<void>((r) => {
+    release = r;
+  });
+  const held = { count: 0 };
+  const wait = async (url: URL) => {
+    if (!hold(url)) return;
+    held.count++;
+    await opened;
+  };
+  return { release: () => release(), held, wait };
+}
+
+/** react installs its own `value` setter on the node and compares against it to
+ *  decide whether a change event is real, so assigning `input.value` directly
+ *  makes react skip onChange. the prototype setter lets a keystroke and the
+ *  click after it share one debounce window. */
+function keystroke(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value"
+  )?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function render_marketplace(
   entry = "/marketplace",
-  route_loader: typeof loader = loader
+  route_loader: typeof loader = loader,
+  /** stand in for the latency of routes whose module or data isn't loaded yet */
+  wait: {
+    filter?: (url: URL) => Promise<void>;
+    org?: (url: URL) => Promise<void>;
+  } = {}
 ) {
   const Stub = createRoutesStub([
     {
@@ -132,8 +176,20 @@ function render_marketplace(
             {
               path: "filter",
               Component: FilterPage,
+              loader: async ({ request }) => {
+                await wait.filter?.(new URL(request.url));
+                return null;
+              },
             },
           ],
+        },
+        {
+          path: "/marketplace/:id",
+          Component: () => <p>org page</p>,
+          loader: async ({ request }) => {
+            await wait.org?.(new URL(request.url));
+            return null;
+          },
         },
       ],
     },
@@ -474,6 +530,30 @@ describe("marketplace — search", () => {
     expect(screen.getByText(/^Alpha Org/).elements()).toHaveLength(0);
   });
 
+  // a page asked for under the old term is thrown away when the new one lands
+  it("Load more holds while a search loads", async () => {
+    for (let i = 1; i <= 21; i++) await seed_npo({ name: `Match Org ${i}` });
+    const g = gate((url) => url.searchParams.has("query"));
+    const screen = await render_marketplace("/marketplace", async (args) => {
+      await g.wait(new URL(args.request.url));
+      return loader(args);
+    });
+    const more = screen.getByRole("button", {
+      name: /load more organizations/i,
+    });
+    await expect.element(more).toBeEnabled();
+
+    await screen.getByPlaceholder("Search organizations...").fill("Match");
+    await vi.waitFor(() => expect(g.held.count).toBe(1));
+
+    await expect.element(more).toBeDisabled();
+    g.release();
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?query=Match");
+    await expect.element(more).toBeEnabled();
+  });
+
   it("removing a filter chip keeps the term in the box and the results", async () => {
     await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
     await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
@@ -522,41 +602,153 @@ describe("marketplace — search", () => {
       .not.toMatchTextContent("query");
   });
 
-  // a chip built from the committed url cuts off the search still loading.
-  // the url that lands never had the term, so the box must not keep it.
-  it("a chip clicked while a search loads leaves box, url and grid agreeing", async () => {
+  // a writer that drops a term the url carried meant to; the box follows it
+  // rather than writing the term back over it
+  it("the dialog's Clear Filters empties the box with the url", async () => {
+    await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
+    const screen = await render_marketplace(
+      "/marketplace?query=Oxfam&countries=Canada"
+    );
+    const box = screen.getByPlaceholder("Search organizations...");
+    await expect.element(box).toHaveValue("Oxfam");
+
+    await screen.getByRole("link", { name: /filters/i }).click();
+    await expect
+      .element(screen.getByRole("button", { name: "Clear Filters" }))
+      .toBeVisible();
+    // the dialog overlay intercepts pointer events; use native DOM click
+    (
+      screen
+        .getByRole("button", { name: "Clear Filters" })
+        .element() as HTMLElement
+    ).click();
+
+    await expect.element(screen.getByText("Red Cross Canada")).toBeVisible();
+    await expect.element(box).toHaveValue("");
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .not.toMatchTextContent("query");
+  });
+
+  // the box's write is a navigation and cuts off whichever one is loading;
+  // a chip whose loader outlasts the debounce window would come back
+  it("a keystroke whose debounce fires while a chip removal loads keeps both", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
     await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
     await seed_npo({ name: "Oxfam Kenya", hq_country: "Kenya" });
-    let release = () => {};
-    const gate = new Promise<void>((r) => {
-      release = r;
-    });
-    let searching = false;
+    const g = gate((url) => url.search === "?countries=Canada");
     const screen = await render_marketplace(
       "/marketplace?countries=Canada,Kenya",
       async (args) => {
-        if (new URL(args.request.url).searchParams.has("query")) {
-          searching = true;
-          await gate;
-        }
+        await g.wait(new URL(args.request.url));
+        return loader(args);
+      }
+    );
+    const box = screen.getByPlaceholder("Search organizations...");
+    await expect.element(screen.getByText("Oxfam Kenya")).toBeVisible();
+
+    keystroke(box.element() as HTMLInputElement, "Oxfam");
+    await screen.getByRole("button", { name: "Kenya", exact: true }).click();
+    await expect
+      .element(screen.getByTestId("nav-state"))
+      .toHaveTextContent("loading");
+    await vi.advanceTimersByTimeAsync(700);
+    g.release();
+
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?countries=Canada&query=Oxfam");
+    await expect
+      .element(screen.getByText("Red Cross Canada"))
+      .not.toBeInTheDocument();
+    expect(screen.getByText("Oxfam Kenya").query()).toBeNull();
+    await expect.element(screen.getByText("Oxfam Canada")).toBeVisible();
+    await expect.element(box).toHaveValue("Oxfam");
+  });
+
+  // the Filters link and a card are navigations too; a route whose module is
+  // still downloading when the debounce fires would never open
+  it("a keystroke whose debounce fires while the Filters link loads opens the dialog over the term", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await seed_npo({ name: "Oxfam Canada" });
+    const g = gate(() => true);
+    const screen = await render_marketplace("/marketplace", loader, {
+      filter: g.wait,
+    });
+    const box = screen.getByPlaceholder("Search organizations...");
+    await expect.element(screen.getByText("Oxfam Canada")).toBeVisible();
+
+    keystroke(box.element() as HTMLInputElement, "Oxfam");
+    await screen.getByRole("link", { name: /filters/i }).click();
+    await expect
+      .element(screen.getByTestId("nav-state"))
+      .toHaveTextContent("loading");
+    await vi.advanceTimersByTimeAsync(700);
+    g.release();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Charity", pressed: false }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByTestId("url-search"))
+      .toHaveTextContent("?query=Oxfam");
+    await expect.element(box).toHaveValue("Oxfam");
+  });
+
+  it("a keystroke whose debounce fires while a card's page loads lets the card open", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await seed_npo({ name: "Oxfam Canada" });
+    const g = gate(() => true);
+    const screen = await render_marketplace("/marketplace", loader, {
+      org: g.wait,
+    });
+    const box = screen.getByPlaceholder("Search organizations...");
+    await expect.element(screen.getByText("Oxfam Canada")).toBeVisible();
+
+    keystroke(box.element() as HTMLInputElement, "Oxfam");
+    await screen.getByRole("link", { name: /oxfam canada/i }).click();
+    await expect
+      .element(screen.getByTestId("nav-state"))
+      .toHaveTextContent("loading");
+    await vi.advanceTimersByTimeAsync(700);
+    g.release();
+
+    await expect.element(screen.getByText("org page")).toBeVisible();
+  });
+
+  // a chip built from the committed url cuts off the search still loading,
+  // and the url it lands never had the term. what the user typed survives it.
+  it("a chip clicked while a search loads keeps the term in box, url and grid", async () => {
+    await seed_npo({ name: "Oxfam Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Red Cross Canada", hq_country: "Canada" });
+    await seed_npo({ name: "Oxfam Kenya", hq_country: "Kenya" });
+    const g = gate((url) => url.searchParams.has("query"));
+    const screen = await render_marketplace(
+      "/marketplace?countries=Canada,Kenya",
+      async (args) => {
+        await g.wait(new URL(args.request.url));
         return loader(args);
       }
     );
     const box = screen.getByPlaceholder("Search organizations...");
 
     await box.fill("Oxfam");
-    await vi.waitFor(() => expect(searching).toBe(true));
+    await vi.waitFor(() => expect(g.held.count).toBe(1));
     await screen.getByRole("button", { name: "Kenya", exact: true }).click();
     await expect
       .element(screen.getByText("Oxfam Kenya"))
       .not.toBeInTheDocument();
-    release();
+    g.release();
 
-    await expect.element(box).toHaveValue("");
     await expect
       .element(screen.getByTestId("url-search"))
-      .not.toMatchTextContent("query");
-    await expect.element(screen.getByText("Red Cross Canada")).toBeVisible();
+      .toHaveTextContent("?countries=Canada&query=Oxfam");
+    await expect
+      .element(screen.getByText("Red Cross Canada"))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("Oxfam Canada")).toBeVisible();
+    await expect.element(box).toHaveValue("Oxfam");
   });
 });
