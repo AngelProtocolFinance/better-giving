@@ -26,10 +26,11 @@ function _RecipientDetails({
   const requirements = data?.requirements || [];
   const [selected_idx, set_selected_idx] = useState(0);
 
-  // a list that shrinks below the pick drops it for good: a later refresh that
-  // restores the option must not switch the form back under the user
+  // a loaded list that shrinks below the pick drops it for good: a later
+  // refresh that restores the option must not switch the form back under the
+  // user. no data (a new amount's request in flight) is not a shrink
   const req_idx = selected_idx < requirements.length ? selected_idx : 0;
-  if (req_idx !== selected_idx) set_selected_idx(req_idx);
+  if (data && req_idx !== selected_idx) set_selected_idx(req_idx);
 
   if (isLoading) {
     return (

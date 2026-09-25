@@ -1,5 +1,6 @@
 import { AskHost } from "@better-giving/ui";
 import { HttpResponse, http } from "msw";
+import { type ComponentType, useState } from "react";
 import { createRoutesStub } from "react-router";
 import { SWRConfig } from "swr";
 import { describe, expect, test } from "vitest";
@@ -21,6 +22,32 @@ const requirement = (
 
 const local = requirement("sort_code", "Local bank account");
 
+const legal_type: Group = {
+  key: "legalType",
+  name: "Recipient type",
+  type: "radio",
+  refreshRequirementsOnChange: true,
+  required: false,
+  displayFormat: null,
+  example: "",
+  minLength: null,
+  maxLength: null,
+  validationRegexp: null,
+  validationAsync: null,
+  valuesAllowed: [
+    { key: "PRIVATE", name: "Person" },
+    { key: "BUSINESS", name: "Business" },
+  ],
+};
+const iban_number: Group = {
+  ...legal_type,
+  key: "iban",
+  name: "IBAN number",
+  type: "text",
+  refreshRequirementsOnChange: false,
+  valuesAllowed: null,
+};
+
 function quote_answers(requirements: AccountRequirements[]) {
   mswWorker.use(
     http.post("/api/wise/v3/profiles/:profile/quotes", () =>
@@ -32,20 +59,45 @@ function quote_answers(requirements: AccountRequirements[]) {
   );
 }
 
+interface IDetails {
+  amount: number;
+}
+
+function Details({ amount }: IDetails) {
+  return (
+    <RecipientDetails
+      disabled={false}
+      currency="GBP"
+      amount={amount}
+      FormButtons={() => null}
+      onSubmit={async () => {}}
+    />
+  );
+}
+
+/** stands in for bank details' amount field, which re-keys the requirements request */
+function AmountChange() {
+  const [amount, set_amount] = useState(100);
+  return (
+    <>
+      <button type="button" onClick={() => set_amount(200)}>
+        Change amount
+      </button>
+      <Details amount={amount} />
+    </>
+  );
+}
+
 /** a fresh swr cache per render: the requirements key is the same in every test */
-async function render_details() {
+async function render_details(
+  Body: ComponentType = () => <Details amount={100} />
+) {
   const Stub = createRoutesStub([
     {
       path: "/",
       Component: () => (
         <SWRConfig value={{ provider: () => new Map() }}>
-          <RecipientDetails
-            disabled={false}
-            currency="GBP"
-            amount={100}
-            FormButtons={() => null}
-            onSubmit={async () => {}}
-          />
+          <Body />
           <AskHost />
         </SWRConfig>
       ),
@@ -68,31 +120,6 @@ describe("RecipientDetails", () => {
   });
 
   test("requirements that shrink below the picked transfer type drop the pick for the first, and a refresh restoring it keeps the first until the user picks again", async () => {
-    const legal_type: Group = {
-      key: "legalType",
-      name: "Recipient type",
-      type: "radio",
-      refreshRequirementsOnChange: true,
-      required: false,
-      displayFormat: null,
-      example: "",
-      minLength: null,
-      maxLength: null,
-      validationRegexp: null,
-      validationAsync: null,
-      valuesAllowed: [
-        { key: "PRIVATE", name: "Person" },
-        { key: "BUSINESS", name: "Business" },
-      ],
-    };
-    const iban_number: Group = {
-      ...legal_type,
-      key: "iban",
-      name: "IBAN number",
-      type: "text",
-      refreshRequirementsOnChange: false,
-      valuesAllowed: null,
-    };
     const iban = requirement("iban", "IBAN", [legal_type, iban_number]);
     const sort_code = (title: string) =>
       requirement("sort_code", title, [legal_type]);
@@ -125,5 +152,57 @@ describe("RecipientDetails", () => {
     await expect.element(trigger).toMatchTextContent("UK bank account");
     expect(screen.getByLabelText("IBAN number").query()).toBeNull();
     expect(refreshes).toEqual([]);
+  });
+
+  test("a new amount keeps the picked transfer type through the empty wait for its requirements", async () => {
+    const iban = requirement("iban", "IBAN", [iban_number]);
+    let answer_new_amount = () => {};
+    const new_amount_held = new Promise<void>((resolve) => {
+      answer_new_amount = resolve;
+    });
+    mswWorker.use(
+      http.post(
+        "/api/wise/v3/profiles/:profile/quotes",
+        async ({ request }) => {
+          const { sourceAmount } = (await request.json()) as {
+            sourceAmount: number;
+          };
+          return HttpResponse.json({ id: `quote-${sourceAmount}` });
+        }
+      ),
+      http.get(
+        "/api/wise/v1/quotes/:quote/account-requirements",
+        async ({ params }) => {
+          if (params.quote === "quote-100") {
+            return HttpResponse.json([local, iban]);
+          }
+          await new_amount_held;
+          // the first type under a new title, so the list's arrival is visible
+          return HttpResponse.json([
+            requirement("sort_code", "UK bank account"),
+            iban,
+          ]);
+        }
+      )
+    );
+    const screen = await render_details(AmountChange);
+
+    const trigger = screen.getByRole("combobox", { name: "Transfer type" });
+    await trigger.click();
+    await screen.getByRole("option", { name: "IBAN" }).click();
+    await expect.element(screen.getByLabelText("IBAN number")).toBeVisible();
+
+    await screen.getByRole("button", { name: "Change amount" }).click();
+    await expect
+      .element(screen.getByText("Loading requirements"))
+      .toBeVisible();
+
+    answer_new_amount();
+    await expect.element(trigger).toMatchTextContent("IBAN");
+    await expect.element(screen.getByLabelText("IBAN number")).toBeVisible();
+    await trigger.click();
+    await expect
+      .element(screen.getByRole("option", { name: "UK bank account" }))
+      .toBeVisible();
   });
 });
