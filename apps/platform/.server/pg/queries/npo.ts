@@ -32,10 +32,7 @@ export type INpo = Omit<NpoRow, "target_number" | "target_smart"> & {
   contributions_count: number;
 };
 
-type JoinedRow = NpoRow & {
-  contributions_total: number;
-  contributions_count: number;
-};
+type JoinedRow = Awaited<ReturnType<typeof joined_select>>[number];
 
 // sql<T> alone skips the columns' decoders, and numeric and int8 arrive as text
 const contributions = {
