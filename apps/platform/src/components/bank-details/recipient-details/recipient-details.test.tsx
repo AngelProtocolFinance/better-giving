@@ -67,7 +67,7 @@ describe("RecipientDetails", () => {
     ).toHaveLength(1);
   });
 
-  test("requirements that shrink below the picked transfer type fall back to the first, in the picker and the form alike", async () => {
+  test("requirements that shrink below the picked transfer type drop the pick for the first, and a refresh restoring it keeps the first until the user picks again", async () => {
     const legal_type: Group = {
       key: "legalType",
       name: "Recipient type",
@@ -85,10 +85,27 @@ describe("RecipientDetails", () => {
         { key: "BUSINESS", name: "Business" },
       ],
     };
-    quote_answers([local, requirement("iban", "IBAN", [legal_type])]);
+    const iban_number: Group = {
+      ...legal_type,
+      key: "iban",
+      name: "IBAN number",
+      type: "text",
+      refreshRequirementsOnChange: false,
+      valuesAllowed: null,
+    };
+    const iban = requirement("iban", "IBAN", [legal_type, iban_number]);
+    const sort_code = (title: string) =>
+      requirement("sort_code", title, [legal_type]);
+    quote_answers([sort_code("Local bank account"), iban]);
+    // each radio change refreshes: first down to the first type alone, then
+    // back to both, the first under a new title so its arrival is visible
+    const refreshes = [
+      [sort_code("Local bank account")],
+      [sort_code("UK bank account"), iban],
+    ];
     mswWorker.use(
       http.post("/api/wise/v1/quotes/:quote/account-requirements", () =>
-        HttpResponse.json([local])
+        HttpResponse.json(refreshes.shift())
       )
     );
     const screen = await render_details();
@@ -96,12 +113,17 @@ describe("RecipientDetails", () => {
     const trigger = screen.getByRole("combobox", { name: "Transfer type" });
     await trigger.click();
     await screen.getByRole("option", { name: "IBAN" }).click();
-    // the refresh this field asks for answers with the first type alone
-    await screen.getByText("Business", { exact: true }).click();
+    await expect.element(screen.getByLabelText("IBAN number")).toBeVisible();
 
+    await screen.getByText("Business", { exact: true }).click();
     await expect
-      .element(screen.getByText("Business", { exact: true }))
+      .element(screen.getByLabelText("IBAN number"))
       .not.toBeInTheDocument();
     await expect.element(trigger).toMatchTextContent("Local bank account");
+
+    await screen.getByText("Person", { exact: true }).click();
+    await expect.element(trigger).toMatchTextContent("UK bank account");
+    expect(screen.getByLabelText("IBAN number").query()).toBeNull();
+    expect(refreshes).toEqual([]);
   });
 });

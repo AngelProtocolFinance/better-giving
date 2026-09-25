@@ -26,8 +26,10 @@ function _RecipientDetails({
   const requirements = data?.requirements || [];
   const [selected_idx, set_selected_idx] = useState(0);
 
-  // when num options is reduced from current selected, revert to first option
-  const req_idx = selected_idx + 1 > requirements.length ? 0 : selected_idx;
+  // a list that shrinks below the pick drops it for good: a later refresh that
+  // restores the option must not switch the form back under the user
+  const req_idx = selected_idx < requirements.length ? selected_idx : 0;
+  if (req_idx !== selected_idx) set_selected_idx(req_idx);
 
   if (isLoading) {
     return (
