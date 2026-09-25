@@ -53,3 +53,6 @@ ds-bundle/
 **/.design-sync/learnings/
 **/.design-sync/node_modules
 .vitest
+
+# kru seats, per-machine repo memory
+.claude/agent-memory-local/

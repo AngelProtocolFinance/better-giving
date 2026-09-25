@@ -1,6 +1,6 @@
 # @better-giving/crypto
 
-Internal package (`private`), a **built** crypto token + chain data library. Zero runtime deps. Ships a small typed surface — the supported-token list, a code→token map, chain metadata, and the `is_custom` predicate — consumed by platform's crypto donation flow via `workspace:*`. Built with **tsup**; extends `tsconfig.base.json` (tsup owns emit, so the tsconfig stays type-check-only).
+Internal package (`private`), a **built** crypto token + chain data library. Zero runtime deps. Ships a small typed surface — the supported-token list, a code→token map, chain metadata, and the `is_custom` predicate — consumed by platform's crypto donation flow via `workspace:*`. Built with **tsup**.
 
 ## Public API (platform relies on these exact names)
 
@@ -15,7 +15,7 @@ Internal package (`private`), a **built** crypto token + chain data library. Zer
 
 ## Build
 
-`build` = `tsup` (config in `tsup.config.ts`: single entry `src/index.ts`, ESM only, `dts: true`, target es2022) → `dist/index.mjs` + `dist/index.d.mts`. Runs in `turbo run build`; `outputs` caches `dist/**`. `dependsOn: ["^build"]` — nothing upstream, but the member is built before platform (its consumer).
+`build` = `tsup` (`tsup.config.ts`) → `dist/index.mjs` + `dist/index.d.mts`. Runs in `turbo run build`; `outputs` caches `dist/**`. `dependsOn: ["^build"]` — nothing upstream, but the member is built before platform (its consumer).
 
 - **extends `tsconfig.base.json`** — the base is `noEmit`/`module:preserve` and tsup owns emit, so the base policy fits as-is (crypto's tsconfig is type-check-only). Do NOT turn it into an emitting tsconfig; tsup owns emit.
 - JSON imports use the standard `with { type: "json" }` attribute (both in `src/` and the `.mts` scripts); tsup and `node` both handle it. `resolveJsonModule` is on (from base).
@@ -24,7 +24,6 @@ Internal package (`private`), a **built** crypto token + chain data library. Zer
 ## Conventions
 
 - crypto's `src/` imports committed JSON (present pre-commit, so a type-check hook *could* work) but the built-member convention wins. After changing `src/`, run `pnpm --filter @better-giving/crypto build` to type-check.
-- No `@biomejs/biome` devDep — root provides it.
 
 ## `generate-tokens` maintenance script
 

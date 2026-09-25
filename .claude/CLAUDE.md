@@ -2,7 +2,7 @@
 
 Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **Each member's own `CLAUDE.md` is the authority on that member — read it before working there.** This file carries only what spans members.
 
-<!-- kru v0.108.1 · derived 2026-09-24 · /kru:setup to re-derive -->
+<!-- kru v0.116.0 · derived 2026-09-25 · /kru:setup to re-derive -->
 ## Team
 
 Load **`kru:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.
@@ -15,10 +15,11 @@ Load **`kru:lead`** before building, reviewing, or dispatching a seat — it car
 - **paypal/venmo** → `kru:paypal-specialist` — `@paypal/paypal-js` 10.0.3 in platform over `packages/paypal`'s built server SDK
 - **DAF grants** → `kru:chariot-specialist` — the `<chariot-connect>` element pulled from `cdn.givechariot.com` in `src/components/donation/checkouts/daf/`, `packages/chariot`'s built server SDK, and the `api.chariot-webhook` listener. Event-subscription CRUD stays `.claude/skills/chariot-webhooks`'
 - **crypto payments** → `kru:nowpayments-specialist` — NOWPayments REST via the hand-written client in `apps/platform/lib/nowpayments/` (no SDK installed): invoice + invoice-payment creation, `api.nowpayments-webhook` IPN listener, min-amount/estimate. `packages/crypto`'s token list is app-curated data, not this seat's
+- **zapier** → `kru:zapier-specialist` — the app-side endpoints only (no Platform CLI project in the repo): `api.zapier.me` auth test, `api.zapier.triggers.new-donation` REST-hook subscribe/unsubscribe + sample list, `api.zapier.generate.$id` key minting, and the hook fan-out in `api.q-handler.$event/handle-don-dist.ts`
 - **cms** → `kru:sanity-builder` — `apps/blog` + `@sanity/client` 7.22.1 in platform
 - **platform** → `kru:vercel-platform-engineer` — `@vercel/react-router` 1.3.1 + `vercelPreset`
 - **toolchain** → `kru:toolchain-engineer` — turbo 2.11.2, biome 2.5.14, pnpm 12.4.2
-- **skills** → `kru:drizzle`, `neon`, `tailwind`, `react-hook-form`, `valibot`, `vitest`, `react-email` — drizzle-orm 0.45.2 on `@neondatabase/serverless` 1.1.0 (the driver seam answers separately from the ORM), tailwind 4.3.1 (v4, not `v3-lts`), react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.5.0 (platform + `packages/ui` peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default. react-email 6.9.5 in `packages/emails` + `emails-preview`; platform is on 6.1.1, outside the ≥6.9.0 pin `apps/emails-preview/CLAUDE.md` holds that pair to.
+- **skills** → `kru:drizzle`, `neon`, `tailwind`, `react-hook-form`, `valibot`, `vitest`, `react-email`, `api-design` — drizzle-orm 0.45.2 on `@neondatabase/serverless` 1.1.0 (the driver seam answers separately from the ORM), tailwind 4.3.1 (v4, not `v3-lts`), react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.5.0 (platform + `packages/ui` peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default. react-email 6.9.5 in `packages/emails` + `emails-preview`; platform is on 6.1.1, outside the ≥6.9.0 pin `apps/emails-preview/CLAUDE.md` holds that pair to. `api-design` for the Zapier surface — minted `x-api-key`s and outbound donation webhooks.
 - **not a seat** — `next` 16.3.3 in `apps/emails-preview` is `email build`'s toolchain, which generates a throwaway Next app into `.react-email/`. No App Router source exists in the repo; routing off that manifest to `nextjs-builder` is a mis-route. Nothing owns `packages/stocks`' ticker data, or the `ai` 6.0.176 / `@ai-sdk/valibot` evaluation calls in `_app.fundraisers.new/evaluate.ts` and `_app.signup._index/evaluate.ts`.
 - **project seats** — `.claude/skills/`: `platform-tests`, `db-admin`, `chariot-webhooks`, `upstash-manager`, `wise`. Prefer these over a plugin seat wherever they overlap; `platform-tests` outranks `test-writer` on platform's tests
 

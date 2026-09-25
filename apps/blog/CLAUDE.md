@@ -29,12 +29,10 @@ forgetting this means platform builds against stale types.
 
 ## Project
 
-- projectId: `5820hdyj`
-- dataset: `production`
-- org: `oQxcQWCVV`
+- org: `oQxcQWCVV` (projectId + dataset: `sanity.config.ts`)
 - manage: https://www.sanity.io/manage/project/5820hdyj
 
 ## Schema
 
 Document types live in `schemaTypes/` and are registered in
-`schemaTypes/index.ts`. Current types: `post`.
+`schemaTypes/index.ts`.

@@ -23,7 +23,7 @@ Internal package (`private`), a **built** server-side PayPal SDK. Ships the `Pay
 
 ## Conventions
 
-- No `catalog:` here (deliberate — kept on its own pinned `typescript`/`@types/node`); no `@biomejs/biome` devDep — root provides it.
+- No `catalog:` here (deliberate — kept on its own pinned `typescript`/`@types/node`).
 
 ## `generate` maintenance script
 
