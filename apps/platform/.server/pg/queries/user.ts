@@ -73,6 +73,19 @@ export async function user_by_referral_code(
   return row;
 }
 
+/** address + greeting name for mailing a user known only by `user.id` */
+export async function user_contact_by_id(
+  id: string,
+  tx: DbOrTx = db
+): Promise<{ email: string; first_name: string } | undefined> {
+  const [row] = await tx
+    .select({ email: user.email, first_name: user.first_name })
+    .from(user)
+    .where(eq(user.id, id))
+    .limit(1);
+  return row;
+}
+
 /**
  * the user who owns the completed form filed under this document-group eid.
  *
