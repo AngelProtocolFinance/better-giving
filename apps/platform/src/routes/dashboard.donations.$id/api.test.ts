@@ -7,6 +7,7 @@ const user = { email: "donor@test.com" };
 vi.mock("#/.server/auth", () => ({ user_ctx: {} }));
 vi.mock("#/.server/toast", () => ({
   redirectWithSuccess: vi.fn(() => new Response(null, { status: 302 })),
+  dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
 }));
 vi.mock("$/env", () => ({ app: { npo_id: "1" } }));
 
@@ -33,9 +34,13 @@ vi.mock("$/pg/queries/dist", () => ({
 
 import { action } from "./api";
 
-const fund_don = (to_members: string[]) =>
+const fund_don = (
+  to_members: string[],
+  o: Partial<Pick<IDonation, "status" | "amount">> = {}
+) =>
   ({
     id: "don-1",
+    status: "settled",
     to_id: "fund-1",
     to_name: "Climate Fund",
     to_type: "fund",
@@ -46,6 +51,7 @@ const fund_don = (to_members: string[]) =>
     amount: { base: 100, tip: 0, fee_allowance: 0 },
     upusd: 1,
     currency: "USD",
+    ...o,
   }) as unknown as IDonation;
 
 const npo = (id: number, name: string, active = true) => ({
@@ -116,4 +122,29 @@ describe("send_receipts - resending a fund gift's receipts", () => {
       ["Gamma", "50.00"],
     ]);
   });
+});
+
+describe("resending a refunded gift's receipts", () => {
+  beforeEach(() => {
+    send_email.mockClear();
+    store.npos = [npo(10, "Alpha"), npo(12, "Gamma")];
+    store.dist_ids = [10, 12];
+  });
+
+  test.each(["refunded", "refunded_loss"] as const)(
+    "a %s gift mails nothing and says why",
+    async (status) => {
+      store.don = fund_don(["10", "12"], {
+        status,
+        amount: { base: 100, tip: 5, fee_allowance: 0 },
+      });
+
+      const res = await resend();
+
+      expect(send_email).not.toHaveBeenCalled();
+      expect(res).toEqual({
+        error: "This donation was refunded, so it has no tax receipt to send.",
+      });
+    }
+  );
 });

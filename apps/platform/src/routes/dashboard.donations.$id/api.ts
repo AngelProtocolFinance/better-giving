@@ -6,8 +6,8 @@ import {
 } from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
-import { redirectWithSuccess } from "#/.server/toast";
-import { type IDonation, tax_receipt_id } from "@/donations";
+import { dataWithError, redirectWithSuccess } from "#/.server/toast";
+import { type IDonation, is_reversed, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount, to_fund_receipts } from "@/helpers/email";
 import { resp } from "@/helpers/https";
@@ -62,6 +62,13 @@ export const action = async ({
 
   if (don.from_email.toLowerCase() !== user.email.toLowerCase()) {
     return resp.status(403);
+  }
+
+  if (is_reversed(don.status)) {
+    return dataWithError(
+      null,
+      "This donation was refunded, so it has no tax receipt to send."
+    );
   }
 
   const addr = [
