@@ -76,12 +76,7 @@ export function Stocks(props: StocksDonationDetails) {
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(
-            name,
-            url,
-            +props.ticker.amount,
-            props.ticker.symbol
-          )}
+          href={email_link(name, url, shares, props.ticker.symbol)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -161,7 +156,7 @@ const NEW_LINE = "%0D%0A";
 const email_link = (
   charity_name: string,
   profile_url: string,
-  number_of_shares: number,
+  number_of_shares: string,
   stock_symbol: string
 ) => `
 mailto:${encodeURIComponent("[Your broker's email]")}
