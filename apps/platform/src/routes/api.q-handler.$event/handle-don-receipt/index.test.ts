@@ -362,3 +362,64 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 });
+
+describe("send_receipt - a gift to a fund", () => {
+  const seed_members = async (names: string[]) => {
+    const db = test_db.current!.db;
+    const rows = await db
+      .insert(npos)
+      .values(
+        names.map((name, i) => ({
+          registration_number: `EIN-FUND-${i}`,
+          name,
+          endow_designation: "Charity" as const,
+          overview_pt: "[]",
+          hq_country: "United States",
+        }))
+      )
+      .returning();
+    return rows.map((r) => String(r.id));
+  };
+
+  const fund_don = (to_members: string[]): IDonation => ({
+    ...don(),
+    to_id: "fund-1",
+    to_name: "Climate Fund",
+    to_type: "fund",
+    to_members,
+  });
+
+  /** what each receipt prints, in the order they were mailed */
+  const printed = () =>
+    send_email_or_throw.mock.calls.map(([i]) => {
+      const p = (i as any).node.props;
+      return [p.to_name, p.amount.value.toFixed(2)];
+    });
+
+  test("the members' receipts add up to the gift", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+
+    await handle_don_receipt(fund_don(members));
+
+    // truncating each third prints 33.33 three times: a penny of a $100
+    // charge that no receipt accounts for
+    expect(printed()).toEqual([
+      ["Alpha", "33.34"],
+      ["Beta", "33.33"],
+      ["Gamma", "33.33"],
+    ]);
+  });
+
+  test("a member that no longer exists does not take a share", async () => {
+    const [a, b] = await seed_members(["Alpha", "Beta"]);
+
+    // a third of the gift split to a member with no receipt is money the
+    // donor can't deduct
+    await handle_don_receipt(fund_don([a!, "999999", b!]));
+
+    expect(printed()).toEqual([
+      ["Alpha", "50.00"],
+      ["Beta", "50.00"],
+    ]);
+  });
+});

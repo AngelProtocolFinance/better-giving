@@ -1,5 +1,6 @@
 import { donation_receipt, type IDonation as IDon, type IDonor } from "emails";
 import { type IDonation, tax_receipt_id } from "@/donations";
+import { to_amount_shares } from "@/helpers/amount-shares";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { send_email_or_throw } from "$/email";
@@ -50,14 +51,13 @@ export const send_receipt = async (d: IDonation) => {
   }
 
   if (d.to_type === "fund") {
-    const n = d.to_members.length;
-    const amnt = to_amount(base / n, base / n / d.upusd, d.currency);
     const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    for (const npo of npos) {
+    const amnts = to_amount_shares(base, npos.length, d.upusd, d.currency);
+    for (const [i, npo] of npos.entries()) {
       const don: IDon = {
         id: d.id,
         date: to_pretty_utc(d.created_at),
-        amount: amnt,
+        amount: amnts[i],
         to_name: npo.name,
       };
       const x: donation_receipt.IData = {

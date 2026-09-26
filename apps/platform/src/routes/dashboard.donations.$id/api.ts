@@ -8,6 +8,7 @@ import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import { type IDonation, tax_receipt_id } from "@/donations";
+import { to_amount_shares } from "@/helpers/amount-shares";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { resp } from "@/helpers/https";
@@ -114,14 +115,13 @@ async function send_receipts(d: IDonation, donor: IDonor) {
 
   // fund: one receipt per member npo
   if (d.to_type === "fund") {
-    const n = d.to_members.length;
-    const amt = to_amount(base / n, base / n / d.upusd, d.currency);
     const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    for (const npo of npos) {
+    const amts = to_amount_shares(base, npos.length, d.upusd, d.currency);
+    for (const [i, npo] of npos.entries()) {
       const don: IDon = {
         id: d.id,
         date: to_pretty_utc(d.created_at),
-        amount: amt,
+        amount: amts[i],
         to_name: npo.name,
       };
       const data: dr.IData = {
