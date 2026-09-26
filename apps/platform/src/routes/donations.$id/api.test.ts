@@ -104,15 +104,18 @@ const MATCH_EVENT = {
 };
 const MATCH_KEYS = ["match_filed", "match_voided", "match_arrived"];
 
-const call = () =>
+const LEGACY_ID = "legacy-v1-001";
+
+const call = (id = DON_ID) =>
   (loader as any)({
-    request: new Request(`https://app.test/donations/${DON_ID}`),
-    params: { id: DON_ID },
+    request: new Request(`https://app.test/donations/${id}`),
+    params: { id },
     context: {},
   });
 
 beforeEach(() => {
   for (const f of Object.values(m)) f.mockReset();
+  vi.mocked(to_auth).mockClear();
   m.donation_get.mockResolvedValue(don);
   m.match_event_get.mockResolvedValue(undefined);
   m.cookie_parse.mockResolvedValue(null);
@@ -136,6 +139,7 @@ describe("donation thank-you loader", () => {
       donate_url: "https://app.test/donate/42",
       donate_thanks_url: `https://app.test/donations/${DON_ID}`,
       profile_url: "https://app.test/marketplace/42",
+      is_donor: false,
     });
   });
 
@@ -166,6 +170,15 @@ describe("donation thank-you loader", () => {
     m.cookie_parse.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
 
     const d = await call();
+
+    expect(d).toMatchObject({ ...DONOR_PRIVATE, is_donor: true });
+  });
+
+  it("gives the checkout cookie holder the whole record when they open it by its legacy id", async () => {
+    // checkout keys the cookie by the donation's current id
+    m.cookie_parse.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    const d = await call(LEGACY_ID);
 
     expect(d).toMatchObject(DONOR_PRIVATE);
   });
@@ -206,16 +219,16 @@ describe("donation thank-you loader", () => {
 });
 
 describe("donation thank-you action", () => {
-  const post = () => {
+  const post = (id = DON_ID) => {
     const form = new FormData();
     form.set("type", "public_msg");
     form.set("msg", "hello");
     return (action as any)({
-      request: new Request(`https://app.test/donations/${DON_ID}`, {
+      request: new Request(`https://app.test/donations/${id}`, {
         method: "POST",
         body: form,
       }),
-      params: { id: DON_ID },
+      params: { id },
       context: {},
     });
   };
@@ -230,5 +243,14 @@ describe("donation thank-you action", () => {
     m.get_session.mockResolvedValue({ user: { email: "other@test.com" } });
 
     await expect(post()).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("lets the checkout cookie holder post through the legacy id", async () => {
+    m.cookie_parse.mockResolvedValue({ [DON_ID]: Date.now() + 60_000 });
+
+    await post(LEGACY_ID);
+
+    expect(to_auth).not.toHaveBeenCalled();
+    expect(m.get_session).not.toHaveBeenCalled();
   });
 });

@@ -50,7 +50,9 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
       <p className="mb-4 font-bold text-sm mt-8 text-primary text-center">
         Make your donation even more impactful
       </p>
-      {!widget_version && (
+      {/* the action refuses every write to a non-donor, so they get the page
+          read-only: the public message if there is one, and nothing to submit */}
+      {!widget_version && (data.is_donor || data.from_public_msg_to_npo) && (
         <Collapsible.Root className="w-full border bg-panel rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
@@ -80,7 +82,7 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
           </Collapsible.Content>
         </Collapsible.Root>
       )}
-      {data.to_type !== "fund" ? (
+      {data.is_donor && data.to_type !== "fund" ? (
         <Collapsible.Root className="w-full border bg-panel rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
@@ -112,7 +114,7 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
           </Collapsible.Content>
         </Collapsible.Root>
       ) : null}
-      {data.to_type !== "fund" && (
+      {data.is_donor && data.to_type !== "fund" && (
         <Collapsible.Root className="w-full border bg-panel rounded overflow-hidden mt-2">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">
             <span className="h-lh flex items-center shrink-0">
@@ -136,23 +138,26 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
       )}
       {/* the whole matching subject, capture included — not a peer of the
           collapsibles above, which are all "give the nonprofit something
-          extra". this one is between the donor and their employer. */}
-      <FilingDetails
-        classes="mt-2"
-        // the row's own id, not `params.id` — `donation_get` also resolves
-        // legacy v1 ids, and the reference an employer quotes must be the
-        // former or an arriving payment ties back to nothing
-        id={data.id}
-        date={data.created_at}
-        amount={data.amount.base}
-        currency={data.currency}
-        record_url={data.donate_thanks_url}
-        recipient={data.to_name}
-        employer={data.from_company_name}
-        filed={data.match_filed}
-        voided={data.match_voided}
-        matched={data.match_arrived}
-      />
+          extra". this one is between the donor and their employer, and only
+          the donor's payload carries the match state that picks its panel. */}
+      {data.is_donor && (
+        <FilingDetails
+          classes="mt-2"
+          // the row's own id, not `params.id` — `donation_get` also resolves
+          // legacy v1 ids, and the reference an employer quotes must be the
+          // former or an arriving payment ties back to nothing
+          id={data.id}
+          date={data.created_at}
+          amount={data.amount.base}
+          currency={data.currency}
+          record_url={data.donate_thanks_url}
+          recipient={data.to_name}
+          employer={data.from_company_name}
+          filed={data.match_filed}
+          voided={data.match_voided}
+          matched={data.match_arrived}
+        />
+      )}
       {!widget_version && (
         <Collapsible.Root className="mt-2 w-full border bg-panel rounded overflow-hidden">
           <Collapsible.Trigger className="group flex w-full items-start gap-x-2 p-4 text-left">

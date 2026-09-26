@@ -111,6 +111,7 @@ function make_loader_data(overrides: Record<string, any> = {}) {
     created_at: "2025-01-01T00:00:00Z",
     updated_at: "2025-01-01T00:00:00Z",
     match_filed: false,
+    is_donor: true,
     donate_url: "http://localhost/donate/123",
     donate_thanks_url: `http://localhost/donations/${DON_ID}`,
     profile_url: "http://localhost/marketplace/123",
@@ -118,7 +119,28 @@ function make_loader_data(overrides: Record<string, any> = {}) {
   };
 }
 
-function render_page(data: ReturnType<typeof make_loader_data>) {
+/** the loader's projection for a visitor who is not the donor */
+function make_public_loader_data(overrides: Record<string, any> = {}) {
+  return {
+    id: DON_ID,
+    created_at: "2025-01-01T00:00:00Z",
+    amount: { base: 100 },
+    currency: "USD",
+    to_id: "123",
+    to_name: "Test NPO",
+    to_type: "npo" as const,
+    source: "bg-marketplace",
+    form_id: undefined,
+    from_public_msg_to_npo: "Keep up the good work",
+    is_donor: false,
+    donate_url: "http://localhost/donate/123",
+    donate_thanks_url: `http://localhost/donations/${DON_ID}`,
+    profile_url: "http://localhost/marketplace/123",
+    ...overrides,
+  };
+}
+
+function render_page(data: object) {
   const Stub = createRoutesStub([
     {
       path: "/donations/:id",
@@ -397,6 +419,62 @@ describe("Page — rendering", () => {
       const svg = trigger.closest("button")?.querySelector("svg");
       expect(svg?.classList.contains("stroke-success")).toBe(true);
     });
+  });
+});
+
+describe("Page — a visitor who is not the donor", () => {
+  it("sees the gift and its public message but none of the donor's controls", async () => {
+    const screen = await render_page(make_public_loader_data());
+
+    await expect.element(screen.getByText(/share a message in/i)).toBeVisible();
+    await screen.getByText(/share a message in/i).click();
+    await expect
+      .element(screen.getByLabelText(/public message/i))
+      .toHaveValue("Keep up the good work");
+    await expect.element(screen.getByText(/spread the word/i)).toBeVisible();
+
+    // the action refuses every one of these to a non-donor
+    await expect
+      .element(screen.getByText(/send a private message/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText(/dedicate your donation/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /filed this/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("is not offered an empty public message form", async () => {
+    const screen = await render_page(
+      make_public_loader_data({ from_public_msg_to_npo: undefined })
+    );
+
+    await expect.element(screen.getByText(/spread the word/i)).toBeVisible();
+    await expect
+      .element(screen.getByText(/share a message in/i))
+      .not.toBeInTheDocument();
+  });
+
+  it("leaves the donor every control", async () => {
+    const screen = await render_page(make_loader_data());
+
+    await expect.element(screen.getByText(/share a message in/i)).toBeVisible();
+    await expect
+      .element(screen.getByText(/send a private message/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/dedicate your donation/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByLabelText(/where do you work/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /filed this/i }))
+      .toBeVisible();
   });
 });
 

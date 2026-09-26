@@ -35,13 +35,16 @@ import { npo_admins } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
 import { type Schema, schema } from "./schema";
 
-/** the donations cookie checkout minted for this id, else a session under the donor's email */
-async function donor_access(request: Request, id: string, don: IDonation) {
+/** an unexpired donations cookie entry for this donation, else a session under the donor's email */
+async function donor_access(request: Request, url_id: string, don: IDonation) {
   // cookie first: a guest checkout has no session to fall back on
   const expiry_per_intent = await donations_cookie
     .parse(request.headers.get("cookie"))
     .then<IDonationIntentExpiries>((x) => x || {});
-  if (expiry_per_intent[id] && expiry_per_intent[id] >= Date.now()) {
+  // checkout keys its entry by the row's own id, which a legacy v1 id in the
+  // url (resolved by `donation_get`) never matches
+  const unexpired = (k: string) => (expiry_per_intent[k] ?? 0) >= Date.now();
+  if (unexpired(don.id) || unexpired(url_id)) {
     return { is_donor: true, user: undefined };
   }
   const { user } = await get_session(request);
@@ -122,6 +125,7 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
     ...to_public(don),
     // the whole row, private fields included, and the match outcome are the donor's alone
     ...(is_donor ? { ...don, ...(await match_outcome(don)) } : {}),
+    is_donor,
     donate_url,
     donate_thanks_url,
     profile_url,
