@@ -92,25 +92,41 @@ describe("to_fund_receipts", () => {
   const printed = (xs: { to_name: string; amount: { value: number } }[]) =>
     xs.map((x) => [x.to_name, x.amount.value]);
 
-  test("an inactive member gets no receipt and the funded ones split the gift", () => {
+  test("a recipient inactive since settlement still gets its receipt and share", () => {
     const rs = to_fund_receipts(
       don(),
+      [10, 11, 12],
       [npo(10, "Alpha"), npo(11, "Beta", false), npo(12, "Gamma")],
       ctx
     );
 
-    // the payout skips an inactive member, so a third receipted to it is a
-    // deduction for money it never received
+    // settlement paid beta; the receipt states the gift it was paid from
+    expect(printed(rs)).toEqual([
+      ["Alpha", 33.34],
+      ["Beta", 33.33],
+      ["Gamma", 33.33],
+    ]);
+  });
+
+  test("an active member outside the recipient set gets no receipt", () => {
+    const rs = to_fund_receipts(
+      don(),
+      [10, 12],
+      [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
+      ctx
+    );
+
     expect(printed(rs)).toEqual([
       ["Alpha", 50],
       ["Gamma", 50],
     ]);
   });
 
-  test("members are receipted in id order whatever order they arrive in", () => {
+  test("recipients are receipted in id order whatever order they arrive in", () => {
     const rs = to_fund_receipts(
       don(),
-      [npo(12, "Gamma"), npo(10, "Alpha"), npo(11, "Beta")],
+      [12, 10, 11],
+      [npo(11, "Beta"), npo(12, "Gamma"), npo(10, "Alpha")],
       ctx
     );
 
@@ -123,10 +139,10 @@ describe("to_fund_receipts", () => {
     ]);
   });
 
-  test("a fund with no funded member throws rather than sending nothing", () => {
+  test("a fund with no recipient throws rather than sending nothing", () => {
     // an empty list would let the caller mark the receipt sent with no mail out
-    expect(() =>
-      to_fund_receipts(don(), [npo(11, "Beta", false)], ctx)
-    ).toThrow("fund-1");
+    expect(() => to_fund_receipts(don(), [], [npo(11, "Beta")], ctx)).toThrow(
+      "fund-1"
+    );
   });
 });

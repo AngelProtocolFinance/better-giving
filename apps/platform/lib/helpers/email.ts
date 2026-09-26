@@ -1,6 +1,5 @@
 import type { donation_receipt, IAmount, IDonor } from "emails";
 import type { IDonation } from "../donations/interfaces";
-import { is_funded_member } from "../settlement/funded-members";
 import { to_pretty_utc } from "./date";
 import { rd_vdec, rd2num, usdpu, vdec } from "./decimal/utils";
 
@@ -49,10 +48,10 @@ export const to_amount_shares = (
   }));
 };
 
+/** a member's display fields; who gets a receipt is the recipient id set */
 export interface IFundMember {
   id: number;
   name: string;
-  active?: boolean;
   receipt_msg?: string | null;
 }
 
@@ -68,25 +67,33 @@ type TFundDon = Pick<
   "id" | "to_id" | "created_at" | "amount" | "upusd" | "currency"
 >;
 
-/** one receipt per member the settlement pays, splitting the gift's base */
+/** one receipt per recipient, splitting the gift's base */
 export const to_fund_receipts = (
   d: TFundDon,
+  recipient_ids: number[],
   members: IFundMember[],
   ctx: IFundReceiptCtx
 ): donation_receipt.IData[] => {
-  // the first member takes the leftover unit, so the order can't be the query's
-  const funded = members.filter(is_funded_member).sort((a, b) => a.id - b.id);
-  if (funded.length === 0)
+  if (recipient_ids.length === 0)
     throw new Error(`Fund has no funded members: ${d.to_id}`);
+  const by_id = new Map(members.map((m) => [m.id, m]));
+  // the first recipient takes the leftover unit, so the order can't be the query's
+  const recipients = [...recipient_ids]
+    .sort((a, b) => a - b)
+    .map((id) => {
+      const npo = by_id.get(id);
+      if (!npo) throw new Error(`NPO not found: ${id}`);
+      return npo;
+    });
   const { base } = d.amount;
   const amounts = to_amount_shares(
     base,
     base / d.upusd,
     d.currency,
-    funded.length
+    recipients.length
   );
 
-  return funded.map((npo, i) => ({
+  return recipients.map((npo, i) => ({
     id: d.id,
     date: to_pretty_utc(d.created_at),
     amount: amounts[i]!,

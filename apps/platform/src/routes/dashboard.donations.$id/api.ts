@@ -11,8 +11,10 @@ import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount, to_fund_receipts } from "@/helpers/email";
 import { resp } from "@/helpers/https";
+import { is_funded_member } from "@/settlement/funded-members";
 import { send_email } from "$/email";
 import { app } from "$/env";
+import { dist_npo_ids_of } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
 import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 import { user_get } from "$/pg/queries/user";
@@ -112,10 +114,17 @@ async function send_receipts(d: IDonation, donor: IDonor) {
     await send_email({ node, subject, to: [d.from_email] });
   }
 
-  // fund: one receipt per funded member npo
+  // fund: one receipt per member settlement paid, active or not since
   if (d.to_type === "fund") {
-    const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    const receipts = to_fund_receipts(d, npos, {
+    const paid = await dist_npo_ids_of(d.id);
+    // no dists yet: the split hasn't run, so the members it will pay
+    const npos = await npos_batch_get(
+      paid.length ? paid : d.to_members.map((x) => +x)
+    );
+    const ids = paid.length
+      ? paid
+      : npos.filter(is_funded_member).map((n) => n.id);
+    const receipts = to_fund_receipts(d, ids, npos, {
       from: donor,
       tax_receipt_id: receipt_id,
       bg_npo_id: +app.npo_id,

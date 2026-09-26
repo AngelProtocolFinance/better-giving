@@ -2,6 +2,7 @@ import { donation_receipt, type IDonation as IDon, type IDonor } from "emails";
 import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount, to_fund_receipts } from "@/helpers/email";
+import { is_funded_member } from "@/settlement/funded-members";
 import { send_email_or_throw } from "$/email";
 import { app } from "$/env";
 import { npo_get, npos_batch_get } from "$/pg/queries/npo";
@@ -50,8 +51,11 @@ export const send_receipt = async (d: IDonation) => {
   }
 
   if (d.to_type === "fund") {
+    // queued beside the split, so it usually runs before settlement writes its
+    // dists: the recipients are the members the split is paying
     const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    const receipts = to_fund_receipts(d, npos, {
+    const ids = npos.filter(is_funded_member).map((n) => n.id);
+    const receipts = to_fund_receipts(d, ids, npos, {
       from: donor,
       tax_receipt_id: receipt_id,
       bg_npo_id: +app.npo_id,
