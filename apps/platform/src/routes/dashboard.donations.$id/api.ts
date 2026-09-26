@@ -112,7 +112,7 @@ async function send_receipts(d: IDonation, donor: IDonor) {
     await send_email({ node, subject, to: [d.from_email] });
   }
 
-  // fund: one receipt per member npo
+  // fund: one receipt per funded member npo
   if (d.to_type === "fund") {
     const npos = await npos_batch_get(d.to_members.map((x) => +x));
     const receipts = to_fund_receipts(d, npos, {

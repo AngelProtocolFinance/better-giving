@@ -26,8 +26,9 @@ const ENDED_AT_STRIPE = new Set<Stripe.Subscription.Status>([
 ]);
 
 /**
- * rows are born active, so the webhook only ever moves one to inactive —
- * stripe can't revive a canceled sub, so it never reactivates the row.
+ * rows are born active, so the webhook only ever moves one to inactive. it never
+ * reactivates one: an inactive row whose sub is still live at stripe is a cancel
+ * that hasn't landed there yet, not a recovery.
  * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
  */
 const row_status = (live: Stripe.Subscription.Status): TStatus | undefined => {

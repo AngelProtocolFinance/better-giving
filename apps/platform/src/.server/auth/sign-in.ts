@@ -20,8 +20,7 @@ const THROTTLED_CODE = "SIGN_IN_THROTTLED";
 const throttled = () =>
   new APIError("TOO_MANY_REQUESTS", {
     code: THROTTLED_CODE,
-    message:
-      "Too many sign-in attempts. Try again in a few minutes, or sign in with an email link.",
+    message: "Too many sign-in attempts. Try again in a few minutes.",
   });
 
 /** runs from `dispatchAuthEndpoint`, which the router and every `auth.api.*`
@@ -30,15 +29,16 @@ const throttled = () =>
 export const sign_in_hooks = {
   before: createAuthMiddleware(async (ctx) => {
     if (ctx.path !== PATH) return;
-    // the source pays first, so one that is already over its cap can't spend
-    // anybody's address quota.
+    // the source pays on every attempt, even one the address check refuses. a
+    // source over its cap is refused here, before the endpoint runs, so the
+    // after hook never charges an address for it.
     const ip = ctx.headers && client_ip(ctx.headers);
     if (ip && !consume(`sign-in:ip:${ip}`, SIGN_IN_PER_IP)) throw throttled();
     const key = email_key(ctx.body);
     if (key && !has_quota(key, SIGN_IN_PER_EMAIL)) throw throttled();
   }),
-  // only a wrong password spends the address's quota: charging every attempt
-  // lets anyone lock a stranger out, and a success is no guess.
+  // only a wrong password spends the address's quota: that is the guess the
+  // cap is for, and charging a success would throttle the account's owner.
   after: createAuthMiddleware(async (ctx) => {
     if (ctx.path !== PATH) return;
     const res = ctx.context.returned;

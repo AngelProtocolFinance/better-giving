@@ -48,8 +48,7 @@ import { account, session, user as user_table } from "$/pg/schema/auth";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { action } from "./route";
 
-const THROTTLED =
-  "Too many sign-in attempts. Try again in a few minutes, or sign in with an email link.";
+const THROTTLED = "Too many sign-in attempts. Try again in a few minutes.";
 const VICTIM = "victim@example.com";
 const RIGHT_PW = "Correct-horse-1";
 

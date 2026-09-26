@@ -24,7 +24,7 @@ const paypal_cancel_reason = (reason: string | null | undefined): string => {
   return capped.trimEnd() || "no reason provided";
 };
 
-/** terminal at stripe, where a cancel call errors; a retried or re-queued cancel finds them */
+/** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
 const STRIPE_ENDED = new Set(["canceled", "incomplete_expired"]);
 
 export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {

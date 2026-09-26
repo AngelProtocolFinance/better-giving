@@ -35,8 +35,7 @@ import { reset_rate_limits } from "./rate-limit";
 const BASE_URL = "http://localhost:4200";
 const VICTIM = "victim@example.com";
 const RIGHT_PW = "Correct-horse-1";
-const THROTTLED =
-  "Too many sign-in attempts. Try again in a few minutes, or sign in with an email link.";
+const THROTTLED = "Too many sign-in attempts. Try again in a few minutes.";
 
 let auth: ReturnType<typeof make_auth>;
 const make_auth = (db: TestDb["db"]) =>

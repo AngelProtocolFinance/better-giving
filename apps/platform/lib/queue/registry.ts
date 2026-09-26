@@ -199,8 +199,9 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   // only the welcome mail; registration's update side is `reg-updated`.
   "reg-created": { retries: 3 },
   "tip-received": { retries: 3 },
-  // a lost cancel keeps charging a donor who cancelled. a repeat is harmless:
-  // the stripe branch reads the live sub first and returns on one already ended.
+  // a lost cancel keeps charging a donor who cancelled. a stripe repeat is
+  // harmless: handle_sub_deactivated reads the live sub first and returns on
+  // one already ended.
   "sub-deactivated": { retries: 3 },
   // this handler reads the donation and writes an event row before it mails
   // anything, so its failure modes are transient db ones rather than duplicate
