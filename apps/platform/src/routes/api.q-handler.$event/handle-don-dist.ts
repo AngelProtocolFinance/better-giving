@@ -145,7 +145,7 @@ async function trigger_webhooks(r: IDonDistPayload) {
     recipient_name: r.to_name,
     amount: r.amount,
     amount_usd: r.amount_usd,
-    currency: "USD",
+    currency: r.amount_denom,
     donor_name: r.from?.name || "Anonymous",
     donor_email: r.from_email,
     program_id: r.program?.id,

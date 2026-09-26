@@ -6,13 +6,15 @@ import {
 } from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
-import { redirectWithSuccess } from "#/.server/toast";
-import { type IDonation, tax_receipt_id } from "@/donations";
+import { dataWithError, redirectWithSuccess } from "#/.server/toast";
+import { type IDonation, is_reversed, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
-import { to_amount } from "@/helpers/email";
+import { to_amount, to_fund_receipts } from "@/helpers/email";
 import { resp } from "@/helpers/https";
+import { is_funded_member } from "@/settlement/funded-members";
 import { send_email } from "$/email";
 import { app } from "$/env";
+import { dist_npo_ids_of } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
 import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 import { user_get } from "$/pg/queries/user";
@@ -60,6 +62,13 @@ export const action = async ({
 
   if (don.from_email.toLowerCase() !== user.email.toLowerCase()) {
     return resp.status(403);
+  }
+
+  if (is_reversed(don.status)) {
+    return dataWithError(
+      null,
+      "This donation was refunded, so it has no tax receipt to send."
+    );
   }
 
   const addr = [
@@ -112,25 +121,22 @@ async function send_receipts(d: IDonation, donor: IDonor) {
     await send_email({ node, subject, to: [d.from_email] });
   }
 
-  // fund: one receipt per member npo
+  // fund: one receipt per member settlement paid, active or not since
   if (d.to_type === "fund") {
-    const n = d.to_members.length;
-    const amt = to_amount(base / n, base / n / d.upusd, d.currency);
-    const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    for (const npo of npos) {
-      const don: IDon = {
-        id: d.id,
-        date: to_pretty_utc(d.created_at),
-        amount: amt,
-        to_name: npo.name,
-      };
-      const data: dr.IData = {
-        ...don,
-        is_bg: npo.id === +app.npo_id,
-        tax_receipt_id: receipt_id,
-        to_msg_to_from: npo.receipt_msg ?? undefined,
-        from: donor,
-      };
+    const paid = await dist_npo_ids_of(d.id);
+    // no dists yet: the split hasn't run, so the members it will pay
+    const npos = await npos_batch_get(
+      paid.length ? paid : d.to_members.map((x) => +x)
+    );
+    const ids = paid.length
+      ? paid
+      : npos.filter(is_funded_member).map((n) => n.id);
+    const receipts = to_fund_receipts(d, ids, npos, {
+      from: donor,
+      tax_receipt_id: receipt_id,
+      bg_npo_id: +app.npo_id,
+    });
+    for (const data of receipts) {
       const { node, subject } = dr.template(data);
       await send_email({ node, subject, to: [d.from_email] });
     }

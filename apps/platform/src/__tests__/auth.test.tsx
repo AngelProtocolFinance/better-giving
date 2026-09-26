@@ -144,6 +144,7 @@ import { betterAuth } from "better-auth/minimal";
 import { admin } from "better-auth/plugins/admin";
 import { eq } from "drizzle-orm";
 import { auth_options, login_link_plugin } from "#/.server/auth/options";
+import { reset_rate_limits } from "#/.server/auth/rate-limit";
 import { referral_id } from "#/helpers/referral";
 import {
   action as check_email_action,
@@ -241,6 +242,7 @@ beforeAll(async () => {
 }, 30_000);
 
 beforeEach(async () => {
+  reset_rate_limits();
   await test_db.current!.db.delete(verification);
   await test_db.current!.db.delete(session);
   await test_db.current!.db.delete(account);

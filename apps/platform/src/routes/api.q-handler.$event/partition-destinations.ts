@@ -1,5 +1,6 @@
 import type { IDonationSettled, IParent, TToType } from "@/donations";
 import { amnt_sum, partition } from "@/donations/helpers";
+import { is_funded_member } from "@/settlement/funded-members";
 import { shared_parts } from "@/settlement/plan";
 import type { IInput, IParts, ISource, ISttlmnt } from "@/types/donation-dist";
 import { form_get } from "$/pg/queries/form";
@@ -68,7 +69,7 @@ export const partition_destinations = async (b: IDonationSettled) => {
   if (prnt.type === "fund") {
     const members_data = await npos_batch_get(prnt.to_members.map((m) => +m));
     const active_members = members_data
-      .filter((m) => m.active !== false)
+      .filter(is_funded_member)
       .map((m) => m.id.toString());
     const n = active_members.length;
     if (n === 0) return { destinations };

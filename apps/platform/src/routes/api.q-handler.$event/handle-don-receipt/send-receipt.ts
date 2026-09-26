@@ -1,7 +1,8 @@
 import { donation_receipt, type IDonation as IDon, type IDonor } from "emails";
 import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
-import { to_amount } from "@/helpers/email";
+import { to_amount, to_fund_receipts } from "@/helpers/email";
+import { is_funded_member } from "@/settlement/funded-members";
 import { send_email_or_throw } from "$/email";
 import { app } from "$/env";
 import { npo_get, npos_batch_get } from "$/pg/queries/npo";
@@ -50,23 +51,16 @@ export const send_receipt = async (d: IDonation) => {
   }
 
   if (d.to_type === "fund") {
-    const n = d.to_members.length;
-    const amnt = to_amount(base / n, base / n / d.upusd, d.currency);
+    // queued beside the split, so it usually runs before settlement writes its
+    // dists: the recipients are the members the split is paying
     const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    for (const npo of npos) {
-      const don: IDon = {
-        id: d.id,
-        date: to_pretty_utc(d.created_at),
-        amount: amnt,
-        to_name: npo.name,
-      };
-      const x: donation_receipt.IData = {
-        ...don,
-        is_bg: npo.id === +app.npo_id,
-        tax_receipt_id: receipt_id,
-        to_msg_to_from: npo.receipt_msg ?? undefined,
-        from: donor,
-      };
+    const ids = npos.filter(is_funded_member).map((n) => n.id);
+    const receipts = to_fund_receipts(d, ids, npos, {
+      from: donor,
+      tax_receipt_id: receipt_id,
+      bg_npo_id: +app.npo_id,
+    });
+    for (const x of receipts) {
       const { node, subject } = donation_receipt.template(x);
       const res = await send_email_or_throw({
         node,
