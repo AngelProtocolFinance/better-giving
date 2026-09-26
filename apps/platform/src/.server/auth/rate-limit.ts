@@ -29,26 +29,41 @@ const buckets = new Map<string, Bucket>();
 /** past this, the oldest entries go — bounds a map nobody ever sweeps */
 const MAX_BUCKETS = 10_000;
 
-/** Records one use of `key` and reports whether it was within `quota`. */
-export function consume(key: string, quota: Quota): boolean {
+/** one use already counted against a window, which can be handed back */
+export interface Reservation {
+  /** returns the use to the window it was taken from. a no-op once that
+   * window has rolled over, and on every call after the first. */
+  release(): void;
+}
+
+/** Counts one use of `key` now, or returns null when `quota` has none left. */
+export function reserve(key: string, quota: Quota): Reservation | null {
   const now = Date.now();
-  const bucket = buckets.get(key);
+  let bucket = buckets.get(key);
 
   if (!bucket || now >= bucket.reset_at) {
     if (buckets.size >= MAX_BUCKETS) prune(now);
-    buckets.set(key, { count: 1, reset_at: now + quota.window_s * 1000 });
-    return true;
+    bucket = { count: 0, reset_at: now + quota.window_s * 1000 };
+    buckets.set(key, bucket);
   }
-
-  if (bucket.count >= quota.max) return false;
+  if (bucket.count >= quota.max) return null;
   bucket.count += 1;
-  return true;
+
+  // the bucket object is the window: a rollover or eviction replaces it
+  const window = bucket;
+  let released = false;
+  return {
+    release() {
+      if (released) return;
+      released = true;
+      if (buckets.get(key) === window) window.count -= 1;
+    },
+  };
 }
 
-/** Whether `key` has a use left under `quota`, without recording one. */
-export function has_quota(key: string, quota: Quota): boolean {
-  const bucket = buckets.get(key);
-  return !bucket || Date.now() >= bucket.reset_at || bucket.count < quota.max;
+/** Records one use of `key` and reports whether it was within `quota`. */
+export function consume(key: string, quota: Quota): boolean {
+  return reserve(key, quota) !== null;
 }
 
 function prune(now: number): void {

@@ -1,5 +1,11 @@
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
-import { client_ip, consume, has_quota, type Quota } from "./rate-limit";
+import {
+  client_ip,
+  consume,
+  type Quota,
+  type Reservation,
+  reserve,
+} from "./rate-limit";
 
 /** guessing one account's password. an honest typo streak is two or three */
 const SIGN_IN_PER_EMAIL: Quota = { max: 5, window_s: 5 * 60 };
@@ -23,6 +29,15 @@ const throttled = () =>
     message: "Too many sign-in attempts. Try again in a few minutes.",
   });
 
+const RESERVATION = Symbol("sign-in email reservation");
+
+/** `dispatchAuthEndpoint` gives each call its own copy of `ctx.context` and
+ * hands that same object to the before and after hooks — the infra plugin
+ * carries its visitor id across the same way. a symbol key survives the defu
+ * merge a before hook's returned context goes through. */
+const held = (ctx: { context: object }) =>
+  ctx.context as { [RESERVATION]?: Reservation };
+
 /** runs from `dispatchAuthEndpoint`, which the router and every `auth.api.*`
  * call both go through — so it binds `/api/auth/sign-in/email` and the
  * `/login` action alike. */
@@ -30,23 +45,25 @@ export const sign_in_hooks = {
   before: createAuthMiddleware(async (ctx) => {
     if (ctx.path !== PATH) return;
     // the source pays on every attempt, even one the address check refuses. a
-    // source over its cap is refused here, before the endpoint runs, so the
-    // after hook never charges an address for it.
+    // source over its cap is refused here, before the address is charged.
     const ip = ctx.headers && client_ip(ctx.headers);
     if (ip && !consume(`sign-in:ip:${ip}`, SIGN_IN_PER_IP)) throw throttled();
     const key = email_key(ctx.body);
-    if (key && !has_quota(key, SIGN_IN_PER_EMAIL)) throw throttled();
+    if (!key) return;
+    const reservation = reserve(key, SIGN_IN_PER_EMAIL);
+    if (!reservation) throw throttled();
+    held(ctx)[RESERVATION] = reservation;
   }),
-  // only a wrong password spends the address's quota: that is the guess the
-  // cap is for, and charging a success would throttle the account's owner.
+  // only a wrong password keeps its charge: that is the guess the cap is for,
+  // and charging a success would throttle the account's owner. the dispatcher
+  // turns an endpoint's thrown APIError into `returned`, so every refusal the
+  // endpoint makes lands here too.
   after: createAuthMiddleware(async (ctx) => {
     if (ctx.path !== PATH) return;
     const res = ctx.context.returned;
-    if (!isAPIError(res) || res.body?.code !== "INVALID_EMAIL_OR_PASSWORD") {
-      return;
-    }
-    const key = email_key(ctx.body);
-    if (key) consume(key, SIGN_IN_PER_EMAIL);
+    const guessed =
+      isAPIError(res) && res.body?.code === "INVALID_EMAIL_OR_PASSWORD";
+    if (!guessed) held(ctx)[RESERVATION]?.release();
   }),
 };
 

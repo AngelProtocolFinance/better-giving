@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { client_ip } from "./rate-limit";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { client_ip, reserve, reset_rate_limits } from "./rate-limit";
 
 const from = (value: string, name = "x-forwarded-for") =>
   client_ip(new Headers({ [name]: value }));
@@ -22,5 +22,38 @@ describe("client_ip", () => {
     expect(from("not-an-ip")).toBeNull();
     expect(from("evil:key", "x-vercel-forwarded-for")).toBeNull();
     expect(from("203.0.113.7")).toBe("203.0.113.7");
+  });
+});
+
+describe("reserve", () => {
+  const KEY = "k";
+  const QUOTA = { max: 2, window_s: 60 };
+
+  beforeEach(() => {
+    reset_rate_limits();
+    vi.useFakeTimers({ now: 0 });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("returns a use to its window only once, however often it is released", () => {
+    const first = reserve(KEY, QUOTA);
+    reserve(KEY, QUOTA);
+
+    first?.release();
+    first?.release();
+
+    expect(reserve(KEY, QUOTA)).not.toBeNull();
+    expect(reserve(KEY, QUOTA)).toBeNull();
+  });
+
+  it("leaves a newer window alone when released after its own rolled over", () => {
+    const stale = reserve(KEY, QUOTA);
+    vi.advanceTimersByTime(QUOTA.window_s * 1000);
+    reserve(KEY, QUOTA);
+    reserve(KEY, QUOTA);
+
+    stale?.release();
+
+    expect(reserve(KEY, QUOTA)).toBeNull();
   });
 });

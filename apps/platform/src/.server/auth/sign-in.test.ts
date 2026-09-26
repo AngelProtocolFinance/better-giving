@@ -122,9 +122,37 @@ describe("password sign-in throttle", () => {
     expect((await post(VICTIM, RIGHT_PW, elsewhere)).status).toBe(429);
   });
 
+  it("lets only five of a parallel burst of wrong passwords reach the password check", async () => {
+    const burst = Array.from({ length: 12 }, (_, i) =>
+      post(VICTIM, "wrong-guess", `198.51.100.${i + 1}`)
+    );
+
+    const statuses = (await Promise.all(burst)).map((r) => r.status);
+
+    expect(statuses.filter((s) => s === 401)).toHaveLength(5);
+    expect(statuses.filter((s) => s === 429)).toHaveLength(7);
+  });
+
   it("does not count a successful sign-in against the email", async () => {
     for (let i = 0; i < 6; i++) {
       expect((await post(VICTIM, RIGHT_PW)).status).toBe(200);
+    }
+  });
+
+  it("does not count a right password on an unverified address against the email", async () => {
+    const unverified = "new@example.com";
+    await auth.api.signUpEmail({
+      body: {
+        email: unverified,
+        password: RIGHT_PW,
+        name: "New",
+        first_name: "New",
+        last_name: "Comer",
+      },
+    });
+
+    for (let i = 0; i < 6; i++) {
+      expect((await post(unverified, RIGHT_PW)).status).toBe(403);
     }
   });
 });
