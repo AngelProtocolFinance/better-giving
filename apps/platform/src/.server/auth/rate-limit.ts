@@ -1,3 +1,5 @@
+import * as v from "valibot";
+
 /** Application-level throttling for auth work that runs server-side.
  *
  * better-auth's own limiter lives in its router's `onRequest`, so it only sees
@@ -43,6 +45,12 @@ export function consume(key: string, quota: Quota): boolean {
   return true;
 }
 
+/** Whether `key` has a use left under `quota`, without recording one. */
+export function has_quota(key: string, quota: Quota): boolean {
+  const bucket = buckets.get(key);
+  return !bucket || Date.now() >= bucket.reset_at || bucket.count < quota.max;
+}
+
 function prune(now: number): void {
   for (const [key, bucket] of buckets) {
     if (now >= bucket.reset_at) buckets.delete(key);
@@ -62,13 +70,51 @@ function prune(now: number): void {
  * better-auth's router or a loader. */
 const IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"] as const;
 
+const IPV4 = v.pipe(v.string(), v.ipv4());
+const IPV6 = v.pipe(v.string(), v.ipv6());
+
+/** the caller's address as a bucket key. an ipv6 client holds a whole /64, so
+ * it is keyed by that prefix — per-address keys would hand it a fresh quota
+ * per address. */
 export function client_ip(headers: Headers): string | null {
   for (const name of IP_HEADERS) {
     // a forwarding chain lists the client first
     const ip = headers.get(name)?.split(",")[0]?.trim();
-    if (ip) return ip;
+    if (!ip) continue;
+    if (v.is(IPV4, ip)) return ip;
+    if (v.is(IPV6, ip)) return ipv6_key(ip);
   }
   return null;
+}
+
+/** `2001:db8::1` → `2001:0db8:0000:0000:0000:0000:0000:0000`, better-auth's
+ * own key for the same /64. an ipv4-mapped address is an ipv4 client and keys
+ * as one — the /64 they share is `::`, every such client at once. */
+function ipv6_key(ip: string): string {
+  const g = ipv6_groups(ip);
+  const mapped = g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff;
+  if (mapped) {
+    const [hi = 0, lo = 0] = g.slice(6);
+    return [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff].join(".");
+  }
+  const prefix = g.slice(0, 4).map((x) => x.toString(16).padStart(4, "0"));
+  return [...prefix, "0000", "0000", "0000", "0000"].join(":");
+}
+
+/** the eight 16-bit groups of an address `IPV6` already accepted */
+function ipv6_groups(ip: string): number[] {
+  const parse = (part: string) =>
+    (part ? part.split(":") : []).flatMap((x) => {
+      if (!x.includes(".")) return [Number.parseInt(x, 16)];
+      const [a = 0, b = 0, c = 0, d = 0] = x.split(".").map(Number);
+      return [(a << 8) | b, (c << 8) | d];
+    });
+  const [head = "", tail] = ip.split("::");
+  const left = parse(head);
+  if (tail === undefined) return left;
+  const right = parse(tail);
+  const zeros = Array<number>(8 - left.length - right.length).fill(0);
+  return [...left, ...zeros, ...right];
 }
 
 /** test seam — the counters outlive a single request by design */

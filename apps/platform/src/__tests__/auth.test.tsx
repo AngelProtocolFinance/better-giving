@@ -46,9 +46,7 @@ vi.mock("$/email", () => ({
   sender: "test <test@test.com>",
 }));
 
-vi.mock("#/.server/auth", async () => ({
-  // the login action's throttle — real counters, reset per test below
-  ...(await import("#/.server/auth/rate-limit")),
+vi.mock("#/.server/auth", () => ({
   auth: new Proxy(
     {},
     {
