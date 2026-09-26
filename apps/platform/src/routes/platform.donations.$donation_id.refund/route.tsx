@@ -4,7 +4,7 @@ import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type { action, DistPreview } from "./api";
+import type { action, DistPreview, StripeRefundStatus } from "./api";
 
 export { action, loader } from "./api";
 
@@ -39,11 +39,7 @@ function Content({
       <div className="p-6 sm:p-8 text-center">
         <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
         <h3 className="text-lg font-bold mb-1">Refund processed</h3>
-        <p className="text-sm text-gray-11 mb-4">
-          {fetcher.data.stripe_refunded
-            ? "All records have been reversed and a Stripe refund issued."
-            : "All records have been reversed. No Stripe refund was issued, so no money was moved."}
-        </p>
+        <RefundOutcome status={fetcher.data.stripe_refund} />
         <button type="button" onClick={on_close} className="btn btn-primary">
           Close
         </button>
@@ -142,6 +138,29 @@ function Content({
         </button>
       </Actions>
     </div>
+  );
+}
+
+function RefundOutcome({ status }: { status: StripeRefundStatus | null }) {
+  if (status === "failed" || status === "canceled") {
+    return (
+      <div className="mb-4 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg text-left">
+        <p className="font-semibold">Stripe refund not completed</p>
+        <p>
+          All records have been reversed, but Stripe did not complete the
+          refund, so the donor has not been refunded. Resolve it in Stripe.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <p className="text-sm text-gray-11 mb-4">
+      {status === null
+        ? "All records have been reversed. No Stripe refund was issued, so no money was moved."
+        : status === "succeeded"
+          ? "All records have been reversed and the Stripe refund completed."
+          : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
+    </p>
   );
 }
 

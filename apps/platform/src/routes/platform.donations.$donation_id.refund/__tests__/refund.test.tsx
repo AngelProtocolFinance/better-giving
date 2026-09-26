@@ -155,20 +155,31 @@ describe("refund modal", () => {
     await expect
       .element(screen.getByText(/no money was moved/i))
       .toBeInTheDocument();
-    expect(screen.getByText(/stripe refund issued/i).query()).toBeNull();
+    expect(screen.getByText(/stripe refund completed/i).query()).toBeNull();
     expect(refunds_create).not.toHaveBeenCalled();
   });
 
-  it("reports the stripe refund when the settlement's payment was refunded", async () => {
+  it.each([
+    ["succeeded", /stripe refund completed/i],
+    ["pending", /awaiting stripe/i],
+    ["requires_action", /awaiting stripe/i],
+    ["failed", /donor has not been refunded/i],
+    ["canceled", /donor has not been refunded/i],
+  ])("reports a %s stripe refund by its status", async (status, wording) => {
+    refunds_create.mockResolvedValue({ id: "re_1", status });
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
 
     const screen = await open_and_confirm(id);
 
-    await expect
-      .element(screen.getByText(/stripe refund issued/i))
-      .toBeInTheDocument();
-    expect(screen.getByText(/no money was moved/i).query()).toBeNull();
+    await expect.element(screen.getByText(wording)).toBeInTheDocument();
+    const others = [
+      /stripe refund completed/i,
+      /awaiting stripe/i,
+      /donor has not been refunded/i,
+      /no money was moved/i,
+    ].filter((w) => String(w) !== String(wording));
+    for (const w of others) expect(screen.getByText(w).query()).toBeNull();
     expect(refunds_create).toHaveBeenCalledWith({ payment_intent: `pi_${id}` });
   });
 
