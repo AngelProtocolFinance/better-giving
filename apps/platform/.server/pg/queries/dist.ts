@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lte, or, sql } from "drizzle-orm";
 import type { IBalanceTx } from "@/balance-txs";
 import type { IDonationsSearch, IPageOpts } from "@/donations";
 import type { IAddr } from "@/types/donation";
@@ -237,6 +237,15 @@ export async function donation_has_dists(
     .where(eq(dists.donation_id, donation_id))
     .limit(1);
   return !!row;
+}
+
+/** npos the donation was split across, whatever each dist's status */
+export async function dist_npo_ids_of(donation_id: string): Promise<number[]> {
+  const rows = await db
+    .select({ to_id: dists.to_id })
+    .from(dists)
+    .where(and(eq(dists.donation_id, donation_id), isNotNull(dists.to_id)));
+  return rows.map((r) => r.to_id as number);
 }
 
 // -- refund support --
