@@ -24,8 +24,16 @@ const paypal_cancel_reason = (reason: string | null | undefined): string => {
   return capped.trimEnd() || "no reason provided";
 };
 
+/** terminal at stripe, where a cancel call errors; a retried or re-queued cancel finds them */
+const STRIPE_ENDED = new Set(["canceled", "incomplete_expired"]);
+
 export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {
   if (data.platform === "stripe") {
+    const live = await stripe.subscriptions.retrieve(data.id);
+    if (STRIPE_ENDED.has(live.status)) {
+      console.info(`subscription ${data.id} already ${live.status} on stripe`);
+      return;
+    }
     await stripe.subscriptions.cancel(data.id, {
       cancellation_details: {
         comment: data.status_cancel_reason ?? undefined,

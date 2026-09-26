@@ -19,11 +19,19 @@ import { handle_intent_succeeded } from "./handlers/intent-suceeded";
 import { handle_subscription_created } from "./handlers/subscription-created";
 import { BalanceTxnNotReadyError } from "./helpers/settled";
 
-/** undefined leaves the row's status as is: past_due, incomplete, trialing and paused can still recover */
+/** ended at stripe: nothing left to cancel there */
+const ENDED_AT_STRIPE = new Set<Stripe.Subscription.Status>([
+  "canceled",
+  "incomplete_expired",
+]);
+
+/**
+ * rows are born active, so the webhook only ever moves one to inactive —
+ * stripe can't revive a canceled sub, so it never reactivates the row.
+ * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
+ */
 const row_status = (live: Stripe.Subscription.Status): TStatus | undefined => {
   switch (live) {
-    case "active":
-      return "active";
     case "unpaid":
     case "canceled":
     case "incomplete_expired":
@@ -97,9 +105,12 @@ export async function action({ request }: Route.ActionArgs) {
           updated_at: new Date().toISOString(),
           ...(status && { status }),
         };
-        const { row, prev_status } = await sub_update(db, sub.id, update);
-        // unpaid: retries exhausted but the sub lives on at stripe, so cancel it there
-        if (row && sub.status === "unpaid" && prev_status === "active") {
+        const { row } = await sub_update(db, sub.id, update);
+        // an inactive row whose sub lives on at stripe is cancelled there: unpaid
+        // (retries exhausted), or a cancel we queued that never landed and still
+        // charges. on every delivery, since a failed enqueue is redelivered onto
+        // a row already inactive; the dedupe id collapses the repeats
+        if (row?.status === "inactive" && !ENDED_AT_STRIPE.has(sub.status)) {
           await enqueue(msg("sub-deactivated", row));
         }
         console.info(
@@ -108,7 +119,7 @@ export async function action({ request }: Route.ActionArgs) {
         break;
       }
       case "customer.subscription.deleted": {
-        // already ended at stripe, so no sub-deactivated: its cancel call would fail
+        // already ended at stripe, so nothing to cancel there
         await sub_update(db, stripe_event.data.object.id, {
           status: "inactive",
         });

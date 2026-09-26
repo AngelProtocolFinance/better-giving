@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import Stripe from "stripe";
 import {
   afterAll,
@@ -188,9 +189,18 @@ describe("customer.subscription lifecycle", () => {
       type: "customer.subscription.updated",
       data: { object: sub_obj(payload_status, PAYLOAD_END_UNIX) },
     });
-    sub_retrieve_mock.mockResolvedValue(sub_obj(live_status));
+    sub_retrieve_mock.mockImplementation(async (id: string) => {
+      if (id !== SUB_ID) throw new Error(`No such subscription: '${id}'`);
+      return sub_obj(live_status);
+    });
     return invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
   };
+
+  const set_row = (values: Partial<typeof subscriptions.$inferInsert>) =>
+    test_db
+      .current!.db.update(subscriptions)
+      .set(values)
+      .where(eq(subscriptions.id, SUB_ID));
 
   it("past_due keeps the gift active and refreshes next billing", async () => {
     const res = await deliver("past_due", "past_due");
@@ -214,11 +224,33 @@ describe("customer.subscription lifecycle", () => {
     });
   });
 
-  it("a redelivered unpaid event queues the cancel once", async () => {
-    await deliver("unpaid", "unpaid");
-    await deliver("unpaid", "unpaid");
+  it("an unpaid delivery whose enqueue failed queues the cancel on redelivery", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash unavailable"));
+    const failed = await deliver("unpaid", "unpaid");
+    expect(failed.status).toBe(400);
 
+    const res = await deliver("unpaid", "unpaid");
+
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).toHaveBeenCalledTimes(2);
+    expect(enqueue_mock.mock.calls[1]![0]).toMatchObject({
+      id: "sub-deactivated",
+      payload: { id: SUB_ID, platform: "stripe" },
+    });
+  });
+
+  it("unpaid on a gift already inactive queues the cancel", async () => {
+    await set_row({ status: "inactive" });
+
+    const res = await deliver("unpaid", "unpaid");
+
+    expect(res.status).toBe(200);
+    expect((await sub_get(SUB_ID))?.status).toBe("inactive");
     expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      id: "sub-deactivated",
+      payload: { id: SUB_ID, platform: "stripe" },
+    });
   });
 
   it.each(["canceled", "incomplete_expired"])(
@@ -244,6 +276,43 @@ describe("customer.subscription lifecycle", () => {
       expect(enqueue_mock).not.toHaveBeenCalled();
     }
   );
+
+  it("a cancel that never reached stripe stays cancelled and is queued again", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: "moving abroad",
+    });
+
+    const res = await deliver("active", "active");
+
+    expect(res.status).toBe(200);
+    const row = await sub_get(SUB_ID);
+    expect(row?.status).toBe("inactive");
+    expect(row?.next_billing).toBe(LIVE_END);
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      id: "sub-deactivated",
+      payload: {
+        id: SUB_ID,
+        platform: "stripe",
+        status_cancel_reason: "moving abroad",
+      },
+    });
+  });
+
+  it("past_due on a cancelled gift keeps it cancelled and queues the cancel again", async () => {
+    await set_row({ status: "inactive" });
+
+    const res = await deliver("past_due", "past_due");
+
+    expect(res.status).toBe(200);
+    expect((await sub_get(SUB_ID))?.status).toBe("inactive");
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      id: "sub-deactivated",
+      payload: { id: SUB_ID, platform: "stripe" },
+    });
+  });
 
   it("customer.subscription.deleted deactivates the gift without queueing a cancel", async () => {
     construct_event_mock.mockReturnValue({
