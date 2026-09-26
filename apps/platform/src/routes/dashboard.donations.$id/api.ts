@@ -8,9 +8,8 @@ import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import { type IDonation, tax_receipt_id } from "@/donations";
-import { to_amount_shares } from "@/helpers/amount-shares";
 import { to_pretty_utc } from "@/helpers/date";
-import { to_amount } from "@/helpers/email";
+import { to_amount, to_fund_receipts } from "@/helpers/email";
 import { resp } from "@/helpers/https";
 import { send_email } from "$/email";
 import { app } from "$/env";
@@ -116,21 +115,12 @@ async function send_receipts(d: IDonation, donor: IDonor) {
   // fund: one receipt per member npo
   if (d.to_type === "fund") {
     const npos = await npos_batch_get(d.to_members.map((x) => +x));
-    const amts = to_amount_shares(base, npos.length, d.upusd, d.currency);
-    for (const [i, npo] of npos.entries()) {
-      const don: IDon = {
-        id: d.id,
-        date: to_pretty_utc(d.created_at),
-        amount: amts[i],
-        to_name: npo.name,
-      };
-      const data: dr.IData = {
-        ...don,
-        is_bg: npo.id === +app.npo_id,
-        tax_receipt_id: receipt_id,
-        to_msg_to_from: npo.receipt_msg ?? undefined,
-        from: donor,
-      };
+    const receipts = to_fund_receipts(d, npos, {
+      from: donor,
+      tax_receipt_id: receipt_id,
+      bg_npo_id: +app.npo_id,
+    });
+    for (const data of receipts) {
       const { node, subject } = dr.template(data);
       await send_email({ node, subject, to: [d.from_email] });
     }

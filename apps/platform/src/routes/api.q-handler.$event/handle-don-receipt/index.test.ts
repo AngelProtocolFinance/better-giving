@@ -364,7 +364,7 @@ describe("handle_don_receipt - a holder that never comes back", () => {
 });
 
 describe("send_receipt - a gift to a fund", () => {
-  const seed_members = async (names: string[]) => {
+  const seed_members = async (names: string[], inactive: string[] = []) => {
     const db = test_db.current!.db;
     const rows = await db
       .insert(npos)
@@ -375,6 +375,7 @@ describe("send_receipt - a gift to a fund", () => {
           endow_designation: "Charity" as const,
           overview_pt: "[]",
           hq_country: "United States",
+          active: !inactive.includes(name),
         }))
       )
       .returning();
@@ -421,5 +422,43 @@ describe("send_receipt - a gift to a fund", () => {
       ["Alpha", "50.00"],
       ["Beta", "50.00"],
     ]);
+  });
+
+  test("an inactive member gets no receipt, as it gets no payout", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
+
+    await handle_don_receipt(fund_don(members));
+
+    expect(printed()).toEqual([
+      ["Alpha", "50.00"],
+      ["Gamma", "50.00"],
+    ]);
+  });
+
+  test("a crypto gift's receipts print the usd each member's share is worth", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+
+    // 0.001 btc at $100k prints 0 btc per share; the usd figure is the one
+    // the donor can deduct
+    await handle_don_receipt({
+      ...fund_don(members),
+      currency: "BTC",
+      upusd: 0.00001,
+      amount: { base: 0.001, tip: 0, fee_allowance: 0 },
+    });
+
+    const usd = send_email_or_throw.mock.calls.map(
+      ([i]) => (i as any).node.props.amount.value_usd
+    );
+    expect(usd).toEqual([33.34, 33.33, 33.33]);
+  });
+
+  test("a fund with no funded member fails instead of passing for sent", async () => {
+    const members = await seed_members(["Alpha"], ["Alpha"]);
+
+    await expect(handle_don_receipt(fund_don(members))).rejects.toThrow(
+      "fund-1"
+    );
+    expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 });
