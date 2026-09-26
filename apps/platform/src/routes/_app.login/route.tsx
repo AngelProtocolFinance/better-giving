@@ -11,7 +11,13 @@ import { eq } from "drizzle-orm";
 import { Mail } from "lucide-react";
 import { href, Link, redirect, useNavigation } from "react-router";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
-import { auth, get_session } from "#/.server/auth";
+import {
+  auth,
+  client_ip,
+  consume,
+  get_session,
+  type Quota,
+} from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
@@ -23,6 +29,11 @@ import { search } from "@/helpers/https";
 import { db } from "$/pg/db";
 import { account, user as userTable } from "$/pg/schema/auth";
 import type { Route } from "./+types/route";
+
+/** guessing one account's password. an honest typo streak is two or three */
+const SIGN_IN_PER_EMAIL: Quota = { max: 5, window_s: 5 * 60 };
+/** one source cycling addresses — credential stuffing. sized for a shared NAT */
+const SIGN_IN_PER_IP: Quota = { max: 20, window_s: 5 * 60 };
 
 export const action = async ({ request }: Route.ActionArgs) => {
   try {
@@ -57,18 +68,32 @@ export const action = async ({ request }: Route.ActionArgs) => {
       valibotResolver(sign_in)
     );
     if (payload.errors) return payload;
+    const email = payload.data.email.toLowerCase();
+
+    const ip = client_ip(request.headers);
+    const within_quota =
+      consume(`sign-in:email:${email}`, SIGN_IN_PER_EMAIL) &&
+      (!ip || consume(`sign-in:ip:${ip}`, SIGN_IN_PER_IP));
+    if (!within_quota) {
+      return {
+        errors: {
+          password: {
+            type: "value",
+            message: "Too many sign-in attempts. Try again in a few minutes.",
+          },
+        },
+        receivedValues: payload.receivedValues,
+      } satisfies IFormInvalid<ISignIn>;
+    }
 
     const res = await auth.api.signInEmail({
-      body: {
-        email: payload.data.email.toLowerCase(),
-        password: payload.data.password,
-      },
+      body: { email, password: payload.data.password },
+      headers: request.headers,
       asResponse: true,
     });
 
     if (!res.ok) {
       const err = await res.json();
-      const email = payload.data.email.toLowerCase();
 
       // better-auth cannot tell these two apart — both are a user row with no
       // credential to check a password against, so both come back as
