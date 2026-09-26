@@ -17,7 +17,11 @@ export const action: ActionFunction = async (args) => {
   const x = p.output;
   // `npo_admin_mdlwr` vouches for the url's npo only; the body's id is the client's say-so
   const npo_id = args.context.get(admin_ctx);
-  if (x.endowmentID !== npo_id) return resp.fail(403, "Not your nonprofit");
+  if (x.endowmentID !== npo_id)
+    return resp.fail(
+      403,
+      "A payout method can only be added to your own nonprofit"
+    );
 
   const count = await npo_bapp_count(npo_id);
   if (count >= 10) return resp.fail(400, "Max 10 payout methods allowed");

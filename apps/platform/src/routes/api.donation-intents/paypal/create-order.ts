@@ -28,7 +28,7 @@ export const create_order = async ({
   npo_name,
   ...amount
 }: IInput): Promise<string> => {
-  // unlisted currency: paypal rejects it at create; 2 keeps the amount well-formed until then
+  // unlisted currency: 2 decimals keeps the amount well-formed for paypal to accept or refuse
   const d = paypal_currencies[c] ?? 2;
 
   const base = to_minor(amount.base, d);

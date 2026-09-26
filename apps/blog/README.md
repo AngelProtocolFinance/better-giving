@@ -2,7 +2,7 @@
 
 Sanity Studio backing the `better-giving` web app's `/blog`.
 
-- projectId + dataset: hardcoded in three places that change together — `sanity.config.ts`,
+- projectId + dataset: hardcoded in three places that change together: `sanity.config.ts`,
   `sanity.cli.ts`, and `packages/types/blog/project.ts` (the copy the web app reads)
 - manage: https://www.sanity.io/manage/project/5820hdyj
 

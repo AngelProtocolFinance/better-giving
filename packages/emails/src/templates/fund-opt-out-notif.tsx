@@ -21,6 +21,6 @@ function Jsx({ opted_out_name, to_name }: IData) {
 export const template = (data: IData) => {
   return {
     node: <Jsx {...data} />,
-    subject: `${data.opted_out_name} opted out of your fundraiser.`,
+    subject: `Opted out of your fundraiser: ${data.opted_out_name}`,
   };
 };
