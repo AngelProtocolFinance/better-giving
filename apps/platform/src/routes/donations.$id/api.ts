@@ -14,6 +14,7 @@ import {
 import { dataWithSuccess } from "#/.server/toast";
 import { emails as bg_emails } from "@/constants/common";
 import { is_paid } from "@/donations/helpers";
+import type { IDonation } from "@/donations/interfaces";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { resp } from "@/helpers/https";
@@ -34,25 +35,39 @@ import { npo_admins } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
 import { type Schema, schema } from "./schema";
 
-export const loader = async ({ request, params }: Route.LoaderArgs) => {
-  const url = new URL(request.url);
-  const don = await donation_get(params.id);
-  if (!don) throw resp.status(404, "donation not found");
+/** an unexpired donations cookie entry for this donation, else a session under the donor's email */
+async function donor_access(request: Request, url_id: string, don: IDonation) {
+  // cookie first: a guest checkout has no session to fall back on
+  const expiry_per_intent = await donations_cookie
+    .parse(request.headers.get("cookie"))
+    .then<IDonationIntentExpiries>((x) => x || {});
+  // checkout keys its entry by the row's own id, which a legacy v1 id in the
+  // url (resolved by `donation_get`) never matches
+  const unexpired = (k: string) => (expiry_per_intent[k] ?? 0) >= Date.now();
+  if (unexpired(don.id) || unexpired(url_id)) {
+    return { is_donor: true, user: undefined };
+  }
+  const { user } = await get_session(request);
+  const is_donor =
+    !!user && user.email.toLowerCase() === don.from_email.toLowerCase();
+  return { is_donor, user };
+}
 
-  const base_url = url.origin;
-  const donate_thanks_path = href("/donations/:id", { id: params.id });
-  const donate_path =
-    don.to_type === "fund"
-      ? href("/donate-fund/:fund_id", { fund_id: don.to_id })
-      : href("/donate/:id", { id: don.to_id });
-  const donate_url = `${base_url}${donate_path}`;
-  const donate_thanks_url = `${base_url}${donate_thanks_path}`;
-  const profile_path =
-    don.to_type === "fund"
-      ? href("/fundraisers/:fund_id", { fund_id: don.to_id })
-      : href("/marketplace/:id", { id: don.to_id });
-  const profile_url = `${base_url}${profile_path}`;
+/** allowlist, so a column added to the row stays private until named here */
+const to_public = (don: IDonation) => ({
+  id: don.id,
+  created_at: don.created_at,
+  amount: { base: don.amount.base },
+  currency: don.currency,
+  to_id: don.to_id,
+  to_name: don.to_name,
+  to_type: don.to_type,
+  source: don.source,
+  form_id: don.form_id,
+  from_public_msg_to_npo: don.from_public_msg_to_npo,
+});
 
+async function match_outcome(don: IDonation) {
   // keyed off the row's own id, not `params.id` — `donation_get` also resolves
   // legacy v1 ids, and the event's foreign key points at the former.
   const match = await match_event_get(don.id);
@@ -68,10 +83,6 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
       : null;
 
   return {
-    ...don,
-    donate_url,
-    donate_thanks_url,
-    profile_url,
     // the donor said so; nothing else could tell us. additive field — an older
     // bundle that doesn't read it is unaffected.
     match_filed: !!match?.submitted_at,
@@ -86,6 +97,38 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
         // `tip: 0`, and the base is the money the employer actually sent
         { amount: matched_don.amount.base, currency: matched_don.currency }
       : undefined,
+  };
+}
+
+export const loader = async ({ request, params }: Route.LoaderArgs) => {
+  const url = new URL(request.url);
+  const don = await donation_get(params.id);
+  if (!don) throw resp.status(404, "donation not found");
+
+  const { is_donor } = await donor_access(request, params.id, don);
+
+  const base_url = url.origin;
+  const donate_thanks_path = href("/donations/:id", { id: params.id });
+  const donate_path =
+    don.to_type === "fund"
+      ? href("/donate-fund/:fund_id", { fund_id: don.to_id })
+      : href("/donate/:id", { id: don.to_id });
+  const donate_url = `${base_url}${donate_path}`;
+  const donate_thanks_url = `${base_url}${donate_thanks_path}`;
+  const profile_path =
+    don.to_type === "fund"
+      ? href("/fundraisers/:fund_id", { fund_id: don.to_id })
+      : href("/marketplace/:id", { id: don.to_id });
+  const profile_url = `${base_url}${profile_path}`;
+
+  return {
+    ...to_public(don),
+    // the whole row, private fields included, and the match outcome are the donor's alone
+    ...(is_donor ? { ...don, ...(await match_outcome(don)) } : {}),
+    is_donor,
+    donate_url,
+    donate_thanks_url,
+    profile_url,
   };
 };
 
@@ -115,23 +158,10 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
     );
   }
 
-  // prioritize cookie authentication over user authentication
-  const expiry_per_intent = await donations_cookie
-    .parse(request.headers.get("cookie"))
-    .then<IDonationIntentExpiries>((x) => x || {});
-
-  if (
-    expiry_per_intent?.[params.id] &&
-    expiry_per_intent[params.id] >= Date.now()
-  ) {
-    // cookie is valid, proceed without further auth checks
-  } else {
-    // fall back to user authentication
-    const { user } = await get_session(request);
-    if (!user) return to_auth(request);
-    if (user.email !== don.from_email) {
-      throw resp.status(403, "not authorized");
-    }
+  const access = await donor_access(request, params.id, don);
+  if (!access.is_donor) {
+    if (!access.user) return to_auth(request);
+    throw resp.status(403, "not authorized");
   }
 
   if (p.type === "tribute" && !don.tribute) {

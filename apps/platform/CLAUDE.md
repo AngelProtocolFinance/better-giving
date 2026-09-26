@@ -34,7 +34,6 @@ Three-layer structure:
 
 Ships as **`@better-giving/ui`** (`packages/ui/`) — the components, the style layer, and the pure helpers, reached only through the package's exports. Nothing under `src/components/` belongs to it; what is left there is app-specific (route chrome, `rich-text`, `img-editor`, `donation`, and the `DappLogo` in `components/image`).
 
-- **tokens** live in `packages/brand/src/colors.css` — the ledger governing them is under **## UI**, below.
 - **entry points**: `@better-giving/ui` (the barrel), `@better-giving/ui/tooltip` and `/hover-card` (namespaced — both export `Arrow`/`Content`, and a flat barrel holds one of each), `/masks`, `/helpers` (`to_usd`, `unpack` — no react import, ever), `/styles.css`.
 - `src/index.css` keeps only what is the app's: the `tailwindcss` import (the package must never issue its own), the `@source` registering `packages/ui/src` for content detection, the decorative marketing washes, and the `#donation-container` embed-runtime overrides.
 - **app reaches are injected, not imported.** `FileDropzone` takes `upload` and `report_error` as props — that is why the package carries no Sentry and no knowledge of our API routes.

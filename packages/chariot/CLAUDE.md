@@ -20,10 +20,6 @@ Internal package (`private`), a **built** server-side Chariot SDK. Ships the `Ch
 - **`tsconfig.json` extends `tsconfig.base.json`** and adds the emit config raw `tsc` needs (see the tsconfig comments). Same built-member pattern as paypal, which also emits via tsc.
 - After changing `src/`, run `pnpm --filter @better-giving/chariot build`.
 
-## Conventions
-
-- shared `typescript`/`@types/node` via `catalog:`. No `@biomejs/biome` devDep — root provides it.
-
 ## `generate` maintenance script
 
 `pnpm --filter @better-giving/chariot generate` = `tsx scripts/generate-types.ts` (`openapi-typescript` over `specs/chariot.yaml` → `src/generated/**`). Offline/occasional; regenerates the committed `src/generated`, which you then commit. To refresh the API surface, replace `specs/chariot.yaml` with the latest Chariot OpenAPI spec and re-run.

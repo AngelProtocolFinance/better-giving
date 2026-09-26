@@ -15,12 +15,14 @@ get.pnpm.io
 cdn.playwright.dev
 playwright.download.prss.microsoft.com
 ppa.launchpadcontent.net
+mcp.context7.com
 ```
 
 ## Setup script
 
 ```bash
 #!/bin/bash
+# kru v0.116.0
 set -uo pipefail
 exec > >(tee -a /tmp/setup.log) 2>&1
 

@@ -4,7 +4,7 @@ import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type { DistPreview } from "./api";
+import type { action, DistPreview, StripeRefundStatus } from "./api";
 
 export { action, loader } from "./api";
 
@@ -27,21 +27,19 @@ function Content({
   data: Route.ComponentProps["loaderData"];
   on_close: () => void;
 }) {
-  const fetcher = useFetcher();
-  const done = fetcher.data != null;
+  const fetcher = useFetcher<typeof action>();
+  const failures = fetcher.data?.ok === false ? fetcher.data.failures : [];
   const submitting = fetcher.state !== "idle";
   const has_blockers = data.previews.some((p) => p.blockers.length > 0);
   const no_dists = data.previews.length === 0;
   const has_warnings = data.total_loss > 0;
 
-  if (done) {
+  if (fetcher.data?.ok === true) {
     return (
       <div className="p-6 sm:p-8 text-center">
         <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
         <h3 className="text-lg font-bold mb-1">Refund processed</h3>
-        <p className="text-sm text-gray-11 mb-4">
-          All records have been reversed and Stripe refund issued.
-        </p>
+        <RefundOutcome status={fetcher.data.stripe_refund} />
         <button type="button" onClick={on_close} className="btn btn-primary">
           Close
         </button>
@@ -96,6 +94,24 @@ function Content({
         </div>
       )}
 
+      <div role="alert" id="refund-failures">
+        {failures.length > 0 && (
+          <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg">
+            <p className="font-semibold">Refund not completed</p>
+            <p>
+              Some distributions couldn't be reversed, so no Stripe refund was
+              issued and the donation is still settled. Resolve these before
+              retrying:
+            </p>
+            <ul className="list-disc pl-5 mt-1">
+              {failures.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
       <Actions band>
         <button
           type="button"
@@ -110,6 +126,7 @@ function Content({
           disabled={
             submitting || data.already_refunded || has_blockers || no_dists
           }
+          aria-describedby="refund-failures"
           onClick={() => fetcher.submit(null, { method: "post" })}
           className="btn btn-primary"
         >
@@ -121,6 +138,29 @@ function Content({
         </button>
       </Actions>
     </div>
+  );
+}
+
+function RefundOutcome({ status }: { status: StripeRefundStatus | null }) {
+  if (status === "failed" || status === "canceled") {
+    return (
+      <div className="mb-4 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg text-left">
+        <p className="font-semibold">Stripe refund not completed</p>
+        <p>
+          All records have been reversed, but Stripe did not complete the
+          refund, so the donor has not been refunded. Resolve it in Stripe.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <p className="text-sm text-gray-11 mb-4">
+      {status === null
+        ? "All records have been reversed. No Stripe refund was issued, so no money was moved."
+        : status === "succeeded"
+          ? "All records have been reversed and the Stripe refund completed."
+          : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
+    </p>
   );
 }
 

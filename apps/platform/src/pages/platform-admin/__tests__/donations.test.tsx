@@ -66,8 +66,15 @@ vi.mock("remix-client-cache", () => ({
 vi.mock("#/.server/toast", async () => {
   const { redirect } = await import("react-router");
   return {
-    dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
-    dataWithError: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
+    // the real helpers hand the payload back; the refund modal reads its `ok`
+    dataWithSuccess: vi.fn((d: object | null, msg: string) => ({
+      ...d,
+      toast: msg,
+    })),
+    dataWithError: vi.fn((d: object | null, msg: string) => ({
+      ...d,
+      toast: msg,
+    })),
     redirectWithSuccess: vi.fn((url: string, _msg: string) => redirect(url)),
   };
 });

@@ -1,6 +1,6 @@
 # @better-giving/stocks
 
-Internal package (`private`), a **built** stock ticker + broker-dealer data library. Zero runtime deps. Ships a small typed surface — the US-exchange ticker list and the SEC active broker-dealer name list — consumed by platform's stock donation flow via `workspace:*`. Built with **tsup**; extends `tsconfig.base.json` (tsup owns emit, so the tsconfig stays type-check-only).
+Internal package (`private`), a **built** stock ticker + broker-dealer data library. Zero runtime deps. Ships a small typed surface — the US-exchange ticker list and the SEC active broker-dealer name list — consumed by platform's stock donation flow via `workspace:*`. Built with **tsup**.
 
 ## Public API (platform relies on these exact names)
 
@@ -15,7 +15,7 @@ Internal package (`private`), a **built** stock ticker + broker-dealer data libr
 
 ## Build
 
-`build` = `tsup` (config in `tsup.config.ts`: single entry `src/index.ts`, ESM only, `dts: true`, target es2022) → `dist/index.js` + `dist/index.d.ts`. Runs in `turbo run build`; `outputs` caches `dist/**`. `dependsOn: ["^build"]` — nothing upstream, but the member is built before platform (its consumer).
+`build` = `tsup` (`tsup.config.ts`) → `dist/index.js` + `dist/index.d.ts`. Runs in `turbo run build`; `outputs` caches `dist/**`. `dependsOn: ["^build"]` — nothing upstream, but the member is built before platform (its consumer).
 
 - **extends `tsconfig.base.json`** — the base is `noEmit`/`module:preserve` and tsup owns emit, so the base policy fits as-is (stocks' tsconfig is type-check-only). Do NOT turn it into an emitting tsconfig; tsup owns emit.
 - JSON imports use the standard `with { type: "json" }` attribute; tsup and `node` both handle it. `resolveJsonModule` is on (from base).
@@ -24,7 +24,6 @@ Internal package (`private`), a **built** stock ticker + broker-dealer data libr
 ## Conventions
 
 - After changing `src/`, run `pnpm --filter @better-giving/stocks build` to type-check.
-- No `@biomejs/biome` devDep — root provides it.
 
 ## maintenance scripts
 

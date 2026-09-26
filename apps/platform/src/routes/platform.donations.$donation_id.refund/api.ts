@@ -27,6 +27,20 @@ export interface DistPreview {
   warnings: PreviewLine[];
 }
 
+const stripe_refund_statuses = [
+  "succeeded",
+  "pending",
+  "requires_action",
+  "failed",
+  "canceled",
+] as const;
+export type StripeRefundStatus = (typeof stripe_refund_statuses)[number];
+
+// stripe types `status` as an open `string | null`; an unlisted or missing one
+// is unconfirmed, and pending is the reading that claims no outcome
+const to_refund_status = (s: string | null): StripeRefundStatus =>
+  stripe_refund_statuses.find((x) => x === s) ?? "pending";
+
 export interface LoaderData {
   donation_id: string;
   already_refunded: boolean;
@@ -177,14 +191,16 @@ export const action = async ({ params }: Route.ActionArgs) => {
   // already-refunded 400 will bounce; failed dists must be fixed first.
   if (result.failures.length > 0) {
     return dataWithError(
-      { ok: false, failures: result.failures },
+      { ok: false as const, failures: result.failures },
       `Refund partial: ${result.failures.length} dist(s) failed`
     );
   }
 
   // stripe refund — manual route only
+  let stripe_refund: StripeRefundStatus | null = null;
   if (intent_id) {
-    await stripe.refunds.create({ payment_intent: intent_id });
+    const r = await stripe.refunds.create({ payment_intent: intent_id });
+    stripe_refund = to_refund_status(r.status);
   }
 
   // sub cancel — manual route only
@@ -199,5 +215,8 @@ export const action = async ({ params }: Route.ActionArgs) => {
     }
   }
 
-  return dataWithSuccess({ ok: true }, "Refund processed");
+  return dataWithSuccess(
+    { ok: true as const, stripe_refund },
+    "Refund processed"
+  );
 };

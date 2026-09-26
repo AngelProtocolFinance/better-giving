@@ -84,6 +84,25 @@ describe("api.crypto-intents numeric id", () => {
     });
   });
 
+  it("a resumed memo-tag payment carries its memo, so the deposit can be attributed", async () => {
+    get_payment_mock.mockResolvedValue({
+      payment_id: 777,
+      order_id: ORDER_ID,
+      payment_status: "waiting",
+      pay_address: "rDeposit",
+      payin_extra_id: "2718281828",
+      pay_amount: 12.5,
+      pay_currency: "xrp",
+      order_description: "NP Test NPO",
+    });
+    const res = await load(await cookie_for(ORDER_ID));
+    expect(res).toMatchObject({
+      address: "rDeposit",
+      extra_address: "2718281828",
+      currency: "XRP",
+    });
+  });
+
   it("a signed-in donor who owns the donation gets the payment from any device", async () => {
     get_session_mock.mockResolvedValue({ user: { email: OWNER } });
     const res = await load();

@@ -72,6 +72,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     return {
       id: p.payment_id,
       address: p.pay_address,
+      extra_address: p.payin_extra_id ?? undefined,
       amount: p.pay_amount,
       currency: p.pay_currency.toUpperCase(),
       usdpu: estimated.usdpu,
