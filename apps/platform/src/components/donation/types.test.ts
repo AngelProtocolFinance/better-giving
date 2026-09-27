@@ -93,12 +93,59 @@ describe("ira-qcd custodian", () => {
     const r = parse("a".repeat(101));
     expect(r.success).toBe(false);
     expect(r.issues?.map((i) => [v.getDotPath(i), i.message])).toEqual([
-      ["custodian", "can't be more than 100 characters"],
+      ["custodian", "Keep it to 100 characters"],
     ]);
   });
 
   test("exactly 100 characters is accepted", () => {
     expect(parse("a".repeat(100)).success).toBe(true);
+  });
+
+  // the form's resolver aborts the pipe early, so the donor reads the first
+  const first_issue = (custodian: string) => {
+    const i = parse(custodian).issues?.[0];
+    return i && [v.getDotPath(i), i.message];
+  };
+
+  test.each([
+    ["sentence text", "URGENT wire update, see https://evil.invalid/pay"],
+    ["an email", "ops@evil.invalid"],
+    ["a hash", "Fidelity #2"],
+  ])("%s is refused at the field with what it takes", (_, custodian) => {
+    expect(first_issue(custodian)).toEqual([
+      "custodian",
+      "Use letters, numbers, spaces and & ' . , ( ) * / - only",
+    ]);
+  });
+
+  test.each([
+    ["a bare host", "evil.com"],
+    ["a host and path", "evil.com/pay"],
+  ])("%s is refused at the field as a web address", (_, custodian) => {
+    expect(first_issue(custodian)).toEqual([
+      "custodian",
+      "Enter the firm's name, not a web address",
+    ]);
+  });
+
+  test.each([
+    "Charles Schwab & Co., Inc.",
+    "T. Rowe Price",
+    "Crédit Agricole",
+    "E*Trade",
+    "BNY Mellon/Pershing",
+  ])("%s is accepted", (custodian) => {
+    expect(parse(custodian).success).toBe(true);
+  });
+
+  // ios smart punctuation types ’ for ' by default
+  test.each([
+    ["a right", "Charles Schwab’s Trust Co.", "Charles Schwab's Trust Co."],
+    ["a left", "‘Schwab’ Trust Co.", "'Schwab' Trust Co."],
+  ])("%s curly apostrophe is sent as a straight one", (_, custodian, sent) => {
+    const r = parse(custodian);
+    expect(r.success).toBe(true);
+    expect(r.output).toMatchObject({ custodian: sent });
   });
 });
 
@@ -132,15 +179,22 @@ describe("donation amount precision", () => {
 
   test("a zero-decimal currency takes whole units only", () => {
     expect(field_issues(stripe("1000.5", "JPY", 150))).toEqual([
-      ["amount", "can't be more than 0 decimals"],
+      ["amount", "must be a whole number"],
     ]);
     expect(stripe("1000", "JPY", 150).success).toBe(true);
   });
 
-  test("a daf grant can't carry a fraction of a cent", () => {
-    expect(field_issues(daf("0.001"))).toEqual([
-      ["amount", "can't be more than 2 decimals"],
-    ]);
-    expect(daf("0.01").success).toBe(true);
+  test.each(["10.5", "0.01", "25.001"])(
+    "a daf grant of %s is refused: grants are whole dollars",
+    (amount) => {
+      expect(field_issues(daf(amount))).toEqual([
+        ["amount", "must be a whole dollar amount"],
+      ]);
+    }
+  );
+
+  test("a daf grant in whole dollars is accepted", () => {
+    expect(daf("25").success).toBe(true);
+    expect(daf("25.00").success).toBe(true);
   });
 });

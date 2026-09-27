@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { partition } from "@/donations/helpers";
 import type { Ctx } from "../types";
 
 const create_grant_mock = vi.hoisted(() => vi.fn());
@@ -39,26 +40,31 @@ beforeEach(() => {
 });
 
 describe("chariot_intent grant amount", () => {
-  it("creates a 19.99 total as a 1999-cent grant", async () => {
-    await chariot_intent(ctx({ base: 19.99, tip: 0, fee_allowance: 0 }));
-    expect(granted_cents()).toBe(1999);
+  it("refuses a total that isn't whole dollars before creating the grant", async () => {
+    const res = await chariot_intent(
+      ctx({ base: 10, tip: 0, fee_allowance: 0.3 })
+    );
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(400);
+    expect(await (res as Response).text()).toMatch(/whole dollar/i);
+    expect(create_grant_mock).not.toHaveBeenCalled();
   });
 
-  it("sums base, tip and fee allowance before converting: 8 + 0.51 + 1.20 is 971", async () => {
-    await chariot_intent(ctx({ base: 8, tip: 0.51, fee_allowance: 1.2 }));
-    expect(granted_cents()).toBe(971);
+  it("creates a whole-dollar total as its cents: 10 + 1 fee allowance is 1100", async () => {
+    await chariot_intent(ctx({ base: 10, tip: 0, fee_allowance: 1 }));
+    expect(granted_cents()).toBe(1100);
   });
 
-  it("grants the whole-cent sum of the parts, across a cent sweep", async () => {
+  it("grants every whole-dollar total whose parts carry float noise", async () => {
+    // raw `partition` output, as an older checkout bundle still posts it:
+    // $10 + 15% tip + covered fee, rescaled to whatever the donor granted
+    const split = partition({ base: 10, tip: 1.5, fee_allowance: 0.5 });
     const mismatches: string[] = [];
-    for (let c = 200; c <= 100_000; c += 7) {
+    for (let n = 3; n <= 5_000; n++) {
       create_grant_mock.mockClear();
-      await chariot_intent(
-        ctx({ base: c / 100, tip: 0.51, fee_allowance: 1.2 })
-      );
-      const expected = c + 51 + 120;
-      if (granted_cents() !== expected)
-        mismatches.push(`${c}: ${granted_cents()} vs ${expected}`);
+      await chariot_intent(ctx(split(n)));
+      const granted = create_grant_mock.mock.calls[0]?.[0].amount;
+      if (granted !== n * 100) mismatches.push(`${n}: ${granted}`);
     }
     expect(mismatches).toEqual([]);
   });

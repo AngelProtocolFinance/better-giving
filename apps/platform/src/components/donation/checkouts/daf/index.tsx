@@ -12,6 +12,7 @@ import type {
   IDonationIntent,
   IDonorAddress,
 } from "@/donations/schema";
+import { to_units } from "@/helpers/decimal";
 import { donation_amounts } from "../../common/amounts";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
@@ -34,6 +35,32 @@ const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
  */
 const PROMPT_SLOT = "daf-checkout";
 
+/** dafs grant whole dollars only: the total rounds up to the next dollar, the
+ * difference landing on the fee allowance when the donor covers fees, else on
+ * the tip. with neither, the base is the total as entered. */
+function whole_dollar_amounts({ base, tip, fee_allowance }: IAmount): IAmount {
+  if (!tip && !fee_allowance) return { base, tip, fee_allowance };
+  const cents = (x: number) => to_units(x, 2);
+  const total = cents(base) + cents(tip) + cents(fee_allowance);
+  const topup = Math.ceil(total / 100) * 100 - total;
+  return fee_allowance
+    ? { base, tip, fee_allowance: (cents(fee_allowance) + topup) / 100 }
+    : { base, tip: (cents(tip) + topup) / 100, fee_allowance };
+}
+
+/** `grant_cents` split in `amount`'s proportions, each part on whole cents and
+ * the base taking the rounding so the parts still sum to the grant */
+function split_in_cents(amount: IAmount, grant_cents: number): IAmount {
+  const scaled = partition(amount)(grant_cents);
+  const tip = Math.round(scaled.tip);
+  const fee_allowance = Math.round(scaled.fee_allowance);
+  return {
+    base: (grant_cents - tip - fee_allowance) / 100,
+    tip: tip / 100,
+    fee_allowance: fee_allowance / 100,
+  };
+}
+
 export function ChariotCheckout(props: DafDonationDetails) {
   const { don_set, don } = use_donation();
   const ask_prompt = use_ask_prompt();
@@ -47,15 +74,17 @@ export function ChariotCheckout(props: DafDonationDetails) {
   const [stuck, set_stuck] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
-  const { tip: tipv, fee_allowance: mfa } = donation_amounts(
-    {
-      amount: +props.amount,
-      tip_format: props.tip_format,
-      tip: props.tip,
-      cover_processing_fee: props.cover_processing_fee,
-    },
-    currency_precision(usd_option.code),
-    { rate: PROCESSING_RATES.chariot }
+  const { tip: tipv, fee_allowance: mfa } = whole_dollar_amounts(
+    donation_amounts(
+      {
+        amount: +props.amount,
+        tip_format: props.tip_format,
+        tip: props.tip,
+        cover_processing_fee: props.cover_processing_fee,
+      },
+      currency_precision(usd_option.code),
+      { rate: PROCESSING_RATES.chariot }
+    )
   );
 
   // refs for latest values so the chariot element doesn't re-mount on every change
@@ -150,9 +179,9 @@ export function ChariotCheckout(props: DafDonationDetails) {
         );
 
         /** user may input amount different from our donate form */
-        const parts = partition(m.amount);
-        const grant_amount: number = grantIntent.amount / 100;
-        const adj = parts(grant_amount);
+        const grant_cents: number = grantIntent.amount;
+        const grant_amount = grant_cents / 100;
+        const adj = split_in_cents(m.amount, grant_cents);
 
         //reflect adjustment to state
         don_set_ref.current((x) => ({

@@ -176,26 +176,29 @@ describe("daf checkout: a grant that goes through but never lands", () => {
   });
 });
 
-describe("daf checkout: the grant is what the summary shows", () => {
+describe("daf checkout: the grant is what the summary shows, in whole dollars", () => {
   afterEach(() => {
     for (const s of document.querySelectorAll(`script[src="${CDN_SRC}"]`)) {
       s.remove();
     }
   });
 
-  test("a covered fee lands on whole cents in the summary, the grant and its parts", async () => {
+  interface IConnectRequest {
+    amount: number;
+    metadata: {
+      don_id: string;
+      amount: { base: number; tip: number; fee_allowance: number };
+    };
+  }
+
+  /** renders the checkout and asks it for what it pre-populates connect with */
+  const open_connect = async (details: DafDonationDetails) => {
     const s = document.createElement("script");
     s.type = "text/plain";
     s.src = CDN_SRC;
     document.head.appendChild(s);
 
-    // 1 usd covered at 2.9% is a 0.0298… fee
-    const covered: DafDonationDetails = {
-      ...fv,
-      amount: "1",
-      cover_processing_fee: true,
-    };
-    const Stub = stb(<ChariotCheckout {...covered} />);
+    const Stub = stb(<ChariotCheckout {...details} />);
     const screen = await render(<Stub />);
 
     const el = (await vi.waitUntil(() =>
@@ -206,20 +209,134 @@ describe("daf checkout: the grant is what the summary shows", () => {
       request = cb;
     };
     el.dispatchEvent(new CustomEvent("CHARIOT_INIT"));
-    const grant = (await request?.()) as {
-      amount: number;
-      metadata: {
-        amount: { base: number; tip: number; fee_allowance: number };
-      };
-    };
+    const grant = (await request?.()) as IConnectRequest;
 
-    const dds = screen.container.querySelectorAll("dd");
-    expect(dds[dds.length - 1]?.textContent).toBe("$1.03");
-    expect(grant.amount).toBe(103);
+    const total_dt = [...screen.container.querySelectorAll("dt")].find((dt) =>
+      /^total\s+charge$/i.test(dt.textContent?.trim() ?? "")
+    );
+    const summary_total =
+      total_dt?.parentElement?.querySelector("dd")?.textContent;
+    return { el, grant, summary_total };
+  };
+
+  test("$10 with the fee covered is an $11 grant, the rounding on the fee allowance", async () => {
+    const { grant, summary_total } = await open_connect({
+      ...fv,
+      amount: "10",
+      cover_processing_fee: true,
+    });
+    expect(summary_total).toBe("$11.00");
+    expect(grant.amount).toBe(1100);
     expect(grant.metadata.amount).toEqual({
-      base: 1,
+      base: 10,
       tip: 0,
-      fee_allowance: 0.03,
+      fee_allowance: 1,
+    });
+  });
+
+  test("$10 with a 10% tip and no fee cover is an $11 grant", async () => {
+    const { grant, summary_total } = await open_connect({
+      ...fv,
+      amount: "10",
+      tip_format: "10",
+    });
+    expect(summary_total).toBe("$11.00");
+    expect(grant.amount).toBe(1100);
+  });
+
+  test("$10 with a 15% tip is a $12 grant, the rounding on the tip", async () => {
+    const { grant, summary_total } = await open_connect({
+      ...fv,
+      amount: "10",
+      tip_format: "15",
+    });
+    expect(summary_total).toBe("$12.00");
+    expect(grant.amount).toBe(1200);
+    expect(grant.metadata.amount).toEqual({
+      base: 10,
+      tip: 2,
+      fee_allowance: 0,
+    });
+  });
+
+  test("with a tip and the fee covered, the rounding goes on the fee allowance, not the tip", async () => {
+    const { grant, summary_total } = await open_connect({
+      ...fv,
+      amount: "10",
+      tip_format: "15",
+      cover_processing_fee: true,
+    });
+    expect(summary_total).toBe("$12.00");
+    expect(grant.amount).toBe(1200);
+    expect(grant.metadata.amount).toEqual({
+      base: 10,
+      tip: 1.5,
+      fee_allowance: 0.5,
+    });
+  });
+
+  test("$10 with nothing added is a $10 grant", async () => {
+    const { grant, summary_total } = await open_connect({
+      ...fv,
+      amount: "10",
+    });
+    expect(summary_total).toBe("$10.00");
+    expect(grant.amount).toBe(1000);
+    expect(grant.metadata.amount).toEqual({
+      base: 10,
+      tip: 0,
+      fee_allowance: 0,
+    });
+  });
+
+  /** what the checkout posts once chariot reports the grant authorized */
+  const posted_intent = async (
+    el: HTMLElement,
+    grantIntent: IConnectRequest
+  ) => {
+    let body: { amount: IConnectRequest["metadata"]["amount"] } | undefined;
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), async ({ request }) => {
+        body = (await request.json()) as typeof body;
+        return HttpResponse.json({ id: "don_1" });
+      })
+    );
+    el.dispatchEvent(
+      new CustomEvent("CHARIOT_SUCCESS", {
+        detail: { ...success_detail, grantIntent },
+      })
+    );
+    return vi.waitUntil(() => body);
+  };
+
+  test("the intent posted after the donor authorizes adds up to the grant the summary showed", async () => {
+    const { el, grant, summary_total } = await open_connect({
+      ...fv,
+      amount: "10",
+      tip_format: "15",
+      cover_processing_fee: true,
+    });
+    const intent = await posted_intent(el, grant);
+
+    expect(summary_total).toBe("$12.00");
+    expect(grant.amount).toBe(1200);
+    expect(intent.amount).toEqual({ base: 10, tip: 1.5, fee_allowance: 0.5 });
+  });
+
+  test("a grant the donor changed in connect is split into whole cents that add up to it", async () => {
+    const { el, grant } = await open_connect({
+      ...fv,
+      amount: "10",
+      tip_format: "15",
+      cover_processing_fee: true,
+    });
+    // 10 : 1.5 : 0.5 of $20 is 16.666… : 2.5 : 0.833…
+    const intent = await posted_intent(el, { ...grant, amount: 2000 });
+
+    expect(intent.amount).toEqual({
+      base: 16.67,
+      tip: 2.5,
+      fee_allowance: 0.83,
     });
   });
 });

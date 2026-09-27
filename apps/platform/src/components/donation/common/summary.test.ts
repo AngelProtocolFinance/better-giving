@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
+import { currency } from "./currency";
 import { Summary } from "./summary";
 import { token } from "./token";
 
@@ -18,5 +19,21 @@ describe("Summary", () => {
     );
     const dds = html.match(/<dd[^>]*>[^<]*<\/dd>/g) ?? [];
     expect(dds.at(-1)).toMatch(/>0\.001201 /);
+  });
+
+  test("a currency's figures carry its own decimal places", () => {
+    const total = (code: string, rate: number, amount: number) => {
+      const html = renderToStaticMarkup(
+        createElement(Summary, {
+          Amount: currency({ code, rate, min: 1 }),
+          on_back: () => {},
+          amount,
+        })
+      );
+      return html.match(/<dd[^>]*>([^<]*)<\/dd>/g)?.at(-1);
+    };
+    expect(total("JPY", 150, 1500)).toMatch(/>JPY 1,500 \(\$10\.00\)</);
+    expect(total("ISK", 150, 1500)).toMatch(/>ISK 1,500 \(\$10\.00\)</);
+    expect(total("USD", 1, 12.3)).toMatch(/>\$12\.30</);
   });
 });

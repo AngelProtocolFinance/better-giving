@@ -130,7 +130,7 @@ const token_fv = v.pipe(
         const num_decimals = amount.toString().split(".").at(1)?.length ?? 0;
         return num_decimals <= precision;
       },
-      (x) => `can't be more than ${x.input.precision} decimals`
+      (x) => too_precise(x.input.precision)
     ),
     ["amount"]
   )
@@ -195,7 +195,9 @@ const is_within_precision = (amount: string, precision: number) =>
   !amount || Number.isInteger(snap(+amount * 10 ** precision));
 
 const too_precise = (precision: number) =>
-  `can't be more than ${precision} decimals`;
+  precision === 0
+    ? "must be a whole number"
+    : `can't be more than ${precision} decimals`;
 
 const is_min_met = (input: { amount: string; currency: ICurrencyFv }) => {
   if (!input.currency.min) return true;
@@ -285,8 +287,8 @@ export const daf_donation_details = v.pipe(
   v.forward(
     v.partialCheck(
       [["amount"]],
-      ({ amount }) => is_within_precision(amount, currency_precision("USD")),
-      too_precise(currency_precision("USD"))
+      ({ amount }) => is_within_precision(amount, 0),
+      "must be a whole dollar amount"
     ),
     ["amount"]
   ),
@@ -300,10 +302,21 @@ const ira_qcd_donation_details_raw = v.object({
   amount: amount({ required: true }),
   ...tip_fv.entries,
   custodian: v.optional(
+    // mirrors api.donation-notifications, which refuses anything else
     v.pipe(
       v.string(),
       v.trim(),
-      v.maxLength(100, "can't be more than 100 characters")
+      // ios smart punctuation
+      v.transform((s) => s.replace(/[‘’]/g, "'")),
+      v.maxLength(100, "Keep it to 100 characters"),
+      v.regex(
+        /^[\p{L}\d &'.,()*/-]*$/u,
+        "Use letters, numbers, spaces and & ' . , ( ) * / - only"
+      ),
+      v.check(
+        (s) => !/[\p{L}\d-]\.\p{L}{2,}/u.test(s),
+        "Enter the firm's name, not a web address"
+      )
     )
   ),
 });
