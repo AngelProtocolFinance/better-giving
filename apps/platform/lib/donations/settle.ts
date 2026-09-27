@@ -95,11 +95,10 @@ export function settle_msgs(
   row: IDonationSettled,
   opts: { match: boolean }
 ): IMsg[] {
-  const msgs: IMsg[] = [msg("don-sttl-dist", row)];
-  // a fund's receipt lists the members the split paid, so the split queues it.
-  // queued here as well, this copy would take the dedupe key first and the
-  // split's would be dropped.
-  if (row.to_type !== "fund") msgs.push(msg("don-sttl-receipt", row));
+  const msgs: IMsg[] = [
+    msg("don-sttl-dist", row),
+    msg("don-sttl-receipt", row),
+  ];
   if (!opts.match) return msgs;
 
   // normalized only to decide whether a name was given at all: input that is

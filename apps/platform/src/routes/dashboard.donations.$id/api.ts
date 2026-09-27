@@ -117,7 +117,7 @@ export const action = async ({
     address: addr,
   };
 
-  const data = await build_receipt(don, donor, "resend").catch((e) => {
+  const data = await build_receipt(don, donor).catch((e) => {
     if (e instanceof NpoNotFoundError || e instanceof ReceiptNotReadyError) {
       return e;
     }

@@ -1,9 +1,9 @@
 import { donation_receipt, type IDonor } from "emails";
-import type { IDonSttlReceiptPayload } from "@/queue";
+import type { IDonation } from "@/donations";
 import { send_email_or_throw } from "$/email";
 import { build_receipt } from "$/receipt";
 
-export const send_receipt = async (d: IDonSttlReceiptPayload) => {
+export const send_receipt = async (d: IDonation) => {
   const donor: IDonor = {
     first_name: d.from_name?.split(" ")[0] ?? "Donor",
     full_name: d.from_name ?? "Valued Donor",
@@ -17,7 +17,7 @@ export const send_receipt = async (d: IDonSttlReceiptPayload) => {
       .filter(Boolean)
       .join(", "),
   };
-  const x = await build_receipt(d, donor, "settlement");
+  const x = await build_receipt(d, donor);
 
   const { node, subject } = donation_receipt.template(x);
   const res = await send_email_or_throw({ node, subject, to: [d.from_email] });

@@ -11,11 +11,16 @@ import {
   vi,
 } from "vitest";
 import type { IDonation } from "@/donations";
+import type { IMsg } from "@/queue";
+import { user } from "$/pg/schema/auth";
+import { dists } from "$/pg/schema/dist";
 import {
   donation_donors,
   donation_recipients,
+  donation_settlements,
   donations,
 } from "$/pg/schema/donation";
+import { funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -75,11 +80,17 @@ vi.mock("$/pg/queries/donation", async (orig) => {
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
 
+// a fund receipt that has to wait is scheduled off the fifo queue; what gets
+// scheduled is the whole outcome of that wait
+const schedule = vi.hoisted(() => vi.fn(async (..._msgs: IMsg[]) => {}));
+vi.mock("$/kit/queue", () => ({ schedule }));
+
 // --- imports (after mocks) ---
 
+import { seed_fund, seed_user } from "#/__tests__/fixtures/funds";
 import { claim_receipt_send, RECEIPT_LEASE_MS } from "$/pg/queries/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { handle_don_receipt } from ".";
+import { handle_don_fund_receipt, handle_don_receipt } from ".";
 
 // --- setup ---
 
@@ -99,9 +110,12 @@ beforeEach(async () => {
   fail_release.current = false;
   fail_stamp.times = 0;
   const db = test_db.current!.db;
+  await db.delete(dists);
   await db.delete(donation_donors);
   await db.delete(donation_recipients);
   await db.delete(donations);
+  await db.delete(funds);
+  await db.delete(user);
   await db.delete(npos);
 
   const [npo] = await db
@@ -384,13 +398,40 @@ describe("send_receipt - a gift to a fund", () => {
     return rows.map((r) => String(r.id));
   };
 
-  const fund_don = (to_members: string[]): IDonation => ({
-    ...don(),
-    to_id: "fund-1",
-    to_name: "Climate Fund",
-    to_type: "fund",
-    to_members,
+  const fund_don = (to_members: string[], o: Partial<IDonation> = {}) =>
+    ({
+      ...don(),
+      to_id: "fund-1",
+      to_name: "Climate Fund",
+      to_type: "fund",
+      to_members,
+      ...o,
+    }) as IDonation;
+
+  /** the paid dists of a split of `base` over `of` members, one per id landed */
+  const seed_dists = async (ids: string[], base = 100, of = ids.length) => {
+    if (!ids.length) return;
+    await test_db.current!.db.insert(dists).values(
+      ids.map((id) => ({
+        id: `dist-${id}`,
+        donation_id: DON_ID,
+        status: "settled" as const,
+        date_created: "2026-01-01T00:00:00.000Z",
+        to_id: +id,
+        amount: base / of,
+        amount_denom: "USD",
+      }))
+    );
+  };
+
+  const settled = (date: string) => ({
+    id: "sttl-1",
+    date,
+    currency: "USD",
+    net: 97,
+    fee: 3,
   });
+  const just_now = () => new Date(Date.now() - 60_000).toISOString();
 
   /** the one receipt mailed, as each line prints */
   const printed = () => {
@@ -401,11 +442,11 @@ describe("send_receipt - a gift to a fund", () => {
 
   test("a tipped gift to three members is one receipt under one number", async () => {
     const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists(members);
 
-    await handle_don_receipt({
-      ...fund_don(members),
-      amount: { base: 100, tip: 5, fee_allowance: 0 },
-    });
+    await handle_don_receipt(
+      fund_don(members, { amount: { base: 100, tip: 5, fee_allowance: 0 } })
+    );
 
     // one gift, one tax document: every member and the tip under one receipt
     // id, each line a row of it
@@ -428,6 +469,7 @@ describe("send_receipt - a gift to a fund", () => {
 
   test("the members' receipts add up to the gift", async () => {
     const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists(members);
 
     await handle_don_receipt(fund_don(members));
 
@@ -440,55 +482,11 @@ describe("send_receipt - a gift to a fund", () => {
     ]);
   });
 
-  test("a member that no longer exists does not take a share", async () => {
-    const [a, b] = await seed_members(["Alpha", "Beta"]);
-
-    // a third of the gift split to a member with no receipt is money the
-    // donor can't deduct
-    await handle_don_receipt(fund_don([a!, "999999", b!]));
-
-    expect(printed()).toEqual([
-      ["Alpha", "50.00"],
-      ["Beta", "50.00"],
-    ]);
-  });
-
-  test("an inactive member gets no receipt, as it gets no payout", async () => {
-    const members = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
-
-    await handle_don_receipt(fund_don(members));
-
-    expect(printed()).toEqual([
-      ["Alpha", "50.00"],
-      ["Gamma", "50.00"],
-    ]);
-  });
-
-  test("a crypto gift's receipts print the usd each member's share is worth", async () => {
-    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
-
-    // 0.001 btc at $100k prints 0 btc per share; the usd figure is the one
-    // the donor can deduct
-    await handle_don_receipt({
-      ...fund_don(members),
-      currency: "BTC",
-      upusd: 0.00001,
-      amount: { base: 0.001, tip: 0, fee_allowance: 0 },
-    });
-
-    const usd = send_email_or_throw.mock.calls[0]![0].node.props.lines.map(
-      (l: any) => l.amount.value_usd
-    );
-    expect(usd).toEqual([33.34, 33.33, 33.33]);
-  });
-
   test("a member the split paid, deactivated since, is still on the receipt", async () => {
     const members = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
+    await seed_dists(members);
 
-    await handle_don_receipt({
-      ...fund_don(members),
-      to_paid: members.map(Number),
-    });
+    await handle_don_receipt(fund_don(members));
 
     expect(printed()).toEqual([
       ["Alpha", "33.34"],
@@ -497,36 +495,182 @@ describe("send_receipt - a gift to a fund", () => {
     ]);
   });
 
-  test("a member activated after the split, unpaid, is not on the receipt", async () => {
+  test("a member the split picked but whose dist never landed is not on the receipt", async () => {
+    // beta went inactive between the split and its dist, so it was never paid
+    const [a, b, c] = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
+    await seed_dists([a!, c!], 100, 3);
+
+    await handle_don_receipt(fund_don([a!, b!, c!]));
+
+    // nor are alpha and gamma at 50.00 each: they were paid a third apiece
+    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
+  });
+
+  test("a crypto gift's receipts print the usd each member's share is worth", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists(members, 0.001);
+
+    // 0.001 btc at $100k prints 0 btc per share; the usd figure is the one
+    // the donor can deduct
+    await handle_don_receipt(
+      fund_don(members, {
+        currency: "BTC",
+        upusd: 0.00001,
+        amount: { base: 0.001, tip: 0, fee_allowance: 0 },
+      })
+    );
+
+    const usd = send_email_or_throw.mock.calls[0]![0].node.props.lines.map(
+      (l: any) => l.amount.value_usd
+    );
+    expect(usd).toEqual([33.34, 33.33, 33.33]);
+  });
+
+  test("a split stuck short, long settled, names the fund for the whole gift", async () => {
     const [a, b, c] = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists([a!], 100, 3);
 
-    await handle_don_receipt({
-      ...fund_don([a!, b!, c!]),
-      to_paid: [+a!, +c!],
-    });
+    await handle_don_receipt(fund_don([a!, b!, c!]));
 
+    // alpha got a third: printing the whole gift beside it would overstate it
+    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
+  });
+
+  test("a split that paid nobody, long settled, names the fund", async () => {
+    const members = await seed_members(["Alpha"]);
+
+    // naming the members funded now would name orgs that got nothing
+    await handle_don_receipt(fund_don(members));
+
+    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
+  });
+
+  test("mid-split, waits off the queue instead of mailing a short list", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists(members.slice(0, 1), 100, 3);
+
+    await handle_don_receipt(
+      fund_don(members, { settlement: settled(just_now()) })
+    );
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(schedule).toHaveBeenCalledOnce();
+    expect(schedule.mock.calls[0]).toEqual([
+      expect.objectContaining({
+        id: "don-fund-receipt",
+        payload: { id: DON_ID, attempt: 1 },
+        dedupe: `don.fund-receipt_${DON_ID}_1`,
+        delay_s: 60,
+      }),
+    ]);
+    // the wait holds no lease: the scheduled send is free to claim it
+    expect(await claim_receipt_send(DON_ID)).toBe(true);
+  });
+
+  test("a split that just finished mails without waiting", async () => {
+    const members = await seed_members(["Alpha", "Beta"]);
+    await seed_dists(members);
+
+    await handle_don_receipt(
+      fund_don(members, { settlement: settled(just_now()) })
+    );
+
+    expect(schedule).not.toHaveBeenCalled();
     expect(printed()).toEqual([
       ["Alpha", "50.00"],
-      ["Gamma", "50.00"],
+      ["Beta", "50.00"],
     ]);
   });
 
-  test("a split that paid nobody fails instead of passing for sent", async () => {
-    const members = await seed_members(["Alpha"]);
+  describe("the scheduled wait", () => {
+    /** the donation row itself becomes a gift to a fund, settled at `date` */
+    const as_fund_row = async (members: string[], date: string) => {
+      const db = test_db.current!.db;
+      const creator = await seed_user(db, "creator@test.com");
+      await seed_fund(db, {
+        id: "fund-1",
+        npo_owner: null,
+        creator_id: creator!.id,
+      });
+      await db
+        .update(donation_recipients)
+        .set({
+          type: "fund",
+          npo_id: null,
+          fund_id: "fund-1",
+          name: "Climate Fund",
+          members: members.map(Number),
+        })
+        .where(eq(donation_recipients.donation_id, DON_ID));
+      await db.insert(donation_settlements).values({
+        donation_id: DON_ID,
+        sttl_id: "sttl-1",
+        date,
+        currency: "USD",
+        net: 97,
+        fee: 3,
+      });
+    };
 
-    await expect(
-      handle_don_receipt({ ...fund_don(members), to_paid: [] })
-    ).rejects.toThrow(`no recipients for donation ${DON_ID}`);
-    expect(send_email_or_throw).not.toHaveBeenCalled();
-  });
+    test("still short, waits again; once the split lands, mails once", async () => {
+      const [a, b] = await seed_members(["Alpha", "Beta"]);
+      await as_fund_row([a!, b!], just_now());
+      await seed_dists([a!], 100, 2);
 
-  test("a fund with no funded member fails instead of passing for sent", async () => {
-    const members = await seed_members(["Alpha"], ["Alpha"]);
+      await handle_don_fund_receipt({ id: DON_ID, attempt: 1 });
 
-    await expect(handle_don_receipt(fund_don(members))).rejects.toThrow(
-      `no recipients for donation ${DON_ID}`
-    );
-    expect(send_email_or_throw).not.toHaveBeenCalled();
+      expect(send_email_or_throw).not.toHaveBeenCalled();
+      expect(schedule.mock.calls[0]![0]!.payload).toEqual({
+        id: DON_ID,
+        attempt: 2,
+      });
+
+      await test_db.current!.db.insert(dists).values({
+        id: `dist-${b}`,
+        donation_id: DON_ID,
+        status: "settled",
+        date_created: "2026-01-01T00:00:00.000Z",
+        to_id: +b!,
+        amount: 50,
+        amount_denom: "USD",
+      });
+      await handle_don_fund_receipt({ id: DON_ID, attempt: 2 });
+      await handle_don_fund_receipt({ id: DON_ID, attempt: 2 });
+
+      expect(schedule).toHaveBeenCalledOnce();
+      expect(printed()).toEqual([
+        ["Alpha", "50.00"],
+        ["Beta", "50.00"],
+      ]);
+    });
+
+    test("a gift refunded while it waited mails nothing and stops waiting", async () => {
+      const [a, b] = await seed_members(["Alpha", "Beta"]);
+      await as_fund_row([a!, b!], just_now());
+      await seed_dists([a!], 100, 2);
+      await test_db
+        .current!.db.update(donations)
+        .set({ status: "refunded" })
+        .where(eq(donations.id, DON_ID));
+
+      await handle_don_fund_receipt({ id: DON_ID, attempt: 1 });
+
+      expect(schedule).not.toHaveBeenCalled();
+      expect(send_email_or_throw).not.toHaveBeenCalled();
+    });
+
+    test("a split that never lands stops waiting and fails", async () => {
+      const [a, b] = await seed_members(["Alpha", "Beta"]);
+      // a settlement date ahead of the clock never leaves the window
+      await as_fund_row([a!, b!], new Date(Date.now() + 864e5).toISOString());
+      await seed_dists([a!], 100, 2);
+
+      await expect(
+        handle_don_fund_receipt({ id: DON_ID, attempt: 15 })
+      ).rejects.toThrow();
+      expect(schedule).not.toHaveBeenCalled();
+      expect(send_email_or_throw).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -602,6 +746,18 @@ describe("send_receipt - the mail the donor reads", () => {
         }))
       )
       .returning();
+
+    await db.insert(dists).values(
+      rows.map((r) => ({
+        id: `dist-${r.id}`,
+        donation_id: DON_ID,
+        status: "settled" as const,
+        date_created: "2026-01-01T00:00:00.000Z",
+        to_id: r.id,
+        amount: 50,
+        amount_denom: "USD",
+      }))
+    );
 
     await handle_don_receipt({
       ...don(),

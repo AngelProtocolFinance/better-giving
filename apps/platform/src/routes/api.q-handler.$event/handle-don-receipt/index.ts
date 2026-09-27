@@ -3,20 +3,46 @@ import {
   donation_tribute_notif as dtn,
 } from "emails";
 import { report_error } from "#/errors/report";
+import { type IDonation, is_reversed } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
-import type { IDonSttlReceiptPayload } from "@/queue";
+import { type IDonFundReceiptPayload, msg } from "@/queue";
 import { send_email_or_throw } from "$/email";
+import { schedule } from "$/kit/queue";
 import {
   claim_receipt_send,
+  donation_get,
   mark_receipt_sent,
   release_receipt_send,
 } from "$/pg/queries/donation";
 import { npo_admins } from "$/pg/queries/user";
+import { fund_paid_ids, ReceiptNotReadyError } from "$/receipt";
 import { send_receipt } from "./send-receipt";
 
-export async function handle_don_receipt(don: IDonSttlReceiptPayload) {
+/** one-minute waits pass `SPLIT_WINDOW_MS` (`$/receipt`) well before this;
+ * it bounds a settlement date the clock never passes */
+const MAX_FUND_WAITS = 15;
+
+/**
+ * `attempt` is how many times this fund gift has already waited on its split.
+ *
+ * a fund receipt names the members its dists paid, and the split writes them
+ * one at a time on another queue. short of the whole split this schedules
+ * `don-fund-receipt` and returns: throwing for a retry would park the receipt
+ * at the head of the fifo queue with every other notification behind it. the
+ * wait is decided before the claim, so it holds no lease.
+ */
+export async function handle_don_receipt(don: IDonation, attempt = 0) {
+  if (don.to_type === "fund" && !(await split_landed(don))) {
+    if (attempt >= MAX_FUND_WAITS) {
+      throw new Error(`split of ${don.id} not landed after ${attempt} waits`);
+    }
+    const next = { id: don.id, attempt: attempt + 1 };
+    await schedule(msg("don-fund-receipt", next));
+    return;
+  }
+
   // the stamp goes first and the loser stops here. every provider's settle
   // path queues this message, and a redelivery of it — from qstash or from the
   // provider handler re-queueing after a failed enqueue — would otherwise
@@ -105,7 +131,25 @@ async function stamp_sent(donation_id: string, attempts = 5) {
   }
 }
 
-async function sends(don: IDonSttlReceiptPayload) {
+/** a fund receipt that waited on its split. the payload is only the id, so the
+ * donation is read again: a refund may have landed while it waited. */
+export async function handle_don_fund_receipt(p: IDonFundReceiptPayload) {
+  const don = await donation_get(p.id);
+  if (!don || is_reversed(don.status)) return;
+  await handle_don_receipt(don, p.attempt);
+}
+
+/** false only while the split may still be landing */
+const split_landed = (don: IDonation) =>
+  fund_paid_ids(don).then(
+    () => true,
+    (e) => {
+      if (e instanceof ReceiptNotReadyError) return false;
+      throw e;
+    }
+  );
+
+async function sends(don: IDonation) {
   await send_receipt(don);
 
   // private message email
