@@ -96,7 +96,10 @@ Locators match **substrings** by default (`browser.locators.exact: false` in `vi
 screen.getByText("tip", { exact: true })
 screen.getByText("US", { exact: true }) // avoids matching "USD"
 screen.getByRole("heading", { name: "Active", exact: true }) // avoids "Inactive"
+screen.getByRole("button", { name: "Submit", exact: true }) // avoids the pending "Submitting…"
 ```
+
+A wait for a button to return from its pending label is the case that bites: without `exact`, `name: "Submit"` already matches "Submitting…", so the wait resolves at once and the test reads state mid-flight.
 
 `exact: true` is **whole-string**, and vitest 4 ignored the option where 5 enforces it — so a prefix written under 4 passed and now fails. `getByText("Car", { exact: true })` does not match a cell reading "Card": pass the whole string, or drop `exact` to match the substring.
 
@@ -183,6 +186,17 @@ await vi.waitFor(() => {
     new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
   );
   expect(document.body).not.toMatchTextContent("modal body");
+});
+```
+
+### A press right after a route change
+
+State that resets in a `useEffect` (a submit latch, a "sent" flag) lags the paint of the new route by a beat, so a single press as soon as the button appears can land on the old state and be swallowed — about 1 run in 3 in `src/pages/platform-admin/redeem-requests/prompt.test.tsx`. Retry the press inside `vi.waitFor`, guarded by the count you expect, so a state that never resets still times out red:
+
+```tsx
+await vi.waitFor(() => {
+  if (action.mock.calls.length < 2) press(submit.element());
+  expect(action).toHaveBeenCalledTimes(2);
 });
 ```
 
@@ -344,6 +358,25 @@ beforeAll(async () => {
 });
 ```
 
+### Two-writer races (dedupe keys, compare-and-set)
+
+A test that two concurrent writes produce one dedupe key passes whenever both land in the same millisecond, whether or not the compare-and-set exists — the keys carry a timestamp. Fake only `Date` and move the clock 1ms on every write through the db proxy, so each writer stamps a different time and only the compare-and-set can collapse them (`src/routes/_app.register.$reg_id._steps.5/submit-action.test.ts`):
+
+```tsx
+const test_db = vi.hoisted(() => ({
+  current: null as TestDb | null,
+  before_update: () => {},
+}));
+// inside the $/pg/db proxy's get():
+if (prop === "update") test_db.before_update();
+
+// in the race test
+vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-09-01") });
+test_db.before_update = () => vi.setSystemTime(Date.now() + 1);
+```
+
+Reset `before_update` to a no-op in `afterEach`. Freezing the clock instead makes the test unable to fail: two writers without the compare-and-set then share one key too.
+
 ### Queue mock (integration tests)
 
 Files importing `$/kit/queue` transitively read `process.env` (via `$/env`). Server modules read `process.env.X` at module scope because they also run on node, and vitest defines each `test.env` key only as `import.meta.env.X`. The browser project therefore adds a `process.env.<KEY>` define per key (`vite.config.ts`), so those reads are literals in the bundle — there is no `process` polyfill, and a `process.env: {}` catch-all sits under the per-key defines so a key absent from `env` reads `undefined` rather than throwing `ReferenceError: process is not defined`; this skill typically still mocks the queue itself to assert enqueued payloads:
@@ -462,6 +495,8 @@ it("user sees balance, transfers, balances update", async () => {
 | global `screen` import | use `screen` from `await render()` return value |
 | `getAllByRole` / `getAllByText` | no `getAllBy*` — use `getByRole(...).nth(0)`, `.all()`, `.elements()` |
 | `getByText("tip")` matches "Tips" too | add `{ exact: true }` for ambiguous short strings |
+| waiting for `name: "Submit"` after a submit | it already matches "Submitting…" — add `exact: true` |
+| dedupe race passes with the compare-and-set removed | the writes share a millisecond — tick a faked `Date` 1ms per write (Two-writer races) |
 | `userEvent.setup()` + `user.click()` | `locator.click()` directly on the locator |
 | `findByRole` / `findByText` | `getByRole` + `expect.element().toBeVisible()` |
 | `waitFor(() => getBy*())` | `await expect.element(getBy*()).toBeVisible()` |
