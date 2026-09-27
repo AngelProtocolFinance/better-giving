@@ -3,13 +3,14 @@ import { donation_receipt as dr, type IDonor } from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { dataWithError, redirectWithSuccess } from "#/.server/toast";
-import { type IDonation, is_reversed } from "@/donations";
+import { is_reversed } from "@/donations";
 import { resp } from "@/helpers/https";
-import { send_email } from "$/email";
-import { dist_npo_ids_of, donation_refund_started } from "$/pg/queries/dist";
+import { send_email_or_throw } from "$/email";
+import { stripe } from "$/kit/stripe";
+import { donation_refund_started } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
 import { user_get } from "$/pg/queries/user";
-import { build_receipt } from "$/receipt";
+import { build_receipt, NpoNotFoundError } from "$/receipt";
 import type { Route } from "./+types/route";
 import { type FV, schema } from "./schema";
 
@@ -63,7 +64,21 @@ export const action = async ({
     );
   }
 
-  // a partial or unfinalized refund leaves the donation settled
+  // a partial stripe refund writes nothing to the donation or its dists, so
+  // only the charge knows the full amount no longer stands
+  if (
+    don.via.startsWith("stripe") &&
+    don.settlement &&
+    (await charge_refunded(don.settlement.id))
+  ) {
+    return dataWithError(
+      null,
+      "This gift was partly refunded, so we can't resend its original receipt. Contact support for an updated one."
+    );
+  }
+
+  // a refund run whose dist reversals didn't all complete leaves the donation
+  // settled
   if (await donation_refund_started(don.id)) {
     return dataWithError(
       null,
@@ -89,15 +104,34 @@ export const action = async ({
     address: addr,
   };
 
-  await send_receipt(don, donor);
+  const data = await build_receipt(don, donor).catch((e) => {
+    if (e instanceof NpoNotFoundError) return null;
+    throw e;
+  });
+  if (!data) return resp.status(404);
+  const { node, subject } = dr.template(data);
+  // the refusal is reported where it is caught, in `send_email`
+  const sent = await send_email_or_throw({
+    node,
+    subject,
+    to: [don.from_email],
+  }).catch(() => null);
+  if (!sent) {
+    return dataWithError(
+      null,
+      "We couldn't send your receipt. Please try again."
+    );
+  }
 
   return redirectWithSuccess("..", "Receipt sent");
 };
 
-/** the gift's one receipt; a fund's lists each member settlement paid, active or not since */
-async function send_receipt(d: IDonation, donor: IDonor) {
-  const paid = d.to_type === "fund" ? await dist_npo_ids_of(d.id) : [];
-  const data = await build_receipt(d, donor, paid);
-  const { node, subject } = dr.template(data);
-  await send_email({ node, subject, to: [d.from_email] });
+/** any part of the charge behind this intent given back */
+async function charge_refunded(intent_id: string): Promise<boolean> {
+  const { latest_charge: lc } = await stripe.paymentIntents.retrieve(
+    intent_id,
+    { expand: ["latest_charge"] }
+  );
+  if (typeof lc === "string") throw new Error(`charge not expanded: ${lc}`);
+  return (lc?.amount_refunded ?? 0) > 0;
 }

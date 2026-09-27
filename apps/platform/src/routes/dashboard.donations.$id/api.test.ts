@@ -11,11 +11,20 @@ vi.mock("#/.server/toast", () => ({
 }));
 vi.mock("$/env", () => ({ app: { npo_id: "1" } }));
 
-const send_email = vi.hoisted(() => vi.fn());
 const send_email_or_throw = vi.hoisted(() =>
-  vi.fn(async () => ({ id: "e-1" }))
+  vi.fn(async (_i: { node: any; to: string[]; subject: string }) => ({
+    id: "e-1",
+  }))
 );
-vi.mock("$/email", () => ({ send_email, send_email_or_throw }));
+vi.mock("$/email", () => ({ send_email_or_throw }));
+
+const charge = vi.hoisted(() => ({ amount_refunded: 0 }));
+const retrieve_intent = vi.hoisted(() =>
+  vi.fn(async (_id: string, _o?: unknown) => ({ latest_charge: charge }))
+);
+vi.mock("$/kit/stripe", () => ({
+  stripe: { paymentIntents: { retrieve: retrieve_intent } },
+}));
 
 const store = vi.hoisted(() => ({
   don: null as unknown,
@@ -93,14 +102,14 @@ const resend = () =>
 
 /** the one receipt mailed, as each line prints */
 const printed = () => {
-  expect(send_email).toHaveBeenCalledOnce();
-  const p = (send_email.mock.calls[0]![0] as any).node.props;
+  expect(send_email_or_throw).toHaveBeenCalledOnce();
+  const p = send_email_or_throw.mock.calls[0]![0].node.props;
   return p.lines.map((l: any) => [l.name, l.amount.value.toFixed(2)]);
 };
 
 describe("send_receipts - resending a fund gift's receipts", () => {
   beforeEach(() => {
-    send_email.mockClear();
+    send_email_or_throw.mockClear();
     store.npos = [
       npo(10, "Alpha"),
       npo(11, "Beta", false),
@@ -138,7 +147,7 @@ describe("send_receipts - resending a fund gift's receipts", () => {
 
 describe("resending a refunded gift's receipts", () => {
   beforeEach(() => {
-    send_email.mockClear();
+    send_email_or_throw.mockClear();
     store.npos = [npo(10, "Alpha"), npo(12, "Gamma")];
     store.dist_ids = [10, 12];
   });
@@ -153,7 +162,7 @@ describe("resending a refunded gift's receipts", () => {
 
       const res = await resend();
 
-      expect(send_email).not.toHaveBeenCalled();
+      expect(send_email_or_throw).not.toHaveBeenCalled();
       expect(res).toEqual({
         error: "This donation was refunded, so it has no tax receipt to send.",
       });
@@ -163,7 +172,7 @@ describe("resending a refunded gift's receipts", () => {
 
 describe("resending a gift a refund has started on", () => {
   beforeEach(() => {
-    send_email.mockClear();
+    send_email_or_throw.mockClear();
     store.npos = [npo(10, "Alpha"), npo(12, "Gamma")];
     store.dist_ids = [10, 12];
     store.don = fund_don(["10", "12"], {
@@ -179,7 +188,7 @@ describe("resending a gift a refund has started on", () => {
 
     const res = await resend();
 
-    expect(send_email).not.toHaveBeenCalled();
+    expect(send_email_or_throw).not.toHaveBeenCalled();
     expect(res).toEqual({
       error:
         "This donation is being refunded, so it has no tax receipt to send.",
@@ -199,9 +208,83 @@ describe("resending a gift a refund has started on", () => {
   });
 });
 
+describe("resending a stripe gift", () => {
+  beforeEach(() => {
+    send_email_or_throw.mockClear();
+    retrieve_intent.mockClear();
+    store.refund_statuses = [];
+    store.dist_ids = [];
+    store.npos = [npo(10, "Alpha")];
+    store.don = {
+      ...fund_don(["10"]),
+      settlement: {
+        id: "pi_1",
+        date: "2026-01-01",
+        currency: "USD",
+        net: 97,
+        fee: 3,
+      },
+    } as IDonation;
+  });
+
+  test("a partly refunded charge mails nothing and says why", async () => {
+    // a partial refund only alerts finance: nothing on the donation or its
+    // dists says the full amount no longer stands
+    charge.amount_refunded = 2500;
+
+    const res = await resend();
+
+    expect(retrieve_intent).toHaveBeenCalledWith("pi_1", {
+      expand: ["latest_charge"],
+    });
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(res).toEqual({
+      error:
+        "This gift was partly refunded, so we can't resend its original receipt. Contact support for an updated one.",
+    });
+  });
+
+  test("an unrefunded charge gets its receipt", async () => {
+    charge.amount_refunded = 0;
+
+    await resend();
+
+    expect(printed()).toEqual([["Alpha", "100.00"]]);
+  });
+});
+
+describe("a resend that fails", () => {
+  beforeEach(() => {
+    send_email_or_throw.mockClear();
+    store.refund_statuses = [];
+    store.dist_ids = [];
+    store.npos = [npo(10, "Alpha")];
+    store.don = fund_don(["10"]);
+  });
+
+  test("a mail the provider refused says so instead of 'Receipt sent'", async () => {
+    send_email_or_throw.mockRejectedValueOnce(new Error("550"));
+
+    const res = await resend();
+
+    expect(res).toEqual({
+      error: "We couldn't send your receipt. Please try again.",
+    });
+  });
+
+  test("a gift to a nonprofit that no longer exists is not found", async () => {
+    store.don = { ...fund_don([]), to_id: "99", to_type: "npo" } as IDonation;
+
+    const res = await resend();
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(404);
+  });
+});
+
 describe("the resend and the queue send agree", () => {
   beforeEach(() => {
-    send_email.mockClear();
     send_email_or_throw.mockClear();
     store.refund_statuses = [];
     store.dist_ids = [];
@@ -210,6 +293,7 @@ describe("the resend and the queue send agree", () => {
       npo(10, "Alpha"),
       npo(11, "Beta", false),
       { ...npo(12, "Gamma"), receipt_msg: "Thank you from Gamma." },
+      npo(13, "Delta"),
     ];
   });
 
@@ -227,21 +311,34 @@ describe("the resend and the queue send agree", () => {
     [
       "a tipped fund gift before the split",
       fund_don(["10", "11", "12"], { amount: tipped }),
+      [],
     ],
-    ["a tipped nonprofit gift to a program", npo_don("12", "Gamma")],
-    ["a tipped gift to better giving itself", npo_don("1", "Better Giving")],
-  ])("%s gets the same receipt either way", async (_, d) => {
+    [
+      // beta paid then went inactive, delta joined after: funded now is not
+      // who was paid
+      "a tipped fund gift after the split",
+      fund_don(["10", "11", "12", "13"], { amount: tipped }),
+      [12, 10, 11],
+    ],
+    ["a tipped nonprofit gift to a program", npo_don("12", "Gamma"), []],
+    [
+      "a tipped gift to better giving itself",
+      npo_don("1", "Better Giving"),
+      [],
+    ],
+  ])("%s gets the same receipt either way", async (_, d, dist_ids) => {
     store.don = d;
+    store.dist_ids = dist_ids;
 
     await resend();
     await send_receipt(d);
 
     // the donor the resend prints comes from its form, not the donation
-    const receipt = (m: typeof send_email) => {
-      expect(m).toHaveBeenCalledOnce();
-      const { from: _from, ...rest } = (m.mock.calls[0]![0] as any).node.props;
+    expect(send_email_or_throw).toHaveBeenCalledTimes(2);
+    const [resent, queued] = send_email_or_throw.mock.calls.map((c) => {
+      const { from: _from, ...rest } = c[0].node.props;
       return rest;
-    };
-    expect(receipt(send_email)).toEqual(receipt(send_email_or_throw));
+    });
+    expect(resent).toEqual(queued);
   });
 });

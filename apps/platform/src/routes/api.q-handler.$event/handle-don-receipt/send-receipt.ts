@@ -17,8 +17,6 @@ export const send_receipt = async (d: IDonation) => {
       .filter(Boolean)
       .join(", "),
   };
-  // queued beside the split, so it usually runs before settlement writes its
-  // dists: the recipients are the members the split is paying
   const x = await build_receipt(d, donor);
 
   const { node, subject } = donation_receipt.template(x);
