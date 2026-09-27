@@ -311,6 +311,24 @@ export async function donation_has_refund_loss(
 }
 
 /**
+ * true once any dist for this donation has a refund outcome recorded, whatever
+ * its status — completed and loss flip a dist to refunded, while the donation
+ * row can stay settled.
+ */
+export async function donation_refund_started(
+  donation_id: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ one: sql`1` })
+    .from(dists)
+    .where(
+      and(eq(dists.donation_id, donation_id), isNotNull(dists.refund_status))
+    )
+    .limit(1);
+  return !!row;
+}
+
+/**
  * the dist's refund state, row-locked for the rest of the transaction. a
  * concurrent refund run holding the lock commits first, and this then reads
  * what it wrote.
