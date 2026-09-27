@@ -9,15 +9,32 @@ import { to_id } from "@/donations/schema";
 import { send_email } from "$/email";
 import { base_url } from "$/env";
 
+const positive_decimal = v.pipe(
+  v.string(),
+  v.regex(/^\d+(\.\d+)?$/),
+  v.check((s) => +s > 0)
+);
+
 const stocks_details = v.object({
-  ticker: v.string(),
-  shares: v.string(),
-  amount: v.string(),
+  ticker: v.pipe(v.string(), v.regex(/^[A-Za-z0-9.-]{1,10}$/)),
+  shares: positive_decimal,
+  amount: positive_decimal,
 });
 
+// a firm name, never a link: no `:` (so no scheme) or `@`, and no `word.tld` a
+// mail client would autolink as a bare host ("T. Rowe", "Co., Inc." keep the
+// space or comma)
+const custodian = v.pipe(
+  v.string(),
+  v.trim(),
+  v.maxLength(100),
+  v.regex(/^[\p{L}\d &'.,()*/-]+$/u),
+  v.check((s) => !/[\p{L}\d-]\.\p{L}{2,}/u.test(s))
+);
+
 const ira_qcd_details = v.object({
-  amount: v.string(),
-  custodian: v.optional(v.string()),
+  amount: positive_decimal,
+  custodian: v.optional(custodian),
 });
 
 // best-effort, per-instance guard — not a global 5-minute dedup window. the app
@@ -51,7 +68,8 @@ const schema = v.variant("type", [
 ]);
 
 export const action: ActionFunction = async ({ request }) => {
-  const body = await request.json();
+  // a malformed body gets the schema failure's 400, not a thrown 500
+  const body = await request.json().catch(() => null);
   const result = v.safeParse(schema, body);
   if (!result.success) {
     return Response.json({ ok: false }, { status: 400 });

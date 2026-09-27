@@ -30,6 +30,17 @@ const notif = (ticker: string, recipient_id = NPO_ID) => ({
   details: { ticker, shares: "10", amount: "100" },
 });
 
+const stocks = (details: Record<string, string>) => ({
+  ...notif("AAPL"),
+  details: { ...notif("AAPL").details, ...details },
+});
+
+const ira = (details: Record<string, string>) => ({
+  type: "ira_qcd",
+  recipient_id: NPO_ID,
+  details: { amount: "100", ...details },
+});
+
 const post = (body: unknown): Request =>
   new Request("https://x/api/donation-notifications", {
     method: "POST",
@@ -121,6 +132,81 @@ describe("api.donation-notifications recipient identity", () => {
     expect(res.status).toBe(400);
     expect(to_fn_mock).not.toHaveBeenCalled();
     expect(send_email_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("api.donation-notifications body validation", () => {
+  it("answers a body that isn't JSON with 400 and mails nobody", async () => {
+    const res = await invoke(
+      new Request("https://x/api/donation-notifications", {
+        method: "POST",
+        body: "ticker=AAPL",
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    expect(res.status).toBe(400);
+    expect(send_email_mock).not.toHaveBeenCalled();
+  });
+
+  // every accepted field lands in a team-wide mail under the platform's own
+  // sender, so a field that takes prose is a phishing line with our provenance
+  const lure = "URGENT wire update, see https://evil.invalid/pay";
+
+  it.each([
+    ["a ticker carrying sentence text", stocks({ ticker: lure })],
+    ["a share count carrying sentence text", stocks({ shares: lure })],
+    ["a stock amount carrying sentence text", stocks({ amount: lure })],
+    ["an ira amount carrying sentence text", ira({ amount: lure })],
+    ["a zero amount", ira({ amount: "0.00" })],
+    ["a custodian past 100 characters", ira({ custodian: "a".repeat(101) })],
+    ["a custodian carrying sentence text", ira({ custodian: lure })],
+    // mail clients autolink a bare host as readily as a full url
+    ["a custodian naming a bare host", ira({ custodian: "evil.com" })],
+    ["a custodian naming a host and path", ira({ custodian: "evil.com/pay" })],
+    ["a custodian carrying an email", ira({ custodian: "ops@evil.invalid" })],
+  ])("refuses %s and mails nobody", async (_, body) => {
+    const res = await invoke(post(body));
+
+    expect(res.status).toBe(400);
+    expect(send_email_mock).not.toHaveBeenCalled();
+  });
+
+  // the shapes the stocks and ira/qcd checkouts post: a curated class-share
+  // ticker, an Intl-formatted share count, a Number#toString amount
+  it.each([
+    [
+      "a class-share stock notice",
+      stocks({ ticker: "BRK.B", shares: "3.25", amount: "1234.5" }),
+    ],
+    ...[
+      "Fidelity",
+      "Charles Schwab & Co., Inc.",
+      "T. Rowe Price",
+      "Vanguard",
+      "TD Ameritrade",
+      "Crédit Agricole",
+      "E*Trade",
+      "BNY Mellon/Pershing",
+    ].map((custodian) => [
+      `an ira notice naming ${custodian}`,
+      ira({ amount: "250.75", custodian }),
+    ]),
+  ] as const)("mails the team %s", async (_, body) => {
+    const res = await invoke(post(body));
+
+    expect(res.status).toBe(200);
+    expect(send_email_mock).toHaveBeenCalledOnce();
+    expect(template_mock.mock.calls[0]![0]).toMatchObject({
+      details: body.details,
+    });
+  });
+
+  it("trims the custodian before it reaches the mail", async () => {
+    await invoke(post(ira({ custodian: "  Fidelity  " })));
+
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.details.custodian).toBe("Fidelity");
   });
 });
 

@@ -78,3 +78,25 @@ describe("donation amount", () => {
     expect(r.output).toMatchObject({ amount: "25" });
   });
 });
+
+describe("ira-qcd custodian", () => {
+  const parse = (custodian: string) =>
+    v.safeParse(ira_qcd_donation_details, {
+      amount: "25",
+      tip: "",
+      tip_format: "none",
+      custodian,
+    });
+
+  test("more than 100 characters is refused at the field", () => {
+    const r = parse("a".repeat(101));
+    expect(r.success).toBe(false);
+    expect(r.issues?.map((i) => [v.getDotPath(i), i.message])).toEqual([
+      ["custodian", "can't be more than 100 characters"],
+    ]);
+  });
+
+  test("exactly 100 characters is accepted", () => {
+    expect(parse("a".repeat(100)).success).toBe(true);
+  });
+});

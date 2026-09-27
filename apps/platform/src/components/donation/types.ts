@@ -274,7 +274,13 @@ export const daf_donation_details = v.pipe(
 const ira_qcd_donation_details_raw = v.object({
   amount: amount({ required: true }),
   ...tip_fv.entries,
-  custodian: v.optional(v.pipe(v.string(), v.trim())),
+  custodian: v.optional(
+    v.pipe(
+      v.string(),
+      v.trim(),
+      v.maxLength(100, "can't be more than 100 characters")
+    )
+  ),
 });
 
 export type IraQcdDonationDetails = v.InferOutput<
