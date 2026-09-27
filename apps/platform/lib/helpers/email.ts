@@ -166,6 +166,7 @@ export const to_receipt = (
     amount: total,
     to_name,
     is_bg,
+    is_fund: d.to_type === "fund",
     tax_receipt_id: ctx.tax_receipt_id,
     from: ctx.from,
     lines,

@@ -637,5 +637,12 @@ describe("send_receipt - the mail the donor reads", () => {
       plainText: true,
     });
     expect(text.match(/Receipt ID/g)).toHaveLength(1);
+    // a fund is not a nonprofit: better giving grants among its members
+    expect(text).toContain("Fund");
+    expect(text).not.toContain("Grant Beneficiary");
+    expect(text).toContain(
+      "then grants the donation among the fund's member nonprofits on your behalf."
+    );
+    expect(text).not.toContain("chosen nonprofit");
   });
 });

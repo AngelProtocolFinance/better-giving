@@ -301,6 +301,7 @@ describe("to_receipt", () => {
     );
 
     expect(r.is_bg).toBeFalsy();
+    expect(r.is_fund).toBe(true);
     expect(r.to_name).toBe("Climate Fund");
   });
 

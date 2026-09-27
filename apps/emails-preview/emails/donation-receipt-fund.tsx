@@ -7,6 +7,7 @@ const { node } = donation_receipt.template({
   date: "December 17, 2025",
   amount: usd(170.12),
   to_name: "Clean Water for East Africa Fund",
+  is_fund: true,
   from: {
     first_name: "Jane",
     full_name: "Jane Doe",

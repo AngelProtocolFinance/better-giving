@@ -29,6 +29,8 @@ export interface IData extends Omit<IDonation, "program_name"> {
   is_recurring?: boolean;
   /** is donation to Better Giving directly (vs through NPO) */
   is_bg?: boolean;
+  /** is donation to a fund, which Better Giving grants among its members */
+  is_fund?: boolean;
   from: IDonor;
   /** tax receipt ID - if provided, shows as tax receipt */
   tax_receipt_id?: string;
@@ -128,7 +130,11 @@ function Jsx(d: IData) {
       <KeyValue label="Item" value="Online donation" />
       {n_grants > 0 && (
         <h3 style={subheading_style}>
-          {n_grants === 1 ? "Grant Beneficiary" : "Grant Beneficiaries"}
+          {d.is_fund
+            ? "Fund"
+            : n_grants === 1
+              ? "Grant Beneficiary"
+              : "Grant Beneficiaries"}
         </h3>
       )}
       {beneficiaries.map((l, i) => (
@@ -178,7 +184,9 @@ function Jsx(d: IData) {
         exchange for your gift, so the full amount you paid qualifies as a
         charitable contribution for US tax purposes.
         {n_grants > 0 &&
-          ` ${APP_NAME} then grants the donation to the ${n_grants === 1 ? "chosen nonprofit" : "nonprofits listed above"} on your behalf.`}
+          (d.is_fund
+            ? ` ${APP_NAME} then grants the donation among the fund's member nonprofits on your behalf.`
+            : ` ${APP_NAME} then grants the donation to the ${n_grants === 1 ? "chosen nonprofit" : "nonprofits listed above"} on your behalf.`)}
       </Text>
     </PublicLayout>
   );
