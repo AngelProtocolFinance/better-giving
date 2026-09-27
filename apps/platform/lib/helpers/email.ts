@@ -82,8 +82,9 @@ type TReceiptDon = Pick<
 
 /**
  * `whole - part` in the units each figure prints in. printing truncates, so
- * the base and the tip printed apart can sum a unit short of the total printed
- * whole; taking the tip as the remainder keeps the rows adding up to it.
+ * the base, the tip and the fee coverage printed apart can sum a unit short of
+ * the total printed whole; taking each as a remainder keeps the rows adding up
+ * to it.
  */
 const to_remainder = (
   whole: IAmount,
@@ -98,7 +99,10 @@ const to_remainder = (
     100,
 });
 
-/** the gift's one receipt: a line per recipient splitting the base, then the tip */
+/**
+ * the gift's one receipt: a line per recipient splitting the base, then the tip
+ * and the fee coverage, totalling what was charged
+ */
 export const to_receipt = (
   d: TReceiptDon,
   recipient_ids: number[],
@@ -118,7 +122,7 @@ export const to_receipt = (
     });
   const is_bg = d.to_type === "npo" && +d.to_id === ctx.bg_npo_id;
   const to_name = is_bg ? APP_NAME : d.to_name;
-  const { base, tip } = d.amount;
+  const { base, tip, fee_allowance } = d.amount;
   const shares = to_amount_shares(
     base,
     base / d.upusd,
@@ -133,18 +137,28 @@ export const to_receipt = (
     msg: npo.receipt_msg ?? undefined,
     program: d.program?.name,
   }));
-  const total = to_amount(base + tip, (base + tip) / d.upusd, d.currency);
-  if (tip > 0) {
+  // each payment line is its running total printed less the one before it, so
+  // the last one takes the remainder and the rows sum to the printed total
+  const printed = (x: number) => to_amount(x, x / d.upusd, d.currency);
+  let paid = base;
+  for (const [kind, part] of [
+    ["tip", tip],
+    ["fee", fee_allowance],
+  ] as const) {
+    if (part <= 0) continue;
+    const upto = paid + part;
     lines.push({
-      kind: "tip",
+      kind,
       name: APP_NAME,
       amount: to_remainder(
-        total,
-        to_amount(base, base / d.upusd, d.currency),
-        10 ** vdec(usdpu(base + tip, (base + tip) / d.upusd))
+        printed(upto),
+        printed(paid),
+        10 ** vdec(usdpu(upto, upto / d.upusd))
       ),
     });
+    paid = upto;
   }
+  const total = printed(paid);
 
   return {
     id: d.id,

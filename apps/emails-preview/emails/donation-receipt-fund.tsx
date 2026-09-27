@@ -5,7 +5,7 @@ const usd = (value: number) => ({ value, currency: "USD", value_usd: value });
 const { node } = donation_receipt.template({
   id: "TXN-2025-004871",
   date: "December 17, 2025",
-  amount: usd(165),
+  amount: usd(170.12),
   to_name: "Clean Water for East Africa Fund",
   from: {
     first_name: "Jane",
@@ -32,6 +32,7 @@ const { node } = donation_receipt.template({
       amount: usd(50),
     },
     { kind: "tip", name: "Better Giving", amount: usd(15) },
+    { kind: "fee", name: "Better Giving", amount: usd(5.12) },
   ],
 });
 

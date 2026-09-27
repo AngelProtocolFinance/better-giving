@@ -116,6 +116,30 @@ describe("to_receipt", () => {
     expect(r.to_name).toBe("Climate Fund");
   });
 
+  test("a fund gift covering its fee lists the coverage, and the total is the charge", () => {
+    const r = to_receipt(
+      don({ amount: { base: 100, tip: 5, fee_allowance: 3.2 } }),
+      [10, 11, 12],
+      [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
+      ctx
+    );
+
+    // the card was charged 108.20; a receipt totalling 105 contradicts its
+    // own "the full amount you paid" line
+    expect(printed(r)).toEqual([
+      ["beneficiary", "Alpha", 33.34],
+      ["beneficiary", "Beta", 33.33],
+      ["beneficiary", "Gamma", 33.33],
+      ["tip", "Better Giving", 5],
+      ["fee", "Better Giving", 3.2],
+    ]);
+    expect(r.amount).toEqual({
+      value: 108.2,
+      currency: "USD",
+      value_usd: 108.2,
+    });
+  });
+
   test("a recipient inactive since settlement still gets its line and share", () => {
     // settlement paid beta; the receipt states the gift it was paid from, and
     // activity is the caller's rule: the builder receipts the ids it is given
@@ -197,6 +221,40 @@ describe("to_receipt", () => {
     expect(r.is_bg).toBeFalsy();
   });
 
+  test("an untipped npo gift covering its fee: the npo, then the coverage", () => {
+    const r = to_receipt(
+      don({
+        to_id: "20",
+        to_name: "Freegan Food Foundation",
+        to_type: "npo",
+        amount: { base: 50, tip: 0, fee_allowance: 1.75 },
+      }),
+      [20],
+      [npo(20, "Freegan Food Foundation")],
+      ctx
+    );
+
+    expect(r.lines).toEqual([
+      {
+        kind: "beneficiary",
+        name: "Freegan Food Foundation",
+        amount: { value: 50, currency: "USD", value_usd: 50 },
+        msg: undefined,
+        program: undefined,
+      },
+      {
+        kind: "fee",
+        name: "Better Giving",
+        amount: { value: 1.75, currency: "USD", value_usd: 1.75 },
+      },
+    ]);
+    expect(r.amount).toEqual({
+      value: 51.75,
+      currency: "USD",
+      value_usd: 51.75,
+    });
+  });
+
   test("a nonprofit renamed since the gift is listed under the name it was given to", () => {
     const r = to_receipt(
       don({ to_id: "20", to_name: "Freegan Food Foundation", to_type: "npo" }),
@@ -247,15 +305,19 @@ describe("to_receipt", () => {
   });
 
   test.each([
-    [1, 1, 0.6, "EUR"],
-    [100, 5, 0.9, "EUR"],
-    [0.05, 0.01, 0.00001, "BTC"],
-    [100, 7, 4, "DOGE"],
+    [1, 1, 0, 0.6, "EUR"],
+    [100, 5, 0, 0.9, "EUR"],
+    [100, 5, 3.33, 0.9, "EUR"],
+    [0.05, 0.01, 0, 0.00001, "BTC"],
+    [0.05, 0.01, 0.00123, 0.00001, "BTC"],
+    [0.05, 0, 0.00123, 0.00001, "BTC"],
+    [100, 7, 0, 4, "DOGE"],
+    [100, 7, 2.9, 4, "DOGE"],
   ] as const)(
-    "%s + %s tip at %s %s per usd: the lines add up to the total",
-    (base, tip, upusd, currency) => {
+    "%s + %s tip + %s fee at %s %s per usd: the lines add up to the total",
+    (base, tip, fee_allowance, upusd, currency) => {
       const r = to_receipt(
-        don({ amount: { base, tip, fee_allowance: 0 }, upusd, currency }),
+        don({ amount: { base, tip, fee_allowance }, upusd, currency }),
         [10, 11, 12],
         [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
         ctx
@@ -264,9 +326,8 @@ describe("to_receipt", () => {
 
       // the total is what the donor paid; a receipt whose rows miss it by a
       // cent reads as money no line accounts for
-      expect(r.amount).toEqual(
-        to_amount(base + tip, (base + tip) / upusd, currency)
-      );
+      const charged = base + tip + fee_allowance;
+      expect(r.amount).toEqual(to_amount(charged, charged / upusd, currency));
       expect(cents(usds(amounts))).toBe(Math.round(r.amount.value_usd * 100));
       expect(cents(values(amounts), 1e8)).toBe(
         Math.round(r.amount.value * 1e8)

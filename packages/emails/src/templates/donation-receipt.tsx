@@ -13,8 +13,12 @@ import type { IAmount, IDonation, IDonor } from "../types";
 export interface IReceiptLine {
   name: string;
   amount: IAmount;
-  /** `tip`: the donor's tip to Better Giving */
-  kind: "beneficiary" | "tip";
+  /**
+   * `tip`: the donor's tip to Better Giving.
+   * `fee`: the processing fee the donor chose to cover; labelled
+   * "Processing fee coverage", its `name` ignored
+   */
+  kind: "beneficiary" | "tip" | "fee";
   /** this nonprofit's receipt message to the donor */
   msg?: string;
   /** the beneficiary's program the gift is for */
@@ -32,12 +36,21 @@ export interface IData extends Omit<IDonation, "program_name"> {
   lines: IReceiptLine[];
 }
 
-const line_label = (l: IReceiptLine) =>
-  l.kind === "tip" ? `${l.name} (tip)` : l.name;
+const line_label = (l: IReceiptLine) => {
+  if (l.kind === "tip") return `${l.name} (tip)`;
+  if (l.kind === "fee") return "Processing fee coverage";
+  return l.name;
+};
+
+const subheading_style = { fontSize: 14, marginBottom: 0 };
 
 function Jsx(d: IData) {
   const beneficiaries = d.lines.filter((l) => l.kind === "beneficiary");
-  const tips = d.lines.filter((l) => l.kind === "tip");
+  // tip before fee coverage, whatever order the lines arrive in
+  const extras = [
+    ...d.lines.filter((l) => l.kind === "tip"),
+    ...d.lines.filter((l) => l.kind === "fee"),
+  ];
   // a gift to Better Giving itself is kept, not granted on
   const n_grants = d.is_bg ? 0 : beneficiaries.length;
   return (
@@ -114,7 +127,9 @@ function Jsx(d: IData) {
       {d.from.address && <KeyValue label="Address" value={d.from.address} />}
       <KeyValue label="Item" value="Online donation" />
       {n_grants > 0 && (
-        <h2 style={{ fontSize: 14, marginBottom: 0 }}>Grant Beneficiaries</h2>
+        <h3 style={subheading_style}>
+          {n_grants === 1 ? "Grant Beneficiary" : "Grant Beneficiaries"}
+        </h3>
       )}
       {beneficiaries.map((l, i) => (
         <Fragment key={`${l.kind}-${i}`}>
@@ -132,16 +147,17 @@ function Jsx(d: IData) {
           )}
         </Fragment>
       ))}
-      {/* the rules keep the tip and the total from reading as grant beneficiaries */}
-      {tips.length > 0 && <Hr />}
-      {tips.map((l, i) => (
+      <Hr />
+      {/* a sibling of the beneficiaries heading, so the rows below leave its outline scope */}
+      <h3 style={subheading_style}>Payment</h3>
+      {extras.map((l, i) => (
         <KeyValue
           key={`${l.kind}-${i}`}
           label={line_label(l)}
           value={format_amount(l.amount)}
         />
       ))}
-      <Hr />
+      {extras.length > 0 && <Hr />}
       <KeyValue label="Total" value={format_amount(d.amount)} />
       {d.tax_receipt_id && (
         <KeyValue label="Receipt ID" value={d.tax_receipt_id} />
