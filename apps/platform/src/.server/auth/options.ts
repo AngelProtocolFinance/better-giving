@@ -136,8 +136,8 @@ export const auth_options = (deps: AuthOptionDeps) => ({
   user: { additionalFields: user_additional_fields },
 
   /** checked only by the router's `onRequest`, so a server-side `auth.api.*`
-   * call still reaches these. reset mail goes out only through
-   * `request_password_reset`, whose per-email quota the router's per-ip
+   * call still reaches these. the only anonymous reset route is the app's own,
+   * through `request_password_reset`, whose per-email quota the router's per-ip
    * limiter has no equivalent of. */
   disabledPaths: ["/request-password-reset"],
 

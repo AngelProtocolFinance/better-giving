@@ -1,7 +1,7 @@
 import { href } from "react-router";
 import { auth } from "./auth";
 import { LINK_PER_EMAIL, LINK_PER_IP } from "./login-link";
-import { client_ip, consume } from "./rate-limit";
+import { client_ip, reserve } from "./rate-limit";
 
 /** mail a password-reset link that lands on the set-password step.
  *
@@ -18,16 +18,29 @@ export async function request_password_reset(
   request: Request
 ): Promise<void> {
   const normalized = email.trim().toLowerCase();
-  if (!consume(`password-reset:email:${normalized}`, LINK_PER_EMAIL)) return;
   const ip = client_ip(request.headers);
-  if (ip && !consume(`password-reset:ip:${ip}`, LINK_PER_IP)) return;
+  const source = ip
+    ? reserve(`password-reset:ip:${ip}`, LINK_PER_IP)
+    : undefined;
+  if (source === null) return;
+  const address = reserve(`password-reset:email:${normalized}`, LINK_PER_EMAIL);
+  if (!address) {
+    source?.release();
+    return;
+  }
 
   const q = new URLSearchParams({ type: "set-password", email: normalized });
   const redirect_to = `${new URL(request.url).origin}${href("/login/reset")}?${q}`;
 
-  await auth.api.requestPasswordReset({
-    body: { email: normalized, redirectTo: redirect_to },
-    // hooks and plugins see the caller's headers, as on a direct hit
-    headers: request.headers,
-  });
+  try {
+    await auth.api.requestPasswordReset({
+      body: { email: normalized, redirectTo: redirect_to },
+      // hooks and plugins see the caller's headers, as on a direct hit
+      headers: request.headers,
+    });
+  } catch (err) {
+    // the source keeps its charge, so a failure never buys it free requests
+    address.release();
+    throw err;
+  }
 }

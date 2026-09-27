@@ -145,6 +145,73 @@ describe("request_password_reset", () => {
     await request_password_reset(last, from_ip("198.51.100.4"));
     expect(sent_resets).toHaveLength(LINK_PER_IP.max + 1);
   });
+
+  it("never charges an address for a source already over its cap", async () => {
+    const victim = "victim@example.com";
+    const fillers = Array.from(
+      { length: LINK_PER_IP.max },
+      (_, i) => `donor${i}@example.com`
+    );
+    await seed_users([victim, ...fillers]);
+    for (const email of fillers) {
+      await request_password_reset(email, from_ip("203.0.113.9"));
+    }
+
+    for (let i = 0; i < LINK_PER_EMAIL.max; i++) {
+      await request_password_reset(victim, from_ip("203.0.113.9"));
+    }
+    expect(sent_resets).toHaveLength(LINK_PER_IP.max);
+
+    // the victim's own quota is whole
+    sent_resets.length = 0;
+    for (let i = 0; i < LINK_PER_EMAIL.max; i++) {
+      await request_password_reset(victim, from_ip("198.51.100.4"));
+    }
+    expect(sent_resets).toHaveLength(LINK_PER_EMAIL.max);
+  });
+
+  it("hands the source back a request the address refused", async () => {
+    const victim = "victim@example.com";
+    const fresh = Array.from(
+      { length: LINK_PER_IP.max - LINK_PER_EMAIL.max },
+      (_, i) => `donor${i}@example.com`
+    );
+    await seed_users([victim, ...fresh]);
+    // spends the address, then asks past it until the source's cap is covered
+    for (let i = 0; i < LINK_PER_IP.max; i++) {
+      await request_password_reset(victim, from_ip("203.0.113.9"));
+    }
+    expect(sent_resets).toHaveLength(LINK_PER_EMAIL.max);
+
+    for (const email of fresh) {
+      await request_password_reset(email, from_ip("203.0.113.9"));
+    }
+    expect(sent_resets).toHaveLength(LINK_PER_IP.max);
+  });
+
+  it("hands an address back the request that threw before mailing", async () => {
+    await seed_users(["victim@example.com"]);
+    const real = test_auth_ref.current;
+    test_auth_ref.current = {
+      api: {
+        requestPasswordReset: async () => {
+          throw new Error("adapter down");
+        },
+      },
+    };
+    try {
+      for (let i = 0; i < LINK_PER_EMAIL.max; i++) {
+        await expect(
+          request_password_reset("victim@example.com", from_ip("203.0.113.7"))
+        ).rejects.toThrow("adapter down");
+      }
+    } finally {
+      test_auth_ref.current = real;
+    }
+
+    await request_password_reset("victim@example.com", from_ip("203.0.113.7"));
+    expect(sent_resets).toHaveLength(1);
+  });
 });
 
 describe("POST /api/auth/request-password-reset", () => {
