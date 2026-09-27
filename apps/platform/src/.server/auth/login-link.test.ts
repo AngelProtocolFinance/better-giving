@@ -58,13 +58,16 @@ beforeAll(async () => {
       sent_links.push(a);
     },
   };
+  const base = auth_options(deps);
   test_auth_ref.current = betterAuth({
-    ...auth_options(deps),
+    ...base,
     secret: "test-secret-at-least-32-characters-long!!",
     baseURL: ORIGIN,
     basePath: "/api/auth",
     database: drizzleAdapter(test_db.current.db, { provider: "pg", schema }),
     plugins: [login_link_plugin(deps)],
+    // better-auth skips its origin checks when it detects a test run
+    advanced: { ...base.advanced, disableOriginCheck: false },
   });
 });
 

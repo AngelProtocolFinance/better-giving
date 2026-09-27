@@ -38,14 +38,18 @@ const RIGHT_PW = "Correct-horse-1";
 const THROTTLED = "Too many sign-in attempts. Try again in a few minutes.";
 
 let auth: ReturnType<typeof make_auth>;
-const make_auth = (db: TestDb["db"]) =>
-  betterAuth({
-    ...auth_options({ send_login_link: async () => {}, referral_id }),
+const make_auth = (db: TestDb["db"]) => {
+  const base = auth_options({ send_login_link: async () => {}, referral_id });
+  return betterAuth({
+    ...base,
     secret: "test-secret-at-least-32-characters-long!!",
     baseURL: BASE_URL,
     basePath: "/api/auth",
     database: drizzleAdapter(db, { provider: "pg", schema }),
+    // better-auth skips its origin checks when it detects a test run
+    advanced: { ...base.advanced, disableOriginCheck: false },
   });
+};
 
 beforeAll(async () => {
   test_db.current = await create_test_db();
