@@ -15,7 +15,7 @@ export const amount = v.lazy((x) => {
   return v.pipe(
     v.string(),
     v.transform((x) => +x),
-    v.minValue(0, "amount must be greater than 0"),
+    v.gtValue(0, "amount must be greater than 0"),
     v.transform((x) => x.toString())
   );
 });

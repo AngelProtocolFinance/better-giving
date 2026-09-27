@@ -65,6 +65,22 @@ export async function npo_get(
   return row_to_npo(row);
 }
 
+/**
+ * `npo_get` holding the npo row until `tx` ends: a balance check made on it
+ * stays true for the write, and a concurrent withdrawal waits its turn.
+ */
+export async function npo_get_locked(
+  tx: DbOrTx,
+  id: number
+): Promise<INpo | undefined> {
+  const [row] = await joined_select(tx)
+    .where(eq(npos.id, id))
+    // bare FOR UPDATE also targets the left-joined view, which pg rejects
+    .for("update", { of: npos });
+  if (!row) return undefined;
+  return row_to_npo(row);
+}
+
 export async function npo_by_slug(slug: string): Promise<INpo | undefined> {
   const [row] = await joined_select().where(
     eq(sql`LOWER(${npos.slug})`, slug.toLowerCase())
