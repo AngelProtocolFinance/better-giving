@@ -15,16 +15,20 @@ export class NpoNotFoundError extends Error {
 
 /**
  * the gift's one receipt, as the queue send and the dashboard resend both mail
- * it.
+ * it. `at` is when it is built, and it decides a fund gift's members:
  *
- * a fund gift lists the members settlement paid, active or not since; until
- * the split has paid every funded member, the funded members it will pay. a
- * member inactive at the split and active again since reads as unpaid, and
- * gets a line.
+ * - `settlement`: queued beside the split and run within seconds of it, so it
+ *   lists the funded members now, as `partition_destinations` picks them. the
+ *   dists are ignored: the fan-out commits them one at a time, and a partial
+ *   set would truncate the list.
+ * - `resend`: any time later, when membership may have moved. the paid dists
+ *   are the record and win whenever any exist; the funded members only when
+ *   the split never wrote one.
  */
 export async function build_receipt(
   d: IDonation,
-  from: IDonor
+  from: IDonor,
+  at: "settlement" | "resend"
 ): Promise<donation_receipt.IData> {
   const ctx = {
     from,
@@ -42,14 +46,11 @@ export async function build_receipt(
     return to_receipt(d, [npo.id], [npo], ctx);
   }
 
-  const [paid_ids, members] = await Promise.all([
-    dist_npo_ids_of(d.id),
-    npos_batch_get(d.to_members.map((x) => +x)),
-  ]);
-  // the split pays the funded members one dist each, committed one at a time:
-  // a set missing any of them is a fan-out still running, not what was paid
+  const paid_ids = at === "resend" ? await dist_npo_ids_of(d.id) : [];
+  if (paid_ids.length) {
+    return to_receipt(d, paid_ids, await npos_batch_get(paid_ids), ctx);
+  }
+  const members = await npos_batch_get(d.to_members.map((x) => +x));
   const funded = members.filter(is_funded_member).map((n) => n.id);
-  const paid = new Set(paid_ids);
-  const ids = funded.every((id) => paid.has(id)) ? paid_ids : funded;
-  return to_receipt(d, ids, members, ctx);
+  return to_receipt(d, funded, members, ctx);
 }

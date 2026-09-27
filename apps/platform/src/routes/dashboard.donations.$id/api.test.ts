@@ -148,6 +148,19 @@ describe("send_receipts - resending a fund gift's receipts", () => {
     ]);
   });
 
+  test("a member reactivated since the split is not on the resend", async () => {
+    store.don = fund_don(["10", "12", "13"]);
+    // delta was inactive when the split ran, so it was never paid
+    store.dist_ids = [10, 12];
+
+    await resend();
+
+    expect(printed()).toEqual([
+      ["Alpha", "50.00"],
+      ["Gamma", "50.00"],
+    ]);
+  });
+
   test("mid-fan-out, the queue send receipts every member the split pays", async () => {
     const d = fund_don(["10", "12", "13"]);
     // the split commits one dist per member; alpha's is in, gamma's and
@@ -321,7 +334,7 @@ describe("a resend that fails", () => {
   });
 });
 
-describe("the resend and the queue send agree", () => {
+describe("the resend and the queue send", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
     store.refund_statuses = [];
@@ -356,14 +369,13 @@ describe("the resend and the queue send agree", () => {
       ],
     ],
     [
-      // beta was paid, then went inactive
+      // beta was inactive at the split and still is
       "a tipped fund gift after the split",
       fund_don(["10", "11", "12"], { amount: tipped }),
-      [12, 10, 11],
+      [12, 10],
       [
-        ["beneficiary", "Alpha", "33.34"],
-        ["beneficiary", "Beta", "33.33"],
-        ["beneficiary", "Gamma", "33.33"],
+        ["beneficiary", "Alpha", "50.00"],
+        ["beneficiary", "Gamma", "50.00"],
         ["tip", "Better Giving", "5.00"],
       ],
     ],
@@ -406,5 +418,34 @@ describe("the resend and the queue send agree", () => {
     const { from: _r, ...resent_rest } = resent!;
     const { from: _q, ...queued_rest } = queued!;
     expect(resent_rest).toEqual(queued_rest);
+  });
+
+  test("a member paid then deactivated: the resend keeps it, the queue send doesn't", async () => {
+    // the queue send runs beside the split, before a member can move; the
+    // resend runs any time after, so it trusts what the split paid
+    const d = fund_don(["10", "11", "12"], { amount: tipped });
+    store.don = d;
+    store.dist_ids = [12, 10, 11];
+
+    await resend();
+    await send_receipt(d);
+
+    const [resent, queued] = send_email_or_throw.mock.calls.map(([i]) =>
+      (i.node.props as dr.IData).lines.map((l) => [
+        l.name,
+        l.amount.value.toFixed(2),
+      ])
+    );
+    expect(resent).toEqual([
+      ["Alpha", "33.34"],
+      ["Beta", "33.33"],
+      ["Gamma", "33.33"],
+      ["Better Giving", "5.00"],
+    ]);
+    expect(queued).toEqual([
+      ["Alpha", "50.00"],
+      ["Gamma", "50.00"],
+      ["Better Giving", "5.00"],
+    ]);
   });
 });
