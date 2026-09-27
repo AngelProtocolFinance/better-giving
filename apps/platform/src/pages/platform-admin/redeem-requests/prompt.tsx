@@ -1,6 +1,11 @@
 import { Actions } from "@better-giving/ui";
 import { ChevronRight, X } from "lucide-react";
-import type { PropsWithChildren } from "react";
+import {
+  type FormEvent,
+  type PropsWithChildren,
+  useEffect,
+  useRef,
+} from "react";
 import { Link, useFetcher, useParams } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 
@@ -26,11 +31,21 @@ function Content({ verdict }: Props) {
   const hold = (e: { preventDefault(): void }) => {
     if (busy) e.preventDefault();
   };
+  // `busy` lags the submit by a render, so a second press in that gap would
+  // send again; the latch closes on the press itself
+  const sent = useRef(false);
+  useEffect(() => {
+    if (fetcher.state === "idle") sent.current = false;
+  }, [fetcher.state]);
+  const submit_once = (e: FormEvent) => {
+    if (sent.current) return e.preventDefault();
+    sent.current = true;
+  };
 
   return (
     <fetcher.Form
       method="POST"
-      onSubmit={hold}
+      onSubmit={submit_once}
       className="grid content-start justify-items-center"
     >
       <input type="hidden" value={verdict} name="verdict" />

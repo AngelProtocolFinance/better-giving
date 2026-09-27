@@ -68,6 +68,27 @@ describe("redeem request verdict prompt", () => {
     expect(action).toHaveBeenCalledOnce();
   });
 
+  test("two submits in the same tick, before any render, send one verdict", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
+    const screen = await render(
+      <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
+    );
+
+    const submit = screen.getByRole("button", { name: "Submit" });
+    await expect.element(submit).toBeInTheDocument();
+    const form = (submit.element() as HTMLButtonElement).form!;
+    form.requestSubmit();
+    form.requestSubmit();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Submitting…" }))
+      .toBeInTheDocument();
+    release();
+    await expect.element(submit).toBeInTheDocument();
+    expect(action).toHaveBeenCalledOnce();
+  });
+
   test("Close and Back stay put while the verdict is in flight, and leave once it lands", async () => {
     const { action, release } = held_action();
     const Stub = stub(action);
