@@ -2,7 +2,7 @@ import { currency_precision } from "#/helpers/stripe";
 import type { ICurrencyFv } from "#/types/currency";
 import { PROCESSING_RATES } from "@/constants/common";
 import type { IAmount } from "@/donations";
-import { to_units } from "@/helpers/decimal";
+import { snap, to_units } from "@/helpers/decimal";
 import { min_fee_allowance } from "@/helpers/donation";
 import { type TTipFormat, tip_val } from "../types";
 
@@ -32,8 +32,11 @@ export function donation_amounts(
     to_units(x, precision, mode) / 10 ** precision;
 
   const tip = in_units(tip_val(i.tip_format, i.tip, i.amount));
+  // down to the smallest unit, so rounding the fee up can't carry it past the cap
+  const cap_in_units =
+    Math.floor(snap(cap * 10 ** precision)) / 10 ** precision;
   const fee = i.cover_processing_fee
-    ? Math.min(min_fee_allowance(tip + i.amount, rate, flat), cap)
+    ? Math.min(min_fee_allowance(tip + i.amount, rate, flat), cap_in_units)
     : 0;
 
   return { base: i.amount, tip, fee_allowance: in_units(fee, "up") };

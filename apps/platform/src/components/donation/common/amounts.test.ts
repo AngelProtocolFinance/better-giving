@@ -91,4 +91,24 @@ describe("stripe_amounts", () => {
     }
     expect(short).toEqual([]);
   });
+
+  // $5 is 4.617 eur at 0.9234 and 736.85 jpy at 147.37
+  test.each([
+    { code: "USD", rate: 1, amount: 1_000, fee: 5 },
+    { code: "EUR", rate: 0.9234, amount: 1_000, fee: 4.61 },
+    { code: "JPY", rate: 147.37, amount: 1_000_000, fee: 736 },
+  ])(
+    "the covered bank fee stops at the 5 usd cap in $code's smallest unit",
+    ({ code, rate, amount, fee }) => {
+      const parts = stripe_amounts({
+        amount,
+        tip_format: "none",
+        tip: "",
+        cover_processing_fee: true,
+        currency: { code, rate },
+        bank_only: true,
+      });
+      expect(parts.fee_allowance).toBe(fee);
+    }
+  );
 });
