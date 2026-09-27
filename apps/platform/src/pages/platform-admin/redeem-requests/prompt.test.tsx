@@ -1,45 +1,116 @@
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, Link, Outlet } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { Prompt } from "./prompt";
 
-describe("redeem request verdict prompt", () => {
-  test("a second Submit click while the verdict is in flight sends nothing", async () => {
-    let release = () => {};
-    const action = vi.fn(async () => {
-      await new Promise<void>((r) => {
-        release = r;
-      });
-      return null;
+/** an action held open until the test lets it answer */
+const held_action = () => {
+  let release = () => {};
+  const action = vi.fn(async () => {
+    await new Promise<void>((r) => {
+      release = r;
     });
-    const Stub = createRoutesStub([
-      {
-        path: "/redeem-requests",
-        children: [
-          {
-            path: ":tx_id/approve",
-            Component: () => <Prompt verdict="approve" />,
-            action,
-          },
-        ],
-      },
-    ]);
+    return null;
+  });
+  return { action, release: () => release() };
+};
+
+const stub = (action: () => Promise<null>) =>
+  createRoutesStub([
+    {
+      path: "/redeem-requests",
+      Component: () => (
+        <>
+          <p>requests list</p>
+          <Link to="/redeem-requests/tx-2/approve">open tx-2</Link>
+          <Outlet />
+        </>
+      ),
+      children: [
+        {
+          path: ":tx_id/approve",
+          Component: () => <Prompt verdict="approve" />,
+          action,
+        },
+      ],
+    },
+  ]);
+
+// native clicks throughout: the dialog backdrop fails playwright's
+// actionability check
+const press = (el: Element) => (el as HTMLElement).click();
+
+describe("redeem request verdict prompt", () => {
+  test("Submit holds focus while the verdict is in flight and a second press sends nothing", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
     const screen = await render(
       <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
     );
 
     const submit = screen.getByRole("button", { name: "Submit" });
-    await expect.element(submit).toBeEnabled();
+    await expect.element(submit).not.toHaveAttribute("aria-disabled", "true");
 
-    // native click: the dialog backdrop fails playwright's actionability check
-    (submit.element() as HTMLElement).click();
+    (submit.element() as HTMLElement).focus();
+    press(submit.element());
     await vi.waitFor(() => expect(action).toHaveBeenCalledOnce());
-    // the fetcher's state lands in a transition, a render after the action starts
-    await expect.element(submit).toBeDisabled();
 
-    (submit.element() as HTMLElement).click();
+    const pending = screen.getByRole("button", { name: "Submitting…" });
+    // the fetcher's state lands in a transition, a render after the action starts
+    await expect.element(pending).toHaveAttribute("aria-disabled", "true");
+    await expect.element(pending).toHaveFocus();
+
+    press(pending.element());
     release();
-    await expect.element(submit).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Submit" }))
+      .not.toHaveAttribute("aria-disabled", "true");
     expect(action).toHaveBeenCalledOnce();
+  });
+
+  test("Close and Back stay put while the verdict is in flight, and leave once it lands", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
+    const screen = await render(
+      <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
+    );
+
+    press(screen.getByRole("button", { name: "Submit" }).element());
+    const pending = screen.getByRole("button", { name: "Submitting…" });
+    await expect.element(pending).toBeInTheDocument();
+
+    const close = screen.getByRole("link", { name: "Close" });
+    const back = screen.getByRole("link", { name: "Back" });
+    await expect.element(close).toHaveAttribute("aria-disabled", "true");
+    await expect.element(back).toHaveAttribute("aria-disabled", "true");
+    press(close.element());
+    press(back.element());
+    await expect.element(pending).toBeInTheDocument();
+
+    release();
+    await expect.element(back).not.toHaveAttribute("aria-disabled", "true");
+    press(back.element());
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("requests list")).toBeVisible();
+  });
+
+  test("another request opened mid-flight doesn't inherit the pending verdict", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
+    const screen = await render(
+      <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
+    );
+
+    press(screen.getByRole("button", { name: "Submit" }).element());
+    await expect
+      .element(screen.getByRole("button", { name: "Submitting…" }))
+      .toBeInTheDocument();
+
+    // the dialog hides the page behind it from the accessibility tree
+    press(screen.container.querySelector('a[href$="/tx-2/approve"]')!);
+    const submit = screen.getByRole("button", { name: "Submit" });
+    await expect.element(submit).toBeInTheDocument();
+    await expect.element(submit).not.toHaveAttribute("aria-disabled", "true");
+    release();
   });
 });

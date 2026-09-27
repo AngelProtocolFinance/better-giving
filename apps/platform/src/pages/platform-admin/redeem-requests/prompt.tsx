@@ -1,7 +1,7 @@
 import { Actions } from "@better-giving/ui";
 import { ChevronRight, X } from "lucide-react";
 import type { PropsWithChildren } from "react";
-import { Link, useFetcher } from "react-router";
+import { Link, useFetcher, useParams } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 
 type Props = {
@@ -17,13 +17,20 @@ export function Prompt(props: Props) {
 }
 
 function Content({ verdict }: Props) {
+  const { tx_id } = useParams();
   const fetcher = useFetcher({
-    key: `tx-request-${verdict}`,
+    key: `tx-request-${tx_id}-${verdict}`,
   });
+  // held, not `disabled`: disabling Submit would blur it onto <body>
+  const busy = fetcher.state !== "idle";
+  const hold = (e: { preventDefault(): void }) => {
+    if (busy) e.preventDefault();
+  };
 
   return (
     <fetcher.Form
       method="POST"
+      onSubmit={hold}
       className="grid content-start justify-items-center"
     >
       <input type="hidden" value={verdict} name="verdict" />
@@ -34,8 +41,9 @@ function Content({ verdict }: Props) {
         <Link
           to=".."
           aria-label="Close"
-          aria-disabled={fetcher.state !== "idle"}
-          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 disabled:text-gray-11"
+          aria-disabled={busy}
+          onClick={hold}
+          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />
         </Link>
@@ -59,17 +67,19 @@ function Content({ verdict }: Props) {
           replace
           preventScrollReset
           to=".."
-          aria-disabled={fetcher.state !== "idle"}
+          aria-disabled={busy}
+          onClick={hold}
           className="btn-secondary btn"
         >
           Back
         </Link>
         <button
-          disabled={fetcher.state !== "idle"}
+          aria-disabled={busy}
+          aria-busy={busy}
           type="submit"
-          className="btn btn-primary"
+          className={`btn btn-primary ${busy ? "pending" : ""}`}
         >
-          Submit
+          {busy ? "Submitting…" : "Submit"}
         </button>
       </Actions>
     </fetcher.Form>
