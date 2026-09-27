@@ -8,6 +8,7 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("GBP")(1.23)).toBe(123);
     expect(to_atomic_c("CAD")(0.01)).toBe(1);
     expect(to_atomic_c("AUD")(99.99)).toBe(9999);
+    expect(to_atomic_c("USD")(19.99)).toBe(1999);
   });
 
   test("leaves a zero-decimal currency at its face amount", () => {
@@ -25,25 +26,33 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("jpy")(1000)).toBe(1000);
   });
 
-  test("a third decimal never moves the cent", () => {
-    // round_number rounds, then Math.trunc truncates the result
-    expect(to_atomic_c("USD")(10.555)).toBe(1055);
+  test("rounds a fraction of a cent half up", () => {
+    expect(to_atomic_c("USD")(10.555)).toBe(1056);
     expect(to_atomic_c("USD")(10.554)).toBe(1055);
-    expect(to_atomic_c("USD")(10.556)).toBe(1055);
+    expect(to_atomic_c("USD")(10.556)).toBe(1056);
+    expect(to_atomic_c("USD")(10.999)).toBe(1100);
+    expect(to_atomic_c("USD")(10.991)).toBe(1099);
+    expect(to_atomic_c("USD")(10.001)).toBe(1000);
+    expect(to_atomic_c("USD")(0.005)).toBe(1);
+    expect(to_atomic_c("USD")(0.004)).toBe(0);
+  });
+
+  test("rounds a half cent up even when the multiply lands below it", () => {
+    // 1.005 * 100 is 100.49999999999999
+    expect(to_atomic_c("USD")(1.005)).toBe(101);
+
+    const down: number[] = [];
+    for (let mills = 5; mills <= 200_000; mills += 10) {
+      const half_up = (mills + 5) / 10;
+      if (to_atomic_c("USD")(mills / 1000) !== half_up) down.push(mills / 1000);
+    }
+    expect(down).toEqual([]);
   });
 
   test("handles zero and negative amounts", () => {
     expect(to_atomic_c("USD")(0)).toBe(0);
     expect(to_atomic_c("USD")(-10.5)).toBe(-1050);
     expect(to_atomic_c("JPY")(-100)).toBe(-100);
-  });
-
-  test("drops a fraction of a cent rather than rounding it up", () => {
-    expect(to_atomic_c("USD")(10.999)).toBe(1099);
-    expect(to_atomic_c("USD")(10.991)).toBe(1099);
-    expect(to_atomic_c("USD")(10.001)).toBe(1000);
-    expect(to_atomic_c("USD")(0.005)).toBe(0);
-    expect(to_atomic_c("USD")(0.004)).toBe(0);
   });
 
   test("scaling is exact for every 2-decimal amount", () => {
@@ -58,6 +67,11 @@ describe("to_atomic_c", () => {
       if (to_atomic_c("USD")(cents / 100) !== cents) short.push(cents / 100);
     }
     expect(short).toEqual([]);
+  });
+
+  test("charges the whole-cent sum of donation, fee cover and tip", () => {
+    // 8 + 1.2 + 0.51 is 9.709999999999999 in binary floating point
+    expect(to_atomic_c("USD")(8 + 1.2 + 0.51)).toBe(971);
   });
 
   test("handles large amounts", () => {
@@ -100,40 +114,40 @@ describe("to_atomic_c", () => {
     expect(to_atomic_c("ISK")(5)).toBe(500);
     expect(to_atomic_c("ISK")(100)).toBe(10000);
     expect(to_atomic_c("ISK")(1)).toBe(100);
-    expect(to_atomic_c("ISK")(10.5)).toBe(1000); // rounds down to 10, then * 100
+    expect(to_atomic_c("ISK")(10.5)).toBe(1100); // rounds to 11, then * 100
 
     // HUF - zero-decimal for payouts, but represented as two-decimal
     // 10 HUF should be 1000, must be divisible by 100
     expect(to_atomic_c("HUF")(10)).toBe(1000);
     expect(to_atomic_c("HUF")(100)).toBe(10000);
-    expect(to_atomic_c("HUF")(10.45)).toBe(1000); // rounds down to 10, then * 100
+    expect(to_atomic_c("HUF")(10.45)).toBe(1000); // rounds to 10, then * 100
 
     // TWD - zero-decimal for payouts, but represented as two-decimal
     // 800 TWD should be 80000, must be divisible by 100
     expect(to_atomic_c("TWD")(800)).toBe(80000);
     expect(to_atomic_c("TWD")(100)).toBe(10000);
-    expect(to_atomic_c("TWD")(800.45)).toBe(80000); // rounds down to 800, then * 100
+    expect(to_atomic_c("TWD")(800.45)).toBe(80000); // rounds to 800, then * 100
 
     // UGX - zero-decimal but represented as two-decimal (always 00)
     // to charge 5 UGX, provide amount value of 500
     expect(to_atomic_c("UGX")(5)).toBe(500);
     expect(to_atomic_c("UGX")(100)).toBe(10000);
     expect(to_atomic_c("UGX")(1)).toBe(100);
-    expect(to_atomic_c("UGX")(10.5)).toBe(1000); // rounds down to 10, then * 100
+    expect(to_atomic_c("UGX")(10.5)).toBe(1100); // rounds to 11, then * 100
   });
 
-  test("special case currencies cannot charge fractions", () => {
-    // ISK and UGX can't charge fractions - they round DOWN to integer first
-    expect(to_atomic_c("ISK")(5.4)).toBe(500); // rounds down to 5
-    expect(to_atomic_c("ISK")(5.6)).toBe(500); // rounds down to 5
-    expect(to_atomic_c("UGX")(5.4)).toBe(500); // rounds down to 5
-    expect(to_atomic_c("UGX")(5.6)).toBe(500); // rounds down to 5
+  test("special case currencies round to a whole unit", () => {
+    // stripe rejects an ISK or UGX amount that doesn't end in 00
+    expect(to_atomic_c("ISK")(5.4)).toBe(500);
+    expect(to_atomic_c("ISK")(5.6)).toBe(600);
+    expect(to_atomic_c("UGX")(5.4)).toBe(500);
+    expect(to_atomic_c("UGX")(5.6)).toBe(600);
 
-    // HUF and TWD also round DOWN to integers first (zero-decimal precision)
-    expect(to_atomic_c("HUF")(10.4)).toBe(1000); // rounds down to 10
-    expect(to_atomic_c("HUF")(10.6)).toBe(1000); // rounds down to 10
-    expect(to_atomic_c("TWD")(100.4)).toBe(10000); // rounds down to 100
-    expect(to_atomic_c("TWD")(100.6)).toBe(10000); // rounds down to 100
+    // HUF and TWD are held to whole units too
+    expect(to_atomic_c("HUF")(10.4)).toBe(1000);
+    expect(to_atomic_c("HUF")(10.6)).toBe(1100);
+    expect(to_atomic_c("TWD")(100.4)).toBe(10000);
+    expect(to_atomic_c("TWD")(100.6)).toBe(10100);
   });
 
   test("handles three-decimal currencies", () => {
@@ -157,9 +171,9 @@ describe("to_atomic_c", () => {
     expect(uncharged).toEqual([]);
   });
 
-  test("three-decimal currencies cannot charge a lone thousandth", () => {
-    // the amount has to end in 0, so the third decimal is dropped
-    expect(to_atomic_c("KWD")(10.509)).toBe(10500);
+  test("three-decimal currencies round a lone thousandth to the hundredth", () => {
+    // the amount has to end in 0
+    expect(to_atomic_c("KWD")(10.509)).toBe(10510);
     expect(to_atomic_c("KWD")(10.501)).toBe(10500);
   });
 });

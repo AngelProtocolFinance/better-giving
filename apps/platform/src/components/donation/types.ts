@@ -1,6 +1,7 @@
+import { currency_precision } from "#/helpers/stripe";
 import { currency_fv, type ICurrencyFv } from "#/types/currency";
 import type { IDonorFv } from "@/donations/schema";
-import { ru_vdec } from "@/helpers/decimal";
+import { ru_vdec, snap } from "@/helpers/decimal";
 import type { DonateMethodId } from "@/npo";
 import {
   $int_gte1,
@@ -189,6 +190,13 @@ export const tip_from_val = (
   return { tip_format: "custom", tip: value.toString() };
 };
 
+/** at most `precision` decimals, the most the charge can carry */
+const is_within_precision = (amount: string, precision: number) =>
+  !amount || Number.isInteger(snap(+amount * 10 ** precision));
+
+const too_precise = (precision: number) =>
+  `can't be more than ${precision} decimals`;
+
 const is_min_met = (input: { amount: string; currency: ICurrencyFv }) => {
   if (!input.currency.min) return true;
   return +input.amount >= input.currency.min;
@@ -232,6 +240,15 @@ export const stripe_donation_details = v.pipe(
     ["amount"]
   ),
   v.forward(
+    v.partialCheck(
+      [["amount"], ["currency"]],
+      ({ amount, currency }) =>
+        is_within_precision(amount, currency_precision(currency.code)),
+      ({ input: i }) => too_precise(currency_precision(i.currency.code))
+    ),
+    ["amount"]
+  ),
+  v.forward(
     v.partialCheck([["tip"], ["tip_format"]], is_tip_valid, "required"),
     ["tip"]
   )
@@ -265,6 +282,14 @@ export interface DafDonationDetails
 
 export const daf_donation_details = v.pipe(
   daf_donation_details_raw,
+  v.forward(
+    v.partialCheck(
+      [["amount"]],
+      ({ amount }) => is_within_precision(amount, currency_precision("USD")),
+      too_precise(currency_precision("USD"))
+    ),
+    ["amount"]
+  ),
   v.forward(
     v.partialCheck([["tip"], ["tip_format"]], is_tip_valid, "required"),
     ["tip"]

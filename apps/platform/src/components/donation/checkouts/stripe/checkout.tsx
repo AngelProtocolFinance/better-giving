@@ -3,16 +3,15 @@ import { Elements } from "@stripe/react-stripe-js";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
 import { report_error } from "#/errors/report";
-import { PROCESSING_RATES } from "@/constants/common";
 import type { IDonationIntent, IStripeIntentReturn } from "@/donations";
-import { min_fee_allowance } from "@/helpers/donation";
 import { HttpError, json_ok } from "@/helpers/https";
 import { ErrorBoundaryClass } from "../../../error";
+import { stripe_amounts } from "../../common/amounts";
 import { currency as currencyfn } from "../../common/currency";
 import { stripe_promise } from "../../common/stripe";
 import { Summary } from "../../common/summary";
 import { use_donation } from "../../context";
-import { type StripeDonationDetails, tip_val, to_step } from "../../types";
+import { type StripeDonationDetails, to_step } from "../../types";
 import { DonationTerms } from "../donation-terms";
 import { Loader } from "../loader";
 import { Checkout } from "./checkout-form";
@@ -39,30 +38,20 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
   } = props;
   const { don, don_set } = use_donation();
 
-  const tipv = tip_val(tip_format, tip, +amount);
-
-  const rate = bank_only
-    ? PROCESSING_RATES.stripe_bank
-    : PROCESSING_RATES.stripe;
-  const flat = bank_only ? 0 : PROCESSING_RATES.stripe_flat * currency.rate;
-  const raw_mfa = cover_processing_fee
-    ? min_fee_allowance(tipv + +amount, rate, flat)
-    : 0;
-  // cap bank fee at $5 converted to donor currency
-  const mfa =
-    bank_only && raw_mfa > PROCESSING_RATES.stripe_bank_cap * currency.rate
-      ? PROCESSING_RATES.stripe_bank_cap * currency.rate
-      : raw_mfa;
+  const parts = stripe_amounts({
+    amount: +amount,
+    tip_format,
+    tip,
+    cover_processing_fee,
+    currency,
+    bank_only,
+  });
 
   const intent: IDonationIntent = {
     via: bank_only ? "bank" : "card",
     via_extra: "",
     frequency: frequency,
-    amount: {
-      base: +amount,
-      tip: tip_val(tip_format, tip, +amount),
-      fee_allowance: mfa,
-    },
+    amount: parts,
     currency: currency.code,
     to_id: don.recipient.id,
     donor: don.donor,
@@ -87,11 +76,13 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
         to_step(bank_only ? "stripe_bank" : "stripe", props, "donor", don_set)
       }
       Amount={currencyfn(currency)}
-      amount={+amount}
-      fee_allowance={mfa}
+      amount={parts.base}
+      fee_allowance={parts.fee_allowance}
       frequency={frequency}
       tip={
-        tipv > 0 ? { value: tipv, charity_name: don.recipient.name } : undefined
+        parts.tip > 0
+          ? { value: parts.tip, charity_name: don.recipient.name }
+          : undefined
       }
     >
       <ErrorBoundaryClass>

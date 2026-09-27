@@ -1,7 +1,7 @@
+import { to_atomic } from "#/helpers/stripe";
 import { MIN_DONATION_USD } from "@/constants/common";
 import type { ChariotMetadata, IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
-import { rd2num } from "@/helpers/decimal";
 import { resp } from "@/helpers/https";
 import { chariot } from "$/kit/chariot";
 import { db } from "$/pg/db";
@@ -22,7 +22,8 @@ export const chariot_intent: Provider = async ({
   const to_pay = amnt_sum(intent.amount);
   const grant = await chariot.create_grant({
     workflowSessionId: via_extra,
-    amount: rd2num(to_pay * 100, 0), // in cents
+    // cents, priced exactly as the daf checkout prices the connect session
+    amount: to_atomic(to_pay, [2, 2]),
   });
 
   const { don_id } = grant.metadata as unknown as ChariotMetadata;

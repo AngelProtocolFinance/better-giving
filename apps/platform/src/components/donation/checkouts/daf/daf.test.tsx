@@ -175,3 +175,51 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
   });
 });
+
+describe("daf checkout: the grant is what the summary shows", () => {
+  afterEach(() => {
+    for (const s of document.querySelectorAll(`script[src="${CDN_SRC}"]`)) {
+      s.remove();
+    }
+  });
+
+  test("a covered fee lands on whole cents in the summary, the grant and its parts", async () => {
+    const s = document.createElement("script");
+    s.type = "text/plain";
+    s.src = CDN_SRC;
+    document.head.appendChild(s);
+
+    // 1 usd covered at 2.9% is a 0.0298… fee
+    const covered: DafDonationDetails = {
+      ...fv,
+      amount: "1",
+      cover_processing_fee: true,
+    };
+    const Stub = stb(<ChariotCheckout {...covered} />);
+    const screen = await render(<Stub />);
+
+    const el = (await vi.waitUntil(() =>
+      screen.container.querySelector("chariot-connect")
+    )) as HTMLElement & { onDonationRequest: unknown };
+    let request: (() => Promise<unknown>) | undefined;
+    el.onDonationRequest = (cb: () => Promise<unknown>) => {
+      request = cb;
+    };
+    el.dispatchEvent(new CustomEvent("CHARIOT_INIT"));
+    const grant = (await request?.()) as {
+      amount: number;
+      metadata: {
+        amount: { base: number; tip: number; fee_allowance: number };
+      };
+    };
+
+    const dds = screen.container.querySelectorAll("dd");
+    expect(dds[dds.length - 1]?.textContent).toBe("$1.03");
+    expect(grant.amount).toBe(103);
+    expect(grant.metadata.amount).toEqual({
+      base: 1,
+      tip: 0,
+      fee_allowance: 0.03,
+    });
+  });
+});

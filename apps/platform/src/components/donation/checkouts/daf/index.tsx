@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { href } from "react-router";
 import { chariot_connect_id } from "#/constants/env";
 import { error_prompt } from "#/helpers/error-prompt";
-import { to_atomic } from "#/helpers/stripe";
+import { currency_precision, to_atomic } from "#/helpers/stripe";
 import { PROCESSING_RATES } from "@/constants/common";
 import type { ChariotMetadata } from "@/donations";
 import { partition } from "@/donations/helpers";
@@ -12,7 +12,7 @@ import type {
   IDonationIntent,
   IDonorAddress,
 } from "@/donations/schema";
-import { min_fee_allowance } from "@/helpers/donation";
+import { donation_amounts } from "../../common/amounts";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
 import { use_donation_redirect } from "../../common/redirect";
@@ -23,12 +23,7 @@ import {
 import { StuckMsg, stuck_prompt } from "../../common/stuck-prompt";
 import { Summary } from "../../common/summary";
 import { use_donation } from "../../context";
-import {
-  type DafDonationDetails,
-  tip_from_val,
-  tip_val,
-  to_step,
-} from "../../types";
+import { type DafDonationDetails, tip_from_val, to_step } from "../../types";
 import { DonationTerms } from "../donation-terms";
 
 const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
@@ -52,10 +47,16 @@ export function ChariotCheckout(props: DafDonationDetails) {
   const [stuck, set_stuck] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
-  const tipv = tip_val(props.tip_format, props.tip, +props.amount);
-  const mfa = props.cover_processing_fee
-    ? min_fee_allowance(tipv + +props.amount, PROCESSING_RATES.chariot)
-    : 0;
+  const { tip: tipv, fee_allowance: mfa } = donation_amounts(
+    {
+      amount: +props.amount,
+      tip_format: props.tip_format,
+      tip: props.tip,
+      cover_processing_fee: props.cover_processing_fee,
+    },
+    currency_precision(usd_option.code),
+    { rate: PROCESSING_RATES.chariot }
+  );
 
   // refs for latest values so the chariot element doesn't re-mount on every change
   const props_ref = useRef(props);
