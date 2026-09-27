@@ -190,8 +190,8 @@ describe("approve", () => {
     });
   });
 
-  // reg-updated is at-most-once: a transient wise error that threw ahead of
-  // the mail lost it for good.
+  // reg-updated is at-most-once: a transient wise error thrown ahead of the
+  // mail would lose it for good.
   test("mails the approval when the bank lookup throws", async () => {
     await verdict("approved");
     const [m] = reg_updates();

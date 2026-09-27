@@ -173,7 +173,8 @@ async function trigger_webhooks(r: IDonDistPayload) {
   });
 }
 
-// bounds each hook's post and its response read
+// bounds each hook's post and its response read; hooks post concurrently, so
+// one dead url costs every other hook nothing
 const WEBHOOK_TIMEOUT_MS = 10_000;
 // third-party body: an error page can be large or echo the request path
 const REPORTED_BODY_CHARS = 200;

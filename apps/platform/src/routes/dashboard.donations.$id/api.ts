@@ -75,13 +75,13 @@ export const action = async ({
     if (refunded === null) {
       return dataWithError(
         null,
-        "We couldn't check this gift's refund status. Please try again."
+        "We couldn't check this donation's refund status. Please try again."
       );
     }
     if (refunded) {
       return dataWithError(
         null,
-        "This gift was partly refunded, so we can't resend its original receipt. Contact support for an updated one."
+        "This donation was partly refunded, so we can't resend its original receipt. Contact support for an updated one."
       );
     }
   }

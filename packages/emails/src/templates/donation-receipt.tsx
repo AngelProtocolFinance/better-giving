@@ -16,7 +16,7 @@ export interface IReceiptLine {
   /**
    * `tip`: the donor's tip to Better Giving.
    * `fee`: the processing fee the donor chose to cover; labelled
-   * "Processing fee coverage", its `name` ignored
+   * "Covered processing fee", its `name` ignored
    */
   kind: "beneficiary" | "tip" | "fee";
   /** this nonprofit's receipt message to the donor */
@@ -38,7 +38,7 @@ export interface IData extends Omit<IDonation, "program_name"> {
 
 const line_label = (l: IReceiptLine) => {
   if (l.kind === "tip") return `${l.name} (tip)`;
-  if (l.kind === "fee") return "Processing fee coverage";
+  if (l.kind === "fee") return "Covered processing fee";
   return l.name;
 };
 

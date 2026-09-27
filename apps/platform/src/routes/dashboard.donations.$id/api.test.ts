@@ -260,7 +260,7 @@ describe("resending a stripe gift", () => {
     expect(send_email_or_throw).not.toHaveBeenCalled();
     expect(res).toEqual({
       error:
-        "This gift was partly refunded, so we can't resend its original receipt. Contact support for an updated one.",
+        "This donation was partly refunded, so we can't resend its original receipt. Contact support for an updated one.",
     });
   });
 
@@ -272,7 +272,8 @@ describe("resending a stripe gift", () => {
 
     expect(send_email_or_throw).not.toHaveBeenCalled();
     expect(res).toEqual({
-      error: "We couldn't check this gift's refund status. Please try again.",
+      error:
+        "We couldn't check this donation's refund status. Please try again.",
     });
     expect(report_error).toHaveBeenCalledWith(outage, expect.anything());
   });
