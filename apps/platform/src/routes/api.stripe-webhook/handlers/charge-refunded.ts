@@ -21,12 +21,36 @@ const refund_list = (refunds: Stripe.Refund[], currency: string) =>
     .map((r) => `${money(r.amount, currency)} (${r.id}, ${r.status})`)
     .join(", ");
 
-export async function handle_charge_refunded({
-  object: event_charge,
-}: Stripe.ChargeRefundedEvent.Data) {
+/** the refunds this event added, oldest first, or null when the event can't
+ * say. charge.refunded names no refund, so they're found by where the event's
+ * amount refunded before and after it falls in the refund list */
+const added_by = (
+  { created, data }: Stripe.ChargeRefundedEvent,
+  refunds: Stripe.Refund[]
+) => {
+  const before = data.previous_attributes?.amount_refunded;
+  if (before === undefined) return null;
+  // a refund made after this event isn't in it, so a redelivery marks the same ones
+  const oldest_first = refunds.filter((r) => r.created <= created).reverse();
+  let prior = 0;
+  let i = 0;
+  for (; i < oldest_first.length && prior < before; i++) {
+    prior += oldest_first[i]?.amount ?? 0;
+  }
+  const added = oldest_first.slice(i);
+  const total = added.reduce((sum, r) => sum + r.amount, prior);
+  // a list that no longer adds up to the event's amounts (a refund failed
+  // since) can't say which is new
+  const reconciles = prior === before && total === data.object.amount_refunded;
+  return reconciles && added.length > 0 ? added : null;
+};
+
+export async function handle_charge_refunded(
+  event: Stripe.ChargeRefundedEvent
+) {
   // events arrive out of order: a stale partial copy must not outvote a charge
   // that has since been refunded in full
-  const charge = await stripe.charges.retrieve(event_charge.id);
+  const charge = await stripe.charges.retrieve(event.data.object.id);
   const intent_id = str_id(charge.payment_intent);
   const intent = await stripe.paymentIntents.retrieve(intent_id);
   const { order_id } = intent.metadata;
@@ -52,12 +76,14 @@ export async function handle_charge_refunded({
   // supported yet, so ops settles it by hand. the refund that completes the
   // charge reverses the donation as a full refund.
   if (!charge.refunded) {
+    const added = added_by(event, refunds);
     await fiat_monitor.send_alert({
       type: "NOTICE",
       from: `${ALERT_FROM}-${stage}`,
       title: "Partial Refund Not Reversed",
       body: [
-        `donation ${order_id}, charge ${charge.id}`,
+        `donation ${order_id}, charge ${charge.id}, event ${event.id}`,
+        `new in this event: ${added ? refund_list(added, charge.currency) : "could not tell which refund is new"}`,
         `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
         `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount, charge.currency)}`,
         "nothing was reversed automatically. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for these refunds must then be undone.",

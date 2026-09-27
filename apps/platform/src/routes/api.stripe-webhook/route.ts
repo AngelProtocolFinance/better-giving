@@ -127,7 +127,7 @@ export async function action({ request }: Route.ActionArgs) {
         break;
       }
       case "charge.refunded":
-        await handle_charge_refunded(stripe_event.data);
+        await handle_charge_refunded(stripe_event);
         break;
       default:
         return new Response(`Unhandled event type: ${stripe_event.type}`, {

@@ -30,11 +30,15 @@ const ORDER_ID = "0195c1f0-4c37-7c1a-b8f1-1f1f0a2f9d3e";
 const AMOUNT = 10_000;
 
 /** stripe's side of one $100 usd charge; refunds newest first, as stripe lists them */
-let refunds: { id: string; amount: number; status: string }[] = [];
+let refunds: { id: string; amount: number; status: string; created: number }[] =
+  [];
 let don_status = "settled";
+let clock = 1_700_000_000;
 
 const charge_now = () => {
-  const amount_refunded = refunds.reduce((sum, r) => sum + r.amount, 0);
+  const amount_refunded = refunds
+    .filter((r) => r.status !== "failed")
+    .reduce((sum, r) => sum + r.amount, 0);
   return {
     id: "ch_1",
     payment_intent: "pi_1",
@@ -47,17 +51,30 @@ const charge_now = () => {
 
 /** support refunds `amount` from the dashboard; returns the event stripe sends for it */
 const refund = (amount: number) => {
+  const before = charge_now().amount_refunded;
+  clock += 60;
   refunds.unshift({
     id: `re_${refunds.length + 1}`,
     amount,
     status: "succeeded",
+    created: clock,
   });
-  return { object: charge_now() } as any;
+  return {
+    id: `evt_${refunds.length}`,
+    type: "charge.refunded",
+    created: clock,
+    data: {
+      object: charge_now(),
+      previous_attributes: { amount_refunded: before },
+    },
+  } as any;
 };
 
 const alerts = () => send_alert_mock.mock.calls.map(([a]) => a);
 const text_of = (a: { title: string; body?: string }) =>
   `${a.title}\n${a.body ?? ""}`;
+const new_line = (a: { body?: string }) =>
+  a.body?.split("\n").find((l) => l.startsWith("new in this event:"));
 
 const graph = { dist: { id: "dist_1" } };
 
@@ -65,6 +82,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   refunds = [];
   don_status = "settled";
+  clock = 1_700_000_000;
   intent_retrieve_mock.mockResolvedValue({
     id: "pi_1",
     metadata: { order_id: ORDER_ID },
@@ -108,10 +126,69 @@ describe("stripe charge.refunded → donation reversal", () => {
     await handle_charge_refunded(refund(1_000));
     await handle_charge_refunded(first); // stripe redelivers
 
-    const text = text_of(alerts().at(-1));
+    const redelivered = alerts().at(-1);
+    expect(new_line(redelivered)).toBe(
+      "new in this event: 5.00 USD (re_1, succeeded)"
+    );
+    const text = text_of(redelivered);
     expect(text).toContain("5.00 USD (re_1, succeeded)");
     expect(text).toContain("10.00 USD (re_2, succeeded)");
     expect(text).toMatch(/total refunded so far: 15\.00 USD of 100\.00 USD/);
+  });
+
+  it("marks only the second refund as new on the second partial's notice", async () => {
+    await handle_charge_refunded(refund(500));
+    await handle_charge_refunded(refund(1_000));
+
+    const second = alerts().at(-1);
+    expect(new_line(second)).toBe(
+      "new in this event: 10.00 USD (re_2, succeeded)"
+    );
+    expect(text_of(second)).toContain("5.00 USD (re_1, succeeded)");
+    expect(text_of(second)).toMatch(
+      /total refunded so far: 15\.00 USD of 100\.00 USD/
+    );
+  });
+
+  it("marks the same refund as new when stripe redelivers, and names the event", async () => {
+    await handle_charge_refunded(refund(500));
+    const second = refund(1_000);
+    await handle_charge_refunded(second);
+    await handle_charge_refunded(second); // stripe redelivers
+
+    const [sent, resent] = alerts().slice(-2);
+    expect(new_line(resent)).toBe(new_line(sent));
+    expect(new_line(resent)).toBe(
+      "new in this event: 10.00 USD (re_2, succeeded)"
+    );
+    expect(resent.body).toMatch(/\bevent evt_2\b/);
+  });
+
+  it("says it could not tell which refund is new when the event carries no previous attributes", async () => {
+    await handle_charge_refunded(refund(500));
+    const second = refund(1_000);
+    delete second.data.previous_attributes;
+
+    await handle_charge_refunded(second);
+
+    const notice = alerts().at(-1);
+    expect(new_line(notice)).toBe(
+      "new in this event: could not tell which refund is new"
+    );
+    const text = text_of(notice);
+    expect(text).toContain("5.00 USD (re_1, succeeded)");
+    expect(text).toContain("10.00 USD (re_2, succeeded)");
+  });
+
+  it("says it could not tell rather than guess when an earlier refund has since failed", async () => {
+    await handle_charge_refunded(refund(500));
+    refunds[0].status = "failed"; // the bank refund bounced back
+
+    await handle_charge_refunded(refund(500));
+
+    expect(new_line(alerts().at(-1))).toBe(
+      "new in this event: could not tell which refund is new"
+    );
   });
 
   it("reverses every settled dist on a full refund", async () => {
