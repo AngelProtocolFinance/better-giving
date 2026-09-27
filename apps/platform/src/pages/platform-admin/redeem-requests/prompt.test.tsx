@@ -115,6 +115,26 @@ describe("redeem request verdict prompt", () => {
     await expect.element(screen.getByText("requests list")).toBeVisible();
   });
 
+  test("Close pressed in the same tick as Submit, before any render, stays put", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
+    const screen = await render(
+      <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
+    );
+
+    const submit = screen.getByRole("button", { name: "Submit" });
+    await expect.element(submit).toBeInTheDocument();
+    (submit.element() as HTMLButtonElement).form!.requestSubmit();
+    press(screen.getByRole("link", { name: "Close" }).element());
+
+    await expect
+      .element(screen.getByRole("button", { name: "Submitting…" }))
+      .toBeInTheDocument();
+    release();
+    await expect.element(submit).toBeInTheDocument();
+    expect(action).toHaveBeenCalledOnce();
+  });
+
   test("another request opened mid-flight doesn't inherit the pending verdict", async () => {
     const { action, release } = held_action();
     const Stub = stub(action);

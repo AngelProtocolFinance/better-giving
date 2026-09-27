@@ -28,15 +28,15 @@ function Content({ verdict }: Props) {
   });
   // held, not `disabled`: disabling Submit would blur it onto <body>
   const busy = fetcher.state !== "idle";
-  const hold = (e: { preventDefault(): void }) => {
-    if (busy) e.preventDefault();
-  };
-  // `busy` lags the submit by a render, so a second press in that gap would
-  // send again; the latch closes on the press itself
+  // `busy` lags the submit by a render, so in that gap a second press would
+  // send again and Close/Back would leave; the latch closes on the press itself
   const sent = useRef(false);
   useEffect(() => {
     if (fetcher.state === "idle") sent.current = false;
   }, [fetcher.state]);
+  const hold = (e: { preventDefault(): void }) => {
+    if (busy || sent.current) e.preventDefault();
+  };
   const submit_once = (e: FormEvent) => {
     if (sent.current) return e.preventDefault();
     sent.current = true;
