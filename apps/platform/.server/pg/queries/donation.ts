@@ -1013,6 +1013,18 @@ export async function mark_receipt_sent(
     .where(eq(donations.id, donation_id));
 }
 
+/** whether the queue already mailed this donation's receipt */
+export async function receipt_sent(
+  donation_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
+    .select({ at: donations.receipt_sent_at })
+    .from(donations)
+    .where(eq(donations.id, donation_id));
+  return row?.at != null;
+}
+
 export async function donation_tribute_get(
   donation_id: string
 ): Promise<typeof donation_tributes.$inferSelect | undefined> {

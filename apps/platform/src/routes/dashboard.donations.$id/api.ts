@@ -9,7 +9,7 @@ import { resp } from "@/helpers/https";
 import { send_email_or_throw } from "$/email";
 import { stripe } from "$/kit/stripe";
 import { donation_refund_started } from "$/pg/queries/dist";
-import { donation_get } from "$/pg/queries/donation";
+import { donation_get, receipt_sent } from "$/pg/queries/donation";
 import { user_get } from "$/pg/queries/user";
 import {
   build_receipt,
@@ -117,7 +117,10 @@ export const action = async ({
     address: addr,
   };
 
-  const data = await build_receipt(don, donor).catch((e) => {
+  // the queue send waits out the split before it mails, so once it has, a
+  // split still short is not coming. until then one may still be landing.
+  const final = await receipt_sent(don.id);
+  const data = await build_receipt(don, donor, final).catch((e) => {
     if (e instanceof NpoNotFoundError || e instanceof ReceiptNotReadyError) {
       return e;
     }

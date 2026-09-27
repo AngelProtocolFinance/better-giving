@@ -88,7 +88,11 @@ vi.mock("$/kit/queue", () => ({ schedule }));
 // --- imports (after mocks) ---
 
 import { seed_fund, seed_user } from "#/__tests__/fixtures/funds";
-import { claim_receipt_send, RECEIPT_LEASE_MS } from "$/pg/queries/donation";
+import {
+  claim_receipt_send,
+  RECEIPT_LEASE_MS,
+  receipt_sent,
+} from "$/pg/queries/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { handle_don_fund_receipt, handle_don_receipt } from ".";
 
@@ -193,6 +197,30 @@ describe("handle_don_receipt - queue redelivery", () => {
       ([i]) => (i as any).node.props.tax_receipt_id
     );
     expect(new Set(ids).size).toBe(1);
+  });
+});
+
+describe("receipt_sent - what a resend reads as the split's last word", () => {
+  test("only a receipt that went out counts, not one being sent", async () => {
+    expect(await receipt_sent(DON_ID)).toBe(false);
+
+    // a claim is a lease on the send, not the send
+    await claim_receipt_send(DON_ID);
+    expect(await receipt_sent(DON_ID)).toBe(false);
+  });
+
+  test("a send that failed gave nothing to the donor", async () => {
+    send_email_or_throw.mockRejectedValueOnce(new Error("550"));
+
+    await expect(handle_don_receipt(don())).rejects.toThrow();
+
+    expect(await receipt_sent(DON_ID)).toBe(false);
+  });
+
+  test("a receipt the queue mailed is sent", async () => {
+    await handle_don_receipt(don());
+
+    expect(await receipt_sent(DON_ID)).toBe(true);
   });
 });
 
@@ -432,6 +460,8 @@ describe("send_receipt - a gift to a fund", () => {
     fee: 3,
   });
   const just_now = () => new Date(Date.now() - 60_000).toISOString();
+  /** the attempt at which a split still short is taken as not coming */
+  const LAST_WAIT = 15;
 
   /** the one receipt mailed, as each line prints */
   const printed = () => {
@@ -500,7 +530,7 @@ describe("send_receipt - a gift to a fund", () => {
     const [a, b, c] = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
     await seed_dists([a!, c!], 100, 3);
 
-    await handle_don_receipt(fund_don([a!, b!, c!]));
+    await handle_don_receipt(fund_don([a!, b!, c!]), LAST_WAIT);
 
     // nor are alpha and gamma at 50.00 each: they were paid a third apiece
     expect(printed()).toEqual([["Climate Fund", "100.00"]]);
@@ -526,21 +556,21 @@ describe("send_receipt - a gift to a fund", () => {
     expect(usd).toEqual([33.34, 33.33, 33.33]);
   });
 
-  test("a split stuck short, long settled, names the fund for the whole gift", async () => {
+  test("a split still short at the last wait names the fund for the whole gift", async () => {
     const [a, b, c] = await seed_members(["Alpha", "Beta", "Gamma"]);
     await seed_dists([a!], 100, 3);
 
-    await handle_don_receipt(fund_don([a!, b!, c!]));
+    await handle_don_receipt(fund_don([a!, b!, c!]), LAST_WAIT);
 
     // alpha got a third: printing the whole gift beside it would overstate it
     expect(printed()).toEqual([["Climate Fund", "100.00"]]);
   });
 
-  test("a split that paid nobody, long settled, names the fund", async () => {
+  test("a split that paid nobody by the last wait names the fund", async () => {
     const members = await seed_members(["Alpha"]);
 
     // naming the members funded now would name orgs that got nothing
-    await handle_don_receipt(fund_don(members));
+    await handle_don_receipt(fund_don(members), LAST_WAIT);
 
     expect(printed()).toEqual([["Climate Fund", "100.00"]]);
   });
@@ -565,6 +595,23 @@ describe("send_receipt - a gift to a fund", () => {
     ]);
     // the wait holds no lease: the scheduled send is free to claim it
     expect(await claim_receipt_send(DON_ID)).toBe(true);
+  });
+
+  test("a split short of a payment settled long ago still waits", async () => {
+    // stripe dates settlement at the intent's creation, so a payment confirmed
+    // days later arrives with its whole split still ahead of it
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists(members.slice(0, 1), 100, 3);
+
+    await handle_don_receipt(
+      fund_don(members, { settlement: settled("2020-01-01T00:00:00.000Z") })
+    );
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(schedule.mock.calls[0]![0]!.payload).toEqual({
+      id: DON_ID,
+      attempt: 1,
+    });
   });
 
   test("a split that just finished mails without waiting", async () => {
@@ -659,17 +706,15 @@ describe("send_receipt - a gift to a fund", () => {
       expect(send_email_or_throw).not.toHaveBeenCalled();
     });
 
-    test("a split that never lands stops waiting and fails", async () => {
+    test("a split still short at the last wait stops waiting and names the fund", async () => {
       const [a, b] = await seed_members(["Alpha", "Beta"]);
-      // a settlement date ahead of the clock never leaves the window
-      await as_fund_row([a!, b!], new Date(Date.now() + 864e5).toISOString());
+      await as_fund_row([a!, b!], just_now());
       await seed_dists([a!], 100, 2);
 
-      await expect(
-        handle_don_fund_receipt({ id: DON_ID, attempt: 15 })
-      ).rejects.toThrow();
+      await handle_don_fund_receipt({ id: DON_ID, attempt: LAST_WAIT });
+
       expect(schedule).not.toHaveBeenCalled();
-      expect(send_email_or_throw).not.toHaveBeenCalled();
+      expect(printed()).toEqual([["Climate Fund", "100.00"]]);
     });
   });
 });

@@ -20,8 +20,9 @@ import { npo_admins } from "$/pg/queries/user";
 import { fund_paid_ids, ReceiptNotReadyError } from "$/receipt";
 import { send_receipt } from "./send-receipt";
 
-/** one-minute waits pass `SPLIT_WINDOW_MS` (`$/receipt`) well before this;
- * it bounds a settlement date the clock never passes */
+/** one-minute waits, counted from this handler's first run — after the
+ * settlement write, and so after the split was queued — never from the
+ * provider's settlement date */
 const MAX_FUND_WAITS = 15;
 
 /**
@@ -34,10 +35,10 @@ const MAX_FUND_WAITS = 15;
  * wait is decided before the claim, so it holds no lease.
  */
 export async function handle_don_receipt(don: IDonation, attempt = 0) {
-  if (don.to_type === "fund" && !(await split_landed(don))) {
-    if (attempt >= MAX_FUND_WAITS) {
-      throw new Error(`split of ${don.id} not landed after ${attempt} waits`);
-    }
+  // past the last wait a split still short is not coming, and the receipt
+  // names the fund (`fund_paid_ids`)
+  const final = attempt >= MAX_FUND_WAITS;
+  if (don.to_type === "fund" && !final && !(await split_landed(don))) {
     const next = { id: don.id, attempt: attempt + 1 };
     await schedule(msg("don-fund-receipt", next));
     return;
@@ -73,7 +74,7 @@ export async function handle_don_receipt(don: IDonation, attempt = 0) {
   // duplicate email, not a second tax document the donor cannot reconcile
   // against the first.
   try {
-    await sends(don);
+    await sends(don, final);
   } catch (e) {
     // the release is best-effort and the send failure is the one that has to
     // survive: letting a db error thrown here replace it puts the wrong
@@ -141,7 +142,7 @@ export async function handle_don_fund_receipt(p: IDonFundReceiptPayload) {
 
 /** false only while the split may still be landing */
 const split_landed = (don: IDonation) =>
-  fund_paid_ids(don).then(
+  fund_paid_ids(don, false).then(
     () => true,
     (e) => {
       if (e instanceof ReceiptNotReadyError) return false;
@@ -149,8 +150,8 @@ const split_landed = (don: IDonation) =>
     }
   );
 
-async function sends(don: IDonation) {
-  await send_receipt(don);
+async function sends(don: IDonation, final: boolean) {
+  await send_receipt(don, final);
 
   // private message email
   if (don.from_private_msg_to_npo) {

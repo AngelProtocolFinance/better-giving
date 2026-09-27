@@ -3,7 +3,7 @@ import type { IDonation } from "@/donations";
 import { send_email_or_throw } from "$/email";
 import { build_receipt } from "$/receipt";
 
-export const send_receipt = async (d: IDonation) => {
+export const send_receipt = async (d: IDonation, final: boolean) => {
   const donor: IDonor = {
     first_name: d.from_name?.split(" ")[0] ?? "Donor",
     full_name: d.from_name ?? "Valued Donor",
@@ -17,7 +17,7 @@ export const send_receipt = async (d: IDonation) => {
       .filter(Boolean)
       .join(", "),
   };
-  const x = await build_receipt(d, donor);
+  const x = await build_receipt(d, donor, final);
 
   const { node, subject } = donation_receipt.template(x);
   const res = await send_email_or_throw({ node, subject, to: [d.from_email] });

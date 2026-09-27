@@ -20,17 +20,15 @@ export class ReceiptNotReadyError extends Error {
   }
 }
 
-/** how long after settlement a fund's split may still be landing its dists */
-const SPLIT_WINDOW_MS = 10 * 60 * 1000;
-
 /**
  * the gift's one receipt, as the queue send and the dashboard resend both mail
- * it. a fund gift names the members its dists paid (`fund_paid_ids`), and
- * throws `ReceiptNotReadyError` while the split may still be landing them.
+ * it. a fund gift names the members its dists paid (`fund_paid_ids`); `final`
+ * is the caller's word that the split has had its time.
  */
 export async function build_receipt(
   d: IDonation,
-  from: IDonor
+  from: IDonor,
+  final: boolean
 ): Promise<donation_receipt.IData> {
   const ctx = {
     from,
@@ -48,7 +46,7 @@ export async function build_receipt(
     return to_receipt(d, [npo.id], [npo], ctx);
   }
 
-  const paid_ids = await fund_paid_ids(d);
+  const paid_ids = await fund_paid_ids(d, final);
   if (paid_ids) {
     return to_receipt(d, paid_ids, await npos_batch_get(paid_ids), ctx);
   }
@@ -65,12 +63,18 @@ export async function build_receipt(
  * neither its pick nor the fund's membership now will do.
  *
  * - whole: the dists' shares add up to the gift, so every one has landed.
- * - short, within `SPLIT_WINDOW_MS` of settlement: may still be landing,
- *   `ReceiptNotReadyError`.
- * - short, past it: the split is not coming. `null`: the receipt names the
+ * - short, not `final`: may still be landing, `ReceiptNotReadyError`.
+ * - short, `final`: the split is not coming. `null`: the receipt names the
  *   fund, since no set of members adds up to what the donor gave.
+ *
+ * `final` is the caller's, never read off the settlement date: that is the
+ * provider's time (stripe's is the intent's creation), and a payment confirmed
+ * long after it still has its whole split ahead of it.
  */
-export async function fund_paid_ids(d: IDonation): Promise<number[] | null> {
+export async function fund_paid_ids(
+  d: IDonation,
+  final: boolean
+): Promise<number[] | null> {
   const shares = await dist_shares_of(d.id);
   const paid_ids = shares.map((s) => s.to_id);
   // each dist is base/n, so a whole split sums back to base within float error
@@ -79,9 +83,6 @@ export async function fund_paid_ids(d: IDonation): Promise<number[] | null> {
     shares.length > 0 && Math.abs(sum - d.amount.base) <= d.amount.base * 1e-6;
   if (whole) return paid_ids;
 
-  const settled_at = d.settlement?.date;
-  if (settled_at && Date.now() - Date.parse(settled_at) < SPLIT_WINDOW_MS) {
-    throw new ReceiptNotReadyError(d.id);
-  }
+  if (!final) throw new ReceiptNotReadyError(d.id);
   return null;
 }

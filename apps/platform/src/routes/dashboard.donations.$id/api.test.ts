@@ -40,9 +40,12 @@ const store = vi.hoisted(() => ({
   }[],
   dists: [] as { to_id: number; amount: number }[],
   refund_statuses: [] as ("completed" | "loss" | "failed" | null)[],
+  /** the queue's own receipt already went out */
+  receipt_sent: false,
 }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_get: async () => store.don,
+  receipt_sent: async () => store.receipt_sent,
 }));
 vi.mock("$/pg/queries/npo", () => ({
   npo_get: async (id: number) => store.npos.find((n) => n.id === id),
@@ -58,6 +61,10 @@ vi.mock("$/pg/queries/dist", () => ({
 
 import { send_receipt } from "#/routes/api.q-handler.$event/handle-don-receipt/send-receipt";
 import { action } from "./api";
+
+beforeEach(() => {
+  store.receipt_sent = false;
+});
 
 const fund_don = (
   to_members: string[],
@@ -151,8 +158,9 @@ describe("send_receipts - resending a fund gift's receipts", () => {
     ]);
   });
 
-  test("long after a split that paid nobody, the receipt names the fund", async () => {
-    store.don = fund_don(["10", "11", "12"], { settlement: settled(long_ago) });
+  test("once the queue receipt went out, a split that paid nobody names the fund", async () => {
+    store.don = fund_don(["10", "11", "12"]);
+    store.receipt_sent = true;
     store.dists = [];
 
     await resend();
@@ -175,14 +183,15 @@ describe("send_receipts - resending a fund gift's receipts", () => {
   });
 
   test.each([
-    ["one of three dists in", paid([10], 100, 3)],
-    ["no dist in yet", []],
+    ["one of three dists in", paid([10], 100, 3), just_now()],
+    ["no dist in yet", [], just_now()],
+    // stripe dates settlement at the intent's creation, so a payment confirmed
+    // days later arrives with its whole split still ahead of it
+    ["settled long ago", paid([10], 100, 3), long_ago],
   ])(
     "mid-fan-out, %s: the resend mails nothing and says why",
-    async (_, dists) => {
-      store.don = fund_don(["10", "12", "13"], {
-        settlement: settled(just_now()),
-      });
+    async (_, dists, date) => {
+      store.don = fund_don(["10", "12", "13"], { settlement: settled(date) });
       store.dists = dists;
 
       const res = await resend();
@@ -212,8 +221,9 @@ describe("send_receipts - resending a fund gift's receipts", () => {
     ]);
   });
 
-  test("a split stuck short, long settled, names the fund for the whole gift", async () => {
-    store.don = fund_don(["10", "12", "13"], { settlement: settled(long_ago) });
+  test("a split still short once the queue receipt went out names the fund for the whole gift", async () => {
+    store.don = fund_don(["10", "12", "13"]);
+    store.receipt_sent = true;
     // gamma's and delta's dists never landed
     store.dists = paid([10], 100, 3);
 
@@ -451,7 +461,7 @@ describe("the resend and the queue send", () => {
     store.dists = paid(paid_ids);
 
     await resend();
-    await send_receipt(d);
+    await send_receipt(d, false);
 
     expect(send_email_or_throw).toHaveBeenCalledTimes(2);
     const [resent, queued] = send_email_or_throw.mock.calls.map(
