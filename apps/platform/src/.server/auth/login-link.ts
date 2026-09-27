@@ -12,14 +12,18 @@ interface LinkReq {
   headers?: Headers;
 }
 
-/** one address can only be mailed this often, whoever asks. short window and a
- * tight-ish ceiling because this is the bucket protecting a *third party*: the
- * victim of a mailbomb is whoever's address got typed, not the sender. The
- * check-email screen's own 30s cooldown means a quarter hour physically allows
- * about thirty honest clicks and an impatient real person makes two or three,
- * so this clears human use with margin while capping one inbox at ~60/hour. */
+/** one address can only be mailed this often by one flow, whoever asks. each
+ * flow that mails an address (this one, `request_password_reset`) keys its own
+ * bucket at this size, so burning one flow's cap leaves the other recovery
+ * route open — and an inbox's ceiling is this times the number of flows. short
+ * window and a tight-ish ceiling because this is the bucket protecting a
+ * *third party*: the victim of a mailbomb is whoever's address got typed, not
+ * the sender. The check-email screen's own 30s cooldown means a quarter hour
+ * physically allows about thirty honest clicks and an impatient real person
+ * makes two or three, so this clears human use with margin while capping one
+ * flow at ~60/hour per inbox. */
 export const LINK_PER_EMAIL: Quota = { max: 15, window_s: 15 * 60 };
-/** and one source can only pull links for so many addresses. sized like
+/** and one source can only pull mail for so many addresses, per flow. sized like
  * `CREATE_PER_IP` — carrier-grade NAT, not the office — and deliberately above
  * it, since every account opened on the signup path implies a mail and honest
  * resends land on top; the account ceiling should bind first, not this. */
@@ -38,10 +42,10 @@ export function check_email_url(a: LinkReq & { stale?: boolean }): string {
  * callers show the same "check your inbox" either way, so this is not an
  * account-enumeration oracle.
  *
- * Throttled here rather than at each caller: this is the one chokepoint every
- * surface that can make us send mail goes through, and being over quota is
- * silent for the same reason an unknown address is — the screen must not
- * differ. */
+ * Throttled here rather than at each caller: every surface that sends a
+ * login link goes through this, and being over quota is silent for the same
+ * reason an unknown address is — the screen must not differ. The buckets are
+ * this flow's own; reset mail is capped separately. */
 export async function request_login_link(a: LinkReq): Promise<void> {
   const email = a.email.trim().toLowerCase();
   const redirect_to = a.redirect_to || href("/marketplace");

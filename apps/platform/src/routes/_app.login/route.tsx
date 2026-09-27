@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { Mail } from "lucide-react";
 import { href, Link, redirect, useNavigation } from "react-router";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
-import { auth, get_session } from "#/.server/auth";
+import { auth, get_session, request_password_reset } from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import { is_sign_in_throttled } from "#/.server/auth/sign-in";
 import { dataWithError } from "#/.server/toast";
@@ -106,12 +106,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
       if (accountless === "verified") {
         const origin = from.origin;
         try {
-          await auth.api.requestPasswordReset({
-            body: {
-              email,
-              redirectTo: `${origin}/login/reset?type=set-password&email=${encodeURIComponent(email)}`,
-            },
-          });
+          await request_password_reset(email, request);
         } catch {
           // the reset screen still offers a resend, so a failed mail is not a
           // dead end — better than the generic "invalid credentials" they'd

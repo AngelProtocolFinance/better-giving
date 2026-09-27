@@ -15,6 +15,7 @@ export {
   LOGIN_LINK_TTL_S,
   RESUME_LINK_TTL_S,
 } from "./options";
+export { request_password_reset } from "./password-reset";
 export { client_ip, consume, type Quota } from "./rate-limit";
 export { mint_resume_link } from "./resume-link";
 export { to_auth } from "./to-auth";
