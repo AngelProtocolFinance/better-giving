@@ -306,7 +306,10 @@ describe("fsa action — sign-result retry", () => {
     expect(res.headers.get("location")).toBe("https://anvil.test/sign");
     expect(vi.mocked(gen_fsa_signing_url).mock.calls[0][1]).toMatchObject({
       email: EMAIL,
-      docs: { o_registration_number: "after" },
+      docs: {
+        o_registration_number: "after",
+        o_proof_of_reg: DOCS.o_proof_of_reg,
+      },
     });
     expect(await reg_get(RID)).toMatchObject({
       status: "01",
