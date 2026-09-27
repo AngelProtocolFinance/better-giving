@@ -2,7 +2,6 @@ export {
   type Handlers,
   type IBankingPayload,
   type IDonDistPayload,
-  type IDonFundReceiptPayload,
   type IDonMatchChasePayload,
   type IDonMatchPayload,
   type IFundMemberRemovedPayload,

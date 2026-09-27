@@ -18,13 +18,6 @@ interface IFromAddress {
 // dedupe keys ship to qstash and gate at-most-once delivery — preserve
 // existing strings verbatim.
 
-export interface IDonFundReceiptPayload {
-  /** the fund gift, re-read at fire time: its dists are what the wait is for */
-  id: string;
-  /** 1 for the first wait; each one still short of the split schedules the next */
-  attempt: number;
-}
-
 export interface IDonDistPayload {
   id: string;
   date_created: string;
@@ -129,7 +122,6 @@ export type Payloads = {
   "banking-new": IBankingPayload;
   "banking-rejected": IBankingPayload;
   "don-dist": IDonDistPayload;
-  "don-fund-receipt": IDonFundReceiptPayload;
   "don-match": IDonMatchPayload;
   "don-match-chase": IDonMatchChasePayload;
   "don-sttl-dist": IDonationSettled;
@@ -168,7 +160,6 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "banking-new": (p) => `banking.new_${p.npo_id}`,
   "banking-rejected": (p) => `banking.rejected_${p.npo_id}`,
   "don-dist": (p) => `don.dist_${p.id}_${p.to_id}`,
-  "don-fund-receipt": (p) => `don.fund-receipt_${p.id}_${p.attempt}`,
   "don-match": (p) => `don.match_${p.id}`,
   "don-match-chase": (p) => `don.match-chase_${p.id}`,
   "don-sttl-dist": (p) => `don.sttl-dist_${p.id}`,
@@ -231,12 +222,6 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   // this kind must be sent through `schedule` in `.server/kit/queue.ts`, never
   // `enqueue`.
   "don-match-chase": { delay_s: 3 * 24 * 60 * 60 },
-  // a fund receipt waiting on its split's dists. the wait cannot ride the FIFO
-  // queue either — a receipt retrying at its head would stall every other
-  // notification — so this kind is sent through `schedule`, never `enqueue`.
-  // the retries cover a failed send; the receipt lease makes a repeat safe, as
-  // it does for `don-sttl-receipt`.
-  "don-fund-receipt": { delay_s: 60, retries: 3 },
 };
 
 export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({

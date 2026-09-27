@@ -17,19 +17,8 @@ const { node } = donation_receipt.template({
   lines: [
     {
       kind: "beneficiary",
-      name: "WaterAid Kenya Community Trust",
-      amount: usd(50),
-      msg: "Your gift helps us drill the next borehole in Turkana County. We'll send photos when it's running.",
-    },
-    {
-      kind: "beneficiary",
-      name: "Uganda Rural Sanitation Initiative",
-      amount: usd(50),
-    },
-    {
-      kind: "beneficiary",
-      name: "Tanzania Safe Wells Project",
-      amount: usd(50),
+      name: "Clean Water for East Africa Fund",
+      amount: usd(150),
     },
     { kind: "tip", name: "Better Giving", amount: usd(15) },
     { kind: "fee", name: "Better Giving", amount: usd(5.12) },

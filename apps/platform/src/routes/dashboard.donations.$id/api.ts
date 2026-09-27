@@ -9,13 +9,9 @@ import { resp } from "@/helpers/https";
 import { send_email_or_throw } from "$/email";
 import { stripe } from "$/kit/stripe";
 import { donation_refund_started } from "$/pg/queries/dist";
-import { donation_get, receipt_sent } from "$/pg/queries/donation";
+import { donation_get } from "$/pg/queries/donation";
 import { user_get } from "$/pg/queries/user";
-import {
-  build_receipt,
-  NpoNotFoundError,
-  ReceiptNotReadyError,
-} from "$/receipt";
+import { build_receipt, NpoNotFoundError } from "$/receipt";
 import type { Route } from "./+types/route";
 import { type FV, schema } from "./schema";
 
@@ -117,22 +113,11 @@ export const action = async ({
     address: addr,
   };
 
-  // the queue send waits out the split before it mails, so once it has, a
-  // split still short is not coming. until then one may still be landing.
-  const final = await receipt_sent(don.id);
-  const data = await build_receipt(don, donor, final).catch((e) => {
-    if (e instanceof NpoNotFoundError || e instanceof ReceiptNotReadyError) {
-      return e;
-    }
+  const data = await build_receipt(don, donor).catch((e) => {
+    if (e instanceof NpoNotFoundError) return null;
     throw e;
   });
-  if (data instanceof NpoNotFoundError) return resp.status(404);
-  if (data instanceof ReceiptNotReadyError) {
-    return dataWithError(
-      null,
-      "This donation is still being distributed. Please try again in a few minutes."
-    );
-  }
+  if (!data) return resp.status(404);
   const { node, subject } = dr.template(data);
   // `send_email` reports a refusal, but a render error throws before it
   const sent = await send_email_or_throw({

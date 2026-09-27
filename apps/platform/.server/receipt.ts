@@ -2,8 +2,7 @@ import type { donation_receipt, IDonor } from "emails";
 import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_receipt } from "@/helpers/email";
 import { app } from "./env";
-import { dist_shares_of } from "./pg/queries/dist";
-import { npo_get, npos_batch_get } from "./pg/queries/npo";
+import { npo_get } from "./pg/queries/npo";
 
 export class NpoNotFoundError extends Error {
   constructor(npo_id: string) {
@@ -12,23 +11,15 @@ export class NpoNotFoundError extends Error {
   }
 }
 
-/** a fund gift whose split may still be writing its dists */
-export class ReceiptNotReadyError extends Error {
-  constructor(donation_id: string) {
-    super(`split still distributing: ${donation_id}`);
-    this.name = "ReceiptNotReadyError";
-  }
-}
-
 /**
  * the gift's one receipt, as the queue send and the dashboard resend both mail
- * it. a fund gift names the members its dists paid (`fund_paid_ids`); `final`
- * is the caller's word that the split has had its time.
+ * it. a fund gift names the fund, never its members: nothing records the set a
+ * split meant to pay, so no read of its dists can tell one still landing from
+ * one skipped, and the donor gave to the fund.
  */
 export async function build_receipt(
   d: IDonation,
-  from: IDonor,
-  final: boolean
+  from: IDonor
 ): Promise<donation_receipt.IData> {
   const ctx = {
     from,
@@ -45,44 +36,5 @@ export async function build_receipt(
     if (!npo) throw new NpoNotFoundError(d.to_id);
     return to_receipt(d, [npo.id], [npo], ctx);
   }
-
-  const paid_ids = await fund_paid_ids(d, final);
-  if (paid_ids) {
-    return to_receipt(d, paid_ids, await npos_batch_get(paid_ids), ctx);
-  }
-  // a split that stopped short: the gift went to the fund, which is always
-  // true, and the full amount stays on one line rather than being spread over
-  // the members who got only their share of it
   return to_receipt(d, [0], [{ id: 0, name: d.to_name }], ctx);
-}
-
-/**
- * the members a fund gift's receipt names: those its dists paid, the only
- * record of who got money. the split picks members and then writes one dist
- * each on another queue, skipping any that went inactive in between, so
- * neither its pick nor the fund's membership now will do.
- *
- * - whole: the dists' shares add up to the gift, so every one has landed.
- * - short, not `final`: may still be landing, `ReceiptNotReadyError`.
- * - short, `final`: the split is not coming. `null`: the receipt names the
- *   fund, since no set of members adds up to what the donor gave.
- *
- * `final` is the caller's, never read off the settlement date: that is the
- * provider's time (stripe's is the intent's creation), and a payment confirmed
- * long after it still has its whole split ahead of it.
- */
-export async function fund_paid_ids(
-  d: IDonation,
-  final: boolean
-): Promise<number[] | null> {
-  const shares = await dist_shares_of(d.id);
-  const paid_ids = shares.map((s) => s.to_id);
-  // each dist is base/n, so a whole split sums back to base within float error
-  const sum = shares.reduce((acc, s) => acc + s.amount, 0);
-  const whole =
-    shares.length > 0 && Math.abs(sum - d.amount.base) <= d.amount.base * 1e-6;
-  if (whole) return paid_ids;
-
-  if (!final) throw new ReceiptNotReadyError(d.id);
-  return null;
 }

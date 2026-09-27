@@ -38,23 +38,16 @@ const store = vi.hoisted(() => ({
     active: boolean;
     receipt_msg?: string;
   }[],
-  dists: [] as { to_id: number; amount: number }[],
   refund_statuses: [] as ("completed" | "loss" | "failed" | null)[],
-  /** the queue's own receipt already went out */
-  receipt_sent: false,
 }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_get: async () => store.don,
-  receipt_sent: async () => store.receipt_sent,
 }));
 vi.mock("$/pg/queries/npo", () => ({
   npo_get: async (id: number) => store.npos.find((n) => n.id === id),
-  npos_batch_get: async (ids: number[]) =>
-    store.npos.filter((n) => ids.includes(n.id)),
 }));
 vi.mock("$/pg/queries/user", () => ({ user_get: async () => undefined }));
 vi.mock("$/pg/queries/dist", () => ({
-  dist_shares_of: async () => store.dists,
   donation_refund_started: async () =>
     store.refund_statuses.some((s) => s !== null),
 }));
@@ -62,13 +55,9 @@ vi.mock("$/pg/queries/dist", () => ({
 import { send_receipt } from "#/routes/api.q-handler.$event/handle-don-receipt/send-receipt";
 import { action } from "./api";
 
-beforeEach(() => {
-  store.receipt_sent = false;
-});
-
 const fund_don = (
   to_members: string[],
-  o: Partial<Pick<IDonation, "status" | "amount" | "settlement">> = {}
+  o: Partial<Pick<IDonation, "status" | "amount">> = {}
 ) =>
   ({
     id: "don-1",
@@ -91,20 +80,6 @@ const npo = (id: number, name: string, active = true) => ({
   name,
   active,
 });
-
-const long_ago = "2020-01-01T00:00:00.000Z";
-const just_now = () => new Date(Date.now() - 60_000).toISOString();
-const settled = (date: string) => ({
-  id: "sttl-1",
-  date,
-  currency: "USD",
-  net: 97,
-  fee: 3,
-});
-
-/** the dists a split of `base` over `of` members wrote, one per id landed */
-const paid = (ids: number[], base = 100, of = ids.length) =>
-  ids.map((to_id) => ({ to_id, amount: base / of }));
 
 const resend = () =>
   action({
@@ -132,113 +107,30 @@ const printed = () => {
   return p.lines.map((l: any) => [l.name, l.amount.value.toFixed(2)]);
 };
 
-describe("send_receipts - resending a fund gift's receipts", () => {
+describe("send_receipts - resending a fund gift's receipt", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
-    report_error.mockClear();
-    store.npos = [
-      npo(10, "Alpha"),
-      npo(11, "Beta", false),
-      npo(12, "Gamma"),
-      npo(13, "Delta"),
-    ];
   });
 
-  test("receipts the members settlement paid, one inactive since", async () => {
-    store.don = fund_don(["10", "11", "12"]);
-    // beta was paid, then went inactive
-    store.dists = paid([12, 10, 11]);
-
-    await resend();
-
-    expect(printed()).toEqual([
-      ["Alpha", "33.34"],
-      ["Beta", "33.33"],
-      ["Gamma", "33.33"],
-    ]);
-  });
-
-  test("once the queue receipt went out, a split that paid nobody names the fund", async () => {
-    store.don = fund_don(["10", "11", "12"]);
-    store.receipt_sent = true;
-    store.dists = [];
-
-    await resend();
-
-    // naming the members funded now would name orgs that got nothing
-    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
-  });
-
-  test("a member reactivated since the split is not on the resend", async () => {
-    store.don = fund_don(["10", "12", "13"]);
-    // delta was inactive when the split ran, so it was never paid
-    store.dists = paid([10, 12]);
-
-    await resend();
-
-    expect(printed()).toEqual([
-      ["Alpha", "50.00"],
-      ["Gamma", "50.00"],
-    ]);
-  });
-
-  test.each([
-    ["one of three dists in", paid([10], 100, 3), just_now()],
-    ["no dist in yet", [], just_now()],
-    // stripe dates settlement at the intent's creation, so a payment confirmed
-    // days later arrives with its whole split still ahead of it
-    ["settled long ago", paid([10], 100, 3), long_ago],
-  ])(
-    "mid-fan-out, %s: the resend mails nothing and says why",
-    async (_, dists, date) => {
-      store.don = fund_don(["10", "12", "13"], { settlement: settled(date) });
-      store.dists = dists;
-
-      const res = await resend();
-
-      expect(send_email_or_throw).not.toHaveBeenCalled();
-      expect(res).toEqual({
-        error:
-          "This donation is still being distributed. Please try again in a few minutes.",
-      });
-    }
-  );
-
-  test("a split just finished: the resend receipts every member it paid", async () => {
-    store.don = fund_don(["10", "12", "13"], {
-      amount: { base: 0.9, tip: 0, fee_allowance: 0 },
-      settlement: settled(just_now()),
+  test("names the fund for the whole gift, never its members", async () => {
+    // nothing records which members a split meant to pay; the donor gave to
+    // the fund, and that is always true
+    store.don = fund_don(["10", "11", "12"], {
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
     });
-    // three thirds of 0.9 sum to 0.8999999999999999, not 0.9
-    store.dists = paid([10, 12, 13], 0.9);
 
     await resend();
 
     expect(printed()).toEqual([
-      ["Alpha", "0.30"],
-      ["Gamma", "0.30"],
-      ["Delta", "0.30"],
+      ["Climate Fund", "100.00"],
+      ["Better Giving", "5.00"],
     ]);
-  });
-
-  test("a split still short once the queue receipt went out names the fund for the whole gift", async () => {
-    store.don = fund_don(["10", "12", "13"]);
-    store.receipt_sent = true;
-    // gamma's and delta's dists never landed
-    store.dists = paid([10], 100, 3);
-
-    await resend();
-
-    // alpha got a third: printing the whole gift beside it would overstate it
-    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
   });
 });
 
 describe("resending a refunded gift's receipts", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
-    store.npos = [npo(10, "Alpha"), npo(12, "Gamma")];
-    store.dists = paid([10, 12]);
   });
 
   test.each(["refunded", "refunded_loss"] as const)(
@@ -262,8 +154,6 @@ describe("resending a refunded gift's receipts", () => {
 describe("resending a gift a refund has started on", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
-    store.npos = [npo(10, "Alpha"), npo(12, "Gamma")];
-    store.dists = paid([10, 12]);
     store.don = fund_don(["10", "12"], {
       amount: { base: 100, tip: 5, fee_allowance: 0 },
     });
@@ -284,14 +174,13 @@ describe("resending a gift a refund has started on", () => {
     });
   });
 
-  test("no refund on any dist: one receipt with each member and the tip", async () => {
+  test("no refund on any dist: one receipt with the fund and the tip", async () => {
     store.refund_statuses = [null, null];
 
     await resend();
 
     expect(printed()).toEqual([
-      ["Alpha", "50.00"],
-      ["Gamma", "50.00"],
+      ["Climate Fund", "100.00"],
       ["Better Giving", "5.00"],
     ]);
   });
@@ -303,8 +192,6 @@ describe("resending a stripe gift", () => {
     retrieve_intent.mockClear();
     report_error.mockClear();
     store.refund_statuses = [];
-    store.dists = paid([10]);
-    store.npos = [npo(10, "Alpha")];
     store.don = {
       ...fund_don(["10"]),
       settlement: {
@@ -353,7 +240,7 @@ describe("resending a stripe gift", () => {
 
     await resend();
 
-    expect(printed()).toEqual([["Alpha", "100.00"]]);
+    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
   });
 });
 
@@ -362,8 +249,6 @@ describe("a resend that fails", () => {
     send_email_or_throw.mockClear();
     report_error.mockClear();
     store.refund_statuses = [];
-    store.dists = paid([10]);
-    store.npos = [npo(10, "Alpha")];
     store.don = fund_don(["10"]);
   });
 
@@ -395,7 +280,6 @@ describe("the resend and the queue send", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
     store.refund_statuses = [];
-    store.dists = [];
     store.npos = [
       npo(1, "Better Giving"),
       npo(10, "Alpha"),
@@ -416,32 +300,16 @@ describe("the resend and the queue send", () => {
 
   test.each([
     [
-      // beta was paid, then went inactive
-      "a tipped fund gift, one member deactivated since the split",
+      "a tipped fund gift",
       fund_don(["10", "11", "12"], { amount: tipped }),
-      [12, 10, 11],
       [
-        ["beneficiary", "Alpha", "33.34"],
-        ["beneficiary", "Beta", "33.33"],
-        ["beneficiary", "Gamma", "33.33"],
-        ["tip", "Better Giving", "5.00"],
-      ],
-    ],
-    [
-      // beta was inactive at the split and still is
-      "a tipped fund gift after the split",
-      fund_don(["10", "11", "12"], { amount: tipped }),
-      [12, 10],
-      [
-        ["beneficiary", "Alpha", "50.00"],
-        ["beneficiary", "Gamma", "50.00"],
+        ["beneficiary", "Climate Fund", "100.00"],
         ["tip", "Better Giving", "5.00"],
       ],
     ],
     [
       "a tipped nonprofit gift to a program",
       npo_don("12", "Gamma"),
-      [],
       [
         ["beneficiary", "Gamma", "100.00"],
         ["tip", "Better Giving", "5.00"],
@@ -450,18 +318,16 @@ describe("the resend and the queue send", () => {
     [
       "a tipped gift to better giving itself",
       npo_don("1", "Better Giving"),
-      [],
       [
         ["beneficiary", "Better Giving", "100.00"],
         ["tip", "Better Giving", "5.00"],
       ],
     ],
-  ])("%s gets the same receipt either way", async (_, d, paid_ids, lines) => {
+  ])("%s gets the same receipt either way", async (_, d, lines) => {
     store.don = d;
-    store.dists = paid(paid_ids);
 
     await resend();
-    await send_receipt(d, false);
+    await send_receipt(d);
 
     expect(send_email_or_throw).toHaveBeenCalledTimes(2);
     const [resent, queued] = send_email_or_throw.mock.calls.map(
