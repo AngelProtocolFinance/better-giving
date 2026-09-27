@@ -1,5 +1,6 @@
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -15,7 +16,10 @@ import { registrations } from "$/pg/schema/registration";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
-const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const test_db = vi.hoisted(() => ({
+  current: null as TestDb | null,
+  before_update: () => {},
+}));
 const enqueued = vi.hoisted(() => [] as IMsg[]);
 const send_email = vi.hoisted(() =>
   vi.fn(async (_: { subject: string; to: string[] }) => ({ data: null }))
@@ -28,6 +32,7 @@ vi.mock("$/pg/db", () => ({
       get(_, prop) {
         const real = test_db.current?.db;
         if (!real) throw new Error("test_db not initialized");
+        if (prop === "update") test_db.before_update();
         return (real as any)[prop];
       },
     }
@@ -111,6 +116,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  test_db.before_update = () => {};
   const db = test_db.current!.db;
   await db.delete(user_npo_memberships);
   await db.delete(banking_apps);
@@ -133,6 +139,10 @@ beforeEach(async () => {
     last_name: "Doe",
   });
   await db.insert(registrations).values(IN_REVIEW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 /** a thrown `Response` is the refusal; anything else is the action's answer */
@@ -318,7 +328,12 @@ describe("reject", () => {
     expect(enqueued).toHaveLength(0);
   });
 
-  test("two rejections at once mail once", async () => {
+  test("two rejections at once are announced under one dedupe key", async () => {
+    // every write stamps its own millisecond, as two real presses do: a second
+    // committed write would carry a second updated_at, so a second key
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-09-01") });
+    test_db.before_update = () => vi.setSystemTime(Date.now() + 1);
+
     const statuses = await Promise.all([
       verdict("rejected"),
       verdict("rejected"),

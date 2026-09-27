@@ -1,21 +1,27 @@
-import { createRoutesStub, Link, Outlet } from "react-router";
+import {
+  type ActionFunctionArgs,
+  createRoutesStub,
+  Link,
+  Outlet,
+} from "react-router";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { Prompt } from "./prompt";
 
-/** an action held open until the test lets it answer */
+/** an action held open until the test lets every call so far answer */
 const held_action = () => {
-  let release = () => {};
-  const action = vi.fn(async () => {
-    await new Promise<void>((r) => {
-      release = r;
-    });
+  const held: (() => void)[] = [];
+  const action = vi.fn(async (_: ActionFunctionArgs) => {
+    await new Promise<void>((r) => held.push(r));
     return null;
   });
-  return { action, release: () => release() };
+  const release = () => {
+    for (const r of held.splice(0)) r();
+  };
+  return { action, release };
 };
 
-const stub = (action: () => Promise<null>) =>
+const stub = (action: (args: ActionFunctionArgs) => Promise<null>) =>
   createRoutesStub([
     {
       path: "/redeem-requests",
@@ -85,7 +91,9 @@ describe("redeem request verdict prompt", () => {
       .element(screen.getByRole("button", { name: "Submitting…" }))
       .toBeInTheDocument();
     release();
-    await expect.element(submit).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Submit", exact: true }))
+      .toBeInTheDocument();
     expect(action).toHaveBeenCalledOnce();
   });
 
@@ -135,7 +143,7 @@ describe("redeem request verdict prompt", () => {
     expect(action).toHaveBeenCalledOnce();
   });
 
-  test("another request opened mid-flight doesn't inherit the pending verdict", async () => {
+  test("another request opened mid-flight doesn't inherit the pending verdict, and its own submit goes out", async () => {
     const { action, release } = held_action();
     const Stub = stub(action);
     const screen = await render(
@@ -149,9 +157,23 @@ describe("redeem request verdict prompt", () => {
 
     // the dialog hides the page behind it from the accessibility tree
     press(screen.container.querySelector('a[href$="/tx-2/approve"]')!);
-    const submit = screen.getByRole("button", { name: "Submit" });
+    const submit = screen.getByRole("button", { name: "Submit", exact: true });
     await expect.element(submit).toBeInTheDocument();
     await expect.element(submit).not.toHaveAttribute("aria-disabled", "true");
+
+    // the latch resets in an effect, a beat after tx-2's Submit paints; a
+    // latch that never resets swallows every press and times this out
+    await vi.waitFor(() => {
+      if (action.mock.calls.length < 2) press(submit.element());
+      expect(action).toHaveBeenCalledTimes(2);
+    });
+    expect(action.mock.calls.map(([a]) => a.params.tx_id)).toEqual([
+      "tx-1",
+      "tx-2",
+    ]);
+
     release();
+    await Promise.all(action.mock.results.map((r) => r.value));
+    await expect.element(submit).not.toHaveAttribute("aria-disabled", "true");
   });
 });

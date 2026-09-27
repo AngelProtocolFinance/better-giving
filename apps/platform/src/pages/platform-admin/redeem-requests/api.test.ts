@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -146,9 +146,23 @@ async function ledger(npo_id: number) {
     .select({ status: bal_txs.status })
     .from(bal_txs)
     .where(eq(bal_txs.id, TX_ID));
+  const [fund_cash] = await db()
+    .select({ qty: nav_log_positions.qty })
+    .from(nav_log_positions)
+    .where(eq(nav_log_positions.ticker, "CASH"))
+    .orderBy(desc(nav_log_positions.date))
+    .limit(1);
+  const [holding] = await db()
+    .select({ units: nav_holders.units })
+    .from(nav_holders)
+    .where(eq(nav_holders.npo_id, npo_id))
+    .orderBy(desc(nav_holders.date))
+    .limit(1);
   return {
     ...npo,
     status: tx?.status,
+    fund_cash: fund_cash?.qty,
+    fund_units: holding?.units,
     bal_txs: (await db().select().from(bal_txs)).length,
     payouts: (await db().select().from(payouts)).length,
     nav_logs: (await db().select().from(nav_logs)).length,
@@ -166,6 +180,8 @@ describe("redeem request verdict", () => {
       liq: 0,
       lock_units: 70,
       status: "final",
+      fund_cash: 700,
+      fund_units: 70,
       bal_txs: 1,
       payouts: 1,
       nav_logs: 2,
@@ -185,6 +201,8 @@ describe("redeem request verdict", () => {
       liq: 300,
       lock_units: 70,
       status: "final",
+      fund_cash: 700,
+      fund_units: 70,
       bal_txs: 2,
       payouts: 0,
       nav_logs: 2,
@@ -204,6 +222,8 @@ describe("redeem request verdict", () => {
       liq: 0,
       lock_units: 100,
       status: "cancelled",
+      fund_cash: 1000,
+      fund_units: 100,
       bal_txs: 1,
       payouts: 0,
       nav_logs: 1,
