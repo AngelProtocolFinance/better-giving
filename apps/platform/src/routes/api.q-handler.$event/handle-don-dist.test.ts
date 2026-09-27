@@ -3,7 +3,8 @@ import type { IDonDistPayload } from "@/queue";
 
 // the hook body is the seam: queries, smtp and error reporting are the fakes.
 const query_webhooks = vi.hoisted(() => vi.fn());
-vi.mock("$/pg/queries/webhook", () => ({ query_webhooks }));
+const delete_webhook = vi.hoisted(() => vi.fn());
+vi.mock("$/pg/queries/webhook", () => ({ query_webhooks, delete_webhook }));
 vi.mock("$/pg/queries/npo", () => ({ npo_get: vi.fn(async () => null) }));
 vi.mock("$/pg/queries/country", () => ({
   country_metrics_time_get: vi.fn(),
@@ -150,6 +151,45 @@ describe("handle_don_dist webhooks", () => {
     const [err] = report_error.mock.calls[0]!;
     expect(err.message).toContain("x".repeat(200));
     expect(err.message).not.toContain("x".repeat(201));
+  });
+});
+
+describe("handle_don_dist hook status", () => {
+  const two_hooks = [
+    { id: "hook-a", npo_id: 42, url: "https://hooks.zapier.test/a" },
+    { id: "hook-b", npo_id: 42, url: "https://hooks.zapier.test/b" },
+  ];
+  const answer_a_with = (status: number) =>
+    vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) =>
+        url === "https://hooks.zapier.test/a"
+          ? new Response("", { status })
+          : new Response("ok", { status: 200 })
+      );
+
+  test("a 410 unsubscribes that hook and reports nothing", async () => {
+    query_webhooks.mockResolvedValue(two_hooks);
+    answer_a_with(410);
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(delete_webhook).toHaveBeenCalledOnce();
+    expect(delete_webhook).toHaveBeenCalledWith("hook-a", 42);
+    expect(report_error).not.toHaveBeenCalled();
+  });
+
+  test("a 500 keeps that hook subscribed and is reported", async () => {
+    query_webhooks.mockResolvedValue(two_hooks);
+    answer_a_with(500);
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(delete_webhook).not.toHaveBeenCalled();
+    expect(report_error).toHaveBeenCalledOnce();
+    const [err, context] = report_error.mock.calls[0]!;
+    expect(context).toEqual({ webhook_id: "hook-a", npo_id: 42, status: 500 });
+    expect(err.message).not.toContain("hooks.zapier.test");
   });
 });
 

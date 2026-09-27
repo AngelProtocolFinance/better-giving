@@ -16,7 +16,7 @@ import {
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_get } from "$/pg/queries/npo";
 import { npo_admins } from "$/pg/queries/user";
-import { query_webhooks } from "$/pg/queries/webhook";
+import { delete_webhook, query_webhooks } from "$/pg/queries/webhook";
 
 function YYWW(iso: string): number {
   const date = new Date(iso);
@@ -188,6 +188,12 @@ async function post_webhook(webhook: Webhook, body: string) {
     body,
     signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
   });
+
+  // zapier answers 410 once the zap is off or deleted: stop sending, not an error
+  if (res.status === 410) {
+    await delete_webhook(webhook.id, webhook.npo_id);
+    return;
+  }
 
   if (!res.ok) {
     const err = (await res.text()).slice(0, REPORTED_BODY_CHARS);
