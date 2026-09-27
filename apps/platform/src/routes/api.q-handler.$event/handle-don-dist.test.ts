@@ -122,7 +122,23 @@ describe("handle_don_dist webhooks", () => {
     expect(timeout_spy.mock.calls).toEqual([[10_000], [10_000]]);
   });
 
-  test("a 2xx is delivered even if its response body never arrives", async () => {
+  test("a 2xx's body is cancelled without waiting for it to arrive", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+    ]);
+    const cancel = vi.fn();
+    const stalled_body = new ReadableStream({ cancel });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(stalled_body, { status: 200 })
+    );
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(report_error).not.toHaveBeenCalled();
+  });
+
+  test("a 2xx is delivered even if its response body errors", async () => {
     query_webhooks.mockResolvedValue([
       { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
     ]);
@@ -152,6 +168,26 @@ describe("handle_don_dist webhooks", () => {
     expect(err.message).toContain("x".repeat(200));
     expect(err.message).not.toContain("x".repeat(201));
   });
+
+  test("a failed hook's body is read no further than the quoted prefix", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+    ]);
+    const cancel = vi.fn();
+    const endless_body = new ReadableStream({
+      start: (c) => c.enqueue(new TextEncoder().encode("x".repeat(300))),
+      cancel,
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(endless_body, { status: 502 })
+    );
+
+    await handle_don_dist({} as never, eur_gift);
+
+    const [err] = report_error.mock.calls[0]!;
+    expect(err.message).toContain(`502: ${"x".repeat(200)}`);
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });
 
 describe("handle_don_dist hook status", () => {
@@ -177,6 +213,31 @@ describe("handle_don_dist hook status", () => {
     expect(delete_webhook).toHaveBeenCalledOnce();
     expect(delete_webhook).toHaveBeenCalledWith("hook-a", 42);
     expect(report_error).not.toHaveBeenCalled();
+  });
+
+  test("a 410's body is cancelled", async () => {
+    query_webhooks.mockResolvedValue(two_hooks.slice(0, 1));
+    const cancel = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new ReadableStream({ cancel }), { status: 410 })
+    );
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  test("a 410 whose unsubscribe fails is reported once, without the url", async () => {
+    query_webhooks.mockResolvedValue(two_hooks);
+    answer_a_with(410);
+    delete_webhook.mockRejectedValueOnce(new Error("db unavailable"));
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(report_error).toHaveBeenCalledOnce();
+    const [err, context] = report_error.mock.calls[0]!;
+    expect(context).toEqual({ webhook_id: "hook-a", npo_id: 42 });
+    expect(err.message).not.toContain("hooks.zapier.test");
   });
 
   test("a 500 keeps that hook subscribed and is reported", async () => {

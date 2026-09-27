@@ -173,13 +173,35 @@ async function trigger_webhooks(r: IDonDistPayload) {
   });
 }
 
-// bounds each hook's post and its response read; hooks post concurrently, so
-// one dead url costs every other hook nothing
+// bounds each hook's post and its response read
 const WEBHOOK_TIMEOUT_MS = 10_000;
 // third-party body: an error page can be large or echo the request path
 const REPORTED_BODY_CHARS = 200;
 
 type Webhook = Awaited<ReturnType<typeof query_webhooks>>[number];
+
+// an unread body pins its connection until the timeout; an errored one has
+// nothing left to release, and its cancel rejects with the stored error
+async function discard_body(res: Response) {
+  await res.body?.cancel().catch(() => {});
+}
+
+async function read_body_prefix(res: Response, max_chars: number) {
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  try {
+    while (text.length < max_chars) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    await reader.cancel();
+  }
+  return text.slice(0, max_chars);
+}
 
 async function post_webhook(webhook: Webhook, body: string) {
   const res = await global.fetch(webhook.url, {
@@ -191,12 +213,13 @@ async function post_webhook(webhook: Webhook, body: string) {
 
   // zapier answers 410 once the zap is off or deleted: stop sending, not an error
   if (res.status === 410) {
+    await discard_body(res);
     await delete_webhook(webhook.id, webhook.npo_id);
     return;
   }
 
   if (!res.ok) {
-    const err = (await res.text()).slice(0, REPORTED_BODY_CHARS);
+    const err = await read_body_prefix(res, REPORTED_BODY_CHARS);
     // the hook url is a capability url: reports name the row, never the url
     report_error(new Error(`webhook ${webhook.id} -> ${res.status}: ${err}`), {
       webhook_id: webhook.id,
@@ -205,5 +228,6 @@ async function post_webhook(webhook: Webhook, body: string) {
     });
     return;
   }
+  await discard_body(res);
   console.info("webhook notified", webhook.id, res.status);
 }
