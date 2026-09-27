@@ -3,13 +3,15 @@ import {
   donation_tribute_notif as dtn,
 } from "emails";
 import { report_error } from "#/errors/report";
-import type { IDonation } from "@/donations";
+import { type IDonation, is_reversed } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
+import type { IDonFundReceiptPayload } from "@/queue";
 import { send_email_or_throw } from "$/email";
 import {
   claim_receipt_send,
+  donation_get,
   mark_receipt_sent,
   release_receipt_send,
 } from "$/pg/queries/donation";
@@ -103,6 +105,15 @@ async function stamp_sent(donation_id: string, attempts = 5) {
       );
     }
   }
+}
+
+/** a fund receipt's wait, scheduled by an earlier build. the payload is only
+ * the id, so the donation is read again; the claim dedupes it against the
+ * queue send. */
+export async function handle_don_fund_receipt(p: IDonFundReceiptPayload) {
+  const don = await donation_get(p.id);
+  if (!don || is_reversed(don.status)) return;
+  await handle_don_receipt(don);
 }
 
 async function sends(don: IDonation) {

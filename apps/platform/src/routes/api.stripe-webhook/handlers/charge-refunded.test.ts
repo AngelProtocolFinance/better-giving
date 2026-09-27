@@ -8,6 +8,7 @@ const dists_for_refund_mock = vi.hoisted(() => vi.fn());
 const process_refund_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
+const enqueue_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
@@ -25,6 +26,7 @@ vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
+vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
 const { handle_charge_refunded } = await import("./charge-refunded");
 
@@ -75,6 +77,9 @@ const refund = (amount: number) => {
 };
 
 const alerts = () => send_alert_mock.mock.calls.map(([a]) => a);
+/** notices queued for retried delivery rather than sent in the webhook */
+const queued = () =>
+  enqueue_mock.mock.calls.flat().filter((m) => m.id === "fiat-notice");
 const text_of = (a: { title: string; body?: string }) =>
   `${a.title}\n${a.body ?? ""}`;
 const new_line = (a: { body?: string }) =>
@@ -105,6 +110,7 @@ beforeEach(() => {
     return { failures: [], loss_msgs: [], has_loss: false, applied: 1 };
   });
   send_alert_mock.mockResolvedValue(undefined);
+  enqueue_mock.mockResolvedValue(undefined);
 });
 
 describe("stripe charge.refunded → donation reversal", () => {
@@ -231,16 +237,27 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     expect(don_status).toBe("refunded");
     expect(process_refund_mock).toHaveBeenCalledOnce();
-    const [, starting, done] = alerts();
-    expect(alerts()).toHaveLength(3);
+    const [, starting] = alerts();
+    expect(alerts()).toHaveLength(2);
     expect(starting.body).toContain(
       "automatic reversal is starting. Don't undo your hand adjustment until the reversal is confirmed."
     );
+    // queued, not sent: a lost send is retried by the queue, where a
+    // redelivered webhook would stop at the refunded status
+    const [msg] = queued();
+    expect(queued()).toHaveLength(1);
+    expect(msg).toMatchObject({
+      dedupe: `fiat.notice_${completing.id}`,
+      retries: 3,
+    });
+    const done = msg.payload.alert;
+    expect(done.title).toBe("Reversal Complete: Undo Hand Adjustment");
     expect(done.body).toMatch(/^Reversal complete: undo the hand adjustment/m);
     expect(text_of(done)).toContain(ORDER_ID);
     expect(text_of(done)).toContain("5.00 USD (re_1, succeeded)");
-    const [, starting_at, done_at] = send_alert_mock.mock.invocationCallOrder;
+    const [, starting_at] = send_alert_mock.mock.invocationCallOrder;
     const [reversed_at] = process_refund_mock.mock.invocationCallOrder;
+    const [done_at] = enqueue_mock.mock.invocationCallOrder;
     expect(starting_at).toBeLessThan(reversed_at);
     expect(done_at).toBeGreaterThan(reversed_at);
   });
@@ -260,8 +277,12 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     await handle_charge_refunded(refund(9_500));
 
-    const [, starting, outcome] = alerts();
+    const [, starting] = alerts();
     expect(starting.title).toMatch(/starting/i);
+    const outcome = queued()[0].payload.alert;
+    expect(outcome.title).toBe(
+      "Reversal Did Not Complete: Keep Hand Adjustment"
+    );
     expect(outcome.body).toMatch(
       /^Reversal did not complete: keep the hand adjustment/m
     );
@@ -269,11 +290,9 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(text_of(outcome)).not.toMatch(/reversal complete/i);
   });
 
-  it("reports rather than fails the delivery when the outcome notice can't be sent", async () => {
+  it("reports rather than fails the delivery when the outcome notice can't be queued, instruction and all", async () => {
     await handle_charge_refunded(refund(500));
-    send_alert_mock
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error("discord 503"));
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash 503"));
 
     await expect(
       handle_charge_refunded(refund(9_500))
@@ -281,9 +300,14 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     expect(don_status).toBe("refunded");
     expect(report_error_mock).toHaveBeenCalledOnce();
-    expect(report_error_mock.mock.calls[0]?.[0]).toMatchObject({
-      message: "discord 503",
+    const [err, ctx] = report_error_mock.mock.calls[0]!;
+    expect(err).toMatchObject({ message: "qstash 503" });
+    // sentry is then the only place the instruction survives
+    expect(ctx).toMatchObject({
+      donation_id: ORDER_ID,
+      title: "Reversal Complete: Undo Hand Adjustment",
     });
+    expect(ctx.body).toMatch(/^Reversal complete: undo the hand adjustment/m);
   });
 
   it("leaves the donation unreversed when the starting notice can't be sent, so the redelivery sends it", async () => {

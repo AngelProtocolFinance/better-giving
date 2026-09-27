@@ -11,12 +11,14 @@ import {
   vi,
 } from "vitest";
 import type { IDonation } from "@/donations";
+import { user } from "$/pg/schema/auth";
 import { dists } from "$/pg/schema/dist";
 import {
   donation_donors,
   donation_recipients,
   donations,
 } from "$/pg/schema/donation";
+import { funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -78,9 +80,10 @@ vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 
+import { seed_fund, seed_user } from "#/__tests__/fixtures/funds";
 import { claim_receipt_send, RECEIPT_LEASE_MS } from "$/pg/queries/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { handle_don_receipt } from ".";
+import { handle_don_fund_receipt, handle_don_receipt } from ".";
 
 // --- setup ---
 
@@ -104,6 +107,8 @@ beforeEach(async () => {
   await db.delete(donation_donors);
   await db.delete(donation_recipients);
   await db.delete(donations);
+  await db.delete(funds);
+  await db.delete(user);
   await db.delete(npos);
 
   const [npo] = await db
@@ -494,6 +499,54 @@ describe("send_receipt - a gift to a fund", () => {
       (l: any) => l.amount.value_usd
     );
     expect(usd).toEqual([100]);
+  });
+});
+
+describe("handle_don_fund_receipt - a wait scheduled by an earlier build", () => {
+  /** the seeded donation row becomes a gift to a fund */
+  const as_fund_row = async () => {
+    const db = test_db.current!.db;
+    const creator = await seed_user(db, "creator@test.com");
+    await seed_fund(db, {
+      id: "fund-1",
+      npo_owner: null,
+      creator_id: creator!.id,
+    });
+    await db
+      .update(donation_recipients)
+      .set({
+        type: "fund",
+        npo_id: null,
+        fund_id: "fund-1",
+        name: "Climate Fund",
+        members: [npo_id],
+      })
+      .where(eq(donation_recipients.donation_id, DON_ID));
+  };
+
+  test("lands as the fund receipt, mailed once however often it arrives", async () => {
+    await as_fund_row();
+
+    await handle_don_fund_receipt({ id: DON_ID, attempt: 3 });
+    await handle_don_fund_receipt({ id: DON_ID, attempt: 4 });
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const p = send_email_or_throw.mock.calls[0]![0].node.props;
+    expect(p.lines.map((l: any) => [l.name, l.amount.value])).toEqual([
+      ["Climate Fund", 100],
+    ]);
+  });
+
+  test("a gift refunded since mails nothing", async () => {
+    await as_fund_row();
+    await test_db
+      .current!.db.update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, DON_ID));
+
+    await handle_don_fund_receipt({ id: DON_ID, attempt: 1 });
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 });
 

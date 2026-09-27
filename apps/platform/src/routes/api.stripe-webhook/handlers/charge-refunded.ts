@@ -5,8 +5,10 @@ import {
   from_stripe_amount,
   str_id,
 } from "#/helpers/stripe";
+import { msg } from "@/queue";
 import { stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
+import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
@@ -145,16 +147,17 @@ export async function handle_charge_refunded(
             "Reversal Did Not Complete: Keep Hand Adjustment",
             `Reversal did not complete: keep the hand adjustment. ${failed} of ${graphs.length} dists failed to reverse, and the donation stays settled.`,
           ];
-    // best-effort: the reversal has already run, so a lost notice is reported
-    // rather than failing the delivery
-    await fiat_monitor
-      .send_alert({
-        type: "NOTICE",
-        from: `${ALERT_FROM}-${stage}`,
-        title,
-        body: [lead, ...detail].join("\n"),
+    const body = [lead, ...detail].join("\n");
+    // queued, not sent: once reversed, a redelivery stops at the donation's
+    // status, so only the queue's retries can land a failed send. a failed
+    // enqueue is reported, instruction and all, rather than failing the
+    // delivery, because the reversal has already run.
+    await enqueue(
+      msg("fiat-notice", {
+        id: event.id,
+        alert: { type: "NOTICE", from: `${ALERT_FROM}-${stage}`, title, body },
       })
-      .catch((err) => report_error(err, { donation_id: order_id }));
+    ).catch((err) => report_error(err, { donation_id: order_id, title, body }));
   }
 
   console.info(

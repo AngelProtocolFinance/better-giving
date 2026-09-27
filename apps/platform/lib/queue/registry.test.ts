@@ -10,10 +10,12 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ["banking-new", { npo_id: 42 }, "banking.new_42"],
     ["banking-rejected", { npo_id: 42 }, "banking.rejected_42"],
     ["don-dist", { id: "d1", to_id: 7 }, "don.dist_d1_7"],
+    ["don-fund-receipt", { id: "d5", attempt: 2 }, "don.fund-receipt_d5_2"],
     ["don-match", { id: "d4" }, "don.match_d4"],
     ["don-match-chase", { id: "d4" }, "don.match-chase_d4"],
     ["don-sttl-dist", { id: "d2" }, "don.sttl-dist_d2"],
     ["don-sttl-receipt", { id: "d3" }, "don.sttl-receipt_d3"],
+    ["fiat-notice", { id: "evt_1" }, "fiat.notice_evt_1"],
     [
       "fund-member-removed",
       { fund_id: "f1", creator_id: "u1" },
