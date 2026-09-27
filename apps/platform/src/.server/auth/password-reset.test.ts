@@ -33,6 +33,7 @@ vi.mock("./auth", () => ({
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
+import { while_token_writes_fail } from "#/__tests__/fixtures/token-writes";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import { user as user_table } from "$/pg/schema/auth";
@@ -189,25 +190,16 @@ describe("request_password_reset", () => {
     expect(sent_resets).toHaveLength(LINK_PER_IP.max);
   });
 
-  it("hands an address back the request that threw before mailing", async () => {
+  it("hands an address back a request the adapter failed", async () => {
     await seed_users(["victim@example.com"]);
-    const real = test_auth_ref.current;
-    test_auth_ref.current = {
-      api: {
-        requestPasswordReset: async () => {
-          throw new Error("adapter down");
-        },
-      },
-    };
-    try {
+    await while_token_writes_fail(test_db.current!, async () => {
       for (let i = 0; i < LINK_PER_EMAIL.max; i++) {
         await expect(
           request_password_reset("victim@example.com", from_ip("203.0.113.7"))
-        ).rejects.toThrow("adapter down");
+        ).rejects.toThrow();
       }
-    } finally {
-      test_auth_ref.current = real;
-    }
+    });
+    expect(sent_resets).toHaveLength(0);
 
     await request_password_reset("victim@example.com", from_ip("203.0.113.7"));
     expect(sent_resets).toHaveLength(1);

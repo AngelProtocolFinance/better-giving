@@ -35,6 +35,7 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
+import { while_token_writes_fail } from "#/__tests__/fixtures/token-writes";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import { create_test_db } from "$/pg/test-utils/pglite";
@@ -139,27 +140,18 @@ describe("request_login_link", () => {
     expect(sent_links).toHaveLength(LINK_PER_IP.max);
   });
 
-  it("hands an address back a send that threw, but the source still pays", async () => {
-    const real = test_auth_ref.current;
-    test_auth_ref.current = {
-      api: {
-        signInMagicLink: async () => {
-          throw new Error("mailer down");
-        },
-      },
-    };
-    try {
+  it("hands an address back a send the adapter failed, but the source still pays", async () => {
+    await while_token_writes_fail(test_db.current!, async () => {
       for (let i = 0; i < LINK_PER_IP.max; i++) {
         await request_login_link({
           email: "victim@example.com",
           headers: from_ip("203.0.113.9"),
         });
       }
-    } finally {
-      test_auth_ref.current = real;
-    }
+    });
+    expect(sent_links).toHaveLength(0);
 
-    // a source that can make the send fail must not get free requests
+    // a failed send still cost the source
     await request_login_link({
       email: "donor@example.com",
       headers: from_ip("203.0.113.9"),

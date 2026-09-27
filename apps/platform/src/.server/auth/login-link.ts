@@ -72,9 +72,10 @@ export async function request_login_link(a: LinkReq): Promise<void> {
       headers: a.headers ?? new Headers(),
     });
   } catch (err) {
-    // the mailer or the adapter failed. the caller's screen stays identical, so
-    // swallow rather than leak it. the source keeps its charge: a failure it
-    // can provoke must not buy it free requests.
+    // the adapter (the token write) or the template render failed — the send
+    // itself swallows a mailer refusal. the caller's screen stays identical, so
+    // swallow rather than leak it. the source keeps its charge, so a failure
+    // never buys it free requests.
     address.release();
     report_error(err);
   }
