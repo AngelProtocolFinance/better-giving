@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const donation_update_mock = vi.hoisted(() => vi.fn());
+const report_error_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/paypal", () => ({
   paypal: { capture_order: capture_order_mock },
@@ -10,6 +11,7 @@ vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_update: donation_update_mock,
 }));
+vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 
 const { capture_order } = await import("./capture-order");
 
@@ -120,5 +122,30 @@ describe("capture_order donor patch", () => {
     await capture_order({ order_id: "o7", don_id: "d7" });
 
     expect(donation_update_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("capture_order after paypal has captured", () => {
+  it("returns the capture and reports a donor-patch write that fails", async () => {
+    const capture = {
+      id: "o8",
+      status: "COMPLETED",
+      payment_source: { paypal: { email_address: "jane@b.co" } },
+      purchase_units: [
+        {
+          custom_id: "d8",
+          payments: { captures: [{ id: "c8", status: "COMPLETED" }] },
+        },
+      ],
+    };
+    capture_order_mock.mockResolvedValue(capture);
+    const db_down = new Error("neon: connection terminated");
+    donation_update_mock.mockRejectedValue(db_down);
+
+    const res = await capture_order({ order_id: "o8", don_id: "d8" });
+
+    expect(res).toEqual(capture);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(report_error_mock.mock.calls[0]![0]).toBe(db_down);
   });
 });

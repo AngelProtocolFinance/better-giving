@@ -1,3 +1,4 @@
+import type { CaptureOrderResponse } from "@better-giving/paypal";
 import type {
   Components,
   PayPalV6Namespace,
@@ -191,7 +192,7 @@ export function Paypal({
       const build_redirect_url = (
         onhold_id: string,
         payment_method: string,
-        donor_name?: string
+        donor_name?: { given_name?: string; surname?: string }
       ) => {
         const d = don_ref.current;
         const { amnt, tip, fee_allowance } = props_ref.current;
@@ -202,7 +203,7 @@ export function Paypal({
           amount: amnt + tip + fee_allowance,
           currency,
           payment_method,
-          donor_name: [donor_name],
+          donor_name: [donor_name?.given_name, donor_name?.surname],
         });
       };
 
@@ -247,16 +248,24 @@ export function Paypal({
           });
           if (!res.ok) return on_error_ref.current("Failed to capture payment");
 
-          const { purchase_units, payment_source = {} } = await res.json();
+          const { purchase_units, payment_source = {} }: CaptureOrderResponse =
+            await res.json();
+          const unit = purchase_units?.[0];
+          // PENDING is money paypal holds for review — settlement is the
+          // webhook's either way. a declined instrument is the donor's to retry.
+          const status = unit?.payments?.captures?.[0]?.status;
+          if (status !== "COMPLETED" && status !== "PENDING") {
+            return on_error_ref.current(
+              "PayPal declined the payment — please try again or use another payment method."
+            );
+          }
           const ps_id = Object.keys(payment_source)[0] || "paypal";
           const ps = payment_source.paypal || payment_source.venmo;
-          const onhold_id = purchase_units?.[0]?.custom_id;
+          const onhold_id = unit?.custom_id;
           if (!onhold_id)
             return on_error_ref.current("Missing order information");
 
-          do_redirect(
-            build_redirect_url(onhold_id, ps_id, ps?.name?.full_name)
-          );
+          do_redirect(build_redirect_url(onhold_id, ps_id, ps?.name));
         } catch (err) {
           report_error(err);
           on_error_ref.current(
