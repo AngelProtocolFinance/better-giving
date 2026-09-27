@@ -13,7 +13,8 @@ vi.mock("$/pg/queries/country", () => ({
 vi.mock("$/pg/queries/user", () => ({ npo_admins: vi.fn(async () => []) }));
 const send_email = vi.hoisted(() => vi.fn(async (_: any) => ({})));
 vi.mock("$/email", () => ({ send_email }));
-vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
+const report_error = vi.hoisted(() => vi.fn());
+vi.mock("#/errors/report", () => ({ report_error }));
 
 import { handle_don_dist } from "./handle-don-dist";
 
@@ -55,6 +56,100 @@ describe("handle_don_dist webhooks", () => {
     expect(url).toBe("https://hooks.zapier.test/1");
     const body = JSON.parse(String(init?.body));
     expect(body).toMatchObject({ amount: 100, currency: "EUR" });
+  });
+
+  test("a hook whose fetch throws doesn't stop the next one", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-dead", npo_id: 42, url: "https://dead.test/1" },
+      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.test/2" },
+    ]);
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url) => {
+        if (url === "https://dead.test/1") throw new TypeError("fetch failed");
+        return new Response("ok", { status: 200 });
+      });
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(fetch_spy.mock.calls.map(([url]) => url)).toContain(
+      "https://hooks.zapier.test/2"
+    );
+    expect(report_error).toHaveBeenCalledOnce();
+    expect(report_error.mock.calls[0]![1]).toEqual({
+      webhook_id: "hook-dead",
+      npo_id: 42,
+    });
+  });
+
+  test("a hook that never answers is cut off by its timeout", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-hang", npo_id: 42, url: "https://hang.test/1" },
+      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.test/2" },
+    ]);
+    // the timeout signal is the clock: firing it by hand keeps the test off real time
+    const clock = new AbortController();
+    const timeout_spy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(clock.signal);
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (url, init) => {
+        if (url !== "https://hang.test/1") {
+          return new Response("ok", { status: 200 });
+        }
+        return new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(init.signal!.reason)
+          );
+        });
+      });
+
+    const run = handle_don_dist({} as never, eur_gift);
+    await vi.waitFor(() => expect(fetch_spy).toHaveBeenCalledTimes(2));
+    clock.abort(new DOMException("timed out", "TimeoutError"));
+    await run;
+
+    expect(fetch_spy.mock.calls.map(([url]) => url)).toContain(
+      "https://hooks.zapier.test/2"
+    );
+    expect(report_error).toHaveBeenCalledOnce();
+    expect(report_error.mock.calls[0]![1]).toEqual({
+      webhook_id: "hook-hang",
+      npo_id: 42,
+    });
+    expect(timeout_spy.mock.calls).toEqual([[10_000], [10_000]]);
+  });
+
+  test("a 2xx is delivered even if its response body never arrives", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+    ]);
+    const broken_body = new ReadableStream({
+      start: (c) => c.error(new Error("connection reset")),
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(broken_body, { status: 200 })
+    );
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(report_error).not.toHaveBeenCalled();
+  });
+
+  test("a failed hook's report quotes at most 200 chars of its body", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+    ]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("x".repeat(5_000), { status: 502 })
+    );
+
+    await handle_don_dist({} as never, eur_gift);
+
+    const [err] = report_error.mock.calls[0]!;
+    expect(err.message).toContain("x".repeat(200));
+    expect(err.message).not.toContain("x".repeat(201));
   });
 });
 

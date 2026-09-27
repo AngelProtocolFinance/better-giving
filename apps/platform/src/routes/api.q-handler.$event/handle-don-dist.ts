@@ -161,22 +161,43 @@ async function trigger_webhooks(r: IDonDistPayload) {
   if (r.from?.company) payload.donor_company = r.from.company;
 
   const hooks = await query_webhooks(r.to_id);
+  const body = JSON.stringify(payload);
 
-  for (const webhook of hooks) {
-    const res = await global.fetch(webhook.url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+  const results = await Promise.allSettled(
+    hooks.map((webhook) => post_webhook(webhook, body))
+  );
+  results.forEach((result, i) => {
+    if (result.status === "fulfilled") return;
+    const { id, npo_id } = hooks[i]!;
+    report_error(result.reason, { webhook_id: id, npo_id });
+  });
+}
+
+// bounds each hook's post and its response read; hooks post concurrently, so
+// one dead url costs every other hook nothing
+const WEBHOOK_TIMEOUT_MS = 10_000;
+// third-party body: an error page can be large or echo the request path
+const REPORTED_BODY_CHARS = 200;
+
+type Webhook = Awaited<ReturnType<typeof query_webhooks>>[number];
+
+async function post_webhook(webhook: Webhook, body: string) {
+  const res = await global.fetch(webhook.url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    const err = (await res.text()).slice(0, REPORTED_BODY_CHARS);
+    // the hook url is a capability url: reports name the row, never the url
+    report_error(new Error(`webhook ${webhook.id} -> ${res.status}: ${err}`), {
+      webhook_id: webhook.id,
+      npo_id: webhook.npo_id,
+      status: res.status,
     });
-
-    if (!res.ok) {
-      const err = await res.text();
-      report_error(
-        new Error(`webhook ${webhook.url} -> ${res.status}: ${err}`),
-        { webhook_url: webhook.url, status: res.status }
-      );
-      continue;
-    }
-    console.info("webhook notified", await res.text());
+    return;
   }
+  console.info("webhook notified", webhook.id, res.status);
 }
