@@ -150,10 +150,10 @@ describe("ira-qcd custodian", () => {
 });
 
 describe("donation amount precision", () => {
-  const stripe = (amount: string, code: string, rate: number) =>
+  const stripe = (amount: string, code: string, rate: number, min = 1) =>
     v.safeParse(stripe_donation_details, {
       amount,
-      currency: { code, rate, min: 1 },
+      currency: { code, rate, min },
       frequency: "one-time",
       tip: "",
       tip_format: "none",
@@ -175,6 +175,19 @@ describe("donation amount precision", () => {
       ["amount", "can't be more than 2 decimals"],
     ]);
     expect(stripe("10.55", "USD", 1).success).toBe(true);
+    // × 100 drifts off the integer: 28.999999999999996, 1998.9999999999998
+    expect(stripe("0.29", "USD", 1, 0).success).toBe(true);
+    expect(stripe("19.99", "USD", 1).success).toBe(true);
+  });
+
+  // min 0 turns the minimum off, so only the precision rule can refuse
+  test("every whole-cent card amount up to $200 is accepted", () => {
+    const refused: string[] = [];
+    for (let cents = 1; cents <= 20_000; cents++) {
+      const amount = String(cents / 100);
+      if (!stripe(amount, "USD", 1, 0).success) refused.push(amount);
+    }
+    expect(refused).toEqual([]);
   });
 
   test("a zero-decimal currency takes whole units only", () => {

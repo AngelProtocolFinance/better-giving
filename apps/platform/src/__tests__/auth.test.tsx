@@ -100,32 +100,6 @@ vi.mock("#/.server/auth", async () => ({
   ).request_password_reset,
 }));
 
-// a quota-free stand-in for the link helper. the quota sizes pass through
-// because the real `request_password_reset` imports them from here.
-vi.mock("#/.server/auth/login-link", async () => {
-  const { LINK_PER_EMAIL, LINK_PER_IP } = await vi.importActual<
-    typeof import("#/.server/auth/login-link")
-  >("#/.server/auth/login-link");
-  return {
-    LINK_PER_EMAIL,
-    LINK_PER_IP,
-    check_email_url: (a: { email: string; stale?: boolean }) =>
-      `/check-email?email=${encodeURIComponent(a.email)}${
-        a.stale ? "&stale=1" : ""
-      }`,
-    request_login_link: vi.fn(async (a: { email: string }) => {
-      try {
-        await test_auth_ref.current.api.signInMagicLink({
-          body: { email: a.email },
-          headers: new Headers(),
-        });
-      } catch {
-        // unknown address — the screen is identical either way
-      }
-    }),
-  };
-});
-
 vi.mock("#/.server/cookie", () => ({
   reg_cookie: {
     parse: vi.fn(async () => ({})),
