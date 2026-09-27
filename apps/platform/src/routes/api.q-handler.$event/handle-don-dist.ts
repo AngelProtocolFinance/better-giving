@@ -197,8 +197,10 @@ async function read_body_prefix(res: Response, max_chars: number) {
       if (done) break;
       text += decoder.decode(value, { stream: true });
     }
+  } catch {
+    // cut off mid-body (timeout, reset): the status still gets reported
   } finally {
-    await reader.cancel();
+    await reader.cancel().catch(() => {});
   }
   return text.slice(0, max_chars);
 }

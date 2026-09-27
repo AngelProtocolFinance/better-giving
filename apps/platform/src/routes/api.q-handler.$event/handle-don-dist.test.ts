@@ -188,6 +188,29 @@ describe("handle_don_dist webhooks", () => {
     expect(err.message).toContain(`502: ${"x".repeat(200)}`);
     expect(cancel).toHaveBeenCalledOnce();
   });
+
+  test("a failed hook whose body read times out is still reported with its status", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+    ]);
+    let pulls = 0;
+    const timed_out_body = new ReadableStream({
+      pull: (c) =>
+        pulls++ === 0
+          ? c.enqueue(new TextEncoder().encode("bad gateway"))
+          : c.error(new DOMException("timed out", "TimeoutError")),
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(timed_out_body, { status: 502 })
+    );
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(report_error).toHaveBeenCalledOnce();
+    const [err, context] = report_error.mock.calls[0]!;
+    expect(err.message).toBe("webhook hook-1 -> 502: bad gateway");
+    expect(context).toEqual({ webhook_id: "hook-1", npo_id: 42, status: 502 });
+  });
 });
 
 describe("handle_don_dist hook status", () => {
