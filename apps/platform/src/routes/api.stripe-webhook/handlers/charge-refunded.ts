@@ -23,15 +23,22 @@ const refund_list = (refunds: Stripe.Refund[], currency: string) =>
 
 /** the refunds this event added, oldest first, or null when the event can't
  * say. charge.refunded names no refund, so they're found by where the event's
- * amount refunded before and after it falls in the refund list */
+ * amount refunded before and after it falls in the refund list, or failing
+ * that, as the latest refund by the event's time */
 const added_by = (
   { created, data }: Stripe.ChargeRefundedEvent,
   refunds: Stripe.Refund[]
 ) => {
-  const before = data.previous_attributes?.amount_refunded;
-  if (before === undefined) return null;
   // a refund made after this event isn't in it, so a redelivery marks the same ones
-  const oldest_first = refunds.filter((r) => r.created <= created).reverse();
+  const by_then = refunds.filter((r) => r.created <= created);
+  // stripe documents previous_attributes for *.updated events only
+  const before = data.previous_attributes?.amount_refunded;
+  if (before === undefined) {
+    const [latest, next] = by_then; // newest first
+    const tied = latest && next && latest.created === next.created;
+    return latest && !tied ? [latest] : null;
+  }
+  const oldest_first = by_then.reverse();
   let prior = 0;
   let i = 0;
   for (; i < oldest_first.length && prior < before; i++) {

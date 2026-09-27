@@ -65,6 +65,8 @@ const refund = (amount: number) => {
     created: clock,
     data: {
       object: charge_now(),
+      // unconfirmed that stripe sends this on charge.refunded; tests that
+      // delete it cover the event without it
       previous_attributes: { amount_refunded: before },
     },
   } as any;
@@ -164,20 +166,34 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(resent.body).toMatch(/\bevent evt_2\b/);
   });
 
-  it("says it could not tell which refund is new when the event carries no previous attributes", async () => {
+  it("names the latest refund by the event's time when the event carries no previous attributes", async () => {
     await handle_charge_refunded(refund(500));
     const second = refund(1_000);
     delete second.data.previous_attributes;
+    refund(2_000); // made after the event, so not in it
 
     await handle_charge_refunded(second);
 
     const notice = alerts().at(-1);
     expect(new_line(notice)).toBe(
-      "new in this event: could not tell which refund is new"
+      "new in this event: 10.00 USD (re_2, succeeded)"
     );
     const text = text_of(notice);
     expect(text).toContain("5.00 USD (re_1, succeeded)");
     expect(text).toContain("10.00 USD (re_2, succeeded)");
+  });
+
+  it("says it could not tell when two refunds share the latest second and the event carries no previous attributes", async () => {
+    await handle_charge_refunded(refund(500));
+    const second = refund(1_000);
+    delete second.data.previous_attributes;
+    refunds[1].created = refunds[0].created; // both made in the same second
+
+    await handle_charge_refunded(second);
+
+    expect(new_line(alerts().at(-1))).toBe(
+      "new in this event: could not tell which refund is new"
+    );
   });
 
   it("says it could not tell rather than guess when an earlier refund has since failed", async () => {
