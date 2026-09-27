@@ -17,6 +17,9 @@ export const send_receipt = async (d: IDonation) => {
       .filter(Boolean)
       .join(", "),
   };
+  // queued beside the split, so it can run before or partway through the
+  // fan-out that writes the dists: the builder lists the funded members until
+  // every one of them has its dist
   const x = await build_receipt(d, donor);
 
   const { node, subject } = donation_receipt.template(x);

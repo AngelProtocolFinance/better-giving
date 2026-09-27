@@ -1,3 +1,4 @@
+import type { donation_receipt as dr } from "emails";
 import { createFormData } from "remix-hook-form";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { IDonation } from "@/donations";
@@ -17,6 +18,9 @@ const send_email_or_throw = vi.hoisted(() =>
   }))
 );
 vi.mock("$/email", () => ({ send_email_or_throw }));
+
+const report_error = vi.hoisted(() => vi.fn());
+vi.mock("#/errors/report", () => ({ report_error }));
 
 const charge = vi.hoisted(() => ({ amount_refunded: 0 }));
 const retrieve_intent = vi.hoisted(() =>
@@ -119,8 +123,8 @@ describe("send_receipts - resending a fund gift's receipts", () => {
   });
 
   test("receipts the members settlement paid, one inactive since", async () => {
-    store.don = fund_don(["10", "11", "12", "13"]);
-    // delta joined after the split: active now, never paid
+    store.don = fund_don(["10", "11", "12"]);
+    // beta was paid, then went inactive
     store.dist_ids = [12, 10, 11];
 
     await resend();
@@ -141,6 +145,21 @@ describe("send_receipts - resending a fund gift's receipts", () => {
     expect(printed()).toEqual([
       ["Alpha", "50.00"],
       ["Gamma", "50.00"],
+    ]);
+  });
+
+  test("mid-fan-out, the queue send receipts every member the split pays", async () => {
+    const d = fund_don(["10", "12", "13"]);
+    // the split commits one dist per member; alpha's is in, gamma's and
+    // delta's are still queued
+    store.dist_ids = [10];
+
+    await send_receipt(d);
+
+    expect(printed()).toEqual([
+      ["Alpha", "33.34"],
+      ["Gamma", "33.33"],
+      ["Delta", "33.33"],
     ]);
   });
 });
@@ -212,6 +231,7 @@ describe("resending a stripe gift", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
     retrieve_intent.mockClear();
+    report_error.mockClear();
     store.refund_statuses = [];
     store.dist_ids = [];
     store.npos = [npo(10, "Alpha")];
@@ -244,6 +264,19 @@ describe("resending a stripe gift", () => {
     });
   });
 
+  test("a charge stripe won't return mails nothing, and is reported", async () => {
+    const outage = new Error("stripe unavailable");
+    retrieve_intent.mockRejectedValueOnce(outage);
+
+    const res = await resend();
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(res).toEqual({
+      error: "We couldn't check this gift's refund status. Please try again.",
+    });
+    expect(report_error).toHaveBeenCalledWith(outage, expect.anything());
+  });
+
   test("an unrefunded charge gets its receipt", async () => {
     charge.amount_refunded = 0;
 
@@ -256,6 +289,7 @@ describe("resending a stripe gift", () => {
 describe("a resend that fails", () => {
   beforeEach(() => {
     send_email_or_throw.mockClear();
+    report_error.mockClear();
     store.refund_statuses = [];
     store.dist_ids = [];
     store.npos = [npo(10, "Alpha")];
@@ -263,13 +297,16 @@ describe("a resend that fails", () => {
   });
 
   test("a mail the provider refused says so instead of 'Receipt sent'", async () => {
-    send_email_or_throw.mockRejectedValueOnce(new Error("550"));
+    const refused = new Error("550");
+    send_email_or_throw.mockRejectedValueOnce(refused);
 
     const res = await resend();
 
     expect(res).toEqual({
       error: "We couldn't send your receipt. Please try again.",
     });
+    // reported here too: a render error never reaches `send_email`'s report
+    expect(report_error).toHaveBeenCalledWith(refused, expect.anything());
   });
 
   test("a gift to a nonprofit that no longer exists is not found", async () => {
@@ -293,7 +330,6 @@ describe("the resend and the queue send agree", () => {
       npo(10, "Alpha"),
       npo(11, "Beta", false),
       { ...npo(12, "Gamma"), receipt_msg: "Thank you from Gamma." },
-      npo(13, "Delta"),
     ];
   });
 
@@ -312,33 +348,62 @@ describe("the resend and the queue send agree", () => {
       "a tipped fund gift before the split",
       fund_don(["10", "11", "12"], { amount: tipped }),
       [],
+      [
+        ["beneficiary", "Alpha", "50.00"],
+        ["beneficiary", "Gamma", "50.00"],
+        ["tip", "Better Giving", "5.00"],
+      ],
     ],
     [
-      // beta paid then went inactive, delta joined after: funded now is not
-      // who was paid
+      // beta was paid, then went inactive
       "a tipped fund gift after the split",
-      fund_don(["10", "11", "12", "13"], { amount: tipped }),
+      fund_don(["10", "11", "12"], { amount: tipped }),
       [12, 10, 11],
+      [
+        ["beneficiary", "Alpha", "33.34"],
+        ["beneficiary", "Beta", "33.33"],
+        ["beneficiary", "Gamma", "33.33"],
+        ["tip", "Better Giving", "5.00"],
+      ],
     ],
-    ["a tipped nonprofit gift to a program", npo_don("12", "Gamma"), []],
+    [
+      "a tipped nonprofit gift to a program",
+      npo_don("12", "Gamma"),
+      [],
+      [
+        ["beneficiary", "Gamma", "100.00"],
+        ["tip", "Better Giving", "5.00"],
+      ],
+    ],
     [
       "a tipped gift to better giving itself",
       npo_don("1", "Better Giving"),
       [],
+      [
+        ["beneficiary", "Better Giving", "100.00"],
+        ["tip", "Better Giving", "5.00"],
+      ],
     ],
-  ])("%s gets the same receipt either way", async (_, d, dist_ids) => {
+  ])("%s gets the same receipt either way", async (_, d, dist_ids, lines) => {
     store.don = d;
     store.dist_ids = dist_ids;
 
     await resend();
     await send_receipt(d);
 
-    // the donor the resend prints comes from its form, not the donation
     expect(send_email_or_throw).toHaveBeenCalledTimes(2);
-    const [resent, queued] = send_email_or_throw.mock.calls.map((c) => {
-      const { from: _from, ...rest } = c[0].node.props;
-      return rest;
-    });
-    expect(resent).toEqual(queued);
+    const [resent, queued] = send_email_or_throw.mock.calls.map(
+      ([i]) => i.node.props as dr.IData
+    );
+    for (const r of [resent!, queued!]) {
+      expect(
+        r.lines.map((l) => [l.kind, l.name, l.amount.value.toFixed(2)])
+      ).toEqual(lines);
+      expect(r.amount.value).toBe(105);
+    }
+    // the donor the resend prints comes from its form, not the donation
+    const { from: _r, ...resent_rest } = resent!;
+    const { from: _q, ...queued_rest } = queued!;
+    expect(resent_rest).toEqual(queued_rest);
   });
 });

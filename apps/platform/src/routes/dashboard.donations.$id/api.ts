@@ -3,6 +3,7 @@ import { donation_receipt as dr, type IDonor } from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { dataWithError, redirectWithSuccess } from "#/.server/toast";
+import { report_error } from "#/errors/report";
 import { is_reversed } from "@/donations";
 import { resp } from "@/helpers/https";
 import { send_email_or_throw } from "$/email";
@@ -66,15 +67,23 @@ export const action = async ({
 
   // a partial stripe refund writes nothing to the donation or its dists, so
   // only the charge knows the full amount no longer stands
-  if (
-    don.via.startsWith("stripe") &&
-    don.settlement &&
-    (await charge_refunded(don.settlement.id))
-  ) {
-    return dataWithError(
-      null,
-      "This gift was partly refunded, so we can't resend its original receipt. Contact support for an updated one."
-    );
+  if (don.via.startsWith("stripe") && don.settlement) {
+    const refunded = await charge_refunded(don.settlement.id).catch((e) => {
+      report_error(e, { donation_id: don.id, during: "resend refund check" });
+      return null;
+    });
+    if (refunded === null) {
+      return dataWithError(
+        null,
+        "We couldn't check this gift's refund status. Please try again."
+      );
+    }
+    if (refunded) {
+      return dataWithError(
+        null,
+        "This gift was partly refunded, so we can't resend its original receipt. Contact support for an updated one."
+      );
+    }
   }
 
   // a refund run whose dist reversals didn't all complete leaves the donation
@@ -110,12 +119,15 @@ export const action = async ({
   });
   if (!data) return resp.status(404);
   const { node, subject } = dr.template(data);
-  // the refusal is reported where it is caught, in `send_email`
+  // `send_email` reports a refusal, but a render error throws before it
   const sent = await send_email_or_throw({
     node,
     subject,
     to: [don.from_email],
-  }).catch(() => null);
+  }).catch((e) => {
+    report_error(e, { donation_id: don.id, during: "receipt resend" });
+    return null;
+  });
   if (!sent) {
     return dataWithError(
       null,
