@@ -82,6 +82,20 @@ vi.mock("../paypal", () => ({
         >
           paypal-stuck
         </button>
+        {/* the real rail's order on a capture paypal leaves unknown: the lock
+            first, then the prompt telling the donor not to pay again */}
+        <button
+          type="button"
+          data-testid="paypal-unconfirmed"
+          onClick={() => {
+            props.on_unconfirmed?.();
+            props.on_error(
+              "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt from PayPal, or contact us."
+            );
+          }}
+        >
+          paypal-unconfirmed
+        </button>
       </div>
     );
   },
@@ -766,6 +780,44 @@ describe("Stripe form: an express rail that can't be offered", () => {
     // and nothing is worded as a failure yet: the browser may still be on its
     // way to the receipt.
     expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
+    expect(screen.getByRole("status").element().textContent).toBe("");
+  });
+
+  test("a paypal capture nobody can confirm shuts every rail and says so on the form", async () => {
+    // paypal may still move the money, so a second payment could charge twice.
+    // the prompt saying so can be dismissed; the lock and the notice can't.
+    don_mock.value = init({ hide_unavailable_express: true });
+    const Stub = stb(<Form step="form" type="stripe" />);
+    const screen = await render(<Stub />);
+
+    // the region is in place before anything is written into it, so the
+    // notice arrives as a change a screen reader announces
+    const region = screen.getByRole("status");
+    await expect.element(region).toBeInTheDocument();
+    expect(region.element().textContent).toBe("");
+
+    await screen.getByTestId("paypal-unconfirmed").click();
+    await screen.getByRole("button", { name: /^ok$/i }).click();
+    await vi.waitFor(() =>
+      expect(screen.getByRole("dialog").query()).toBeNull()
+    );
+
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent(
+        "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt, or contact us."
+      );
+    await expect
+      .element(screen.getByRole("button", { name: /continue with card/i }))
+      .toBeDisabled();
+    expect(
+      screen.container.querySelector("[data-testid=express-mock][data-paid]")
+    ).not.toBeNull();
+    expect(
+      screen.container.querySelector("[data-testid=paypal-mock][data-paid]")
+    ).not.toBeNull();
+    // unconfirmed is not paid: there is no receipt to send the donor to
+    expect(screen.getByRole("link", { name: /receipt/i }).query()).toBeNull();
   });
 
   test("the way out points at the donation that needs it, not at whichever charge landed last", async () => {

@@ -56,6 +56,11 @@ export function Form(props: TMethodState<"stripe">) {
   // the donation that actually needs it. the prompt saying so can be
   // dismissed, so it has to survive on the form too.
   const [stuck, set_stuck] = useState<IDonationDest>();
+  // paypal answered a capture with a status nobody can read, so the money may
+  // still move. shuts every rail the way `paid` does, but is kept apart from
+  // it: there is no receipt to point at, and the notice says something else.
+  const [unconfirmed, set_unconfirmed] = useState(false);
+  const shut = paid || unconfirmed;
   const { don_set, don } = use_donation();
 
   const on_stuck = (dest: IDonationDest) => {
@@ -262,7 +267,7 @@ export function Form(props: TMethodState<"stripe">) {
           not opened yet and there is nothing to strand. */}
       {rhf.stripe_express && sx_unavailable?.flow !== sx_flow && (
         <ExpressCheckout
-          paid={paid}
+          paid={shut}
           on_error={(msg) =>
             set_prompt({ type: "error", children: <p>{msg}</p> })
           }
@@ -277,7 +282,7 @@ export function Form(props: TMethodState<"stripe">) {
             if (!valid) rhf.setFocus("amount");
             return valid;
           }}
-          classes={`mt-4 ${paid ? "opacity-50" : ""}`}
+          classes={`mt-4 ${shut ? "opacity-50" : ""}`}
           {...rhf.stripe_express}
         />
       )}
@@ -285,8 +290,8 @@ export function Form(props: TMethodState<"stripe">) {
       {rhf.paypal_express && pp_unavailable?.flow !== pp_flow && (
         <Paypal
           {...rhf.paypal_express}
-          classes={paid ? "opacity-50" : ""}
-          paid={paid}
+          classes={shut ? "opacity-50" : ""}
+          paid={shut}
           validate={async () => {
             const valid = await rhf.trigger(["amount", "frequency"]);
             if (!valid) rhf.setFocus("amount");
@@ -295,15 +300,26 @@ export function Form(props: TMethodState<"stripe">) {
           on_error={(x) => set_prompt({ type: "error", children: x })}
           on_paid={() => set_paid(true)}
           on_stuck={on_stuck}
+          on_unconfirmed={() => set_unconfirmed(true)}
           on_unavailable={(msg) => set_pp_unavailable({ flow: pp_flow, msg })}
         />
       )}
       {!prompt && unavailable(pp_unavailable, pp_flow)}
       {stuck && <StuckMsg dest={stuck} classes="mt-4 text-sm text-gray-11" />}
+      {/* rendered empty from mount so the notice lands as a change to announce.
+          sr-only while empty rather than hidden: it takes no gap in the column
+          and stays in the accessibility tree. */}
+      <p
+        role="status"
+        className={unconfirmed ? "mt-4 text-sm text-gray-11" : "sr-only"}
+      >
+        {unconfirmed &&
+          "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt, or contact us."}
+      </p>
 
       <button
         disabled={
-          paid ||
+          shut ||
           currency.isLoading ||
           currency.isValidating ||
           rhf.isSubmitting

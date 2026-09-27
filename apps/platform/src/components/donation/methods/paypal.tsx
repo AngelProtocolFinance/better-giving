@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import { href } from "react-router";
 import { paypal_client_id, stage } from "#/constants/env";
 import { report_degraded, report_error } from "#/errors/report";
+import { paypal_capture_outcome } from "@/donations/paypal-capture";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
 import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
@@ -37,8 +38,14 @@ interface Props extends IPayPalExpress {
    * the donor the destination this passes back.
    */
   on_stuck?: (dest: IDonationDest) => void;
-  /** this donor has already been charged on one of the rails, so the buttons
-   * stay put but no longer open a session. */
+  /**
+   * paypal answered the capture with a missing or unrecognised status, so the
+   * money may still move. the donor has been told not to pay again; the caller
+   * keeps every rail from taking a second payment.
+   */
+  on_unconfirmed?: () => void;
+  /** this donor has been, or may already have been, charged on one of the
+   * rails, so the buttons stay put but no longer open a session. */
   paid?: boolean;
   validate: () => Promise<boolean>;
   classes?: string;
@@ -95,6 +102,7 @@ export function Paypal({
   on_unavailable,
   on_paid,
   on_stuck,
+  on_unconfirmed,
   paid,
   validate,
   ...p
@@ -119,6 +127,8 @@ export function Paypal({
   on_paid_ref.current = on_paid;
   const on_stuck_ref = useRef(on_stuck);
   on_stuck_ref.current = on_stuck;
+  const on_unconfirmed_ref = useRef(on_unconfirmed);
+  on_unconfirmed_ref.current = on_unconfirmed;
   // read at click time: the buttons are mounted once, in an effect keyed on
   // flow shape, so a prop change must reach them without a remount.
   const paid_ref = useRef(paid);
@@ -238,7 +248,8 @@ export function Paypal({
       // don_id is captured per-click via the intent promise, not shared state.
       const handle_one_time_approve = async (
         don_id: string,
-        order_id: string
+        order_id: string,
+        method: "PayPal" | "Venmo"
       ) => {
         try {
           const res = await fetch(href("/api/donation-intents"), {
@@ -248,20 +259,24 @@ export function Paypal({
           });
           if (!res.ok) return on_error_ref.current("Failed to capture payment");
 
-          const { purchase_units, payment_source = {} }: CaptureOrderResponse =
-            await res.json();
-          const unit = purchase_units?.[0];
-          // PENDING is money paypal holds for review — settlement is the
-          // webhook's either way. a declined instrument is the donor's to retry.
-          const status = unit?.payments?.captures?.[0]?.status;
-          if (status !== "COMPLETED" && status !== "PENDING") {
+          const body: CaptureOrderResponse = await res.json();
+          const { outcome } = paypal_capture_outcome(body);
+          if (outcome === "declined") {
             return on_error_ref.current(
-              "PayPal declined the payment — please try again or use another payment method."
+              `${method} declined the payment — please try again or use another payment method.`
             );
           }
+          // a second payment could charge twice
+          if (outcome === "unknown") {
+            on_unconfirmed_ref.current?.();
+            return on_error_ref.current(
+              `We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt from ${method}, or contact us.`
+            );
+          }
+          const { payment_source = {} } = body;
           const ps_id = Object.keys(payment_source)[0] || "paypal";
           const ps = payment_source.paypal || payment_source.venmo;
-          const onhold_id = unit?.custom_id;
+          const onhold_id = body.purchase_units?.[0]?.custom_id;
           if (!onhold_id)
             return on_error_ref.current("Missing order information");
 
@@ -312,7 +327,7 @@ export function Paypal({
             const session = sdk.createPayPalOneTimePaymentSession({
               onApprove: async ({ orderId }) => {
                 const { don_id } = await intent_promise;
-                await handle_one_time_approve(don_id, orderId);
+                await handle_one_time_approve(don_id, orderId, "PayPal");
               },
               onError: on_session_error,
             });
@@ -337,7 +352,7 @@ export function Paypal({
           const session = sdk.createVenmoOneTimePaymentSession({
             onApprove: async ({ orderId }) => {
               const { don_id } = await intent_promise;
-              await handle_one_time_approve(don_id, orderId);
+              await handle_one_time_approve(don_id, orderId, "Venmo");
             },
             onError: on_session_error,
           });
