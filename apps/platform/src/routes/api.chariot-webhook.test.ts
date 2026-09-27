@@ -9,13 +9,15 @@ const donation_mocks = vi.hoisted(() => ({
 }));
 const send_alert_mock = vi.hoisted(() => vi.fn(async () => {}));
 const report_error_mock = vi.hoisted(() => vi.fn());
+const enqueue_mock = vi.hoisted(() => vi.fn());
+const has_dists_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/env", () => ({
   chariot: { signing_key: "whsec-test" },
   stage: "test",
 }));
 vi.mock("$/kit/chariot", () => ({ chariot: { get_grant: get_grant_mock } }));
-vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
+vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert: send_alert_mock },
 }));
@@ -27,6 +29,7 @@ vi.mock("$/pg/queries/donation", () => ({
   donation_settle_state_locked: donation_mocks.locked,
   donation_update: donation_mocks.update,
 }));
+vi.mock("$/pg/queries/dist", () => ({ donation_has_dists: has_dists_mock }));
 vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
   report_resp: (e: any) => new Response(e?.message ?? "error", { status: 500 }),
@@ -60,12 +63,17 @@ afterEach(() => {
   donation_mocks.update.mockReset();
   send_alert_mock.mockReset();
   report_error_mock.mockReset();
+  enqueue_mock.mockReset();
+  has_dists_mock.mockReset();
 });
 
 const quiet_console = () =>
   (["log", "info", "warn", "error"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => {})
   );
+
+const alert_body = () =>
+  (send_alert_mock.mock.calls as unknown as [{ body: string }][])[0]![0].body;
 
 const donor = {
   firstName: "Ada",
@@ -302,6 +310,42 @@ describe("chariot webhook canceled grant", () => {
     }
   );
 
+  it.each([
+    ["settled", "refund tooling"],
+    ["refunded", "platform loss"],
+    ["refunded_loss", "platform loss"],
+  ])(
+    "alert for a %s donation carries amount, recipient and settlement, and says to use the %s",
+    async (status, todo) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue({
+        ...canceled_grant("don-9"),
+        ...donor,
+      });
+      donation_mocks.get.mockResolvedValue({
+        id: "don-9",
+        status,
+        to_id: "42",
+        to_name: "River Trust",
+        donor_email: donor.email,
+      });
+      donation_mocks.locked.mockResolvedValue({ status, sttl_id: "grant-5" });
+
+      await deliver(cancel_event);
+
+      const body = alert_body();
+      for (const fact of [
+        "100.00 USD",
+        "River Trust (42)",
+        "grant grant-5",
+        "settlement grant-5",
+        todo,
+      ])
+        expect(body).toContain(fact);
+      for (const p of pii) expect(body).not.toContain(p);
+    }
+  );
+
   it("alerts instead of cancelling when the donation settled after it was first read", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(canceled_grant("don-8"));
@@ -363,5 +407,166 @@ describe("chariot webhook canceled grant", () => {
     expect(res.status).toBe(500);
     expect(donation_mocks.update).not.toHaveBeenCalled();
     expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("chariot webhook completed grant", () => {
+  const complete_event = {
+    id: "ev-20",
+    category: "grant.updated",
+    associated_object_type: "grant",
+    associated_object_id: "grant-20",
+  };
+  const completed_grant = {
+    id: "grant-20",
+    status: "Completed",
+    amount: 10_000,
+    feeDetail: { total: 300 },
+    metadata: { don_id: "don-20" },
+  };
+
+  it("settles an intent donation and enqueues its messages", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({ id: "don-20", status: "intent" });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    expect(donation_mocks.update).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      "don-20",
+      expect.objectContaining({
+        status: "settled",
+        settlement: expect.objectContaining({
+          id: "grant-20",
+          net: 97,
+          fee: 3,
+        }),
+      })
+    );
+    expect(enqueue_mock.mock.calls.flat().map((m) => m.id)).toEqual([
+      "don-sttl-dist",
+      "don-sttl-receipt",
+    ]);
+  });
+
+  it("leaves a cancelled donation unsettled and alerts", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      id: "don-20",
+      status: "intent",
+      to_id: "42",
+      to_name: "River Trust",
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "cancelled" });
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ don_id: "don-20", grant_id: "grant-20" })
+    );
+  });
+
+  const settled_row = {
+    id: "don-20",
+    status: "settled",
+    to_id: "42",
+    to_name: "River Trust",
+    settlement: {
+      id: "grant-20",
+      date: T,
+      net: 97,
+      fee: 3,
+      currency: "USD",
+    },
+  };
+
+  it.each([
+    [true, ["don-sttl-receipt"]],
+    [false, ["don-sttl-dist", "don-sttl-receipt"]],
+  ])(
+    "redelivery on a settled donation re-sends its messages without settling again (distributed: %s)",
+    async (distributed, sent) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue(completed_grant);
+      donation_mocks.get.mockResolvedValue(settled_row);
+      donation_mocks.locked.mockResolvedValue({
+        status: "settled",
+        sttl_id: "grant-20",
+      });
+      has_dists_mock.mockResolvedValue(distributed);
+
+      const res = await deliver(complete_event);
+
+      expect(res.status).toBe(200);
+      expect(donation_mocks.update).not.toHaveBeenCalled();
+      expect(enqueue_mock.mock.calls.flat().map((m) => m.id)).toEqual(sent);
+    }
+  );
+
+  it("does not settle again when a concurrent delivery settled it after the first read", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      ...settled_row,
+      status: "intent",
+      settlement: undefined,
+    });
+    donation_mocks.locked.mockResolvedValue({
+      status: "settled",
+      sttl_id: "grant-20",
+    });
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it.each(["refunded", "refunded_loss"])(
+    "redelivery on a %s donation neither settles nor re-sends anything",
+    async (status) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue(completed_grant);
+      donation_mocks.get.mockResolvedValue({ ...settled_row, status });
+      donation_mocks.locked.mockResolvedValue({ status, sttl_id: "grant-20" });
+      has_dists_mock.mockResolvedValue(false);
+
+      const res = await deliver(complete_event);
+
+      expect(res.status).toBe(200);
+      expect(donation_mocks.update).not.toHaveBeenCalled();
+      expect(enqueue_mock).not.toHaveBeenCalled();
+      expect(send_alert_mock).not.toHaveBeenCalled();
+    }
+  );
+
+  it("alert for a cancelled donation carries the amount and recipient, no donor data", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({ ...completed_grant, ...donor });
+    donation_mocks.get.mockResolvedValue({
+      id: "don-20",
+      status: "cancelled",
+      to_id: "42",
+      to_name: "River Trust",
+      donor_email: donor.email,
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "cancelled" });
+
+    await deliver(complete_event);
+
+    const body = alert_body();
+    for (const fact of ["100.00 USD", "River Trust (42)", "grant-20"])
+      expect(body).toContain(fact);
+    for (const p of pii) expect(body).not.toContain(p);
   });
 });
