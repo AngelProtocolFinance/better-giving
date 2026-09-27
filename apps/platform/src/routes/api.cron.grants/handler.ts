@@ -70,7 +70,7 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
     }
 
     // the wise transfer runs under the row locks, so a refund racing this
-    // payout waits for the settle and then fails as no-longer-pending
+    // payout waits for the settle and then re-plans onto the loss path
     const paid = await db.transaction(async (tx) => {
       const locked = await pending_payouts_locked(
         tx,

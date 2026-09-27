@@ -1,3 +1,4 @@
+import { eq, sql } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -59,5 +60,21 @@ describe("npo_get_locked", () => {
     );
 
     expect(npo).toBeUndefined();
+  });
+
+  // a row lock stamps the locker's xid into xmax; a plain read leaves it 0
+  test("holds the npo row locked by the calling transaction", async () => {
+    const [row] = await test_db.db.transaction(async (tx) => {
+      await npo_get_locked(as_db(tx), npo_id);
+      return tx
+        .select({
+          xmax: sql<string>`xmax::text`,
+          xid: sql<string>`pg_current_xact_id()::text`,
+        })
+        .from(npos)
+        .where(eq(npos.id, npo_id));
+    });
+
+    expect(row!.xmax).toBe(row!.xid);
   });
 });

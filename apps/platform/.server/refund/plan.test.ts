@@ -50,8 +50,8 @@ describe("calc_refund_plan", () => {
     );
     expect(plan.is_loss).toBe(false);
     expect(kinds(plan.effects)).toEqual([
-      "balance_update",
       "payout_status",
+      "balance_update",
       "donation_message_del",
     ]);
     expect(plan.preview.effects.map((l) => l.label)).toContain("Grant payout");
@@ -203,12 +203,14 @@ describe("calc_refund_plan", () => {
     expect(plan.is_loss).toBe(true);
     const loss = plan.effects.find((e) => e.kind === "loss_log");
     expect(loss && loss.kind === "loss_log" && loss.loss.type).toBe("payout");
-    // loss path marks payout as refunded_loss
-    const pos = plan.effects.filter((e) => e.kind === "payout_status");
-    expect(pos).toHaveLength(1);
-    expect(pos[0].kind === "payout_status" && pos[0].status).toBe(
-      "refunded_loss"
-    );
+    // loss path marks payout as refunded_loss, first like the cancel path
+    expect(kinds(plan.effects)).toEqual([
+      "payout_status",
+      "donation_message_del",
+      "loss_log",
+    ]);
+    const [po] = plan.effects;
+    expect(po.kind === "payout_status" && po.status).toBe("refunded_loss");
   });
 
   test("mixed alloc: all sufficient → canonical effect order", () => {
@@ -236,10 +238,10 @@ describe("calc_refund_plan", () => {
     );
     expect(plan.is_loss).toBe(false);
     expect(kinds(plan.effects)).toEqual([
+      "payout_status", // refunded
       "balance_update",
       "bal_tx_put", // liq
       "bal_tx_put", // lock
-      "payout_status", // refunded
       "nav_log",
       "rev_log_status",
       "rev_log_status",

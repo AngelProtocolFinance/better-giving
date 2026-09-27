@@ -19,6 +19,8 @@ import {
 } from "../pg/schema/donation";
 import { donation_match_events } from "../pg/schema/match";
 import { npos } from "../pg/schema/npo";
+import { payouts } from "../pg/schema/payout";
+import { loss_logs } from "../pg/schema/revenue";
 import type { TestDb } from "../pg/test-utils/pglite";
 
 // --- mocks ---
@@ -48,6 +50,24 @@ vi.mock("#/errors/report", () => ({ report_error }));
 const send_email = vi.hoisted(() => vi.fn());
 vi.mock("../email", () => ({ send_email }));
 
+// pglite has one connection, so a writer that keeps winning the payout's
+// compare-and-set is stood in for at the query: each miss reports the payout
+// already moved while the row itself stays pending.
+const cas = vi.hoisted(() => ({ misses: 0 }));
+vi.mock("../pg/queries/payout", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../pg/queries/payout")>();
+  return {
+    ...orig,
+    payout_move_from_pending: (
+      ...args: Parameters<typeof orig.payout_move_from_pending>
+    ) => {
+      if (cas.misses === 0) return orig.payout_move_from_pending(...args);
+      cas.misses--;
+      return Promise.resolve(false);
+    },
+  };
+});
+
 // --- imports (after mocks) ---
 
 import { create_test_db } from "../pg/test-utils/pglite";
@@ -69,8 +89,11 @@ afterAll(async () => {
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  cas.misses = 0;
   send_email.mockResolvedValue({ data: { id: "msg-1" }, error: null });
   await test_db.current!.db.delete(bal_txs);
+  await test_db.current!.db.delete(loss_logs);
+  await test_db.current!.db.delete(payouts);
   await test_db.current!.db.delete(dists);
   await test_db.current!.db.delete(donation_match_events);
   await test_db.current!.db.delete(donation_donors);
@@ -358,6 +381,89 @@ describe("process_refund — a dist written mid-refund", () => {
     const [dist] = await test_db.current!.db.select().from(dists);
     expect(dist!.status).toBe("settled");
     expect(dist!.refund_status).toBe("failed");
+    expect((await dons())[0]!.status).toBe("settled");
+  });
+});
+
+describe("process_refund — a payout the grants cron settles mid-refund", () => {
+  async function seed_cash_dist(donation_id: string, npo_id: number) {
+    const db = test_db.current!.db;
+    await db.update(npos).set({ cash: 100 }).where(eq(npos.id, npo_id));
+    await db.insert(dists).values({
+      id: `dist-${donation_id}`,
+      donation_id,
+      status: "settled",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id: npo_id,
+      to_name: "npo",
+      amount: 100,
+      amount_denom: "USD",
+      net: 100,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      alloc: { liq: 0, lock: 0, cash: 100 },
+    });
+    await db.insert(payouts).values({
+      id: `payout-${donation_id}`,
+      source_id: `dist-${donation_id}`,
+      npo_id,
+      source: "donation",
+      date: "2026-07-01T00:00:00.000Z",
+      amount: 100,
+      type: "pending",
+    });
+  }
+
+  test("a payout settled after the graph was read ends in a logged loss", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    await seed_cash_dist(id, npo_id);
+    const db = test_db.current!.db;
+    const graphs = await dists_for_refund(id);
+    // the cron commits its settle after the caller's snapshot, before the CAS
+    await db
+      .update(payouts)
+      .set({ type: "settled", settled_date: "2026-07-02T00:00:00.000Z" })
+      .where(eq(payouts.id, `payout-${id}`));
+
+    const res = await process_refund(id, graphs, ctx);
+
+    expect(res.failures).toEqual([]);
+    const [dist] = await db.select().from(dists);
+    expect(dist!.status).toBe("refunded");
+    expect(dist!.refund_status).toBe("loss");
+    const logs = await db.select().from(loss_logs);
+    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
+      [`dist-${id}`, "payout"],
+    ]);
+    // the settled payout's cash already left; nothing to take back
+    const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
+    expect(npo!.cash).toBe(100);
+    const [po] = await db.select().from(payouts);
+    expect(po!.type).toBe("refunded_loss");
+    expect((await dons())[0]!.status).toBe("refunded_loss");
+  });
+
+  test("a payout that is stale on the re-plan too leaves the dist failed", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    await seed_cash_dist(id, npo_id);
+    const db = test_db.current!.db;
+    const graphs = await dists_for_refund(id);
+    cas.misses = 2;
+
+    const res = await process_refund(id, graphs, ctx);
+
+    // both attempts ran: the plan and the one re-plan
+    expect(cas.misses).toBe(0);
+    expect(res.failures).toEqual([
+      `dist dist-${id}: payout:payout-${id} is no longer pending`,
+    ]);
+    const [dist] = await db.select().from(dists);
+    expect(dist!.status).toBe("settled");
+    expect(dist!.refund_status).toBe("failed");
+    expect(await db.select().from(loss_logs)).toHaveLength(0);
+    const [po] = await db.select().from(payouts);
+    expect(po!.type).toBe("pending");
     expect((await dons())[0]!.status).toBe("settled");
   });
 });

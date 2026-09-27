@@ -75,8 +75,10 @@ export async function npo_get_locked(
 ): Promise<INpo | undefined> {
   const [row] = await joined_select(tx)
     .where(eq(npos.id, id))
-    // bare FOR UPDATE also targets the left-joined view, which pg rejects
-    .for("update", { of: npos });
+    // bare FOR also targets the left-joined view, which pg rejects. no key
+    // update: balance writers still queue on it, but an insert whose FK
+    // references this npo (a payout, a bal_tx) takes key share and doesn't
+    .for("no key update", { of: npos });
   if (!row) return undefined;
   return row_to_npo(row);
 }

@@ -11,8 +11,8 @@ import type { DbOrTx } from "../pg/queries/helpers";
 import { npos } from "../pg/schema/npo";
 import { payouts, settlements } from "../pg/schema/payout";
 import { create_test_db, type TestDb } from "../pg/test-utils/pglite";
-import { apply_refund_plan } from "./apply";
-import type { RefundPlan } from "./plan";
+import { apply_refund_plan, StalePayoutError } from "./apply";
+import { calc_refund_plan, type RefundPlan } from "./plan";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
 // which these queries do not read.
@@ -85,22 +85,36 @@ function plan_marking(status: "refunded" | "refunded_loss"): RefundPlan {
   };
 }
 
-// balance first, as calc_refund_plan emits them
+// drawn by the planner, so the order under test is the one a refund runs
 function plan_cancelling_cash(npo_id: number): RefundPlan {
-  return {
-    is_loss: false,
-    loss_reasons: [],
-    amount: 100,
-    effects: [
-      {
-        kind: "balance_update",
-        npo_id,
-        deltas: { liq: 0, lock: 0, lock_units: 0, cash: 100 },
+  return calc_refund_plan(
+    {
+      dist: {
+        id: "dist-1",
+        donation_id: "don-1",
+        to_id: npo_id,
+        to_name: "Apply Test NPO",
+        alloc: { liq: 0, lock: 0, cash: 100 },
+        net: 100,
+        amount: 100,
+        fee_base: 0,
+        fee_fsa: 0,
+        fee_processing: 0,
       },
-      { kind: "payout_status", payout_id: PAYOUT_ID, status: "refunded" },
-    ],
-    preview: { effects: [], blockers: [], warnings: [] },
-  };
+      payout: { id: PAYOUT_ID, type: "pending" },
+      commission: null,
+      rev_log_ids: [],
+      bal: { liq: 0, lock_units: 0, cash: 100 },
+      nav: null,
+      sub_id: null,
+    },
+    {
+      now: "2026-09-03T00:00:00.000Z",
+      nav_date: "2026-09-03T00:00:00.001Z",
+      form_id: null,
+      program_id: null,
+    }
+  );
 }
 
 async function npo_cash(npo_id: number) {
@@ -125,7 +139,7 @@ describe("apply_refund_plan payout_status", () => {
 
     await expect(
       apply_refund_plan(as_db(test_db.db), plan_marking("refunded"))
-    ).rejects.toThrow(/no longer pending/);
+    ).rejects.toThrow(StalePayoutError);
     expect(await payout_type()).toBe("settled");
   });
 
@@ -155,7 +169,7 @@ describe("apply_refund_plan lock order", () => {
 
     await expect(
       apply_refund_plan(as_db(test_db.db), plan_cancelling_cash(npo_id))
-    ).rejects.toThrow(/no longer pending/);
+    ).rejects.toThrow(StalePayoutError);
     expect(await npo_cash(npo_id)).toBe(100);
   });
 

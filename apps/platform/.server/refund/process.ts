@@ -23,7 +23,7 @@ import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
 import type { MatchEvent } from "../pg/schema/match";
-import { apply_refund_plan } from "./apply";
+import { apply_refund_plan, StalePayoutError } from "./apply";
 import {
   calc_refund_plan,
   type RefundCtx,
@@ -157,26 +157,39 @@ export async function process_refund(
   const loss_msgs: string[] = [];
   let applied = 0;
 
+  async function apply_dist(g: DistRefundGraph) {
+    const plan = await load_refund_plan(g, {
+      form_id: ctx.form_id,
+      program_id: ctx.program_id,
+      sub_id: null, // not used during apply; sub cancel is route-owned
+      strict: true,
+    });
+
+    return db.transaction(async (tx) => {
+      const cur = await dist_refund_state_locked(tx, g.dist.id);
+      if (!cur || is_reversed(cur)) return { skipped: true } as const;
+      const loss = await apply_refund_plan(tx, plan);
+      await dist_refund_update(tx, g.dist.id, {
+        refund_status: plan.is_loss ? "loss" : "completed",
+      });
+      return { skipped: false, loss } as const;
+    });
+  }
+
   async function reverse(g: DistRefundGraph) {
     if (g.dist.refund_status && SKIP_STATUSES.has(g.dist.refund_status)) {
       return;
     }
     try {
-      const plan = await load_refund_plan(g, {
-        form_id: ctx.form_id,
-        program_id: ctx.program_id,
-        sub_id: null, // not used during apply; sub cancel is route-owned
-        strict: true,
-      });
-
-      const res = await db.transaction(async (tx) => {
-        const cur = await dist_refund_state_locked(tx, g.dist.id);
-        if (!cur || is_reversed(cur)) return { skipped: true } as const;
-        const loss = await apply_refund_plan(tx, plan);
-        await dist_refund_update(tx, g.dist.id, {
-          refund_status: plan.is_loss ? "loss" : "completed",
-        });
-        return { skipped: false, loss } as const;
+      // the grants cron settled the payout after `g` was read: a plan drawn
+      // once more from a fresh graph sees it settled and takes the loss path
+      const res = await apply_dist(g).catch(async (err) => {
+        if (!(err instanceof StalePayoutError)) throw err;
+        const fresh = (await dists_for_refund(donation_id)).find(
+          (x) => x.dist.id === g.dist.id
+        );
+        // gone from the settled set: a concurrent run reversed it
+        return fresh ? apply_dist(fresh) : ({ skipped: true } as const);
       });
       if (res.skipped) return;
       applied += 1;

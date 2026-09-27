@@ -13,7 +13,15 @@ import {
 import { npo_prog_contrib } from "../pg/queries/program";
 import { commission_update_status } from "../pg/queries/referrer";
 import { loss_log_put, rev_log_update_status } from "../pg/queries/revenue";
-import type { RefundEffect, RefundPlan } from "./plan";
+import type { RefundPlan } from "./plan";
+
+/** the plan cancels a payout that another writer moved out of `pending` since */
+export class StalePayoutError extends Error {
+  constructor(payout_id: string) {
+    super(`payout:${payout_id} is no longer pending`);
+    this.name = "StalePayoutError";
+  }
+}
 
 export async function apply_refund_plan(
   tx: DbOrTx,
@@ -21,15 +29,7 @@ export async function apply_refund_plan(
 ): Promise<ILossLog | undefined> {
   let loss: ILossLog | undefined;
 
-  // payout rows before the npos row: the grants cron locks in that order and
-  // holds its locks across the wise transfer, so the reverse order deadlocks it
-  const is_payout = (e: RefundEffect) => e.kind === "payout_status";
-  const ordered = [
-    ...plan.effects.filter(is_payout),
-    ...plan.effects.filter((e) => !is_payout(e)),
-  ];
-
-  for (const e of ordered) {
+  for (const e of plan.effects) {
     switch (e.kind) {
       case "balance_update":
         await npo_balance_update(tx, e.npo_id, e.deltas, "dec");
@@ -48,11 +48,7 @@ export async function apply_refund_plan(
         const changed = await payout_move_from_pending(tx, e.payout_id, {
           type: "refunded",
         } as IRefundedStatus);
-        if (!changed) {
-          throw new Error(
-            `payout:${e.payout_id} is no longer pending; re-run the refund`
-          );
-        }
+        if (!changed) throw new StalePayoutError(e.payout_id);
         break;
       }
       case "rev_log_status":

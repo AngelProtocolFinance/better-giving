@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -143,5 +143,23 @@ describe("pending_payouts_locked", () => {
     );
 
     expect(locked.map((p) => p.id)).toEqual(["p-a", "p-b", "p-c"]);
+  });
+
+  // a row lock stamps the locker's xid into xmax; a plain read leaves it 0
+  test("holds the returned rows locked by the calling transaction", async () => {
+    await seed_payout("p1", "pending");
+
+    const [row] = await test_db.db.transaction(async (tx) => {
+      await pending_payouts_locked(as_db(tx), ["p1"]);
+      return tx
+        .select({
+          xmax: sql<string>`xmax::text`,
+          xid: sql<string>`pg_current_xact_id()::text`,
+        })
+        .from(payouts)
+        .where(eq(payouts.id, "p1"));
+    });
+
+    expect(row!.xmax).toBe(row!.xid);
   });
 });
