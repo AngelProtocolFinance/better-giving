@@ -18,6 +18,7 @@ const store = vi.hoisted(() => ({
   don: null as unknown,
   npos: [] as { id: number; name: string; active: boolean }[],
   dist_ids: [] as number[],
+  refund_statuses: [] as ("completed" | "loss" | "failed" | null)[],
 }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_get: async () => store.don,
@@ -30,6 +31,8 @@ vi.mock("$/pg/queries/npo", () => ({
 vi.mock("$/pg/queries/user", () => ({ user_get: async () => undefined }));
 vi.mock("$/pg/queries/dist", () => ({
   dist_npo_ids_of: async () => store.dist_ids,
+  donation_refund_started: async () =>
+    store.refund_statuses.some((s) => s !== null),
 }));
 
 import { action } from "./api";
@@ -147,4 +150,42 @@ describe("resending a refunded gift's receipts", () => {
       });
     }
   );
+});
+
+describe("resending a gift a refund has started on", () => {
+  beforeEach(() => {
+    send_email.mockClear();
+    store.npos = [npo(10, "Alpha"), npo(12, "Gamma")];
+    store.dist_ids = [10, 12];
+    store.don = fund_don(["10", "12"], {
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
+    });
+  });
+
+  test.each([
+    ["one dist returned, the other's reversal failed", ["completed", "failed"]],
+    ["every dist returned, donation still settled", ["completed", "completed"]],
+  ] as const)("%s: mails nothing and says why", async (_, statuses) => {
+    store.refund_statuses = [...statuses];
+
+    const res = await resend();
+
+    expect(send_email).not.toHaveBeenCalled();
+    expect(res).toEqual({
+      error:
+        "This donation is being refunded, so it has no tax receipt to send.",
+    });
+  });
+
+  test("no refund on any dist: receipts the tip and each member", async () => {
+    store.refund_statuses = [null, null];
+
+    await resend();
+
+    expect(printed()).toEqual([
+      ["Better Giving", "5.00"],
+      ["Alpha", "50.00"],
+      ["Gamma", "50.00"],
+    ]);
+  });
 });

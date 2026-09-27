@@ -14,7 +14,7 @@ import { resp } from "@/helpers/https";
 import { is_funded_member } from "@/settlement/funded-members";
 import { send_email } from "$/email";
 import { app } from "$/env";
-import { dist_npo_ids_of } from "$/pg/queries/dist";
+import { dist_npo_ids_of, donation_refund_started } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
 import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 import { user_get } from "$/pg/queries/user";
@@ -68,6 +68,14 @@ export const action = async ({
     return dataWithError(
       null,
       "This donation was refunded, so it has no tax receipt to send."
+    );
+  }
+
+  // a partial or unfinalized refund leaves the donation settled
+  if (await donation_refund_started(don.id)) {
+    return dataWithError(
+      null,
+      "This donation is being refunded, so it has no tax receipt to send."
     );
   }
 
