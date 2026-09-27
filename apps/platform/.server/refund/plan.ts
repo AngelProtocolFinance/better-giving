@@ -52,7 +52,7 @@ export interface NavLogAppend {
   holder_deltas: { npo_id: number; units_delta: number }[];
 }
 
-// effects are emitted in execution order; walker dispatches one PG call per effect.
+// effects are emitted in execution order, except apply_refund_plan runs payout_status first (lock order); walker dispatches one PG call per effect.
 export type RefundEffect =
   | { kind: "balance_update"; npo_id: number; deltas: IBalanceDeltas }
   | { kind: "bal_tx_put"; tx: IBalanceTx }

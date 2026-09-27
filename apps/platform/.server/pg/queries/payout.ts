@@ -1,8 +1,9 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   INpoPayoutsOptions,
   INpoSettlementsOptions,
   IPayout,
+  IPendingStatus,
 } from "@/payouts";
 import { db } from "../db";
 import { payouts, settlements } from "../schema/payout";
@@ -61,19 +62,54 @@ export async function pending_payouts(): Promise<IPayout[]> {
   return rows.map(to_payout);
 }
 
+/**
+ * no pending guard: a loss refund marks the payout whatever state it reached,
+ * settled included — the loss log records what the npo kept.
+ */
+export async function payout_mark_refunded_loss(db: DbOrTx, id: string) {
+  await db
+    .update(payouts)
+    .set({ type: "refunded_loss" })
+    .where(eq(payouts.id, id));
+}
+
+/**
+ * the payouts among `ids` still pending, row-locked until `tx` ends. a payout
+ * settled or refunded by a writer that commits first is re-checked after the
+ * wait and left out. id order keeps two concurrent lockers from deadlocking.
+ */
+export async function pending_payouts_locked(
+  tx: DbOrTx,
+  ids: string[]
+): Promise<IPayout<IPendingStatus>[]> {
+  const rows = await tx
+    .select()
+    .from(payouts)
+    .where(and(inArray(payouts.id, ids), eq(payouts.type, "pending")))
+    .orderBy(asc(payouts.id))
+    .for("update");
+  return rows.map(to_payout) as IPayout<IPendingStatus>[];
+}
+
 export async function payout_put(db: DbOrTx, data: IPayout) {
   await db.insert(payouts).values(from_payout_insert(data));
 }
 
-export async function payout_update(
+/**
+ * compare-and-set out of `pending`: false when the payout was already moved on
+ * (settled by the grants cron, refunded, …) — the caller's snapshot is stale.
+ */
+export async function payout_move_from_pending(
   db: DbOrTx,
   id: string,
   upd: Partial<Omit<IPayout, "id">>
-) {
-  await db
+): Promise<boolean> {
+  const rows = await db
     .update(payouts)
     .set(from_payout_update(upd))
-    .where(eq(payouts.id, id));
+    .where(and(eq(payouts.id, id), eq(payouts.type, "pending")))
+    .returning({ id: payouts.id });
+  return rows.length > 0;
 }
 
 // -- settlements --

@@ -9,8 +9,9 @@ import { npo_default_bapp } from "$/pg/queries/banking";
 import { npo_balance_update, npo_get } from "$/pg/queries/npo";
 import type { SettlementRow } from "$/pg/queries/payout";
 import {
-  payout_update,
+  payout_move_from_pending,
   pending_payouts,
+  pending_payouts_locked,
   settlement_put,
 } from "$/pg/queries/payout";
 import { transfer_grant } from "./transfer-grant";
@@ -53,20 +54,12 @@ export async function index(event?: IInput) {
 
 async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
   const payout_date = new Date().toISOString();
-  const total = items.reduce((a, b) => a + b.amount, 0);
   const ref_id = crypto.randomUUID();
   try {
     const npo = await npo_get(npo_id);
     if (!npo) throw new Error(`npo:${npo_id} not found`);
     if (npo.active === false) {
       console.info(`npo:${npo_id} inactive, skipping payout`);
-      return;
-    }
-    const effective_min = npo.payout_minimum ?? 50;
-    if (effective_min > total) {
-      console.info(
-        `npo:${npo_id} payout minimum not met, min: ${effective_min}, total: ${total}`
-      );
       return;
     }
 
@@ -76,9 +69,29 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
       return;
     }
 
-    const transfer_id = await transfer_grant(+wise_id, total, ref_id);
+    // the wise transfer runs under the row locks, so a refund racing this
+    // payout waits for the settle and then fails as no-longer-pending
+    const paid = await db.transaction(async (tx) => {
+      const locked = await pending_payouts_locked(
+        tx,
+        items.map((i) => i.id)
+      );
+      if (locked.length === 0) {
+        console.info(`npo:${npo_id} no payouts still pending, skipping`);
+        return null;
+      }
 
-    await db.transaction(async (tx) => {
+      const total = locked.reduce((a, b) => a + b.amount, 0);
+      const effective_min = npo.payout_minimum ?? 50;
+      if (effective_min > total) {
+        console.info(
+          `npo:${npo_id} payout minimum not met, min: ${effective_min}, total: ${total}`
+        );
+        return null;
+      }
+
+      const transfer_id = await transfer_grant(+wise_id, total, ref_id);
+
       // insert settlement before updating payouts to satisfy settled_id FK
       const stlmt: SettlementRow = {
         id: transfer_id.toString(),
@@ -86,18 +99,21 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
         npo_id: npo_id,
         date: payout_date,
         amount: total,
-        sources: items.map((i) => i.source_id),
+        sources: locked.map((i) => i.source_id),
         status: "",
       };
 
       await settlement_put(tx, stlmt);
 
-      for (const item of items) {
-        await payout_update(tx, item.id, {
+      for (const item of locked) {
+        const settled = await payout_move_from_pending(tx, item.id, {
           type: "settled",
           settled_date: payout_date,
           settled_id: transfer_id.toString(),
         } as Partial<Omit<IPayout, "id">>);
+        if (!settled) {
+          throw new Error(`payout:${item.id} left pending under its row lock`);
+        }
       }
 
       await npo_balance_update(
@@ -106,7 +122,9 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
         { liq: 0, lock: 0, lock_units: 0, cash: total },
         "dec"
       );
+      return { total, transfer_id };
     });
+    if (!paid) return;
 
     console.info(ref_id);
 
@@ -115,8 +133,8 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
       from: fn,
       title: `Grant paid for npo:${npo.id}: ${npo.name}`,
       fields: [
-        { name: "amount", value: total.toString() },
-        { name: "transfer_id", value: transfer_id.toString() },
+        { name: "amount", value: paid.total.toString() },
+        { name: "transfer_id", value: paid.transfer_id.toString() },
         { name: "ref_id", value: ref_id },
       ],
     });

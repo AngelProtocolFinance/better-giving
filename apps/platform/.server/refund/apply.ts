@@ -1,4 +1,4 @@
-import type { IRefundedLossStatus, IRefundedStatus } from "@/payouts";
+import type { IRefundedStatus } from "@/payouts";
 import type { ILossLog } from "@/revenue";
 import { bal_tx_put } from "../pg/queries/bal-tx";
 import { donation_message_del } from "../pg/queries/donation-message";
@@ -6,11 +6,14 @@ import { form_ltd_inc } from "../pg/queries/form";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { nav_log_append } from "../pg/queries/nav";
 import { npo_balance_update } from "../pg/queries/npo";
-import { payout_update } from "../pg/queries/payout";
+import {
+  payout_mark_refunded_loss,
+  payout_move_from_pending,
+} from "../pg/queries/payout";
 import { npo_prog_contrib } from "../pg/queries/program";
 import { commission_update_status } from "../pg/queries/referrer";
 import { loss_log_put, rev_log_update_status } from "../pg/queries/revenue";
-import type { RefundPlan } from "./plan";
+import type { RefundEffect, RefundPlan } from "./plan";
 
 export async function apply_refund_plan(
   tx: DbOrTx,
@@ -18,7 +21,15 @@ export async function apply_refund_plan(
 ): Promise<ILossLog | undefined> {
   let loss: ILossLog | undefined;
 
-  for (const e of plan.effects) {
+  // payout rows before the npos row: the grants cron locks in that order and
+  // holds its locks across the wise transfer, so the reverse order deadlocks it
+  const is_payout = (e: RefundEffect) => e.kind === "payout_status";
+  const ordered = [
+    ...plan.effects.filter(is_payout),
+    ...plan.effects.filter((e) => !is_payout(e)),
+  ];
+
+  for (const e of ordered) {
     switch (e.kind) {
       case "balance_update":
         await npo_balance_update(tx, e.npo_id, e.deltas, "dec");
@@ -29,15 +40,21 @@ export async function apply_refund_plan(
       case "nav_log":
         await nav_log_append(tx, e.entry);
         break;
-      case "payout_status":
-        await payout_update(
-          tx,
-          e.payout_id,
-          e.status === "refunded"
-            ? ({ type: "refunded" } as IRefundedStatus)
-            : ({ type: "refunded_loss" } as IRefundedLossStatus)
-        );
+      case "payout_status": {
+        if (e.status === "refunded_loss") {
+          await payout_mark_refunded_loss(tx, e.payout_id);
+          break;
+        }
+        const changed = await payout_move_from_pending(tx, e.payout_id, {
+          type: "refunded",
+        } as IRefundedStatus);
+        if (!changed) {
+          throw new Error(
+            `payout:${e.payout_id} is no longer pending; re-run the refund`
+          );
+        }
         break;
+      }
       case "rev_log_status":
         await rev_log_update_status(tx, e.rev_log_id, e.status);
         break;
