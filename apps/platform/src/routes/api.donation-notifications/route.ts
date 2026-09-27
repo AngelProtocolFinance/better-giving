@@ -23,13 +23,22 @@ const stocks_details = v.object({
 
 // a firm name, never a link: no `:` (so no scheme) or `@`, and no `word.tld` a
 // mail client would autolink as a bare host ("T. Rowe", "Co., Inc." keep the
-// space or comma)
+// space or comma). every action carries its own message: the 400 hands it to the
+// donor's form, and valibot's default ones quote the input back.
 const custodian = v.pipe(
-  v.string(),
+  v.string("Enter your custodian's name"),
   v.trim(),
-  v.maxLength(100),
-  v.regex(/^[\p{L}\d &'.,()*/-]+$/u),
-  v.check((s) => !/[\p{L}\d-]\.\p{L}{2,}/u.test(s))
+  // ios smart punctuation
+  v.transform((s) => s.replace(/[‘’]/g, "'")),
+  v.maxLength(100, "Keep it to 100 characters"),
+  v.regex(
+    /^[\p{L}\d &'.,()*/-]+$/u,
+    "Use letters, numbers, spaces and & ' . , ( ) * / - only"
+  ),
+  v.check(
+    (s) => !/[\p{L}\d-]\.\p{L}{2,}/u.test(s),
+    "Enter the firm's name, not a web address"
+  )
 );
 
 const ira_qcd_details = v.object({
@@ -72,7 +81,15 @@ export const action: ActionFunction = async ({ request }) => {
   const body = await request.json().catch(() => null);
   const result = v.safeParse(schema, body);
   if (!result.success) {
-    return Response.json({ ok: false }, { status: 400 });
+    const custodian_error = v.flatten<typeof schema>(result.issues).nested?.[
+      "details.custodian"
+    ]?.[0];
+    return Response.json(
+      custodian_error
+        ? { ok: false, errors: { custodian: custodian_error } }
+        : { ok: false },
+      { status: 400 }
+    );
   }
 
   const data = result.output;

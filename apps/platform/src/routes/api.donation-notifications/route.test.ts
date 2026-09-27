@@ -165,11 +165,45 @@ describe("api.donation-notifications body validation", () => {
     ["a custodian naming a bare host", ira({ custodian: "evil.com" })],
     ["a custodian naming a host and path", ira({ custodian: "evil.com/pay" })],
     ["a custodian carrying an email", ira({ custodian: "ops@evil.invalid" })],
+    ["a custodian carrying a #", ira({ custodian: "Schwab #2" })],
+    ["a custodian carrying a +", ira({ custodian: "Schwab+Co" })],
   ])("refuses %s and mails nobody", async (_, body) => {
     const res = await invoke(post(body));
 
     expect(res.status).toBe(400);
     expect(send_email_mock).not.toHaveBeenCalled();
+  });
+
+  // the donor's form shows this under the field, so it is our copy and never
+  // the caller's input read back
+  it.each([
+    ["sentence text", lure],
+    ["a bare host", "evil.invalid"],
+    ["a #", "Schwab #2"],
+    ["over 100 characters", `evil.invalid${"a".repeat(100)}`],
+    ["a non-string", 12345],
+  ])(
+    "answers a custodian carrying %s with a message for the field",
+    async (_, custodian) => {
+      const res = await invoke(post(ira({ custodian } as any)));
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+      expect(body.errors.custodian).toMatch(/\w/);
+      expect(JSON.stringify(body)).not.toContain(
+        String(custodian).slice(0, 12)
+      );
+    }
+  );
+
+  it("answers a failure outside the custodian with no field message", async () => {
+    const res = await invoke(
+      post(ira({ amount: lure, custodian: "Fidelity" }))
+    );
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false });
   });
 
   // the shapes the stocks and ira/qcd checkouts post: a curated class-share
@@ -188,10 +222,13 @@ describe("api.donation-notifications body validation", () => {
       "Crédit Agricole",
       "E*Trade",
       "BNY Mellon/Pershing",
-    ].map((custodian) => [
-      `an ira notice naming ${custodian}`,
-      ira({ amount: "250.75", custodian }),
-    ]),
+    ].map(
+      (custodian) =>
+        [
+          `an ira notice naming ${custodian}`,
+          ira({ amount: "250.75", custodian }),
+        ] as const
+    ),
   ] as const)("mails the team %s", async (_, body) => {
     const res = await invoke(post(body));
 
@@ -207,6 +244,18 @@ describe("api.donation-notifications body validation", () => {
 
     const d = template_mock.mock.calls[0]![0] as any;
     expect(d.details.custodian).toBe("Fidelity");
+  });
+
+  // ios smart punctuation types ’ for ' by default
+  it.each([
+    ["Charles Schwab’s Trust Co.", "Charles Schwab's Trust Co."],
+    ["‘Schwab’ Trust Co.", "'Schwab' Trust Co."],
+  ])("mails %s with straight apostrophes", async (custodian, mailed) => {
+    const res = await invoke(post(ira({ custodian })));
+
+    expect(res.status).toBe(200);
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.details.custodian).toBe(mailed);
   });
 });
 
