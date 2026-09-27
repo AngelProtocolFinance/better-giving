@@ -1,9 +1,8 @@
-import type { ActionFunction } from "react-router";
+import { type ActionFunctionArgs, data } from "react-router";
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import type { IBalanceTx } from "@/balance-txs";
-import { resp } from "@/helpers/https";
 import { db } from "$/pg/db";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
 import { nav_log_append, nav_ltd } from "$/pg/queries/nav";
@@ -11,15 +10,15 @@ import { npo_balance_adj, npo_get_locked } from "$/pg/queries/npo";
 import { type Schema, type Source, schema } from "./types";
 
 type TRedirects = { [S in Source]: string };
+type Outcome = { refusal: string } | { source: Source };
 
 export const transfer_action =
-  (redirects: TRedirects): ActionFunction =>
-  async (x) => {
+  (redirects: TRedirects) => async (x: ActionFunctionArgs) => {
     const id = x.context.get(admin_ctx);
 
     const [json, ltd] = await Promise.all([x.request.json(), nav_ltd()]);
 
-    const res = await db.transaction(async (pg) => {
+    const res: Outcome = await db.transaction(async (pg) => {
       const npo = await npo_get_locked(pg, id);
       const bal_liq = npo?.liq ?? 0;
       const bal_lock_units = npo?.lock_units ?? 0;
@@ -30,7 +29,7 @@ export const transfer_action =
           lock: bal_lock_units * ltd.price,
         },
       } satisfies Schema);
-      if (p.issues) return resp.status(400, p.issues[0].message);
+      if (p.issues) return { refusal: p.issues[0].message };
       const fv = p.output;
 
       const timestamp = new Date().toISOString();
@@ -110,9 +109,9 @@ export const transfer_action =
         });
       }
 
-      return fv.source;
+      return { source: fv.source };
     });
-    if (res instanceof Response) return res;
+    if ("refusal" in res) return data({ error: res.refusal }, { status: 400 });
 
-    return redirectWithSuccess(redirects[res], "Transfer submitted");
+    return redirectWithSuccess(redirects[res.source], "Transfer submitted");
   };

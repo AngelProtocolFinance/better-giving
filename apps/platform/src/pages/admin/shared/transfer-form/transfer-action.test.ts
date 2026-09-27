@@ -39,6 +39,7 @@ vi.mock("#/.server/toast", async () => {
 import { admin_ctx } from "#/.server/auth";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { transfer_action } from "./transfer-action";
+import type { Source } from "./types";
 
 const db = () => test_db.current!.db;
 const action = transfer_action({ liq: "/savings", lock: "/investments" });
@@ -59,12 +60,12 @@ beforeEach(async () => {
   await db().delete(npos);
 });
 
-/** an npo with `liq` in savings and nothing invested, in a fund priced at $10/unit */
-async function seed_npo(liq: number) {
+/** an npo with `liq` in savings and `lock_units` invested, in a fund priced at $10/unit */
+async function seed_npo(liq: number, lock_units = 0) {
   const npo = await insert_npo(db(), {
     registration_number: "EIN-TRANSFER",
     liq,
-    lock_units: 0,
+    lock_units,
   });
   const date = "2026-01-01T00:00:00.000Z";
   // nav_logs' deferred trigger wants its positions in the same transaction
@@ -112,14 +113,17 @@ function request(body: object, in_flight?: () => Promise<unknown>) {
 async function transfer(
   npo_id: number,
   amount: string,
-  in_flight?: () => Promise<unknown>
-): Promise<Response> {
+  opts: { source?: Source; in_flight?: () => Promise<unknown> } = {}
+): Promise<any> {
   return (action as any)({
-    request: request({ amount, source: "liq" }, in_flight),
+    request: request({ amount, source: opts.source ?? "liq" }, opts.in_flight),
     params: { id: String(npo_id) },
     context: { get: (k: unknown) => (k === admin_ctx ? npo_id : undefined) },
   });
 }
+
+/** what the route reads off `fetcher.data` */
+const refused = (error: string) => ({ init: { status: 400 }, data: { error } });
 
 async function ledger(npo_id: number) {
   const [npo] = await db()
@@ -129,6 +133,7 @@ async function ledger(npo_id: number) {
   const txs = await db()
     .select({
       account: bal_txs.account,
+      status: bal_txs.status,
       bal_begin: bal_txs.bal_begin,
       bal_end: bal_txs.bal_end,
       account_other_bal_begin: bal_txs.account_other_bal_begin,
@@ -175,8 +180,7 @@ describe("transfer from savings to investments", () => {
 
     const res = await transfer(npo_id, "100.01");
 
-    expect(res.status).toBe(400);
-    expect(res.statusText).toBe("amount exceeds balance");
+    expect(res).toMatchObject(refused("amount exceeds balance"));
     expect(await ledger(npo_id)).toMatchObject({
       liq: 100,
       lock_units: 0,
@@ -191,17 +195,18 @@ describe("transfer from savings to investments", () => {
     const second = await transfer(npo_id, "60");
 
     expect(first.status).toBe(302);
-    expect(second.status).toBe(400);
+    expect(second).toMatchObject(refused("amount exceeds balance"));
     expect(await ledger(npo_id)).toMatchObject({ liq: 40, lock_units: 6 });
   });
 
   test("a transfer landing while another is in flight is counted before the second is checked", async () => {
     const npo_id = await seed_npo(100);
 
-    const res = await transfer(npo_id, "60", () => transfer(npo_id, "60"));
+    const res = await transfer(npo_id, "60", {
+      in_flight: () => transfer(npo_id, "60"),
+    });
 
-    expect(res.status).toBe(400);
-    expect(res.statusText).toBe("amount exceeds balance");
+    expect(res).toMatchObject(refused("amount exceeds balance"));
     expect(await ledger(npo_id)).toMatchObject({ liq: 40, lock_units: 6 });
   });
 
@@ -210,12 +215,36 @@ describe("transfer from savings to investments", () => {
 
     const res = await transfer(npo_id, "0");
 
-    expect(res.status).toBe(400);
-    expect(res.statusText).toBe("amount must be greater than 0");
+    expect(res).toMatchObject(refused("amount must be greater than 0"));
     expect(await ledger(npo_id)).toMatchObject({
       liq: 100,
       lock_units: 0,
       txs: [],
+    });
+  });
+});
+
+describe("transfer from investments to savings", () => {
+  test("redeems the units the amount buys, leaving savings to be credited on approval", async () => {
+    const npo_id = await seed_npo(50, 10);
+
+    const res = await transfer(npo_id, "30", { source: "lock" });
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/investments");
+    expect(await ledger(npo_id)).toMatchObject({
+      liq: 50,
+      lock_units: 7,
+      txs: [
+        {
+          account: "lock",
+          status: "pending",
+          bal_begin: 10,
+          bal_end: 7,
+          account_other_bal_begin: 50,
+          account_other_bal_end: 80,
+        },
+      ],
     });
   });
 });

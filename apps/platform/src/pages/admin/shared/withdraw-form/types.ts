@@ -50,4 +50,6 @@ export interface Props {
   bals: Bals;
   onSubmit: (fv: SubmitFV) => void;
   is_submitting?: boolean;
+  /** the server's refusal of the last submit — shown on the amount field */
+  error?: string;
 }
