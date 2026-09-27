@@ -68,7 +68,7 @@ export function TipField({ classes = "", ...p }: Props) {
         {/* affordance nudge — hops the thumb toward on and back once, tinting
             the track secondary while hopping, after the donor settles the amount */}
         <Switch.Control
-          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50 ${play && !p.checked ? "bg-form-secondary" : "bg-gray-3"}`}
+          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors data-[state=checked]:bg-form-primary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-disabled:opacity-50 ${play && !p.checked ? "bg-form-secondary" : "bg-gray-3"}`}
         >
           <ThumbWiggle play={play && !p.checked} on_done={end_nudge}>
             <Switch.Thumb
