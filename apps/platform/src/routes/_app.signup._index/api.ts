@@ -7,12 +7,16 @@ import { report_undefined } from "#/errors/report";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignUp, sign_up } from "#/types/auth";
 import { resp } from "@/helpers/https";
+import { safe_redirect } from "@/helpers/safe-redirect";
 import { evaluate } from "./evaluate";
 
 export const action: ActionFunction = async ({ request }) => {
   const from = new URL(request.url);
   const fv = await request.formData();
-  const redirect_to = from.searchParams.get("redirect") || href("/marketplace");
+  const redirect_to = safe_redirect(
+    from.searchParams.get("redirect"),
+    href("/marketplace")
+  );
 
   const { user } = await get_session(request);
   if (user) return redirect(redirect_to);

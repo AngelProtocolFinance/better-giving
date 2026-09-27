@@ -21,6 +21,7 @@ import { metas } from "#/helpers/seo";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignIn, sign_in } from "#/types/auth";
 import { search } from "@/helpers/https";
+import { safe_redirect } from "@/helpers/safe-redirect";
 import { db } from "$/pg/db";
 import { account, user as userTable } from "$/pg/schema/auth";
 import type { Route } from "./+types/route";
@@ -28,8 +29,8 @@ import type { Route } from "./+types/route";
 export const action = async ({ request }: Route.ActionArgs) => {
   try {
     const from = new URL(request.url);
-    const redirect_to =
-      from.searchParams.get("redirect") || href("/marketplace");
+    const asked_to = safe_redirect(from.searchParams.get("redirect"), null);
+    const redirect_to = asked_to || href("/marketplace");
     const { user } = await get_session(request);
     if (user) return redirect(redirect_to);
 
@@ -120,8 +121,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
         const reset_url = new URL(`${origin}/login/reset`);
         reset_url.searchParams.set("type", "migrated");
         reset_url.searchParams.set("email", email);
-        const redir = from.searchParams.get("redirect");
-        if (redir) reset_url.searchParams.set("redirect", redir);
+        if (asked_to) reset_url.searchParams.set("redirect", asked_to);
         return redirect(reset_url.toString());
       }
 
@@ -171,7 +171,7 @@ async function accountless_user(
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const { user } = await get_session(request);
-  const { redirect: to } = search(request);
+  const to = safe_redirect(search(request).redirect, null);
   if (user) return redirect(to || href("/marketplace"));
   return to || "/";
 };
