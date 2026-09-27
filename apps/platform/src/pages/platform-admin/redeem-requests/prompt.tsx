@@ -64,7 +64,11 @@ function Content({ verdict }: Props) {
         >
           Back
         </Link>
-        <button type="submit" className="btn btn-primary">
+        <button
+          disabled={fetcher.state !== "idle"}
+          type="submit"
+          className="btn btn-primary"
+        >
           Submit
         </button>
       </Actions>

@@ -10,6 +10,7 @@ import {
   bal_tx_put,
   bal_tx_update_status,
 } from "$/pg/queries/bal-tx";
+import type { DbOrTx } from "$/pg/queries/helpers";
 import {
   type INavLogAppendOpts,
   nav_log_append,
@@ -24,6 +25,17 @@ const tx_id_schema = v.pipe(
   v.nonEmpty("tx id is required")
 );
 
+/** first write of every verdict: throwing rolls back the transaction before
+ * any balance, nav or payout write when another verdict got there first */
+async function settle(
+  pg: DbOrTx,
+  id: string,
+  status: Parameters<typeof bal_tx_update_status>[2]
+) {
+  const settled = await bal_tx_update_status(pg, id, status);
+  if (!settled) throw resp.status(409, "This request was already settled.");
+}
+
 export const action: ActionFunction = async ({ params, request }) => {
   const fv = await request.formData();
   const p1 = v.safeParse(verdict_schema, fv.get("verdict"));
@@ -36,25 +48,30 @@ export const action: ActionFunction = async ({ params, request }) => {
   const timestamp = new Date().toISOString();
 
   const tx = await bal_tx_get(tx_id);
-  if (!tx) return { status: 404 };
+  if (!tx) throw resp.status(404, "Request not found.");
 
-  if (tx.account !== "lock") throw `expected lock account, got ${tx.account}`;
-
-  const ltd = await nav_ltd();
-
-  if (ltd.composition.CASH.value < tx.amount) {
-    throw "insufficient cash balance to approve this request.";
+  if (tx.account !== "lock") {
+    throw resp.status(400, `Expected lock account, got ${tx.account}.`);
   }
 
   if (verdict === "reject") {
     await db.transaction(async (pg) => {
-      await bal_tx_update_status(pg, tx.id, "cancelled");
+      await settle(pg, tx.id, "cancelled");
       //add back units
       await npo_balance_adj(pg, tx.npo_id, {
         lock_units: tx.amount_units,
       });
     });
     return redirectWithSuccess("..", "Request rejected");
+  }
+
+  const ltd = await nav_ltd();
+
+  if (ltd.composition.CASH.value < tx.amount) {
+    throw resp.status(
+      409,
+      "Insufficient cash balance to approve this request."
+    );
   }
 
   // units adjustment based on ltd
@@ -95,7 +112,7 @@ export const action: ActionFunction = async ({ params, request }) => {
     };
 
     await db.transaction(async (pg) => {
-      await bal_tx_update_status(pg, tx.id, "final");
+      await settle(pg, tx.id, "final");
       await nav_log_append(pg, nav_delta);
       await bal_tx_put(pg, liq_tx);
       // combine lock_units adjustment with liq update to avoid multiple operations on same item
@@ -120,7 +137,7 @@ export const action: ActionFunction = async ({ params, request }) => {
   };
 
   await db.transaction(async (pg) => {
-    await bal_tx_update_status(pg, tx.id, "final");
+    await settle(pg, tx.id, "final");
     await nav_log_append(pg, nav_delta);
     await payout_put(pg, payout);
     // combine lock_units adjustment with payout updates to avoid multiple operations on same item
