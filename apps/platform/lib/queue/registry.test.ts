@@ -1,17 +1,5 @@
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-import { KINDS, type Kind, msg } from "./registry";
-
-// frozen for reg-updated, which embeds Date.now() in its dedupe key.
-const FROZEN_MS = 1_700_000_000_000;
-
-beforeAll(() => {
-  vi.useFakeTimers();
-  vi.setSystemTime(FROZEN_MS);
-});
-
-afterAll(() => {
-  vi.useRealTimers();
-});
+import { describe, expect, test } from "vitest";
+import { KINDS, type Kind, type MsgInput, msg } from "./registry";
 
 describe("msg() — dedupe keys are wire-format and must not drift", () => {
   // per-row payload shape varies; rely on the test calling msg() to enforce
@@ -38,7 +26,11 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
       "lock_tx_9_2026-01-02T030405Z",
     ],
     ["reg-created", { id: "r1" }, "reg.created_r1"],
-    ["reg-updated", { id: "r2" }, `reg.updated_r2_${FROZEN_MS}`],
+    [
+      "reg-updated",
+      { id: "r2", status: "02", updated_at: "2026-09-01T10:20:30.456Z" },
+      "reg.updated_r2_02_2026-09-01T102030.456Z",
+    ],
     ["sub-deactivated", { id: "s1" }, "sub.deactivated_s1"],
     ["tip-received", { id: "t1" }, "tip_t1"],
   ];
@@ -55,5 +47,35 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     const covered = new Set(rows.map(([k]) => k));
     for (const k of KINDS) expect(covered.has(k)).toBe(true);
     expect(covered.size).toBe(KINDS.length);
+  });
+});
+
+describe("reg-updated dedupe", () => {
+  const row: MsgInput<"reg-updated"> = {
+    id: "r2",
+    status: "01",
+    updated_at: "2026-09-01T10:20:30.456Z",
+  };
+
+  // a double-enqueued write of one row state is one message; a submitted (02)
+  // delivery files a hubspot deal.
+  test("is the same for the same row state", () => {
+    expect(msg("reg-updated", { ...row }).dedupe).toBe(
+      msg("reg-updated", { ...row }).dedupe
+    );
+  });
+
+  test("differs after a new save", () => {
+    const next = { ...row, updated_at: "2026-09-01T10:20:31.002Z" };
+    expect(msg("reg-updated", next).dedupe).not.toBe(
+      msg("reg-updated", row).dedupe
+    );
+  });
+
+  test("differs on a status change", () => {
+    const submitted: MsgInput<"reg-updated"> = { ...row, status: "02" };
+    expect(msg("reg-updated", submitted).dedupe).not.toBe(
+      msg("reg-updated", row).dedupe
+    );
   });
 });

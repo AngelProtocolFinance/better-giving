@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   gte,
+  inArray,
   isNotNull,
   isNull,
   like,
@@ -11,7 +12,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { IReg, IRegNew, IRegsSearchObj } from "@/reg/schema";
+import type { IReg, IRegNew, IRegsSearchObj, TStatus } from "@/reg/schema";
 import { db } from "../db";
 import { registrations } from "../schema/registration";
 import type { DbOrTx, IPage } from "./helpers";
@@ -91,6 +92,33 @@ export async function reg_update(
     .where(eq(registrations.id, id))
     .returning();
   return row;
+}
+
+/** `reg_update`, applied only while the row's status is one of `from` — a
+ * `null` in `from` matches a row with no status. returns null when it is not
+ * (or the row doesn't exist) — nothing is written.
+ *
+ * the status is checked in the statement, not by a caller's read: a stale tab
+ * or a second submit press races the review transition, and a write keyed on
+ * id alone would pull a submitted or approved row back to draft. */
+export async function reg_update_from(
+  db: DbOrTx,
+  id: string,
+  from: (TStatus | null)[],
+  attrs: Record<string, any>
+) {
+  const { update_type: _, ...rest } = attrs;
+  const statuses = from.filter((s) => s !== null);
+  const in_from = or(
+    inArray(registrations.status, statuses),
+    from.includes(null) ? isNull(registrations.status) : undefined
+  );
+  const [row] = await db
+    .update(registrations)
+    .set({ ...rest, updated_at: new Date().toISOString() })
+    .where(and(eq(registrations.id, id), in_from))
+    .returning();
+  return row ?? null;
 }
 
 /** paginated registrations with status/date/country filters */

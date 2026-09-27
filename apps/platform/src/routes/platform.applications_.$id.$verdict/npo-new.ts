@@ -2,13 +2,14 @@ import { addYears } from "date-fns";
 import { eq } from "drizzle-orm";
 import { referral_id } from "#/helpers/referral";
 import type { IBapp } from "@/banking";
+import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import type { Progress } from "@/reg";
 import { enqueue } from "$/kit/queue";
 import { wise } from "$/kit/wise";
 import { db } from "$/pg/db";
 import { bapp_put } from "$/pg/queries/banking";
-import { reg_update } from "$/pg/queries/registration";
+import { reg_update, reg_update_from } from "$/pg/queries/registration";
 import { userxnpo_put } from "$/pg/queries/user";
 import { user } from "$/pg/schema/auth";
 import { npos } from "$/pg/schema/npo";
@@ -81,7 +82,13 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     fund_opt_in: true,
   };
 
-  const npo_id = await db.transaction(async (tx) => {
+  const { npo_id, approved } = await db.transaction(async (tx) => {
+    // the claim goes first: a second approval that read "02" before this one
+    // committed waits on the row lock, then finds "03" and stops before its npo
+    // insert, which would otherwise surface as a unique-key 500.
+    const claimed = await reg_update_from(tx, r.id, ["02"], { status: "03" });
+    if (!claimed) throw resp.status(409, "registration not in review");
+
     const [inserted] = await tx.insert(npos).values(new_endow).returning();
     const id = Number(inserted.id);
 
@@ -99,13 +106,10 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
 
     await bapp_put(tx, bank_new);
     await userxnpo_put(tx, id, registrant_id);
-    await reg_update(tx, r.id, {
-      status: "03",
-      status_approved_npo_id: id,
-    });
-    return id;
+    const row = await reg_update(tx, r.id, { status_approved_npo_id: id });
+    return { npo_id: id, approved: row };
   });
 
-  await enqueue(msg("banking-new", { npo_id }), msg("reg-updated", r));
+  await enqueue(msg("banking-new", { npo_id }), msg("reg-updated", approved));
   return npo_id;
 };

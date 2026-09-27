@@ -53,6 +53,11 @@ const statuses = ["01", "02", "03", "04"] as const;
 export const status = v.picklist(statuses);
 export type TStatus = v.InferOutput<typeof status>;
 
+/** draft and rejected: the applicant's to edit and resubmit. `null` is a
+ * legacy row with no status, which the review step reads as a draft. under
+ * review and approved belong to review. */
+export const EDITABLE: (TStatus | null)[] = ["01", "04", null];
+
 /**
  * 01 - in-progress
  * 02 - in-review

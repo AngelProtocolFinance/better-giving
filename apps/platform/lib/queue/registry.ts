@@ -16,8 +16,7 @@ interface IFromAddress {
 }
 
 // dedupe keys ship to qstash and gate at-most-once delivery — preserve
-// existing strings verbatim. reg-updated intentionally embeds Date.now(),
-// which disables dedupe for that kind.
+// existing strings verbatim.
 
 export interface IDonDistPayload {
   id: string;
@@ -139,12 +138,16 @@ export type Payloads = {
 export type Kind = keyof Payloads;
 
 // producer input types. for most kinds this is just Payloads[K]; reg-updated
-// accepts any {id: string | number}-shaped row because callers
-// pass drizzle outputs (string | null fields) that don't satisfy IReg's
-// string | undefined. wire payload is still the full row; the consumer
-// narrows back to IReg.
+// takes a drizzle row (string | null fields don't satisfy IReg's
+// string | undefined), and names the two fields its dedupe key reads so a
+// projection of the row can't stand in for it. wire payload is the full row;
+// the consumer narrows back to IReg.
 export type MsgInput<K extends Kind> = K extends "reg-updated"
-  ? { id: string | number }
+  ? {
+      id: string | number;
+      status: IReg["status"] | null;
+      updated_at: string | null;
+    }
   : Payloads[K];
 
 export type Handlers = {
@@ -166,7 +169,10 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,
   "reg-created": (p) => `reg.created_${p.id}`,
-  "reg-updated": (p) => `reg.updated_${p.id}_${Date.now()}`,
+  // one key per row state: every write stamps updated_at, so a new save is a
+  // new key and a repeat enqueue of the same row is not.
+  "reg-updated": (p) =>
+    `reg.updated_${p.id}_${p.status}_${String(p.updated_at).replace(/:/g, "")}`,
   "sub-deactivated": (p) => `sub.deactivated_${p.id}`,
   "tip-received": (p) => `tip_${p.id}`,
 };

@@ -7,7 +7,7 @@ import { reg_id } from "@/reg/schema";
 import { $ } from "@/schemas";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { reg_get, reg_update } from "$/pg/queries/registration";
+import { reg_get, reg_update_from } from "$/pg/queries/registration";
 import { npo_new } from "./npo-new";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
@@ -41,17 +41,18 @@ export const action: ActionFunction = async ({ request, params }) => {
 
   if (reg.status !== "02") {
     throw resp.status(
-      400,
+      409,
       `registration not in review, curr status:${reg.status}`
     );
   }
 
   if (verdict.type === "rejected") {
-    const updated = await reg_update(db, id, {
+    const updated = await reg_update_from(db, id, ["02"], {
       status: "04",
       status_rejected_reason: verdict.reason,
     });
-    if (updated) await enqueue(msg("reg-updated", updated));
+    if (!updated) throw resp.status(409, "registration not in review");
+    await enqueue(msg("reg-updated", updated));
     return redirect("../success");
   }
   const npo = await npo_new(r);

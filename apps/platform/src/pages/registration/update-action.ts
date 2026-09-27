@@ -7,10 +7,14 @@ import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import type { IReg } from "@/reg";
 import { Progress } from "@/reg/progress";
-import { reg_id, reg_update as reg_update_schema } from "@/reg/schema";
+import {
+  EDITABLE,
+  reg_id,
+  reg_update as reg_update_schema,
+} from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { reg_get, reg_update } from "$/pg/queries/registration";
+import { reg_get, reg_update_from } from "$/pg/queries/registration";
 
 const changed = <T extends boolean | string | number | undefined>(a: T, b: T) =>
   a != null && b != null && a !== b;
@@ -47,11 +51,6 @@ export const update_action =
     const reg = await reg_get(rid);
     if (!reg) throw resp.status(404, `reg:${rid} not found`);
 
-    // approved
-    if (reg.status === "03") {
-      throw resp.status(400, `reg:${rid} already approved`);
-    }
-
     if (reg.r_id !== user.email && user.role !== "admin") {
       throw resp.status(401);
     }
@@ -82,8 +81,14 @@ export const update_action =
 
     /* identity + its resets are change-identity.ts's, not a step's */
 
-    const updated = await reg_update(db, rid, attrs);
-    if (updated) await enqueue(msg("reg-updated", updated));
+    const updated = await reg_update_from(db, rid, EDITABLE, attrs);
+    if (!updated) {
+      throw resp.status(
+        409,
+        "This application can't be edited while it is under review or approved."
+      );
+    }
+    await enqueue(msg("reg-updated", updated));
 
     /* the address is asked to prove itself here rather than at the marketing
      * form: a lead that never finished this step is one we mailed nothing. */
