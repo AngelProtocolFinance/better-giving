@@ -94,6 +94,39 @@ describe("request_login_link", () => {
     expect(on_error.searchParams.get("redirect")).toBe("/marketplace");
   });
 
+  it("carries an on-site redirect_to into the link", async () => {
+    await request_login_link({
+      email: "donor@example.com",
+      redirect_to: "/donate/1",
+      headers: from_ip("203.0.113.7"),
+    });
+
+    expect(sent_links).toHaveLength(1);
+    const link = new URL(sent_links[0]!.url);
+    expect(link.searchParams.get("callbackURL")).toBe("/donate/1");
+    const on_error = new URL(
+      link.searchParams.get("errorCallbackURL")!,
+      ORIGIN
+    );
+    expect(on_error.searchParams.get("redirect")).toBe("/donate/1");
+  });
+
+  it("stops mailing one address once its quota is spent, whatever its spelling", async () => {
+    for (let i = 0; i < LINK_PER_EMAIL.max; i++) {
+      await request_login_link({
+        email: "victim@example.com",
+        headers: from_ip("203.0.113.7"),
+      });
+    }
+    expect(sent_links).toHaveLength(LINK_PER_EMAIL.max);
+
+    await request_login_link({
+      email: " Victim@Example.com ",
+      headers: from_ip("198.51.100.4"),
+    });
+    expect(sent_links).toHaveLength(LINK_PER_EMAIL.max);
+  });
+
   it("never charges an address for a source already over its cap", async () => {
     const victim = "victim@example.com";
     for (let i = 0; i < LINK_PER_IP.max; i++) {
