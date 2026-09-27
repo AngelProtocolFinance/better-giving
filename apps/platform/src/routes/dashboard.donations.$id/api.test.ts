@@ -53,7 +53,7 @@ vi.mock("$/pg/queries/dist", () => ({
 }));
 
 import { send_receipt } from "#/routes/api.q-handler.$event/handle-don-receipt/send-receipt";
-import { action } from "./api";
+import { action, loader } from "./api";
 
 const fund_don = (
   to_members: string[],
@@ -81,7 +81,7 @@ const npo = (id: number, name: string, active = true) => ({
   active,
 });
 
-const resend = () =>
+const resend = (as = user) =>
   action({
     request: new Request("http://test/dashboard/donations/don-1", {
       method: "POST",
@@ -97,8 +97,11 @@ const resend = () =>
       }),
     }),
     params: { id: "don-1" },
-    context: { get: () => user },
+    context: { get: () => as },
   } as any);
+
+const read = (as = user) =>
+  loader({ params: { id: "don-1" }, context: { get: () => as } } as any);
 
 /** the one receipt mailed, as each line prints */
 const printed = () => {
@@ -343,5 +346,50 @@ describe("the resend and the queue send", () => {
     const { from: _r, ...resent_rest } = resent!;
     const { from: _q, ...queued_rest } = queued!;
     expect(resent_rest).toEqual(queued_rest);
+  });
+});
+
+describe("whose donation it is", () => {
+  const stranger = { email: "someone.else@test.com" };
+
+  beforeEach(() => {
+    send_email_or_throw.mockClear();
+    store.refund_statuses = [];
+    charge.amount_refunded = 0;
+    store.don = fund_don(["10"]);
+  });
+
+  test("another user's donation is forbidden and mails nothing", async () => {
+    // the resend mails a tax receipt carrying whatever name and address the
+    // form was given, so a held donation id must not be enough
+    const res = await resend(stranger);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(403);
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+  });
+
+  test("another user's donation can't be read", async () => {
+    const res = await read(stranger);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(403);
+  });
+
+  test("a differently-cased owner email still gets the receipt", async () => {
+    store.don = { ...fund_don(["10"]), from_email: "Donor@Test.COM" };
+    const signed_in = { email: "DONOR@test.com" };
+
+    expect(await read(signed_in)).toEqual({
+      first_name: "",
+      last_name: "",
+      email: signed_in.email,
+    });
+    await resend(signed_in);
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0]![0].to).toEqual([
+      "Donor@Test.COM",
+    ]);
   });
 });
