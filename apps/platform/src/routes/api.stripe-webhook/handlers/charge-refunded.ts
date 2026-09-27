@@ -1,13 +1,32 @@
 import type Stripe from "stripe";
-import { str_id } from "#/helpers/stripe";
+import {
+  currency_precision,
+  from_stripe_amount,
+  str_id,
+} from "#/helpers/stripe";
+import { stage } from "$/env";
+import { fiat_monitor } from "$/kit/discord";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
 import { process_refund } from "$/refund/process";
 
+const ALERT_FROM = "charge-refunded";
+
+const money = (atomic: number, currency: string) =>
+  `${from_stripe_amount(atomic, currency).toFixed(currency_precision(currency))} ${currency.toUpperCase()}`;
+
+const refund_list = (refunds: Stripe.Refund[], currency: string) =>
+  refunds
+    .map((r) => `${money(r.amount, currency)} (${r.id}, ${r.status})`)
+    .join(", ");
+
 export async function handle_charge_refunded({
-  object: charge,
+  object: event_charge,
 }: Stripe.ChargeRefundedEvent.Data) {
+  // events arrive out of order: a stale partial copy must not outvote a charge
+  // that has since been refunded in full
+  const charge = await stripe.charges.retrieve(event_charge.id);
   const intent_id = str_id(charge.payment_intent);
   const intent = await stripe.paymentIntents.retrieve(intent_id);
   const { order_id } = intent.metadata;
@@ -21,15 +40,59 @@ export async function handle_charge_refunded({
     return;
   }
 
+  // newest first
+  const { data: refunds } = await stripe.refunds.list({
+    charge: charge.id,
+    limit: 100,
+  });
+  const [newest, ...earlier] = refunds;
+  if (!newest) throw new Error(`no refund on charge: ${charge.id}`);
+
+  // process_refund reverses every dist in full; a partial reversal isn't
+  // supported yet, so ops settles it by hand. the refund that completes the
+  // charge reverses the donation as a full refund.
+  if (!charge.refunded) {
+    await fiat_monitor.send_alert({
+      type: "NOTICE",
+      from: `${ALERT_FROM}-${stage}`,
+      title: "Partial Refund Not Reversed",
+      body: [
+        `donation ${order_id}, charge ${charge.id}`,
+        `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
+        `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount, charge.currency)}`,
+        "nothing was reversed automatically. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for these refunds must then be undone.",
+      ].join("\n"),
+    });
+    return;
+  }
+
   const graphs = await dists_for_refund(order_id);
   if (graphs.length === 0) {
     throw new Error(`no settled dists for donation: ${order_id}`);
   }
 
+  // nothing can be refunded past a full refund, so the newest completed it.
+  // every earlier refund, failed ones included: each may have sent a partial
+  // notice ops acted on. sent before reversing: once reversed, a redelivery
+  // short-circuits on the donation status and a failed send is never retried
+  if (earlier.length > 0) {
+    await fiat_monitor.send_alert({
+      type: "NOTICE",
+      from: `${ALERT_FROM}-${stage}`,
+      title: "Refund Completed After Partial: Undo Hand Adjustment",
+      body: [
+        `donation ${order_id}, charge ${charge.id}`,
+        `completing refund: ${refund_list([newest], charge.currency)}`,
+        `earlier partial refunds: ${refund_list(earlier, charge.currency)}`,
+        "the whole donation is now reversed automatically. undo any hand adjustment made for the earlier partial refunds, or they are debited twice.",
+      ].join("\n"),
+    });
+  }
+
   const result = await process_refund(order_id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
-    alert_from: "charge-refunded",
+    alert_from: ALERT_FROM,
   });
 
   console.info(
