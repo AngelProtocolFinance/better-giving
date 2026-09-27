@@ -1,4 +1,4 @@
-import { rd2num } from "../../lib/helpers/decimal";
+import { to_units } from "@/helpers/decimal";
 
 /** [precision, atomic units e.g. 100 cents in usd] */
 const spec: Record<string, [number, number]> = {
@@ -29,8 +29,8 @@ const spec: Record<string, [number, number]> = {
    *
    * stripe additionally requires the amount to be a multiple of 10 — the last
    * digit must be 0 — so the precision is held at 2 and scaled by 10^3, which
-   * makes that true by construction instead of by a rounding rule. the donor
-   * loses nothing: a millime is worth about a thousandth of a dollar.
+   * makes that true by construction. an amount is rounded half up to the
+   * hundredth, so it moves by at most 5 of the thousandth units either way.
    */
   BHD: [2, 3],
   JOD: [2, 3],
@@ -39,17 +39,12 @@ const spec: Record<string, [number, number]> = {
   TND: [2, 3],
 };
 
+/** `amount` in atomic units, rounded half up at the currency's precision */
 export const to_atomic = (
   amount: number,
   [precision, atomic_units]: [number, number]
 ): number => {
-  const rounded = rd2num(amount, precision);
-  // scale by rounding, not truncating. `rd2num` has already cut the amount to
-  // `precision` decimals and every spec scales by at least that many places, so
-  // the exact product is a whole number of atomic units and rounding recovers
-  // it. truncating instead keeps whatever the binary multiply lost: 0.29 * 100
-  // is 28.999999999999996, which trunc reads as 28 cents.
-  return Math.round(rounded * 10 ** atomic_units);
+  return to_units(amount, precision) * 10 ** (atomic_units - precision);
 };
 
 export const to_atomic_c = (currency: string) => {

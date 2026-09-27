@@ -46,16 +46,25 @@ vi.mock("$/email", () => ({
   sender: "test <test@test.com>",
 }));
 
-vi.mock("#/.server/auth", () => ({
-  auth: new Proxy(
-    {},
-    {
-      get(_, prop) {
-        if (!test_auth_ref.current) throw new Error("test auth not init");
-        return (test_auth_ref.current as any)[prop];
-      },
-    }
-  ),
+/** the pglite-backed instance, reachable before `beforeAll` builds it */
+const test_auth_proxy = vi.hoisted(
+  () =>
+    new Proxy(
+      {},
+      {
+        get(_, prop) {
+          if (!test_auth_ref.current) throw new Error("test auth not init");
+          return (test_auth_ref.current as any)[prop];
+        },
+      }
+    )
+);
+
+// what the real server-side seams import as `./auth`
+vi.mock("#/.server/auth/auth", () => ({ auth: test_auth_proxy }));
+
+vi.mock("#/.server/auth", async () => ({
+  auth: test_auth_proxy,
   get_session: vi.fn(async (request: Request) => {
     if (!test_auth_ref.current) throw new Error("test auth not init");
     const session = await test_auth_ref.current.api.getSession({
@@ -84,26 +93,38 @@ vi.mock("#/.server/auth", () => ({
     });
     return { status: "created", user_id: created.id };
   }),
+  request_password_reset: (
+    await vi.importActual<typeof import("#/.server/auth/password-reset")>(
+      "#/.server/auth/password-reset"
+    )
+  ).request_password_reset,
 }));
 
-// routes reach the link helper directly, so it must run against the pglite
-// auth instance rather than the env-bound production one
-vi.mock("#/.server/auth/login-link", () => ({
-  check_email_url: (a: { email: string; stale?: boolean }) =>
-    `/check-email?email=${encodeURIComponent(a.email)}${
-      a.stale ? "&stale=1" : ""
-    }`,
-  request_login_link: vi.fn(async (a: { email: string }) => {
-    try {
-      await test_auth_ref.current.api.signInMagicLink({
-        body: { email: a.email },
-        headers: new Headers(),
-      });
-    } catch {
-      // unknown address — the screen is identical either way
-    }
-  }),
-}));
+// a quota-free stand-in for the link helper. the quota sizes pass through
+// because the real `request_password_reset` imports them from here.
+vi.mock("#/.server/auth/login-link", async () => {
+  const { LINK_PER_EMAIL, LINK_PER_IP } = await vi.importActual<
+    typeof import("#/.server/auth/login-link")
+  >("#/.server/auth/login-link");
+  return {
+    LINK_PER_EMAIL,
+    LINK_PER_IP,
+    check_email_url: (a: { email: string; stale?: boolean }) =>
+      `/check-email?email=${encodeURIComponent(a.email)}${
+        a.stale ? "&stale=1" : ""
+      }`,
+    request_login_link: vi.fn(async (a: { email: string }) => {
+      try {
+        await test_auth_ref.current.api.signInMagicLink({
+          body: { email: a.email },
+          headers: new Headers(),
+        });
+      } catch {
+        // unknown address — the screen is identical either way
+      }
+    }),
+  };
+});
 
 vi.mock("#/.server/cookie", () => ({
   reg_cookie: {

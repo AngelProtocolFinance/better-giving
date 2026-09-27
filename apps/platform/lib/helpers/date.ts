@@ -38,8 +38,10 @@ export const to_utc_day = (date: string | Date) =>
     timeZone: "UTC",
   }).format(new Date(date));
 
-export const to_pretty_utc = (date: string | Date) =>
-  `${format(new Date(date), "yyyy-MM-dd HH:mm:ss")} (UTC)`;
+export const to_pretty_utc = (date: string | Date) => {
+  const iso = new Date(date).toISOString();
+  return `${iso.slice(0, 10)} ${iso.slice(11, 19)} (UTC)`;
+};
 
 export const YYYYMMDD = (date: Date | string) => {
   const d = new Date(date);

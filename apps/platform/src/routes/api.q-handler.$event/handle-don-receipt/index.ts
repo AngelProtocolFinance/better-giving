@@ -3,13 +3,15 @@ import {
   donation_tribute_notif as dtn,
 } from "emails";
 import { report_error } from "#/errors/report";
-import type { IDonation } from "@/donations";
+import { type IDonation, is_reversed } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
+import type { IDonFundReceiptPayload } from "@/queue";
 import { send_email_or_throw } from "$/email";
 import {
   claim_receipt_send,
+  donation_get,
   mark_receipt_sent,
   release_receipt_send,
 } from "$/pg/queries/donation";
@@ -20,8 +22,8 @@ export async function handle_don_receipt(don: IDonation) {
   // the stamp goes first and the loser stops here. every provider's settle
   // path queues this message, and a redelivery of it — from qstash or from the
   // provider handler re-queueing after a failed enqueue — would otherwise
-  // re-mail the receipt under a fresh tax id, and the private-message and
-  // tribute mails below with it.
+  // mail a duplicate receipt, and the private-message and tribute mails below
+  // with it.
   //
   // not an error: a redelivery of a message whose receipts already went out.
   // qstash needs a 200 for it or it will keep retrying.
@@ -40,11 +42,12 @@ export async function handle_don_receipt(don: IDonation) {
   //
   // what the lease does not cover: `sends` is several mails and the release is
   // all-or-nothing, so a failure partway through gives back the right to send
-  // the ones that already went. a tipped npo donation or a multi-member fund
-  // that dies on mail #3 re-sends #1 and #2 on the retry. the receipt among
-  // them carries the same number it did the first time — `tax_receipt_id` is
-  // derived from the donation — so what is left is a duplicate email, not a
-  // second tax document the donor cannot reconcile against the first.
+  // the ones that already went. a gift with a private message and a tribute
+  // that dies on the tribute mail re-sends the receipt and the message on the
+  // retry. the receipt carries the same number it did the first time —
+  // `tax_receipt_id` is derived from the donation — so what is left is a
+  // duplicate email, not a second tax document the donor cannot reconcile
+  // against the first.
   try {
     await sends(don);
   } catch (e) {
@@ -61,7 +64,7 @@ export async function handle_don_receipt(don: IDonation) {
 
   // outside the try on purpose. inside it, a db failure on this write would
   // land in the catch and *release* the lease — handing the next delivery the
-  // right to re-mail receipts that already went out, under a fresh tax id.
+  // right to re-mail receipts that already went out: a duplicate receipt.
   // left here it throws with the lease still held, so nothing re-sends until
   // the expiry, and the mails that did go out stay sent exactly once.
   await stamp_sent(don.id);
@@ -102,6 +105,15 @@ async function stamp_sent(donation_id: string, attempts = 5) {
       );
     }
   }
+}
+
+/** a fund receipt's wait, scheduled by an earlier build. the payload is only
+ * the id, so the donation is read again; the claim dedupes it against the
+ * queue send. */
+export async function handle_don_fund_receipt(p: IDonFundReceiptPayload) {
+  const don = await donation_get(p.id);
+  if (!don || is_reversed(don.status)) return;
+  await handle_don_receipt(don);
 }
 
 async function sends(don: IDonation) {

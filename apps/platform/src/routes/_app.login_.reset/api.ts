@@ -2,7 +2,7 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { type ActionFunction, redirect } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { safeParse } from "valibot";
-import { auth } from "#/.server/auth";
+import { auth, request_password_reset } from "#/.server/auth";
 import { report_error } from "#/errors/report";
 import type { IFormInvalid } from "#/types/action";
 import { resp, search } from "@/helpers/https";
@@ -71,16 +71,10 @@ export const action: ActionFunction = async ({ request }) => {
   const payload = await getValidatedFormData(fv, valibotResolver(email_schema));
   if (payload.errors) return payload;
 
-  const origin = new URL(request.url).origin;
   const email = payload.data.email;
 
   try {
-    await auth.api.requestPasswordReset({
-      body: {
-        email,
-        redirectTo: `${origin}/login/reset?type=set-password&email=${encodeURIComponent(email)}`,
-      },
-    });
+    await request_password_reset(email, request);
   } catch (err) {
     report_error(err);
     return {

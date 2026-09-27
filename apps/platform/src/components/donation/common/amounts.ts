@@ -1,0 +1,63 @@
+import { currency_precision } from "#/helpers/stripe";
+import type { ICurrencyFv } from "#/types/currency";
+import { PROCESSING_RATES } from "@/constants/common";
+import type { IAmount } from "@/donations";
+import { snap, to_units } from "@/helpers/decimal";
+import { min_fee_allowance } from "@/helpers/donation";
+import { type TTipFormat, tip_val } from "../types";
+
+export interface IAmountsInput {
+  amount: number;
+  tip_format: TTipFormat;
+  tip: string;
+  cover_processing_fee: boolean;
+}
+
+export interface IFeeTerms {
+  rate: number;
+  flat?: number;
+  cap?: number;
+}
+
+/** the parts a checkout shows and charges. tip and fee allowance land on the
+ * currency's smallest unit (cents for usd), so with a base already at that
+ * precision the summary and the charge total the same. the fee allowance
+ * rounds up so it still covers the fee. */
+export function donation_amounts(
+  i: IAmountsInput,
+  precision: number,
+  { rate, flat = 0, cap = Number.POSITIVE_INFINITY }: IFeeTerms
+): IAmount {
+  const in_units = (x: number, mode?: "up") =>
+    to_units(x, precision, mode) / 10 ** precision;
+
+  const tip = in_units(tip_val(i.tip_format, i.tip, i.amount));
+  // down to the smallest unit, so rounding the fee up can't carry it past the cap
+  const cap_in_units =
+    Math.floor(snap(cap * 10 ** precision)) / 10 ** precision;
+  const fee = i.cover_processing_fee
+    ? Math.min(min_fee_allowance(tip + i.amount, rate, flat), cap_in_units)
+    : 0;
+
+  return { base: i.amount, tip, fee_allowance: in_units(fee, "up") };
+}
+
+export interface IStripeAmountsInput extends IAmountsInput {
+  currency: Pick<ICurrencyFv, "code" | "rate">;
+  bank_only?: boolean;
+}
+
+export function stripe_amounts(i: IStripeAmountsInput): IAmount {
+  const { rate: fx } = i.currency;
+  const fee: IFeeTerms = i.bank_only
+    ? // bank fee capped at $5 converted to donor currency
+      {
+        rate: PROCESSING_RATES.stripe_bank,
+        cap: PROCESSING_RATES.stripe_bank_cap * fx,
+      }
+    : {
+        rate: PROCESSING_RATES.stripe,
+        flat: PROCESSING_RATES.stripe_flat * fx,
+      };
+  return donation_amounts(i, currency_precision(i.currency.code), fee);
+}

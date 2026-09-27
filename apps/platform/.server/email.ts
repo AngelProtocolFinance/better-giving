@@ -72,9 +72,13 @@ export async function send_email(i: IInput) {
  * and stamps the row to match, so a refusal swallowed here is a mail lost for
  * good with the row asserting it went out.
  *
+ * an action whose whole job is the mail (the dashboard receipt resend) catches
+ * the throw and tells the user it failed. it reports what it catches too: a
+ * render error throws before `send_email`'s report.
+ *
  * fire-and-forget callers keep `send_email` — a magic link, a webhook handler,
- * a dashboard action must not fail the flow that triggered them over a bounced
- * notification.
+ * an action mailing on the side must not fail the flow that triggered them over
+ * a bounced notification.
  */
 export async function send_email_or_throw(i: IInput) {
   const { data, error } = await send_email(i);

@@ -135,6 +135,12 @@ export const auth_options = (deps: AuthOptionDeps) => ({
 
   user: { additionalFields: user_additional_fields },
 
+  /** checked only by the router's `onRequest`, so a server-side `auth.api.*`
+   * call still reaches these. the only anonymous reset route is the app's own,
+   * through `request_password_reset`, whose per-email quota the router's per-ip
+   * limiter has no equivalent of. */
+  disabledPaths: ["/request-password-reset"],
+
   /** covers the public `/api/auth/*` surface only — better-auth runs this from
    * its router's `onRequest`, which a server-side `auth.api.*` call never
    * touches. The app-side counterpart for those lives in `./rate-limit`.
@@ -148,7 +154,6 @@ export const auth_options = (deps: AuthOptionDeps) => ({
       // no human needs more than a few links per quarter hour.
       "/sign-in/magic-link": { window: 15 * 60, max: 5 },
       "/sign-up/email": { window: 15 * 60, max: 5 },
-      "/request-password-reset": { window: 15 * 60, max: 5 },
       // token guessing. the token is 32 random chars, so this is only a brake
       // on volume, not the thing making the token unguessable.
       "/magic-link/verify": { window: 60, max: 10 },

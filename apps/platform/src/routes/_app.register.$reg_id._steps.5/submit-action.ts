@@ -1,14 +1,15 @@
-import type { ActionFunction } from "react-router";
+import { type ActionFunction, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
+import { wizard_exit } from "#/pages/registration/data/step-loader";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import { Progress } from "@/reg/progress";
-import { reg_id } from "@/reg/schema";
-import { enqueue } from "$/kit/queue";
+import { EDITABLE, reg_id } from "@/reg/schema";
+import { enqueue, in_dedupe_window } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { reg_get, reg_update } from "$/pg/queries/registration";
+import { reg_get, reg_update_from } from "$/pg/queries/registration";
 
 export const submit_action: ActionFunction = async ({ request, params }) => {
   const { user } = await get_session(request);
@@ -22,18 +23,33 @@ export const submit_action: ActionFunction = async ({ request, params }) => {
   if (!reg) throw resp.status(404, `reg:${id} not found`);
 
   const r = new Progress(reg).banking;
-  if (!r) throw "Registration not ready for submission";
+  if (!r) throw resp.status(400, "Registration not ready for submission");
 
   if (user.email !== r.r_id && user.role !== "admin") {
     throw resp.status(403);
   }
 
   //reset previous review
-  const updated = await reg_update(db, r.id, {
+  const { row } = await reg_update_from(db, r.id, EDITABLE, {
     status: "02",
     status_rejected_reason: null,
   });
-  if (updated) await enqueue(msg("reg-updated", updated));
+  // in review on a miss too: an earlier press committed this submit. inside
+  // qstash's dedupe window its message is enqueued again under the same key,
+  // which reaches the queue only if the first enqueue never did. past the
+  // window the press answers submitted and enqueues nothing, since the same
+  // key would send again.
+  if (row?.status !== "02") {
+    const exit = row && wizard_exit(row, 5);
+    if (exit) return redirect(exit);
+    throw resp.status(
+      409,
+      "This application has already been submitted or approved."
+    );
+  }
+  if (in_dedupe_window(row.updated_at)) {
+    await enqueue(msg("reg-updated", row));
+  }
 
   return dataWithSuccess(
     null,

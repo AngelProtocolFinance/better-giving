@@ -5,10 +5,10 @@ import { msg } from "@/queue";
 import { Progress } from "@/reg/progress";
 import { reg_id } from "@/reg/schema";
 import { $ } from "@/schemas";
-import { enqueue } from "$/kit/queue";
+import { enqueue, in_dedupe_window } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { reg_get, reg_update } from "$/pg/queries/registration";
-import { npo_new } from "./npo-new";
+import { reg_get, reg_update_from } from "$/pg/queries/registration";
+import { announce_approval, npo_new } from "./npo-new";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { default } from "./prompt";
@@ -39,22 +39,34 @@ export const action: ActionFunction = async ({ request, params }) => {
   const r = new Progress(reg).banking; // no need to look at fsa
   if (!r) throw resp.status(400, "registration has incomplete steps");
 
-  if (reg.status !== "02") {
+  // a row already at this verdict's status is a repeat of it: a retry after
+  // its response or enqueue was lost, or a stale prompt. inside qstash's dedupe
+  // window it is announced again under the same keys; past it, it answers
+  // success and enqueues nothing.
+  const settled = verdict.type === "approved" ? "03" : "04";
+  if (reg.status !== "02" && reg.status !== settled) {
     throw resp.status(
-      400,
+      409,
       `registration not in review, curr status:${reg.status}`
     );
   }
 
   if (verdict.type === "rejected") {
-    const updated = await reg_update(db, id, {
+    const { row } = await reg_update_from(db, id, ["02"], {
       status: "04",
       status_rejected_reason: verdict.reason,
     });
-    if (updated) await enqueue(msg("reg-updated", updated));
+    // a re-reject repeats the stored reason, or it is a second verdict
+    if (row?.status !== "04" || row.status_rejected_reason !== verdict.reason) {
+      throw resp.status(409, "registration not in review");
+    }
+    if (in_dedupe_window(row.updated_at)) {
+      await enqueue(msg("reg-updated", row));
+    }
     return redirect("../success");
   }
-  const npo = await npo_new(r);
-  console.info("NPO created:", npo);
+  const npo =
+    reg.status === "03" ? await announce_approval(reg) : await npo_new(r);
+  console.info("NPO approved:", npo);
   return redirect("../success");
 };

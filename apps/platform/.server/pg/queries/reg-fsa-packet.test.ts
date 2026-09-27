@@ -7,6 +7,7 @@ import {
   test,
   vi,
 } from "vitest";
+import type { TStatus } from "@/reg/schema";
 import type { TestDb } from "../test-utils/pglite";
 
 // --- hoisted refs ---
@@ -69,11 +70,17 @@ const row = async () =>
       .where(eq(registrations.id, "r-1"))
   )[0]!;
 
+const set_status = (status: TStatus | null) =>
+  test_db
+    .current!.db.update(registrations)
+    .set({ status })
+    .where(eq(registrations.id, "r-1"));
+
 describe("reg_fsa_packet", () => {
   test("writes onto the row the packet was generated from", async () => {
-    const updated = await reg_fsa_packet("r-1", SEEN_AT, PACKET);
+    const res = await reg_fsa_packet("r-1", SEEN_AT, PACKET);
 
-    expect(updated).toBeTruthy();
+    expect(res.won).toBe(true);
     expect((await row()).o_fsa_doc_eid).toBe("docGroupNew");
   });
 
@@ -85,16 +92,50 @@ describe("reg_fsa_packet", () => {
       .set({ updated_at: "2026-08-24T10:00:01.000Z" })
       .where(eq(registrations.id, "r-1"));
 
-    expect(await reg_fsa_packet("r-1", SEEN_AT, PACKET)).toBeUndefined();
+    expect((await reg_fsa_packet("r-1", SEEN_AT, PACKET)).won).toBe(false);
     expect((await row()).o_fsa_doc_eid).toBeNull();
   });
+
+  // a packet for an application in review or approved is one nobody should be
+  // signing.
+  test.each<TStatus>(["02", "03"])(
+    "leaves a %s row untouched and reports the miss",
+    async (status) => {
+      await set_status(status);
+
+      const res = await reg_fsa_packet("r-1", SEEN_AT, PACKET);
+
+      expect(res).toMatchObject({ won: false, row: { status } });
+      const after = await row();
+      expect(after.status).toBe(status);
+      expect(after.o_fsa_doc_eid).toBeNull();
+      expect(after.updated_at).toBe(SEEN_AT);
+    }
+  );
+
+  // a rejected application being re-signed goes back to draft with its packet.
+  test.each<TStatus | null>(["01", "04", null])(
+    "writes the packet and draft status onto a %s row",
+    async (status) => {
+      await set_status(status);
+
+      const res = await reg_fsa_packet("r-1", SEEN_AT, PACKET);
+
+      expect(res).toMatchObject({
+        won: true,
+        row: { status: "01", o_fsa_doc_eid: "docGroupNew" },
+      });
+      expect((await row()).status).toBe("01");
+    }
+  );
 
   test("stamps its own updated_at, so the next packet needs the new one", async () => {
     await reg_fsa_packet("r-1", SEEN_AT, PACKET);
 
     expect((await row()).updated_at).not.toBe(SEEN_AT);
-    expect(
-      await reg_fsa_packet("r-1", SEEN_AT, { o_fsa_doc_eid: "docGroupTwo" })
-    ).toBeUndefined();
+    const again = await reg_fsa_packet("r-1", SEEN_AT, {
+      o_fsa_doc_eid: "docGroupTwo",
+    });
+    expect(again.won).toBe(false);
   });
 });

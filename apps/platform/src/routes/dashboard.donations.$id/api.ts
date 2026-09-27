@@ -1,23 +1,17 @@
 import { valibotResolver } from "@hookform/resolvers/valibot";
-import {
-  donation_receipt as dr,
-  type IDonation as IDon,
-  type IDonor,
-} from "emails";
+import { donation_receipt as dr, type IDonor } from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { dataWithError, redirectWithSuccess } from "#/.server/toast";
-import { type IDonation, is_reversed, tax_receipt_id } from "@/donations";
-import { to_pretty_utc } from "@/helpers/date";
-import { to_amount, to_fund_receipts } from "@/helpers/email";
+import { report_error } from "#/errors/report";
+import { is_reversed } from "@/donations";
 import { resp } from "@/helpers/https";
-import { is_funded_member } from "@/settlement/funded-members";
-import { send_email } from "$/email";
-import { app } from "$/env";
-import { dist_npo_ids_of, donation_refund_started } from "$/pg/queries/dist";
+import { send_email_or_throw } from "$/email";
+import { stripe } from "$/kit/stripe";
+import { donation_refund_started } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
-import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 import { user_get } from "$/pg/queries/user";
+import { build_receipt, NpoNotFoundError } from "$/receipt";
 import type { Route } from "./+types/route";
 import { type FV, schema } from "./schema";
 
@@ -71,7 +65,29 @@ export const action = async ({
     );
   }
 
-  // a partial or unfinalized refund leaves the donation settled
+  // a partial stripe refund writes nothing to the donation or its dists, so
+  // only the charge knows the full amount no longer stands
+  if (don.via.startsWith("stripe") && don.settlement) {
+    const refunded = await charge_refunded(don.settlement.id).catch((e) => {
+      report_error(e, { donation_id: don.id, during: "resend refund check" });
+      return null;
+    });
+    if (refunded === null) {
+      return dataWithError(
+        null,
+        "We couldn't check this donation's refund status. Please try again."
+      );
+    }
+    if (refunded) {
+      return dataWithError(
+        null,
+        "This donation was partly refunded, so we can't resend its original receipt. Contact support for an updated one."
+      );
+    }
+  }
+
+  // a refund run whose dist reversals didn't all complete leaves the donation
+  // settled
   if (await donation_refund_started(don.id)) {
     return dataWithError(
       null,
@@ -97,79 +113,37 @@ export const action = async ({
     address: addr,
   };
 
-  await send_receipts(don, donor);
+  const data = await build_receipt(don, donor).catch((e) => {
+    if (e instanceof NpoNotFoundError) return null;
+    throw e;
+  });
+  if (!data) return resp.status(404);
+  const { node, subject } = dr.template(data);
+  // `send_email` reports a refusal, but a render error throws before it
+  const sent = await send_email_or_throw({
+    node,
+    subject,
+    to: [don.from_email],
+  }).catch((e) => {
+    report_error(e, { donation_id: don.id, during: "receipt resend" });
+    return null;
+  });
+  if (!sent) {
+    return dataWithError(
+      null,
+      "We couldn't send your receipt. Please try again."
+    );
+  }
 
   return redirectWithSuccess("..", "Receipt sent");
 };
 
-/** send one receipt per npo dist + tip, mirroring on-don-success-donor/send-receipt.ts */
-async function send_receipts(d: IDonation, donor: IDonor) {
-  const { base, tip } = d.amount;
-  // the same derivation the queue handler uses, and the reason this path is
-  // safe to run at all: a support resend now reissues the number the donor
-  // already holds instead of minting a second one for the same gift.
-  const receipt_id = d.via.startsWith("chariot")
-    ? undefined
-    : await tax_receipt_id(d.id);
-
-  // tip receipt (donation to Better Giving)
-  if (tip > 0) {
-    const don: IDon = {
-      id: d.id,
-      date: to_pretty_utc(d.created_at),
-      amount: to_amount(tip, tip / d.upusd, d.currency),
-      to_name: "Better Giving",
-    };
-    const data: dr.IData = {
-      ...don,
-      tax_receipt_id: receipt_id,
-      from: donor,
-    };
-    const { node, subject } = dr.template(data);
-    await send_email({ node, subject, to: [d.from_email] });
-  }
-
-  // fund: one receipt per member settlement paid, active or not since
-  if (d.to_type === "fund") {
-    const paid = await dist_npo_ids_of(d.id);
-    // no dists yet: the split hasn't run, so the members it will pay
-    const npos = await npos_batch_get(
-      paid.length ? paid : d.to_members.map((x) => +x)
-    );
-    const ids = paid.length
-      ? paid
-      : npos.filter(is_funded_member).map((n) => n.id);
-    const receipts = to_fund_receipts(d, ids, npos, {
-      from: donor,
-      tax_receipt_id: receipt_id,
-      bg_npo_id: +app.npo_id,
-    });
-    for (const data of receipts) {
-      const { node, subject } = dr.template(data);
-      await send_email({ node, subject, to: [d.from_email] });
-    }
-    return;
-  }
-
-  // direct npo donation
-  d.to_type satisfies "npo";
-  const npo = await npo_get(+d.to_id);
-  if (!npo) throw resp.status(404, `NPO not found: ${d.to_id}`);
-
-  const don: IDon = {
-    id: d.id,
-    date: to_pretty_utc(d.created_at),
-    amount: to_amount(base, base / d.upusd, d.currency),
-    to_name: d.to_name,
-    program_name: d.program?.name,
-  };
-  const data: dr.IData = {
-    ...don,
-    from: donor,
-    is_bg: npo.id === +app.npo_id,
-    tax_receipt_id: receipt_id,
-    to_msg_to_from: npo.receipt_msg ?? undefined,
-  };
-  const { node, subject } = dr.template(data);
-  await send_email({ node, subject, to: [d.from_email] });
+/** any part of the charge behind this intent given back */
+async function charge_refunded(intent_id: string): Promise<boolean> {
+  const { latest_charge: lc } = await stripe.paymentIntents.retrieve(
+    intent_id,
+    { expand: ["latest_charge"] }
+  );
+  if (typeof lc === "string") throw new Error(`charge not expanded: ${lc}`);
+  return (lc?.amount_refunded ?? 0) > 0;
 }

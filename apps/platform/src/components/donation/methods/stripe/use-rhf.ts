@@ -8,6 +8,7 @@ import { PROCESSING_RATES } from "@/constants/common";
 import { rd } from "@/helpers/decimal";
 import { min_fee_allowance } from "@/helpers/donation";
 import type { TFrequency } from "@/schemas";
+import { type IAmountsInput, stripe_amounts } from "../../common/amounts";
 import type { OnIncrement } from "../../common/incrementers";
 import {
   amount as amount_schema,
@@ -67,6 +68,50 @@ export const stripe_express_partial = (
     total_atomic: to_atomic_c(c.code)(c.min),
     total: c.min,
     items: [],
+    currency: c.code.toLowerCase(),
+  };
+};
+
+export const stripe_express_priced = (
+  c: ICurrencyFv,
+  frequency: TFrequency,
+  fv: IAmountsInput
+): IStripeExpress => {
+  const to_atomic = to_atomic_c(c.code);
+  const { base, tip, fee_allowance } = stripe_amounts({ ...fv, currency: c });
+
+  const items: ILineItem[] = [
+    { name: "Donation", amount_atomic: to_atomic(base) },
+  ];
+  if (tip) {
+    items.push({
+      name: "Donation to Better Giving",
+      amount_atomic: to_atomic(tip),
+    });
+  }
+  if (fee_allowance) {
+    items.push({
+      name: "Fee coverage",
+      amount_atomic: to_atomic(fee_allowance),
+    });
+  }
+
+  const total = base + tip + fee_allowance;
+  /** total_atomic should match line items */
+  const total_atomic = items
+    .map((x) => x.amount_atomic)
+    .reduce((a, b) => a + b, 0);
+
+  return {
+    frequency,
+    base,
+    tip,
+    fee_allowance,
+    is_partial: false,
+    total_usd: total / c.rate,
+    total_atomic,
+    total,
+    items,
     currency: c.code.toLowerCase(),
   };
 };
@@ -146,56 +191,12 @@ export function use_rhf(fv: FV) {
     const amnt = +ap.output;
     if (amnt < c.min) return stripe_express_partial(c, f);
 
-    const to_atomic = to_atomic_c(c.code);
-    const items: ILineItem[] = [
-      {
-        name: "Donation",
-        amount_atomic: to_atomic(amnt),
-      },
-    ];
-
-    const tipv = tip_val(tf, tip, amnt);
-    if (tipv) {
-      items.push({
-        name: "Donation to Better Giving",
-        amount_atomic: to_atomic(tipv),
-      });
-    }
-
-    const mfa = pf
-      ? min_fee_allowance(
-          tipv + amnt,
-          PROCESSING_RATES.stripe,
-          PROCESSING_RATES.stripe_flat * c.rate
-        )
-      : 0;
-
-    if (mfa) {
-      items.push({
-        name: "Fee coverage",
-        amount_atomic: to_atomic(mfa),
-      });
-    }
-
-    const total = amnt + tipv + mfa;
-    const total_usd = total / c.rate;
-    /** total_atomic should match line items */
-    const total_atomic = items
-      .map((x) => x.amount_atomic)
-      .reduce((a, b) => a + b, 0);
-
-    return {
-      frequency: f,
-      base: amnt,
-      tip: tipv,
-      fee_allowance: mfa,
-      is_partial: false,
-      total_usd,
-      total_atomic,
-      total,
-      items,
-      currency: c.code.toLowerCase(),
-    };
+    return stripe_express_priced(c, f, {
+      amount: amnt,
+      tip_format: tf,
+      tip,
+      cover_processing_fee: pf,
+    });
   })(amnt, currency.value, cpf.value, tip_format.value, frequency.value);
 
   const paypal_express = ((...x): IPayPalExpress | null => {

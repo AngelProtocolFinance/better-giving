@@ -1,4 +1,6 @@
 import { eq } from "drizzle-orm";
+import type { donation_receipt } from "emails";
+import { render } from "react-email";
 import {
   afterAll,
   beforeAll,
@@ -9,11 +11,14 @@ import {
   vi,
 } from "vitest";
 import type { IDonation } from "@/donations";
+import { user } from "$/pg/schema/auth";
+import { dists } from "$/pg/schema/dist";
 import {
   donation_donors,
   donation_recipients,
   donations,
 } from "$/pg/schema/donation";
+import { funds } from "$/pg/schema/fund";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -75,9 +80,10 @@ vi.mock("#/errors/report", () => ({ report_error }));
 
 // --- imports (after mocks) ---
 
+import { seed_fund, seed_user } from "#/__tests__/fixtures/funds";
 import { claim_receipt_send, RECEIPT_LEASE_MS } from "$/pg/queries/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { handle_don_receipt } from ".";
+import { handle_don_fund_receipt, handle_don_receipt } from ".";
 
 // --- setup ---
 
@@ -97,9 +103,12 @@ beforeEach(async () => {
   fail_release.current = false;
   fail_stamp.times = 0;
   const db = test_db.current!.db;
+  await db.delete(dists);
   await db.delete(donation_donors);
   await db.delete(donation_recipients);
   await db.delete(donations);
+  await db.delete(funds);
+  await db.delete(user);
   await db.delete(npos);
 
   const [npo] = await db
@@ -330,8 +339,8 @@ describe("handle_don_receipt - a holder that never comes back", () => {
 
     // the mails are already away at this point. losing the write that records
     // it would leave the row claimed-but-not-sent, and the lease expiry would
-    // then hand a redelivery the right to mail a second receipt under a fresh
-    // tax id — the exact duplicate the claim exists to prevent.
+    // then hand a redelivery the right to mail a second receipt — the exact
+    // duplicate the claim exists to prevent.
     await handle_don_receipt(don());
     await expire_claim();
     await handle_don_receipt(don());
@@ -382,83 +391,258 @@ describe("send_receipt - a gift to a fund", () => {
     return rows.map((r) => String(r.id));
   };
 
-  const fund_don = (to_members: string[]): IDonation => ({
-    ...don(),
-    to_id: "fund-1",
-    to_name: "Climate Fund",
-    to_type: "fund",
-    to_members,
+  const fund_don = (to_members: string[], o: Partial<IDonation> = {}) =>
+    ({
+      ...don(),
+      to_id: "fund-1",
+      to_name: "Climate Fund",
+      to_type: "fund",
+      to_members,
+      ...o,
+    }) as IDonation;
+
+  /** the paid dists of a split of 100 over `of` members, one per id landed */
+  const seed_dists = async (ids: string[], of = ids.length) => {
+    if (!ids.length) return;
+    await test_db.current!.db.insert(dists).values(
+      ids.map((id) => ({
+        id: `dist-${id}`,
+        donation_id: DON_ID,
+        status: "settled" as const,
+        date_created: "2026-01-01T00:00:00.000Z",
+        to_id: +id,
+        amount: 100 / of,
+        amount_denom: "USD",
+      }))
+    );
+  };
+
+  /** the one receipt mailed, as each line prints */
+  const printed = () => {
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const p = send_email_or_throw.mock.calls[0]![0].node.props;
+    return p.lines.map((l: any) => [l.name, l.amount.value.toFixed(2)]);
+  };
+
+  test("a tipped gift is one receipt under one number: the fund, then the tip", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+    await seed_dists(members);
+
+    await handle_don_receipt(
+      fund_don(members, { amount: { base: 100, tip: 5, fee_allowance: 0 } })
+    );
+
+    // the donor gave to the fund; how it split among members is not theirs
+    expect(printed()).toEqual([
+      ["Climate Fund", "100.00"],
+      ["Better Giving", "5.00"],
+    ]);
+    const p = send_email_or_throw.mock.calls[0]![0].node.props;
+    expect(p.lines.map((l: any) => l.kind)).toEqual(["beneficiary", "tip"]);
+    expect(p.amount.value).toBe(105);
+    expect(p.tax_receipt_id).toEqual(expect.any(String));
   });
 
-  /** what each receipt prints, in the order they were mailed */
-  const printed = () =>
-    send_email_or_throw.mock.calls.map(([i]) => {
-      const p = (i as any).node.props;
-      return [p.to_name, p.amount.value.toFixed(2)];
-    });
+  test.each([
+    ["no dist written yet", [], []],
+    ["one of three dists in", ["Alpha"], []],
+    ["every dist in", ["Alpha", "Beta", "Gamma"], []],
+    [
+      "a member deactivated since its dist",
+      ["Alpha", "Beta", "Gamma"],
+      ["Beta"],
+    ],
+    ["a member deactivated before its dist", ["Alpha", "Gamma"], ["Beta"]],
+  ])(
+    "%s: the receipt names the fund for the whole gift",
+    async (_, paid, inactive) => {
+      const members = await seed_members(["Alpha", "Beta", "Gamma"], inactive);
+      const by_name = {
+        Alpha: members[0]!,
+        Beta: members[1]!,
+        Gamma: members[2]!,
+      };
+      await seed_dists(
+        paid.map((n) => by_name[n as keyof typeof by_name]),
+        3
+      );
 
-  test("the members' receipts add up to the gift", async () => {
-    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+      await handle_don_receipt(fund_don(members));
+
+      expect(printed()).toEqual([["Climate Fund", "100.00"]]);
+    }
+  );
+
+  test("mails at once and is done: nothing waits on the split", async () => {
+    const members = await seed_members(["Alpha", "Beta"]);
 
     await handle_don_receipt(fund_don(members));
 
-    // truncating each third prints 33.33 three times: a penny of a $100
-    // charge that no receipt accounts for
-    expect(printed()).toEqual([
-      ["Alpha", "33.34"],
-      ["Beta", "33.33"],
-      ["Gamma", "33.33"],
-    ]);
+    expect(printed()).toEqual([["Climate Fund", "100.00"]]);
+    // stamped sent, so a redelivery has nothing left to claim
+    expect(await claim_receipt_send(DON_ID)).toBe(false);
   });
 
-  test("a member that no longer exists does not take a share", async () => {
-    const [a, b] = await seed_members(["Alpha", "Beta"]);
-
-    // a third of the gift split to a member with no receipt is money the
-    // donor can't deduct
-    await handle_don_receipt(fund_don([a!, "999999", b!]));
-
-    expect(printed()).toEqual([
-      ["Alpha", "50.00"],
-      ["Beta", "50.00"],
-    ]);
-  });
-
-  test("an inactive member gets no receipt, as it gets no payout", async () => {
-    const members = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
-
-    await handle_don_receipt(fund_don(members));
-
-    expect(printed()).toEqual([
-      ["Alpha", "50.00"],
-      ["Gamma", "50.00"],
-    ]);
-  });
-
-  test("a crypto gift's receipts print the usd each member's share is worth", async () => {
+  test("a crypto gift's receipt prints the usd the gift is worth", async () => {
     const members = await seed_members(["Alpha", "Beta", "Gamma"]);
 
-    // 0.001 btc at $100k prints 0 btc per share; the usd figure is the one
-    // the donor can deduct
-    await handle_don_receipt({
-      ...fund_don(members),
-      currency: "BTC",
-      upusd: 0.00001,
-      amount: { base: 0.001, tip: 0, fee_allowance: 0 },
-    });
-
-    const usd = send_email_or_throw.mock.calls.map(
-      ([i]) => (i as any).node.props.amount.value_usd
+    // 0.001 btc at $100k; the usd figure is the one the donor can deduct
+    await handle_don_receipt(
+      fund_don(members, {
+        currency: "BTC",
+        upusd: 0.00001,
+        amount: { base: 0.001, tip: 0, fee_allowance: 0 },
+      })
     );
-    expect(usd).toEqual([33.34, 33.33, 33.33]);
+
+    const usd = send_email_or_throw.mock.calls[0]![0].node.props.lines.map(
+      (l: any) => l.amount.value_usd
+    );
+    expect(usd).toEqual([100]);
+  });
+});
+
+describe("handle_don_fund_receipt - a wait scheduled by an earlier build", () => {
+  /** the seeded donation row becomes a gift to a fund */
+  const as_fund_row = async () => {
+    const db = test_db.current!.db;
+    const creator = await seed_user(db, "creator@test.com");
+    await seed_fund(db, {
+      id: "fund-1",
+      npo_owner: null,
+      creator_id: creator!.id,
+    });
+    await db
+      .update(donation_recipients)
+      .set({
+        type: "fund",
+        npo_id: null,
+        fund_id: "fund-1",
+        name: "Climate Fund",
+        members: [npo_id],
+      })
+      .where(eq(donation_recipients.donation_id, DON_ID));
+  };
+
+  test("lands as the fund receipt, mailed once however often it arrives", async () => {
+    await as_fund_row();
+
+    await handle_don_fund_receipt({ id: DON_ID, attempt: 3 });
+    await handle_don_fund_receipt({ id: DON_ID, attempt: 4 });
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const p = send_email_or_throw.mock.calls[0]![0].node.props;
+    expect(p.lines.map((l: any) => [l.name, l.amount.value])).toEqual([
+      ["Climate Fund", 100],
+    ]);
   });
 
-  test("a fund with no funded member fails instead of passing for sent", async () => {
-    const members = await seed_members(["Alpha"], ["Alpha"]);
+  test("a gift refunded since mails nothing", async () => {
+    await as_fund_row();
+    await test_db
+      .current!.db.update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, DON_ID));
 
-    await expect(handle_don_receipt(fund_don(members))).rejects.toThrow(
-      "fund-1"
-    );
+    await handle_don_fund_receipt({ id: DON_ID, attempt: 1 });
+
     expect(send_email_or_throw).not.toHaveBeenCalled();
+  });
+});
+
+describe("send_receipt - a gift to a nonprofit", () => {
+  /** the one receipt mailed */
+  const receipt = () => {
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    return send_email_or_throw.mock.calls[0]![0].node
+      .props as donation_receipt.IData;
+  };
+
+  test("a tipped gift is one receipt: the nonprofit and the tip", async () => {
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ receipt_msg: "Thank you for feeding a family." })
+      .where(eq(npos.id, npo_id));
+
+    await handle_don_receipt({
+      ...don(),
+      program: { id: "p-1", name: "School Lunches" },
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
+    });
+
+    const r = receipt();
+    expect(r.lines).toEqual([
+      {
+        kind: "beneficiary",
+        name: "Freegan Food Foundation",
+        amount: { value: 100, currency: "USD", value_usd: 100 },
+        msg: "Thank you for feeding a family.",
+        program: "School Lunches",
+      },
+      {
+        kind: "tip",
+        name: "Better Giving",
+        amount: { value: 5, currency: "USD", value_usd: 5 },
+      },
+    ]);
+    expect(r.amount.value).toBe(105);
+    // the program is the nonprofit's, so it prints on the nonprofit's line
+    expect(r).not.toHaveProperty("program_name");
+  });
+
+  test("an untipped gift has the nonprofit's line alone", async () => {
+    await handle_don_receipt(don());
+
+    expect(receipt().lines.map((l) => [l.kind, l.name])).toEqual([
+      ["beneficiary", "Freegan Food Foundation"],
+    ]);
+  });
+
+  test("a chariot gift carries no receipt number of ours", async () => {
+    // the daf issues the donor's tax receipt for a grant
+    await handle_don_receipt({ ...don(), via: "chariot" });
+
+    expect(receipt().tax_receipt_id).toBeUndefined();
+  });
+});
+
+describe("send_receipt - the mail the donor reads", () => {
+  test("a tipped fund gift prints one receipt id", async () => {
+    const db = test_db.current!.db;
+    const rows = await db
+      .insert(npos)
+      .values(
+        ["Alpha", "Beta"].map((name, i) => ({
+          registration_number: `EIN-RENDER-${i}`,
+          name,
+          endow_designation: "Charity" as const,
+          overview_pt: "[]",
+          hq_country: "United States",
+        }))
+      )
+      .returning();
+
+    await handle_don_receipt({
+      ...don(),
+      to_id: "fund-1",
+      to_name: "Climate Fund",
+      to_type: "fund",
+      to_members: rows.map((r) => String(r.id)),
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
+    });
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const text = await render(send_email_or_throw.mock.calls[0]![0].node, {
+      plainText: true,
+    });
+    expect(text.match(/Receipt ID/g)).toHaveLength(1);
+    // a fund is not a nonprofit: better giving grants among its members
+    expect(text).toContain("Fund");
+    expect(text).not.toContain("Grant Beneficiary");
+    expect(text).toContain(
+      "then grants the donation among the fund's member nonprofits on your behalf."
+    );
+    expect(text).not.toContain("chosen nonprofit");
   });
 });

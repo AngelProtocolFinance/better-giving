@@ -68,7 +68,7 @@ export function TipField({ classes = "", ...p }: Props) {
         {/* affordance nudge — hops the thumb toward on and back once, tinting
             the track secondary while hopping, after the donor settles the amount */}
         <Switch.Control
-          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors data-[state=checked]:bg-form-primary focus-visible:outline-2 focus-visible:outline-form-primary data-disabled:opacity-50 ${play && !p.checked ? "bg-form-secondary" : "bg-gray-3"}`}
+          className={`group text-xs flex items-center h-lh w-8 rounded-full p-1 transition-colors data-[state=checked]:bg-form-primary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-disabled:opacity-50 ${play && !p.checked ? "bg-form-secondary" : "bg-gray-3"}`}
         >
           <ThumbWiggle play={play && !p.checked} on_done={end_nudge}>
             <Switch.Thumb
@@ -114,10 +114,11 @@ export function TipField({ classes = "", ...p }: Props) {
         <RadioGroup.Item
           className="text-xs outline outline-form-secondary hover:not-data-[state=checked]:bg-form-secondary data-focus-visible:outline-2 data-focus-visible:outline-ring data-focus-visible:outline-offset-2 data-[state=checked]:bg-form-secondary data-[state=checked]:text-form-primary data-[state=checked]:pointer-events-none select-none px-2 py-1 rounded flex-center"
           value={"custom" satisfies TTipFormat}
-          aria-label="Custom amount"
         >
+          {/* the item renders a <label>; zag names the hidden radio from ItemText */}
           <RadioGroup.ItemText>
             <PencilIcon aria-hidden className="inline-block icon-xs " />
+            <span className="sr-only">Custom amount</span>
           </RadioGroup.ItemText>
           <RadioGroup.ItemHiddenInput />
         </RadioGroup.Item>

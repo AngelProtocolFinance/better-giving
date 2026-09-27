@@ -5,6 +5,7 @@ import {
 } from "emails";
 import { auth } from "#/.server/auth/auth";
 import { mint_resume_link } from "#/.server/auth/resume-link";
+import { report_error } from "#/errors/report";
 import type { CompanyProperties, ContactProperties } from "@/hubspot";
 import type { IRegCreatedPayload } from "@/queue";
 import { Progress } from "@/reg/progress";
@@ -135,24 +136,6 @@ export async function handle_reg_updated(reg: IReg) {
       fsa_signed.o_fsa_signed_doc_url;
   }
 
-  const bnk = prog.banking;
-  if (bnk && cmp) {
-    const { address, accountNumber, name, details } = await wise.v2_account(
-      +bnk.o_bank_id
-    );
-
-    cmp.bank_account_number = `${accountNumber || "not specified"}`;
-    cmp.bank_name = name.fullName || "not specified";
-    cmp.bank_address = `${address?.city}, ${address?.country}`;
-    cmp.bank_name =
-      details.abartn ||
-      details.BIC ||
-      details.bankCode ||
-      details.swiftCode ||
-      "not specified";
-    cmp.bank_statament = bnk.o_bank_statement;
-  }
-
   if (reg.status === "02") {
     const res = await bg_sales.send_alert({
       from: `registration lambda:${reg.env}`,
@@ -189,6 +172,30 @@ export async function handle_reg_updated(reg: IReg) {
 
     const res = await send_email({ node, subject, to: [reg.r_id] });
     console.info(res.data?.id);
+  }
+
+  // below the status mails and caught, on an at-most-once kind: a wise error
+  // costs the crm its bank fields, not the applicant their mail.
+  const bnk = prog.banking;
+  const wacc =
+    bnk &&
+    cmp &&
+    (await wise.v2_account(+bnk.o_bank_id).catch((err) => {
+      report_error(err, { reg_id: reg.id, during: "hubspot bank fields" });
+    }));
+  if (bnk && cmp && wacc) {
+    const { address, accountNumber, name, details } = wacc;
+
+    cmp.bank_account_number = `${accountNumber || "not specified"}`;
+    cmp.bank_name = name.fullName || "not specified";
+    cmp.bank_address = `${address?.city}, ${address?.country}`;
+    cmp.bank_name =
+      details.abartn ||
+      details.BIC ||
+      details.bankCode ||
+      details.swiftCode ||
+      "not specified";
+    cmp.bank_statament = bnk.o_bank_statement;
   }
 
   if (ctp) {

@@ -1,8 +1,17 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { to_atomic_c } from "#/helpers/stripe";
+import { payment_intent } from "#/routes/api.donation-intents/stripe/payment-intent";
 import type { ICurrencyFv } from "#/types/currency";
 import { MIN_DONATION_USD } from "@/constants/common";
-import { stripe_express_partial } from "./use-rhf";
+import type { TTipFormat } from "../../types";
+import { stripe_express_partial, stripe_express_priced } from "./use-rhf";
+
+const pi_create_mock = vi.hoisted(() =>
+  vi.fn(async () => ({ client_secret: "pi_secret" }))
+);
+vi.mock("$/kit/stripe", () => ({
+  stripe: { paymentIntents: { create: pi_create_mock } },
+}));
 
 /** the shape `to_currencies_fv` builds: min is our own usd floor, fx'd */
 const curr = (code: string, rate: number): ICurrencyFv => ({
@@ -49,5 +58,48 @@ describe("stripe_express_partial", () => {
     expect(p.total_usd).toBeGreaterThanOrEqual(MIN_DONATION_USD);
     expect(p.total_usd).toBeCloseTo(c.min / c.rate);
     expect(p.currency).toBe("tnd");
+  });
+});
+
+describe("stripe_express_priced", () => {
+  // the element authorizes total_atomic; the server charges the intent it
+  // creates from the same base, tip and fee allowance
+  test("the express total is the payment intent amount, fee covered", async () => {
+    const tip_formats: TTipFormat[] = ["none", "10", "15", "20"];
+    const bases = [
+      ...Array.from({ length: 200 }, (_, i) => i + 1),
+      ...Array.from({ length: 150 }, (_, i) => (100 + i * 13) / 100),
+    ];
+    const off: string[] = [];
+    for (const c of [curr("USD", 1), curr("EUR", 0.92)]) {
+      for (const tip_format of tip_formats) {
+        for (const amount of bases) {
+          const x = stripe_express_priced(c, "one-time", {
+            amount,
+            tip_format,
+            tip: "",
+            cover_processing_fee: true,
+          });
+          pi_create_mock.mockClear();
+          await payment_intent({
+            base: x.base,
+            tip: x.tip,
+            fee_allowance: x.fee_allowance,
+            currency: c.code,
+            order_id: "o_1",
+            customer_id: "cus_1",
+          });
+          const [params] = pi_create_mock.mock.calls[0] as unknown as [
+            { amount: number },
+          ];
+          if (params.amount !== x.total_atomic) {
+            off.push(
+              `${c.code} ${amount} tip ${tip_format}: ${x.total_atomic}/${params.amount}`
+            );
+          }
+        }
+      }
+    }
+    expect(off.slice(0, 5)).toEqual([]);
   });
 });

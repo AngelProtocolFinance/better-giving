@@ -19,15 +19,22 @@ export async function bal_tx_put(db: DbOrTx, data: IBalanceTx) {
   await db.insert(bal_txs).values(data);
 }
 
+/**
+ * settles a pending tx. returns the updated row, or `null` when the tx is
+ * missing or no longer pending — on `null` the caller must not run the
+ * settlement's side effects.
+ */
 export async function bal_tx_update_status(
   db: DbOrTx,
   id: string,
-  status: TStatus
-) {
-  await db
+  status: Exclude<TStatus, "pending">
+): Promise<IBalanceTx | null> {
+  const [row] = await db
     .update(bal_txs)
     .set({ status, date_updated: new Date().toISOString() })
-    .where(eq(bal_txs.id, id));
+    .where(and(eq(bal_txs.id, id), eq(bal_txs.status, "pending")))
+    .returning();
+  return row ?? null;
 }
 
 /** paginated by npo + account, ordered by date_created DESC */

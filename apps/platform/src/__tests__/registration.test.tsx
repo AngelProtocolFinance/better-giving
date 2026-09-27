@@ -54,6 +54,8 @@ vi.mock("$/kit/queue", () => {
     }),
     don_dist: vi.fn(),
     verify_qstash: vi.fn(),
+    // every write here is fresh, so every repeat is still inside the window
+    in_dedupe_window: () => true,
   };
 });
 

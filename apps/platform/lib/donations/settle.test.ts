@@ -93,6 +93,20 @@ describe("calc_donation_settle - one-time", () => {
     expect(r.msgs[0].dedupe).toBe("don.sttl-dist_don-xyz");
     expect(r.msgs[1].dedupe).toBe("don.sttl-receipt_don-xyz");
   });
+
+  test("a fund gift queues its receipt beside the split, not behind it", () => {
+    const r = calc_donation_settle({
+      kind: "one-time",
+      order_id: "don-1",
+      prior: make_don({ to_type: "fund", to_id: "fund-1", to_members: ["1"] }),
+      settlement: sttl(),
+    });
+    // the split is at-most-once: a receipt it queued would die with it
+    expect(r.msgs.map((m) => m.id)).toEqual([
+      "don-sttl-dist",
+      "don-sttl-receipt",
+    ]);
+  });
 });
 
 describe("calc_donation_settle - don-match", () => {

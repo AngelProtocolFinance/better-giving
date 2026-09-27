@@ -12,8 +12,12 @@ import {
 import { handle_don_dist } from "./handle-don-dist";
 import { handle_don_match } from "./handle-don-match";
 import { handle_don_match_chase } from "./handle-don-match-chase";
-import { handle_don_receipt } from "./handle-don-receipt";
+import {
+  handle_don_fund_receipt,
+  handle_don_receipt,
+} from "./handle-don-receipt";
 import { handle_don_sttl_dist } from "./handle-don-sttl-dist";
+import { handle_fiat_notice } from "./handle-fiat-notice";
 import { handle_fund_member_removed } from "./handle-fund";
 import { handle_invite } from "./handle-invite";
 import { handle_reg_created, handle_reg_updated } from "./handle-reg";
@@ -26,10 +30,12 @@ const handlers: Handlers = {
   "banking-new": handle_banking_new_account,
   "banking-rejected": handle_banking_rejected,
   "don-dist": (p) => handle_don_dist(db, p),
+  "don-fund-receipt": handle_don_fund_receipt,
   "don-match": handle_don_match,
   "don-match-chase": handle_don_match_chase,
   "don-sttl-dist": handle_don_sttl_dist,
   "don-sttl-receipt": handle_don_receipt,
+  "fiat-notice": handle_fiat_notice,
   "fund-member-removed": handle_fund_member_removed,
   "invite-email": handle_invite,
   "lock-tx-created": handle_lock_tx_created,
