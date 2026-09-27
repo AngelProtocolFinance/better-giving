@@ -96,10 +96,9 @@ Locators match **substrings** by default (`browser.locators.exact: false` in `vi
 screen.getByText("tip", { exact: true })
 screen.getByText("US", { exact: true }) // avoids matching "USD"
 screen.getByRole("heading", { name: "Active", exact: true }) // avoids "Inactive"
-screen.getByRole("button", { name: "Submit", exact: true }) // avoids the pending "Submitting…"
 ```
 
-A wait for a button to return from its pending label is the case that bites: without `exact`, `name: "Submit"` already matches "Submitting…", so the wait resolves at once and the test reads state mid-flight.
+A wait for a button to return from its pending label is the case that bites: `name: "Submit"` without `exact` already matches "Submitting…", so the wait resolves at once and the test reads state mid-flight.
 
 `exact: true` is **whole-string**, and vitest 4 ignored the option where 5 enforces it — so a prefix written under 4 passed and now fails. `getByText("Car", { exact: true })` does not match a cell reading "Card": pass the whole string, or drop `exact` to match the substring.
 
