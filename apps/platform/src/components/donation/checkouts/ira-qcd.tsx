@@ -1,7 +1,7 @@
 import { ADDRESS, ADDRESS_LINES, EIN, LEGAL_NAME } from "@better-giving/brand";
 import { Copier, LoadText } from "@better-giving/ui";
 import { CircleCheck } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { href } from "react-router";
 import { emails } from "@/constants/common";
 import { BackBtn } from "../common/back-btn";
@@ -39,6 +39,14 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
   const [status, set_status] = useState<"idle" | "loading" | "ok" | "error">(
     "idle"
   );
+  /** the server's reason for refusing the custodian, from its 400 */
+  const [custodian_err, set_custodian_err] = useState<string>();
+  const custodian_err_id = useId();
+  const edit_ref = useRef<HTMLButtonElement>(null);
+  // the pressed button unmounts with the refusal; land on the way to fix it
+  useEffect(() => {
+    if (custodian_err) edit_ref.current?.focus();
+  }, [custodian_err]);
 
   return (
     <div className="grid content-start p-4 @xl/steps:p-8">
@@ -102,6 +110,24 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
           <CircleCheck className="icon-md" />
           Thanks! We'll look out for it.
         </p>
+      ) : custodian_err ? (
+        <div className="mt-6 grid justify-items-start gap-y-3">
+          <p
+            id={custodian_err_id}
+            className="text-sm text-destructive-subtle-fg"
+          >
+            IRA provider / custodian: {custodian_err}
+          </p>
+          <button
+            ref={edit_ref}
+            type="button"
+            aria-describedby={custodian_err_id}
+            onClick={() => to_step("ira_qcd", props, "form", don_set)}
+            className="btn btn-sm btn-secondary font-normal"
+          >
+            Edit custodian
+          </button>
+        </div>
       ) : status === "error" ? (
         <p className="mt-6 text-sm text-destructive-subtle-fg">
           Something went wrong — please email {emails.hi} instead.
@@ -125,6 +151,11 @@ export function IraQcdCheckout(props: IraQcdDonationDetails) {
                   },
                 }),
               });
+              if (res.status === 400) {
+                const body = await res.json().catch(() => null);
+                const reason = body?.errors?.custodian;
+                if (typeof reason === "string") set_custodian_err(reason);
+              }
               set_status(res.ok ? "ok" : "error");
             } catch {
               set_status("error");
