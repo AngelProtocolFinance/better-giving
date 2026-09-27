@@ -11,7 +11,8 @@ vi.mock("$/pg/queries/country", () => ({
   country_update: vi.fn(),
 }));
 vi.mock("$/pg/queries/user", () => ({ npo_admins: vi.fn(async () => []) }));
-vi.mock("$/email", () => ({ send_email: vi.fn(async () => ({})) }));
+const send_email = vi.hoisted(() => vi.fn(async (_: any) => ({})));
+vi.mock("$/email", () => ({ send_email }));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 import { handle_don_dist } from "./handle-don-dist";
@@ -54,5 +55,17 @@ describe("handle_don_dist webhooks", () => {
     expect(url).toBe("https://hooks.zapier.test/1");
     const body = JSON.parse(String(init?.body));
     expect(body).toMatchObject({ amount: 100, currency: "EUR" });
+  });
+});
+
+describe("handle_don_dist npo notification", () => {
+  test("dates the donation in the pretty-utc form the template prints", async () => {
+    query_webhooks.mockResolvedValue([]);
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(send_email).toHaveBeenCalledOnce();
+    const { node } = send_email.mock.calls[0]![0];
+    expect(node.props.date).toBe("2026-09-21 10:00:00 (UTC)");
   });
 });

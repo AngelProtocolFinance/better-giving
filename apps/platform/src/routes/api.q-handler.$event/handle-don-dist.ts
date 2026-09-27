@@ -3,6 +3,7 @@ import { donation_nonprofit_notif } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
 import { via_name } from "@/donations/helpers";
+import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import type { IDonDistPayload } from "@/queue";
 import type { TFrequency } from "@/schemas";
@@ -75,7 +76,7 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
 
   const data: donation_nonprofit_notif.IData = {
     id: r.id,
-    date: r.sttl_date,
+    date: to_pretty_utc(r.sttl_date),
     to_id: r.to_id.toString(),
     to_name: r.to_name,
     amount: to_amount(r.amount, r.amount_usd, r.amount_denom),
