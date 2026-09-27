@@ -55,7 +55,7 @@ export const amount = ({ required = false } = {}) =>
       v.string(),
       v.transform((x) => +x),
       v.number("Please enter a valid number"),
-      v.minValue(0, "amount must be greater than 0"),
+      v.gtValue(0, "amount must be greater than 0"),
       v.transform((x) => x.toString())
     );
   });

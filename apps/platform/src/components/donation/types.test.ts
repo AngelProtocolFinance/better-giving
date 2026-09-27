@@ -1,5 +1,11 @@
+import * as v from "valibot";
 import { describe, expect, test } from "vitest";
-import { tip_from_val, tip_val } from "./types";
+import {
+  daf_donation_details,
+  ira_qcd_donation_details,
+  tip_from_val,
+  tip_val,
+} from "./types";
 
 describe("tip_from_val", () => {
   test.each([
@@ -29,5 +35,46 @@ describe("tip_from_val", () => {
       const fv = tip_from_val(tip, base);
       expect(tip_val(fv.tip_format, fv.tip, base)).toBeCloseTo(tip);
     }
+  });
+});
+
+describe("donation amount", () => {
+  const daf = (amount: string) =>
+    v.safeParse(daf_donation_details, {
+      amount,
+      tip: "",
+      tip_format: "none",
+      cover_processing_fee: false,
+    });
+  const ira = (amount: string) =>
+    v.safeParse(ira_qcd_donation_details, {
+      amount,
+      tip: "",
+      tip_format: "none",
+    });
+
+  test.each([
+    ["daf", daf],
+    ["ira-qcd", ira],
+  ])("%s rejects a zero amount", (_, parse) => {
+    const r = parse("0");
+    expect(r.success).toBe(false);
+    expect(r.issues?.[0].message).toBe("amount must be greater than 0");
+  });
+
+  test.each([
+    ["daf", daf],
+    ["ira-qcd", ira],
+  ])("%s rejects a negative amount", (_, parse) => {
+    expect(parse("-5").success).toBe(false);
+  });
+
+  test.each([
+    ["daf", daf],
+    ["ira-qcd", ira],
+  ])("%s accepts a positive amount", (_, parse) => {
+    const r = parse("25");
+    expect(r.success).toBe(true);
+    expect(r.output).toMatchObject({ amount: "25" });
   });
 });
