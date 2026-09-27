@@ -26,14 +26,18 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-vi.mock("$/kit/queue", () => ({ enqueue: vi.fn(async () => {}) }));
+// the dedupe window stays real: it decides whether a repeat is announced
+vi.mock("$/kit/queue", async (orig) => ({
+  ...(await orig<typeof import("$/kit/queue")>()),
+  enqueue: vi.fn(async () => {}),
+}));
 
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({ session: true })
 );
 
 import { get_session } from "#/.server/auth";
-import { enqueue } from "$/kit/queue";
+import { DEDUPE_WINDOW_MS, enqueue } from "$/kit/queue";
 import { reg_get } from "$/pg/queries/registration";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { submit_action } from "./submit-action";
@@ -105,13 +109,21 @@ const submit = () =>
 
 describe("submit_action", () => {
   // an approved application sent back to review would leave the npo live while
-  // the queue shows it pending.
-  test("refuses an approved application with 409", async () => {
+  // the queue shows it pending. a stale tab is how it gets here, so the answer
+  // is where the step loader sends an approved row, not an error page.
+  test("sends an approved application to the success page, unchanged", async () => {
     await seed("03");
+    await test_db
+      .current!.db.update(registrations)
+      .set({ status_approved_npo_id: 42 });
 
     const res = await submit();
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(302);
+    const to = new URL(res.headers.get("location")!, "http://localhost");
+    expect(to.pathname).toBe("/register/success");
+    expect(to.searchParams.get("name")).toBe("Test Org");
+    expect(to.searchParams.get("id")).toBe("42");
     expect((await reg_get(RID))?.status).toBe("03");
     expect(enqueue).not.toHaveBeenCalled();
   });
@@ -133,16 +145,49 @@ describe("submit_action", () => {
 
   // both presses can read the draft before either writes; only the status check
   // in the write itself tells them apart.
-  test("a double press submits once and refuses the second with 409", async () => {
+  test("a double press submits once and answers both as submitted", async () => {
     await seed("01");
 
     const statuses = (await Promise.all([submit(), submit()])).map((r) =>
       r instanceof Response ? r.status : "ok"
     );
 
-    expect(statuses.sort()).toEqual([409, "ok"]);
+    expect(statuses).toEqual(["ok", "ok"]);
     expect((await reg_get(RID))?.status).toBe("02");
-    expect(enqueue).toHaveBeenCalledOnce();
+    // one write, so one dedupe key: qstash delivers the second as a no-op
+    const keys = vi.mocked(enqueue).mock.calls.map(([m]) => m.dedupe);
+    expect(keys).toHaveLength(2);
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  // the status move commits before the enqueue; a publish that throws leaves an
+  // application in review that admins were never told about.
+  test("a retry after the enqueue threw succeeds and enqueues", async () => {
+    await seed("01");
+    vi.mocked(enqueue).mockRejectedValueOnce(new Error("qstash down"));
+    await expect(submit()).rejects.toThrow("qstash down");
+
+    const res = await submit();
+
+    expect(res).not.toBeInstanceOf(Response);
+    expect(vi.mocked(enqueue).mock.calls[1]![0]).toMatchObject({
+      id: "reg-updated",
+      payload: { id: RID, status: "02" },
+    });
+  });
+
+  // a second tab on step 5 pressed long after: qstash would send its message
+  // again, filing a second hubspot deal.
+  test("a repeat after the dedupe window succeeds and enqueues nothing", async () => {
+    await seed("02");
+    await test_db.current!.db.update(registrations).set({
+      updated_at: new Date(Date.now() - DEDUPE_WINDOW_MS - 1000).toISOString(),
+    });
+
+    const res = await submit();
+
+    expect(res).not.toBeInstanceOf(Response);
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   test("refuses an incomplete application with 400", async () => {

@@ -9,6 +9,16 @@ export const receiver = new Receiver({
 
 export const client = new Client({ token: qstash.token });
 
+/** how long qstash drops a message whose `deduplicationId` it has already
+ * seen — on enqueue and publish alike. past it the same id sends again. */
+export const DEDUPE_WINDOW_MS = 10 * 60 * 1000;
+
+/** whether a message keyed on a write stamped at `at` would still be dropped
+ * as a repeat. the enqueue follows the write, so this closes a little before
+ * qstash's own window does. */
+export const in_dedupe_window = (at: string | null, now = Date.now()) =>
+  at != null && now - Date.parse(at) < DEDUPE_WINDOW_MS;
+
 const donation_dist_q = client.queue({
   queueName: `${app.slug}-${stage}-don-dist-q`,
 });
@@ -39,9 +49,9 @@ export async function enqueue(...msgs: IMsg[]) {
  * against one db row, and the handler re-reads that row at fire time rather
  * than trusting the payload.
  *
- * qstash's dedupe window is ~10 minutes, far shorter than the delays here, so
- * `dedupe` does not protect the far end. a scheduled kind's handler owns its own
- * send-once gate.
+ * qstash's dedupe window (`DEDUPE_WINDOW_MS`) is far shorter than the delays
+ * here, so `dedupe` does not protect the far end. a scheduled kind's handler
+ * owns its own send-once gate.
  */
 export async function schedule(...msgs: IMsg[]) {
   for (const m of msgs) {

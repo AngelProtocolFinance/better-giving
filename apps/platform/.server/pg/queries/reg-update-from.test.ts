@@ -54,29 +54,27 @@ describe("reg_update_from", () => {
   test("writes a draft row and returns it", async () => {
     await seed("01");
 
-    const updated = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
+    const res = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
       o_name: "After",
     });
 
-    expect(updated?.o_name).toBe("After");
+    expect(res).toMatchObject({ won: true, row: { o_name: "After" } });
     expect((await row()).o_name).toBe("After");
   });
 
   // a step save from a stale tab, or a second submit press, arrives after the
   // row left the draft states; it must not drag the row back out of review.
   test.each<TStatus>(["02", "03"])(
-    "leaves a %s row untouched and returns null",
+    "leaves a %s row untouched and reports the miss",
     async (status) => {
       await seed(status);
 
-      const updated = await reg_update_from(
-        as_db(test_db.db),
-        "r-1",
-        EDITABLE,
-        { status: "01", o_name: "After" }
-      );
+      const res = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
+        status: "01",
+        o_name: "After",
+      });
 
-      expect(updated).toBeNull();
+      expect(res.won).toBe(false);
       const after = await row();
       expect(after.status).toBe(status);
       expect(after.o_name).toBe("Before");
@@ -84,36 +82,65 @@ describe("reg_update_from", () => {
     }
   );
 
+  // a retry after a committed write whose response was lost, or whose enqueue
+  // threw, must be told apart from a second writer having won.
+  test("a miss on a row already in the target status returns that row", async () => {
+    await seed("02");
+
+    const res = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
+      status: "02",
+    });
+
+    expect(res).toMatchObject({ won: false, row: { id: "r-1", status: "02" } });
+  });
+
+  // drizzle's update drops a key that names no column, so a typo would write
+  // nothing while still reporting a win.
+  test("a misspelled attr key does not compile", async () => {
+    await seed("01");
+
+    // @ts-expect-error o_nmae is not a column
+    await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, { o_nmae: "x" });
+  });
+
+  test("a miss on a missing id returns no row", async () => {
+    const res = await reg_update_from(as_db(test_db.db), "r-404", EDITABLE, {
+      status: "02",
+    });
+
+    expect(res).toStrictEqual({ won: false, row: null });
+  });
+
   test("writes a rejected row, which the applicant reopens", async () => {
     await seed("04");
 
-    const updated = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
+    const res = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
       status: "01",
     });
 
-    expect(updated?.status).toBe("01");
+    expect(res).toMatchObject({ won: true, row: { status: "01" } });
     expect((await row()).status).toBe("01");
   });
 
   test("writes a legacy row with no status when null is in from", async () => {
     await seed(null);
 
-    const updated = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
+    const res = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
       status: "01",
     });
 
-    expect(updated?.status).toBe("01");
+    expect(res).toMatchObject({ won: true, row: { status: "01" } });
     expect((await row()).status).toBe("01");
   });
 
   test("leaves a row with no status untouched when null is not in from", async () => {
     await seed(null);
 
-    const updated = await reg_update_from(as_db(test_db.db), "r-1", ["01"], {
+    const res = await reg_update_from(as_db(test_db.db), "r-1", ["01"], {
       status: "02",
     });
 
-    expect(updated).toBeNull();
+    expect(res.won).toBe(false);
     expect((await row()).status).toBeNull();
   });
 });

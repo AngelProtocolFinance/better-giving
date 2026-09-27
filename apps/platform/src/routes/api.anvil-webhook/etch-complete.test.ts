@@ -54,6 +54,7 @@ vi.mock("./helpers", () => ({
 // --- imports (after mocks) ---
 
 import { eq } from "drizzle-orm";
+import { enqueue } from "$/kit/queue";
 import { registrations } from "$/pg/schema/registration";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { etch_complete } from "./etch-complete";
@@ -80,6 +81,7 @@ beforeEach(async () => {
   await test_db.current!.db.delete(registrations);
   signer_eid.current = "r-1";
   stale_read.current = null;
+  vi.mocked(enqueue).mockClear();
 });
 
 async function seed(cols: {
@@ -163,6 +165,26 @@ describe("etch_complete", () => {
 
     expect(await etch_complete(payload(), BASE)).toBeUndefined();
     expect((await row()).o_fsa_signed_doc_url).toBeNull();
+  });
+
+  // anvil replays the webhook; the draft status a signed packet writes would
+  // pull the row back out of review.
+  test("ignores a replay after submit and enqueues nothing", async () => {
+    await seed({
+      o_fsa_doc_eid: EID,
+      o_fsa_signing_url: "https://anvil.test/sign",
+    });
+    await test_db
+      .current!.db.update(registrations)
+      .set({ status: "02" })
+      .where(eq(registrations.id, "r-1"));
+
+    expect(await etch_complete(payload(), BASE)).toBeUndefined();
+    expect(await row()).toMatchObject({
+      status: "02",
+      o_fsa_signed_doc_url: null,
+    });
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   test("faults on a signer no registration claims", async () => {

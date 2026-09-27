@@ -4,8 +4,8 @@ import { referral_id } from "#/helpers/referral";
 import type { IBapp } from "@/banking";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
-import type { Progress } from "@/reg";
-import { enqueue } from "$/kit/queue";
+import type { Progress, TStatus } from "@/reg";
+import { enqueue, in_dedupe_window } from "$/kit/queue";
 import { wise } from "$/kit/wise";
 import { db } from "$/pg/db";
 import { bapp_put } from "$/pg/queries/banking";
@@ -31,6 +31,31 @@ export type EndowContentFromReg = Pick<
   | "referrer_expiry"
   | "referral_id"
 >;
+
+/** what `reg-updated` carries, plus the npo the approval minted: met by the
+ * route's `IReg` and by a drizzle row alike */
+interface IApprovedRow {
+  id: string;
+  status: TStatus | null;
+  updated_at: string | null;
+  status_approved_npo_id?: number | null;
+}
+
+/** enqueues what an approval announces, for a row an approval settled: this
+ * call's, or an earlier one's. inside qstash's dedupe window the repeat
+ * carries the same keys (npo id; id+status+updated_at), so it reaches the
+ * queue only if the first enqueue never did. past the window it enqueues
+ * nothing, since the same keys would mail again. anything but an approved row
+ * is a conflicting state. */
+export async function announce_approval(row: IApprovedRow | null) {
+  const npo_id = row?.status === "03" ? row.status_approved_npo_id : null;
+  if (!row || npo_id == null)
+    throw resp.status(409, "registration not in review");
+  if (in_dedupe_window(row.updated_at)) {
+    await enqueue(msg("banking-new", { npo_id }), msg("reg-updated", row));
+  }
+  return npo_id;
+}
 
 export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
   const rid = referral_id("NPO");
@@ -82,12 +107,13 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
     fund_opt_in: true,
   };
 
-  const { npo_id, approved } = await db.transaction(async (tx) => {
+  const approved = await db.transaction(async (tx) => {
     // the claim goes first: a second approval that read "02" before this one
     // committed waits on the row lock, then finds "03" and stops before its npo
-    // insert, which would otherwise surface as a unique-key 500.
+    // insert, which would otherwise surface as a unique-key 500. the row it
+    // finds is announced as this one's.
     const claimed = await reg_update_from(tx, r.id, ["02"], { status: "03" });
-    if (!claimed) throw resp.status(409, "registration not in review");
+    if (!claimed.won) return claimed.row;
 
     const [inserted] = await tx.insert(npos).values(new_endow).returning();
     const id = Number(inserted.id);
@@ -106,10 +132,8 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
 
     await bapp_put(tx, bank_new);
     await userxnpo_put(tx, id, registrant_id);
-    const row = await reg_update(tx, r.id, { status_approved_npo_id: id });
-    return { npo_id: id, approved: row };
+    return reg_update(tx, r.id, { status_approved_npo_id: id });
   });
 
-  await enqueue(msg("banking-new", { npo_id }), msg("reg-updated", approved));
-  return npo_id;
+  return announce_approval(approved);
 };

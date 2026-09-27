@@ -15,7 +15,7 @@ import {
 import type { Reg$IdData } from "#/pages/registration/types";
 import { resp } from "@/helpers/https";
 import { Progress } from "@/reg/progress";
-import { reg_id } from "@/reg/schema";
+import { reg_id, type TStatus } from "@/reg/schema";
 import { reg_get } from "$/pg/queries/registration";
 
 /** which child of `/register/:reg_id` this request matched. `params` says
@@ -59,6 +59,33 @@ export const reg_loader: LoaderFunction = async ({ params, request }) => {
   } satisfies Reg$IdData;
 };
 
+interface IWizardExitRow {
+  id: string;
+  status?: TStatus | null;
+  o_name?: string | null;
+  status_approved_npo_id?: number | null;
+}
+
+/** where a request goes once the application has left the editable states: in
+ * review, to the summary that shows it; approved, to the success page. nothing
+ * while it is still editable, or for the summary screen (`step` 5) in review.
+ * a write names no `step` — it has no screen to stay on. */
+export const wizard_exit = (
+  reg: IWizardExitRow,
+  step?: Progress["step"]
+): string | undefined => {
+  if (reg.status === "02" && step !== 5) {
+    return `/register/${reg.id}/${steps.summary}`;
+  }
+  if (reg.status === "03") {
+    const q = new URLSearchParams({
+      name: reg.o_name ?? "",
+      id: `${reg.status_approved_npo_id ?? ""}`,
+    });
+    return `/register/${routes.success}?${q}`;
+  }
+};
+
 export const step_loader =
   (this_step: Progress["step"]) =>
   async ({ params, request }: LoaderFunctionArgs) => {
@@ -78,14 +105,8 @@ export const step_loader =
 
     const r = new Progress(reg);
 
-    if (reg.status === "02" && this_step !== 5) {
-      return redirect(`../${steps.summary}`);
-    }
-
-    if (reg.status === "03") {
-      const to = `../../${routes.success}?name=${reg.o_name}&id=${reg.status_approved_npo_id}`;
-      return redirect(to);
-    }
+    const exit = wizard_exit(reg, this_step);
+    if (exit) return redirect(exit);
 
     if (this_step > r.step) {
       return redirect(`../${r.step}`);

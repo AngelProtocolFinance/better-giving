@@ -34,7 +34,9 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-vi.mock("$/kit/queue", () => ({
+// the dedupe window stays real: it decides whether a repeat is announced
+vi.mock("$/kit/queue", async (orig) => ({
+  ...(await orig<typeof import("$/kit/queue")>()),
   enqueue: vi.fn(async (...msgs: IMsg[]) => {
     enqueued.push(...msgs);
   }),
@@ -68,8 +70,11 @@ vi.mock("#/routes/api.q-handler.$event/handle-reg/hubspot", () => ({
   update_or_create_contact: vi.fn(async () => ({ id: "p-1" })),
 }));
 vi.mock("#/.server/auth/auth", () => ({ auth: {} }));
+const report_error = vi.hoisted(() => vi.fn());
+vi.mock("#/errors/report", () => ({ report_error }));
 
 import { handle_reg_updated } from "#/routes/api.q-handler.$event/handle-reg";
+import { DEDUPE_WINDOW_MS, enqueue } from "$/kit/queue";
 import { wise } from "$/kit/wise";
 import { reg_get } from "$/pg/queries/registration";
 import { create_test_db } from "$/pg/test-utils/pglite";
@@ -114,6 +119,7 @@ beforeEach(async () => {
   await db.delete(user);
   enqueued.length = 0;
   send_email.mockClear();
+  report_error.mockClear();
   vi.mocked(wise.v2_account).mockClear();
 
   await db.insert(user).values({
@@ -130,7 +136,7 @@ beforeEach(async () => {
 });
 
 /** a thrown `Response` is the refusal; anything else is the action's answer */
-const verdict = (type: "approved" | "rejected") =>
+const verdict = (type: "approved" | "rejected", reason = "no") =>
   Promise.resolve(
     action({
       request: new Request(
@@ -138,7 +144,7 @@ const verdict = (type: "approved" | "rejected") =>
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(type === "rejected" ? { reason: "no" } : {}),
+          body: JSON.stringify(type === "rejected" ? { reason } : {}),
         }
       ),
       params: { id: RID, verdict: type },
@@ -152,7 +158,15 @@ const verdict = (type: "approved" | "rejected") =>
     }
   );
 
+/** the verdict as if it committed before qstash's dedupe window */
+const age_past_dedupe = () =>
+  test_db.current!.db.update(registrations).set({
+    updated_at: new Date(Date.now() - DEDUPE_WINDOW_MS - 1000).toISOString(),
+  });
+
 const reg_updates = () => enqueued.filter((m) => m.id === "reg-updated");
+const dedupe_keys = (kind: string) =>
+  new Set(enqueued.filter((m) => m.id === kind).map((m) => m.dedupe));
 
 describe("approve", () => {
   test("enqueues the approved row, which mails the approval", async () => {
@@ -176,14 +190,62 @@ describe("approve", () => {
     });
   });
 
-  test("refuses a second approval with 409", async () => {
+  // reg-updated is at-most-once: a transient wise error that threw ahead of
+  // the mail lost it for good.
+  test("mails the approval when the bank lookup throws", async () => {
     await verdict("approved");
+    const [m] = reg_updates();
+    vi.mocked(wise.v2_account).mockRejectedValueOnce(new Error("wise 503"));
+
+    await handle_reg_updated(m.payload as any);
+
+    expect(send_email.mock.calls[0][0]).toMatchObject({
+      to: [EMAIL],
+      subject: expect.stringMatching(/account has been created/),
+    });
+    expect(report_error).toHaveBeenCalledOnce();
+  });
+
+  // the transaction commits before the enqueue; a publish that throws leaves
+  // an npo with no banking review and no approval mail.
+  test("a retry after the enqueue threw succeeds and enqueues", async () => {
+    vi.mocked(enqueue).mockRejectedValueOnce(new Error("qstash down"));
+    await expect(verdict("approved")).rejects.toThrow("qstash down");
+
+    const res = await verdict("approved");
+
+    expect(res.status).toBe(302);
+    const npo_id = (await reg_get(RID))?.status_approved_npo_id;
+    expect(enqueued.map((m) => [m.id, m.payload])).toEqual([
+      ["banking-new", { npo_id }],
+      ["reg-updated", expect.objectContaining({ id: RID, status: "03" })],
+    ]);
+    expect(await test_db.current!.db.select().from(npos)).toHaveLength(1);
+  });
+
+  // a stale prompt pressed long after: the same keys would mail again
+  test("a repeat after the dedupe window succeeds and enqueues nothing", async () => {
+    await verdict("approved");
+    await age_past_dedupe();
+    enqueued.length = 0;
+
+    const res = await verdict("approved");
+
+    expect(res.status).toBe(302);
+    expect(enqueued).toHaveLength(0);
+  });
+
+  // a verdict the row does not carry is a conflict, not a retry
+  test("refuses to approve a rejected application with 409", async () => {
+    await verdict("rejected");
+    enqueued.length = 0;
 
     const res = await verdict("approved");
 
     expect(res.status).toBe(409);
-    expect(await test_db.current!.db.select().from(npos)).toHaveLength(1);
-    expect(reg_updates()).toHaveLength(1);
+    expect(wise.v2_account).not.toHaveBeenCalled();
+    expect(await test_db.current!.db.select().from(npos)).toHaveLength(0);
+    expect(enqueued).toHaveLength(0);
   });
 
   // both pass the route's read of "02"; the claim at the top of the transaction
@@ -192,38 +254,78 @@ describe("approve", () => {
     const statuses = await Promise.all([
       verdict("approved"),
       verdict("approved"),
-    ]).then((rs) => rs.map((r) => r.status).sort());
+    ]).then((rs) => rs.map((r) => r.status));
 
     expect(wise.v2_account).toHaveBeenCalledTimes(2);
-    expect(statuses).toEqual([302, 409]);
+    expect(statuses).toEqual([302, 302]);
     expect(await test_db.current!.db.select().from(npos)).toHaveLength(1);
     expect(await test_db.current!.db.select().from(banking_apps)).toHaveLength(
       1
     );
-    expect(reg_updates()).toHaveLength(1);
+    // the loser announces the winner's approval: qstash takes each once
+    expect(dedupe_keys("banking-new").size).toBe(1);
+    expect(dedupe_keys("reg-updated").size).toBe(1);
   });
 });
 
 describe("reject", () => {
-  test("refuses a second rejection with 409 and mails once", async () => {
+  test("a retry after the enqueue threw succeeds and enqueues", async () => {
+    vi.mocked(enqueue).mockRejectedValueOnce(new Error("qstash down"));
+    await expect(verdict("rejected")).rejects.toThrow("qstash down");
+
+    const res = await verdict("rejected");
+
+    expect(res.status).toBe(302);
+    expect(reg_updates().map((m) => m.payload)).toEqual([
+      expect.objectContaining({ id: RID, status: "04" }),
+    ]);
+    await handle_reg_updated(reg_updates()[0].payload as any);
+    expect(send_email.mock.calls[0][0].to).toEqual([EMAIL]);
+  });
+
+  test("a repeat after the dedupe window succeeds and enqueues nothing", async () => {
     await verdict("rejected");
+    await age_past_dedupe();
+    enqueued.length = 0;
+
+    const res = await verdict("rejected");
+
+    expect(res.status).toBe(302);
+    expect(enqueued).toHaveLength(0);
+  });
+
+  // the applicant would be told the first reason while the admin saw theirs
+  // accepted
+  test("refuses a re-rejection with another reason with 409", async () => {
+    await verdict("rejected", "missing docs");
+    enqueued.length = 0;
+
+    const res = await verdict("rejected", "wrong country");
+
+    expect(res.status).toBe(409);
+    expect((await reg_get(RID))?.status_rejected_reason).toBe("missing docs");
+    expect(enqueued).toHaveLength(0);
+  });
+
+  test("refuses to reject an approved application with 409", async () => {
+    await verdict("approved");
+    enqueued.length = 0;
 
     const res = await verdict("rejected");
 
     expect(res.status).toBe(409);
-    for (const m of reg_updates()) await handle_reg_updated(m.payload as any);
-    expect(send_email).toHaveBeenCalledOnce();
-    expect(send_email.mock.calls[0][0].to).toEqual([EMAIL]);
+    expect((await reg_get(RID))?.status).toBe("03");
+    expect(enqueued).toHaveLength(0);
   });
 
   test("two rejections at once mail once", async () => {
     const statuses = await Promise.all([
       verdict("rejected"),
       verdict("rejected"),
-    ]).then((rs) => rs.map((r) => r.status).sort());
+    ]).then((rs) => rs.map((r) => r.status));
 
-    expect(statuses).toEqual([302, 409]);
-    expect(reg_updates()).toHaveLength(1);
+    expect(statuses).toEqual([302, 302]);
     expect(reg_updates()[0].payload).toMatchObject({ status: "04" });
+    expect(dedupe_keys("reg-updated").size).toBe(1);
   });
 });

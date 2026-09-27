@@ -2,6 +2,7 @@ import { type ActionFunction, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { check_email_url, request_login_link, to_auth } from "#/.server/auth";
 import { reg_user } from "#/pages/registration/data/reg-user";
+import { wizard_exit } from "#/pages/registration/data/step-loader";
 import { GRANT_UPDATE_TYPE, steps } from "#/pages/registration/routes";
 import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
@@ -14,7 +15,11 @@ import {
 } from "@/reg/schema";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { reg_get, reg_update_from } from "$/pg/queries/registration";
+import {
+  reg_get,
+  reg_update_from,
+  type TRegAttrs,
+} from "$/pg/queries/registration";
 
 const changed = <T extends boolean | string | number | undefined>(a: T, b: T) =>
   a != null && b != null && a !== b;
@@ -56,7 +61,7 @@ export const update_action =
     }
 
     const { update_type, ...fields } = upd8;
-    const attrs: Record<string, unknown> = { ...fields, status: "01" as const };
+    const attrs: TRegAttrs = { ...fields, status: "01" as const };
 
     //resets
     const prog = new Progress(reg);
@@ -82,13 +87,16 @@ export const update_action =
     /* identity + its resets are change-identity.ts's, not a step's */
 
     const updated = await reg_update_from(db, rid, EDITABLE, attrs);
-    if (!updated) {
+    if (!updated.won) {
+      // a tab left open past submit or approval: where its loader would send it
+      const exit = updated.row && wizard_exit(updated.row);
+      if (exit) return redirect(exit);
       throw resp.status(
         409,
         "This application can't be edited while it is under review or approved."
       );
     }
-    await enqueue(msg("reg-updated", updated));
+    await enqueue(msg("reg-updated", updated.row));
 
     /* the address is asked to prove itself here rather than at the marketing
      * form: a lead that never finished this step is one we mailed nothing. */

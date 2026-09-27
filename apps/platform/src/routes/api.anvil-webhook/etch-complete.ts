@@ -19,9 +19,10 @@ export const etch_complete = async (
   const updated = await reg_fsa_signed(id, documentGroup.eid, fsa_url);
   /* nothing written: the applicant changed the legal identity, or the contact
    * the agreement names, and the reset cleared the packet this webhook is
-   * reporting on. it signed an identity the row no longer carries. */
-  if (!updated) return;
+   * reporting on — it signed an identity the row no longer carries. or the
+   * row is under review or approved, and this is a replay. */
+  if (!updated.won) return;
 
-  await enqueue(msg("reg-updated", updated));
+  await enqueue(msg("reg-updated", updated.row));
   return fsa_url;
 };

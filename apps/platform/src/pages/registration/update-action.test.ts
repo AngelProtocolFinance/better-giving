@@ -93,15 +93,22 @@ const settle = (p: unknown) =>
 
 describe("update_action — step save", () => {
   // a step form left open in another tab still posts after the applicant
-  // submitted, or after review approved them.
-  test.each<TStatus>(["02", "03"])(
-    "refuses a %s application with 409 and writes nothing",
-    async (status) => {
+  // submitted, or after review approved them. it lands where the step loader
+  // would have sent that tab, not on an error page.
+  test.each<[TStatus, string]>([
+    ["02", `/register/${RID}/5`],
+    ["03", "/register/success"],
+  ])(
+    "sends a %s application to %s and writes nothing",
+    async (status, path) => {
       await seed(status);
 
       const res = await settle(save_org_step());
 
-      expect(res.status).toBe(409);
+      expect(res.status).toBe(302);
+      expect(
+        new URL(res.headers.get("location")!, "http://localhost").pathname
+      ).toBe(path);
       const row = await reg_get(RID);
       expect(row?.status).toBe(status);
       expect(row?.o_website).toBe("https://before.org");
