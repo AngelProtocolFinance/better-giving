@@ -1,4 +1,6 @@
 import { eq } from "drizzle-orm";
+import type { donation_receipt } from "emails";
+import { render } from "react-email";
 import {
   afterAll,
   beforeAll,
@@ -330,8 +332,8 @@ describe("handle_don_receipt - a holder that never comes back", () => {
 
     // the mails are already away at this point. losing the write that records
     // it would leave the row claimed-but-not-sent, and the lease expiry would
-    // then hand a redelivery the right to mail a second receipt under a fresh
-    // tax id — the exact duplicate the claim exists to prevent.
+    // then hand a redelivery the right to mail a second receipt — the exact
+    // duplicate the claim exists to prevent.
     await handle_don_receipt(don());
     await expire_claim();
     await handle_don_receipt(don());
@@ -390,12 +392,39 @@ describe("send_receipt - a gift to a fund", () => {
     to_members,
   });
 
-  /** what each receipt prints, in the order they were mailed */
-  const printed = () =>
-    send_email_or_throw.mock.calls.map(([i]) => {
-      const p = (i as any).node.props;
-      return [p.to_name, p.amount.value.toFixed(2)];
+  /** the one receipt mailed, as each line prints */
+  const printed = () => {
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const p = send_email_or_throw.mock.calls[0]![0].node.props;
+    return p.lines.map((l: any) => [l.name, l.amount.value.toFixed(2)]);
+  };
+
+  test("a tipped gift to three members is one receipt under one number", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"]);
+
+    await handle_don_receipt({
+      ...fund_don(members),
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
     });
+
+    // one gift, one tax document: every member and the tip under one receipt
+    // id, each line a row of it
+    expect(printed()).toEqual([
+      ["Alpha", "33.34"],
+      ["Beta", "33.33"],
+      ["Gamma", "33.33"],
+      ["Better Giving", "5.00"],
+    ]);
+    const p = send_email_or_throw.mock.calls[0]![0].node.props;
+    expect(p.lines.map((l: any) => l.kind)).toEqual([
+      "beneficiary",
+      "beneficiary",
+      "beneficiary",
+      "tip",
+    ]);
+    expect(p.amount.value).toBe(105);
+    expect(p.tax_receipt_id).toEqual(expect.any(String));
+  });
 
   test("the members' receipts add up to the gift", async () => {
     const members = await seed_members(["Alpha", "Beta", "Gamma"]);
@@ -447,8 +476,8 @@ describe("send_receipt - a gift to a fund", () => {
       amount: { base: 0.001, tip: 0, fee_allowance: 0 },
     });
 
-    const usd = send_email_or_throw.mock.calls.map(
-      ([i]) => (i as any).node.props.amount.value_usd
+    const usd = send_email_or_throw.mock.calls[0]![0].node.props.lines.map(
+      (l: any) => l.amount.value_usd
     );
     expect(usd).toEqual([33.34, 33.33, 33.33]);
   });
@@ -457,8 +486,98 @@ describe("send_receipt - a gift to a fund", () => {
     const members = await seed_members(["Alpha"], ["Alpha"]);
 
     await expect(handle_don_receipt(fund_don(members))).rejects.toThrow(
-      "fund-1"
+      `no recipients for donation ${DON_ID}`
     );
     expect(send_email_or_throw).not.toHaveBeenCalled();
+  });
+});
+
+describe("send_receipt - a gift to a nonprofit", () => {
+  /** the one receipt mailed */
+  const receipt = () => {
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    return send_email_or_throw.mock.calls[0]![0].node
+      .props as donation_receipt.IData;
+  };
+
+  test("a tipped gift is one receipt: the nonprofit and the tip", async () => {
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ receipt_msg: "Thank you for feeding a family." })
+      .where(eq(npos.id, npo_id));
+
+    await handle_don_receipt({
+      ...don(),
+      program: { id: "p-1", name: "School Lunches" },
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
+    });
+
+    const r = receipt();
+    expect(r.lines).toEqual([
+      {
+        kind: "beneficiary",
+        name: "Freegan Food Foundation",
+        amount: { value: 100, currency: "USD", value_usd: 100 },
+        msg: "Thank you for feeding a family.",
+        program: "School Lunches",
+      },
+      {
+        kind: "tip",
+        name: "Better Giving",
+        amount: { value: 5, currency: "USD", value_usd: 5 },
+      },
+    ]);
+    expect(r.amount.value).toBe(105);
+    // the program is the nonprofit's, so it prints on the nonprofit's line
+    expect(r).not.toHaveProperty("program_name");
+  });
+
+  test("an untipped gift has the nonprofit's line alone", async () => {
+    await handle_don_receipt(don());
+
+    expect(receipt().lines.map((l) => [l.kind, l.name])).toEqual([
+      ["beneficiary", "Freegan Food Foundation"],
+    ]);
+  });
+
+  test("a chariot gift carries no receipt number of ours", async () => {
+    // the daf issues the donor's tax receipt for a grant
+    await handle_don_receipt({ ...don(), via: "chariot" });
+
+    expect(receipt().tax_receipt_id).toBeUndefined();
+  });
+});
+
+describe("send_receipt - the mail the donor reads", () => {
+  test("a tipped fund gift prints one receipt id", async () => {
+    const db = test_db.current!.db;
+    const rows = await db
+      .insert(npos)
+      .values(
+        ["Alpha", "Beta"].map((name, i) => ({
+          registration_number: `EIN-RENDER-${i}`,
+          name,
+          endow_designation: "Charity" as const,
+          overview_pt: "[]",
+          hq_country: "United States",
+        }))
+      )
+      .returning();
+
+    await handle_don_receipt({
+      ...don(),
+      to_id: "fund-1",
+      to_name: "Climate Fund",
+      to_type: "fund",
+      to_members: rows.map((r) => String(r.id)),
+      amount: { base: 100, tip: 5, fee_allowance: 0 },
+    });
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const text = await render(send_email_or_throw.mock.calls[0]![0].node, {
+      plainText: true,
+    });
+    expect(text.match(/Receipt ID/g)).toHaveLength(1);
   });
 });

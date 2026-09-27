@@ -1,23 +1,15 @@
 import { valibotResolver } from "@hookform/resolvers/valibot";
-import {
-  donation_receipt as dr,
-  type IDonation as IDon,
-  type IDonor,
-} from "emails";
+import { donation_receipt as dr, type IDonor } from "emails";
 import { getValidatedFormData } from "remix-hook-form";
 import { user_ctx } from "#/.server/auth";
 import { dataWithError, redirectWithSuccess } from "#/.server/toast";
-import { type IDonation, is_reversed, tax_receipt_id } from "@/donations";
-import { to_pretty_utc } from "@/helpers/date";
-import { to_amount, to_fund_receipts } from "@/helpers/email";
+import { type IDonation, is_reversed } from "@/donations";
 import { resp } from "@/helpers/https";
-import { is_funded_member } from "@/settlement/funded-members";
 import { send_email } from "$/email";
-import { app } from "$/env";
 import { dist_npo_ids_of, donation_refund_started } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
-import { npo_get, npos_batch_get } from "$/pg/queries/npo";
 import { user_get } from "$/pg/queries/user";
+import { build_receipt } from "$/receipt";
 import type { Route } from "./+types/route";
 import { type FV, schema } from "./schema";
 
@@ -97,79 +89,15 @@ export const action = async ({
     address: addr,
   };
 
-  await send_receipts(don, donor);
+  await send_receipt(don, donor);
 
   return redirectWithSuccess("..", "Receipt sent");
 };
 
-/** send one receipt per npo dist + tip, mirroring on-don-success-donor/send-receipt.ts */
-async function send_receipts(d: IDonation, donor: IDonor) {
-  const { base, tip } = d.amount;
-  // the same derivation the queue handler uses, and the reason this path is
-  // safe to run at all: a support resend now reissues the number the donor
-  // already holds instead of minting a second one for the same gift.
-  const receipt_id = d.via.startsWith("chariot")
-    ? undefined
-    : await tax_receipt_id(d.id);
-
-  // tip receipt (donation to Better Giving)
-  if (tip > 0) {
-    const don: IDon = {
-      id: d.id,
-      date: to_pretty_utc(d.created_at),
-      amount: to_amount(tip, tip / d.upusd, d.currency),
-      to_name: "Better Giving",
-    };
-    const data: dr.IData = {
-      ...don,
-      tax_receipt_id: receipt_id,
-      from: donor,
-    };
-    const { node, subject } = dr.template(data);
-    await send_email({ node, subject, to: [d.from_email] });
-  }
-
-  // fund: one receipt per member settlement paid, active or not since
-  if (d.to_type === "fund") {
-    const paid = await dist_npo_ids_of(d.id);
-    // no dists yet: the split hasn't run, so the members it will pay
-    const npos = await npos_batch_get(
-      paid.length ? paid : d.to_members.map((x) => +x)
-    );
-    const ids = paid.length
-      ? paid
-      : npos.filter(is_funded_member).map((n) => n.id);
-    const receipts = to_fund_receipts(d, ids, npos, {
-      from: donor,
-      tax_receipt_id: receipt_id,
-      bg_npo_id: +app.npo_id,
-    });
-    for (const data of receipts) {
-      const { node, subject } = dr.template(data);
-      await send_email({ node, subject, to: [d.from_email] });
-    }
-    return;
-  }
-
-  // direct npo donation
-  d.to_type satisfies "npo";
-  const npo = await npo_get(+d.to_id);
-  if (!npo) throw resp.status(404, `NPO not found: ${d.to_id}`);
-
-  const don: IDon = {
-    id: d.id,
-    date: to_pretty_utc(d.created_at),
-    amount: to_amount(base, base / d.upusd, d.currency),
-    to_name: d.to_name,
-    program_name: d.program?.name,
-  };
-  const data: dr.IData = {
-    ...don,
-    from: donor,
-    is_bg: npo.id === +app.npo_id,
-    tax_receipt_id: receipt_id,
-    to_msg_to_from: npo.receipt_msg ?? undefined,
-  };
+/** the gift's one receipt; a fund's lists each member settlement paid, active or not since */
+async function send_receipt(d: IDonation, donor: IDonor) {
+  const paid = d.to_type === "fund" ? await dist_npo_ids_of(d.id) : [];
+  const data = await build_receipt(d, donor, paid);
   const { node, subject } = dr.template(data);
   await send_email({ node, subject, to: [d.from_email] });
 }

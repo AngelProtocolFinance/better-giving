@@ -1,4 +1,9 @@
-import type { donation_receipt, IAmount, IDonor } from "emails";
+import {
+  APP_NAME,
+  type donation_receipt,
+  type IAmount,
+  type IDonor,
+} from "emails";
 import type { IDonation } from "../donations/interfaces";
 import { to_pretty_utc } from "./date";
 import { rd_vdec, rd2num, usdpu, vdec } from "./decimal/utils";
@@ -48,35 +53,61 @@ export const to_amount_shares = (
   }));
 };
 
-/** a member's display fields; who gets a receipt is the recipient id set */
-export interface IFundMember {
+/** a recipient's display fields; who is on the receipt is the recipient id set */
+export interface IRecipient {
   id: number;
   name: string;
   receipt_msg?: string | null;
 }
 
-export interface IFundReceiptCtx {
+export interface IReceiptCtx {
   from: IDonor;
   tax_receipt_id?: string;
   /** the npo id better giving receives gifts under */
   bg_npo_id: number;
 }
 
-type TFundDon = Pick<
+type TReceiptDon = Pick<
   IDonation,
-  "id" | "to_id" | "created_at" | "amount" | "upusd" | "currency"
+  | "id"
+  | "to_id"
+  | "to_name"
+  | "to_type"
+  | "created_at"
+  | "amount"
+  | "upusd"
+  | "currency"
+  | "program"
 >;
 
-/** one receipt per recipient, splitting the gift's base */
-export const to_fund_receipts = (
-  d: TFundDon,
+/**
+ * `whole - part` in the units each figure prints in. printing truncates, so
+ * the base and the tip printed apart can sum a unit short of the total printed
+ * whole; taking the tip as the remainder keeps the rows adding up to it.
+ */
+const to_remainder = (
+  whole: IAmount,
+  part: IAmount,
+  scale: number
+): IAmount => ({
+  value:
+    (Math.round(whole.value * scale) - Math.round(part.value * scale)) / scale,
+  currency: whole.currency,
+  value_usd:
+    (Math.round(whole.value_usd * 100) - Math.round(part.value_usd * 100)) /
+    100,
+});
+
+/** the gift's one receipt: a line per recipient splitting the base, then the tip */
+export const to_receipt = (
+  d: TReceiptDon,
   recipient_ids: number[],
-  members: IFundMember[],
-  ctx: IFundReceiptCtx
-): donation_receipt.IData[] => {
+  npos: IRecipient[],
+  ctx: IReceiptCtx
+): donation_receipt.IData => {
   if (recipient_ids.length === 0)
-    throw new Error(`Fund has no funded members: ${d.to_id}`);
-  const by_id = new Map(members.map((m) => [m.id, m]));
+    throw new Error(`no recipients for donation ${d.id}`);
+  const by_id = new Map(npos.map((n) => [n.id, n]));
   // the first recipient takes the leftover unit, so the order can't be the query's
   const recipients = [...recipient_ids]
     .sort((a, b) => a - b)
@@ -85,22 +116,44 @@ export const to_fund_receipts = (
       if (!npo) throw new Error(`NPO not found: ${id}`);
       return npo;
     });
-  const { base } = d.amount;
-  const amounts = to_amount_shares(
+  const is_bg = d.to_type === "npo" && +d.to_id === ctx.bg_npo_id;
+  const to_name = is_bg ? APP_NAME : d.to_name;
+  const { base, tip } = d.amount;
+  const shares = to_amount_shares(
     base,
     base / d.upusd,
     d.currency,
     recipients.length
   );
+  const lines: donation_receipt.IReceiptLine[] = recipients.map((npo, i) => ({
+    kind: "beneficiary",
+    // the name the gift was made to; a fund saves none per member
+    name: d.to_type === "npo" ? to_name : npo.name,
+    amount: shares[i]!,
+    msg: npo.receipt_msg ?? undefined,
+    program: d.program?.name,
+  }));
+  const total = to_amount(base + tip, (base + tip) / d.upusd, d.currency);
+  if (tip > 0) {
+    lines.push({
+      kind: "tip",
+      name: APP_NAME,
+      amount: to_remainder(
+        total,
+        to_amount(base, base / d.upusd, d.currency),
+        10 ** vdec(usdpu(base + tip, (base + tip) / d.upusd))
+      ),
+    });
+  }
 
-  return recipients.map((npo, i) => ({
+  return {
     id: d.id,
     date: to_pretty_utc(d.created_at),
-    amount: amounts[i]!,
-    to_name: npo.name,
-    is_bg: npo.id === ctx.bg_npo_id,
+    amount: total,
+    to_name,
+    is_bg,
     tax_receipt_id: ctx.tax_receipt_id,
-    to_msg_to_from: npo.receipt_msg ?? undefined,
     from: ctx.from,
-  }));
+    lines,
+  };
 };

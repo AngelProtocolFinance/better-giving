@@ -1,3 +1,4 @@
+export { APP_NAME } from "./constants";
 // admin
 export * as admin_endow_admin_new from "./templates/admin-endow-admin-new";
 // banking
