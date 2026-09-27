@@ -247,7 +247,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     const [msg] = queued();
     expect(queued()).toHaveLength(1);
     expect(msg).toMatchObject({
-      dedupe: `fiat.notice_${completing.id}`,
+      dedupe: `fiat.notice_${completing.id}_0`,
       retries: 3,
     });
     const done = msg.payload.alert;
@@ -288,6 +288,35 @@ describe("stripe charge.refunded → donation reversal", () => {
     );
     expect(outcome.body).toContain("1 of 2 dists failed to reverse");
     expect(text_of(outcome)).not.toMatch(/reversal complete/i);
+  });
+
+  it("a replay that completes a reversal left short queues its own undo notice", async () => {
+    await handle_charge_refunded(refund(500));
+    dists_for_refund_mock.mockResolvedValue([
+      graph,
+      { dist: { id: "dist_2" } },
+    ]);
+    process_refund_mock.mockResolvedValueOnce({
+      failures: ["dist dist_2: db timeout"],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 1,
+    });
+    const completing = refund(9_500);
+
+    await handle_charge_refunded(completing);
+    // ops repair the failed dist and replay the same event
+    await handle_charge_refunded(completing);
+
+    const [keep, undo] = queued();
+    expect(queued()).toHaveLength(2);
+    expect(keep.payload.alert.title).toBe(
+      "Reversal Did Not Complete: Keep Hand Adjustment"
+    );
+    expect(undo.payload.alert.title).toBe(
+      "Reversal Complete: Undo Hand Adjustment"
+    );
+    expect(keep.dedupe).not.toBe(undo.dedupe);
   });
 
   it("reports rather than fails the delivery when the outcome notice can't be queued, instruction and all", async () => {

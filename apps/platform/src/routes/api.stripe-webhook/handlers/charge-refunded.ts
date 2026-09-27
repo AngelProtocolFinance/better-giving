@@ -151,10 +151,12 @@ export async function handle_charge_refunded(
     // queued, not sent: once reversed, a redelivery stops at the donation's
     // status, so only the queue's retries can land a failed send. a failed
     // enqueue is reported, instruction and all, rather than failing the
-    // delivery, because the reversal has already run.
+    // delivery, because the reversal has already run. keyed on the outcome as
+    // well as the event: a replay after a partial failure that now completes
+    // must land its "undo" notice, not be deduped against the "keep" one.
     await enqueue(
       msg("fiat-notice", {
-        id: event.id,
+        id: `${event.id}_${failed}`,
         alert: { type: "NOTICE", from: `${ALERT_FROM}-${stage}`, title, body },
       })
     ).catch((err) => report_error(err, { donation_id: order_id, title, body }));

@@ -26,8 +26,8 @@ export interface IDonFundReceiptPayload {
 }
 
 export interface IFiatNoticePayload {
-  /** stable per occasion (e.g. the webhook event id), so a repeat enqueue of
-   * the same notice is one message */
+  /** stable per notice (e.g. the webhook event id plus its outcome), so a
+   * repeat enqueue of the same notice is one message and a different one is not */
   id: string;
   alert: Alert;
 }
