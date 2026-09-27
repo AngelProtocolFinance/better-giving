@@ -2,6 +2,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { eq, sql } from "drizzle-orm";
 import { db } from "$/pg/db";
 import * as schema from "$/pg/schema";
+import { sign_in_hooks } from "./sign-in";
 
 /** how long a verification / sign-in link stays good. the email copy quotes
  * this same number — change both together. */
@@ -153,6 +154,8 @@ export const auth_options = (deps: AuthOptionDeps) => ({
       "/magic-link/verify": { window: 60, max: 10 },
     },
   },
+
+  hooks: sign_in_hooks,
 
   databaseHooks: {
     user: {

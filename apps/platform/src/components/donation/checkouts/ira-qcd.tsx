@@ -152,27 +152,28 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-const NEW_LINE = "%0D%0A";
 const email_link = (
   charity_name: string,
   profile_url: string,
   amount: number
-) => `
-mailto:${encodeURIComponent("[Your IRA custodian's email]")}
-  ?cc=${emails.hi}
-  &subject=IRA charitable donation to Better Giving supporting ${charity_name}
-  &body=
-Hi,${NEW_LINE}
-${NEW_LINE}
-I would like to request a Qualified Charitable Distribution (QCD) from my IRA to support ${charity_name} (${profile_url}).${NEW_LINE}
-${NEW_LINE}
-Please use the following information:${NEW_LINE}
-Payee name: ${LEGAL_NAME}${NEW_LINE}
-EIN: ${EIN}${NEW_LINE}
-Mailing address: ${ADDRESS}${NEW_LINE}
-Reference: ${charity_name} (${profile_url})${NEW_LINE}
-Amount: $${amount.toFixed(2)}${NEW_LINE}
-${NEW_LINE}
-I have copied ${emails.hi} so the donation can be properly recognized and designated. Please let me know if you need any additional information.${NEW_LINE}
-${NEW_LINE}
-Thank you.`;
+) => {
+  const to = encodeURIComponent("[Your IRA custodian's email]");
+  const subject = `IRA charitable donation to Better Giving supporting ${charity_name}`;
+  const body = [
+    "Hi,",
+    "",
+    `I would like to request a Qualified Charitable Distribution (QCD) from my IRA to support ${charity_name} (${profile_url}).`,
+    "",
+    "Please use the following information:",
+    `Payee name: ${LEGAL_NAME}`,
+    `EIN: ${EIN}`,
+    `Mailing address: ${ADDRESS}`,
+    `Reference: ${charity_name} (${profile_url})`,
+    `Amount: $${amount.toFixed(2)}`,
+    "",
+    `I have copied ${emails.hi} so the donation can be properly recognized and designated. Please let me know if you need any additional information.`,
+    "",
+    "Thank you.",
+  ].join("\r\n");
+  return `mailto:${to}?cc=${encodeURIComponent(emails.hi)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+};

@@ -76,12 +76,7 @@ export function Stocks(props: StocksDonationDetails) {
 
       <div className="flex justify-center gap-4 mt-6">
         <a
-          href={email_link(
-            name,
-            url,
-            +props.ticker.amount,
-            props.ticker.symbol
-          )}
+          href={email_link(name, url, shares, props.ticker.symbol)}
           className="btn btn-sm btn-secondary font-normal"
         >
           Generate Email
@@ -125,7 +120,7 @@ export function Stocks(props: StocksDonationDetails) {
                   recipient_id: id,
                   details: {
                     ticker: props.ticker.symbol,
-                    shares: String(shares),
+                    shares,
                     amount: String(props.ticker.amount),
                   },
                 }),
@@ -157,32 +152,33 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-const NEW_LINE = "%0D%0A";
 const email_link = (
   charity_name: string,
   profile_url: string,
-  number_of_shares: number,
+  number_of_shares: string,
   stock_symbol: string
-) => `
-mailto:${encodeURIComponent("[Your broker's email]")}
-  ?cc=${emails.hi}
-  &subject=Stock donation to Better Giving supporting ${charity_name}
-  &body=
-Hi,${NEW_LINE}
-${NEW_LINE}
-I would like to make a charitable stock donation to Better Giving in support of ${charity_name} (${profile_url}).${NEW_LINE}
-${NEW_LINE}
-Please process the transfer using the following instructions:${NEW_LINE}
-Deliver to: ${BROKERAGE.deliver_to}${NEW_LINE}
-DTC number: ${BROKERAGE.dtc}${NEW_LINE}
-Account number: ${BROKERAGE.account_no}${NEW_LINE}
-Account name: ${LEGAL_NAME}${NEW_LINE}
-Reference: ${charity_name} (${profile_url})${NEW_LINE}
-Ticker: ${stock_symbol || "[STOCK_SYMBOL]"}${NEW_LINE}
-Shares: ${number_of_shares || "[NUMBER_OF_SHARES]"}${NEW_LINE}
-${NEW_LINE}
-Better Giving EIN: ${EIN}${NEW_LINE}
-${NEW_LINE}
-I have copied ${emails.hi} so the donation can be properly recognized and designated. Please let me know if you need any additional information.${NEW_LINE}
-${NEW_LINE}
-Thank you.`;
+) => {
+  const to = encodeURIComponent("[Your broker's email]");
+  const subject = `Stock donation to Better Giving supporting ${charity_name}`;
+  const body = [
+    "Hi,",
+    "",
+    `I would like to make a charitable stock donation to Better Giving in support of ${charity_name} (${profile_url}).`,
+    "",
+    "Please process the transfer using the following instructions:",
+    `Deliver to: ${BROKERAGE.deliver_to}`,
+    `DTC number: ${BROKERAGE.dtc}`,
+    `Account number: ${BROKERAGE.account_no}`,
+    `Account name: ${LEGAL_NAME}`,
+    `Reference: ${charity_name} (${profile_url})`,
+    `Ticker: ${stock_symbol}`,
+    `Shares: ${number_of_shares}`,
+    "",
+    `Better Giving EIN: ${EIN}`,
+    "",
+    `I have copied ${emails.hi} so the donation can be properly recognized and designated. Please let me know if you need any additional information.`,
+    "",
+    "Thank you.",
+  ].join("\r\n");
+  return `mailto:${to}?cc=${encodeURIComponent(emails.hi)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+};

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lte, or, sql } from "drizzle-orm";
 import type { IBalanceTx } from "@/balance-txs";
 import type { IDonationsSearch, IPageOpts } from "@/donations";
 import type { IAddr } from "@/types/donation";
@@ -239,6 +239,15 @@ export async function donation_has_dists(
   return !!row;
 }
 
+/** npos the donation was split across, whatever each dist's status */
+export async function dist_npo_ids_of(donation_id: string): Promise<number[]> {
+  const rows = await db
+    .select({ to_id: dists.to_id })
+    .from(dists)
+    .where(and(eq(dists.donation_id, donation_id), isNotNull(dists.to_id)));
+  return rows.map((r) => r.to_id as number);
+}
+
 // -- refund support --
 
 export interface DistRefundGraph {
@@ -296,6 +305,24 @@ export async function donation_has_refund_loss(
     .from(dists)
     .where(
       and(eq(dists.donation_id, donation_id), eq(dists.refund_status, "loss"))
+    )
+    .limit(1);
+  return !!row;
+}
+
+/**
+ * true once any dist for this donation has a refund outcome recorded, whatever
+ * its status — completed and loss flip a dist to refunded, while the donation
+ * row can stay settled.
+ */
+export async function donation_refund_started(
+  donation_id: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ one: sql`1` })
+    .from(dists)
+    .where(
+      and(eq(dists.donation_id, donation_id), isNotNull(dists.refund_status))
     )
     .limit(1);
   return !!row;

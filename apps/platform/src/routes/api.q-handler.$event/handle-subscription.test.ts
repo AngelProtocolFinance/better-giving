@@ -1,11 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cancel_subscription_mock = vi.hoisted(() => vi.fn());
+const stripe_retrieve_mock = vi.hoisted(() => vi.fn());
+const stripe_cancel_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/paypal", () => ({
   paypal: { cancel_subscription: cancel_subscription_mock },
 }));
-vi.mock("$/kit/stripe", () => ({ stripe: {} }));
+vi.mock("$/kit/stripe", () => ({
+  stripe: {
+    subscriptions: {
+      retrieve: stripe_retrieve_mock,
+      cancel: stripe_cancel_mock,
+    },
+  },
+}));
 
 const { handle_sub_deactivated } = await import("./handle-subscription");
 
@@ -78,5 +87,46 @@ describe("handle_sub_deactivated paypal cancel reason", () => {
   ])("never splits %s at the cut", async (_, pad, suffix) => {
     const reason = await cancel_on_paypal(`${"a".repeat(pad)}${suffix}`);
     expect(reason).toBe("a".repeat(pad));
+  });
+});
+
+describe("handle_sub_deactivated stripe cancel", () => {
+  const SUB_ID = "sub_stripe1";
+
+  /** stripe as it behaves for one sub in `live_status`: cancel on an ended sub errors */
+  const stripe_with = (live_status: string) => {
+    stripe_retrieve_mock.mockImplementation(async (id: string) => {
+      if (id !== SUB_ID) throw new Error(`No such subscription: '${id}'`);
+      return { id, status: live_status };
+    });
+    stripe_cancel_mock.mockImplementation(async (id: string) => {
+      if (live_status === "canceled")
+        throw new Error("subscription is already canceled");
+      return { id, status: "canceled" };
+    });
+  };
+
+  const deactivate = () =>
+    handle_sub_deactivated({
+      id: SUB_ID,
+      platform: "stripe",
+      status_cancel_reason: "moving abroad",
+    });
+
+  it("cancels a live subscription with the donor's reason", async () => {
+    stripe_with("active");
+
+    await deactivate();
+
+    expect(stripe_cancel_mock).toHaveBeenCalledExactlyOnceWith(SUB_ID, {
+      cancellation_details: { comment: "moving abroad" },
+    });
+  });
+
+  it("resolves on a subscription stripe already canceled", async () => {
+    stripe_with("canceled");
+
+    await expect(deactivate()).resolves.toBeUndefined();
+    expect(stripe_cancel_mock).not.toHaveBeenCalled();
   });
 });

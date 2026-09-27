@@ -13,6 +13,7 @@ import { href, Link, redirect, useNavigation } from "react-router";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { auth, get_session } from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
+import { is_sign_in_throttled } from "#/.server/auth/sign-in";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
 import { report_error } from "#/errors/report";
@@ -57,18 +58,25 @@ export const action = async ({ request }: Route.ActionArgs) => {
       valibotResolver(sign_in)
     );
     if (payload.errors) return payload;
+    const email = payload.data.email.toLowerCase();
 
-    const res = await auth.api.signInEmail({
-      body: {
-        email: payload.data.email.toLowerCase(),
-        password: payload.data.password,
-      },
-      asResponse: true,
-    });
+    let res: Response;
+    try {
+      res = await auth.api.signInEmail({
+        body: { email, password: payload.data.password },
+        headers: request.headers,
+        asResponse: true,
+      });
+    } catch (err) {
+      if (!is_sign_in_throttled(err)) throw err;
+      return {
+        errors: { password: { type: "value", message: err.message } },
+        receivedValues: payload.receivedValues,
+      } satisfies IFormInvalid<ISignIn>;
+    }
 
     if (!res.ok) {
       const err = await res.json();
-      const email = payload.data.email.toLowerCase();
 
       // better-auth cannot tell these two apart — both are a user row with no
       // credential to check a password against, so both come back as
