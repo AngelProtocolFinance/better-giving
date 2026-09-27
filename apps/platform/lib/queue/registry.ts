@@ -18,6 +18,12 @@ interface IFromAddress {
 // dedupe keys ship to qstash and gate at-most-once delivery — preserve
 // existing strings verbatim.
 
+export type IDonSttlReceiptPayload = IDonation & {
+  /** a fund gift's members the split paid; absent on an npo gift, and on a
+   * fund gift's message queued by settlement rather than by the split */
+  to_paid?: number[];
+};
+
 export interface IDonDistPayload {
   id: string;
   date_created: string;
@@ -125,7 +131,7 @@ export type Payloads = {
   "don-match": IDonMatchPayload;
   "don-match-chase": IDonMatchChasePayload;
   "don-sttl-dist": IDonationSettled;
-  "don-sttl-receipt": IDonation;
+  "don-sttl-receipt": IDonSttlReceiptPayload;
   "fund-member-removed": IFundMemberRemovedPayload;
   "invite-email": IInviteEmailPayload;
   "lock-tx-created": ILockTxCreatedPayload;

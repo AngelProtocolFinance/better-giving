@@ -482,6 +482,44 @@ describe("send_receipt - a gift to a fund", () => {
     expect(usd).toEqual([33.34, 33.33, 33.33]);
   });
 
+  test("a member the split paid, deactivated since, is still on the receipt", async () => {
+    const members = await seed_members(["Alpha", "Beta", "Gamma"], ["Beta"]);
+
+    await handle_don_receipt({
+      ...fund_don(members),
+      to_paid: members.map(Number),
+    });
+
+    expect(printed()).toEqual([
+      ["Alpha", "33.34"],
+      ["Beta", "33.33"],
+      ["Gamma", "33.33"],
+    ]);
+  });
+
+  test("a member activated after the split, unpaid, is not on the receipt", async () => {
+    const [a, b, c] = await seed_members(["Alpha", "Beta", "Gamma"]);
+
+    await handle_don_receipt({
+      ...fund_don([a!, b!, c!]),
+      to_paid: [+a!, +c!],
+    });
+
+    expect(printed()).toEqual([
+      ["Alpha", "50.00"],
+      ["Gamma", "50.00"],
+    ]);
+  });
+
+  test("a split that paid nobody fails instead of passing for sent", async () => {
+    const members = await seed_members(["Alpha"]);
+
+    await expect(
+      handle_don_receipt({ ...fund_don(members), to_paid: [] })
+    ).rejects.toThrow(`no recipients for donation ${DON_ID}`);
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+  });
+
   test("a fund with no funded member fails instead of passing for sent", async () => {
     const members = await seed_members(["Alpha"], ["Alpha"]);
 

@@ -239,13 +239,16 @@ export async function donation_has_dists(
   return !!row;
 }
 
-/** npos the donation was split across, whatever each dist's status */
-export async function dist_npo_ids_of(donation_id: string): Promise<number[]> {
+/** npos the donation was split across and the base each was paid, whatever
+ * each dist's status */
+export async function dist_shares_of(
+  donation_id: string
+): Promise<{ to_id: number; amount: number }[]> {
   const rows = await db
-    .select({ to_id: dists.to_id })
+    .select({ to_id: dists.to_id, amount: dists.amount })
     .from(dists)
     .where(and(eq(dists.donation_id, donation_id), isNotNull(dists.to_id)));
-  return rows.map((r) => r.to_id as number);
+  return rows.map((r) => ({ to_id: r.to_id as number, amount: r.amount ?? 0 }));
 }
 
 // -- refund support --

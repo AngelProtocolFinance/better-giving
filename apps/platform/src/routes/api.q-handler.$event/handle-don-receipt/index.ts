@@ -3,10 +3,10 @@ import {
   donation_tribute_notif as dtn,
 } from "emails";
 import { report_error } from "#/errors/report";
-import type { IDonation } from "@/donations";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
+import type { IDonSttlReceiptPayload } from "@/queue";
 import { send_email_or_throw } from "$/email";
 import {
   claim_receipt_send,
@@ -16,7 +16,7 @@ import {
 import { npo_admins } from "$/pg/queries/user";
 import { send_receipt } from "./send-receipt";
 
-export async function handle_don_receipt(don: IDonation) {
+export async function handle_don_receipt(don: IDonSttlReceiptPayload) {
   // the stamp goes first and the loser stops here. every provider's settle
   // path queues this message, and a redelivery of it — from qstash or from the
   // provider handler re-queueing after a failed enqueue — would otherwise
@@ -105,7 +105,7 @@ async function stamp_sent(donation_id: string, attempts = 5) {
   }
 }
 
-async function sends(don: IDonation) {
+async function sends(don: IDonSttlReceiptPayload) {
   await send_receipt(don);
 
   // private message email

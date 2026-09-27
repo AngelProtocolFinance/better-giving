@@ -11,7 +11,11 @@ import { stripe } from "$/kit/stripe";
 import { donation_refund_started } from "$/pg/queries/dist";
 import { donation_get } from "$/pg/queries/donation";
 import { user_get } from "$/pg/queries/user";
-import { build_receipt, NpoNotFoundError } from "$/receipt";
+import {
+  build_receipt,
+  NpoNotFoundError,
+  ReceiptNotReadyError,
+} from "$/receipt";
 import type { Route } from "./+types/route";
 import { type FV, schema } from "./schema";
 
@@ -114,10 +118,18 @@ export const action = async ({
   };
 
   const data = await build_receipt(don, donor, "resend").catch((e) => {
-    if (e instanceof NpoNotFoundError) return null;
+    if (e instanceof NpoNotFoundError || e instanceof ReceiptNotReadyError) {
+      return e;
+    }
     throw e;
   });
-  if (!data) return resp.status(404);
+  if (data instanceof NpoNotFoundError) return resp.status(404);
+  if (data instanceof ReceiptNotReadyError) {
+    return dataWithError(
+      null,
+      "This donation is still being distributed. Please try again in a few minutes."
+    );
+  }
   const { node, subject } = dr.template(data);
   // `send_email` reports a refusal, but a render error throws before it
   const sent = await send_email_or_throw({

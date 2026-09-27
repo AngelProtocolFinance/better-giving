@@ -22,7 +22,7 @@ import { dists } from "../schema/dist";
 import { donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { create_test_db } from "../test-utils/pglite";
-import { dist_npo_ids_of } from "./dist";
+import { dist_shares_of } from "./dist";
 
 const CREATED = "2026-01-01T00:00:00.000Z";
 
@@ -75,7 +75,8 @@ async function seed_donation(id: string) {
 async function seed_dist(
   donation_id: string,
   to_id: number | null,
-  status: "settled" | "refunded" = "settled"
+  status: "settled" | "refunded" = "settled",
+  amount = 50
 ) {
   await test_db.current!.db.insert(dists).values({
     id: crypto.randomUUID(),
@@ -83,11 +84,12 @@ async function seed_dist(
     status,
     date_created: CREATED,
     to_id,
+    amount,
     amount_denom: "USD",
   });
 }
 
-test("returns every nonprofit the donation was split across, refunded dists included", async () => {
+test("returns every nonprofit the donation was split across and its share, refunded dists included", async () => {
   const [a, b, other] = [
     await seed_npo("EIN-A"),
     await seed_npo("EIN-B"),
@@ -95,13 +97,16 @@ test("returns every nonprofit the donation was split across, refunded dists incl
   ];
   await seed_donation("don-1");
   await seed_donation("don-2");
-  await seed_dist("don-1", a);
-  await seed_dist("don-1", b, "refunded");
+  await seed_dist("don-1", a, "settled", 25);
+  await seed_dist("don-1", b, "refunded", 75);
   await seed_dist("don-2", other);
 
-  const ids = await dist_npo_ids_of("don-1");
+  const shares = await dist_shares_of("don-1");
 
-  expect([...ids].sort((x, y) => x - y)).toEqual([a, b]);
+  expect([...shares].sort((x, y) => x.to_id - y.to_id)).toEqual([
+    { to_id: a, amount: 25 },
+    { to_id: b, amount: 75 },
+  ]);
 });
 
 test("skips a dist with no recipient nonprofit", async () => {
@@ -110,7 +115,7 @@ test("skips a dist with no recipient nonprofit", async () => {
   await seed_dist("don-1", a);
   await seed_dist("don-1", null);
 
-  expect(await dist_npo_ids_of("don-1")).toEqual([a]);
+  expect(await dist_shares_of("don-1")).toEqual([{ to_id: a, amount: 50 }]);
 });
 
 test("a donation not yet split has no nonprofits", async () => {
@@ -119,5 +124,5 @@ test("a donation not yet split has no nonprofits", async () => {
   await seed_donation("don-2");
   await seed_dist("don-2", a);
 
-  expect(await dist_npo_ids_of("don-1")).toEqual([]);
+  expect(await dist_shares_of("don-1")).toEqual([]);
 });

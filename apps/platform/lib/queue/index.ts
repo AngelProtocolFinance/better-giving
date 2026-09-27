@@ -4,6 +4,7 @@ export {
   type IDonDistPayload,
   type IDonMatchChasePayload,
   type IDonMatchPayload,
+  type IDonSttlReceiptPayload,
   type IFundMemberRemovedPayload,
   type IInviteEmailPayload,
   type ILockTxCreatedPayload,

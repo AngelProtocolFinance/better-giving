@@ -1,9 +1,9 @@
 import { donation_receipt, type IDonor } from "emails";
-import type { IDonation } from "@/donations";
+import type { IDonSttlReceiptPayload } from "@/queue";
 import { send_email_or_throw } from "$/email";
 import { build_receipt } from "$/receipt";
 
-export const send_receipt = async (d: IDonation) => {
+export const send_receipt = async (d: IDonSttlReceiptPayload) => {
   const donor: IDonor = {
     first_name: d.from_name?.split(" ")[0] ?? "Donor",
     full_name: d.from_name ?? "Valued Donor",
