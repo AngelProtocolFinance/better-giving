@@ -1,4 +1,5 @@
 import { href } from "react-router";
+import { base_url } from "$/env";
 import { auth } from "./auth";
 import { LINK_PER_EMAIL, LINK_PER_IP } from "./login-link";
 import { client_ip, reserve } from "./rate-limit";
@@ -30,7 +31,10 @@ export async function request_password_reset(
   }
 
   const q = new URLSearchParams({ type: "set-password", email: normalized });
-  const redirect_to = `${new URL(request.url).origin}${href("/login/reset")}?${q}`;
+  // not the request's origin: the emailed link's callbackURL must pass
+  // better-auth's origin check, which trusts BASE_URL's origin alone, and a
+  // reset can start on another host we serve (deployment url, www, staging)
+  const redirect_to = `${new URL(base_url).origin}${href("/login/reset")}?${q}`;
 
   try {
     await auth.api.requestPasswordReset({
