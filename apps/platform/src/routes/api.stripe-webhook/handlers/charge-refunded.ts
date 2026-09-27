@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { report_error } from "#/errors/report";
 import {
   currency_precision,
   from_stripe_amount,
@@ -106,18 +107,22 @@ export async function handle_charge_refunded(
 
   // nothing can be refunded past a full refund, so the newest completed it.
   // every earlier refund, failed ones included: each may have sent a partial
-  // notice ops acted on. sent before reversing: once reversed, a redelivery
-  // short-circuits on the donation status and a failed send is never retried
+  // notice ops acted on
+  const detail = [
+    `donation ${order_id}, charge ${charge.id}, event ${event.id}`,
+    `completing refund: ${refund_list([newest], charge.currency)}`,
+    `earlier partial refunds: ${refund_list(earlier, charge.currency)}`,
+  ];
+  // sent before reversing: once reversed, a redelivery short-circuits on the
+  // donation status and a failed send is never retried
   if (earlier.length > 0) {
     await fiat_monitor.send_alert({
       type: "NOTICE",
       from: `${ALERT_FROM}-${stage}`,
-      title: "Refund Completed After Partial: Undo Hand Adjustment",
+      title: "Full Refund After Partial: Reversal Starting",
       body: [
-        `donation ${order_id}, charge ${charge.id}`,
-        `completing refund: ${refund_list([newest], charge.currency)}`,
-        `earlier partial refunds: ${refund_list(earlier, charge.currency)}`,
-        "the whole donation is now reversed automatically. undo any hand adjustment made for the earlier partial refunds, or they are debited twice.",
+        ...detail,
+        "Full refund received after earlier partial refund(s); automatic reversal is starting. Don't undo your hand adjustment until the reversal is confirmed.",
       ].join("\n"),
     });
   }
@@ -127,6 +132,30 @@ export async function handle_charge_refunded(
     program_id: don.program?.id ?? null,
     alert_from: ALERT_FROM,
   });
+
+  if (earlier.length > 0) {
+    const failed = result.failures.length;
+    const [title, lead] =
+      failed === 0
+        ? [
+            "Reversal Complete: Undo Hand Adjustment",
+            "Reversal complete: undo the hand adjustment for the earlier partial refunds, or they are debited twice.",
+          ]
+        : [
+            "Reversal Did Not Complete: Keep Hand Adjustment",
+            `Reversal did not complete: keep the hand adjustment. ${failed} of ${graphs.length} dists failed to reverse, and the donation stays settled.`,
+          ];
+    // best-effort: the reversal has already run, so a lost notice is reported
+    // rather than failing the delivery
+    await fiat_monitor
+      .send_alert({
+        type: "NOTICE",
+        from: `${ALERT_FROM}-${stage}`,
+        title,
+        body: [lead, ...detail].join("\n"),
+      })
+      .catch((err) => report_error(err, { donation_id: order_id }));
+  }
 
   console.info(
     `charge refunded: ${order_id}, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`

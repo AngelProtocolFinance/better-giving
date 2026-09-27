@@ -7,6 +7,7 @@ const donation_get_mock = vi.hoisted(() => vi.fn());
 const dists_for_refund_mock = vi.hoisted(() => vi.fn());
 const process_refund_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
+const report_error_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
@@ -20,6 +21,7 @@ vi.mock("$/pg/queries/dist", () => ({
   dists_for_refund: dists_for_refund_mock,
 }));
 vi.mock("$/refund/process", () => ({ process_refund: process_refund_mock }));
+vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
@@ -219,7 +221,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
-  it("reverses once when a later refund completes a partial, and tells ops to undo their hand adjustment", async () => {
+  it("reverses once when a later refund completes a partial: says the reversal is starting, then that it completed", async () => {
     await handle_charge_refunded(refund(500));
     expect(don_status).toBe("settled");
 
@@ -229,15 +231,62 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     expect(don_status).toBe("refunded");
     expect(process_refund_mock).toHaveBeenCalledOnce();
-    const undo = alerts().filter((a) => /undo/i.test(a.title));
-    expect(undo).toHaveLength(1);
-    const text = text_of(undo[0]);
-    expect(text).toContain(ORDER_ID);
-    expect(text).toContain("5.00 USD (re_1, succeeded)");
-    expect(text).toContain("re_2");
+    const [, starting, done] = alerts();
+    expect(alerts()).toHaveLength(3);
+    expect(starting.body).toContain(
+      "automatic reversal is starting. Don't undo your hand adjustment until the reversal is confirmed."
+    );
+    expect(done.body).toMatch(/^Reversal complete: undo the hand adjustment/m);
+    expect(text_of(done)).toContain(ORDER_ID);
+    expect(text_of(done)).toContain("5.00 USD (re_1, succeeded)");
+    const [, starting_at, done_at] = send_alert_mock.mock.invocationCallOrder;
+    const [reversed_at] = process_refund_mock.mock.invocationCallOrder;
+    expect(starting_at).toBeLessThan(reversed_at);
+    expect(done_at).toBeGreaterThan(reversed_at);
   });
 
-  it("leaves the donation unreversed when the undo notice can't be sent, so the redelivery sends it", async () => {
+  it("tells ops to keep their hand adjustment when the reversal leaves dists unreversed", async () => {
+    await handle_charge_refunded(refund(500));
+    dists_for_refund_mock.mockResolvedValue([
+      graph,
+      { dist: { id: "dist_2" } },
+    ]);
+    process_refund_mock.mockResolvedValue({
+      failures: ["dist dist_2: db timeout"],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 1,
+    });
+
+    await handle_charge_refunded(refund(9_500));
+
+    const [, starting, outcome] = alerts();
+    expect(starting.title).toMatch(/starting/i);
+    expect(outcome.body).toMatch(
+      /^Reversal did not complete: keep the hand adjustment/m
+    );
+    expect(outcome.body).toContain("1 of 2 dists failed to reverse");
+    expect(text_of(outcome)).not.toMatch(/reversal complete/i);
+  });
+
+  it("reports rather than fails the delivery when the outcome notice can't be sent", async () => {
+    await handle_charge_refunded(refund(500));
+    send_alert_mock
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("discord 503"));
+
+    await expect(
+      handle_charge_refunded(refund(9_500))
+    ).resolves.toBeUndefined();
+
+    expect(don_status).toBe("refunded");
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(report_error_mock.mock.calls[0]?.[0]).toMatchObject({
+      message: "discord 503",
+    });
+  });
+
+  it("leaves the donation unreversed when the starting notice can't be sent, so the redelivery sends it", async () => {
     await handle_charge_refunded(refund(500));
     send_alert_mock.mockRejectedValue(new Error("discord 503"));
 
