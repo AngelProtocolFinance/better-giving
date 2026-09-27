@@ -110,6 +110,41 @@ describe("crypto direct mode: the donor says they've paid", () => {
     expect(redirect_mock).not.toHaveBeenCalled();
   });
 
+  test("the amount to send is the one nowpayments will expect, not the form's own sum", async () => {
+    // pay_amount is price_amount reconverted at nowpayments' rate, so it drifts
+    // from base + tip + fee_allowance; sending the form's figure underpays
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.json({
+          id: 123,
+          order_id: "fake_order_id",
+          address: "fake_address",
+          amount: 0.81234567,
+          // differs from the token's 60_000, so the decimals follow the server
+          usdpu: 600,
+          currency: "BTC",
+          description: "donation",
+        })
+      )
+    );
+
+    const Stub = stb(
+      <DirectMode
+        fv={{ ...fv, token: { ...fv.token, amount: "0.8" } }}
+        init={init()}
+        donor={donor}
+        fee_allowance={0}
+        tipv={0}
+      />
+    );
+    const screen = await render(<Stub />);
+
+    // rounded up at the server's display precision, so the donor never sends
+    // less than pay_amount
+    await expect.element(screen.getByText(/send 0\.8124\s+BTC/)).toBeVisible();
+    expect(screen.getByText(/send 0\.80+\s/).query()).toBeNull();
+  });
+
   test("a server failure shows the generic message, not a blank frame", async () => {
     mswWorker.use(
       http.post(href("/api/donation-intents"), () =>

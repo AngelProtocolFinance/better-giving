@@ -122,9 +122,13 @@ export function DirectMode({
     if (error) report_error(error);
   }, [error]);
 
+  // once the payment exists, the server's amount (nowpayments' pay_amount when
+  // it made the payment) is what settles it in full — the form's own sum
+  // drifts from it by the reconversion spread. rounding up keeps the shown
+  // figure at or above that amount.
   const total_disp_amnt = ru_vdec(
-    +fv.token.amount + tipv + fee_allowance,
-    fv.token.usdpu,
+    data?.amount ?? +fv.token.amount + tipv + fee_allowance,
+    data?.usdpu ?? fv.token.usdpu,
     fv.token.precision
   );
 
