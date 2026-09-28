@@ -112,9 +112,11 @@ describe("about-us donate band", () => {
     // form that flip-flops between the two (what one shared unavailable slot
     // does: each rail's write evicts the other's, remounting it to fail again).
     await vi.waitFor(() => {
-      const notices = [
-        ...screen.container.querySelectorAll('[role="status"]'),
-      ].map((n) => n.textContent ?? "");
+      // the form keeps an empty status region mounted for its own notices, so
+      // count only regions that say something
+      const notices = [...screen.container.querySelectorAll('[role="status"]')]
+        .map((n) => n.textContent ?? "")
+        .filter((t) => t.trim() !== "");
       expect(notices).toHaveLength(2);
       expect(notices.some((t) => /paypal failed to load/i.test(t))).toBe(true);
       expect(
