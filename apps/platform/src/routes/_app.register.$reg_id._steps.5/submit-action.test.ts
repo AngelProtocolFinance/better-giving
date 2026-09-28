@@ -1,5 +1,6 @@
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -11,7 +12,10 @@ import type { TStatus } from "@/reg/schema";
 import { registrations } from "$/pg/schema/registration";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
-const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const test_db = vi.hoisted(() => ({
+  current: null as TestDb | null,
+  before_update: () => {},
+}));
 
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -20,6 +24,7 @@ vi.mock("$/pg/db", () => ({
       get(_, prop) {
         const real = test_db.current?.db;
         if (!real) throw new Error("test_db not initialized");
+        if (prop === "update") test_db.before_update();
         return (real as any)[prop];
       },
     }
@@ -70,11 +75,16 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  test_db.before_update = () => {};
   await test_db.current!.db.delete(registrations);
   vi.mocked(enqueue).mockClear();
   vi.mocked(get_session).mockResolvedValue({
     user: { id: "u-1", email: EMAIL, role: null } as any,
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 const seed = (
@@ -147,6 +157,10 @@ describe("submit_action", () => {
   // in the write itself tells them apart.
   test("a double press submits once and answers both as submitted", async () => {
     await seed("01");
+    // every write stamps its own millisecond, as two real presses do: a second
+    // committed write would carry a second updated_at, so a second dedupe key
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-09-01") });
+    test_db.before_update = () => vi.setSystemTime(Date.now() + 1);
 
     const statuses = (await Promise.all([submit(), submit()])).map((r) =>
       r instanceof Response ? r.status : "ok"
@@ -158,6 +172,19 @@ describe("submit_action", () => {
     const keys = vi.mocked(enqueue).mock.calls.map(([m]) => m.dedupe);
     expect(keys).toHaveLength(2);
     expect(new Set(keys).size).toBe(1);
+  });
+
+  test("refuses another user's submit with 403 and leaves it a draft", async () => {
+    await seed("01");
+    vi.mocked(get_session).mockResolvedValue({
+      user: { id: "u-2", email: "mallory@test.com", role: null } as any,
+    });
+
+    const res = await submit();
+
+    expect(res.status).toBe(403);
+    expect((await reg_get(RID))?.status).toBe("01");
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   // the status move commits before the enqueue; a publish that throws leaves an

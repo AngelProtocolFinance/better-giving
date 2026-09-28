@@ -82,13 +82,16 @@ beforeAll(async () => {
     referral_id,
   };
 
+  const base = auth_options(deps);
   test_auth_ref.current = betterAuth({
-    ...auth_options(deps),
+    ...base,
     plugins: [login_link_plugin(deps)],
     secret: TEST_SECRET,
     baseURL: BASE_URL,
     basePath: "/api/auth",
     database: drizzleAdapter(test_db.current.db, { provider: "pg", schema }),
+    // better-auth skips its origin checks when it detects a test run
+    advanced: { ...base.advanced, disableOriginCheck: false },
   });
 });
 

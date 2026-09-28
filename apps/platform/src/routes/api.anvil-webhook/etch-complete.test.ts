@@ -117,6 +117,13 @@ describe("etch_complete", () => {
     expect((await row()).o_fsa_signed_doc_url).toBe(
       `${BASE}/api/anvil-doc/${EID}`
     );
+    expect(vi.mocked(enqueue).mock.calls[0]![0]).toMatchObject({
+      id: "reg-updated",
+      payload: {
+        id: "r-1",
+        o_fsa_signed_doc_url: `${BASE}/api/anvil-doc/${EID}`,
+      },
+    });
   });
 
   // the row moved on to a second packet while the first was still out

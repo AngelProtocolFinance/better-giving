@@ -32,7 +32,7 @@ const signer_of = (reg: IReg, docs_or_eid: IFsaDocs | string): IFsaSigner => {
       o_registration_number: d.o_registration_number,
       o_legal_entity_type: d.o_legal_entity_type,
       o_project_description: d.o_project_description,
-      o_proof_of_reg: d.o_website,
+      o_proof_of_reg: d.o_proof_of_reg,
       r_proof_of_identity: d.r_proof_of_identity,
     };
   } else {

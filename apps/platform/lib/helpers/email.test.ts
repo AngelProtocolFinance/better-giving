@@ -93,99 +93,27 @@ describe("to_receipt", () => {
     active = true,
     receipt_msg: string | null = null
   ) => ({ id, name, active, receipt_msg });
+  /** the one recipient `build_receipt` hands over for a fund: the fund itself */
+  const fund_receipt = (d: ReturnType<typeof don>) =>
+    to_receipt(d, [0], [{ id: 0, name: d.to_name }], ctx);
   /** each line as the receipt prints it, in order */
   const printed = (r: ReturnType<typeof to_receipt>) =>
     r.lines.map((l) => [l.kind, l.name, l.amount.value]);
 
-  test("a tipped fund gift is one receipt: a line per member, then the tip", () => {
-    const r = to_receipt(
-      don({ amount: { base: 100, tip: 5, fee_allowance: 0 } }),
-      [10, 11, 12],
-      [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
-      ctx
+  test("a tipped fund gift is one receipt: the fund, then the tip", () => {
+    const r = fund_receipt(
+      don({ amount: { base: 100, tip: 5, fee_allowance: 0 } })
     );
 
     expect(printed(r)).toEqual([
-      ["beneficiary", "Alpha", 33.34],
-      ["beneficiary", "Beta", 33.33],
-      ["beneficiary", "Gamma", 33.33],
+      ["beneficiary", "Climate Fund", 100],
       ["tip", "Better Giving", 5],
     ]);
     expect(r.amount).toEqual({ value: 105, currency: "USD", value_usd: 105 });
     expect(r.tax_receipt_id).toBe("R-1");
     expect(r.to_name).toBe("Climate Fund");
-  });
-
-  test("a fund gift covering its fee lists the coverage, and the total is the charge", () => {
-    const r = to_receipt(
-      don({ amount: { base: 100, tip: 5, fee_allowance: 3.2 } }),
-      [10, 11, 12],
-      [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
-      ctx
-    );
-
-    // the card was charged 108.20; a receipt totalling 105 contradicts its
-    // own "the full amount you paid" line
-    expect(printed(r)).toEqual([
-      ["beneficiary", "Alpha", 33.34],
-      ["beneficiary", "Beta", 33.33],
-      ["beneficiary", "Gamma", 33.33],
-      ["tip", "Better Giving", 5],
-      ["fee", "Better Giving", 3.2],
-    ]);
-    expect(r.amount).toEqual({
-      value: 108.2,
-      currency: "USD",
-      value_usd: 108.2,
-    });
-  });
-
-  test("a recipient inactive since settlement still gets its line and share", () => {
-    // settlement paid beta; the receipt states the gift it was paid from, and
-    // activity is the caller's rule: the builder receipts the ids it is given
-    const r = to_receipt(
-      don(),
-      [10, 11, 12],
-      [npo(10, "Alpha"), npo(11, "Beta", false), npo(12, "Gamma")],
-      ctx
-    );
-
-    expect(printed(r)).toEqual([
-      ["beneficiary", "Alpha", 33.34],
-      ["beneficiary", "Beta", 33.33],
-      ["beneficiary", "Gamma", 33.33],
-    ]);
-  });
-
-  test("a member outside the recipient set gets no line", () => {
-    const r = to_receipt(
-      don(),
-      [10, 12],
-      [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
-      ctx
-    );
-
-    expect(printed(r)).toEqual([
-      ["beneficiary", "Alpha", 50],
-      ["beneficiary", "Gamma", 50],
-    ]);
-  });
-
-  test("recipients are listed in id order whatever order they arrive in", () => {
-    const r = to_receipt(
-      don(),
-      [12, 10, 11],
-      [npo(11, "Beta"), npo(12, "Gamma"), npo(10, "Alpha")],
-      ctx
-    );
-
-    // the first member takes the leftover cent, so a send, its retry and a
-    // resend must agree on who is first
-    expect(printed(r)).toEqual([
-      ["beneficiary", "Alpha", 33.34],
-      ["beneficiary", "Beta", 33.33],
-      ["beneficiary", "Gamma", 33.33],
-    ]);
+    expect(r.is_fund).toBe(true);
+    expect(r.is_bg).toBe(false);
   });
 
   test("a tipped npo gift is one receipt: the npo with its message, then the tip", () => {
@@ -292,19 +220,6 @@ describe("to_receipt", () => {
     ]);
   });
 
-  test("a fund with better giving among its members is not a gift to better giving", () => {
-    const r = to_receipt(
-      don(),
-      [1, 10],
-      [npo(1, "Better Giving"), npo(10, "Alpha")],
-      ctx
-    );
-
-    expect(r.is_bg).toBeFalsy();
-    expect(r.is_fund).toBe(true);
-    expect(r.to_name).toBe("Climate Fund");
-  });
-
   test.each([
     [1, 1, 0, 0.6, "EUR"],
     [100, 5, 0, 0.9, "EUR"],
@@ -317,11 +232,8 @@ describe("to_receipt", () => {
   ] as const)(
     "%s + %s tip + %s fee at %s %s per usd: the lines add up to the total",
     (base, tip, fee_allowance, upusd, currency) => {
-      const r = to_receipt(
-        don({ amount: { base, tip, fee_allowance }, upusd, currency }),
-        [10, 11, 12],
-        [npo(10, "Alpha"), npo(11, "Beta"), npo(12, "Gamma")],
-        ctx
+      const r = fund_receipt(
+        don({ amount: { base, tip, fee_allowance }, upusd, currency })
       );
       const amounts = r.lines.map((l) => l.amount);
 

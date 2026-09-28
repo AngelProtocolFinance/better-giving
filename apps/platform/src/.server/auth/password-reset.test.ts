@@ -3,6 +3,8 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const test_auth_ref = vi.hoisted(() => ({ current: null as any }));
+/** the configured BASE_URL, and so the auth instance's only trusted origin */
+const ORIGIN = vi.hoisted(() => "http://localhost:4200");
 /** every reset mail the config sends */
 const sent_resets = vi.hoisted(() => [] as { email: string; url: string }[]);
 
@@ -18,6 +20,8 @@ vi.mock("$/pg/db", () => ({
     }
   ),
 }));
+
+vi.mock("$/env", () => ({ base_url: ORIGIN }));
 
 vi.mock("./auth", () => ({
   auth: new Proxy(
@@ -43,8 +47,6 @@ import { auth_options } from "./options";
 import { request_password_reset } from "./password-reset";
 import { reset_rate_limits } from "./rate-limit";
 
-const ORIGIN = "http://localhost:4200";
-
 beforeAll(async () => {
   test_db.current = await create_test_db();
   const base = auth_options({ send_login_link: async () => {}, referral_id });
@@ -54,6 +56,9 @@ beforeAll(async () => {
     baseURL: ORIGIN,
     basePath: "/api/auth",
     database: drizzleAdapter(test_db.current.db, { provider: "pg", schema }),
+    // better-auth skips its origin checks when it detects a test run; the
+    // emailed link's callbackURL is only checked in production without this
+    advanced: { ...base.advanced, disableOriginCheck: false },
     emailAndPassword: {
       ...base.emailAndPassword,
       async sendResetPassword({ user, url }) {
@@ -83,8 +88,11 @@ async function seed_users(emails: string[]) {
   );
 }
 
-const from_ip = (ip: string) =>
-  new Request(`${ORIGIN}/login/reset`, {
+/** a host the project serves that isn't BASE_URL's, e.g. a deployment url */
+const OTHER_HOST = "https://platform-git-feature.vercel.app";
+
+const from_ip = (ip: string, origin = ORIGIN) =>
+  new Request(`${origin}/login/reset`, {
     method: "POST",
     headers: { "x-forwarded-for": ip },
   });
@@ -97,6 +105,22 @@ describe("request_password_reset", () => {
 
     expect(sent_resets).toHaveLength(1);
     expect(sent_resets[0]!.email).toBe("donor@example.com");
+    const callback = new URL(sent_resets[0]!.url).searchParams.get(
+      "callbackURL"
+    );
+    expect(callback).toBe(
+      `${ORIGIN}/login/reset?type=set-password&email=donor%40example.com`
+    );
+  });
+
+  it("mails a callback on BASE_URL's origin when asked from another host", async () => {
+    await seed_users(["donor@example.com"]);
+
+    await request_password_reset(
+      "donor@example.com",
+      from_ip("203.0.113.7", OTHER_HOST)
+    );
+
     const callback = new URL(sent_resets[0]!.url).searchParams.get(
       "callbackURL"
     );
@@ -239,5 +263,21 @@ describe("POST /api/auth/request-password-reset", () => {
     expect(`${to.origin}${to.pathname}`).toBe(`${ORIGIN}/login/reset`);
     expect(to.searchParams.get("type")).toBe("set-password");
     expect(to.searchParams.get("token")).toBe(token);
+  });
+
+  it("serves the link mailed to a reset started on another host", async () => {
+    await seed_users(["donor@example.com"]);
+    await request_password_reset(
+      "donor@example.com",
+      from_ip("203.0.113.7", OTHER_HOST)
+    );
+
+    const res: Response = await test_auth_ref.current.handler(
+      new Request(sent_resets[0]!.url)
+    );
+
+    expect(res.status).toBe(302);
+    const to = new URL(res.headers.get("location")!);
+    expect(`${to.origin}${to.pathname}`).toBe(`${ORIGIN}/login/reset`);
   });
 });

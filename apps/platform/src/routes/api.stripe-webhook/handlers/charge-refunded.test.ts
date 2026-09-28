@@ -215,16 +215,48 @@ describe("stripe charge.refunded → donation reversal", () => {
     );
   });
 
-  it("reverses every settled dist on a full refund", async () => {
+  it("reverses every settled dist on a full refund, against the gift's form and program", async () => {
+    donation_get_mock.mockImplementation(async () => ({
+      id: ORDER_ID,
+      status: don_status,
+      form_id: "form-1",
+      program: { id: "prog-1", name: "Clean Water" },
+    }));
+
     await handle_charge_refunded(refund(AMOUNT));
 
     expect(process_refund_mock).toHaveBeenCalledOnce();
     expect(process_refund_mock).toHaveBeenCalledWith(ORDER_ID, [graph], {
-      form_id: null,
-      program_id: null,
-      alert_from: "charge-refunded",
+      form_id: "form-1",
+      program_id: "prog-1",
+      alert_from: expect.any(String),
     });
     expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a redelivery after a reversal that took a loss", async () => {
+    process_refund_mock.mockImplementation(async () => {
+      don_status = "refunded_loss";
+      return {
+        failures: [],
+        loss_msgs: ["dist dist_1: payout already sent"],
+        has_loss: true,
+        applied: 1,
+      };
+    });
+    await handle_charge_refunded(refund(500));
+    const completing = refund(9_500);
+    await handle_charge_refunded(completing);
+
+    await expect(
+      handle_charge_refunded(completing) // stripe redelivers
+    ).resolves.toBeUndefined();
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(
+      alerts().filter((a) => /reversal starting/i.test(a.title))
+    ).toHaveLength(1);
+    expect(queued()).toHaveLength(1);
   });
 
   it("reverses once when a later refund completes a partial: says the reversal is starting, then that it completed", async () => {

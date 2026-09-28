@@ -1,22 +1,51 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { partition } from "@/donations/helpers";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { amnt_sum, partition } from "@/donations/helpers";
+import { snap } from "@/helpers/decimal";
+import type { TestDb } from "$/pg/test-utils/pglite";
 import type { Ctx } from "../types";
 
+const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const create_grant_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/chariot", () => ({
   chariot: { create_grant: create_grant_mock },
 }));
-vi.mock("$/pg/db", () => ({ db: {} }));
-vi.mock("$/pg/queries/donation", () => ({
-  donation_put: async (_db: unknown, r: unknown) => r,
+vi.mock("$/pg/db", () => ({
+  db: new Proxy(
+    {},
+    {
+      get(_, prop) {
+        const real = test_db.current?.db;
+        if (!real) throw new Error("test_db not initialized");
+        return (real as any)[prop];
+      },
+    }
+  ),
 }));
 
 const { chariot_intent } = await import("./index");
+const { seed_npo } = await import("#/__tests__/fixtures/funds");
+const { donation_get } = await import("$/pg/queries/donation");
+const { donations, donation_donors, donation_recipients } = await import(
+  "$/pg/schema/donation"
+);
+const { npos } = await import("$/pg/schema/npo");
+const { create_test_db } = await import("$/pg/test-utils/pglite");
+
+const db = () => test_db.current!.db;
+let npo_id: number;
 
 const ctx = (amount: Ctx["intent"]["amount"]) =>
   ({
-    to: { to_id: "1", to_type: "npo", to_name: "ACME" },
+    to: { to_id: npo_id.toString(), to_type: "npo", to_name: "ACME" },
     from: { from_email: "a@b.co" },
     donor: { email: "a@b.co" },
     via: "chariot",
@@ -31,11 +60,25 @@ const ctx = (amount: Ctx["intent"]["amount"]) =>
 
 const granted_cents = () => create_grant_mock.mock.calls[0][0].amount;
 
-beforeEach(() => {
+beforeAll(async () => {
+  test_db.current = await create_test_db();
+}, 30_000);
+
+afterAll(async () => {
+  await test_db.current?.client.close();
+});
+
+beforeEach(async () => {
   vi.clearAllMocks();
-  create_grant_mock.mockResolvedValue({
-    id: "grant_1",
-    metadata: { don_id: "don_1" },
+  await db().delete(donation_donors);
+  await db().delete(donation_recipients);
+  await db().delete(donations);
+  await db().delete(npos);
+  npo_id = (await seed_npo(db(), { registration_number: "EIN-CHARIOT" }))!.id;
+  let n = 0;
+  create_grant_mock.mockImplementation(async () => {
+    n++;
+    return { id: `grant_${n}`, metadata: { don_id: `don_${n}` } };
   });
 });
 
@@ -48,24 +91,44 @@ describe("chariot_intent grant amount", () => {
     expect((res as Response).status).toBe(400);
     expect(await (res as Response).text()).toMatch(/whole dollar/i);
     expect(create_grant_mock).not.toHaveBeenCalled();
+    expect(await db().select().from(donations)).toEqual([]);
   });
 
   it("creates a whole-dollar total as its cents: 10 + 1 fee allowance is 1100", async () => {
     await chariot_intent(ctx({ base: 10, tip: 0, fee_allowance: 1 }));
     expect(granted_cents()).toBe(1100);
+    expect(await donation_get("don_1")).toMatchObject({
+      status: "intent",
+      via_extra: "grant_1",
+      amount: { base: 10, tip: 0, fee_allowance: 1 },
+    });
   });
 
-  it("grants every whole-dollar total whose parts carry float noise", async () => {
+  it("grants every whole-dollar total whose parts carry float noise, and records that total", async () => {
     // raw `partition` output, as an older checkout bundle still posts it:
     // $10 + 15% tip + covered fee, rescaled to whatever the donor granted
     const split = partition({ base: 10, tip: 1.5, fee_allowance: 0.5 });
+    const noisy = Array.from({ length: 4_998 }, (_, i) => i + 3).filter(
+      (n) => amnt_sum(split(n)) !== n
+    );
+    expect(noisy.length).toBeGreaterThan(100);
+
     const mismatches: string[] = [];
-    for (let n = 3; n <= 5_000; n++) {
+    for (const n of noisy) {
       create_grant_mock.mockClear();
       await chariot_intent(ctx(split(n)));
       const granted = create_grant_mock.mock.calls[0]?.[0].amount;
-      if (granted !== n * 100) mismatches.push(`${n}: ${granted}`);
+      if (granted !== n * 100) mismatches.push(`granted ${n}: ${granted}`);
+    }
+
+    // the row settlement splits the grant by: its parts must add up to it
+    const stored = await db().select().from(donations);
+    for (const d of stored) {
+      const n = noisy[Number(d.id.replace("don_", "")) - 1];
+      const total = snap(d.amount_base + d.amount_tip + d.amount_fee_allowance);
+      if (total !== n) mismatches.push(`stored ${n}: ${total}`);
     }
     expect(mismatches).toEqual([]);
+    expect(stored).toHaveLength(noisy.length);
   });
 });

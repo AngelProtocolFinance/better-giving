@@ -38,6 +38,15 @@ describe("safe_redirect", () => {
     expect(safe_redirect("/..//evil.example", FALLBACK)).toBe(FALLBACK);
   });
 
+  // each resolves on this origin, so only the leading-slash check refuses it
+  test.each([
+    ["an empty param", ""],
+    ["a bare relative path", "dashboard"],
+    ["a bare query", "?next=/x"],
+  ])("%s falls back", (_, raw) => {
+    expect(safe_redirect(raw, FALLBACK)).toBe(FALLBACK);
+  });
+
   test("a script url falls back", () => {
     expect(safe_redirect("javascript:alert(1)", FALLBACK)).toBe(FALLBACK);
   });

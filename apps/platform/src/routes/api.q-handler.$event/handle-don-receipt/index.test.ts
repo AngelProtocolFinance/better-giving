@@ -177,15 +177,22 @@ describe("handle_don_receipt - queue redelivery", () => {
   });
 
   test("the donor never sees two receipt numbers for one donation", async () => {
-    await handle_don_receipt(don());
-    await handle_don_receipt(don());
+    // the receipt goes out, then the private message to the nonprofit fails:
+    // the lease is given back and the redelivery re-sends the receipt too
+    const gift = { ...don(), from_private_msg_to_npo: "keep it up" };
+    send_email_or_throw
+      .mockImplementationOnce(async () => ({ id: "email-1", response: "250" }))
+      .mockRejectedValueOnce(new Error("resend unavailable"));
+    await expect(handle_don_receipt(gift)).rejects.toThrow();
+    await handle_don_receipt(gift);
 
     // a fresh tax_receipt_id per delivery is what makes a duplicate
     // unreconcilable: two numbers, one gift, and no way to tell which is real
-    const ids = send_email_or_throw.mock.calls.map(
-      ([i]) => (i as any).node.props.tax_receipt_id
-    );
-    expect(new Set(ids).size).toBe(1);
+    const ids = send_email_or_throw.mock.calls
+      .filter(([i]) => i.to.includes("donor@test.com"))
+      .map(([i]) => i.node.props.tax_receipt_id);
+    expect(ids).toEqual([expect.any(String), expect.any(String)]);
+    expect(ids[1]).toBe(ids[0]);
   });
 });
 
@@ -352,12 +359,15 @@ describe("handle_don_receipt - a holder that never comes back", () => {
     fail_stamp.times = 99;
 
     await expect(handle_don_receipt(don())).rejects.toThrow("pg unavailable");
+    expect(report_error).toHaveBeenCalledOnce();
 
     // receipts went out that the donation row does not know about. it stays
     // claimed rather than released — releasing is what would invite the
-    // duplicate — so the report is the only thing that says so.
+    // duplicate — so a redelivery inside the lease mails nothing
+    fail_stamp.times = 0;
+    await handle_don_receipt(don());
+
     expect(send_email_or_throw).toHaveBeenCalledOnce();
-    expect(report_error).toHaveBeenCalledOnce();
   });
 
   test("an expired claim over receipts that did go out never re-sends", async () => {

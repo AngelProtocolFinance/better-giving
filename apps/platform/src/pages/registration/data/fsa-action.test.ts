@@ -145,6 +145,26 @@ describe("fsa action — documentation form", () => {
 
   // a step 3 tab left open past submit or approval: the draft status the
   // packet writes would pull the row out of review.
+  test("an admin mints the packet in the registrant's name", async () => {
+    await seed("01");
+    vi.mocked(get_session).mockResolvedValue({
+      user: { id: "u-9", email: "ops@test.com", role: "admin" } as any,
+    });
+
+    const res = await post_docs();
+
+    expect(res.headers.get("location")).toBe("https://anvil.test/sign");
+    expect(vi.mocked(gen_fsa_signing_url).mock.calls[0][1]).toMatchObject({
+      email: EMAIL,
+      first_name: "Jane",
+      docs: DOCS,
+    });
+    expect(await reg_get(RID)).toMatchObject({
+      o_registration_number: "after",
+      o_fsa_signing_url: "https://anvil.test/sign",
+    });
+  });
+
   test.each<[TStatus, string]>([
     ["02", `/register/${RID}/5`],
     ["03", "/register/success"],
@@ -268,5 +288,35 @@ describe("fsa action — sign-result retry", () => {
 
     expect(res.status).toBe(403);
     expect(gen_fsa_signing_url).not.toHaveBeenCalled();
+  });
+
+  // a packet expired unsigned: reissued from the documents already on the
+  // row, which the retry has no copy of and so must leave as they are.
+  test("reissues the owner's packet over the documents on the row", async () => {
+    await seed("01", {
+      ...READY,
+      ...DOCS,
+      o_fsa_signing_url: "https://anvil.test/expired",
+      o_fsa_doc_eid: "doc-0",
+    } as Partial<typeof READY>);
+    vi.mocked(reg_id_from_signer_eid).mockResolvedValue(RID);
+
+    const res = await post_eid();
+
+    expect(res.headers.get("location")).toBe("https://anvil.test/sign");
+    expect(vi.mocked(gen_fsa_signing_url).mock.calls[0][1]).toMatchObject({
+      email: EMAIL,
+      docs: {
+        o_registration_number: "after",
+        o_proof_of_reg: DOCS.o_proof_of_reg,
+      },
+    });
+    expect(await reg_get(RID)).toMatchObject({
+      status: "01",
+      ...DOCS,
+      o_fsa_signing_url: "https://anvil.test/sign",
+      o_fsa_doc_eid: "doc-1",
+    });
+    expect(enqueue).toHaveBeenCalledOnce();
   });
 });

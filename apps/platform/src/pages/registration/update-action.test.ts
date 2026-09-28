@@ -116,6 +116,22 @@ describe("update_action — step save", () => {
     }
   );
 
+  test("refuses another user's save with 401 and writes nothing", async () => {
+    await seed("01");
+    vi.mocked(get_session).mockResolvedValue({
+      user: { id: "u-2", email: "mallory@test.com", role: null } as any,
+    });
+
+    const res = await settle(save_org_step());
+
+    expect(res.status).toBe(401);
+    expect(await reg_get(RID)).toMatchObject({
+      o_website: "https://before.org",
+      updated_at: SEEN_AT,
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
   // a rejected application is reopened by editing it; a legacy row with no
   // status is a draft, as the review step reads it.
   test.each<TStatus | null>(["01", "04", null])(

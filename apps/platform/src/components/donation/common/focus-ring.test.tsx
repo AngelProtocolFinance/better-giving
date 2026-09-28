@@ -19,6 +19,10 @@ async function tab_to(part: Element) {
     await userEvent.tab();
   }
   expect(part.hasAttribute("data-focus-visible")).toBe(true);
+  // the switches' transition-colors eases outline-color too; the style read
+  // starts it, so its animation exists to await before the ring is read
+  getComputedStyle(part).outlineColor;
+  await Promise.all(part.getAnimations().map((a) => a.finished));
 }
 
 const ring = (el: Element) => {
