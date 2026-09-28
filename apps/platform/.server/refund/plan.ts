@@ -201,8 +201,8 @@ export function calc_refund_plan(
 
   const effects: RefundEffect[] = [];
 
-  // payout row before the npos row: the grants cron locks payouts before the
-  // wise transfer and the npos row after it, so the reverse order deadlocks it
+  // payout row before the npos row: the grants cron's settle writes payouts
+  // then the npos row, so the reverse order deadlocks it
   if (payout) {
     effects.push({ kind: "payout_status", payout_id: payout.id, status });
   }

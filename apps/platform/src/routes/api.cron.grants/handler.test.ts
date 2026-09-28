@@ -13,6 +13,8 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const transfer_grant_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
+const send_alert = vi.hoisted(() => vi.fn());
+const settle_spy = vi.hoisted(() => vi.fn());
 /** runs right after the cron's pending snapshot — a write that commits
  * between the snapshot and the settle */
 const after_snapshot = vi.hoisted(() => ({
@@ -21,8 +23,13 @@ const after_snapshot = vi.hoisted(() => ({
 
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 vi.mock("$/env", () => ({ stage: "test" }));
-vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert: vi.fn() } }));
+vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
 vi.mock("./transfer-grant", () => ({ transfer_grant: transfer_grant_mock }));
+vi.mock("$/payouts/settle", async (io) => {
+  const actual = await io<typeof import("$/payouts/settle")>();
+  settle_spy.mockImplementation(actual.settle_npo_payouts);
+  return { ...actual, settle_npo_payouts: settle_spy };
+});
 vi.mock("$/pg/queries/payout", async (io) => {
   const actual = await io<typeof import("$/pg/queries/payout")>();
   return {
@@ -48,6 +55,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { index } = await import("./handler");
+const { NotFundedError } = await import("$/payouts/settle");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { banking_apps } = await import("$/pg/schema/banking");
 const { npos } = await import("$/pg/schema/npo");
@@ -70,6 +78,8 @@ beforeEach(async () => {
   after_snapshot.current = null;
   transfer_grant_mock.mockReset().mockResolvedValue(TRANSFER_ID);
   report_error_mock.mockReset();
+  send_alert.mockReset();
+  settle_spy.mockClear();
   await db().delete(payouts);
   await db().delete(settlements);
   await db().delete(banking_apps);
@@ -95,7 +105,12 @@ async function seed_npo(o: { cash: number; payout_minimum?: number }) {
   return npo!.id;
 }
 
-async function seed_payout(npo_id: number, id: string, amount: number) {
+async function seed_payout(
+  npo_id: number,
+  id: string,
+  amount: number,
+  type: "pending" | "processing" = "pending"
+) {
   await db()
     .insert(payouts)
     .values({
@@ -105,7 +120,7 @@ async function seed_payout(npo_id: number, id: string, amount: number) {
       source: "donation",
       date: "2026-09-01T00:00:00.000Z",
       amount,
-      type: "pending",
+      type,
     });
 }
 
@@ -136,11 +151,27 @@ describe("grants cron execute", () => {
     await index();
 
     expect(report_error_mock).not.toHaveBeenCalled();
+    expect(settle_spy).toHaveBeenCalledOnce();
+    expect(settle_spy.mock.calls[0]![0]).toMatchObject({ id: npo_id });
+    expect([...settle_spy.mock.calls[0]![1]].sort()).toEqual(["p-1", "p-2"]);
     expect(transfer_grant_mock).toHaveBeenCalledOnce();
     expect(transfer_grant_mock).toHaveBeenCalledWith(
       WISE_RECIPIENT,
       100,
       expect.any(String)
+    );
+    const ref = transfer_grant_mock.mock.calls[0]![2];
+    expect(send_alert).toHaveBeenCalledOnce();
+    expect(send_alert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "NOTICE",
+        title: expect.stringMatching(/^Grant paid for npo:/),
+        fields: [
+          { name: "amount", value: "100" },
+          { name: "transfer_id", value: String(TRANSFER_ID) },
+          { name: "ref_id", value: ref },
+        ],
+      })
     );
     expect(await payout_types()).toEqual({
       "p-1": "settled",
@@ -198,6 +229,79 @@ describe("grants cron execute", () => {
       "p-2": "refunded",
     });
     expect(await db().select().from(settlements)).toEqual([]);
+    expect(await npo_cash(npo_id)).toBe(500);
+  });
+
+  test("payouts a past run claimed and never settled raise one alert, and the run still pays", async () => {
+    const npo_id = await seed_npo({ cash: 500 });
+    await seed_payout(npo_id, "stuck-1", 70, "processing");
+    await seed_payout(npo_id, "stuck-2", 30, "processing");
+    await seed_payout(npo_id, "p-1", 60);
+
+    await index();
+
+    const errors = send_alert.mock.calls
+      .map(([a]) => a)
+      .filter((a) => a.type === "ERROR");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].title).toMatch(/claimed but not settled/);
+    expect(errors[0].body).toContain(`npo:${npo_id}: stuck-1, stuck-2`);
+    expect(transfer_grant_mock).toHaveBeenCalledWith(
+      WISE_RECIPIENT,
+      60,
+      expect.any(String)
+    );
+    expect(await payout_types()).toEqual({
+      "stuck-1": "processing",
+      "stuck-2": "processing",
+      "p-1": "settled",
+    });
+  });
+
+  test("an unsettled-claims alert that fails to send is reported and the run still pays", async () => {
+    const npo_id = await seed_npo({ cash: 500 });
+    await seed_payout(npo_id, "stuck-1", 70, "processing");
+    await seed_payout(npo_id, "p-1", 60);
+    const discord_down = new Error("discord 502");
+    send_alert.mockImplementation(async (a) => {
+      if (a.type === "ERROR") throw discord_down;
+    });
+
+    const res = await index();
+
+    expect(res.statusCode).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledWith(discord_down);
+    expect(await payout_types()).toMatchObject({ "p-1": "settled" });
+  });
+
+  test("a snapshot under the npo's minimum claims nothing", async () => {
+    const npo_id = await seed_npo({ cash: 500, payout_minimum: 80 });
+    await seed_payout(npo_id, "p-1", 30);
+    await seed_payout(npo_id, "p-2", 40);
+
+    await index();
+
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(settle_spy).not.toHaveBeenCalled();
+    expect(transfer_grant_mock).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({
+      "p-1": "pending",
+      "p-2": "pending",
+    });
+  });
+
+  test("a transfer that fails before funding sends no paid notice and leaves the payouts pending", async () => {
+    const npo_id = await seed_npo({ cash: 500 });
+    await seed_payout(npo_id, "p-1", 60);
+    transfer_grant_mock.mockRejectedValue(
+      new NotFundedError(new Error("quote 503"))
+    );
+
+    await index();
+
+    expect(transfer_grant_mock).toHaveBeenCalledOnce();
+    expect(send_alert).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({ "p-1": "pending" });
     expect(await npo_cash(npo_id)).toBe(500);
   });
 

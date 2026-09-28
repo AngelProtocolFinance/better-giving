@@ -4,6 +4,8 @@ import type {
   INpoSettlementsOptions,
   IPayout,
   IPendingStatus,
+  IProcessingStatus,
+  PayoutStatus,
 } from "@/payouts";
 import { db } from "../db";
 import { payouts, settlements } from "../schema/payout";
@@ -62,6 +64,18 @@ export async function pending_payouts(): Promise<IPayout[]> {
   return rows.map(to_payout);
 }
 
+/** claimed by a grants run that has not settled or released them yet */
+export async function processing_payouts(): Promise<
+  IPayout<IProcessingStatus>[]
+> {
+  const rows = await db
+    .select()
+    .from(payouts)
+    .where(eq(payouts.type, "processing"))
+    .orderBy(asc(payouts.npo_id), asc(payouts.id));
+  return rows.map(to_payout) as IPayout<IProcessingStatus>[];
+}
+
 /**
  * no pending guard: a loss refund marks the payout whatever state it reached,
  * settled included — the loss log records what the npo kept.
@@ -110,6 +124,38 @@ export async function payout_move_from_pending(
     .where(and(eq(payouts.id, id), eq(payouts.type, "pending")))
     .returning({ id: payouts.id });
   return rows.length > 0;
+}
+
+/**
+ * compare-and-set of every payout among `ids` still in `from`; returns the ids
+ * it moved. a payout another writer moved on first is left out.
+ */
+export async function payouts_move(
+  db: DbOrTx,
+  ids: string[],
+  from: PayoutStatus["type"],
+  upd: PayoutStatus
+): Promise<string[]> {
+  const rows = await db
+    .update(payouts)
+    .set(from_payout_update(upd))
+    .where(and(inArray(payouts.id, ids), eq(payouts.type, from)))
+    .returning({ id: payouts.id });
+  return rows.map((r) => r.id);
+}
+
+/** the ids among `ids` whose payout is currently `type` */
+export async function payouts_in(
+  db: DbOrTx,
+  ids: string[],
+  type: PayoutStatus["type"]
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select({ id: payouts.id })
+    .from(payouts)
+    .where(and(inArray(payouts.id, ids), eq(payouts.type, type)));
+  return rows.map((r) => r.id);
 }
 
 // -- settlements --

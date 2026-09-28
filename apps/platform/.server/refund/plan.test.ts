@@ -213,6 +213,21 @@ describe("calc_refund_plan", () => {
     expect(po.kind === "payout_status" && po.status).toBe("refunded_loss");
   });
 
+  test("cash payout mid-transfer (processing) → loss, like a paid one", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "processing" },
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(true);
+    const loss = plan.effects.find((e) => e.kind === "loss_log");
+    expect(loss && loss.kind === "loss_log" && loss.loss.type).toBe("payout");
+    expect(plan.effects.some((e) => e.kind === "balance_update")).toBe(false);
+    const [po] = plan.effects;
+    expect(po.kind === "payout_status" && po.status).toBe("refunded_loss");
+  });
+
   test("mixed alloc: all sufficient → canonical effect order", () => {
     const plan = calc_refund_plan(
       make_inputs({

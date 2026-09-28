@@ -34,6 +34,8 @@ export function to_payout(row: PayoutRow): IPayout {
       return { ...base, type: "refunded_loss" };
     case "cancelled":
       return { ...base, type: "cancelled" };
+    case "processing":
+      return { ...base, type: "processing" };
     default:
       return { ...base, type: "pending" };
   }

@@ -181,8 +181,8 @@ export async function process_refund(
       return;
     }
     try {
-      // the grants cron settled the payout after `g` was read: a plan drawn
-      // once more from a fresh graph sees it settled and takes the loss path
+      // the grants cron claimed or settled the payout after `g` was read: a
+      // plan drawn once more from a fresh graph sees it and takes the loss path
       const res = await apply_dist(g).catch(async (err) => {
         if (!(err instanceof StalePayoutError)) throw err;
         const fresh = (await dists_for_refund(donation_id)).find(

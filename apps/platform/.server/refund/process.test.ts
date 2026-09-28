@@ -444,6 +444,33 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     expect((await dons())[0]!.status).toBe("refunded_loss");
   });
 
+  test("a payout the cron claimed for a transfer in flight ends in a logged loss", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    await seed_cash_dist(id, npo_id);
+    const db = test_db.current!.db;
+    const graphs = await dists_for_refund(id);
+    // the cron commits its claim after the caller's snapshot, before the CAS
+    await db
+      .update(payouts)
+      .set({ type: "processing" })
+      .where(eq(payouts.id, `payout-${id}`));
+
+    const res = await process_refund(id, graphs, ctx);
+
+    expect(res.failures).toEqual([]);
+    const [dist] = await db.select().from(dists);
+    expect(dist!.refund_status).toBe("loss");
+    const logs = await db.select().from(loss_logs);
+    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
+      [`dist-${id}`, "payout"],
+    ]);
+    // the cash is on its way to the npo; the settle takes it off the balance
+    const [npo] = await db.select().from(npos).where(eq(npos.id, npo_id));
+    expect(npo!.cash).toBe(100);
+    const [po] = await db.select().from(payouts);
+    expect(po!.type).toBe("refunded_loss");
+  });
+
   test("a payout that is stale on the re-plan too leaves the dist failed", async () => {
     const { id, npo_id } = await seed({ event: false });
     await seed_cash_dist(id, npo_id);

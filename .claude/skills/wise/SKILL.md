@@ -44,7 +44,7 @@ curl -s "$WISE_API_URL/v4/profiles/$WISE_PROFILE_ID/balances?types=STANDARD" \
 
 ## Server surface
 
-`lib/wise.ts` is the whole client — 5 methods, no SDK. Errors throw the raw response **text**, not a parsed body.
+`lib/wise.ts` is the whole client — 5 methods, no SDK. Errors throw the raw response **text**, not a parsed body. Every call aborts after 30s (`TIMEOUT_MS`, `AbortSignal.timeout`) with a `TimeoutError`.
 
 | method | endpoint | called from |
 |---|---|---|
@@ -54,7 +54,7 @@ curl -s "$WISE_API_URL/v4/profiles/$WISE_PROFILE_ID/balances?types=STANDARD" \
 | `transfer(…)` | `POST /v1/transfers` | `transfer-grant.ts` |
 | `fund_transfer(…)` | `POST /v3/profiles/{p}/transfers/{t}/payments` | `transfer-grant.ts` |
 
-**Payout chain** — `src/routes/api.cron.grants/transfer-grant.ts`: `v2_account` → `quote` → `transfer` → `fund_transfer`. `customerTransactionId` is the caller's `ref` and is Wise's idempotency key: reusing a ref returns the original transfer instead of creating a second one. `transfer()` resolves with HTTP 200 while carrying `errors` — the call site throws on it. `fund_transfer` returning `status: "REJECTED"` is the insufficient-balance case (`errorCode`), not an exception.
+**Payout chain** — `src/routes/api.cron.grants/transfer-grant.ts`: `v2_account` → `quote` → `transfer` → `fund_transfer`. `customerTransactionId` is the caller's `ref` and is Wise's idempotency key: reusing a ref returns the original transfer instead of creating a second one. `transfer()` resolves with HTTP 200 while carrying `errors` — the call site throws on it. `fund_transfer` returning `status: "REJECTED"` is the insufficient-balance case (`errorCode`), not an exception. The cron wraps it: `.server/payouts/settle.ts` claims payouts `pending → processing` before paying, and `transfer-grant.ts` throws `NotFundedError` for anything before funding (and `REJECTED`) so settle releases them; any other failure leaves them `processing` for manual reconcile by ref.
 
 ## Browser surface
 

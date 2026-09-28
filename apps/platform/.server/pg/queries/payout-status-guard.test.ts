@@ -6,23 +6,39 @@ import {
   describe,
   expect,
   test,
+  vi,
 } from "vitest";
 import type { IPayout } from "@/payouts";
 import { npos } from "../schema/npo";
 import { payouts, settlements } from "../schema/payout";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
-import { payout_move_from_pending, pending_payouts_locked } from "./payout";
+import {
+  payout_get,
+  payout_move_from_pending,
+  pending_payouts_locked,
+  processing_payouts,
+} from "./payout";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
 // which these queries do not read.
 const as_db = (x: unknown) => x as DbOrTx;
+
+// the module-level db the unscoped readers use
+const current = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("../db", () => ({
+  db: new Proxy(
+    {},
+    { get: (_, prop) => (current.db as Record<PropertyKey, unknown>)[prop] }
+  ),
+}));
 
 let test_db: TestDb;
 let npo_id: number;
 
 beforeAll(async () => {
   test_db = await create_test_db();
+  current.db = test_db.db;
 }, 30_000);
 
 afterAll(async () => {
@@ -49,7 +65,7 @@ beforeEach(async () => {
 
 async function seed_payout(
   id: string,
-  type: "pending" | "settled" | "refunded"
+  type: "pending" | "processing" | "settled" | "refunded"
 ) {
   if (type === "settled") {
     await test_db.db.insert(settlements).values({
@@ -161,5 +177,31 @@ describe("pending_payouts_locked", () => {
     });
 
     expect(row!.xmax).toBe(row!.xid);
+  });
+});
+
+describe("payout_get", () => {
+  test("reads a processing payout as processing, not pending", async () => {
+    await seed_payout("p1", "processing");
+
+    const po = await payout_get("p1");
+
+    expect(po?.type).toBe("processing");
+  });
+});
+
+describe("processing_payouts", () => {
+  test("returns every processing payout and nothing else", async () => {
+    await seed_payout("p-pending", "pending");
+    await seed_payout("p-proc-b", "processing");
+    await seed_payout("p-settled", "settled");
+    await seed_payout("p-proc-a", "processing");
+
+    const rows = await processing_payouts();
+
+    expect(rows.map((p) => [p.id, p.type, p.npo_id, p.date])).toEqual([
+      ["p-proc-a", "processing", npo_id, "2026-09-01T00:00:00.000Z"],
+      ["p-proc-b", "processing", npo_id, "2026-09-01T00:00:00.000Z"],
+    ]);
   });
 });

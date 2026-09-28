@@ -11,6 +11,10 @@ export interface ISettledStatus {
 export interface IPendingStatus {
   type: "pending";
 }
+/** claimed by the grants cron: its wise transfer is in flight or unreconciled */
+export interface IProcessingStatus {
+  type: "processing";
+}
 export interface IRefundedStatus {
   type: "refunded";
 }
@@ -29,6 +33,7 @@ export type PayoutStatus =
   | IErrorStatus
   | ISettledStatus
   | IPendingStatus
+  | IProcessingStatus
   | IRefundedStatus
   | IRefundedLossStatus
   | ICancelledStatus;

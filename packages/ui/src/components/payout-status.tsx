@@ -6,6 +6,7 @@ export type PayoutStatusType =
   | "error"
   | "settled"
   | "pending"
+  | "processing"
   | "refunded"
   | "refunded_loss"
   | "cancelled";
@@ -21,6 +22,12 @@ const configs: Record<PayoutStatusType, IConfig> = {
     text: "text-warning-subtle-fg",
     dot: "bg-warning",
     label: "Pending",
+  },
+  // in flight like pending; the ledger has no separate in-progress pair
+  processing: {
+    text: "text-warning-subtle-fg",
+    dot: "bg-warning",
+    label: "Processing",
   },
   settled: {
     text: "text-success-subtle-fg",
