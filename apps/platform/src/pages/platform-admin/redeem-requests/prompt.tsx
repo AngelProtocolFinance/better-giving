@@ -14,15 +14,17 @@ type Props = {
 };
 
 export function Prompt(props: Props) {
+  const { tx_id } = useParams();
   return (
     <RouteModal classes="bg-panel">
-      <Content {...props} />
+      {/* keyed: the route stays mounted across requests, and the latch from
+          one must not swallow the first press on the next */}
+      <Content key={tx_id} tx_id={tx_id} {...props} />
     </RouteModal>
   );
 }
 
-function Content({ verdict }: Props) {
-  const { tx_id } = useParams();
+function Content({ verdict, tx_id }: Props & { tx_id?: string }) {
   const fetcher = useFetcher({
     key: `tx-request-${tx_id}-${verdict}`,
   });
@@ -38,7 +40,8 @@ function Content({ verdict }: Props) {
     if (busy || sent.current) e.preventDefault();
   };
   const submit_once = (e: FormEvent) => {
-    if (sent.current) return e.preventDefault();
+    // `busy` too: back on a request still in flight, the remount starts unlatched
+    if (busy || sent.current) return e.preventDefault();
     sent.current = true;
   };
 

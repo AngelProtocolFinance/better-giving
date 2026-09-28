@@ -190,14 +190,7 @@ await vi.waitFor(() => {
 
 ### A press right after a route change
 
-State that resets in a `useEffect` (a submit latch, a "sent" flag) lags the paint of the new route by a beat, so a single press as soon as the button appears can land on the old state and be swallowed — about 1 run in 3 in `src/pages/platform-admin/redeem-requests/prompt.test.tsx`. Retry the press inside `vi.waitFor`, guarded by the count you expect, so a state that never resets still times out red:
-
-```tsx
-await vi.waitFor(() => {
-  if (action.mock.calls.length < 2) press(submit.element());
-  expect(action).toHaveBeenCalledTimes(2);
-});
-```
+A single press, as a person makes it, is the test. When one press on a new route is swallowed intermittently, the component is carrying state across records: per-record state reset in a `useEffect` (a submit latch, a "sent" flag) lags the new route's paint, so the press lands on the old record's state. That is a product bug, fixed in the component: key it by the record id so the state starts fresh within the render (`src/pages/platform-admin/redeem-requests/prompt.tsx`, `<Content key={tx_id} …>`). A press retried inside `vi.waitFor` passes over exactly the click a person loses.
 
 ### Dialog backdrop blocking clicks
 

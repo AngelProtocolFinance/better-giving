@@ -28,6 +28,7 @@ const stub = (action: (args: ActionFunctionArgs) => Promise<null>) =>
       Component: () => (
         <>
           <p>requests list</p>
+          <Link to="/redeem-requests/tx-1/approve">open tx-1</Link>
           <Link to="/redeem-requests/tx-2/approve">open tx-2</Link>
           <Outlet />
         </>
@@ -161,12 +162,10 @@ describe("redeem request verdict prompt", () => {
     await expect.element(submit).toBeInTheDocument();
     await expect.element(submit).not.toHaveAttribute("aria-disabled", "true");
 
-    // the latch resets in an effect, a beat after tx-2's Submit paints; a
-    // latch that never resets swallows every press and times this out
-    await vi.waitFor(() => {
-      if (action.mock.calls.length < 2) press(submit.element());
-      expect(action).toHaveBeenCalledTimes(2);
-    });
+    // one press, right as tx-2's Submit is ready: a latch carried over from
+    // tx-1 swallows it
+    press(submit.element());
+    await vi.waitFor(() => expect(action).toHaveBeenCalledTimes(2));
     expect(action.mock.calls.map(([a]) => a.params.tx_id)).toEqual([
       "tx-1",
       "tx-2",
@@ -175,5 +174,36 @@ describe("redeem request verdict prompt", () => {
     release();
     await Promise.all(action.mock.results.map((r) => r.value));
     await expect.element(submit).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  test("back on a request whose verdict is still in flight, Submit sends nothing more", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
+    const screen = await render(
+      <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
+    );
+
+    press(screen.getByRole("button", { name: "Submit" }).element());
+    await expect
+      .element(screen.getByRole("button", { name: "Submitting…" }))
+      .toBeInTheDocument();
+
+    // the dialog hides the page behind it from the accessibility tree
+    const open = (tx: string) =>
+      press(screen.container.querySelector(`a[href$="/${tx}/approve"]`)!);
+    open("tx-2");
+    await expect
+      .element(screen.getByRole("button", { name: "Submit", exact: true }))
+      .toBeInTheDocument();
+    open("tx-1");
+    const pending = screen.getByRole("button", { name: "Submitting…" });
+    await expect.element(pending).toHaveAttribute("aria-disabled", "true");
+
+    press(pending.element());
+    release();
+    await expect
+      .element(screen.getByRole("button", { name: "Submit", exact: true }))
+      .not.toHaveAttribute("aria-disabled", "true");
+    expect(action.mock.calls.map(([a]) => a.params.tx_id)).toEqual(["tx-1"]);
   });
 });
