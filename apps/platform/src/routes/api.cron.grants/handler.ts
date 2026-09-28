@@ -57,9 +57,13 @@ async function alert_unsettled_claims() {
   try {
     const stuck = await processing_payouts();
     if (stuck.length === 0) return;
-    const by_npo = group_by(stuck, (p) => p.npo_id);
-    const lines = Object.entries(by_npo).map(
-      ([npo, ps = []]) => `npo:${npo}: ${ps.map((p) => p.id).join(", ")}`
+    // one line per claim: its ref is the customerTransactionId to look up in wise
+    const by_claim = group_by(
+      stuck,
+      (p) => `npo:${p.npo_id} ref ${p.ref || "unknown"}`
+    );
+    const lines = Object.entries(by_claim).map(
+      ([claim, ps = []]) => `${claim}: ${ps.map((p) => p.id).join(", ")}`
     );
     await aws_monitor.send_alert({
       type: "ERROR",

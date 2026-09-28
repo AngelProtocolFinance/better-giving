@@ -4,6 +4,7 @@ import type { Alert } from "@/discord";
 import { stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
+import type { DbOrTx } from "../pg/queries/helpers";
 import { npo_balance_update } from "../pg/queries/npo";
 import {
   payouts_in,
@@ -11,6 +12,7 @@ import {
   pending_payouts_locked,
   settlement_put,
 } from "../pg/queries/payout";
+import { reverse_unfunded_payout_loss } from "../refund/unfunded";
 
 /**
  * wires the money: returns the transfer id once funding was accepted. throws
@@ -59,12 +61,13 @@ export async function settle_npo_payouts(
       return { status: "under_minimum", total, minimum } as const;
     }
     const ids = locked.map((p) => p.id);
-    await payouts_move(tx, ids, "pending", { type: "processing" });
-    return { status: "claimed", payouts: locked, ids, total } as const;
+    // stored with the claim: a run that dies past here leaves only the rows to reconcile by
+    const ref = transfer_ref(ref_key, total, ids);
+    await payouts_move(tx, ids, "pending", { type: "processing", ref });
+    return { status: "claimed", payouts: locked, ids, total, ref } as const;
   });
   if (claim.status !== "claimed") return claim;
-  const { payouts: claimed, ids, total } = claim;
-  const ref = transfer_ref(ref_key, total, ids);
+  const { payouts: claimed, ids, total, ref } = claim;
 
   const fields = [
     { name: "npo", value: `${npo.id}: ${npo.name}` },
@@ -78,11 +81,9 @@ export async function settle_npo_payouts(
   } catch (err) {
     const ctx = { npo_id: npo.id, ref, payout_ids: ids };
     if (err instanceof NotFundedError) {
-      let released: string[];
+      let released: IRelease;
       try {
-        released = await db.transaction((tx) =>
-          payouts_move(tx, ids, "processing", { type: "pending" })
-        );
+        released = await db.transaction((tx) => release(tx, ids));
       } catch (release_err) {
         report_error(err.cause, ctx);
         report_error(release_err, ctx);
@@ -93,19 +94,21 @@ export async function settle_npo_payouts(
         });
         return { status: "unreleased", ref };
       }
-      // loss-refunded in flight: its loss log says the npo kept money it never got
-      const not_released = ids.filter((id) => !released.includes(id));
+      const { not_released, kept } = released;
       report_error(err.cause, {
         ...ctx,
         ...(not_released.length > 0 && { not_released }),
       });
-      if (not_released.length > 0) {
+      if (kept.length > 0) {
         await alert({
           title: `refunded as a loss but never paid, npo:${npo.id}`,
-          body: `these payouts were loss-refunded while their transfer was in flight, and the transfer failed before funding. the npo's cash still carries them and their loss log records a loss that did not happen: debit the cash or reverse the loss log. customerTransactionId ${ref}`,
+          body: `these payouts were loss-refunded while their transfer was in flight, and the transfer failed before funding. the loss could not be reversed automatically, so the npo's cash still carries them and their loss log records a loss that did not happen: debit the cash or reverse the loss log. customerTransactionId ${ref}`,
           fields: [
             ...fields,
-            { name: "not_released", value: not_released.join(", ") },
+            {
+              name: "not_reversed",
+              value: kept.map((k) => `${k.id}: ${k.reason}`).join("\n"),
+            },
           ],
         });
       }
@@ -173,6 +176,37 @@ export async function settle_npo_payouts(
     });
   }
   return { status: "settled", ref, total, transfer_id };
+}
+
+interface IRelease {
+  not_released: string[];
+  /** loss-refunded in flight and left as a loss the npo was never paid for */
+  kept: { id: string; reason: string }[];
+}
+
+/**
+ * back to pending, for a transfer that was never funded. one loss-refunded
+ * while in flight is refunded as if it had been pending; each in its own
+ * savepoint, so one that fails leaves the others and the release standing.
+ */
+async function release(tx: DbOrTx, ids: string[]): Promise<IRelease> {
+  const released = await payouts_move(tx, ids, "processing", {
+    type: "pending",
+  });
+  const not_released = ids.filter((id) => !released.includes(id));
+  const kept: IRelease["kept"] = [];
+  for (const id of await payouts_in(tx, not_released, "refunded_loss")) {
+    try {
+      const r = await tx.transaction((sp) =>
+        reverse_unfunded_payout_loss(sp, id)
+      );
+      if (r.status === "kept") kept.push({ id, reason: r.reason });
+    } catch (err) {
+      report_error(err, { payout_id: id });
+      kept.push({ id, reason: String(err) });
+    }
+  }
+  return { not_released, kept };
 }
 
 /** an alert that fails to send is reported, never thrown past the money */

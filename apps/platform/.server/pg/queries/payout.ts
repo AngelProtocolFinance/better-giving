@@ -83,7 +83,7 @@ export async function processing_payouts(): Promise<
 export async function payout_mark_refunded_loss(db: DbOrTx, id: string) {
   await db
     .update(payouts)
-    .set({ type: "refunded_loss" })
+    .set(from_payout_update({ type: "refunded_loss" }))
     .where(eq(payouts.id, id));
 }
 

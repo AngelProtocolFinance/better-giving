@@ -14,6 +14,8 @@ export interface IPendingStatus {
 /** claimed by the grants cron: its wise transfer is in flight or unreconciled */
 export interface IProcessingStatus {
   type: "processing";
+  /** the claim's wise `customerTransactionId`; `""` on a claim made before it was stored */
+  ref: string;
 }
 export interface IRefundedStatus {
   type: "refunded";

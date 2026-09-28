@@ -105,12 +105,7 @@ async function seed_npo(o: { cash: number; payout_minimum?: number }) {
   return npo!.id;
 }
 
-async function seed_payout(
-  npo_id: number,
-  id: string,
-  amount: number,
-  type: "pending" | "processing" = "pending"
-) {
+async function seed_payout(npo_id: number, id: string, amount: number) {
   await db()
     .insert(payouts)
     .values({
@@ -120,8 +115,22 @@ async function seed_payout(
       source: "donation",
       date: "2026-09-01T00:00:00.000Z",
       amount,
-      type,
+      type: "pending",
     });
+}
+
+/** left `processing` by a run that died; no `ref` is a claim from before refs were stored */
+async function seed_claimed(
+  npo_id: number,
+  id: string,
+  amount: number,
+  ref?: string
+) {
+  await seed_payout(npo_id, id, amount);
+  await db()
+    .update(payouts)
+    .set({ type: "processing", message: ref ?? null })
+    .where(eq(payouts.id, id));
 }
 
 async function mark_refunded(id: string) {
@@ -232,10 +241,11 @@ describe("grants cron execute", () => {
     expect(await npo_cash(npo_id)).toBe(500);
   });
 
-  test("payouts a past run claimed and never settled raise one alert, and the run still pays", async () => {
+  test("payouts a past run claimed and never settled raise one alert naming each claim's wise ref, and the run still pays", async () => {
     const npo_id = await seed_npo({ cash: 500 });
-    await seed_payout(npo_id, "stuck-1", 70, "processing");
-    await seed_payout(npo_id, "stuck-2", 30, "processing");
+    await seed_claimed(npo_id, "stuck-1", 70, "ref-a");
+    await seed_claimed(npo_id, "stuck-2", 30, "ref-a");
+    await seed_claimed(npo_id, "stuck-3", 20);
     await seed_payout(npo_id, "p-1", 60);
 
     await index();
@@ -245,7 +255,10 @@ describe("grants cron execute", () => {
       .filter((a) => a.type === "ERROR");
     expect(errors).toHaveLength(1);
     expect(errors[0].title).toMatch(/claimed but not settled/);
-    expect(errors[0].body).toContain(`npo:${npo_id}: stuck-1, stuck-2`);
+    expect(errors[0].body).toContain(
+      `npo:${npo_id} ref ref-a: stuck-1, stuck-2`
+    );
+    expect(errors[0].body).toContain(`npo:${npo_id} ref unknown: stuck-3`);
     expect(transfer_grant_mock).toHaveBeenCalledWith(
       WISE_RECIPIENT,
       60,
@@ -254,13 +267,14 @@ describe("grants cron execute", () => {
     expect(await payout_types()).toEqual({
       "stuck-1": "processing",
       "stuck-2": "processing",
+      "stuck-3": "processing",
       "p-1": "settled",
     });
   });
 
   test("an unsettled-claims alert that fails to send is reported and the run still pays", async () => {
     const npo_id = await seed_npo({ cash: 500 });
-    await seed_payout(npo_id, "stuck-1", 70, "processing");
+    await seed_claimed(npo_id, "stuck-1", 70, "ref-a");
     await seed_payout(npo_id, "p-1", 60);
     const discord_down = new Error("discord 502");
     send_alert.mockImplementation(async (a) => {

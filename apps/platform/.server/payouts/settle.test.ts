@@ -33,7 +33,10 @@ vi.mock("../pg/queries/payout", async (io) => {
   };
 });
 vi.mock("../env", () => ({ stage: "test" }));
-vi.mock("../kit/discord", () => ({ aws_monitor: { send_alert } }));
+vi.mock("../kit/discord", () => ({
+  aws_monitor: { send_alert },
+  fiat_monitor: { send_alert: vi.fn() },
+}));
 vi.mock("../pg/db", () => ({
   db: new Proxy(
     {},
@@ -48,6 +51,13 @@ vi.mock("../pg/db", () => ({
 }));
 
 const { NotFundedError, settle_npo_payouts } = await import("./settle");
+const { processing_payouts } = await import("../pg/queries/payout");
+const { dists_for_refund } = await import("../pg/queries/dist");
+const { process_refund } = await import("../refund/process");
+const { dists } = await import("../pg/schema/dist");
+const { bal_txs } = await import("../pg/schema/bal-tx");
+const { donations } = await import("../pg/schema/donation");
+const { loss_logs, rev_logs } = await import("../pg/schema/revenue");
 const { create_test_db } = await import("../pg/test-utils/pglite");
 const { npos } = await import("../pg/schema/npo");
 const { payouts, settlements } = await import("../pg/schema/payout");
@@ -69,12 +79,22 @@ beforeEach(async () => {
   report_error.mockReset();
   send_alert.mockReset();
   fail_move.from = null;
+  await db().delete(bal_txs);
+  await db().delete(loss_logs);
+  await db().delete(rev_logs);
   await db().delete(payouts);
+  await db().delete(dists);
+  await db().delete(donations);
   await db().delete(settlements);
   await db().delete(npos);
 });
 
-async function seed_npo(o: { cash: number; payout_minimum?: number }) {
+async function seed_npo(o: {
+  cash: number;
+  liq?: number;
+  lock_units?: number;
+  payout_minimum?: number;
+}) {
   const [npo] = await db()
     .insert(npos)
     .values({
@@ -84,6 +104,8 @@ async function seed_npo(o: { cash: number; payout_minimum?: number }) {
       overview_pt: "[]",
       hq_country: "United States",
       cash: o.cash,
+      liq: o.liq,
+      lock_units: o.lock_units,
       payout_minimum: o.payout_minimum,
     })
     .returning();
@@ -107,6 +129,67 @@ async function seed_payout(npo_id: number, id: string, amount: number) {
       type: "pending",
     });
 }
+
+/** a settled donation whose one dist owes its cash share through payout `id` */
+async function seed_donation_payout(
+  npo_id: number,
+  id: string,
+  amount: number,
+  alloc = { liq: 0, lock: 0, cash: 100 }
+) {
+  const don = `don-${id}`;
+  const dist = `dist-${id}`;
+  await db().insert(donations).values({
+    id: don,
+    upusd: 1,
+    status: "settled",
+    amount_base: amount,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+  });
+  await db().insert(dists).values({
+    id: dist,
+    donation_id: don,
+    status: "settled",
+    date_created: "2026-09-01T00:00:00.000Z",
+    to_id: npo_id,
+    to_name: "npo",
+    amount,
+    amount_denom: "USD",
+    net: amount,
+    fee_base: 0,
+    fee_fsa: 0,
+    fee_processing: 0,
+    alloc,
+  });
+  await db()
+    .insert(rev_logs)
+    .values({
+      id: `rev-${id}`,
+      date: "2026-09-01T00:00:00.000Z",
+      donation_id: dist,
+      npo_id,
+      type: "base-fee",
+      gross: 1,
+      commission: 0,
+      revenue: 1,
+      status: "final",
+    });
+  await seed_payout(npo_id, id, (amount * alloc.cash) / 100);
+  return { don };
+}
+
+/** the donor's refund, landing while the payout's transfer is in flight */
+const refund_in_flight = async (donation_id: string) =>
+  process_refund(donation_id, await dists_for_refund(donation_id), {
+    form_id: null,
+    program_id: null,
+    alert_from: "test",
+  });
 
 const payout_types = async () =>
   Object.fromEntries(
@@ -222,6 +305,45 @@ describe("settle_npo_payouts", () => {
     );
   });
 
+  test("a claim stores its transfer ref on every claimed payout, where processing_payouts reads it", async () => {
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 60);
+    await seed_payout(npo.id, "p-2", 40);
+    const pay = vi.fn<Pay>(async () => {
+      throw new Error("fetch failed");
+    });
+
+    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const ref = pay.mock.calls[0]![0];
+
+    const stuck = await processing_payouts();
+    expect(stuck.map((p) => [p.id, p.ref])).toEqual([
+      ["p-1", ref],
+      ["p-2", ref],
+    ]);
+  });
+
+  test("a claim's ref leaves the rows with it, released or settled", async () => {
+    const npo = await seed_npo({ cash: 500, payout_minimum: 0 });
+    await seed_payout(npo.id, "p-1", 60);
+    await seed_payout(npo.id, "p-2", 40);
+    const unfunded = vi.fn<Pay>(async () => {
+      throw new NotFundedError(new Error("wise 503"));
+    });
+
+    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, unfunded);
+    await settle_npo_payouts(npo, ["p-2"], RECIPIENT, async () => TRANSFER_ID);
+
+    const rows = await db()
+      .select({ id: payouts.id, type: payouts.type, message: payouts.message })
+      .from(payouts)
+      .orderBy(payouts.id);
+    expect(rows).toEqual([
+      { id: "p-1", type: "pending", message: null },
+      { id: "p-2", type: "settled", message: null },
+    ]);
+  });
+
   test("a transfer that failed once funding was requested leaves the payouts processing and alerts", async () => {
     const npo = await seed_npo({ cash: 500 });
     await seed_payout(npo.id, "p-1", 60);
@@ -313,12 +435,9 @@ describe("settle_npo_payouts", () => {
   test("a payout loss-refunded while its transfer was in flight stays refunded_loss and is still settled for", async () => {
     const npo = await seed_npo({ cash: 500 });
     await seed_payout(npo.id, "p-1", 60);
-    await seed_payout(npo.id, "p-2", 40);
+    const { don } = await seed_donation_payout(npo.id, "p-2", 40);
     const pay = vi.fn<Pay>(async () => {
-      await db()
-        .update(payouts)
-        .set({ type: "refunded_loss" })
-        .where(eq(payouts.id, "p-2"));
+      await refund_in_flight(don);
       return TRANSFER_ID;
     });
 
@@ -332,18 +451,32 @@ describe("settle_npo_payouts", () => {
     const [stlmt] = await db().select().from(settlements);
     expect(stlmt?.amount).toBe(100);
     expect(await npo_cash(npo.id)).toBe(400);
+    const logs = await db().select().from(loss_logs);
+    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
+      ["dist-p-2", "payout"],
+    ]);
+    const [d] = await db().select().from(dists);
+    expect(d?.refund_status).toBe("loss");
+    const [dn] = await db()
+      .select()
+      .from(donations)
+      .where(eq(donations.id, don));
+    expect(dn?.status).toBe("refunded_loss");
+    const refs = await db().select({ message: payouts.message }).from(payouts);
+    expect(refs).toEqual([{ message: null }, { message: null }]);
     expect(send_alert).not.toHaveBeenCalled();
   });
 
-  test("a payout loss-refunded while its transfer failed before funding is named in an alert", async () => {
-    const npo = await seed_npo({ cash: 500 });
+  test("an unfunded payout loss-refunded in flight on a partly invested dist keeps its loss and is named in an alert", async () => {
+    const npo = await seed_npo({ cash: 500, lock_units: 1000 });
     await seed_payout(npo.id, "p-1", 60);
-    await seed_payout(npo.id, "p-2", 40);
+    const { don } = await seed_donation_payout(npo.id, "p-2", 100, {
+      liq: 0,
+      lock: 60,
+      cash: 40,
+    });
     const pay = vi.fn<Pay>(async () => {
-      await db()
-        .update(payouts)
-        .set({ type: "refunded_loss" })
-        .where(eq(payouts.id, "p-2"));
+      await refund_in_flight(don);
       throw new NotFundedError(new Error("wise 503"));
     });
 
@@ -353,6 +486,11 @@ describe("settle_npo_payouts", () => {
       "p-1": "pending",
       "p-2": "refunded_loss",
     });
+    expect(await npo_cash(npo.id)).toBe(500);
+    const logs = await db().select().from(loss_logs);
+    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
+      ["dist-p-2", "payout"],
+    ]);
     expect(report_error).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ not_released: ["p-2"] })
@@ -362,7 +500,89 @@ describe("settle_npo_payouts", () => {
     expect(alert.type).toBe("ERROR");
     expect(alert.body).toMatch(/cash/);
     expect(alert.body).toMatch(/loss log/);
-    expect(alert.fields).toContainEqual({ name: "not_released", value: "p-2" });
+    expect(alert.fields).toContainEqual({
+      name: "not_reversed",
+      value: expect.stringMatching(/^p-2: .*nav price/),
+    });
+  });
+
+  test("a payout loss-refunded in flight whose transfer then went unfunded is refunded as if it had been pending", async () => {
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 60);
+    const { don } = await seed_donation_payout(npo.id, "p-2", 40);
+    const pay = vi.fn<Pay>(async () => {
+      await refund_in_flight(don);
+      throw new NotFundedError(new Error("wise 503"));
+    });
+
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+
+    expect(res).toMatchObject({ status: "released" });
+    expect(await payout_types()).toEqual({
+      "p-1": "pending",
+      "p-2": "refunded",
+    });
+    expect(await npo_cash(npo.id)).toBe(460);
+    expect(await db().select().from(loss_logs)).toEqual([]);
+    const [d] = await db().select().from(dists);
+    expect([d?.status, d?.refund_status]).toEqual(["refunded", "completed"]);
+    const [rl] = await db().select().from(rev_logs);
+    expect(rl?.status).toBe("refunded");
+    const [dn] = await db()
+      .select()
+      .from(donations)
+      .where(eq(donations.id, don));
+    expect(dn?.status).toBe("refunded");
+    expect(send_alert).not.toHaveBeenCalled();
+  });
+
+  test("an unfunded loss refund on a dist with a savings share takes that share from savings too", async () => {
+    const npo = await seed_npo({ cash: 500, liq: 200 });
+    const { don } = await seed_donation_payout(npo.id, "p-1", 100, {
+      liq: 30,
+      lock: 0,
+      cash: 70,
+    });
+    const pay = vi.fn<Pay>(async () => {
+      await refund_in_flight(don);
+      throw new NotFundedError(new Error("wise 503"));
+    });
+
+    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+
+    expect(await payout_types()).toEqual({ "p-1": "refunded" });
+    const [n] = await db()
+      .select({ liq: npos.liq, cash: npos.cash })
+      .from(npos)
+      .where(eq(npos.id, npo.id));
+    expect(n).toEqual({ liq: 170, cash: 430 });
+    const txs = await db().select().from(bal_txs);
+    expect(
+      txs.map((t) => [t.account, t.amount, t.bal_begin, t.bal_end])
+    ).toEqual([["liq", 30, 200, 170]]);
+    expect(await db().select().from(loss_logs)).toEqual([]);
+    expect(send_alert).not.toHaveBeenCalled();
+  });
+
+  test("an unfunded payout whose refund was a loss on savings alone keeps that loss, with no alert", async () => {
+    const npo = await seed_npo({ cash: 500, liq: 0 });
+    const { don } = await seed_donation_payout(npo.id, "p-1", 100, {
+      liq: 30,
+      lock: 0,
+      cash: 70,
+    });
+    const pay = vi.fn<Pay>(async () => {
+      await refund_in_flight(don);
+      throw new NotFundedError(new Error("wise 503"));
+    });
+
+    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+
+    expect(await payout_types()).toEqual({ "p-1": "refunded_loss" });
+    expect(await npo_cash(npo.id)).toBe(500);
+    const logs = await db().select().from(loss_logs);
+    expect(logs.map((l) => l.type)).toEqual(["balance_liq"]);
+    expect(send_alert).not.toHaveBeenCalled();
   });
 
   test("binds the ref to the recipient and the total, not just the payout ids", async () => {
