@@ -15,7 +15,7 @@ import { commission_update_status } from "../pg/queries/referrer";
 import { loss_log_put, rev_log_update_status } from "../pg/queries/revenue";
 import type { RefundPlan } from "./plan";
 
-/** the plan cancels a payout that another writer moved out of `pending` since */
+/** the plan refunds a payout that another writer moved out of `pending` since */
 export class StalePayoutError extends Error {
   constructor(payout_id: string) {
     super(`payout:${payout_id} is no longer pending`);

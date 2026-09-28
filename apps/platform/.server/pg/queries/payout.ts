@@ -89,7 +89,7 @@ export async function payout_mark_refunded_loss(db: DbOrTx, id: string) {
 
 /**
  * the payouts among `ids` still pending, row-locked until `tx` ends. a payout
- * settled or refunded by a writer that commits first is re-checked after the
+ * claimed or refunded by a writer that commits first is re-checked after the
  * wait and left out. id order keeps two concurrent lockers from deadlocking.
  */
 export async function pending_payouts_locked(
@@ -111,7 +111,7 @@ export async function payout_put(db: DbOrTx, data: IPayout) {
 
 /**
  * compare-and-set out of `pending`: false when the payout was already moved on
- * (settled by the grants cron, refunded, …) — the caller's snapshot is stale.
+ * (claimed by the grants cron, refunded, …) — the caller's snapshot is stale.
  */
 export async function payout_move_from_pending(
   db: DbOrTx,

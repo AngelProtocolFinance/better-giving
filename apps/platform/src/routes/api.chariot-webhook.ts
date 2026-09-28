@@ -54,9 +54,9 @@ const on_grant_canceled: Record<TStatus, "cancel" | "keep" | "alert"> = {
 };
 
 const refunded_todo =
-  "the donor was already refunded for a grant that will never pay; record it as a platform loss";
+  "the donor was already refunded for a grant that will never pay; record the refund as a platform loss";
 const on_canceled_todo: Partial<Record<TStatus, string>> = {
-  settled: "reverse it with the refund tooling",
+  settled: "reverse the donation with the refund tooling",
   refunded: refunded_todo,
   refunded_loss: refunded_todo,
 };
