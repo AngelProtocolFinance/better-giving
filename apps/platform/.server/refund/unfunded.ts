@@ -12,6 +12,7 @@ import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs, rev_logs } from "../pg/schema/revenue";
 import { apply_refund_plan } from "./apply";
+import { donation_refund_status } from "./donation-status";
 import { calc_refund_plan, type RefundEffect } from "./plan";
 
 export type UnfundedLossReversal =
@@ -163,14 +164,9 @@ async function donation_status_recompute(
     .from(donations)
     .where(eq(donations.id, donation_id));
   if (don?.status !== "refunded_loss") return;
-  const [other_loss] = await tx
-    .select({ id: dists.id })
-    .from(dists)
-    .where(
-      and(eq(dists.donation_id, donation_id), eq(dists.refund_status, "loss"))
-    )
-    .limit(1);
-  if (other_loss) return;
+  if ((await donation_refund_status(tx, donation_id)) === "refunded_loss") {
+    return;
+  }
   await donation_update(tx, donation_id, { status: "refunded" });
   await tx
     .update(donation_match_events)

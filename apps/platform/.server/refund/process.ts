@@ -12,7 +12,6 @@ import {
   dist_refund_update,
   dists_for_refund,
   dists_settled_of,
-  donation_has_refund_loss,
 } from "../pg/queries/dist";
 import {
   donation_get,
@@ -24,6 +23,7 @@ import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
 import type { MatchEvent } from "../pg/schema/match";
 import { apply_refund_plan, StalePayoutError } from "./apply";
+import { donation_refund_status } from "./donation-status";
 import {
   calc_refund_plan,
   type RefundCtx,
@@ -211,12 +211,6 @@ export async function process_refund(
 
   for (const g of graphs) await reverse(g);
 
-  // factor in losses from prior partial runs — current loss_msgs only sees
-  // dists processed this invocation; siblings already marked
-  // refund_status="loss" from a prior attempt won't reappear.
-  const has_loss_now = async () =>
-    loss_msgs.length > 0 || (await donation_has_refund_loss(donation_id));
-
   // only finalize the donation status when every dist was applied. with
   // failures present the dists are in mixed states (some "completed",
   // some "failed") and the donation must stay reversible so admin can
@@ -244,22 +238,27 @@ export async function process_refund(
   // and then skip. a dist still unreversed under that lock is swept and the flip
   // retried; one still there after the last sweep is a failure, leaving the
   // donation "settled" and retryable like any other.
-  let has_loss = await has_loss_now();
+  //
+  // the status is read from the dists under that lock, never from this run's
+  // results: prior partial runs' losses count, and a loss the grants cron
+  // reversed since (`reverse_unfunded_payout_loss`) doesn't.
+  let final: "refunded" | "refunded_loss" | undefined;
   for (let round = 0; failures.length === 0; round++) {
-    const status = has_loss ? "refunded_loss" : "refunded";
     const fin = await db.transaction(async (tx) => {
       await donation_lock(tx, donation_id);
       const pending = await dists_settled_of(tx, donation_id);
       if (pending.some((d) => !is_reversed(d))) {
         return { flipped: false } as const;
       }
+      const status = await donation_refund_status(tx, donation_id);
       await donation_update(tx, donation_id, { status });
       const voided = await void_match_event(tx, donation_id, status);
-      return { flipped: true, voided } as const;
+      return { flipped: true, status, voided } as const;
     });
 
     if (fin.flipped) {
-      const { voided } = fin;
+      const { status, voided } = fin;
+      final = status;
       // deliberately after the commit, never inside it: a send from within the
       // transaction either holds the row locks across a provider round-trip or
       // announces a void that then rolls back. the whole thing is caught, because
@@ -283,7 +282,6 @@ export async function process_refund(
       break;
     }
     for (const g of await dists_for_refund(donation_id)) await reverse(g);
-    has_loss = await has_loss_now();
   }
 
   // losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
@@ -296,6 +294,9 @@ export async function process_refund(
     });
   }
 
+  const has_loss =
+    (final ?? (await donation_refund_status(db, donation_id))) ===
+    "refunded_loss";
   return { failures, loss_msgs, has_loss, applied };
 }
 

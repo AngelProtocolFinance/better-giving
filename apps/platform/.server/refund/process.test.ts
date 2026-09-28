@@ -68,10 +68,29 @@ vi.mock("../pg/queries/payout", async (importOriginal) => {
   };
 });
 
+// pglite has one connection, so a writer that commits between two dists' runs
+// is stood in for at the plan's npo read, which runs outside any transaction
+const between_dists = vi.hoisted(() => ({
+  once: null as (() => Promise<void>) | null,
+}));
+vi.mock("../pg/queries/npo", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("../pg/queries/npo")>();
+  return {
+    ...orig,
+    npo_get: async (...args: Parameters<typeof orig.npo_get>) => {
+      const hook = between_dists.once;
+      between_dists.once = null;
+      await hook?.();
+      return orig.npo_get(...args);
+    },
+  };
+});
+
 // --- imports (after mocks) ---
 
 import { create_test_db } from "../pg/test-utils/pglite";
 import { process_refund } from "./process";
+import { reverse_unfunded_payout_loss } from "./unfunded";
 
 // --- setup ---
 
@@ -90,6 +109,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   cas.misses = 0;
+  between_dists.once = null;
   send_email.mockResolvedValue({ data: { id: "msg-1" }, error: null });
   await test_db.current!.db.delete(bal_txs);
   await test_db.current!.db.delete(loss_logs);
@@ -492,5 +512,87 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     const [po] = await db.select().from(payouts);
     expect(po!.type).toBe("pending");
     expect((await dons())[0]!.status).toBe("settled");
+  });
+});
+
+describe("process_refund — a loss reversed before the flip", () => {
+  async function seed_cash_dist(
+    donation_id: string,
+    npo_id: number,
+    n: number,
+    payout_type: "pending" | "processing"
+  ) {
+    const db = test_db.current!.db;
+    await db.insert(dists).values({
+      id: `dist-${n}`,
+      donation_id,
+      status: "settled",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id: npo_id,
+      to_name: "npo",
+      amount: 100,
+      amount_denom: "USD",
+      net: 100,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      alloc: { liq: 0, lock: 0, cash: 100 },
+    });
+    await db.insert(payouts).values({
+      id: `payout-${n}`,
+      source_id: `dist-${n}`,
+      npo_id,
+      source: "donation",
+      date: "2026-07-01T00:00:00.000Z",
+      amount: 100,
+      type: payout_type,
+    });
+  }
+
+  test("a loss the grants cron reverses while a sibling dist is still refunding ends the donation refunded", async () => {
+    const { id, npo_id } = await seed();
+    const db = test_db.current!.db;
+    await db.update(npos).set({ cash: 100 }).where(eq(npos.id, npo_id));
+    const [other] = await db
+      .insert(npos)
+      .values({
+        registration_number: "EIN-REF-OTHER",
+        name: "Other NPO",
+        endow_designation: "Charity",
+        overview_pt: "[]",
+        hq_country: "United States",
+        cash: 100,
+      })
+      .returning();
+    // dist-1's payout is in flight, so its refund is a loss
+    await seed_cash_dist(id, npo_id, 1, "processing");
+    await seed_cash_dist(id, other!.id, 2, "pending");
+    const graphs = (await dists_for_refund(id)).sort((a, b) =>
+      a.dist.id.localeCompare(b.dist.id)
+    );
+    // its transfer goes unfunded once dist-1 is refunded, before dist-2 is
+    let reversed: unknown;
+    between_dists.once = async () => {
+      between_dists.once = async () => {
+        reversed = await db.transaction((tx) =>
+          reverse_unfunded_payout_loss(as_db(tx), "payout-1")
+        );
+      };
+    };
+
+    const res = await process_refund(id, graphs, ctx);
+
+    expect(reversed).toEqual({ status: "reversed" });
+    expect(res.failures).toEqual([]);
+    const refund_status = await db
+      .select({ id: dists.id, refund_status: dists.refund_status })
+      .from(dists)
+      .orderBy(dists.id);
+    expect(refund_status).toEqual([
+      { id: "dist-1", refund_status: "completed" },
+      { id: "dist-2", refund_status: "completed" },
+    ]);
+    expect((await dons())[0]!.status).toBe("refunded");
+    expect((await events())[0]!.void_reason).toBe("refunded");
   });
 });
