@@ -1,4 +1,4 @@
-import type { IPayout } from "@/payouts";
+import type { IPayout, PayoutStatus } from "@/payouts";
 import type { payouts } from "../../schema/payout";
 
 type PayoutRow = typeof payouts.$inferSelect;
@@ -34,9 +34,18 @@ export function to_payout(row: PayoutRow): IPayout {
       return { ...base, type: "refunded_loss" };
     case "cancelled":
       return { ...base, type: "cancelled" };
+    case "processing":
+      return { ...base, type: "processing", ref: row.message ?? "" };
     default:
       return { ...base, type: "pending" };
   }
+}
+
+/** `message` is status-owned: an error's text or a claim's ref, cleared by any other status */
+function status_message(s: PayoutStatus): string | null {
+  if (s.type === "error") return s.message ?? null;
+  if (s.type === "processing") return s.ref ?? null;
+  return null;
 }
 
 export function from_payout_insert(data: IPayout): PayoutInsert {
@@ -48,7 +57,7 @@ export function from_payout_insert(data: IPayout): PayoutInsert {
     date: data.date,
     amount: data.amount,
     type: data.type,
-    message: data.type === "error" ? data.message : null,
+    message: status_message(data),
     settled_date: data.type === "settled" ? data.settled_date : null,
     settled_id: data.type === "settled" ? data.settled_id : null,
   };
@@ -65,9 +74,7 @@ export function from_payout_update(
   if (data.amount !== undefined) out.amount = data.amount;
   if (data.type !== undefined) {
     out.type = data.type;
-    if (data.type === "error") {
-      out.message = (data as { message?: string }).message ?? null;
-    }
+    out.message = status_message(data as PayoutStatus);
     if (data.type === "settled") {
       out.settled_date =
         (data as { settled_date?: string }).settled_date ?? null;

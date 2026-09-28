@@ -15,7 +15,7 @@ export const amount = v.lazy((x) => {
   return v.pipe(
     v.string(),
     v.transform((x) => +x),
-    v.minValue(0, "amount must be greater than 0"),
+    v.gtValue(0, "amount must be greater than 0"),
     v.transform((x) => x.toString())
   );
 });
@@ -50,4 +50,6 @@ export interface Props {
   bals: Bals;
   onSubmit: (fv: SubmitFV) => void;
   is_submitting?: boolean;
+  /** the server's refusal of the last submit — shown on the amount field */
+  error?: string;
 }

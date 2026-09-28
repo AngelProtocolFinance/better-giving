@@ -95,6 +95,9 @@ namespace Res {
   }
 }
 
+// bounds every call: a hung one otherwise holds its caller until the function is killed
+const TIMEOUT_MS = 30_000;
+
 export class Wise {
   headers: Record<string, string>;
   base_url: string;
@@ -117,6 +120,7 @@ export class Wise {
   async v2_account(id: number): Promise<V2RecipientAccount> {
     const res = await fetch(`${this.base_url}/v2/accounts/${id}`, {
       headers: this.headers,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     return this.to_json(res);
   }
@@ -124,7 +128,7 @@ export class Wise {
   async balance(id: number, profile_id: number): Promise<Balance> {
     const res = await fetch(
       `${this.base_url}/v4/profiles/${profile_id}/balances/${id}`,
-      { headers: this.headers }
+      { headers: this.headers, signal: AbortSignal.timeout(TIMEOUT_MS) }
     );
     return this.to_json(res);
   }
@@ -134,6 +138,7 @@ export class Wise {
     const res = await fetch(url, {
       method: "POST",
       headers: this.headers,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw await res.text();
@@ -145,6 +150,7 @@ export class Wise {
     const res = await fetch(url, {
       method: "POST",
       headers: this.headers,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw await res.text();
@@ -160,6 +166,7 @@ export class Wise {
     const res = await fetch(url, {
       method: "POST",
       headers: this.headers,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw await res.text();

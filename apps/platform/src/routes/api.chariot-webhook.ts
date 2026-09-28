@@ -1,15 +1,25 @@
 import crypto from "node:crypto";
-import { report_resp } from "#/errors/report";
+import { report_error, report_resp } from "#/errors/report";
 import {
   type ChariotMetadata,
   calc_donation_settle,
+  type IDonation,
+  type IDonationSettled,
   type ISettlement,
+  settle_msgs,
+  type TStatus,
 } from "@/donations";
-import { chariot as chariot_env } from "$/env";
+import { chariot as chariot_env, stage } from "$/env";
 import { chariot } from "$/kit/chariot";
+import { aws_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { donation_get, donation_update } from "$/pg/queries/donation";
+import { donation_has_dists } from "$/pg/queries/dist";
+import {
+  donation_get,
+  donation_settle_state_locked,
+  donation_update,
+} from "$/pg/queries/donation";
 import type { Route } from "./+types/api.chariot-webhook";
 
 /** `t=<iso-8601>,v1=<hex>[,v1=<hex>…]` — collects every `v1`, any of which may match; other schemes are ignored so a weaker one can't stand in for `v1` */
@@ -26,6 +36,107 @@ function parse_signature(header: string): { t: string; v1: string[] } | null {
     else if (key === "v1") v1.push(value);
   }
   return t && v1.length ? { t, v1 } : null;
+}
+
+const on_grant_canceled: Record<TStatus, "cancel" | "keep" | "alert"> = {
+  created: "cancel",
+  intent: "cancel",
+  confirmed: "cancel",
+  // final with no money moved: nothing to cancel or reverse
+  cancelled: "keep",
+  expired: "keep",
+  failed: "keep",
+  // money already moved: a settled row needs reversing by hand; a refunded one
+  // was already reversed, so what is left is a platform loss to record
+  settled: "alert",
+  refunded: "alert",
+  refunded_loss: "alert",
+};
+
+const refunded_todo =
+  "the donor was already refunded for a grant that will never pay; record the refund as a platform loss";
+const on_canceled_todo: Partial<Record<TStatus, string>> = {
+  settled: "reverse the donation with the refund tooling",
+  refunded: refunded_todo,
+  refunded_loss: refunded_todo,
+};
+
+// a completed grant is the fund's payout, so it settles any row not already
+// final; completing a cancelled row means chariot reversed its own cancel,
+// which a person confirms before it settles
+const on_grant_completed: Record<TStatus, "settle" | "duplicate" | "alert"> = {
+  created: "settle",
+  intent: "settle",
+  confirmed: "settle",
+  expired: "settle",
+  failed: "settle",
+  cancelled: "alert",
+  settled: "duplicate",
+  refunded: "duplicate",
+  refunded_loss: "duplicate",
+};
+
+/** what an operator needs to act on: the money and whose it is, never the donor */
+const grant_facts = (
+  grant: { id: string; amount: number },
+  don: IDonation,
+  sttl_id?: string
+) =>
+  [
+    `amount ${(grant.amount / 100).toFixed(2)} USD`,
+    `recipient ${don.to_name} (${don.to_id})`,
+    `grant ${grant.id}`,
+    sttl_id && `settlement ${sttl_id}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+/**
+ * the enqueue follows the settle's commit, so a delivery can leave a settled
+ * row whose messages never went out, or only some; its redelivery is what
+ * re-sends them. receipt and match absorb a repeat downstream (send claim,
+ * unique donation_id); the dist goes only while none exists, since a fund's
+ * split is recomputed per run and a newly active member would get a share.
+ */
+async function requeue(row: IDonationSettled) {
+  const distributed = await donation_has_dists(row.id);
+  const msgs = settle_msgs(row, { match: true }).filter(
+    (m) => !(distributed && m.id === "don-sttl-dist")
+  );
+  await enqueue(...msgs);
+}
+
+interface IOpsAlert {
+  /** sentry error message */
+  message: string;
+  title: string;
+  /** safe to log: ids and statuses only */
+  detail: string;
+  facts: string;
+  todo: string;
+  ctx: Record<string, unknown>;
+}
+
+async function alert_ops({
+  message,
+  title,
+  detail,
+  facts,
+  todo,
+  ctx,
+}: IOpsAlert) {
+  report_error(new Error(message), ctx);
+  // the report above already holds the event; a discord outage must not
+  // 500 the ack into redeliveries that re-report it
+  await aws_monitor
+    .send_alert({
+      type: "ERROR",
+      from: `chariot-webhook:${stage}`,
+      title,
+      body: `${detail}. ${facts}. ${todo}.`,
+    })
+    .catch((err) => report_error(err, ctx));
+  console.warn(`[chariot webhook] ${detail}: left unchanged, alerted`);
 }
 
 function safe_equals(expected: string, received: string): boolean {
@@ -78,8 +189,36 @@ export async function action({ request }: Route.ActionArgs) {
     const { don_id } = grant.metadata as unknown as ChariotMetadata;
 
     if (grant.status === "Canceled") {
-      await donation_update(db, don_id, { status: "cancelled" });
-      console.info(`chariot grant:${don_id} cancelled and deleted`);
+      // unlocked read first: the locked one matches `id` only, grant metadata
+      // can carry a legacy `id_v1`, and the alert needs the recipient
+      const prior = await donation_get(don_id);
+      if (!prior) throw new Error(`donation not found: ${don_id}`);
+      const { op, state } = await db.transaction(async (tx) => {
+        const state = await donation_settle_state_locked(tx, prior.id);
+        if (!state) throw new Error(`donation not found: ${prior.id}`);
+        const op = on_grant_canceled[state.status];
+        if (op === "cancel")
+          await donation_update(tx, prior.id, { status: "cancelled" });
+        return { op, state };
+      });
+      if (op === "alert") {
+        await alert_ops({
+          message: "chariot grant canceled after settlement",
+          title: "Chariot Grant Canceled After Settlement",
+          detail: `donation ${prior.id} is ${state.status} but chariot grant ${grant.id} was canceled`,
+          facts: grant_facts(grant, prior, state.sttl_id),
+          todo: `nothing was changed automatically; ${on_canceled_todo[state.status]}`,
+          ctx: { don_id: prior.id, grant_id: grant.id, status: state.status },
+        });
+        return new Response("", { status: 200 });
+      }
+      if (op === "keep") {
+        console.info(
+          `[chariot webhook] donation ${prior.id} is ${state.status}: left unchanged`
+        );
+        return new Response("", { status: 200 });
+      }
+      console.info(`[chariot webhook] donation ${prior.id} cancelled`);
       return new Response("", { status: 202 });
     }
 
@@ -103,24 +242,52 @@ export async function action({ request }: Route.ActionArgs) {
     const prior = await donation_get(don_id);
     if (!prior)
       return new Response(`donation not found: ${don_id}`, { status: 500 });
-    const result = calc_donation_settle({
-      kind: "one-time",
-      order_id: don_id,
-      prior,
-      settlement,
+    const locked = await db.transaction(async (tx) => {
+      const state = await donation_settle_state_locked(tx, prior.id);
+      if (!state) throw new Error(`donation not found: ${prior.id}`);
+      const op = on_grant_completed[state.status];
+      if (op !== "settle") return { op, state };
+      const result = calc_donation_settle({
+        kind: "one-time",
+        order_id: prior.id,
+        prior: { ...prior, status: state.status },
+        settlement,
+      });
+      if (result.op !== "update")
+        throw new Error(`unexpected ${result.op} for chariot one-time`);
+      await donation_update(tx, result.order_id, result.patch);
+      return { op, state, msgs: result.msgs };
     });
-    // the refund already reversed this donation; a 2xx so chariot stops
-    // redelivering rather than a throw that reads as a broken endpoint.
-    if (result.op === "noop") return Response.json({ id: don_id });
-    if (result.op !== "update")
-      throw new Error("unexpected put for chariot one-time");
 
-    const order = await db.transaction((tx) =>
-      donation_update(tx, result.order_id, result.patch)
+    if (locked.op === "settle") {
+      await enqueue(...locked.msgs);
+      return Response.json({ id: prior.id });
+    }
+
+    if (locked.op === "alert") {
+      await alert_ops({
+        message: "chariot grant completed after cancel",
+        title: "Chariot Grant Completed After Cancel",
+        detail: `donation ${prior.id} is cancelled but chariot grant ${grant.id} completed`,
+        facts: grant_facts(grant, prior),
+        todo: "nothing was settled automatically; confirm the payout in chariot's dashboard before settling it by hand",
+        ctx: {
+          don_id: prior.id,
+          grant_id: grant.id,
+          status: locked.state.status,
+        },
+      });
+      return new Response("", { status: 200 });
+    }
+    // duplicate, acked 2xx so chariot stops redelivering: a reversed row gets
+    // nothing re-sent; a row read unsettled and settled under the lock is the
+    // concurrent delivery's to enqueue
+    if (locked.state.status === "settled" && prior.settlement)
+      await requeue({ ...prior, settlement: prior.settlement });
+    console.info(
+      `[chariot webhook] donation ${prior.id} is ${locked.state.status}: left unchanged`
     );
-    await enqueue(...result.msgs);
-
-    return Response.json({ id: order.id });
+    return new Response("", { status: 200 });
   } catch (err) {
     return report_resp(err, "something went wrong");
   }

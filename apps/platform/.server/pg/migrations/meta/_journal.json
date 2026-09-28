@@ -281,6 +281,13 @@
       "when": 1789453954282,
       "tag": "0039_donation_settlements_sttl_id_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790553373103,
+      "tag": "0040_payouts_type_processing",
+      "breakpoints": true
     }
   ]
 }

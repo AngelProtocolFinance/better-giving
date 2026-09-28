@@ -201,7 +201,13 @@ export function calc_refund_plan(
 
   const effects: RefundEffect[] = [];
 
-  // balance/payout/NAV writes — only when fully reversible
+  // payout row before the npos row: the grants cron's settle writes payouts
+  // then the npos row, so the reverse order deadlocks it
+  if (payout) {
+    effects.push({ kind: "payout_status", payout_id: payout.id, status });
+  }
+
+  // balance/NAV writes — only when fully reversible
   if (!is_loss) {
     const refund_deltas: IBalanceDeltas = {
       liq: bd.liq,
@@ -260,14 +266,6 @@ export function calc_refund_plan(
       });
     }
 
-    if (payout) {
-      effects.push({
-        kind: "payout_status",
-        payout_id: payout.id,
-        status: "refunded",
-      });
-    }
-
     if (bd.lock > 0 && nav) {
       effects.push({
         kind: "nav_log",
@@ -311,15 +309,7 @@ export function calc_refund_plan(
     donation_id: dist.donation_id,
   });
 
-  // loss path: mark payout as refunded_loss and log loss
   if (is_loss) {
-    if (payout) {
-      effects.push({
-        kind: "payout_status",
-        payout_id: payout.id,
-        status: "refunded_loss",
-      });
-    }
     const loss_type: LossType = loss_reasons[0].startsWith("liq")
       ? "balance_liq"
       : loss_reasons[0].startsWith("lock")

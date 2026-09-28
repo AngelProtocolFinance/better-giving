@@ -47,10 +47,15 @@ vi.mock("#/.server/toast", async () => {
   };
 });
 
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: any) => Component,
-  createClientLoaderCache: () => undefined,
-}));
+// no clientLoader in these stubs, so there is no cache entry for `invalidate` to drop
+vi.mock("remix-client-cache", async () => {
+  const { createElement } = await import("react");
+  return {
+    CacheRoute: (Component: any) => (props: any) =>
+      createElement(Component, { ...props, invalidate: async () => {} }),
+    createClientLoaderCache: () => undefined,
+  };
+});
 
 vi.mock("swr/immutable", () => ({
   default: () => ({ data: { points: [], total_return: 0 } }),

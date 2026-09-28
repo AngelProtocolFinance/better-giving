@@ -1,6 +1,7 @@
 import { Field } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { InfoIcon, MoveLeft, MoveRight } from "lucide-react";
+import { useEffect } from "react";
 import { useController, useForm } from "react-hook-form";
 import { humanize } from "@/helpers/decimal";
 import { type Props, type Schema, schema } from "./types";
@@ -11,6 +12,8 @@ export function Panel(props: Props) {
     register,
     formState: { errors, isDirty },
     control,
+    setError,
+    setValue,
   } = useForm<Schema>({
     defaultValues: {
       source: props.from || "liq",
@@ -20,6 +23,25 @@ export function Panel(props: Props) {
   });
 
   const { field: source } = useController({ name: "source", control });
+
+  // defaultValues are read once at mount; a revalidated balance has to be
+  // written in, silently, so the amount and any refusal on it survive.
+  // keyed on the figures — callers pass a fresh `bals` object every render
+  const { liq, lock } = props.bals;
+  useEffect(() => {
+    setValue("bals", { liq, lock });
+  }, [liq, lock, setValue]);
+
+  // keyed on the submit settling too: a repeat refusal carries the same string,
+  // and the resubmit's own validation has already cleared the last one
+  useEffect(() => {
+    if (props.is_submitting || !props.error) return;
+    setError(
+      "amount",
+      { type: "server", message: props.error },
+      { shouldFocus: true }
+    );
+  }, [props.error, props.is_submitting, setError]);
 
   return (
     <form onSubmit={handleSubmit(props.onSubmit)} className="contents">

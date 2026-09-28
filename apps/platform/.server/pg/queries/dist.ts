@@ -287,20 +287,6 @@ export async function dists_for_refund(
   return results;
 }
 
-/** true when any sibling dist for this donation already settled with a loss */
-export async function donation_has_refund_loss(
-  donation_id: string
-): Promise<boolean> {
-  const [row] = await db
-    .select({ id: dists.id })
-    .from(dists)
-    .where(
-      and(eq(dists.donation_id, donation_id), eq(dists.refund_status, "loss"))
-    )
-    .limit(1);
-  return !!row;
-}
-
 /**
  * true once any dist for this donation has a refund outcome recorded, whatever
  * its status — completed and loss flip a dist to refunded, while the donation

@@ -1,18 +1,13 @@
-import crypto from "node:crypto";
 import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
+import { min_payout_amount } from "@/npo/schema";
 import type { IPayout, IPendingStatus } from "@/payouts";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
-import { db } from "$/pg/db";
+import { settle_npo_payouts } from "$/payouts/settle";
 import { npo_default_bapp } from "$/pg/queries/banking";
-import { npo_balance_update, npo_get } from "$/pg/queries/npo";
-import type { SettlementRow } from "$/pg/queries/payout";
-import {
-  payout_update,
-  pending_payouts,
-  settlement_put,
-} from "$/pg/queries/payout";
+import { npo_get } from "$/pg/queries/npo";
+import { pending_payouts, processing_payouts } from "$/pg/queries/payout";
 import { transfer_grant } from "./transfer-grant";
 
 // optional npo_id to retry a single npo
@@ -24,6 +19,7 @@ const fn = `grants-processor:${stage}`;
 
 export async function index(event?: IInput) {
   try {
+    await alert_unsettled_claims();
     const grants = await pending_payouts();
 
     if (grants.length === 0) {
@@ -51,22 +47,41 @@ export async function index(event?: IInput) {
   }
 }
 
+/**
+ * a processing row was claimed and never settled or released: a killed run, a
+ * failed release, a transfer whose funding or record is unknown, or a
+ * concurrent run still in flight. `pending_payouts` never returns these rows,
+ * so without this they sit unpaid and unannounced
+ */
+async function alert_unsettled_claims() {
+  try {
+    const stuck = await processing_payouts();
+    if (stuck.length === 0) return;
+    // one line per claim: its ref is the customerTransactionId to look up in wise
+    const by_claim = group_by(
+      stuck,
+      (p) => `npo:${p.npo_id} ref ${p.ref || "unknown"}`
+    );
+    const lines = Object.entries(by_claim).map(
+      ([claim, ps = []]) => `${claim}: ${ps.map((p) => p.id).join(", ")}`
+    );
+    await aws_monitor.send_alert({
+      type: "ERROR",
+      from: fn,
+      title: "payouts claimed but not settled",
+      body: `reconcile in Wise before resetting any to pending\n${lines.join("\n")}`,
+    });
+  } catch (err) {
+    report_error(err);
+  }
+}
+
 async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
-  const payout_date = new Date().toISOString();
-  const total = items.reduce((a, b) => a + b.amount, 0);
-  const ref_id = crypto.randomUUID();
   try {
     const npo = await npo_get(npo_id);
     if (!npo) throw new Error(`npo:${npo_id} not found`);
     if (npo.active === false) {
       console.info(`npo:${npo_id} inactive, skipping payout`);
-      return;
-    }
-    const effective_min = npo.payout_minimum ?? 50;
-    if (effective_min > total) {
-      console.info(
-        `npo:${npo_id} payout minimum not met, min: ${effective_min}, total: ${total}`
-      );
       return;
     }
 
@@ -76,51 +91,39 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
       return;
     }
 
-    const transfer_id = await transfer_grant(+wise_id, total, ref_id);
-
-    await db.transaction(async (tx) => {
-      // insert settlement before updating payouts to satisfy settled_id FK
-      const stlmt: SettlementRow = {
-        id: transfer_id.toString(),
-        other_id: ref_id,
-        npo_id: npo_id,
-        date: payout_date,
-        amount: total,
-        sources: items.map((i) => i.source_id),
-        status: "",
-      };
-
-      await settlement_put(tx, stlmt);
-
-      for (const item of items) {
-        await payout_update(tx, item.id, {
-          type: "settled",
-          settled_date: payout_date,
-          settled_id: transfer_id.toString(),
-        } as Partial<Omit<IPayout, "id">>);
-      }
-
-      await npo_balance_update(
-        tx,
-        npo_id,
-        { liq: 0, lock: 0, lock_units: 0, cash: total },
-        "dec"
+    // skips the locking claim tx each run for an npo still under its minimum;
+    // the settle's locked recheck is the authoritative one
+    const snapshot_total = items.reduce((a, b) => a + b.amount, 0);
+    const minimum = npo.payout_minimum ?? min_payout_amount;
+    if (snapshot_total < minimum) {
+      console.info(
+        `npo:${npo_id} payout minimum not met, min: ${minimum}, total: ${snapshot_total}`
       );
-    });
+      return;
+    }
 
-    console.info(ref_id);
+    const res = await settle_npo_payouts(
+      { id: npo.id, name: npo.name, payout_minimum: minimum },
+      items.map((i) => i.id),
+      String(wise_id),
+      (ref, total) => transfer_grant(+wise_id, total, ref)
+    );
+    if (res.status !== "settled") {
+      console.info(`npo:${npo_id} not paid: ${res.status}`);
+      return;
+    }
 
     await aws_monitor.send_alert({
       type: "NOTICE",
       from: fn,
       title: `Grant paid for npo:${npo.id}: ${npo.name}`,
       fields: [
-        { name: "amount", value: total.toString() },
-        { name: "transfer_id", value: transfer_id.toString() },
-        { name: "ref_id", value: ref_id },
+        { name: "amount", value: res.total.toString() },
+        { name: "transfer_id", value: res.transfer_id },
+        { name: "ref_id", value: res.ref },
       ],
     });
   } catch (err) {
-    report_error(err, { ref_id, npo_id });
+    report_error(err, { npo_id });
   }
 }
