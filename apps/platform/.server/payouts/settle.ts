@@ -113,7 +113,7 @@ export async function settle_npo_payouts(
     }
     report_error(err, ctx);
     await alert({
-      title: `funded status unknown for npo:${npo.id}`,
+      title: `funding status unknown for npo:${npo.id}`,
       body: `do not reset these payouts to pending or pay them again; reconcile in Wise by customerTransactionId ${ref}`,
       fields,
     });
@@ -160,7 +160,7 @@ export async function settle_npo_payouts(
     // the commit may have landed with its reply lost, so the alert says check first
     await alert({
       title: `funded, not recorded for npo:${npo.id}`,
-      body: `do not reset these payouts to pending or pay them again; wise transfer ${transfer_id} (customerTransactionId ${ref}) was funded. if the payouts are still processing, record the settlement by hand`,
+      body: `do not reset these payouts to pending or pay them again; Wise transfer ${transfer_id} (customerTransactionId ${ref}) was funded. if the payouts are still processing, record the settlement by hand`,
       fields,
     });
     return { status: "unrecorded", ref, transfer_id };
@@ -168,7 +168,7 @@ export async function settle_npo_payouts(
   if (unsettled.length > 0) {
     await alert({
       title: `paid payouts left processing unexpectedly, npo:${npo.id}`,
-      body: `wise transfer ${transfer_id} (customerTransactionId ${ref}) paid these payouts and is recorded, but they had already moved out of processing by a path other than a loss refund, so they were not marked settled`,
+      body: `Wise transfer ${transfer_id} (customerTransactionId ${ref}) paid these payouts and is recorded, but they had already moved out of processing by a path other than a loss refund, so they were not marked settled. check each before the next run: one back in pending is paid again`,
       fields: [...fields, { name: "unsettled", value: unsettled.join(", ") }],
     });
   }

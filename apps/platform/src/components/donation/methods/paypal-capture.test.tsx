@@ -130,7 +130,7 @@ describe("paypal express: a capture paypal did not complete", () => {
 
       await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
       expect(on_error).toHaveBeenCalledWith(
-        "PayPal declined the payment — please try again or use another payment method."
+        "PayPal declined the payment. Please try again or use another payment method."
       );
       expect(on_paid).not.toHaveBeenCalled();
       expect(redirect).not.toHaveBeenCalled();
@@ -148,7 +148,7 @@ describe("venmo express: a capture venmo did not complete", () => {
 
     await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
     expect(on_error).toHaveBeenCalledWith(
-      "Venmo declined the payment — please try again or use another payment method."
+      "Venmo declined the payment. Please try again or use another payment method."
     );
     expect(on_paid).not.toHaveBeenCalled();
   });
@@ -164,7 +164,7 @@ describe("paypal express: a capture with no status paypal reported", () => {
 
     await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
     expect(on_error).toHaveBeenCalledWith(
-      "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt from PayPal, or contact us."
+      "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from PayPal, or contact us."
     );
     expect(on_paid).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe("venmo express: a capture with no status", () => {
 
     await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
     expect(on_error).toHaveBeenCalledWith(
-      "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt from Venmo, or contact us."
+      "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from Venmo, or contact us."
     );
   });
 });

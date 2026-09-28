@@ -314,7 +314,7 @@ export function Form(props: TMethodState<"stripe">) {
         className={unconfirmed ? "mt-4 text-sm text-gray-11" : "sr-only"}
       >
         {unconfirmed &&
-          "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt, or contact us."}
+          "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt, or contact us."}
       </p>
 
       <button

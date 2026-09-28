@@ -40,8 +40,8 @@ interface Props extends IPayPalExpress {
   on_stuck?: (dest: IDonationDest) => void;
   /**
    * paypal answered the capture with a missing or unrecognised status, so the
-   * money may still move. the donor has been told not to pay again; the caller
-   * keeps every rail from taking a second payment.
+   * money may still move. called just before the donor is told not to pay
+   * again; the caller keeps every rail from taking a second payment.
    */
   on_unconfirmed?: () => void;
   /** this donor has been, or may already have been, charged on one of the
@@ -263,14 +263,14 @@ export function Paypal({
           const { outcome } = paypal_capture_outcome(body);
           if (outcome === "declined") {
             return on_error_ref.current(
-              `${method} declined the payment — please try again or use another payment method.`
+              `${method} declined the payment. Please try again or use another payment method.`
             );
           }
           // a second payment could charge twice
           if (outcome === "unknown") {
             on_unconfirmed_ref.current?.();
             return on_error_ref.current(
-              `We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt from ${method}, or contact us.`
+              `We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from ${method}, or contact us.`
             );
           }
           const { payment_source = {} } = body;

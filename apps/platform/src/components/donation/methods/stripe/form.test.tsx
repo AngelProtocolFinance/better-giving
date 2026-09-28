@@ -90,7 +90,7 @@ vi.mock("../paypal", () => ({
           onClick={() => {
             props.on_unconfirmed?.();
             props.on_error(
-              "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt from PayPal, or contact us."
+              "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from PayPal, or contact us."
             );
           }}
         >
@@ -805,7 +805,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "We couldn't confirm your payment yet. Please don't pay again — check your email for a receipt, or contact us."
+        "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt, or contact us."
       );
     await expect
       .element(screen.getByRole("button", { name: /continue with card/i }))

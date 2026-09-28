@@ -248,7 +248,7 @@ describe("settle_npo_payouts", () => {
     expect(send_alert).toHaveBeenCalledOnce();
     const [alert] = send_alert.mock.calls[0]!;
     expect(alert.type).toBe("ERROR");
-    expect(alert.title).toMatch(/funded status unknown/);
+    expect(alert.title).toMatch(/funding status unknown/);
     expect(alert.body).toContain(ref);
   });
 
