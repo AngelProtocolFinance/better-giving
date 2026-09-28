@@ -82,15 +82,18 @@ const captured = (status: string, source: "paypal" | "venmo" = "paypal") => ({
   ],
 });
 
-const approve_and_capture = async (
-  capture_body: unknown,
+/** approve, and answer our capture PATCH with whatever `capture` resolves to */
+const approve_and_answer = async (
+  capture: () => Promise<Response>,
   config: Config | null = null,
-  button: "paypal-button" | "venmo-button" = "paypal-button"
+  button: "paypal-button" | "venmo-button" = "paypal-button",
+  intent: { tx_id: string; don_id?: string } = {
+    tx_id: "order_1",
+    don_id: "don_1",
+  }
 ) => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_, init) =>
-    init?.method === "PATCH"
-      ? Response.json(capture_body)
-      : Response.json({ tx_id: "order_1", don_id: "don_1" })
+    init?.method === "PATCH" ? capture() : Response.json(intent)
   );
   const on_error = vi.fn();
   const on_paid = vi.fn();
@@ -115,6 +118,13 @@ const approve_and_capture = async (
   btn.click();
   return { on_error, on_paid, on_unconfirmed };
 };
+
+const approve_and_capture = (
+  capture_body: unknown,
+  config: Config | null = null,
+  button: "paypal-button" | "venmo-button" = "paypal-button"
+) =>
+  approve_and_answer(async () => Response.json(capture_body), config, button);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -221,5 +231,109 @@ describe("paypal express: a merchant's own thank-you page", () => {
     await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
     const { url } = on_paid.mock.calls[0]![0];
     expect(new URL(url).searchParams.get("donor_name")).toBe("Jane Roe");
+  });
+});
+
+// paypal may have taken the money before our capture call's answer went
+// missing — the same order can't be paid twice, but a fresh click is a new one
+describe("paypal express: a capture call whose answer never arrives", () => {
+  test("a dropped connection asks the donor not to pay again, and tells the form", async () => {
+    const { on_error, on_paid, on_unconfirmed } = await approve_and_answer(
+      async () => {
+        throw new TypeError("Failed to fetch");
+      }
+    );
+
+    await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
+    expect(on_error).toHaveBeenCalledWith(
+      "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from PayPal, or contact us."
+    );
+    expect(on_unconfirmed).toHaveBeenCalledOnce();
+    expect(on_paid).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  test("a server error asks the donor not to pay again, and tells the form", async () => {
+    const { on_error, on_paid, on_unconfirmed } = await approve_and_answer(
+      async () => new Response("Internal Server Error", { status: 500 })
+    );
+
+    await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
+    expect(on_error).toHaveBeenCalledWith(
+      "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from PayPal, or contact us."
+    );
+    expect(on_unconfirmed).toHaveBeenCalledOnce();
+    expect(on_paid).not.toHaveBeenCalled();
+  });
+
+  // a proxy's html error page, or a body cut off mid-stream
+  test("an unreadable body asks the donor not to pay again, and tells the form", async () => {
+    const { on_error, on_paid, on_unconfirmed } = await approve_and_answer(
+      async () => new Response('{"id":"order_1","purchase_un', { status: 200 })
+    );
+
+    await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
+    expect(on_error).toHaveBeenCalledWith(
+      "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from PayPal, or contact us."
+    );
+    expect(on_unconfirmed).toHaveBeenCalledOnce();
+    expect(on_paid).not.toHaveBeenCalled();
+  });
+});
+
+describe("paypal express: a capture paypal took without our order id", () => {
+  test("goes on to the thank-you page for the donation this click created", async () => {
+    const body = captured("COMPLETED");
+    delete (body.purchase_units[0] as { custom_id?: string }).custom_id;
+    const { on_error, on_paid, on_unconfirmed } = await approve_and_answer(
+      async () => Response.json(body),
+      null,
+      "paypal-button",
+      { tx_id: "order_1", don_id: "don_2" }
+    );
+
+    await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
+    expect(on_paid).toHaveBeenCalledWith({
+      url: "https://better.giving/donations/don_2",
+      is_custom: false,
+    });
+    expect(on_error).not.toHaveBeenCalled();
+    expect(on_unconfirmed).not.toHaveBeenCalled();
+  });
+
+  test("with no donation id either, asks the donor not to pay again", async () => {
+    const body = captured("COMPLETED");
+    delete (body.purchase_units[0] as { custom_id?: string }).custom_id;
+    const { on_error, on_paid, on_unconfirmed } = await approve_and_answer(
+      async () => Response.json(body),
+      null,
+      "paypal-button",
+      { tx_id: "order_1" }
+    );
+
+    await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
+    expect(on_error).toHaveBeenCalledWith(
+      "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from PayPal, or contact us."
+    );
+    expect(on_unconfirmed).toHaveBeenCalledOnce();
+    expect(on_paid).not.toHaveBeenCalled();
+  });
+});
+
+describe("paypal express: a taken capture whose redirect throws", () => {
+  test("tells the donor it went through and not to pay again, and tells the form", async () => {
+    redirect.mockImplementation(() => {
+      throw new Error("postMessage to a detached parent");
+    });
+    const { on_error, on_unconfirmed } = await approve_and_capture(
+      captured("COMPLETED")
+    );
+
+    await vi.waitFor(() => expect(on_error).toHaveBeenCalledOnce());
+    expect(on_error).toHaveBeenCalledWith(
+      "Your payment went through, but we couldn't load the confirmation page. Please don't pay again. Check your email for a receipt."
+    );
+    expect(on_unconfirmed).toHaveBeenCalledOnce();
+    expect(report_error).toHaveBeenCalledOnce();
   });
 });

@@ -8,7 +8,10 @@ import { useEffect, useRef } from "react";
 import { href } from "react-router";
 import { paypal_client_id, stage } from "#/constants/env";
 import { report_degraded, report_error } from "#/errors/report";
-import { paypal_capture_outcome } from "@/donations/paypal-capture";
+import {
+  paypal_capture_outcome,
+  type TCaptureOutcome,
+} from "@/donations/paypal-capture";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
 import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
@@ -39,9 +42,10 @@ interface Props extends IPayPalExpress {
    */
   on_stuck?: (dest: IDonationDest) => void;
   /**
-   * paypal answered the capture with a missing or unrecognised status, so the
-   * money may still move. called just before the donor is told not to pay
-   * again; the caller keeps every rail from taking a second payment.
+   * the capture's outcome is unknown — paypal reported a missing or
+   * unrecognised status, or our capture call's answer was lost or unreadable —
+   * so the money may have moved. called just before the donor is told not to
+   * pay again; the caller keeps every rail from taking a second payment.
    */
   on_unconfirmed?: () => void;
   /** this donor has been, or may already have been, charged on one of the
@@ -251,40 +255,52 @@ export function Paypal({
         order_id: string,
         method: "PayPal" | "Venmo"
       ) => {
+        // a second payment could charge twice
+        const tell_unconfirmed = () => {
+          on_unconfirmed_ref.current?.();
+          on_error_ref.current(
+            `We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from ${method}, or contact us.`
+          );
+        };
+
+        let body: CaptureOrderResponse;
+        let outcome: TCaptureOutcome;
         try {
           const res = await fetch(href("/api/donation-intents"), {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ order_id, don_id }),
           });
-          if (!res.ok) return on_error_ref.current("Failed to capture payment");
+          if (!res.ok) throw new Error(`paypal capture answered ${res.status}`);
+          body = await res.json();
+          ({ outcome } = paypal_capture_outcome(body));
+        } catch (err) {
+          // paypal may have captured before the answer was lost; only a
+          // decline the server read from paypal invites another payment
+          report_degraded(err, { order_id, don_id });
+          return tell_unconfirmed();
+        }
 
-          const body: CaptureOrderResponse = await res.json();
-          const { outcome } = paypal_capture_outcome(body);
-          if (outcome === "declined") {
-            return on_error_ref.current(
-              `${method} declined the payment. Please try again or use another payment method.`
-            );
-          }
-          // a second payment could charge twice
-          if (outcome === "unknown") {
-            on_unconfirmed_ref.current?.();
-            return on_error_ref.current(
-              `We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt from ${method}, or contact us.`
-            );
-          }
+        if (outcome === "declined") {
+          return on_error_ref.current(
+            `${method} declined the payment. Please try again or use another payment method.`
+          );
+        }
+        if (outcome === "unknown") return tell_unconfirmed();
+
+        try {
           const { payment_source = {} } = body;
           const ps_id = Object.keys(payment_source)[0] || "paypal";
           const ps = payment_source.paypal || payment_source.venmo;
-          const onhold_id = body.purchase_units?.[0]?.custom_id;
-          if (!onhold_id)
-            return on_error_ref.current("Missing order information");
+          const onhold_id = body.purchase_units?.[0]?.custom_id || don_id;
+          if (!onhold_id) return tell_unconfirmed();
 
           do_redirect(build_redirect_url(onhold_id, ps_id, ps?.name));
         } catch (err) {
-          report_error(err);
+          report_error(err, { order_id, don_id });
+          on_unconfirmed_ref.current?.();
           on_error_ref.current(
-            "Failed to capture payment — please contact support."
+            "Your payment went through, but we couldn't load the confirmation page. Please don't pay again. Check your email for a receipt."
           );
         }
       };

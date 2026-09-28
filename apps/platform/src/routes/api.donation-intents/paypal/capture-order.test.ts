@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PayPalSDK } from "@better-giving/paypal";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { paypal_capture_outcome } from "@/donations/paypal-capture";
 
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const donation_update_mock = vi.hoisted(() => vi.fn());
@@ -228,5 +230,83 @@ describe("capture_order after paypal has captured", () => {
     expect(res).toEqual(capture);
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(report_error_mock.mock.calls[0]![0]).toBe(db_down);
+  });
+});
+
+describe("capture_order when paypal refuses the payer's instrument", () => {
+  // the real sdk over a stubbed network, so what it throws is what this reads
+  const sdk = new PayPalSDK({
+    client_id: "id",
+    client_secret: "secret",
+    api_url: "https://api-m.sandbox.paypal.com",
+  });
+  const paypal_answers = (capture: Response) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/v1/oauth2/token")
+          ? Response.json({ access_token: "tok", expires_in: 32400 })
+          : capture
+      )
+    );
+  const unprocessable = (issue: string) =>
+    Response.json(
+      {
+        name: "UNPROCESSABLE_ENTITY",
+        message:
+          "The requested action could not be performed, semantically incorrect, or failed business validation.",
+        debug_id: "dbg_1",
+        details: [{ issue, description: "declined" }],
+      },
+      { status: 422 }
+    );
+
+  beforeEach(() => {
+    capture_order_mock.mockImplementation((id: string, request_id?: string) =>
+      sdk.capture_order(id, request_id)
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each(["INSTRUMENT_DECLINED", "PAYER_ACTION_REQUIRED"])(
+    "%s answers as a declined capture, and is reported",
+    async (issue) => {
+      paypal_answers(unprocessable(issue));
+
+      const res = await capture_order({ order_id: "o12", don_id: "d12" });
+
+      expect(paypal_capture_outcome(res).outcome).toBe("declined");
+      expect(donation_update_mock).not.toHaveBeenCalled();
+      expect(report_degraded_mock).toHaveBeenCalledOnce();
+      expect(report_degraded_mock.mock.calls[0]![1]).toEqual({
+        order_id: "o12",
+        don_id: "d12",
+        issue,
+      });
+      expect(report_error_mock).not.toHaveBeenCalled();
+    }
+  );
+
+  // the money may have moved, so the browser must hear a failure, never a decline
+  it.each([
+    ["a 422 that isn't a refusal", unprocessable("ORDER_ALREADY_CAPTURED")],
+    [
+      "a 500",
+      Response.json(
+        {
+          name: "INTERNAL_SERVER_ERROR",
+          details: [{ issue: "INSTRUMENT_DECLINED" }],
+        },
+        { status: 500 }
+      ),
+    ],
+    ["a 422 with no json body", new Response("<html>", { status: 422 })],
+  ])("%s is still thrown", async (_label, answer) => {
+    paypal_answers(answer);
+
+    await expect(
+      capture_order({ order_id: "o13", don_id: "d13" })
+    ).rejects.toThrow("Failed to capture order");
+    expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,10 @@
+import type { CaptureOrderResponse } from "@better-giving/paypal";
 import { report_degraded, report_error } from "#/errors/report";
 import { paypal_donor_update } from "@/donations/helpers";
-import { paypal_capture_outcome } from "@/donations/paypal-capture";
+import {
+  type IPaypalCaptured,
+  paypal_capture_outcome,
+} from "@/donations/paypal-capture";
 import { paypal } from "$/kit/paypal";
 import { db } from "$/pg/db";
 import { donation_update } from "$/pg/queries/donation";
@@ -10,10 +14,46 @@ interface ICaptureInput {
   don_id: string;
 }
 
-export const capture_order = async ({ order_id, don_id }: ICaptureInput) => {
-  // order_id is stable per intent — use it as the idempotency key so a retry
-  // after a timeout returns the original capture instead of duplicating it
-  const capture = await paypal.capture_order(order_id, `capture-${order_id}`);
+/** orders.capture-422 issues that mean paypal refused the payer's funding — nothing was taken */
+const REFUSED_ISSUES = new Set([
+  "INSTRUMENT_DECLINED",
+  "PAYER_ACTION_REQUIRED",
+]);
+
+// the sdk flattens a non-2xx into `Failed to capture order: <status> <body>`.
+// anything that doesn't parse to a refused issue stays a thrown unknown.
+const refused_issue = (err: unknown): string | undefined => {
+  if (!(err instanceof Error)) return;
+  const m = /^Failed to capture order: 422 (\{.*\})$/s.exec(err.message);
+  if (!m?.[1]) return;
+  try {
+    const { details } = JSON.parse(m[1]) as { details?: { issue?: string }[] };
+    return details?.find((d) => d.issue && REFUSED_ISSUES.has(d.issue))?.issue;
+  } catch {
+    return;
+  }
+};
+
+/** not a paypal resource: the least the browser's `paypal_capture_outcome` reads as declined */
+const REFUSED_CAPTURE: IPaypalCaptured = {
+  purchase_units: [{ payments: { captures: [{ status: "DECLINED" }] } }],
+};
+
+export const capture_order = async ({
+  order_id,
+  don_id,
+}: ICaptureInput): Promise<CaptureOrderResponse | IPaypalCaptured> => {
+  let capture: CaptureOrderResponse;
+  try {
+    // order_id is stable per intent — use it as the idempotency key so a retry
+    // after a timeout returns the original capture instead of duplicating it
+    capture = await paypal.capture_order(order_id, `capture-${order_id}`);
+  } catch (err) {
+    const issue = refused_issue(err);
+    if (!issue) throw err;
+    report_degraded(err, { order_id, don_id, issue });
+    return REFUSED_CAPTURE;
+  }
 
   const { outcome, status } = paypal_capture_outcome(capture);
   if (outcome !== "taken") {
