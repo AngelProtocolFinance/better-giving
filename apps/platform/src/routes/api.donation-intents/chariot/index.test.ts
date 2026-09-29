@@ -82,6 +82,24 @@ beforeEach(async () => {
   });
 });
 
+describe("chariot_intent repeat for one workflow session", () => {
+  it("returns the donation already recorded for the grant instead of failing", async () => {
+    // create grant is idempotent per workflow session: a repeat returns the same grant
+    create_grant_mock.mockResolvedValue({
+      id: "grant_1",
+      metadata: { don_id: "don_1" },
+    });
+    const amount = { base: 10, tip: 0, fee_allowance: 0 };
+
+    const first = await chariot_intent(ctx(amount));
+    const again = await chariot_intent(ctx(amount));
+
+    expect(again).toEqual(first);
+    expect(again).toMatchObject({ don_id: "don_1" });
+    expect(await db().select().from(donations)).toHaveLength(1);
+  });
+});
+
 describe("chariot_intent grant amount", () => {
   it("refuses a total that isn't whole dollars before creating the grant", async () => {
     const res = await chariot_intent(

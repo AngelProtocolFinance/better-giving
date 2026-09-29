@@ -67,11 +67,14 @@ export function ChariotCheckout(props: DafDonationDetails) {
   // where a grant that has already been recommended ended up. set the moment
   // the money moves, not when the trip to the receipt is declared lost: what
   // comes between is up to nine seconds of a panel that looks exactly like one
-  // nothing happened on, and the launcher may not be live for any of it.
+  // nothing happened on.
   const [paid, set_paid] = useState<IDonationDest>();
   // ...and the trip never happened, so the way to the receipt has to be on the
   // panel: the prompt carrying it can be dismissed.
   const [stuck, set_stuck] = useState(false);
+  // any answer from the server, error included, may mean the grant exists at
+  // chariot; a fresh connect session from here would be a second grant
+  const [answered, set_answered] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
   const { tip: tipv, fee_allowance: mfa } = whole_dollar_amounts(
@@ -232,6 +235,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
           method: "POST",
           body: JSON.stringify(intent),
         });
+        set_answered(true);
         if (!res.ok) throw await res.text();
         const { id } = await res.json();
 
@@ -245,9 +249,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
           donor_name: [grantor.firstName, grantor.lastName],
         });
 
-        // the grant is recommended and irreversible from here. the launcher
-        // goes dead now — every path below is us trying to reach the receipt,
-        // and none of them may leave a second grant one click away.
+        // the grant is recommended and irreversible from here — every path
+        // below is us trying to reach the receipt.
         set_paid(dest);
 
         redirect_ref.current({
@@ -286,7 +289,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
       frequency="one-time"
       tip={tipv ? { value: tipv, charity_name: don.recipient.name } : undefined}
     >
-      {/* the grant is recommended, so the launcher goes dead — one more click
+      {/* the grant may be recommended, so the launcher goes dead — one more click
           here is a second real grant, of real money, out of the donor's fund.
           it goes dead in place rather than away: chariot's element owns a
           session whose modal renders into `document.body`, so unmounting it is
@@ -296,8 +299,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
           it tabbable. */}
       <div
         ref={container_ref}
-        inert={!!paid}
-        className={paid ? "opacity-50" : undefined}
+        inert={answered}
+        className={answered ? "opacity-50" : undefined}
       >
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>

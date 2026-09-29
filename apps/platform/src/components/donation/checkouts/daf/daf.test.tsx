@@ -174,6 +174,34 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     // and not yet worded as a failure — the browser may still be on its way
     expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
   });
+
+  test("an error from the server still kills the launcher, and says so", async () => {
+    // the grant may exist at chariot even though recording it failed
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.text("recording failed", { status: 500 })
+      )
+    );
+    seed_script();
+
+    const Stub = stb(<ChariotCheckout {...fv} />);
+    const screen = await render(<Stub />);
+
+    const el = await vi.waitUntil(() =>
+      screen.container.querySelector("chariot-connect")
+    );
+    el.dispatchEvent(
+      new CustomEvent("CHARIOT_SUCCESS", { detail: success_detail })
+    );
+
+    await expect
+      .element(screen.getByRole("dialog"))
+      .toMatchTextContent(/error occurred while processing donation/i);
+    expect(
+      screen.container.querySelector("chariot-connect")?.closest("[inert]")
+    ).not.toBeNull();
+    expect(redirect_mock).not.toHaveBeenCalled();
+  });
 });
 
 describe("daf checkout: the grant is what the summary shows, in whole dollars", () => {
