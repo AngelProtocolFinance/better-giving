@@ -4,6 +4,7 @@ import type { Payment } from "#/types/crypto";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
+import { NowpaymentsError } from "@/nowpayments";
 import { donation_quote } from "@/nowpayments/min";
 import { deposit_addr } from "$/deposit-addr";
 import { base_url } from "$/env";
@@ -145,6 +146,13 @@ async function np_intent(c: Ctx, token: IToken) {
     q = await np_payment(c, token, r_id, to_pay);
   } catch (err) {
     report_error(err, { order_id: r_id, currency: token.code });
+    // a coin disabled on the account, or under nowpayments' own floor
+    if (err instanceof NowpaymentsError && err.http_status < 500) {
+      return resp.txt(
+        "This currency isn't available right now. Choose a different currency.",
+        400
+      );
+    }
     return resp.txt(
       "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
       502

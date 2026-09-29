@@ -166,7 +166,8 @@ describe("crypto_intent", () => {
     expect(await rows()).toHaveLength(0);
   });
 
-  it("a nowpayments invoice error answers 502, reports, and leaves no row", async () => {
+  // retrying a coin nowpayments refuses can never succeed
+  it("a nowpayments 4xx tells the donor to pick another currency, reports, and leaves no row", async () => {
     np_server({
       "/v1/invoice": () =>
         new Response('{"message":"currency disabled"}', { status: 400 }),
@@ -175,11 +176,33 @@ describe("crypto_intent", () => {
       ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
     );
 
-    expect((res as Response).status).toBe(502);
-    expect(await (res as Response).text()).not.toMatch(/currency disabled/);
+    expect((res as Response).status).toBe(400);
+    const msg = await (res as Response).text();
+    expect(msg).toMatch(/isn't available right now.*different currency/);
+    expect(msg).not.toMatch(/currency disabled/);
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(await rows()).toHaveLength(0);
   });
+
+  it.each([
+    ["a 5xx", () => new Response("", { status: 503 })],
+    ["a network failure", () => Promise.reject(new TypeError("fetch failed"))],
+  ])(
+    "%s from nowpayments answers 502 try-again-later, reports, and leaves no row",
+    async (_, route) => {
+      np_server({ "/v1/invoice": route });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(502);
+      expect(await (res as Response).text()).toMatch(
+        /try again in a few minutes/
+      );
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
 
   it("creates the invoice with a well-formed callback, then the row under its order_id", async () => {
     const spy = np_server();
