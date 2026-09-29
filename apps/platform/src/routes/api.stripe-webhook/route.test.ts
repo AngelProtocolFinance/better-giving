@@ -134,6 +134,29 @@ describe("api.stripe-webhook action", () => {
     expect(report_error_mock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["rate limit", new Stripe.errors.StripeRateLimitError({ message: "429" })],
+    ["api", new Stripe.errors.StripeAPIError({ message: "500" })],
+    [
+      "connection",
+      new Stripe.errors.StripeConnectionError({ message: "reset" }),
+    ],
+  ])(
+    "returns 503 unreported on a transient stripe %s error",
+    async (_, err) => {
+      construct_event_mock.mockReturnValue({
+        type: "customer.subscription.updated",
+        data: { object: { id: "sub_1" } },
+      });
+      sub_retrieve_mock.mockRejectedValue(err);
+
+      const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+      expect(res.status).toBe(503);
+      expect(report_error_mock).not.toHaveBeenCalled();
+    }
+  );
+
   it("returns 200 for a verified event it handles", async () => {
     construct_event_mock.mockReturnValue({
       type: "payment_intent.succeeded",

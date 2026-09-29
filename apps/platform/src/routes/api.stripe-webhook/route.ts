@@ -164,6 +164,15 @@ export async function action({ request }: Route.ActionArgs) {
     if (err instanceof BalanceTxnNotReadyError) {
       return new Response(err.message, { status: 503 });
     }
+    // stripe's own api failing a call we made: its redelivery is the retry
+    if (
+      err instanceof Stripe.errors.StripeRateLimitError ||
+      err instanceof Stripe.errors.StripeAPIError ||
+      err instanceof Stripe.errors.StripeConnectionError
+    ) {
+      console.warn(`stripe api transient ${err.type}: ${err.message}`);
+      return new Response(err.message, { status: 503 });
+    }
     // a signature that doesn't verify is a config problem (wrong
     // STRIPE_WEBHOOK_SECRET, body mutated before it reached us), not a bad
     // event. permanent, so 400 — retries can't fix it — but still reported so
