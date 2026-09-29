@@ -12,6 +12,7 @@ import {
   handle_charge_refunded,
   handle_intent_failed,
   handle_intent_requires_action,
+  handle_refund_failed,
   handle_setup_intent_failed,
   handle_setup_intent_succeeded,
 } from "./handlers";
@@ -128,6 +129,9 @@ export async function action({ request }: Route.ActionArgs) {
       }
       case "charge.refunded":
         await handle_charge_refunded(stripe_event);
+        break;
+      case "refund.failed":
+        await handle_refund_failed(stripe_event);
         break;
       default:
         return new Response(`Unhandled event type: ${stripe_event.type}`, {

@@ -11,12 +11,12 @@ import { fiat_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
-import { donation_by_sttl_id, donation_get } from "$/pg/queries/donation";
 import { process_refund } from "$/refund/process";
+import { refunded_donation } from "../helpers/refunded-donation";
 
 const ALERT_FROM = "charge-refunded";
 
-const money = (atomic: number, currency: string) =>
+export const money = (atomic: number, currency: string) =>
   `${from_stripe_amount(atomic, currency).toFixed(currency_precision(currency))} ${currency.toUpperCase()}`;
 
 const refund_list = (refunds: Stripe.Refund[], currency: string) =>
@@ -54,20 +54,6 @@ const added_by = (
   const reconciles = prior === before && total === data.object.amount_refunded;
   return reconciles && added.length > 0 ? added : null;
 };
-
-/** the donation the charge settled. a subscription charge settled a rebill
- * clone, not the order its invoice names, and its intent carries no metadata;
- * the settlement id is the intent id on every row either kind settles */
-async function refunded_donation(intent_id: string) {
-  const settled = await donation_by_sttl_id(intent_id);
-  if (settled) return settled;
-  const intent = await stripe.paymentIntents.retrieve(intent_id);
-  const { order_id } = intent.metadata;
-  if (!order_id) throw new Error(`no donation settled by intent: ${intent_id}`);
-  const don = await donation_get(order_id);
-  if (!don) throw new Error(`donation not found: ${order_id}`);
-  return don;
-}
 
 export async function handle_charge_refunded(
   event: Stripe.ChargeRefundedEvent
