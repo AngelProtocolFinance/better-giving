@@ -139,11 +139,14 @@ async function alert_ops({
   console.warn(`[chariot webhook] ${detail}: left unchanged, alerted`);
 }
 
-function safe_equals(expected: string, received: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(received);
-  // timingSafeEqual throws on unequal lengths
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+const SHA256_HEX = /^[0-9a-f]{64}$/i;
+
+/** compares decoded bytes, so hex case can't decide a match */
+function safe_equals(expected: Buffer, received: string): boolean {
+  // Buffer.from(hex) stops silently at the first non-hex pair, so a malformed
+  // value is refused before decoding
+  if (!SHA256_HEX.test(received)) return false;
+  return crypto.timingSafeEqual(expected, Buffer.from(received, "hex"));
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -159,7 +162,7 @@ export async function action({ request }: Route.ActionArgs) {
     const hash = crypto
       .createHmac("sha256", chariot_env.signing_key)
       .update(signed)
-      .digest("hex");
+      .digest();
 
     // 4xx, not 2xx: chariot reads 2xx as delivered, so a signing-key mismatch
     // would drop every grant silently; a 4xx is redelivered in production and,

@@ -236,6 +236,20 @@ describe("chariot webhook signature header", () => {
     expect(res.status).toBe(203);
   });
 
+  it("accepts a valid signature written in uppercase hex", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      id: "grant-4",
+      status: "Initiated",
+      metadata: { don_id: "don-4" },
+    });
+
+    const res = await post(body, `t=${T},v1=${sign(body).toUpperCase()}`);
+
+    expect(get_grant_mock).toHaveBeenCalledWith("grant-4");
+    expect(res.status).toBe(203);
+  });
+
   it.each([
     ["a wrong signature", sign(body, "whsec-other")],
     ["a wrong-length signature", sign(body).slice(0, 10)],
