@@ -240,8 +240,12 @@ export async function action({ request }: Route.ActionArgs) {
     const gross = grant.amount / 100;
     const fee = (grant.feeDetail?.total ?? 0) / 100;
 
+    const completed_at =
+      grant.statuses?.filter((x) => x.status === "Completed").at(-1)
+        ?.createdAt ?? grant.updatedAt;
+
     const settlement: ISettlement = {
-      date: new Date().toISOString(),
+      date: new Date(completed_at ?? Date.now()).toISOString(),
       net: gross - fee,
       fee,
       id: grant.id,

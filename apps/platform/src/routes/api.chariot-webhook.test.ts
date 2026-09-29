@@ -488,6 +488,32 @@ describe("chariot webhook completed grant", () => {
     ]);
   });
 
+  it("dates the settlement when the grant completed, not when the event is processed", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...completed_grant,
+      updatedAt: "2026-09-05T00:00:00Z",
+      statuses: [
+        { id: "s1", status: "Initiated", createdAt: "2026-08-01T10:00:00Z" },
+        { id: "s2", status: "Completed", createdAt: "2026-09-01T12:30:00Z" },
+      ],
+    });
+    donation_mocks.get.mockResolvedValue({ id: "don-20", status: "intent" });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+    await deliver(complete_event);
+
+    expect(donation_mocks.update).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      "don-20",
+      expect.objectContaining({
+        settlement: expect.objectContaining({
+          date: "2026-09-01T12:30:00.000Z",
+        }),
+      })
+    );
+  });
+
   it("leaves a cancelled donation unsettled and alerts", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(completed_grant);
