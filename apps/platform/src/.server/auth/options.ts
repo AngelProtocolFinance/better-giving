@@ -123,7 +123,8 @@ export const auth_options = (deps: AuthOptionDeps) => ({
     requireEmailVerification: true,
     minPasswordLength: 8,
     // a reset is how a compromised account is taken back, so it evicts every
-    // session. the resetter holds none to keep — the link comes by email.
+    // session, the resetter's own included — the reset page doesn't require
+    // being signed out. operator-set passwords: `./set-password`.
     revokeSessionsOnPasswordReset: true,
   },
 

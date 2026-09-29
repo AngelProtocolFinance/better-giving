@@ -41,7 +41,7 @@ import { eq } from "drizzle-orm";
 import { while_token_writes_fail } from "#/__tests__/fixtures/token-writes";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
-import { session, user as user_table } from "$/pg/schema/auth";
+import { account, session, user as user_table } from "$/pg/schema/auth";
 import { create_test_db } from "$/pg/test-utils/pglite";
 import { LINK_PER_EMAIL, LINK_PER_IP } from "./login-link";
 import { auth_options } from "./options";
@@ -298,12 +298,23 @@ async function sign_in(email: string, password: string): Promise<Headers> {
   return new Headers({ cookie: token });
 }
 
+/** resets `email` through the emailed link, as the set-password step does */
+async function reset_via_link(email: string, new_pw: string) {
+  await request_password_reset(email, from_ip("203.0.113.7"));
+  const token = new URL(sent_resets.at(-1)!.url).pathname.split(
+    "/reset-password/"
+  )[1];
+  await test_auth_ref.current.api.resetPassword({
+    body: { newPassword: new_pw, token },
+  });
+}
+
 describe("resetting a password", () => {
   const email = "donor@example.com";
   const old_pw = "old-password-1";
   const new_pw = "new-password-2";
 
-  it("signs the user out of every session, and the new password signs in", async () => {
+  async function signed_up_on_two_devices(): Promise<Headers[]> {
     await test_auth_ref.current.api.signUpEmail({
       body: {
         email,
@@ -326,14 +337,13 @@ describe("resetting a password", () => {
         await test_auth_ref.current.api.getSession({ headers })
       ).not.toBeNull();
     }
+    return devices;
+  }
 
-    await request_password_reset(email, from_ip("203.0.113.7"));
-    const token = new URL(sent_resets[0]!.url).pathname.split(
-      "/reset-password/"
-    )[1];
-    await test_auth_ref.current.api.resetPassword({
-      body: { newPassword: new_pw, token },
-    });
+  it("signs the user out of every session, and the new password signs in", async () => {
+    const devices = await signed_up_on_two_devices();
+
+    await reset_via_link(email, new_pw);
 
     for (const headers of devices) {
       expect(
@@ -350,6 +360,27 @@ describe("resetting a password", () => {
       .where(eq(session.userId, id));
     expect(left).toHaveLength(0);
 
+    const fresh = await sign_in(email, new_pw);
+    expect(
+      (await test_auth_ref.current.api.getSession({ headers: fresh }))?.user
+        .email
+    ).toBe(email);
+  });
+
+  it("signs a user setting a first password out of every session", async () => {
+    const devices = await signed_up_on_two_devices();
+    // passwordless from here on, as a migrated or google-only user is
+    await test_db
+      .current!.db.delete(account)
+      .where(eq(account.providerId, "credential"));
+
+    await reset_via_link(email, new_pw);
+
+    for (const headers of devices) {
+      expect(
+        await test_auth_ref.current.api.getSession({ headers })
+      ).toBeNull();
+    }
     const fresh = await sign_in(email, new_pw);
     expect(
       (await test_auth_ref.current.api.getSession({ headers: fresh }))?.user
