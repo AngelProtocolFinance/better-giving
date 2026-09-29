@@ -1,5 +1,6 @@
 import { CircleCheck } from "lucide-react";
-import { href, Link } from "react-router";
+import { Link } from "react-router";
+import { back_to_login } from "./back-link";
 
 export function Success(props: { to: string }) {
   return (
@@ -14,7 +15,7 @@ export function Success(props: { to: string }) {
       </p>
 
       <Link
-        to={`${href("/login")}?redirect=${props.to}`}
+        to={back_to_login(props.to)}
         className="btn btn-lg btn-primary mt-9 w-full"
       >
         Back to Sign in

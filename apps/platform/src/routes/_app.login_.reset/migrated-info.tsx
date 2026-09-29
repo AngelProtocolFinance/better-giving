@@ -1,5 +1,6 @@
 import { KeyRound, Mail } from "lucide-react";
-import { href, Link } from "react-router";
+import { Link } from "react-router";
+import { back_to_login } from "./back-link";
 
 type Props = { email: string; to: string };
 
@@ -33,7 +34,7 @@ export function MigratedInfo(props: Props) {
       </p>
 
       <Link
-        to={`${href("/login")}?redirect=${props.to}`}
+        to={back_to_login(props.to)}
         className="btn btn-lg btn-primary mt-6 w-full"
       >
         Back to Sign In

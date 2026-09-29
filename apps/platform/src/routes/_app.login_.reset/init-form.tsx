@@ -1,8 +1,9 @@
 import { Input } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { Mail } from "lucide-react";
-import { href, Link, useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
+import { back_to_login } from "./back-link";
 import { email_schema, type IEmailSchema } from "./schema";
 
 type Props = { to: string };
@@ -44,7 +45,7 @@ export function InitForm(props: Props) {
       </button>
 
       <Link
-        to={`${href("/login")}?redirect=${props.to}`}
+        to={back_to_login(props.to)}
         className="mt-5 link aria-disabled:text-gray-11 max-sm:text-sm font-medium underline text-center"
         aria-disabled={fetcher.state !== "idle"}
       >
