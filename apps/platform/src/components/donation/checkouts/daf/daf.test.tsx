@@ -175,6 +175,34 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
   });
 
+  test("a donor connect returns with no address still gets their grant recorded", async () => {
+    let body: { donor: { email: string; address?: unknown } } | undefined;
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), async ({ request }) => {
+        body = (await request.json()) as typeof body;
+        return HttpResponse.json({ id: "don_1" });
+      })
+    );
+    seed_script();
+
+    const Stub = stb(<ChariotCheckout {...fv} />);
+    const screen = await render(<Stub />);
+
+    const el = await vi.waitUntil(() =>
+      screen.container.querySelector("chariot-connect")
+    );
+    const { address: _, ...no_address } = success_detail.user;
+    el.dispatchEvent(
+      new CustomEvent("CHARIOT_SUCCESS", {
+        detail: { ...success_detail, user: no_address },
+      })
+    );
+
+    const posted = await vi.waitUntil(() => body);
+    expect(posted.donor.email).toBe("john@doe.com");
+    expect(posted.donor.address).toBeUndefined();
+  });
+
   test("an error from the server still kills the launcher, and says so", async () => {
     // the grant may exist at chariot even though recording it failed
     mswWorker.use(

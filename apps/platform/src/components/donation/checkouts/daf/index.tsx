@@ -200,14 +200,12 @@ export function ChariotCheckout(props: DafDonationDetails) {
           },
         }));
 
-        const { postalCode, line1, line2, city, state } = grantor.address;
-        const addr_street = [line1, line2].filter(Boolean).join(", ");
-
-        const addr: IDonorAddress = {
-          street: addr_street,
-          city,
-          state,
-          zip_code: postalCode,
+        const ga = grantor.address;
+        const addr: IDonorAddress | undefined = ga && {
+          street: [ga.line1, ga.line2].filter(Boolean).join(", "),
+          city: ga.city,
+          state: ga.state,
+          zip_code: ga.postalCode,
         };
 
         const intent: IDonationIntent = {
