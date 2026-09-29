@@ -946,6 +946,26 @@ describe("signature verification", () => {
     expect(await settlements()).toHaveLength(0);
   });
 
+  it("asks for redelivery, reporting once, while PAYPAL_WEBHOOK_ID is unset", async () => {
+    await seed_donation();
+    const configured = paypal_env.webhook_id;
+    (paypal_env as { webhook_id?: string }).webhook_id = undefined;
+    vi.resetModules();
+    const { action: misconfigured } = await import("./route");
+    paypal_env.webhook_id = configured;
+
+    const res = await deliver(capture_ev(), {}, PAYPAL, misconfigured);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: "[paypal webhook] webhook id is not configured",
+      })
+    );
+    expect(await settlements()).toHaveLength(0);
+  });
+
   // a 200 that isn't a cert is not the host shedding load: triaged as a bug
   it("reports paypal's cert url answering 200 with no certificate as a bug, asks for redelivery, and caches nothing", async () => {
     await seed_donation();
