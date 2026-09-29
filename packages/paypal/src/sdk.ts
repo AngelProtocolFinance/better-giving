@@ -1,5 +1,6 @@
 import {
   type CancelSubscriptionRequest,
+  type Capture,
   type CaptureOrderResponse,
   type CreateOrderRequest,
   type CreateOrderResponse,
@@ -21,13 +22,16 @@ import {
   type GetPlansParams,
   type GetPlansResponse,
   type GetSubscriptionResponse,
+  get_capture_path,
   get_order_path,
   get_plan_path,
   get_plans_path,
+  get_sale_path,
   get_subscription_path,
   type IAccessTokenRes,
   type ISdkConfig,
   oauth_token_path,
+  type Sale,
 } from "./interfaces.js";
 
 /**
@@ -354,6 +358,36 @@ export class PayPalSDK {
       throw await PayPalApiError.from("get subscription", response);
 
     return (await response.json()) as GetSubscriptionResponse;
+  }
+
+  /**
+   * get a payments v2 capture by ID
+   */
+  async get_capture(capture_id: string): Promise<Capture> {
+    return this.get(
+      "get capture",
+      get_capture_path.replace("{capture_id}", capture_id)
+    );
+  }
+
+  /**
+   * get a payments v1 sale by ID — a subscription's charge
+   */
+  async get_sale(sale_id: string): Promise<Sale> {
+    return this.get("get sale", get_sale_path.replace("{sale_id}", sale_id));
+  }
+
+  private async get<T>(op: string, path: string): Promise<T> {
+    const token = await this.get_access_token();
+    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!response.ok) throw await PayPalApiError.from(op, response);
+    return (await response.json()) as T;
   }
 
   /**

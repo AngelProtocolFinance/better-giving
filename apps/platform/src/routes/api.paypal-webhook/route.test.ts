@@ -30,6 +30,11 @@ const get_subscription_mock = vi.hoisted(() => vi.fn());
 const get_plan_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
+const get_capture_mock = vi.hoisted(() => vi.fn());
+const get_sale_mock = vi.hoisted(() => vi.fn());
+/** the last event's resource: by default paypal's own copy of a capture or
+ * sale agrees with the event that announced it */
+const delivered = vi.hoisted(() => ({ resource: undefined as unknown }));
 /** runs on the lock's own tx just before it is taken — a write that commits
  * between the handler's first read and the lock */
 const before_lock = vi.hoisted(() => ({
@@ -59,6 +64,8 @@ vi.mock("$/kit/paypal", () => ({
     get_subscription: get_subscription_mock,
     get_plan: get_plan_mock,
     capture_order: capture_order_mock,
+    get_capture: get_capture_mock,
+    get_sale: get_sale_mock,
   },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
@@ -181,6 +188,7 @@ const deliver = (
   route: typeof action = action
 ) => {
   const body = typeof ev === "string" ? ev : JSON.stringify(ev);
+  if (typeof ev !== "string") delivered.resource = ev.resource;
   const unsigned: Record<string, string | null> = {
     "paypal-transmission-id": "t-1",
     "paypal-transmission-time": "2026-01-01T00:00:00Z",
@@ -319,6 +327,15 @@ beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
   capture_order_mock.mockResolvedValue({ id: "ORDER-1", status: "COMPLETED" });
+  delivered.resource = undefined;
+  get_capture_mock.mockImplementation(async () => ({
+    status: "COMPLETED",
+    ...(delivered.resource as object),
+  }));
+  get_sale_mock.mockImplementation(async () => ({
+    state: "completed",
+    ...(delivered.resource as object),
+  }));
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
     plan_id: "P-1",
@@ -497,6 +514,59 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
 
     expect(await settlements()).toEqual([
       expect.objectContaining({ net: 47.06 }),
+    ]);
+  });
+});
+
+describe("settling from paypal's copy, not the event's", () => {
+  it("settles a capture at what paypal says it captured, onto the donation paypal names", async () => {
+    await seed_donation();
+    await seed_donation({ id: "don-other" });
+    const forged = capture_ev();
+    forged.resource.custom_id = "don-other";
+    forged.resource.seller_receivable_breakdown.net_amount.value = "9999";
+    const genuine = capture_ev().resource;
+    get_capture_mock.mockResolvedValue({ ...genuine, status: "COMPLETED" });
+
+    const res = await deliver(forged);
+
+    expect(res.status).toBe(200);
+    expect(get_capture_mock).toHaveBeenCalledWith(CAPTURE_ID);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ donation_id: ORDER_ID, net: 96.5, fee: 3.5 }),
+    ]);
+    expect((await donation_get("don-other"))!.status).toBe("intent");
+  });
+
+  it("settles nothing on a capture paypal says is not complete", async () => {
+    await seed_donation();
+    get_capture_mock.mockResolvedValue({
+      ...capture_ev().resource,
+      status: "DECLINED",
+    });
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("settles a sale at what paypal says it sold", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const forged = sale_ev();
+    forged.resource.amount.total = "9999";
+    get_sale_mock.mockResolvedValue({
+      ...sale_ev().resource,
+      state: "completed",
+    });
+
+    const res = await deliver(forged);
+
+    expect(res.status).toBe(200);
+    expect(get_sale_mock).toHaveBeenCalledWith(SALE_ID);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 96.5, fee: 3.5 }),
     ]);
   });
 });

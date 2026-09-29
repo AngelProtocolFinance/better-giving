@@ -472,6 +472,26 @@ async function verified_body(
 
 const AWAITING_CAPTURE = new Set<IDonation["status"]>(["created", "intent"]);
 
+// a completed charge refunded since still settles: its refund event reverses it
+const SETTLEABLE_CAPTURE = new Set<Capture["status"]>([
+  "COMPLETED",
+  "PARTIALLY_REFUNDED",
+  "REFUNDED",
+]);
+const SETTLEABLE_SALE = new Set<Sale["state"]>([
+  "completed",
+  "partially_refunded",
+  "refunded",
+]);
+
+/** the resource, or the status of a lookup paypal refused for good — a
+ * redelivery gets the same answer. anything else throws to a redelivery */
+const fetch_resource = async <T>(get: () => Promise<T>): Promise<T | number> =>
+  get().catch((e: unknown) => {
+    if (is_refusal(e)) return e.http_status;
+    throw e;
+  });
+
 // -- route action --
 
 /**
@@ -576,27 +596,41 @@ export async function action({ request }: Route.ActionArgs) {
         return new Response("captured approved order", { status: 200 });
       }
       case "PAYMENT.CAPTURE.COMPLETED": {
-        const {
-          id: cid,
-          create_time: create_date = new Date().toISOString(),
-          custom_id: don_id,
-          seller_receivable_breakdown: b,
-          supplementary_data,
-        } = ev.resource as Capture;
+        const { id: cid } = ev.resource as Capture;
         if (!cid) return unroutable(ev, "missing capture id");
-        if (!don_id)
-          return unroutable(ev, `missing onhold id for capture: ${cid}`);
 
         // idempotency: already processed this capture. rechecked under the
-        // order row's lock below — this one only spares a redelivery the order
-        // fetch and the settle math.
+        // order row's lock below — this one only spares a redelivery the
+        // paypal fetches and the settle math.
         if (await settlement_exists(cid)) {
           console.info(
             `[paypal webhook] capture ${cid} already settled, skipping`
           );
-          await requeue(await donation_by_sttl_id(cid), don_id);
+          // a capture only ever settles its order's own row
+          const row = await donation_by_sttl_id(cid);
+          await requeue(row, row?.id ?? "");
           return new Response("already processed", { status: 200 });
         }
+
+        // the donation and the amounts come from paypal's copy: the signature
+        // is the only check on the event body
+        const capture = await fetch_resource(() => paypal.get_capture(cid));
+        if (typeof capture === "number")
+          return unroutable(
+            ev,
+            `paypal answered ${capture} for capture ${cid}`
+          );
+        const {
+          create_time: create_date = new Date().toISOString(),
+          custom_id: don_id,
+          seller_receivable_breakdown: b,
+          supplementary_data,
+          status,
+        } = capture;
+        if (!don_id)
+          return unroutable(ev, `missing onhold id for capture: ${cid}`);
+        if (!status || !SETTLEABLE_CAPTURE.has(status))
+          return unroutable(ev, `capture ${cid} is ${status}`);
 
         if (!b?.gross_amount)
           return unroutable(ev, `missing gross amount for capture ${cid}`);
@@ -769,27 +803,36 @@ export async function action({ request }: Route.ActionArgs) {
         return new Response("capture pending", { status: 200 });
       }
       case "PAYMENT.SALE.COMPLETED": {
+        const { id: sale_id, billing_agreement_id: ev_subs_id } =
+          ev.resource as Sale;
+        if (!sale_id) return unroutable(ev, "missing sale id");
+
+        // idempotency: already processed this sale. rechecked under the order
+        // row's lock below — this one only spares a redelivery the paypal
+        // fetches and the settle math.
+        if (await settlement_exists(sale_id)) {
+          console.info(
+            `[paypal webhook] sale ${sale_id} already settled, skipping`
+          );
+          await requeue_sale(sale_id, ev_subs_id);
+          return new Response("already processed", { status: 200 });
+        }
+
+        // as for a capture: settled from paypal's copy, not the event body
+        const sale = await fetch_resource(() => paypal.get_sale(sale_id));
+        if (typeof sale === "number")
+          return unroutable(ev, `paypal answered ${sale} for sale ${sale_id}`);
         const {
-          id: sale_id,
           create_time: create_date = new Date().toISOString(),
           billing_agreement_id: subs_id,
           transaction_fee,
           receivable_amount,
           amount: sale_amount,
           exchange_rate: rate, // unit per usd
-        } = ev.resource as Sale;
-        if (!sale_id) return unroutable(ev, "missing sale id");
-
-        // idempotency: already processed this sale. rechecked under the order
-        // row's lock below — this one only spares a redelivery the plan fetch
-        // and the settle math.
-        if (await settlement_exists(sale_id)) {
-          console.info(
-            `[paypal webhook] sale ${sale_id} already settled, skipping`
-          );
-          await requeue_sale(sale_id, subs_id);
-          return new Response("already processed", { status: 200 });
-        }
+          state,
+        } = sale;
+        if (!state || !SETTLEABLE_SALE.has(state))
+          return unroutable(ev, `sale ${sale_id} is ${state}`);
 
         if (!sale_amount?.total)
           return unroutable(ev, `missing total for sale: ${sale_id}`);
