@@ -19,6 +19,6 @@ export const delete_action = async (
     return dataWithError(null, "Payout method not found");
   }
 
-  await bapp_delete(bank_id.toString());
+  await bapp_delete(bank_id.toString(), npo_id);
   return redirectWithSuccess("../..", "Payout method deleted");
 };

@@ -46,7 +46,7 @@ describe("delete payout method", () => {
     const res: Response = await call();
 
     expect(res.status).toBe(302);
-    expect(q.bapp_delete).toHaveBeenCalledWith(String(BANK_ID));
+    expect(q.bapp_delete).toHaveBeenCalledWith(String(BANK_ID), OWN_NPO);
   });
 
   it("tells the admin another nonprofit's method is not found and deletes nothing", async () => {

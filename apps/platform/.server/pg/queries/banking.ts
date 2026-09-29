@@ -153,8 +153,9 @@ export async function bapps_by_status(
   } satisfies IPage<Bapp>;
 }
 
+/** a retried submit of the same wise recipient is a no-op */
 export async function bapp_put(db: DbOrTx, data: BappInsert) {
-  await db.insert(banking_apps).values(data);
+  await db.insert(banking_apps).values(data).onConflictDoNothing();
 }
 
 export async function bapp_update_status(
@@ -177,11 +178,29 @@ export async function bapp_update_status(
   return prev;
 }
 
-/** set one bapp as default, demoting any existing default for the npo */
-export async function bapp_set_default(id: string, npo_id: number) {
+/**
+ * set the npo's approved bapp as default, demoting any existing default;
+ * false (and nothing changed) when `id` is not an approved bapp of `npo_id`
+ */
+export async function bapp_set_default(
+  id: string,
+  npo_id: number
+): Promise<boolean> {
   const now = new Date().toISOString();
-  await db.transaction(async (tx) => {
-    // demote existing default
+  return db.transaction(async (tx) => {
+    const promoted = await tx
+      .update(banking_apps)
+      .set({ status: "default", updated_at: now })
+      .where(
+        and(
+          eq(banking_apps.id, id),
+          eq(banking_apps.npo_id, npo_id),
+          eq(banking_apps.status, "approved")
+        )
+      )
+      .returning({ id: banking_apps.id });
+    if (promoted.length === 0) return false;
+
     await tx
       .update(banking_apps)
       .set({ status: "approved", updated_at: now })
@@ -192,15 +211,15 @@ export async function bapp_set_default(id: string, npo_id: number) {
           sql`${banking_apps.id} != ${id}`
         )
       );
-
-    // promote target
-    await tx
-      .update(banking_apps)
-      .set({ status: "default", updated_at: now })
-      .where(eq(banking_apps.id, id));
+    return true;
   });
 }
 
-export async function bapp_delete(id: string) {
-  await db.delete(banking_apps).where(eq(banking_apps.id, id));
+/** false when `id` is not a bapp of `npo_id` */
+export async function bapp_delete(id: string, npo_id: number) {
+  const deleted = await db
+    .delete(banking_apps)
+    .where(and(eq(banking_apps.id, id), eq(banking_apps.npo_id, npo_id)))
+    .returning({ id: banking_apps.id });
+  return deleted.length > 0;
 }
