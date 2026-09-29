@@ -80,10 +80,12 @@ function prune(now: number): void {
   }
 }
 
-/** the same headers `advanced.ipAddress.ipAddressHeaders` names, in the same
- * order — one source of truth for "who is calling" whether the request reached
- * better-auth's router or a loader. */
-const IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"] as const;
+/** also better-auth's `advanced.ipAddress.ipAddressHeaders` — one source of
+ * truth for "who is calling" whether the request reached better-auth's router
+ * or a loader. vercel overwrites `x-forwarded-for` at its edge; nothing
+ * documents a client-sent `x-vercel-forwarded-for` being stripped, so that one
+ * is never read. */
+export const IP_HEADERS = ["x-forwarded-for"];
 
 const IPV4 = v.pipe(v.string(), v.ipv4());
 const IPV6 = v.pipe(v.string(), v.ipv6());

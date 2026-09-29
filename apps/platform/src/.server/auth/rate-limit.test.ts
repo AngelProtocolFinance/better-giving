@@ -20,8 +20,17 @@ describe("client_ip", () => {
 
   it("yields no ip for a header value that is not an address", () => {
     expect(from("not-an-ip")).toBeNull();
-    expect(from("evil:key", "x-vercel-forwarded-for")).toBeNull();
+    expect(from("evil:key")).toBeNull();
     expect(from("203.0.113.7")).toBe("203.0.113.7");
+  });
+
+  it("keys on x-forwarded-for, not an x-vercel-forwarded-for the client sent", () => {
+    const headers = new Headers({
+      "x-vercel-forwarded-for": "198.51.100.1",
+      "x-forwarded-for": "203.0.113.7",
+    });
+    expect(client_ip(headers)).toBe("203.0.113.7");
+    expect(from("198.51.100.1", "x-vercel-forwarded-for")).toBeNull();
   });
 });
 
