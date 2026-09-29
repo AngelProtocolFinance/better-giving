@@ -10,12 +10,18 @@ import { CtaBand } from "#/pages/@sections/cta-band";
 import type { IPostsPage } from "#/types/post";
 import type { Route } from "./+types/route";
 
+// cap keeps the GROQ slice start small and bounds the public cache-key space
+const MAX_PAGE = 10_000;
+const page_of = (param: string | null) => {
+  if (!param || !/^\d+$/.test(param)) return 1;
+  const n = Number(param);
+  return n > 0 && n <= MAX_PAGE ? n : 1;
+};
+
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const url = new URL(request.url);
-  const page_param = Number(url.searchParams.get("page"));
-  const currPage =
-    Number.isSafeInteger(page_param) && page_param > 0 ? page_param : 1;
+  const currPage = page_of(url.searchParams.get("page"));
   const [items, total] = await posts(currPage);
 
   const page: IPostsPage = {
