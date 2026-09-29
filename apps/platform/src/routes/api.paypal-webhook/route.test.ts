@@ -30,6 +30,7 @@ const get_subscription_mock = vi.hoisted(() => vi.fn());
 const get_plan_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
+const process_refund_mock = vi.hoisted(() => vi.fn());
 const get_capture_mock = vi.hoisted(() => vi.fn());
 const get_sale_mock = vi.hoisted(() => vi.fn());
 /** the last event's resource: by default paypal's own copy of a capture or
@@ -69,6 +70,7 @@ vi.mock("$/kit/paypal", () => ({
   },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
+vi.mock("$/refund/process", () => ({ process_refund: process_refund_mock }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
@@ -328,6 +330,12 @@ beforeEach(async () => {
   before_lock.current = null;
   capture_order_mock.mockResolvedValue({ id: "ORDER-1", status: "COMPLETED" });
   delivered.resource = undefined;
+  process_refund_mock.mockResolvedValue({
+    failures: [],
+    loss_msgs: [],
+    has_loss: false,
+    applied: 1,
+  });
   get_capture_mock.mockImplementation(async () => ({
     status: "COMPLETED",
     ...(delivered.resource as object),
@@ -763,6 +771,114 @@ describe("CHECKOUT.ORDER.APPROVED", () => {
     const res = await deliver(approved_ev());
 
     expect(res.ok).toBe(false);
+  });
+});
+
+describe("refunds and reversals", () => {
+  const capture_refund_ev = (event_type = "PAYMENT.CAPTURE.REFUNDED") => ({
+    id: "WH-REF-1",
+    event_type,
+    resource: {
+      id: "REF-1",
+      status: "COMPLETED",
+      amount: { value: "100", currency_code: "USD" },
+      links: [
+        {
+          rel: "up",
+          method: "GET",
+          href: `https://api.sandbox.paypal.com/v2/payments/captures/${CAPTURE_ID}`,
+        },
+      ],
+    },
+  });
+  const sale_refund_ev = (event_type = "PAYMENT.SALE.REFUNDED") => ({
+    id: "WH-REF-2",
+    event_type,
+    resource: { id: "REF-2", state: "completed", sale_id: SALE_ID },
+  });
+  const settled_capture = async () => {
+    await seed_donation();
+    await deliver(capture_ev());
+    await seed_dist(ORDER_ID);
+  };
+  const paypal_capture_is = (status: string) =>
+    get_capture_mock.mockResolvedValue({ ...capture_ev().resource, status });
+
+  it.each(["PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REVERSED"])(
+    "reverses a donation whose capture %s in full",
+    async (event_type) => {
+      await settled_capture();
+      paypal_capture_is("REFUNDED");
+
+      const res = await deliver(capture_refund_ev(event_type));
+
+      expect(res.status).toBe(200);
+      expect(get_capture_mock).toHaveBeenLastCalledWith(CAPTURE_ID);
+      expect(process_refund_mock).toHaveBeenCalledExactlyOnceWith(
+        ORDER_ID,
+        [
+          expect.objectContaining({
+            dist: expect.objectContaining({ donation_id: ORDER_ID }),
+          }),
+        ],
+        expect.objectContaining({ alert_from: "paypal-refund" })
+      );
+    }
+  );
+
+  it("reports a partial refund to ops and reverses nothing", async () => {
+    await settled_capture();
+    paypal_capture_is("PARTIALLY_REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(send_alert_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ title: "Partial Refund Not Reversed" })
+    );
+    expect(send_alert_mock.mock.calls[0]![0].body).toContain(CAPTURE_ID);
+  });
+
+  it("reverses a subscription charge paypal refunded in full", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    await seed_dist(ORDER_ID);
+    get_sale_mock.mockResolvedValue({
+      ...sale_ev().resource,
+      state: "refunded",
+    });
+
+    const res = await deliver(sale_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(get_sale_mock).toHaveBeenLastCalledWith(SALE_ID);
+    expect(process_refund_mock).toHaveBeenCalledExactlyOnceWith(
+      ORDER_ID,
+      [expect.anything()],
+      expect.anything()
+    );
+  });
+
+  it("acknowledges a refund on a donation already reversed", async () => {
+    await settled_capture();
+    await donation_update(db() as any, ORDER_ID, { status: "refunded" });
+    paypal_capture_is("REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+  });
+
+  it("asks for redelivery of a refund whose capture has not settled here yet", async () => {
+    await seed_donation();
+    paypal_capture_is("REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.ok).toBe(false);
+    expect(process_refund_mock).not.toHaveBeenCalled();
   });
 });
 
@@ -1631,7 +1747,7 @@ describe("logging", () => {
   it("keeps the payer out of the log of an unhandled event", async () => {
     const res = await deliver({
       id: "WH-2",
-      event_type: "PAYMENT.CAPTURE.REFUNDED",
+      event_type: "CUSTOMER.DISPUTE.CREATED",
       resource: {
         id: "REFUND-1",
         payer: {
