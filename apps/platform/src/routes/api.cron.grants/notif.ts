@@ -3,12 +3,11 @@ import { grants_schedule as gs } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
 import { group_by } from "@/helpers/array";
-import { min_payout_amount } from "@/npo/schema";
 import { send_email } from "$/email";
 import { wise as wise_env } from "$/env";
 import { wise } from "$/kit/wise";
-import { npo_get } from "$/pg/queries/npo";
 import { pending_payouts } from "$/pg/queries/payout";
+import { grant_eligibility } from "./eligibility";
 
 function to_yymm(date: string) {
   const parts = date.split("-");
@@ -33,18 +32,17 @@ export async function index() {
 
     for (const [npo_id, items = []] of Object.entries(by_npo)) {
       const total = items.reduce((acc, cur) => acc + cur.amount, 0);
-      const npo = await npo_get(+npo_id);
-      if (!npo) {
+      const el = await grant_eligibility(+npo_id, total);
+      if (el.status === "not_found") {
         console.info(`NPO ${npo_id} not found, skipping`);
         continue;
       }
-      const effective_min = npo.payout_minimum ?? min_payout_amount;
-      const effect = total >= effective_min ? "pass" : "skipped";
+      const effect = el.status === "pass" ? "pass" : "skipped";
       rows.push({
-        id: npo.id,
-        name: npo.name,
+        id: el.npo.id,
+        name: el.npo.name,
         amount: total,
-        min: effective_min,
+        min: el.minimum,
         effect,
       });
       if (effect === "pass") total_grant += total;
