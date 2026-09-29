@@ -186,7 +186,16 @@ export async function action({ request }: Route.ActionArgs) {
     const grant = await chariot.get_grant(payload.associated_object_id);
     // grant carries donor name, email, phone, address — log ids/status only
     console.info(`[chariot webhook] grant ${grant.id} status ${grant.status}`);
-    const { don_id } = grant.metadata as unknown as ChariotMetadata;
+    const { don_id } = (grant.metadata ?? {}) as Partial<ChariotMetadata>;
+    // not from our checkout (another connect instance, a dashboard grant):
+    // no row can ever match, so a 5xx would only buy ten redeliveries
+    if (typeof don_id !== "string" || !don_id) {
+      report_error(new Error("chariot grant without a donation id"), {
+        grant_id: grant.id,
+        status: grant.status,
+      });
+      return new Response("", { status: 200 });
+    }
 
     if (grant.status === "Canceled") {
       // unlocked read first: the locked one matches `id` only, grant metadata
@@ -240,8 +249,7 @@ export async function action({ request }: Route.ActionArgs) {
     };
 
     const prior = await donation_get(don_id);
-    if (!prior)
-      return new Response(`donation not found: ${don_id}`, { status: 500 });
+    if (!prior) throw new Error(`donation not found: ${don_id}`);
     const locked = await db.transaction(async (tx) => {
       const state = await donation_settle_state_locked(tx, prior.id);
       if (!state) throw new Error(`donation not found: ${prior.id}`);

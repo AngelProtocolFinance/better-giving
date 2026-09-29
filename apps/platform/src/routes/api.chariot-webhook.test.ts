@@ -9,6 +9,9 @@ const donation_mocks = vi.hoisted(() => ({
 }));
 const send_alert_mock = vi.hoisted(() => vi.fn(async () => {}));
 const report_error_mock = vi.hoisted(() => vi.fn());
+const report_resp_mock = vi.hoisted(() =>
+  vi.fn((e: any) => new Response(e?.message ?? "error", { status: 500 }))
+);
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const has_dists_mock = vi.hoisted(() => vi.fn());
 
@@ -32,7 +35,7 @@ vi.mock("$/pg/queries/donation", () => ({
 vi.mock("$/pg/queries/dist", () => ({ donation_has_dists: has_dists_mock }));
 vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
-  report_resp: (e: any) => new Response(e?.message ?? "error", { status: 500 }),
+  report_resp: report_resp_mock,
 }));
 
 const { action } = await import("./api.chariot-webhook");
@@ -63,6 +66,7 @@ afterEach(() => {
   donation_mocks.update.mockReset();
   send_alert_mock.mockReset();
   report_error_mock.mockReset();
+  report_resp_mock.mockClear();
   enqueue_mock.mockReset();
   has_dists_mock.mockReset();
 });
@@ -164,6 +168,38 @@ describe("chariot webhook grant fetch", () => {
     expect(line).toContain("ev-3");
     expect(line).toContain("grant.updated");
   });
+});
+
+describe("chariot webhook grant without our metadata", () => {
+  it.each([
+    ["no metadata", undefined],
+    ["metadata without a donation id", { campaign: "x" }],
+  ])(
+    "acks a grant with %s and reports it, without looking up a donation",
+    async (_, metadata) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue({
+        id: "grant-30",
+        status: "Completed",
+        amount: 10_000,
+        metadata,
+      });
+
+      const res = await deliver({
+        id: "ev-30",
+        category: "grant.updated",
+        associated_object_type: "grant",
+        associated_object_id: "grant-30",
+      });
+
+      expect(res.status).toBe(200);
+      expect(donation_mocks.get).not.toHaveBeenCalled();
+      expect(report_error_mock).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ grant_id: "grant-30" })
+      );
+    }
+  );
 });
 
 describe("chariot webhook signature header", () => {
@@ -549,6 +585,21 @@ describe("chariot webhook completed grant", () => {
       expect(send_alert_mock).not.toHaveBeenCalled();
     }
   );
+
+  it("reports a completed grant whose donation does not exist, and fails it so chariot redelivers", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue(undefined);
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(500);
+    expect(report_resp_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("don-20") }),
+      expect.anything()
+    );
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+  });
 
   it("alert for a cancelled donation carries the amount and recipient, no donor data", async () => {
     quiet_console();
