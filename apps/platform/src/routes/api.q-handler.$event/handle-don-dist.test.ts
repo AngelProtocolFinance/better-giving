@@ -154,62 +154,51 @@ describe("handle_don_dist webhooks", () => {
     expect(report_error).not.toHaveBeenCalled();
   });
 
-  test("a failed hook's report quotes at most 200 chars of its body", async () => {
-    query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
-    ]);
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("x".repeat(5_000), { status: 502 })
-    );
-
-    await handle_don_dist({} as never, eur_gift);
-
-    const [err] = report_error.mock.calls[0]!;
-    expect(err.message).toContain("x".repeat(200));
-    expect(err.message).not.toContain("x".repeat(201));
-  });
-
-  test("a failed hook's body is read no further than the quoted prefix", async () => {
+  test("a failed hook is reported by id and status, never its body", async () => {
     query_webhooks.mockResolvedValue([
       { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
     ]);
     const cancel = vi.fn();
-    const endless_body = new ReadableStream({
-      start: (c) => c.enqueue(new TextEncoder().encode("x".repeat(300))),
+    const echoing_body = new ReadableStream({
+      start: (c) => c.enqueue(new TextEncoder().encode("ada@test.com echoed")),
       cancel,
     });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(endless_body, { status: 502 })
-    );
-
-    await handle_don_dist({} as never, eur_gift);
-
-    const [err] = report_error.mock.calls[0]!;
-    expect(err.message).toContain(`502: ${"x".repeat(200)}`);
-    expect(cancel).toHaveBeenCalledOnce();
-  });
-
-  test("a failed hook whose body read times out is still reported with its status", async () => {
-    query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
-    ]);
-    let pulls = 0;
-    const timed_out_body = new ReadableStream({
-      pull: (c) =>
-        pulls++ === 0
-          ? c.enqueue(new TextEncoder().encode("bad gateway"))
-          : c.error(new DOMException("timed out", "TimeoutError")),
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(timed_out_body, { status: 502 })
+      new Response(echoing_body, { status: 502 })
     );
 
     await handle_don_dist({} as never, eur_gift);
 
     expect(report_error).toHaveBeenCalledOnce();
     const [err, context] = report_error.mock.calls[0]!;
-    expect(err.message).toBe("webhook hook-1 -> 502: bad gateway");
+    expect(err.message).toBe("webhook hook-1 -> 502");
     expect(context).toEqual({ webhook_id: "hook-1", npo_id: 42, status: 502 });
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  test("a hook that redirects is not followed and is reported", async () => {
+    const { createServer } = await import("node:http");
+    const hits: string[] = [];
+    const server = createServer((req, res) => {
+      hits.push(req.url!);
+      if (req.url === "/hook") {
+        res.writeHead(302, { location: "/internal" }).end();
+      } else res.writeHead(200).end();
+    });
+    await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
+    const { port } = server.address() as { port: number };
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: `http://127.0.0.1:${port}/hook` },
+    ]);
+
+    await handle_don_dist({} as never, eur_gift).finally(() => server.close());
+
+    expect(hits).toEqual(["/hook"]);
+    expect(report_error.mock.calls[0]![1]).toEqual({
+      webhook_id: "hook-1",
+      npo_id: 42,
+      status: 302,
+    });
   });
 });
 

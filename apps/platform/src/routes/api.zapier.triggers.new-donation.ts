@@ -1,5 +1,6 @@
 import type { ActionFunction, LoaderFunction } from "react-router";
 import { via_name } from "@/donations/helpers";
+import { resp } from "@/helpers/https";
 import { npo_donations } from "$/pg/queries/dist";
 import { delete_webhook, save_webhook } from "$/pg/queries/webhook";
 import { is_response, validate_api_key } from "./_helpers/validate-api-key";
@@ -52,10 +53,17 @@ export const action: ActionFunction = async ({ request }) => {
   const result = await validate_api_key(request.headers.get("x-api-key"));
   if (is_response(result)) return result;
 
-  const data = await request.json();
+  const data = await request.json().catch(() => null);
+  if (!data) return resp.status(400, "invalid json body");
 
   //subscribe
   if (request.method === "POST") {
+    if (!is_zapier_hook_url(data.hookUrl)) {
+      return resp.status(
+        400,
+        "hookUrl must be a https://hooks.zapier.com/ url"
+      );
+    }
     const id = await save_webhook(data.hookUrl, result.npo_id);
     return new Response(JSON.stringify({ id }), { status: 200 });
   }
@@ -68,3 +76,11 @@ export const action: ActionFunction = async ({ request }) => {
 
   return new Response(null, { status: 405 });
 };
+
+// every donation is posted to a stored url, so a leaked key must not be able to
+// point it anywhere but zapier
+function is_zapier_hook_url(x: unknown): x is string {
+  if (typeof x !== "string" || !URL.canParse(x)) return false;
+  const u = new URL(x);
+  return u.origin === "https://hooks.zapier.com" && !u.username && !u.password;
+}

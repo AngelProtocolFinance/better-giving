@@ -23,9 +23,11 @@ const session = vi.hoisted(() => ({ user: null as { role: string } | null }));
 vi.mock("#/.server/auth", () => ({ get_session: async () => session }));
 
 import { api_key_put } from "$/pg/queries/api-key";
-import { api_keys, npos } from "$/pg/schema/npo";
+import { query_webhooks } from "$/pg/queries/webhook";
+import { api_keys, npos, webhooks } from "$/pg/schema/npo";
 import * as generate from "./api.zapier.generate.$id";
 import { loader as me } from "./api.zapier.me";
+import * as new_donation from "./api.zapier.triggers.new-donation";
 
 beforeAll(async () => {
   const { create_test_db } = await import("$/pg/test-utils/pglite");
@@ -39,6 +41,7 @@ afterAll(async () => {
 let npo_id: number;
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(webhooks);
   await db.delete(api_keys);
   await db.delete(npos);
   npo_id = (await seed_npo(db, { registration_number: "EIN-ZAP" })).id;
@@ -113,5 +116,43 @@ describe("zapier key minting", () => {
 
     expect((await post(npo_id)).status).toBe(401);
     expect((await get(me, key)).status).toBe(200);
+  });
+});
+
+describe("zapier new-donation subscribe", () => {
+  const subscribe = (key: string, body: unknown) =>
+    new_donation.action({
+      request: new Request("https://x/api/zapier/triggers/new-donation", {
+        method: "POST",
+        headers: { "x-api-key": key, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    } as any) as Promise<Response>;
+
+  test("a hooks.zapier.com url is stored and its id returned", async () => {
+    const key = await api_key_put(npo_id);
+    const url = "https://hooks.zapier.com/hooks/standard/1/abc/";
+
+    const res = await subscribe(key, { hookUrl: url });
+
+    expect(res.status).toBe(200);
+    const { id } = await res.json();
+    expect(await query_webhooks(npo_id)).toEqual([{ id, npo_id, url }]);
+  });
+
+  test.each([
+    ["an internal address", "http://169.254.169.254/latest/meta-data/"],
+    ["plain http to zapier", "http://hooks.zapier.com/hooks/standard/1/abc/"],
+    ["a lookalike host", "https://hooks.zapier.com.evil.test/x"],
+    ["credentials in the url", "https://u:p@hooks.zapier.com/x"],
+    ["not a url", "hooks.zapier.com"],
+    ["a missing hookUrl", undefined],
+  ])("%s is refused with 400 and stores nothing", async (_, url) => {
+    const key = await api_key_put(npo_id);
+
+    const res = await subscribe(key, { hookUrl: url });
+
+    expect(res.status).toBe(400);
+    expect(await query_webhooks(npo_id)).toEqual([]);
   });
 });
