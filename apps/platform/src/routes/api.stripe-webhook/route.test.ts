@@ -338,4 +338,58 @@ describe("customer.subscription lifecycle", () => {
     expect((await sub_get(SUB_ID))?.status).toBe("inactive");
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
+
+  it("a gift stripe ended records stripe's reason for ending it", async () => {
+    construct_event_mock.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: {
+        object: {
+          ...sub_obj("canceled"),
+          cancellation_details: {
+            reason: "payment_disputed",
+            comment: null,
+            feedback: null,
+          },
+        },
+      },
+    });
+
+    await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
+      "payment_disputed"
+    );
+  });
+
+  it("unpaid records that stripe gave up on failed payments", async () => {
+    await deliver("unpaid", "unpaid");
+
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
+      "payment_failed"
+    );
+  });
+
+  it("stripe ending a gift the donor cancelled keeps the donor's reason", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: "moving abroad",
+    });
+    construct_event_mock.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: {
+        object: {
+          ...sub_obj("canceled"),
+          cancellation_details: {
+            reason: "cancellation_requested",
+            comment: "moving abroad",
+            feedback: null,
+          },
+        },
+      },
+    });
+
+    await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe("moving abroad");
+  });
 });

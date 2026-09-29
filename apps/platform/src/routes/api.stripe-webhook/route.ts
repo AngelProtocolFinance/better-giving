@@ -6,7 +6,7 @@ import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
-import { sub_update } from "$/pg/queries/subscription";
+import { sub_get, sub_update } from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
 import {
   handle_charge_refunded,
@@ -41,6 +41,27 @@ const row_status = (live: Stripe.Subscription.Status): TStatus | undefined => {
     default:
       return undefined;
   }
+};
+
+/** stripe's reason for ending a sub; an unpaid one carries none until it's canceled */
+const stripe_end_reason = (sub: Stripe.Subscription): string | null => {
+  const details = sub.cancellation_details;
+  const reason =
+    details?.reason ?? (sub.status === "unpaid" ? "payment_failed" : null);
+  if (!reason) return null;
+  return details?.comment ? `${reason}: ${details.comment}` : reason;
+};
+
+/** a reason already on the row is the donor's own, and stays */
+const end_reason_patch = async (
+  sub: Stripe.Subscription
+): Promise<ISubUpdate> => {
+  const reason = stripe_end_reason(sub);
+  if (!reason) return {};
+  const row = await sub_get(sub.id);
+  return row && !row.status_cancel_reason
+    ? { status_cancel_reason: reason }
+    : {};
 };
 
 /**
@@ -106,6 +127,7 @@ export async function action({ request }: Route.ActionArgs) {
             : new Date().toISOString(),
           updated_at: new Date().toISOString(),
           ...(status && { status }),
+          ...(status === "inactive" && (await end_reason_patch(sub))),
         };
         const { row } = await sub_update(db, sub.id, update);
         // an inactive row whose sub lives on at stripe is cancelled there: unpaid
@@ -122,8 +144,10 @@ export async function action({ request }: Route.ActionArgs) {
       }
       case "customer.subscription.deleted": {
         // already ended at stripe, so nothing to cancel there
-        await sub_update(db, stripe_event.data.object.id, {
+        const sub = stripe_event.data.object;
+        await sub_update(db, sub.id, {
           status: "inactive",
+          ...(await end_reason_patch(sub)),
         });
         break;
       }
