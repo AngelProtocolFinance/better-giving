@@ -71,6 +71,20 @@ describe("nowpayments client", () => {
     expect(url.searchParams.get("currency_to")).toBe("ETH");
   });
 
+  it.each([
+    ["no fiat_equivalent", { min_amount: 0.001 }],
+    ["a zero fiat_equivalent", { min_amount: 0.001, fiat_equivalent: 0 }],
+    ["a zero min_amount", { min_amount: 0, fiat_equivalent: 2 }],
+    ["a string min_amount", { min_amount: "0.001", fiat_equivalent: 2 }],
+  ])(
+    "min_amount throws on %s rather than return a minimum that passes every check",
+    async (_, body) => {
+      fetch_mock().mockResolvedValueOnce(Response.json(body));
+      const err = await client.min_amount("ETH").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+    }
+  );
+
   it("every request carries a 10s timeout", async () => {
     const ctl = new AbortController();
     const timeout = vi

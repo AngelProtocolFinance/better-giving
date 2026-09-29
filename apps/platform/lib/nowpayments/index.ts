@@ -12,6 +12,9 @@ interface Init<T extends string> {
 const TIMEOUT_MS = 10_000;
 const RATE_PROBE_USD = 100;
 
+const is_positive = (x: unknown): x is number =>
+  typeof x === "number" && Number.isFinite(x) && x > 0;
+
 // not `status`: `report_error` keeps anything with a 4xx `status` off sentry,
 // and a 4xx from nowpayments is our misconfiguration, not the donor's
 export class NowpaymentsError extends Error {
@@ -75,15 +78,21 @@ export class Nowpayments {
     return { usdpu: amount_from / estimated_amount };
   }
 
+  /** throws unless both figures are positive numbers: a NaN minimum passes every `<` check */
   async min_amount(token_code: string) {
-    const { min_amount: min, fiat_equivalent: min_usd } = await this.send<
-      Required<NP.MinAmount>
-    >("v1/min-amount", {
-      params: {
-        currency_from: token_code,
-        fiat_equivalent: "usd",
-      } satisfies NP.MinAmount.Params,
-    });
+    const path = "v1/min-amount";
+    const { min_amount: min, fiat_equivalent: min_usd } =
+      await this.send<NP.MinAmount>(path, {
+        params: {
+          currency_from: token_code,
+          fiat_equivalent: "usd",
+        } satisfies NP.MinAmount.Params,
+      });
+    if (!is_positive(min) || !is_positive(min_usd)) {
+      throw new Error(
+        `nowpayments ${path} ${token_code}: min_amount:${min} fiat_equivalent:${min_usd}`
+      );
+    }
     return { min, min_usd };
   }
 
