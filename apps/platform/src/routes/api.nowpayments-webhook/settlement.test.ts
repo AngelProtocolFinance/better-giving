@@ -348,6 +348,20 @@ describe("nowpayments ipn settlement", () => {
     expect(don.amount.base).toBeCloseTo(0.4);
   });
 
+  // a lost confirming, or a dashboard resend of finished alone, leaves the
+  // intent's quoted amount on the row
+  it("settles a finished payment at what it actually paid, with no confirming before it", async () => {
+    await seed_donation({ status: "intent" });
+
+    const res = await deliver(payment({ actually_paid: 0.6 }));
+
+    expect(res.status).toBe(200);
+    const don = (await donation_get(ORDER_ID))!;
+    expect(don.status).toBe("settled");
+    expect(don.amount.base).toBeCloseTo(0.6);
+    expect(don.upusd).toBeCloseTo(1 / 2000);
+  });
+
   it("keeps a settled donation when a confirming read before the settle writes after it", async () => {
     await seed_donation();
     const stale = (await donation_get(ORDER_ID))!;

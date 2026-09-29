@@ -94,15 +94,13 @@ export const handle_settled = async (
   const sttl = to_settlement(payment, rates, new Date().toISOString());
   await alert_all(sttl.warnings);
 
-  // an underpayment is accepted as a donation of what arrived
-  const paid: IDonationUpdate =
-    payment.payment_status === "partially_paid"
-      ? {
-          amount: paid_amount(payment, prior, nowpayments.is_sandbox),
-          currency: prior.currency,
-          upusd: 1 / (await np.estimate(payment.pay_currency)).usdpu,
-        }
-      : {};
+  // what arrived, not the quote or an earlier confirming's figure — an
+  // underpayment is accepted as a donation of it too
+  const paid: IDonationUpdate = {
+    amount: paid_amount(payment, prior, nowpayments.is_sandbox),
+    currency: prior.currency,
+    upusd: 1 / (await np.estimate(payment.pay_currency)).usdpu,
+  };
 
   const result = calc_donation_settle({
     kind: "one-time",
