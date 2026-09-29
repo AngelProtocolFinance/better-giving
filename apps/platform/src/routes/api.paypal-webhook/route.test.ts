@@ -28,6 +28,7 @@ const sentry_capture_mock = vi.hoisted(() => vi.fn());
 const get_order_mock = vi.hoisted(() => vi.fn());
 const get_subscription_mock = vi.hoisted(() => vi.fn());
 const get_plan_mock = vi.hoisted(() => vi.fn());
+const capture_order_mock = vi.hoisted(() => vi.fn());
 /** runs on the lock's own tx just before it is taken — a write that commits
  * between the handler's first read and the lock */
 const before_lock = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ vi.mock("$/kit/paypal", () => ({
     get_order: get_order_mock,
     get_subscription: get_subscription_mock,
     get_plan: get_plan_mock,
+    capture_order: capture_order_mock,
   },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
@@ -312,6 +314,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
+  capture_order_mock.mockResolvedValue({ id: "ORDER-1", status: "COMPLETED" });
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
     plan_id: "P-1",
@@ -624,6 +627,68 @@ describe("PAYMENT.SALE.COMPLETED", () => {
       "don-sttl-dist",
       "don-sttl-receipt",
     ]);
+  });
+});
+
+const approved_ev = () => ({
+  event_type: "CHECKOUT.ORDER.APPROVED",
+  resource: {
+    id: "ORDER-1",
+    payment_source: { paypal: { email_address: "payer@test.com" } },
+    purchase_units: [{ custom_id: ORDER_ID }],
+  },
+});
+
+const orders_422 = (issue: string) =>
+  new PayPalApiError(
+    "capture order",
+    422,
+    JSON.stringify({ name: "UNPROCESSABLE_ENTITY", details: [{ issue }] })
+  );
+
+describe("CHECKOUT.ORDER.APPROVED", () => {
+  it("captures an order the browser never did, under the browser's own request id", async () => {
+    await seed_donation({ from_email: "anon@x.com" });
+
+    const res = await deliver(approved_ev());
+
+    expect(res.status).toBe(200);
+    expect(capture_order_mock).toHaveBeenCalledExactlyOnceWith(
+      "ORDER-1",
+      "capture-ORDER-1"
+    );
+    expect((await donation_get(ORDER_ID))!.from_email).toBe("payer@test.com");
+  });
+
+  it("acknowledges an order the browser already captured", async () => {
+    await seed_donation();
+    capture_order_mock.mockRejectedValue(orders_422("ORDER_ALREADY_CAPTURED"));
+
+    const res = await deliver(approved_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges and reports an order paypal refused the payer's funding for", async () => {
+    await seed_donation();
+    capture_order_mock.mockRejectedValue(orders_422("INSTRUMENT_DECLINED"));
+
+    const res = await deliver(approved_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_degraded_mock).toHaveBeenCalledOnce();
+  });
+
+  it("asks for redelivery while the capture fails for any other reason", async () => {
+    await seed_donation();
+    capture_order_mock.mockRejectedValue(
+      new PayPalApiError("capture order", 503, "{}")
+    );
+
+    const res = await deliver(approved_ev());
+
+    expect(res.ok).toBe(false);
   });
 });
 

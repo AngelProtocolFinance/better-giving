@@ -219,6 +219,42 @@ const requeue_sale = async (sale_id: string, subs_id: string | undefined) => {
   await requeue(await donation_by_sttl_id(sale_id), order_id);
 };
 
+const issues_of = (e: PayPalApiError): string[] => {
+  try {
+    const { details } = JSON.parse(e.body) as {
+      details?: { issue?: string }[];
+    };
+    return details?.flatMap((d) => (d.issue ? [d.issue] : [])) ?? [];
+  } catch {
+    return [];
+  }
+};
+
+/** a 422 saying the payer's funding was refused — the browser tells the donor */
+const FUNDING_REFUSED = new Set([
+  "INSTRUMENT_DECLINED",
+  "PAYER_ACTION_REQUIRED",
+]);
+
+/**
+ * the fallback for an approval whose browser never captured: a closed tab, a
+ * dropped network. the browser's request id makes a capture already made
+ * return that one rather than a second; one made without it answers
+ * ORDER_ALREADY_CAPTURED. the capture's own events settle or fail the donation
+ */
+const capture_approved = async (order_id: string, don_id: string) => {
+  try {
+    await paypal.capture_order(order_id, `capture-${order_id}`);
+  } catch (e) {
+    if (!(e instanceof PayPalApiError) || e.http_status !== 422) throw e;
+    const issues = issues_of(e);
+    if (issues.includes("ORDER_ALREADY_CAPTURED")) return;
+    const refused = issues.find((i) => FUNDING_REFUSED.has(i));
+    if (!refused) throw e;
+    report_degraded(e, { order_id, don_id, issue: refused });
+  }
+};
+
 // -- signature verification --
 
 // paypal serves webhook certs from the classic `api.` host, not the `api-m.`
@@ -515,21 +551,26 @@ export async function action({ request }: Route.ActionArgs) {
         } = ev.resource as Order;
 
         if (!order_id) return unroutable(ev, "missing order id");
+        const don_id = purchase_units?.[0]?.custom_id;
+        if (!don_id)
+          return unroutable(ev, `missing onhold id for order: ${order_id}`);
 
         const ps = payment_source?.venmo || payment_source?.paypal;
+        // written before the capture, so its completed event finds the payer
+        if (ps?.email_address)
+          await donation_update(
+            db,
+            don_id,
+            donor_update(ps.email_address, ps.name, ps.address)
+          );
+
+        await capture_approved(order_id, don_id);
 
         /** we only expect paypal and venmo */
         if (!ps) return unroutable(ev, "paypal and venmo not found");
         if (!ps.email_address)
           return unroutable(ev, "missing payer email address");
-        const donor = donor_update(ps.email_address, ps.name, ps.address);
-
-        const don_id = purchase_units?.[0]?.custom_id;
-        if (!don_id)
-          return unroutable(ev, `missing onhold id for order: ${order_id}`);
-        await donation_update(db, don_id, donor);
-
-        return new Response("updated onhold donor info", { status: 200 });
+        return new Response("captured approved order", { status: 200 });
       }
       case "PAYMENT.CAPTURE.COMPLETED": {
         const {
