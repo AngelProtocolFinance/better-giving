@@ -48,25 +48,29 @@ export async function api_key_get(npo_id: number): Promise<string | undefined> {
   return row?.api_key;
 }
 
-export function api_key_decode(key: string): IApiKeyPayload {
-  const combined = Buffer.from(key, "base64url");
+/** undefined for any token this server did not mint: bad encoding, tag or json */
+export function api_key_decode(key: string): IApiKeyPayload | undefined {
+  try {
+    const combined = Buffer.from(key, "base64url");
 
-  const iv = combined.subarray(0, 12);
-  const auth_tag = combined.subarray(combined.length - 16);
-  const encrypted = combined.subarray(12, combined.length - 16);
+    const iv = combined.subarray(0, 12);
+    const auth_tag = combined.subarray(combined.length - 16);
+    const encrypted = combined.subarray(12, combined.length - 16);
 
-  const decipher = crypto.createDecipheriv("aes-256-gcm", encryption_key, iv);
-  decipher.setAuthTag(auth_tag);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", encryption_key, iv);
+    decipher.setAuthTag(auth_tag);
 
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final(),
-  ]);
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
 
-  const raw = JSON.parse(decrypted.toString("utf8"));
-  // normalize v1 (npoId+env) → v2 (npo_id, no env)
-  return {
-    npo_id: raw.npo_id ?? raw.npoId,
-    timestamp: raw.timestamp,
-  };
+    const raw = JSON.parse(decrypted.toString("utf8"));
+    // normalize v1 (npoId+env) → v2 (npo_id, no env)
+    const npo_id = raw.npo_id ?? raw.npoId;
+    if (typeof npo_id !== "number") return;
+    return { npo_id, timestamp: raw.timestamp };
+  } catch {
+    return;
+  }
 }

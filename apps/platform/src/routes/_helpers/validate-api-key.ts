@@ -2,20 +2,20 @@ import { resp } from "@/helpers/https";
 import type { IApiKeyPayload } from "@/table/interfaces";
 import { api_key_decode, api_key_get } from "$/pg/queries/api-key";
 
-/**@param api_key - from header */
+/**
+ * @param api_key - from header
+ * every credential failure is 401: zapier reads only that as "reconnect"
+ */
 export async function validate_api_key(
   api_key: string | null
 ): Promise<IApiKeyPayload | Response> {
-  //no api key in header
-  if (!api_key) return resp.status(400);
+  if (!api_key) return resp.status(401);
   const payload = api_key_decode(api_key);
+  if (!payload) return resp.status(401);
 
-  //npo_id indeed has api key saved/active
-  const retrieved = await api_key_get(payload.npo_id);
-  if (!retrieved) return resp.status(404);
-
-  // api key used in this request is the same as the one saved/active
-  if (retrieved !== api_key) return resp.status(401);
+  // only the npo's current key is live: a rotated-out one decodes fine
+  const current = await api_key_get(payload.npo_id);
+  if (current !== api_key) return resp.status(401);
   return payload;
 }
 
