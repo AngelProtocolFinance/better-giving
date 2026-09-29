@@ -10,7 +10,11 @@ import type { IProgramDb } from "@/npo";
 import { db } from "$/pg/db";
 import { form_put } from "$/pg/queries/form";
 import { npo_get } from "$/pg/queries/npo";
-import { npo_program_get, npo_programs } from "$/pg/queries/program";
+import {
+  npo_program_get,
+  npo_program_owned,
+  npo_programs,
+} from "$/pg/queries/program";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { Route as AdminRoute } from "../../../routes/admin.$id.forms/+types/route";
 import type { Route as UserRoute } from "../../../routes/dashboard.forms/+types/route";
@@ -146,7 +150,8 @@ export const action = async ({
     ltd_count: 0,
     status: "active",
   };
-  if (fv.program) {
+  // gifts through the form credit its program at settlement; another npo's is dropped
+  if (fv.program && (await npo_program_owned(npo.id, fv.program))) {
     const prog = await npo_program_get(fv.program);
     if (prog) form.program = { id: prog.id, name: prog.title };
   }

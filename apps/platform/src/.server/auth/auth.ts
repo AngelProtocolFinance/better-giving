@@ -13,6 +13,7 @@ import {
   LOGIN_LINK_TTL_COPY,
   login_link_plugin,
 } from "./options";
+import { revoke_sessions_on_set_password } from "./set-password";
 
 const deps = {
   referral_id,
@@ -74,6 +75,7 @@ export const auth = betterAuth({
     login_link_plugin(deps),
     admin(),
     dash({ apiKey: better_auth.api_key }),
+    revoke_sessions_on_set_password(),
   ],
 });
 

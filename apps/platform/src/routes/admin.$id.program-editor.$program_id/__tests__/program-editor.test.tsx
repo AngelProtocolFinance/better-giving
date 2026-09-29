@@ -1,7 +1,11 @@
 const crypto = globalThis.crypto;
 
 import { eq } from "drizzle-orm";
-import { createRoutesStub, useFetcher } from "react-router";
+import {
+  createRoutesStub,
+  RouterContextProvider,
+  useFetcher,
+} from "react-router";
 import {
   afterAll,
   afterEach,
@@ -713,5 +717,159 @@ describe("program editor -- rich text description", () => {
       const strong = screen.container.querySelector("strong");
       expect(strong?.textContent).toBe("bold text");
     });
+  });
+});
+
+// --- cross-npo isolation ---
+
+function ctx_for(npo_id: number) {
+  const ctx = new RouterContextProvider();
+  ctx.set(admin_ctx, npo_id);
+  return ctx;
+}
+
+/** the status of the Response the promise rejects with; a resolved value or a non-Response throw fails */
+async function thrown_status(p: Promise<unknown>) {
+  const r = await p.then(
+    (v) => ({ resolved: v }),
+    (e: unknown) => ({ thrown: e })
+  );
+  expect(r).toHaveProperty("thrown");
+  const e = (r as { thrown: unknown }).thrown;
+  expect(e).toBeInstanceOf(Response);
+  return (e as Response).status;
+}
+
+const MISSING_ID = "00000000-0000-4000-8000-000000000000";
+const NOT_A_UUID = "not-a-uuid";
+
+function get(npo_id: number, program_id: string) {
+  return loader({
+    params: { id: String(npo_id), program_id },
+    context: ctx_for(npo_id),
+    request: new Request(
+      `http://t/admin/${npo_id}/program-editor/${program_id}`
+    ),
+  } as any);
+}
+
+function post(npo_id: number, program_id: string, body: object) {
+  return action({
+    params: { id: String(npo_id), program_id },
+    context: ctx_for(npo_id),
+    request: new Request(
+      `http://t/admin/${npo_id}/program-editor/${program_id}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    ),
+  } as any);
+}
+
+const PROGRAM_UPDATE = { title: "Defaced" };
+
+const MUTATIONS: [string, (mid: string) => object][] = [
+  [
+    "add-milestone",
+    () => ({ intent: "add-milestone", "next-milestone-num": 2 }),
+  ],
+  [
+    "edit-milestone",
+    (mid) => ({
+      intent: "edit-milestone",
+      "milestone-id": mid,
+      title: "Defaced",
+      description_pt: "First well installed",
+      date: new Date("2025-06-15").toISOString(),
+    }),
+  ],
+  [
+    "delete-milestone",
+    (mid) => ({ intent: "delete-milestone", "milestone-id": mid }),
+  ],
+  ["program update", () => PROGRAM_UPDATE],
+];
+
+describe("program editor -- another npo's program", () => {
+  async function seed_other() {
+    const own = await seed_npo();
+    const other = await seed_npo({ registration_number: "EIN-OTHER" });
+    const prog = await seed_program(other.id);
+    const ms = await seed_milestone(prog.id);
+    return { own, prog, ms };
+  }
+
+  it("loader throws a 404 Response", async () => {
+    const { own, prog } = await seed_other();
+    expect(await thrown_status(get(own.id, prog.id))).toBe(404);
+  });
+
+  it("control: the program update body is valid for the admin's own program", async () => {
+    const own = await seed_npo();
+    const prog = await seed_program(own.id);
+
+    const res = await post(own.id, prog.id, PROGRAM_UPDATE);
+
+    expect(res).toEqual({ toast: "Program updated" });
+    const [row] = await test_db
+      .current!.db.select()
+      .from(programs)
+      .where(eq(programs.id, prog.id));
+    expect(row.title).toBe("Defaced");
+  });
+
+  it.each(MUTATIONS)(
+    "%s throws a 404 Response and leaves its rows unchanged",
+    async (_, body) => {
+      const { own, prog, ms } = await seed_other();
+
+      expect(await thrown_status(post(own.id, prog.id, body(ms.id)))).toBe(404);
+
+      expect(await get_milestones(prog.id)).toEqual([ms]);
+      const [row] = await test_db
+        .current!.db.select()
+        .from(programs)
+        .where(eq(programs.id, prog.id));
+      expect(row).toEqual(prog);
+    }
+  );
+});
+
+describe("program editor -- unusable program id", () => {
+  it("loader throws the same 404 for a nonexistent uuid", async () => {
+    const own = await seed_npo();
+    expect(await thrown_status(get(own.id, MISSING_ID))).toBe(404);
+  });
+
+  it("loader throws 400 for a malformed id", async () => {
+    const own = await seed_npo();
+    expect(await thrown_status(get(own.id, NOT_A_UUID))).toBe(400);
+  });
+
+  it.each(MUTATIONS)(
+    "%s throws 404 for a nonexistent uuid",
+    async (_, body) => {
+      const own = await seed_npo();
+      const prog = await seed_program(own.id);
+      const ms = await seed_milestone(prog.id);
+
+      expect(await thrown_status(post(own.id, MISSING_ID, body(ms.id)))).toBe(
+        404
+      );
+      expect(await get_milestones(prog.id)).toEqual([ms]);
+    }
+  );
+
+  it.each(MUTATIONS)("%s throws 400 for a malformed id", async (_, body) => {
+    const own = await seed_npo();
+    const prog = await seed_program(own.id);
+    const ms = await seed_milestone(prog.id);
+
+    expect(await thrown_status(post(own.id, NOT_A_UUID, body(ms.id)))).toBe(
+      400
+    );
+    expect(await get_milestones(prog.id)).toEqual([ms]);
   });
 });

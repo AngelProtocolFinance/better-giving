@@ -7,7 +7,7 @@ import { program_id } from "@/npo/schema";
 import { $int_gte1 } from "@/schemas";
 import type { INpo } from "$/pg/queries/npo";
 import { npo_get } from "$/pg/queries/npo";
-import { npo_program_get } from "$/pg/queries/program";
+import { npo_program_get, npo_program_owned } from "$/pg/queries/program";
 
 export interface DonateData {
   id: number;
@@ -30,11 +30,16 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   if (!endow) throw new Response(null, { status: 404 });
 
   const { user } = await get_session(request);
+  // another npo's program is dropped, not refused: the link still reaches this npo
+  const program =
+    pid && (await npo_program_owned(id, pid))
+      ? await npo_program_get(pid)
+      : undefined;
 
   return data({
     id,
     endow,
-    program: pid ? await npo_program_get(pid) : undefined,
+    program,
     user,
     base_url: new URL(request.url).origin,
   } satisfies DonateData);

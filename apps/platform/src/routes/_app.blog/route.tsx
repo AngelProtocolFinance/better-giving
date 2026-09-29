@@ -2,7 +2,7 @@ import type { POSTS_QUERY_RESULT } from "blog-types";
 import { useEffect, useState } from "react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { posts } from "#/api/get/posts";
+import { PAGE_SIZE, posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
@@ -10,17 +10,27 @@ import { CtaBand } from "#/pages/@sections/cta-band";
 import type { IPostsPage } from "#/types/post";
 import type { Route } from "./+types/route";
 
+// cap keeps the GROQ slice start small and bounds the public cache-key space
+const MAX_PAGE = 10_000;
+const page_of = (param: string | null) => {
+  if (!param || !/^\d+$/.test(param)) return 1;
+  const n = Number(param);
+  return n > 0 && n <= MAX_PAGE ? n : 1;
+};
+
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const url = new URL(request.url);
-  const currPage = +(url.searchParams.get("page") ?? "1");
+  const currPage = page_of(url.searchParams.get("page"));
   const [items, total] = await posts(currPage);
-  const itemsPerPage = 10;
 
   const page: IPostsPage = {
     pageNum: currPage,
     posts: items,
-    nextPageNum: currPage * itemsPerPage < total ? currPage + 1 : undefined,
+    nextPageNum:
+      currPage < MAX_PAGE && currPage * PAGE_SIZE < total
+        ? currPage + 1
+        : undefined,
   } satisfies IPostsPage;
   return page;
 };

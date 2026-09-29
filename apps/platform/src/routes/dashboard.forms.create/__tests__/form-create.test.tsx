@@ -1,5 +1,6 @@
 import { HttpResponse, http } from "msw";
 import { createRoutesStub, href, Outlet } from "react-router";
+import { createFormData } from "remix-hook-form";
 import { parse } from "valibot";
 import {
   afterAll,
@@ -13,6 +14,8 @@ import {
 import { render } from "vitest-browser-react";
 import { search } from "@/helpers/https";
 import { npos_search } from "@/npo/schema";
+import { user } from "$/pg/schema/auth";
+import { forms } from "$/pg/schema/form";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
 import type { TestDb } from "$/pg/test-utils/pglite";
@@ -53,7 +56,7 @@ vi.mock("#/.server/toast", async () => {
 
 import { get_npos } from "#/.server/npos";
 import Page from "#/pages/shared/form-create";
-import { loader } from "#/pages/shared/form-create/api";
+import { action, loader } from "#/pages/shared/form-create/api";
 import { mswWorker } from "#/setup-tests-browser";
 import { create_test_db } from "$/pg/test-utils/pglite";
 
@@ -86,7 +89,7 @@ async function seed_npo(
 
 async function seed_program(npo_id: number, title: string) {
   counter++;
-  const id = `prog-${counter}`;
+  const id = crypto.randomUUID();
   await test_db.current!.db.insert(programs).values({
     id,
     npo_id,
@@ -133,6 +136,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await test_db.current!.db.delete(forms);
   await test_db.current!.db.delete(programs);
   await test_db.current!.db.delete(npos);
   counter = 0;
@@ -226,5 +230,50 @@ describe("user creates donation form", () => {
 
     const prog = screen.getByText(/select program/i).query();
     expect(prog).toBeNull();
+  });
+});
+
+describe("form-create action attaches a program only the recipient owns", () => {
+  async function create_form(recipient_id: number, program: string) {
+    await test_db
+      .current!.db.insert(user)
+      .values({
+        id: "user-1",
+        name: "User",
+        email: "user-1@example.com",
+        first_name: "Us",
+        last_name: "Er",
+      })
+      .onConflictDoNothing();
+    const request = new Request(
+      `https://x/dashboard/forms/create?npo_id=${recipient_id}`,
+      { method: "POST", body: createFormData({ tag: "site", program }) }
+    );
+    await action({ request, params: {} } as any);
+    const rows = await test_db.current!.db.select().from(forms);
+    expect(rows).toHaveLength(1);
+    return rows[0];
+  }
+
+  it("creates the form without another npo's program", async () => {
+    const recipient = await seed_npo({ name: "Recipient" });
+    const other = await seed_npo({ name: "Other" });
+    const foreign = await seed_program(other.id, "Other's Program");
+
+    const row = await create_form(recipient.id, foreign);
+
+    expect(row.recipient_npo_id).toBe(recipient.id);
+    expect(row.program_id).toBeNull();
+    expect(row.program_name).toBeNull();
+  });
+
+  it("keeps the recipient's own program", async () => {
+    const recipient = await seed_npo({ name: "Recipient" });
+    const own = await seed_program(recipient.id, "Own Program");
+
+    const row = await create_form(recipient.id, own);
+
+    expect(row.program_id).toBe(own);
+    expect(row.program_name).toBe("Own Program");
   });
 });

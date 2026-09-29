@@ -7,6 +7,7 @@ import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import type { Route } from "./+types/route";
 import { PostCta } from "./post-cta";
+import { is_safe_href } from "./safe-href";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 
@@ -89,6 +90,15 @@ const ptComponents: PortableTextComponents = {
           )}
         </figure>
       ) : null,
+  },
+  marks: {
+    // react blocks only `javascript:`; writes that bypass the studio's uri rule can store `data:`/`vbscript:`/any scheme
+    link: ({ children, value }) =>
+      is_safe_href(value?.href) ? (
+        <a href={value.href}>{children}</a>
+      ) : (
+        children
+      ),
   },
 };
 
