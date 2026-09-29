@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import type { IApiKeyPayload } from "@/table/interfaces";
 import { app } from "../../env";
 import { db } from "../db";
-import { api_keys } from "../schema/npo";
+import { api_keys, webhooks } from "../schema/npo";
 
 const encryption_key = Buffer.from(app.api_encryption_key, "base64");
 
@@ -25,17 +25,22 @@ export async function api_key_put(npo_id: number): Promise<string> {
   const combined = Buffer.concat([iv, encrypted, auth_tag]);
   const key = combined.toString("base64url");
 
-  await db
-    .insert(api_keys)
-    .values({
-      npo_id,
-      api_key: key,
-      created_at: new Date().toISOString(),
-    })
-    .onConflictDoUpdate({
-      target: api_keys.npo_id,
-      set: { api_key: key, created_at: new Date().toISOString() },
-    });
+  // hooks aren't bound to the key that subscribed them: once the key is replaced
+  // nothing can unsubscribe them, so they go with it
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(api_keys)
+      .values({
+        npo_id,
+        api_key: key,
+        created_at: new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: api_keys.npo_id,
+        set: { api_key: key, created_at: new Date().toISOString() },
+      });
+    await tx.delete(webhooks).where(eq(webhooks.npo_id, npo_id));
+  });
 
   return key;
 }

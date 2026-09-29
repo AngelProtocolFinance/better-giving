@@ -156,3 +156,22 @@ describe("zapier new-donation subscribe", () => {
     expect(await query_webhooks(npo_id)).toEqual([]);
   });
 });
+
+describe("zapier key rotation", () => {
+  test("rotating an npo's key unsubscribes every hook it had, and only its", async () => {
+    const db = test_db.current!.db;
+    const other_npo = (await seed_npo(db, { registration_number: "EIN-ZAP-2" }))
+      .id;
+    await db.insert(webhooks).values([
+      { id: "h-1", npo_id, url: "https://hooks.zapier.com/a" },
+      { id: "h-2", npo_id, url: "https://hooks.zapier.com/b" },
+      { id: "h-3", npo_id: other_npo, url: "https://hooks.zapier.com/c" },
+    ]);
+    await api_key_put(npo_id);
+
+    await api_key_put(npo_id);
+
+    expect(await query_webhooks(npo_id)).toEqual([]);
+    expect((await query_webhooks(other_npo)).map((h) => h.id)).toEqual(["h-3"]);
+  });
+});
