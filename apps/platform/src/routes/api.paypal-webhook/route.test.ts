@@ -29,6 +29,7 @@ const get_order_mock = vi.hoisted(() => vi.fn());
 const get_subscription_mock = vi.hoisted(() => vi.fn());
 const get_plan_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
+const send_alert_mock = vi.hoisted(() => vi.fn());
 /** runs on the lock's own tx just before it is taken — a write that commits
  * between the handler's first read and the lock */
 const before_lock = vi.hoisted(() => ({
@@ -61,6 +62,9 @@ vi.mock("$/kit/paypal", () => ({
   },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
+vi.mock("$/kit/discord", () => ({
+  fiat_monitor: { send_alert: send_alert_mock },
+}));
 vi.mock("$/pg/queries/donation", async (io) => {
   const actual = await io<typeof import("$/pg/queries/donation")>();
   return {
@@ -689,6 +693,65 @@ describe("CHECKOUT.ORDER.APPROVED", () => {
     const res = await deliver(approved_ev());
 
     expect(res.ok).toBe(false);
+  });
+});
+
+describe("PAYMENT.CAPTURE.DENIED", () => {
+  const denied_ev = () => ({
+    event_type: "PAYMENT.CAPTURE.DENIED",
+    resource: { id: CAPTURE_ID, status: "DECLINED", custom_id: ORDER_ID },
+  });
+
+  it("fails the donation and alerts ops once, however often it is delivered", async () => {
+    await seed_donation();
+
+    const first = await deliver(denied_ev());
+    const again = await deliver(denied_ev());
+
+    expect([first.status, again.status]).toEqual([200, 200]);
+    expect((await donation_get(ORDER_ID))!.status).toBe("failed");
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(send_alert_mock.mock.calls[0]![0].body).toContain(CAPTURE_ID);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a settled donation settled", async () => {
+    await seed_donation();
+    await deliver(capture_ev());
+
+    const res = await deliver(denied_ev());
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+  });
+});
+
+describe("PAYMENT.CAPTURE.PENDING", () => {
+  it("reports why paypal is holding the capture and leaves the donation as it was", async () => {
+    await seed_donation();
+
+    const res = await deliver({
+      event_type: "PAYMENT.CAPTURE.PENDING",
+      resource: {
+        id: CAPTURE_ID,
+        status: "PENDING",
+        custom_id: ORDER_ID,
+        status_details: {
+          reason: "RECEIVING_PREFERENCE_MANDATES_MANUAL_ACTION",
+        },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining("pending") }),
+      {
+        capture_id: CAPTURE_ID,
+        don_id: ORDER_ID,
+        reason: "RECEIVING_PREFERENCE_MANDATES_MANUAL_ACTION",
+      }
+    );
+    expect((await donation_get(ORDER_ID))!.status).toBe("intent");
   });
 });
 

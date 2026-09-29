@@ -20,7 +20,8 @@ import {
 import { paypal_donor_update } from "@/donations/helpers";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
 import type { ISub, TInterval } from "@/subscriptions";
-import { paypal as paypal_env } from "$/env";
+import { paypal as paypal_env, stage } from "$/env";
+import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
@@ -469,6 +470,8 @@ async function verified_body(
   }
 }
 
+const AWAITING_CAPTURE = new Set<IDonation["status"]>(["created", "intent"]);
+
 // -- route action --
 
 /**
@@ -722,6 +725,48 @@ export async function action({ request }: Route.ActionArgs) {
 
         console.info(`donation settled: ${p.row.id}`);
         return Response.json({ id: p.row.id });
+      }
+      case "PAYMENT.CAPTURE.DENIED": {
+        const { id: cid, custom_id: don_id } = ev.resource as Capture;
+        if (!cid || !don_id)
+          return unroutable(ev, "missing capture or donation id");
+
+        const don = await donation_get(don_id);
+        if (!don)
+          return new Response(`donation not found: ${don_id}`, { status: 500 });
+        if (!AWAITING_CAPTURE.has(don.status))
+          return new Response(`donation is ${don.status}`, { status: 200 });
+
+        // sent before the write: once failed, a redelivery stops at the
+        // status above and a failed send is never retried
+        await fiat_monitor.send_alert({
+          type: "NOTICE",
+          from: `paypal-webhook-${stage}`,
+          title: "PayPal Capture Denied",
+          body: [
+            `donation ${don_id}, capture ${cid}, event ${ev.id}`,
+            "paypal denied a capture it had held pending. the donor saw the thank-you page; the donation is marked failed and nothing was settled.",
+          ].join("\n"),
+        });
+        await db.transaction(async (tx) => {
+          const state = await donation_settle_state_locked(tx, don_id);
+          if (state && AWAITING_CAPTURE.has(state.status))
+            await donation_update(tx, don_id, { status: "failed" });
+        });
+        return new Response("donation failed", { status: 200 });
+      }
+      case "PAYMENT.CAPTURE.PENDING": {
+        const {
+          id: cid,
+          custom_id: don_id,
+          status_details,
+        } = ev.resource as Capture;
+        report_degraded(new Error("[paypal webhook] capture pending"), {
+          capture_id: cid,
+          don_id,
+          reason: status_details?.reason,
+        });
+        return new Response("capture pending", { status: 200 });
       }
       case "PAYMENT.SALE.COMPLETED": {
         const {
