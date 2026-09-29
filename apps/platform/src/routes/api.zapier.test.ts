@@ -21,9 +21,15 @@ vi.mock("$/pg/db", () => ({
 
 const session = vi.hoisted(() => ({ user: null as { role: string } | null }));
 vi.mock("#/.server/auth", () => ({ get_session: async () => session }));
+vi.mock("$/email", () => ({ send_email: async () => ({}) }));
+vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
+import { handle_don_dist } from "#/routes/api.q-handler.$event/handle-don-dist";
 import { api_key_put } from "$/pg/queries/api-key";
 import { query_webhooks } from "$/pg/queries/webhook";
+import { dists } from "$/pg/schema/dist";
+import { donation_donors, donations } from "$/pg/schema/donation";
+import { forms } from "$/pg/schema/form";
 import { api_keys, npos, webhooks } from "$/pg/schema/npo";
 import * as generate from "./api.zapier.generate.$id";
 import { loader as me } from "./api.zapier.me";
@@ -41,6 +47,10 @@ afterAll(async () => {
 let npo_id: number;
 beforeEach(async () => {
   const db = test_db.current!.db;
+  await db.delete(dists);
+  await db.delete(donation_donors);
+  await db.delete(donations);
+  await db.delete(forms);
   await db.delete(webhooks);
   await db.delete(api_keys);
   await db.delete(npos);
@@ -173,5 +183,106 @@ describe("zapier key rotation", () => {
 
     expect(await query_webhooks(npo_id)).toEqual([]);
     expect((await query_webhooks(other_npo)).map((h) => h.id)).toEqual(["h-3"]);
+  });
+});
+
+describe("zapier new-donation sample", () => {
+  const DATE = "2026-09-20T10:00:00.000Z";
+
+  test("a sample item is the exact body the hook receives for that donation", async () => {
+    const db = test_db.current!.db;
+    await db.insert(forms).values({
+      id: "form-1",
+      name: "Gala form",
+      tag: "gala",
+      recipient_npo_id: npo_id,
+      owner_npo_id: npo_id,
+      date_created: DATE,
+    });
+    await db.insert(donations).values({
+      id: "don-1",
+      upusd: 1,
+      status: "settled",
+      amount_base: 50,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "EUR",
+      frequency: "monthly",
+      source: "bg-marketplace",
+      via: "stripe:card",
+      form_id: "form-1",
+    });
+    // a donor who left no name
+    await db.insert(donation_donors).values({
+      donation_id: "don-1",
+      email: "anon@test.com",
+      company_name: "Acme",
+    });
+    await db.insert(dists).values({
+      id: "dist-1",
+      donation_id: "don-1",
+      status: "settled",
+      date_created: DATE,
+      to_id: npo_id,
+      to_name: "Zap NPO",
+      amount: 50,
+      amount_usd: 54,
+      amount_denom: "EUR",
+      net: 49,
+    });
+    const key = await api_key_put(npo_id);
+    await db
+      .insert(webhooks)
+      .values({ id: "h-1", npo_id, url: "https://hooks.zapier.com/x" });
+
+    const res = await new_donation.loader({
+      request: new Request("https://x/api/zapier/triggers/new-donation", {
+        headers: { "x-api-key": key },
+      }),
+    } as any);
+    const [sample] = await (res as Response).json();
+
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("ok", { status: 200 }));
+    // what the settlement enqueues for this dist
+    await handle_don_dist(db as never, {
+      id: "dist-1",
+      date_created: DATE,
+      amount: 50,
+      amount_usd: 54,
+      amount_denom: "EUR",
+      frequency: "monthly",
+      via: "stripe:card",
+      source: "bg-marketplace",
+      to_id: npo_id,
+      to_name: "Zap NPO",
+      net: 49,
+      sttl_date: DATE,
+      from_email: "anon@test.com",
+      from: { company: "Acme" },
+      form: { id: "form-1", tag: "gala" },
+    });
+    const hook = JSON.parse(String(fetch_spy.mock.calls[0]![1]!.body));
+    fetch_spy.mockRestore();
+
+    expect(sample).toEqual({
+      id: "dist-1",
+      date: DATE,
+      recipient_id: npo_id,
+      recipient_name: "Zap NPO",
+      amount: 50,
+      amount_usd: 54,
+      currency: "EUR",
+      donor_name: "Anonymous",
+      donor_email: "anon@test.com",
+      donor_company: "Acme",
+      payment_method: "Card",
+      frequency: "monthly",
+      is_recurring: true,
+      form_id: "form-1",
+      form_tag: "gala",
+    });
+    expect(hook).toEqual(sample);
   });
 });

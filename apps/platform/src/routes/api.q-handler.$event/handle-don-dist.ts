@@ -2,11 +2,10 @@ import { getWeek } from "date-fns";
 import { donation_nonprofit_notif } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
-import { via_name } from "@/donations/helpers";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import type { IDonDistPayload } from "@/queue";
-import type { TFrequency } from "@/schemas";
+import { new_donation_item } from "@/zapier/new-donation";
 import { send_email } from "$/email";
 import {
   country_metrics_time_get,
@@ -116,49 +115,25 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
 
 // -- webhooks --
 
-interface Payload {
-  id: string;
-  date: string;
-  recipient_id: number;
-  recipient_name: string;
-  amount: number;
-  amount_usd: number;
-  currency: string;
-  donor_name: string;
-  donor_email: string;
-  donor_company?: string;
-  program_id?: string;
-  program_name?: string;
-  payment_method: string;
-  frequency: TFrequency;
-  is_recurring: boolean;
-  form_id: string | undefined;
-  form_tag: string | undefined;
-}
-
 async function trigger_webhooks(r: IDonDistPayload) {
-  const is_recurring = r.frequency ? r.frequency !== "one-time" : false;
-
-  const payload: Payload = {
+  const payload = new_donation_item({
     id: r.id,
     date: r.date_created,
-    recipient_id: r.to_id,
-    recipient_name: r.to_name,
+    to_id: r.to_id,
+    to_name: r.to_name,
     amount: r.amount,
     amount_usd: r.amount_usd,
     currency: r.amount_denom,
-    donor_name: r.from?.name || "Anonymous",
-    donor_email: r.from_email,
+    frequency: r.frequency,
+    via: r.via,
+    from_email: r.from_email,
+    from_name: r.from?.name,
+    from_company: r.from?.company,
     program_id: r.program?.id,
     program_name: r.program?.name,
-    payment_method: via_name(r.via),
-    frequency: r.frequency,
-    is_recurring,
     form_id: r.form?.id,
     form_tag: r.form?.tag,
-  };
-
-  if (r.from?.company) payload.donor_company = r.from.company;
+  });
 
   const hooks = await query_webhooks(r.to_id);
   const body = JSON.stringify(payload);
