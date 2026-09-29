@@ -92,7 +92,7 @@ const ptComponents: PortableTextComponents = {
       ) : null,
   },
   marks: {
-    // content lake doesn't enforce the studio's scheme allow-list, so a stored `javascript:` reaches here
+    // react blocks only `javascript:`; writes that bypass the studio's uri rule can store `data:`/`vbscript:`/any scheme
     link: ({ children, value }) =>
       is_safe_href(value?.href) ? (
         <a href={value.href}>{children}</a>

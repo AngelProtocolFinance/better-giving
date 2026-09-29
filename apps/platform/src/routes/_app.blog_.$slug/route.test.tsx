@@ -53,7 +53,14 @@ describe("post body links", () => {
       .toHaveAttribute("href", "https://better.giving");
   });
 
-  it.each(["javascript:alert(1)", "//evil.com", "blog/x"])(
+  it("renders a scheme-less relative href as an anchor", async () => {
+    const screen = await render_post(post_linking("#section"));
+    await expect
+      .element(screen.getByRole("link", { name: "this link" }))
+      .toHaveAttribute("href", "#section");
+  });
+
+  it.each(["javascript:alert(1)", "data:text/html,x"])(
     "renders %j as plain text with no anchor",
     async (href) => {
       const screen = await render_post(post_linking(href));
@@ -64,4 +71,50 @@ describe("post body links", () => {
       ).toBeNull();
     }
   );
+});
+
+function post_with_cta(link1_href: string, link2_href: string): PostData {
+  return {
+    ...post_linking("https://better.giving"),
+    cta: {
+      eyebrow: null,
+      heading: "Give today",
+      body: null,
+      image: null,
+      link1: { label: "Donate", href: link1_href },
+      link2: { label: "Learn more", href: link2_href },
+    },
+  };
+}
+
+describe("post cta links", () => {
+  it("renders https hrefs as anchors", async () => {
+    const screen = await render_post(
+      post_with_cta(
+        "https://better.giving/donate",
+        "https://better.giving/about"
+      )
+    );
+    await expect
+      .element(screen.getByRole("link", { name: "Donate" }))
+      .toHaveAttribute("href", "https://better.giving/donate");
+    await expect
+      .element(screen.getByRole("link", { name: "Learn more" }))
+      .toHaveAttribute("href", "https://better.giving/about");
+  });
+
+  it("omits a button whose href is data:", async () => {
+    const screen = await render_post(
+      post_with_cta("data:text/html,x", "https://better.giving/about")
+    );
+    await expect.element(screen.getByText("Give today")).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Learn more" }))
+      .toBeVisible();
+    expect(
+      screen.container.querySelector('a[href^="data:"]'),
+      "no data: anchor in the cta"
+    ).toBeNull();
+    expect(screen.container.textContent).not.toContain("Donate");
+  });
 });
