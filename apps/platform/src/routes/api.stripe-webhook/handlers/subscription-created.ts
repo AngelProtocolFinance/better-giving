@@ -4,7 +4,8 @@ import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
 import type { IMetadata } from "@/stripe";
-import type { ISub, TInterval } from "@/subscriptions";
+import type { ISub, TInterval, TStatus } from "@/subscriptions";
+import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { donation_get } from "$/pg/queries/donation";
 import { sub_put } from "$/pg/queries/subscription";
@@ -18,6 +19,26 @@ const INTERVALS: Record<TInterval, true> = {
 
 const is_interval = (s: Stripe.Price.Recurring.Interval): s is TInterval =>
   s in INTERVALS;
+
+/**
+ * rows are born active unless stripe has already ended the sub, so the webhook
+ * only ever moves one to inactive. it never reactivates one: an inactive row
+ * whose sub is still live at stripe is a cancel that hasn't landed there yet,
+ * not a recovery.
+ * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
+ */
+export const row_status = (
+  live: Stripe.Subscription.Status
+): TStatus | undefined => {
+  switch (live) {
+    case "unpaid":
+    case "canceled":
+    case "incomplete_expired":
+      return "inactive";
+    default:
+      return undefined;
+  }
+};
 
 /**
  * project a stripe subscription + the order it came from into our row.
@@ -65,14 +86,16 @@ export function to_sub_record(
     to_fund_id: order.to_type === "fund" ? order.to_id : null,
     to_name: order.to_name,
     platform: "stripe",
-    status: "active",
+    status: row_status(sub.status) ?? "active",
     from_id: order.from_email,
   };
 }
 
 export async function handle_subscription_created({
-  object: sub,
+  object,
 }: Stripe.CustomerSubscriptionCreatedEvent.Data) {
+  // events arrive out of order: a deleted one may already have come and gone
+  const sub = await stripe.subscriptions.retrieve(object.id);
   const { order_id } = sub.metadata as IMetadata;
 
   const order = await donation_get(order_id);

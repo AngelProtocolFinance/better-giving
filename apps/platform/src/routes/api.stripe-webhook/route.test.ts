@@ -50,7 +50,8 @@ vi.mock("./handlers", () => ({
 vi.mock("./handlers/intent-suceeded", () => ({
   handle_intent_succeeded: intent_succeeded_mock,
 }));
-vi.mock("./handlers/subscription-created", () => ({
+vi.mock("./handlers/subscription-created", async (orig) => ({
+  ...(await orig<typeof import("./handlers/subscription-created")>()),
   handle_subscription_created: vi.fn(),
 }));
 
@@ -337,6 +338,18 @@ describe("customer.subscription lifecycle", () => {
     expect(res.status).toBe(200);
     expect((await sub_get(SUB_ID))?.status).toBe("inactive");
     expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("customer.subscription.deleted before its row exists answers non-2xx so stripe redelivers", async () => {
+    construct_event_mock.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: { object: { ...sub_obj("canceled"), id: "sub_not_yet_written" } },
+    });
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.ok).toBe(false);
+    expect(report_error_mock).not.toHaveBeenCalled();
   });
 
   it("a gift stripe ended records stripe's reason for ending it", async () => {

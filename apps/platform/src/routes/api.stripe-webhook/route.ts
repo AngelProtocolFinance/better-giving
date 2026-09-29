@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import { msg } from "@/queue";
-import type { ISubUpdate, TStatus } from "@/subscriptions";
+import type { ISubUpdate } from "@/subscriptions";
 import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
@@ -17,7 +17,10 @@ import {
   handle_setup_intent_succeeded,
 } from "./handlers";
 import { handle_intent_succeeded } from "./handlers/intent-suceeded";
-import { handle_subscription_created } from "./handlers/subscription-created";
+import {
+  handle_subscription_created,
+  row_status,
+} from "./handlers/subscription-created";
 import { BalanceTxnNotReadyError } from "./helpers/settled";
 
 /** ended at stripe: nothing left to cancel there */
@@ -25,23 +28,6 @@ const ENDED_AT_STRIPE = new Set<Stripe.Subscription.Status>([
   "canceled",
   "incomplete_expired",
 ]);
-
-/**
- * rows are born active, so the webhook only ever moves one to inactive. it never
- * reactivates one: an inactive row whose sub is still live at stripe is a cancel
- * that hasn't landed there yet, not a recovery.
- * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
- */
-const row_status = (live: Stripe.Subscription.Status): TStatus | undefined => {
-  switch (live) {
-    case "unpaid":
-    case "canceled":
-    case "incomplete_expired":
-      return "inactive";
-    default:
-      return undefined;
-  }
-};
 
 /** stripe's reason for ending a sub; an unpaid one carries none until it's canceled */
 const stripe_end_reason = (sub: Stripe.Subscription): string | null => {
@@ -145,10 +131,17 @@ export async function action({ request }: Route.ActionArgs) {
       case "customer.subscription.deleted": {
         // already ended at stripe, so nothing to cancel there
         const sub = stripe_event.data.object;
-        await sub_update(db, sub.id, {
+        const { row } = await sub_update(db, sub.id, {
           status: "inactive",
           ...(await end_reason_patch(sub)),
         });
+        // it can land before the handler that writes the row: stripe
+        // redelivers on a non-2xx, by when the row is there to end
+        if (!row) {
+          return new Response(`subscription row not found: ${sub.id}`, {
+            status: 404,
+          });
+        }
         break;
       }
       case "charge.refunded":
