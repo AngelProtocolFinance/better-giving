@@ -2,7 +2,7 @@ import type { POSTS_QUERY_RESULT } from "blog-types";
 import { useEffect, useState } from "react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { posts } from "#/api/get/posts";
+import { PAGE_SIZE, posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
@@ -13,14 +13,15 @@ import type { Route } from "./+types/route";
 export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const url = new URL(request.url);
-  const currPage = +(url.searchParams.get("page") ?? "1");
+  const page_param = Number(url.searchParams.get("page"));
+  const currPage =
+    Number.isSafeInteger(page_param) && page_param > 0 ? page_param : 1;
   const [items, total] = await posts(currPage);
-  const itemsPerPage = 10;
 
   const page: IPostsPage = {
     pageNum: currPage,
     posts: items,
-    nextPageNum: currPage * itemsPerPage < total ? currPage + 1 : undefined,
+    nextPageNum: currPage * PAGE_SIZE < total ? currPage + 1 : undefined,
   } satisfies IPostsPage;
   return page;
 };
