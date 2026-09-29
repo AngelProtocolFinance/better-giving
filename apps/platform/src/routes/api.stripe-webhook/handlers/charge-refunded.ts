@@ -11,7 +11,7 @@ import { fiat_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
-import { donation_get } from "$/pg/queries/donation";
+import { donation_by_sttl_id, donation_get } from "$/pg/queries/donation";
 import { process_refund } from "$/refund/process";
 
 const ALERT_FROM = "charge-refunded";
@@ -55,6 +55,20 @@ const added_by = (
   return reconciles && added.length > 0 ? added : null;
 };
 
+/** the donation the charge settled. a subscription charge settled a rebill
+ * clone, not the order its invoice names, and its intent carries no metadata;
+ * the settlement id is the intent id on every row either kind settles */
+async function refunded_donation(intent_id: string) {
+  const settled = await donation_by_sttl_id(intent_id);
+  if (settled) return settled;
+  const intent = await stripe.paymentIntents.retrieve(intent_id);
+  const { order_id } = intent.metadata;
+  if (!order_id) throw new Error(`no donation settled by intent: ${intent_id}`);
+  const don = await donation_get(order_id);
+  if (!don) throw new Error(`donation not found: ${order_id}`);
+  return don;
+}
+
 export async function handle_charge_refunded(
   event: Stripe.ChargeRefundedEvent
 ) {
@@ -62,15 +76,10 @@ export async function handle_charge_refunded(
   // that has since been refunded in full
   const charge = await stripe.charges.retrieve(event.data.object.id);
   const intent_id = str_id(charge.payment_intent);
-  const intent = await stripe.paymentIntents.retrieve(intent_id);
-  const { order_id } = intent.metadata;
-  if (!order_id)
-    throw new Error(`missing order_id in intent metadata: ${intent_id}`);
-
-  const don = await donation_get(order_id);
-  if (!don) throw new Error(`donation not found: ${order_id}`);
+  const don = await refunded_donation(intent_id);
+  const don_id = don.id;
   if (don.status === "refunded" || don.status === "refunded_loss") {
-    console.info(`already refunded: ${order_id}`);
+    console.info(`already refunded: ${don_id}`);
     return;
   }
 
@@ -92,7 +101,7 @@ export async function handle_charge_refunded(
       from: `${ALERT_FROM}-${stage}`,
       title: "Partial Refund Not Reversed",
       body: [
-        `donation ${order_id}, charge ${charge.id}, event ${event.id}`,
+        `donation ${don_id}, charge ${charge.id}, event ${event.id}`,
         `new in this event: ${added ? refund_list(added, charge.currency) : "could not tell which refund is new"}`,
         `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
         `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount, charge.currency)}`,
@@ -102,16 +111,16 @@ export async function handle_charge_refunded(
     return;
   }
 
-  const graphs = await dists_for_refund(order_id);
+  const graphs = await dists_for_refund(don_id);
   if (graphs.length === 0) {
-    throw new Error(`no settled dists for donation: ${order_id}`);
+    throw new Error(`no settled dists for donation: ${don_id}`);
   }
 
   // nothing can be refunded past a full refund, so the newest completed it.
   // every earlier refund, failed ones included: each may have sent a partial
   // notice ops acted on
   const detail = [
-    `donation ${order_id}, charge ${charge.id}, event ${event.id}`,
+    `donation ${don_id}, charge ${charge.id}, event ${event.id}`,
     `completing refund: ${refund_list([newest], charge.currency)}`,
     `earlier partial refunds: ${refund_list(earlier, charge.currency)}`,
   ];
@@ -129,7 +138,7 @@ export async function handle_charge_refunded(
     });
   }
 
-  const result = await process_refund(order_id, graphs, {
+  const result = await process_refund(don_id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
     alert_from: ALERT_FROM,
@@ -159,10 +168,10 @@ export async function handle_charge_refunded(
         id: `${event.id}_${failed}`,
         alert: { type: "NOTICE", from: `${ALERT_FROM}-${stage}`, title, body },
       })
-    ).catch((err) => report_error(err, { donation_id: order_id, title, body }));
+    ).catch((err) => report_error(err, { donation_id: don_id, title, body }));
   }
 
   console.info(
-    `charge refunded: ${order_id}, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`
+    `charge refunded: ${don_id}, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`
   );
 }
