@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import type { IProgram, IProgramDb } from "@/npo";
 import type {
@@ -37,6 +37,18 @@ export async function npo_program_get(
 
   // npo_id not in IProgram; nullable ≠ optional mismatch
   return { ...prog, milestones: ms } as unknown as IProgram;
+}
+
+export async function npo_program_owned(
+  npo_id: number,
+  prog_id: string
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: programs.id })
+    .from(programs)
+    .where(and(eq(programs.id, prog_id), eq(programs.npo_id, npo_id)))
+    .limit(1);
+  return !!row;
 }
 
 export async function npo_program_put(

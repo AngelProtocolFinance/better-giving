@@ -1,7 +1,11 @@
 const crypto = globalThis.crypto;
 
 import { eq } from "drizzle-orm";
-import { createRoutesStub, useFetcher } from "react-router";
+import {
+  createRoutesStub,
+  RouterContextProvider,
+  useFetcher,
+} from "react-router";
 import {
   afterAll,
   afterEach,
@@ -713,5 +717,90 @@ describe("program editor -- rich text description", () => {
       const strong = screen.container.querySelector("strong");
       expect(strong?.textContent).toBe("bold text");
     });
+  });
+});
+
+// --- cross-npo isolation ---
+
+function ctx_for(npo_id: number) {
+  const ctx = new RouterContextProvider();
+  ctx.set(admin_ctx, npo_id);
+  return ctx;
+}
+
+async function status_of(p: Promise<unknown>) {
+  const r = await p.catch((e: unknown) => e);
+  return r instanceof Response ? r.status : r;
+}
+
+describe("program editor -- another npo's program", () => {
+  async function seed_other() {
+    const own = await seed_npo();
+    const other = await seed_npo({ registration_number: "EIN-OTHER" });
+    const prog = await seed_program(other.id);
+    const ms = await seed_milestone(prog.id);
+    return { own, prog, ms };
+  }
+
+  it("loader answers 404", async () => {
+    const { own, prog } = await seed_other();
+    const status = await status_of(
+      loader({
+        params: { id: String(own.id), program_id: prog.id },
+        context: ctx_for(own.id),
+        request: new Request(
+          `http://t/admin/${own.id}/program-editor/${prog.id}`
+        ),
+      } as any)
+    );
+    expect(status).toBe(404);
+  });
+
+  function post(npo_id: number, program_id: string, body: object) {
+    return action({
+      params: { id: String(npo_id), program_id },
+      context: ctx_for(npo_id),
+      request: new Request(
+        `http://t/admin/${npo_id}/program-editor/${program_id}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      ),
+    } as any);
+  }
+
+  it.each([
+    [
+      "add-milestone",
+      () => ({ intent: "add-milestone", "next-milestone-num": 2 }),
+    ],
+    [
+      "edit-milestone",
+      (mid: string) => ({
+        intent: "edit-milestone",
+        "milestone-id": mid,
+        title: "Defaced",
+        description_pt: "First well installed",
+        date: new Date("2025-06-15").toISOString(),
+      }),
+    ],
+    [
+      "delete-milestone",
+      (mid: string) => ({ intent: "delete-milestone", "milestone-id": mid }),
+    ],
+    ["program update", () => ({ title: "Defaced" })],
+  ])("%s answers 404 and leaves its rows unchanged", async (_, body) => {
+    const { own, prog, ms } = await seed_other();
+
+    expect(await status_of(post(own.id, prog.id, body(ms.id)))).toBe(404);
+
+    expect(await get_milestones(prog.id)).toEqual([ms]);
+    const [row] = await test_db
+      .current!.db.select()
+      .from(programs)
+      .where(eq(programs.id, prog.id));
+    expect(row).toEqual(prog);
   });
 });
