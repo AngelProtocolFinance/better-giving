@@ -200,100 +200,105 @@ function assemble_batch(
 
 // -- donations --
 
-/** split IDonation into base + subtable inserts */
+/**
+ * split IDonation into base + subtable inserts, all or none: its own
+ * transaction on the bare db, a savepoint inside a caller's.
+ */
 export async function donation_put(
-  tx: DbOrTx,
+  db_or_tx: DbOrTx,
   data: IDonation
 ): Promise<IDonation> {
-  const base: typeof donations.$inferInsert = {
-    id: data.id,
-    id_v1: data.id_v1,
-    upusd: data.upusd,
-    status: data.status,
-    amount_base: data.amount.base,
-    amount_tip: data.amount.tip,
-    amount_fee_allowance: data.amount.fee_allowance,
-    currency: data.currency,
-    frequency: data.frequency,
-    source: data.source,
-    form_id: data.form_id,
-    subscription_id: data.subscription_id,
-    via: data.via,
-    via_extra: data.via_extra,
-    program_id: data.program?.id,
-    program_name: data.program?.name,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
-  };
+  return db_or_tx.transaction(async (tx) => {
+    const base: typeof donations.$inferInsert = {
+      id: data.id,
+      id_v1: data.id_v1,
+      upusd: data.upusd,
+      status: data.status,
+      amount_base: data.amount.base,
+      amount_tip: data.amount.tip,
+      amount_fee_allowance: data.amount.fee_allowance,
+      currency: data.currency,
+      frequency: data.frequency,
+      source: data.source,
+      form_id: data.form_id,
+      subscription_id: data.subscription_id,
+      via: data.via,
+      via_extra: data.via_extra,
+      program_id: data.program?.id,
+      program_name: data.program?.name,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
 
-  await tx.insert(donations).values(base);
+    await tx.insert(donations).values(base);
 
-  // recipient
-  const recip: typeof donation_recipients.$inferInsert = {
-    donation_id: data.id,
-    name: data.to_name,
-    type: data.to_type,
-    tip_allowed: data.to_tip_allowed,
-    members:
-      data.to_members?.length > 0
-        ? data.to_members.map((m) => Number(m))
-        : null,
-    ...(data.to_type === "fund"
-      ? { fund_id: data.to_id }
-      : { npo_id: Number(data.to_id) }),
-  };
-  await tx.insert(donation_recipients).values(recip);
-
-  // donor
-  const addr_obj =
-    data.from_addr_street || data.from_addr_city
-      ? {
-          street: data.from_addr_street,
-          city: data.from_addr_city,
-          state: data.from_addr_state,
-          zip_code: data.from_addr_zip_code,
-          country: data.from_addr_country,
-        }
-      : null;
-
-  const donor: typeof donation_donors.$inferInsert = {
-    donation_id: data.id,
-    email: data.from_email,
-    name: data.from_name ?? null,
-    title: data.from_title ?? null,
-    company_name: data.from_company_name ?? null,
-    addr: addr_obj,
-    wallet_addr: data.from_wallet_addr ?? null,
-    public_msg: data.from_public_msg_to_npo ?? null,
-    private_msg: data.from_private_msg_to_npo ?? null,
-    is_public: data.from_public ?? null,
-  };
-  await tx.insert(donation_donors).values(donor);
-
-  // settlement (optional)
-  if (data.settlement) {
-    await tx.insert(donation_settlements).values({
+    // recipient
+    const recip: typeof donation_recipients.$inferInsert = {
       donation_id: data.id,
-      sttl_id: data.settlement.id,
-      date: data.settlement.date,
-      currency: data.settlement.currency,
-      net: data.settlement.net,
-      fee: data.settlement.fee,
-    });
-  }
+      name: data.to_name,
+      type: data.to_type,
+      tip_allowed: data.to_tip_allowed,
+      members:
+        data.to_members?.length > 0
+          ? data.to_members.map((m) => Number(m))
+          : null,
+      ...(data.to_type === "fund"
+        ? { fund_id: data.to_id }
+        : { npo_id: Number(data.to_id) }),
+    };
+    await tx.insert(donation_recipients).values(recip);
 
-  // tribute (optional)
-  if (data.tribute) {
-    await tx.insert(donation_tributes).values({
+    // donor
+    const addr_obj =
+      data.from_addr_street || data.from_addr_city
+        ? {
+            street: data.from_addr_street,
+            city: data.from_addr_city,
+            state: data.from_addr_state,
+            zip_code: data.from_addr_zip_code,
+            country: data.from_addr_country,
+          }
+        : null;
+
+    const donor: typeof donation_donors.$inferInsert = {
       donation_id: data.id,
-      name: data.tribute.full_name,
-      notif_email: data.tribute.notif?.to_email ?? null,
-      notif_fullname: data.tribute.notif?.to_fullname ?? null,
-      notif_msg: data.tribute.notif?.from_msg ?? null,
-    });
-  }
+      email: data.from_email,
+      name: data.from_name ?? null,
+      title: data.from_title ?? null,
+      company_name: data.from_company_name ?? null,
+      addr: addr_obj,
+      wallet_addr: data.from_wallet_addr ?? null,
+      public_msg: data.from_public_msg_to_npo ?? null,
+      private_msg: data.from_private_msg_to_npo ?? null,
+      is_public: data.from_public ?? null,
+    };
+    await tx.insert(donation_donors).values(donor);
 
-  return data;
+    // settlement (optional)
+    if (data.settlement) {
+      await tx.insert(donation_settlements).values({
+        donation_id: data.id,
+        sttl_id: data.settlement.id,
+        date: data.settlement.date,
+        currency: data.settlement.currency,
+        net: data.settlement.net,
+        fee: data.settlement.fee,
+      });
+    }
+
+    // tribute (optional)
+    if (data.tribute) {
+      await tx.insert(donation_tributes).values({
+        donation_id: data.id,
+        name: data.tribute.full_name,
+        notif_email: data.tribute.notif?.to_email ?? null,
+        notif_fullname: data.tribute.notif?.to_fullname ?? null,
+        notif_msg: data.tribute.notif?.from_msg ?? null,
+      });
+    }
+
+    return data;
+  });
 }
 
 export async function donation_recipient_put(
