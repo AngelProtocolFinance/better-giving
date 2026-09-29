@@ -70,4 +70,10 @@ describe("/blog loader nextPageNum", () => {
     const res = await load("?page=1");
     expect(res.nextPageNum).toBe(2);
   });
+
+  it("is absent on the last page under the cap, even with posts remaining", async () => {
+    fetch.mockResolvedValueOnce({ items: [], total: 200_000 });
+    const res = await load("?page=10000");
+    expect(res.nextPageNum).toBeUndefined();
+  });
 });

@@ -27,7 +27,10 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   const page: IPostsPage = {
     pageNum: currPage,
     posts: items,
-    nextPageNum: currPage * PAGE_SIZE < total ? currPage + 1 : undefined,
+    nextPageNum:
+      currPage < MAX_PAGE && currPage * PAGE_SIZE < total
+        ? currPage + 1
+        : undefined,
   } satisfies IPostsPage;
   return page;
 };
