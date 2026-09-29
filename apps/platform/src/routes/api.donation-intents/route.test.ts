@@ -9,6 +9,7 @@ const chariot_intent_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const npo_get_mock = vi.hoisted(() => vi.fn());
 const fund_get_mock = vi.hoisted(() => vi.fn());
+const npo_program_owned_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("./stripe", () => ({ stripe_intent: stripe_intent_mock }));
 vi.mock("./paypal", () => ({ paypal_intent: paypal_intent_mock }));
@@ -25,6 +26,9 @@ const cookie_serialize_mock = vi.hoisted(() =>
 
 vi.mock("$/pg/queries/npo", () => ({ npo_get: npo_get_mock }));
 vi.mock("$/pg/queries/fund", () => ({ fund_get: fund_get_mock }));
+vi.mock("$/pg/queries/program", () => ({
+  npo_program_owned: npo_program_owned_mock,
+}));
 vi.mock("#/.server/cookie", () => ({
   donations_cookie: {
     parse: cookie_parse_mock,
@@ -302,6 +306,59 @@ describe("api.donation-intents action", () => {
     expect(res!.status).toBe(400);
     expect(cookie_serialize_mock).not.toHaveBeenCalled();
     await expect(res!.text()).resolves.toBe("less than min");
+  });
+
+  describe("program attribution", () => {
+    const program = {
+      id: "0b6f1c2e-3d4a-4b5c-8d9e-0f1a2b3c4d5e",
+      name: "Youth",
+    };
+
+    it("proceeds unattributed when the program belongs to another npo", async () => {
+      npo_program_owned_mock.mockResolvedValueOnce(false);
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-p", { ok: 1 }));
+      const res = await invoke(
+        post({ ...(valid_body("card") as object), program })
+      );
+
+      expect(res.status).toBe(200);
+      expect(npo_program_owned_mock).toHaveBeenCalledWith(1, program.id);
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.program).toBeUndefined();
+    });
+
+    it("keeps the recipient npo's own program", async () => {
+      npo_program_owned_mock.mockResolvedValueOnce(true);
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-p", { ok: 1 }));
+      await invoke(post({ ...(valid_body("card") as object), program }));
+
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.program).toEqual(program);
+    });
+
+    it("drops any program when the recipient is a fund", async () => {
+      fund_get_mock.mockResolvedValueOnce({
+        id: "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9",
+        name: "Relief Fund",
+        hide_bg_tip: false,
+        members: [7],
+        active: true,
+        expiration: null,
+      });
+      npo_program_owned_mock.mockResolvedValueOnce(true);
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-p", { ok: 1 }));
+      const res = await invoke(
+        post({
+          ...(valid_body("card") as object),
+          to_id: "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9",
+          program,
+        })
+      );
+
+      expect(res.status).toBe(200);
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.program).toBeUndefined();
+    });
   });
 
   it("PATCH calls capture_order and bypasses via dispatch", async () => {
