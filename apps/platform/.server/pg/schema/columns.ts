@@ -16,7 +16,13 @@ export const numeric_as_number = customType<{
   fromDriver(value: string): number {
     return Number(value);
   },
+  // numeric stores 'NaN' — passes `> 0` checks and poisons every sum it reaches
   toDriver(value: number): string {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(
+        `numeric column needs a finite number, got ${value}`
+      );
+    }
     return String(value);
   },
 });
