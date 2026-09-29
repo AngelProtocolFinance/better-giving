@@ -10,7 +10,7 @@ import {
   referrer_payout_put,
 } from "$/pg/queries/referrer";
 import { get_referrer } from "./helpers";
-import { send_commission } from "./send-commission";
+import { commission_ref, send_commission } from "./send-commission";
 
 const lambda = `commissions-processor:${stage}`;
 
@@ -74,7 +74,11 @@ async function process_item(ref_id: string, items: ICommission[]) {
       );
     }
 
-    const res = await send_commission(ref.pay_id, total, payout.id);
+    const res = await send_commission(
+      ref.pay_id,
+      total,
+      commission_ref(items.map((i) => i.donation_id))
+    );
     payout.transfer_id = res;
 
     await db.transaction(async (tx) => {
