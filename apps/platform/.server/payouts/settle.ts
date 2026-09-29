@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
+import { to_units } from "@/helpers/decimal";
 import { stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
@@ -55,7 +56,13 @@ export async function settle_npo_payouts(
   const claim = await db.transaction(async (tx) => {
     const locked = await pending_payouts_locked(tx, payout_ids);
     if (locked.length === 0) return { status: "none_pending" } as const;
-    const total = locked.reduce((a, b) => a + b.amount, 0);
+    // wise moves cents: the quote, settlement and cash debit all take this one figure
+    const total =
+      to_units(
+        locked.reduce((a, b) => a + b.amount, 0),
+        2,
+        "half_down"
+      ) / 100;
     if (total < npo.payout_minimum) {
       const minimum = npo.payout_minimum;
       return { status: "under_minimum", total, minimum } as const;

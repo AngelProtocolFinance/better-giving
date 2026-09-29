@@ -24,14 +24,16 @@ function fmt(
  * 9.709999999999999 and 1.005 * 100 is 100.49999999999999 */
 export const snap = (num: number): number => +num.toPrecision(15);
 
-/** `num` as a whole count of 10^-precision units, rounded half up, or up */
+/** `num` as a whole count of 10^-precision units, rounded half up, half down, or up */
 export function to_units(
   num: number,
   precision: number,
-  mode: "half_up" | "up" = "half_up"
+  mode: "half_up" | "half_down" | "up" = "half_up"
 ): number {
   const scaled = snap(num * 10 ** precision);
-  return mode === "up" ? Math.ceil(scaled) : Math.round(scaled);
+  if (mode === "up") return Math.ceil(scaled);
+  if (mode === "half_down") return Math.ceil(scaled - 0.5);
+  return Math.round(scaled);
 }
 
 /** round down

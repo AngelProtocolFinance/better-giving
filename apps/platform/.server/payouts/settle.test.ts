@@ -241,6 +241,33 @@ describe("settle_npo_payouts", () => {
     expect(report_error).not.toHaveBeenCalled();
   });
 
+  test("pays, records and debits the pending total rounded to cents, a half cent down", async () => {
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 60.004);
+    await seed_payout(npo.id, "p-2", 40.001);
+    const pay = vi.fn<Pay>(async () => TRANSFER_ID);
+
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+
+    expect(pay).toHaveBeenCalledWith(expect.any(String), 100);
+    const [stlmt] = await db().select().from(settlements);
+    expect(stlmt?.amount).toBe(100);
+    expect(await npo_cash(npo.id)).toBe(400);
+    expect(res).toMatchObject({ status: "settled", total: 100 });
+  });
+
+  test("a float-drifted pending total is paid as the cents it adds up to", async () => {
+    const npo = await seed_npo({ cash: 500, payout_minimum: 0 });
+    await seed_payout(npo.id, "p-1", 0.1);
+    await seed_payout(npo.id, "p-2", 0.2);
+    const pay = vi.fn<Pay>(async () => TRANSFER_ID);
+
+    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+
+    expect(pay).toHaveBeenCalledWith(expect.any(String), 0.3);
+    expect(await npo_cash(npo.id)).toBe(499.7);
+  });
+
   test("pays nothing when none of the payouts is still pending", async () => {
     const npo = await seed_npo({ cash: 500, payout_minimum: 0 });
     await seed_payout(npo.id, "p-1", 60);
