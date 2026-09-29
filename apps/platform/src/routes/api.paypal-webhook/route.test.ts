@@ -83,6 +83,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { action } = await import("./route");
+const { PayPalApiError } = await import("@better-giving/paypal");
 const { report_error: real_report_error } =
   await vi.importActual<typeof import("#/errors/report")>("#/errors/report");
 const { donation_get, donation_put, donation_update } = await import(
@@ -516,6 +517,45 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect(res.ok).toBe(false);
     expect(enqueue_mock).not.toHaveBeenCalled();
     expect(await settlements()).toHaveLength(1);
+  });
+
+  it("answers 200 and reports a settled sale whose subscription paypal 404s", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+    get_subscription_mock.mockRejectedValue(
+      new PayPalApiError(
+        "get subscription",
+        404,
+        '{"name":"RESOURCE_NOT_FOUND"}'
+      )
+    );
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    // reported as ours to fix: the reporter keeps any error with a 4xx
+    // `status` out of sentry
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining(SALE_ID) }),
+      { sale_id: SALE_ID, subs_id: SUBS_ID, http_status: 404 }
+    );
+    expect(report_error_mock.mock.calls[0]![0]).not.toHaveProperty("status");
+  });
+
+  it("asks for redelivery of a settled sale while paypal rate-limits the lookup", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+    get_subscription_mock.mockRejectedValue(
+      new PayPalApiError("get subscription", 429, "{}")
+    );
+
+    const res = await deliver(sale_ev());
+
+    expect(res.ok).toBe(false);
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   it("answers 200 for a settled sale whose subscription has no order id", async () => {

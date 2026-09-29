@@ -1,11 +1,12 @@
 import crypto from "node:crypto";
 import { crc32 } from "node:zlib";
-import type {
-  Capture,
-  Order,
-  Sale,
-  Subs,
-  WebhookEvent,
+import {
+  type Capture,
+  type Order,
+  PayPalApiError,
+  type Sale,
+  type Subs,
+  type WebhookEvent,
 } from "@better-giving/paypal";
 import { report_degraded, report_error, report_resp } from "#/errors/report";
 import {
@@ -170,6 +171,15 @@ const requeue = async (row: IDonation | undefined, order_id: string) => {
   );
 };
 
+/** a 4xx paypal will answer the same way on every retry — not a timeout or a
+ * rate limit */
+const is_refusal = (e: unknown): e is PayPalApiError =>
+  e instanceof PayPalApiError &&
+  e.http_status >= 400 &&
+  e.http_status < 500 &&
+  e.http_status !== 408 &&
+  e.http_status !== 429;
+
 /**
  * `requeue` for a sale settled on an earlier delivery. the match flag needs the
  * order id, and only the subscription's custom_id carries it — nothing on the
@@ -178,12 +188,27 @@ const requeue = async (row: IDonation | undefined, order_id: string) => {
  * a failed fetch throws through to a non-2xx: this redelivery is usually the
  * one recovering messages an earlier delivery never sent, and a 200 here would
  * stop paypal retrying with the dist still unsent. a missing subs id or
- * custom_id is reported and answered 200 instead — no retry can supply either.
+ * custom_id, or a 4xx on the lookup, is reported and answered 200 instead — no
+ * retry can supply either.
  */
 const requeue_sale = async (sale_id: string, subs_id: string | undefined) => {
-  const order_id = subs_id
-    ? (await paypal.get_subscription(subs_id))?.custom_id
+  const sub = subs_id
+    ? await paypal.get_subscription(subs_id).catch((e: unknown) => {
+        if (!is_refusal(e)) throw e;
+        report_error(
+          new Error(
+            `subscription lookup refused, sale ${sale_id} not requeued`,
+            {
+              cause: e,
+            }
+          ),
+          { sale_id, subs_id, http_status: e.http_status }
+        );
+        return "refused" as const;
+      })
     : undefined;
+  if (sub === "refused") return;
+  const order_id = sub?.custom_id;
   if (!order_id) {
     report_error(new Error(`no order id to requeue sale ${sale_id}`), {
       sale_id,

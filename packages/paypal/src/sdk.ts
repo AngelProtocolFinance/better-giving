@@ -30,6 +30,25 @@ import {
   oauth_token_path,
 } from "./interfaces.js";
 
+/**
+ * a non-2xx from paypal. `http_status` rather than `status`: platform's error
+ * reporter reads a 4xx `status` as a user error and keeps it out of sentry
+ */
+export class PayPalApiError extends Error {
+  override name = "PayPalApiError";
+  constructor(
+    readonly op: string,
+    readonly http_status: number,
+    readonly body: string
+  ) {
+    super(`Failed to ${op}: ${http_status} ${body}`);
+  }
+
+  static async from(op: string, res: Response): Promise<PayPalApiError> {
+    return new PayPalApiError(op, res.status, await res.text());
+  }
+}
+
 export class PayPalSDK {
   private config: ISdkConfig;
   private access_token?: string;
@@ -68,12 +87,8 @@ export class PayPalSDK {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(
-        `Failed to get access token: ${response.status} ${error}`
-      );
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("get access token", response);
 
     const data = (await response.json()) as IAccessTokenRes;
     this.access_token = data.access_token;
@@ -108,10 +123,7 @@ export class PayPalSDK {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to create order: ${response.status} ${error}`);
-    }
+    if (!response.ok) throw await PayPalApiError.from("create order", response);
 
     return (await response.json()) as CreateOrderResponse;
   }
@@ -131,10 +143,7 @@ export class PayPalSDK {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get order: ${response.status} ${error}`);
-    }
+    if (!response.ok) throw await PayPalApiError.from("get order", response);
 
     return (await response.json()) as GetOrderResponse;
   }
@@ -162,10 +171,8 @@ export class PayPalSDK {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to capture order: ${response.status} ${error}`);
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("capture order", response);
 
     return (await response.json()) as CaptureOrderResponse;
   }
@@ -190,10 +197,8 @@ export class PayPalSDK {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to create product: ${response.status} ${error}`);
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("create product", response);
 
     return (await response.json()) as CreateProductResponse;
   }
@@ -223,10 +228,7 @@ export class PayPalSDK {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to create plan: ${response.status} ${error}`);
-    }
+    if (!response.ok) throw await PayPalApiError.from("create plan", response);
 
     return (await response.json()) as CreatePlanResponse;
   }
@@ -254,10 +256,7 @@ export class PayPalSDK {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get plans: ${response.status} ${error}`);
-    }
+    if (!response.ok) throw await PayPalApiError.from("get plans", response);
 
     return (await response.json()) as GetPlansResponse;
   }
@@ -277,10 +276,7 @@ export class PayPalSDK {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get plan: ${response.status} ${error}`);
-    }
+    if (!response.ok) throw await PayPalApiError.from("get plan", response);
 
     return (await response.json()) as GetPlanResponse;
   }
@@ -300,10 +296,8 @@ export class PayPalSDK {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to deactivate plan: ${response.status} ${error}`);
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("deactivate plan", response);
 
     // 204 no content - no response body
   }
@@ -333,12 +327,8 @@ export class PayPalSDK {
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(
-        `Failed to create subscription: ${response.status} ${error}`
-      );
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("create subscription", response);
 
     return (await response.json()) as CreateSubscriptionResponse;
   }
@@ -360,12 +350,8 @@ export class PayPalSDK {
       },
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(
-        `Failed to get subscription: ${response.status} ${error}`
-      );
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("get subscription", response);
 
     return (await response.json()) as GetSubscriptionResponse;
   }
@@ -389,12 +375,8 @@ export class PayPalSDK {
       body: JSON.stringify(cancel_data),
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(
-        `Failed to cancel subscription: ${response.status} ${error}`
-      );
-    }
+    if (!response.ok)
+      throw await PayPalApiError.from("cancel subscription", response);
 
     // 204 no content - no response body
   }
