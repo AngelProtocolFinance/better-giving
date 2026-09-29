@@ -277,11 +277,30 @@ export async function action({ request }: Route.ActionArgs) {
         message: "chariot grant completed after cancel",
         title: "Chariot Grant Completed After Cancel",
         detail: `donation ${prior.id} is cancelled but chariot grant ${grant.id} completed`,
-        facts: grant_facts(grant, prior),
+        facts: `${grant_facts(grant, prior)}, net ${settlement.net.toFixed(2)} USD, fee ${settlement.fee.toFixed(2)} USD`,
         todo: "nothing was settled automatically; confirm the payout in chariot's dashboard before settling it by hand",
         ctx: {
           don_id: prior.id,
           grant_id: grant.id,
+          status: locked.state.status,
+        },
+      });
+      return new Response("", { status: 200 });
+    }
+    const { sttl_id } = locked.state;
+    if (locked.state.status === "settled" && !sttl_id)
+      throw new Error(`donation ${prior.id} is settled without a settlement`);
+    if (sttl_id && sttl_id !== grant.id) {
+      await alert_ops({
+        message: "chariot grant completed on a donation another grant settled",
+        title: "Chariot Grant Completed On A Settled Donation",
+        detail: `donation ${prior.id} is ${locked.state.status} by settlement ${sttl_id} but chariot grant ${grant.id} also completed`,
+        facts: grant_facts(grant, prior, sttl_id),
+        todo: "nothing was settled or re-sent automatically; this grant's payout is not recorded against any donation",
+        ctx: {
+          don_id: prior.id,
+          grant_id: grant.id,
+          sttl_id,
           status: locked.state.status,
         },
       });

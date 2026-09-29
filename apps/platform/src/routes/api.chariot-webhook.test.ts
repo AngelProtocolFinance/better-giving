@@ -548,6 +548,50 @@ describe("chariot webhook completed grant", () => {
     }
   );
 
+  it("alerts instead of re-sending when the donation was settled by a different grant", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      ...settled_row,
+      settlement: { ...settled_row.settlement, id: "grant-other" },
+    });
+    donation_mocks.locked.mockResolvedValue({
+      status: "settled",
+      sttl_id: "grant-other",
+    });
+    has_dists_mock.mockResolvedValue(false);
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    const body = alert_body();
+    for (const fact of ["grant grant-20", "settlement grant-other", "don-20"])
+      expect(body).toContain(fact);
+  });
+
+  it("fails and reports a settled donation that has no settlement", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      ...settled_row,
+      settlement: undefined,
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "settled" });
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(500);
+    expect(report_resp_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("don-20") }),
+      expect.anything()
+    );
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
   it("does not settle again when a concurrent delivery settled it after the first read", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(completed_grant);
@@ -616,7 +660,13 @@ describe("chariot webhook completed grant", () => {
     await deliver(complete_event);
 
     const body = alert_body();
-    for (const fact of ["100.00 USD", "River Trust (42)", "grant-20"])
+    for (const fact of [
+      "100.00 USD",
+      "net 97.00 USD",
+      "fee 3.00 USD",
+      "River Trust (42)",
+      "grant-20",
+    ])
       expect(body).toContain(fact);
     for (const p of pii) expect(body).not.toContain(p);
   });
