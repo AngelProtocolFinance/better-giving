@@ -10,10 +10,13 @@ export async function handle_intent_failed(
   data: Stripe.PaymentIntentPaymentFailedEvent.Data
 ) {
   const err = data.object.last_payment_error;
-  if (err?.type === "card_error") return; // already handled in frontend
+  // subs pi metadata is empty object: an off-session charge no form showed
+  const is_subs = Object.keys(data.object.metadata).length === 0;
+  // a one-time card error was already shown on the form
+  if (err?.type === "card_error" && !is_subs) return;
   const meta = await (async (pi) => {
-    // subs pi metadata is empty object // retrieve from invoice
-    if (Object.keys(pi.metadata).length === 0) {
+    // retrieve from invoice
+    if (is_subs) {
       const { data: ips } = await stripe.invoicePayments.list({
         payment: { payment_intent: pi.id, type: "payment_intent" },
         expand: ["data.invoice"],
