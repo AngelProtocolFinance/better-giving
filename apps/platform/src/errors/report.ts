@@ -12,6 +12,20 @@ function is_user_error(err: unknown): boolean {
   return false;
 }
 
+/**
+ * a rejection reason is whatever the rejecting code passed, and a plain object
+ * that references itself throws here rather than serialising. the client sink
+ * is the only capture path — sentry's own capturing integrations are removed
+ * in `integrations.ts` — so a throw inside it loses the event outright.
+ */
+function describe(err: object): string {
+  try {
+    return JSON.stringify(err) ?? "";
+  } catch {
+    return Object.prototype.toString.call(err);
+  }
+}
+
 // wrap non-Error throws so sentry gets a stack from the report site.
 // handles cross-realm Error objects (instanceof fails across iframes/workers).
 function normalize(err: unknown): unknown {
@@ -22,7 +36,7 @@ function normalize(err: unknown): unknown {
       "message" in err &&
       typeof (err as { message: unknown }).message === "string"
         ? (err as { message: string }).message
-        : JSON.stringify(err);
+        : describe(err);
     const wrapped = new Error(msg || "(no message)");
     if (
       "stack" in err &&
