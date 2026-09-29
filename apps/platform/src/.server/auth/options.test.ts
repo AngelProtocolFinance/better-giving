@@ -5,6 +5,8 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const test_auth_ref = vi.hoisted(() => ({ current: null as any }));
+/** every sign-in link the config mails */
+const sent_links = vi.hoisted(() => [] as { email: string; url: string }[]);
 
 // --- mocks ---
 
@@ -51,7 +53,9 @@ beforeAll(async () => {
   test_db.current = await create_test_db();
 
   const deps = {
-    send_login_link: async () => {},
+    send_login_link: async (a: { email: string; url: string }) => {
+      sent_links.push(a);
+    },
     referral_id,
   };
 
@@ -66,6 +70,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  sent_links.length = 0;
   const db = test_db.current!.db;
   await db.delete(verification);
   await db.delete(session);
@@ -228,5 +233,41 @@ describe("server-owned user fields", () => {
         },
       })
     ).rejects.toThrow();
+  });
+});
+
+describe("POST /api/auth/sign-in/magic-link", () => {
+  it("is refused over http, while the server-side seam still mails a link that redeems", async () => {
+    await test_db.current!.db.insert(user_table).values({
+      id: crypto.randomUUID(),
+      email: TEST_EMAIL,
+      name: "Jane Doe",
+      first_name: "Jane",
+      last_name: "Doe",
+      emailVerified: true,
+    });
+
+    const res: Response = await test_auth_ref.current.handler(
+      new Request(`${BASE_URL}/api/auth/sign-in/magic-link`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: BASE_URL },
+        body: JSON.stringify({ email: TEST_EMAIL }),
+      })
+    );
+    expect(res.status).toBe(404);
+    expect(sent_links).toHaveLength(0);
+
+    await test_auth_ref.current.api.signInMagicLink({
+      body: { email: TEST_EMAIL, callbackURL: "/marketplace" },
+      headers: new Headers(),
+    });
+    expect(sent_links).toHaveLength(1);
+
+    const verified: Response = await test_auth_ref.current.handler(
+      new Request(sent_links[0]!.url)
+    );
+    expect(verified.status).toBe(302);
+    expect(verified.headers.get("location")).toBe(`${BASE_URL}/marketplace`);
+    expect(verified.headers.getSetCookie().join()).toMatch(/session_token=/);
   });
 });

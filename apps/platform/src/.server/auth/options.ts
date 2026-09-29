@@ -137,10 +137,12 @@ export const auth_options = (deps: AuthOptionDeps) => ({
   user: { additionalFields: user_additional_fields },
 
   /** checked only by the router's `onRequest`, so a server-side `auth.api.*`
-   * call still reaches these. the only anonymous reset route is the app's own,
-   * through `request_password_reset`, whose per-email quota the router's per-ip
-   * limiter has no equivalent of. */
-  disabledPaths: ["/request-password-reset"],
+   * call still reaches these. the only anonymous reset and sign-in-link routes
+   * are the app's own, through `request_password_reset` and
+   * `request_login_link`, whose per-email quotas the router's per-ip limiter
+   * has no equivalent of. `/magic-link/verify` stays open: the mailed link
+   * lands there. */
+  disabledPaths: ["/request-password-reset", "/sign-in/magic-link"],
 
   /** covers the public `/api/auth/*` surface only — better-auth runs this from
    * its router's `onRequest`, which a server-side `auth.api.*` call never
@@ -153,7 +155,6 @@ export const auth_options = (deps: AuthOptionDeps) => ({
     customRules: {
       // each one of these mails something. the plugin's own default is 5/60s;
       // no human needs more than a few links per quarter hour.
-      "/sign-in/magic-link": { window: 15 * 60, max: 5 },
       "/sign-up/email": { window: 15 * 60, max: 5 },
       // token guessing. the token is 32 random chars, so this is only a brake
       // on volume, not the thing making the token unguessable.
