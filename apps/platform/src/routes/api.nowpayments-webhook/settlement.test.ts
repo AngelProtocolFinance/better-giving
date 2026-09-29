@@ -673,6 +673,30 @@ describe("nowpayments ipn settlement", () => {
     }
   );
 
+  // the estimate carries nowpayments' conversion spread; usdc is a dollar
+  it.each(["usdc", "usdcmatic"])(
+    "records a %s outcome and fee at a dollar a unit, whatever the live estimate says",
+    async (usdc) => {
+      await seed_donation();
+      usd_rates[usdc] = 1.03;
+      try {
+        await deliver(
+          payment({
+            outcome_currency: usdc,
+            fee: { ...payment().fee, currency: usdc },
+          })
+        );
+      } finally {
+        usd_rates.usdc = 1;
+        delete usd_rates.usdcmatic;
+      }
+
+      const [row] = await settlements();
+      expect(row.net).toBe(990);
+      expect(row.fee).toBe(10);
+    }
+  );
+
   it("records a fee charged in another currency at that currency's usd rate", async () => {
     await seed_donation();
 
