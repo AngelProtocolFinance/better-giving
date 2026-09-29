@@ -33,6 +33,7 @@ vi.mock("$/email", () => ({
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import {
@@ -81,14 +82,12 @@ beforeEach(async () => {
 /** a real signed-in session, as a `Cookie` header carries it. sign-up leaves
  * the row unverified by config, and only a verified row can sign in. */
 async function sign_in(email = TEST_EMAIL) {
-  await test_auth_ref.current.api.signUpEmail({
-    body: {
-      email,
-      password: TEST_PW,
-      name: email,
-      first_name: "Jane",
-      last_name: "Doe",
-    },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password: TEST_PW,
+    name: email,
+    first_name: "Jane",
+    last_name: "Doe",
   });
   await test_db
     .current!.db.update(user_table)
@@ -194,46 +193,6 @@ describe("server-owned user fields", () => {
 
     expect((await row()).first_name).toBe("Janet");
   });
-
-  it("keeps signup working, and closed to the server-owned five", async () => {
-    const res = await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: "new@example.com",
-        password: TEST_PW,
-        name: "new",
-        first_name: "Jane",
-        last_name: "Doe",
-      },
-    });
-    expect(res.user.email).toBe("new@example.com");
-    expect((await row("new@example.com")).first_name).toBe("Jane");
-
-    await expect(
-      test_auth_ref.current.api.signUpEmail({
-        body: {
-          email: "other@example.com",
-          password: TEST_PW,
-          name: "other",
-          first_name: "Jane",
-          last_name: "Doe",
-          w_form: "someone-elses-eid",
-        },
-      })
-    ).rejects.toThrow();
-
-    await expect(
-      test_auth_ref.current.api.signUpEmail({
-        body: {
-          email: "third@example.com",
-          password: TEST_PW,
-          name: "third",
-          first_name: "Jane",
-          last_name: "Doe",
-          referral_code: "SOMEONE-ELSES",
-        },
-      })
-    ).rejects.toThrow();
-  });
 });
 
 describe("POST /api/auth/sign-in/magic-link", () => {
@@ -269,5 +228,27 @@ describe("POST /api/auth/sign-in/magic-link", () => {
     expect(verified.status).toBe(302);
     expect(verified.headers.get("location")).toBe(`${BASE_URL}/marketplace`);
     expect(verified.headers.getSetCookie().join()).toMatch(/session_token=/);
+  });
+});
+
+describe("POST /api/auth/sign-up/email", () => {
+  it("is refused, so every row still comes through the app's own signup", async () => {
+    const res: Response = await test_auth_ref.current.handler(
+      new Request(`${BASE_URL}/api/auth/sign-up/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: BASE_URL },
+        body: JSON.stringify({
+          email: "new@example.com",
+          password: TEST_PW,
+          name: "new",
+          first_name: "Jane",
+          last_name: "Doe",
+        }),
+      })
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("EMAIL_PASSWORD_SIGN_UP_DISABLED");
+    expect(await test_db.current!.db.select().from(user_table)).toHaveLength(0);
   });
 });

@@ -123,6 +123,10 @@ export const auth_options = (deps: AuthOptionDeps) => ({
     // jwt link and the route is free to send ours.
     requireEmailVerification: true,
     minPasswordLength: 8,
+    // signup is passwordless and goes through the app's action or
+    // `create_unverified_user`, where the abuse checks are. this closes
+    // `/sign-up/email` to server-side `auth.api` calls too.
+    disableSignUp: true,
   },
 
   session: {
@@ -153,9 +157,6 @@ export const auth_options = (deps: AuthOptionDeps) => ({
    * per-instance on serverless — see `./rate-limit` for the same caveat. */
   rateLimit: {
     customRules: {
-      // each one of these mails something. the plugin's own default is 5/60s;
-      // no human needs more than a few links per quarter hour.
-      "/sign-up/email": { window: 15 * 60, max: 5 },
       // token guessing. the token is 32 random chars, so this is only a brake
       // on volume, not the thing making the token unguessable.
       "/magic-link/verify": { window: 60, max: 10 },
