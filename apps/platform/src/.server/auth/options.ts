@@ -122,6 +122,9 @@ export const auth_options = (deps: AuthOptionDeps) => ({
     // jwt link and the route is free to send ours.
     requireEmailVerification: true,
     minPasswordLength: 8,
+    // a reset is how a compromised account is taken back, so it evicts every
+    // session. the resetter holds none to keep — the link comes by email.
+    revokeSessionsOnPasswordReset: true,
   },
 
   session: {
