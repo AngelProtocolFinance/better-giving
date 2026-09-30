@@ -28,6 +28,14 @@ export class NowpaymentsError extends Error {
   }
 }
 
+/** a 200 that quotes no usable minimum: the pair isn't payable, not an outage */
+export class NowpaymentsNoMinimumError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NowpaymentsNoMinimumError";
+  }
+}
+
 export class Nowpayments {
   private config: Config;
 
@@ -60,13 +68,14 @@ export class Nowpayments {
     return res.json();
   }
 
-  /** usd per unit of `token_code`, fees excluded */
+  /** usd per unit of `token_code`, fees excluded; throws unless the quote is a positive number */
   async estimate(token_code: string) {
+    const path = "v1/estimate";
     // quoted from the fiat side, the direction nowpayments documents; the
     // crypto amount keeps its precision where a usd figure would round a
     // sub-cent token to 0
     const { amount_from, estimated_amount } = await this.send<NP.Estimate>(
-      "v1/estimate",
+      path,
       {
         params: {
           amount: RATE_PROBE_USD.toString(),
@@ -75,7 +84,13 @@ export class Nowpayments {
         } satisfies NP.Estimate.Params,
       }
     );
-    return { usdpu: amount_from / estimated_amount };
+    const usdpu = amount_from / estimated_amount;
+    if (!is_positive(estimated_amount) || !is_positive(usdpu)) {
+      throw new Error(
+        `nowpayments ${path} ${token_code}: amount_from:${amount_from} estimated_amount:${estimated_amount}`
+      );
+    }
+    return { usdpu };
   }
 
   /** throws unless both figures are positive numbers: a NaN minimum passes every `<` check */
@@ -89,7 +104,7 @@ export class Nowpayments {
         } satisfies NP.MinAmount.Params,
       });
     if (!is_positive(min) || !is_positive(min_usd)) {
-      throw new Error(
+      throw new NowpaymentsNoMinimumError(
         `nowpayments ${path} ${token_code}: min_amount:${min} fiat_equivalent:${min_usd}`
       );
     }

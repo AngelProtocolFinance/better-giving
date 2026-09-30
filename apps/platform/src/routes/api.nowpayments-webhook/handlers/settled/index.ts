@@ -5,6 +5,7 @@ import {
   settle_msgs,
 } from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
@@ -17,8 +18,8 @@ import {
   type SettleState,
   settle_state_of,
 } from "$/pg/queries/donation";
-import { alert_all } from "../alert";
-import { paid_amount, to_settlement } from "../payment";
+import { alert, alert_all } from "../alert";
+import { paid_amount, ref_of, to_settlement } from "../payment";
 import { settle_rates } from "../rates";
 import { transition } from "../status";
 
@@ -81,6 +82,27 @@ const requeue = async (row: IDonation | undefined) => {
   await enqueue(...msgs);
 };
 
+/**
+ * the pay coin's live rate, else the intent's: a coin toggled off after the
+ * donor paid answers 4xx on every redelivery, and holding the settle for a
+ * rate would leave arrived funds unsettled once redelivery gives up
+ */
+const settle_upusd = async (
+  payment: NP.PaymentPayload,
+  prior: IDonation
+): Promise<number> => {
+  try {
+    return 1 / (await usdpu_of(np, payment.pay_currency));
+  } catch (err) {
+    await alert({
+      title: "Settled at the intent's rate",
+      type: "ERROR",
+      body: `${ref_of(payment)} upusd:${prior.upusd} estimate: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return prior.upusd;
+  }
+};
+
 export const handle_settled = async (
   payment: NP.PaymentPayload,
   prior: IDonation
@@ -99,7 +121,7 @@ export const handle_settled = async (
   const paid: IDonationUpdate = {
     amount: paid_amount(payment, prior, nowpayments.is_sandbox),
     currency: prior.currency,
-    upusd: 1 / (await np.estimate(payment.pay_currency)).usdpu,
+    upusd: await settle_upusd(payment, prior),
   };
 
   const result = calc_donation_settle({

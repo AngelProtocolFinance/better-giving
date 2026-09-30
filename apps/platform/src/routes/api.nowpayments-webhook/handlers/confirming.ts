@@ -1,5 +1,6 @@
 import type { IDonation } from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { paid_amount } from "./payment";
@@ -10,7 +11,7 @@ export async function handle_confirming(
   payment: NP.PaymentPayload,
   order: IDonation
 ): Promise<Action> {
-  const { usdpu } = await np.estimate(payment.pay_currency);
+  const usdpu = await usdpu_of(np, payment.pay_currency);
 
   return write_on(order.id, payment, { repeat: false }, "confirm", {
     status: "confirmed",

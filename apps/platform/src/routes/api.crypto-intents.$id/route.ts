@@ -19,6 +19,7 @@ import type { Payment } from "#/types/crypto";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { deposit_addr } from "$/deposit-addr";
 import { np } from "$/kit/nowpayments";
 import { donation_get } from "$/pg/queries/donation";
@@ -64,15 +65,13 @@ const np_payment = async (
   if (!p || !(await may_read(p.order_id))) return resp.status(404);
   if (p.payment_status !== "waiting") throw resp.status(410);
 
-  const estimated = await np.estimate(p.pay_currency);
-
   return {
     id: p.payment_id,
     address: p.pay_address,
     extra_address: p.payin_extra_id ?? undefined,
     amount: p.pay_amount,
     currency: p.pay_currency.toUpperCase(),
-    usdpu: estimated.usdpu,
+    usdpu: await usdpu_of(np, p.pay_currency),
     description: p.order_description,
     order_id: p.order_id,
   } satisfies Payment;
