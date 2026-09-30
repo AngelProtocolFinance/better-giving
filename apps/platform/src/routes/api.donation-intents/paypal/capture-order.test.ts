@@ -175,6 +175,26 @@ describe("capture_order for a donation the order isn't for", () => {
     expect((res as Response).status).toBe(400);
   });
 
+  it("refuses a declined capture rather than return its payer details", async () => {
+    capture_order_mock.mockResolvedValue(
+      taken(
+        {
+          paypal: { email_address: "jane@b.co", name: { given_name: "Jane" } },
+        },
+        "DECLINED",
+        "d-own"
+      )
+    );
+
+    const res = await capture_order({
+      order_id: "o17",
+      don_id: "d-victim",
+    }).catch((r: unknown) => r);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(400);
+  });
+
   it("refuses an order that names no donation", async () => {
     capture_order_mock.mockResolvedValue({
       payment_source: { paypal: { email_address: "jane@b.co" } },
