@@ -4,7 +4,7 @@ import type { Payment } from "#/types/crypto";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
-import { NowpaymentsError } from "@/nowpayments";
+import { NowpaymentsError, NowpaymentsNoMinimumError } from "@/nowpayments";
 import { donation_quote } from "@/nowpayments/min";
 import { deposit_addr } from "$/deposit-addr";
 import { base_url } from "$/env";
@@ -15,6 +15,40 @@ import { db } from "$/pg/db";
 import { donation_put } from "$/pg/queries/donation";
 import type { Ctx, Provider } from "../types";
 import { crypto_payment } from "./np-payment";
+
+const unavailable = () =>
+  resp.txt(
+    "This currency isn't available right now. Choose a different currency.",
+    400
+  );
+const try_later = () =>
+  resp.txt(
+    "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
+    502
+  );
+
+/** the donor's answer to a failed quote or invoice */
+const np_failure = async (err: unknown, order_id: string, t: IToken) => {
+  report_error(err, { order_id, currency: t.code });
+  // a pair nowpayments won't quote or a coin disabled on the account:
+  // retrying it can never succeed
+  if (err instanceof NowpaymentsNoMinimumError) return unavailable();
+  if (!(err instanceof NowpaymentsError)) return try_later();
+  const s = err.http_status;
+  if (s === 400 || s === 404) return unavailable();
+  // our key or ip allow-list: every coin fails alike, so switching can't help
+  if (s === 401 || s === 403) {
+    await aws_monitor
+      .send_alert({
+        from: "donation-intents-creator",
+        type: "ERROR",
+        title: `NOWPayments refused our api key (${s})`,
+        body: `order:${order_id}`,
+      })
+      .catch(report_null);
+  }
+  return try_later();
+};
 
 const min_msg = (min: number, t: IToken) =>
   `This amount is below the minimum of ${min} ${t.code}. Try a larger amount or a different currency.`;
@@ -146,18 +180,7 @@ async function np_intent(c: Ctx, token: IToken) {
   try {
     q = await np_payment(c, token, r_id, to_pay);
   } catch (err) {
-    report_error(err, { order_id: r_id, currency: token.code });
-    // a coin disabled on the account, or under nowpayments' own floor
-    if (err instanceof NowpaymentsError && err.http_status < 500) {
-      return resp.txt(
-        "This currency isn't available right now. Choose a different currency.",
-        400
-      );
-    }
-    return resp.txt(
-      "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
-      502
-    );
+    return np_failure(err, r_id, token);
   }
 
   if (!q.payment) return resp.txt(min_msg(q.min, token), 400);

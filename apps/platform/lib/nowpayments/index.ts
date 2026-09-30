@@ -28,6 +28,14 @@ export class NowpaymentsError extends Error {
   }
 }
 
+/** a 200 that quotes no usable minimum: the pair isn't payable, not an outage */
+export class NowpaymentsNoMinimumError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NowpaymentsNoMinimumError";
+  }
+}
+
 export class Nowpayments {
   private config: Config;
 
@@ -96,7 +104,7 @@ export class Nowpayments {
         } satisfies NP.MinAmount.Params,
       });
     if (!is_positive(min) || !is_positive(min_usd)) {
-      throw new Error(
+      throw new NowpaymentsNoMinimumError(
         `nowpayments ${path} ${token_code}: min_amount:${min} fiat_equivalent:${min_usd}`
       );
     }

@@ -13,6 +13,9 @@ import type { Ctx } from "../types";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const report_error_mock = vi.hoisted(() => vi.fn());
+const send_alert_mock = vi.hoisted(() =>
+  vi.fn(async (_: { type?: string; title: string }) => new Response())
+);
 const env_mock = vi.hoisted(() => ({
   base_url: "https://app.test",
   stage: "staging",
@@ -29,7 +32,9 @@ vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
   report_null: () => null,
 }));
-vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert: vi.fn() } }));
+vi.mock("$/kit/discord", () => ({
+  aws_monitor: { send_alert: send_alert_mock },
+}));
 vi.mock("$/kit/coingecko", () => ({ coingecko: vi.fn() }));
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -167,25 +172,29 @@ describe("crypto_intent", () => {
   });
 
   // retrying a coin nowpayments refuses can never succeed
-  it("a nowpayments 4xx tells the donor to pick another currency, reports, and leaves no row", async () => {
-    np_server({
-      "/v1/invoice": () =>
-        new Response('{"message":"currency disabled"}', { status: 400 }),
-    });
-    const res = await crypto_intent(
-      ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
-    );
+  it.each([400, 404])(
+    "a nowpayments %i tells the donor to pick another currency, reports, and leaves no row",
+    async (status) => {
+      np_server({
+        "/v1/invoice": () =>
+          new Response('{"message":"currency disabled"}', { status }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
 
-    expect((res as Response).status).toBe(400);
-    const msg = await (res as Response).text();
-    expect(msg).toMatch(/isn't available right now.*different currency/);
-    expect(msg).not.toMatch(/currency disabled/);
-    expect(report_error_mock).toHaveBeenCalledOnce();
-    expect(await rows()).toHaveLength(0);
-  });
+      expect((res as Response).status).toBe(400);
+      const msg = await (res as Response).text();
+      expect(msg).toMatch(/isn't available right now.*different currency/);
+      expect(msg).not.toMatch(/currency disabled/);
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
 
   it.each([
     ["a 5xx", () => new Response("", { status: 503 })],
+    ["a 429", () => new Response("", { status: 429 })],
     ["a network failure", () => Promise.reject(new TypeError("fetch failed"))],
   ])(
     "%s from nowpayments answers 502 try-again-later, reports, and leaves no row",
@@ -200,6 +209,50 @@ describe("crypto_intent", () => {
         /try again in a few minutes/
       );
       expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
+
+  // our key or ip allow-list: every coin fails alike, so switching can't help
+  it.each([401, 403])(
+    "a nowpayments %i answers 502 try-again-later and alerts ops",
+    async (status) => {
+      np_server({
+        "/v1/invoice": () => new Response("", { status }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(502);
+      expect(await (res as Response).text()).toMatch(
+        /try again in a few minutes/
+      );
+      expect(send_alert_mock).toHaveBeenCalledOnce();
+      expect(send_alert_mock.mock.calls[0][0]).toMatchObject({
+        type: "ERROR",
+        title: expect.stringMatching(new RegExp(`${status}`)),
+      });
+      expect(await rows()).toHaveLength(0);
+    }
+  );
+
+  it.each([0, null])(
+    "a %s pair minimum tells the donor the currency isn't available and leaves no row",
+    async (min_amount) => {
+      const spy = np_server({
+        "/v1/min-amount": () =>
+          Response.json({ min_amount, fiat_equivalent: 0 }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(400);
+      expect(await (res as Response).text()).toMatch(
+        /isn't available right now.*different currency/
+      );
+      expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
       expect(await rows()).toHaveLength(0);
     }
   );
