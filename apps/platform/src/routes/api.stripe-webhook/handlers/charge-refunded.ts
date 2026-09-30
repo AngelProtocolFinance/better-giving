@@ -10,6 +10,7 @@ import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { process_refund } from "$/refund/process";
 import { money, refund_list } from "../helpers/money";
+import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-refunded";
@@ -120,8 +121,8 @@ export async function handle_charge_refunded(
     alert_from: ALERT_FROM,
   });
 
+  const failed = result.failures.length;
   if (earlier.length > 0) {
-    const failed = result.failures.length;
     const [title, lead] =
       failed === 0
         ? [
@@ -136,9 +137,10 @@ export async function handle_charge_refunded(
     // queued, not sent: once reversed, a redelivery stops at the donation's
     // status, so only the queue's retries can land a failed send. a failed
     // enqueue is reported, instruction and all, rather than failing the
-    // delivery, because the reversal has already run. keyed on the outcome as
-    // well as the event: a replay after a partial failure that now completes
-    // must land its "undo" notice, not be deduped against the "keep" one.
+    // delivery: once reversed, no redelivery gets far enough to queue it.
+    // keyed on the outcome as well as the event: a redelivery failing alike
+    // collapses into the "keep" notice, and one that now completes lands its
+    // "undo" notice.
     await enqueue(
       msg("fiat-notice", {
         id: `${event.id}_${failed}`,
@@ -148,6 +150,9 @@ export async function handle_charge_refunded(
   }
 
   console.info(
-    `charge refunded: ${don_id}, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`
+    `charge refunded: ${don_id}, dists: ${graphs.length}, failures: ${failed}, losses: ${result.loss_msgs.length}`
   );
+  if (failed > 0) {
+    throw new ReversalIncompleteError(don_id, failed, graphs.length);
+  }
 }

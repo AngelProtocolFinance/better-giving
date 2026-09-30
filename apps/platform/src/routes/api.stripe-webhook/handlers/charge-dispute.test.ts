@@ -36,6 +36,10 @@ const { handle_dispute_created, handle_dispute_closed } = await import(
   "./charge-dispute"
 );
 
+const { ReversalIncompleteError } = await import(
+  "../helpers/reversal-incomplete"
+);
+
 const DON_ID = "0195c1f0-4c37-7c1a-b8f1-1f1f0a2f9d3e";
 const graph = { dist: { id: "dist_1" } };
 let don_status = "settled";
@@ -185,7 +189,7 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     expect(queued()).toHaveLength(1);
   });
 
-  it("says the reversal did not complete when dists fail to reverse", async () => {
+  it("fails the delivery when dists fail to reverse, after saying the reversal did not complete", async () => {
     process_refund_mock.mockResolvedValue({
       failures: ["dist dist_1: db timeout"],
       loss_msgs: [],
@@ -193,10 +197,36 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
       applied: 0,
     });
 
-    await handle_dispute_closed(dispute_event("charge.dispute.closed", "lost"));
+    await expect(
+      handle_dispute_closed(dispute_event("charge.dispute.closed", "lost"))
+    ).rejects.toBeInstanceOf(ReversalIncompleteError);
 
     const { title, body } = queued()[0].payload.alert;
     expect(title).toMatch(/did not complete/i);
     expect(body).toContain("1 of 1 dists failed to reverse");
+  });
+
+  it("completes a failed reversal on redelivery without queuing its failure notice twice", async () => {
+    const failing = {
+      failures: ["dist dist_1: db timeout"],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 0,
+    };
+    process_refund_mock
+      .mockResolvedValueOnce(failing)
+      .mockResolvedValueOnce(failing);
+    const lost = dispute_event("charge.dispute.closed", "lost");
+
+    await expect(handle_dispute_closed(lost)).rejects.toThrow();
+    await expect(handle_dispute_closed(lost)).rejects.toThrow();
+    await expect(handle_dispute_closed(lost)).resolves.toBeUndefined();
+
+    expect(don_status).toBe("refunded");
+    const [failed, again, done] = queued();
+    expect(queued()).toHaveLength(3);
+    expect(again.dedupe).toBe(failed.dedupe);
+    expect(done.dedupe).not.toBe(failed.dedupe);
+    expect(done.payload.alert.title).toBe("Dispute Lost: Donation Reversed");
   });
 });
