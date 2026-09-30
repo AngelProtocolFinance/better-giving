@@ -503,9 +503,34 @@ describe("login flow", () => {
       />
     );
 
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toMatchTextContent(/hasn't been confirmed/i);
+    const link = alert.getByRole("link", { name: /fresh sign-in link/i });
+    const to = new URL(
+      (link.element() as HTMLAnchorElement).href,
+      window.location.origin
+    );
+    expect(to.pathname).toBe("/signup");
+    expect(to.searchParams.get("redirect")).toBe("/dashboard");
+  });
+
+  it("drops the google error once the password form is used", async () => {
+    await create_verified_user();
+
+    const Stub = login_stub();
+    const screen = await render(
+      <Stub initialEntries={["/login?error=access_denied"]} />
+    );
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+
+    await screen.getByPlaceholder(/email address/i).fill(TEST_EMAIL);
+    await screen.getByPlaceholder(/password/i).fill("WrongPass1!");
+    await screen.getByRole("button", { name: /log in/i }).click();
+
+    await expect.element(screen.getByText(/invalid/i)).toBeVisible();
     await expect
-      .element(screen.getByRole("alert"))
-      .toMatchTextContent(/hasn't been confirmed yet/i);
+      .element(screen.getByText(/google sign-in didn't finish/i))
+      .not.toBeInTheDocument();
   });
 
   it("shows error for invalid credentials", async () => {

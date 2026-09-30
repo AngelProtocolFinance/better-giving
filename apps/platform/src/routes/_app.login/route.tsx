@@ -186,16 +186,40 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 export const meta: Route.MetaFunction = () =>
   metas({ title: "Login - Better Giving" });
 
-/** better-auth's `error` code on a failed google sign-in, in words */
-const oauth_error_message = (code: string) =>
-  code === "account_not_linked"
-    ? "Google sign-in couldn't finish: this email has an account that hasn't been confirmed yet. Open the sign-in link we emailed you, and Google sign-in will work from then on."
-    : "Google sign-in didn't finish. Please try again.";
+interface IOAuthError {
+  /** better-auth's `error` code on a failed google sign-in */
+  code: string;
+  to: string;
+}
+
+function OAuthError({ code, to }: IOAuthError) {
+  if (code !== "account_not_linked") {
+    return <>Google sign-in didn't finish. Please try again.</>;
+  }
+  // signup with an address that already has an unconfirmed row mails a link
+  return (
+    <>
+      This email has an account that hasn't been confirmed yet.{" "}
+      <Link
+        to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
+        className="font-medium underline"
+      >
+        Get a fresh sign-in link
+      </Link>{" "}
+      by signing up with the same email.
+    </>
+  );
+}
 
 export { ErrorBoundary } from "#/components/error";
 export default function Page({ loaderData: to }: Route.ComponentProps) {
   const nav = useNavigation();
-  const oauth_error = useSearchParams()[0].get("error");
+  const [params] = useSearchParams();
+  const oauth_error = params.get("error");
+  // both forms post to this page's url, which would keep the error on screen
+  const kept = new URLSearchParams(params);
+  kept.delete("error");
+  const form_action = oauth_error ? `${href("/login")}?${kept}` : undefined;
 
   const {
     handleSubmit,
@@ -222,10 +246,15 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
             role="alert"
             className="mt-4 rounded bg-destructive-subtle text-destructive-subtle-fg px-4 py-3 max-sm:text-sm"
           >
-            {oauth_error_message(oauth_error)}
+            <OAuthError code={oauth_error} to={to} />
           </p>
         )}
-        <RmxForm disabled={is_submitting} method="POST" className="contents">
+        <RmxForm
+          disabled={is_submitting}
+          method="POST"
+          action={form_action}
+          className="contents"
+        >
           <button
             name="intent"
             value="oauth"
@@ -243,6 +272,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           id={form_id}
           onSubmit={handleSubmit}
           method="POST"
+          action={form_action}
           disabled={is_submitting}
           className="grid gap-3"
         >
