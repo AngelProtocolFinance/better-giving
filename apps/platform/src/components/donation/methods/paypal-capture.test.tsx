@@ -91,7 +91,8 @@ const approve_and_answer = async (
     tx_id: "order_1",
     don_id: "don_1",
     amount: "25.00",
-  }
+  },
+  form: Partial<typeof express> = {}
 ) => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_, init) =>
     init?.method === "PATCH" ? capture() : Response.json(intent)
@@ -103,6 +104,7 @@ const approve_and_answer = async (
     <Context {...init(config)}>
       <Paypal
         {...express}
+        {...form}
         validate={async () => true}
         on_error={on_error}
         on_paid={on_paid}
@@ -264,12 +266,13 @@ describe("paypal express: a merchant's own thank-you page", () => {
       async () => Response.json(captured("COMPLETED")),
       config,
       "paypal-button",
-      { tx_id: "order_1", don_id: "don_1" }
+      { tx_id: "order_1", don_id: "don_1" },
+      { amnt: 10, tip: 0.1, fee_allowance: 0.2 }
     );
 
     await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
     const { url } = on_paid.mock.calls[0]![0];
-    expect(new URL(url).searchParams.get("donation_amount")).toBe("25");
+    expect(new URL(url).searchParams.get("donation_amount")).toBe("10.30");
   });
 });
 
