@@ -23,7 +23,7 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
   const charge = paypal_charge(intent.amount, scale);
 
   const upusd = await unit_per_usd(intent.currency);
-  const base_usd = rd2num(intent.amount.base / upusd, 1);
+  const base_usd = rd2num(charge.amount.base / upusd, 1);
   if (base_usd < MIN_DONATION_USD) return resp.status(400, "less than min");
 
   const r_id = crypto.randomUUID();

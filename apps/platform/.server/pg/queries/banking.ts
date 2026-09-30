@@ -193,6 +193,15 @@ export async function bapp_set_default(
 ): Promise<boolean> {
   const now = new Date().toISOString();
   return db.transaction(async (tx) => {
+    // lock the npo's rows first: concurrent promotions queue here instead of
+    // deadlocking, and the demote below sees the winner's committed default
+    await tx
+      .select({ id: banking_apps.id })
+      .from(banking_apps)
+      .where(eq(banking_apps.npo_id, npo_id))
+      .orderBy(banking_apps.id)
+      .for("update");
+
     const promoted = await tx
       .update(banking_apps)
       .set({ status: "default", updated_at: now })

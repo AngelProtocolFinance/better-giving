@@ -22,7 +22,10 @@ const paypal_env = vi.hoisted(() => ({
   },
 }));
 vi.mock("$/env", () => ({ paypal: paypal_env }));
-vi.mock("#/.server/unit-per-usd", () => ({ unit_per_usd: async () => 1 }));
+const upusd = vi.hoisted(() => ({ v: 1 }));
+vi.mock("#/.server/unit-per-usd", () => ({
+  unit_per_usd: async () => upusd.v,
+}));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_put: donation_put_mock,
@@ -49,6 +52,7 @@ const ctx = (patch: Partial<Ctx["intent"]> = {}) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  upusd.v = 1;
   donation_put_mock.mockImplementation(async (_db: unknown, r: unknown) => r);
   donation_update_mock.mockResolvedValue({});
   create_order_mock.mockResolvedValue({ id: "ORDER-1" });
@@ -61,6 +65,19 @@ describe("paypal_intent currency", () => {
     expect(res.status).toBe(400);
     expect(donation_put_mock).not.toHaveBeenCalled();
     expect(create_order_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("paypal_intent minimum", () => {
+  it("checks the minimum against the amount paypal is charged", async () => {
+    // 2.3 JPY at 1.1/usd is 2.09 usd; the charged 2 is 1.81
+    upusd.v = 1.1;
+    const res = (await paypal_intent(
+      ctx({ currency: "JPY", amount: { base: 2.3, tip: 0, fee_allowance: 0 } })
+    )) as Response;
+
+    expect(res.status).toBe(400);
+    expect(donation_put_mock).not.toHaveBeenCalled();
   });
 });
 
