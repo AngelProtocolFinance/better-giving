@@ -6,11 +6,12 @@ import { APP_NAME, DAPP_URL, HELP } from "../constants";
 export interface IData {
   org_name: string;
   registrant_first_name: string;
-  endow_id: string;
+  /** absent: the mail goes out without the profile link */
+  endow_id?: string;
 }
 
 function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
-  const profile_link = `${DAPP_URL}/profile/${endow_id}`;
+  const profile_link = endow_id && `${DAPP_URL}/profile/${endow_id}`;
 
   return (
     <PublicLayout type="registration">
@@ -20,11 +21,13 @@ function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
         successfully vetted by our team and approved. {org_name}'s account is
         now live!
       </Text>
-      <Text>
-        You can see {org_name}'s profile here:{" "}
-        <Link href={profile_link}>{profile_link}</Link> and start receiving
-        donations from visitors.
-      </Text>
+      {profile_link && (
+        <Text>
+          You can see {org_name}'s profile here:{" "}
+          <Link href={profile_link}>{profile_link}</Link> and start receiving
+          donations from visitors.
+        </Text>
+      )}
       <Text>
         Once you've logged in with your email, your profile page is where you
         can access your account's Admin area and edit your profile.

@@ -1,0 +1,72 @@
+import { render } from "react-email";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import type { IReg } from "@/reg/schema";
+
+const send_email = vi.hoisted(() =>
+  vi.fn(async (_i: { node: any; to: string[]; subject: string }) => ({
+    data: { id: "email-1" },
+  }))
+);
+const report_error = vi.hoisted(() => vi.fn());
+
+vi.mock("$/email", () => ({ send_email, send_email_or_throw: vi.fn() }));
+vi.mock("#/errors/report", () => ({ report_error }));
+vi.mock("$/env", () => ({ base_url: "http://x", hubspot: { owner_id: "1" } }));
+vi.mock("$/kit/discord", () => ({ bg_sales: { send_alert: vi.fn() } }));
+vi.mock("$/kit/wise", () => ({ wise: { v2_account: vi.fn() } }));
+vi.mock("#/.server/auth/auth", () => ({ auth: {} }));
+vi.mock("#/.server/auth/resume-link", () => ({ mint_resume_link: vi.fn() }));
+vi.mock("$/pg/queries/registration", () => ({ reg_get: vi.fn() }));
+vi.mock("./hubspot", () => ({
+  create_deal: vi.fn(),
+  update_or_create_company: vi.fn(async () => ({ id: "c" })),
+  update_or_create_contact: vi.fn(async () => ({ id: "c" })),
+}));
+
+const { handle_reg_updated } = await import(".");
+
+const reg = (o: Partial<IReg>) =>
+  ({
+    id: "reg-1",
+    r_id: "ada@test.com",
+    env: "test",
+    r_first_name: "",
+    o_name: "",
+    ...o,
+  }) as IReg;
+
+const sent = async () => {
+  const { node, subject } = send_email.mock.calls[0]![0];
+  return { subject, text: await render(node, { plainText: true }) };
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("registration status mails", () => {
+  test("an approval for a blank first and org name greets and names without a placeholder", async () => {
+    await handle_reg_updated(reg({ status: "03", status_approved_npo_id: 42 }));
+
+    const { subject, text } = await sent();
+    expect(text).toMatch(/Hi there,/);
+    expect(`${subject}\n${text}`).not.toMatch(/missing/);
+    expect(text).toMatch(/\/profile\/42/);
+  });
+
+  test("an approval with no nonprofit id carries no profile link and is reported", async () => {
+    await handle_reg_updated(reg({ status: "03", r_first_name: "Ada" }));
+
+    const { text } = await sent();
+    expect(text).toMatch(/Hi Ada,/);
+    expect(text).not.toMatch(/\/profile\//);
+    expect(report_error).toHaveBeenCalledOnce();
+  });
+
+  test("a rejection for a blank first name greets them as there", async () => {
+    await handle_reg_updated(reg({ status: "04" }));
+
+    const { text } = await sent();
+    expect(text).toMatch(/Hi there,/);
+  });
+});
