@@ -19,8 +19,7 @@ vi.mock("$/pg/db", () => ({
   db: { transaction: (fn: (tx: unknown) => unknown) => fn({}) },
 }));
 vi.mock("$/pg/queries/donation", () => ({
-  donation_lock: vi.fn(),
-  donation_status_shared: status_mock,
+  donation_settle_state_locked: async () => ({ status: await status_mock() }),
   donation_update: donation_update_mock,
 }));
 
