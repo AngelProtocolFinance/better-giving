@@ -28,7 +28,8 @@ function Content({
   on_close: () => void;
 }) {
   const fetcher = useFetcher<typeof action>();
-  const failures = fetcher.data?.ok === false ? fetcher.data.failures : [];
+  const failed = fetcher.data?.ok === false ? fetcher.data : null;
+  const failures = failed?.failures ?? [];
   const submitting = fetcher.state !== "idle";
   const has_blockers = data.previews.some((p) => p.blockers.length > 0);
   const no_dists = data.previews.length === 0;
@@ -99,9 +100,9 @@ function Content({
           <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg">
             <p className="font-semibold">Refund not completed</p>
             <p>
-              Some distributions couldn't be reversed, so no Stripe refund was
-              issued and the donation is still settled. Resolve these before
-              retrying:
+              {failed?.refund_issued
+                ? "The Stripe refund was issued, but some distributions couldn't be reversed and the donation is still settled. Resolve these:"
+                : "No Stripe refund was issued and nothing was reversed. Resolve these before retrying:"}
             </p>
             <ul className="list-disc pl-5 mt-1">
               {failures.map((f) => (
@@ -142,17 +143,6 @@ function Content({
 }
 
 function RefundOutcome({ status }: { status: StripeRefundStatus | null }) {
-  if (status === "failed" || status === "canceled") {
-    return (
-      <div className="mb-4 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg text-left">
-        <p className="font-semibold">Stripe refund not completed</p>
-        <p>
-          All records have been reversed, but Stripe did not complete the
-          refund, so the donor has not been refunded. Resolve it in Stripe.
-        </p>
-      </div>
-    );
-  }
   return (
     <p className="text-sm text-gray-11 mb-4">
       {status === null

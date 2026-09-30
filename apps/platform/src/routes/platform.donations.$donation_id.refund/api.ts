@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { str_id } from "#/helpers/stripe";
 import { msg } from "@/queue";
@@ -174,6 +175,28 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   } satisfies LoaderData;
 };
 
+/** the charge's refund for the rest of it: this attempt's, or one a retry past
+ * stripe's idempotency window finds already made */
+async function issue_refund(payment_intent: string, donation_id: string) {
+  try {
+    return await stripe.refunds.create(
+      { payment_intent },
+      { idempotencyKey: `refund_${donation_id}` }
+    );
+  } catch (err) {
+    if (
+      !(err instanceof Stripe.errors.StripeError) ||
+      err.code !== "charge_already_refunded"
+    ) {
+      throw err;
+    }
+    // newest first: the one that completed the charge
+    const { data } = await stripe.refunds.list({ payment_intent, limit: 1 });
+    if (!data[0]) throw err;
+    return data[0];
+  }
+}
+
 export const action = async ({ params }: Route.ActionArgs) => {
   const { donation_id } = params;
 
@@ -189,27 +212,50 @@ export const action = async ({ params }: Route.ActionArgs) => {
   const intent_id = sttl?.sttl_id ?? null;
   const sub_id = await lookup_subscription_id(intent_id);
 
+  // the donor's refund goes first: records reversed ahead of a refund that
+  // then fails would say refunded with nothing to take it back
+  let stripe_refund: StripeRefundStatus | null = null;
+  if (intent_id) {
+    try {
+      const r = await issue_refund(intent_id, donation_id);
+      stripe_refund = to_refund_status(r.status);
+      if (stripe_refund === "failed" || stripe_refund === "canceled") {
+        const failure = `Stripe refund ${r.id} is ${r.status}: nothing was reversed`;
+        return dataWithError(
+          { ok: false as const, failures: [failure], refund_issued: false },
+          "Refund not issued"
+        );
+      }
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      return dataWithError(
+        {
+          ok: false as const,
+          failures: [`Stripe refund not issued: ${reason}`],
+          refund_issued: false,
+        },
+        "Refund not issued"
+      );
+    }
+  }
+
   const result = await process_refund(donation_id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
     alert_from: "refund-action",
   });
 
-  // if any dist reversal failed, skip stripe + sub cancel so the donor isn't
-  // refunded until the failed dist is investigated. admin retries via the
-  // already-refunded 400 will bounce; failed dists must be fixed first.
+  // the donation stays settled, so the refund's charge.refunded webhook
+  // retries the failed dists
   if (result.failures.length > 0) {
     return dataWithError(
-      { ok: false as const, failures: result.failures },
+      {
+        ok: false as const,
+        failures: result.failures,
+        refund_issued: stripe_refund !== null,
+      },
       `Refund partial: ${result.failures.length} dist(s) failed`
     );
-  }
-
-  // stripe refund — manual route only
-  let stripe_refund: StripeRefundStatus | null = null;
-  if (intent_id) {
-    const r = await stripe.refunds.create({ payment_intent: intent_id });
-    stripe_refund = to_refund_status(r.status);
   }
 
   // sub cancel — manual route only
