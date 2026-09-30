@@ -5,7 +5,8 @@ import { snap } from "@/helpers/decimal";
 import { resp } from "@/helpers/https";
 import { chariot } from "$/kit/chariot";
 import { db } from "$/pg/db";
-import { donation_put } from "$/pg/queries/donation";
+import { is_unique_violation } from "$/pg/errors";
+import { donation_get, donation_put } from "$/pg/queries/donation";
 import type { Provider } from "../types";
 
 export const chariot_intent: Provider = async ({
@@ -46,6 +47,15 @@ export const chariot_intent: Provider = async ({
     ...intent,
   };
 
-  const don = await donation_put(db, r);
+  const don = await db
+    .transaction((tx) => donation_put(tx, r))
+    .catch(async (err) => {
+      if (!is_unique_violation(err, "donations_pkey")) throw err;
+      // create grant answers a repeat for the same workflow session with the
+      // same grant, so a row for it means an earlier request already recorded it
+      const prior = await donation_get(don_id);
+      if (prior?.via_extra !== grant.id) throw err;
+      return prior;
+    });
   return { don_id: don.id, body: { id: don.id } };
 };

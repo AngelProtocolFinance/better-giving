@@ -2,7 +2,7 @@ import { ContentLoader, use_ask_prompt } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
 import { href } from "react-router";
 import { chariot_connect_id } from "#/constants/env";
-import { error_prompt } from "#/helpers/error-prompt";
+import { error_prompt, user_error_prompt } from "#/helpers/error-prompt";
 import { currency_precision, to_atomic } from "#/helpers/stripe";
 import { PROCESSING_RATES } from "@/constants/common";
 import type { ChariotMetadata } from "@/donations";
@@ -67,11 +67,14 @@ export function ChariotCheckout(props: DafDonationDetails) {
   // where a grant that has already been recommended ended up. set the moment
   // the money moves, not when the trip to the receipt is declared lost: what
   // comes between is up to nine seconds of a panel that looks exactly like one
-  // nothing happened on, and the launcher may not be live for any of it.
+  // nothing happened on.
   const [paid, set_paid] = useState<IDonationDest>();
   // ...and the trip never happened, so the way to the receipt has to be on the
   // panel: the prompt carrying it can be dismissed.
   const [stuck, set_stuck] = useState(false);
+  // a success or a 5xx may mean the grant exists at chariot; a fresh connect
+  // session from here would be a second grant
+  const [answered, set_answered] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
   const { tip: tipv, fee_allowance: mfa } = whole_dollar_amounts(
@@ -197,14 +200,12 @@ export function ChariotCheckout(props: DafDonationDetails) {
           },
         }));
 
-        const { postalCode, line1, line2, city, state } = grantor.address;
-        const addr_street = [line1, line2].filter(Boolean).join(", ");
-
-        const addr: IDonorAddress = {
-          street: addr_street,
-          city,
-          state,
-          zip_code: postalCode,
+        const ga = grantor.address;
+        const addr: IDonorAddress | undefined = ga && {
+          street: [ga.line1, ga.line2].filter(Boolean).join(", "),
+          city: ga.city,
+          state: ga.state,
+          zip_code: ga.postalCode,
         };
 
         const intent: IDonationIntent = {
@@ -232,6 +233,13 @@ export function ChariotCheckout(props: DafDonationDetails) {
           method: "POST",
           body: JSON.stringify(intent),
         });
+        // a 4xx is the route refusing before create grant: nothing exists at
+        // chariot, so the donor can fix the amount and go again
+        if (res.status >= 400 && res.status < 500) {
+          ask_prompt(user_error_prompt(await res.text()), { key: PROMPT_SLOT });
+          return;
+        }
+        set_answered(true);
         if (!res.ok) throw await res.text();
         const { id } = await res.json();
 
@@ -245,9 +253,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
           donor_name: [grantor.firstName, grantor.lastName],
         });
 
-        // the grant is recommended and irreversible from here. the launcher
-        // goes dead now — every path below is us trying to reach the receipt,
-        // and none of them may leave a second grant one click away.
+        // the grant is recommended and irreversible from here — every path
+        // below is us trying to reach the receipt.
         set_paid(dest);
 
         redirect_ref.current({
@@ -286,7 +293,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
       frequency="one-time"
       tip={tipv ? { value: tipv, charity_name: don.recipient.name } : undefined}
     >
-      {/* the grant is recommended, so the launcher goes dead — one more click
+      {/* the grant may be recommended, so the launcher goes dead — one more click
           here is a second real grant, of real money, out of the donor's fund.
           it goes dead in place rather than away: chariot's element owns a
           session whose modal renders into `document.body`, so unmounting it is
@@ -296,8 +303,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
           it tabbable. */}
       <div
         ref={container_ref}
-        inert={!!paid}
-        className={paid ? "opacity-50" : undefined}
+        inert={answered}
+        className={answered ? "opacity-50" : undefined}
       >
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>
