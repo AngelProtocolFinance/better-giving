@@ -311,6 +311,72 @@ describe("FileDropzone", () => {
     );
   });
 
+  test("re-picking the same file after a failed upload retries it", async () => {
+    upload_mock
+      .mockRejectedValueOnce(new Error("network error"))
+      .mockResolvedValueOnce("https://cdn.example.com/statement.pdf");
+    const screen = await render(<Controlled />);
+
+    const status = () => screen.container.querySelector("[role='status']");
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    const file = new File(["pdf"], "statement.pdf", {
+      type: "application/pdf",
+    });
+    const put = () => {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(input, "files", {
+        value: dt.files,
+        configurable: true,
+      });
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    put();
+    await vi.waitFor(() =>
+      expect(status()).toMatchTextContent("Upload failed for statement.pdf")
+    );
+
+    put();
+    await vi.waitFor(() =>
+      expect(status()).toMatchTextContent("Uploaded statement.pdf")
+    );
+    expect(upload_mock).toHaveBeenCalledTimes(2);
+  });
+
+  test("re-picking the file that already uploaded uploads it again", async () => {
+    upload_mock.mockResolvedValue("https://cdn.example.com/statement.pdf");
+    const screen = await render(<Controlled />);
+
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    const file = new File(["pdf"], "statement.pdf", {
+      type: "application/pdf",
+    });
+    const put = () => {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(input, "files", {
+        value: dt.files,
+        configurable: true,
+      });
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    put();
+    await vi.waitFor(() => expect(upload_mock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(
+        screen.container.querySelector("[role='status']")
+      ).toMatchTextContent("Uploaded statement.pdf")
+    );
+    put();
+    await vi.waitFor(() => expect(upload_mock).toHaveBeenCalledTimes(2));
+  });
+
   test("renders each error code as text, never as a link", async () => {
     const on_change = vi.fn();
     const screen = await render(

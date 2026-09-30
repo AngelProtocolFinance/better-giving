@@ -1,4 +1,4 @@
-import { FileUpload } from "@ark-ui/react/file-upload";
+import { FileUpload, useFileUpload } from "@ark-ui/react/file-upload";
 import type { ReactNode, Ref } from "react";
 import { useId, useImperativeHandle, useRef, useState } from "react";
 import { ExtLink } from "../ext-link";
@@ -74,6 +74,9 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
       return props.onChange(url);
     } catch (err) {
       props.report_error(err);
+      // zag keeps the accepted File and rejects an identical re-pick as
+      // FILE_EXISTS, so without this the obvious retry does nothing
+      upload.clearFiles();
       return props.onChange("failure");
     }
   };
@@ -99,30 +102,38 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
             ? `Uploaded ${subject}`
             : "";
 
+  const upload = useFileUpload({
+    translations: { dropzone: props.dropzone_name },
+    accept: props.specs.mimeTypes,
+    maxFileSize: props.specs.mbLimit * 1e6,
+    maxFiles: 1,
+    disabled: props.disabled,
+    allowDrop: !busy,
+    invalid: !!props.error,
+    onFileAccept: (d) => handle_accept(d.files),
+    onFileReject: (d) => {
+      if (busy) return;
+      const f = d.files[0];
+      if (f) setFile(f.file);
+      const codes = f?.errors ?? [];
+      if (codes.includes("FILE_INVALID_TYPE")) {
+        return props.onChange("invalid-type");
+      }
+      if (codes.includes("FILE_TOO_LARGE")) {
+        return props.onChange("exceeds-size");
+      }
+      // the file already held: picking it again is a deliberate re-upload
+      if (f && codes.includes("FILE_EXISTS")) {
+        return handle_accept([f.file]);
+      }
+    },
+  });
+
   return (
-    <FileUpload.Root
+    <FileUpload.RootProvider
+      value={upload}
       ref={root_ref}
       className={`${props.classes ?? ""} scroll-mt-24`}
-      translations={{ dropzone: props.dropzone_name }}
-      accept={props.specs.mimeTypes}
-      maxFileSize={props.specs.mbLimit * 1e6}
-      maxFiles={1}
-      disabled={props.disabled}
-      allowDrop={!busy}
-      invalid={!!props.error}
-      onFileAccept={(d) => handle_accept(d.files)}
-      onFileReject={(d) => {
-        if (busy) return;
-        const f = d.files[0];
-        if (f) setFile(f.file);
-        const codes = f?.errors ?? [];
-        if (codes.includes("FILE_INVALID_TYPE")) {
-          return props.onChange("invalid-type");
-        }
-        if (codes.includes("FILE_TOO_LARGE")) {
-          return props.onChange("exceeds-size");
-        }
-      }}
     >
       {props.label}
       <p className="text-xs text-gray-11 mb-2">
@@ -180,6 +191,6 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
       <span id={error_id} className="field-err mt-1 empty:hidden">
         {props.error}
       </span>
-    </FileUpload.Root>
+    </FileUpload.RootProvider>
   );
 }
