@@ -183,14 +183,12 @@ const requeue = async (row: IDonation | undefined, order_id: string) => {
   );
 };
 
-/** 4xx that heal with no change to the event: a timeout, a rate limit, or our
- * own credentials or scopes, which a config fix restores */
-const RETRYABLE_4XX = new Set([401, 403, 408, 429]);
+/** 4xx that heal with no change to the event: a timeout or a rate limit */
+const RETRYABLE_4XX = new Set([408, 429]);
 
 /** a 4xx about the resource itself, answered the same way on every retry */
 const is_refusal = (e: unknown): e is PayPalApiError =>
   e instanceof PayPalApiError &&
-  e.op !== "get access token" &&
   e.http_status >= 400 &&
   e.http_status < 500 &&
   !RETRYABLE_4XX.has(e.http_status);
@@ -252,8 +250,6 @@ const paypal_api_host =
 const paypal_cert_host = paypal_api_host
   ? CERT_HOST_BY_API_HOST[paypal_api_host]
   : undefined;
-
-const webhook_id = paypal_env.webhook_id;
 
 /** the header names the key the signature is checked against, so a url
  * anywhere but paypal's lets the sender sign with a key of their own */
@@ -405,11 +401,6 @@ async function verified_body(
     });
     return { error: true, status: 503, message: "signature unverifiable" };
   }
-  // every genuine delivery fails verification without it, so the same holds
-  if (!webhook_id) {
-    report_error(new Error("[paypal webhook] webhook id is not configured"));
-    return { error: true, status: 503, message: "signature unverifiable" };
-  }
   if (!cert_url || !is_paypal_cert_url(cert_url)) {
     report_error(new Error("[paypal webhook] cert url is not paypal's"), ref());
     return { error: true, status: 201, message: "invalid signature" };
@@ -417,9 +408,12 @@ async function verified_body(
 
   try {
     const crc_body = crc32(body);
-    const message = [transmission_id, timestamp, webhook_id, crc_body].join(
-      "|"
-    );
+    const message = [
+      transmission_id,
+      timestamp,
+      paypal_env.webhook_id,
+      crc_body,
+    ].join("|");
 
     const cert = await download_and_cache_cert(cert_url);
     const verifier = crypto.createVerify("SHA256");

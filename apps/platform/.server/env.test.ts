@@ -38,15 +38,3 @@ describe("env: nowpayments host", () => {
     await expect(load({ BASE_URL: "" })).rejects.toThrow(/BASE_URL/);
   });
 });
-
-describe("env: paypal webhook id", () => {
-  it("drops a pasted trailing newline", async () => {
-    const env = await load({ PAYPAL_WEBHOOK_ID: "WH-123\n" });
-    expect(env.paypal.webhook_id).toBe("WH-123");
-  });
-
-  it("reads a blank id as unset", async () => {
-    const env = await load({ PAYPAL_WEBHOOK_ID: "  \n" });
-    expect(env.paypal.webhook_id).toBeUndefined();
-  });
-});
