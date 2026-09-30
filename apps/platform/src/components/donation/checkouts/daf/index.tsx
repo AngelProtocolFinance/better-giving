@@ -34,6 +34,13 @@ const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
  * it — the non-dismissable loading prompt never resolves on its own.
  */
 const PROMPT_SLOT = "daf-checkout";
+/**
+ * what `/api/donation-intents` answers before create grant runs: the schema,
+ * minimum and whole-dollar refusals (400) and a closed recipient (404). nothing
+ * exists at chariot, so the donor can go again. any other 4xx (a waf block, a
+ * rate limit) isn't the route's and says nothing about the grant.
+ */
+const PRE_GRANT_REFUSALS = new Set([400, 404]);
 
 /** dafs grant whole dollars only: the total rounds up to the next dollar, the
  * difference landing on the fee allowance when the donor covers fees, else on
@@ -72,9 +79,10 @@ export function ChariotCheckout(props: DafDonationDetails) {
   // ...and the trip never happened, so the way to the receipt has to be on the
   // panel: the prompt carrying it can be dismissed.
   const [stuck, set_stuck] = useState(false);
-  // a success or a 5xx may mean the grant exists at chariot; a fresh connect
-  // session from here would be a second grant
-  const [answered, set_answered] = useState(false);
+  // dead from the moment the intent is sent: short of one of the route's own
+  // pre-grant refusals, the grant may exist at chariot and a fresh connect
+  // session from here would be a second one
+  const [sent, set_sent] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
   const { tip: tipv, fee_allowance: mfa } = whole_dollar_amounts(
@@ -229,17 +237,16 @@ export function ChariotCheckout(props: DafDonationDetails) {
         if (d.program) intent.program = d.program;
         if (d.config?.id) intent.form_id = d.config.id;
 
+        set_sent(true);
         const res = await fetch(href("/api/donation-intents"), {
           method: "POST",
           body: JSON.stringify(intent),
         });
-        // a 4xx is the route refusing before create grant: nothing exists at
-        // chariot, so the donor can fix the amount and go again
-        if (res.status >= 400 && res.status < 500) {
+        if (PRE_GRANT_REFUSALS.has(res.status)) {
+          set_sent(false);
           ask_prompt(user_error_prompt(await res.text()), { key: PROMPT_SLOT });
           return;
         }
-        set_answered(true);
         if (!res.ok) throw await res.text();
         const { id } = await res.json();
 
@@ -303,8 +310,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
           it tabbable. */}
       <div
         ref={container_ref}
-        inert={answered}
-        className={answered ? "opacity-50" : undefined}
+        inert={sent}
+        className={sent ? "opacity-50" : undefined}
       >
         {!script_ready && <ContentLoader className="h-12 mt-4 block" />}
       </div>

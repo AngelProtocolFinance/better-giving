@@ -261,6 +261,79 @@ describe("daf checkout: a grant that goes through but never lands", () => {
   });
 });
 
+describe("daf checkout: the launcher comes back only on a refusal it can read", () => {
+  afterEach(() => {
+    for (const s of document.querySelectorAll(`script[src="${CDN_SRC}"]`)) {
+      s.remove();
+    }
+  });
+
+  /** posts the recommended grant against `answer` and returns the screen once
+   * the donor is looking at the error prompt */
+  const answered_with = async (answer: () => Response | Promise<Response>) => {
+    mswWorker.use(http.post(href("/api/donation-intents"), answer));
+    const s = document.createElement("script");
+    s.type = "text/plain";
+    s.src = CDN_SRC;
+    document.head.appendChild(s);
+
+    const Stub = stb(<ChariotCheckout {...fv} />);
+    const screen = await render(<Stub />);
+    const el = await vi.waitUntil(() =>
+      screen.container.querySelector("chariot-connect")
+    );
+    el.dispatchEvent(
+      new CustomEvent("CHARIOT_SUCCESS", { detail: success_detail })
+    );
+    return screen;
+  };
+
+  const launcher_inert = (container: HTMLElement) =>
+    container.querySelector("chariot-connect")?.closest("[inert]") ?? null;
+
+  test("a request that never gets an answer keeps the launcher dead", async () => {
+    // the server may have made the grant and lost the response on the way back
+    const screen = await answered_with(() => HttpResponse.error());
+
+    await expect
+      .element(screen.getByRole("dialog"))
+      .toMatchTextContent(/error occurred while processing donation/i);
+    expect(launcher_inert(screen.container)).not.toBeNull();
+    expect(redirect_mock).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [401, "Unauthorized"],
+    [429, "Too Many Requests"],
+  ])(
+    "a %i the route never sends keeps the launcher dead",
+    async (status, text) => {
+      // answered by something in front of the route, which may already have run
+      const screen = await answered_with(() =>
+        HttpResponse.text(text, { status })
+      );
+
+      await expect
+        .element(screen.getByRole("dialog"))
+        .toMatchTextContent(/error occurred while processing donation/i);
+      expect(launcher_inert(screen.container)).not.toBeNull();
+    }
+  );
+
+  test("a closed recipient's 404 leaves the launcher live, and says why", async () => {
+    const screen = await answered_with(() =>
+      HttpResponse.text("This nonprofit isn't accepting donations right now.", {
+        status: 404,
+      })
+    );
+
+    await expect
+      .element(screen.getByRole("dialog"))
+      .toMatchTextContent(/isn't accepting donations/i);
+    expect(launcher_inert(screen.container)).toBeNull();
+  });
+});
+
 describe("daf checkout: the grant is what the summary shows, in whole dollars", () => {
   afterEach(() => {
     for (const s of document.querySelectorAll(`script[src="${CDN_SRC}"]`)) {
