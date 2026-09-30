@@ -2,6 +2,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { eq, sql } from "drizzle-orm";
 import { db } from "$/pg/db";
 import * as schema from "$/pg/schema";
+import { IP_HEADERS } from "./rate-limit";
 import { sign_in_hooks } from "./sign-in";
 
 /** how long a verification / sign-in link stays good. the email copy quotes
@@ -55,9 +56,9 @@ export const login_link_plugin = (deps: AuthOptionDeps) =>
     // the stored row is what makes the link single-use; hashing it means a
     // leaked db row can't be replayed as a token.
     storeToken: { type: "custom-hasher", hash: hash_link_token },
-    // asking for a link must never mint a user — every row comes from an
-    // explicit signup or `create_unverified_user`, which are the two places
-    // abuse protection actually lives.
+    // asking for a link must never mint a user — an email-only row comes from
+    // `create_unverified_user`, where abuse protection lives, and the rest
+    // from google sign-in.
     disableSignUp: true,
     async sendMagicLink({ email, url }) {
       await deps.send_login_link({ email, url });
@@ -126,6 +127,10 @@ export const auth_options = (deps: AuthOptionDeps) => ({
     // session, the resetter's own included — the reset page doesn't require
     // being signed out. operator-set passwords: `./set-password`.
     revokeSessionsOnPasswordReset: true,
+    // signup is passwordless and goes through the app's action or
+    // `create_unverified_user`, where the abuse checks are. this closes
+    // `/sign-up/email` to server-side `auth.api` calls too.
+    disableSignUp: true,
   },
 
   session: {
@@ -140,10 +145,12 @@ export const auth_options = (deps: AuthOptionDeps) => ({
   user: { additionalFields: user_additional_fields },
 
   /** checked only by the router's `onRequest`, so a server-side `auth.api.*`
-   * call still reaches these. the only anonymous reset route is the app's own,
-   * through `request_password_reset`, whose per-email quota the router's per-ip
-   * limiter has no equivalent of. */
-  disabledPaths: ["/request-password-reset"],
+   * call still reaches these. the only anonymous reset and sign-in-link routes
+   * are the app's own, through `request_password_reset` and
+   * `request_login_link`, whose per-email quotas the router's per-ip limiter
+   * has no equivalent of. `/magic-link/verify` stays open: the mailed link
+   * lands there. */
+  disabledPaths: ["/request-password-reset", "/sign-in/magic-link"],
 
   /** covers the public `/api/auth/*` surface only — better-auth runs this from
    * its router's `onRequest`, which a server-side `auth.api.*` call never
@@ -154,10 +161,6 @@ export const auth_options = (deps: AuthOptionDeps) => ({
    * per-instance on serverless — see `./rate-limit` for the same caveat. */
   rateLimit: {
     customRules: {
-      // each one of these mails something. the plugin's own default is 5/60s;
-      // no human needs more than a few links per quarter hour.
-      "/sign-in/magic-link": { window: 15 * 60, max: 5 },
-      "/sign-up/email": { window: 15 * 60, max: 5 },
       // token guessing. the token is 32 random chars, so this is only a brake
       // on volume, not the thing making the token unguessable.
       "/magic-link/verify": { window: 60, max: 10 },
@@ -207,7 +210,7 @@ export const auth_options = (deps: AuthOptionDeps) => ({
       generateId: () => crypto.randomUUID(),
     },
     ipAddress: {
-      ipAddressHeaders: ["x-vercel-forwarded-for", "x-forwarded-for"],
+      ipAddressHeaders: [...IP_HEADERS],
     },
   },
 });

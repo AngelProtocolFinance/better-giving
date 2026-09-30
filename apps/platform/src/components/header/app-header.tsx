@@ -1,6 +1,7 @@
 import { href, Link, useLocation } from "react-router";
 import { DappLogo } from "#/components/image";
 import { auth_routes } from "#/constants/routes";
+import { login_url } from "#/helpers/login-url";
 import { use_session } from "#/hooks/use-session";
 import { AuthBtns } from "./auth-btns";
 import { UserAvatar } from "./user-avatar";
@@ -79,10 +80,7 @@ function AuthSlot({ variant, signed_in, avatar, is_loading, to }: IAuthSlot) {
         <AuthBtns to={to} />
       )}
       {!is_loading && !signed_in && to && variant === "minimal" && (
-        <Link
-          to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-          className="btn btn-secondary"
-        >
+        <Link to={login_url(to)} className="btn btn-secondary">
           Log In
         </Link>
       )}

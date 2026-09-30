@@ -130,6 +130,21 @@ describe("/login ?redirect=", () => {
     expect(sign_in_social.mock.calls[0][0].body.callbackURL).toBe("/dashboard");
   });
 
+  it("sends a failed google sign-in back here, keeping the return path", async () => {
+    sign_in_social.mockResolvedValue(new Response(null, { status: 200 }));
+    const body = new FormData();
+    body.set("intent", "oauth");
+    await action({
+      request: req("/donate/x?a=1&b=2", { method: "POST", body }),
+    } as any);
+    const to = new URL(
+      sign_in_social.mock.calls[0][0].body.errorCallbackURL,
+      "https://app.test"
+    );
+    expect(to.pathname).toBe("/login");
+    expect(to.searchParams.get("redirect")).toBe("/donate/x?a=1&b=2");
+  });
+
   it.each([
     [EVIL, "/marketplace"],
     ["/dashboard", "/dashboard"],

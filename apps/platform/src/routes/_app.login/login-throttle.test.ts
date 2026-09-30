@@ -42,6 +42,7 @@ import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
 import { auth_options } from "#/.server/auth/options";
 import { reset_rate_limits } from "#/.server/auth/rate-limit";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import { account, session, user as user_table } from "$/pg/schema/auth";
@@ -69,14 +70,12 @@ beforeEach(async () => {
   await db.delete(session);
   await db.delete(account);
   await db.delete(user_table);
-  await test_auth_ref.current.api.signUpEmail({
-    body: {
-      email: VICTIM,
-      password: RIGHT_PW,
-      name: "Vic",
-      first_name: "Vic",
-      last_name: "Tim",
-    },
+  await seed_password_user(test_auth_ref.current, {
+    email: VICTIM,
+    password: RIGHT_PW,
+    name: "Vic",
+    first_name: "Vic",
+    last_name: "Tim",
   });
   await db
     .update(user_table)

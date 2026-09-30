@@ -25,6 +25,7 @@ vi.mock("$/pg/db", () => ({
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import { account, session, user as user_table } from "$/pg/schema/auth";
@@ -63,14 +64,12 @@ beforeEach(async () => {
   await db.delete(account);
   await db.delete(user_table);
 
-  await auth.api.signUpEmail({
-    body: {
-      email: VICTIM,
-      password: RIGHT_PW,
-      name: "Vic",
-      first_name: "Vic",
-      last_name: "Tim",
-    },
+  await seed_password_user(auth, {
+    email: VICTIM,
+    password: RIGHT_PW,
+    name: "Vic",
+    first_name: "Vic",
+    last_name: "Tim",
   });
   await db
     .update(user_table)
@@ -145,14 +144,12 @@ describe("password sign-in throttle", () => {
 
   it("does not count a right password on an unverified address against the email", async () => {
     const unverified = "new@example.com";
-    await auth.api.signUpEmail({
-      body: {
-        email: unverified,
-        password: RIGHT_PW,
-        name: "New",
-        first_name: "New",
-        last_name: "Comer",
-      },
+    await seed_password_user(auth, {
+      email: unverified,
+      password: RIGHT_PW,
+      name: "New",
+      first_name: "New",
+      last_name: "Comer",
     });
 
     for (let i = 0; i < 6; i++) {
