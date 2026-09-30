@@ -13,6 +13,7 @@ export interface ICharge {
   scale: 0 | 2;
 }
 
+/** a line truncated to the currency's scale, in integer minor units */
 const to_minor = (amount: number, d: number): number =>
   Number(rd(amount, d).replace(".", ""));
 

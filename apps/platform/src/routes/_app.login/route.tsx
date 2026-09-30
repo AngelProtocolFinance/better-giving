@@ -199,7 +199,7 @@ function OAuthError({ code, to }: IOAuthError) {
   // signup with an address that already has an unconfirmed row mails a link
   return (
     <>
-      This email has an account that hasn't been confirmed yet.{" "}
+      An account with this email hasn't been confirmed yet.{" "}
       <Link
         to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
         className="font-medium underline"

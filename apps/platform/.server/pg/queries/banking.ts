@@ -193,6 +193,7 @@ export async function bapp_set_default(
 ): Promise<boolean> {
   const now = new Date().toISOString();
   return db.transaction(async (tx) => {
+    // promote target
     const promoted = await tx
       .update(banking_apps)
       .set({ status: "default", updated_at: now })
@@ -206,6 +207,7 @@ export async function bapp_set_default(
       .returning({ id: banking_apps.id });
     if (promoted.length === 0) return false;
 
+    // demote existing default
     await tx
       .update(banking_apps)
       .set({ status: "approved", updated_at: now })
