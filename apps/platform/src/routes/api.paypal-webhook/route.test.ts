@@ -942,6 +942,40 @@ describe("refunds and reversals", () => {
     expect(enqueue_mock.mock.calls.at(-1)![0].id).toBe("fiat-notice");
   });
 
+  it("reverses a chargeback of what a partial refund left, once the two take the whole capture", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "PARTIALLY_REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ id: CAPTURE_ID }],
+            refunds: [
+              {
+                id: "REF-0",
+                status: "COMPLETED",
+                amount: { value: "40.00", currency_code: "USD" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-60.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).toHaveBeenLastCalledWith("ORDER-1");
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
   it("reverses a sale paypal reports reversed as the sale itself", async () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
