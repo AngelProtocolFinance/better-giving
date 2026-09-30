@@ -195,6 +195,16 @@ describe("calc_settlement_plan", () => {
     expect(plan.payout).toBeNull();
   });
 
+  test("stored allocation with no shares → default all-cash, net still lands", () => {
+    const plan = calc_settlement_plan(
+      make_input(),
+      make_ctx({ allocation: {} as IAllocation })
+    );
+    expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
+    expect(plan.balance_deltas.cash).toBe(100);
+    expect(plan.payout?.amount).toBe(100);
+  });
+
   test("fee allowance covers processing fee → fa_excess captured, gross unchanged", () => {
     const plan = calc_settlement_plan(
       make_input({

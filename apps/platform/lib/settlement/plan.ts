@@ -1,6 +1,6 @@
 import type { IBalanceTx } from "../balance-txs";
 import { fees } from "../constants";
-import { allocation_shares, default_allocation } from "../constants/common";
+import { allocation_shares } from "../constants/common";
 import type {
   IAllocation,
   IDonation,
@@ -119,9 +119,7 @@ export function calc_settlement_plan(
 
   const settings: IToSettings = {
     fiscal_sponsored: ctx.fiscal_sponsored,
-    alloc: ctx.allocation
-      ? allocation_shares(ctx.allocation)
-      : default_allocation,
+    alloc: allocation_shares(ctx.allocation),
   };
 
   const id = crypto.randomUUID();

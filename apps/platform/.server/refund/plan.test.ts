@@ -364,6 +364,20 @@ describe("calc_refund_plan", () => {
     });
   });
 
+  test("dist alloc with no shares → refunded as default all-cash", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          ...make_inputs().dist,
+          alloc: {} as RefundInputs["dist"]["alloc"],
+        },
+      }),
+      make_ctx()
+    );
+    const bu = plan.effects.find((e) => e.kind === "balance_update");
+    expect(bu && bu.kind === "balance_update" && bu.deltas.cash).toBe(100);
+  });
+
   test("loss_log uses ctx.now as date", () => {
     const plan = calc_refund_plan(
       make_inputs({
