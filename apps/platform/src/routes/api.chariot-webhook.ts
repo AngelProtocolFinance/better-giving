@@ -79,6 +79,8 @@ const on_grant_completed: Record<TStatus, "settle" | "duplicate" | "alert"> = {
 interface IGrantRef {
   id: string;
   amount: number;
+  createdAt?: string;
+  statuses?: readonly { createdAt?: string }[];
 }
 
 /** what an operator needs to act on: the money and whose it is, never the donor */
@@ -141,7 +143,7 @@ async function alert_ops({
 }
 
 /**
- * a row that isn't there, or a state no delivery can repair: a 5xx buys ten
+ * a row still missing past the recording grace, or a state no delivery can repair: a 5xx buys ten
  * redeliveries that change nothing, and five days of them disable the
  * subscription for every grant, so a person is told and chariot gets its 2xx
  */
@@ -159,15 +161,37 @@ async function ack_unfixable(
   return new Response("", { status: 200 });
 }
 
-const missing_donation = (grant: IGrantRef, don_id: string) =>
-  ack_unfixable(grant, don_id, {
+/**
+ * chariot creates the grant before the intent route commits its row, so an
+ * event can land first: a young grant's redelivery will find the row, one past
+ * the grace is an orphan no redelivery fixes
+ */
+const RECORDING_GRACE_MS = 60 * 60_000;
+
+function is_young(grant: IGrantRef): boolean {
+  const created = grant.createdAt ?? grant.statuses?.[0]?.createdAt;
+  // no age to judge by would never age out of redelivery: treat as an orphan
+  if (!created) return false;
+  return Date.now() - new Date(created).getTime() < RECORDING_GRACE_MS;
+}
+
+async function missing_donation(grant: IGrantRef, don_id: string) {
+  // unreported: each redelivery would raise one, and the row usually lands
+  if (is_young(grant)) {
+    console.warn(
+      `[chariot webhook] donation ${don_id} not yet recorded for chariot grant ${grant.id}: asking for redelivery`
+    );
+    return new Response("donation not yet recorded", { status: 409 });
+  }
+  return ack_unfixable(grant, don_id, {
     message: "chariot grant for a donation that does not exist",
     title: "Chariot Grant Without A Donation",
     detail: `donation ${don_id} not found for chariot grant ${grant.id}`,
     todo: "nothing was changed automatically; no donation records this grant and no receipt went out, so record it by hand",
   });
+}
 
-/** the row this grant recorded, or the 2xx answering a delivery that has none */
+/** the row this grant recorded, or the response answering a delivery that has none */
 async function grant_donation(
   grant: IGrantRef,
   don_id: string

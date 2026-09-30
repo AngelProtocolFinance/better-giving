@@ -71,6 +71,9 @@ afterEach(() => {
   has_dists_mock.mockReset();
 });
 
+const minutes_ago = (m: number) =>
+  new Date(Date.now() - m * 60_000).toISOString();
+
 const quiet_console = () =>
   (["log", "info", "warn", "error"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => {})
@@ -496,6 +499,36 @@ describe("chariot webhook canceled grant", () => {
       expect.objectContaining({ don_id: "don-12", grant_id: "grant-5" })
     );
   });
+
+  it("refuses a delivery for a young grant whose donation is not yet recorded, so chariot redelivers", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...canceled_grant("don-13"),
+      createdAt: minutes_ago(5),
+    });
+    donation_mocks.get.mockResolvedValue(undefined);
+
+    const res = await deliver(cancel_event);
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(send_alert_mock).not.toHaveBeenCalled();
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("acks and alerts once a grant with no donation is past the hour", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...canceled_grant("don-14"),
+      createdAt: minutes_ago(61),
+    });
+    donation_mocks.get.mockResolvedValue(undefined);
+
+    const res = await deliver(cancel_event);
+
+    expect(res.status).toBe(200);
+    expect(alert_body()).toContain("don-14");
+  });
 });
 
 describe("chariot webhook grant naming a donation that isn't its own", () => {
@@ -788,6 +821,25 @@ describe("chariot webhook completed grant", () => {
       expect.any(Error),
       expect.objectContaining({ don_id: "don-20", grant_id: "grant-20" })
     );
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a completed grant whose donation is not yet recorded while the grant's first status is young", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...completed_grant,
+      statuses: [
+        { id: "s1", status: "Initiated", createdAt: minutes_ago(30) },
+        { id: "s2", status: "Completed", createdAt: minutes_ago(1) },
+      ],
+    });
+    donation_mocks.get.mockResolvedValue(undefined);
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(send_alert_mock).not.toHaveBeenCalled();
     expect(donation_mocks.update).not.toHaveBeenCalled();
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
