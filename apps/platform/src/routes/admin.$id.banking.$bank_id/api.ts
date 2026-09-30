@@ -46,7 +46,14 @@ export const default_action = async (args: Route.ActionArgs) => {
     );
   }
 
-  await bapp_set_default(bank_id.toString(), npo_id);
+  // re-checked in the write: the method can change state after the read above
+  const promoted = await bapp_set_default(bank_id.toString(), npo_id);
+  if (!promoted) {
+    return dataWithError(
+      null,
+      "Only an approved payout method can be set as default"
+    );
+  }
   await enqueue(msg("banking-default", { npo_id }));
   return dataWithSuccess(null, "Payout method set as default");
 };

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // --- mocks (hoisted) ---
 
 const q = vi.hoisted(() => ({
+  bapp_get: vi.fn(),
   bapp_put: vi.fn(),
   npo_bapp_count: vi.fn(),
   enqueue: vi.fn(),
@@ -10,6 +11,7 @@ const q = vi.hoisted(() => ({
 
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/banking", () => ({
+  bapp_get: q.bapp_get,
   bapp_put: q.bapp_put,
   npo_bapp_count: q.npo_bapp_count,
 }));
@@ -51,6 +53,7 @@ const body = (endowmentID: number) => ({
 beforeEach(() => {
   for (const f of Object.values(q)) f.mockReset();
   q.npo_bapp_count.mockResolvedValue(0);
+  q.bapp_put.mockResolvedValue(true);
 });
 
 describe("new banking application", () => {
@@ -66,6 +69,26 @@ describe("new banking application", () => {
     expect(q.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ payload: { npo_id: OWN_NPO } })
     );
+  });
+
+  it("treats a retried submit as done without announcing it again", async () => {
+    q.bapp_put.mockResolvedValue(false);
+    q.bapp_get.mockResolvedValue({ id: "40000001", npo_id: OWN_NPO });
+
+    const res: Response = await call(body(OWN_NPO));
+
+    expect(res.status).toBe(302);
+    expect(q.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("refuses with 409 a recipient already filed by another nonprofit", async () => {
+    q.bapp_put.mockResolvedValue(false);
+    q.bapp_get.mockResolvedValue({ id: "40000001", npo_id: OTHER_NPO });
+
+    const res: Response = await call(body(OWN_NPO));
+
+    expect(res.status).toBe(409);
+    expect(q.enqueue).not.toHaveBeenCalled();
   });
 
   it("refuses a body naming another nonprofit with 403 and writes nothing", async () => {

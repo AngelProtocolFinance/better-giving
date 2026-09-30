@@ -114,8 +114,8 @@ describe("bapp_delete", () => {
 describe("bapp_put", () => {
   test("a retried submit of the same method is a no-op, not a key violation", async () => {
     const row = { id: "retry", npo_id: own, status: "under-review" as const };
-    await bapp_put(test_db.current!.db as any, row);
-    await bapp_put(test_db.current!.db as any, row);
+    expect(await bapp_put(test_db.current!.db as any, row)).toBe(true);
+    expect(await bapp_put(test_db.current!.db as any, row)).toBe(false);
 
     expect(await status_of("retry")).toBe("under-review");
   });

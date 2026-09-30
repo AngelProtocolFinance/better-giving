@@ -153,9 +153,14 @@ export async function bapps_by_status(
   } satisfies IPage<Bapp>;
 }
 
-/** a retried submit of the same wise recipient is a no-op */
+/** false when a bapp with this wise recipient id already exists, for any npo */
 export async function bapp_put(db: DbOrTx, data: BappInsert) {
-  await db.insert(banking_apps).values(data).onConflictDoNothing();
+  const inserted = await db
+    .insert(banking_apps)
+    .values(data)
+    .onConflictDoNothing({ target: banking_apps.id })
+    .returning({ id: banking_apps.id });
+  return inserted.length > 0;
 }
 
 export async function bapp_update_status(

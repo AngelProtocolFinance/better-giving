@@ -8,7 +8,7 @@ import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { bapp_put, npo_bapp_count } from "$/pg/queries/banking";
+import { bapp_get, bapp_put, npo_bapp_count } from "$/pg/queries/banking";
 
 export const action: ActionFunction = async (args) => {
   const payload = await args.request.json();
@@ -26,7 +26,7 @@ export const action: ActionFunction = async (args) => {
   const count = await npo_bapp_count(npo_id);
   if (count >= 10) return resp.fail(400, "Max 10 payout methods allowed");
 
-  await bapp_put(db, {
+  const filed = await bapp_put(db, {
     id: x.wiseRecipientID,
     npo_id,
     bank_summary: x.bankSummary,
@@ -35,7 +35,18 @@ export const action: ActionFunction = async (args) => {
     status: "under-review",
     date_created: new Date().toISOString(),
   });
-  await enqueue(msg("banking-new", { npo_id }));
+  if (filed) {
+    await enqueue(msg("banking-new", { npo_id }));
+  } else {
+    const existing = await bapp_get(x.wiseRecipientID);
+    if (existing?.npo_id !== npo_id) {
+      return resp.fail(
+        409,
+        "This bank account is already registered to another nonprofit"
+      );
+    }
+    // a retried submit: the first one already filed it and sent the notice
+  }
 
   return redirectWithSuccess(
     `../${routes.banking}`,

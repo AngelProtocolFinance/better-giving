@@ -49,9 +49,20 @@ const row = (o: { npo_id?: number; status: string }) => ({
 
 beforeEach(() => {
   for (const f of Object.values(q)) f.mockReset();
+  q.bapp_set_default.mockResolvedValue(true);
 });
 
 describe("set default payout method", () => {
+  it("refuses, announcing nothing, when the method stopped qualifying after the check", async () => {
+    q.bapp_get.mockResolvedValue(row({ status: "approved" }));
+    q.bapp_set_default.mockResolvedValue(false);
+
+    const res = await call();
+
+    expect(res).toEqual({ error: expect.stringMatching(/approved/i) });
+    expect(q.enqueue).not.toHaveBeenCalled();
+  });
+
   it("promotes an approved method of the member's own nonprofit", async () => {
     q.bapp_get.mockResolvedValue(row({ status: "approved" }));
 

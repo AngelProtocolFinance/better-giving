@@ -37,9 +37,19 @@ const call = () =>
 beforeEach(() => {
   q.bapp_get.mockReset();
   q.bapp_delete.mockReset();
+  q.bapp_delete.mockResolvedValue(true);
 });
 
 describe("delete payout method", () => {
+  it("tells the admin a method gone after the check is not found", async () => {
+    q.bapp_get.mockResolvedValue({ id: String(BANK_ID), npo_id: OWN_NPO });
+    q.bapp_delete.mockResolvedValue(false);
+
+    const res = await call();
+
+    expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
+  });
+
   it("deletes a method of the member's own nonprofit", async () => {
     q.bapp_get.mockResolvedValue({ id: String(BANK_ID), npo_id: OWN_NPO });
 
