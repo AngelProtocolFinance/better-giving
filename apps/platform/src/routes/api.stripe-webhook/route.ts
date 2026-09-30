@@ -31,8 +31,8 @@ import { BalanceTxnNotReadyError } from "./helpers/settled";
 
 /**
  * ended at stripe, so nothing left to cancel there — or incomplete, which
- * ends there on its own unless its first invoice is paid (a bank debit still
- * settling is), and a cancel would kill that payment
+ * turns active if its first invoice is paid and otherwise expires there on
+ * its own after 23h; a cancel would stop stripe collecting that invoice
  */
 const NO_CANCEL_TO_QUEUE = new Set<Stripe.Subscription.Status>([
   "canceled",
