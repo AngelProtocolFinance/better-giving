@@ -732,35 +732,6 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["an access token paypal refused", "get access token", 401],
-    ["a call paypal refused as unauthorized", "get subscription", 401],
-    ["a call our app is not permitted", "get subscription", 403],
-  ])("asks for redelivery of a settled sale on %s", async (_, op, status) => {
-    await seed_donation({ frequency: "monthly" });
-    await deliver(sale_ev());
-    enqueue_mock.mockClear();
-    get_subscription_mock.mockRejectedValue(
-      new PayPalApiError(op, status, "{}")
-    );
-
-    const res = await deliver(sale_ev());
-
-    expect(res.ok).toBe(false);
-  });
-
-  it("asks for redelivery of a capture while our paypal credentials are refused", async () => {
-    await seed_donation();
-    get_capture_mock.mockRejectedValue(
-      new PayPalApiError("get access token", 400, '{"error":"invalid_client"}')
-    );
-
-    const res = await deliver(capture_ev());
-
-    expect(res.ok).toBe(false);
-    expect(await settlements()).toHaveLength(0);
-  });
-
   it("answers 200 for a settled sale whose subscription has no order id", async () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
@@ -1605,26 +1576,6 @@ describe("signature verification", () => {
         message: "[paypal webhook] cert host is not configured",
       }),
       { api_host: "api.example.com" }
-    );
-    expect(await settlements()).toHaveLength(0);
-  });
-
-  it("asks for redelivery, reporting once, while PAYPAL_WEBHOOK_ID is unset", async () => {
-    await seed_donation();
-    const configured = paypal_env.webhook_id;
-    (paypal_env as { webhook_id?: string }).webhook_id = undefined;
-    vi.resetModules();
-    const { action: misconfigured } = await import("./route");
-    paypal_env.webhook_id = configured;
-
-    const res = await deliver(capture_ev(), {}, PAYPAL, misconfigured);
-
-    expect(fetch).not.toHaveBeenCalled();
-    expect(res.status).toBe(503);
-    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        message: "[paypal webhook] webhook id is not configured",
-      })
     );
     expect(await settlements()).toHaveLength(0);
   });

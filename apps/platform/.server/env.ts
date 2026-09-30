@@ -126,9 +126,7 @@ export const paypal = {
   client_id: process.env.PAYPAL_CLIENT_ID,
   client_secret: process.env.PAYPAL_CLIENT_SECRET,
   product_id: process.env.PAYPAL_PRODUCT_ID,
-  // trimmed: a pasted trailing newline fails every signature. not required —
-  // the webhook answers 503 while it is unset, so paypal holds its events
-  webhook_id: process.env.PAYPAL_WEBHOOK_ID?.trim() || undefined,
+  webhook_id: process.env.PAYPAL_WEBHOOK_ID,
   plans: {
     weekly: process.env.PAYPAL_PLANS_WEEKLY,
     monthly: process.env.PAYPAL_PLANS_MONTHLY,
