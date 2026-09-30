@@ -51,14 +51,14 @@ export const action: ActionFunction = async ({ request }) => {
   if (is_response(result)) return result;
 
   const data = await request.json().catch(() => null);
-  if (!data) return resp.status(400, "invalid json body");
+  if (!data) return resp.status(400, "Request body must be JSON");
 
   //subscribe
   if (request.method === "POST") {
     if (!is_zapier_hook_url(data.hookUrl)) {
       return resp.status(
         400,
-        "hookUrl must be a https://hooks.zapier.com/ url"
+        "hookUrl must be an https://hooks.zapier.com/ URL"
       );
     }
     const id = await save_webhook(data.hookUrl, result.npo_id);

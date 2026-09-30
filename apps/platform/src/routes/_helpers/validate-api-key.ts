@@ -3,12 +3,13 @@ import type { IApiKeyPayload } from "@/table/interfaces";
 import { api_key_decode, api_key_get } from "$/pg/queries/api-key";
 
 /**
- * @param api_key - from header
  * every credential failure is 401: zapier reads only that as "reconnect"
+ * @param api_key - from header
  */
 export async function validate_api_key(
   api_key: string | null
 ): Promise<IApiKeyPayload | Response> {
+  //no api key in header
   if (!api_key) return resp.status(401);
   const payload = api_key_decode(api_key);
   if (!payload) return resp.status(401);
