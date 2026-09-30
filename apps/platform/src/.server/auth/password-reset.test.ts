@@ -38,6 +38,7 @@ vi.mock("./auth", () => ({
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { while_token_writes_fail } from "#/__tests__/fixtures/token-writes";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
@@ -315,14 +316,12 @@ describe("resetting a password", () => {
   const new_pw = "new-password-2";
 
   async function signed_up_on_two_devices(): Promise<Headers[]> {
-    await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email,
-        password: old_pw,
-        name: "Test User",
-        first_name: "Test",
-        last_name: "User",
-      },
+    await seed_password_user(test_auth_ref.current, {
+      email,
+      password: old_pw,
+      name: "Test User",
+      first_name: "Test",
+      last_name: "User",
     });
     await test_db
       .current!.db.update(user_table)
