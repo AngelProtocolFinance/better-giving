@@ -2,11 +2,11 @@ import { getWeek } from "date-fns";
 import { donation_nonprofit_notif } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
-import { via_name } from "@/donations/helpers";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import type { IDonDistPayload } from "@/queue";
-import type { TFrequency } from "@/schemas";
+import { is_zapier_hook_url } from "@/zapier/hook-url";
+import { new_donation_item } from "@/zapier/new-donation";
 import { send_email } from "$/email";
 import {
   country_metrics_time_get,
@@ -116,49 +116,25 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
 
 // -- webhooks --
 
-interface Payload {
-  id: string;
-  date: string;
-  recipient_id: number;
-  recipient_name: string;
-  amount: number;
-  amount_usd: number;
-  currency: string;
-  donor_name: string;
-  donor_email: string;
-  donor_company?: string;
-  program_id?: string;
-  program_name?: string;
-  payment_method: string;
-  frequency: TFrequency;
-  is_recurring: boolean;
-  form_id: string | undefined;
-  form_tag: string | undefined;
-}
-
 async function trigger_webhooks(r: IDonDistPayload) {
-  const is_recurring = r.frequency ? r.frequency !== "one-time" : false;
-
-  const payload: Payload = {
+  const payload = new_donation_item({
     id: r.id,
     date: r.date_created,
-    recipient_id: r.to_id,
-    recipient_name: r.to_name,
+    to_id: r.to_id,
+    to_name: r.to_name,
     amount: r.amount,
     amount_usd: r.amount_usd,
     currency: r.amount_denom,
-    donor_name: r.from?.name || "Anonymous",
-    donor_email: r.from_email,
+    frequency: r.frequency,
+    via: r.via,
+    from_email: r.from_email,
+    from_name: r.from?.name,
+    from_company: r.from?.company,
     program_id: r.program?.id,
     program_name: r.program?.name,
-    payment_method: via_name(r.via),
-    frequency: r.frequency,
-    is_recurring,
     form_id: r.form?.id,
     form_tag: r.form?.tag,
-  };
-
-  if (r.from?.company) payload.donor_company = r.from.company;
+  });
 
   const hooks = await query_webhooks(r.to_id);
   const body = JSON.stringify(payload);
@@ -173,11 +149,9 @@ async function trigger_webhooks(r: IDonDistPayload) {
   });
 }
 
-// bounds each hook's post and its response read; hooks post concurrently, so
-// one dead url costs every other hook nothing
+// bounds each hook's post; hooks post concurrently, so one dead url costs every
+// other hook nothing
 const WEBHOOK_TIMEOUT_MS = 10_000;
-// third-party body: an error page can be large or echo the request path
-const REPORTED_BODY_CHARS = 200;
 
 type Webhook = Awaited<ReturnType<typeof query_webhooks>>[number];
 
@@ -187,50 +161,40 @@ async function discard_body(res: Response) {
   await res.body?.cancel().catch(() => {});
 }
 
-async function read_body_prefix(res: Response, max_chars: number) {
-  if (!res.body) return "";
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let text = "";
-  try {
-    while (text.length < max_chars) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      text += decoder.decode(value, { stream: true });
-    }
-  } catch {
-    // cut off mid-body (timeout, reset): the status still gets reported
-  } finally {
-    await reader.cancel().catch(() => {});
-  }
-  return text.slice(0, max_chars);
-}
-
 async function post_webhook(webhook: Webhook, body: string) {
+  // a row stored before subscribe checked its url
+  if (!is_zapier_hook_url(webhook.url)) {
+    await delete_webhook(webhook.id, webhook.npo_id);
+    throw new Error(`webhook ${webhook.id} is not a zapier url: deleted`);
+  }
+
   const res = await global.fetch(webhook.url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
+    // a hook answers, it doesn't send us elsewhere: a followed redirect would
+    // post the donation to wherever the stored host points it
+    redirect: "manual",
     signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
   });
 
+  await discard_body(res);
+
   // zapier answers 410 once the zap is off or deleted: stop sending, not an error
   if (res.status === 410) {
-    await discard_body(res);
     await delete_webhook(webhook.id, webhook.npo_id);
     return;
   }
 
   if (!res.ok) {
-    const err = await read_body_prefix(res, REPORTED_BODY_CHARS);
-    // the hook url is a capability url: reports name the row, never the url
-    report_error(new Error(`webhook ${webhook.id} -> ${res.status}: ${err}`), {
+    // the hook url is a capability url and the body may echo the donor: reports
+    // name the row and the status only
+    report_error(new Error(`webhook ${webhook.id} -> ${res.status}`), {
       webhook_id: webhook.id,
       npo_id: webhook.npo_id,
       status: res.status,
     });
     return;
   }
-  await discard_body(res);
   console.info("webhook notified", webhook.id, res.status);
 }

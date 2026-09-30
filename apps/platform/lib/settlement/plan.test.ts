@@ -223,6 +223,16 @@ describe("calc_settlement_plan", () => {
       country: "GB",
     });
   });
+
+  test("don_dist carries the form the donation came through", () => {
+    const plan = calc_settlement_plan(
+      make_input({ source: { id: "form-1", tag: "gala" } }),
+      make_ctx()
+    );
+
+    const p = plan.msgs.at(-1)?.payload as IDonDistPayload;
+    expect(p.form).toEqual({ id: "form-1", tag: "gala" });
+  });
 });
 
 describe("shared_parts", () => {

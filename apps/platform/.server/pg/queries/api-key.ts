@@ -4,9 +4,17 @@ import { eq } from "drizzle-orm";
 import type { IApiKeyPayload } from "@/table/interfaces";
 import { app } from "../../env";
 import { db } from "../db";
-import { api_keys } from "../schema/npo";
+import { api_keys, webhooks } from "../schema/npo";
 
 const encryption_key = Buffer.from(app.api_encryption_key, "base64");
+// thrown on use rather than at load, so a bad secret fails the zapier calls
+// loudly without taking the whole server down with it
+const encryption_key_error =
+  encryption_key.length === 32
+    ? undefined
+    : new Error(
+        `APP_API_ENCRYPTION_KEY must decode to 32 bytes, got ${encryption_key.length}`
+      );
 
 export async function api_key_put(npo_id: number): Promise<string> {
   const payload: IApiKeyPayload = {
@@ -14,6 +22,7 @@ export async function api_key_put(npo_id: number): Promise<string> {
     timestamp: Date.now(),
   };
 
+  if (encryption_key_error) throw encryption_key_error;
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", encryption_key, iv);
   const encrypted = Buffer.concat([
@@ -25,17 +34,22 @@ export async function api_key_put(npo_id: number): Promise<string> {
   const combined = Buffer.concat([iv, encrypted, auth_tag]);
   const key = combined.toString("base64url");
 
-  await db
-    .insert(api_keys)
-    .values({
-      npo_id,
-      api_key: key,
-      created_at: new Date().toISOString(),
-    })
-    .onConflictDoUpdate({
-      target: api_keys.npo_id,
-      set: { api_key: key, created_at: new Date().toISOString() },
-    });
+  // hooks aren't bound to the key that subscribed them: once the key is replaced
+  // nothing can unsubscribe them, so they go with it
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(api_keys)
+      .values({
+        npo_id,
+        api_key: key,
+        created_at: new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: api_keys.npo_id,
+        set: { api_key: key, created_at: new Date().toISOString() },
+      });
+    await tx.delete(webhooks).where(eq(webhooks.npo_id, npo_id));
+  });
 
   return key;
 }
@@ -48,25 +62,34 @@ export async function api_key_get(npo_id: number): Promise<string | undefined> {
   return row?.api_key;
 }
 
-export function api_key_decode(key: string): IApiKeyPayload {
-  const combined = Buffer.from(key, "base64url");
+/**
+ * undefined for any token this server did not mint: bad encoding, tag or json.
+ * throws when the server's own secret is misconfigured.
+ */
+export function api_key_decode(key: string): IApiKeyPayload | undefined {
+  if (encryption_key_error) throw encryption_key_error;
+  try {
+    const combined = Buffer.from(key, "base64url");
 
-  const iv = combined.subarray(0, 12);
-  const auth_tag = combined.subarray(combined.length - 16);
-  const encrypted = combined.subarray(12, combined.length - 16);
+    const iv = combined.subarray(0, 12);
+    const auth_tag = combined.subarray(combined.length - 16);
+    const encrypted = combined.subarray(12, combined.length - 16);
 
-  const decipher = crypto.createDecipheriv("aes-256-gcm", encryption_key, iv);
-  decipher.setAuthTag(auth_tag);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", encryption_key, iv);
+    decipher.setAuthTag(auth_tag);
 
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final(),
-  ]);
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
 
-  const raw = JSON.parse(decrypted.toString("utf8"));
-  // normalize v1 (npoId+env) → v2 (npo_id, no env)
-  return {
-    npo_id: raw.npo_id ?? raw.npoId,
-    timestamp: raw.timestamp,
-  };
+    const raw = JSON.parse(decrypted.toString("utf8"));
+    // normalize v1 (npoId+env) → v2 (npo_id, no env)
+    // v1 may carry the id as a numeric string
+    const npo_id = Number(raw.npo_id ?? raw.npoId);
+    if (!Number.isSafeInteger(npo_id)) return;
+    return { npo_id, timestamp: raw.timestamp };
+  } catch {
+    return;
+  }
 }

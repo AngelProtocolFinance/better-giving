@@ -44,7 +44,7 @@ const eur_gift: IDonDistPayload = {
 describe("handle_don_dist webhooks", () => {
   test("a non-USD gift reaches the hook in its own currency", async () => {
     query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.com/hooks/1" },
     ]);
     const fetch_spy = vi
       .spyOn(globalThis, "fetch")
@@ -54,27 +54,28 @@ describe("handle_don_dist webhooks", () => {
 
     expect(fetch_spy).toHaveBeenCalledOnce();
     const [url, init] = fetch_spy.mock.calls[0];
-    expect(url).toBe("https://hooks.zapier.test/1");
+    expect(url).toBe("https://hooks.zapier.com/hooks/1");
     const body = JSON.parse(String(init?.body));
     expect(body).toMatchObject({ amount: 100, currency: "EUR" });
   });
 
   test("a hook whose fetch throws doesn't stop the next one", async () => {
     query_webhooks.mockResolvedValue([
-      { id: "hook-dead", npo_id: 42, url: "https://dead.test/1" },
-      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.test/2" },
+      { id: "hook-dead", npo_id: 42, url: "https://hooks.zapier.com/dead" },
+      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.com/hooks/2" },
     ]);
     const fetch_spy = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async (url) => {
-        if (url === "https://dead.test/1") throw new TypeError("fetch failed");
+        if (url === "https://hooks.zapier.com/dead")
+          throw new TypeError("fetch failed");
         return new Response("ok", { status: 200 });
       });
 
     await handle_don_dist({} as never, eur_gift);
 
     expect(fetch_spy.mock.calls.map(([url]) => url)).toContain(
-      "https://hooks.zapier.test/2"
+      "https://hooks.zapier.com/hooks/2"
     );
     expect(report_error).toHaveBeenCalledOnce();
     expect(report_error.mock.calls[0]![1]).toEqual({
@@ -85,8 +86,8 @@ describe("handle_don_dist webhooks", () => {
 
   test("a hook that never answers is cut off by its timeout", async () => {
     query_webhooks.mockResolvedValue([
-      { id: "hook-hang", npo_id: 42, url: "https://hang.test/1" },
-      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.test/2" },
+      { id: "hook-hang", npo_id: 42, url: "https://hooks.zapier.com/hang" },
+      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.com/hooks/2" },
     ]);
     // the timeout signal is the clock: firing it by hand keeps the test off real time
     const clock = new AbortController();
@@ -96,7 +97,7 @@ describe("handle_don_dist webhooks", () => {
     const fetch_spy = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async (url, init) => {
-        if (url !== "https://hang.test/1") {
+        if (url !== "https://hooks.zapier.com/hang") {
           return new Response("ok", { status: 200 });
         }
         return new Promise<Response>((_, reject) => {
@@ -112,7 +113,7 @@ describe("handle_don_dist webhooks", () => {
     await run;
 
     expect(fetch_spy.mock.calls.map(([url]) => url)).toContain(
-      "https://hooks.zapier.test/2"
+      "https://hooks.zapier.com/hooks/2"
     );
     expect(report_error).toHaveBeenCalledOnce();
     expect(report_error.mock.calls[0]![1]).toEqual({
@@ -124,7 +125,7 @@ describe("handle_don_dist webhooks", () => {
 
   test("a 2xx's body is cancelled without waiting for it to arrive", async () => {
     query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.com/hooks/1" },
     ]);
     const cancel = vi.fn();
     const stalled_body = new ReadableStream({ cancel });
@@ -140,7 +141,7 @@ describe("handle_don_dist webhooks", () => {
 
   test("a 2xx is delivered even if its response body errors", async () => {
     query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.com/hooks/1" },
     ]);
     const broken_body = new ReadableStream({
       start: (c) => c.error(new Error("connection reset")),
@@ -154,75 +155,96 @@ describe("handle_don_dist webhooks", () => {
     expect(report_error).not.toHaveBeenCalled();
   });
 
-  test("a failed hook's report quotes at most 200 chars of its body", async () => {
+  test("a failed hook is reported by id and status, never its body", async () => {
     query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
-    ]);
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("x".repeat(5_000), { status: 502 })
-    );
-
-    await handle_don_dist({} as never, eur_gift);
-
-    const [err] = report_error.mock.calls[0]!;
-    expect(err.message).toContain("x".repeat(200));
-    expect(err.message).not.toContain("x".repeat(201));
-  });
-
-  test("a failed hook's body is read no further than the quoted prefix", async () => {
-    query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.com/hooks/1" },
     ]);
     const cancel = vi.fn();
-    const endless_body = new ReadableStream({
-      start: (c) => c.enqueue(new TextEncoder().encode("x".repeat(300))),
+    const echoing_body = new ReadableStream({
+      start: (c) => c.enqueue(new TextEncoder().encode("ada@test.com echoed")),
       cancel,
     });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(endless_body, { status: 502 })
-    );
-
-    await handle_don_dist({} as never, eur_gift);
-
-    const [err] = report_error.mock.calls[0]!;
-    expect(err.message).toContain(`502: ${"x".repeat(200)}`);
-    expect(cancel).toHaveBeenCalledOnce();
-  });
-
-  test("a failed hook whose body read times out is still reported with its status", async () => {
-    query_webhooks.mockResolvedValue([
-      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.test/1" },
-    ]);
-    let pulls = 0;
-    const timed_out_body = new ReadableStream({
-      pull: (c) =>
-        pulls++ === 0
-          ? c.enqueue(new TextEncoder().encode("bad gateway"))
-          : c.error(new DOMException("timed out", "TimeoutError")),
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(timed_out_body, { status: 502 })
+      new Response(echoing_body, { status: 502 })
     );
 
     await handle_don_dist({} as never, eur_gift);
 
     expect(report_error).toHaveBeenCalledOnce();
     const [err, context] = report_error.mock.calls[0]!;
-    expect(err.message).toBe("webhook hook-1 -> 502: bad gateway");
+    expect(err.message).toBe("webhook hook-1 -> 502");
     expect(context).toEqual({ webhook_id: "hook-1", npo_id: 42, status: 502 });
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  test("a hook that redirects is not followed and is reported", async () => {
+    const { createServer } = await import("node:http");
+    const hits: string[] = [];
+    const server = createServer((req, res) => {
+      hits.push(req.url!);
+      if (req.url === "/hook") {
+        res.writeHead(302, { location: "/internal" }).end();
+      } else res.writeHead(200).end();
+    });
+    await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
+    const { port } = server.address() as { port: number };
+    query_webhooks.mockResolvedValue([
+      { id: "hook-1", npo_id: 42, url: "https://hooks.zapier.com/hook" },
+    ]);
+    // real fetch, with zapier's origin pointed at the local server
+    const real_fetch = globalThis.fetch;
+    vi.spyOn(globalThis, "fetch").mockImplementation((url, init) =>
+      real_fetch(
+        String(url).replace(
+          "https://hooks.zapier.com",
+          `http://127.0.0.1:${port}`
+        ),
+        init
+      )
+    );
+
+    await handle_don_dist({} as never, eur_gift).finally(() => server.close());
+
+    expect(hits).toEqual(["/hook"]);
+    expect(report_error.mock.calls[0]![1]).toEqual({
+      webhook_id: "hook-1",
+      npo_id: 42,
+      status: 302,
+    });
+  });
+
+  test("a stored url off zapier is never posted to: its row is deleted and reported by id", async () => {
+    query_webhooks.mockResolvedValue([
+      { id: "hook-evil", npo_id: 42, url: "http://169.254.169.254/x" },
+      { id: "hook-live", npo_id: 42, url: "https://hooks.zapier.com/hooks/2" },
+    ]);
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("ok", { status: 200 }));
+
+    await handle_don_dist({} as never, eur_gift);
+
+    expect(fetch_spy.mock.calls.map(([url]) => url)).toEqual([
+      "https://hooks.zapier.com/hooks/2",
+    ]);
+    expect(delete_webhook).toHaveBeenCalledExactlyOnceWith("hook-evil", 42);
+    expect(report_error).toHaveBeenCalledOnce();
+    const [err, context] = report_error.mock.calls[0]!;
+    expect(context).toEqual({ webhook_id: "hook-evil", npo_id: 42 });
+    expect(err.message).not.toContain("169.254");
   });
 });
 
 describe("handle_don_dist hook status", () => {
   const two_hooks = [
-    { id: "hook-a", npo_id: 42, url: "https://hooks.zapier.test/a" },
-    { id: "hook-b", npo_id: 42, url: "https://hooks.zapier.test/b" },
+    { id: "hook-a", npo_id: 42, url: "https://hooks.zapier.com/hooks/a" },
+    { id: "hook-b", npo_id: 42, url: "https://hooks.zapier.com/hooks/b" },
   ];
   const answer_a_with = (status: number) =>
     vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(async (url) =>
-        url === "https://hooks.zapier.test/a"
+        url === "https://hooks.zapier.com/hooks/a"
           ? new Response("", { status })
           : new Response("ok", { status: 200 })
       );
@@ -260,7 +282,7 @@ describe("handle_don_dist hook status", () => {
     expect(report_error).toHaveBeenCalledOnce();
     const [err, context] = report_error.mock.calls[0]!;
     expect(context).toEqual({ webhook_id: "hook-a", npo_id: 42 });
-    expect(err.message).not.toContain("hooks.zapier.test");
+    expect(err.message).not.toContain("hooks.zapier.com");
   });
 
   test("a 500 keeps that hook subscribed and is reported", async () => {
@@ -273,7 +295,7 @@ describe("handle_don_dist hook status", () => {
     expect(report_error).toHaveBeenCalledOnce();
     const [err, context] = report_error.mock.calls[0]!;
     expect(context).toEqual({ webhook_id: "hook-a", npo_id: 42, status: 500 });
-    expect(err.message).not.toContain("hooks.zapier.test");
+    expect(err.message).not.toContain("hooks.zapier.com");
   });
 });
 
