@@ -71,15 +71,60 @@ describe("new banking application", () => {
     );
   });
 
-  it("treats a retried submit as done without announcing it again", async () => {
+  it("re-sends the notice on a retried submit, which the dedupe id collapses", async () => {
     q.bapp_put.mockResolvedValue(false);
-    q.bapp_get.mockResolvedValue({ id: "40000001", npo_id: OWN_NPO });
+    q.bapp_get.mockResolvedValue({
+      id: "40000001",
+      npo_id: OWN_NPO,
+      status: "under-review",
+    });
 
     const res: Response = await call(body(OWN_NPO));
 
     expect(res.status).toBe(302);
-    expect(q.enqueue).not.toHaveBeenCalled();
+    expect(q.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: { npo_id: OWN_NPO } })
+    );
   });
+
+  it("lets a retried 10th submit through the method cap", async () => {
+    q.npo_bapp_count.mockResolvedValue(10);
+    q.bapp_get.mockResolvedValue({
+      id: "40000001",
+      npo_id: OWN_NPO,
+      status: "under-review",
+    });
+
+    const res: Response = await call(body(OWN_NPO));
+
+    expect(res.status).toBe(302);
+    expect(q.bapp_put).not.toHaveBeenCalled();
+    expect(q.enqueue).toHaveBeenCalledOnce();
+  });
+
+  it("refuses an 11th payout method", async () => {
+    q.npo_bapp_count.mockResolvedValue(10);
+
+    const res: Response = await call(body(OWN_NPO));
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ message: /max 10/i });
+    expect(q.bapp_put).not.toHaveBeenCalled();
+  });
+
+  it.each(["rejected", "approved", "default"])(
+    "refuses a resubmit of an account already %s instead of reporting it filed",
+    async (status) => {
+      q.bapp_put.mockResolvedValue(false);
+      q.bapp_get.mockResolvedValue({ id: "40000001", npo_id: OWN_NPO, status });
+
+      const res: Response = await call(body(OWN_NPO));
+
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ message: /already on file/i });
+      expect(q.enqueue).not.toHaveBeenCalled();
+    }
+  );
 
   it("refuses with 409 a recipient already filed by another nonprofit", async () => {
     q.bapp_put.mockResolvedValue(false);

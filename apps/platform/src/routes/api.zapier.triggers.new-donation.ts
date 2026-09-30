@@ -1,4 +1,5 @@
 import type { ActionFunction, LoaderFunction } from "react-router";
+import * as v from "valibot";
 import { resp } from "@/helpers/https";
 import type { TFrequency } from "@/schemas";
 import { is_zapier_hook_url } from "@/zapier/hook-url";
@@ -37,7 +38,15 @@ export const loader: LoaderFunction = async ({ request }) => {
   return new Response(JSON.stringify(items), { status: 200 });
 };
 
+const unsubscribe = v.object({ id: v.pipe(v.string(), v.nonEmpty()) });
+
 export const action: ActionFunction = async ({ request }) => {
+  if (request.method !== "POST" && request.method !== "DELETE") {
+    return new Response(null, {
+      status: 405,
+      headers: { allow: "POST, DELETE" },
+    });
+  }
   const result = await validate_api_key(request.headers.get("x-api-key"));
   if (is_response(result)) return result;
 
@@ -57,10 +66,8 @@ export const action: ActionFunction = async ({ request }) => {
   }
 
   //unsubscribe
-  if (request.method === "DELETE") {
-    await delete_webhook(data.id, result.npo_id);
-    return new Response(null, { status: 200 });
-  }
-
-  return new Response(null, { status: 405 });
+  const p = v.safeParse(unsubscribe, data);
+  if (p.issues) return resp.status(400, "id must be a hook id");
+  await delete_webhook(p.output.id, result.npo_id);
+  return new Response(null, { status: 200 });
 };

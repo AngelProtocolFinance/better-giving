@@ -23,7 +23,7 @@ import { is_sign_in_throttled } from "#/.server/auth/sign-in";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
 import { report_error } from "#/errors/report";
-import { login_url } from "#/helpers/login-url";
+import { login_url, signup_url } from "#/helpers/login-url";
 import { metas } from "#/helpers/seo";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignIn, sign_in } from "#/types/auth";
@@ -32,6 +32,7 @@ import { safe_redirect } from "@/helpers/safe-redirect";
 import { db } from "$/pg/db";
 import { account, user as userTable } from "$/pg/schema/auth";
 import type { Route } from "./+types/route";
+import { retry_form_action } from "./oauth-error";
 
 export const action = async ({ request }: Route.ActionArgs) => {
   try {
@@ -180,7 +181,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   const { user } = await get_session(request);
   const to = safe_redirect(search(request).redirect, null);
   if (user) return redirect(to || href("/marketplace"));
-  return to || "/";
+  return to || href("/marketplace");
 };
 
 export const meta: Route.MetaFunction = () =>
@@ -200,10 +201,7 @@ function OAuthError({ code, to }: IOAuthError) {
   return (
     <>
       This email has an account that hasn't been confirmed yet.{" "}
-      <Link
-        to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
-        className="font-medium underline"
-      >
+      <Link to={signup_url(to)} className="font-medium underline">
         Get a fresh sign-in link
       </Link>{" "}
       by signing up with the same email.
@@ -216,10 +214,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
   const nav = useNavigation();
   const [params] = useSearchParams();
   const oauth_error = params.get("error");
-  // both forms post to this page's url, which would keep the error on screen
-  const kept = new URLSearchParams(params);
-  kept.delete("error");
-  const form_action = oauth_error ? `${href("/login")}?${kept}` : undefined;
+  const form_action = retry_form_action(params);
 
   const {
     handleSubmit,
@@ -306,7 +301,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <span className="flex-center gap-1 max-sm:text-sm mt-8">
           Don't have an account?
           <Link
-            to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
+            to={signup_url(to)}
             className="link aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >
