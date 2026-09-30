@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { str_id } from "#/helpers/stripe";
+import { from_stripe_amount, str_id, to_atomic_c } from "#/helpers/stripe";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
@@ -66,7 +66,9 @@ export function to_sub_record(
     );
   }
 
-  const total = amnt_sum(order.amount);
+  // what each period bills: the order total at the currency's precision
+  const c = order.currency;
+  const total = from_stripe_amount(to_atomic_c(c)(amnt_sum(order.amount)), c);
   const total_usd = total / order.upusd;
 
   return {
@@ -78,8 +80,8 @@ export function to_sub_record(
     next_billing: new Date(
       sub.items.data[0].current_period_end * 1000
     ).toISOString(),
-    amount: rd2num(total, 0),
-    amount_usd: rd2num(total_usd, 0),
+    amount: total,
+    amount_usd: rd2num(total_usd, 2),
     currency: order.currency,
     product_id: str_id(p.product),
     to_npo_id: order.to_type === "npo" ? Number(order.to_id) : null,

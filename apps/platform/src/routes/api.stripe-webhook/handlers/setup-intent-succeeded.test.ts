@@ -207,6 +207,23 @@ describe("handle_setup_intent_succeeded - redelivery", () => {
     expect(subs.current.minted).toHaveLength(1);
   });
 
+  test("bills the gift's exact total each period, cents included", async () => {
+    // $100 + covered fees: fractional, as cover-fees almost always is
+    await test_db
+      .current!.db.update(donations)
+      .set({ amount_fee_allowance: 1.43 })
+      .where(eq(donations.id, ORDER_ID));
+
+    await handle_setup_intent_succeeded(intent("seti_1") as any);
+
+    const [price_params] = prices.current.fn.mock.calls[0]!;
+    const [sub_params] = subs.current.fn.mock.calls[0]!;
+    const billed =
+      price_params.unit_amount * (sub_params.items[0].quantity ?? 1);
+    expect(billed).toBe(10_143);
+    expect((await sub_rows())[0]!.amount).toBe(101.43);
+  });
+
   test("a redelivered setup intent does not mint a second price", async () => {
     await handle_setup_intent_succeeded(intent("seti_1") as any);
     await handle_setup_intent_succeeded(intent("seti_1") as any);
