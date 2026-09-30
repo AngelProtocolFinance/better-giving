@@ -19,6 +19,7 @@ import {
 } from "@/donations";
 import { paypal_donor_update } from "@/donations/helpers";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
+import { msg } from "@/queue";
 import type { ISub, TInterval, TStatus } from "@/subscriptions";
 import { paypal as paypal_env, stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
@@ -508,37 +509,65 @@ const fetch_resource = async <T>(get: () => Promise<T>): Promise<T | number> =>
 const money = (value?: string, currency?: string) =>
   value ? `${value} ${currency ?? ""}`.trim() : "unknown";
 
+/** whether `part` (a refund or reversal, signed either way) is all of `whole`.
+ * compared in the finest minor unit either uses, as `dec_sub` does */
+const is_whole = (
+  part: { value?: string; currency?: string },
+  whole: { value?: string; currency?: string }
+) => {
+  if (!part.value || !whole.value || part.currency !== whole.currency)
+    return false;
+  const abs = part.value.replace(/^-/, "");
+  const dp = Math.max(
+    ...[abs, whole.value].map((v) => v.split(".")[1]?.length ?? 0)
+  );
+  const minor = (v: string) => Math.round(+v * 10 ** dp);
+  return minor(abs) >= minor(whole.value);
+};
+
 const REFUND_ALERT_FROM = "paypal-refund";
 
+interface IReversal {
+  sttl_id: string;
+  full: boolean;
+  status: string | undefined;
+  refunded: string;
+  charged: string;
+  /** the donation paypal's copy of the charge names, for a charge not settled here */
+  owner: () => Promise<string | undefined>;
+}
+
 /**
- * reverses the donation a capture or sale settled, once paypal's own copy of
- * it says it is refunded in full. process_refund reverses every dist in full,
- * so a partial refund is ops' to settle by hand: they get a notice and nothing
- * is reversed. the refund that completes the charge reverses it all.
+ * reverses the donation a capture or sale settled, once it is refunded or
+ * reversed in full. process_refund reverses every dist in full, so a partial
+ * refund is ops' to settle by hand: they get a notice and nothing is
+ * reversed. the refund that completes the charge reverses it all.
  */
-const reverse_settled = async (
-  ev: WebhookEvent,
-  c: {
-    sttl_id: string;
-    full: boolean;
-    status: string | undefined;
-    refunded: string;
-    charged: string;
-  }
-) => {
+const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
   const don = await donation_by_sttl_id(c.sttl_id);
-  // the settle event is still on its way: paypal guarantees no ordering
-  if (!don)
-    return new Response(`nothing settled for ${c.sttl_id} yet`, {
-      status: 503,
+  if (!don) {
+    const owner_id = await c.owner();
+    const owner = owner_id ? await donation_get(owner_id) : undefined;
+    // the settle event is still on its way: paypal guarantees no ordering
+    if (owner)
+      return new Response(`nothing settled for ${c.sttl_id} yet`, {
+        status: 503,
+      });
+    // a charge of another integration on the account, or one whose settle was
+    // acknowledged unroutable: no redelivery gives it a donation
+    report_error(new Error("[paypal webhook] refund of a charge not ours"), {
+      event_id: ev.id,
+      sttl_id: c.sttl_id,
     });
+    return new Response(`no donation for ${c.sttl_id}`, { status: 200 });
+  }
   if (is_reversed(don.status))
     return new Response(`donation is ${don.status}`, { status: 200 });
 
   const detail = `donation ${don.id}, charge ${c.sttl_id}, event ${ev.id}`;
   if (!c.full) {
-    await fiat_monitor.send_alert({
-      type: "NOTICE",
+    const alert = {
+      type: "NOTICE" as const,
       from: `${REFUND_ALERT_FROM}-${stage}`,
       title: "Partial Refund Not Reversed",
       body: [
@@ -546,7 +575,9 @@ const reverse_settled = async (
         `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
         "nothing was reversed automatically. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for this refund must then be undone.",
       ].join("\n"),
-    });
+    };
+    // keyed on the event, so a duplicate delivery posts one notice
+    await enqueue(msg("fiat-notice", { id: `paypal-partial_${ev.id}`, alert }));
     return new Response("partial refund reported", { status: 200 });
   }
 
@@ -562,6 +593,10 @@ const reverse_settled = async (
   console.info(
     `[paypal webhook] ${detail} refunded, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`
   );
+  // process_refund skips what it already reversed and retries what failed,
+  // so a redelivery finishes the job
+  if (result.failures.length > 0)
+    return new Response("reversal incomplete", { status: 503 });
   return new Response("donation reversed", { status: 200 });
 };
 
@@ -873,7 +908,6 @@ export async function action({ request }: Route.ActionArgs) {
       case "PAYMENT.CAPTURE.REVERSED": {
         // the resource is the refund; the capture it reverses is its `up` link
         const refund = ev.resource as {
-          id?: string;
           amount?: { value?: string; currency_code?: string };
           links?: { rel?: string; href?: string }[];
         };
@@ -888,22 +922,35 @@ export async function action({ request }: Route.ActionArgs) {
             `paypal answered ${capture} for capture ${cid}`
           );
         const gross = capture.amount;
+        const part = refund.amount;
         return reverse_settled(ev, {
           sttl_id: cid,
-          full: capture.status === "REFUNDED",
+          // a chargeback may leave the capture's status as it was, so a
+          // reversal is also full when it takes the whole gross
+          full:
+            capture.status === "REFUNDED" ||
+            (ev.event_type === "PAYMENT.CAPTURE.REVERSED" &&
+              is_whole(
+                { value: part?.value, currency: part?.currency_code },
+                { value: gross?.value, currency: gross?.currency_code }
+              )),
           status: capture.status,
-          refunded: money(refund.amount?.value, refund.amount?.currency_code),
+          refunded: money(part?.value, part?.currency_code),
           charged: money(gross?.value, gross?.currency_code),
+          owner: async () => capture.custom_id,
         });
       }
       case "PAYMENT.SALE.REFUNDED":
       case "PAYMENT.SALE.REVERSED": {
-        const refund = ev.resource as {
+        // a v1 refund naming its sale, or the reversed sale itself
+        const r = ev.resource as {
           id?: string;
           sale_id?: string;
           amount?: { total?: string; currency?: string };
         };
-        const sale_id = refund.sale_id;
+        const is_sale =
+          (ev as { resource_type?: string }).resource_type === "sale";
+        const sale_id = is_sale ? r.id : r.sale_id;
         if (!sale_id) return unroutable(ev, "missing refunded sale id");
 
         const sale = await fetch_resource(() => paypal.get_sale(sale_id));
@@ -911,12 +958,29 @@ export async function action({ request }: Route.ActionArgs) {
           return unroutable(ev, `paypal answered ${sale} for sale ${sale_id}`);
         // "reversed" is a live sale state the vendored v1 spec leaves out
         const state: string | undefined = sale.state;
+        const whole = sale.amount;
         return reverse_settled(ev, {
           sttl_id: sale_id,
-          full: state === "refunded" || state === "reversed",
+          full:
+            state === "refunded" ||
+            state === "reversed" ||
+            (ev.event_type === "PAYMENT.SALE.REVERSED" &&
+              !is_sale &&
+              is_whole(
+                { value: r.amount?.total, currency: r.amount?.currency },
+                { value: whole?.total, currency: whole?.currency }
+              )),
           status: state,
-          refunded: money(refund.amount?.total, refund.amount?.currency),
-          charged: money(sale.amount?.total, sale.amount?.currency),
+          refunded: money(r.amount?.total, r.amount?.currency),
+          charged: money(whole?.total, whole?.currency),
+          owner: async () => {
+            const subs_id = sale.billing_agreement_id;
+            if (!subs_id) return undefined;
+            const sub = await fetch_resource(() =>
+              paypal.get_subscription(subs_id)
+            );
+            return typeof sub === "number" ? undefined : sub.custom_id;
+          },
         });
       }
       case "PAYMENT.CAPTURE.DENIED": {

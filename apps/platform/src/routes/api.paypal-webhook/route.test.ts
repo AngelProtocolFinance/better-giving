@@ -221,6 +221,7 @@ const deliver = (
 const capture_copy = () => ({
   id: CAPTURE_ID,
   status: "COMPLETED",
+  amount: { value: "100.00", currency_code: "USD" },
   create_time: "2026-01-02T00:00:00.000Z",
   custom_id: ORDER_ID,
   seller_receivable_breakdown: {
@@ -907,10 +908,84 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(send_alert_mock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ title: "Partial Refund Not Reversed" })
-    );
-    expect(send_alert_mock.mock.calls[0]![0].body).toContain(CAPTURE_ID);
+    // queued under the event's id, so a duplicate delivery is one notice
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-partial_WH-REF-1",
+      payload: { alert: { title: "Partial Refund Not Reversed" } },
+    });
+    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
+  });
+
+  it("reverses a chargeback of the whole capture, whatever status paypal leaves on it", async () => {
+    await settled_capture();
+    paypal_capture_is("COMPLETED");
+
+    const res = await deliver(capture_refund_ev("PAYMENT.CAPTURE.REVERSED"));
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  it("reports a chargeback of part of the capture and reverses nothing", async () => {
+    await settled_capture();
+    paypal_capture_is("COMPLETED");
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-40.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock.mock.calls.at(-1)![0].id).toBe("fiat-notice");
+  });
+
+  it("reverses a sale paypal reports reversed as the sale itself", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    await seed_dist(ORDER_ID);
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "reversed" });
+
+    const res = await deliver({
+      id: "WH-REV-3",
+      event_type: "PAYMENT.SALE.REVERSED",
+      resource_type: "sale",
+      resource: { id: SALE_ID, state: "reversed" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(get_sale_mock).toHaveBeenLastCalledWith(SALE_ID);
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  it("asks for redelivery when some dists failed to reverse", async () => {
+    await settled_capture();
+    paypal_capture_is("REFUNDED");
+    process_refund_mock.mockResolvedValue({
+      failures: ["dist x: db timeout"],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 0,
+    });
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("reports and acknowledges a refund of a charge no donation here owns", async () => {
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "REFUNDED",
+      custom_id: "not-ours",
+    });
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(process_refund_mock).not.toHaveBeenCalled();
   });
 
   it("reverses a subscription charge paypal refunded in full", async () => {
