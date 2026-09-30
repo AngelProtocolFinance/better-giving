@@ -942,10 +942,11 @@ export async function action({ request }: Route.ActionArgs) {
         const part = refund.amount;
         const is_reversal = ev.event_type === "PAYMENT.CAPTURE.REVERSED";
         const order_id = capture.supplementary_data?.related_ids?.order_id;
+        const is_refunded = capture.status === "REFUNDED";
         // a refund leaves the capture PARTIALLY_REFUNDED even once a later
         // reversal takes the rest, so a reversal adds up all that was taken
         const earlier =
-          is_reversal && order_id
+          is_reversal && !is_refunded && order_id
             ? await prior_refunds(order_id, cid, refund.id)
             : [];
         if (!earlier)
@@ -958,7 +959,7 @@ export async function action({ request }: Route.ActionArgs) {
           // reversal is also full when it and the refunds before it take the
           // whole gross
           full:
-            capture.status === "REFUNDED" ||
+            is_refunded ||
             (is_reversal &&
               is_whole(
                 [

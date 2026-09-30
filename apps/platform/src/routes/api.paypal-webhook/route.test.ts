@@ -1045,6 +1045,23 @@ describe("refunds and reversals", () => {
     expect(report_error_mock).toHaveBeenCalledOnce();
   });
 
+  it("reverses a chargeback of a capture paypal already reads refunded, without the order", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockRejectedValue(new Error("paypal 503"));
+    get_order_mock.mockClear();
+
+    const res = await deliver(capture_refund_ev("PAYMENT.CAPTURE.REVERSED"));
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).not.toHaveBeenCalled();
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
   it("reverses a sale paypal reports reversed as the sale itself", async () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
