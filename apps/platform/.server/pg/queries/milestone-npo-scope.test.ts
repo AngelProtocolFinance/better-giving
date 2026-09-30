@@ -92,16 +92,22 @@ describe("milestone writes", () => {
   });
 
   test("the owning npo edits its milestone", async () => {
-    expect(await milestone_update(own, PID, MID, { title: "Drill" })).toBe(
-      true
-    );
+    expect(
+      await milestone_update(own, PID, MID, {
+        title: "Drill",
+        description_pt: "[]",
+      })
+    ).toBe(true);
     expect(await milestone_rows()).toEqual([{ id: MID, title: "Drill" }]);
   });
 
   test("another npo edits nothing", async () => {
-    expect(await milestone_update(other, PID, MID, { title: "Drill" })).toBe(
-      false
-    );
+    expect(
+      await milestone_update(other, PID, MID, {
+        title: "Drill",
+        description_pt: "[]",
+      })
+    ).toBe(false);
     expect(await milestone_rows()).toEqual([{ id: MID, title: "Dig" }]);
   });
 
