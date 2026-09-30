@@ -1,0 +1,92 @@
+import type Stripe from "stripe";
+import { report_error } from "#/errors/report";
+import { str_id } from "#/helpers/stripe";
+import { is_reversed } from "@/donations";
+import { msg } from "@/queue";
+import { stage } from "$/env";
+import { fiat_monitor } from "$/kit/discord";
+import { enqueue } from "$/kit/queue";
+import { dists_for_refund } from "$/pg/queries/dist";
+import { process_refund } from "$/refund/process";
+import { refunded_donation } from "../helpers/refunded-donation";
+import { money } from "./charge-refunded";
+
+const ALERT_FROM = "charge-dispute";
+
+const dispute_line = (d: Stripe.Dispute, don_id: string, event_id: string) =>
+  `donation ${don_id}, dispute ${d.id}, charge ${str_id(d.charge)}, event ${event_id}`;
+
+/** each in its balance transaction's own (settlement) currency, never the dispute's */
+const dispute_fees = (d: Stripe.Dispute) =>
+  d.balance_transactions
+    .filter((bt) => bt.fee !== 0)
+    .map((bt) => `${money(bt.fee, bt.currency)} (${bt.id})`)
+    .join(", ") || "none recorded";
+
+export async function handle_dispute_closed(
+  event: Stripe.ChargeDisputeClosedEvent
+) {
+  const dispute = event.data.object;
+  if (dispute.status !== "lost") {
+    console.info(`dispute ${dispute.id} closed ${dispute.status}: kept`);
+    return;
+  }
+  const don = await refunded_donation(str_id(dispute.payment_intent));
+  if (is_reversed(don.status)) {
+    console.info(`already reversed: ${don.id}`);
+    return;
+  }
+
+  const graphs = await dists_for_refund(don.id);
+  if (graphs.length === 0) {
+    throw new Error(`no settled dists for donation: ${don.id}`);
+  }
+  const result = await process_refund(don.id, graphs, {
+    form_id: don.form_id ?? null,
+    program_id: don.program?.id ?? null,
+    alert_from: ALERT_FROM,
+  });
+
+  const failed = result.failures.length;
+  const title =
+    failed === 0
+      ? "Dispute Lost: Donation Reversed"
+      : "Dispute Lost: Reversal Did Not Complete";
+  const body = [
+    dispute_line(dispute, don.id, event.id),
+    `disputed amount: ${money(dispute.amount, dispute.currency)}, reason: ${dispute.reason}`,
+    `dispute fee: ${dispute_fees(dispute)}`,
+    failed === 0
+      ? `all ${graphs.length} dists reversed.`
+      : `${failed} of ${graphs.length} dists failed to reverse, and the donation stays settled.`,
+    ...result.loss_msgs.map((m) => `loss: ${m}`),
+  ].join("\n");
+  // queued, not sent: once reversed, a redelivery stops at the donation's
+  // status, so only the queue's retries can land a failed send
+  await enqueue(
+    msg("fiat-notice", {
+      id: `${event.id}_${failed}`,
+      alert: { type: "NOTICE", from: `${ALERT_FROM}-${stage}`, title, body },
+    })
+  ).catch((err) => report_error(err, { donation_id: don.id, title, body }));
+}
+
+export async function handle_dispute_created(
+  event: Stripe.ChargeDisputeCreatedEvent
+) {
+  const dispute = event.data.object;
+  const don = await refunded_donation(str_id(dispute.payment_intent));
+  const due = dispute.evidence_details?.due_by;
+
+  await fiat_monitor.send_alert({
+    type: "NOTICE",
+    from: `${ALERT_FROM}-${stage}`,
+    title: "Stripe Dispute Opened",
+    body: [
+      dispute_line(dispute, don.id, event.id),
+      `amount: ${money(dispute.amount, dispute.currency)}, reason: ${dispute.reason}, status: ${dispute.status}`,
+      `evidence due by: ${due ? new Date(due * 1000).toISOString() : "n/a"}`,
+      "the donation stays settled while the dispute is open; if it is lost, the donation reverses automatically.",
+    ].join("\n"),
+  });
+}

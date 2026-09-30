@@ -10,6 +10,8 @@ import { sub_get, sub_update } from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
 import {
   handle_charge_refunded,
+  handle_dispute_closed,
+  handle_dispute_created,
   handle_intent_failed,
   handle_intent_requires_action,
   handle_refund_failed,
@@ -149,6 +151,12 @@ export async function action({ request }: Route.ActionArgs) {
         break;
       case "refund.failed":
         await handle_refund_failed(stripe_event);
+        break;
+      case "charge.dispute.created":
+        await handle_dispute_created(stripe_event);
+        break;
+      case "charge.dispute.closed":
+        await handle_dispute_closed(stripe_event);
         break;
       default:
         return new Response(`Unhandled event type: ${stripe_event.type}`, {
