@@ -4,6 +4,7 @@ const intent_retrieve_mock = vi.hoisted(() => vi.fn());
 const charge_retrieve_mock = vi.hoisted(() => vi.fn());
 const refunds_list_mock = vi.hoisted(() => vi.fn());
 const donation_get_mock = vi.hoisted(() => vi.fn());
+const donation_by_sttl_id_mock = vi.hoisted(() => vi.fn());
 const dists_for_refund_mock = vi.hoisted(() => vi.fn());
 const process_refund_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
@@ -17,7 +18,10 @@ vi.mock("$/kit/stripe", () => ({
     refunds: { list: refunds_list_mock },
   },
 }));
-vi.mock("$/pg/queries/donation", () => ({ donation_get: donation_get_mock }));
+vi.mock("$/pg/queries/donation", () => ({
+  donation_get: donation_get_mock,
+  donation_by_sttl_id: donation_by_sttl_id_mock,
+}));
 vi.mock("$/pg/queries/dist", () => ({
   dists_for_refund: dists_for_refund_mock,
 }));
@@ -104,6 +108,7 @@ beforeEach(() => {
     form_id: null,
     program: null,
   }));
+  donation_by_sttl_id_mock.mockResolvedValue(undefined);
   dists_for_refund_mock.mockResolvedValue([graph]);
   process_refund_mock.mockImplementation(async () => {
     don_status = "refunded";
@@ -411,6 +416,28 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     await expect(handle_charge_refunded(refund(500))).rejects.toThrow(
       "discord 503"
+    );
+  });
+
+  it("reverses the rebill a refunded subscription charge settled, not the order it was cloned from", async () => {
+    const REBILL_ID = "0195c1f0-4c37-7c1a-b8f1-2f2f0a2f9d3e";
+    // subscription invoice intents carry no metadata
+    intent_retrieve_mock.mockResolvedValue({ id: "pi_1", metadata: {} });
+    donation_by_sttl_id_mock.mockImplementation(async (id: string) =>
+      id === "pi_1"
+        ? { id: REBILL_ID, status: don_status, form_id: null, program: null }
+        : undefined
+    );
+
+    await expect(
+      handle_charge_refunded(refund(AMOUNT))
+    ).resolves.toBeUndefined();
+
+    expect(dists_for_refund_mock).toHaveBeenCalledWith(REBILL_ID);
+    expect(process_refund_mock).toHaveBeenCalledWith(
+      REBILL_ID,
+      [graph],
+      expect.anything()
     );
   });
 });

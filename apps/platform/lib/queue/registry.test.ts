@@ -23,6 +23,11 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ],
     ["invite-email", { invitee: "x@y.z" }, "invite_x@y.z"],
     [
+      "paypal-order-capture",
+      { order_id: "O-1", don_id: "d6" },
+      "paypal.order-capture_O-1",
+    ],
+    [
       "lock-tx-created",
       { npo_id: 9, date_created: "2026-01-02T03:04:05Z" },
       "lock_tx_9_2026-01-02T030405Z",
@@ -49,6 +54,16 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     const covered = new Set(rows.map(([k]) => k));
     for (const k of KINDS) expect(covered.has(k)).toBe(true);
     expect(covered.size).toBe(KINDS.length);
+  });
+});
+
+describe("paypal-order-capture delivery", () => {
+  test("holds past the browser's capture, then retries for over a day", () => {
+    const m = msg("paypal-order-capture", { order_id: "O-1", don_id: "d6" });
+    expect({ delay_s: m.delay_s, retries: m.retries }).toEqual({
+      delay_s: 300,
+      retries: 5,
+    });
   });
 });
 

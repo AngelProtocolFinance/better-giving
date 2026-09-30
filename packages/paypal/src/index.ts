@@ -18,4 +18,4 @@ export type {
   WebhookEvent,
 } from "./interfaces.js";
 
-export { PayPalSDK } from "./sdk.js";
+export { PayPalApiError, PayPalSDK } from "./sdk.js";

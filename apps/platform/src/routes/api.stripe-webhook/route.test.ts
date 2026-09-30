@@ -16,6 +16,9 @@ const sub_retrieve_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 const intent_succeeded_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
+const refund_failed_mock = vi.hoisted(() => vi.fn());
+const dispute_created_mock = vi.hoisted(() => vi.fn());
+const dispute_closed_mock = vi.hoisted(() => vi.fn());
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
 vi.mock("$/kit/stripe", () => ({
@@ -44,16 +47,21 @@ vi.mock("./handlers", () => ({
   handle_intent_requires_action: vi.fn(),
   handle_setup_intent_failed: vi.fn(),
   handle_setup_intent_succeeded: vi.fn(),
+  handle_refund_failed: refund_failed_mock,
+  handle_dispute_created: dispute_created_mock,
+  handle_dispute_closed: dispute_closed_mock,
 }));
 vi.mock("./handlers/intent-suceeded", () => ({
   handle_intent_succeeded: intent_succeeded_mock,
 }));
-vi.mock("./handlers/subscription-created", () => ({
+vi.mock("./handlers/subscription-created", async (orig) => ({
+  ...(await orig<typeof import("./handlers/subscription-created")>()),
   handle_subscription_created: vi.fn(),
 }));
 
 const { action } = await import("./route");
 const { BalanceTxnNotReadyError } = await import("./helpers/settled");
+const { FIRST_PAYMENT_INCOMPLETE } = await import("@/subscriptions");
 const { sub_get } = await import("$/pg/queries/subscription");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { npos } = await import("$/pg/schema/npo");
@@ -131,6 +139,29 @@ describe("api.stripe-webhook action", () => {
     expect(report_error_mock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["rate limit", new Stripe.errors.StripeRateLimitError({ message: "429" })],
+    ["api", new Stripe.errors.StripeAPIError({ message: "500" })],
+    [
+      "connection",
+      new Stripe.errors.StripeConnectionError({ message: "reset" }),
+    ],
+  ])(
+    "returns 503 unreported on a transient stripe %s error",
+    async (_, err) => {
+      construct_event_mock.mockReturnValue({
+        type: "customer.subscription.updated",
+        data: { object: { id: "sub_1" } },
+      });
+      sub_retrieve_mock.mockRejectedValue(err);
+
+      const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+      expect(res.status).toBe(503);
+      expect(report_error_mock).not.toHaveBeenCalled();
+    }
+  );
+
   it("returns 200 for a verified event it handles", async () => {
     construct_event_mock.mockReturnValue({
       type: "payment_intent.succeeded",
@@ -142,6 +173,29 @@ describe("api.stripe-webhook action", () => {
 
     expect(res.status).toBe(200);
     expect(intent_succeeded_mock).toHaveBeenCalledOnce();
+  });
+
+  it("hands a failed refund to its handler", async () => {
+    const event = { type: "refund.failed", data: { object: { id: "re_1" } } };
+    construct_event_mock.mockReturnValue(event);
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.status).toBe(200);
+    expect(refund_failed_mock).toHaveBeenCalledWith(event);
+  });
+
+  it.each([
+    ["charge.dispute.created", dispute_created_mock],
+    ["charge.dispute.closed", dispute_closed_mock],
+  ])("hands %s to its handler", async (type, handler) => {
+    const event = { type, data: { object: { id: "dp_1" } } };
+    construct_event_mock.mockReturnValue(event);
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalledWith(event);
   });
 });
 
@@ -277,6 +331,34 @@ describe("customer.subscription lifecycle", () => {
     }
   );
 
+  it("a gift born incomplete turns active once its first payment lands", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: FIRST_PAYMENT_INCOMPLETE,
+    });
+
+    const res = await deliver("active", "active");
+
+    expect(res.status).toBe(200);
+    const row = await sub_get(SUB_ID);
+    expect(row?.status).toBe("active");
+    expect(row?.status_cancel_reason).toBeNull();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("a gift still incomplete stays inactive with no cancel queued", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: FIRST_PAYMENT_INCOMPLETE,
+    });
+
+    const res = await deliver("incomplete", "incomplete");
+
+    expect(res.status).toBe(200);
+    expect((await sub_get(SUB_ID))?.status).toBe("inactive");
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
   it("a cancel that never reached stripe stays cancelled and is queued again", async () => {
     await set_row({
       status: "inactive",
@@ -325,5 +407,75 @@ describe("customer.subscription lifecycle", () => {
     expect(res.status).toBe(200);
     expect((await sub_get(SUB_ID))?.status).toBe("inactive");
     expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("customer.subscription.deleted before its row exists answers non-2xx so stripe redelivers", async () => {
+    construct_event_mock.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: { object: { ...sub_obj("canceled"), id: "sub_not_yet_written" } },
+    });
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.ok).toBe(false);
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("a gift stripe ended records stripe's reason for ending it", async () => {
+    construct_event_mock.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: {
+        object: {
+          ...sub_obj("canceled"),
+          cancellation_details: {
+            reason: "payment_disputed",
+            comment: null,
+            feedback: null,
+          },
+        },
+      },
+    });
+
+    await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
+      "payment_disputed"
+    );
+  });
+
+  it("unpaid records that stripe gave up on failed payments", async () => {
+    await deliver("unpaid", "unpaid");
+
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
+      "payment_failed"
+    );
+    // the reason is on the row the cancel is queued with
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      payload: { status_cancel_reason: "payment_failed" },
+    });
+  });
+
+  it("stripe ending a gift the donor cancelled keeps the donor's reason", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: "moving abroad",
+    });
+    construct_event_mock.mockReturnValue({
+      type: "customer.subscription.deleted",
+      data: {
+        object: {
+          ...sub_obj("canceled"),
+          cancellation_details: {
+            reason: "cancellation_requested",
+            comment: "moving abroad",
+            feedback: null,
+          },
+        },
+      },
+    });
+
+    await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe("moving abroad");
   });
 });

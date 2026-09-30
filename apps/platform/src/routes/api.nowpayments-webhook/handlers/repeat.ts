@@ -5,6 +5,7 @@ import {
   settle_msgs,
 } from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
@@ -98,7 +99,7 @@ export async function handle_repeat(
 
     case "settle": {
       const rates = await settle_rates(payment);
-      const { usdpu } = await np.estimate(payment.pay_currency);
+      const usdpu = await usdpu_of(np, payment.pay_currency);
       const sttl = to_settlement(payment, rates, new Date().toISOString());
       await alert_all(sttl.warnings);
 

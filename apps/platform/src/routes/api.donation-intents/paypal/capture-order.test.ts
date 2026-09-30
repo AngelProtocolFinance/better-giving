@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { paypal_capture_outcome } from "@/donations/paypal-capture";
 
 const capture_order_mock = vi.hoisted(() => vi.fn());
+const get_order_mock = vi.hoisted(() => vi.fn());
 const donation_update_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 const report_degraded_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/paypal", () => ({
-  paypal: { capture_order: capture_order_mock },
+  paypal: { capture_order: capture_order_mock, get_order: get_order_mock },
 }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
@@ -287,9 +288,27 @@ describe("capture_order when paypal refuses the payer's instrument", () => {
     }
   );
 
+  // the webhook's delayed fallback captured it while the donor's browser was away
+  it("answers an order already captured with that capture, as taken", async () => {
+    paypal_answers(unprocessable("ORDER_ALREADY_CAPTURED"));
+    get_order_mock.mockResolvedValue({
+      id: "o14",
+      status: "COMPLETED",
+      purchase_units: [
+        { payments: { captures: [{ id: "c14", status: "COMPLETED" }] } },
+      ],
+    });
+
+    const res = await capture_order({ order_id: "o14", don_id: "d14" });
+
+    expect(get_order_mock).toHaveBeenCalledWith("o14");
+    expect(paypal_capture_outcome(res).outcome).toBe("taken");
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
   // the money may have moved, so the browser must hear a failure, never a decline
   it.each([
-    ["a 422 that isn't a refusal", unprocessable("ORDER_ALREADY_CAPTURED")],
+    ["a 422 that isn't a refusal", unprocessable("ORDER_NOT_APPROVED")],
     [
       "a 500",
       Response.json(

@@ -9,6 +9,9 @@ const donation_mocks = vi.hoisted(() => ({
 }));
 const send_alert_mock = vi.hoisted(() => vi.fn(async () => {}));
 const report_error_mock = vi.hoisted(() => vi.fn());
+const report_resp_mock = vi.hoisted(() =>
+  vi.fn((e: any) => new Response(e?.message ?? "error", { status: 500 }))
+);
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const has_dists_mock = vi.hoisted(() => vi.fn());
 
@@ -32,7 +35,7 @@ vi.mock("$/pg/queries/donation", () => ({
 vi.mock("$/pg/queries/dist", () => ({ donation_has_dists: has_dists_mock }));
 vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
-  report_resp: (e: any) => new Response(e?.message ?? "error", { status: 500 }),
+  report_resp: report_resp_mock,
 }));
 
 const { action } = await import("./api.chariot-webhook");
@@ -63,6 +66,7 @@ afterEach(() => {
   donation_mocks.update.mockReset();
   send_alert_mock.mockReset();
   report_error_mock.mockReset();
+  report_resp_mock.mockClear();
   enqueue_mock.mockReset();
   has_dists_mock.mockReset();
 });
@@ -84,6 +88,12 @@ const donor = {
 };
 const pii = ["Ada", "Lovelace", "ada@example.com", "555-0100", "1 Main St"];
 
+/** what the intent route records on the row a grant made */
+const recorded_by = (grant_id: string) => ({
+  via: "chariot",
+  via_extra: grant_id,
+});
+
 describe("chariot webhook logging", () => {
   it.each([
     ["Initiated", 203],
@@ -102,6 +112,7 @@ describe("chariot webhook logging", () => {
         ...donor,
       });
       donation_mocks.get.mockResolvedValue({
+        ...recorded_by("grant-1"),
         id: "don-1",
         status: "intent",
         donor_email: donor.email,
@@ -166,6 +177,38 @@ describe("chariot webhook grant fetch", () => {
   });
 });
 
+describe("chariot webhook grant without our metadata", () => {
+  it.each([
+    ["no metadata", undefined],
+    ["metadata without a donation id", { campaign: "x" }],
+  ])(
+    "acks a grant with %s and reports it, without looking up a donation",
+    async (_, metadata) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue({
+        id: "grant-30",
+        status: "Completed",
+        amount: 10_000,
+        metadata,
+      });
+
+      const res = await deliver({
+        id: "ev-30",
+        category: "grant.updated",
+        associated_object_type: "grant",
+        associated_object_id: "grant-30",
+      });
+
+      expect(res.status).toBe(200);
+      expect(donation_mocks.get).not.toHaveBeenCalled();
+      expect(report_error_mock).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ grant_id: "grant-30" })
+      );
+    }
+  );
+});
+
 describe("chariot webhook signature header", () => {
   const body = JSON.stringify({
     id: "ev-4",
@@ -195,6 +238,20 @@ describe("chariot webhook signature header", () => {
     });
 
     const res = await post(body, `t=${T},v1=${sign(body)}`);
+
+    expect(get_grant_mock).toHaveBeenCalledWith("grant-4");
+    expect(res.status).toBe(203);
+  });
+
+  it("accepts a valid signature written in uppercase hex", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      id: "grant-4",
+      status: "Initiated",
+      metadata: { don_id: "don-4" },
+    });
+
+    const res = await post(body, `t=${T},v1=${sign(body).toUpperCase()}`);
 
     expect(get_grant_mock).toHaveBeenCalledWith("grant-4");
     expect(res.status).toBe(203);
@@ -256,7 +313,11 @@ describe("chariot webhook canceled grant", () => {
     async (status) => {
       quiet_console();
       get_grant_mock.mockResolvedValue(canceled_grant("don-5"));
-      donation_mocks.get.mockResolvedValue({ id: "don-5", status });
+      donation_mocks.get.mockResolvedValue({
+        ...recorded_by("grant-5"),
+        id: "don-5",
+        status,
+      });
       donation_mocks.locked.mockResolvedValue({ status });
       donation_mocks.update.mockResolvedValue({ id: "don-5" });
 
@@ -276,7 +337,11 @@ describe("chariot webhook canceled grant", () => {
     async (status) => {
       quiet_console();
       get_grant_mock.mockResolvedValue(canceled_grant("don-6"));
-      donation_mocks.get.mockResolvedValue({ id: "don-6", status });
+      donation_mocks.get.mockResolvedValue({
+        ...recorded_by("grant-5"),
+        id: "don-6",
+        status,
+      });
       donation_mocks.locked.mockResolvedValue({ status });
 
       const res = await deliver(cancel_event);
@@ -299,7 +364,11 @@ describe("chariot webhook canceled grant", () => {
     async (status) => {
       quiet_console();
       get_grant_mock.mockResolvedValue(canceled_grant("don-7"));
-      donation_mocks.get.mockResolvedValue({ id: "don-7", status });
+      donation_mocks.get.mockResolvedValue({
+        ...recorded_by("grant-5"),
+        id: "don-7",
+        status,
+      });
       donation_mocks.locked.mockResolvedValue({ status });
 
       const res = await deliver(cancel_event);
@@ -323,6 +392,7 @@ describe("chariot webhook canceled grant", () => {
         ...donor,
       });
       donation_mocks.get.mockResolvedValue({
+        ...recorded_by("grant-5"),
         id: "don-9",
         status,
         to_id: "42",
@@ -349,7 +419,11 @@ describe("chariot webhook canceled grant", () => {
   it("alerts instead of cancelling when the donation settled after it was first read", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(canceled_grant("don-8"));
-    donation_mocks.get.mockResolvedValue({ id: "don-8", status: "intent" });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-5"),
+      id: "don-8",
+      status: "intent",
+    });
     donation_mocks.locked.mockResolvedValue({ status: "settled" });
 
     const res = await deliver(cancel_event);
@@ -362,7 +436,11 @@ describe("chariot webhook canceled grant", () => {
   it("still acks a settled donation when the discord alert fails", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(canceled_grant("don-10"));
-    donation_mocks.get.mockResolvedValue({ id: "don-10", status: "settled" });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-5"),
+      id: "don-10",
+      status: "settled",
+    });
     donation_mocks.locked.mockResolvedValue({ status: "settled" });
     const discord_down = new Error("discord 429");
     send_alert_mock.mockRejectedValue(discord_down);
@@ -380,7 +458,11 @@ describe("chariot webhook canceled grant", () => {
   it("cancels the row it read when the grant carries a legacy id", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(canceled_grant("legacy-11"));
-    donation_mocks.get.mockResolvedValue({ id: "don-11", status: "intent" });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-5"),
+      id: "don-11",
+      status: "intent",
+    });
     donation_mocks.locked.mockResolvedValue({ status: "intent" });
 
     const res = await deliver(cancel_event);
@@ -397,17 +479,75 @@ describe("chariot webhook canceled grant", () => {
     );
   });
 
-  it("fails a delivery whose donation does not exist, so chariot redelivers", async () => {
+  it("acks a delivery whose donation does not exist and alerts, since no redelivery can create it", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(canceled_grant("don-12"));
     donation_mocks.get.mockResolvedValue(undefined);
 
     const res = await deliver(cancel_event);
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
     expect(donation_mocks.update).not.toHaveBeenCalled();
-    expect(send_alert_mock).not.toHaveBeenCalled();
+    const body = alert_body();
+    for (const fact of ["grant-5", "don-12", "100.00 USD", "not found"])
+      expect(body).toContain(fact);
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ don_id: "don-12", grant_id: "grant-5" })
+    );
   });
+});
+
+describe("chariot webhook grant naming a donation that isn't its own", () => {
+  // `don_id` rides in connect metadata the browser writes, so it can name any row
+  const foreign_rows = [
+    ["a bank donation", { via: "bank", via_extra: "pi_1" }],
+    ["another grant's donation", { via: "chariot", via_extra: "grant-other" }],
+  ] as const;
+
+  it.each(
+    foreign_rows.flatMap(([what, row]) =>
+      (["Completed", "Canceled"] as const).map((s) => [s, what, row] as const)
+    )
+  )(
+    "a %s grant naming %s writes nothing, alerts, and acks",
+    async (status, _, row) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue({
+        id: "grant-40",
+        status,
+        amount: 10_000,
+        feeDetail: { total: 300 },
+        metadata: { don_id: "don-40" },
+      });
+      donation_mocks.get.mockResolvedValue({
+        id: "don-40",
+        status: "intent",
+        to_id: "42",
+        to_name: "River Trust",
+        ...row,
+      });
+      donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+      const res = await deliver({
+        id: "ev-40",
+        category: "grant.updated",
+        associated_object_type: "grant",
+        associated_object_id: "grant-40",
+      });
+
+      expect(res.status).toBe(200);
+      expect(donation_mocks.update).not.toHaveBeenCalled();
+      expect(enqueue_mock).not.toHaveBeenCalled();
+      const body = alert_body();
+      for (const fact of ["grant-40", "don-40", "100.00 USD", row.via_extra])
+        expect(body).toContain(fact);
+      expect(report_error_mock).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ don_id: "don-40", grant_id: "grant-40" })
+      );
+    }
+  );
 });
 
 describe("chariot webhook completed grant", () => {
@@ -428,7 +568,11 @@ describe("chariot webhook completed grant", () => {
   it("settles an intent donation and enqueues its messages", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(completed_grant);
-    donation_mocks.get.mockResolvedValue({ id: "don-20", status: "intent" });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
+      id: "don-20",
+      status: "intent",
+    });
     donation_mocks.locked.mockResolvedValue({ status: "intent" });
 
     const res = await deliver(complete_event);
@@ -452,10 +596,41 @@ describe("chariot webhook completed grant", () => {
     ]);
   });
 
+  it("dates the settlement when the grant completed, not when the event is processed", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...completed_grant,
+      updatedAt: "2026-09-05T00:00:00Z",
+      statuses: [
+        { id: "s1", status: "Initiated", createdAt: "2026-08-01T10:00:00Z" },
+        { id: "s2", status: "Completed", createdAt: "2026-09-01T12:30:00Z" },
+      ],
+    });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
+      id: "don-20",
+      status: "intent",
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+    await deliver(complete_event);
+
+    expect(donation_mocks.update).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      "don-20",
+      expect.objectContaining({
+        settlement: expect.objectContaining({
+          date: "2026-09-01T12:30:00.000Z",
+        }),
+      })
+    );
+  });
+
   it("leaves a cancelled donation unsettled and alerts", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(completed_grant);
     donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
       id: "don-20",
       status: "intent",
       to_id: "42",
@@ -476,6 +651,7 @@ describe("chariot webhook completed grant", () => {
   });
 
   const settled_row = {
+    ...recorded_by("grant-20"),
     id: "don-20",
     status: "settled",
     to_id: "42",
@@ -511,6 +687,53 @@ describe("chariot webhook completed grant", () => {
       expect(enqueue_mock.mock.calls.flat().map((m) => m.id)).toEqual(sent);
     }
   );
+
+  it("alerts instead of re-sending when the donation was settled by a different grant", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      ...settled_row,
+      settlement: { ...settled_row.settlement, id: "grant-other" },
+    });
+    donation_mocks.locked.mockResolvedValue({
+      status: "settled",
+      sttl_id: "grant-other",
+    });
+    has_dists_mock.mockResolvedValue(false);
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    const body = alert_body();
+    for (const fact of ["grant grant-20", "settlement grant-other", "don-20"])
+      expect(body).toContain(fact);
+  });
+
+  it("acks a settled donation that has no settlement and alerts, since no redelivery can repair it", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      ...settled_row,
+      settlement: undefined,
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "settled" });
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    const body = alert_body();
+    for (const fact of ["grant-20", "don-20", "100.00 USD", "no settlement"])
+      expect(body).toContain(fact);
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ don_id: "don-20", grant_id: "grant-20" })
+    );
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
 
   it("does not settle again when a concurrent delivery settled it after the first read", async () => {
     quiet_console();
@@ -550,10 +773,30 @@ describe("chariot webhook completed grant", () => {
     }
   );
 
+  it("acks a completed grant whose donation does not exist and alerts, since no redelivery can create it", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue(undefined);
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    const body = alert_body();
+    for (const fact of ["grant-20", "don-20", "100.00 USD", "not found"])
+      expect(body).toContain(fact);
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ don_id: "don-20", grant_id: "grant-20" })
+    );
+    expect(donation_mocks.update).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
   it("alert for a cancelled donation carries the amount and recipient, no donor data", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue({ ...completed_grant, ...donor });
     donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
       id: "don-20",
       status: "cancelled",
       to_id: "42",
@@ -565,7 +808,13 @@ describe("chariot webhook completed grant", () => {
     await deliver(complete_event);
 
     const body = alert_body();
-    for (const fact of ["100.00 USD", "River Trust (42)", "grant-20"])
+    for (const fact of [
+      "100.00 USD",
+      "net 97.00 USD",
+      "fee 3.00 USD",
+      "River Trust (42)",
+      "grant-20",
+    ])
       expect(body).toContain(fact);
     for (const p of pii) expect(body).not.toContain(p);
   });

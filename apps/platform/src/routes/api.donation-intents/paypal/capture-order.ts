@@ -1,4 +1,7 @@
-import type { CaptureOrderResponse } from "@better-giving/paypal";
+import {
+  type CaptureOrderResponse,
+  PayPalApiError,
+} from "@better-giving/paypal";
 import { report_degraded, report_error } from "#/errors/report";
 import { paypal_donor_update } from "@/donations/helpers";
 import {
@@ -34,6 +37,11 @@ const refused_issue = (err: unknown): string | undefined => {
   }
 };
 
+const already_captured = (err: unknown): boolean =>
+  err instanceof PayPalApiError &&
+  err.http_status === 422 &&
+  err.body.includes('"ORDER_ALREADY_CAPTURED"');
+
 /** not a paypal resource: the least the browser's `paypal_capture_outcome` reads as declined */
 const REFUSED_CAPTURE: IPaypalCaptured = {
   purchase_units: [{ payments: { captures: [{ status: "DECLINED" }] } }],
@@ -50,9 +58,14 @@ export const capture_order = async ({
     capture = await paypal.capture_order(order_id, `capture-${order_id}`);
   } catch (err) {
     const issue = refused_issue(err);
-    if (!issue) throw err;
-    report_degraded(err, { order_id, don_id, issue });
-    return REFUSED_CAPTURE;
+    if (issue) {
+      report_degraded(err, { order_id, don_id, issue });
+      return REFUSED_CAPTURE;
+    }
+    if (!already_captured(err)) throw err;
+    // the webhook's delayed fallback captured it while the donor was away;
+    // the order carries that capture
+    capture = await paypal.get_order(order_id);
   }
 
   const { outcome, status } = paypal_capture_outcome(capture);
