@@ -2,7 +2,7 @@ import { PayPalApiError } from "@better-giving/paypal";
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import type { ISubDeactivatedPayload } from "@/queue";
-import { aws_monitor } from "$/kit/discord";
+import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
 import { stripe } from "$/kit/stripe";
 
@@ -60,7 +60,7 @@ async function alert_cancel_failed(
   reason: string | number
 ) {
   report_error(err, { sub_id: data.id, platform: data.platform });
-  await aws_monitor
+  await fiat_monitor
     .send_alert({
       type: "ERROR",
       from: "sub-deactivated",
