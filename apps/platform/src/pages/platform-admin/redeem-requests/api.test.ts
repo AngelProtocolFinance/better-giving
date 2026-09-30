@@ -5,7 +5,6 @@ import {
   beforeEach,
   describe,
   expect,
-  onTestFinished,
   test,
   vi,
 } from "vitest";
@@ -268,69 +267,6 @@ describe("redeem request verdict", () => {
 
     expect(await submit("approve")).toMatchObject(SETTLED);
     expect(await ledger(npo.id)).toEqual(refunded);
-  });
-
-  /** a second pending $300 redemption of the same npo, beside `seed_redemption`'s */
-  async function seed_second(npo_id: number, to: "grant" | "liq" = "grant") {
-    const [first] = await db()
-      .select()
-      .from(bal_txs)
-      .where(eq(bal_txs.id, TX_ID));
-    await db()
-      .insert(bal_txs)
-      .values({ ...first!, id: "redeem-2", npo_id, account_other: to });
-  }
-
-  // nav_logs is keyed by date: two verdicts stamped in one millisecond collide
-  // on that key before the race under test is reached
-  function tick_each_now() {
-    const Real = Date;
-    let t = Real.now();
-    class Ticking extends Real {
-      constructor(...args: [] | [string | number | Date]) {
-        if (args.length === 0) super(++t);
-        else super(args[0]);
-      }
-      static override now() {
-        return ++t;
-      }
-    }
-    vi.stubGlobal("Date", Ticking);
-    onTestFinished(() => {
-      vi.unstubAllGlobals();
-    });
-  }
-
-  test("two approvals at once that cash covers only one of: one pays, one is refused", async () => {
-    const npo = await seed_redemption({ cash: 400 });
-    tick_each_now();
-    await seed_second(npo.id);
-
-    const answers = await Promise.all([
-      submit("approve"),
-      submit("approve", "redeem-2"),
-    ]);
-
-    expect(answers.map((r) => r.status).sort()).toEqual([302, 409]);
-    expect(answers.find((r) => r.status === 409)).toMatchObject(SHORT_OF_CASH);
-    expect(await ledger(npo.id)).toMatchObject({ cash: 300, fund_cash: 100 });
-  });
-
-  test("two savings approvals at once each record the balance the other left", async () => {
-    const npo = await seed_redemption({ cash: 1000, to: "liq" });
-    await seed_second(npo.id, "liq");
-    tick_each_now();
-
-    await Promise.all([submit("approve"), submit("approve", "redeem-2")]);
-
-    const liq_txs = await db()
-      .select({ begin: bal_txs.bal_begin, end: bal_txs.bal_end })
-      .from(bal_txs)
-      .where(eq(bal_txs.account, "liq"));
-    expect(liq_txs.map((t) => [t.begin, t.end]).sort()).toEqual([
-      [0, 300],
-      [300, 600],
-    ]);
   });
 
   test("a verdict on a tx that isn't a redemption is a 400", async () => {

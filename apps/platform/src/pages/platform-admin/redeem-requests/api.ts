@@ -13,11 +13,10 @@ import {
 import type { DbOrTx } from "$/pg/queries/helpers";
 import {
   type INavLogAppendOpts,
-  nav_head_lock,
   nav_log_append,
   nav_ltd,
 } from "$/pg/queries/nav";
-import { npo_balance_adj, npo_get_locked } from "$/pg/queries/npo";
+import { npo_balance_adj, npo_get } from "$/pg/queries/npo";
 import { payout_put } from "$/pg/queries/payout";
 
 const verdict_schema = v.picklist(["approve", "reject"]);
@@ -66,74 +65,80 @@ export const action: ActionFunction = async ({ params, request }) => {
     return redirectWithSuccess("..", "Request rejected");
   }
 
-  await db.transaction(async (pg) => {
-    await settle(pg, tx.id, "final");
+  const ltd = await nav_ltd();
 
-    // another redemption's approval spends the same cash: check it under the lock
-    await nav_head_lock(pg);
-    const ltd = await nav_ltd(pg);
-    if (ltd.composition.CASH.value < tx.amount) {
-      throw resp.status(
-        409,
-        "Insufficient cash balance to approve this request."
-      );
-    }
+  if (ltd.composition.CASH.value < tx.amount) {
+    throw resp.status(
+      409,
+      "Insufficient cash balance to approve this request."
+    );
+  }
 
-    // units adjustment based on ltd
-    const units_curr = tx.amount / ltd.price;
-    const units_bal = ltd.holders[tx.npo_id] || 0;
-    /** if units price go up, fewer units would be sold, and more otherwise */
-    const units_to_deduct = Math.min(units_curr, units_bal);
-    const usd_to_deduct = units_to_deduct * ltd.price;
-    const units_diff = tx.amount_units - units_to_deduct;
+  // units adjustment based on ltd
+  const units_curr = tx.amount / ltd.price;
+  const units_bal = ltd.holders[tx.npo_id] || 0;
+  /** if units price go up, fewer units would be sold, and more otherwise */
+  const units_to_deduct = Math.min(units_curr, units_bal);
+  const usd_to_deduct = units_to_deduct * ltd.price;
+  const units_diff = tx.amount_units - units_to_deduct;
 
-    // redemptions are from cash portion
-    await nav_log_append(pg, {
-      reason: `npo:${tx.npo_id} units redemption with units diff:${units_diff}`,
-      date: timestamp,
-      cash_delta: -usd_to_deduct,
-      holder_deltas: [{ npo_id: tx.npo_id, units_delta: -units_to_deduct }],
-    } satisfies INavLogAppendOpts);
+  // redemptions are from cash portion
+  const nav_delta: INavLogAppendOpts = {
+    reason: `npo:${tx.npo_id} units redemption with units diff:${units_diff}`,
+    date: timestamp,
+    cash_delta: -usd_to_deduct,
+    holder_deltas: [{ npo_id: tx.npo_id, units_delta: -units_to_deduct }],
+  };
 
-    //transfer to savings
-    if (tx.account_other === "liq") {
-      const npo_item = await npo_get_locked(pg, tx.npo_id);
-      const liq_bal = npo_item?.liq ?? 0;
-      const liq_tx: IBalanceTx = {
-        id: crypto.randomUUID(),
-        date_created: timestamp,
-        date_updated: timestamp,
-        npo_id: tx.npo_id,
-        status: "final",
-        account: "liq",
-        bal_begin: liq_bal,
-        bal_end: liq_bal + tx.amount,
-        amount: tx.amount,
-        amount_units: tx.amount,
-        account_other_id: tx.id,
-        account_other: "lock",
-        account_other_bal_begin: tx.bal_begin,
-        account_other_bal_end: tx.bal_begin - tx.amount_units,
-      };
+  //transfer to savings
+  if (tx.account_other === "liq") {
+    const npo_item = await npo_get(tx.npo_id);
+    const liq_bal = npo_item?.liq ?? 0;
+    const liq_tx: IBalanceTx = {
+      id: crypto.randomUUID(),
+      date_created: timestamp,
+      date_updated: timestamp,
+      npo_id: tx.npo_id,
+      status: "final",
+      account: "liq",
+      bal_begin: liq_bal,
+      bal_end: liq_bal + tx.amount,
+      amount: tx.amount,
+      amount_units: tx.amount,
+      account_other_id: tx.id,
+      account_other: "lock",
+      account_other_bal_begin: tx.bal_begin,
+      account_other_bal_end: tx.bal_begin - tx.amount_units,
+    };
+
+    await db.transaction(async (pg) => {
+      await settle(pg, tx.id, "final");
+      await nav_log_append(pg, nav_delta);
       await bal_tx_put(pg, liq_tx);
       // combine lock_units adjustment with liq update to avoid multiple operations on same item
       await npo_balance_adj(pg, tx.npo_id, {
         liq: tx.amount,
         lock_units: units_diff, // reflect unused/extra units if price goes higher
       });
-      return;
-    }
+    });
 
-    //transfer to grant
-    const payout: IPayout = {
-      id: crypto.randomUUID(),
-      source_id: tx.id,
-      npo_id: tx.npo_id,
-      source: "lock",
-      date: timestamp,
-      amount: tx.amount,
-      type: "pending",
-    };
+    return redirectWithSuccess("..", "Request approved");
+  }
+
+  //transfer to grant
+  const payout: IPayout = {
+    id: crypto.randomUUID(),
+    source_id: tx.id,
+    npo_id: tx.npo_id,
+    source: "lock",
+    date: timestamp,
+    amount: tx.amount,
+    type: "pending",
+  };
+
+  await db.transaction(async (pg) => {
+    await settle(pg, tx.id, "final");
+    await nav_log_append(pg, nav_delta);
     await payout_put(pg, payout);
     // combine lock_units adjustment with payout updates to avoid multiple operations on same item
     await npo_balance_adj(pg, tx.npo_id, {
