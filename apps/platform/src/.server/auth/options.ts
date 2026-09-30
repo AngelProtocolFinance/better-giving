@@ -206,7 +206,7 @@ export const auth_options = (deps: AuthOptionDeps) => ({
       generateId: () => crypto.randomUUID(),
     },
     ipAddress: {
-      ipAddressHeaders: IP_HEADERS,
+      ipAddressHeaders: [...IP_HEADERS],
     },
   },
 });

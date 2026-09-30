@@ -32,6 +32,12 @@ describe("client_ip", () => {
     expect(client_ip(headers)).toBe("203.0.113.7");
     expect(from("198.51.100.1", "x-vercel-forwarded-for")).toBeNull();
   });
+
+  /** better-auth refuses a chain without `trustedProxies`, and its leftmost
+   * entry is whatever the client sent — an unknown ip, like no header at all */
+  it("yields no ip for a forwarding chain", () => {
+    expect(from("198.51.100.1, 203.0.113.7")).toBeNull();
+  });
 });
 
 describe("reserve", () => {

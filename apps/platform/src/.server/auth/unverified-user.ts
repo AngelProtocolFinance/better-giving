@@ -20,8 +20,8 @@ export interface UnverifiedUserInput {
   first_name?: string;
   last_name?: string;
   /** the caller's own request headers, for the client ip the quota keys on.
-   * absent, or behind a proxy that sets neither forwarding header, this falls
-   * open — a single shared bucket would throttle every lead at once, which is
+   * absent, or with no single-address `x-forwarded-for` (`client_ip`), this
+   * falls open — a single shared bucket would throttle every lead at once, which is
    * worse than the flood it would prevent. */
   headers?: Headers;
 }
