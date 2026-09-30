@@ -60,13 +60,14 @@ export class Nowpayments {
     return res.json();
   }
 
-  /** usd per unit of `token_code`, fees excluded */
+  /** usd per unit of `token_code`, fees excluded; throws unless the quote is a positive number */
   async estimate(token_code: string) {
+    const path = "v1/estimate";
     // quoted from the fiat side, the direction nowpayments documents; the
     // crypto amount keeps its precision where a usd figure would round a
     // sub-cent token to 0
     const { amount_from, estimated_amount } = await this.send<NP.Estimate>(
-      "v1/estimate",
+      path,
       {
         params: {
           amount: RATE_PROBE_USD.toString(),
@@ -75,7 +76,13 @@ export class Nowpayments {
         } satisfies NP.Estimate.Params,
       }
     );
-    return { usdpu: amount_from / estimated_amount };
+    const usdpu = amount_from / estimated_amount;
+    if (!is_positive(estimated_amount) || !is_positive(usdpu)) {
+      throw new Error(
+        `nowpayments ${path} ${token_code}: amount_from:${amount_from} estimated_amount:${estimated_amount}`
+      );
+    }
+    return { usdpu };
   }
 
   /** throws unless both figures are positive numbers: a NaN minimum passes every `<` check */

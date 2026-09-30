@@ -72,6 +72,22 @@ describe("nowpayments client", () => {
   });
 
   it.each([
+    ["a zero estimated_amount", { amount_from: 100, estimated_amount: 0 }],
+    ["no estimated_amount", { amount_from: 100 }],
+    ["a negative estimated_amount", { amount_from: 100, estimated_amount: -1 }],
+    [
+      "a string estimated_amount",
+      { amount_from: 100, estimated_amount: "0.05" },
+    ],
+  ])(
+    "estimate throws on %s rather than return a usd rate of Infinity or NaN",
+    async (_, body) => {
+      fetch_mock().mockResolvedValueOnce(Response.json(body));
+      await expect(client.estimate("ETH")).rejects.toThrow(/v1\/estimate/);
+    }
+  );
+
+  it.each([
     ["no fiat_equivalent", { min_amount: 0.001 }],
     ["a zero fiat_equivalent", { min_amount: 0.001, fiat_equivalent: 0 }],
     ["a zero min_amount", { min_amount: 0, fiat_equivalent: 2 }],
