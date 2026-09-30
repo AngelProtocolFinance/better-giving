@@ -92,9 +92,4 @@ describe("create_order purchase unit", () => {
       items: ["1500", "75", "45"],
     });
   });
-
-  it("formats a currency outside the paypal table at two decimals", async () => {
-    const u = await unit_for("XYZ", 5, 0.05, 0.14);
-    expect(values(u).total).toBe("5.19");
-  });
 });

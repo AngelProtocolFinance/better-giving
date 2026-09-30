@@ -28,8 +28,8 @@ export const create_order = async ({
   npo_name,
   ...amount
 }: IInput): Promise<string> => {
-  // unlisted currency: 2 decimals keeps the amount well-formed for paypal to accept or refuse
-  const d = paypal_currencies[c] ?? 2;
+  // listed: paypal_intent refuses any other currency before it gets here
+  const d = paypal_currencies[c];
 
   const base = to_minor(amount.base, d);
   const tip = to_minor(amount.tip, d);
