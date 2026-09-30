@@ -500,14 +500,18 @@ const is_whole = (parts: IMoney[], whole: IMoney) => {
 };
 
 /** what paypal's copy of the order lists as refunded off capture `cid`,
- * leaving out refund `except`. an order paypal refuses lists nothing */
+ * leaving out refund `except`; undefined, reported, when the order can't be
+ * read — "no earlier refunds" would pass a chargeback of the rest as partial */
 const prior_refunds = async (
   order_id: string,
   cid: string,
   except: string | undefined
-): Promise<IMoney[]> => {
-  const order = await fetch_resource(() => paypal.get_order(order_id));
-  if (typeof order === "number") return [];
+): Promise<IMoney[] | undefined> => {
+  const order = await paypal.get_order(order_id).catch((e: unknown) => {
+    report_error(e, { order_id, capture_id: cid });
+    return undefined;
+  });
+  if (!order) return undefined;
   const payments = order.purchase_units?.find((u) =>
     u.payments?.captures?.some((c) => c.id === cid)
   )?.payments;
@@ -567,7 +571,7 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
       body: [
         detail,
         `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
-        "nothing was reversed automatically. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for this refund must then be undone.",
+        "nothing was reversed automatically. ops must settle the rest by hand.",
       ].join("\n"),
     };
     // keyed on the event, so a duplicate delivery posts one notice
@@ -944,6 +948,10 @@ export async function action({ request }: Route.ActionArgs) {
           is_reversal && order_id
             ? await prior_refunds(order_id, cid, refund.id)
             : [];
+        if (!earlier)
+          return new Response(`order lookup failed: ${order_id}`, {
+            status: 503,
+          });
         return reverse_settled(ev, {
           sttl_id: cid,
           // a chargeback may leave the capture's status as it was, so a

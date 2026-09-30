@@ -1020,6 +1020,31 @@ describe("refunds and reversals", () => {
     expect(process_refund_mock).toHaveBeenCalledOnce();
   });
 
+  // without the order the earlier refunds are unknown, and a chargeback of
+  // what they left would pass for a partial one
+  it("redelivers a chargeback whose order paypal refuses, reversing and reporting nothing as partial", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "PARTIALLY_REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockRejectedValue(
+      new PayPalApiError("get order", 404, '{"name":"RESOURCE_NOT_FOUND"}')
+    );
+    enqueue_mock.mockClear();
+    report_error_mock.mockClear();
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-60.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(503);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(report_error_mock).toHaveBeenCalledOnce();
+  });
+
   it("reverses a sale paypal reports reversed as the sale itself", async () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
