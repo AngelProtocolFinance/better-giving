@@ -2,7 +2,7 @@ import { ContentLoader, use_ask_prompt } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
 import { href } from "react-router";
 import { chariot_connect_id } from "#/constants/env";
-import { error_prompt } from "#/helpers/error-prompt";
+import { error_prompt, user_error_prompt } from "#/helpers/error-prompt";
 import { currency_precision, to_atomic } from "#/helpers/stripe";
 import { PROCESSING_RATES } from "@/constants/common";
 import type { ChariotMetadata } from "@/donations";
@@ -72,8 +72,8 @@ export function ChariotCheckout(props: DafDonationDetails) {
   // ...and the trip never happened, so the way to the receipt has to be on the
   // panel: the prompt carrying it can be dismissed.
   const [stuck, set_stuck] = useState(false);
-  // any answer from the server, error included, may mean the grant exists at
-  // chariot; a fresh connect session from here would be a second grant
+  // a success or a 5xx may mean the grant exists at chariot; a fresh connect
+  // session from here would be a second grant
   const [answered, set_answered] = useState(false);
   const [script_ready, set_script_ready] = useState(false);
 
@@ -233,6 +233,12 @@ export function ChariotCheckout(props: DafDonationDetails) {
           method: "POST",
           body: JSON.stringify(intent),
         });
+        // a 4xx is the route refusing before create grant: nothing exists at
+        // chariot, so the donor can fix the amount and go again
+        if (res.status >= 400 && res.status < 500) {
+          ask_prompt(user_error_prompt(await res.text()), { key: PROMPT_SLOT });
+          return;
+        }
         set_answered(true);
         if (!res.ok) throw await res.text();
         const { id } = await res.json();

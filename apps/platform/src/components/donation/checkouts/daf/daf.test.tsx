@@ -203,6 +203,35 @@ describe("daf checkout: a grant that goes through but never lands", () => {
     expect(posted.donor.address).toBeUndefined();
   });
 
+  test("a refusal the server answers before any grant exists leaves the launcher live, and says why", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.text("DAF grants must be a whole dollar amount", {
+          status: 400,
+        })
+      )
+    );
+    seed_script();
+
+    const Stub = stb(<ChariotCheckout {...fv} />);
+    const screen = await render(<Stub />);
+
+    const el = await vi.waitUntil(() =>
+      screen.container.querySelector("chariot-connect")
+    );
+    el.dispatchEvent(
+      new CustomEvent("CHARIOT_SUCCESS", { detail: success_detail })
+    );
+
+    await expect
+      .element(screen.getByRole("dialog"))
+      .toMatchTextContent(/whole dollar amount/i);
+    expect(
+      screen.container.querySelector("chariot-connect")?.closest("[inert]")
+    ).toBeNull();
+    expect(redirect_mock).not.toHaveBeenCalled();
+  });
+
   test("an error from the server still kills the launcher, and says so", async () => {
     // the grant may exist at chariot even though recording it failed
     mswWorker.use(
