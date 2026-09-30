@@ -82,6 +82,7 @@ async function seed_opt_out(creator_id: string) {
     fund_id: "fund-1",
     creator_id,
     creator_name: "Ocean Fund",
+    npo_id: npo.id,
     removed_npo_ids: [npo.id],
   } satisfies IFundMemberRemovedPayload;
 }

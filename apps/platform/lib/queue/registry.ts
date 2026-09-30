@@ -81,6 +81,8 @@ export interface IFundMemberRemovedPayload {
   fund_id: string;
   creator_id: string;
   creator_name: string;
+  /** the nonprofit that left */
+  npo_id: number;
   removed_npo_ids: number[];
 }
 
@@ -203,7 +205,8 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "don-sttl-dist": (p) => `don.sttl-dist_${p.id}`,
   "don-sttl-receipt": (p) => `don.sttl-receipt_${p.id}`,
   "fiat-notice": (p) => `fiat.notice_${p.id}`,
-  "fund-member-removed": (p) => `fund.removed_${p.fund_id}_${p.creator_id}`,
+  "fund-member-removed": (p) =>
+    `fund.removed_${p.fund_id}_${p.creator_id}_${p.npo_id}`,
   "invite-email": (p) => `invite_${p.invitee}`,
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,

@@ -18,8 +18,8 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ["fiat-notice", { id: "evt_1" }, "fiat.notice_evt_1"],
     [
       "fund-member-removed",
-      { fund_id: "f1", creator_id: "u1" },
-      "fund.removed_f1_u1",
+      { fund_id: "f1", creator_id: "u1", npo_id: 7 },
+      "fund.removed_f1_u1_7",
     ],
     ["invite-email", { invitee: "x@y.z" }, "invite_x@y.z"],
     [
@@ -64,6 +64,22 @@ describe("paypal-order-capture delivery", () => {
       delay_s: 300,
       retries: 5,
     });
+  });
+});
+
+describe("fund-member-removed dedupe", () => {
+  const removal = (npo_id: number) => ({
+    fund_id: "f1",
+    creator_id: "u1",
+    creator_name: "Ocean Fund",
+    npo_id,
+    removed_npo_ids: [npo_id],
+  });
+
+  test("a second nonprofit leaving the same fund is its own message", () => {
+    expect(msg("fund-member-removed", removal(8)).dedupe).not.toBe(
+      msg("fund-member-removed", removal(7)).dedupe
+    );
   });
 });
 
