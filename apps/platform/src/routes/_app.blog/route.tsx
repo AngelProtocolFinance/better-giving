@@ -52,6 +52,20 @@ export const meta: Route.MetaFunction = () =>
 export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Posts);
 function Posts({ loaderData: firstPage }: Route.ComponentProps) {
+  // the client cache renders its cached copy, then swaps in the revalidated
+  // one; a new generation remounts the list so its appended pages and fetcher
+  // start over from the fresh first page.
+  const [seed, set_seed] = useState({ posts: firstPage.posts, gen: 0 });
+  if (seed.posts !== firstPage.posts) {
+    set_seed({ posts: firstPage.posts, gen: seed.gen + 1 });
+  }
+  return <PostList key={seed.gen} firstPage={firstPage} />;
+}
+
+interface IPostList {
+  firstPage: IPostsPage;
+}
+function PostList({ firstPage }: IPostList) {
   const [params] = useSearchParams();
   const { data, state, load } = useFetcher<typeof loader>();
   // seed from firstPage; both firstPage.posts and data.posts are the loader's
