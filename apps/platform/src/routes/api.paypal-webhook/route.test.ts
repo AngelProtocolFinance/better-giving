@@ -30,6 +30,7 @@ const get_order_mock = vi.hoisted(() => vi.fn());
 const get_subscription_mock = vi.hoisted(() => vi.fn());
 const get_plan_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
+const schedule_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
 const process_refund_mock = vi.hoisted(() => vi.fn());
 const get_capture_mock = vi.hoisted(() => vi.fn());
@@ -67,7 +68,10 @@ vi.mock("$/kit/paypal", () => ({
     get_sale: get_sale_mock,
   },
 }));
-vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
+vi.mock("$/kit/queue", () => ({
+  enqueue: enqueue_mock,
+  schedule: schedule_mock,
+}));
 vi.mock("$/refund/process", () => ({ process_refund: process_refund_mock }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
@@ -358,7 +362,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
-  capture_order_mock.mockResolvedValue({ id: "ORDER-1", status: "COMPLETED" });
+  schedule_mock.mockResolvedValue(undefined);
   process_refund_mock.mockResolvedValue({
     failures: [],
     loss_msgs: [],
@@ -836,52 +840,28 @@ const approved_ev = () => ({
   },
 });
 
-const orders_422 = (issue: string) =>
-  new PayPalApiError(
-    "capture order",
-    422,
-    JSON.stringify({ name: "UNPROCESSABLE_ENTITY", details: [{ issue }] })
-  );
-
 describe("CHECKOUT.ORDER.APPROVED", () => {
-  it("captures an order the browser never did, under the browser's own request id", async () => {
+  it("writes the payer and schedules a capture check, rather than racing the browser's capture", async () => {
     await seed_donation({ from_email: "anon@x.com" });
 
     const res = await deliver(approved_ev());
 
     expect(res.status).toBe(200);
-    expect(capture_order_mock).toHaveBeenCalledExactlyOnceWith(
-      "ORDER-1",
-      "capture-ORDER-1"
+    expect(capture_order_mock).not.toHaveBeenCalled();
+    expect(schedule_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        id: "paypal-order-capture",
+        payload: { order_id: "ORDER-1", don_id: ORDER_ID },
+        delay_s: expect.any(Number),
+      })
     );
+    expect(schedule_mock.mock.calls[0]![0].delay_s).toBeGreaterThanOrEqual(60);
     expect((await donation_get(ORDER_ID))!.from_email).toBe("payer@test.com");
   });
 
-  it("acknowledges an order the browser already captured", async () => {
+  it("asks for redelivery while the check can't be scheduled", async () => {
     await seed_donation();
-    capture_order_mock.mockRejectedValue(orders_422("ORDER_ALREADY_CAPTURED"));
-
-    const res = await deliver(approved_ev());
-
-    expect(res.status).toBe(200);
-    expect(report_error_mock).not.toHaveBeenCalled();
-  });
-
-  it("acknowledges and reports an order paypal refused the payer's funding for", async () => {
-    await seed_donation();
-    capture_order_mock.mockRejectedValue(orders_422("INSTRUMENT_DECLINED"));
-
-    const res = await deliver(approved_ev());
-
-    expect(res.status).toBe(200);
-    expect(report_degraded_mock).toHaveBeenCalledOnce();
-  });
-
-  it("asks for redelivery while the capture fails for any other reason", async () => {
-    await seed_donation();
-    capture_order_mock.mockRejectedValue(
-      new PayPalApiError("capture order", 503, "{}")
-    );
+    schedule_mock.mockRejectedValue(new Error("qstash 503"));
 
     const res = await deliver(approved_ev());
 
