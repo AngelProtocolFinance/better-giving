@@ -1134,6 +1134,38 @@ describe("refunds and reversals", () => {
     expect(process_refund_mock).toHaveBeenCalledOnce();
   });
 
+  // the v1 sale lists neither a refunded total nor its refunds, so a chargeback
+  // of what an earlier refund left reads as partial
+  it("tells ops a sale chargeback of part of the charge may have taken back the rest, reversing nothing", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    await seed_dist(ORDER_ID);
+    get_sale_mock.mockResolvedValue({
+      ...sale_copy(),
+      state: "partially_refunded",
+    });
+
+    const res = await deliver({
+      id: "WH-REV-4",
+      event_type: "PAYMENT.SALE.REVERSED",
+      resource: {
+        id: "REV-4",
+        sale_id: SALE_ID,
+        amount: { total: "-60.00", currency: "USD" },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice.id).toBe("fiat-notice");
+    expect(notice.payload.alert.body).toContain(SALE_ID);
+    expect(notice.payload.alert.body).toContain(
+      "earlier refunds of this sale could not be counted"
+    );
+    expect(notice.payload.alert.body).toContain("fully taken back");
+  });
+
   it("asks for redelivery when some dists failed to reverse", async () => {
     await settled_capture();
     paypal_capture_is("REFUNDED");

@@ -561,6 +561,8 @@ interface IReversal {
   status: string | undefined;
   refunded: string;
   charged: string;
+  /** what a not-reversed notice adds about how the extent was judged */
+  caveat?: string;
   /** the donation paypal's copy of the charge names, for a charge not settled here */
   owner: () => Promise<string | undefined>;
 }
@@ -602,6 +604,7 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
       body: [
         detail,
         `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
+        ...(c.caveat ? [c.caveat] : []),
         notice.action,
       ].join("\n"),
     };
@@ -1023,12 +1026,18 @@ export async function action({ request }: Route.ActionArgs) {
         // "reversed" is a live sale state the vendored v1 spec leaves out
         const state: string | undefined = sale.state;
         const whole = sale.amount;
+        const is_reversal = ev.event_type === "PAYMENT.SALE.REVERSED";
         return reverse_settled(ev, {
           sttl_id: sale_id,
+          // v1 sales carry no refunded total and no list of their refunds, so
+          // unlike a capture's, a reversal can't be summed with earlier refunds
+          caveat: is_reversal
+            ? "earlier refunds of this sale could not be counted, so this reversal was judged on its own. ops must check whether the charge is now fully taken back."
+            : undefined,
           extent:
             state === "refunded" ||
             state === "reversed" ||
-            (ev.event_type === "PAYMENT.SALE.REVERSED" &&
+            (is_reversal &&
               !is_sale &&
               is_whole(
                 [{ value: r.amount?.total, currency: r.amount?.currency }],
