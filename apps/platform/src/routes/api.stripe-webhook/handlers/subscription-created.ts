@@ -27,9 +27,10 @@ const is_interval = (s: Stripe.Price.Recurring.Interval): s is TInterval =>
 
 /**
  * rows are born active unless stripe has already ended the sub or its first
- * charge hasn't landed (FIRST_PAYMENT_INCOMPLETE). past that the webhook only
- * moves a row to inactive: an inactive row whose sub is still live at stripe
- * is a cancel that hasn't landed there yet, not a recovery.
+ * charge hasn't landed (FIRST_PAYMENT_INCOMPLETE). the webhook reactivates only
+ * a row still carrying that marker, once paid; any other row it only moves to
+ * inactive: an inactive row whose sub is still live at stripe is a cancel that
+ * hasn't landed there yet, not a recovery.
  * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
  */
 export const row_status = (

@@ -195,8 +195,9 @@ const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
 /** compares decoded bytes, so hex case can't decide a match */
 function safe_equals(expected: Buffer, received: string): boolean {
-  // Buffer.from(hex) stops silently at the first non-hex pair, so a malformed
-  // value is refused before decoding
+  // Buffer.from(hex) stops silently at the first non-hex pair, and
+  // timingSafeEqual throws on unequal lengths, so anything but a digest's
+  // 64 hex digits is refused before decoding
   if (!SHA256_HEX.test(received)) return false;
   return crypto.timingSafeEqual(expected, Buffer.from(received, "hex"));
 }

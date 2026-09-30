@@ -100,8 +100,8 @@ describe("chariot_intent repeat for one workflow session", () => {
   });
 });
 
-// the checkout reads a 4xx as "nothing exists at chariot" and lets the donor
-// retry, so a 4xx may only ever come before create grant
+// the checkout reads a 400 or 404 as "nothing exists at chariot" and lets the
+// donor retry, so a 4xx may only ever come before create grant
 describe("chariot_intent refusals the donor can retry", () => {
   it("refuses a base under the minimum with a 4xx before creating the grant", async () => {
     const res = await chariot_intent(

@@ -448,7 +448,8 @@ async function verified_body(
   }
 }
 
-/** paypal's approval states leave the row as it is */
+/** paypal's approval states map to nothing: a lifecycle event leaves the row
+ * as it is, and a new row is born active */
 const SUB_STATUS: Partial<Record<NonNullable<Subs["status"]>, TStatus>> = {
   ACTIVE: "active",
   SUSPENDED: "inactive",
