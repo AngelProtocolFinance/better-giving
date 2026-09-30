@@ -13,9 +13,6 @@ import type { Ctx } from "../types";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const report_error_mock = vi.hoisted(() => vi.fn());
-const send_alert_mock = vi.hoisted(() =>
-  vi.fn(async (_: { type?: string; title: string }) => new Response())
-);
 const env_mock = vi.hoisted(() => ({
   base_url: "https://app.test",
   stage: "staging",
@@ -33,7 +30,7 @@ vi.mock("#/errors/report", () => ({
   report_null: () => null,
 }));
 vi.mock("$/kit/discord", () => ({
-  aws_monitor: { send_alert: send_alert_mock },
+  aws_monitor: { send_alert: vi.fn(async () => new Response()) },
 }));
 vi.mock("$/kit/coingecko", () => ({ coingecko: vi.fn() }));
 vi.mock("$/pg/db", () => ({
@@ -209,30 +206,6 @@ describe("crypto_intent", () => {
         /try again in a few minutes/
       );
       expect(report_error_mock).toHaveBeenCalledOnce();
-      expect(await rows()).toHaveLength(0);
-    }
-  );
-
-  // our key or ip allow-list: every coin fails alike, so switching can't help
-  it.each([401, 403])(
-    "a nowpayments %i answers 502 try-again-later and alerts ops",
-    async (status) => {
-      np_server({
-        "/v1/invoice": () => new Response("", { status }),
-      });
-      const res = await crypto_intent(
-        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
-      );
-
-      expect((res as Response).status).toBe(502);
-      expect(await (res as Response).text()).toMatch(
-        /try again in a few minutes/
-      );
-      expect(send_alert_mock).toHaveBeenCalledOnce();
-      expect(send_alert_mock.mock.calls[0][0]).toMatchObject({
-        type: "ERROR",
-        title: expect.stringMatching(new RegExp(`${status}`)),
-      });
       expect(await rows()).toHaveLength(0);
     }
   );

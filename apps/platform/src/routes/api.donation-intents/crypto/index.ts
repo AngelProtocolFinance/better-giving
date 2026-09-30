@@ -28,7 +28,7 @@ const try_later = () =>
   );
 
 /** the donor's answer to a failed quote or invoice */
-const np_failure = async (err: unknown, order_id: string, t: IToken) => {
+const np_failure = (err: unknown, order_id: string, t: IToken) => {
   report_error(err, { order_id, currency: t.code });
   // a pair nowpayments won't quote or a coin disabled on the account:
   // retrying it can never succeed
@@ -36,17 +36,6 @@ const np_failure = async (err: unknown, order_id: string, t: IToken) => {
   if (!(err instanceof NowpaymentsError)) return try_later();
   const s = err.http_status;
   if (s === 400 || s === 404) return unavailable();
-  // our key or ip allow-list: every coin fails alike, so switching can't help
-  if (s === 401 || s === 403) {
-    await aws_monitor
-      .send_alert({
-        from: "donation-intents-creator",
-        type: "ERROR",
-        title: `NOWPayments refused our api key (${s})`,
-        body: `order:${order_id}`,
-      })
-      .catch(report_null);
-  }
   return try_later();
 };
 
