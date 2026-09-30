@@ -92,6 +92,27 @@ describe("paypal_intent charged total", () => {
   );
 });
 
+// custom_id is what the capture guard and every webhook route back by
+describe("paypal_intent binds paypal's object to the donation", () => {
+  it("sets the order's custom_id to the donation id", async () => {
+    await paypal_intent(ctx());
+
+    const { id } = donation_put_mock.mock.calls[0]![1];
+    expect(
+      create_order_mock.mock.calls[0]![0].purchase_units[0].custom_id
+    ).toBe(id);
+  });
+
+  it("sets the subscription's custom_id to the donation id", async () => {
+    create_subscription_mock.mockResolvedValue({ id: "I-SUB1" });
+
+    await paypal_intent(ctx({ frequency: "monthly" }));
+
+    const { id } = donation_put_mock.mock.calls[0]![1];
+    expect(create_subscription_mock.mock.calls[0]![0].custom_id).toBe(id);
+  });
+});
+
 describe("paypal_intent recurring", () => {
   beforeEach(() => {
     create_subscription_mock.mockResolvedValue({ id: "I-SUB1" });
