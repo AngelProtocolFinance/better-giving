@@ -9,7 +9,7 @@ import type { Provider } from "../types";
 import { customer_with_currency } from "./customer-with-currency";
 import { donor_refusal } from "./donor-refusal";
 import { payment_intent } from "./payment-intent";
-import { setup_intent } from "./setup-intent";
+import { recurring_bank_methods, setup_intent } from "./setup-intent";
 
 export const stripe_intent: Provider = async ({
   to,
@@ -23,6 +23,18 @@ export const stripe_intent: Provider = async ({
   if (base_usd < MIN_DONATION_USD) {
     return resp.txt(
       `The minimum donation is $${MIN_DONATION_USD}. Try a larger amount.`,
+      400
+    );
+  }
+
+  const bank_only = via === "bank";
+  if (
+    bank_only &&
+    intent.frequency !== "one-time" &&
+    recurring_bank_methods(intent.currency).length === 0
+  ) {
+    return resp.txt(
+      "Recurring bank payments are available in USD and CAD. Choose one of those currencies or pay by card.",
       400
     );
   }
@@ -47,7 +59,6 @@ export const stripe_intent: Provider = async ({
   };
   const don = await donation_put(db, r);
 
-  const bank_only = via === "bank";
   let client_secret: string;
   try {
     client_secret =
