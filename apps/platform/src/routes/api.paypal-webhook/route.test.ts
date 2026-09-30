@@ -601,6 +601,31 @@ describe("settling from paypal's copy, not the event's", () => {
     ]);
   });
 
+  it("reports and asks for redelivery of a capture paypal says it cannot find", async () => {
+    await seed_donation();
+    get_capture_mock.mockRejectedValue(
+      new PayPalApiError("get capture", 404, '{"name":"RESOURCE_NOT_FOUND"}')
+    );
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("settles a sale whose completion lands after paypal reversed it, so its reversal finds it", async () => {
+    await seed_donation({ frequency: "monthly" });
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "reversed" });
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 96.5, fee: 3.5 }),
+    ]);
+  });
+
   it("takes the subscription off the event when paypal's copy of the sale has none", async () => {
     await seed_donation({ frequency: "monthly" });
     const { billing_agreement_id: _, ...copy } = sale_copy();
@@ -839,6 +864,25 @@ describe("CHECKOUT.ORDER.APPROVED", () => {
     expect((await donation_get(ORDER_ID))!.from_email).toBe("payer@test.com");
   });
 
+  it.each([
+    ["no payment source", {}],
+    ["a payer with no email", { payment_source: { venmo: {} } }],
+  ])(
+    "schedules the capture check for an order approved with %s, keeping the donor it has",
+    async (_, payer) => {
+      await seed_donation();
+      const ev = approved_ev();
+      const { payment_source: __, ...rest } = ev.resource;
+
+      const res = await deliver({ ...ev, resource: { ...rest, ...payer } });
+
+      expect(res.status).toBe(200);
+      expect(report_error_mock).not.toHaveBeenCalled();
+      expect(schedule_mock).toHaveBeenCalledOnce();
+      expect((await donation_get(ORDER_ID))!.from_email).toBe("donor@test.com");
+    }
+  );
+
   it("asks for redelivery while the check can't be scheduled", async () => {
     await seed_donation();
     schedule_mock.mockRejectedValue(new Error("qstash 503"));
@@ -940,6 +984,40 @@ describe("refunds and reversals", () => {
     expect(res.status).toBe(200);
     expect(process_refund_mock).not.toHaveBeenCalled();
     expect(enqueue_mock.mock.calls.at(-1)![0].id).toBe("fiat-notice");
+  });
+
+  it("reverses a chargeback of what a partial refund left, once the two take the whole capture", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "PARTIALLY_REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ id: CAPTURE_ID }],
+            refunds: [
+              {
+                id: "REF-0",
+                status: "COMPLETED",
+                amount: { value: "40.00", currency_code: "USD" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-60.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).toHaveBeenLastCalledWith("ORDER-1");
+    expect(process_refund_mock).toHaveBeenCalledOnce();
   });
 
   it("reverses a sale paypal reports reversed as the sale itself", async () => {

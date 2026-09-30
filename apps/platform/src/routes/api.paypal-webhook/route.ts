@@ -453,16 +453,20 @@ const SUB_STATUS: Partial<Record<NonNullable<Subs["status"]>, TStatus>> = {
 
 const AWAITING_CAPTURE = new Set<IDonation["status"]>(["created", "intent"]);
 
-// a completed charge refunded since still settles: its refund event reverses it
+// a completed charge refunded or reversed since still settles: its refund or
+// reversal event finds the settlement and reverses it. a v2 capture has no
+// reversed status — a chargeback leaves it as it was
 const SETTLEABLE_CAPTURE = new Set<Capture["status"]>([
   "COMPLETED",
   "PARTIALLY_REFUNDED",
   "REFUNDED",
 ]);
-const SETTLEABLE_SALE = new Set<Sale["state"]>([
+// "reversed" is a live sale state the vendored v1 spec leaves out
+const SETTLEABLE_SALE = new Set<string | undefined>([
   "completed",
   "partially_refunded",
   "refunded",
+  "reversed",
 ]);
 
 /** the resource, or the status of a lookup paypal refused for good — a
@@ -476,20 +480,43 @@ const fetch_resource = async <T>(get: () => Promise<T>): Promise<T | number> =>
 const money = (value?: string, currency?: string) =>
   value ? `${value} ${currency ?? ""}`.trim() : "unknown";
 
-/** whether `part` (a refund or reversal, signed either way) is all of `whole`.
- * compared in the finest minor unit either uses, as `dec_sub` does */
-const is_whole = (
-  part: { value?: string; currency?: string },
-  whole: { value?: string; currency?: string }
-) => {
-  if (!part.value || !whole.value || part.currency !== whole.currency)
-    return false;
-  const abs = part.value.replace(/^-/, "");
+interface IMoney {
+  value?: string;
+  currency?: string;
+}
+
+/** whether `parts` (refunds or reversals, signed either way) together take all
+ * of `whole`. summed in the finest minor unit any uses, as `dec_sub` does */
+const is_whole = (parts: IMoney[], whole: IMoney) => {
+  if (!whole.value) return false;
+  const taken = parts.flatMap((p) =>
+    p.value && p.currency === whole.currency ? [p.value.replace(/^-/, "")] : []
+  );
   const dp = Math.max(
-    ...[abs, whole.value].map((v) => v.split(".")[1]?.length ?? 0)
+    ...[...taken, whole.value].map((v) => v.split(".")[1]?.length ?? 0)
   );
   const minor = (v: string) => Math.round(+v * 10 ** dp);
-  return minor(abs) >= minor(whole.value);
+  return taken.reduce((sum, v) => sum + minor(v), 0) >= minor(whole.value);
+};
+
+/** what paypal's copy of the order lists as refunded off capture `cid`,
+ * leaving out refund `except`. an order paypal refuses lists nothing */
+const prior_refunds = async (
+  order_id: string,
+  cid: string,
+  except: string | undefined
+): Promise<IMoney[]> => {
+  const order = await fetch_resource(() => paypal.get_order(order_id));
+  if (typeof order === "number") return [];
+  const payments = order.purchase_units?.find((u) =>
+    u.payments?.captures?.some((c) => c.id === cid)
+  )?.payments;
+  return (payments?.refunds ?? [])
+    .filter((r) => r.status === "COMPLETED" && r.id !== except)
+    .map((r) => ({
+      value: r.amount?.value,
+      currency: r.amount?.currency_code,
+    }));
 };
 
 const REFUND_ALERT_FROM = "paypal-refund";
@@ -711,10 +738,8 @@ export async function action({ request }: Route.ActionArgs) {
           })
         );
 
-        /** we only expect paypal and venmo */
-        if (!ps) return unroutable(ev, "paypal and venmo not found");
-        if (!ps.email_address)
-          return unroutable(ev, "missing payer email address");
+        // a payer left off the approval is not lost: the capture's completed
+        // event reads the donor off paypal's copy of the order
         return new Response("capture check scheduled", { status: 200 });
       }
       case "PAYMENT.CAPTURE.COMPLETED": {
@@ -737,11 +762,17 @@ export async function action({ request }: Route.ActionArgs) {
         // the donation and the amounts come from paypal's copy: the signature
         // is the only check on the event body
         const capture = await fetch_resource(() => paypal.get_capture(cid));
-        if (typeof capture === "number")
-          return unroutable(
-            ev,
-            `paypal answered ${capture} for capture ${cid}`
+        // as for a sale: a signed event naming a capture paypal can't find is
+        // our lookup gone wrong, and acking it drops the payment
+        if (typeof capture === "number") {
+          report_error(
+            new Error(
+              `[paypal webhook] paypal answered ${capture} for capture`
+            ),
+            { event_id: ev.id, capture_id: cid, http_status: capture }
           );
+          return new Response("capture lookup refused", { status: 503 });
+        }
         const {
           create_time: create_date = new Date().toISOString(),
           custom_id: don_id,
@@ -889,6 +920,7 @@ export async function action({ request }: Route.ActionArgs) {
       case "PAYMENT.CAPTURE.REVERSED": {
         // the resource is the refund; the capture it reverses is its `up` link
         const refund = ev.resource as {
+          id?: string;
           amount?: { value?: string; currency_code?: string };
           links?: { rel?: string; href?: string }[];
         };
@@ -904,15 +936,27 @@ export async function action({ request }: Route.ActionArgs) {
           );
         const gross = capture.amount;
         const part = refund.amount;
+        const is_reversal = ev.event_type === "PAYMENT.CAPTURE.REVERSED";
+        const order_id = capture.supplementary_data?.related_ids?.order_id;
+        // a refund leaves the capture PARTIALLY_REFUNDED even once a later
+        // reversal takes the rest, so a reversal adds up all that was taken
+        const earlier =
+          is_reversal && order_id
+            ? await prior_refunds(order_id, cid, refund.id)
+            : [];
         return reverse_settled(ev, {
           sttl_id: cid,
           // a chargeback may leave the capture's status as it was, so a
-          // reversal is also full when it takes the whole gross
+          // reversal is also full when it and the refunds before it take the
+          // whole gross
           full:
             capture.status === "REFUNDED" ||
-            (ev.event_type === "PAYMENT.CAPTURE.REVERSED" &&
+            (is_reversal &&
               is_whole(
-                { value: part?.value, currency: part?.currency_code },
+                [
+                  ...earlier,
+                  { value: part?.value, currency: part?.currency_code },
+                ],
                 { value: gross?.value, currency: gross?.currency_code }
               )),
           status: capture.status,
@@ -948,7 +992,7 @@ export async function action({ request }: Route.ActionArgs) {
             (ev.event_type === "PAYMENT.SALE.REVERSED" &&
               !is_sale &&
               is_whole(
-                { value: r.amount?.total, currency: r.amount?.currency },
+                [{ value: r.amount?.total, currency: r.amount?.currency }],
                 { value: whole?.total, currency: whole?.currency }
               )),
           status: state,
