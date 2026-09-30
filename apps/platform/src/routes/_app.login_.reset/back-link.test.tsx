@@ -2,6 +2,7 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { CheckEmail } from "./check-email";
+import { Expired } from "./expired";
 import { InitForm } from "./init-form";
 import { MigratedInfo } from "./migrated-info";
 import { Success } from "./success";
@@ -17,6 +18,7 @@ const screens = [
     "migrated info",
     () => <MigratedInfo email="d@example.com" to={RETURN_TO} />,
   ],
+  ["expired", () => <Expired email="d@example.com" to={RETURN_TO} />],
   ["success", () => <Success to={RETURN_TO} />],
 ] as const;
 
