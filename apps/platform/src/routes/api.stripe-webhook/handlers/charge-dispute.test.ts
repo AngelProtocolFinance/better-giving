@@ -102,12 +102,23 @@ describe("stripe charge.dispute.created → ops alert", () => {
     );
 
     expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    const text = `${alerts()[0].title}\n${alerts()[0].body}`;
+    expect(queued()).toHaveLength(1);
+    const { alert } = queued()[0].payload;
+    const text = `${alert.title}\n${alert.body}`;
     expect(text).toContain(DON_ID);
     expect(text).toContain("100.00 USD");
     expect(text).toContain("fraudulent");
     expect(text).toContain("dp_1");
+  });
+
+  it("keys the alert on the event, so a redelivery collapses into it", async () => {
+    const opened = dispute_event("charge.dispute.created", "needs_response");
+    await handle_dispute_created(opened);
+    await handle_dispute_created(opened);
+
+    const [first, again] = queued();
+    expect(first.dedupe).toBe(`fiat.notice_${opened.id}`);
+    expect(again.dedupe).toBe(first.dedupe);
   });
 });
 

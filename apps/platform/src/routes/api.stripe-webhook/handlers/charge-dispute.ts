@@ -107,15 +107,21 @@ export async function handle_dispute_created(
   const don = await settled_donation(str_id(dispute.payment_intent));
   const due = dispute.evidence_details?.due_by;
 
-  await fiat_monitor.send_alert({
-    type: "NOTICE",
-    from: `${ALERT_FROM}-${stage}`,
-    title: "Stripe Dispute Opened",
-    body: [
-      dispute_line(dispute, don.id, event.id),
-      `amount: ${money(dispute.amount, dispute.currency)}, reason: ${dispute.reason}, status: ${dispute.status}`,
-      `evidence due by: ${due ? new Date(due * 1000).toISOString() : "n/a"}`,
-      "the donation stays settled while the dispute is open; if it is lost, the donation reverses automatically.",
-    ].join("\n"),
-  });
+  // keyed on the event: a redelivery after a lost 200 collapses into this one
+  await enqueue(
+    msg("fiat-notice", {
+      id: event.id,
+      alert: {
+        type: "NOTICE",
+        from: `${ALERT_FROM}-${stage}`,
+        title: "Stripe Dispute Opened",
+        body: [
+          dispute_line(dispute, don.id, event.id),
+          `amount: ${money(dispute.amount, dispute.currency)}, reason: ${dispute.reason}, status: ${dispute.status}`,
+          `evidence due by: ${due ? new Date(due * 1000).toISOString() : "n/a"}`,
+          "the donation stays settled while the dispute is open. if it is lost and nothing is left on the charge, the donation reverses automatically; a partial loss is left to you.",
+        ].join("\n"),
+      },
+    })
+  );
 }
