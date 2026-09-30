@@ -29,7 +29,9 @@ vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
   report_null: () => null,
 }));
-vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert: vi.fn() } }));
+vi.mock("$/kit/discord", () => ({
+  aws_monitor: { send_alert: vi.fn(async () => new Response()) },
+}));
 vi.mock("$/kit/coingecko", () => ({ coingecko: vi.fn() }));
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -166,20 +168,67 @@ describe("crypto_intent", () => {
     expect(await rows()).toHaveLength(0);
   });
 
-  it("a nowpayments invoice error answers 502, reports, and leaves no row", async () => {
-    np_server({
-      "/v1/invoice": () =>
-        new Response('{"message":"currency disabled"}', { status: 400 }),
-    });
-    const res = await crypto_intent(
-      ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
-    );
+  // retrying a coin nowpayments refuses can never succeed
+  it.each([400, 404])(
+    "a nowpayments %i tells the donor to pick another currency, reports, and leaves no row",
+    async (status) => {
+      np_server({
+        "/v1/invoice": () =>
+          new Response('{"message":"currency disabled"}', { status }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
 
-    expect((res as Response).status).toBe(502);
-    expect(await (res as Response).text()).not.toMatch(/currency disabled/);
-    expect(report_error_mock).toHaveBeenCalledOnce();
-    expect(await rows()).toHaveLength(0);
-  });
+      expect((res as Response).status).toBe(400);
+      const msg = await (res as Response).text();
+      expect(msg).toMatch(/isn't available right now.*different currency/);
+      expect(msg).not.toMatch(/currency disabled/);
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
+
+  it.each([
+    ["a 5xx", () => new Response("", { status: 503 })],
+    ["a 429", () => new Response("", { status: 429 })],
+    ["a network failure", () => Promise.reject(new TypeError("fetch failed"))],
+  ])(
+    "%s from nowpayments answers 502 try-again-later, reports, and leaves no row",
+    async (_, route) => {
+      np_server({ "/v1/invoice": route });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(502);
+      expect(await (res as Response).text()).toMatch(
+        /try again in a few minutes/
+      );
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
+
+  it.each([0, null])(
+    "a %s pair minimum tells the donor the currency isn't available and leaves no row",
+    async (min_amount) => {
+      const spy = np_server({
+        "/v1/min-amount": () =>
+          Response.json({ min_amount, fiat_equivalent: 0 }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(400);
+      expect(await (res as Response).text()).toMatch(
+        /isn't available right now.*different currency/
+      );
+      expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
+      expect(await rows()).toHaveLength(0);
+    }
+  );
 
   it("creates the invoice with a well-formed callback, then the row under its order_id", async () => {
     const spy = np_server();
@@ -200,6 +249,34 @@ describe("crypto_intent", () => {
       don_id: invoice.order_id,
       body: { id: "777", address: "0xdeposit", amount: 0.01 },
     });
+  });
+
+  // priced at nowpayments' rate, its conversion back lands on the donor's 10
+  it("a USDC intent values the row at a dollar a unit and prices the invoice at nowpayments' rate", async () => {
+    const spy = np_server({
+      "/v1/min-amount": () =>
+        Response.json({ min_amount: 1, fiat_equivalent: 1.03 }),
+      "/v1/estimate": () =>
+        Response.json({ amount_from: 100, estimated_amount: 100 / 1.03 }),
+      "/v1/invoice-payment": () =>
+        Response.json({
+          payment_id: "779",
+          pay_address: "0xdeposit",
+          payin_extra_id: null,
+          pay_amount: 10,
+          pay_currency: "usdc",
+        }),
+    });
+    const res = await crypto_intent(
+      ctx({ currency: "USDC", amount: { base: 10, tip: 0, fee_allowance: 0 } })
+    );
+
+    expect(res).not.toBeInstanceOf(Response);
+    const [invoice] = await bodies(spy, "/v1/invoice");
+    expect(invoice.price_amount).toBeCloseTo(10.3, 9);
+    const [row] = await rows();
+    expect(row.upusd).toBe(1);
+    expect(res).toMatchObject({ body: { usdpu: 1 } });
   });
 
   it.each([

@@ -50,6 +50,16 @@ export const cancel_subscription_path =
 
 export const oauth_token_path = "/v1/oauth2/token" as const;
 
+export const get_capture_path: Extract<
+  keyof payments.paths,
+  "/v2/payments/captures/{capture_id}"
+> = "/v2/payments/captures/{capture_id}";
+
+export const get_sale_path: Extract<
+  keyof payments_v1.paths,
+  "/v1/payments/sale/{sale_id}"
+> = "/v1/payments/sale/{sale_id}";
+
 export type PurchaseUnitsRequest =
   orders.components["schemas"]["purchase_unit_request"];
 

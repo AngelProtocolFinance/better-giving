@@ -76,15 +76,16 @@ const on_grant_completed: Record<TStatus, "settle" | "duplicate" | "alert"> = {
   refunded_loss: "duplicate",
 };
 
+interface IGrantRef {
+  id: string;
+  amount: number;
+}
+
 /** what an operator needs to act on: the money and whose it is, never the donor */
-const grant_facts = (
-  grant: { id: string; amount: number },
-  don: IDonation,
-  sttl_id?: string
-) =>
+const grant_facts = (grant: IGrantRef, don?: IDonation, sttl_id?: string) =>
   [
     `amount ${(grant.amount / 100).toFixed(2)} USD`,
-    `recipient ${don.to_name} (${don.to_id})`,
+    don && `recipient ${don.to_name} (${don.to_id})`,
     `grant ${grant.id}`,
     sttl_id && `settlement ${sttl_id}`,
   ]
@@ -139,11 +140,66 @@ async function alert_ops({
   console.warn(`[chariot webhook] ${detail}: left unchanged, alerted`);
 }
 
-function safe_equals(expected: string, received: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(received);
-  // timingSafeEqual throws on unequal lengths
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+/**
+ * a row that isn't there, or a state no delivery can repair: a 5xx buys ten
+ * redeliveries that change nothing, and five days of them disable the
+ * subscription for every grant, so a person is told and chariot gets its 2xx
+ */
+async function ack_unfixable(
+  grant: IGrantRef,
+  don_id: string,
+  what: Pick<IOpsAlert, "message" | "title" | "detail" | "todo">,
+  don?: IDonation
+) {
+  await alert_ops({
+    ...what,
+    facts: grant_facts(grant, don),
+    ctx: { don_id, grant_id: grant.id },
+  });
+  return new Response("", { status: 200 });
+}
+
+const missing_donation = (grant: IGrantRef, don_id: string) =>
+  ack_unfixable(grant, don_id, {
+    message: "chariot grant for a donation that does not exist",
+    title: "Chariot Grant Without A Donation",
+    detail: `donation ${don_id} not found for chariot grant ${grant.id}`,
+    todo: "nothing was changed automatically; no donation records this grant and no receipt went out, so record it by hand",
+  });
+
+/** the row this grant recorded, or the 2xx answering a delivery that has none */
+async function grant_donation(
+  grant: IGrantRef,
+  don_id: string
+): Promise<IDonation | Response> {
+  const prior = await donation_get(don_id);
+  if (!prior) return missing_donation(grant, don_id);
+  // `don_id` rides in connect metadata the browser writes, so it can name any
+  // row; the intent route records the grant it made as `via_extra`
+  if (prior.via !== "chariot" || prior.via_extra !== grant.id)
+    return ack_unfixable(
+      grant,
+      prior.id,
+      {
+        message: "chariot grant names a donation it did not record",
+        title: "Chariot Grant On Another Donation",
+        detail: `chariot grant ${grant.id} names donation ${prior.id}, which is ${prior.via} ${prior.via_extra}`,
+        todo: "nothing was changed automatically; this grant is not recorded against any donation, so record it by hand",
+      },
+      prior
+    );
+  return prior;
+}
+
+const SHA256_HEX = /^[0-9a-f]{64}$/i;
+
+/** compares decoded bytes, so hex case can't decide a match */
+function safe_equals(expected: Buffer, received: string): boolean {
+  // Buffer.from(hex) stops silently at the first non-hex pair, and
+  // timingSafeEqual throws on unequal lengths, so anything but a digest's
+  // 64 hex digits is refused before decoding
+  if (!SHA256_HEX.test(received)) return false;
+  return crypto.timingSafeEqual(expected, Buffer.from(received, "hex"));
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -159,7 +215,7 @@ export async function action({ request }: Route.ActionArgs) {
     const hash = crypto
       .createHmac("sha256", chariot_env.signing_key)
       .update(signed)
-      .digest("hex");
+      .digest();
 
     // 4xx, not 2xx: chariot reads 2xx as delivered, so a signing-key mismatch
     // would drop every grant silently; a 4xx is redelivered in production and,
@@ -186,21 +242,32 @@ export async function action({ request }: Route.ActionArgs) {
     const grant = await chariot.get_grant(payload.associated_object_id);
     // grant carries donor name, email, phone, address — log ids/status only
     console.info(`[chariot webhook] grant ${grant.id} status ${grant.status}`);
-    const { don_id } = grant.metadata as unknown as ChariotMetadata;
+    const { don_id } = (grant.metadata ?? {}) as Partial<ChariotMetadata>;
+    // not from our checkout (another connect instance, a dashboard grant):
+    // no row can ever match, so a 5xx would only buy ten redeliveries
+    if (typeof don_id !== "string" || !don_id) {
+      report_error(new Error("chariot grant without a donation id"), {
+        grant_id: grant.id,
+        status: grant.status,
+      });
+      return new Response("", { status: 200 });
+    }
 
     if (grant.status === "Canceled") {
       // unlocked read first: the locked one matches `id` only, grant metadata
       // can carry a legacy `id_v1`, and the alert needs the recipient
-      const prior = await donation_get(don_id);
-      if (!prior) throw new Error(`donation not found: ${don_id}`);
-      const { op, state } = await db.transaction(async (tx) => {
+      const prior = await grant_donation(grant, don_id);
+      if (prior instanceof Response) return prior;
+      const locked = await db.transaction(async (tx) => {
         const state = await donation_settle_state_locked(tx, prior.id);
-        if (!state) throw new Error(`donation not found: ${prior.id}`);
+        if (!state) return null;
         const op = on_grant_canceled[state.status];
         if (op === "cancel")
           await donation_update(tx, prior.id, { status: "cancelled" });
         return { op, state };
       });
+      if (!locked) return missing_donation(grant, prior.id);
+      const { op, state } = locked;
       if (op === "alert") {
         await alert_ops({
           message: "chariot grant canceled after settlement",
@@ -231,20 +298,23 @@ export async function action({ request }: Route.ActionArgs) {
     const gross = grant.amount / 100;
     const fee = (grant.feeDetail?.total ?? 0) / 100;
 
+    const completed_at =
+      grant.statuses?.filter((x) => x.status === "Completed").at(-1)
+        ?.createdAt ?? grant.updatedAt;
+
     const settlement: ISettlement = {
-      date: new Date().toISOString(),
+      date: new Date(completed_at ?? Date.now()).toISOString(),
       net: gross - fee,
       fee,
       id: grant.id,
       currency: "USD",
     };
 
-    const prior = await donation_get(don_id);
-    if (!prior)
-      return new Response(`donation not found: ${don_id}`, { status: 500 });
+    const prior = await grant_donation(grant, don_id);
+    if (prior instanceof Response) return prior;
     const locked = await db.transaction(async (tx) => {
       const state = await donation_settle_state_locked(tx, prior.id);
-      if (!state) throw new Error(`donation not found: ${prior.id}`);
+      if (!state) return null;
       const op = on_grant_completed[state.status];
       if (op !== "settle") return { op, state };
       const result = calc_donation_settle({
@@ -259,6 +329,7 @@ export async function action({ request }: Route.ActionArgs) {
       return { op, state, msgs: result.msgs };
     });
 
+    if (!locked) return missing_donation(grant, prior.id);
     if (locked.op === "settle") {
       await enqueue(...locked.msgs);
       return Response.json({ id: prior.id });
@@ -269,11 +340,40 @@ export async function action({ request }: Route.ActionArgs) {
         message: "chariot grant completed after cancel",
         title: "Chariot Grant Completed After Cancel",
         detail: `donation ${prior.id} is cancelled but chariot grant ${grant.id} completed`,
-        facts: grant_facts(grant, prior),
+        facts: `${grant_facts(grant, prior)}, net ${settlement.net.toFixed(2)} USD, fee ${settlement.fee.toFixed(2)} USD`,
         todo: "nothing was settled automatically; confirm the payout in chariot's dashboard before settling it by hand",
         ctx: {
           don_id: prior.id,
           grant_id: grant.id,
+          status: locked.state.status,
+        },
+      });
+      return new Response("", { status: 200 });
+    }
+    const { sttl_id } = locked.state;
+    if (locked.state.status === "settled" && !sttl_id)
+      return ack_unfixable(
+        grant,
+        prior.id,
+        {
+          message: "chariot donation settled without a settlement",
+          title: "Chariot Donation Settled Without A Settlement",
+          detail: `donation ${prior.id} is settled with no settlement, and chariot grant ${grant.id} completed`,
+          todo: "nothing was settled or re-sent automatically; attach this grant's settlement to the donation by hand",
+        },
+        prior
+      );
+    if (sttl_id && sttl_id !== grant.id) {
+      await alert_ops({
+        message: "chariot grant completed on a donation another grant settled",
+        title: "Chariot Grant Completed On A Settled Donation",
+        detail: `donation ${prior.id} is ${locked.state.status} by settlement ${sttl_id} but chariot grant ${grant.id} also completed`,
+        facts: grant_facts(grant, prior, sttl_id),
+        todo: "nothing was settled or re-sent automatically; this grant's payout is not recorded against any donation",
+        ctx: {
+          don_id: prior.id,
+          grant_id: grant.id,
+          sttl_id,
           status: locked.state.status,
         },
       });

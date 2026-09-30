@@ -1,7 +1,6 @@
 import type Stripe from "stripe";
 import { str_id, to_atomic_c } from "#/helpers/stripe";
 import { amnt_sum } from "@/donations/helpers";
-import { rd2num } from "@/helpers/decimal";
 import type { IMetadata } from "@/stripe";
 import { stripe as stripe_env } from "$/env";
 import { stripe } from "$/kit/stripe";
@@ -40,6 +39,9 @@ export async function handle_setup_intent_succeeded({
 
   const interval = intervals[order.frequency];
   const c = order.currency.toLowerCase();
+  // one price per order at the gift's exact total, billed at quantity 1: a
+  // whole-unit price times a quantity can't carry the cents
+  const to_pay = amnt_sum(order.amount);
 
   // both writes are keyed off the setup intent, which is the same on every
   // redelivery of this event: stripe replays the saved first result instead of
@@ -55,13 +57,12 @@ export async function handle_setup_intent_succeeded({
         interval,
         interval_count: 1,
       },
-      unit_amount: to_atomic_c(c)(1),
+      unit_amount: to_atomic_c(c)(to_pay),
     },
     { idempotencyKey: `price_${intent.id}` }
   );
 
   const cust_id = str_id(intent.customer);
-  const to_pay = amnt_sum(order.amount);
 
   const sub = await stripe.subscriptions.create(
     {
@@ -74,7 +75,7 @@ export async function handle_setup_intent_succeeded({
       customer: cust_id,
       default_payment_method: str_id(intent.payment_method),
       currency: c,
-      items: [{ price: price_id, quantity: rd2num(to_pay, 0) }],
+      items: [{ price: price_id, quantity: 1 }],
       metadata: { order_id: order.id } satisfies IMetadata,
       off_session: true,
     },

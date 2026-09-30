@@ -2,6 +2,7 @@ import { data } from "react-router";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import { msg } from "@/queue";
+import { FIRST_PAYMENT_INCOMPLETE } from "@/subscriptions";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { sub_get, sub_update } from "$/pg/queries/subscription";
@@ -32,7 +33,11 @@ export const action = async ({
     status_cancel_reason: reason,
     updated_at: new Date().toISOString(),
   });
-  if (row && prev_status === "active") {
+  // an incomplete gift can still be paid at stripe, so it is live there too
+  const live_at_stripe =
+    prev_status === "active" ||
+    existing.status_cancel_reason === FIRST_PAYMENT_INCOMPLETE;
+  if (row && live_at_stripe) {
     await enqueue(msg("sub-deactivated", row));
   }
   return redirectWithSuccess("..", "Subscription cancelled");

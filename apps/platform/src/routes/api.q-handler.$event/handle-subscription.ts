@@ -3,25 +3,33 @@ import { paypal } from "$/kit/paypal";
 import { stripe } from "$/kit/stripe";
 
 const PAYPAL_CANCEL_REASON_MAX_BYTES = 128;
+/** stripe's `cancellation_details.comment` maxLength */
+const STRIPE_CANCEL_COMMENT_MAX = 5000;
 
 const utf8 = new TextEncoder();
 const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /**
- * paypal's spec: 1-128 chars matching `^.*$` — no line breaks (`\u0085` too, which js `\s` misses).
- * capped in utf-8 bytes: never fewer than code units or code points, so it holds under whichever count paypal uses;
+ * capped in utf-8 bytes: never fewer than code units or code points, so it holds under whichever count the provider uses;
  * cut on a grapheme boundary so no flag, emoji or combining accent is split.
  */
-const paypal_cancel_reason = (reason: string | null | undefined): string => {
-  const one_line = (reason ?? "").replace(/[\s\u0085]+/g, " ").trim();
+const cap_utf8 = (text: string, max_bytes: number): string => {
   let capped = "";
   let bytes = 0;
-  for (const { segment } of graphemes.segment(one_line)) {
+  for (const { segment } of graphemes.segment(text)) {
     bytes += utf8.encode(segment).length;
-    if (bytes > PAYPAL_CANCEL_REASON_MAX_BYTES) break;
+    if (bytes > max_bytes) break;
     capped += segment;
   }
-  return capped.trimEnd() || "no reason provided";
+  return capped.trimEnd();
+};
+
+/** paypal's spec: 1-128 chars matching `^.*$` — no line breaks (`\u0085` too, which js `\s` misses). */
+const paypal_cancel_reason = (reason: string | null | undefined): string => {
+  const one_line = (reason ?? "").replace(/[\s\u0085]+/g, " ").trim();
+  return (
+    cap_utf8(one_line, PAYPAL_CANCEL_REASON_MAX_BYTES) || "no reason provided"
+  );
 };
 
 /** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
@@ -36,7 +44,9 @@ export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {
     }
     await stripe.subscriptions.cancel(data.id, {
       cancellation_details: {
-        comment: data.status_cancel_reason ?? undefined,
+        comment: data.status_cancel_reason
+          ? cap_utf8(data.status_cancel_reason, STRIPE_CANCEL_COMMENT_MAX)
+          : undefined,
       },
     });
     console.info(`subscription ${data.id} cancelled on stripe`);

@@ -82,6 +82,61 @@ beforeEach(async () => {
   });
 });
 
+describe("chariot_intent repeat for one workflow session", () => {
+  it("returns the donation already recorded for the grant instead of failing", async () => {
+    // create grant is idempotent per workflow session: a repeat returns the same grant
+    create_grant_mock.mockResolvedValue({
+      id: "grant_1",
+      metadata: { don_id: "don_1" },
+    });
+    const amount = { base: 10, tip: 0, fee_allowance: 0 };
+
+    const first = await chariot_intent(ctx(amount));
+    const again = await chariot_intent(ctx(amount));
+
+    expect(again).toEqual(first);
+    expect(again).toMatchObject({ don_id: "don_1" });
+    expect(await db().select().from(donations)).toHaveLength(1);
+  });
+});
+
+// the checkout reads a 400 or 404 as "nothing exists at chariot" and lets the
+// donor retry, so a 4xx may only ever come before create grant
+describe("chariot_intent refusals the donor can retry", () => {
+  it("refuses a base under the minimum with a 4xx before creating the grant", async () => {
+    const res = await chariot_intent(
+      ctx({ base: 0.5, tip: 0, fee_allowance: 0.5 })
+    );
+    expect((res as Response).status).toBe(400);
+    expect(create_grant_mock).not.toHaveBeenCalled();
+  });
+
+  it("never answers a failed create grant with a 4xx", async () => {
+    create_grant_mock.mockRejectedValue(
+      new Error("Chariot API error: 400 below the fund minimum")
+    );
+    await expect(
+      chariot_intent(ctx({ base: 10, tip: 0, fee_allowance: 0 }))
+    ).rejects.toThrow();
+  });
+
+  it("never answers a failed write after the grant with a 4xx", async () => {
+    create_grant_mock.mockResolvedValue({
+      id: "grant_x",
+      metadata: { don_id: "don_x" },
+    });
+    await chariot_intent(ctx({ base: 10, tip: 0, fee_allowance: 0 }));
+    // same don_id, different grant: the row isn't this grant's, so it fails
+    create_grant_mock.mockResolvedValue({
+      id: "grant_y",
+      metadata: { don_id: "don_x" },
+    });
+    await expect(
+      chariot_intent(ctx({ base: 10, tip: 0, fee_allowance: 0 }))
+    ).rejects.toThrow();
+  });
+});
+
 describe("chariot_intent grant amount", () => {
   it("refuses a total that isn't whole dollars before creating the grant", async () => {
     const res = await chariot_intent(
