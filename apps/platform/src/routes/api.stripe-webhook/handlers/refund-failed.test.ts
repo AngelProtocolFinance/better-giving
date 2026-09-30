@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const intent_retrieve_mock = vi.hoisted(() => vi.fn());
 const donation_get_mock = vi.hoisted(() => vi.fn());
 const donation_by_sttl_id_mock = vi.hoisted(() => vi.fn());
-const send_alert_mock = vi.hoisted(() => vi.fn());
+const enqueue_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
   stripe: { paymentIntents: { retrieve: intent_retrieve_mock } },
@@ -12,9 +12,7 @@ vi.mock("$/pg/queries/donation", () => ({
   donation_get: donation_get_mock,
   donation_by_sttl_id: donation_by_sttl_id_mock,
 }));
-vi.mock("$/kit/discord", () => ({
-  fiat_monitor: { send_alert: send_alert_mock },
-}));
+vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
 const { handle_refund_failed } = await import("./refund-failed");
 
@@ -44,9 +42,13 @@ const donation = (status: string) => ({
   program: null,
 });
 
+/** notices handed to the queue, which retries delivery and dedupes on the id */
+const queued = () =>
+  enqueue_mock.mock.calls.flat().filter((m) => m.id === "fiat-notice");
+
 beforeEach(() => {
   vi.clearAllMocks();
-  send_alert_mock.mockResolvedValue(undefined);
+  enqueue_mock.mockResolvedValue(undefined);
   intent_retrieve_mock.mockResolvedValue({ id: "pi_1", metadata: {} });
 });
 
@@ -58,8 +60,8 @@ describe("stripe refund.failed → ops alert", () => {
       handle_refund_failed(failed_event(10_000))
     ).resolves.toBeUndefined();
 
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    const [alert] = send_alert_mock.mock.calls[0]!;
+    expect(queued()).toHaveLength(1);
+    const { alert } = queued()[0].payload;
     const text = `${alert.title}\n${alert.body}`;
     expect(text).toContain(DON_ID);
     expect(text).toContain("100.00 USD");
@@ -73,18 +75,29 @@ describe("stripe refund.failed → ops alert", () => {
 
     await handle_refund_failed(failed_event(500));
 
-    const [alert] = send_alert_mock.mock.calls[0]!;
+    const { alert } = queued()[0].payload;
     expect(alert.body).toContain("5.00 USD");
     expect(alert.body).toMatch(/was not reversed/i);
   });
 
-  // the alert is the only record finance gets, so a lost one must be redelivered
-  it("fails the delivery when the alert can't be sent", async () => {
+  it("keys the alert on the event, so a redelivery collapses into it", async () => {
     donation_by_sttl_id_mock.mockResolvedValue(donation("refunded"));
-    send_alert_mock.mockRejectedValue(new Error("discord 503"));
+
+    await handle_refund_failed(failed_event(10_000));
+    await handle_refund_failed(failed_event(10_000));
+
+    const [first, again] = queued();
+    expect(first.dedupe).toBe("fiat.notice_evt_9");
+    expect(again.dedupe).toBe(first.dedupe);
+  });
+
+  // the alert is the only record finance gets, so a lost one must be redelivered
+  it("fails the delivery when the alert can't be queued", async () => {
+    donation_by_sttl_id_mock.mockResolvedValue(donation("refunded"));
+    enqueue_mock.mockRejectedValue(new Error("qstash 503"));
 
     await expect(handle_refund_failed(failed_event(10_000))).rejects.toThrow(
-      "discord 503"
+      "qstash 503"
     );
   });
 });

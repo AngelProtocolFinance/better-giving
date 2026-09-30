@@ -1,8 +1,9 @@
 import type Stripe from "stripe";
 import { str_id } from "#/helpers/stripe";
 import { is_reversed } from "@/donations";
+import { msg } from "@/queue";
 import { stage } from "$/env";
-import { fiat_monitor } from "$/kit/discord";
+import { enqueue } from "$/kit/queue";
 import { money } from "../helpers/money";
 import { settled_donation } from "../helpers/settled-donation";
 
@@ -17,16 +18,22 @@ export async function handle_refund_failed(event: Stripe.RefundFailedEvent) {
     ? "the donation was reversed when this refund was made, and that reversal stands: the nonprofit is debited though the donor got nothing back."
     : `the donation was not reversed (status ${don.status}).`;
 
-  await fiat_monitor.send_alert({
-    type: "ERROR",
-    from: `refund-failed-${stage}`,
-    title: "Stripe Refund Failed",
-    body: [
-      `donation ${don.id}, refund ${refund.id}, event ${event.id}`,
-      `amount: ${money(refund.amount, refund.currency)}`,
-      `failure reason: ${refund.failure_reason ?? "unknown"}`,
-      outcome,
-      "nothing was changed automatically.",
-    ].join("\n"),
-  });
+  // keyed on the event: a redelivery after a lost 200 collapses into this one
+  await enqueue(
+    msg("fiat-notice", {
+      id: event.id,
+      alert: {
+        type: "ERROR",
+        from: `refund-failed-${stage}`,
+        title: "Stripe Refund Failed",
+        body: [
+          `donation ${don.id}, refund ${refund.id}, event ${event.id}`,
+          `amount: ${money(refund.amount, refund.currency)}`,
+          `failure reason: ${refund.failure_reason ?? "unknown"}`,
+          outcome,
+          "nothing was changed automatically.",
+        ].join("\n"),
+      },
+    })
+  );
 }
