@@ -843,6 +843,7 @@ const approved_ev = () => ({
 describe("CHECKOUT.ORDER.APPROVED", () => {
   it("writes the payer and schedules a capture check, rather than racing the browser's capture", async () => {
     await seed_donation({ from_email: "anon@x.com" });
+    const before = Date.now();
 
     const res = await deliver(approved_ev());
 
@@ -851,10 +852,18 @@ describe("CHECKOUT.ORDER.APPROVED", () => {
     expect(schedule_mock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         id: "paypal-order-capture",
-        payload: { order_id: "ORDER-1", don_id: ORDER_ID },
+        payload: {
+          order_id: "ORDER-1",
+          don_id: ORDER_ID,
+          scheduled_at: expect.any(String),
+        },
         delay_s: expect.any(Number),
       })
     );
+    // the handler tells its retries from its first attempt by this stamp
+    const { scheduled_at } = schedule_mock.mock.calls[0]![0].payload;
+    expect(Date.parse(scheduled_at)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(scheduled_at)).toBeLessThanOrEqual(Date.now());
     expect(schedule_mock.mock.calls[0]![0].delay_s).toBeGreaterThanOrEqual(60);
     expect((await donation_get(ORDER_ID))!.from_email).toBe("payer@test.com");
   });

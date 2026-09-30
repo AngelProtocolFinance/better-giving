@@ -708,7 +708,13 @@ export async function action({ request }: Route.ActionArgs) {
         // not captured here: this event lands as the browser's own capture
         // runs, under the same request id. a check held past it captures
         // only an order still APPROVED
-        await schedule(msg("paypal-order-capture", { order_id, don_id }));
+        await schedule(
+          msg("paypal-order-capture", {
+            order_id,
+            don_id,
+            scheduled_at: new Date().toISOString(),
+          })
+        );
 
         /** we only expect paypal and venmo */
         if (!ps) return unroutable(ev, "paypal and venmo not found");

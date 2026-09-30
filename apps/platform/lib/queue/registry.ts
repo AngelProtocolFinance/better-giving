@@ -104,7 +104,13 @@ export interface ILockTxCreatedPayload {
 export interface IPaypalOrderCapturePayload {
   order_id: string;
   don_id: string;
+  /** iso, when the check was scheduled. the handler reads a message without
+   * one as a retry */
+  scheduled_at?: string;
 }
+
+/** how long the fallback capture holds before its first attempt */
+export const PAYPAL_CAPTURE_DELAY_S = 5 * 60;
 
 export interface IRegCreatedPayload {
   id: string;
@@ -256,8 +262,11 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   // the fallback capture for an approval whose browser never captured. held
   // past the browser's own capture so the two don't race under one request
   // id; the handler re-reads the order and captures only one still APPROVED.
-  // sent through `schedule`, like the chase.
-  "paypal-order-capture": { delay_s: 5 * 60, retries: 3 },
+  // sent through `schedule`, like the chase. the donor has left by now, so these
+  // retries are the only thing that captures through a paypal or db outage:
+  // five on qstash's default backoff span ~31h, and a retry past the order's
+  // expiry reads a 404 and returns.
+  "paypal-order-capture": { delay_s: PAYPAL_CAPTURE_DELAY_S, retries: 5 },
 };
 
 export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({

@@ -15,6 +15,7 @@ export {
   type ITipReceivedPayload,
   type Kind,
   msg,
+  PAYPAL_CAPTURE_DELAY_S,
   type Payloads,
 } from "./registry";
 export type { IDelivery, IMsg } from "./types";
