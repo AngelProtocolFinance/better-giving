@@ -79,8 +79,8 @@ beforeEach(async () => {
   await db.delete(user_table);
 });
 
-/** a real signed-in session, as a `Cookie` header carries it. sign-up leaves
- * the row unverified by config, and only a verified row can sign in. */
+/** a real signed-in session, as a `Cookie` header carries it. the seeded row
+ * starts unverified, and only a verified row can sign in. */
 async function sign_in(email = TEST_EMAIL) {
   await seed_password_user(test_auth_ref.current, {
     email,

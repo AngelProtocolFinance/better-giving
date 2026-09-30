@@ -56,9 +56,9 @@ export const login_link_plugin = (deps: AuthOptionDeps) =>
     // the stored row is what makes the link single-use; hashing it means a
     // leaked db row can't be replayed as a token.
     storeToken: { type: "custom-hasher", hash: hash_link_token },
-    // asking for a link must never mint a user — every row comes from an
-    // explicit signup or `create_unverified_user`, which are the two places
-    // abuse protection actually lives.
+    // asking for a link must never mint a user — an email-only row comes from
+    // `create_unverified_user`, where abuse protection lives, and the rest
+    // from google sign-in.
     disableSignUp: true,
     async sendMagicLink({ email, url }) {
       await deps.send_login_link({ email, url });
