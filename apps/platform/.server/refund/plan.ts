@@ -1,4 +1,5 @@
 import type { IBalanceTx } from "@/balance-txs";
+import { allocation_shares } from "@/constants/common";
 import { humanize } from "@/helpers/decimal";
 import type { ILossLog, LossType } from "@/revenue";
 import type { IBalanceDeltas } from "@/types/donation";
@@ -99,10 +100,11 @@ export function calc_refund_plan(
   const { now, nav_date, form_id, program_id } = ctx;
 
   // derive balance deltas from allocation percentages
+  const alloc = allocation_shares(dist.alloc);
   const bd = {
-    liq: (dist.alloc.liq / 100) * dist.net,
-    lock: (dist.alloc.lock / 100) * dist.net,
-    cash: (dist.alloc.cash / 100) * dist.net,
+    liq: (alloc.liq / 100) * dist.net,
+    lock: (alloc.lock / 100) * dist.net,
+    cash: (alloc.cash / 100) * dist.net,
   };
   const refund_lock_units = nav && bd.lock > 0 ? bd.lock / nav.price : 0;
 

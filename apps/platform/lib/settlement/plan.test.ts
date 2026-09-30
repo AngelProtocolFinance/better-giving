@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import type { IAllocation } from "../donations";
 import type { IDonDistPayload } from "../queue";
 import type { IInput, IParts } from "../types/donation-dist";
 import {
@@ -176,6 +177,22 @@ describe("calc_settlement_plan", () => {
     expect(plan.balance_txs).toHaveLength(0);
     expect(plan.nav_log_entry).toBeNull();
     expect(plan.payout?.amount).toBe(100);
+  });
+
+  test("stored allocation missing a share → that share is 0, deltas stay finite", () => {
+    const plan = calc_settlement_plan(
+      make_input(),
+      // jsonb allocation written without a cash key
+      make_ctx({ allocation: { liq: 100, lock: 0 } as IAllocation })
+    );
+    expect(plan.balance_deltas).toEqual({
+      liq: 100,
+      lock: 0,
+      lock_units: 0,
+      cash: 0,
+    });
+    expect(plan.dist.to_settings.alloc).toEqual({ liq: 100, lock: 0, cash: 0 });
+    expect(plan.payout).toBeNull();
   });
 
   test("fee allowance covers processing fee → fa_excess captured, gross unchanged", () => {

@@ -10,6 +10,13 @@ export const default_allocation: IAllocation = {
   lock: 0,
 };
 
+/** stored allocations are jsonb: a share missing from the row is 0, not NaN */
+export const allocation_shares = (a: Partial<IAllocation>): IAllocation => ({
+  liq: a.liq ?? 0,
+  lock: a.lock ?? 0,
+  cash: a.cash ?? 0,
+});
+
 export const PROCESSING_RATES = {
   chariot: 0.029,
   stripe: 0.022,

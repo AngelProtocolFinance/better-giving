@@ -23,7 +23,8 @@ afterAll(async () => {
 describe("settle_npo", () => {
   // the plan's bal_begin/bal_end come from this read: unlocked, two concurrent
   // settlements of one npo both plan from the same balance
-  test("reads the npo it plans from under a row lock", async () => {
+  test("issues its npo read with for no key update", async () => {
+    // pglite is one connection: this pins the sql text, not that a second writer blocks
     // an inactive npo returns right after the read, so no full input is needed
     const npo = await seed_npo(test_db.db, { active: false });
     const queries: string[] = [];
