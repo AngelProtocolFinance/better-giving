@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inspect } from "node:util";
 import { crc32 } from "node:zlib";
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -879,6 +880,107 @@ describe("refunds and reversals", () => {
 
     expect(res.ok).toBe(false);
     expect(process_refund_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("subscription lifecycle", () => {
+  const sub_row = async () =>
+    (
+      await db()
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.id, SUBS_ID))
+    )[0];
+  const active_sub = async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+  };
+  const paypal_sub_is = async (status: string, next_billing?: string) => {
+    const { billing_info: _, ...sub } = await get_subscription_mock();
+    get_subscription_mock.mockResolvedValue({
+      ...sub,
+      status,
+      ...(next_billing && {
+        billing_info: { next_billing_time: next_billing },
+      }),
+    });
+  };
+  const lifecycle_ev = (event_type: string) => ({
+    id: `WH-${event_type}`,
+    event_type,
+    resource: { id: SUBS_ID, status: "IGNORED-read-from-paypal" },
+  });
+
+  it.each([
+    ["BILLING.SUBSCRIPTION.CANCELLED", "CANCELLED"],
+    ["BILLING.SUBSCRIPTION.SUSPENDED", "SUSPENDED"],
+    ["BILLING.SUBSCRIPTION.EXPIRED", "EXPIRED"],
+  ])(
+    "marks a subscription inactive on %s, without cancelling it again",
+    async (event_type, status) => {
+      await active_sub();
+      await paypal_sub_is(status);
+
+      const res = await deliver(lifecycle_ev(event_type));
+
+      expect(res.status).toBe(200);
+      expect((await sub_row())!.status).toBe("inactive");
+      expect(enqueue_mock).not.toHaveBeenCalled();
+    }
+  );
+
+  it("brings a suspended subscription back when paypal reactivates it", async () => {
+    await active_sub();
+    await paypal_sub_is("SUSPENDED");
+    await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.SUSPENDED"));
+    await paypal_sub_is("ACTIVE", "2026-04-01T00:00:00.000Z");
+
+    const res = await deliver(
+      lifecycle_ev("BILLING.SUBSCRIPTION.RE-ACTIVATED")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await sub_row()).toMatchObject({
+      status: "active",
+      next_billing: "2026-04-01T00:00:00.000Z",
+    });
+  });
+
+  it("moves next billing on after a failed payment paypal will retry", async () => {
+    await active_sub();
+    await paypal_sub_is("ACTIVE", "2026-02-06T00:00:00.000Z");
+
+    const res = await deliver(
+      lifecycle_ev("BILLING.SUBSCRIPTION.PAYMENT.FAILED")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await sub_row()).toMatchObject({
+      status: "active",
+      next_billing: "2026-02-06T00:00:00.000Z",
+    });
+  });
+
+  it("moves next billing on with every charge", async () => {
+    await active_sub();
+    await paypal_sub_is("ACTIVE", "2026-03-01T00:00:00.000Z");
+    const next = sale_ev();
+    next.resource.id = "sale-2";
+
+    const res = await deliver(next);
+
+    expect(res.status).toBe(200);
+    expect((await sub_row())!.next_billing).toBe("2026-03-01T00:00:00.000Z");
+  });
+
+  it("asks for redelivery of a cancellation that lands before the subscription does", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await paypal_sub_is("CANCELLED");
+
+    const res = await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.CANCELLED"));
+
+    expect(res.ok).toBe(false);
   });
 });
 

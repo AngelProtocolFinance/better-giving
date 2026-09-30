@@ -19,7 +19,7 @@ import {
 } from "@/donations";
 import { paypal_donor_update } from "@/donations/helpers";
 import { PLACEHOLDER_EMAIL } from "@/donations/schema";
-import type { ISub, TInterval } from "@/subscriptions";
+import type { ISub, TInterval, TStatus } from "@/subscriptions";
 import { paypal as paypal_env, stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
@@ -34,7 +34,7 @@ import {
   donation_update,
   settlement_exists,
 } from "$/pg/queries/donation";
-import { sub_put } from "$/pg/queries/subscription";
+import { sub_put, sub_update } from "$/pg/queries/subscription";
 import { process_refund } from "$/refund/process";
 import type { Route } from "./+types/route";
 
@@ -472,6 +472,14 @@ async function verified_body(
   }
 }
 
+/** paypal's approval states leave the row as it is */
+const SUB_STATUS: Partial<Record<NonNullable<Subs["status"]>, TStatus>> = {
+  ACTIVE: "active",
+  SUSPENDED: "inactive",
+  CANCELLED: "inactive",
+  EXPIRED: "inactive",
+};
+
 const AWAITING_CAPTURE = new Set<IDonation["status"]>(["created", "intent"]);
 
 // a completed charge refunded since still settles: its refund event reverses it
@@ -625,6 +633,42 @@ export async function action({ request }: Route.ActionArgs) {
 
         await sub_put(db, subs_db);
         return new Response(`created subscription record ${subs_id}`, {
+          status: 200,
+        });
+      }
+      case "BILLING.SUBSCRIPTION.CANCELLED":
+      case "BILLING.SUBSCRIPTION.SUSPENDED":
+      case "BILLING.SUBSCRIPTION.EXPIRED":
+      case "BILLING.SUBSCRIPTION.RE-ACTIVATED":
+      case "BILLING.SUBSCRIPTION.PAYMENT.FAILED": {
+        const subs_id = (ev.resource as Subs).id;
+        if (!subs_id) return unroutable(ev, "missing subscription id");
+        // read from paypal, not the event: lifecycle events arrive in no order
+        const sub = await fetch_resource(() =>
+          paypal.get_subscription(subs_id)
+        );
+        if (typeof sub === "number")
+          return unroutable(
+            ev,
+            `paypal answered ${sub} for subscription ${subs_id}`
+          );
+
+        const status = sub.status ? SUB_STATUS[sub.status] : undefined;
+        const next_billing = sub.billing_info?.next_billing_time;
+        // ended or paused at paypal already, so no sub-deactivated: that
+        // message cancels at the provider
+        const { row } = await sub_update(db, subs_id, {
+          ...(status && { status }),
+          ...(next_billing && {
+            next_billing: new Date(next_billing).toISOString(),
+          }),
+        });
+        // the activation that creates the row is still on its way
+        if (!row)
+          return new Response(`no subscription record ${subs_id} yet`, {
+            status: 503,
+          });
+        return new Response(`subscription ${subs_id} is ${row.status}`, {
           status: 200,
         });
       }
@@ -1025,6 +1069,8 @@ export async function action({ request }: Route.ActionArgs) {
           // BILLING.SUBSCRIPTION.ACTIVATED may not have landed yet (paypal does
           // not guarantee webhook ordering).
           await sub_put(tx, subs_db);
+          // sub_put leaves an existing row alone; each charge moves it on
+          await sub_update(tx, subs_id, { next_billing: subs_db.next_billing });
 
           const result = don.settlement
             ? calc_donation_settle({
