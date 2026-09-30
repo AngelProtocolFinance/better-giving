@@ -33,7 +33,7 @@ const reg = (o: Partial<IReg>) =>
     r_first_name: "",
     o_name: "",
     ...o,
-  }) as IReg;
+  }) as unknown as IReg;
 
 const sent = async () => {
   const { node, subject } = send_email.mock.calls[0]![0];
