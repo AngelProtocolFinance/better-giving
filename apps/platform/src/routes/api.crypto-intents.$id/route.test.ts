@@ -50,6 +50,7 @@ beforeEach(() => {
     from_email: OWNER,
     status: "intent",
     currency: "ETH",
+    via_extra: "777",
     amount: { base: 0.01, tip: 0, fee_allowance: 0 },
     upusd: 1 / 2000,
     to_name: "NP Test NPO",
@@ -151,14 +152,64 @@ describe("api.crypto-intents donation id", () => {
     expect(status_of(res)).toBe(404);
   });
 
-  it("the donation cookie for that donation returns the deposit", async () => {
+  it("the donation cookie for a self-custody donation returns our deposit address", async () => {
+    donation_get_mock.mockResolvedValue({
+      id: ORDER_ID,
+      from_email: OWNER,
+      status: "intent",
+      currency: "REEF-1",
+      amount: { base: 10, tip: 0, fee_allowance: 0 },
+      upusd: 500,
+      to_name: "NP Test NPO",
+    });
     const res = await load(await cookie_for(ORDER_ID), ORDER_ID);
     expect(status_of(res)).toBe(200);
     expect(await (res as Response).json()).toMatchObject({
       id: ORDER_ID,
-      currency: "ETH",
-      amount: 0.01,
+      address: process.env.CRYPTO_DEPOSIT_ADDR_EVM,
+      currency: "REEF-1",
+      amount: 10,
     });
+    expect(get_payment_mock).not.toHaveBeenCalled();
+  });
+
+  // our own address would take a deposit nowpayments never tracks
+  it("a nowpayments donation resolves to its nowpayments payment, not our deposit address", async () => {
+    const res = await load(await cookie_for(ORDER_ID), ORDER_ID);
+    expect(get_payment_mock).toHaveBeenCalledWith(777);
+    expect(res).toMatchObject({
+      id: 777,
+      order_id: ORDER_ID,
+      address: "0xdeposit",
+      currency: "ETH",
+    });
+  });
+
+  it("a nowpayments donation with no payment id recorded is a 404", async () => {
+    donation_get_mock.mockResolvedValue({
+      id: ORDER_ID,
+      from_email: OWNER,
+      status: "intent",
+      currency: "ETH",
+      via_extra: "",
+      to_name: "NP Test NPO",
+    });
+    const res = await load(await cookie_for(ORDER_ID), ORDER_ID);
+    expect(status_of(res)).toBe(404);
+    expect(get_payment_mock).not.toHaveBeenCalled();
+  });
+
+  it("a donation in a currency the token list no longer carries is a 500 response", async () => {
+    donation_get_mock.mockResolvedValue({
+      id: ORDER_ID,
+      from_email: OWNER,
+      status: "intent",
+      currency: "NOPECOIN",
+      to_name: "NP Test NPO",
+    });
+    const res = await load(await cookie_for(ORDER_ID), ORDER_ID);
+    expect(res).toBeInstanceOf(Response);
+    expect(status_of(res)).toBe(500);
   });
 
   it("a signed-in donor who owns the donation gets the deposit", async () => {

@@ -7,6 +7,14 @@ export const to_flag = (status: TStatus): TStatusFlag => {
   // "0" is lexicographically before "1, but scan index forward : false "
   return status === "active" ? "1" : "0";
 };
+/**
+ * cancel reason a stripe sub's row is born inactive with while its first
+ * invoice is unpaid (`incomplete`), and the one marker the webhook reactivates
+ * on once it is paid — a donor's or admin's cancel overwrites it, so theirs
+ * never flips back
+ */
+export const FIRST_PAYMENT_INCOMPLETE = "first_payment_incomplete";
+
 export interface ISub {
   id: string;
   /** iso */

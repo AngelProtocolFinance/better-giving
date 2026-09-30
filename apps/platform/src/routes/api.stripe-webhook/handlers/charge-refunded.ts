@@ -1,28 +1,19 @@
 import type Stripe from "stripe";
 import { report_error } from "#/errors/report";
-import {
-  currency_precision,
-  from_stripe_amount,
-  str_id,
-} from "#/helpers/stripe";
+import { str_id } from "#/helpers/stripe";
+import { is_reversed } from "@/donations";
 import { msg } from "@/queue";
 import { stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
-import { donation_get } from "$/pg/queries/donation";
 import { process_refund } from "$/refund/process";
+import { money, refund_list } from "../helpers/money";
+import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
+import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-refunded";
-
-const money = (atomic: number, currency: string) =>
-  `${from_stripe_amount(atomic, currency).toFixed(currency_precision(currency))} ${currency.toUpperCase()}`;
-
-const refund_list = (refunds: Stripe.Refund[], currency: string) =>
-  refunds
-    .map((r) => `${money(r.amount, currency)} (${r.id}, ${r.status})`)
-    .join(", ");
 
 /** the refunds this event added, oldest first, or null when the event can't
  * say. charge.refunded names no refund, so they're found by where the event's
@@ -62,15 +53,10 @@ export async function handle_charge_refunded(
   // that has since been refunded in full
   const charge = await stripe.charges.retrieve(event.data.object.id);
   const intent_id = str_id(charge.payment_intent);
-  const intent = await stripe.paymentIntents.retrieve(intent_id);
-  const { order_id } = intent.metadata;
-  if (!order_id)
-    throw new Error(`missing order_id in intent metadata: ${intent_id}`);
-
-  const don = await donation_get(order_id);
-  if (!don) throw new Error(`donation not found: ${order_id}`);
-  if (don.status === "refunded" || don.status === "refunded_loss") {
-    console.info(`already refunded: ${order_id}`);
+  const don = await settled_donation(intent_id);
+  const don_id = don.id;
+  if (is_reversed(don.status)) {
+    console.info(`already refunded: ${don_id}`);
     return;
   }
 
@@ -92,7 +78,7 @@ export async function handle_charge_refunded(
       from: `${ALERT_FROM}-${stage}`,
       title: "Partial Refund Not Reversed",
       body: [
-        `donation ${order_id}, charge ${charge.id}, event ${event.id}`,
+        `donation ${don_id}, charge ${charge.id}, event ${event.id}`,
         `new in this event: ${added ? refund_list(added, charge.currency) : "could not tell which refund is new"}`,
         `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
         `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount, charge.currency)}`,
@@ -102,16 +88,16 @@ export async function handle_charge_refunded(
     return;
   }
 
-  const graphs = await dists_for_refund(order_id);
+  const graphs = await dists_for_refund(don_id);
   if (graphs.length === 0) {
-    throw new Error(`no settled dists for donation: ${order_id}`);
+    throw new Error(`no settled dists for donation: ${don_id}`);
   }
 
   // nothing can be refunded past a full refund, so the newest completed it.
   // every earlier refund, failed ones included: each may have sent a partial
   // notice ops acted on
   const detail = [
-    `donation ${order_id}, charge ${charge.id}, event ${event.id}`,
+    `donation ${don_id}, charge ${charge.id}, event ${event.id}`,
     `completing refund: ${refund_list([newest], charge.currency)}`,
     `earlier partial refunds: ${refund_list(earlier, charge.currency)}`,
   ];
@@ -129,14 +115,14 @@ export async function handle_charge_refunded(
     });
   }
 
-  const result = await process_refund(order_id, graphs, {
+  const result = await process_refund(don_id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
     alert_from: ALERT_FROM,
   });
 
+  const failed = result.failures.length;
   if (earlier.length > 0) {
-    const failed = result.failures.length;
     const [title, lead] =
       failed === 0
         ? [
@@ -151,18 +137,22 @@ export async function handle_charge_refunded(
     // queued, not sent: once reversed, a redelivery stops at the donation's
     // status, so only the queue's retries can land a failed send. a failed
     // enqueue is reported, instruction and all, rather than failing the
-    // delivery, because the reversal has already run. keyed on the outcome as
-    // well as the event: a replay after a partial failure that now completes
-    // must land its "undo" notice, not be deduped against the "keep" one.
+    // delivery: once reversed, no redelivery gets far enough to queue it.
+    // keyed on the outcome as well as the event: a redelivery failing alike
+    // collapses into the "keep" notice, and one that now completes lands its
+    // "undo" notice.
     await enqueue(
       msg("fiat-notice", {
         id: `${event.id}_${failed}`,
         alert: { type: "NOTICE", from: `${ALERT_FROM}-${stage}`, title, body },
       })
-    ).catch((err) => report_error(err, { donation_id: order_id, title, body }));
+    ).catch((err) => report_error(err, { donation_id: don_id, title, body }));
   }
 
   console.info(
-    `charge refunded: ${order_id}, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`
+    `charge refunded: ${don_id}, dists: ${graphs.length}, failures: ${failed}, losses: ${result.loss_msgs.length}`
   );
+  if (failed > 0) {
+    throw new ReversalIncompleteError(don_id, failed, graphs.length);
+  }
 }

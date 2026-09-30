@@ -1,4 +1,5 @@
 import type { NP } from "@/nowpayments/types";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { np } from "$/kit/nowpayments";
 import type { SettleRates } from "./payment";
 
@@ -6,7 +7,7 @@ import type { SettleRates } from "./payment";
 export async function settle_rates(
   payment: NP.PaymentPayload
 ): Promise<SettleRates> {
-  const { usdpu: outcome_usdpu } = await np.estimate(payment.outcome_currency);
+  const outcome_usdpu = await usdpu_of(np, payment.outcome_currency);
   const fee_currency = payment.fee?.currency;
   if (
     !fee_currency ||
@@ -14,9 +15,6 @@ export async function settle_rates(
   ) {
     return { outcome_usdpu, fee_usdpu: outcome_usdpu };
   }
-  const fee_usdpu = await np
-    .estimate(fee_currency)
-    .then((r) => r.usdpu)
-    .catch(() => null);
+  const fee_usdpu = await usdpu_of(np, fee_currency).catch(() => null);
   return { outcome_usdpu, fee_usdpu };
 }

@@ -71,6 +71,36 @@ describe("nowpayments client", () => {
     expect(url.searchParams.get("currency_to")).toBe("ETH");
   });
 
+  it.each([
+    ["a zero estimated_amount", { amount_from: 100, estimated_amount: 0 }],
+    ["no estimated_amount", { amount_from: 100 }],
+    ["a negative estimated_amount", { amount_from: 100, estimated_amount: -1 }],
+    [
+      "a string estimated_amount",
+      { amount_from: 100, estimated_amount: "0.05" },
+    ],
+  ])(
+    "estimate throws on %s rather than return a usd rate of Infinity or NaN",
+    async (_, body) => {
+      fetch_mock().mockResolvedValueOnce(Response.json(body));
+      await expect(client.estimate("ETH")).rejects.toThrow(/v1\/estimate/);
+    }
+  );
+
+  it.each([
+    ["no fiat_equivalent", { min_amount: 0.001 }],
+    ["a zero fiat_equivalent", { min_amount: 0.001, fiat_equivalent: 0 }],
+    ["a zero min_amount", { min_amount: 0, fiat_equivalent: 2 }],
+    ["a string min_amount", { min_amount: "0.001", fiat_equivalent: 2 }],
+  ])(
+    "min_amount throws on %s rather than return a minimum that passes every check",
+    async (_, body) => {
+      fetch_mock().mockResolvedValueOnce(Response.json(body));
+      const err = await client.min_amount("ETH").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+    }
+  );
+
   it("every request carries a 10s timeout", async () => {
     const ctl = new AbortController();
     const timeout = vi

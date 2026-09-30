@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { inspect } from "node:util";
 import { crc32 } from "node:zlib";
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -28,6 +29,12 @@ const sentry_capture_mock = vi.hoisted(() => vi.fn());
 const get_order_mock = vi.hoisted(() => vi.fn());
 const get_subscription_mock = vi.hoisted(() => vi.fn());
 const get_plan_mock = vi.hoisted(() => vi.fn());
+const capture_order_mock = vi.hoisted(() => vi.fn());
+const schedule_mock = vi.hoisted(() => vi.fn());
+const send_alert_mock = vi.hoisted(() => vi.fn());
+const process_refund_mock = vi.hoisted(() => vi.fn());
+const get_capture_mock = vi.hoisted(() => vi.fn());
+const get_sale_mock = vi.hoisted(() => vi.fn());
 /** runs on the lock's own tx just before it is taken — a write that commits
  * between the handler's first read and the lock */
 const before_lock = vi.hoisted(() => ({
@@ -56,9 +63,19 @@ vi.mock("$/kit/paypal", () => ({
     get_order: get_order_mock,
     get_subscription: get_subscription_mock,
     get_plan: get_plan_mock,
+    capture_order: capture_order_mock,
+    get_capture: get_capture_mock,
+    get_sale: get_sale_mock,
   },
 }));
-vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
+vi.mock("$/kit/queue", () => ({
+  enqueue: enqueue_mock,
+  schedule: schedule_mock,
+}));
+vi.mock("$/refund/process", () => ({ process_refund: process_refund_mock }));
+vi.mock("$/kit/discord", () => ({
+  fiat_monitor: { send_alert: send_alert_mock },
+}));
 vi.mock("$/pg/queries/donation", async (io) => {
   const actual = await io<typeof import("$/pg/queries/donation")>();
   return {
@@ -83,6 +100,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { action } = await import("./route");
+const { PayPalApiError } = await import("@better-giving/paypal");
 const { report_error: real_report_error } =
   await vi.importActual<typeof import("#/errors/report")>("#/errors/report");
 const { donation_get, donation_put, donation_update } = await import(
@@ -203,6 +221,22 @@ const deliver = (
   } as any) as Promise<Response>;
 };
 
+/** paypal's own copy of the capture — what the route settles from */
+const capture_copy = () => ({
+  id: CAPTURE_ID,
+  status: "COMPLETED",
+  amount: { value: "100.00", currency_code: "USD" },
+  create_time: "2026-01-02T00:00:00.000Z",
+  custom_id: ORDER_ID,
+  seller_receivable_breakdown: {
+    gross_amount: { value: "100", currency_code: "USD" },
+    net_amount: { value: "96.5", currency_code: "USD" },
+    paypal_fee: { value: "3.5" },
+  },
+});
+
+/** the event announcing it. its amounts are decoys that disagree with
+ * paypal's copy, so a settle read off the event body fails every assertion */
 const capture_ev = () => ({
   event_type: "PAYMENT.CAPTURE.COMPLETED",
   resource: {
@@ -210,21 +244,38 @@ const capture_ev = () => ({
     create_time: "2026-01-02T00:00:00.000Z",
     custom_id: ORDER_ID,
     seller_receivable_breakdown: {
-      gross_amount: { value: "100", currency_code: "USD" },
-      net_amount: { value: "96.5", currency_code: "USD" },
-      paypal_fee: { value: "3.5" },
+      gross_amount: { value: "1", currency_code: "USD" },
+      net_amount: { value: "1", currency_code: "USD" },
+      paypal_fee: { value: "0" },
     },
   },
 });
 
+/** delivers the capture event with `copy` as paypal's copy of the capture */
+const deliver_capture = (copy: object) => {
+  get_capture_mock.mockResolvedValue(copy);
+  return deliver(capture_ev());
+};
+
+/** paypal's own copy of the sale */
+const sale_copy = () => ({
+  id: SALE_ID,
+  state: "completed",
+  create_time: "2026-01-02T00:00:00.000Z",
+  billing_agreement_id: SUBS_ID,
+  transaction_fee: { value: "3.5" },
+  amount: { total: "100", currency: "USD" },
+});
+
+/** the event announcing it, with decoy amounts as for a capture */
 const sale_ev = () => ({
   event_type: "PAYMENT.SALE.COMPLETED",
   resource: {
     id: SALE_ID,
     create_time: "2026-01-02T00:00:00.000Z",
     billing_agreement_id: SUBS_ID,
-    transaction_fee: { value: "3.5" },
-    amount: { total: "100", currency: "USD" },
+    transaction_fee: { value: "0" },
+    amount: { total: "1", currency: "USD" },
   },
 });
 
@@ -311,6 +362,21 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
+  schedule_mock.mockResolvedValue(undefined);
+  process_refund_mock.mockResolvedValue({
+    failures: [],
+    loss_msgs: [],
+    has_loss: false,
+    applied: 1,
+  });
+  get_capture_mock.mockImplementation(async (id: string) => ({
+    ...capture_copy(),
+    id,
+  }));
+  get_sale_mock.mockImplementation(async (id: string) => ({
+    ...sale_copy(),
+    id,
+  }));
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
     plan_id: "P-1",
@@ -420,13 +486,13 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("settles a capture paypal charged no fee at its gross", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(report_error_mock).not.toHaveBeenCalled();
@@ -438,7 +504,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("takes platform fees out of a net paypal left off the capture", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
@@ -446,7 +512,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await settlements()).toEqual([
@@ -457,7 +523,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("settles at paypal's net whatever platform fees ride along", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
@@ -466,7 +532,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await settlements()).toEqual([
@@ -477,7 +543,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("derives a fallback net to the cent", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "50.00", currency_code: "USD" },
         paypal_fee: { value: "2.24", currency_code: "USD" },
@@ -485,12 +551,146 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       },
     };
 
-    await deliver({ ...capture_ev(), resource });
+    await deliver_capture(resource);
 
     expect(await settlements()).toEqual([
       expect.objectContaining({ net: 47.06 }),
     ]);
   });
+});
+
+describe("settling from paypal's copy, not the event's", () => {
+  it("settles a capture onto the donation paypal names, whatever the event says", async () => {
+    await seed_donation();
+    await seed_donation({ id: "don-other" });
+    const forged = capture_ev();
+    forged.resource.custom_id = "don-other";
+
+    const res = await deliver(forged);
+
+    expect(res.status).toBe(200);
+    expect(get_capture_mock).toHaveBeenCalledWith(CAPTURE_ID);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ donation_id: ORDER_ID, net: 96.5, fee: 3.5 }),
+    ]);
+    expect((await donation_get("don-other"))!.status).toBe("intent");
+  });
+
+  it("settles nothing on a capture paypal says is not complete", async () => {
+    await seed_donation();
+
+    const res = await deliver_capture({
+      ...capture_copy(),
+      status: "DECLINED",
+    });
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("settles a sale at what paypal says it sold", async () => {
+    await seed_donation({ frequency: "monthly" });
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(get_sale_mock).toHaveBeenCalledWith(SALE_ID);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 96.5, fee: 3.5 }),
+    ]);
+  });
+
+  it("reports and asks for redelivery of a capture paypal says it cannot find", async () => {
+    await seed_donation();
+    get_capture_mock.mockRejectedValue(
+      new PayPalApiError("get capture", 404, '{"name":"RESOURCE_NOT_FOUND"}')
+    );
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("settles a sale whose completion lands after paypal reversed it, so its reversal finds it", async () => {
+    await seed_donation({ frequency: "monthly" });
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "reversed" });
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 96.5, fee: 3.5 }),
+    ]);
+  });
+
+  it("takes the subscription off the event when paypal's copy of the sale has none", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { billing_agreement_id: _, ...copy } = sale_copy();
+    get_sale_mock.mockResolvedValue(copy);
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(get_subscription_mock).toHaveBeenCalledWith(SUBS_ID);
+    expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
+  });
+
+  it("reports and asks for redelivery of a sale paypal says it cannot find", async () => {
+    await seed_donation({ frequency: "monthly" });
+    get_sale_mock.mockRejectedValue(
+      new PayPalApiError("get sale", 404, '{"name":"INVALID_RESOURCE_ID"}')
+    );
+
+    const res = await deliver(sale_ev());
+
+    expect(res.ok).toBe(false);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+});
+
+describe("a lookup paypal refuses for good", () => {
+  const not_found = (op: string) =>
+    new PayPalApiError(op, 404, '{"name":"RESOURCE_NOT_FOUND"}');
+
+  it("settles a capture whose order paypal cannot find, on the donor it has", async () => {
+    await seed_donation();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockRejectedValue(not_found("get order"));
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+  });
+
+  it.each([
+    [
+      "subscription",
+      () =>
+        get_subscription_mock.mockRejectedValue(not_found("get subscription")),
+    ],
+    ["plan", () => get_plan_mock.mockRejectedValue(not_found("get plan"))],
+  ])(
+    "acknowledges and reports a sale whose %s paypal cannot find",
+    async (_, refuse) => {
+      await seed_donation({ frequency: "monthly" });
+      refuse();
+
+      const res = await deliver(sale_ev());
+
+      expect(res.status).toBe(200);
+      expect(await res.text()).toMatch(/^not routable: /);
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await settlements()).toHaveLength(0);
+    }
+  );
 });
 
 describe("PAYMENT.SALE.COMPLETED", () => {
@@ -516,6 +716,45 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     expect(res.ok).toBe(false);
     expect(enqueue_mock).not.toHaveBeenCalled();
     expect(await settlements()).toHaveLength(1);
+  });
+
+  it("answers 200 and reports a settled sale whose subscription paypal 404s", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+    get_subscription_mock.mockRejectedValue(
+      new PayPalApiError(
+        "get subscription",
+        404,
+        '{"name":"RESOURCE_NOT_FOUND"}'
+      )
+    );
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    // reported as ours to fix: the reporter keeps any error with a 4xx
+    // `status` out of sentry
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining(SALE_ID) }),
+      { sale_id: SALE_ID, subs_id: SUBS_ID, http_status: 404 }
+    );
+    expect(report_error_mock.mock.calls[0]![0]).not.toHaveProperty("status");
+  });
+
+  it("asks for redelivery of a settled sale while paypal rate-limits the lookup", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+    get_subscription_mock.mockRejectedValue(
+      new PayPalApiError("get subscription", 429, "{}")
+    );
+
+    const res = await deliver(sale_ev());
+
+    expect(res.ok).toBe(false);
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   it("answers 200 for a settled sale whose subscription has no order id", async () => {
@@ -556,9 +795,10 @@ describe("PAYMENT.SALE.COMPLETED", () => {
 
   it("settles a sale paypal charged no fee at its total", async () => {
     await seed_donation({ frequency: "monthly" });
-    const { transaction_fee: _, ...resource } = sale_ev().resource;
+    const { transaction_fee: _, ...resource } = sale_copy();
+    get_sale_mock.mockResolvedValue(resource);
 
-    const res = await deliver({ ...sale_ev(), resource });
+    const res = await deliver(sale_ev());
 
     expect(res.status).toBe(200);
     expect(report_error_mock).not.toHaveBeenCalled();
@@ -584,6 +824,606 @@ describe("PAYMENT.SALE.COMPLETED", () => {
       "don-sttl-dist",
       "don-sttl-receipt",
     ]);
+  });
+});
+
+const approved_ev = () => ({
+  event_type: "CHECKOUT.ORDER.APPROVED",
+  resource: {
+    id: "ORDER-1",
+    payment_source: { paypal: { email_address: "payer@test.com" } },
+    purchase_units: [{ custom_id: ORDER_ID }],
+  },
+});
+
+describe("CHECKOUT.ORDER.APPROVED", () => {
+  it("writes the payer and schedules a capture check, rather than racing the browser's capture", async () => {
+    await seed_donation({ from_email: "anon@x.com" });
+    const before = Date.now();
+
+    const res = await deliver(approved_ev());
+
+    expect(res.status).toBe(200);
+    expect(capture_order_mock).not.toHaveBeenCalled();
+    expect(schedule_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        id: "paypal-order-capture",
+        payload: {
+          order_id: "ORDER-1",
+          don_id: ORDER_ID,
+          scheduled_at: expect.any(String),
+        },
+        delay_s: expect.any(Number),
+      })
+    );
+    // the handler tells its retries from its first attempt by this stamp
+    const { scheduled_at } = schedule_mock.mock.calls[0]![0].payload;
+    expect(Date.parse(scheduled_at)).toBeGreaterThanOrEqual(before);
+    expect(Date.parse(scheduled_at)).toBeLessThanOrEqual(Date.now());
+    expect(schedule_mock.mock.calls[0]![0].delay_s).toBeGreaterThanOrEqual(60);
+    expect((await donation_get(ORDER_ID))!.from_email).toBe("payer@test.com");
+  });
+
+  it.each([
+    ["no payment source", {}],
+    ["a payer with no email", { payment_source: { venmo: {} } }],
+  ])(
+    "schedules the capture check for an order approved with %s, keeping the donor it has",
+    async (_, payer) => {
+      await seed_donation();
+      const ev = approved_ev();
+      const { payment_source: __, ...rest } = ev.resource;
+
+      const res = await deliver({ ...ev, resource: { ...rest, ...payer } });
+
+      expect(res.status).toBe(200);
+      expect(report_error_mock).not.toHaveBeenCalled();
+      expect(schedule_mock).toHaveBeenCalledOnce();
+      expect((await donation_get(ORDER_ID))!.from_email).toBe("donor@test.com");
+    }
+  );
+
+  it("asks for redelivery while the check can't be scheduled", async () => {
+    await seed_donation();
+    schedule_mock.mockRejectedValue(new Error("qstash 503"));
+
+    const res = await deliver(approved_ev());
+
+    expect(res.ok).toBe(false);
+  });
+});
+
+describe("refunds and reversals", () => {
+  const capture_refund_ev = (event_type = "PAYMENT.CAPTURE.REFUNDED") => ({
+    id: "WH-REF-1",
+    event_type,
+    resource: {
+      id: "REF-1",
+      status: "COMPLETED",
+      amount: { value: "100", currency_code: "USD" },
+      links: [
+        {
+          rel: "up",
+          method: "GET",
+          href: `https://api.sandbox.paypal.com/v2/payments/captures/${CAPTURE_ID}`,
+        },
+      ],
+    },
+  });
+  const sale_refund_ev = (event_type = "PAYMENT.SALE.REFUNDED") => ({
+    id: "WH-REF-2",
+    event_type,
+    resource: { id: "REF-2", state: "completed", sale_id: SALE_ID },
+  });
+  const settled_capture = async () => {
+    await seed_donation();
+    await deliver(capture_ev());
+    await seed_dist(ORDER_ID);
+  };
+  const paypal_capture_is = (status: string) =>
+    get_capture_mock.mockResolvedValue({ ...capture_copy(), status });
+
+  it.each(["PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REVERSED"])(
+    "reverses a donation whose capture %s in full",
+    async (event_type) => {
+      await settled_capture();
+      paypal_capture_is("REFUNDED");
+
+      const res = await deliver(capture_refund_ev(event_type));
+
+      expect(res.status).toBe(200);
+      expect(get_capture_mock).toHaveBeenLastCalledWith(CAPTURE_ID);
+      expect(process_refund_mock).toHaveBeenCalledExactlyOnceWith(
+        ORDER_ID,
+        [
+          expect.objectContaining({
+            dist: expect.objectContaining({ donation_id: ORDER_ID }),
+          }),
+        ],
+        expect.objectContaining({ alert_from: "paypal-refund" })
+      );
+    }
+  );
+
+  it("reports a partial refund to ops and reverses nothing", async () => {
+    await settled_capture();
+    paypal_capture_is("PARTIALLY_REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    // queued under the event's id, so a duplicate delivery is one notice
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-partial_WH-REF-1",
+      payload: { alert: { title: "Partial Refund Not Reversed" } },
+    });
+    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
+  });
+
+  it("reverses a chargeback of the whole capture, whatever status paypal leaves on it", async () => {
+    await settled_capture();
+    paypal_capture_is("COMPLETED");
+
+    const res = await deliver(capture_refund_ev("PAYMENT.CAPTURE.REVERSED"));
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  it("reports a chargeback of part of the capture and reverses nothing", async () => {
+    await settled_capture();
+    paypal_capture_is("COMPLETED");
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-40.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock.mock.calls.at(-1)![0].id).toBe("fiat-notice");
+  });
+
+  it("reverses a chargeback of what a partial refund left, once the two take the whole capture", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "PARTIALLY_REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ id: CAPTURE_ID }],
+            refunds: [
+              {
+                id: "REF-0",
+                status: "COMPLETED",
+                amount: { value: "40.00", currency_code: "USD" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-60.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).toHaveBeenLastCalledWith("ORDER-1");
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  /** a capture partly refunded before, so sizing a chargeback of -60 needs
+   * the refunds its order lists */
+  const partly_refunded_capture = () =>
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "PARTIALLY_REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+  const partial_chargeback_ev = () => {
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-60.00";
+    return ev;
+  };
+
+  it.each([
+    ["a 5xx", new PayPalApiError("get order", 503, "{}")],
+    ["a rate limit", new PayPalApiError("get order", 429, "{}")],
+    ["a timeout", new PayPalApiError("get order", 408, "{}")],
+    ["the network", new TypeError("fetch failed")],
+  ])(
+    "redelivers a chargeback whose order lookup fails on %s, reversing and reporting nothing as partial",
+    async (_, failure) => {
+      await settled_capture();
+      partly_refunded_capture();
+      get_order_mock.mockRejectedValue(failure);
+      enqueue_mock.mockClear();
+      report_error_mock.mockClear();
+
+      const res = await deliver(partial_chargeback_ev());
+
+      expect(res.status).toBe(503);
+      expect(process_refund_mock).not.toHaveBeenCalled();
+      expect(enqueue_mock).not.toHaveBeenCalled();
+      expect(report_error_mock).toHaveBeenCalledOnce();
+    }
+  );
+
+  // no redelivery gets the order back, so holding the event buys 25 refusals
+  it("tells ops a chargeback whose order paypal refuses for good can't be sized, reverses nothing, and acknowledges", async () => {
+    await settled_capture();
+    partly_refunded_capture();
+    get_order_mock.mockRejectedValue(
+      new PayPalApiError("get order", 404, '{"name":"RESOURCE_NOT_FOUND"}')
+    );
+    enqueue_mock.mockClear();
+    report_error_mock.mockClear();
+
+    const res = await deliver(partial_chargeback_ev());
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-unsized_WH-REF-1",
+      payload: { alert: { title: "Reversal Not Sized" } },
+    });
+    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
+    expect(notice.payload.alert.body).toContain("by hand");
+  });
+
+  it("reverses a chargeback that alone takes the whole capture, without the order", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockClear();
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-100.00";
+
+    const res = await deliver(ev);
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).not.toHaveBeenCalled();
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  it("reverses a chargeback of a capture paypal already reads refunded, without the order", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockRejectedValue(new Error("paypal 503"));
+    get_order_mock.mockClear();
+
+    const res = await deliver(capture_refund_ev("PAYMENT.CAPTURE.REVERSED"));
+
+    expect(res.status).toBe(200);
+    expect(get_order_mock).not.toHaveBeenCalled();
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  it("reverses a sale paypal reports reversed as the sale itself", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    await seed_dist(ORDER_ID);
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "reversed" });
+
+    const res = await deliver({
+      id: "WH-REV-3",
+      event_type: "PAYMENT.SALE.REVERSED",
+      resource_type: "sale",
+      resource: { id: SALE_ID, state: "reversed" },
+    });
+
+    expect(res.status).toBe(200);
+    expect(get_sale_mock).toHaveBeenLastCalledWith(SALE_ID);
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+  });
+
+  // the v1 sale lists neither a refunded total nor its refunds, so a chargeback
+  // of what an earlier refund left reads as partial
+  it("tells ops a sale chargeback of part of the charge may have taken back the rest, reversing nothing", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    await seed_dist(ORDER_ID);
+    get_sale_mock.mockResolvedValue({
+      ...sale_copy(),
+      state: "partially_refunded",
+    });
+
+    const res = await deliver({
+      id: "WH-REV-4",
+      event_type: "PAYMENT.SALE.REVERSED",
+      resource: {
+        id: "REV-4",
+        sale_id: SALE_ID,
+        amount: { total: "-60.00", currency: "USD" },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice.id).toBe("fiat-notice");
+    expect(notice.payload.alert.body).toContain(SALE_ID);
+    expect(notice.payload.alert.body).toContain(
+      "earlier refunds of this sale could not be counted"
+    );
+    expect(notice.payload.alert.body).toContain("fully taken back");
+  });
+
+  it("asks for redelivery when some dists failed to reverse", async () => {
+    await settled_capture();
+    paypal_capture_is("REFUNDED");
+    process_refund_mock.mockResolvedValue({
+      failures: ["dist x: db timeout"],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 0,
+    });
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.ok).toBe(false);
+  });
+
+  it("reports and acknowledges a refund of a charge no donation here owns", async () => {
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      status: "REFUNDED",
+      custom_id: "not-ours",
+    });
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(process_refund_mock).not.toHaveBeenCalled();
+  });
+
+  it("reverses a subscription charge paypal refunded in full", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    await seed_dist(ORDER_ID);
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "refunded" });
+
+    const res = await deliver(sale_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(get_sale_mock).toHaveBeenLastCalledWith(SALE_ID);
+    expect(process_refund_mock).toHaveBeenCalledExactlyOnceWith(
+      ORDER_ID,
+      [expect.anything()],
+      expect.anything()
+    );
+  });
+
+  it("acknowledges a refund on a donation already reversed", async () => {
+    await settled_capture();
+    await donation_update(db() as any, ORDER_ID, { status: "refunded" });
+    paypal_capture_is("REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+  });
+
+  it("asks for redelivery of a refund whose capture has not settled here yet", async () => {
+    await seed_donation();
+    paypal_capture_is("REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.ok).toBe(false);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("subscription lifecycle", () => {
+  const sub_row = async () =>
+    (
+      await db()
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.id, SUBS_ID))
+    )[0];
+  const active_sub = async () => {
+    await seed_donation({ frequency: "monthly" });
+    await deliver(sale_ev());
+    enqueue_mock.mockClear();
+  };
+  const paypal_sub_is = async (status: string, next_billing?: string) => {
+    const { billing_info: _, ...sub } = await get_subscription_mock();
+    get_subscription_mock.mockResolvedValue({
+      ...sub,
+      status,
+      ...(next_billing && {
+        billing_info: { next_billing_time: next_billing },
+      }),
+    });
+  };
+  const lifecycle_ev = (event_type: string) => ({
+    id: `WH-${event_type}`,
+    event_type,
+    resource: { id: SUBS_ID, status: "IGNORED-read-from-paypal" },
+  });
+
+  it.each([
+    ["BILLING.SUBSCRIPTION.CANCELLED", "CANCELLED"],
+    ["BILLING.SUBSCRIPTION.SUSPENDED", "SUSPENDED"],
+    ["BILLING.SUBSCRIPTION.EXPIRED", "EXPIRED"],
+  ])(
+    "marks a subscription inactive on %s, without cancelling it again",
+    async (event_type, status) => {
+      await active_sub();
+      await paypal_sub_is(status);
+
+      const res = await deliver(lifecycle_ev(event_type));
+
+      expect(res.status).toBe(200);
+      expect((await sub_row())!.status).toBe("inactive");
+      expect(enqueue_mock).not.toHaveBeenCalled();
+    }
+  );
+
+  it("brings a suspended subscription back when paypal reactivates it", async () => {
+    await active_sub();
+    await paypal_sub_is("SUSPENDED");
+    await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.SUSPENDED"));
+    await paypal_sub_is("ACTIVE", "2026-04-01T00:00:00.000Z");
+
+    const res = await deliver(
+      lifecycle_ev("BILLING.SUBSCRIPTION.RE-ACTIVATED")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await sub_row()).toMatchObject({
+      status: "active",
+      next_billing: "2026-04-01T00:00:00.000Z",
+    });
+  });
+
+  it("moves next billing on after a failed payment paypal will retry", async () => {
+    await active_sub();
+    await paypal_sub_is("ACTIVE", "2026-02-06T00:00:00.000Z");
+
+    const res = await deliver(
+      lifecycle_ev("BILLING.SUBSCRIPTION.PAYMENT.FAILED")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await sub_row()).toMatchObject({
+      status: "active",
+      next_billing: "2026-02-06T00:00:00.000Z",
+    });
+  });
+
+  it("moves next billing on with every charge", async () => {
+    await active_sub();
+    await paypal_sub_is("ACTIVE", "2026-03-01T00:00:00.000Z");
+    const next = sale_ev();
+    next.resource.id = "sale-2";
+
+    const res = await deliver(next);
+
+    expect(res.status).toBe(200);
+    expect((await sub_row())!.next_billing).toBe("2026-03-01T00:00:00.000Z");
+  });
+
+  it("settles a rebill paypal took before the donor cancelled", async () => {
+    await active_sub();
+    await paypal_sub_is("CANCELLED");
+    const rebill = sale_ev();
+    rebill.resource.id = "sale-2";
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), id: "sale-2" });
+
+    const res = await deliver(rebill);
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sttl_id: "sale-2", net: 96.5, fee: 3.5 }),
+      ])
+    );
+    expect(await sub_row()).toMatchObject({
+      next_billing: "2026-02-01T00:00:00.000Z",
+    });
+  });
+
+  it("settles a first sale on a subscription that has expired since, recording it inactive", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await paypal_sub_is("EXPIRED");
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
+    expect((await sub_row())!.status).toBe("inactive");
+  });
+
+  it("asks for redelivery of a cancellation that lands before the subscription does", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await paypal_sub_is("CANCELLED");
+
+    const res = await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.CANCELLED"));
+
+    expect(res.ok).toBe(false);
+  });
+});
+
+describe("PAYMENT.CAPTURE.DENIED", () => {
+  const denied_ev = () => ({
+    event_type: "PAYMENT.CAPTURE.DENIED",
+    resource: { id: CAPTURE_ID, status: "DECLINED", custom_id: ORDER_ID },
+  });
+
+  it("fails the donation and alerts ops once, however often it is delivered", async () => {
+    await seed_donation();
+
+    const first = await deliver(denied_ev());
+    const again = await deliver(denied_ev());
+
+    expect([first.status, again.status]).toEqual([200, 200]);
+    expect((await donation_get(ORDER_ID))!.status).toBe("failed");
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(send_alert_mock.mock.calls[0]![0].body).toContain(CAPTURE_ID);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a settled donation settled", async () => {
+    await seed_donation();
+    await deliver(capture_ev());
+
+    const res = await deliver(denied_ev());
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+  });
+});
+
+describe("PAYMENT.CAPTURE.PENDING", () => {
+  it("reports why paypal is holding the capture and leaves the donation as it was", async () => {
+    await seed_donation();
+
+    const res = await deliver({
+      event_type: "PAYMENT.CAPTURE.PENDING",
+      resource: {
+        id: CAPTURE_ID,
+        status: "PENDING",
+        custom_id: ORDER_ID,
+        status_details: {
+          reason: "RECEIVING_PREFERENCE_MANDATES_MANUAL_ACTION",
+        },
+      },
+    });
+
+    expect(res.status).toBe(200);
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining("pending") }),
+      {
+        capture_id: CAPTURE_ID,
+        don_id: ORDER_ID,
+        reason: "RECEIVING_PREFERENCE_MANDATES_MANUAL_ACTION",
+      }
+    );
+    expect((await donation_get(ORDER_ID))!.status).toBe("intent");
   });
 });
 
@@ -1116,9 +1956,9 @@ describe("signature verification", () => {
 describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no donation id", async () => {
     await seed_donation();
-    const { custom_id: _, ...resource } = capture_ev().resource;
+    const { custom_id: _, ...resource } = capture_copy();
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toMatch(/^not routable: /);
@@ -1129,14 +1969,14 @@ describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no gross amount", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         net_amount: { value: "96.5", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toMatch(/^not routable: /);
@@ -1147,7 +1987,7 @@ describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no net and a platform fee in another currency", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
@@ -1155,7 +1995,7 @@ describe("an event no redelivery can route", () => {
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toMatch(/^not routable: /);
@@ -1202,7 +2042,9 @@ describe("an event no redelivery can route", () => {
 
   it("acknowledges and reports a sale with no subscription id", async () => {
     await seed_donation({ frequency: "monthly" });
-    const { billing_agreement_id: _, ...resource } = sale_ev().resource;
+    const { billing_agreement_id: _, ...copy } = sale_copy();
+    get_sale_mock.mockResolvedValue(copy);
+    const { billing_agreement_id: __, ...resource } = sale_ev().resource;
 
     const res = await deliver({ ...sale_ev(), resource });
 
@@ -1292,16 +2134,12 @@ describe("logging", () => {
         },
       },
     });
-    const ev = capture_ev();
-
-    const res = await deliver({
-      ...ev,
-      id: "WH-4",
-      resource: {
-        ...ev.resource,
-        supplementary_data: { related_ids: { order_id: "ORDER-1" } },
-      },
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
     });
+
+    const res = await deliver({ ...capture_ev(), id: "WH-4" });
 
     expect(res.status).toBe(200);
     expect(get_order_mock).toHaveBeenCalledWith("ORDER-1");
@@ -1373,7 +2211,7 @@ describe("logging", () => {
   it("keeps the payer out of the log of an unhandled event", async () => {
     const res = await deliver({
       id: "WH-2",
-      event_type: "PAYMENT.CAPTURE.REFUNDED",
+      event_type: "CUSTOMER.DISPUTE.CREATED",
       resource: {
         id: "REFUND-1",
         payer: {

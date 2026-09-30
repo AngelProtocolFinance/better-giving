@@ -348,6 +348,40 @@ describe("nowpayments ipn settlement", () => {
     expect(don.amount.base).toBeCloseTo(0.4);
   });
 
+  // a lost confirming, or a dashboard resend of finished alone, leaves the
+  // intent's quoted amount on the row
+  it("settles a finished payment at what it actually paid, with no confirming before it", async () => {
+    await seed_donation({ status: "intent" });
+
+    const res = await deliver(payment({ actually_paid: 0.6 }));
+
+    expect(res.status).toBe(200);
+    const don = (await donation_get(ORDER_ID))!;
+    expect(don.status).toBe("settled");
+    expect(don.amount.base).toBeCloseTo(0.6);
+    expect(don.upusd).toBeCloseTo(1 / 2000);
+  });
+
+  it("settles a finished payment at the intent's rate and alerts when the pay-coin estimate fails", async () => {
+    await seed_donation({ status: "intent", upusd: 1 / 1800 });
+    vi.mocked(np.estimate).mockRejectedValueOnce(
+      new Error("currency disabled")
+    );
+
+    const res = await deliver(payment());
+
+    expect(res.status).toBe(200);
+
+    const don = (await donation_get(ORDER_ID))!;
+    expect(don.status).toBe("settled");
+    expect(don.upusd).toBeCloseTo(1 / 1800);
+    expect(await settlements()).toHaveLength(1);
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(alert_titles()).toContainEqual(
+      expect.stringMatching(/intent's rate/i)
+    );
+  });
+
   it("keeps a settled donation when a confirming read before the settle writes after it", async () => {
     await seed_donation();
     const stale = (await donation_get(ORDER_ID))!;
@@ -656,6 +690,51 @@ describe("nowpayments ipn settlement", () => {
       const [a] = send_alert_mock.mock.calls[0];
       expect(`${a.title} ${a.body}`).toMatch(/USDTERC20.*ETH|ETH.*USDTERC20/);
       expect(a.body).toContain("payment:5001");
+    }
+  );
+
+  // the estimate carries nowpayments' conversion spread; usdc is a dollar
+  it.each(["usdc", "usdcmatic"])(
+    "records a %s outcome and fee at a dollar a unit, whatever the live estimate says",
+    async (usdc) => {
+      await seed_donation();
+      usd_rates[usdc] = 1.03;
+      try {
+        await deliver(
+          payment({
+            outcome_currency: usdc,
+            fee: { ...payment().fee, currency: usdc },
+          })
+        );
+      } finally {
+        usd_rates.usdc = 1;
+        delete usd_rates.usdcmatic;
+      }
+
+      const [row] = await settlements();
+      expect(row.net).toBe(990);
+      expect(row.fee).toBe(10);
+    }
+  );
+
+  it.each([
+    ["usdc", "a dollar a unit", 1],
+    ["maticusdce", "the live estimate", 1 / 1.03],
+  ])(
+    "values a finished %s payment's donation at %s",
+    async (code, _, upusd) => {
+      await seed_donation({ currency: code.toUpperCase(), upusd: 1 });
+      usd_rates[code] = 1.03;
+      try {
+        await deliver(payment({ pay_currency: code, actually_paid: 100 }));
+      } finally {
+        usd_rates.usdc = 1;
+        delete usd_rates.maticusdce;
+      }
+
+      const don = (await donation_get(ORDER_ID))!;
+      expect(don.status).toBe("settled");
+      expect(don.upusd).toBeCloseTo(upusd, 10);
     }
   );
 

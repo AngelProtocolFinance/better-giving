@@ -123,6 +123,20 @@ describe("handle_sub_deactivated stripe cancel", () => {
     });
   });
 
+  it("caps the donor's reason at stripe's 5000, without splitting an emoji", async () => {
+    stripe_with("active");
+
+    await handle_sub_deactivated({
+      id: SUB_ID,
+      platform: "stripe",
+      status_cancel_reason: `${"a".repeat(4998)}😀 and more`,
+    });
+
+    const { comment } =
+      stripe_cancel_mock.mock.calls[0]![1].cancellation_details;
+    expect(comment).toBe("a".repeat(4998));
+  });
+
   it("resolves on a subscription stripe already canceled", async () => {
     stripe_with("canceled");
 

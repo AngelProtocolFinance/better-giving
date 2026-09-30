@@ -101,6 +101,17 @@ export interface ILockTxCreatedPayload {
   date_created: string | Date;
 }
 
+export interface IPaypalOrderCapturePayload {
+  order_id: string;
+  don_id: string;
+  /** iso, when the check was scheduled. the handler reads a message without
+   * one as a retry */
+  scheduled_at?: string;
+}
+
+/** how long the fallback capture holds before its first attempt */
+export const PAYPAL_CAPTURE_DELAY_S = 5 * 60;
+
 export interface IRegCreatedPayload {
   id: string;
   r_id: string;
@@ -145,6 +156,7 @@ export type Payloads = {
   "fund-member-removed": IFundMemberRemovedPayload;
   "invite-email": IInviteEmailPayload;
   "lock-tx-created": ILockTxCreatedPayload;
+  "paypal-order-capture": IPaypalOrderCapturePayload;
   "reg-created": IRegCreatedPayload;
   "reg-updated": IReg;
   "sub-deactivated": ISubDeactivatedPayload;
@@ -189,6 +201,7 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "invite-email": (p) => `invite_${p.invitee}`,
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,
+  "paypal-order-capture": (p) => `paypal.order-capture_${p.order_id}`,
   "reg-created": (p) => `reg.created_${p.id}`,
   // one key per row state: every write stamps updated_at, so a new save is a
   // new key and a repeat enqueue of the same row is not.
@@ -246,6 +259,14 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   // this kind must be sent through `schedule` in `.server/kit/queue.ts`, never
   // `enqueue`.
   "don-match-chase": { delay_s: 3 * 24 * 60 * 60 },
+  // the fallback capture for an approval whose browser never captured. held
+  // past the browser's own capture so the two don't race under one request
+  // id; the handler re-reads the order and captures only one still APPROVED.
+  // sent through `schedule`, like the chase. the donor has left by now, so these
+  // retries are the only thing that captures through a paypal or db outage:
+  // five on qstash's default backoff span ~31h, and a retry past the order's
+  // expiry reads a 404 and returns.
+  "paypal-order-capture": { delay_s: PAYPAL_CAPTURE_DELAY_S, retries: 5 },
 };
 
 export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({
