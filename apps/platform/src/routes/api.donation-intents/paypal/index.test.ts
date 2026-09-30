@@ -55,6 +55,34 @@ describe("paypal_intent currency", () => {
   });
 });
 
+describe("paypal_intent charged total", () => {
+  it.each([
+    [
+      "USD",
+      { base: 25, tip: 0.004, fee_allowance: 1.039 },
+      { base: 25, tip: 0, fee_allowance: 1.03 },
+      "26.03",
+    ],
+    [
+      "JPY",
+      { base: 1500.5, tip: 75.9, fee_allowance: 45.2 },
+      { base: 1500, tip: 75, fee_allowance: 45 },
+      "1620",
+    ],
+  ])(
+    "%s: the row and the answer carry what paypal is asked for",
+    async (currency, amount, row, total) => {
+      const res = await paypal_intent(ctx({ currency, amount }));
+
+      expect(donation_put_mock.mock.calls[0]![1].amount).toEqual(row);
+      expect(
+        create_order_mock.mock.calls[0]![0].purchase_units[0].amount.value
+      ).toBe(total);
+      expect(res).toMatchObject({ body: { amount: total } });
+    }
+  );
+});
+
 describe("paypal_intent when paypal refuses the order", () => {
   it("marks the donation failed and rethrows", async () => {
     const refused = new PayPalApiError(

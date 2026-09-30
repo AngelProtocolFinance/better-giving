@@ -178,6 +178,8 @@ export function Paypal({
       const create_intent = async (): Promise<{
         tx_id: string;
         don_id: string;
+        /** the order's or subscription's charged total, at the currency's scale */
+        amount: string;
       }> => {
         const { amnt, tip, fee_allowance, frequency } = props_ref.current;
         const d = don_ref.current;
@@ -199,22 +201,22 @@ export function Paypal({
           body: JSON.stringify(intent),
         });
         if (!res.ok) throw res;
-        const { tx_id, don_id } = await res.json();
-        return { tx_id, don_id: don_id ?? "" };
+        const { tx_id, don_id, amount } = await res.json();
+        return { tx_id, don_id: don_id ?? "", amount };
       };
 
       const build_redirect_url = (
         onhold_id: string,
+        amount: string,
         payment_method: string,
         donor_name?: { given_name?: string; surname?: string }
       ) => {
         const d = don_ref.current;
-        const { amnt, tip, fee_allowance } = props_ref.current;
         return donation_return_url({
           donation_id: onhold_id,
           base_url: d.base_url,
           success_redirect: d.config?.success_redirect,
-          amount: amnt + tip + fee_allowance,
+          amount,
           currency,
           payment_method,
           donor_name: [donor_name?.given_name, donor_name?.surname],
@@ -251,7 +253,7 @@ export function Paypal({
       // real payment with no confirmation. always surface something.
       // don_id is captured per-click via the intent promise, not shared state.
       const handle_one_time_approve = async (
-        don_id: string,
+        { don_id, amount }: { don_id: string; amount: string },
         order_id: string,
         method: "PayPal" | "Venmo"
       ) => {
@@ -295,7 +297,7 @@ export function Paypal({
           const onhold_id = body.purchase_units?.[0]?.custom_id || don_id;
           if (!onhold_id) return tell_unconfirmed();
 
-          do_redirect(build_redirect_url(onhold_id, ps_id, ps?.name));
+          do_redirect(build_redirect_url(onhold_id, amount, ps_id, ps?.name));
         } catch (err) {
           report_error(err, { order_id, don_id });
           on_unconfirmed_ref.current?.();
@@ -322,8 +324,8 @@ export function Paypal({
                 try {
                   // server set custom_id=don.id on subscription; donation row
                   // enriched from BILLING.SUBSCRIPTION.ACTIVATED webhook.
-                  const { don_id } = await intent_promise;
-                  do_redirect(build_redirect_url(don_id, "paypal"));
+                  const { don_id, amount } = await intent_promise;
+                  do_redirect(build_redirect_url(don_id, amount, "paypal"));
                 } catch (err) {
                   report_error(err);
                   on_error_ref.current(
@@ -342,8 +344,11 @@ export function Paypal({
           } else {
             const session = sdk.createPayPalOneTimePaymentSession({
               onApprove: async ({ orderId }) => {
-                const { don_id } = await intent_promise;
-                await handle_one_time_approve(don_id, orderId, "PayPal");
+                await handle_one_time_approve(
+                  await intent_promise,
+                  orderId,
+                  "PayPal"
+                );
               },
               onError: on_session_error,
             });
@@ -367,8 +372,11 @@ export function Paypal({
           const intent_promise = create_intent();
           const session = sdk.createVenmoOneTimePaymentSession({
             onApprove: async ({ orderId }) => {
-              const { don_id } = await intent_promise;
-              await handle_one_time_approve(don_id, orderId, "Venmo");
+              await handle_one_time_approve(
+                await intent_promise,
+                orderId,
+                "Venmo"
+              );
             },
             onError: on_session_error,
           });

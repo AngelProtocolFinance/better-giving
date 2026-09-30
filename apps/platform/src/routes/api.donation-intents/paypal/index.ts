@@ -8,16 +8,19 @@ import { resp } from "@/helpers/https";
 import { db } from "$/pg/db";
 import { donation_put, donation_update } from "$/pg/queries/donation";
 import type { Provider } from "../types";
+import { paypal_charge } from "./charge";
 import { create_order } from "./create-order";
 import { create_subs } from "./create-subs";
 
 export const paypal_intent: Provider = async ({ to, from, intent }) => {
-  if (paypal_currencies[intent.currency] === undefined) {
+  const scale = paypal_currencies[intent.currency];
+  if (scale === undefined) {
     return resp.txt(
       `PayPal doesn't accept ${intent.currency}. Try another payment method.`,
       400
     );
   }
+  const charge = paypal_charge(intent.amount, scale);
 
   const upusd = await unit_per_usd(intent.currency);
   const base_usd = rd2num(intent.amount.base / upusd, 1);
@@ -35,6 +38,7 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
     ...to,
     ...from,
     ...intent,
+    amount: charge.amount,
   };
   const don = await donation_put(db, r);
 
@@ -45,11 +49,11 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
         order_id: don.id,
         currency: don.currency,
         npo_name: to.to_name,
-        ...don.amount,
+        charge,
       });
     } else {
       tx_id = await create_subs({
-        ...don.amount,
+        ...charge.amount,
         order_id: don.id,
         freq: intent.frequency,
         currency: don.currency,
@@ -63,5 +67,8 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
     throw err;
   }
 
-  return { don_id: don.id, body: { tx_id, don_id: don.id } };
+  return {
+    don_id: don.id,
+    body: { tx_id, don_id: don.id, amount: charge.total },
+  };
 };
