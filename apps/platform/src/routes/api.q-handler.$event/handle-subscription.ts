@@ -103,7 +103,8 @@ async function cancel_on_paypal(data: ISubDeactivatedPayload) {
   } catch (err) {
     if (!(err instanceof PayPalApiError)) throw err;
     const issues = paypal_issues(err.body);
-    // cancelled already, or never approved: either way nothing left to bill
+    // status is neither ACTIVE nor SUSPENDED (already CANCELLED, EXPIRED, or
+    // still APPROVAL_PENDING/APPROVED); our rows only exist once it went ACTIVE
     if (
       err.http_status === 422 &&
       issues.includes("SUBSCRIPTION_STATUS_INVALID")

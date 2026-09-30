@@ -202,7 +202,12 @@ export function Paypal({
         });
         if (!res.ok) throw res;
         const { tx_id, don_id, amount } = await res.json();
-        return { tx_id, don_id: don_id ?? "", amount };
+        return {
+          tx_id,
+          don_id: don_id ?? "",
+          // a deploy older than this bundle answers without it
+          amount: amount ?? String(amnt + tip + fee_allowance),
+        };
       };
 
       const build_redirect_url = (

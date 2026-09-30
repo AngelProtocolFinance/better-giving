@@ -43,6 +43,19 @@ const already_captured = (err: unknown): boolean =>
   err.http_status === 422 &&
   err.body.includes('"ORDER_ALREADY_CAPTURED"');
 
+// set on the unit at create time; paypal's capture examples echo it on the
+// capture and not the unit, so either one binds the order
+const is_for_donation = (
+  capture: CaptureOrderResponse,
+  don_id: string
+): boolean => {
+  const pu = capture.purchase_units?.[0];
+  return (
+    pu?.custom_id === don_id ||
+    pu?.payments?.captures?.[0]?.custom_id === don_id
+  );
+};
+
 /** not a paypal resource: the least the browser's `paypal_capture_outcome` reads as declined */
 const REFUSED_CAPTURE: IPaypalCaptured = {
   purchase_units: [{ payments: { captures: [{ status: "DECLINED" }] } }],
@@ -72,7 +85,7 @@ export const capture_order = async ({
   // don_id is the browser's word, custom_id is ours from create time. don ids
   // appear in thank-you urls, so a mismatch would write onto another receipt,
   // or hand a declined capture's payer details to whoever named it
-  if (capture.purchase_units?.[0]?.custom_id !== don_id) {
+  if (!is_for_donation(capture, don_id)) {
     report_degraded(new Error("paypal capture for another donation"), {
       order_id,
       don_id,
