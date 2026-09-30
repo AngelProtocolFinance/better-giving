@@ -24,29 +24,33 @@ export const action: ActionFunction = async (args) => {
     );
 
   const count = await npo_bapp_count(npo_id);
-  if (count >= 10) return resp.fail(400, "Max 10 payout methods allowed");
-
-  const filed = await bapp_put(db, {
-    id: x.wiseRecipientID,
-    npo_id,
-    bank_summary: x.bankSummary,
-    bank_statement_url: x.bankStatementFile.publicUrl,
-    rejection_reason: "",
-    status: "under-review",
-    date_created: new Date().toISOString(),
-  });
-  if (filed) {
-    await enqueue(msg("banking-new", { npo_id }));
-  } else {
+  const filed =
+    count < 10 &&
+    (await bapp_put(db, {
+      id: x.wiseRecipientID,
+      npo_id,
+      bank_summary: x.bankSummary,
+      bank_statement_url: x.bankStatementFile.publicUrl,
+      rejection_reason: "",
+      status: "under-review",
+      date_created: new Date().toISOString(),
+    }));
+  if (!filed) {
     const existing = await bapp_get(x.wiseRecipientID);
-    if (existing?.npo_id !== npo_id) {
+    if (!existing) return resp.fail(400, "Max 10 payout methods allowed");
+    if (existing.npo_id !== npo_id) {
       return resp.fail(
         409,
         "This bank account is already registered to another nonprofit"
       );
     }
-    // a retried submit: the first one already filed it and sent the notice
+    if (existing.status !== "under-review") {
+      return resp.fail(409, "This bank account is already on file");
+    }
+    // a retried submit: its first try may have filed the row but failed to enqueue
   }
+  // `banking.new_${npo_id}` dedupes, so a retry's second notice is collapsed
+  await enqueue(msg("banking-new", { npo_id }));
 
   return redirectWithSuccess(
     `../${routes.banking}`,

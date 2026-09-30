@@ -85,10 +85,19 @@ describe("/login ?redirect=", () => {
   });
 
   it("hands the page a safe return path to forward to signup and reset", async () => {
-    expect(await loader({ request: req("//evil.example") } as any)).toBe("/");
+    expect(await loader({ request: req("//evil.example") } as any)).toBe(
+      "/marketplace"
+    );
     expect(await loader({ request: req("/dashboard") } as any)).toBe(
       "/dashboard"
     );
+  });
+
+  it("forwards the same default a sign-in lands on when none is asked", async () => {
+    const res = await loader({
+      request: new Request("https://app.test/login"),
+    } as any);
+    expect(res).toBe("/marketplace");
   });
 
   it("sends a signed-in submitter home, not off-site", async () => {

@@ -96,6 +96,26 @@ describe("zapier auth test", () => {
     expect(await res.json()).toMatchObject({ npoId: npo_id });
   });
 
+  test.each([
+    ["a truncated key", () => api_key_put(npo_id).then((k) => k.slice(0, -4))],
+    ["a payload that isn't json", async () => mint("not json")],
+    [
+      "a non-integer npo_id",
+      async () => mint(JSON.stringify({ npo_id: 1.5, timestamp: 1 })),
+    ],
+    [
+      "a negative npo_id",
+      async () => mint(JSON.stringify({ npo_id: -1, timestamp: 1 })),
+    ],
+    [
+      "a valid key for an npo that doesn't exist",
+      async () => mint(JSON.stringify({ npo_id: npo_id + 1000, timestamp: 1 })),
+    ],
+  ])("%s answers 401", async (_, make_key) => {
+    const res = await get(me, await make_key());
+    expect(res.status).toBe(401);
+  });
+
   test("a v1 key carrying npoId as a string still authenticates", async () => {
     const key = mint_v1({
       npoId: String(npo_id),
@@ -111,14 +131,13 @@ describe("zapier auth test", () => {
 });
 
 /** the v1 wire format: base64url(iv ‖ aes-256-gcm ciphertext ‖ tag) */
-function mint_v1(payload: object) {
+const mint_v1 = (payload: object) => mint(JSON.stringify(payload));
+
+function mint(plaintext: string) {
   const k = Buffer.from(app.api_encryption_key, "base64");
   const iv = randomBytes(12);
   const c = createCipheriv("aes-256-gcm", k, iv);
-  const enc = Buffer.concat([
-    c.update(JSON.stringify(payload), "utf8"),
-    c.final(),
-  ]);
+  const enc = Buffer.concat([c.update(plaintext, "utf8"), c.final()]);
   return Buffer.concat([iv, enc, c.getAuthTag()]).toString("base64url");
 }
 
@@ -193,6 +212,67 @@ describe("zapier new-donation subscribe", () => {
     expect(res.status).toBe(400);
     expect(await query_webhooks(npo_id)).toEqual([]);
   });
+});
+
+describe("zapier new-donation unsubscribe", () => {
+  const send = (method: string, key: string, body: unknown) =>
+    new_donation.action({
+      request: new Request("https://x/api/zapier/triggers/new-donation", {
+        method,
+        headers: { "x-api-key": key, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    } as any) as Promise<Response>;
+
+  test("a hook is removed by its own npo's key", async () => {
+    const key = await api_key_put(npo_id);
+    await test_db
+      .current!.db.insert(webhooks)
+      .values({ id: "h-1", npo_id, url: "https://hooks.zapier.com/a" });
+
+    const res = await send("DELETE", key, { id: "h-1" });
+
+    expect(res.status).toBe(200);
+    expect(await query_webhooks(npo_id)).toEqual([]);
+  });
+
+  test("another npo's key leaves the hook in place", async () => {
+    const db = test_db.current!.db;
+    const other_npo = (await seed_npo(db, { registration_number: "EIN-ZAP-2" }))
+      .id;
+    await api_key_put(npo_id);
+    const other_key = await api_key_put(other_npo);
+    await db
+      .insert(webhooks)
+      .values({ id: "h-1", npo_id, url: "https://hooks.zapier.com/a" });
+
+    await send("DELETE", other_key, { id: "h-1" });
+
+    expect((await query_webhooks(npo_id)).map((h) => h.id)).toEqual(["h-1"]);
+  });
+
+  test.each([
+    ["a missing id", {}],
+    ["an empty id", { id: "" }],
+    ["a numeric id", { id: 1 }],
+    ["an object id", { id: { $ne: "" } }],
+  ])("%s is refused with 400", async (_, body) => {
+    const key = await api_key_put(npo_id);
+
+    const res = await send("DELETE", key, body);
+
+    expect(res.status).toBe(400);
+  });
+
+  test.each(["PUT", "PATCH"])(
+    "a %s answers 405 before any credential is checked",
+    async (method) => {
+      const res = await send(method, "not-a-real-key", "not an object");
+
+      expect(res.status).toBe(405);
+      expect(res.headers.get("allow")).toBe("POST, DELETE");
+    }
+  );
 });
 
 describe("zapier key rotation", () => {

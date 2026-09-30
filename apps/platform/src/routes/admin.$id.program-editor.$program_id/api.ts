@@ -1,6 +1,6 @@
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
-import { dataWithSuccess } from "#/.server/toast";
+import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { resp } from "@/helpers/https";
 import {
   milestone_id,
@@ -29,6 +29,10 @@ const owned_program_id = async (
   return p.output;
 };
 
+// 2xx, not 404: RR skips revalidation after a >=400 action, which would leave the stale row
+const milestone_gone = () =>
+  dataWithError(null, "This milestone no longer exists");
+
 export const loader = async (x: Route.LoaderArgs) => {
   const pid = await owned_program_id(x);
   const prog = await npo_program_get(pid);
@@ -48,7 +52,7 @@ export const action = async (x: Route.ActionArgs) => {
       description_pt: "[]",
       date: new Date().toISOString(),
     });
-    if (!mid) return resp.status(404);
+    if (!mid) return dataWithError(null, "This program no longer exists");
     return dataWithSuccess(null, "Milestone added");
   }
 
@@ -56,7 +60,7 @@ export const action = async (x: Route.ActionArgs) => {
     const p_mid = safeParse(milestone_id, p["milestone-id"]);
     if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
     const deleted = await milestone_delete(id, pid, p_mid.output);
-    if (!deleted) return resp.status(404);
+    if (!deleted) return milestone_gone();
     return dataWithSuccess(null, "Milestone deleted");
   }
 
@@ -72,7 +76,7 @@ export const action = async (x: Route.ActionArgs) => {
       p_mid.output,
       p_upd8.output
     );
-    if (!updated) return resp.status(404);
+    if (!updated) return milestone_gone();
     return dataWithSuccess(null, "Milestone updated");
   }
 
