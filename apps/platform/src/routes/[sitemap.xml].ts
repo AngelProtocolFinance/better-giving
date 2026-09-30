@@ -74,10 +74,12 @@ export const loader: LoaderFunction = async ({ request }) => {
     )
     .join("\n");
 
+  // slugs are studio free text; the encoded segment is the url the blog card
+  // links to, and encodeURIComponent leaves no `&`/`<`/`>` to break the xml.
   const postEntries = posts
     .map(
       (p) => `  <url>
-    <loc>${base_url}/blog/${p.slug}</loc>
+    <loc>${base_url}/blog/${encodeURIComponent(p.slug)}</loc>
     <lastmod>${p._updatedAt}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
