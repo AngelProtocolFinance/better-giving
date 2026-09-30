@@ -764,11 +764,17 @@ export async function action({ request }: Route.ActionArgs) {
         // the donation and the amounts come from paypal's copy: the signature
         // is the only check on the event body
         const capture = await fetch_resource(() => paypal.get_capture(cid));
-        if (typeof capture === "number")
-          return unroutable(
-            ev,
-            `paypal answered ${capture} for capture ${cid}`
+        // as for a sale: a signed event naming a capture paypal can't find is
+        // our lookup gone wrong, and acking it drops the payment
+        if (typeof capture === "number") {
+          report_error(
+            new Error(
+              `[paypal webhook] paypal answered ${capture} for capture`
+            ),
+            { event_id: ev.id, capture_id: cid, http_status: capture }
           );
+          return new Response("capture lookup refused", { status: 503 });
+        }
         const {
           create_time: create_date = new Date().toISOString(),
           custom_id: don_id,

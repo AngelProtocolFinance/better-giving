@@ -601,6 +601,19 @@ describe("settling from paypal's copy, not the event's", () => {
     ]);
   });
 
+  it("reports and asks for redelivery of a capture paypal says it cannot find", async () => {
+    await seed_donation();
+    get_capture_mock.mockRejectedValue(
+      new PayPalApiError("get capture", 404, '{"name":"RESOURCE_NOT_FOUND"}')
+    );
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
+  });
+
   it("settles a sale whose completion lands after paypal reversed it, so its reversal finds it", async () => {
     await seed_donation({ frequency: "monthly" });
     get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "reversed" });
