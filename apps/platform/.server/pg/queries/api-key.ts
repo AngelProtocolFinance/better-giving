@@ -7,6 +7,14 @@ import { db } from "../db";
 import { api_keys, webhooks } from "../schema/npo";
 
 const encryption_key = Buffer.from(app.api_encryption_key, "base64");
+// thrown on use rather than at load, so a bad secret fails the zapier calls
+// loudly without taking the whole server down with it
+const encryption_key_error =
+  encryption_key.length === 32
+    ? undefined
+    : new Error(
+        `APP_API_ENCRYPTION_KEY must decode to 32 bytes, got ${encryption_key.length}`
+      );
 
 export async function api_key_put(npo_id: number): Promise<string> {
   const payload: IApiKeyPayload = {
@@ -14,6 +22,7 @@ export async function api_key_put(npo_id: number): Promise<string> {
     timestamp: Date.now(),
   };
 
+  if (encryption_key_error) throw encryption_key_error;
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", encryption_key, iv);
   const encrypted = Buffer.concat([
@@ -53,8 +62,12 @@ export async function api_key_get(npo_id: number): Promise<string | undefined> {
   return row?.api_key;
 }
 
-/** undefined for any token this server did not mint: bad encoding, tag or json */
+/**
+ * undefined for any token this server did not mint: bad encoding, tag or json.
+ * throws when the server's own secret is misconfigured.
+ */
 export function api_key_decode(key: string): IApiKeyPayload | undefined {
+  if (encryption_key_error) throw encryption_key_error;
   try {
     const combined = Buffer.from(key, "base64url");
 
