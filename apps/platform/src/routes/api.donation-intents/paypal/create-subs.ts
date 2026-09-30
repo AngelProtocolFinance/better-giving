@@ -1,24 +1,30 @@
 import { addMinutes } from "date-fns";
-import type { IAmount } from "@/donations";
-import { rd } from "@/helpers/decimal";
 import { paypal as paypal_env } from "$/env";
 import { paypal } from "$/kit/paypal";
+import type { ICharge } from "./charge";
 
-export interface IInput extends IAmount {
+type TFreq = "monthly" | "weekly" | "annual";
+
+export interface IInput {
   order_id: string;
   currency: string;
-  freq: "monthly" | "weekly" | "annual";
+  freq: TFreq;
+  charge: ICharge;
 }
 
-const plans = {
-  monthly: JSON.parse(paypal_env.plans.monthly) as Record<string, string>,
-  weekly: JSON.parse(paypal_env.plans.weekly) as Record<string, string>,
-  annual: JSON.parse(paypal_env.plans.annual) as Record<string, string>,
-} as const;
+// read per call: this module loads with every donation rail, so a bad plan
+// var must fail its own frequency, not the import
+const plan_id_of = (freq: TFreq, currency: string): string => {
+  const raw = paypal_env.plans[freq];
+  const id = raw
+    ? (JSON.parse(raw) as Record<string, string>)[currency]
+    : undefined;
+  if (!id) throw new Error(`no paypal ${freq} plan for ${currency}`);
+  return id;
+};
 
 export const create_subs = async (i: IInput): Promise<string> => {
-  const total = i.base + i.tip + i.fee_allowance;
-  const plan_id = plans[i.freq][i.currency];
+  const plan_id = plan_id_of(i.freq, i.currency);
 
   // order_id is stable per intent — use it as the idempotency key so a retry
   // after a timeout returns the original subscription instead of a duplicate
@@ -26,7 +32,9 @@ export const create_subs = async (i: IInput): Promise<string> => {
     {
       custom_id: i.order_id,
       plan_id: plan_id,
-      quantity: rd(total, 0),
+      // each plan prices one unit of its currency, so the quantity is the
+      // per-cycle total; paypal's quantity takes decimals
+      quantity: i.charge.total,
       auto_renewal: true,
       start_time: addMinutes(new Date(), 5).toISOString(),
     },

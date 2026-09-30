@@ -53,7 +53,7 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
       });
     } else {
       tx_id = await create_subs({
-        ...charge.amount,
+        charge,
         order_id: don.id,
         freq: intent.frequency,
         currency: don.currency,

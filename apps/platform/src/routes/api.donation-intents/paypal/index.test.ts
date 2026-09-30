@@ -13,6 +13,15 @@ vi.mock("$/kit/paypal", () => ({
     create_subscription: create_subscription_mock,
   },
 }));
+// weekly unset: a deploy missing one plan var
+const paypal_env = vi.hoisted(() => ({
+  plans: {
+    monthly: '{"USD":"P-MONTHLY-USD"}',
+    weekly: undefined,
+    annual: '{"USD":"P-ANNUAL-USD"}',
+  },
+}));
+vi.mock("$/env", () => ({ paypal: paypal_env }));
 vi.mock("#/.server/unit-per-usd", () => ({ unit_per_usd: async () => 1 }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
@@ -81,6 +90,37 @@ describe("paypal_intent charged total", () => {
       expect(res).toMatchObject({ body: { amount: total } });
     }
   );
+});
+
+describe("paypal_intent recurring", () => {
+  beforeEach(() => {
+    create_subscription_mock.mockResolvedValue({ id: "I-SUB1" });
+  });
+
+  it("bills each cycle the gift's exact total", async () => {
+    const res = await paypal_intent(
+      ctx({
+        frequency: "monthly",
+        amount: { base: 25, tip: 0, fee_allowance: 1.04 },
+      })
+    );
+
+    const [req, request_id] = create_subscription_mock.mock.calls[0]!;
+    expect(req).toMatchObject({ plan_id: "P-MONTHLY-USD", quantity: "26.04" });
+    expect(request_id).toBe(`subs-${donation_put_mock.mock.calls[0]![1].id}`);
+    expect(res).toMatchObject({ body: { tx_id: "I-SUB1", amount: "26.04" } });
+  });
+
+  it("fails only the frequency whose plan env is unset", async () => {
+    await expect(paypal_intent(ctx({ frequency: "weekly" }))).rejects.toThrow(
+      "weekly"
+    );
+
+    expect(create_subscription_mock).not.toHaveBeenCalled();
+    expect(donation_update_mock.mock.calls[0]![2]).toEqual({
+      status: "failed",
+    });
+  });
 });
 
 describe("paypal_intent when paypal refuses the order", () => {
