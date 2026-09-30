@@ -21,10 +21,10 @@ const is_interval = (s: Stripe.Price.Recurring.Interval): s is TInterval =>
   s in INTERVALS;
 
 /**
- * rows are born active unless stripe has already ended the sub, so the webhook
- * only ever moves one to inactive. it never reactivates one: an inactive row
- * whose sub is still live at stripe is a cancel that hasn't landed there yet,
- * not a recovery.
+ * rows are born active unless stripe has already ended the sub or its first
+ * charge hasn't landed (FIRST_PAYMENT_INCOMPLETE). past that the webhook only
+ * moves a row to inactive: an inactive row whose sub is still live at stripe
+ * is a cancel that hasn't landed there yet, not a recovery.
  * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
  */
 export const row_status = (
@@ -39,6 +39,13 @@ export const row_status = (
       return undefined;
   }
 };
+
+/**
+ * cancel reason an `incomplete` sub's row is born inactive with, and the one
+ * marker the updated handler reactivates on once the first invoice is paid —
+ * a donor's or admin's cancel overwrites it, so theirs never flips back
+ */
+export const FIRST_PAYMENT_INCOMPLETE = "first_payment_incomplete";
 
 /**
  * project a stripe subscription + the order it came from into our row.
@@ -88,7 +95,9 @@ export function to_sub_record(
     to_fund_id: order.to_type === "fund" ? order.to_id : null,
     to_name: order.to_name,
     platform: "stripe",
-    status: row_status(sub.status) ?? "active",
+    ...(sub.status === "incomplete"
+      ? { status: "inactive", status_cancel_reason: FIRST_PAYMENT_INCOMPLETE }
+      : { status: row_status(sub.status) ?? "active" }),
     from_id: order.from_email,
   };
 }

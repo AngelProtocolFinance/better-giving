@@ -61,6 +61,9 @@ vi.mock("./handlers/subscription-created", async (orig) => ({
 
 const { action } = await import("./route");
 const { BalanceTxnNotReadyError } = await import("./helpers/settled");
+const { FIRST_PAYMENT_INCOMPLETE } = await import(
+  "./handlers/subscription-created"
+);
 const { sub_get } = await import("$/pg/queries/subscription");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { npos } = await import("$/pg/schema/npo");
@@ -329,6 +332,34 @@ describe("customer.subscription lifecycle", () => {
       expect(enqueue_mock).not.toHaveBeenCalled();
     }
   );
+
+  it("a gift born incomplete turns active once its first payment lands", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: FIRST_PAYMENT_INCOMPLETE,
+    });
+
+    const res = await deliver("active", "active");
+
+    expect(res.status).toBe(200);
+    const row = await sub_get(SUB_ID);
+    expect(row?.status).toBe("active");
+    expect(row?.status_cancel_reason).toBeNull();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("a gift still incomplete stays inactive with no cancel queued", async () => {
+    await set_row({
+      status: "inactive",
+      status_cancel_reason: FIRST_PAYMENT_INCOMPLETE,
+    });
+
+    const res = await deliver("incomplete", "incomplete");
+
+    expect(res.status).toBe(200);
+    expect((await sub_get(SUB_ID))?.status).toBe("inactive");
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
 
   it("a cancel that never reached stripe stays cancelled and is queued again", async () => {
     await set_row({
