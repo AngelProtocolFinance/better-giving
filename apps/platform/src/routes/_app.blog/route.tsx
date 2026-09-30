@@ -1,6 +1,6 @@
 import type { POSTS_QUERY_RESULT } from "blog-types";
 import { useEffect, useState } from "react";
-import { NavLink, useFetcher, useSearchParams } from "react-router";
+import { href, NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { PAGE_SIZE, posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
@@ -126,7 +126,8 @@ const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
   props.posts.map((post) => (
     <NavLink
       key={post._id}
-      to={post.slug.current}
+      // slug is free text in the studio; encoded, it stays one path segment
+      to={href("/blog/:slug", { slug: encodeURIComponent(post.slug.current) })}
       className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lift-card transition-shadow group"
     >
       {post.image?.asset ? (

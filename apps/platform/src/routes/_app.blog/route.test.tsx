@@ -48,4 +48,12 @@ describe("blog list", () => {
       .element(screen.getByRole("link", { name: /fresh post/i }))
       .toBeVisible();
   });
+
+  test("a url-shaped slug links to a post path under /blog, never off-site", async () => {
+    posts_mock.mockResolvedValue([[post("x", "Tricky", "//evil.com")], 1]);
+    const screen = await render(<Stub initialEntries={["/blog?t=slug"]} />);
+    await expect
+      .element(screen.getByRole("link", { name: /tricky/i }))
+      .toHaveAttribute("href", "/blog/%2F%2Fevil.com");
+  });
 });
