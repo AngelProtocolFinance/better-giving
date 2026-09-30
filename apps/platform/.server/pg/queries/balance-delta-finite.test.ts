@@ -56,7 +56,7 @@ describe.each([NaN, Infinity])("a %s balance delta", (bad) => {
       npo_balance_update(
         as_db(test_db.db),
         npo_id,
-        { liq: 0, lock_units: bad, cash: 1 },
+        { liq: 0, lock: 0, lock_units: bad, cash: 1 },
         "inc"
       )
     ).rejects.toThrow(/finite/);
