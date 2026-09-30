@@ -128,6 +128,7 @@ async function np_payment(
       description: c.to.to_name,
       amount: to_pay,
       usdpu: q.usdpu,
+      price_usdpu: q.price_usdpu,
       currency: token.code,
     },
     new URL("/api/nowpayments-webhook", base_url).toString()

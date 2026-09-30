@@ -225,6 +225,34 @@ describe("crypto_intent", () => {
     });
   });
 
+  // priced at nowpayments' rate, its conversion back lands on the donor's 10
+  it("a USDC intent values the row at a dollar a unit and prices the invoice at nowpayments' rate", async () => {
+    const spy = np_server({
+      "/v1/min-amount": () =>
+        Response.json({ min_amount: 1, fiat_equivalent: 1.03 }),
+      "/v1/estimate": () =>
+        Response.json({ amount_from: 100, estimated_amount: 100 / 1.03 }),
+      "/v1/invoice-payment": () =>
+        Response.json({
+          payment_id: "779",
+          pay_address: "0xdeposit",
+          payin_extra_id: null,
+          pay_amount: 10,
+          pay_currency: "usdc",
+        }),
+    });
+    const res = await crypto_intent(
+      ctx({ currency: "USDC", amount: { base: 10, tip: 0, fee_allowance: 0 } })
+    );
+
+    expect(res).not.toBeInstanceOf(Response);
+    const [invoice] = await bodies(spy, "/v1/invoice");
+    expect(invoice.price_amount).toBeCloseTo(10.3, 9);
+    const [row] = await rows();
+    expect(row.upusd).toBe(1);
+    expect(res).toMatchObject({ body: { usdpu: 1 } });
+  });
+
   it.each([
     { is_sandbox: true, stage: "production", sent: "success" },
     { is_sandbox: false, stage: "staging", sent: undefined },

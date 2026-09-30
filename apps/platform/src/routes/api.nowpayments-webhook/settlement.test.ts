@@ -717,6 +717,27 @@ describe("nowpayments ipn settlement", () => {
     }
   );
 
+  it.each([
+    ["usdc", "a dollar a unit", 1],
+    ["maticusdce", "the live estimate", 1 / 1.03],
+  ])(
+    "values a finished %s payment's donation at %s",
+    async (code, _, upusd) => {
+      await seed_donation({ currency: code.toUpperCase(), upusd: 1 });
+      usd_rates[code] = 1.03;
+      try {
+        await deliver(payment({ pay_currency: code, actually_paid: 100 }));
+      } finally {
+        usd_rates.usdc = 1;
+        delete usd_rates.maticusdce;
+      }
+
+      const don = (await donation_get(ORDER_ID))!;
+      expect(don.status).toBe("settled");
+      expect(don.upusd).toBeCloseTo(upusd, 10);
+    }
+  );
+
   it("records a fee charged in another currency at that currency's usd rate", async () => {
     await seed_donation();
 

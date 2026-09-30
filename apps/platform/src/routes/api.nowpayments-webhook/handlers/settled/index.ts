@@ -5,6 +5,7 @@ import {
   settle_msgs,
 } from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
@@ -91,7 +92,7 @@ const settle_upusd = async (
   prior: IDonation
 ): Promise<number> => {
   try {
-    return 1 / (await np.estimate(payment.pay_currency)).usdpu;
+    return 1 / (await usdpu_of(np, payment.pay_currency));
   } catch (err) {
     await alert({
       title: "Settled at the intent's rate",
