@@ -34,9 +34,6 @@ const send_alert_mock = vi.hoisted(() => vi.fn());
 const process_refund_mock = vi.hoisted(() => vi.fn());
 const get_capture_mock = vi.hoisted(() => vi.fn());
 const get_sale_mock = vi.hoisted(() => vi.fn());
-/** the last event's resource: by default paypal's own copy of a capture or
- * sale agrees with the event that announced it */
-const delivered = vi.hoisted(() => ({ resource: undefined as unknown }));
 /** runs on the lock's own tx just before it is taken — a write that commits
  * between the handler's first read and the lock */
 const before_lock = vi.hoisted(() => ({
@@ -191,7 +188,6 @@ const deliver = (
   route: typeof action = action
 ) => {
   const body = typeof ev === "string" ? ev : JSON.stringify(ev);
-  if (typeof ev !== "string") delivered.resource = ev.resource;
   const unsigned: Record<string, string | null> = {
     "paypal-transmission-id": "t-1",
     "paypal-transmission-time": "2026-01-01T00:00:00Z",
@@ -221,6 +217,21 @@ const deliver = (
   } as any) as Promise<Response>;
 };
 
+/** paypal's own copy of the capture — what the route settles from */
+const capture_copy = () => ({
+  id: CAPTURE_ID,
+  status: "COMPLETED",
+  create_time: "2026-01-02T00:00:00.000Z",
+  custom_id: ORDER_ID,
+  seller_receivable_breakdown: {
+    gross_amount: { value: "100", currency_code: "USD" },
+    net_amount: { value: "96.5", currency_code: "USD" },
+    paypal_fee: { value: "3.5" },
+  },
+});
+
+/** the event announcing it. its amounts are decoys that disagree with
+ * paypal's copy, so a settle read off the event body fails every assertion */
 const capture_ev = () => ({
   event_type: "PAYMENT.CAPTURE.COMPLETED",
   resource: {
@@ -228,21 +239,38 @@ const capture_ev = () => ({
     create_time: "2026-01-02T00:00:00.000Z",
     custom_id: ORDER_ID,
     seller_receivable_breakdown: {
-      gross_amount: { value: "100", currency_code: "USD" },
-      net_amount: { value: "96.5", currency_code: "USD" },
-      paypal_fee: { value: "3.5" },
+      gross_amount: { value: "1", currency_code: "USD" },
+      net_amount: { value: "1", currency_code: "USD" },
+      paypal_fee: { value: "0" },
     },
   },
 });
 
+/** delivers the capture event with `copy` as paypal's copy of the capture */
+const deliver_capture = (copy: object) => {
+  get_capture_mock.mockResolvedValue(copy);
+  return deliver(capture_ev());
+};
+
+/** paypal's own copy of the sale */
+const sale_copy = () => ({
+  id: SALE_ID,
+  state: "completed",
+  create_time: "2026-01-02T00:00:00.000Z",
+  billing_agreement_id: SUBS_ID,
+  transaction_fee: { value: "3.5" },
+  amount: { total: "100", currency: "USD" },
+});
+
+/** the event announcing it, with decoy amounts as for a capture */
 const sale_ev = () => ({
   event_type: "PAYMENT.SALE.COMPLETED",
   resource: {
     id: SALE_ID,
     create_time: "2026-01-02T00:00:00.000Z",
     billing_agreement_id: SUBS_ID,
-    transaction_fee: { value: "3.5" },
-    amount: { total: "100", currency: "USD" },
+    transaction_fee: { value: "0" },
+    amount: { total: "1", currency: "USD" },
   },
 });
 
@@ -330,20 +358,19 @@ beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
   capture_order_mock.mockResolvedValue({ id: "ORDER-1", status: "COMPLETED" });
-  delivered.resource = undefined;
   process_refund_mock.mockResolvedValue({
     failures: [],
     loss_msgs: [],
     has_loss: false,
     applied: 1,
   });
-  get_capture_mock.mockImplementation(async () => ({
-    status: "COMPLETED",
-    ...(delivered.resource as object),
+  get_capture_mock.mockImplementation(async (id: string) => ({
+    ...capture_copy(),
+    id,
   }));
-  get_sale_mock.mockImplementation(async () => ({
-    state: "completed",
-    ...(delivered.resource as object),
+  get_sale_mock.mockImplementation(async (id: string) => ({
+    ...sale_copy(),
+    id,
   }));
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
@@ -454,13 +481,13 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("settles a capture paypal charged no fee at its gross", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(report_error_mock).not.toHaveBeenCalled();
@@ -472,7 +499,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("takes platform fees out of a net paypal left off the capture", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
@@ -480,7 +507,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await settlements()).toEqual([
@@ -491,7 +518,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("settles at paypal's net whatever platform fees ride along", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
@@ -500,7 +527,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await settlements()).toEqual([
@@ -511,7 +538,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
   it("derives a fallback net to the cent", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "50.00", currency_code: "USD" },
         paypal_fee: { value: "2.24", currency_code: "USD" },
@@ -519,7 +546,7 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
       },
     };
 
-    await deliver({ ...capture_ev(), resource });
+    await deliver_capture(resource);
 
     expect(await settlements()).toEqual([
       expect.objectContaining({ net: 47.06 }),
@@ -528,14 +555,11 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
 });
 
 describe("settling from paypal's copy, not the event's", () => {
-  it("settles a capture at what paypal says it captured, onto the donation paypal names", async () => {
+  it("settles a capture onto the donation paypal names, whatever the event says", async () => {
     await seed_donation();
     await seed_donation({ id: "don-other" });
     const forged = capture_ev();
     forged.resource.custom_id = "don-other";
-    forged.resource.seller_receivable_breakdown.net_amount.value = "9999";
-    const genuine = capture_ev().resource;
-    get_capture_mock.mockResolvedValue({ ...genuine, status: "COMPLETED" });
 
     const res = await deliver(forged);
 
@@ -549,12 +573,11 @@ describe("settling from paypal's copy, not the event's", () => {
 
   it("settles nothing on a capture paypal says is not complete", async () => {
     await seed_donation();
-    get_capture_mock.mockResolvedValue({
-      ...capture_ev().resource,
+
+    const res = await deliver_capture({
+      ...capture_copy(),
       status: "DECLINED",
     });
-
-    const res = await deliver(capture_ev());
 
     expect(res.status).toBe(200);
     expect(report_error_mock).toHaveBeenCalledOnce();
@@ -563,20 +586,39 @@ describe("settling from paypal's copy, not the event's", () => {
 
   it("settles a sale at what paypal says it sold", async () => {
     await seed_donation({ frequency: "monthly" });
-    const forged = sale_ev();
-    forged.resource.amount.total = "9999";
-    get_sale_mock.mockResolvedValue({
-      ...sale_ev().resource,
-      state: "completed",
-    });
 
-    const res = await deliver(forged);
+    const res = await deliver(sale_ev());
 
     expect(res.status).toBe(200);
     expect(get_sale_mock).toHaveBeenCalledWith(SALE_ID);
     expect(await settlements()).toEqual([
       expect.objectContaining({ sttl_id: SALE_ID, net: 96.5, fee: 3.5 }),
     ]);
+  });
+
+  it("takes the subscription off the event when paypal's copy of the sale has none", async () => {
+    await seed_donation({ frequency: "monthly" });
+    const { billing_agreement_id: _, ...copy } = sale_copy();
+    get_sale_mock.mockResolvedValue(copy);
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(get_subscription_mock).toHaveBeenCalledWith(SUBS_ID);
+    expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
+  });
+
+  it("reports and asks for redelivery of a sale paypal says it cannot find", async () => {
+    await seed_donation({ frequency: "monthly" });
+    get_sale_mock.mockRejectedValue(
+      new PayPalApiError("get sale", 404, '{"name":"INVALID_RESOURCE_ID"}')
+    );
+
+    const res = await deliver(sale_ev());
+
+    expect(res.ok).toBe(false);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await settlements()).toHaveLength(0);
   });
 });
 
@@ -711,9 +753,10 @@ describe("PAYMENT.SALE.COMPLETED", () => {
 
   it("settles a sale paypal charged no fee at its total", async () => {
     await seed_donation({ frequency: "monthly" });
-    const { transaction_fee: _, ...resource } = sale_ev().resource;
+    const { transaction_fee: _, ...resource } = sale_copy();
+    get_sale_mock.mockResolvedValue(resource);
 
-    const res = await deliver({ ...sale_ev(), resource });
+    const res = await deliver(sale_ev());
 
     expect(res.status).toBe(200);
     expect(report_error_mock).not.toHaveBeenCalled();
@@ -832,7 +875,7 @@ describe("refunds and reversals", () => {
     await seed_dist(ORDER_ID);
   };
   const paypal_capture_is = (status: string) =>
-    get_capture_mock.mockResolvedValue({ ...capture_ev().resource, status });
+    get_capture_mock.mockResolvedValue({ ...capture_copy(), status });
 
   it.each(["PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REVERSED"])(
     "reverses a donation whose capture %s in full",
@@ -874,10 +917,7 @@ describe("refunds and reversals", () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
     await seed_dist(ORDER_ID);
-    get_sale_mock.mockResolvedValue({
-      ...sale_ev().resource,
-      state: "refunded",
-    });
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "refunded" });
 
     const res = await deliver(sale_refund_ev());
 
@@ -1621,9 +1661,9 @@ describe("signature verification", () => {
 describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no donation id", async () => {
     await seed_donation();
-    const { custom_id: _, ...resource } = capture_ev().resource;
+    const { custom_id: _, ...resource } = capture_copy();
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toMatch(/^not routable: /);
@@ -1634,14 +1674,14 @@ describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no gross amount", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         net_amount: { value: "96.5", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toMatch(/^not routable: /);
@@ -1652,7 +1692,7 @@ describe("an event no redelivery can route", () => {
   it("acknowledges and reports a capture with no net and a platform fee in another currency", async () => {
     await seed_donation();
     const resource = {
-      ...capture_ev().resource,
+      ...capture_copy(),
       seller_receivable_breakdown: {
         gross_amount: { value: "100", currency_code: "USD" },
         paypal_fee: { value: "3.5", currency_code: "USD" },
@@ -1660,7 +1700,7 @@ describe("an event no redelivery can route", () => {
       },
     };
 
-    const res = await deliver({ ...capture_ev(), resource });
+    const res = await deliver_capture(resource);
 
     expect(res.status).toBe(200);
     expect(await res.text()).toMatch(/^not routable: /);
@@ -1707,7 +1747,9 @@ describe("an event no redelivery can route", () => {
 
   it("acknowledges and reports a sale with no subscription id", async () => {
     await seed_donation({ frequency: "monthly" });
-    const { billing_agreement_id: _, ...resource } = sale_ev().resource;
+    const { billing_agreement_id: _, ...copy } = sale_copy();
+    get_sale_mock.mockResolvedValue(copy);
+    const { billing_agreement_id: __, ...resource } = sale_ev().resource;
 
     const res = await deliver({ ...sale_ev(), resource });
 
@@ -1797,16 +1839,12 @@ describe("logging", () => {
         },
       },
     });
-    const ev = capture_ev();
-
-    const res = await deliver({
-      ...ev,
-      id: "WH-4",
-      resource: {
-        ...ev.resource,
-        supplementary_data: { related_ids: { order_id: "ORDER-1" } },
-      },
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
     });
+
+    const res = await deliver({ ...capture_ev(), id: "WH-4" });
 
     expect(res.status).toBe(200);
     expect(get_order_mock).toHaveBeenCalledWith("ORDER-1");

@@ -979,11 +979,20 @@ export async function action({ request }: Route.ActionArgs) {
 
         // as for a capture: settled from paypal's copy, not the event body
         const sale = await fetch_resource(() => paypal.get_sale(sale_id));
-        if (typeof sale === "number")
-          return unroutable(ev, `paypal answered ${sale} for sale ${sale_id}`);
+        // a signed event naming a charge paypal can't find is a lookup of ours
+        // gone wrong, not a bad payload: held for redelivery, since acking it
+        // drops a recurring charge
+        if (typeof sale === "number") {
+          report_error(
+            new Error(`[paypal webhook] paypal answered ${sale} for sale`),
+            { event_id: ev.id, sale_id, http_status: sale }
+          );
+          return new Response("sale lookup refused", { status: 503 });
+        }
         const {
           create_time: create_date = new Date().toISOString(),
-          billing_agreement_id: subs_id,
+          // the signed event's id stands in when paypal's copy leaves it off
+          billing_agreement_id: subs_id = ev_subs_id,
           transaction_fee,
           receivable_amount,
           amount: sale_amount,
