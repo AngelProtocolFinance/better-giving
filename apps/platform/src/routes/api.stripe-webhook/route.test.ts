@@ -61,9 +61,7 @@ vi.mock("./handlers/subscription-created", async (orig) => ({
 
 const { action } = await import("./route");
 const { BalanceTxnNotReadyError } = await import("./helpers/settled");
-const { FIRST_PAYMENT_INCOMPLETE } = await import(
-  "./handlers/subscription-created"
-);
+const { FIRST_PAYMENT_INCOMPLETE } = await import("@/subscriptions");
 const { sub_get } = await import("$/pg/queries/subscription");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { npos } = await import("$/pg/schema/npo");

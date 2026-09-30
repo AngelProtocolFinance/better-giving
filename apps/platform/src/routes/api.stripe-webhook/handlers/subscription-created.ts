@@ -4,7 +4,12 @@ import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
 import type { IMetadata } from "@/stripe";
-import type { ISub, TInterval, TStatus } from "@/subscriptions";
+import {
+  FIRST_PAYMENT_INCOMPLETE,
+  type ISub,
+  type TInterval,
+  type TStatus,
+} from "@/subscriptions";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { donation_get } from "$/pg/queries/donation";
@@ -39,13 +44,6 @@ export const row_status = (
       return undefined;
   }
 };
-
-/**
- * cancel reason an `incomplete` sub's row is born inactive with, and the one
- * marker the updated handler reactivates on once the first invoice is paid —
- * a donor's or admin's cancel overwrites it, so theirs never flips back
- */
-export const FIRST_PAYMENT_INCOMPLETE = "first_payment_incomplete";
 
 /**
  * project a stripe subscription + the order it came from into our row.

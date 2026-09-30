@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import { msg } from "@/queue";
-import type { ISubUpdate } from "@/subscriptions";
+import { FIRST_PAYMENT_INCOMPLETE, type ISubUpdate } from "@/subscriptions";
 import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
@@ -24,7 +24,6 @@ import {
 } from "./handlers";
 import { handle_intent_succeeded } from "./handlers/intent-suceeded";
 import {
-  FIRST_PAYMENT_INCOMPLETE,
   handle_subscription_created,
   row_status,
 } from "./handlers/subscription-created";
