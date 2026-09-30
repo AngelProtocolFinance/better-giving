@@ -453,16 +453,20 @@ const SUB_STATUS: Partial<Record<NonNullable<Subs["status"]>, TStatus>> = {
 
 const AWAITING_CAPTURE = new Set<IDonation["status"]>(["created", "intent"]);
 
-// a completed charge refunded since still settles: its refund event reverses it
+// a completed charge refunded or reversed since still settles: its refund or
+// reversal event finds the settlement and reverses it. a v2 capture has no
+// reversed status — a chargeback leaves it as it was
 const SETTLEABLE_CAPTURE = new Set<Capture["status"]>([
   "COMPLETED",
   "PARTIALLY_REFUNDED",
   "REFUNDED",
 ]);
-const SETTLEABLE_SALE = new Set<Sale["state"]>([
+// "reversed" is a live sale state the vendored v1 spec leaves out
+const SETTLEABLE_SALE = new Set<string | undefined>([
   "completed",
   "partially_refunded",
   "refunded",
+  "reversed",
 ]);
 
 /** the resource, or the status of a lookup paypal refused for good — a

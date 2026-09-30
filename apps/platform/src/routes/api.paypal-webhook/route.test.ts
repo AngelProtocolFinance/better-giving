@@ -601,6 +601,18 @@ describe("settling from paypal's copy, not the event's", () => {
     ]);
   });
 
+  it("settles a sale whose completion lands after paypal reversed it, so its reversal finds it", async () => {
+    await seed_donation({ frequency: "monthly" });
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), state: "reversed" });
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 96.5, fee: 3.5 }),
+    ]);
+  });
+
   it("takes the subscription off the event when paypal's copy of the sale has none", async () => {
     await seed_donation({ frequency: "monthly" });
     const { billing_agreement_id: _, ...copy } = sale_copy();
