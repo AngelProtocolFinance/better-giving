@@ -738,10 +738,8 @@ export async function action({ request }: Route.ActionArgs) {
           })
         );
 
-        /** we only expect paypal and venmo */
-        if (!ps) return unroutable(ev, "paypal and venmo not found");
-        if (!ps.email_address)
-          return unroutable(ev, "missing payer email address");
+        // a payer left off the approval is not lost: the capture's completed
+        // event reads the donor off paypal's copy of the order
         return new Response("capture check scheduled", { status: 200 });
       }
       case "PAYMENT.CAPTURE.COMPLETED": {

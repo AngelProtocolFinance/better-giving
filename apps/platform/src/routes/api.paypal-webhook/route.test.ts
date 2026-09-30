@@ -864,6 +864,25 @@ describe("CHECKOUT.ORDER.APPROVED", () => {
     expect((await donation_get(ORDER_ID))!.from_email).toBe("payer@test.com");
   });
 
+  it.each([
+    ["no payment source", {}],
+    ["a payer with no email", { payment_source: { venmo: {} } }],
+  ])(
+    "schedules the capture check for an order approved with %s, keeping the donor it has",
+    async (_, payer) => {
+      await seed_donation();
+      const ev = approved_ev();
+      const { payment_source: __, ...rest } = ev.resource;
+
+      const res = await deliver({ ...ev, resource: { ...rest, ...payer } });
+
+      expect(res.status).toBe(200);
+      expect(report_error_mock).not.toHaveBeenCalled();
+      expect(schedule_mock).toHaveBeenCalledOnce();
+      expect((await donation_get(ORDER_ID))!.from_email).toBe("donor@test.com");
+    }
+  );
+
   it("asks for redelivery while the check can't be scheduled", async () => {
     await seed_donation();
     schedule_mock.mockRejectedValue(new Error("qstash 503"));
