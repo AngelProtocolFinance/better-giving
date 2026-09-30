@@ -774,11 +774,8 @@ export async function donation_settlement_get(
 export async function donation_put_once(
   row: IDonationSettled
 ): Promise<IDonationSettled | null> {
-  return db
-    .transaction(async (tx) => {
-      await donation_put(tx, row);
-      return row;
-    })
+  return donation_put(db, row)
+    .then(() => row)
     .catch((err) => {
       if (is_unique_violation(err, DONATION_SETTLEMENTS_STTL_ID_IDX)) {
         return null;
