@@ -174,14 +174,17 @@ const requeue = async (row: IDonation | undefined, order_id: string) => {
   );
 };
 
-/** a 4xx paypal will answer the same way on every retry — not a timeout or a
- * rate limit */
+/** 4xx that heal with no change to the event: a timeout, a rate limit, or our
+ * own credentials or scopes, which a config fix restores */
+const RETRYABLE_4XX = new Set([401, 403, 408, 429]);
+
+/** a 4xx about the resource itself, answered the same way on every retry */
 const is_refusal = (e: unknown): e is PayPalApiError =>
   e instanceof PayPalApiError &&
+  e.op !== "get access token" &&
   e.http_status >= 400 &&
   e.http_status < 500 &&
-  e.http_status !== 408 &&
-  e.http_status !== 429;
+  !RETRYABLE_4XX.has(e.http_status);
 
 /**
  * `requeue` for a sale settled on an earlier delivery. the match flag needs the
