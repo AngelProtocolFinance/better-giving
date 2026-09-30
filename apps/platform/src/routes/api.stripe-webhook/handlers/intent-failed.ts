@@ -24,12 +24,16 @@ export async function handle_intent_failed(
       const inv = ips[0]?.invoice;
       if (!inv || typeof inv === "string" || inv.deleted)
         throw "missing invoice";
+      // stripe retries a failed invoice, each attempt failing its own intent:
+      // the donor hears about the first
+      if (inv.attempt_count > 1) return null;
       const m = inv.parent?.subscription_details?.metadata as IMetadata | null;
       if (!m) throw "missing invoice metadata";
       return m;
     }
     return pi.metadata as unknown as IMetadata;
   })(data.object);
+  if (!meta) return;
 
   // `meta` only carries the order id — donor identity is on the order row
   const order = await donation_get(meta.order_id);
