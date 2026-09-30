@@ -7,7 +7,9 @@ import type {
 import { useEffect, useRef } from "react";
 import { href } from "react-router";
 import { paypal_client_id, stage } from "#/constants/env";
+import { paypal_currencies } from "#/constants/paypal";
 import { report_degraded, report_error } from "#/errors/report";
+import { paypal_charge } from "#/routes/api.donation-intents/paypal/charge";
 import {
   paypal_capture_outcome,
   type TCaptureOutcome,
@@ -206,7 +208,12 @@ export function Paypal({
           tx_id,
           don_id: don_id ?? "",
           // a deploy older than this bundle answers without it
-          amount: amount ?? String(amnt + tip + fee_allowance),
+          amount:
+            amount ??
+            paypal_charge(
+              { base: amnt, tip, fee_allowance },
+              paypal_currencies[currency] ?? 2
+            ).total,
         };
       };
 
