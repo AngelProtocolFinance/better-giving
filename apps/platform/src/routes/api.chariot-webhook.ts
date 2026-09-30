@@ -76,15 +76,16 @@ const on_grant_completed: Record<TStatus, "settle" | "duplicate" | "alert"> = {
   refunded_loss: "duplicate",
 };
 
+interface IGrantRef {
+  id: string;
+  amount: number;
+}
+
 /** what an operator needs to act on: the money and whose it is, never the donor */
-const grant_facts = (
-  grant: { id: string; amount: number },
-  don: IDonation,
-  sttl_id?: string
-) =>
+const grant_facts = (grant: IGrantRef, don?: IDonation, sttl_id?: string) =>
   [
     `amount ${(grant.amount / 100).toFixed(2)} USD`,
-    `recipient ${don.to_name} (${don.to_id})`,
+    don && `recipient ${don.to_name} (${don.to_id})`,
     `grant ${grant.id}`,
     sttl_id && `settlement ${sttl_id}`,
   ]
@@ -138,6 +139,33 @@ async function alert_ops({
     .catch((err) => report_error(err, ctx));
   console.warn(`[chariot webhook] ${detail}: left unchanged, alerted`);
 }
+
+/**
+ * a row that isn't there, or a state no delivery can repair: a 5xx buys ten
+ * redeliveries that change nothing, and five days of them disable the
+ * subscription for every grant, so a person is told and chariot gets its 2xx
+ */
+async function ack_unfixable(
+  grant: IGrantRef,
+  don_id: string,
+  what: Pick<IOpsAlert, "message" | "title" | "detail" | "todo">,
+  don?: IDonation
+) {
+  await alert_ops({
+    ...what,
+    facts: grant_facts(grant, don),
+    ctx: { don_id, grant_id: grant.id },
+  });
+  return new Response("", { status: 200 });
+}
+
+const missing_donation = (grant: IGrantRef, don_id: string) =>
+  ack_unfixable(grant, don_id, {
+    message: "chariot grant for a donation that does not exist",
+    title: "Chariot Grant Without A Donation",
+    detail: `donation ${don_id} not found for chariot grant ${grant.id}`,
+    todo: "nothing was changed automatically; no donation records this grant and no receipt went out, so record it by hand",
+  });
 
 const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
@@ -204,15 +232,17 @@ export async function action({ request }: Route.ActionArgs) {
       // unlocked read first: the locked one matches `id` only, grant metadata
       // can carry a legacy `id_v1`, and the alert needs the recipient
       const prior = await donation_get(don_id);
-      if (!prior) throw new Error(`donation not found: ${don_id}`);
-      const { op, state } = await db.transaction(async (tx) => {
+      if (!prior) return missing_donation(grant, don_id);
+      const locked = await db.transaction(async (tx) => {
         const state = await donation_settle_state_locked(tx, prior.id);
-        if (!state) throw new Error(`donation not found: ${prior.id}`);
+        if (!state) return null;
         const op = on_grant_canceled[state.status];
         if (op === "cancel")
           await donation_update(tx, prior.id, { status: "cancelled" });
         return { op, state };
       });
+      if (!locked) return missing_donation(grant, prior.id);
+      const { op, state } = locked;
       if (op === "alert") {
         await alert_ops({
           message: "chariot grant canceled after settlement",
@@ -256,10 +286,10 @@ export async function action({ request }: Route.ActionArgs) {
     };
 
     const prior = await donation_get(don_id);
-    if (!prior) throw new Error(`donation not found: ${don_id}`);
+    if (!prior) return missing_donation(grant, don_id);
     const locked = await db.transaction(async (tx) => {
       const state = await donation_settle_state_locked(tx, prior.id);
-      if (!state) throw new Error(`donation not found: ${prior.id}`);
+      if (!state) return null;
       const op = on_grant_completed[state.status];
       if (op !== "settle") return { op, state };
       const result = calc_donation_settle({
@@ -274,6 +304,7 @@ export async function action({ request }: Route.ActionArgs) {
       return { op, state, msgs: result.msgs };
     });
 
+    if (!locked) return missing_donation(grant, prior.id);
     if (locked.op === "settle") {
       await enqueue(...locked.msgs);
       return Response.json({ id: prior.id });
@@ -296,7 +327,17 @@ export async function action({ request }: Route.ActionArgs) {
     }
     const { sttl_id } = locked.state;
     if (locked.state.status === "settled" && !sttl_id)
-      throw new Error(`donation ${prior.id} is settled without a settlement`);
+      return ack_unfixable(
+        grant,
+        prior.id,
+        {
+          message: "chariot donation settled without a settlement",
+          title: "Chariot Donation Settled Without A Settlement",
+          detail: `donation ${prior.id} is settled with no settlement, and chariot grant ${grant.id} completed`,
+          todo: "nothing was settled or re-sent automatically; attach this grant's settlement to the donation by hand",
+        },
+        prior
+      );
     if (sttl_id && sttl_id !== grant.id) {
       await alert_ops({
         message: "chariot grant completed on a donation another grant settled",
