@@ -493,6 +493,21 @@ describe("login flow", () => {
     await expect.element(screen.getByTestId("marketplace")).toBeVisible();
   });
 
+  it("explains a google sign-in that hit an unconfirmed account", async () => {
+    const Stub = login_stub();
+    const screen = await render(
+      <Stub
+        initialEntries={[
+          "/login?redirect=%2Fdashboard&error=account_not_linked",
+        ]}
+      />
+    );
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/hasn't been confirmed yet/i);
+  });
+
   it("shows error for invalid credentials", async () => {
     await create_verified_user();
 

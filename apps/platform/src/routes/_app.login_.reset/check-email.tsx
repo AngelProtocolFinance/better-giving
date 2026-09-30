@@ -1,6 +1,6 @@
 import { Mail } from "lucide-react";
 import { Link } from "react-router";
-import { back_to_login } from "./back-link";
+import { login_url } from "#/helpers/login-url";
 
 type Props = { email: string; to: string };
 
@@ -21,7 +21,7 @@ export function CheckEmail(props: Props) {
       </p>
 
       <Link
-        to={back_to_login(props.to)}
+        to={login_url(props.to)}
         className="btn btn-lg btn-primary mt-6 w-full"
       >
         Back to Sign In

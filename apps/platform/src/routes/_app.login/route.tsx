@@ -9,7 +9,13 @@ import {
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { eq } from "drizzle-orm";
 import { Mail } from "lucide-react";
-import { href, Link, redirect, useNavigation } from "react-router";
+import {
+  href,
+  Link,
+  redirect,
+  useNavigation,
+  useSearchParams,
+} from "react-router";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { auth, get_session, request_password_reset } from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
@@ -17,6 +23,7 @@ import { is_sign_in_throttled } from "#/.server/auth/sign-in";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
 import { report_error } from "#/errors/report";
+import { login_url } from "#/helpers/login-url";
 import { metas } from "#/helpers/seo";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignIn, sign_in } from "#/types/auth";
@@ -38,7 +45,12 @@ export const action = async ({ request }: Route.ActionArgs) => {
 
     if (fv.get("intent") === "oauth") {
       const res = await auth.api.signInSocial({
-        body: { provider: "google", callbackURL: redirect_to },
+        body: {
+          provider: "google",
+          callbackURL: redirect_to,
+          // better-auth appends `error`, which the login page explains
+          errorCallbackURL: login_url(redirect_to),
+        },
         headers: request.headers,
         asResponse: true,
       });
@@ -174,9 +186,16 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 export const meta: Route.MetaFunction = () =>
   metas({ title: "Login - Better Giving" });
 
+/** better-auth's `error` code on a failed google sign-in, in words */
+const oauth_error_message = (code: string) =>
+  code === "account_not_linked"
+    ? "Google sign-in couldn't finish: this email has an account that hasn't been confirmed yet. Open the sign-in link we emailed you, and Google sign-in will work from then on."
+    : "Google sign-in didn't finish. Please try again.";
+
 export { ErrorBoundary } from "#/components/error";
 export default function Page({ loaderData: to }: Route.ComponentProps) {
   const nav = useNavigation();
+  const oauth_error = useSearchParams()[0].get("error");
 
   const {
     handleSubmit,
@@ -198,6 +217,14 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <p className="text-center max-sm:text-sm mt-2">
           Log in to support great causes or register and manage your nonprofit.
         </p>
+        {oauth_error && (
+          <p
+            role="alert"
+            className="mt-4 rounded bg-destructive-subtle text-destructive-subtle-fg px-4 py-3 max-sm:text-sm"
+          >
+            {oauth_error_message(oauth_error)}
+          </p>
+        )}
         <RmxForm disabled={is_submitting} method="POST" className="contents">
           <button
             name="intent"
