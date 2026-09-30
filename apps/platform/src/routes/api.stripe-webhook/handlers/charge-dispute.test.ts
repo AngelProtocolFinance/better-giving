@@ -8,9 +8,15 @@ const process_refund_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
+const charge_retrieve_mock = vi.hoisted(() => vi.fn());
+const refunds_list_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
-  stripe: { paymentIntents: { retrieve: intent_retrieve_mock } },
+  stripe: {
+    paymentIntents: { retrieve: intent_retrieve_mock },
+    charges: { retrieve: charge_retrieve_mock },
+    refunds: { list: refunds_list_mock },
+  },
 }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_get: donation_get_mock,
@@ -33,15 +39,17 @@ const { handle_dispute_created, handle_dispute_closed } = await import(
 const DON_ID = "0195c1f0-4c37-7c1a-b8f1-1f1f0a2f9d3e";
 const graph = { dist: { id: "dist_1" } };
 let don_status = "settled";
+/** stripe's side of the $100 charge: refunds made before the dispute, newest first */
+let refunds: { id: string; amount: number; status: string }[] = [];
 
-const dispute_event = (type: string, status: string) =>
+const dispute_event = (type: string, status: string, amount = 10_000) =>
   ({
     id: `evt_${type}`,
     type,
     data: {
       object: {
         id: "dp_1",
-        amount: 10_000,
+        amount,
         currency: "usd",
         charge: "ch_1",
         payment_intent: "pi_1",
@@ -62,6 +70,16 @@ const queued = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   don_status = "settled";
+  refunds = [];
+  charge_retrieve_mock.mockImplementation(async () => ({
+    id: "ch_1",
+    amount: 10_000,
+    currency: "usd",
+    amount_refunded: refunds
+      .filter((r) => r.status !== "failed")
+      .reduce((sum, r) => sum + r.amount, 0),
+  }));
+  refunds_list_mock.mockImplementation(async () => ({ data: [...refunds] }));
   donation_by_sttl_id_mock.mockImplementation(async () => ({
     id: DON_ID,
     status: don_status,
@@ -112,6 +130,32 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     expect(text).toContain(DON_ID);
     expect(text).toContain("100.00 USD");
     expect(text).toMatch(/fee.*15\.00 USD/);
+  });
+
+  it("reverses nothing when a lost dispute covers only part of the gift, and tells ops to adjust by hand", async () => {
+    await handle_dispute_closed(
+      dispute_event("charge.dispute.closed", "lost", 4_000)
+    );
+
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(don_status).toBe("settled");
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    const { title, body } = alerts()[0];
+    expect(title).toMatch(/not reversed/i);
+    expect(body).toContain(DON_ID);
+    expect(body).toContain("40.00 USD of 100.00 USD");
+  });
+
+  it("reverses when a lost dispute takes what earlier refunds left, and names those refunds", async () => {
+    refunds = [{ id: "re_1", amount: 6_000, status: "succeeded" }];
+
+    await handle_dispute_closed(
+      dispute_event("charge.dispute.closed", "lost", 4_000)
+    );
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    const { body } = queued()[0].payload.alert;
+    expect(body).toContain("60.00 USD (re_1, succeeded)");
   });
 
   it("keeps the donation settled when the dispute is won", async () => {

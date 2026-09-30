@@ -6,9 +6,10 @@ import { msg } from "@/queue";
 import { stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
+import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { process_refund } from "$/refund/process";
-import { money } from "../helpers/money";
+import { money, refund_list } from "../helpers/money";
 import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-dispute";
@@ -37,6 +38,33 @@ export async function handle_dispute_closed(
     return;
   }
 
+  // dispute.amount can be part of the charge. process_refund reverses every
+  // dist in full, so it runs only once the dispute and earlier refunds leave
+  // nothing on the charge
+  const charge = await stripe.charges.retrieve(str_id(dispute.charge));
+  const { data: refunds } = await stripe.refunds.list({
+    charge: charge.id,
+    limit: 100,
+  });
+  const earlier = `earlier refunds: ${refund_list(refunds, charge.currency) || "none"}`;
+  const taken = dispute.amount + charge.amount_refunded;
+  if (taken < charge.amount) {
+    await fiat_monitor.send_alert({
+      type: "NOTICE",
+      from: `${ALERT_FROM}-${stage}`,
+      title: "Lost Dispute Not Reversed",
+      body: [
+        dispute_line(dispute, don.id, event.id),
+        `disputed: ${money(dispute.amount, dispute.currency)}, reason: ${dispute.reason}`,
+        earlier,
+        `taken back so far: ${money(taken, charge.currency)} of ${money(charge.amount, charge.currency)}`,
+        `dispute fee: ${dispute_fees(dispute)}`,
+        "nothing was reversed automatically: settle this donation by hand.",
+      ].join("\n"),
+    });
+    return;
+  }
+
   const graphs = await dists_for_refund(don.id);
   if (graphs.length === 0) {
     throw new Error(`no settled dists for donation: ${don.id}`);
@@ -55,6 +83,7 @@ export async function handle_dispute_closed(
   const body = [
     dispute_line(dispute, don.id, event.id),
     `disputed amount: ${money(dispute.amount, dispute.currency)}, reason: ${dispute.reason}`,
+    earlier,
     `dispute fee: ${dispute_fees(dispute)}`,
     failed === 0
       ? `all ${graphs.length} dists reversed.`

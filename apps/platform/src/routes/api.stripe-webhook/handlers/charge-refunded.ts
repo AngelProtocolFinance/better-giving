@@ -9,15 +9,10 @@ import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { process_refund } from "$/refund/process";
-import { money } from "../helpers/money";
+import { money, refund_list } from "../helpers/money";
 import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-refunded";
-
-const refund_list = (refunds: Stripe.Refund[], currency: string) =>
-  refunds
-    .map((r) => `${money(r.amount, currency)} (${r.id}, ${r.status})`)
-    .join(", ");
 
 /** the refunds this event added, oldest first, or null when the event can't
  * say. charge.refunded names no refund, so they're found by where the event's
