@@ -118,6 +118,22 @@ function nav_log_init(): ILog {
 }
 
 /** latest nav log — used as current NAV state */
+/**
+ * row-lock the head nav log, so a check-then-append on the fund's cash runs one
+ * at a time among callers that take it. read the head with `nav_ltd(tx)` in a
+ * *later* statement: this one's snapshot predates a head appended while it waited.
+ * no key update: the new head's positions/holders take key share on their own
+ * parent, never this one.
+ */
+export async function nav_head_lock(tx: DbOrTx): Promise<void> {
+  await tx
+    .select({ date: nav_logs.date })
+    .from(nav_logs)
+    .orderBy(desc(nav_logs.date))
+    .limit(1)
+    .for("no key update");
+}
+
 export async function nav_ltd(conn: DbOrTx = db): Promise<ILog> {
   const [row] = await conn
     .select({
