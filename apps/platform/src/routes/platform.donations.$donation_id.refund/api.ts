@@ -70,11 +70,21 @@ async function lookup_subscription_id(
   }
 }
 
+// the refund is issued through stripe, so a donation any other rail paid can't
+// be refunded here: its dists would reverse while the donor got nothing back
+async function stripe_donation(donation_id: string) {
+  const don = await donation_get(donation_id);
+  if (!don) throw new Response("donation not found", { status: 404 });
+  if (!don.via.startsWith("stripe:")) {
+    throw new Response(`not a stripe donation: ${don.via}`, { status: 400 });
+  }
+  return don;
+}
+
 export const loader = async ({ params }: Route.LoaderArgs) => {
   const { donation_id } = params;
 
-  const don = await donation_get(donation_id);
-  if (!don) throw new Response("donation not found", { status: 404 });
+  const don = await stripe_donation(donation_id);
 
   const already_refunded =
     don.status === "refunded" || don.status === "refunded_loss";
@@ -167,8 +177,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
 export const action = async ({ params }: Route.ActionArgs) => {
   const { donation_id } = params;
 
-  const don = await donation_get(donation_id);
-  if (!don) throw new Response("donation not found", { status: 404 });
+  const don = await stripe_donation(donation_id);
   if (don.status === "refunded" || don.status === "refunded_loss")
     throw new Response("already refunded", { status: 400 });
 

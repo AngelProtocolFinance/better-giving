@@ -78,6 +78,7 @@ vi.mock("$/pg/queries/dist", async (orig) => ({
 }));
 
 import { create_test_db } from "$/pg/test-utils/pglite";
+import { process_refund } from "$/refund/process";
 import { action, loader } from "../api";
 import Page from "../route";
 
@@ -96,7 +97,7 @@ afterEach(async () => {
 });
 
 let n = 0;
-async function seed_donation() {
+async function seed_donation(via = "stripe:card") {
   const id = `don_${++n}`;
   await test_db.current!.db.insert(donations).values({
     id,
@@ -108,7 +109,7 @@ async function seed_donation() {
     currency: "USD",
     frequency: "one-time",
     source: "bg-marketplace",
-    via: "nowpayments:crypto",
+    via,
   });
   return id;
 }
@@ -199,4 +200,25 @@ describe("refund modal", () => {
     expect(screen.getByText("Refund processed").query()).toBeNull();
     expect(refunds_create).not.toHaveBeenCalled();
   });
+});
+
+describe("refund api", () => {
+  it.each(["nowpayments:crypto", "paypal:paypal", "chariot:daf"])(
+    "refuses a %s donation in loader and action, reversing nothing",
+    async (via) => {
+      const id = await seed_donation(via);
+      await seed_settlement(id, `sttl_${id}`);
+      const args = { params: { donation_id: id } } as any;
+
+      const from_loader = await loader(args).catch((r: unknown) => r);
+      const from_action = await action(args).catch((r: unknown) => r);
+
+      expect(from_loader).toBeInstanceOf(Response);
+      expect((from_loader as Response).status).toBe(400);
+      expect(from_action).toBeInstanceOf(Response);
+      expect((from_action as Response).status).toBe(400);
+      expect(process_refund).not.toHaveBeenCalled();
+      expect(refunds_create).not.toHaveBeenCalled();
+    }
+  );
 });
