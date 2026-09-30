@@ -365,7 +365,6 @@ export async function fund_member_remove(
     creator_id: fund.creator_id,
     creator_name: fund.name,
     npo_id,
-    removed_npo_ids: [npo_id],
   };
 }
 

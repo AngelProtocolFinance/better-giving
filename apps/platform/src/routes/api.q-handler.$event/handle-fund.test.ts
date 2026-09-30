@@ -83,7 +83,6 @@ async function seed_opt_out(creator_id: string) {
     creator_id,
     creator_name: "Ocean Fund",
     npo_id: npo.id,
-    removed_npo_ids: [npo.id],
   } satisfies IFundMemberRemovedPayload;
 }
 
@@ -107,6 +106,19 @@ describe("handle_fund_member_removed", () => {
     const text = await render(node, { plainText: true });
     expect(text).toMatch(/Hello Ada,/);
     expect(text).toMatch(/Save the Whales has opted out of your fundraiser/);
+  });
+
+  test("a retry after a failed send mails the one nonprofit its message names, once", async () => {
+    const creator = await seed_user(db(), "ada@test.com", "Ada", "Lovelace");
+    const payload = await seed_opt_out(creator.id);
+    send_email_or_throw.mockRejectedValueOnce(new Error("smtp 421"));
+
+    await expect(handle_fund_member_removed(payload)).rejects.toThrow();
+    await handle_fund_member_removed(payload);
+
+    expect(send_email_or_throw).toHaveBeenCalledTimes(2);
+    const subjects = send_email_or_throw.mock.calls.map(([m]) => m.subject);
+    expect(subjects.every((s) => /Save the Whales/.test(s))).toBe(true);
   });
 
   test("greets a creator who has no first name as there", async () => {

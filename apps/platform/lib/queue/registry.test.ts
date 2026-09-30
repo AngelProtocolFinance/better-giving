@@ -73,7 +73,6 @@ describe("fund-member-removed dedupe", () => {
     creator_id: "u1",
     creator_name: "Ocean Fund",
     npo_id,
-    removed_npo_ids: [npo_id],
   });
 
   test("a second nonprofit leaving the same fund is its own message", () => {

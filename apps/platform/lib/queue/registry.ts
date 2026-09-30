@@ -83,7 +83,6 @@ export interface IFundMemberRemovedPayload {
   creator_name: string;
   /** the nonprofit that left */
   npo_id: number;
-  removed_npo_ids: number[];
 }
 
 export interface IInviteEmailPayload {

@@ -19,18 +19,17 @@ export async function handle_fund_member_removed(
     return;
   }
 
-  for (const npo_id of data.removed_npo_ids) {
-    const npo = await npo_get(npo_id);
-    if (!npo) continue;
-    const { node, subject } = fund_opt_out_notif.template({
-      to_name: creator.first_name || "there",
-      opted_out_name: npo.name,
-    });
-    const res = await send_email_or_throw({
-      node,
-      subject,
-      to: [creator.email],
-    });
-    console.info("sent opt-out email:", res);
-  }
+  // one nonprofit per message, so a retry resends only the mail that failed
+  const npo = await npo_get(data.npo_id);
+  if (!npo) return;
+  const { node, subject } = fund_opt_out_notif.template({
+    to_name: creator.first_name || "there",
+    opted_out_name: npo.name,
+  });
+  const res = await send_email_or_throw({
+    node,
+    subject,
+    to: [creator.email],
+  });
+  console.info("sent opt-out email:", res);
 }
