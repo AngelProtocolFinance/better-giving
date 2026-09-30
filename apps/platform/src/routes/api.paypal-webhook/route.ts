@@ -35,7 +35,7 @@ import {
   donation_update,
   settlement_exists,
 } from "$/pg/queries/donation";
-import { sub_put, sub_update } from "$/pg/queries/subscription";
+import { sub_get, sub_put, sub_update } from "$/pg/queries/subscription";
 import { process_refund } from "$/refund/process";
 import type { Route } from "./+types/route";
 
@@ -53,13 +53,12 @@ const to_interval = (from: TIntervalFrom): TInterval => {
   }
 };
 
-// builds an ISub from a paypal subscription resource + donation context.
-// returns a string naming what the subscription or its plan lacks, else the
-// record. ACTIVATED passes its event payload, which a redelivery repeats, so it
-// acknowledges the gap; SALE passes the live subscription, which can still be
-// APPROVED with no billing_info when the first sale lands, so it asks for a
-// redelivery. a plan lookup paypal refuses for good is `{ refused }`, which
-// both acknowledge.
+// builds an ISub from a paypal subscription resource + donation context, at
+// the subscription's own status. returns a string naming what the subscription
+// or its plan lacks, else the record; a plan lookup paypal refuses for good is
+// `{ refused }`. both callers acknowledge either: ACTIVATED passes its event
+// payload, which a redelivery repeats, and SALE passes the live subscription
+// once it is past approval.
 async function build_sub_record(args: {
   subs_id: string;
   sub: Subs;
@@ -67,6 +66,9 @@ async function build_sub_record(args: {
   from_email: string;
   create_time?: string;
   update_time?: string;
+  /** stands in for next billing on a subscription that has ended or paused,
+   * which paypal gives none — the column is not null */
+  last_charge_time?: string;
 }): Promise<ISub | string | { refused: number }> {
   const { subs_id, sub, don, from_email } = args;
   const create_time =
@@ -86,7 +88,10 @@ async function build_sub_record(args: {
   const interval = cycle.frequency?.interval_unit;
   const interval_count = cycle.frequency?.interval_count || 1;
   if (!interval) return "missing plan frequency interval unit";
-  const next_billing = sub.billing_info?.next_billing_time;
+  const status = (sub.status && SUB_STATUS[sub.status]) || "active";
+  const next_billing =
+    sub.billing_info?.next_billing_time ??
+    (status === "inactive" ? args.last_charge_time : undefined);
   if (!next_billing) return "missing next billing time";
   if (!plan.product_id) return "missing plan product id";
 
@@ -107,7 +112,7 @@ async function build_sub_record(args: {
     to_fund_id: don.to_type === "fund" ? don.to_id : null,
     to_name: don.to_name,
     platform: "paypal",
-    status: "active",
+    status,
     from_id: from_email,
   };
 }
@@ -703,7 +708,13 @@ export async function action({ request }: Route.ActionArgs) {
         // not captured here: this event lands as the browser's own capture
         // runs, under the same request id. a check held past it captures
         // only an order still APPROVED
-        await schedule(msg("paypal-order-capture", { order_id, don_id }));
+        await schedule(
+          msg("paypal-order-capture", {
+            order_id,
+            don_id,
+            scheduled_at: new Date().toISOString(),
+          })
+        );
 
         /** we only expect paypal and venmo */
         if (!ps) return unroutable(ev, "paypal and venmo not found");
@@ -1082,27 +1093,38 @@ export async function action({ request }: Route.ActionArgs) {
         const don = await donation_get(don_id);
         if (!don) return new Response("don record not found", { status: 500 });
 
-        // build the subscription record before opening the tx: build_sub_record
-        // makes an external paypal.get_plan call we don't want to hold a db
-        // connection open for.
-        const subs_db = await build_sub_record({
-          subs_id,
-          sub,
-          don,
-          // use the subscriber email directly: if SALE.COMPLETED races ahead of
-          // BILLING.SUBSCRIPTION.ACTIVATED, don.from_email is still the
-          // placeholder, and sub_put's onConflictDoNothing would freeze it in.
-          from_email: email,
-        });
-        if (typeof subs_db === "string")
-          return new Response(`subscription not ready: ${subs_db}`, {
-            status: 400,
+        // a charge settles whatever state its subscription is in by now: a donor
+        // who cancels after paying was still charged. only a row this sale has
+        // to create needs the plan — built before opening the tx, since
+        // build_sub_record makes an external paypal.get_plan call we don't want
+        // to hold a db connection open for.
+        let subs_db: ISub | undefined;
+        if (!(await sub_get(subs_id))) {
+          // the one gap a redelivery closes: paypal fills in billing_info on
+          // activation
+          if (sub.status === "APPROVAL_PENDING" || sub.status === "APPROVED")
+            return new Response(`subscription ${subs_id} is ${sub.status}`, {
+              status: 400,
+            });
+          const rec = await build_sub_record({
+            subs_id,
+            sub,
+            don,
+            // use the subscriber email directly: if SALE.COMPLETED races ahead
+            // of BILLING.SUBSCRIPTION.ACTIVATED, don.from_email is still the
+            // placeholder, and sub_put's onConflictDoNothing would freeze it in.
+            from_email: email,
+            last_charge_time: create_date,
           });
-        if ("refused" in subs_db)
-          return unroutable(
-            ev,
-            `paypal answered ${subs_db.refused} for plan ${sub.plan_id}`
-          );
+          if (typeof rec === "string") return unroutable(ev, rec);
+          if ("refused" in rec)
+            return unroutable(
+              ev,
+              `paypal answered ${rec.refused} for plan ${sub.plan_id}`
+            );
+          subs_db = rec;
+        }
+        const next_billing = sub.billing_info?.next_billing_time;
 
         const sttl_record = {
           id: sale_id,
@@ -1131,9 +1153,12 @@ export async function action({ request }: Route.ActionArgs) {
           // upsert subscription row before referencing its FK on the donation;
           // BILLING.SUBSCRIPTION.ACTIVATED may not have landed yet (paypal does
           // not guarantee webhook ordering).
-          await sub_put(tx, subs_db);
+          if (subs_db) await sub_put(tx, subs_db);
           // sub_put leaves an existing row alone; each charge moves it on
-          await sub_update(tx, subs_id, { next_billing: subs_db.next_billing });
+          if (next_billing)
+            await sub_update(tx, subs_id, {
+              next_billing: new Date(next_billing).toISOString(),
+            });
 
           const result = don.settlement
             ? calc_donation_settle({

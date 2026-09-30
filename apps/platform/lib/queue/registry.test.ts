@@ -57,6 +57,16 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
   });
 });
 
+describe("paypal-order-capture delivery", () => {
+  test("holds past the browser's capture, then retries for over a day", () => {
+    const m = msg("paypal-order-capture", { order_id: "O-1", don_id: "d6" });
+    expect({ delay_s: m.delay_s, retries: m.retries }).toEqual({
+      delay_s: 300,
+      retries: 5,
+    });
+  });
+});
+
 describe("reg-updated dedupe", () => {
   const row: MsgInput<"reg-updated"> = {
     id: "r2",

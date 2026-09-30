@@ -1,14 +1,18 @@
 import { PayPalApiError } from "@better-giving/paypal";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const get_order_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const report_degraded_mock = vi.hoisted(() => vi.fn());
+const send_alert_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/paypal", () => ({
   paypal: { get_order: get_order_mock, capture_order: capture_order_mock },
 }));
 vi.mock("#/errors/report", () => ({ report_degraded: report_degraded_mock }));
+vi.mock("$/kit/discord", () => ({
+  fiat_monitor: { send_alert: send_alert_mock },
+}));
 
 const { handle_paypal_order_capture } = await import("./handle-paypal-order");
 
@@ -92,5 +96,54 @@ describe("handle_paypal_order_capture", () => {
     capture_order_mock.mockRejectedValue(err);
 
     await expect(handle_paypal_order_capture(job)).rejects.toBe(err);
+  });
+});
+
+describe("a capture that keeps failing", () => {
+  const scheduled_at = "2026-01-01T00:00:00.000Z";
+  const at = (s: number) =>
+    vi.setSystemTime(Date.parse(scheduled_at) + s * 1000);
+  const outage = new PayPalApiError("capture order", 503, "{}");
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    capture_order_mock.mockRejectedValue(outage);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("stays quiet on its first attempt, which qstash retries", async () => {
+    at(5 * 60 + 2);
+
+    await expect(
+      handle_paypal_order_capture({ ...job, scheduled_at })
+    ).rejects.toBe(outage);
+
+    expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+
+  it("alerts ops on a retry, naming the order and the donation, and still asks for the next one", async () => {
+    at(6 * 60 * 60);
+
+    await expect(
+      handle_paypal_order_capture({ ...job, scheduled_at })
+    ).rejects.toBe(outage);
+
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(send_alert_mock.mock.calls[0]![0].body).toMatch(/O-1[\s\S]*d1/);
+  });
+
+  it("asks for the retry even when the alert can't be sent", async () => {
+    at(6 * 60 * 60);
+    send_alert_mock.mockRejectedValue(new Error("discord 503"));
+
+    await expect(
+      handle_paypal_order_capture({ ...job, scheduled_at })
+    ).rejects.toBe(outage);
+  });
+
+  it("alerts on a message scheduled before it carried its time", async () => {
+    await expect(handle_paypal_order_capture(job)).rejects.toBe(outage);
+
+    expect(send_alert_mock).toHaveBeenCalledOnce();
   });
 });
