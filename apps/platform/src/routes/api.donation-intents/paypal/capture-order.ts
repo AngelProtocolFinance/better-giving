@@ -8,6 +8,7 @@ import {
   type IPaypalCaptured,
   paypal_capture_outcome,
 } from "@/donations/paypal-capture";
+import { resp } from "@/helpers/https";
 import { paypal } from "$/kit/paypal";
 import { db } from "$/pg/db";
 import { donation_update } from "$/pg/queries/donation";
@@ -78,6 +79,16 @@ export const capture_order = async ({
     });
   }
   if (outcome === "declined") return capture;
+
+  // don_id is the browser's word, custom_id is ours from create time. don ids
+  // appear in thank-you urls, so a mismatch would write onto another receipt
+  if (capture.purchase_units?.[0]?.custom_id !== don_id) {
+    report_degraded(new Error("paypal capture for another donation"), {
+      order_id,
+      don_id,
+    });
+    throw resp.status(400, "order is not for this donation");
+  }
 
   const ps = capture.payment_source?.paypal || capture.payment_source?.venmo;
   // not gated on the email: a payment source can report a payer name or
