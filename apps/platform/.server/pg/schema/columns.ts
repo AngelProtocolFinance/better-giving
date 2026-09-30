@@ -16,16 +16,21 @@ export const numeric_as_number = customType<{
   fromDriver(value: string): number {
     return Number(value);
   },
-  // numeric stores 'NaN' — passes `> 0` checks and poisons every sum it reaches
   toDriver(value: number): string {
-    if (!Number.isFinite(value)) {
-      throw new RangeError(
-        `numeric column needs a finite number, got ${value}`
-      );
-    }
-    return String(value);
+    return String(finite(value, "numeric column"));
   },
 });
+
+/**
+ * numeric stores 'NaN' — passes `> 0` checks and poisons every sum it reaches.
+ * raw `sql` params skip `toDriver`, so a delta bound that way calls this itself.
+ */
+export function finite(value: number, what: string): number {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${what} needs a finite number, got ${value}`);
+  }
+  return value;
+}
 
 // drizzle's pglite and neon sessions both override the timestamp parsers, so the
 // driver hands over postgres text ("2027-09-23 12:55:37.123456+05:30"), never a
