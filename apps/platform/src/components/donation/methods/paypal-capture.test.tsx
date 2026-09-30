@@ -87,9 +87,10 @@ const approve_and_answer = async (
   capture: () => Promise<Response>,
   config: Config | null = null,
   button: "paypal-button" | "venmo-button" = "paypal-button",
-  intent: { tx_id: string; don_id?: string } = {
+  intent: { tx_id: string; don_id?: string; amount?: string } = {
     tx_id: "order_1",
     don_id: "don_1",
+    amount: "25.00",
   }
 ) => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_, init) =>
@@ -231,6 +232,25 @@ describe("paypal express: a merchant's own thank-you page", () => {
     await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
     const { url } = on_paid.mock.calls[0]![0];
     expect(new URL(url).searchParams.get("donor_name")).toBe("Jane Roe");
+  });
+
+  // the form's own sum is a float of untruncated lines; the order is not
+  test("is handed the total the order charged", async () => {
+    const config: Config = {
+      id: "form_1",
+      success_redirect: "https://npo.example/thanks",
+      freq_opts: undefined,
+    };
+    const { on_paid } = await approve_and_answer(
+      async () => Response.json(captured("COMPLETED")),
+      config,
+      "paypal-button",
+      { tx_id: "order_1", don_id: "don_1", amount: "26.03" }
+    );
+
+    await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
+    const { url } = on_paid.mock.calls[0]![0];
+    expect(new URL(url).searchParams.get("donation_amount")).toBe("26.03");
   });
 });
 
