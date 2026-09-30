@@ -216,6 +216,14 @@ describe("handle_npo", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
+  // qstash retries it; the redelivery then finds the dist and reports the loss
+  it("rethrows an enqueue that fails after the commit, not reporting it as settled", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
   it("rethrows a codeless failure when nothing was settled", async () => {
     test_db.fail_next_tx = dead_socket();
 

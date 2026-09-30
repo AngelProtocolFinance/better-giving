@@ -10,12 +10,9 @@ import { settle_npo } from "$/settlement/settle-npo";
 export type { IInput, ISource, ISttlmnt } from "@/types/donation-dist";
 
 export const handle_npo = async (i: IInput): Promise<void> => {
+  let msgs: Awaited<ReturnType<typeof settle_npo>>["msgs"];
   try {
-    const { msgs } = await db.transaction((tx) => settle_npo(tx, i));
-    if (msgs.length) {
-      await enqueue(...msgs);
-      console.info(`handled npo ${i.id}`);
-    }
+    ({ msgs } = await db.transaction((tx) => settle_npo(tx, i)));
   } catch (e) {
     // already settled. reported because if the first delivery's enqueue
     // failed after its commit, its messages are lost and this is the only trace
@@ -24,6 +21,10 @@ export const handle_npo = async (i: IInput): Promise<void> => {
       return;
     }
     throw e;
+  }
+  if (msgs.length) {
+    await enqueue(...msgs);
+    console.info(`handled npo ${i.id}`);
   }
 };
 
