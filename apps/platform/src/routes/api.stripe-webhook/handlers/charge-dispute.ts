@@ -10,6 +10,7 @@ import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { process_refund } from "$/refund/process";
 import { money, refund_list } from "../helpers/money";
+import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-dispute";
@@ -91,13 +92,17 @@ export async function handle_dispute_closed(
     ...result.loss_msgs.map((m) => `loss: ${m}`),
   ].join("\n");
   // queued, not sent: once reversed, a redelivery stops at the donation's
-  // status, so only the queue's retries can land a failed send
+  // status, so only the queue's retries can land a failed send. keyed on the
+  // outcome, so a redelivery failing alike collapses into this notice
   await enqueue(
     msg("fiat-notice", {
       id: `${event.id}_${failed}`,
       alert: { type: "NOTICE", from: `${ALERT_FROM}-${stage}`, title, body },
     })
   ).catch((err) => report_error(err, { donation_id: don.id, title, body }));
+  if (failed > 0) {
+    throw new ReversalIncompleteError(don.id, failed, graphs.length);
+  }
 }
 
 export async function handle_dispute_created(

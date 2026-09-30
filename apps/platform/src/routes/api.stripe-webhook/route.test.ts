@@ -61,6 +61,9 @@ vi.mock("./handlers/subscription-created", async (orig) => ({
 
 const { action } = await import("./route");
 const { BalanceTxnNotReadyError } = await import("./helpers/settled");
+const { ReversalIncompleteError } = await import(
+  "./helpers/reversal-incomplete"
+);
 const { FIRST_PAYMENT_INCOMPLETE } = await import("@/subscriptions");
 const { sub_get } = await import("$/pg/queries/subscription");
 const { subscriptions } = await import("$/pg/schema/subscription");
@@ -131,6 +134,21 @@ describe("api.stripe-webhook action", () => {
     });
     intent_succeeded_mock.mockRejectedValue(
       new BalanceTxnNotReadyError("pi_1")
+    );
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 unreported when a reversal leaves dists unreversed, so stripe redelivers", async () => {
+    construct_event_mock.mockReturnValue({
+      type: "charge.dispute.closed",
+      data: { object: { id: "dp_1" } },
+    });
+    dispute_closed_mock.mockRejectedValueOnce(
+      new ReversalIncompleteError("don_1", 1, 2)
     );
 
     const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));

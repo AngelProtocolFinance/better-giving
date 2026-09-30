@@ -27,6 +27,7 @@ import {
   handle_subscription_created,
   row_status,
 } from "./handlers/subscription-created";
+import { ReversalIncompleteError } from "./helpers/reversal-incomplete";
 import { BalanceTxnNotReadyError } from "./helpers/settled";
 
 /**
@@ -175,6 +176,11 @@ export async function action({ request }: Route.ActionArgs) {
     // stripe redelivers on its own backoff schedule, by which time it'll be
     // ready. don't report — expected transient state.
     if (err instanceof BalanceTxnNotReadyError) {
+      return new Response(err.message, { status: 503 });
+    }
+    // the handler queued ops' notice and process_refund reported each failed
+    // dist, so unreported: the redelivery retries the dists left
+    if (err instanceof ReversalIncompleteError) {
       return new Response(err.message, { status: 503 });
     }
     // stripe's own api failing a call we made: its redelivery is the retry
