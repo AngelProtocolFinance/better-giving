@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+import { createCipheriv, randomBytes } from "node:crypto";
 import {
   afterAll,
   beforeAll,
@@ -25,6 +27,7 @@ vi.mock("$/email", () => ({ send_email: async () => ({}) }));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 import { handle_don_dist } from "#/routes/api.q-handler.$event/handle-don-dist";
+import { app } from "$/env";
 import { api_key_put } from "$/pg/queries/api-key";
 import { query_webhooks } from "$/pg/queries/webhook";
 import { dists } from "$/pg/schema/dist";
@@ -92,7 +95,32 @@ describe("zapier auth test", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ npoId: npo_id });
   });
+
+  test("a v1 key carrying npoId as a string still authenticates", async () => {
+    const key = mint_v1({
+      npoId: String(npo_id),
+      env: "production",
+      timestamp: 1,
+    });
+    await test_db.current!.db.insert(api_keys).values({ npo_id, api_key: key });
+
+    const res = await get(me, key);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ npoId: npo_id });
+  });
 });
+
+/** the v1 wire format: base64url(iv ‖ aes-256-gcm ciphertext ‖ tag) */
+function mint_v1(payload: object) {
+  const k = Buffer.from(app.api_encryption_key, "base64");
+  const iv = randomBytes(12);
+  const c = createCipheriv("aes-256-gcm", k, iv);
+  const enc = Buffer.concat([
+    c.update(JSON.stringify(payload), "utf8"),
+    c.final(),
+  ]);
+  return Buffer.concat([iv, enc, c.getAuthTag()]).toString("base64url");
+}
 
 describe("zapier key minting", () => {
   const post = (id: number) =>

@@ -72,8 +72,9 @@ export function api_key_decode(key: string): IApiKeyPayload | undefined {
 
     const raw = JSON.parse(decrypted.toString("utf8"));
     // normalize v1 (npoId+env) → v2 (npo_id, no env)
-    const npo_id = raw.npo_id ?? raw.npoId;
-    if (typeof npo_id !== "number") return;
+    // v1 may carry the id as a numeric string
+    const npo_id = Number(raw.npo_id ?? raw.npoId);
+    if (!Number.isSafeInteger(npo_id)) return;
     return { npo_id, timestamp: raw.timestamp };
   } catch {
     return;
