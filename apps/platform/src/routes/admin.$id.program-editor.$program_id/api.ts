@@ -18,12 +18,12 @@ import {
 } from "$/pg/queries/program";
 import type { Route } from "./+types/route";
 
-export const loader = async ({ params }: Route.LoaderArgs) => {
+export const loader = async ({ params, context }: Route.LoaderArgs) => {
   const p1 = safeParse($int_gte1, params.id);
   if (p1.issues) throw resp.status(400, p1.issues[0].message);
   const p2 = safeParse(program_id, params.program_id);
   if (p2.issues) throw resp.status(400, p2.issues[0].message);
-  const prog = await npo_program_get(p2.output);
+  const prog = await npo_program_get(p2.output, context.get(admin_ctx));
   if (!prog) throw resp.status(404);
   return prog;
 };
@@ -38,18 +38,20 @@ export const action = async (x: Route.ActionArgs) => {
   const { intent, ...p } = await x.request.json();
 
   if (intent === "add-milestone") {
-    await milestone_put(pid, {
+    const mid = await milestone_put(id, pid, {
       title: `Milestone ${p["next-milestone-num"]}`,
       description_pt: "[]",
       date: new Date().toISOString(),
     });
+    if (!mid) return resp.status(404);
     return dataWithSuccess(null, "Milestone added");
   }
 
   if (intent === "delete-milestone") {
     const p_mid = safeParse(milestone_id, p["milestone-id"]);
     if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
-    await milestone_delete(pid, p_mid.output);
+    const deleted = await milestone_delete(id, pid, p_mid.output);
+    if (!deleted) return resp.status(404);
     return dataWithSuccess(null, "Milestone deleted");
   }
 
@@ -59,7 +61,13 @@ export const action = async (x: Route.ActionArgs) => {
     if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
     const p_upd8 = safeParse(milestone_update, rest);
     if (p_upd8.issues) return resp.status(400, p_upd8.issues[0].message);
-    await milestone_update_db(pid, p_mid.output, p_upd8.output);
+    const updated = await milestone_update_db(
+      id,
+      pid,
+      p_mid.output,
+      p_upd8.output
+    );
+    if (!updated) return resp.status(404);
     return dataWithSuccess(null, "Milestone updated");
   }
 
