@@ -59,7 +59,7 @@ export const stripe_intent: Provider = async ({
             order_id: don.id,
             bank_only,
           })
-        : await setup_intent(don.id, customer_id, bank_only);
+        : await setup_intent(don.id, customer_id, don.currency, bank_only);
   } catch (err) {
     const refusal = donor_refusal(err);
     if (!refusal) throw err;

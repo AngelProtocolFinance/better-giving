@@ -1,22 +1,31 @@
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import { msg } from "@/queue";
-import type { ISubUpdate, TStatus } from "@/subscriptions";
+import type { ISubUpdate } from "@/subscriptions";
 import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
-import { sub_update } from "$/pg/queries/subscription";
+import {
+  sub_cancel_reason_default,
+  sub_update,
+} from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
 import {
   handle_charge_refunded,
+  handle_dispute_closed,
+  handle_dispute_created,
   handle_intent_failed,
   handle_intent_requires_action,
+  handle_refund_failed,
   handle_setup_intent_failed,
   handle_setup_intent_succeeded,
 } from "./handlers";
 import { handle_intent_succeeded } from "./handlers/intent-suceeded";
-import { handle_subscription_created } from "./handlers/subscription-created";
+import {
+  handle_subscription_created,
+  row_status,
+} from "./handlers/subscription-created";
 import { BalanceTxnNotReadyError } from "./helpers/settled";
 
 /** ended at stripe: nothing left to cancel there */
@@ -25,21 +34,19 @@ const ENDED_AT_STRIPE = new Set<Stripe.Subscription.Status>([
   "incomplete_expired",
 ]);
 
-/**
- * rows are born active, so the webhook only ever moves one to inactive. it never
- * reactivates one: an inactive row whose sub is still live at stripe is a cancel
- * that hasn't landed there yet, not a recovery.
- * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
- */
-const row_status = (live: Stripe.Subscription.Status): TStatus | undefined => {
-  switch (live) {
-    case "unpaid":
-    case "canceled":
-    case "incomplete_expired":
-      return "inactive";
-    default:
-      return undefined;
-  }
+/** stripe's reason for ending a sub; an unpaid one carries none until it's canceled */
+const stripe_end_reason = (sub: Stripe.Subscription): string | null => {
+  const details = sub.cancellation_details;
+  const reason =
+    details?.reason ?? (sub.status === "unpaid" ? "payment_failed" : null);
+  if (!reason) return null;
+  return details?.comment ? `${reason}: ${details.comment}` : reason;
+};
+
+/** the first reason recorded stays (the donor's, an admin's, or an earlier stripe one) */
+const record_end_reason = async (sub: Stripe.Subscription) => {
+  const reason = stripe_end_reason(sub);
+  if (reason) await sub_cancel_reason_default(db, sub.id, reason);
 };
 
 /**
@@ -106,6 +113,8 @@ export async function action({ request }: Route.ActionArgs) {
           updated_at: new Date().toISOString(),
           ...(status && { status }),
         };
+        // before the update, whose row carries the reason into the queued cancel
+        if (status === "inactive") await record_end_reason(sub);
         const { row } = await sub_update(db, sub.id, update);
         // an inactive row whose sub lives on at stripe is cancelled there: unpaid
         // (retries exhausted), or a cancel we queued that never landed and still
@@ -121,13 +130,29 @@ export async function action({ request }: Route.ActionArgs) {
       }
       case "customer.subscription.deleted": {
         // already ended at stripe, so nothing to cancel there
-        await sub_update(db, stripe_event.data.object.id, {
-          status: "inactive",
-        });
+        const sub = stripe_event.data.object;
+        await record_end_reason(sub);
+        const { row } = await sub_update(db, sub.id, { status: "inactive" });
+        // it can land before the handler that writes the row: stripe
+        // redelivers on a non-2xx, by when the row is there to end
+        if (!row) {
+          return new Response(`subscription row not found: ${sub.id}`, {
+            status: 404,
+          });
+        }
         break;
       }
       case "charge.refunded":
         await handle_charge_refunded(stripe_event);
+        break;
+      case "refund.failed":
+        await handle_refund_failed(stripe_event);
+        break;
+      case "charge.dispute.created":
+        await handle_dispute_created(stripe_event);
+        break;
+      case "charge.dispute.closed":
+        await handle_dispute_closed(stripe_event);
         break;
       default:
         return new Response(`Unhandled event type: ${stripe_event.type}`, {
@@ -141,6 +166,15 @@ export async function action({ request }: Route.ActionArgs) {
     // stripe redelivers on its own backoff schedule, by which time it'll be
     // ready. don't report — expected transient state.
     if (err instanceof BalanceTxnNotReadyError) {
+      return new Response(err.message, { status: 503 });
+    }
+    // stripe's own api failing a call we made: its redelivery is the retry
+    if (
+      err instanceof Stripe.errors.StripeRateLimitError ||
+      err instanceof Stripe.errors.StripeAPIError ||
+      err instanceof Stripe.errors.StripeConnectionError
+    ) {
+      console.warn(`stripe api transient ${err.type}: ${err.message}`);
       return new Response(err.message, { status: 503 });
     }
     // a signature that doesn't verify is a config problem (wrong

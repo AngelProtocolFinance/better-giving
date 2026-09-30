@@ -3,9 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ctx } from "../types";
 
 const pi_create_mock = vi.hoisted(() => vi.fn());
+const si_create_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
-  stripe: { paymentIntents: { create: pi_create_mock } },
+  stripe: {
+    paymentIntents: { create: pi_create_mock },
+    setupIntents: { create: si_create_mock },
+  },
 }));
 vi.mock("#/.server/unit-per-usd", () => ({ unit_per_usd: async () => 1 }));
 vi.mock("./customer-with-currency", () => ({
@@ -120,5 +124,39 @@ describe("stripe_intent refusals", () => {
     pi_create_mock.mockRejectedValue(err);
 
     await expect(stripe_intent(ctx())).rejects.toBe(err);
+  });
+});
+
+describe("recurring setup: acss mandate currency", () => {
+  beforeEach(() => {
+    si_create_mock.mockResolvedValue({ client_secret: "seti_secret" });
+  });
+
+  const setup_params = () => si_create_mock.mock.calls[0]![0];
+
+  it("mandates acss in the order's currency", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "USD" }));
+
+    expect(setup_params().payment_method_options.acss_debit.currency).toBe(
+      "usd"
+    );
+    expect(setup_params().payment_method_types).toContain("acss_debit");
+  });
+
+  it("offers no acss for a currency acss can't mandate, on the bank tab", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "EUR" }, "bank"));
+
+    expect(setup_params().payment_method_options?.acss_debit).toBeUndefined();
+    expect(setup_params().payment_method_types).toEqual(["us_bank_account"]);
+  });
+
+  it("offers no acss for a currency acss can't mandate, among dynamic methods", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "EUR" }, "card"));
+
+    expect(setup_params().payment_method_options?.acss_debit).toBeUndefined();
+    expect(setup_params().automatic_payment_methods).toEqual({ enabled: true });
+    expect(setup_params().excluded_payment_method_types).toEqual([
+      "acss_debit",
+    ]);
   });
 });
