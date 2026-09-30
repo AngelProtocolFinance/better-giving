@@ -239,6 +239,19 @@ export async function donation_has_dists(
   return !!row;
 }
 
+/** true once this donation's share for `to_id` is distributed */
+export async function dist_exists(
+  donation_id: string,
+  to_id: number
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: dists.id })
+    .from(dists)
+    .where(and(eq(dists.donation_id, donation_id), eq(dists.to_id, to_id)))
+    .limit(1);
+  return !!row;
+}
+
 // -- refund support --
 
 export interface DistRefundGraph {

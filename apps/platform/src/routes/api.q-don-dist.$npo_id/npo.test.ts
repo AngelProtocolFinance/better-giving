@@ -11,7 +11,11 @@ import {
 import type { IInput, IParts } from "@/types/donation-dist";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
-const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const test_db = vi.hoisted(() => ({
+  current: null as TestDb | null,
+  /** the next `db.transaction` rejects with this instead of running */
+  fail_next_tx: null as Error | null,
+}));
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 
@@ -24,6 +28,11 @@ vi.mock("$/pg/db", () => ({
       get(_, prop) {
         const real = test_db.current?.db;
         if (!real) throw new Error("test_db not initialized");
+        const failure = test_db.fail_next_tx;
+        if (prop === "transaction" && failure) {
+          test_db.fail_next_tx = null;
+          return () => Promise.reject(failure);
+        }
         return (real as any)[prop];
       },
     }
@@ -190,6 +199,38 @@ describe("handle_npo", () => {
     } finally {
       await db().execute(sql`DROP INDEX test_dists_to_id_uniq`);
     }
+  });
+
+  // on neon, drizzle's own rollback can fail on a dead socket and replace the
+  // 23505 with an error carrying no code
+  const dead_socket = () => new Error("Connection terminated unexpectedly");
+
+  it("swallows a redelivery whose unique violation arrives without its code", async () => {
+    await handle_npo(make_input(npo_id));
+    enqueue_mock.mockClear();
+
+    test_db.fail_next_tx = dead_socket();
+    await expect(handle_npo(make_input(npo_id))).resolves.toBeUndefined();
+
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  // qstash retries it; the redelivery then finds the dist and reports the loss
+  it("rethrows an enqueue that fails after the commit, not reporting it as settled", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("rethrows a codeless failure when nothing was settled", async () => {
+    test_db.fail_next_tx = dead_socket();
+
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(
+      /terminated unexpectedly/
+    );
+    expect(report_error_mock).not.toHaveBeenCalled();
   });
 
   it("rethrows anything that is not that unique violation", async () => {

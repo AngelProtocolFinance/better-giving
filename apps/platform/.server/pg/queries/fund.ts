@@ -118,14 +118,26 @@ export async function funds_batch_get(ids: string[]): Promise<IFundRow[]> {
   return rows.map((r) => row_to_fund(r, members_by_fund.get(r.id) ?? []));
 }
 
+const fund_list_cols = {
+  id: funds.id,
+  name: funds.name,
+  creator_id: funds.creator_id,
+  created_at: funds.created_at,
+};
+
+export type IFundListItem = Pick<
+  typeof funds.$inferSelect,
+  keyof typeof fund_list_cols
+>;
+
 export async function funds_list(
   opts: IFundsPageOpts = {}
-): Promise<IPageKeyed<IFund>> {
+): Promise<IPageKeyed<IFundListItem>> {
   const limit = opts.limit ?? 10;
   const cursor = decode_date_cursor(opts.next);
 
   const q = db
-    .select()
+    .select(fund_list_cols)
     .from(funds)
     .orderBy(desc(funds.created_at))
     .limit(limit + 1);
@@ -139,8 +151,7 @@ export async function funds_list(
   const last = items[items.length - 1];
 
   return {
-    // target: two columns → one union field; view-derived donation_total_usd
-    items: items as unknown as IFund[],
+    items,
     next:
       has_more && last?.created_at
         ? encode_date_cursor(last.created_at)

@@ -14,6 +14,7 @@ import type { INposPage, INpoWithRegNum } from "@/npo/interfaces";
 import type { INposSearchObj } from "@/npo/schema";
 import type { IBalanceDeltas } from "@/types/donation";
 import { db } from "../db";
+import { finite } from "../schema/columns";
 import { npos } from "../schema/npo";
 import { user_npo_memberships } from "../schema/user";
 import { v_contributions } from "../schema/views";
@@ -180,6 +181,9 @@ export async function npo_balance_adj(
   id: number,
   adj: Partial<Record<"liq" | "lock_units" | "cash", number>>
 ) {
+  for (const [k, v] of Object.entries(adj)) {
+    if (v != null) finite(v, `npo ${k} delta`);
+  }
   await db
     .update(npos)
     .set({
@@ -203,6 +207,10 @@ export async function npo_balance_update(
   dir: "inc" | "dec"
 ) {
   const s = dir === "inc" ? 1 : -1;
+  // NaN is falsy: unchecked, the spreads below would drop it without a word
+  finite(d.liq, "npo liq delta");
+  finite(d.lock_units, "npo lock_units delta");
+  finite(d.cash, "npo cash delta");
   await db
     .update(npos)
     .set({

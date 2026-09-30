@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import type { INpoAdmin, IUserBookmark, IUserNpo } from "@/users/interfaces";
 import type {
@@ -73,7 +73,10 @@ export async function user_by_referral_code(
   return row;
 }
 
-/** address + greeting name for mailing a user known only by `user.id` */
+/**
+ * address + greeting name for mailing a user known only by `user.id`;
+ * undefined unless the address is verified and the user is not under a ban
+ */
 export async function user_contact_by_id(
   id: string,
   tx: DbOrTx = db
@@ -81,7 +84,17 @@ export async function user_contact_by_id(
   const [row] = await tx
     .select({ email: user.email, first_name: user.first_name })
     .from(user)
-    .where(eq(user.id, id))
+    .where(
+      and(
+        eq(user.id, id),
+        eq(user.emailVerified, true),
+        or(
+          isNull(user.banned),
+          eq(user.banned, false),
+          lte(user.banExpires, new Date())
+        )
+      )
+    )
     .limit(1);
   return row;
 }
