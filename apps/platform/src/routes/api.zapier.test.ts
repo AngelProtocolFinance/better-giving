@@ -108,6 +108,10 @@ describe("zapier auth test", () => {
       async () => mint(JSON.stringify({ npo_id: -1, timestamp: 1 })),
     ],
     [
+      "an npo_id of 0",
+      async () => mint(JSON.stringify({ npo_id: 0, timestamp: 1 })),
+    ],
+    [
       "a valid key for an npo that doesn't exist",
       async () => mint(JSON.stringify({ npo_id: npo_id + 1000, timestamp: 1 })),
     ],

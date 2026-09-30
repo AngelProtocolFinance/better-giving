@@ -45,9 +45,11 @@ const paypal_issues = (body: string): string[] => {
   }
 };
 
-/** a 4xx other than a rate limit: every retry gets the same answer */
+/** a 4xx a retry can't change: not a timeout (408), a concurrent-update
+ * conflict (409) or a rate limit (429) */
+const RETRYABLE_4XX = new Set([408, 409, 429]);
 const is_final_refusal = (http_status: number) =>
-  http_status >= 400 && http_status < 500 && http_status !== 429;
+  http_status >= 400 && http_status < 500 && !RETRYABLE_4XX.has(http_status);
 
 /**
  * the donor was already shown the subscription as cancelled, and the provider

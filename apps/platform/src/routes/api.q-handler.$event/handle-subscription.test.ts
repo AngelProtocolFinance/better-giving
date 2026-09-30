@@ -123,6 +123,16 @@ describe("handle_sub_deactivated paypal cancel failures", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
+  it.each([408, 409, 429])(
+    "rethrows a %i so the queue retries it",
+    async (http_status) => {
+      paypal_answers(http_status, "ERR");
+
+      await expect(deactivate()).rejects.toThrow();
+      expect(send_alert_mock).not.toHaveBeenCalled();
+    }
+  );
+
   // the donor was told they're no longer charged; a retry can't change this answer
   it("alerts ops on a refusal a retry can't change, and resolves", async () => {
     paypal_answers(404, "INVALID_RESOURCE_ID");

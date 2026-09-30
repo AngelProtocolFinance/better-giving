@@ -274,7 +274,9 @@ describe("approve", () => {
       .insert(banking_apps)
       .values({ id: IN_REVIEW.o_bank_id, npo_id: other!.id });
 
-    await expect(verdict("approved")).rejects.toThrow(/already registered/);
+    const res = (await verdict("approved").catch((e) => e)) as Response;
+    expect(res.status).toBe(409);
+    expect(await res.text()).toMatch(/already registered/);
 
     expect(await db.select().from(npos)).toHaveLength(1);
     expect((await reg_get(RID))?.status).toBe("02");

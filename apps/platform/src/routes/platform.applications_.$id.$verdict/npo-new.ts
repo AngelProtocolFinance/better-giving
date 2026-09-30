@@ -132,7 +132,7 @@ export const npo_new = async (r: NonNullable<Progress["banking"]>) => {
 
     // a fresh npo can't own it yet: another npo does, so approve nothing
     if (!(await bapp_put(tx, bank_new))) {
-      throw new Error(`bank ${r.o_bank_id} is already registered`);
+      throw resp.status(409, `bank ${r.o_bank_id} is already registered`);
     }
     await userxnpo_put(tx, id, registrant_id);
     return reg_update(tx, r.id, { status_approved_npo_id: id });
