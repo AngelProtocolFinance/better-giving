@@ -1,4 +1,5 @@
 import { via_name } from "../donations/helpers";
+import type { TFrequency } from "../schemas";
 
 /**
  * the new-donation trigger's public contract: every key is a field a Zap maps.
@@ -19,7 +20,7 @@ export interface INewDonationItem {
   program_id?: string;
   program_name?: string;
   payment_method: string;
-  frequency: string;
+  frequency: TFrequency;
   is_recurring: boolean;
   form_id?: string;
   form_tag?: string;
@@ -34,7 +35,7 @@ export interface INewDonationSource {
   amount: number;
   amount_usd: number;
   currency: string;
-  frequency: string;
+  frequency: TFrequency;
   via: string;
   from_email: string;
   from_name?: string | null;

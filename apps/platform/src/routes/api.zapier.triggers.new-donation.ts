@@ -1,5 +1,6 @@
 import type { ActionFunction, LoaderFunction } from "react-router";
 import { resp } from "@/helpers/https";
+import type { TFrequency } from "@/schemas";
 import { is_zapier_hook_url } from "@/zapier/hook-url";
 import { new_donation_item } from "@/zapier/new-donation";
 import { npo_donations } from "$/pg/queries/dist";
@@ -21,7 +22,8 @@ export const loader: LoaderFunction = async ({ request }) => {
       amount: i.amount ?? 0,
       amount_usd: i.amount_usd ?? 0,
       currency: i.amount_denom,
-      frequency: i.frequency,
+      // the column is untyped text, written only from a TFrequency
+      frequency: i.frequency as TFrequency,
       via: i.via,
       from_email: i.from_email,
       from_name: i.from_name,
