@@ -167,6 +167,30 @@ const missing_donation = (grant: IGrantRef, don_id: string) =>
     todo: "nothing was changed automatically; no donation records this grant and no receipt went out, so record it by hand",
   });
 
+/** the row this grant recorded, or the 2xx answering a delivery that has none */
+async function grant_donation(
+  grant: IGrantRef,
+  don_id: string
+): Promise<IDonation | Response> {
+  const prior = await donation_get(don_id);
+  if (!prior) return missing_donation(grant, don_id);
+  // `don_id` rides in connect metadata the browser writes, so it can name any
+  // row; the intent route records the grant it made as `via_extra`
+  if (prior.via !== "chariot" || prior.via_extra !== grant.id)
+    return ack_unfixable(
+      grant,
+      prior.id,
+      {
+        message: "chariot grant names a donation it did not record",
+        title: "Chariot Grant On Another Donation",
+        detail: `chariot grant ${grant.id} names donation ${prior.id}, which is ${prior.via} ${prior.via_extra}`,
+        todo: "nothing was changed automatically; this grant is not recorded against any donation, so record it by hand",
+      },
+      prior
+    );
+  return prior;
+}
+
 const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
 /** compares decoded bytes, so hex case can't decide a match */
@@ -231,8 +255,8 @@ export async function action({ request }: Route.ActionArgs) {
     if (grant.status === "Canceled") {
       // unlocked read first: the locked one matches `id` only, grant metadata
       // can carry a legacy `id_v1`, and the alert needs the recipient
-      const prior = await donation_get(don_id);
-      if (!prior) return missing_donation(grant, don_id);
+      const prior = await grant_donation(grant, don_id);
+      if (prior instanceof Response) return prior;
       const locked = await db.transaction(async (tx) => {
         const state = await donation_settle_state_locked(tx, prior.id);
         if (!state) return null;
@@ -285,8 +309,8 @@ export async function action({ request }: Route.ActionArgs) {
       currency: "USD",
     };
 
-    const prior = await donation_get(don_id);
-    if (!prior) return missing_donation(grant, don_id);
+    const prior = await grant_donation(grant, don_id);
+    if (prior instanceof Response) return prior;
     const locked = await db.transaction(async (tx) => {
       const state = await donation_settle_state_locked(tx, prior.id);
       if (!state) return null;
