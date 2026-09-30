@@ -1,4 +1,8 @@
+import { PayPalApiError } from "@better-giving/paypal";
+import Stripe from "stripe";
+import { report_error } from "#/errors/report";
 import type { ISubDeactivatedPayload } from "@/queue";
+import { aws_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
 import { stripe } from "$/kit/stripe";
 
@@ -32,11 +36,45 @@ const paypal_cancel_reason = (reason: string | null | undefined): string => {
   );
 };
 
+const paypal_issues = (body: string): string[] => {
+  try {
+    const { details } = JSON.parse(body) as { details?: { issue?: string }[] };
+    return (details ?? []).flatMap((d) => (d.issue ? [d.issue] : []));
+  } catch {
+    return [];
+  }
+};
+
+/** a 4xx other than a rate limit: every retry gets the same answer */
+const is_final_refusal = (http_status: number) =>
+  http_status >= 400 && http_status < 500 && http_status !== 429;
+
+/**
+ * the donor was already shown the subscription as cancelled, and the provider
+ * may still charge it: someone has to cancel it by hand. answered as handled —
+ * a redelivery can only repeat the refusal into the dlq.
+ */
+async function alert_cancel_failed(
+  data: ISubDeactivatedPayload,
+  err: unknown,
+  reason: string | number
+) {
+  report_error(err, { sub_id: data.id, platform: data.platform });
+  await aws_monitor
+    .send_alert({
+      type: "ERROR",
+      from: "sub-deactivated",
+      title: `${data.platform} refused to cancel subscription ${data.id}`,
+      body: `${data.platform} answered ${reason}. The donor sees this subscription as cancelled and may still be charged. Cancel ${data.id} in the ${data.platform} dashboard.`,
+    })
+    .catch((e) => report_error(e, { sub_id: data.id }));
+}
+
 /** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
 const STRIPE_ENDED = new Set(["canceled", "incomplete_expired"]);
 
-export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {
-  if (data.platform === "stripe") {
+async function cancel_on_stripe(data: ISubDeactivatedPayload) {
+  try {
     const live = await stripe.subscriptions.retrieve(data.id);
     if (STRIPE_ENDED.has(live.status)) {
       console.info(`subscription ${data.id} already ${live.status} on stripe`);
@@ -49,11 +87,37 @@ export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {
           : undefined,
       },
     });
-    console.info(`subscription ${data.id} cancelled on stripe`);
-  } else if (data.platform === "paypal") {
+  } catch (err) {
+    if (!(err instanceof Stripe.errors.StripeError)) throw err;
+    if (!is_final_refusal(err.statusCode ?? 0)) throw err;
+    return alert_cancel_failed(data, err, err.code ?? err.statusCode ?? "");
+  }
+  console.info(`subscription ${data.id} cancelled on stripe`);
+}
+
+async function cancel_on_paypal(data: ISubDeactivatedPayload) {
+  try {
     await paypal.cancel_subscription(data.id, {
       reason: paypal_cancel_reason(data.status_cancel_reason),
     });
-    console.info(`subscription ${data.id} cancelled on paypal`);
+  } catch (err) {
+    if (!(err instanceof PayPalApiError)) throw err;
+    const issues = paypal_issues(err.body);
+    // cancelled already, or never approved: either way nothing left to bill
+    if (
+      err.http_status === 422 &&
+      issues.includes("SUBSCRIPTION_STATUS_INVALID")
+    ) {
+      console.info(`subscription ${data.id} not active on paypal`);
+      return;
+    }
+    if (!is_final_refusal(err.http_status)) throw err;
+    return alert_cancel_failed(data, err, issues.join(",") || err.http_status);
   }
+  console.info(`subscription ${data.id} cancelled on paypal`);
+}
+
+export async function handle_sub_deactivated(data: ISubDeactivatedPayload) {
+  if (data.platform === "stripe") await cancel_on_stripe(data);
+  else if (data.platform === "paypal") await cancel_on_paypal(data);
 }
