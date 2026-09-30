@@ -88,6 +88,31 @@ export async function sub_cancel_reason_default(
     .where(eq(subscriptions.id, id));
 }
 
+/**
+ * reactivates a row only while it still carries `pending_reason`, in one
+ * statement: a cancel that lands meanwhile overwrites the reason and wins
+ */
+export async function sub_reactivate_if(
+  db: DbOrTx,
+  id: string,
+  pending_reason: string
+) {
+  await db
+    .update(subscriptions)
+    .set({
+      status: "active",
+      status_cancel_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(subscriptions.id, id),
+        eq(subscriptions.status, "inactive"),
+        eq(subscriptions.status_cancel_reason, pending_reason)
+      )
+    );
+}
+
 // -- npo subscriber queries --
 
 export interface INpoSubDetail {

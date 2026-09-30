@@ -1,13 +1,14 @@
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import { msg } from "@/queue";
-import type { ISubUpdate } from "@/subscriptions";
+import { FIRST_PAYMENT_INCOMPLETE, type ISubUpdate } from "@/subscriptions";
 import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import {
   sub_cancel_reason_default,
+  sub_reactivate_if,
   sub_update,
 } from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
@@ -28,10 +29,15 @@ import {
 } from "./handlers/subscription-created";
 import { BalanceTxnNotReadyError } from "./helpers/settled";
 
-/** ended at stripe: nothing left to cancel there */
-const ENDED_AT_STRIPE = new Set<Stripe.Subscription.Status>([
+/**
+ * ended at stripe, so nothing left to cancel there — or incomplete, which
+ * turns active if its first invoice is paid and otherwise expires there on
+ * its own after 23h; a cancel would stop stripe collecting that invoice
+ */
+const NO_CANCEL_TO_QUEUE = new Set<Stripe.Subscription.Status>([
   "canceled",
   "incomplete_expired",
+  "incomplete",
 ]);
 
 /** stripe's reason for ending a sub; an unpaid one carries none until it's canceled */
@@ -115,12 +121,15 @@ export async function action({ request }: Route.ActionArgs) {
         };
         // before the update, whose row carries the reason into the queued cancel
         if (status === "inactive") await record_end_reason(sub);
+        if (sub.status === "active") {
+          await sub_reactivate_if(db, sub.id, FIRST_PAYMENT_INCOMPLETE);
+        }
         const { row } = await sub_update(db, sub.id, update);
         // an inactive row whose sub lives on at stripe is cancelled there: unpaid
         // (retries exhausted), or a cancel we queued that never landed and still
         // charges. on every delivery, since a failed enqueue is redelivered onto
         // a row already inactive; the dedupe id collapses the repeats
-        if (row?.status === "inactive" && !ENDED_AT_STRIPE.has(sub.status)) {
+        if (row?.status === "inactive" && !NO_CANCEL_TO_QUEUE.has(sub.status)) {
           await enqueue(msg("sub-deactivated", row));
         }
         console.info(

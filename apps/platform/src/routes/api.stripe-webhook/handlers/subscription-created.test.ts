@@ -58,4 +58,22 @@ describe("customer.subscription.created → subscription row", () => {
 
     expect(written().status).toBe("inactive");
   });
+
+  it("writes a sub whose first charge hasn't landed (incomplete) as inactive", async () => {
+    sub_retrieve_mock.mockResolvedValue(stripe_sub("incomplete"));
+
+    await handle_subscription_created({
+      object: stripe_sub("incomplete"),
+    } as any);
+
+    expect(written().status).toBe("inactive");
+  });
+
+  it("writes a sub whose first charge landed as active", async () => {
+    sub_retrieve_mock.mockResolvedValue(stripe_sub("active"));
+
+    await handle_subscription_created({ object: stripe_sub("active") } as any);
+
+    expect(written().status).toBe("active");
+  });
 });
