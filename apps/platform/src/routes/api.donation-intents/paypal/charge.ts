@@ -36,7 +36,8 @@ export const paypal_charge = (a: IAmount, scale: 0 | 2): ICharge => {
       tip: major(minor.tip),
       fee_allowance: major(minor.fee_allowance),
     },
-    // summed in minor units, so it equals Σ lines by construction
+    // summed in minor units so it equals Σ lines by construction: paypal
+    // rejects an order whose item_total differs from the sum of its items
     total: fmt_minor(minor.base + minor.tip + minor.fee_allowance, scale),
     scale,
   };
