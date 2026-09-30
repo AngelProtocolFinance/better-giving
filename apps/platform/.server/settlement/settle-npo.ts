@@ -72,6 +72,13 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     referrer_expiry: npo.referrer_expiry,
   });
 
+  if (plan.alloc_fell_back) {
+    report_error(
+      new Error(`npo:${npo.id} stored allocation invalid, settled to default`),
+      { npo_id: npo.id, allocation: npo.allocation, during: "settle_npo" }
+    );
+  }
+
   const { dist, don } = plan;
   const txs: unknown[] = [];
 

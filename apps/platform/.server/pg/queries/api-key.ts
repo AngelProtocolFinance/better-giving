@@ -25,8 +25,8 @@ export async function api_key_put(npo_id: number): Promise<string> {
   const combined = Buffer.concat([iv, encrypted, auth_tag]);
   const key = combined.toString("base64url");
 
-  // hooks aren't bound to a key, but zapier unsubscribes with the key that
-  // subscribed them: once it's replaced that call 401s, so they go with it
+  // a rotated key drops the hooks subscribed under the old connection, so a
+  // revoked integration stops receiving donations
   await db.transaction(async (tx) => {
     await tx
       .insert(api_keys)

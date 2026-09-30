@@ -10,19 +10,6 @@ export const default_allocation: IAllocation = {
   lock: 0,
 };
 
-/**
- * stored allocations are jsonb: a share missing from the row is 0, not NaN.
- * shares summing to 0 would put net in no bucket, so those take the default
- */
-export const allocation_shares = (
-  a: Partial<IAllocation> | null | undefined
-): IAllocation => {
-  const shares = { liq: a?.liq ?? 0, lock: a?.lock ?? 0, cash: a?.cash ?? 0 };
-  return shares.liq + shares.lock + shares.cash > 0
-    ? shares
-    : default_allocation;
-};
-
 export const PROCESSING_RATES = {
   chariot: 0.029,
   stripe: 0.022,

@@ -203,6 +203,41 @@ describe("calc_settlement_plan", () => {
     expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
     expect(plan.balance_deltas.cash).toBe(100);
     expect(plan.payout?.amount).toBe(100);
+    expect(plan.alloc_fell_back).toBe(false);
+  });
+
+  test("stored allocation missing cash → cash is the remainder", () => {
+    const plan = calc_settlement_plan(
+      make_input(),
+      make_ctx({ allocation: { liq: 30, lock: 20 } as IAllocation })
+    );
+    expect(plan.dist.to_settings.alloc).toEqual({
+      liq: 30,
+      lock: 20,
+      cash: 50,
+    });
+    const { liq, lock, cash } = plan.balance_deltas;
+    expect(liq + lock + cash).toBeCloseTo(plan.dist.net);
+    expect(plan.alloc_fell_back).toBe(false);
+  });
+
+  test("stored allocation summing over 100 → default all-cash, flagged", () => {
+    const plan = calc_settlement_plan(
+      make_input(),
+      make_ctx({ allocation: { liq: 60, lock: 30, cash: 20 } })
+    );
+    expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
+    expect(plan.balance_deltas.cash).toBe(plan.dist.net);
+    expect(plan.alloc_fell_back).toBe(true);
+  });
+
+  test("stored allocation with cash but short of 100 → default all-cash, flagged", () => {
+    const plan = calc_settlement_plan(
+      make_input(),
+      make_ctx({ allocation: { liq: 30, lock: 20, cash: 0 } })
+    );
+    expect(plan.dist.to_settings.alloc).toEqual({ liq: 0, lock: 0, cash: 100 });
+    expect(plan.alloc_fell_back).toBe(true);
   });
 
   test("fee allowance covers processing fee → fa_excess captured, gross unchanged", () => {
