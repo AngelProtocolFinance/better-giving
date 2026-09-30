@@ -44,6 +44,12 @@ export const action: ActionFunction = async (args) => {
         "This bank account is already registered to another nonprofit"
       );
     }
+    if (existing.status === "rejected") {
+      return resp.fail(
+        409,
+        "This bank account was rejected. Contact support, or use different account details."
+      );
+    }
     if (existing.status !== "under-review") {
       return resp.fail(409, "This bank account is already on file");
     }

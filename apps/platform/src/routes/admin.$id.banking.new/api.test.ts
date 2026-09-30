@@ -112,7 +112,24 @@ describe("new banking application", () => {
     expect(q.bapp_put).not.toHaveBeenCalled();
   });
 
-  it.each(["rejected", "approved", "default"])(
+  it("refuses a resubmit of a rejected account, pointing to support or other details", async () => {
+    q.bapp_put.mockResolvedValue(false);
+    q.bapp_get.mockResolvedValue({
+      id: "40000001",
+      npo_id: OWN_NPO,
+      status: "rejected",
+    });
+
+    const res: Response = await call(body(OWN_NPO));
+
+    expect(res.status).toBe(409);
+    const { message } = await res.json();
+    expect(message).toMatch(/was rejected/i);
+    expect(message).toMatch(/contact support|different account/i);
+    expect(q.enqueue).not.toHaveBeenCalled();
+  });
+
+  it.each(["approved", "default"])(
     "refuses a resubmit of an account already %s instead of reporting it filed",
     async (status) => {
       q.bapp_put.mockResolvedValue(false);
