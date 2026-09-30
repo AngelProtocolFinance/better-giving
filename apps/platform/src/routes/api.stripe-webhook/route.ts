@@ -6,7 +6,10 @@ import { stripe as stripe_env } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
-import { sub_get, sub_update } from "$/pg/queries/subscription";
+import {
+  sub_cancel_reason_default,
+  sub_update,
+} from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
 import {
   handle_charge_refunded,
@@ -40,16 +43,10 @@ const stripe_end_reason = (sub: Stripe.Subscription): string | null => {
   return details?.comment ? `${reason}: ${details.comment}` : reason;
 };
 
-/** a reason already on the row is the donor's own, and stays */
-const end_reason_patch = async (
-  sub: Stripe.Subscription
-): Promise<ISubUpdate> => {
+/** the first reason recorded stays (the donor's, an admin's, or an earlier stripe one) */
+const record_end_reason = async (sub: Stripe.Subscription) => {
   const reason = stripe_end_reason(sub);
-  if (!reason) return {};
-  const row = await sub_get(sub.id);
-  return row && !row.status_cancel_reason
-    ? { status_cancel_reason: reason }
-    : {};
+  if (reason) await sub_cancel_reason_default(db, sub.id, reason);
 };
 
 /**
@@ -115,8 +112,9 @@ export async function action({ request }: Route.ActionArgs) {
             : new Date().toISOString(),
           updated_at: new Date().toISOString(),
           ...(status && { status }),
-          ...(status === "inactive" && (await end_reason_patch(sub))),
         };
+        // before the update, whose row carries the reason into the queued cancel
+        if (status === "inactive") await record_end_reason(sub);
         const { row } = await sub_update(db, sub.id, update);
         // an inactive row whose sub lives on at stripe is cancelled there: unpaid
         // (retries exhausted), or a cancel we queued that never landed and still
@@ -133,10 +131,8 @@ export async function action({ request }: Route.ActionArgs) {
       case "customer.subscription.deleted": {
         // already ended at stripe, so nothing to cancel there
         const sub = stripe_event.data.object;
-        const { row } = await sub_update(db, sub.id, {
-          status: "inactive",
-          ...(await end_reason_patch(sub)),
-        });
+        await record_end_reason(sub);
+        const { row } = await sub_update(db, sub.id, { status: "inactive" });
         // it can land before the handler that writes the row: stripe
         // redelivers on a non-2xx, by when the row is there to end
         if (!row) {

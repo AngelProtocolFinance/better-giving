@@ -420,6 +420,10 @@ describe("customer.subscription lifecycle", () => {
     expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
       "payment_failed"
     );
+    // the reason is on the row the cancel is queued with
+    expect(enqueue_mock.mock.calls[0]![0]).toMatchObject({
+      payload: { status_cancel_reason: "payment_failed" },
+    });
   });
 
   it("stripe ending a gift the donor cancelled keeps the donor's reason", async () => {
