@@ -58,7 +58,8 @@ const to_interval = (from: TIntervalFrom): TInterval => {
 // record. ACTIVATED passes its event payload, which a redelivery repeats, so it
 // acknowledges the gap; SALE passes the live subscription, which can still be
 // APPROVED with no billing_info when the first sale lands, so it asks for a
-// redelivery.
+// redelivery. a plan lookup paypal refuses for good is `{ refused }`, which
+// both acknowledge.
 async function build_sub_record(args: {
   subs_id: string;
   sub: Subs;
@@ -66,16 +67,18 @@ async function build_sub_record(args: {
   from_email: string;
   create_time?: string;
   update_time?: string;
-}): Promise<ISub | string> {
+}): Promise<ISub | string | { refused: number }> {
   const { subs_id, sub, don, from_email } = args;
   const create_time =
     args.create_time ?? sub.create_time ?? new Date().toISOString();
   const update_time =
     args.update_time ?? sub.update_time ?? new Date().toISOString();
 
-  if (!sub.plan_id) return "missing subscription plan id";
-  const plan = await paypal.get_plan(sub.plan_id);
-  // get_plan throws on a non-2xx; a 2xx with no body is the fetch's fault, not
+  const plan_id = sub.plan_id;
+  if (!plan_id) return "missing subscription plan id";
+  const plan = await fetch_resource(() => paypal.get_plan(plan_id));
+  if (typeof plan === "number") return { refused: plan };
+  // any other non-2xx throws; a 2xx with no body is the fetch's fault, not
   // the payload's, so it throws to a redelivery rather than returning a gap
   if (!plan) throw new Error(`plan not found: ${sub.plan_id}`);
   const cycle = plan.billing_cycles?.[0];
@@ -668,6 +671,8 @@ export async function action({ request }: Route.ActionArgs) {
           update_time,
         });
         if (typeof subs_db === "string") return unroutable(ev, subs_db);
+        if ("refused" in subs_db)
+          return unroutable(ev, `paypal answered ${subs_db.refused} for plan`);
 
         await sub_put(db, subs_db);
         return new Response(`created subscription record ${subs_id}`, {
@@ -810,8 +815,11 @@ export async function action({ request }: Route.ActionArgs) {
 
         // fetch order to get real payer email before settling
         const order_id = supplementary_data?.related_ids?.order_id;
-        if (order_id) {
-          const order = await paypal.get_order(order_id);
+        // an order paypal refuses leaves the donor as the approval wrote it
+        const order = order_id
+          ? await fetch_resource(() => paypal.get_order(order_id))
+          : undefined;
+        if (order && typeof order !== "number") {
           const ps =
             order.payment_source?.venmo || order.payment_source?.paypal;
           if (ps?.email_address) {
@@ -1081,7 +1089,14 @@ export async function action({ request }: Route.ActionArgs) {
         };
 
         if (!subs_id) return unroutable(ev, "missing billing agreement id");
-        const sub = await paypal.get_subscription(subs_id);
+        const sub = await fetch_resource(() =>
+          paypal.get_subscription(subs_id)
+        );
+        if (typeof sub === "number")
+          return unroutable(
+            ev,
+            `paypal answered ${sub} for subscription ${subs_id}`
+          );
         if (!sub)
           return new Response("subscription not found", { status: 400 });
         // no redelivery supplies either on its own. custom_id is patchable
@@ -1116,6 +1131,11 @@ export async function action({ request }: Route.ActionArgs) {
           return new Response(`subscription not ready: ${subs_db}`, {
             status: 400,
           });
+        if ("refused" in subs_db)
+          return unroutable(
+            ev,
+            `paypal answered ${subs_db.refused} for plan ${sub.plan_id}`
+          );
 
         const sttl_record = {
           id: sale_id,

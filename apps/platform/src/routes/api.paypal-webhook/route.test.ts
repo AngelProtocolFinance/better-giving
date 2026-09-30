@@ -623,6 +623,47 @@ describe("settling from paypal's copy, not the event's", () => {
   });
 });
 
+describe("a lookup paypal refuses for good", () => {
+  const not_found = (op: string) =>
+    new PayPalApiError(op, 404, '{"name":"RESOURCE_NOT_FOUND"}');
+
+  it("settles a capture whose order paypal cannot find, on the donor it has", async () => {
+    await seed_donation();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockRejectedValue(not_found("get order"));
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+  });
+
+  it.each([
+    [
+      "subscription",
+      () =>
+        get_subscription_mock.mockRejectedValue(not_found("get subscription")),
+    ],
+    ["plan", () => get_plan_mock.mockRejectedValue(not_found("get plan"))],
+  ])(
+    "acknowledges and reports a sale whose %s paypal cannot find",
+    async (_, refuse) => {
+      await seed_donation({ frequency: "monthly" });
+      refuse();
+
+      const res = await deliver(sale_ev());
+
+      expect(res.status).toBe(200);
+      expect(await res.text()).toMatch(/^not routable: /);
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await settlements()).toHaveLength(0);
+    }
+  );
+});
+
 describe("PAYMENT.SALE.COMPLETED", () => {
   it("re-queues a settled sale's messages on redelivery", async () => {
     await seed_donation({ frequency: "monthly" });
