@@ -1,4 +1,4 @@
-import { Client, Receiver } from "@upstash/qstash";
+import { Client, Receiver, SignatureError } from "@upstash/qstash";
 import type { IMsg } from "@/queue/types";
 import { app, base_url, qstash, stage } from "../env";
 
@@ -87,13 +87,16 @@ export async function verify_qstash(request: Request): Promise<string> {
 
   const body = await request.text();
 
-  const is_valid = await receiver.verify({
-    body,
-    signature,
-    url: request.url,
-  });
-
-  if (!is_valid) throw new Response("invalid signature", { status: 401 });
+  // verify throws SignatureError on a bad signature rather than returning false;
+  // any other throw (no signing keys) is ours and stays a 500
+  await receiver
+    .verify({ body, signature, url: request.url })
+    .catch((err: unknown) => {
+      if (err instanceof SignatureError) {
+        throw new Response("invalid signature", { status: 401 });
+      }
+      throw err;
+    });
 
   return body;
 }
