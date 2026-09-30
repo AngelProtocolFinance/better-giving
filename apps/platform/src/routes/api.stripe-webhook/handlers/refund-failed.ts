@@ -3,8 +3,8 @@ import { str_id } from "#/helpers/stripe";
 import { is_reversed } from "@/donations";
 import { stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
-import { refunded_donation } from "../helpers/refunded-donation";
-import { money } from "./charge-refunded";
+import { money } from "../helpers/money";
+import { settled_donation } from "../helpers/settled-donation";
 
 /**
  * a bank refund (ach, acss) can fail days after charge.refunded reversed the
@@ -12,7 +12,7 @@ import { money } from "./charge-refunded";
  */
 export async function handle_refund_failed(event: Stripe.RefundFailedEvent) {
   const refund = event.data.object;
-  const don = await refunded_donation(str_id(refund.payment_intent));
+  const don = await settled_donation(str_id(refund.payment_intent));
   const outcome = is_reversed(don.status)
     ? "the donation was reversed when this refund was made, and that reversal stands: the nonprofit is debited though the donor got nothing back."
     : `the donation was not reversed (status ${don.status}).`;

@@ -8,8 +8,8 @@ import { fiat_monitor } from "$/kit/discord";
 import { enqueue } from "$/kit/queue";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { process_refund } from "$/refund/process";
-import { refunded_donation } from "../helpers/refunded-donation";
-import { money } from "./charge-refunded";
+import { money } from "../helpers/money";
+import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-dispute";
 
@@ -31,7 +31,7 @@ export async function handle_dispute_closed(
     console.info(`dispute ${dispute.id} closed ${dispute.status}: kept`);
     return;
   }
-  const don = await refunded_donation(str_id(dispute.payment_intent));
+  const don = await settled_donation(str_id(dispute.payment_intent));
   if (is_reversed(don.status)) {
     console.info(`already reversed: ${don.id}`);
     return;
@@ -75,7 +75,7 @@ export async function handle_dispute_created(
   event: Stripe.ChargeDisputeCreatedEvent
 ) {
   const dispute = event.data.object;
-  const don = await refunded_donation(str_id(dispute.payment_intent));
+  const don = await settled_donation(str_id(dispute.payment_intent));
   const due = dispute.evidence_details?.due_by;
 
   await fiat_monitor.send_alert({

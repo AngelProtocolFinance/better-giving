@@ -1,10 +1,7 @@
 import type Stripe from "stripe";
 import { report_error } from "#/errors/report";
-import {
-  currency_precision,
-  from_stripe_amount,
-  str_id,
-} from "#/helpers/stripe";
+import { str_id } from "#/helpers/stripe";
+import { is_reversed } from "@/donations";
 import { msg } from "@/queue";
 import { stage } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
@@ -12,12 +9,10 @@ import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { process_refund } from "$/refund/process";
-import { refunded_donation } from "../helpers/refunded-donation";
+import { money } from "../helpers/money";
+import { settled_donation } from "../helpers/settled-donation";
 
 const ALERT_FROM = "charge-refunded";
-
-export const money = (atomic: number, currency: string) =>
-  `${from_stripe_amount(atomic, currency).toFixed(currency_precision(currency))} ${currency.toUpperCase()}`;
 
 const refund_list = (refunds: Stripe.Refund[], currency: string) =>
   refunds
@@ -62,9 +57,9 @@ export async function handle_charge_refunded(
   // that has since been refunded in full
   const charge = await stripe.charges.retrieve(event.data.object.id);
   const intent_id = str_id(charge.payment_intent);
-  const don = await refunded_donation(intent_id);
+  const don = await settled_donation(intent_id);
   const don_id = don.id;
-  if (don.status === "refunded" || don.status === "refunded_loss") {
+  if (is_reversed(don.status)) {
     console.info(`already refunded: ${don_id}`);
     return;
   }

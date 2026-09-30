@@ -1,10 +1,10 @@
 import { stripe } from "$/kit/stripe";
 import { donation_by_sttl_id, donation_get } from "$/pg/queries/donation";
 
-/** the donation a charge settled. a subscription charge settled a rebill
- * clone, not the order its invoice names, and its intent carries no metadata;
- * the settlement id is the intent id on every row either kind settles */
-export async function refunded_donation(intent_id: string) {
+/** the donation a charge settled. a rebill charge settled a clone, not the
+ * order its invoice names, and its intent carries no metadata; the settlement
+ * id is the intent id on every row a charge settles */
+export async function settled_donation(intent_id: string) {
   const settled = await donation_by_sttl_id(intent_id);
   if (settled) return settled;
   const intent = await stripe.paymentIntents.retrieve(intent_id);
