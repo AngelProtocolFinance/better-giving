@@ -1139,6 +1139,39 @@ describe("subscription lifecycle", () => {
     expect((await sub_row())!.next_billing).toBe("2026-03-01T00:00:00.000Z");
   });
 
+  it("settles a rebill paypal took before the donor cancelled", async () => {
+    await active_sub();
+    await paypal_sub_is("CANCELLED");
+    const rebill = sale_ev();
+    rebill.resource.id = "sale-2";
+    get_sale_mock.mockResolvedValue({ ...sale_copy(), id: "sale-2" });
+
+    const res = await deliver(rebill);
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await settlements()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sttl_id: "sale-2", net: 96.5, fee: 3.5 }),
+      ])
+    );
+    expect(await sub_row()).toMatchObject({
+      next_billing: "2026-02-01T00:00:00.000Z",
+    });
+  });
+
+  it("settles a first sale on a subscription that has expired since, recording it inactive", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await paypal_sub_is("EXPIRED");
+
+    const res = await deliver(sale_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect((await donation_get(ORDER_ID))!.settlement!.id).toBe(SALE_ID);
+    expect((await sub_row())!.status).toBe("inactive");
+  });
+
   it("asks for redelivery of a cancellation that lands before the subscription does", async () => {
     await seed_donation({ frequency: "monthly" });
     await paypal_sub_is("CANCELLED");
