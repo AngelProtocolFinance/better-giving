@@ -500,18 +500,28 @@ const is_whole = (parts: IMoney[], whole: IMoney) => {
 };
 
 /** what paypal's copy of the order lists as refunded off capture `cid`,
- * leaving out refund `except`; undefined, reported, when the order can't be
- * read — "no earlier refunds" would pass a chargeback of the rest as partial */
+ * leaving out refund `except`. a failed read is reported, never "no earlier
+ * refunds", which would pass a chargeback of the rest as partial: undefined
+ * when a redelivery may read it, "refused" when paypal refuses it for good */
 const prior_refunds = async (
   order_id: string,
   cid: string,
   except: string | undefined
-): Promise<IMoney[] | undefined> => {
+): Promise<IMoney[] | "refused" | undefined> => {
   const order = await paypal.get_order(order_id).catch((e: unknown) => {
-    report_error(e, { order_id, capture_id: cid });
-    return undefined;
+    report_error(
+      new Error(`[paypal webhook] order lookup failed for capture ${cid}`, {
+        cause: e,
+      }),
+      {
+        order_id,
+        capture_id: cid,
+        http_status: e instanceof PayPalApiError ? e.http_status : undefined,
+      }
+    );
+    return is_refusal(e) ? ("refused" as const) : undefined;
   });
-  if (!order) return undefined;
+  if (!order || order === "refused") return order;
   const payments = order.purchase_units?.find((u) =>
     u.payments?.captures?.some((c) => c.id === cid)
   )?.payments;
@@ -525,9 +535,29 @@ const prior_refunds = async (
 
 const REFUND_ALERT_FROM = "paypal-refund";
 
+/** how much of the charge is now taken back: all of it, less, or unknown
+ * because what earlier refunds took can't be read */
+type TExtent = "full" | "partial" | "unsized";
+
+const NOT_REVERSED_NOTICE: Record<
+  Exclude<TExtent, "full">,
+  { title: string; action: string }
+> = {
+  partial: {
+    title: "Partial Refund Not Reversed",
+    action:
+      "nothing was reversed automatically. ops must settle the rest by hand.",
+  },
+  unsized: {
+    title: "Reversal Not Sized",
+    action:
+      "paypal refused the lookup of earlier refunds, so this reversal could not be sized against the charge. nothing was reversed automatically. ops must settle it by hand.",
+  },
+};
+
 interface IReversal {
   sttl_id: string;
-  full: boolean;
+  extent: TExtent;
   status: string | undefined;
   refunded: string;
   charged: string;
@@ -563,20 +593,23 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
     return new Response(`donation is ${don.status}`, { status: 200 });
 
   const detail = `donation ${don.id}, charge ${c.sttl_id}, event ${ev.id}`;
-  if (!c.full) {
+  if (c.extent !== "full") {
+    const notice = NOT_REVERSED_NOTICE[c.extent];
     const alert = {
       type: "NOTICE" as const,
       from: `${REFUND_ALERT_FROM}-${stage}`,
-      title: "Partial Refund Not Reversed",
+      title: notice.title,
       body: [
         detail,
         `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
-        "nothing was reversed automatically. ops must settle the rest by hand.",
+        notice.action,
       ].join("\n"),
     };
     // keyed on the event, so a duplicate delivery posts one notice
-    await enqueue(msg("fiat-notice", { id: `paypal-partial_${ev.id}`, alert }));
-    return new Response("partial refund reported", { status: 200 });
+    await enqueue(
+      msg("fiat-notice", { id: `paypal-${c.extent}_${ev.id}`, alert })
+    );
+    return new Response(`${c.extent} reversal reported`, { status: 200 });
   }
 
   const graphs = await dists_for_refund(don.id);
@@ -942,32 +975,29 @@ export async function action({ request }: Route.ActionArgs) {
         const part = refund.amount;
         const is_reversal = ev.event_type === "PAYMENT.CAPTURE.REVERSED";
         const order_id = capture.supplementary_data?.related_ids?.order_id;
-        const is_refunded = capture.status === "REFUNDED";
-        // a refund leaves the capture PARTIALLY_REFUNDED even once a later
-        // reversal takes the rest, so a reversal adds up all that was taken
-        const earlier =
-          is_reversal && !is_refunded && order_id
-            ? await prior_refunds(order_id, cid, refund.id)
-            : [];
-        if (!earlier)
+        const taken = { value: part?.value, currency: part?.currency_code };
+        const whole = { value: gross?.value, currency: gross?.currency_code };
+        // a chargeback may leave the capture's status as it was, and a refund
+        // leaves it PARTIALLY_REFUNDED even once a later reversal takes the
+        // rest — so a reversal is also full when it and the refunds before it
+        // take the whole gross. the order is read only when those can decide
+        const extent = await (async (): Promise<TExtent | undefined> => {
+          if (capture.status === "REFUNDED") return "full";
+          if (!is_reversal) return "partial";
+          if (is_whole([taken], whole)) return "full";
+          if (!order_id) return "partial";
+          const earlier = await prior_refunds(order_id, cid, refund.id);
+          if (earlier === "refused") return "unsized";
+          if (!earlier) return undefined;
+          return is_whole([...earlier, taken], whole) ? "full" : "partial";
+        })();
+        if (!extent)
           return new Response(`order lookup failed: ${order_id}`, {
             status: 503,
           });
         return reverse_settled(ev, {
           sttl_id: cid,
-          // a chargeback may leave the capture's status as it was, so a
-          // reversal is also full when it and the refunds before it take the
-          // whole gross
-          full:
-            is_refunded ||
-            (is_reversal &&
-              is_whole(
-                [
-                  ...earlier,
-                  { value: part?.value, currency: part?.currency_code },
-                ],
-                { value: gross?.value, currency: gross?.currency_code }
-              )),
+          extent,
           status: capture.status,
           refunded: money(part?.value, part?.currency_code),
           charged: money(gross?.value, gross?.currency_code),
@@ -995,7 +1025,7 @@ export async function action({ request }: Route.ActionArgs) {
         const whole = sale.amount;
         return reverse_settled(ev, {
           sttl_id: sale_id,
-          full:
+          extent:
             state === "refunded" ||
             state === "reversed" ||
             (ev.event_type === "PAYMENT.SALE.REVERSED" &&
@@ -1003,7 +1033,9 @@ export async function action({ request }: Route.ActionArgs) {
               is_whole(
                 [{ value: r.amount?.total, currency: r.amount?.currency }],
                 { value: whole?.total, currency: whole?.currency }
-              )),
+              ))
+              ? "full"
+              : "partial",
           status: state,
           refunded: money(r.amount?.total, r.amount?.currency),
           charged: money(whole?.total, whole?.currency),

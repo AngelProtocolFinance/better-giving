@@ -1020,29 +1020,83 @@ describe("refunds and reversals", () => {
     expect(process_refund_mock).toHaveBeenCalledOnce();
   });
 
-  // without the order the earlier refunds are unknown, and a chargeback of
-  // what they left would pass for a partial one
-  it("redelivers a chargeback whose order paypal refuses, reversing and reporting nothing as partial", async () => {
-    await settled_capture();
+  /** a capture partly refunded before, so sizing a chargeback of -60 needs
+   * the refunds its order lists */
+  const partly_refunded_capture = () =>
     get_capture_mock.mockResolvedValue({
       ...capture_copy(),
       status: "PARTIALLY_REFUNDED",
       supplementary_data: { related_ids: { order_id: "ORDER-1" } },
     });
+  const partial_chargeback_ev = () => {
+    const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
+    ev.resource.amount.value = "-60.00";
+    return ev;
+  };
+
+  it.each([
+    ["a 5xx", new PayPalApiError("get order", 503, "{}")],
+    ["a rate limit", new PayPalApiError("get order", 429, "{}")],
+    ["a timeout", new PayPalApiError("get order", 408, "{}")],
+    ["the network", new TypeError("fetch failed")],
+  ])(
+    "redelivers a chargeback whose order lookup fails on %s, reversing and reporting nothing as partial",
+    async (_, failure) => {
+      await settled_capture();
+      partly_refunded_capture();
+      get_order_mock.mockRejectedValue(failure);
+      enqueue_mock.mockClear();
+      report_error_mock.mockClear();
+
+      const res = await deliver(partial_chargeback_ev());
+
+      expect(res.status).toBe(503);
+      expect(process_refund_mock).not.toHaveBeenCalled();
+      expect(enqueue_mock).not.toHaveBeenCalled();
+      expect(report_error_mock).toHaveBeenCalledOnce();
+    }
+  );
+
+  // no redelivery gets the order back, so holding the event buys 25 refusals
+  it("tells ops a chargeback whose order paypal refuses for good can't be sized, reverses nothing, and acknowledges", async () => {
+    await settled_capture();
+    partly_refunded_capture();
     get_order_mock.mockRejectedValue(
       new PayPalApiError("get order", 404, '{"name":"RESOURCE_NOT_FOUND"}')
     );
     enqueue_mock.mockClear();
     report_error_mock.mockClear();
+
+    const res = await deliver(partial_chargeback_ev());
+
+    expect(res.status).toBe(200);
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-unsized_WH-REF-1",
+      payload: { alert: { title: "Reversal Not Sized" } },
+    });
+    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
+    expect(notice.payload.alert.body).toContain("by hand");
+  });
+
+  it("reverses a chargeback that alone takes the whole capture, without the order", async () => {
+    await settled_capture();
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockClear();
     const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
-    ev.resource.amount.value = "-60.00";
+    ev.resource.amount.value = "-100.00";
 
     const res = await deliver(ev);
 
-    expect(res.status).toBe(503);
-    expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(enqueue_mock).not.toHaveBeenCalled();
-    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(res.status).toBe(200);
+    expect(get_order_mock).not.toHaveBeenCalled();
+    expect(process_refund_mock).toHaveBeenCalledOnce();
   });
 
   it("reverses a chargeback of a capture paypal already reads refunded, without the order", async () => {
