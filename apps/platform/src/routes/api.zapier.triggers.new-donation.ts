@@ -1,5 +1,6 @@
 import type { ActionFunction, LoaderFunction } from "react-router";
 import { resp } from "@/helpers/https";
+import { is_zapier_hook_url } from "@/zapier/hook-url";
 import { new_donation_item } from "@/zapier/new-donation";
 import { npo_donations } from "$/pg/queries/dist";
 import { delete_webhook, save_webhook } from "$/pg/queries/webhook";
@@ -61,11 +62,3 @@ export const action: ActionFunction = async ({ request }) => {
 
   return new Response(null, { status: 405 });
 };
-
-// every donation is posted to a stored url, so a leaked key must not be able to
-// point it anywhere but zapier
-function is_zapier_hook_url(x: unknown): x is string {
-  if (typeof x !== "string" || !URL.canParse(x)) return false;
-  const u = new URL(x);
-  return u.origin === "https://hooks.zapier.com" && !u.username && !u.password;
-}

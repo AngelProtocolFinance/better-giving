@@ -5,6 +5,7 @@ import { emails } from "@/constants/common";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import type { IDonDistPayload } from "@/queue";
+import { is_zapier_hook_url } from "@/zapier/hook-url";
 import { new_donation_item } from "@/zapier/new-donation";
 import { send_email } from "$/email";
 import {
@@ -161,6 +162,12 @@ async function discard_body(res: Response) {
 }
 
 async function post_webhook(webhook: Webhook, body: string) {
+  // a row stored before subscribe checked its url
+  if (!is_zapier_hook_url(webhook.url)) {
+    await delete_webhook(webhook.id, webhook.npo_id);
+    throw new Error(`webhook ${webhook.id} is not a zapier url: deleted`);
+  }
+
   const res = await global.fetch(webhook.url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
