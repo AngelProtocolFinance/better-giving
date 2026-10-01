@@ -5,7 +5,7 @@ import { CsvExporter } from "#/components/csv-exporter";
 import { Money } from "#/components/money";
 import { PaymentResumer } from "#/pages/user-dashboard/donations/payment-resumer";
 import type { IPaginator } from "#/types/components";
-import type { TStatus } from "@/donations";
+import { is_reversed, type TStatus } from "@/donations";
 import { toPP } from "@/helpers/date";
 import { type IRow, status_label, status_text_color } from "./helpers";
 
@@ -166,12 +166,12 @@ export function Table({
 
 /** contextual action: receipt for settled, payment resumer for intent/pending */
 function RowAction({ row }: { row: IRow }) {
-  // settled/refunded: receipt download
-  if (
-    row.status === "settled" ||
-    row.status === "refunded" ||
-    row.status === "refunded_loss"
-  ) {
+  // a refunded gift has no tax receipt, and its stripe via_extra is a stale
+  // bank-verification link, so it gets no action at all
+  if (is_reversed(row.status)) return null;
+
+  // settled: tax receipt, emailed from the detail route's form
+  if (row.status === "settled") {
     return (
       <Link
         to={row.id}
