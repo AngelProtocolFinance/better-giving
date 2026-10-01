@@ -27,7 +27,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
   const id = context.get(admin_ctx);
 
   const npo = await npo_get(id);
-  if (!npo) return new Response("Not found", { status: 404 });
+  if (!npo) throw new Response("Not found", { status: 404 });
 
   return {
     user,

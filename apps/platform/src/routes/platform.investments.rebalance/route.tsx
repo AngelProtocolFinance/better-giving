@@ -8,6 +8,7 @@ import { RebalanceForm } from "./form";
 import { Review } from "./review";
 import type { State } from "./types";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 export default function Page({ loaderData: data }: Route.ComponentProps) {

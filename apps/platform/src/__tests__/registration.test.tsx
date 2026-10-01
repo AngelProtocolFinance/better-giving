@@ -131,8 +131,9 @@ vi.mock("#/components/bank-details/recipient-details/use-requirements", () => ({
   }),
 }));
 
+// the fetcher reads remix-toast's payload as-is — the toast rides a cookie
 vi.mock("#/.server/toast", () => ({
-  dataWithSuccess: vi.fn((_data: unknown, msg: string) => ({ toast: msg })),
+  dataWithSuccess: vi.fn((data: unknown) => data),
 }));
 
 vi.mock("#/components/bank-details/use-currencies", () => ({
@@ -448,6 +449,10 @@ function render_registration(id: string, initial_step = "1") {
 // --- E2E tests ---
 
 describe("E2E: US path (501c3)", () => {
+  beforeEach(() => {
+    window.dataLayer = [];
+  });
+
   it("threads contact → org → banking → review → submit, skipping the agreement", async () => {
     const id = await create_reg();
     clear_qstash_events();
@@ -547,6 +552,7 @@ describe("E2E: US path (501c3)", () => {
     expect(row.o_bank_id).toBe("999");
     expect(row.o_bank_statement).toBe("https://example.com/bank.pdf");
     expect(row.status).toBe("01");
+    expect(window.dataLayer).toEqual([]);
 
     // submit application
     await screen.getByRole("button", { name: /continue/i }).click();
@@ -560,6 +566,7 @@ describe("E2E: US path (501c3)", () => {
     await expect
       .element(screen.getByText(/submitted for review/i))
       .toBeInTheDocument();
+    expect(window.dataLayer).toEqual([{ event: "nonprofit_signup" }]);
 
     // outbox event
     const events = await get_outbox_events();
@@ -1110,6 +1117,10 @@ describe("E2E: dashboard update", () => {
 });
 
 describe("E2E: submitted state disables dashboard", () => {
+  beforeEach(() => {
+    window.dataLayer = [];
+  });
+
   it("status 02 shows in-review and disables Update links", async () => {
     const { id } = await seed_reg({
       ...CONTACT_FIELDS,
@@ -1140,6 +1151,44 @@ describe("E2E: submitted state disables dashboard", () => {
     await expect
       .element(screen.getByRole("button", { name: /resubmit/i }))
       .not.toBeInTheDocument();
+    // a returning visitor is not a conversion
+    expect(window.dataLayer).toEqual([]);
+  }, 15_000);
+
+  it("a refused submit pushes no conversion", async () => {
+    const { id } = await seed_reg({
+      ...CONTACT_FIELDS,
+      ...ORG_FIELDS,
+      ...BANKING_FIELDS,
+    });
+    const screen = await render_registration(id, "5");
+    await expect.element(screen.getByText(/summary/i)).toBeVisible();
+
+    set_authed("mallory@example.com");
+    await screen.getByRole("button", { name: /continue/i }).click();
+
+    await expect
+      .element(screen.getByRole("button", { name: /continue/i }))
+      .not.toBeInTheDocument();
+    expect((await get_reg(id)).status).toBe("01");
+    expect(window.dataLayer).toEqual([]);
+  }, 15_000);
+
+  it("resubmitting a rejected application pushes no conversion", async () => {
+    const { id } = await seed_reg({
+      ...CONTACT_FIELDS,
+      ...ORG_FIELDS,
+      ...BANKING_FIELDS,
+      status: "04",
+    });
+    const screen = await render_registration(id, "5");
+
+    await screen.getByRole("button", { name: /resubmit/i }).click();
+
+    await expect
+      .element(screen.getByText(/submitted for review/i))
+      .toBeInTheDocument();
+    expect(window.dataLayer).toEqual([]);
   }, 15_000);
 });
 

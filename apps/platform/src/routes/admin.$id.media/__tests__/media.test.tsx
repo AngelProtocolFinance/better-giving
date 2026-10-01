@@ -30,6 +30,7 @@ vi.mock("#/.server/toast", async () => {
   const { redirect } = await import("react-router");
   return {
     dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
+    dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
     redirectWithSuccess: vi.fn((url: string, _msg: string) => redirect(url)),
   };
 });
@@ -343,4 +344,42 @@ it("video editor: validation errors → fix → submit", async () => {
   await expect
     .element(screen.getByRole("button", { name: /feature/i }))
     .toBeVisible();
+});
+
+it("a second delete press after the first committed answers in place", async () => {
+  const npo = await seed_npo();
+  const v = await seed_video(npo.id);
+  const press = () => {
+    const fd = new FormData();
+    fd.set("intent", "delete");
+    fd.set("mediaId", v.id);
+    return (videos_action as any)({
+      request: new Request(`http://x/admin/${npo.id}/media`, {
+        method: "POST",
+        body: fd,
+      }),
+      params: { id: String(npo.id) },
+      context: { get: () => npo.id },
+    });
+  };
+
+  expect(await press()).toEqual({ toast: "Video deleted" });
+  expect(await press()).toEqual({ error: "Video not found" });
+});
+
+it("saving an edit to a video deleted meanwhile answers in place", async () => {
+  const npo = await seed_npo();
+  const fd = new FormData();
+  fd.set("url", "https://youtu.be/dQw4w9WgXcQ");
+
+  const res = await (edit_action as any)({
+    request: new Request(`http://x/admin/${npo.id}/media/gone`, {
+      method: "POST",
+      body: fd,
+    }),
+    params: { id: String(npo.id), media_id: crypto.randomUUID() },
+    context: { get: () => npo.id },
+  });
+
+  expect(res).toEqual({ error: "Video not found" });
 });

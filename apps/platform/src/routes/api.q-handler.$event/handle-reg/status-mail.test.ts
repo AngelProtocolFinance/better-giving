@@ -1,3 +1,4 @@
+import { socials } from "@better-giving/brand";
 import { render } from "react-email";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { IReg } from "@/reg/schema";
@@ -100,5 +101,14 @@ describe("registration status mails", () => {
 
     const { text } = await sent();
     expect(text).toMatch(/Hi there,/);
+  });
+
+  test("the footer's social links each keep their url whole in the text part", async () => {
+    await handle_reg_updated(reg({ status: "04" }));
+
+    const { text } = await sent();
+    // a text-only client auto-links a url up to the next whitespace
+    const words = text.split(/\s+/);
+    for (const url of Object.values(socials)) expect(words).toContain(url);
   });
 });

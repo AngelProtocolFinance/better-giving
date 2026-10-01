@@ -66,7 +66,8 @@ const ticker_raw = v.object({
   amount: amount({ required: true }),
 
   // internal
-  usdpu: v.number(),
+  // 0 until the pick's estimate lands, and a quote of 0 is no price
+  usdpu: v.pipe(v.number(), v.gtValue(0)),
   min: v.number(),
   name: v.string(),
 });
@@ -96,8 +97,8 @@ const token_raw = v.object({
   name: v.string(),
   code: v.string(),
   min: v.number(),
-  /**  usd/unit */
-  usdpu: v.number(),
+  /**  usd/unit — 0 until the pick's estimate lands, and a quote of 0 is no price */
+  usdpu: v.pipe(v.number(), v.gtValue(0)),
   logo: v.string(),
   precision: v.number(),
   network: v.string(),

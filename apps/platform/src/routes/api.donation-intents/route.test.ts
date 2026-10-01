@@ -297,6 +297,27 @@ describe("api.donation-intents action", () => {
     expect(stripe_intent_mock).not.toHaveBeenCalled();
   });
 
+  it.each(["POST", "PATCH"])(
+    "%s answers a body that isn't json with the donor 400",
+    async (method) => {
+      const res = await invoke(
+        new Request("https://x/api/donation-intents", {
+          method,
+          body: "not json",
+          headers: { "content-type": "application/json" },
+        })
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.headers.get("content-type")).toBe("text/plain");
+      await expect(res.text()).resolves.toBe(
+        "We couldn't process this donation. Please refresh the page and try again."
+      );
+      expect(capture_order_mock).not.toHaveBeenCalled();
+      expect(stripe_intent_mock).not.toHaveBeenCalled();
+    }
+  );
+
   it("passes provider Response through without cookie wrap", async () => {
     stripe_intent_mock.mockResolvedValue(
       new Response("less than min", { status: 400 })
@@ -378,6 +399,27 @@ describe("api.donation-intents action", () => {
     await expect(res!.json()).resolves.toEqual({ captured: true });
   });
 
+  it.each([
+    ["numeric order_id", { order_id: 123, don_id: "d1" }],
+    ["object order_id", { order_id: { $ne: "" }, don_id: "d1" }],
+    ["numeric don_id", { order_id: "o1", don_id: 7 }],
+    ["blank don_id", { order_id: "o1", don_id: "  " }],
+  ])("PATCH refuses a %s without capturing", async (_, body) => {
+    const res = await invoke(
+      new Request("https://x/api/donation-intents", {
+        method: "PATCH",
+        body: JSON.stringify(body),
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.text()).resolves.toBe(
+      "We couldn't process this donation. Please refresh the page and try again."
+    );
+    expect(capture_order_mock).not.toHaveBeenCalled();
+  });
+
   it("PATCH returns 400 on missing fields", async () => {
     const req = new Request("https://x/api/donation-intents", {
       method: "PATCH",
@@ -386,7 +428,23 @@ describe("api.donation-intents action", () => {
     });
     const res = await invoke(req);
 
-    expect(res!.status).toBe(400);
+    expect(res.status).toBe(400);
+    expect(res.headers.get("content-type")).toBe("text/plain");
+    await expect(res.text()).resolves.toBe(
+      "We couldn't process this donation. Please refresh the page and try again."
+    );
+    expect(capture_order_mock).not.toHaveBeenCalled();
+  });
+
+  it("PATCH returns 400 on a json null body", async () => {
+    const req = new Request("https://x/api/donation-intents", {
+      method: "PATCH",
+      body: "null",
+      headers: { "content-type": "application/json" },
+    });
+    const res = await invoke(req);
+
+    expect(res.status).toBe(400);
     expect(capture_order_mock).not.toHaveBeenCalled();
   });
 });

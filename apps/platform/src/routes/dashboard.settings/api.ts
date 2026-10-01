@@ -28,7 +28,7 @@ export const action: ActionFunction = async ({ request, context }) => {
   const user = context.get(user_ctx);
 
   const p = safeParse(alert_prefs, await request.json());
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const prefs = p.output;
 
   await db.transaction(async (tx) => {

@@ -14,7 +14,7 @@ import type { Route } from "./+types/route";
 export const action = async ({ request }: Route.ActionArgs) => {
   /** exclude: use server side time */
   const p = safeParse(dividend_log_fv, await request.json());
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const { date, ...fv } = p.output;
 
   const nav = await nav_ltd();

@@ -120,7 +120,7 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     address: addr,
     amount: total,
     currency: don.currency,
-    description: `Donation to ${don.to_name}`,
+    description: don.to_name,
     usdpu: 1 / don.upusd,
   };
   return resp.json(data);

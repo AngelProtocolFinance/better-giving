@@ -1,4 +1,4 @@
-import { type ActionFunction, redirect } from "react-router";
+import { type ActionFunctionArgs, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
@@ -11,12 +11,15 @@ import { enqueue, in_dedupe_window } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { reg_get, reg_update_from } from "$/pg/queries/registration";
 
-export const submit_action: ActionFunction = async ({ request, params }) => {
+export const submit_action = async ({
+  request,
+  params,
+}: ActionFunctionArgs) => {
   const { user } = await get_session(request);
   if (!user) return to_auth(request);
 
   const p = safeParse(reg_id, params.reg_id);
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const id = p.output;
   const reg = await reg_get(id);
 
@@ -30,7 +33,7 @@ export const submit_action: ActionFunction = async ({ request, params }) => {
   }
 
   //reset previous review
-  const { row } = await reg_update_from(db, r.id, EDITABLE, {
+  const { won, row } = await reg_update_from(db, r.id, EDITABLE, {
     status: "02",
     status_rejected_reason: null,
   });
@@ -52,7 +55,8 @@ export const submit_action: ActionFunction = async ({ request, params }) => {
   }
 
   return dataWithSuccess(
-    null,
+    // a resubmit after rejection, or a press another one beat, is no new signup
+    { first: won && reg.status !== "04" },
     "Your application has been submitted. We will get back to you soon!"
   );
 };

@@ -14,7 +14,8 @@ export const init_token_option: ITokenFv = {
   cg_id: "",
   color: "",
   logo: "",
-  usdpu: 1,
+  // no price known — the amount field shows no usd preview
+  usdpu: 0,
 };
 
 export const init_ticker_option: ITickerFv = {
@@ -22,7 +23,7 @@ export const init_ticker_option: ITickerFv = {
   amount: "",
   name: "",
   min: 0,
-  usdpu: 1,
+  usdpu: 0,
 };
 
 const USD_CODE = "USD";

@@ -51,8 +51,8 @@ export const action: ActionFunction = async ({ request }) => {
   // honeypot validation - reject if the honeypot field is filled
   if (p.data.middle_name && p.data.middle_name !== "") {
     console.warn("Honeypot triggered - potential bot submission detected");
-    // return a generic error to avoid revealing the honeypot
-    return resp.status(400);
+    // a bare 400 rather than a field message, to avoid revealing the honeypot
+    throw resp.status(400);
   }
 
   const evl = await evaluate({

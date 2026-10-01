@@ -5,7 +5,7 @@ import { CsvExporter } from "#/components/csv-exporter";
 import { Money } from "#/components/money";
 import { PaymentResumer } from "#/pages/user-dashboard/donations/payment-resumer";
 import type { IPaginator } from "#/types/components";
-import type { TStatus } from "@/donations";
+import { is_reversed, type TStatus } from "@/donations";
 import { toPP } from "@/helpers/date";
 import { type IRow, status_label, status_text_color } from "./helpers";
 
@@ -42,6 +42,7 @@ export function Table({
     <div className={classes}>
       <div className="flex items-center justify-end mb-2">
         <CsvExporter
+          label="Export my donations as CSV"
           classes="hover:text-primary"
           headers={csv_headers}
           data={items}
@@ -165,12 +166,12 @@ export function Table({
 
 /** contextual action: receipt for settled, payment resumer for intent/pending */
 function RowAction({ row }: { row: IRow }) {
-  // settled/refunded: receipt download
-  if (
-    row.status === "settled" ||
-    row.status === "refunded" ||
-    row.status === "refunded_loss"
-  ) {
+  // a refunded gift has no tax receipt, and its stripe via_extra is a stale
+  // bank-verification link, so it gets no action at all
+  if (is_reversed(row.status)) return null;
+
+  // settled: tax receipt, emailed from the detail route's form
+  if (row.status === "settled") {
     return (
       <Link
         to={row.id}
@@ -188,11 +189,16 @@ function RowAction({ row }: { row: IRow }) {
     row.via_id.startsWith("crypto") &&
     row.via_extra
   ) {
-    return <PaymentResumer payment_id={row.via_extra} amount={row.amount} />;
+    return <PaymentResumer payment_id={row.via_extra} />;
   }
 
-  // stripe bank verification
-  if (row.via_id.startsWith("stripe") && row.via_extra) {
+  // stripe bank verification: the requires-action webhook writes the link with
+  // status intent and never clears it, so a later status leaves it stale
+  if (
+    row.status === "intent" &&
+    row.via_id.startsWith("stripe") &&
+    row.via_extra
+  ) {
     return (
       <ExtLink href={row.via_extra} className="text-xs link font-semibold">
         Verify Bank

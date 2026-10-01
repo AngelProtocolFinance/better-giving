@@ -49,6 +49,7 @@ vi.mock("#/.server/toast", async () => {
   const { redirect } = await import("react-router");
   return {
     redirectWithSuccess: vi.fn((url: string, _msg: string) => redirect(url)),
+    dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
   };
 });
 
@@ -275,5 +276,21 @@ describe("form-create action attaches a program only the recipient owns", () => 
 
     expect(row.program_id).toBe(own);
     expect(row.program_name).toBe("Own Program");
+  });
+});
+
+describe("form-create action without a nonprofit", () => {
+  // the selector's `required` doesn't block the submit and the schema carries
+  // no nonprofit, so a donor reaches this by pressing Submit
+  it("asks for a nonprofit and creates nothing", async () => {
+    const request = new Request("https://x/dashboard/forms/create", {
+      method: "POST",
+      body: createFormData({ tag: "site", program: "" }),
+    });
+
+    const res = await action({ request, params: {} } as any);
+
+    expect(res).toEqual({ error: "Select a nonprofit" });
+    expect(await test_db.current!.db.select().from(forms)).toHaveLength(0);
   });
 });

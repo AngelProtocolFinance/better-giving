@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { href } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { get_session, to_auth } from "#/.server/auth";
-import { redirectWithSuccess } from "#/.server/toast";
+import { dataWithError, redirectWithSuccess } from "#/.server/toast";
 import type { IForm } from "@/forms";
 import { resp, search } from "@/helpers/https";
 import type { IProgramDb } from "@/npo";
@@ -81,7 +81,7 @@ export const loader = async ({
   }
 
   const npo = await npo_get(+npo_id);
-  if (!npo) return resp.status(404, "npo not found");
+  if (!npo) throw resp.status(404, "npo not found");
 
   const progs = await npo_programs(+npo_id);
 
@@ -130,12 +130,11 @@ export const action = async ({
   } else if (y) {
     actors = { creator: user.id, recipient: y };
   }
-  if (!actors) {
-    return resp.status(400, "creator and recipient cannot be determined");
-  }
+  // the nonprofit selector's `required` doesn't block the submit
+  if (!actors) return dataWithError(null, "Select a nonprofit");
 
   const npo = await npo_get(+actors.recipient);
-  if (!npo) return resp.status(404, "npo not found");
+  if (!npo) throw resp.status(404, "npo not found");
 
   const form: IForm = {
     id: crypto.randomUUID(),

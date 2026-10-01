@@ -39,10 +39,10 @@ async function settle(
 export const action: ActionFunction = async ({ params, request }) => {
   const fv = await request.formData();
   const p1 = v.safeParse(verdict_schema, fv.get("verdict"));
-  if (p1.issues) return resp.status(400, p1.issues[0].message);
+  if (p1.issues) throw resp.status(400, p1.issues[0].message);
   const verdict = p1.output;
   const p2 = v.safeParse(tx_id_schema, params.tx_id);
-  if (p2.issues) return resp.status(400, p2.issues[0].message);
+  if (p2.issues) throw resp.status(400, p2.issues[0].message);
   const tx_id = p2.output;
 
   const timestamp = new Date().toISOString();

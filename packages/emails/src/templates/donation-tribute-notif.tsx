@@ -23,7 +23,7 @@ function Jsx(d: IData) {
 
       <Text>
         This is to inform you that {from_display} has just made a donation to{" "}
-        {d.to_name} for {format_amount(d.amount)}
+        {d.to_name} for {format_amount(d.amount)} in honor of {d.in_honor_of}.
       </Text>
 
       {d.from_msg && <Text>{d.from_msg}</Text>}

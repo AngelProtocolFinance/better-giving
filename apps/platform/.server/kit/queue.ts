@@ -89,7 +89,7 @@ export async function verify_qstash(request: Request): Promise<string> {
 
   // verify throws SignatureError on a bad signature rather than returning false;
   // any other throw (no signing keys) is ours and stays a 500
-  await receiver
+  const is_valid = await receiver
     .verify({ body, signature, url: request.url })
     .catch((err: unknown) => {
       if (err instanceof SignatureError) {
@@ -97,6 +97,9 @@ export async function verify_qstash(request: Request): Promise<string> {
       }
       throw err;
     });
+
+  // typed Promise<boolean>; fail closed if a release ever resolves false
+  if (!is_valid) throw new Response("invalid signature", { status: 401 });
 
   return body;
 }

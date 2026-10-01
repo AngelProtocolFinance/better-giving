@@ -1,4 +1,5 @@
 import type { IToken } from "@better-giving/crypto";
+import type { ITicker } from "@better-giving/stocks";
 import { HttpResponse, http } from "msw";
 import { href } from "react-router";
 import { getDotPath, safeParse } from "valibot";
@@ -64,26 +65,11 @@ export const handlers = [
   }),
   http.get(href("/api/tickers"), () => {
     return HttpResponse.json([
-      { symbol: "AAPL", name: "Apple Inc.", amount: "", min: 0, usdpu: 1 },
+      { symbol: "AAPL", name: "Apple Inc." } satisfies ITicker,
     ]);
   }),
   http.get(href("/api/tokens"), () => {
-    return HttpResponse.json([
-      {
-        id: "1",
-        code: "BTC",
-        symbol: "BTC",
-        name: "Bitcoin",
-        network: "btc",
-        logo: "",
-        color: "#f7931a",
-        precision: 8,
-        cg_id: "bitcoin",
-        amount: "",
-        min: 0,
-        usdpu: 1,
-      },
-    ]);
+    return HttpResponse.json(mock_tokens);
   }),
   http.get(href("/api/tokens/:code/estimate", { code: ":code" }), () => {
     return HttpResponse.json({ min: 1, usdpu: 1 } satisfies ITokenEstimate);

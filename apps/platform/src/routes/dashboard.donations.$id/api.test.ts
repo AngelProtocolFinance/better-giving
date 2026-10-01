@@ -268,14 +268,19 @@ describe("a resend that fails", () => {
     expect(report_error).toHaveBeenCalledWith(refused, expect.anything());
   });
 
-  test("a gift to a nonprofit that no longer exists is not found", async () => {
+  test("a gift to a nonprofit that no longer exists says so in place, and is reported", async () => {
     store.don = { ...fund_don([]), to_id: "99", to_type: "npo" } as IDonation;
 
     const res = await resend();
 
+    expect(res).toEqual({
+      error: "We couldn't build your receipt. Please contact support.",
+    });
     expect(send_email_or_throw).not.toHaveBeenCalled();
-    expect(res).toBeInstanceOf(Response);
-    expect((res as Response).status).toBe(404);
+    expect(report_error).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "NpoNotFoundError" }),
+      expect.anything()
+    );
   });
 });
 
@@ -362,18 +367,22 @@ describe("whose donation it is", () => {
   test("another user's donation is forbidden and mails nothing", async () => {
     // the resend mails a tax receipt carrying whatever name and address the
     // form was given, so a held donation id must not be enough
-    const res = await resend(stranger);
-
-    expect(res).toBeInstanceOf(Response);
-    expect((res as Response).status).toBe(403);
+    await expect(resend(stranger)).rejects.toMatchObject({ status: 403 });
     expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 
+  // a returned Response reaches the page as its data: a blank receipt form,
+  // and a Send that does nothing
   test("another user's donation can't be read", async () => {
-    const res = await read(stranger);
+    await expect(read(stranger)).rejects.toMatchObject({ status: 403 });
+  });
 
-    expect(res).toBeInstanceOf(Response);
-    expect((res as Response).status).toBe(403);
+  test("a donation that doesn't exist is not found, to read or to resend", async () => {
+    store.don = null;
+
+    await expect(read()).rejects.toMatchObject({ status: 404 });
+    await expect(resend()).rejects.toMatchObject({ status: 404 });
+    expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 
   test("a differently-cased owner email still gets the receipt", async () => {

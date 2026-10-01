@@ -80,12 +80,7 @@ export default function Page({ loaderData: d }: Route.ComponentProps) {
         <NavLink
           replace
           preventScrollReset
-          to={{
-            pathname: "delete",
-            search: new URLSearchParams({
-              default: is_default.toString(),
-            }).toString(),
-          }}
+          to="delete"
           className="min-w-24 btn btn-destructive"
         >
           Delete

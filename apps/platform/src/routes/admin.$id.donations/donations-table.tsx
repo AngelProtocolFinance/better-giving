@@ -38,6 +38,7 @@ export function DonationsTable({ classes = "", items, ...props }: Props) {
     <div className={classes}>
       <div className="grid w-full sm:flex items-center sm:justify-end mb-2 gap-2">
         <CsvExporter
+          label="Export received donations as CSV"
           classes=" hover:text-primary"
           headers={csv_headers}
           data={items.map<IRow>(to_csv_row)}

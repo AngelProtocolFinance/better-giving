@@ -23,6 +23,16 @@ const transport = nodemailer.createTransport({
 const emoji = stage === "production" ? "😇" : "🧪";
 export const sender = `Better Giving ${emoji} <${EMAILS.hi}>`;
 
+// @react-email/render 2.1+ ships this selector; platform's react-email resolves
+// an older render without it, so a marked data table would flatten to one run
+const text_options = {
+  htmlToTextOptions: {
+    selectors: [
+      { selector: '[data-text-format="dataTable"]', format: "dataTable" },
+    ],
+  },
+};
+
 interface IInput {
   node: ReactElement;
   to: string[];
@@ -33,7 +43,7 @@ interface IInput {
 export async function send_email(i: IInput) {
   const [html, text] = await Promise.all([
     render(i.node),
-    render(i.node, { plainText: true }),
+    render(i.node, { plainText: true, ...text_options }),
   ]);
 
   // nodemailer rejects on failure, but callers treat sending as best-effort and

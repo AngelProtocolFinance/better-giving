@@ -67,7 +67,7 @@ export const new_application_for = async (
   }
 
   const p = safeParse(reg_new, payload);
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const parsed = p.output;
 
   // a listing with members behind it is the only one that can invite this

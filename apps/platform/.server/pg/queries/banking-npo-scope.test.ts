@@ -21,7 +21,8 @@ vi.mock("../db", () => ({
   }),
 }));
 
-const { bapp_delete, bapp_put, bapp_set_default } = await import("./banking");
+const { bapp_delete, bapp_delete_guarded, bapp_put, bapp_set_default } =
+  await import("./banking");
 
 let own: number;
 let other: number;
@@ -107,6 +108,35 @@ describe("bapp_delete", () => {
 
   test("leaves another npo's method in place", async () => {
     expect(await bapp_delete("other-approved", own)).toBe(false);
+    expect(await status_of("other-approved")).toBe("approved");
+  });
+});
+
+describe("bapp_delete_guarded", () => {
+  test("refuses the default while the npo has an approved method", async () => {
+    expect(await bapp_delete_guarded("own-default", own)).toBe("refused");
+
+    expect(await status_of("own-default")).toBe("default");
+    expect(await status_of("own-approved")).toBe("approved");
+  });
+
+  test("deletes the default once no approved method could replace it", async () => {
+    await test_db
+      .current!.db.delete(banking_apps)
+      .where(eq(banking_apps.id, "own-approved"));
+
+    expect(await bapp_delete_guarded("own-default", own)).toBe("deleted");
+    expect(await status_of("own-default")).toBeUndefined();
+  });
+
+  test("deletes a non-default method beside the default", async () => {
+    expect(await bapp_delete_guarded("own-approved", own)).toBe("deleted");
+    expect(await status_of("own-approved")).toBeUndefined();
+    expect(await status_of("own-default")).toBe("default");
+  });
+
+  test("another npo's method is not found and stays", async () => {
+    expect(await bapp_delete_guarded("other-approved", own)).toBe("not_found");
     expect(await status_of("other-approved")).toBe("approved");
   });
 });

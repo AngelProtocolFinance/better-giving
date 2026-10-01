@@ -58,7 +58,7 @@ export const action = async (x: Route.ActionArgs) => {
 
   if (intent === "delete-milestone") {
     const p_mid = safeParse(milestone_id, p["milestone-id"]);
-    if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
+    if (p_mid.issues) throw resp.status(400, p_mid.issues[0].message);
     const deleted = await milestone_delete(id, pid, p_mid.output);
     if (!deleted) return milestone_gone();
     return dataWithSuccess(null, "Milestone deleted");
@@ -67,9 +67,9 @@ export const action = async (x: Route.ActionArgs) => {
   if (intent === "edit-milestone") {
     const { "milestone-id": mid_raw, ...rest } = p;
     const p_mid = safeParse(milestone_id, mid_raw);
-    if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
+    if (p_mid.issues) throw resp.status(400, p_mid.issues[0].message);
     const p_upd8 = safeParse(milestone_update, rest);
-    if (p_upd8.issues) return resp.status(400, p_upd8.issues[0].message);
+    if (p_upd8.issues) throw resp.status(400, p_upd8.issues[0].message);
     const updated = await milestone_update_db(
       id,
       pid,
@@ -82,7 +82,7 @@ export const action = async (x: Route.ActionArgs) => {
 
   //edit program
   const p_upd8 = safeParse(program_update, p);
-  if (p_upd8.issues) return resp.status(400, p_upd8.issues[0].message);
+  if (p_upd8.issues) throw resp.status(400, p_upd8.issues[0].message);
   await npo_program_update(id, pid, p_upd8.output);
 
   return dataWithSuccess(null, "Program updated");

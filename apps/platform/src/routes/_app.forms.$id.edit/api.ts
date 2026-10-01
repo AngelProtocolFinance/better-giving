@@ -91,7 +91,7 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
 export const action = async ({ request, params }: Route.ActionArgs) => {
   const json = await request.json();
   const p = v.safeParse(schema, json);
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const fv = p.output;
 
   const { user } = await get_session(request);

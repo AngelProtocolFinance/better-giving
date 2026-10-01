@@ -66,7 +66,10 @@ function Jsx({
         Wise USD balance: <strong>${wise_usd_balance.toLocaleString()}</strong>
       </Text>
 
+      {/* react-email's text conversion lays this out as rows and columns;
+      unmarked, every cell runs into the next */}
       <table
+        data-text-format="dataTable"
         style={{
           borderCollapse: "collapse",
           width: "100%",

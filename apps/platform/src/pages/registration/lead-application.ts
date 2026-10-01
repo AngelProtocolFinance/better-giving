@@ -95,7 +95,7 @@ export async function lead_application(request: Request, fd: FormData) {
   // a bare 400 rather than a field message — naming it teaches the bot.
   if (fd.get("middle_name")) {
     console.warn("Honeypot triggered - potential bot submission detected");
-    return resp.status(400);
+    throw resp.status(400);
   }
 
   const values: ILeadValues = {
@@ -135,7 +135,7 @@ export async function lead_application(request: Request, fd: FormData) {
     const unnamed = Object.keys(marked).some(
       (k) => !identity_fields.some((f) => f === k)
     );
-    if (unnamed) return resp.status(400);
+    if (unnamed) throw resp.status(400);
   }
 
   if (name.issues || mail.issues || Object.keys(errors).length) {
@@ -177,7 +177,7 @@ export async function lead_application(request: Request, fd: FormData) {
    * poster and never on anything about the address being applied for, so it
    * cannot answer "does this address exist" and is no oracle — the property to
    * protect is that the response never varies with the address, not that it is
-   * identical to success. It reuses the bare 400 this action already returns
+   * identical to success. It reuses the bare 400 this action already throws
    * for a honeypot trip and for a malformed post, so it adds no new shape to
    * probe against.
    *
@@ -191,7 +191,7 @@ export async function lead_application(request: Request, fd: FormData) {
     : ip
       ? { key: `lead-application:ip:${ip}`, quota: LEAD_PER_IP }
       : null;
-  if (bucket && !consume(bucket.key, bucket.quota)) return resp.status(400);
+  if (bucket && !consume(bucket.key, bucket.quota)) throw resp.status(400);
 
   // an organization applies here, not a person — so the organization prompt,
   // whose verdict on the name lands on `o_name`, the only name field here.

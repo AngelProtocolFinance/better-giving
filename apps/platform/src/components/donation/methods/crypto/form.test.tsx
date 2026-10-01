@@ -1,6 +1,9 @@
-import { afterAll, describe, expect, test, vi } from "vitest";
+import { HttpResponse, http } from "msw";
+import { href } from "react-router";
+import { afterAll, afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mock_tokens } from "#/services/api/mock";
+import { mswWorker } from "#/setup-tests-browser";
 import {
   type CryptoDonationDetails,
   donation_recipient_init,
@@ -210,5 +213,91 @@ describe("Crypto form: initial load", () => {
     expect(
       tip_val(submitted.tip_format, submitted.tip, +submitted.token.amount)
     ).toBe(15);
+  });
+});
+
+const estimate_url = href("/api/tokens/:code/estimate", { code: ":code" });
+
+// a held estimate is released after each test, so a failed assertion can't
+// leave its request pending into the next one
+let release_estimate = () => {};
+afterEach(() => release_estimate());
+
+function hold_estimate(reply: () => Response) {
+  const gate = new Promise<void>((r) => {
+    release_estimate = r;
+  });
+  mswWorker.use(
+    http.get(estimate_url, async () => {
+      await gate;
+      return reply();
+    })
+  );
+}
+
+const live_init = (): Init => ({
+  base_url: "",
+  source: "bg-marketplace",
+  config: null,
+  recipient: donation_recipient_init(),
+  mode: "live",
+});
+
+const estimate_ok = () => HttpResponse.json({ min: 1, usdpu: 2 });
+
+async function pick_btc(screen: Awaited<ReturnType<typeof render>>) {
+  await screen.getByRole("combobox").click();
+  await screen.getByRole("combobox").fill("BT");
+  await screen.getByRole("option", { name: /BTC/ }).click();
+}
+
+describe("Crypto form: price estimate after a token pick", () => {
+  test("an amount typed while the estimate is pending survives its resolve", async () => {
+    don_mock.value = live_init();
+    hold_estimate(estimate_ok);
+
+    const screen = await render(<Form type="crypto" step="form" />);
+    await pick_btc(screen);
+
+    await expect.element(screen.getByRole("combobox")).toBeDisabled();
+    await screen.getByPlaceholder(/enter amount/i).fill("5");
+    expect(screen.getByText("~$").query()).toBeNull();
+
+    release_estimate();
+
+    await expect.element(screen.getByRole("combobox")).toBeEnabled();
+    await expect
+      .element(screen.getByPlaceholder(/enter amount/i))
+      .toHaveValue("5");
+    await expect.element(screen.getByText("~$10")).toBeVisible();
+  });
+
+  test("a failed estimate clears the pick, and picking the same token again retries", async () => {
+    don_mock.value = live_init();
+    const failed_msg =
+      "Couldn't get a price for this token. Pick it again or choose another.";
+    hold_estimate(() => new HttpResponse(null, { status: 500 }));
+
+    const screen = await render(<Form type="crypto" step="form" />);
+    await pick_btc(screen);
+    await screen.getByPlaceholder(/enter amount/i).fill("5");
+    expect(screen.getByText(failed_msg).query()).toBeNull();
+
+    release_estimate();
+
+    await expect.element(screen.getByText(failed_msg)).toBeVisible();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("");
+    await expect
+      .element(screen.getByPlaceholder(/enter amount/i))
+      .toHaveValue("5");
+    expect(screen.getByText("~$").query()).toBeNull();
+
+    hold_estimate(estimate_ok);
+    await pick_btc(screen);
+    await expect.element(screen.getByText(failed_msg)).not.toBeInTheDocument();
+    release_estimate();
+
+    await expect.element(screen.getByRole("combobox")).toHaveValue("BTC");
+    await expect.element(screen.getByText("~$10")).toBeVisible();
   });
 });

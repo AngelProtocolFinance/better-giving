@@ -55,7 +55,7 @@ export const change_identity = async (
   }
 
   const p2 = safeParse(reg_new, identity_payload(fv.data, reg.r_id));
-  if (p2.issues) return resp.status(400, p2.issues[0].message);
+  if (p2.issues) throw resp.status(400, p2.issues[0].message);
   const parsed = p2.output;
 
   // the same gate creating an application passes: a listing with members
