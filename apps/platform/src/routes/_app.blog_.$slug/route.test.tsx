@@ -2,7 +2,8 @@ import type { POST_QUERY_RESULT } from "blog-types";
 import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
-import Post from "./route";
+import { base_url } from "#/constants/env";
+import Post, { meta } from "./route";
 
 type PostData = NonNullable<POST_QUERY_RESULT>;
 
@@ -195,5 +196,75 @@ describe("malformed post data", () => {
     await expect.element(screen.getByText("Odd style text")).toBeVisible();
     await expect.element(screen.getByText("Odd list text")).toBeVisible();
     await expect.element(screen.getByText("After the odd block")).toBeVisible();
+  });
+});
+
+const valid_image = {
+  _type: "image",
+  asset: {
+    _ref: "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-2000x3000-jpg",
+    _type: "reference",
+  },
+};
+
+describe("post images", () => {
+  it("renders a valid image ref as an img, in the hero and the body", async () => {
+    const screen = await render_post(
+      malformed_post(
+        [
+          block("b1", [span("Body text")]),
+          { ...valid_image, _key: "i1", alt: "Body image" },
+        ],
+        { image: { ...valid_image, alt: "Hero image" } }
+      )
+    );
+    for (const name of ["Hero image", "Body image"]) {
+      await expect
+        .element(screen.getByRole("img", { name }))
+        .toHaveAttribute(
+          "src",
+          expect.stringMatching(/^https:\/\/cdn\.sanity\.io\//)
+        );
+    }
+  });
+});
+
+describe("post list items", () => {
+  it("renders a block whose listItem isn't a string as a paragraph", async () => {
+    const screen = await render_post(
+      malformed_post([
+        { ...block("b1", [span("Null list text")]), listItem: null, level: 1 },
+      ])
+    );
+    const text = screen.getByText("Null list text");
+    await expect.element(text).toBeVisible();
+    expect(text.element().closest("li")).toBeNull();
+  });
+});
+
+describe("post meta", () => {
+  it("points canonical, og, twitter and json-ld at the encoded post path", () => {
+    const post = {
+      ...post_linking("https://better.giving"),
+      slug: { _type: "slug", current: "tips & <tricks>" },
+    } as PostData;
+    const descriptors = meta({ loaderData: post } as any) as Record<
+      string,
+      any
+    >[];
+    const url = `${base_url}/blog/tips%20%26%20%3Ctricks%3E`;
+
+    const canonical = descriptors.find((d) => d.rel === "canonical");
+    expect(canonical?.href).toBe(url);
+    const content_of = (key: string) =>
+      descriptors.find((d) => d.property === key)?.content;
+    expect(content_of("og:url")).toBe(url);
+    expect(content_of("twitter:url")).toBe(url);
+
+    const [posting, breadcrumbs] = descriptors
+      .filter((d) => "script:ld+json" in d)
+      .map((d) => d["script:ld+json"]);
+    expect(posting.mainEntityOfPage["@id"]).toBe(url);
+    expect(breadcrumbs.itemListElement[2].item).toBe(url);
   });
 });

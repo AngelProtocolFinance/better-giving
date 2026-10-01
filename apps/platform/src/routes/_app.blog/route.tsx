@@ -1,8 +1,8 @@
 import type { POSTS_QUERY_RESULT } from "blog-types";
 import { useEffect, useState } from "react";
-import { href, NavLink, useFetcher, useSearchParams } from "react-router";
+import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { PAGE_SIZE, posts } from "#/api/get/posts";
+import { PAGE_SIZE, post_path, posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
@@ -53,13 +53,12 @@ export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Posts);
 function Posts({ loaderData: firstPage }: Route.ComponentProps) {
   // the client cache renders its cached copy, then swaps in the revalidated
-  // one; a new generation remounts the list so its appended pages and fetcher
-  // start over from the fresh first page.
-  const [seed, set_seed] = useState({ posts: firstPage.posts, gen: 0 });
-  if (seed.posts !== firstPage.posts) {
-    set_seed({ posts: firstPage.posts, gen: seed.gen + 1 });
-  }
-  return <PostList key={seed.gen} firstPage={firstPage} />;
+  // one, always as a new object. the list remounts (dropping appended pages and
+  // the fetcher) only when that first page's content differs; ids alone would
+  // miss an edited post.
+  return (
+    <PostList key={JSON.stringify(firstPage.posts)} firstPage={firstPage} />
+  );
 }
 
 interface IPostList {
@@ -124,14 +123,13 @@ function PostList({ firstPage }: IPostList) {
 
 const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
   props.posts.map((post) => {
+    const path = post_path(post.slug.current);
+    if (!path) return null;
     const img_src = urlFor(post.image)?.width(1024).height(576).url();
     return (
       <NavLink
         key={post._id}
-        // slug is free text in the studio; encoded, it stays one path segment
-        to={href("/blog/:slug", {
-          slug: encodeURIComponent(post.slug.current),
-        })}
+        to={path}
         className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lift-card transition-shadow group"
       >
         {img_src ? (
