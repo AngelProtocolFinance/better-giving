@@ -71,13 +71,17 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
     try {
       props.onChange("loading");
       const url = await props.upload(f);
-      return props.onChange(url);
+      props.onChange(url);
     } catch (err) {
       props.report_error(err);
+      props.onChange("failure");
+    } finally {
       // zag keeps the accepted File and rejects an identical re-pick as
-      // FILE_EXISTS, so without this the obvious retry does nothing
-      upload.clearFiles();
-      return props.onChange("failure");
+      // FILE_EXISTS — and fires that rejection only when it differs from the
+      // last one, so a held file swallows every repeat after the first. holding
+      // nothing makes each pick a fresh accept. the clear re-enters here with
+      // `[]`, which the `!f` guard above absorbs.
+      api.clearFiles();
     }
   };
 
@@ -102,7 +106,7 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
             ? `Uploaded ${subject}`
             : "";
 
-  const upload = useFileUpload({
+  const api = useFileUpload({
     translations: { dropzone: props.dropzone_name },
     accept: props.specs.mimeTypes,
     maxFileSize: props.specs.mbLimit * 1e6,
@@ -122,16 +126,12 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
       if (codes.includes("FILE_TOO_LARGE")) {
         return props.onChange("exceeds-size");
       }
-      // the file already held: picking it again is a deliberate re-upload
-      if (f && codes.includes("FILE_EXISTS")) {
-        return handle_accept([f.file]);
-      }
     },
   });
 
   return (
     <FileUpload.RootProvider
-      value={upload}
+      value={api}
       ref={root_ref}
       className={`${props.classes ?? ""} scroll-mt-24`}
     >

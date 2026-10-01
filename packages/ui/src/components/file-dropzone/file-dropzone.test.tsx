@@ -29,6 +29,25 @@ function Controlled() {
   );
 }
 
+/** dispatches the same statement.pdf at the dropzone's file input on every call */
+function picker(container: HTMLElement) {
+  const input = container.querySelector(
+    "input[type='file']"
+  ) as HTMLInputElement;
+  const file = new File(["pdf"], "statement.pdf", {
+    type: "application/pdf",
+  });
+  return () => {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    Object.defineProperty(input, "files", {
+      value: dt.files,
+      configurable: true,
+    });
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   // restoreAllMocks does not reset a bare vi.fn(); without this the rejecting
@@ -311,28 +330,14 @@ describe("FileDropzone", () => {
     );
   });
 
-  test("re-picking the same file after a failed upload retries it", async () => {
+  test("re-picking the same file after a failed upload retries it, and again after that", async () => {
     upload_mock
       .mockRejectedValueOnce(new Error("network error"))
-      .mockResolvedValueOnce("https://cdn.example.com/statement.pdf");
+      .mockResolvedValue("https://cdn.example.com/statement.pdf");
     const screen = await render(<Controlled />);
 
     const status = () => screen.container.querySelector("[role='status']");
-    const input = screen.container.querySelector(
-      "input[type='file']"
-    ) as HTMLInputElement;
-    const file = new File(["pdf"], "statement.pdf", {
-      type: "application/pdf",
-    });
-    const put = () => {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      Object.defineProperty(input, "files", {
-        value: dt.files,
-        configurable: true,
-      });
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    };
+    const put = picker(screen.container);
 
     put();
     await vi.waitFor(() =>
@@ -344,37 +349,28 @@ describe("FileDropzone", () => {
       expect(status()).toMatchTextContent("Uploaded statement.pdf")
     );
     expect(upload_mock).toHaveBeenCalledTimes(2);
+
+    put();
+    await vi.waitFor(() => expect(upload_mock).toHaveBeenCalledTimes(3));
   });
 
-  test("re-picking the file that already uploaded uploads it again", async () => {
+  // three picks, not two: zag fires a FILE_EXISTS rejection only when it differs
+  // from the previous one, so a held file lets the second pick through and
+  // swallows the third
+  test("picking the same file three times uploads it three times", async () => {
     upload_mock.mockResolvedValue("https://cdn.example.com/statement.pdf");
     const screen = await render(<Controlled />);
 
-    const input = screen.container.querySelector(
-      "input[type='file']"
-    ) as HTMLInputElement;
-    const file = new File(["pdf"], "statement.pdf", {
-      type: "application/pdf",
-    });
-    const put = () => {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      Object.defineProperty(input, "files", {
-        value: dt.files,
-        configurable: true,
-      });
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    };
+    const status = () => screen.container.querySelector("[role='status']");
+    const put = picker(screen.container);
 
-    put();
-    await vi.waitFor(() => expect(upload_mock).toHaveBeenCalledTimes(1));
-    await vi.waitFor(() =>
-      expect(
-        screen.container.querySelector("[role='status']")
-      ).toMatchTextContent("Uploaded statement.pdf")
-    );
-    put();
-    await vi.waitFor(() => expect(upload_mock).toHaveBeenCalledTimes(2));
+    for (const n of [1, 2, 3]) {
+      put();
+      await vi.waitFor(() => expect(upload_mock).toHaveBeenCalledTimes(n));
+      await vi.waitFor(() =>
+        expect(status()).toMatchTextContent("Uploaded statement.pdf")
+      );
+    }
   });
 
   test("renders each error code as text, never as a link", async () => {

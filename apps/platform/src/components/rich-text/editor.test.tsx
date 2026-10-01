@@ -307,6 +307,51 @@ describe("rich text editor — focus", () => {
   });
 });
 
+describe("rich text editor — links", () => {
+  it("renders only a full http(s) link as a link while editing; the rest as plain text", async () => {
+    const link_def = (key: string, href: unknown) => ({
+      _key: key,
+      _type: "link",
+      href,
+    });
+    const span = (key: string, text: string, mark: string) => ({
+      _type: "span",
+      _key: key,
+      text,
+      marks: [mark],
+    });
+    const value = JSON.stringify([
+      {
+        _type: "block",
+        _key: "b1",
+        style: "normal",
+        markDefs: [
+          link_def("l1", "https://example.org"),
+          link_def("l2", "www.example.org"),
+          link_def("l3", "javascript:alert(1)"),
+          link_def("l4", 42),
+        ],
+        children: [
+          span("s1", "Full", "l1"),
+          span("s2", " Bare", "l2"),
+          span("s3", " Script", "l3"),
+          span("s4", " Number", "l4"),
+        ],
+      },
+    ]);
+    const screen = await render(
+      <EditorHarness initial={{ value, length: 25 }} />
+    );
+
+    const editor = await wait_for_editor(screen);
+    await vi.waitFor(() => expect(editor).toMatchTextContent(/Number/));
+    const anchors = editor.querySelectorAll("a");
+    expect(anchors.length).toBe(1);
+    expect(anchors[0]?.getAttribute("href")).toBe("https://example.org");
+    expect(anchors[0]).toMatchTextContent("Full");
+  });
+});
+
 describe("rich text editor — read-only", () => {
   it("no toolbar rendered", async () => {
     const content = rich_content("read only");

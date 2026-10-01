@@ -2,6 +2,7 @@ import {
   EditorProvider,
   type PortableTextBlock,
   PortableTextEditable,
+  type RenderAnnotationFunction,
   type RenderDecoratorFunction,
   type RenderListItemFunction,
   type RenderStyleFunction,
@@ -19,6 +20,7 @@ import {
   ListOrderedIcon,
 } from "lucide-react";
 import { type Ref, useImperativeHandle, useState } from "react";
+import { is_absolute_web_href } from "@/helpers/safe-href";
 import { to_document } from "./helpers";
 import { pt_schema } from "./schema";
 import type { Editable as EditableProps, Props } from "./types";
@@ -72,18 +74,7 @@ function EditableShell({
         renderDecorator={render_decorator}
         renderBlock={(p) => <div>{p.children}</div>}
         renderListItem={render_list_item}
-        renderAnnotation={(p) =>
-          p.schemaType.name === "link" ? (
-            <a
-              href={(p.value as { href?: string } | undefined)?.href}
-              className="text-primary underline"
-            >
-              {p.children}
-            </a>
-          ) : (
-            p.children
-          )
-        }
+        renderAnnotation={render_annotation}
       />
     </EditorProvider>
   );
@@ -96,6 +87,20 @@ function FocusBridge({ fwdRef }: { fwdRef?: Ref<El> }) {
   }));
   return null;
 }
+
+// the same check as the read-only render, so a link that won't be one there
+// shows as plain text while it is being written
+const render_annotation: RenderAnnotationFunction = (p) => {
+  const href = (p.value as { href?: unknown } | undefined)?.href;
+  if (p.schemaType.name !== "link" || !is_absolute_web_href(href)) {
+    return p.children;
+  }
+  return (
+    <a href={href as string} className="text-primary underline">
+      {p.children}
+    </a>
+  );
+};
 
 const render_style: RenderStyleFunction = (p) => <>{p.children}</>;
 
