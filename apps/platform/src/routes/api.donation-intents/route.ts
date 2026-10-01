@@ -9,7 +9,8 @@ import { to_from } from "@/donations/helpers";
 import { intent as schema } from "@/donations/schema";
 import { resp } from "@/helpers/https";
 import { $req } from "@/schemas";
-import { npo_program_owned } from "$/pg/queries/program";
+import { form_get } from "$/pg/queries/form";
+import { npo_program_get } from "$/pg/queries/program";
 import { chariot_intent } from "./chariot";
 import { crypto_intent } from "./crypto";
 import { paypal_intent } from "./paypal";
@@ -91,7 +92,8 @@ export const action: ActionFunction = async ({ request }) => {
   if (body === undefined) return refused("body is not json");
   const parsed = safeParse(schema, body);
   if (parsed.issues) return refused_issue(parsed.issues);
-  const { to_id, via, via_extra, donor, program, ...rest } = parsed.output;
+  const { to_id, via, via_extra, donor, program, form_id, ...rest } =
+    parsed.output;
 
   const to = await to_fn(to_id, { open_at: new Date() });
   if (!to) {
@@ -104,13 +106,21 @@ export const action: ActionFunction = async ({ request }) => {
   }
   const from = to_from(donor);
 
-  // settlement credits intent.program; one the recipient npo doesn't own is
+  // settlement credits intent.program and the form's running total; a program
+  // the recipient npo doesn't own, or a form raising for another recipient, is
   // dropped so the gift still goes through, just unattributed
-  const owned =
-    program &&
-    typeof to_id === "number" &&
-    (await npo_program_owned(to_id, program.id));
-  const intent = owned ? { ...rest, program } : rest;
+  const [prog, form] = await Promise.all([
+    program && typeof to_id === "number"
+      ? npo_program_get(program.id, to_id)
+      : undefined,
+    form_id ? form_get(form_id) : undefined,
+  ]);
+  const form_to = form && (form.recipient_fund_id ?? form.recipient_npo_id);
+  const intent = {
+    ...rest,
+    ...(form_to === to_id && { form_id }),
+    ...(prog && { program: { id: prog.id, name: prog.title } }),
+  };
 
   const ctx: Ctx = { to, from, donor, via, via_extra, intent };
   const result = await providers[via](ctx);
