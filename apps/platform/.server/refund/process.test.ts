@@ -409,7 +409,15 @@ describe("process_refund — a dist written mid-refund", () => {
 });
 
 describe("process_refund — a payout the grants cron settles mid-refund", () => {
-  async function seed_cash_dist(donation_id: string, npo_id: number) {
+  async function seed_cash_dist(
+    donation_id: string,
+    npo_id: number,
+    gift: { amount: number; amount_usd: number | null; denom: string } = {
+      amount: 100,
+      amount_usd: 100,
+      denom: "USD",
+    }
+  ) {
     const db = test_db.current!.db;
     await db.update(npos).set({ cash: 100 }).where(eq(npos.id, npo_id));
     await db.insert(dists).values({
@@ -419,8 +427,9 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
       date_created: "2026-07-01T00:00:00.000Z",
       to_id: npo_id,
       to_name: "npo",
-      amount: 100,
-      amount_denom: "USD",
+      amount: gift.amount,
+      amount_usd: gift.amount_usd,
+      amount_denom: gift.denom,
       net: 100,
       fee_base: 0,
       fee_fsa: 0,
@@ -465,6 +474,49 @@ describe("process_refund — a payout the grants cron settles mid-refund", () =>
     const [po] = await db.select().from(payouts);
     expect(po!.type).toBe("refunded_loss");
     expect((await dons())[0]!.status).toBe("refunded_loss");
+  });
+
+  test("a non-USD gift refunded at a loss logs and alerts the loss in USD", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    await seed_cash_dist(id, npo_id, {
+      amount: 50_000,
+      amount_usd: 333.33,
+      denom: "JPY",
+    });
+    const db = test_db.current!.db;
+    await db
+      .update(payouts)
+      .set({ type: "settled", settled_date: "2026-07-02T00:00:00.000Z" })
+      .where(eq(payouts.id, `payout-${id}`));
+    const graphs = await dists_for_refund(id);
+
+    const res = await process_refund(id, graphs, ctx);
+
+    const [log] = await db.select().from(loss_logs);
+    expect(log!.amount).toBeCloseTo(333.33);
+    expect(res.loss_msgs).toEqual([
+      expect.stringContaining(`npo ${npo_id}: $333.33 `),
+    ]);
+  });
+
+  test("a legacy dist with no USD amount logs net plus fees as the loss", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    await seed_cash_dist(id, npo_id, {
+      amount: 110,
+      amount_usd: null,
+      denom: "USD",
+    });
+    const db = test_db.current!.db;
+    await db
+      .update(payouts)
+      .set({ type: "settled", settled_date: "2026-07-02T00:00:00.000Z" })
+      .where(eq(payouts.id, `payout-${id}`));
+    const graphs = await dists_for_refund(id);
+
+    await process_refund(id, graphs, ctx);
+
+    const [log] = await db.select().from(loss_logs);
+    expect(log!.amount).toBe(100);
   });
 
   test("a payout the cron claimed for a transfer in flight ends in a logged loss", async () => {

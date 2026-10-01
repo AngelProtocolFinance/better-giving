@@ -17,6 +17,8 @@ export interface RefundDistInput {
   alloc: { liq?: number; lock?: number; cash?: number };
   net: number;
   amount: number;
+  /** null on legacy rows that predate it */
+  amount_usd: number | null;
   fee_base: number;
   fee_fsa: number;
   fee_processing: number;
@@ -86,6 +88,7 @@ export interface RefundPreview {
 export interface RefundPlan {
   is_loss: boolean;
   loss_reasons: string[];
+  /** usd, like every loss figure — `dist.amount` is in the donation's currency */
   amount: number;
   /** a commission its referrer was already paid: left `paid`, the platform's loss */
   paid_commission: { donation_id: string; amount: number } | null;
@@ -93,12 +96,22 @@ export interface RefundPlan {
   preview: RefundPreview;
 }
 
+/** a dist's gross in usd. net and fees are settled in usd, so a legacy row
+ * without `amount_usd` has its usd gross as their sum */
+export const dist_amount_usd = (
+  d: Pick<
+    RefundDistInput,
+    "amount_usd" | "net" | "fee_base" | "fee_fsa" | "fee_processing"
+  >
+): number => d.amount_usd ?? d.net + d.fee_base + d.fee_fsa + d.fee_processing;
+
 export function calc_refund_plan(
   inputs: RefundInputs,
   ctx: RefundCtx
 ): RefundPlan {
   const { dist, payout, commission, rev_log_ids, bal, nav, sub_id } = inputs;
   const { now, nav_date, form_id, program_id } = ctx;
+  const amount_usd = dist_amount_usd(dist);
 
   // reverse what settlement credited: a share missing from the stored jsonb credited 0
   const alloc = {
@@ -349,7 +362,7 @@ export function calc_refund_plan(
       dist_id: dist.id,
       npo_id: dist.to_id,
       type: loss_type,
-      amount: dist.amount,
+      amount: amount_usd,
       npo_amount: dist.net,
       fees_bg: dist.fee_base + dist.fee_fsa,
       fees_processing: dist.fee_processing,
@@ -361,7 +374,7 @@ export function calc_refund_plan(
   return {
     is_loss,
     loss_reasons,
-    amount: dist.amount,
+    amount: amount_usd,
     paid_commission,
     effects,
     preview,

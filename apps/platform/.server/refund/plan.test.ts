@@ -15,6 +15,7 @@ const make_inputs = (overrides: Partial<RefundInputs> = {}): RefundInputs => ({
     alloc: { liq: 0, lock: 0, cash: 100 },
     net: 100,
     amount: 110,
+    amount_usd: 110,
     fee_base: 5,
     fee_fsa: 3,
     fee_processing: 2,
@@ -69,6 +70,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 100, lock: 0, cash: 0 },
           net: 50,
           amount: 55,
+          amount_usd: 55,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -100,6 +102,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 100, lock: 0, cash: 0 },
           net: 50,
           amount: 55,
+          amount_usd: 55,
           fee_base: 1,
           fee_fsa: 2,
           fee_processing: 3,
@@ -135,6 +138,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 0, lock: 100, cash: 0 },
           net: 80,
           amount: 88,
+          amount_usd: 88,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -175,6 +179,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 0, lock: 100, cash: 0 },
           net: 80,
           amount: 88,
+          amount_usd: 88,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -239,6 +244,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 50, lock: 30, cash: 20 },
           net: 100,
           amount: 110,
+          amount_usd: 110,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -385,6 +391,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 0, lock: 0, cash: 0 },
           net: 0,
           amount: 0,
+          amount_usd: 0,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -414,6 +421,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 100, lock: 0 },
           net: 50,
           amount: 55,
+          amount_usd: 55,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -464,7 +472,7 @@ describe("calc_refund_plan", () => {
     );
   });
 
-  test("plan.amount equals dist.amount for total_loss aggregation", () => {
+  test("plan.amount is the dist's usd amount for total_loss aggregation", () => {
     const plan = calc_refund_plan(
       make_inputs({
         dist: {
@@ -473,8 +481,9 @@ describe("calc_refund_plan", () => {
           to_id: 1,
           to_name: "Test NPO",
           alloc: { liq: 100, lock: 0, cash: 0 },
-          net: 50,
-          amount: 55,
+          net: 320,
+          amount: 50_000,
+          amount_usd: 333.33,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -484,6 +493,6 @@ describe("calc_refund_plan", () => {
       make_ctx()
     );
     expect(plan.is_loss).toBe(true);
-    expect(plan.amount).toBe(55);
+    expect(plan.amount).toBe(333.33);
   });
 });

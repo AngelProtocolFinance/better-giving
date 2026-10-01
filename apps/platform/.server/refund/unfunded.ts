@@ -120,6 +120,7 @@ export async function reverse_unfunded_payout_loss(
         alloc,
         net: dist.net ?? 0,
         amount: dist.amount ?? 0,
+        amount_usd: dist.amount_usd,
         fee_base: dist.fee_base ?? 0,
         fee_fsa: dist.fee_fsa ?? 0,
         fee_processing: dist.fee_processing ?? 0,

@@ -81,6 +81,7 @@ function project_inputs(
       alloc: dist.alloc ?? { liq: 0, lock: 0, cash: 0 },
       net: dist.net ?? 0,
       amount: dist.amount ?? 0,
+      amount_usd: dist.amount_usd,
       fee_base: dist.fee_base ?? 0,
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,

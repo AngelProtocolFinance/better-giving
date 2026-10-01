@@ -12,7 +12,11 @@ import {
   reverse_after_partials,
   unsent_refunds,
 } from "$/refund/after-partials";
-import type { PreviewLine, RefundPreview } from "$/refund/plan";
+import {
+  dist_amount_usd,
+  type PreviewLine,
+  type RefundPreview,
+} from "$/refund/plan";
 import {
   load_refund_plan,
   process_refund,
@@ -28,6 +32,7 @@ export interface DistPreview {
   id: string;
   npo_id: number;
   npo_name: string;
+  /** usd */
   amount: number;
   net: number;
   refund_status: string | null;
@@ -87,12 +92,19 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   let total_loss = 0;
   for (const g of graphs) {
     const { dist } = g;
+    const amount = dist_amount_usd({
+      amount_usd: dist.amount_usd,
+      net: dist.net ?? 0,
+      fee_base: dist.fee_base ?? 0,
+      fee_fsa: dist.fee_fsa ?? 0,
+      fee_processing: dist.fee_processing ?? 0,
+    });
     if (dist.refund_status === "completed" || dist.refund_status === "loss") {
       previews.push({
         id: dist.id,
         npo_id: dist.to_id ?? 0,
         npo_name: dist.to_name ?? "",
-        amount: dist.amount ?? 0,
+        amount,
         net: dist.net ?? 0,
         refund_status: dist.refund_status,
         effects: [
@@ -122,7 +134,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       id: dist.id,
       npo_id: dist.to_id ?? 0,
       npo_name: dist.to_name ?? "",
-      amount: dist.amount ?? 0,
+      amount,
       net: dist.net ?? 0,
       refund_status: dist.refund_status,
       refund_error: dist.refund_error,

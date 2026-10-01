@@ -47,7 +47,7 @@ export interface ILossLog {
   dist_id: string;
   npo_id: number;
   type: LossType;
-  amount: number; // r.gross — total platform cost
+  amount: number; // usd gross of the dist — total platform cost
   npo_amount: number; // r.net — npo balance not recoverable
   fees_bg: number; // base + fsa — reversed from revenue
   fees_processing: number; // stripe fee — never recoverable
