@@ -39,7 +39,7 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-const { action: cancel } = await import("./api");
+const { action: cancel, loader } = await import("./api");
 const { action: webhook } = await import("#/routes/api.stripe-webhook/route");
 const { FIRST_PAYMENT_INCOMPLETE } = await import("@/subscriptions");
 const { sub_get } = await import("$/pg/queries/subscription");
@@ -50,15 +50,15 @@ const { seed_npo } = await import("#/__tests__/fixtures/funds");
 const SUB_ID = "sub_incomplete";
 const DONOR = "ada@test.com";
 
-const donor_cancels = (reason: string) =>
+const post_cancel = (body: string, email = DONOR) =>
   cancel({
-    context: { get: () => ({ email: DONOR }) },
+    context: { get: () => ({ email }) },
     params: { sub_id: SUB_ID },
-    request: new Request("https://x/cancel", {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-    }),
+    request: new Request("https://x/cancel", { method: "POST", body }),
   } as any);
+
+const donor_cancels = (reason: unknown, email = DONOR) =>
+  post_cancel(JSON.stringify({ reason }), email);
 
 const stripe_reports = (status: string) => {
   const sub = {
@@ -136,5 +136,52 @@ describe("donor cancels a gift whose first payment is still incomplete", () => {
     const row = await sub_get(SUB_ID);
     expect(row?.status).toBe("inactive");
     expect(row?.status_cancel_reason).toBe("changed my mind");
+  });
+});
+
+describe("the donor behind a gift", () => {
+  it("is matched on their address whatever its case", async () => {
+    const email = "Ada@Test.com";
+    await expect(
+      loader({
+        context: { get: () => ({ email }) },
+        params: { sub_id: SUB_ID },
+      } as any)
+    ).resolves.toEqual({ recipient_name: "Fund Test NPO" });
+
+    const res = await donor_cancels("moving abroad", email);
+
+    expect(res.status).toBe(302);
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe("moving abroad");
+  });
+
+  it("is told a body that isn't json is bad, and nothing is cancelled", async () => {
+    await expect(post_cancel("reason=moving")).rejects.toMatchObject({
+      init: { status: 400 },
+    });
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
+      FIRST_PAYMENT_INCOMPLETE
+    );
+  });
+
+  it.each([
+    ["blank", "   "],
+    ["not text", { drop: "table" }],
+    ["past 500 characters", "x".repeat(501)],
+  ])(
+    "is refused a reason that is %s, and nothing is cancelled",
+    async (_, reason) => {
+      await expect(donor_cancels(reason)).rejects.toMatchObject({
+        init: { status: 400 },
+      });
+      expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe(
+        FIRST_PAYMENT_INCOMPLETE
+      );
+    }
+  );
+
+  it("keeps a reason trimmed", async () => {
+    await donor_cancels("  moving abroad \n");
+    expect((await sub_get(SUB_ID))?.status_cancel_reason).toBe("moving abroad");
   });
 });

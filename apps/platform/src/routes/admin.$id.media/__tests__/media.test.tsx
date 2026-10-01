@@ -383,3 +383,37 @@ it("saving an edit to a video deleted meanwhile answers in place", async () => {
 
   expect(res).toEqual({ error: "Video not found" });
 });
+
+it("another nonprofit's video answers not-found rather than a success", async () => {
+  const mine = await seed_npo();
+  const theirs = await seed_npo();
+  const v = await seed_video(theirs.id);
+  const post = (intent: string) => {
+    const fd = new FormData();
+    fd.set("intent", intent);
+    fd.set("mediaId", v.id);
+    return (videos_action as any)({
+      request: new Request(`http://x/admin/${mine.id}/media`, {
+        method: "POST",
+        body: fd,
+      }),
+      params: { id: String(mine.id) },
+      context: { get: () => mine.id },
+    });
+  };
+
+  expect(await post("feature")).toEqual({ error: "Video not found" });
+  expect(await post("delete")).toEqual({ error: "Video not found" });
+
+  const edit_fd = new FormData();
+  edit_fd.set("url", "https://youtu.be/aaaaaaaaaaa");
+  const edited = await (edit_action as any)({
+    request: new Request(`http://x/admin/${mine.id}/media/${v.id}`, {
+      method: "POST",
+      body: edit_fd,
+    }),
+    params: { id: String(mine.id), media_id: v.id },
+    context: { get: () => mine.id },
+  });
+  expect(edited).toEqual({ error: "Video not found" });
+});

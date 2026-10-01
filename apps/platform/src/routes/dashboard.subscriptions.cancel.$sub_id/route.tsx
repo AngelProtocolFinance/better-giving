@@ -4,10 +4,9 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import { X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useFetcher } from "react-router";
-import { object } from "valibot";
 import { RouteModal } from "#/components/route-modal";
-import { $req } from "@/schemas";
 import type { Route } from "./+types/route";
+import { cancel_fv } from "./schema";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
@@ -21,7 +20,7 @@ function Content({ recipient_name }: { recipient_name: string }) {
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: valibotResolver(object({ reason: $req })),
+    resolver: valibotResolver(cancel_fv),
     defaultValues: { reason: "" },
   });
 

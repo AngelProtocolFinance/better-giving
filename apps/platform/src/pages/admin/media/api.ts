@@ -9,6 +9,7 @@ import {
   redirectWithSuccess,
 } from "#/.server/toast";
 import { resp } from "@/helpers/https";
+import type { IMedia } from "@/npo";
 import { media_id } from "@/npo/schema";
 import {
   npo_media_delete,
@@ -17,6 +18,15 @@ import {
   npo_media_update,
 } from "$/pg/queries/npo-media";
 import { type ISchema, schema } from "./schema";
+
+type IMediaRow = IMedia & { npo_id: number };
+
+/** `npo_media_get` is unscoped and the writes are scoped, so a foreign id
+ * would no-op behind a success toast */
+const get_own = async (npo_id: number, mid: string) => {
+  const m = (await npo_media_get(mid)) as IMediaRow | undefined;
+  return m?.npo_id === npo_id ? m : undefined;
+};
 
 export const videos_action: ActionFunction = async (x) => {
   const id = x.context.get(admin_ctx);
@@ -28,7 +38,7 @@ export const videos_action: ActionFunction = async (x) => {
   if (p_mid.issues) throw resp.status(400, p_mid.issues[0].message);
   const mid = p_mid.output;
 
-  const prev = await npo_media_get(mid);
+  const prev = await get_own(id, mid);
   if (!prev) return dataWithError(null, "Video not found");
 
   if (intent === "feature") {
@@ -68,7 +78,7 @@ export const edit_action: ActionFunction = async (x) => {
   );
   if (fv.errors) return fv;
 
-  const m = await npo_media_get(mid);
+  const m = await get_own(id, mid);
   if (!m) return dataWithError(null, "Video not found");
 
   await npo_media_update(id, m.id, {

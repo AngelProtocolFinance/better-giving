@@ -1,4 +1,5 @@
 import { data } from "react-router";
+import { safeParse } from "valibot";
 import { user_ctx } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
 import { msg } from "@/queue";
@@ -7,11 +8,15 @@ import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { sub_get, sub_update } from "$/pg/queries/subscription";
 import type { Route } from "./+types/route";
+import { cancel_fv } from "./schema";
+
+const is_donor = (sub: { from_id: string }, email: string) =>
+  sub.from_id.toLowerCase() === email.toLowerCase();
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
   const user = context.get(user_ctx);
   const sub = await sub_get(params.sub_id);
-  if (!sub || sub.from_id !== user.email) {
+  if (!sub || !is_donor(sub, user.email)) {
     throw data("Not found", { status: 404 });
   }
   return { recipient_name: sub.to_name };
@@ -24,10 +29,15 @@ export const action = async ({
 }: Route.ActionArgs) => {
   const user = context.get(user_ctx);
   const existing = await sub_get(params.sub_id);
-  if (!existing || existing.from_id !== user.email) {
+  if (!existing || !is_donor(existing, user.email)) {
     throw data("Not found", { status: 404 });
   }
-  const { reason } = await request.json();
+  const body = await request.json().catch(() => {
+    throw data("Malformed body", { status: 400 });
+  });
+  const fv = safeParse(cancel_fv, body);
+  if (!fv.success) throw data(fv.issues[0].message, { status: 400 });
+  const { reason } = fv.output;
   const { row, prev_status } = await sub_update(db, params.sub_id, {
     status: "inactive",
     status_cancel_reason: reason,
