@@ -140,6 +140,7 @@ import { admin } from "better-auth/plugins/admin";
 import { eq } from "drizzle-orm";
 import { auth_options, login_link_plugin } from "#/.server/auth/options";
 import { reset_rate_limits } from "#/.server/auth/rate-limit";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import {
   action as check_email_action,
@@ -186,14 +187,12 @@ async function create_verified_user(
   first_name = "Jane",
   last_name = "Doe"
 ) {
-  await test_auth_ref.current.api.signUpEmail({
-    body: {
-      email,
-      password,
-      name: `${first_name} ${last_name}`,
-      first_name,
-      last_name,
-    },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password,
+    name: `${first_name} ${last_name}`,
+    first_name,
+    last_name,
   });
   // flip verification directly: an email proof (link/otp) landing on an
   // unverified row deletes its credential account by design, and these tests
@@ -360,14 +359,12 @@ describe("signup → verification link", () => {
   });
 
   it("tells a user with a dead link to request a new one", async () => {
-    await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: TEST_EMAIL,
-        password: TEST_PW,
-        name: "Jane Doe",
-        first_name: "Jane",
-        last_name: "Doe",
-      },
+    await seed_password_user(test_auth_ref.current, {
+      email: TEST_EMAIL,
+      password: TEST_PW,
+      name: "Jane Doe",
+      first_name: "Jane",
+      last_name: "Doe",
     });
 
     const Stub = signup_stub();
@@ -386,14 +383,12 @@ describe("signup → verification link", () => {
   });
 
   it("resends a fresh link on request", async () => {
-    await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: TEST_EMAIL,
-        password: TEST_PW,
-        name: "Jane Doe",
-        first_name: "Jane",
-        last_name: "Doe",
-      },
+    await seed_password_user(test_auth_ref.current, {
+      email: TEST_EMAIL,
+      password: TEST_PW,
+      name: "Jane Doe",
+      first_name: "Jane",
+      last_name: "Doe",
     });
     sent_links.length = 0;
 
@@ -498,6 +493,46 @@ describe("login flow", () => {
     await expect.element(screen.getByTestId("marketplace")).toBeVisible();
   });
 
+  it("explains a google sign-in that hit an unconfirmed account", async () => {
+    const Stub = login_stub();
+    const screen = await render(
+      <Stub
+        initialEntries={[
+          "/login?redirect=%2Fdashboard&error=account_not_linked",
+        ]}
+      />
+    );
+
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toMatchTextContent(/hasn't been confirmed/i);
+    const link = alert.getByRole("link", { name: /fresh sign-in link/i });
+    const to = new URL(
+      (link.element() as HTMLAnchorElement).href,
+      window.location.origin
+    );
+    expect(to.pathname).toBe("/signup");
+    expect(to.searchParams.get("redirect")).toBe("/dashboard");
+  });
+
+  it("drops the google error once the password form is used", async () => {
+    await create_verified_user();
+
+    const Stub = login_stub();
+    const screen = await render(
+      <Stub initialEntries={["/login?error=access_denied"]} />
+    );
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+
+    await screen.getByPlaceholder(/email address/i).fill(TEST_EMAIL);
+    await screen.getByPlaceholder(/password/i).fill("WrongPass1!");
+    await screen.getByRole("button", { name: /log in/i }).click();
+
+    await expect.element(screen.getByText(/invalid/i)).toBeVisible();
+    await expect
+      .element(screen.getByText(/google sign-in didn't finish/i))
+      .not.toBeInTheDocument();
+  });
+
   it("shows error for invalid credentials", async () => {
     await create_verified_user();
 
@@ -512,14 +547,12 @@ describe("login flow", () => {
   });
 
   it("mails a link when a password holder has not proven their address", async () => {
-    await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: TEST_EMAIL,
-        password: TEST_PW,
-        name: "Jane Doe",
-        first_name: "Jane",
-        last_name: "Doe",
-      },
+    await seed_password_user(test_auth_ref.current, {
+      email: TEST_EMAIL,
+      password: TEST_PW,
+      name: "Jane Doe",
+      first_name: "Jane",
+      last_name: "Doe",
     });
 
     const Stub = login_stub();

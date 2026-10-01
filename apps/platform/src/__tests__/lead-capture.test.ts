@@ -110,6 +110,7 @@ import { eq } from "drizzle-orm";
 import { auth_options, login_link_plugin } from "#/.server/auth/options";
 import { reset_rate_limits } from "#/.server/auth/rate-limit";
 import { reg_cookie } from "#/.server/cookie";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import { reg_loader, step_loader } from "#/pages/registration/data/step-loader";
 import {
@@ -266,14 +267,12 @@ function post_as_from(
 
 /** a verified account already owning the address */
 async function verified_account(email: string) {
-  await test_auth_ref.current.api.signUpEmail({
-    body: {
-      email,
-      password: "Test1234!@",
-      name: "Real Owner",
-      first_name: "Real",
-      last_name: "Owner",
-    },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password: "Test1234!@",
+    name: "Real Owner",
+    first_name: "Real",
+    last_name: "Owner",
   });
   await test_db
     .current!.db.update(user_table)
@@ -309,8 +308,12 @@ const grant = () => issued.at(-1)!.split(";")[0]!;
 /** a real signed-in session, cookie included. `returnHeaders` hands back a
  * bare `Headers` — a `Response`'s would have its `set-cookie` stripped here. */
 async function sign_in(email: string, password = "Test1234!@") {
-  await test_auth_ref.current.api.signUpEmail({
-    body: { email, password, name: email, first_name: "A", last_name: "B" },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password,
+    name: email,
+    first_name: "A",
+    last_name: "B",
   });
   await test_db
     .current!.db.update(user_table)

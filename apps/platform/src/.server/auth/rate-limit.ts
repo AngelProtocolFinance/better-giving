@@ -80,10 +80,12 @@ function prune(now: number): void {
   }
 }
 
-/** the same headers `advanced.ipAddress.ipAddressHeaders` names, in the same
- * order — one source of truth for "who is calling" whether the request reached
- * better-auth's router or a loader. */
-const IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"] as const;
+/** also better-auth's `advanced.ipAddress.ipAddressHeaders`, and read the way
+ * it reads them, so "who is calling" is one answer whether the request
+ * reached better-auth's router or a loader. vercel overwrites
+ * `x-forwarded-for` at its edge; nothing documents a client-sent
+ * `x-vercel-forwarded-for` being stripped, so that one is never read. */
+export const IP_HEADERS: readonly string[] = ["x-forwarded-for"];
 
 const IPV4 = v.pipe(v.string(), v.ipv4());
 const IPV6 = v.pipe(v.string(), v.ipv6());
@@ -93,9 +95,10 @@ const IPV6 = v.pipe(v.string(), v.ipv6());
  * per address. */
 export function client_ip(headers: Headers): string | null {
   for (const name of IP_HEADERS) {
-    // a forwarding chain lists the client first
-    const ip = headers.get(name)?.split(",")[0]?.trim();
-    if (!ip) continue;
+    const ip = headers.get(name)?.trim();
+    // a chain's leftmost entry is client-supplied; better-auth refuses one
+    // without `trustedProxies`, so it is an unknown ip here too
+    if (!ip || ip.includes(",")) continue;
     if (v.is(IPV4, ip)) return ip;
     if (v.is(IPV6, ip)) return ipv6_key(ip);
   }

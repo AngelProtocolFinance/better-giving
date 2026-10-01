@@ -21,6 +21,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { admin } from "better-auth/plugins/admin";
 import { eq } from "drizzle-orm";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import { session, user as user_table } from "$/pg/schema/auth";
@@ -122,14 +123,12 @@ beforeEach(async () => {
 
 /** a verified password user; returns its id */
 async function seed_user(email: string, role = "user"): Promise<string> {
-  await auth.api.signUpEmail({
-    body: {
-      email,
-      password: PW,
-      name: "Test User",
-      first_name: "Test",
-      last_name: "User",
-    },
+  await seed_password_user(auth, {
+    email,
+    password: PW,
+    name: "Test User",
+    first_name: "Test",
+    last_name: "User",
   });
   const [row] = await test_db
     .current!.db.update(user_table)

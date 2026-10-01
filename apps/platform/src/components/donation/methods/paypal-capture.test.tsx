@@ -87,10 +87,12 @@ const approve_and_answer = async (
   capture: () => Promise<Response>,
   config: Config | null = null,
   button: "paypal-button" | "venmo-button" = "paypal-button",
-  intent: { tx_id: string; don_id?: string } = {
+  intent: { tx_id: string; don_id?: string; amount?: string } = {
     tx_id: "order_1",
     don_id: "don_1",
-  }
+    amount: "25.00",
+  },
+  form: Partial<typeof express> = {}
 ) => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_, init) =>
     init?.method === "PATCH" ? capture() : Response.json(intent)
@@ -102,6 +104,7 @@ const approve_and_answer = async (
     <Context {...init(config)}>
       <Paypal
         {...express}
+        {...form}
         validate={async () => true}
         on_error={on_error}
         on_paid={on_paid}
@@ -231,6 +234,45 @@ describe("paypal express: a merchant's own thank-you page", () => {
     await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
     const { url } = on_paid.mock.calls[0]![0];
     expect(new URL(url).searchParams.get("donor_name")).toBe("Jane Roe");
+  });
+
+  // the form's own sum is a float of untruncated lines; the order is not
+  test("is handed the total the order charged", async () => {
+    const config: Config = {
+      id: "form_1",
+      success_redirect: "https://npo.example/thanks",
+      freq_opts: undefined,
+    };
+    const { on_paid } = await approve_and_answer(
+      async () => Response.json(captured("COMPLETED")),
+      config,
+      "paypal-button",
+      { tx_id: "order_1", don_id: "don_1", amount: "26.03" }
+    );
+
+    await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
+    const { url } = on_paid.mock.calls[0]![0];
+    expect(new URL(url).searchParams.get("donation_amount")).toBe("26.03");
+  });
+
+  // an intent answered by a deploy that predates `amount`
+  test("is handed the form's own total when the server sends none", async () => {
+    const config: Config = {
+      id: "form_1",
+      success_redirect: "https://npo.example/thanks",
+      freq_opts: undefined,
+    };
+    const { on_paid } = await approve_and_answer(
+      async () => Response.json(captured("COMPLETED")),
+      config,
+      "paypal-button",
+      { tx_id: "order_1", don_id: "don_1" },
+      { amnt: 10, tip: 0.1, fee_allowance: 0.2 }
+    );
+
+    await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
+    const { url } = on_paid.mock.calls[0]![0];
+    expect(new URL(url).searchParams.get("donation_amount")).toBe("10.30");
   });
 });
 

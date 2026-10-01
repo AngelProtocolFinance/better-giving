@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { to_text } from "#/components/rich-text/helpers";
 import type { IProgram, IProgramDb } from "@/npo";
 import type {
@@ -23,10 +23,20 @@ export async function npo_programs(npo_id: number): Promise<IProgramDb[]> {
   return rows as unknown as IProgramDb[];
 }
 
+/** with `npo_id`, undefined unless that npo owns the program */
 export async function npo_program_get(
-  id: string
+  id: string,
+  npo_id?: number
 ): Promise<IProgram | undefined> {
-  const [prog] = await db.select().from(programs).where(eq(programs.id, id));
+  const [prog] = await db
+    .select()
+    .from(programs)
+    .where(
+      and(
+        eq(programs.id, id),
+        npo_id === undefined ? undefined : eq(programs.npo_id, npo_id)
+      )
+    );
   if (!prog) return undefined;
 
   const ms = await db
@@ -140,28 +150,44 @@ export async function prog_milestones(
     .orderBy(asc(milestones.date));
 }
 
+/** the program's id, as a subquery, only when `npo_id` owns it */
+const owned_program = (conn: DbOrTx, npo_id: number, prog_id: string) =>
+  conn
+    .select({ id: programs.id })
+    .from(programs)
+    .where(and(eq(programs.id, prog_id), eq(programs.npo_id, npo_id)));
+
+/** the new milestone's id; undefined when `npo_id` owns no such program */
 export async function milestone_put(
+  npo_id: number,
   prog_id: string,
   content: IMilestoneNew
-): Promise<string> {
+): Promise<string | undefined> {
   const mid = globalThis.crypto.randomUUID();
-  await db.insert(milestones).values({
-    id: mid,
-    program_id: prog_id,
-    date: new Date(content.date).toISOString(),
-    title: content.title,
-    description_pt: content.description_pt,
-    description_v2: to_text(content.description_pt),
-    media: content.media,
+  return db.transaction(async (tx) => {
+    // key share: the program can't be deleted between this check and the insert
+    const [prog] = await owned_program(tx, npo_id, prog_id).for("key share");
+    if (!prog) return undefined;
+    await tx.insert(milestones).values({
+      id: mid,
+      program_id: prog_id,
+      date: new Date(content.date).toISOString(),
+      title: content.title,
+      description_pt: content.description_pt,
+      description_v2: to_text(content.description_pt),
+      media: content.media,
+    });
+    return mid;
   });
-  return mid;
 }
 
+/** false when `npo_id` owns no such milestone */
 export async function milestone_update(
+  npo_id: number,
   prog_id: string,
   mid: string,
   update: IMilestoneUpdate
-) {
+): Promise<boolean> {
   const { description_pt, ...rest } = update;
   const desc_cols = description_pt
     ? {
@@ -169,18 +195,30 @@ export async function milestone_update(
         description_v2: to_text(description_pt),
       }
     : {};
-  await db
+  const updated = await db
     .update(milestones)
     .set({ ...rest, ...desc_cols })
-    .where(
-      sql`${milestones.id} = ${mid} AND ${milestones.program_id} = ${prog_id}`
-    );
+    .where(owned_milestone(npo_id, prog_id, mid))
+    .returning({ id: milestones.id });
+  return updated.length > 0;
 }
 
-export async function milestone_delete(prog_id: string, mid: string) {
-  await db
+/** false when `npo_id` owns no such milestone */
+export async function milestone_delete(
+  npo_id: number,
+  prog_id: string,
+  mid: string
+): Promise<boolean> {
+  const deleted = await db
     .delete(milestones)
-    .where(
-      sql`${milestones.id} = ${mid} AND ${milestones.program_id} = ${prog_id}`
-    );
+    .where(owned_milestone(npo_id, prog_id, mid))
+    .returning({ id: milestones.id });
+  return deleted.length > 0;
+}
+
+function owned_milestone(npo_id: number, prog_id: string, mid: string) {
+  return and(
+    eq(milestones.id, mid),
+    inArray(milestones.program_id, owned_program(db, npo_id, prog_id))
+  );
 }

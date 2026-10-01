@@ -9,6 +9,7 @@ import type {
 import type { IRebalanceLog } from "@/nav/schemas";
 import { tickers } from "@/nav/schemas";
 import { db } from "../db";
+import { finite } from "../schema/columns";
 import {
   dividend_logs,
   rebalance_log_bals,
@@ -239,6 +240,9 @@ export async function nav_log_append(
   opts: INavLogAppendOpts
 ): Promise<void> {
   const { reason, date, cash_delta = 0, holder_deltas, series } = opts;
+  // NaN would also slip past the price-invariant check below: NaN > eps is false
+  finite(cash_delta, "nav cash delta");
+  for (const h of holder_deltas) finite(h.units_delta, "nav units delta");
 
   const units_delta_total = holder_deltas.reduce(
     (s, h) => s + h.units_delta,

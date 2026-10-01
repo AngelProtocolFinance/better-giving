@@ -1,5 +1,5 @@
 import type { ActionFunction } from "react-router";
-import type { Handlers, Kind } from "@/queue";
+import { type Handlers, type Kind, retries_of } from "@/queue";
 import { verify_qstash } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { handle_lock_tx_created } from "./handle-bal-tx";
@@ -58,6 +58,12 @@ export const action: ActionFunction = async ({ request, params }) => {
   // handler is narrowed by `event` at runtime; the Handlers literal guarantees
   // payload shape per kind, but the dynamic lookup erases the relation for tsc.
   const payload = JSON.parse(raw);
-  await (handler as (p: unknown) => Promise<unknown>)(payload);
+  // qstash counts the retries already made in `upstash-retried`
+  const retried = Number(request.headers.get("upstash-retried") ?? 0);
+  const attempt = { last: retried >= retries_of(event) };
+  await (handler as (p: unknown, a: typeof attempt) => Promise<unknown>)(
+    payload,
+    attempt
+  );
   return new Response("ok", { status: 200 });
 };

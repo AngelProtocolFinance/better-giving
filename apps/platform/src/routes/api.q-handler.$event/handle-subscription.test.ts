@@ -1,3 +1,5 @@
+import { PayPalApiError } from "@better-giving/paypal";
+import Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cancel_subscription_mock = vi.hoisted(() => vi.fn());
@@ -16,6 +18,12 @@ vi.mock("$/kit/stripe", () => ({
   },
 }));
 
+const send_alert_mock = vi.hoisted(() => vi.fn());
+vi.mock("$/kit/discord", () => ({
+  fiat_monitor: { send_alert: send_alert_mock },
+}));
+vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
+
 const { handle_sub_deactivated } = await import("./handle-subscription");
 
 const cancel_on_paypal = async (status_cancel_reason: string | null) => {
@@ -30,6 +38,7 @@ const cancel_on_paypal = async (status_cancel_reason: string | null) => {
 beforeEach(() => {
   vi.clearAllMocks();
   cancel_subscription_mock.mockResolvedValue(undefined);
+  send_alert_mock.mockResolvedValue(undefined);
 });
 
 describe("handle_sub_deactivated paypal cancel reason", () => {
@@ -90,6 +99,74 @@ describe("handle_sub_deactivated paypal cancel reason", () => {
   });
 });
 
+describe("handle_sub_deactivated paypal cancel failures", () => {
+  const paypal_answers = (http_status: number, issue: string) =>
+    cancel_subscription_mock.mockRejectedValue(
+      new PayPalApiError(
+        "cancel subscription",
+        http_status,
+        JSON.stringify({ name: "ERR", details: [{ issue }] })
+      )
+    );
+  const deactivate = () =>
+    handle_sub_deactivated({
+      id: "I-SUB1",
+      platform: "paypal",
+      status_cancel_reason: null,
+    });
+
+  // already cancelled (or never approved) inside paypal: nothing left to stop
+  it("resolves on a subscription paypal can no longer cancel", async () => {
+    paypal_answers(422, "SUBSCRIPTION_STATUS_INVALID");
+
+    await expect(deactivate()).resolves.toBeUndefined();
+    expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+
+  it.each([408, 409, 429])(
+    "rethrows a %i so the queue retries it",
+    async (http_status) => {
+      paypal_answers(http_status, "ERR");
+
+      await expect(deactivate()).rejects.toThrow();
+      expect(send_alert_mock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([408, 409, 429])(
+    "alerts ops on a %i when no retry is left, and resolves",
+    async (http_status) => {
+      paypal_answers(http_status, "ERR");
+
+      await expect(
+        handle_sub_deactivated(
+          { id: "I-SUB1", platform: "paypal", status_cancel_reason: null },
+          { last: true }
+        )
+      ).resolves.toBeUndefined();
+      expect(send_alert_mock).toHaveBeenCalledOnce();
+    }
+  );
+
+  // the donor was told they're no longer charged; a retry can't change this answer
+  it("alerts ops on a refusal a retry can't change, and resolves", async () => {
+    paypal_answers(404, "INVALID_RESOURCE_ID");
+
+    await expect(deactivate()).resolves.toBeUndefined();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(JSON.stringify(send_alert_mock.mock.calls[0]![0])).toContain(
+      "I-SUB1"
+    );
+  });
+
+  it("throws on a paypal outage, so qstash retries", async () => {
+    paypal_answers(503, "SERVICE_UNAVAILABLE");
+
+    await expect(deactivate()).rejects.toThrow("503");
+    expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+});
+
 describe("handle_sub_deactivated stripe cancel", () => {
   const SUB_ID = "sub_stripe1";
 
@@ -142,5 +219,33 @@ describe("handle_sub_deactivated stripe cancel", () => {
 
     await expect(deactivate()).resolves.toBeUndefined();
     expect(stripe_cancel_mock).not.toHaveBeenCalled();
+  });
+
+  it("alerts ops on a refusal a retry can't change, and resolves", async () => {
+    stripe_retrieve_mock.mockRejectedValue(
+      new Stripe.errors.StripeInvalidRequestError({
+        type: "invalid_request_error",
+        code: "resource_missing",
+        statusCode: 404,
+        message: `No such subscription: '${SUB_ID}'`,
+      })
+    );
+
+    await expect(deactivate()).resolves.toBeUndefined();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(JSON.stringify(send_alert_mock.mock.calls[0]![0])).toContain(SUB_ID);
+  });
+
+  it("throws on a stripe outage, so qstash retries", async () => {
+    stripe_retrieve_mock.mockRejectedValue(
+      new Stripe.errors.StripeAPIError({
+        type: "api_error",
+        statusCode: 500,
+        message: "stripe is down",
+      })
+    );
+
+    await expect(deactivate()).rejects.toThrow("stripe is down");
+    expect(send_alert_mock).not.toHaveBeenCalled();
   });
 });

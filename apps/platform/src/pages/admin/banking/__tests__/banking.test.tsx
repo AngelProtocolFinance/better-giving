@@ -603,7 +603,7 @@ describe("delete", () => {
     const npo = await seed_npo();
     const id = await seed_bapp(npo.id);
 
-    await bapp_delete(id);
+    await bapp_delete(id, npo.id);
 
     const row = await get_bapp(id);
     expect(row).toBeUndefined();

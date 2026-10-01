@@ -12,7 +12,7 @@ export async function handle_fund_member_removed(
   const creator = await user_contact_by_id(data.creator_id);
   if (!creator) {
     // a retry cannot conjure the row, so throwing would only walk qstash into the dlq
-    report_error(new Error("fund creator has no user row"), {
+    report_error(new Error("fund creator has no verified, unbanned user row"), {
       fund_id: data.fund_id,
       creator_id: data.creator_id,
     });

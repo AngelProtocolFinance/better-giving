@@ -1,5 +1,6 @@
 import { CircleCheck } from "lucide-react";
-import { href, Link } from "react-router";
+import { Link } from "react-router";
+import { login_url } from "#/helpers/login-url";
 import type { Route } from "./+types/route";
 
 export { loader } from "../_app.signup/loader";
@@ -15,10 +16,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         You can now proceed to sign in to your account
       </p>
 
-      <Link
-        to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-        className="btn btn-lg btn-primary mt-9 w-full"
-      >
+      <Link to={login_url(to)} className="btn btn-lg btn-primary mt-9 w-full">
         Continue to Sign in
       </Link>
     </div>

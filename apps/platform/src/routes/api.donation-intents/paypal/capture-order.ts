@@ -8,6 +8,7 @@ import {
   type IPaypalCaptured,
   paypal_capture_outcome,
 } from "@/donations/paypal-capture";
+import { resp } from "@/helpers/https";
 import { paypal } from "$/kit/paypal";
 import { db } from "$/pg/db";
 import { donation_update } from "$/pg/queries/donation";
@@ -42,15 +43,44 @@ const already_captured = (err: unknown): boolean =>
   err.http_status === 422 &&
   err.body.includes('"ORDER_ALREADY_CAPTURED"');
 
+// set on the unit at create time; paypal's capture examples echo it on the
+// capture and not the unit, so either one binds the order
+const is_for_donation = (
+  capture: CaptureOrderResponse,
+  don_id: string
+): boolean => {
+  const pu = capture.purchase_units?.[0];
+  return (
+    pu?.custom_id === don_id ||
+    pu?.payments?.captures?.[0]?.custom_id === don_id
+  );
+};
+
 /** not a paypal resource: the least the browser's `paypal_capture_outcome` reads as declined */
 const REFUSED_CAPTURE: IPaypalCaptured = {
   purchase_units: [{ payments: { captures: [{ status: "DECLINED" }] } }],
+};
+
+// don_id is the browser's word, custom_id is ours from create time. don ids
+// appear in thank-you urls, so a mismatch would write onto another receipt,
+// or hand a declined capture's payer details to whoever named it
+const refuse_other_donation = (order_id: string, don_id: string): never => {
+  report_degraded(new Error("paypal order for another donation"), {
+    order_id,
+    don_id,
+  });
+  throw resp.status(400, "order is not for this donation");
 };
 
 export const capture_order = async ({
   order_id,
   don_id,
 }: ICaptureInput): Promise<CaptureOrderResponse | IPaypalCaptured> => {
+  // checked before capturing: a forged or reused order_id would otherwise be
+  // charged first and refused after
+  const order = await paypal.get_order(order_id);
+  if (!is_for_donation(order, don_id)) refuse_other_donation(order_id, don_id);
+
   let capture: CaptureOrderResponse;
   try {
     // order_id is stable per intent — use it as the idempotency key so a retry
@@ -67,6 +97,9 @@ export const capture_order = async ({
     // the order carries that capture
     capture = await paypal.get_order(order_id);
   }
+
+  if (!is_for_donation(capture, don_id))
+    refuse_other_donation(order_id, don_id);
 
   const { outcome, status } = paypal_capture_outcome(capture);
   if (outcome !== "taken") {

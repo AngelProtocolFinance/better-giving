@@ -1,5 +1,6 @@
 export {
   type Handlers,
+  type IAttempt,
   type IBankingPayload,
   type IDonDistPayload,
   type IDonFundReceiptPayload,
@@ -17,5 +18,6 @@ export {
   msg,
   PAYPAL_CAPTURE_DELAY_S,
   type Payloads,
+  retries_of,
 } from "./registry";
 export type { IDelivery, IMsg } from "./types";

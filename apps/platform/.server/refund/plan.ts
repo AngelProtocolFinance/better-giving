@@ -14,7 +14,7 @@ export interface RefundDistInput {
   donation_id: string;
   to_id: number;
   to_name: string;
-  alloc: { liq: number; lock: number; cash: number };
+  alloc: { liq?: number; lock?: number; cash?: number };
   net: number;
   amount: number;
   fee_base: number;
@@ -98,11 +98,17 @@ export function calc_refund_plan(
   const { dist, payout, commission, rev_log_ids, bal, nav, sub_id } = inputs;
   const { now, nav_date, form_id, program_id } = ctx;
 
+  // reverse what settlement credited: a share missing from the stored jsonb credited 0
+  const alloc = {
+    liq: dist.alloc.liq ?? 0,
+    lock: dist.alloc.lock ?? 0,
+    cash: dist.alloc.cash ?? 0,
+  };
   // derive balance deltas from allocation percentages
   const bd = {
-    liq: (dist.alloc.liq / 100) * dist.net,
-    lock: (dist.alloc.lock / 100) * dist.net,
-    cash: (dist.alloc.cash / 100) * dist.net,
+    liq: (alloc.liq / 100) * dist.net,
+    lock: (alloc.lock / 100) * dist.net,
+    cash: (alloc.cash / 100) * dist.net,
   };
   const refund_lock_units = nav && bd.lock > 0 ? bd.lock / nav.price : 0;
 

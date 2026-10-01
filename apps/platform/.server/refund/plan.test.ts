@@ -334,6 +334,55 @@ describe("calc_refund_plan", () => {
     ]);
   });
 
+  test("dist alloc missing a share → that share is 0, deltas stay finite", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: 1,
+          to_name: "Test NPO",
+          // jsonb alloc written without a cash key
+          alloc: { liq: 100, lock: 0 },
+          net: 50,
+          amount: 55,
+          fee_base: 0,
+          fee_fsa: 0,
+          fee_processing: 0,
+        },
+        bal: { liq: 100, lock_units: 0, cash: 0 },
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(false);
+    const bu = plan.effects.find((e) => e.kind === "balance_update");
+    expect(bu && bu.kind === "balance_update" && bu.deltas).toEqual({
+      liq: 50,
+      lock: 0,
+      lock_units: 0,
+      cash: 0,
+    });
+  });
+
+  test("dist alloc with no shares → nothing was credited, nothing reversed", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          ...make_inputs().dist,
+          alloc: {},
+        },
+      }),
+      make_ctx()
+    );
+    const bu = plan.effects.find((e) => e.kind === "balance_update");
+    expect(bu && bu.kind === "balance_update" && bu.deltas).toEqual({
+      liq: 0,
+      lock: 0,
+      lock_units: 0,
+      cash: 0,
+    });
+  });
+
   test("loss_log uses ctx.now as date", () => {
     const plan = calc_refund_plan(
       make_inputs({

@@ -27,7 +27,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
     }
 
     if (step.type === "expired") {
-      return <Expired email={step.email} />;
+      return <Expired email={step.email} to={redirect} />;
     }
 
     if (step.type === "set-password") {

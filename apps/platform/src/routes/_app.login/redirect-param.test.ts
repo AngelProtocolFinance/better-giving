@@ -85,10 +85,19 @@ describe("/login ?redirect=", () => {
   });
 
   it("hands the page a safe return path to forward to signup and reset", async () => {
-    expect(await loader({ request: req("//evil.example") } as any)).toBe("/");
+    expect(await loader({ request: req("//evil.example") } as any)).toBe(
+      "/marketplace"
+    );
     expect(await loader({ request: req("/dashboard") } as any)).toBe(
       "/dashboard"
     );
+  });
+
+  it("forwards the same default a sign-in lands on when none is asked", async () => {
+    const res = await loader({
+      request: new Request("https://app.test/login"),
+    } as any);
+    expect(res).toBe("/marketplace");
   });
 
   it("sends a signed-in submitter home, not off-site", async () => {
@@ -128,6 +137,21 @@ describe("/login ?redirect=", () => {
       request: req("/dashboard", { method: "POST", body }),
     } as any);
     expect(sign_in_social.mock.calls[0][0].body.callbackURL).toBe("/dashboard");
+  });
+
+  it("sends a failed google sign-in back here, keeping the return path", async () => {
+    sign_in_social.mockResolvedValue(new Response(null, { status: 200 }));
+    const body = new FormData();
+    body.set("intent", "oauth");
+    await action({
+      request: req("/donate/x?a=1&b=2", { method: "POST", body }),
+    } as any);
+    const to = new URL(
+      sign_in_social.mock.calls[0][0].body.errorCallbackURL,
+      "https://app.test"
+    );
+    expect(to.pathname).toBe("/login");
+    expect(to.searchParams.get("redirect")).toBe("/donate/x?a=1&b=2");
   });
 
   it.each([

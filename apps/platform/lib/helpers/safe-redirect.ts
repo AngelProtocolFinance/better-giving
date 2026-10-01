@@ -4,8 +4,7 @@ const SELF = "http://self.invalid";
 const NOT_PRINTABLE_ASCII = /[^\x20-\x7e]/;
 
 /** `raw` when it stays on this origin, else `fallback`. judged decoded once,
- * because magic-link verify decodes its `callbackURL` again and the reset
- * screen's back-links put `?redirect=` into a url unencoded, so neither may
+ * because magic-link verify decodes its `callbackURL` again, which must not
  * turn `/%2Fevil` into `//evil`. */
 export function safe_redirect<F extends string | null>(
   raw: string | null | undefined,

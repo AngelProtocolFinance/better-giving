@@ -1,6 +1,6 @@
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
-import { dataWithSuccess } from "#/.server/toast";
+import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { resp } from "@/helpers/https";
 import {
   milestone_id,
@@ -29,6 +29,10 @@ const owned_program_id = async (
   return p.output;
 };
 
+// 2xx, not 404: RR skips revalidation after a >=400 action, which would leave the stale row
+const milestone_gone = () =>
+  dataWithError(null, "This milestone no longer exists");
+
 export const loader = async (x: Route.LoaderArgs) => {
   const pid = await owned_program_id(x);
   const prog = await npo_program_get(pid);
@@ -43,18 +47,20 @@ export const action = async (x: Route.ActionArgs) => {
   const { intent, ...p } = await x.request.json();
 
   if (intent === "add-milestone") {
-    await milestone_put(pid, {
+    const mid = await milestone_put(id, pid, {
       title: `Milestone ${p["next-milestone-num"]}`,
       description_pt: "[]",
       date: new Date().toISOString(),
     });
+    if (!mid) return dataWithError(null, "This program no longer exists");
     return dataWithSuccess(null, "Milestone added");
   }
 
   if (intent === "delete-milestone") {
     const p_mid = safeParse(milestone_id, p["milestone-id"]);
     if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
-    await milestone_delete(pid, p_mid.output);
+    const deleted = await milestone_delete(id, pid, p_mid.output);
+    if (!deleted) return milestone_gone();
     return dataWithSuccess(null, "Milestone deleted");
   }
 
@@ -64,7 +70,13 @@ export const action = async (x: Route.ActionArgs) => {
     if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
     const p_upd8 = safeParse(milestone_update, rest);
     if (p_upd8.issues) return resp.status(400, p_upd8.issues[0].message);
-    await milestone_update_db(pid, p_mid.output, p_upd8.output);
+    const updated = await milestone_update_db(
+      id,
+      pid,
+      p_mid.output,
+      p_upd8.output
+    );
+    if (!updated) return milestone_gone();
     return dataWithSuccess(null, "Milestone updated");
   }
 

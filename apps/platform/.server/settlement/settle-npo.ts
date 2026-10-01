@@ -9,7 +9,7 @@ import { donation_message_put } from "$/pg/queries/donation-message";
 import { form_ltd_inc } from "$/pg/queries/form";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { nav_log_append } from "$/pg/queries/nav";
-import { npo_balance_update, npo_get } from "$/pg/queries/npo";
+import { npo_balance_update, npo_get_locked } from "$/pg/queries/npo";
 import { payout_put } from "$/pg/queries/payout";
 import { npo_prog_contrib } from "$/pg/queries/program";
 import { commission_put } from "$/pg/queries/referrer";
@@ -25,7 +25,9 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     return { msgs: [], txs: [] };
   }
 
-  const npo = await npo_get(+i.id, db);
+  // the plan's bal_begin/bal_end come from this row: a concurrent settlement
+  // of the same npo waits here instead of planning from the same balance
+  const npo = await npo_get_locked(db, +i.id);
   if (!npo) throw new Error(`npo:${i.id} not found`);
   if (npo.active === false) {
     // the destinations are resolved before the transaction opens and this
@@ -69,6 +71,13 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     referrer_npo: npo.referrer_npo,
     referrer_expiry: npo.referrer_expiry,
   });
+
+  if (plan.alloc_fell_back) {
+    report_error(
+      new Error(`npo:${npo.id} stored allocation invalid, settled to default`),
+      { npo_id: npo.id, allocation: npo.allocation, during: "settle_npo" }
+    );
+  }
 
   const { dist, don } = plan;
   const txs: unknown[] = [];

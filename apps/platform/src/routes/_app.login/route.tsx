@@ -9,7 +9,13 @@ import {
 import { valibotResolver } from "@hookform/resolvers/valibot";
 import { eq } from "drizzle-orm";
 import { Mail } from "lucide-react";
-import { href, Link, redirect, useNavigation } from "react-router";
+import {
+  href,
+  Link,
+  redirect,
+  useNavigation,
+  useSearchParams,
+} from "react-router";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { auth, get_session, request_password_reset } from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
@@ -17,6 +23,7 @@ import { is_sign_in_throttled } from "#/.server/auth/sign-in";
 import { dataWithError } from "#/.server/toast";
 import googleIcon from "#/assets/icons/google.svg";
 import { report_error } from "#/errors/report";
+import { login_url, signup_url } from "#/helpers/login-url";
 import { metas } from "#/helpers/seo";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignIn, sign_in } from "#/types/auth";
@@ -25,6 +32,7 @@ import { safe_redirect } from "@/helpers/safe-redirect";
 import { db } from "$/pg/db";
 import { account, user as userTable } from "$/pg/schema/auth";
 import type { Route } from "./+types/route";
+import { retry_form_action } from "./oauth-error";
 
 export const action = async ({ request }: Route.ActionArgs) => {
   try {
@@ -38,7 +46,12 @@ export const action = async ({ request }: Route.ActionArgs) => {
 
     if (fv.get("intent") === "oauth") {
       const res = await auth.api.signInSocial({
-        body: { provider: "google", callbackURL: redirect_to },
+        body: {
+          provider: "google",
+          callbackURL: redirect_to,
+          // better-auth appends `error`, which the login page explains
+          errorCallbackURL: login_url(redirect_to),
+        },
         headers: request.headers,
         asResponse: true,
       });
@@ -168,15 +181,40 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   const { user } = await get_session(request);
   const to = safe_redirect(search(request).redirect, null);
   if (user) return redirect(to || href("/marketplace"));
-  return to || "/";
+  return to || href("/marketplace");
 };
 
 export const meta: Route.MetaFunction = () =>
   metas({ title: "Login - Better Giving" });
 
+interface IOAuthError {
+  /** better-auth's `error` code on a failed google sign-in */
+  code: string;
+  to: string;
+}
+
+function OAuthError({ code, to }: IOAuthError) {
+  if (code !== "account_not_linked") {
+    return <>Google sign-in didn't finish. Please try again.</>;
+  }
+  // signup with an address that already has an unconfirmed row mails a link
+  return (
+    <>
+      An account with this email hasn't been confirmed yet.{" "}
+      <Link to={signup_url(to)} className="font-medium underline">
+        Get a fresh sign-in link
+      </Link>{" "}
+      by signing up with the same email.
+    </>
+  );
+}
+
 export { ErrorBoundary } from "#/components/error";
 export default function Page({ loaderData: to }: Route.ComponentProps) {
   const nav = useNavigation();
+  const [params] = useSearchParams();
+  const oauth_error = params.get("error");
+  const form_action = retry_form_action(params);
 
   const {
     handleSubmit,
@@ -198,7 +236,20 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <p className="text-center max-sm:text-sm mt-2">
           Log in to support great causes or register and manage your nonprofit.
         </p>
-        <RmxForm disabled={is_submitting} method="POST" className="contents">
+        {oauth_error && (
+          <p
+            role="alert"
+            className="mt-4 rounded bg-destructive-subtle text-destructive-subtle-fg px-4 py-3 max-sm:text-sm"
+          >
+            <OAuthError code={oauth_error} to={to} />
+          </p>
+        )}
+        <RmxForm
+          disabled={is_submitting}
+          method="POST"
+          action={form_action}
+          className="contents"
+        >
           <button
             name="intent"
             value="oauth"
@@ -216,6 +267,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           id={form_id}
           onSubmit={handleSubmit}
           method="POST"
+          action={form_action}
           disabled={is_submitting}
           className="grid gap-3"
         >
@@ -249,7 +301,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <span className="flex-center gap-1 max-sm:text-sm mt-8">
           Don't have an account?
           <Link
-            to={`${href("/signup")}?redirect=${encodeURIComponent(to)}`}
+            to={signup_url(to)}
             className="link aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >
