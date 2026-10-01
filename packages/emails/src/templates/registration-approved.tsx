@@ -4,34 +4,45 @@ import { PublicLayout } from "../components/public-layout";
 import { APP_NAME, DAPP_URL, HELP } from "../constants";
 
 export interface IData {
-  org_name: string;
+  /** absent: the mail says "your organization" in its own sentences */
+  org_name?: string;
   registrant_first_name: string;
-  /** absent: the mail goes out without the profile link */
+  /** absent: no profile link; the reader is sent to log in instead */
   endow_id?: string;
 }
 
 function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
   const profile_link = endow_id && `${DAPP_URL}/profile/${endow_id}`;
+  const login_link = `${DAPP_URL}/login`;
 
   return (
     <PublicLayout type="registration">
       <Text>Hi {registrant_first_name},</Text>
       <Text>
         We've got great news for you: the documentation you provided was
-        successfully vetted by our team and approved. {org_name}'s account is
-        now live!
+        successfully vetted by our team and approved.{" "}
+        {org_name
+          ? `${org_name}'s account is now live!`
+          : "Your organization's account is now live!"}
       </Text>
-      {profile_link && (
+      {profile_link ? (
+        <>
+          <Text>
+            You can see {org_name ? `${org_name}'s` : "your organization's"}{" "}
+            profile here: <Link href={profile_link}>{profile_link}</Link> and
+            start receiving donations from visitors.
+          </Text>
+          <Text>
+            Once you've logged in with your email, your profile page is where
+            you can access your account's Admin area and edit your profile.
+          </Text>
+        </>
+      ) : (
         <Text>
-          You can see {org_name}'s profile here:{" "}
-          <Link href={profile_link}>{profile_link}</Link> and start receiving
-          donations from visitors.
+          Log in with your email at <Link href={login_link}>{login_link}</Link>{" "}
+          to access your account's Admin area and edit your profile.
         </Text>
       )}
-      <Text>
-        Once you've logged in with your email, your profile page is where you
-        can access your account's Admin area and edit your profile.
-      </Text>
       <Text>
         NOTE: your details will NOT be visible on the marketplace until you have
         'published' your new page, with a nice banner, words about your
@@ -56,6 +67,8 @@ function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
 export const template = (data: IData) => {
   return {
     node: <Jsx {...data} />,
-    subject: `Good news! ${data.org_name}'s account has been created!`,
+    subject: data.org_name
+      ? `Good news! ${data.org_name}'s account has been created!`
+      : "Good news! Your organization's account has been created!",
   };
 };

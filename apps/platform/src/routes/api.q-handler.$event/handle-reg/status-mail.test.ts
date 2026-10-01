@@ -54,12 +54,44 @@ describe("registration status mails", () => {
     expect(text).toMatch(/\/profile\/42/);
   });
 
+  test("an approval with a blank org name opens each sentence capitalized", async () => {
+    await handle_reg_updated(reg({ status: "03", status_approved_npo_id: 42 }));
+
+    const { subject, text } = await sent();
+    expect(subject).toBe(
+      "Good news! Your organization's account has been created!"
+    );
+    expect(text).toMatch(/approved\. Your organization's account is now live!/);
+    expect(text).toMatch(/You can see your organization's profile here/);
+    // a sentence opening lowercase after terminal punctuation
+    expect(`${subject}\n${text}`).not.toMatch(/[.!?]\s+your organization/);
+  });
+
+  test("an approval with an org name names it", async () => {
+    await handle_reg_updated(
+      reg({
+        status: "03",
+        status_approved_npo_id: 42,
+        o_name: "Rainforest Fund",
+      })
+    );
+
+    const { subject, text } = await sent();
+    expect(subject).toBe(
+      "Good news! Rainforest Fund's account has been created!"
+    );
+    expect(text).toMatch(/Rainforest Fund's account is now live!/);
+    expect(text).toMatch(/You can see Rainforest Fund's profile here/);
+  });
+
   test("an approval with no nonprofit id carries no profile link and is reported", async () => {
     await handle_reg_updated(reg({ status: "03", r_first_name: "Ada" }));
 
     const { text } = await sent();
     expect(text).toMatch(/Hi Ada,/);
     expect(text).not.toMatch(/\/profile\//);
+    expect(text).not.toMatch(/your profile page/);
+    expect(text).toMatch(/Log in with your email at \S+\/login/);
     expect(report_error).toHaveBeenCalledOnce();
   });
 

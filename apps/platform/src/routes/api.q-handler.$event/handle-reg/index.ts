@@ -172,7 +172,7 @@ export async function handle_reg_updated(reg: IReg) {
     }
     const { node, subject } = registration_approved.template({
       registrant_first_name: reg.r_first_name || "there",
-      org_name: reg.o_name || "your organization",
+      org_name: reg.o_name || undefined,
       endow_id: npo_id?.toString(),
     });
 
