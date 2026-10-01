@@ -2,7 +2,7 @@ import { put } from "@vercel/blob";
 import { type ActionFunction, data } from "react-router";
 import { nonEmpty, pipe, safeParse, string } from "valibot";
 import { get_session } from "#/.server/auth";
-import { upload_limits } from "@/constants/upload";
+import { upload_limits, upload_signatures } from "@/constants/upload";
 import { resp, search } from "@/helpers/https";
 import { blob as blob_env } from "$/env";
 
@@ -33,6 +33,23 @@ const type_of = (file: Blob, name: string): string | undefined => {
   )?.[0];
 };
 
+/** an svg root, after whatever prolog xml allows before it: xml declaration,
+ * comments, doctype (with an internal subset) */
+const SVG_ROOT =
+  /^\s*(?:<\?xml[^>]*\?>\s*)?(?:(?:<!--[\s\S]*?-->|<!DOCTYPE[^>[]*(?:\[[\s\S]*?\])?\s*>)\s*)*<svg[\s/>]/;
+
+/** what the bytes are, never what the caller says they are */
+const sniff = async (file: Blob): Promise<string | undefined> => {
+  const head = new Uint8Array(await file.slice(0, 4096).arrayBuffer());
+  const signed = Object.entries(upload_signatures).find(([, sig]) =>
+    sig.every((b, i) => b === null || head[i] === b)
+  );
+  if (signed) return signed[0];
+  // the decoder drops a leading BOM
+  const text = new TextDecoder().decode(head);
+  return SVG_ROOT.test(text) ? "image/svg+xml" : undefined;
+};
+
 export const action: ActionFunction = async ({ request }) => {
   // every surface that uploads is signed in — the img editor, the bank
   // statement field, and the fsa step. nothing else guards this route: it has
@@ -53,10 +70,14 @@ export const action: ActionFunction = async ({ request }) => {
   if (file.size > upload_limits.max_bytes) {
     return resp.status(413, "file too large");
   }
+  if ((await sniff(file)) !== type) {
+    return resp.status(415, "file content does not match its type");
+  }
 
   const blob = await put(`${PREFIX}${name}`, file, {
     access: "public",
-    // otherwise put derives it from the name's extension, not the checked type
+    // otherwise put derives it from the name's extension; `type` is what the
+    // bytes were checked to be
     contentType: type,
     // the two together are what stop one upload from overwriting another's —
     // the caller's filename is not unique and is not ours to trust
