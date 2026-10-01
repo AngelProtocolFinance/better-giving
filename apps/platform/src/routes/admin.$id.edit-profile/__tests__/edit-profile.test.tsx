@@ -1229,7 +1229,7 @@ describe("edit profile — fundraising goal, sent", () => {
 });
 
 describe("edit profile — every caption names something", () => {
-  it("names the active-countries control", async () => {
+  it("names the active-countries and designation controls", async () => {
     const npo = await seed_npo();
     const screen = await render_edit(npo.id);
 
@@ -1240,6 +1240,11 @@ describe("edit profile — every caption names something", () => {
     await expect
       .element(screen.getByRole("combobox", { name: "Active countries" }))
       .toBeVisible();
+    await expect
+      .element(
+        screen.getByRole("combobox", { name: "Organization Designation" })
+      )
+      .toBeVisible();
   });
 
   it("has no <label> pointing at a control that does not exist", async () => {
@@ -1248,19 +1253,13 @@ describe("edit profile — every caption names something", () => {
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
-    // ark's `Select.Label` points `htmlFor` at the `HiddenSelect` that
-    // `packages/ui/src/components/select/select.tsx` never renders. a shared
-    // component's gap, not one of this form's captions.
-    const known_gap = "Organization Designation";
-
     // `.control` resolves both spellings — htmlFor and nesting — so a null is
     // a caption wearing a <label> element and naming nothing
     const orphaned = [
       ...document.querySelectorAll<HTMLLabelElement>("form label"),
     ]
       .filter((l) => l.control == null)
-      .map((l) => l.textContent?.trim())
-      .filter((text) => text !== known_gap);
+      .map((l) => l.textContent?.trim());
 
     expect(orphaned).toEqual([]);
   });

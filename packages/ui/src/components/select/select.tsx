@@ -70,12 +70,25 @@ export function Select<T extends string>({
       unmountOnExit
       className={cls.container}
     >
-      <ArkSelect.Label
-        data-required={props.required}
-        className={`label empty:hidden w-fit mb-2 ${cls.label}`}
-      >
-        {props.label}
-      </ArkSelect.Label>
+      {/* a caption, not ark's `Select.Label`: that is a `<label for>` aimed at
+          the `HiddenSelect`, which stays unrendered because a native
+          `<select required>` swallows the submit (see internal/field-frame).
+          the trigger is named by this id through zag's `aria-labelledby`, and
+          the label props' click handler still focuses it. */}
+      <ArkSelect.Context>
+        {(api) => {
+          const { htmlFor: _, ...label } = api.getLabelProps();
+          return (
+            <span
+              {...label}
+              data-required={props.required}
+              className={`label empty:hidden w-fit mb-2 ${cls.label}`}
+            >
+              {props.label}
+            </span>
+          );
+        }}
+      </ArkSelect.Context>
       <ArkSelect.Control>
         <ArkSelect.Trigger
           ref={btn_ref}

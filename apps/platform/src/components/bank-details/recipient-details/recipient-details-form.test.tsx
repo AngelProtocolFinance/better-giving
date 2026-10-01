@@ -382,8 +382,11 @@ describe("RecipientDetailsForm", () => {
     const cell = (trigger.element() as HTMLElement).closest(
       '[data-scope="select"][data-part="root"]'
     )?.parentElement;
-    // hidden ones too: an empty label is hidden and still names the trigger
-    const labels = [...(cell?.querySelectorAll("label") ?? [])];
+    // hidden ones too: an empty label is hidden and still names the trigger.
+    // the select's caption is a `[data-part="label"]` span, not a <label>
+    const labels = [
+      ...(cell?.querySelectorAll('label, [data-part="label"]') ?? []),
+    ];
     expect(labels.map((l) => l.textContent)).toEqual(["Account type"]);
 
     await trigger.click();
