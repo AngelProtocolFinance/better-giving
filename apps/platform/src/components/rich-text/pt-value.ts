@@ -47,8 +47,9 @@ export function pt_value<T>(value: T[], components: PortableTextComponents) {
             : ch
         )
       : node.children;
+    // a non-string listItem already renders as a plain block
     const list_ok =
-      node.listItem === undefined ||
+      typeof node.listItem !== "string" ||
       (owns(c.list, node.listItem) && owns(c.listItem, node.listItem));
     return {
       ...node,

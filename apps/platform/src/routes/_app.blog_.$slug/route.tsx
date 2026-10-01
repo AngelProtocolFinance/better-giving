@@ -2,13 +2,14 @@ import { PortableText, type PortableTextComponents } from "@portabletext/react";
 import { POST_QUERY } from "blog-types";
 import { ChevronLeft } from "lucide-react";
 import { href, Link } from "react-router";
+import { post_path } from "#/api/get/posts";
 import { sanity, urlFor } from "#/api/sanity";
+import { pt_value } from "#/components/rich-text/pt-value";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
 import { is_safe_href } from "@/helpers/safe-href";
 import type { Route } from "./+types/route";
 import { PostCta } from "./post-cta";
-import { pt_value } from "./pt-value";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 
@@ -24,7 +25,8 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   if (!d) return [];
-  const post_url = `${base_url}/blog/${d.slug.current}`;
+  // the loader matched this slug from a url, so it encodes
+  const post_url = `${base_url}${post_path(d.slug.current)!}`;
   const image_url = urlFor(d.image)?.width(1200).height(630).url();
 
   const blog_posting: Record<string, unknown> = {

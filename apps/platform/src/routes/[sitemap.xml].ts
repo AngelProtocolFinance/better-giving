@@ -1,4 +1,5 @@
 import type { LoaderFunction } from "react-router";
+import { post_path } from "#/api/get/posts";
 import { sanity } from "#/api/sanity";
 
 interface SitemapUrl {
@@ -74,17 +75,21 @@ export const loader: LoaderFunction = async ({ request }) => {
     )
     .join("\n");
 
-  // slugs are studio free text; the encoded segment is the url the blog card
-  // links to, and encodeURIComponent leaves no `&`/`<`/`>` to break the xml.
+  // post_path's encoded segment leaves no `&`/`<`/`>` to break the xml
   const postEntries = posts
-    .map(
-      (p) => `  <url>
-    <loc>${base_url}/blog/${encodeURIComponent(p.slug)}</loc>
+    .flatMap((p) => {
+      const path = post_path(p.slug);
+      if (!path) {
+        console.error("sitemap: skipped a post slug no url can carry", p.slug);
+        return [];
+      }
+      return `  <url>
+    <loc>${base_url}${path}</loc>
     <lastmod>${p._updatedAt}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
-  </url>`
-    )
+  </url>`;
+    })
     .join("\n");
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
