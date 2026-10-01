@@ -9,6 +9,7 @@ import { RouteModal } from "#/components/route-modal";
 import { $req } from "@/schemas";
 import type { Route } from "./+types/route";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 function Content({ recipient_name }: { recipient_name: string }) {

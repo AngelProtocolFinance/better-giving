@@ -8,6 +8,7 @@ import { SettleForm } from "./form";
 import { Preview } from "./preview";
 import type { IFormValues } from "./types";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 type Step = "form" | "preview" | "done";

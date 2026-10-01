@@ -6,6 +6,7 @@ import { RouteModal } from "#/components/route-modal";
 import type { Route } from "./+types/route";
 import type { VoidReason } from "./api";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 const reasons = [

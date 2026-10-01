@@ -12,6 +12,7 @@ import type {
   StripeRefundStatus,
 } from "./api";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 export default function Page({ loaderData }: Route.ComponentProps) {
