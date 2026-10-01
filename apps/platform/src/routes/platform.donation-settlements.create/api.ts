@@ -5,6 +5,7 @@ import type { IMsg } from "@/queue/types";
 import type { IInput, IParts } from "@/types/donation-dist";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
+import { is_unique_violation } from "$/pg/errors";
 import { donation_get, donation_put } from "$/pg/queries/donation";
 import { claim_match_arrival, match_event_get } from "$/pg/queries/match";
 import { nav_ltd } from "$/pg/queries/nav";
@@ -62,6 +63,12 @@ const schema = v.object({
    * cheque that names nothing is still money that has to be recorded.
    */
   for_donation_id: v.optional(v.string(), ""),
+  /**
+   * minted by the client when the preview opens, so a confirm whose response
+   * was lost replays under the same key. the settlement's ids derive from it,
+   * and the donation's primary key refuses the second write.
+   */
+  idempotency_key: v.pipe(v.string(), v.uuid()),
 });
 
 /**
@@ -391,8 +398,8 @@ export const action = async ({ request }: Route.ActionArgs) => {
   const from_name = gift
     ? gift.from_company_name || parsed.reference
     : parsed.donor_name;
-  const parent_id = crypto.randomUUID();
-  const sttl_id = `${parsed.from}-${crypto.randomUUID()}`;
+  const parent_id = parsed.idempotency_key;
+  const sttl_id = `${parsed.from}-${parsed.idempotency_key}`;
 
   const parent_don = build_parent(
     parent_id,
@@ -477,6 +484,14 @@ export const action = async ({ request }: Route.ActionArgs) => {
       return { matched: row, msgs };
     }));
   } catch (err) {
+    // the employer's row is the transaction's first write and is keyed by the
+    // idempotency key, so a replay fails there and rolls back before any credit
+    if (is_unique_violation(err, "donations_pkey")) {
+      return {
+        ok: false as const,
+        error: "This settlement was already recorded",
+      };
+    }
     if (!(err instanceof MatchRefusedError)) throw err;
     // the claim gates on two things and says which by way of the row it left
     // behind — a null return can only come from a row that already existed,

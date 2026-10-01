@@ -254,6 +254,8 @@ type Fields = {
   net?: string;
   reference?: string;
   for_donation_id?: string;
+  /** the confirm's idempotency key; a fresh one per call unless named */
+  key?: string;
 };
 
 function settle(f: Fields) {
@@ -267,6 +269,7 @@ function settle(f: Fields) {
     ...(f.donor_name !== undefined ? { donor_name: f.donor_name } : {}),
     ...(f.donor_email !== undefined ? { donor_email: f.donor_email } : {}),
     ...(f.for_donation_id ? { for_donation_id: f.for_donation_id } : {}),
+    idempotency_key: f.key ?? crypto.randomUUID(),
   });
   const url = "http://localhost/platform/donation-settlements/create";
   return action({
@@ -890,5 +893,72 @@ describe("settlement create — the paths that came before", () => {
 
     expect(res.ok).toBe(false);
     expect((res as { error: string }).error).toMatch(/^net: /);
+  });
+});
+
+describe("settlement create — a confirm sent twice", () => {
+  const sttl_rows = () =>
+    test_db.current!.db.select().from(donation_settlements);
+
+  test.each([
+    ["cheque", {}],
+    ["daf", {}],
+    ["match", { for_donation_id: "" }],
+  ] as const)(
+    "a %s replayed under the same key settles once, and says it already did",
+    async (from, extra) => {
+      const key = crypto.randomUUID();
+      const first = await settle({ from, key, ...extra });
+      expect(first).toEqual({ ok: true });
+      const bal_after_first = await bal_tx_rows();
+      vi.clearAllMocks();
+
+      const replay = await settle({ from, key, ...extra });
+
+      expect(replay).toEqual({
+        ok: false,
+        error: "This settlement was already recorded",
+      });
+      expect(await dons()).toHaveLength(1);
+      expect(await sttl_rows()).toHaveLength(1);
+      expect(await bal_tx_rows()).toEqual(bal_after_first);
+      expect(enqueue).not.toHaveBeenCalled();
+      expect(send_email).not.toHaveBeenCalled();
+    }
+  );
+
+  test("a matched gift replayed under the same key mails the donor once", async () => {
+    const gift = await seed_gift();
+    const key = crypto.randomUUID();
+    expect(await settle({ from: "match", for_donation_id: gift, key })).toEqual(
+      { ok: true }
+    );
+    vi.clearAllMocks();
+
+    const replay = await settle({ from: "match", for_donation_id: gift, key });
+
+    expect(replay).toEqual({
+      ok: false,
+      error: "This settlement was already recorded",
+    });
+    expect(send_email).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(await sttl_rows()).toHaveLength(1);
+  });
+
+  test("two different keys are two settlements", async () => {
+    expect(await settle({ key: crypto.randomUUID() })).toEqual({ ok: true });
+    expect(await settle({ key: crypto.randomUUID() })).toEqual({ ok: true });
+
+    expect(await dons()).toHaveLength(2);
+    expect(await sttl_rows()).toHaveLength(2);
+  });
+
+  test("a key that is not a uuid is refused, and named", async () => {
+    const res = await settle({ key: "not-a-uuid" });
+
+    expect(res.ok).toBe(false);
+    expect(!res.ok && res.error).toMatch(/^idempotency_key: /);
+    expect(await dons()).toHaveLength(0);
   });
 });

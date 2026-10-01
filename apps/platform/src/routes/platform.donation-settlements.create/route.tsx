@@ -41,6 +41,9 @@ function Content({ on_close }: { on_close: () => void }) {
   const awaiting_preview = useRef(false);
   const [step, set_step] = useState<Step>("form");
   const [form, set_form] = useState<IFormValues>(defaults);
+  // one per opened preview: every confirm of it, retries included, is the same
+  // settlement to the server. a fresh preview is a fresh settlement.
+  const [idempotency_key, set_idempotency_key] = useState("");
 
   const submitting = submit_fetcher.state !== "idle";
   const loading_preview = preview_fetcher.state !== "idle";
@@ -56,7 +59,9 @@ function Content({ on_close }: { on_close: () => void }) {
     if (!awaiting_preview.current || preview_fetcher.state !== "idle") return;
     if (!preview_fetcher.data) return;
     awaiting_preview.current = false;
-    if (preview_fetcher.data.preview) set_step("preview");
+    if (!preview_fetcher.data.preview) return;
+    set_idempotency_key(crypto.randomUUID());
+    set_step("preview");
   }, [preview_fetcher.data, preview_fetcher.state]);
 
   // a match that names a gift takes its recipient from that gift, so the
@@ -119,6 +124,7 @@ function Content({ on_close }: { on_close: () => void }) {
               net: form.net,
               reference: form.reference,
               for_donation_id: form.for_donation_id,
+              idempotency_key,
             },
             { method: "post" }
           )
