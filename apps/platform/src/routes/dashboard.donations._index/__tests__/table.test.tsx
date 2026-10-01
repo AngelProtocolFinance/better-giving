@@ -58,3 +58,28 @@ describe("my donations — the row's receipt control", () => {
     }
   );
 });
+
+describe("my donations — stripe bank verification link", () => {
+  const bank_row = (status: IRow["status"]) =>
+    row({
+      status,
+      via_id: "stripe:us_bank_account",
+      via_extra: "https://verify.example/x",
+    });
+
+  test("an intent bank row links to its microdeposit verification", async () => {
+    const screen = await render_table([bank_row("intent")]);
+    await expect
+      .element(screen.getByRole("link", { name: "Verify Bank" }))
+      .toHaveAttribute("href", "https://verify.example/x");
+  });
+
+  test.each(["failed", "cancelled", "expired", "confirmed"] as const)(
+    "a %s bank row keeps its old link in via_extra but offers no verification",
+    async (status) => {
+      const screen = await render_table([bank_row(status)]);
+      await expect.element(screen.getByText("Test NPO")).toBeVisible();
+      expect(screen.getByText("Verify Bank").query()).toBeNull();
+    }
+  );
+});

@@ -192,8 +192,13 @@ function RowAction({ row }: { row: IRow }) {
     return <PaymentResumer payment_id={row.via_extra} />;
   }
 
-  // stripe bank verification
-  if (row.via_id.startsWith("stripe") && row.via_extra) {
+  // stripe bank verification: the requires-action webhook writes the link with
+  // status intent and never clears it, so a later status leaves it stale
+  if (
+    row.status === "intent" &&
+    row.via_id.startsWith("stripe") &&
+    row.via_extra
+  ) {
     return (
       <ExtLink href={row.via_extra} className="text-xs link font-semibold">
         Verify Bank
