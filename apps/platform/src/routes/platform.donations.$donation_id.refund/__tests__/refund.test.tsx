@@ -241,6 +241,18 @@ describe("refund modal", () => {
     );
   });
 
+  it("moves focus to the outcome heading once the refund is processed", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const screen = await open_and_confirm(id);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Refund processed" }))
+      .toHaveFocus();
+  });
+
   it.each(["failed", "canceled"])(
     "reverses nothing when stripe returns the refund %s",
     async (status) => {

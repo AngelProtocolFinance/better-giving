@@ -1,5 +1,6 @@
 import { Actions, EmptyState } from "@better-giving/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
@@ -42,14 +43,10 @@ function Content({
 
   if (fetcher.data?.ok === true) {
     return (
-      <div className="p-6 sm:p-8 text-center">
-        <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
-        <h3 className="text-lg font-bold mb-1">Refund processed</h3>
-        <RefundOutcome status={fetcher.data.stripe_refund} />
-        <button type="button" onClick={on_close} className="btn btn-primary">
-          Close
-        </button>
-      </div>
+      <RefundProcessed
+        status={fetcher.data.stripe_refund}
+        on_close={on_close}
+      />
     );
   }
 
@@ -170,6 +167,29 @@ function failure_lead({ refund, reversed }: IIncompleteRefund): string {
 
 interface IRefundOutcome {
   status: StripeRefundStatus;
+}
+
+interface IRefundProcessed extends IRefundOutcome {
+  on_close: () => void;
+}
+
+function RefundProcessed({ status, on_close }: IRefundProcessed) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  // the panel replaces the confirm button, which takes focus with it
+  useEffect(() => heading.current?.focus(), []);
+
+  return (
+    <div className="p-6 sm:p-8 text-center">
+      <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
+      <h3 ref={heading} tabIndex={-1} className="text-lg font-bold mb-1">
+        Refund processed
+      </h3>
+      <RefundOutcome status={status} />
+      <button type="button" onClick={on_close} className="btn btn-primary">
+        Close
+      </button>
+    </div>
+  );
 }
 
 function RefundOutcome({ status }: IRefundOutcome) {
