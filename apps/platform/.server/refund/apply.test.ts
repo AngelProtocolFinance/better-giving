@@ -10,6 +10,7 @@ import {
 import type { DbOrTx } from "../pg/queries/helpers";
 import { npos } from "../pg/schema/npo";
 import { payouts, settlements } from "../pg/schema/payout";
+import { referrer_commissions } from "../pg/schema/referrer";
 import { create_test_db, type TestDb } from "../pg/test-utils/pglite";
 import { apply_refund_plan, StalePayoutError } from "./apply";
 import { calc_refund_plan, type RefundPlan } from "./plan";
@@ -34,6 +35,7 @@ beforeEach(async () => {
   const db = test_db.db;
   await db.delete(payouts);
   await db.delete(settlements);
+  await db.delete(referrer_commissions);
   await db.delete(npos);
 });
 
@@ -180,5 +182,77 @@ describe("apply_refund_plan lock order", () => {
 
     expect(await npo_cash(npo_id)).toBe(0);
     expect(await payout_type()).toBe("refunded");
+  });
+});
+
+describe("apply_refund_plan commission_status", () => {
+  async function seed_commission(status: "pending" | "processing") {
+    const [npo] = await test_db.db
+      .insert(npos)
+      .values({
+        registration_number: "EIN-COMM",
+        name: "Commission NPO",
+        endow_designation: "Charity",
+        overview_pt: "[]",
+        hq_country: "United States",
+        referral_id: "NPO-REF",
+      })
+      .returning();
+    await test_db.db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-09-01T00:00:00.000Z",
+      donation_id: "dist-1",
+      npo_id: npo!.id,
+      amount: 5,
+      status,
+      ref: status === "processing" ? "ref-1" : null,
+    });
+  }
+
+  const plan_reversing_commission = (): RefundPlan => ({
+    is_loss: false,
+    loss_reasons: [],
+    amount: 100,
+    effects: [
+      { kind: "commission_status", donation_id: "dist-1", status: "refunded" },
+    ],
+    preview: { effects: [], blockers: [], warnings: [] },
+  });
+
+  async function commission_status() {
+    const [row] = await test_db.db
+      .select({ status: referrer_commissions.status })
+      .from(referrer_commissions)
+      .where(eq(referrer_commissions.donation_id, "dist-1"));
+    return row?.status;
+  }
+
+  test("a pending commission is marked refunded", async () => {
+    await seed_commission("pending");
+
+    const res = await apply_refund_plan(
+      as_db(test_db.db),
+      plan_reversing_commission()
+    );
+
+    expect(await commission_status()).toBe("refunded");
+    expect(res.commission_in_flight).toBeUndefined();
+  });
+
+  // its wise transfer may already be paying the referrer
+  test("a processing commission is marked refunded_loss and reported", async () => {
+    await seed_commission("processing");
+
+    const res = await apply_refund_plan(
+      as_db(test_db.db),
+      plan_reversing_commission()
+    );
+
+    expect(await commission_status()).toBe("refunded_loss");
+    expect(res.commission_in_flight).toEqual({
+      donation_id: "dist-1",
+      amount: 5,
+      ref: "ref-1",
+    });
   });
 });

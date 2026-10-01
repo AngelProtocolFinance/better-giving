@@ -246,7 +246,7 @@ describe("calc_refund_plan", () => {
         payout: { id: "po-1", type: "pending" },
         bal: { liq: 100, lock_units: 100, cash: 0 },
         nav: { price: 1 },
-        commission: { donation_id: "don-1", amount: 5 },
+        commission: { donation_id: "don-1", amount: 5, status: "pending" },
         rev_log_ids: ["rl-1", "rl-2"],
       }),
       make_ctx({ form_id: "form-1", program_id: "prog-1" })
@@ -271,7 +271,7 @@ describe("calc_refund_plan", () => {
     const plan_ok = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5 },
+        commission: { donation_id: "don-1", amount: 5, status: "pending" },
       }),
       make_ctx()
     );
@@ -283,7 +283,7 @@ describe("calc_refund_plan", () => {
     const plan_loss = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "settled" },
-        commission: { donation_id: "don-1", amount: 5 },
+        commission: { donation_id: "don-1", amount: 5, status: "pending" },
       }),
       make_ctx()
     );
@@ -293,6 +293,27 @@ describe("calc_refund_plan", () => {
     expect(c_loss && c_loss.kind === "commission_status" && c_loss.status).toBe(
       "refunded_loss"
     );
+  });
+
+  // apply decides the loss under the row lock; the preview only says it's likely
+  test("a commission claimed for a payout previews as a loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "processing" },
+      }),
+      make_ctx()
+    );
+    expect(plan.preview.warnings).toContainEqual({
+      label: "Commission",
+      pass: false,
+      reason:
+        "$5.00 is in a payout to its referrer, will be reversed as a loss",
+    });
+    expect(plan.preview.effects.map((l) => l.label)).not.toContain(
+      "Commission"
+    );
+    expect(plan.is_loss).toBe(false);
   });
 
   test("sub_id adds Subscription preview line", () => {

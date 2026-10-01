@@ -99,6 +99,7 @@ export async function reverse_unfunded_payout_loss(
       .select({
         donation_id: referrer_commissions.donation_id,
         amount: referrer_commissions.amount,
+        status: referrer_commissions.status,
       })
       .from(referrer_commissions)
       .where(eq(referrer_commissions.donation_id, dist.id)),

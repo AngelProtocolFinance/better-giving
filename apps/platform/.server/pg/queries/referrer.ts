@@ -110,6 +110,29 @@ export async function commission_update_status(
     .where(eq(referrer_commissions.donation_id, donation_id));
 }
 
+/**
+ * reverses a refunded donation's commission, read under its row lock: one a
+ * Wise transfer has claimed may already be paying out, so it becomes
+ * `refunded_loss` whatever `status` asked. returns the row as it was.
+ */
+export async function commission_refund(
+  tx: DbOrTx,
+  donation_id: string,
+  status: "refunded" | "refunded_loss"
+): Promise<ICommission | undefined> {
+  const [cur] = await tx
+    .select()
+    .from(referrer_commissions)
+    .where(eq(referrer_commissions.donation_id, donation_id))
+    .for("update");
+  if (!cur) return undefined;
+  await tx
+    .update(referrer_commissions)
+    .set({ status: cur.status === "processing" ? "refunded_loss" : status })
+    .where(eq(referrer_commissions.donation_id, donation_id));
+  return to_commission(cur);
+}
+
 // --- wise payout claim ---
 
 type CommissionRow = typeof referrer_commissions.$inferSelect;
