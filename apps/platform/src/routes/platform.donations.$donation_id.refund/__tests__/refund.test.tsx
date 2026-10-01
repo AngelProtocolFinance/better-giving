@@ -42,6 +42,7 @@ vi.mock("#/.server/toast", () => ({
 const refunds_create = vi.hoisted(() => vi.fn());
 const refunds_list = vi.hoisted(() => vi.fn());
 const refunds_retrieve = vi.hoisted(() => vi.fn());
+const intents_retrieve = vi.hoisted(() => vi.fn());
 const invoice_payments_list = vi.hoisted(() =>
   vi.fn(async (_p: unknown): Promise<{ data: unknown[] }> => ({ data: [] }))
 );
@@ -52,6 +53,7 @@ vi.mock("$/kit/stripe", () => ({
       list: refunds_list,
       retrieve: refunds_retrieve,
     },
+    paymentIntents: { retrieve: intents_retrieve },
     invoicePayments: { list: invoice_payments_list },
   },
 }));
@@ -119,6 +121,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   refunds_list.mockResolvedValue({ data: [] });
+  intents_retrieve.mockResolvedValue({ amount_received: 10000 });
   // unless a test says otherwise, the refund stands as stripe created it
   refunds_retrieve.mockImplementation(async (id: string) => ({
     ...refunds_create.mock.settledResults.at(-1)?.value,
@@ -270,6 +273,40 @@ describe("refund modal", () => {
       expect(process_refund).not.toHaveBeenCalled();
     }
   );
+
+  it("says a retry is fine now when only the refund lookup before creating failed", async () => {
+    refunds_list.mockRejectedValue(
+      new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
+    );
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const screen = await open_and_confirm(id);
+
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toMatchTextContent(
+        /this attempt made no refund because looking up earlier refunds failed/i
+      );
+    await expect.element(alert).toMatchTextContent(/retrying now is safe/i);
+    expect(alert.element().textContent).not.toMatch(/24 hours/);
+    expect(refunds_create).not.toHaveBeenCalled();
+  });
+
+  it("says a retry within 24 hours gets the same answer when the refund create was unconfirmed", async () => {
+    refunds_create.mockRejectedValue(
+      new Stripe.errors.StripeConnectionError({ message: "socket hang up" })
+    );
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const screen = await open_and_confirm(id);
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toMatchTextContent(/a retry within 24 hours gets the same answer back/i);
+  });
 
   it("reverses nothing when a replayed refund has since failed", async () => {
     // a replay hands back the first response, not the refund as it stands
@@ -454,6 +491,34 @@ describe("refund api", () => {
     expect(first).toMatchObject({ ok: false, refund: "not_issued" });
     expect(by_key.size).toBe(2);
     expect(retry).toMatchObject({ ok: true, stripe_refund: "succeeded" });
+  });
+
+  it("sends no after-partial notices for a replacement refund after a failed one", async () => {
+    const failed = {
+      id: "re_failed",
+      status: "failed",
+      amount: 10000,
+      currency: "usd",
+      created: 1_700_000_000,
+    };
+    const ours = {
+      ...failed,
+      id: "re_full",
+      status: "succeeded",
+      created: 1_700_000_060,
+    };
+    refunds_create.mockResolvedValue(ours);
+    refunds_list.mockResolvedValue({ data: [ours, failed] });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({ ok: true, stripe_refund: "succeeded" });
+    const notices = enqueue.mock.calls
+      .flat()
+      .filter((m) => m.id === "fiat-notice");
+    expect(notices).toHaveLength(0);
   });
 
   it("sends one idempotency key for two submits racing before any failure", async () => {

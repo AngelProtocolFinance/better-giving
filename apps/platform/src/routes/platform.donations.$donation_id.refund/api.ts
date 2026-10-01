@@ -6,7 +6,9 @@ import { stripe } from "$/kit/stripe";
 import { type DistRefundGraph, dists_for_refund } from "$/pg/queries/dist";
 import { donation_get, donation_settlement_get } from "$/pg/queries/donation";
 import {
+  earlier_partials,
   type FullRefund,
+  is_failed_or_canceled,
   reverse_after_partials,
 } from "$/refund/after-partials";
 import type { PreviewLine, RefundPreview } from "$/refund/plan";
@@ -151,20 +153,23 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   } satisfies LoaderData;
 };
 
+/** the idempotency key for refunding `payment_intent` now. one key per failed
+ * attempt: submits racing before any failure share it, so the donor is
+ * refunded once, and a retry after a refund stripe failed or canceled gets a
+ * new one instead of a replay of the failure */
+async function refund_key(payment_intent: string, donation_id: string) {
+  const { data } = await stripe.refunds.list({ payment_intent, limit: 100 });
+  const failed = data.filter(is_failed_or_canceled).length;
+  return `refund_${donation_id}_${failed}`;
+}
+
 /** the charge's refund for the rest of it: this attempt's, or one a retry past
  * stripe's idempotency window finds already made */
-async function issue_refund(payment_intent: string, donation_id: string) {
+async function issue_refund(payment_intent: string, idempotencyKey: string) {
   try {
-    // one key per failed attempt: submits racing before any failure share it,
-    // so the donor is refunded once, and a retry after a refund stripe failed
-    // or canceled gets a new one instead of a replay of the failure
-    const { data } = await stripe.refunds.list({ payment_intent, limit: 100 });
-    const failed = data.filter(
-      (r) => r.status === "failed" || r.status === "canceled"
-    ).length;
     const created = await stripe.refunds.create(
       { payment_intent },
-      { idempotencyKey: `refund_${donation_id}_${failed}` }
+      { idempotencyKey }
     );
     // a replay inside the idempotency window answers with the first response,
     // not the refund as it stands now
@@ -183,10 +188,15 @@ async function issue_refund(payment_intent: string, donation_id: string) {
   }
 }
 
-/** the charge's refunds besides `completing_id`, newest first */
-async function earlier_refunds(payment_intent: string, completing_id: string) {
-  const { data } = await stripe.refunds.list({ payment_intent, limit: 100 });
-  return data.filter((r) => r.id !== completing_id);
+async function earlier_refunds(
+  payment_intent: string,
+  completing: Stripe.Refund
+) {
+  const [{ data }, intent] = await Promise.all([
+    stripe.refunds.list({ payment_intent, limit: 100 }),
+    stripe.paymentIntents.retrieve(payment_intent),
+  ]);
+  return earlier_partials(data, completing, intent.amount_received);
 }
 
 const ALERT_FROM = "refund-action";
@@ -208,7 +218,8 @@ const incomplete = (
   refund: RefundState,
   failures: string[],
   reversed: number | null,
-  toast: string
+  toast: string,
+  create_sent = true
 ) =>
   dataWithError(
     {
@@ -217,6 +228,8 @@ const incomplete = (
       refund_issued: refund === "issued" || refund === "requires_action",
       refund,
       reversed,
+      /** false when the attempt stopped before asking stripe for the refund */
+      create_sent,
     },
     toast
   );
@@ -237,7 +250,7 @@ async function finish_refund(
     seen_at: `payment ${intent_id}, admin refund ${r.id}`,
     currency: r.currency,
     completing: r,
-    earlier: await earlier_refunds(intent_id, r.id),
+    earlier: await earlier_refunds(intent_id, r),
     alert_from: ALERT_FROM,
     dist_count: graphs.length,
   };
@@ -270,9 +283,24 @@ export const action = async ({ params }: Route.ActionArgs) => {
 
   // the donor's refund goes first: records reversed ahead of a refund that
   // then fails would say refunded with nothing to take it back
+  let key: string;
+  try {
+    key = await refund_key(intent_id, donation_id);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return incomplete(
+      outcome_unknown(err) ? "unknown" : "not_issued",
+      [
+        `Stripe refund not issued, looking up earlier refunds failed: ${reason}`,
+      ],
+      0,
+      "Refund not issued",
+      false
+    );
+  }
   let r: Stripe.Refund;
   try {
-    r = await issue_refund(intent_id, donation_id);
+    r = await issue_refund(intent_id, key);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     if (outcome_unknown(err)) {
@@ -290,7 +318,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
       "Refund not issued"
     );
   }
-  if (r.status === "failed" || r.status === "canceled") {
+  if (is_failed_or_canceled(r)) {
     const failure = `Stripe refund ${r.id} is ${r.status}: nothing was reversed`;
     return incomplete("not_issued", [failure], 0, "Refund not issued");
   }

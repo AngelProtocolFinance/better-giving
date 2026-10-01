@@ -6,7 +6,10 @@ import { fiat_monitor } from "$/kit/discord";
 import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { dists_for_refund } from "$/pg/queries/dist";
-import { reverse_after_partials } from "$/refund/after-partials";
+import {
+  earlier_partials,
+  reverse_after_partials,
+} from "$/refund/after-partials";
 import { process_refund } from "$/refund/process";
 import { cancel_refunded_subscription } from "$/refund/subscription";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
@@ -64,7 +67,7 @@ export async function handle_charge_refunded(
     charge: charge.id,
     limit: 100,
   });
-  const [newest, ...earlier] = refunds;
+  const [newest] = refunds;
   if (!newest) throw new Error(`no refund on charge: ${charge.id}`);
 
   // process_refund reverses every dist in full; a partial reversal isn't
@@ -105,7 +108,7 @@ export async function handle_charge_refunded(
       seen_at: `charge ${charge.id}, event ${event.id}`,
       currency: charge.currency,
       completing: newest,
-      earlier,
+      earlier: earlier_partials(refunds, newest, charge.amount_captured),
       alert_from: ALERT_FROM,
       dist_count: graphs.length,
     },

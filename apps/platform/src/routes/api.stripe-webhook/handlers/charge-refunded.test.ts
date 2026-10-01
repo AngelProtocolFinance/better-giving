@@ -65,6 +65,7 @@ const charge_now = () => {
     payment_intent: "pi_1",
     currency: "usd",
     amount: AMOUNT,
+    amount_captured: AMOUNT,
     amount_refunded,
     refunded: amount_refunded === AMOUNT,
   };
@@ -334,6 +335,44 @@ describe("stripe charge.refunded → donation reversal", () => {
     const [reversed_at] = process_refund_mock.mock.invocationCallOrder;
     expect(starting_at).toBeLessThan(reversed_at);
     expect(done_at).toBeGreaterThan(reversed_at);
+  });
+
+  it("sends no after-partial notices when a full refund replaces one that failed", async () => {
+    refund(AMOUNT);
+    refunds[0].status = "failed"; // the card was closed
+
+    await handle_charge_refunded(refund(AMOUNT));
+
+    expect(don_status).toBe("refunded");
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(queued()).toHaveLength(0);
+  });
+
+  it("still names a failed partial whose notice ops may have acted on when a full refund follows", async () => {
+    await handle_charge_refunded(refund(500));
+    refunds[0].status = "failed"; // the bank refund bounced back
+
+    await handle_charge_refunded(refund(AMOUNT));
+
+    expect(starts()).toHaveLength(1);
+    const [msg] = outcomes();
+    expect(msg.payload.alert.title).toBe(
+      "Reversal Complete: Undo Hand Adjustment"
+    );
+    expect(msg.payload.alert.body).toContain("5.00 USD (re_1, failed)");
+  });
+
+  it("names a real earlier partial but not the failed full refund it was replaced after", async () => {
+    await handle_charge_refunded(refund(500));
+    refund(9_500);
+    refunds[0].status = "failed";
+
+    await handle_charge_refunded(refund(9_500));
+
+    const [msg] = outcomes();
+    expect(msg.payload.alert.body).toMatch(
+      /^earlier partial refunds: 5\.00 USD \(re_1, succeeded\)$/m
+    );
   });
 
   it("fails the delivery when a full refund's reversal leaves dists unreversed", async () => {

@@ -145,13 +145,22 @@ interface IIncompleteRefund {
   refund: RefundState;
   /** dists this attempt reversed; null when it stopped without counting */
   reversed: number | null;
+  /** absent from a server that predates it */
+  create_sent?: boolean;
 }
 
-function failure_lead({ refund, reversed }: IIncompleteRefund): string {
+function failure_lead({
+  refund,
+  reversed,
+  create_sent,
+}: IIncompleteRefund): string {
   switch (refund) {
     case "not_issued":
       return "No Stripe refund was issued and nothing was reversed. Resolve these before retrying:";
     case "unknown":
+      if (create_sent === false) {
+        return "This attempt made no refund because looking up earlier refunds failed, and nothing was reversed. Retrying now is safe:";
+      }
       return "Stripe didn't confirm whether the refund was issued, and nothing was reversed. Check the payment in the Stripe dashboard before retrying: a retry within 24 hours gets the same answer back.";
     case "requires_action":
       return "The Stripe refund needs action before Stripe sends it, so nothing was reversed yet. Retry once Stripe shows it pending or succeeded:";
