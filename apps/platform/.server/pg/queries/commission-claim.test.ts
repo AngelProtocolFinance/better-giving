@@ -16,6 +16,7 @@ import {
   commissions_claim,
   commissions_mark_paid,
   commissions_release,
+  pending_earnings,
 } from "./referrer";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
@@ -24,11 +25,21 @@ const as_db = (x: unknown) => x as DbOrTx;
 
 const REFERRER = "NPO-REF";
 
+// the module-level db the unscoped readers use
+const current = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("../db", () => ({
+  db: new Proxy(
+    {},
+    { get: (_, prop) => (current.db as Record<PropertyKey, unknown>)[prop] }
+  ),
+}));
+
 let test_db: TestDb;
 let npo_id: number;
 
 beforeAll(async () => {
   test_db = await create_test_db();
+  current.db = test_db.db;
 }, 30_000);
 
 afterAll(async () => {
@@ -209,5 +220,17 @@ describe("commissions_mark_paid", () => {
     await commissions_mark_paid(as_db(test_db.db), "ref-1");
 
     expect(await commissions_mark_paid(as_db(test_db.db), "ref-1")).toEqual([]);
+  });
+});
+
+describe("pending_earnings", () => {
+  // a transfer in flight has not paid yet, so the referrer still sees it pending
+  test("counts pending and processing commissions, not paid or refunded", async () => {
+    await seed("don-1", "pending", 10);
+    await seed_claimed("don-2", "ref-1");
+    await seed("don-3", "paid", 100);
+    await seed("don-4", "refunded", 1000);
+
+    expect(await pending_earnings(REFERRER)).toBe(20);
   });
 });

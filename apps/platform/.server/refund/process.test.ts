@@ -661,8 +661,11 @@ describe("process_refund — a commission the commissions cron claims mid-refund
     );
   });
 
-  // its payout's transfer went unfunded, but the commission's transfer is its own
-  test("an unfunded payout's loss reversal leaves an in-flight commission refunded_loss", async () => {
+  /** one cash dist whose payout is in flight, refunded as a loss, then that payout's transfer goes unfunded */
+  async function refund_then_unfund(commission: {
+    status: "pending" | "processing";
+    ref: string | null;
+  }) {
     const { id, npo_id } = await seed({ event: false });
     const db = test_db.current!.db;
     await db
@@ -699,10 +702,10 @@ describe("process_refund — a commission the commissions cron claims mid-refund
       donation_id: "dist-1",
       npo_id,
       amount: 5,
-      status: "processing",
-      ref: "ref-1",
+      ...commission,
     });
     await process_refund(id, await dists_for_refund(id), ctx);
+    const [refunded] = await db.select().from(referrer_commissions);
 
     const reversed = await db.transaction((tx) =>
       reverse_unfunded_payout_loss(as_db(tx), "payout-1")
@@ -712,6 +715,29 @@ describe("process_refund — a commission the commissions cron claims mid-refund
     const [dist] = await db.select().from(dists);
     expect(dist!.refund_status).toBe("completed");
     const [comm] = await db.select().from(referrer_commissions);
-    expect(comm!.status).toBe("refunded_loss");
+    return { after_refund: refunded!.status, after_reversal: comm!.status };
+  }
+
+  // its payout's transfer went unfunded, but the commission's transfer is its own
+  test("an unfunded payout's loss reversal leaves a commission claimed for a transfer refunded_loss", async () => {
+    const res = await refund_then_unfund({
+      status: "processing",
+      ref: "ref-1",
+    });
+
+    expect(res).toEqual({
+      after_refund: "refunded_loss",
+      after_reversal: "refunded_loss",
+    });
+  });
+
+  // its loss came only from the npo's payout, which the reversal undoes
+  test("an unfunded payout's loss reversal returns an unclaimed commission to refunded", async () => {
+    const res = await refund_then_unfund({ status: "pending", ref: null });
+
+    expect(res).toEqual({
+      after_refund: "refunded_loss",
+      after_reversal: "refunded",
+    });
   });
 });

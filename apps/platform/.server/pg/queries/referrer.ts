@@ -23,6 +23,7 @@ export async function commissions_all_by_status(
   return rows as unknown as ICommission[];
 }
 
+/** earned and not yet paid: a commission in a transfer counts until it is */
 export async function pending_earnings(referrer: string): Promise<number> {
   const [row] = await db
     .select({ total: sum(referrer_commissions.amount) })
@@ -33,7 +34,7 @@ export async function pending_earnings(referrer: string): Promise<number> {
           eq(referrer_commissions.referrer_user, referrer),
           eq(referrer_commissions.referrer_npo, referrer)
         ),
-        eq(referrer_commissions.status, "pending")
+        inArray(referrer_commissions.status, ["pending", "processing"])
       )
     );
   return Number(row?.total ?? 0);
@@ -99,22 +100,13 @@ export async function commission_put(db: DbOrTx, data: ICommission) {
   await db.insert(referrer_commissions).values(data);
 }
 
-export async function commission_update_status(
-  db: DbOrTx,
-  donation_id: string,
-  status: TStatus
-) {
-  await db
-    .update(referrer_commissions)
-    .set({ status })
-    .where(eq(referrer_commissions.donation_id, donation_id));
-}
-
 /**
  * reverses a refunded donation's commission, read under its row lock: one a
  * Wise transfer has claimed may already be paying out, so it becomes
- * `refunded_loss` whatever `status` asked, and one already `refunded_loss`
- * stays so — that transfer may have paid it. returns the row as it was.
+ * `refunded_loss` whatever `status` asked, and one that is already
+ * `refunded_loss` with a ref stays so — that transfer may have paid it. one
+ * with no ref took its loss from the npo's side and follows `status`.
+ * returns the row as it was.
  */
 export async function commission_refund(
   tx: DbOrTx,
@@ -127,14 +119,12 @@ export async function commission_refund(
     .where(eq(referrer_commissions.donation_id, donation_id))
     .for("update");
   if (!cur) return undefined;
+  const claimed =
+    cur.status === "processing" ||
+    (cur.status === "refunded_loss" && cur.ref !== null);
   await tx
     .update(referrer_commissions)
-    .set({
-      status:
-        cur.status === "processing" || cur.status === "refunded_loss"
-          ? "refunded_loss"
-          : status,
-    })
+    .set({ status: claimed ? "refunded_loss" : status })
     .where(eq(referrer_commissions.donation_id, donation_id));
   return to_commission(cur);
 }
