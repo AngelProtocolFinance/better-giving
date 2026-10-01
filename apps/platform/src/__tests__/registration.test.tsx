@@ -131,7 +131,7 @@ vi.mock("#/components/bank-details/recipient-details/use-requirements", () => ({
   }),
 }));
 
-// remix-toast's answer is the payload itself — the toast rides a cookie
+// the fetcher reads remix-toast's payload as-is — the toast rides a cookie
 vi.mock("#/.server/toast", () => ({
   dataWithSuccess: vi.fn((data: unknown) => data),
 }));

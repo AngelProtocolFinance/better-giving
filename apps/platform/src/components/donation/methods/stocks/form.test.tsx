@@ -217,7 +217,7 @@ describe("Stocks form: price estimate after a ticker pick", () => {
     await expect
       .element(
         screen.getByText(
-          "Getting a price for this stock — try again in a moment."
+          "Getting a price for this stock. Try again in a moment."
         )
       )
       .toBeVisible();

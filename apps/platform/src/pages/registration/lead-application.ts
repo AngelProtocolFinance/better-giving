@@ -232,6 +232,8 @@ export async function lead_application(request: Request, fd: FormData) {
   }
 
   const to = res.headers.get("location");
+  // `new_application_for` answers a non-redirect Response only by throwing
+  // status — anything else is not ours to interpret.
   if (!to) throw res;
 
   if (signed_in) {

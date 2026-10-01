@@ -37,7 +37,7 @@ async function search_tickers(
 const ESTIMATE_ERROR =
   "Couldn't get a price for this stock. Pick it again or choose another.";
 const ESTIMATE_PENDING =
-  "Getting a price for this stock — try again in a moment.";
+  "Getting a price for this stock. Try again in a moment.";
 
 export function Form(props: TMethodState<"stocks">) {
   const [ticker_state, set_ticker_state] = useState<TTokenState>(undefined);
@@ -180,7 +180,7 @@ export function Form(props: TMethodState<"stocks">) {
         (fv) =>
           // skip donor step
           to_step("stocks", fv, "checkout", don_set),
-        // usdpu is unset until the estimate lands, so the schema rejects every
+        // usdpu is 0 until the estimate lands, so the schema rejects every
         // submit in that window — say why instead of failing silently
         () => {
           if (ticker_state === "loading") set_submitted_while_estimating(true);

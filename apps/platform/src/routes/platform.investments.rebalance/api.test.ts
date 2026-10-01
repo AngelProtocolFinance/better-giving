@@ -64,7 +64,7 @@ describe("rebalance", () => {
 
     const res = await call(TXS);
 
-    expect(res).toEqual({ error: "tickers must have non-negative balance" });
+    expect(res).toEqual({ error: "A ticker's balance would go negative" });
     expect(q.rebalance_log_put).not.toHaveBeenCalled();
     expect(q.nav_log_put).not.toHaveBeenCalled();
   });

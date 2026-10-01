@@ -95,7 +95,7 @@ export const ticker_nets = (bals: IBals, txs: IRebalanceTx[]) => {
 };
 
 /** the one rebalance issue a stale page reaches honestly: balances moved since review */
-export const NEGATIVE_BAL_MSG = "tickers must have non-negative balance";
+export const NEGATIVE_BAL_MSG = "A ticker's balance would go negative";
 
 export const rebalance_log = v.pipe(
   rebalance_log_raw,
