@@ -1,40 +1,38 @@
 import { Button } from "@better-giving/ui";
 import { CircleAlert, X } from "lucide-react";
-import { NavLink, useFetcher, useSearchParams } from "react-router";
+import { NavLink, useFetcher } from "react-router";
 import { RouteModal } from "#/components/route-modal";
-import { search } from "@/helpers/https";
+import type { Route } from "./+types/route";
 
-type Props = {
-  isDefault: boolean;
-  isWithHeir: boolean;
-};
+interface IContent {
+  is_default: boolean;
+  is_guarded: boolean;
+}
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
-export { delete_action as action } from "#/pages/admin/banking/delete-action";
-export default function DeletePrompt() {
-  const [params] = useSearchParams();
-  const { default: d, with_heir } = search(params);
-  const isDefault = d === "true";
-  const isWithHeir = with_heir === "true";
+export {
+  delete_action as action,
+  delete_loader as loader,
+} from "#/pages/admin/banking/delete-action";
+export default function DeletePrompt({ loaderData }: Route.ComponentProps) {
   return (
     <RouteModal classes="grid content-start justify-items-center bg-panel">
-      <Content isDefault={isDefault} isWithHeir={isWithHeir} />
+      <Content {...loaderData} />
     </RouteModal>
   );
 }
 
-function Content({ isDefault, isWithHeir }: Props) {
+function Content({ is_default, is_guarded }: IContent) {
   const fetcher = useFetcher();
   const is_submitting = fetcher.state !== "idle";
-  const [canProceed, message] =
-    isDefault && isWithHeir
-      ? [false, "Kindly set another payout method as default before deleting"]
-      : isDefault
-        ? [
-            true,
-            "Your Nonprofit must have at least one banking connection approved in order to receive payouts. Banking connections that are 'Under Review' do not count towards this and are not eligible to receive payouts until approved. Do you want to proceed with this deletion?",
-          ]
-        : [true, "Are you sure you want to delete this payment method?"];
+  const [canProceed, message] = is_guarded
+    ? [false, "Kindly set another payout method as default before deleting"]
+    : is_default
+      ? [
+          true,
+          "Your Nonprofit must have at least one banking connection approved in order to receive payouts. Banking connections that are 'Under Review' do not count towards this and are not eligible to receive payouts until approved. Do you want to proceed with this deletion?",
+        ]
+      : [true, "Are you sure you want to delete this payment method?"];
 
   return (
     <>
