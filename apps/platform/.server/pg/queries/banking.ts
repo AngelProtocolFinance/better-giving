@@ -1,5 +1,5 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
+import { and, count, desc, eq, exists, inArray, not, sql } from "drizzle-orm";
+import { alias, type PgColumn } from "drizzle-orm/pg-core";
 import type { IBappsOpts } from "@/banking";
 import type { TStatus } from "@/banking/schema";
 import { db } from "../db";
@@ -236,4 +236,60 @@ export async function bapp_delete(id: string, npo_id: number) {
     .where(and(eq(banking_apps.id, id), eq(banking_apps.npo_id, npo_id)))
     .returning({ id: banking_apps.id });
   return deleted.length > 0;
+}
+
+export type BappDeleteResult = "deleted" | "refused" | "not_found";
+
+/**
+ * delete a bapp of `npo_id`, refused while it is the npo's default and the npo
+ * has an approved method that could take its place.
+ *
+ * the guard alone is not enough under read committed: its `exists` reads the
+ * statement snapshot, so an approve still uncommitted when the delete starts is
+ * missed. locking the npo's rows first makes that approve finish before the
+ * delete's fresh snapshot is taken — the approve path updates an existing row,
+ * and no insert writes `approved`. ordered by id like `bapp_set_default`, so
+ * the two queue on each other rather than deadlock.
+ */
+export async function bapp_delete_guarded(
+  id: string,
+  npo_id: number
+): Promise<BappDeleteResult> {
+  const sibling = alias(banking_apps, "sibling");
+  return db.transaction(async (tx) => {
+    const locked = await tx
+      .select({ id: banking_apps.id })
+      .from(banking_apps)
+      .where(eq(banking_apps.npo_id, npo_id))
+      .orderBy(banking_apps.id)
+      .for("update");
+    if (!locked.some((r) => r.id === id)) return "not_found";
+
+    const deleted = await tx
+      .delete(banking_apps)
+      .where(
+        and(
+          eq(banking_apps.id, id),
+          eq(banking_apps.npo_id, npo_id),
+          not(
+            and(
+              eq(banking_apps.status, "default"),
+              exists(
+                tx
+                  .select({ one: sql`1` })
+                  .from(sibling)
+                  .where(
+                    and(
+                      eq(sibling.npo_id, npo_id),
+                      eq(sibling.status, "approved")
+                    )
+                  )
+              )
+            )!
+          )
+        )
+      )
+      .returning({ id: banking_apps.id });
+    return deleted.length > 0 ? "deleted" : "refused";
+  });
 }
