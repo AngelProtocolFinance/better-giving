@@ -68,6 +68,14 @@ const RETURNED_REFUSAL = [
   /\breturn\s+resp\.status\(/,
   // a `new Response(…)` return whose init carries a 4xx/5xx status
   /\breturn\s+new Response\((?:(?!;\s*$)[\s\S])*?status:\s*[45]\d\d\b/m,
+  // `Response.json(…, { status })`. react-router's `data(…, { status })` is
+  // absent on purpose: it is the action-data error pages read off `props.error`
+  /\breturn\s+Response\.json\((?:(?!;\s*$)[\s\S])*?status:\s*[45]\d\d\b/m,
+  // `resp.err` always answers an error; `resp.json`/`resp.txt` take the status
+  // as a bare numeric arg. `resp.fail` is absent on purpose: a tagged json the
+  // client reads off `fetcher.data`
+  /\breturn\s+resp\.err\(/,
+  /\breturn\s+resp\.(?:json|txt)\((?:(?!;\s*$)[\s\S])*?,\s*[45]\d\d\s*[,)]/m,
   // a plain object shaped like one: a 200 nobody reads
   /\breturn\s+\{\s*status:\s*[45]\d\d\b/,
 ];
@@ -93,6 +101,34 @@ describe("page modules throw refusals, never return them", () => {
       returns_refusal(`return { status: 400, statusText: "not member" };`)
     ).toBe(true);
     expect(returns_refusal(`if (!x) throw resp.status(404);`)).toBe(false);
+    expect(
+      returns_refusal(`return Response.json({ a: 1 }, { status: 403 });`)
+    ).toBe(true);
+    expect(
+      returns_refusal(`return Response.json(\n{ a: 1 },\n{ status: 500 }\n);`)
+    ).toBe(true);
+    expect(returns_refusal(`throw Response.json({}, { status: 403 });`)).toBe(
+      false
+    );
+    expect(returns_refusal(`return Response.json({ ok: true });`)).toBe(false);
+    expect(returns_refusal(`return data({ e: 1 }, { status: 422 });`)).toBe(
+      false
+    );
+    expect(returns_refusal(`return data(\n x,\n { status: 400 }\n);`)).toBe(
+      false
+    );
+    expect(returns_refusal(`return data(page);`)).toBe(false);
+    expect(returns_refusal(`return resp.txt("no", 400);`)).toBe(true);
+    expect(returns_refusal(`return resp.txt(\n"no",\n409\n);`)).toBe(true);
+    expect(returns_refusal(`return resp.json({ e: 1 }, 500);`)).toBe(true);
+    expect(returns_refusal(`return resp.err(400, "no");`)).toBe(true);
+    expect(returns_refusal(`throw resp.txt("no", 400);`)).toBe(false);
+    expect(returns_refusal(`throw resp.err(400, "no");`)).toBe(false);
+    expect(returns_refusal(`return resp.txt("ok");`)).toBe(false);
+    expect(returns_refusal(`return resp.json(x, 200, { a: "b" });`)).toBe(
+      false
+    );
+    expect(returns_refusal(`return resp.fail(400, "bad");`)).toBe(false);
     expect(returns_refusal(`return new Response("ok", { status: 200 });`)).toBe(
       false
     );
