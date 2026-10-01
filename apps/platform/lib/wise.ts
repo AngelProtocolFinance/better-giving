@@ -84,6 +84,13 @@ namespace Res {
    */
   export interface Transfer {
     id: number;
+    /**
+     * `incoming_payment_waiting` until funded; then `incoming_payment_initiated`,
+     * `processing`, `funds_converted`, `outgoing_payment_sent`, or one of
+     * `cancelled`, `funds_refunded`, `bounced_back`, `charged_back`, `unknown`
+     * @link https://docs.wise.com/api-docs/api-reference/transfer#object
+     */
+    status?: string;
     /** Optional but present when a transfer error occurs */
     errors?: any;
   }

@@ -11,12 +11,16 @@ import { donation_match_events } from "../pg/schema/match";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs, rev_logs } from "../pg/schema/revenue";
-import { apply_refund_plan } from "./apply";
+import { apply_refund_plan, type IAppliedRefund } from "./apply";
 import { donation_refund_status } from "./donation-status";
 import { calc_refund_plan, type RefundEffect } from "./plan";
 
 export type UnfundedLossReversal =
-  | { status: "reversed" }
+  | {
+      status: "reversed";
+      /** its commission was claimed by a referrer transfer, so it went refunded_loss */
+      commission_in_flight?: IAppliedRefund["commission_in_flight"];
+    }
   /** the refund would have been a loss with the payout pending too; nothing to undo */
   | { status: "loss_stands" }
   /** nothing written: the pending-payout refund can't be reproduced exactly */
@@ -139,14 +143,14 @@ export async function reverse_unfunded_payout_loss(
   }
 
   await payouts_move(tx, [payout_id], "refunded_loss", { type: "refunded" });
-  await apply_refund_plan(tx, {
+  const { commission_in_flight } = await apply_refund_plan(tx, {
     ...plan,
     effects: plan.effects.filter((e) => LOSS_PATH_DIFFERS.has(e.kind)),
   });
   await tx.delete(loss_logs).where(eq(loss_logs.id, loss.id));
   await dist_refund_update(tx, dist.id, { refund_status: "completed" });
   await donation_status_recompute(tx, dist.donation_id, now);
-  return { status: "reversed" };
+  return { status: "reversed", commission_in_flight };
 }
 
 /**

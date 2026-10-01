@@ -113,4 +113,30 @@ describe("grants schedule notice", () => {
     expect(data.total_grant).toBe(100);
     expect(data.low_balance).toBe(false);
   });
+
+  test("an npo under its minimum is a skipped row showing its total and minimum, left out of the total", async () => {
+    await seed_npo("Paid", { amount: 100 });
+    await seed_npo("Small", { amount: 30 });
+
+    await index();
+
+    const data = template.mock.calls[0]![0] as any;
+    const small = data.rows.find((r: any) => r.name === "Small");
+    expect(small).toMatchObject({ amount: 30, min: 50, effect: "skipped" });
+    expect(data.total_grant).toBe(100);
+  });
+
+  test("judges the 50 minimum on the cents the run pays: 49.996 passes as 50, 49.994 is skipped as 49.99", async () => {
+    await seed_npo("Edge", { amount: 49.996 });
+    await seed_npo("Under", { amount: 49.994 });
+
+    await index();
+
+    const data = template.mock.calls[0]![0] as any;
+    const rows = Object.fromEntries(
+      data.rows.map((r: any) => [r.name, [r.amount, r.effect]])
+    );
+    expect(rows).toEqual({ Edge: [50, "pass"], Under: [49.99, "skipped"] });
+    expect(data.total_grant).toBe(50);
+  });
 });
