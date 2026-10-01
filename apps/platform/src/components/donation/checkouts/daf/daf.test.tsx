@@ -304,6 +304,7 @@ describe("daf checkout: the launcher comes back only on a refusal it can read", 
 
   test.each([
     [401, "Unauthorized"],
+    [409, "Conflict"],
     [429, "Too Many Requests"],
   ])(
     "a %i the route never sends keeps the launcher dead",
@@ -319,6 +320,20 @@ describe("daf checkout: the launcher comes back only on a refusal it can read", 
       expect(launcher_inert(screen.container)).not.toBeNull();
     }
   );
+
+  test("chariot's 410 for an expired session leaves the launcher live, and says why", async () => {
+    const screen = await answered_with(() =>
+      HttpResponse.text(
+        "Your fund couldn't make this grant. Please check the amount and try again.",
+        { status: 410 }
+      )
+    );
+
+    await expect
+      .element(screen.getByRole("dialog"))
+      .toMatchTextContent(/couldn't make this grant/i);
+    expect(launcher_inert(screen.container)).toBeNull();
+  });
 
   test("a closed recipient's 404 leaves the launcher live, and says why", async () => {
     const screen = await answered_with(() =>

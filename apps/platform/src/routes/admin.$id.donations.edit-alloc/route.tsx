@@ -10,6 +10,8 @@ import { alloc_opts, to_alloc_opt_value } from "./common";
 import { AllocationOptions } from "./options";
 import { AllocationSlider } from "./slider";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
+
 export default function AllocationEdit() {
   const data = use_admin_data();
   return (

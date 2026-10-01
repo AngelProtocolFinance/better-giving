@@ -15,11 +15,51 @@ export interface FullRefund {
   currency: string;
   /** the refund that refunded the rest of the charge */
   completing: Stripe.Refund;
-  /** every other refund on the charge, failed ones included: each may have
-   * sent a partial notice ops acted on */
+  /** the charge's earlier refunds, from `earlier_partials` */
   earlier: Stripe.Refund[];
   alert_from: string;
   dist_count: number;
+}
+
+/** a refund stripe won't send: no money moved and none will */
+export const is_failed_or_canceled = (r: Stripe.Refund) =>
+  r.status === "failed" || r.status === "canceled";
+
+/** live refunds stripe hasn't sent yet: any one can still fail, so a full
+ * refund's reversal waits until none is left */
+export const unsent_refunds = (refunds: Stripe.Refund[]) =>
+  refunds.filter((r) => !is_failed_or_canceled(r) && r.status !== "succeeded");
+
+/**
+ * `refunds` besides `completing`, less any failed or canceled attempt at
+ * refunding the whole rest of the charge. such an attempt sent ops no partial
+ * notice to act on, except when it failed before the webhook fetched the
+ * charge, and that "Partial Refund Not Reversed" lists it as failed. a failed
+ * or canceled partial stays: its notice can have gone out while it was pending,
+ * for ops to act on. an attempt covered the rest when it was at least what the live
+ * refunds made since add up to. only judged once the live refunds add up to
+ * `charge_amount`: short of that, a refund failed after the list was read
+ * can't be placed, so every refund stays
+ */
+export function earlier_partials(
+  refunds: Stripe.Refund[],
+  completing: Stripe.Refund,
+  charge_amount: number
+): Stripe.Refund[] {
+  // live: not failed or canceled, so requires_action counts
+  const live = refunds.filter((r) => !is_failed_or_canceled(r));
+  const live_since = (t: number) =>
+    live.filter((r) => r.created >= t).reduce((sum, r) => sum + r.amount, 0);
+  const placeable = live_since(0) === charge_amount;
+  return refunds.filter(
+    (r) =>
+      r.id !== completing.id &&
+      !(
+        placeable &&
+        is_failed_or_canceled(r) &&
+        r.amount >= live_since(r.created)
+      )
+  );
 }
 
 /**

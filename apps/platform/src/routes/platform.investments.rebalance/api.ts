@@ -15,13 +15,13 @@ export const loader = async (_: Route.LoaderArgs) => {
 };
 
 export const action = async ({ request }: Route.ActionArgs) => {
+  const txs = await request.json().catch(() => undefined);
+  if (txs === undefined) throw resp.status(400, "body is not json");
+
   const ltd = await nav_ltd();
   const bals = to_bals(ltd.composition);
 
-  const p = safeParse(schema, {
-    txs: await request.json(),
-    bals,
-  });
+  const p = safeParse(schema, { txs, bals });
   if (p.issues) {
     const { message } = p.issues[0];
     if (message === NEGATIVE_BAL_MSG) return dataWithError(null, message);

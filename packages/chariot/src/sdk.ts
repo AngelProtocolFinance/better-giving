@@ -6,6 +6,36 @@ import {
   type ISdkConfig,
 } from "./interfaces.js";
 
+/** a non-2xx from the chariot api */
+export class ChariotError extends Error {
+  /** the error body's own description, when it carries one */
+  readonly reason: string | undefined;
+
+  constructor(
+    readonly http_status: number,
+    readonly body: string,
+    readonly request_id: string | null
+  ) {
+    super(`Chariot API error: ${http_status} ${body}`);
+    this.name = "ChariotError";
+    this.reason = reason_of(body);
+  }
+}
+
+// the vendored spec's error carries `message`; an rfc 7807 problem carries `detail`
+function reason_of(body: string): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== "object") return;
+    const { message, detail } = parsed as Record<string, unknown>;
+    return [message, detail].find(
+      (x): x is string => typeof x === "string" && x.trim() !== ""
+    );
+  } catch {
+    return;
+  }
+}
+
 export class Chariot {
   private config: ISdkConfig;
 
@@ -24,8 +54,11 @@ export class Chariot {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Chariot API error: ${response.status} ${error}`);
+      throw new ChariotError(
+        response.status,
+        await response.text(),
+        response.headers.get("x-request-id")
+      );
     }
 
     return (await response.json()) as T;

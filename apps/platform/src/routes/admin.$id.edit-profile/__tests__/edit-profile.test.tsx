@@ -1015,15 +1015,6 @@ describe("edit profile — validation", () => {
   });
 });
 
-/** each editor is preceded by its visible <Label> and carries no accessible
- * name of its own, so the label text is the only stable handle on one of the
- * three */
-const banner_editor = (screen: {
-  getByText: (t: string) => { element: () => Element };
-}) =>
-  screen.getByText("Banner image of your organization").element()
-    .nextElementSibling as HTMLElement;
-
 describe("edit profile — focus after a keyboard save", () => {
   // a saved group's button disarms (nothing dirty), so the focus its
   // fieldset ejected lands on the form, not <body>
@@ -1081,7 +1072,7 @@ describe("edit profile — focus on error", () => {
 
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(
-        banner_editor(screen).querySelector("input[type='file']")
+        screen.getByLabelText("Banner image of your organization").element()
       );
     });
   });
@@ -1103,9 +1094,37 @@ describe("edit profile — focus on error", () => {
 
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(
-        banner_editor(screen).querySelector("input[type='file']")
+        screen.getByLabelText("Banner image of your organization").element()
       );
     });
+  });
+});
+
+describe("edit profile — image fields", () => {
+  it("each upload is named by its caption; a missing one is invalid and described by its error", async () => {
+    const npo = await seed_npo({ image: "", logo: "", card_img: "" });
+    const screen = await render_edit(npo.id);
+
+    const captions = [
+      "Banner image of your organization",
+      "Logo of your organization",
+      "Marketplace Card image for your organization",
+    ];
+    const inputs = captions.map((c) => screen.getByLabelText(c));
+    for (const [i, input] of inputs.entries()) {
+      await expect.element(input).toHaveAccessibleName(captions[i]);
+      await expect.element(input).not.toHaveAttribute("aria-invalid", "true");
+    }
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.clear();
+    await tagline.fill("Still helping the world");
+    await screen.getByRole("button", { name: "Save general" }).click();
+
+    for (const input of inputs) {
+      await expect.element(input).toHaveAttribute("aria-invalid", "true");
+      await expect.element(input).toHaveAccessibleDescription(/required/);
+    }
   });
 });
 
@@ -1229,7 +1248,7 @@ describe("edit profile — fundraising goal, sent", () => {
 });
 
 describe("edit profile — every caption names something", () => {
-  it("names the active-countries control", async () => {
+  it("names the active-countries and designation controls", async () => {
     const npo = await seed_npo();
     const screen = await render_edit(npo.id);
 
@@ -1240,6 +1259,11 @@ describe("edit profile — every caption names something", () => {
     await expect
       .element(screen.getByRole("combobox", { name: "Active countries" }))
       .toBeVisible();
+    await expect
+      .element(
+        screen.getByRole("combobox", { name: "Organization Designation" })
+      )
+      .toBeVisible();
   });
 
   it("has no <label> pointing at a control that does not exist", async () => {
@@ -1248,19 +1272,13 @@ describe("edit profile — every caption names something", () => {
 
     await expect.element(screen.getByLabelText(/tagline/i)).toBeVisible();
 
-    // ark's `Select.Label` points `htmlFor` at the `HiddenSelect` that
-    // `packages/ui/src/components/select/select.tsx` never renders. a shared
-    // component's gap, not one of this form's captions.
-    const known_gap = "Organization Designation";
-
     // `.control` resolves both spellings — htmlFor and nesting — so a null is
     // a caption wearing a <label> element and naming nothing
     const orphaned = [
       ...document.querySelectorAll<HTMLLabelElement>("form label"),
     ]
       .filter((l) => l.control == null)
-      .map((l) => l.textContent?.trim())
-      .filter((text) => text !== known_gap);
+      .map((l) => l.textContent?.trim());
 
     expect(orphaned).toEqual([]);
   });

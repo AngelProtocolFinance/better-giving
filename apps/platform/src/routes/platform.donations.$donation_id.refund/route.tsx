@@ -5,13 +5,9 @@ import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type {
-  action,
-  DistPreview,
-  RefundState,
-  StripeRefundStatus,
-} from "./api";
+import type { action, DistPreview, RefundState } from "./api";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 export default function Page({ loaderData }: Route.ComponentProps) {
@@ -44,7 +40,7 @@ function Content({
   if (fetcher.data?.ok === true) {
     return (
       <RefundProcessed
-        status={fetcher.data.stripe_refund}
+        held={fetcher.data.reversal === "held"}
         on_close={on_close}
       />
     );
@@ -91,9 +87,7 @@ function Content({
       {has_warnings && (
         <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning-subtle border border-warning flex items-center gap-2 text-sm text-warning-subtle-fg">
           <AlertTriangleIcon className="shrink-0 icon-md" />
-          <span>
-            ${humanize(data.total_loss)} will be recorded as platform loss
-          </span>
+          <span>${humanize(data.total_loss)} will be a platform loss</span>
         </div>
       )}
 
@@ -144,13 +138,22 @@ interface IIncompleteRefund {
   refund: RefundState;
   /** dists this attempt reversed; null when it stopped without counting */
   reversed: number | null;
+  /** absent from a server that predates it */
+  create_sent?: boolean;
 }
 
-function failure_lead({ refund, reversed }: IIncompleteRefund): string {
+function failure_lead({
+  refund,
+  reversed,
+  create_sent,
+}: IIncompleteRefund): string {
   switch (refund) {
     case "not_issued":
       return "No Stripe refund was issued and nothing was reversed. Resolve these before retrying:";
     case "unknown":
+      if (create_sent === false) {
+        return "This attempt made no refund because looking up earlier refunds failed, and nothing was reversed. Retrying now is safe:";
+      }
       return "Stripe didn't confirm whether the refund was issued, and nothing was reversed. Check the payment in the Stripe dashboard before retrying: a retry within 24 hours gets the same answer back.";
     case "requires_action":
       return "The Stripe refund needs action before Stripe sends it, so nothing was reversed yet. Retry once Stripe shows it pending or succeeded:";
@@ -166,14 +169,15 @@ function failure_lead({ refund, reversed }: IIncompleteRefund): string {
 }
 
 interface IRefundOutcome {
-  status: StripeRefundStatus;
+  /** a refund on the charge is unsent, so nothing is reversed yet */
+  held: boolean;
 }
 
 interface IRefundProcessed extends IRefundOutcome {
   on_close: () => void;
 }
 
-function RefundProcessed({ status, on_close }: IRefundProcessed) {
+function RefundProcessed({ held, on_close }: IRefundProcessed) {
   const heading = useRef<HTMLHeadingElement>(null);
   // the panel replaces the confirm button, which takes focus with it
   useEffect(() => heading.current?.focus(), []);
@@ -184,7 +188,7 @@ function RefundProcessed({ status, on_close }: IRefundProcessed) {
       <h3 ref={heading} tabIndex={-1} className="text-lg font-bold mb-1">
         Refund processed
       </h3>
-      <RefundOutcome status={status} />
+      <RefundOutcome held={held} />
       <button type="button" onClick={on_close} className="btn btn-primary">
         Close
       </button>
@@ -192,12 +196,12 @@ function RefundProcessed({ status, on_close }: IRefundProcessed) {
   );
 }
 
-function RefundOutcome({ status }: IRefundOutcome) {
+function RefundOutcome({ held }: IRefundOutcome) {
   return (
     <p className="text-sm text-gray-11 mb-4">
-      {status === "succeeded"
-        ? "All records have been reversed and the Stripe refund completed."
-        : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
+      {held
+        ? "The Stripe refund was issued, and a refund on this charge is pending with the bank. Nothing is reversed yet: the donation reverses once the bank refund succeeds."
+        : "All records have been reversed and the Stripe refund completed."}
     </p>
   );
 }

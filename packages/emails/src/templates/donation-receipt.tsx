@@ -180,9 +180,9 @@ function Jsx(d: IData) {
         }}
       >
         {LEGAL_NAME} ({APP_NAME}) is a US 501(c)(3) tax-exempt nonprofit with
-        EIN {EIN}, {ADDRESS}. No goods or services are provided to you in
-        exchange for your gift, so the full amount you paid qualifies as a
-        charitable contribution for US tax purposes.
+        EIN {EIN}, {ADDRESS}.
+        {d.tax_receipt_id &&
+          " No goods or services are provided to you in exchange for your gift, so the full amount you paid qualifies as a charitable contribution for US tax purposes."}
         {n_grants > 0 &&
           (d.is_fund
             ? ` ${APP_NAME} then grants the donation among the fund's member nonprofits on your behalf.`

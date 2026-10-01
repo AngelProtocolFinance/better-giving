@@ -228,7 +228,8 @@ export function Paypal({
           donation_id: onhold_id,
           base_url: d.base_url,
           success_redirect: d.config?.success_redirect,
-          amount,
+          // the other rails send a js number's string ("10.5", not "10.50")
+          amount: String(+amount),
           currency,
           payment_method,
           donor_name: [donor_name?.given_name, donor_name?.surname],

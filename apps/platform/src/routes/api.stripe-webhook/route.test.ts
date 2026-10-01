@@ -17,6 +17,7 @@ const report_error_mock = vi.hoisted(() => vi.fn());
 const intent_succeeded_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const refund_failed_mock = vi.hoisted(() => vi.fn());
+const refund_updated_mock = vi.hoisted(() => vi.fn());
 const dispute_created_mock = vi.hoisted(() => vi.fn());
 const dispute_closed_mock = vi.hoisted(() => vi.fn());
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
@@ -48,6 +49,7 @@ vi.mock("./handlers", () => ({
   handle_setup_intent_failed: vi.fn(),
   handle_setup_intent_succeeded: vi.fn(),
   handle_refund_failed: refund_failed_mock,
+  handle_refund_updated: refund_updated_mock,
   handle_dispute_created: dispute_created_mock,
   handle_dispute_closed: dispute_closed_mock,
 }));
@@ -201,6 +203,16 @@ describe("api.stripe-webhook action", () => {
 
     expect(res.status).toBe(200);
     expect(refund_failed_mock).toHaveBeenCalledWith(event);
+  });
+
+  it("hands an updated refund to its handler", async () => {
+    const event = { type: "refund.updated", data: { object: { id: "re_1" } } };
+    construct_event_mock.mockReturnValue(event);
+
+    const res = await invoke(post("{}", { "stripe-signature": "t=1,v1=ok" }));
+
+    expect(res.status).toBe(200);
+    expect(refund_updated_mock).toHaveBeenCalledWith(event);
   });
 
   it.each([

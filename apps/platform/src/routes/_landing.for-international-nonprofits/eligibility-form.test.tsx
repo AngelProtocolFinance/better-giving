@@ -151,6 +151,7 @@ describe("EligibilityForm", () => {
 
 describe_lead_form(EligibilityForm, {
   name_label: /organization name/i,
+  submit_label: /unlock u.s. donors/i,
   email_label: /work email/i,
   values: posted(),
   errors: {

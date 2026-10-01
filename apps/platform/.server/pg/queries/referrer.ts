@@ -100,13 +100,17 @@ export async function commission_put(db: DbOrTx, data: ICommission) {
   await db.insert(referrer_commissions).values(data);
 }
 
+// refunded_loss stays: the unfunded-payout reversal returns an unclaimed one to refunded
+const REFUNDABLE: TStatus[] = ["pending", "processing", "refunded_loss"];
+
 /**
  * reverses a refunded donation's commission, read under its row lock: one a
  * Wise transfer has claimed may already be paying out, so it becomes
  * `refunded_loss` whatever `status` asked, and one that is already
  * `refunded_loss` with a ref stays so — that transfer may have paid it. one
- * with no ref took its loss from the npo's side and follows `status`.
- * returns the row as it was.
+ * with no ref took its loss from the npo's side and follows `status`. a `paid`
+ * one (or any status outside `REFUNDABLE`) is left as it is: the referrer has
+ * the money. returns the row as it was.
  */
 export async function commission_refund(
   tx: DbOrTx,
@@ -125,7 +129,12 @@ export async function commission_refund(
   await tx
     .update(referrer_commissions)
     .set({ status: claimed ? "refunded_loss" : status })
-    .where(eq(referrer_commissions.donation_id, donation_id));
+    .where(
+      and(
+        eq(referrer_commissions.donation_id, donation_id),
+        inArray(referrer_commissions.status, REFUNDABLE)
+      )
+    );
   return to_commission(cur);
 }
 

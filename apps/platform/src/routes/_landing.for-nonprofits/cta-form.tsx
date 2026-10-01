@@ -9,6 +9,7 @@ import {
 import { ein } from "@better-giving/ui/masks";
 import { useEffect, useRef, useState } from "react";
 import { BOOK_A_DEMO } from "#/constants/urls";
+import { FormNotice } from "#/pages/@sections/form-notice";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";
 
@@ -37,6 +38,8 @@ interface ICtaForm {
   values?: ILeadValues;
   /** the address the browser is signed in as, when it isn't the one posted */
   signed_in_as?: string;
+  /** a form-level refusal no field owns, e.g. over the submission quota */
+  message?: string;
   pending?: boolean;
 }
 
@@ -48,6 +51,7 @@ export function CtaForm({
   errors,
   values,
   signed_in_as,
+  message,
   pending,
 }: ICtaForm) {
   // seeded, not synced: the client keeps this state across the POST because the
@@ -63,6 +67,7 @@ export function CtaForm({
     email: null,
   });
   const notice_ref = useRef<HTMLDivElement>(null);
+  const message_ref = useRef<HTMLDivElement>(null);
 
   // a refused submit round-trips as props, so the focus move is the component's:
   // the remedy is always above the button that was just pressed.
@@ -71,10 +76,14 @@ export function CtaForm({
       notice_ref.current?.focus();
       return;
     }
+    if (message) {
+      message_ref.current?.focus();
+      return;
+    }
     if (!errors) return;
     const first = fields.find(([k]) => errors[k])?.[0];
     if (first) refs.current[first]?.focus();
-  }, [errors, signed_in_as]);
+  }, [errors, signed_in_as, message]);
 
   return (
     <div className={`${classes} card w-full max-w-115 text-left`}>
@@ -147,6 +156,8 @@ export function CtaForm({
           placeholder="you@yourorg.org"
           error={errors?.email}
         />
+
+        {message && <FormNotice ref={message_ref}>{message}</FormNotice>}
 
         <button type="submit" disabled={pending} className="btn btn-primary">
           <LoadText is_loading={pending}>Join free forever</LoadText>

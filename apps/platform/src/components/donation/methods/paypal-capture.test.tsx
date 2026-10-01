@@ -272,7 +272,26 @@ describe("paypal express: a merchant's own thank-you page", () => {
 
     await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
     const { url } = on_paid.mock.calls[0]![0];
-    expect(new URL(url).searchParams.get("donation_amount")).toBe("10.30");
+    expect(new URL(url).searchParams.get("donation_amount")).toBe("10.3");
+  });
+
+  // the card and wallet rails send a plain number; the merchant parses one shape
+  test("is handed the total without the currency's trailing zeros", async () => {
+    const config: Config = {
+      id: "form_1",
+      success_redirect: "https://npo.example/thanks",
+      freq_opts: undefined,
+    };
+    const { on_paid } = await approve_and_answer(
+      async () => Response.json(captured("COMPLETED")),
+      config,
+      "paypal-button",
+      { tx_id: "order_1", don_id: "don_1", amount: "10.50" }
+    );
+
+    await vi.waitFor(() => expect(on_paid).toHaveBeenCalledOnce());
+    const { url } = on_paid.mock.calls[0]![0];
+    expect(new URL(url).searchParams.get("donation_amount")).toBe("10.5");
   });
 });
 

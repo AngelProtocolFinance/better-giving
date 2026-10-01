@@ -17,6 +17,12 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   const BG_MIN = 50;
   // https://finnhub.io/docs/api/quote
   const { pc: usdpu } = await res.json();
+  // finnhub quotes an unknown symbol as pc: 0
+  if (!(usdpu > 0)) {
+    const res = resp.err(404, `no price for ${params.symbol}`);
+    res.headers.set("cache-control", cache);
+    return res;
+  }
 
   return resp.json(
     { min: BG_MIN / usdpu, usdpu } satisfies ITokenEstimate,

@@ -195,9 +195,14 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss, commission_in_flight: c } = res;
+      const { loss, commission_in_flight: c, paid_commission: pc } = res;
       if (loss) {
         loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
+      }
+      if (pc) {
+        loss_msgs.push(
+          `commission ${pc.donation_id}: $${pc.amount} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
+        );
       }
       if (c) {
         loss_msgs.push(
@@ -220,8 +225,9 @@ export async function process_refund(
   // only finalize the donation status when every dist was applied. with
   // failures present the dists are in mixed states (some "completed",
   // some "failed") and the donation stays "settled", so a later run can finish
-  // it: the admin retrying, or stripe redelivering the full refund's
-  // `charge.refunded`, whose handler fails the delivery until this completes.
+  // it: the admin retrying, or stripe redelivering the webhook that reversed
+  // the full refund (`charge.refunded`, or `refund.updated` for a refund that
+  // was pending), whose handler fails the delivery until this completes.
   //
   // the status flip and the match void go together in one transaction because
   // a void that fails silently is worse than no void at all: every suppression
@@ -230,14 +236,14 @@ export async function process_refund(
   // that failure loud — it rolls back, the donation stays "settled" with its
   // dists already "completed", which is exactly the mixed,
   // reversible-and-retryable state the paragraph above already documents. a
-  // replayed `charge.refunded` skips the completed dists via SKIP_STATUSES and
+  // replayed webhook skips the completed dists via SKIP_STATUSES and
   // retries the pair.
   //
-  // one write site covers both refund entry points: the `charge.refunded`
-  // webhook, and the admin refund action, whose own stripe refund fires that
-  // webhook too. so both can run on one donation at once; each dist is
-  // reversed once under its row lock in apply_dist, and the flip once under
-  // the donation lock below.
+  // one write site covers every refund entry point: the `charge.refunded` and
+  // `refund.updated` webhooks, and the admin refund action, whose own stripe
+  // refund fires them too. so several can run on one donation at once; each
+  // dist is reversed once under its row lock in apply_dist, and the flip once
+  // under the donation lock below.
   //
   // `graphs` is a snapshot, and settle_npo can commit a dist after it was taken.
   // so the flip first locks the donation row: that waits out a settle_npo

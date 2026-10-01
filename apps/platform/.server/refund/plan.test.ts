@@ -316,6 +316,53 @@ describe("calc_refund_plan", () => {
     expect(plan.is_loss).toBe(false);
   });
 
+  // the referrer has the money: the refund can't take it back
+  test("a paid commission is left paid", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+      }),
+      make_ctx()
+    );
+    expect(kinds(plan.effects)).not.toContain("commission_status");
+    expect(plan.is_loss).toBe(false);
+  });
+
+  // the platform's loss, not the npo's: no loss_logs row, which is per npo
+  test("a paid commission is carried for the alert, not logged as a loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+      }),
+      make_ctx()
+    );
+    expect(plan.paid_commission).toEqual({ donation_id: "don-1", amount: 5 });
+    expect(kinds(plan.effects)).not.toContain("loss_log");
+    expect(kinds(plan.effects)).toContain("balance_update");
+    expect(plan.loss_reasons).toEqual([]);
+  });
+
+  test("a paid commission previews as already paid and the platform's loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+      }),
+      make_ctx()
+    );
+    expect(plan.preview.warnings).toContainEqual({
+      label: "Commission",
+      pass: false,
+      reason:
+        "$5.00 was already paid to its referrer, so it stays with them as the platform's loss (ops is alerted)",
+    });
+    expect(plan.preview.effects.map((l) => l.label)).not.toContain(
+      "Commission"
+    );
+  });
+
   test("sub_id adds Subscription preview line", () => {
     const plan = calc_refund_plan(
       make_inputs({

@@ -21,7 +21,10 @@ const rejection = object({
 export const schema = variant("type", [approval, rejection]);
 
 export const action: ActionFunction = async ({ request, params }) => {
-  const fv: { reason?: string } = await request.json();
+  const fv: { reason?: string } | null | undefined = await request
+    .json()
+    .catch(() => undefined);
+  if (!fv) throw resp.status(400, "invalid body");
 
   const p1 = safeParse(reg_id, params.id);
   if (p1.issues) throw resp.status(400, p1.issues[0].message);

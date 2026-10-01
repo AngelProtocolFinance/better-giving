@@ -807,6 +807,21 @@ describe("PAYMENT.SALE.COMPLETED", () => {
     ]);
   });
 
+  it("derives a sale's fallback net to the cent", async () => {
+    await seed_donation({ frequency: "monthly" });
+    get_sale_mock.mockResolvedValue({
+      ...sale_copy(),
+      amount: { total: "20.20", currency: "USD" },
+      transaction_fee: { value: "1.10", currency: "USD" },
+    });
+
+    await deliver(sale_ev());
+
+    expect(await settlements()).toEqual([
+      expect.objectContaining({ sttl_id: SALE_ID, net: 19.1 }),
+    ]);
+  });
+
   it("settles one first-recurring sale once when two deliveries race", async () => {
     await seed_donation({ frequency: "monthly" });
 
@@ -1223,6 +1238,22 @@ describe("refunds and reversals", () => {
     expect(process_refund_mock).not.toHaveBeenCalled();
   });
 
+  it("reports a refund that lands before its capture settles as degraded", async () => {
+    await seed_donation();
+    paypal_capture_is("REFUNDED");
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expect.stringContaining("not settled yet"),
+      }),
+      expect.objectContaining({ sttl_id: CAPTURE_ID })
+    );
+  });
+
   it("asks for redelivery of a refund whose capture has not settled here yet", async () => {
     await seed_donation();
     paypal_capture_is("REFUNDED");
@@ -1358,6 +1389,22 @@ describe("subscription lifecycle", () => {
     expect((await sub_row())!.status).toBe("inactive");
   });
 
+  it("reports a cancellation that lands before the subscription does as degraded", async () => {
+    await seed_donation({ frequency: "monthly" });
+    await paypal_sub_is("CANCELLED");
+
+    const res = await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.CANCELLED"));
+
+    expect(res.status).toBe(503);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expect.stringContaining("not recorded yet"),
+      }),
+      expect.objectContaining({ subs_id: SUBS_ID })
+    );
+  });
+
   it("asks for redelivery of a cancellation that lands before the subscription does", async () => {
     await seed_donation({ frequency: "monthly" });
     await paypal_sub_is("CANCELLED");
@@ -1385,6 +1432,15 @@ describe("PAYMENT.CAPTURE.DENIED", () => {
     expect(send_alert_mock).toHaveBeenCalledOnce();
     expect(send_alert_mock.mock.calls[0]![0].body).toContain(CAPTURE_ID);
     expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges and reports a denial naming no donation here", async () => {
+    const res = await deliver(denied_ev());
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
   it("leaves a settled donation settled", async () => {
@@ -1424,6 +1480,56 @@ describe("PAYMENT.CAPTURE.PENDING", () => {
       }
     );
     expect((await donation_get(ORDER_ID))!.status).toBe("intent");
+  });
+});
+
+describe("CUSTOMER.DISPUTE.CREATED", () => {
+  const dispute_ev = () => ({
+    id: "WH-DSP-1",
+    event_type: "CUSTOMER.DISPUTE.CREATED",
+    resource_type: "dispute",
+    resource: {
+      dispute_id: "PP-D-1",
+      reason: "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+      dispute_amount: { currency_code: "USD", value: "100.00" },
+      disputed_transactions: [
+        {
+          seller_transaction_id: CAPTURE_ID,
+          buyer: { email: "buyer@example.com", name: "Bea Buyer" },
+        },
+      ],
+    },
+  });
+
+  it("alerts ops once per event, naming the charge and leaving the payer out", async () => {
+    const res = await deliver(dispute_ev());
+
+    expect(res.status).toBe(200);
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-dispute_WH-DSP-1",
+      payload: { alert: { title: "PayPal Dispute Opened" } },
+    });
+    const { body } = notice.payload.alert;
+    expect(body).toContain("PP-D-1");
+    expect(body).toContain(CAPTURE_ID);
+    expect(body).toContain("100.00 USD");
+    expect(body).not.toContain("buyer@example.com");
+    expect(body).not.toContain("Bea Buyer");
+  });
+
+  it("names a field paypal left off as unknown", async () => {
+    const res = await deliver({
+      id: "WH-DSP-2",
+      event_type: "CUSTOMER.DISPUTE.CREATED",
+      resource: {},
+    });
+
+    expect(res.status).toBe(200);
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice.payload.alert.body).not.toContain("undefined");
+    expect(notice.payload.alert.body).toContain("dispute unknown");
   });
 });
 
@@ -2211,7 +2317,7 @@ describe("logging", () => {
   it("keeps the payer out of the log of an unhandled event", async () => {
     const res = await deliver({
       id: "WH-2",
-      event_type: "CUSTOMER.DISPUTE.CREATED",
+      event_type: "PAYMENT.AUTHORIZATION.CREATED",
       resource: {
         id: "REFUND-1",
         payer: {

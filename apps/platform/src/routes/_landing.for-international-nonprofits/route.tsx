@@ -53,6 +53,7 @@ export default function Page() {
         errors={result?.errors}
         values={result?.values}
         signed_in_as={result?.signed_in_as}
+        message={result?.message}
         pending={nav.state === "submitting"}
       />
       <Credentials classes="bg-panel py-4" />

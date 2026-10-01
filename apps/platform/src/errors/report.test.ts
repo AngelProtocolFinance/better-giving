@@ -7,6 +7,7 @@ vi.mock("@sentry/react-router", () => ({
 
 const { report_error, report_unhandled } = await import("./report");
 const { HttpError } = await import("@/helpers/https");
+const { ChariotError } = await import("@better-giving/chariot");
 const { DrizzleQueryError } = await import("drizzle-orm/errors");
 let console_error: ReturnType<typeof vi.spyOn>;
 
@@ -85,6 +86,14 @@ describe("report_error", () => {
   test("reports a 5xx HttpError", () => {
     report_error(new HttpError(500, ""));
     expect(capture_exception).toHaveBeenCalledOnce();
+  });
+
+  // chariot's 4xx is our request refused (a bad key, a grant already
+  // processing), never a refusal a donor acted on
+  test("reports a chariot 409", () => {
+    const err = new ChariotError(409, '{"message":"processing"}', "req_1");
+    report_error(err);
+    expect(capture_exception.mock.calls[0]?.[0]).toBe(err);
   });
 });
 

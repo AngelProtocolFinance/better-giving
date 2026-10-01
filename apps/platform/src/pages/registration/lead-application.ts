@@ -47,8 +47,10 @@ const identity_fields = [
 const invalid = (
   errors: ILeadErrors,
   values: ILeadValues,
-  signed_in_as?: string
-) => data<ILeadInvalid>({ errors, values, signed_in_as }, { status: 400 });
+  extra: Pick<ILeadInvalid, "signed_in_as" | "message"> = {}
+) => data<ILeadInvalid>({ errors, values, ...extra }, { status: 400 });
+
+const THROTTLED = "Too many submissions. Please try again in a few minutes.";
 
 const str = (fd: FormData, k: string) => fd.get(k)?.toString() ?? "";
 
@@ -153,7 +155,7 @@ export async function lead_application(request: Request, fd: FormData) {
      * else's. stop before anything exists to be stranded. */
     // no field is wrong, so no field is marked — the mismatch is reported as
     // itself and the form words the two ways out of it
-    return invalid({}, values, signed_in.email);
+    return invalid({}, values, { signed_in_as: signed_in.email });
   }
 
   /* Everything past here costs: an external spam call, a registrations row,
@@ -177,9 +179,10 @@ export async function lead_application(request: Request, fd: FormData) {
    * poster and never on anything about the address being applied for, so it
    * cannot answer "does this address exist" and is no oracle — the property to
    * protect is that the response never varies with the address, not that it is
-   * identical to success. It reuses the bare 400 this action already throws
-   * for a honeypot trip and for a malformed post, so it adds no new shape to
-   * probe against.
+   * identical to success. It answers on the form, values kept and no field
+   * marked, because the poster is usually a person who can simply wait; the
+   * honeypot and the malformed post keep their bare 400, since naming those
+   * would coach a bot.
    *
    * Do NOT "fix" this into a silent success: producing one means writing the
    * row, and the row, the notification and the spam call are the whole cost
@@ -191,7 +194,9 @@ export async function lead_application(request: Request, fd: FormData) {
     : ip
       ? { key: `lead-application:ip:${ip}`, quota: LEAD_PER_IP }
       : null;
-  if (bucket && !consume(bucket.key, bucket.quota)) throw resp.status(400);
+  if (bucket && !consume(bucket.key, bucket.quota)) {
+    return invalid({}, values, { message: THROTTLED });
+  }
 
   // an organization applies here, not a person — so the organization prompt,
   // whose verdict on the name lands on `o_name`, the only name field here.

@@ -49,6 +49,10 @@ vi.mock("$/kit/stripe", () => ({
       retrieve: vi.fn(async () => ({ id: "re_1", status: "succeeded" })),
       list: vi.fn(async () => ({ data: [] })),
     },
+    // the action reads the charge amount beside the refund list
+    paymentIntents: {
+      retrieve: vi.fn(async () => ({ amount_received: 10000 })),
+    },
   },
 }));
 

@@ -38,6 +38,7 @@ vi.mock("$/kit/discord", () => ({
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
 const { handle_charge_refunded } = await import("./charge-refunded");
+const { handle_refund_updated } = await import("./refund-updated");
 
 const { ReversalIncompleteError } = await import(
   "../helpers/reversal-incomplete"
@@ -58,26 +59,28 @@ let clock = 1_700_000_000;
 
 const charge_now = () => {
   const amount_refunded = refunds
-    .filter((r) => r.status !== "failed")
+    .filter((r) => r.status !== "failed" && r.status !== "canceled")
     .reduce((sum, r) => sum + r.amount, 0);
   return {
     id: "ch_1",
     payment_intent: "pi_1",
     currency: "usd",
     amount: AMOUNT,
+    amount_captured: AMOUNT,
     amount_refunded,
     refunded: amount_refunded === AMOUNT,
   };
 };
 
-/** support refunds `amount` from the dashboard; returns the event stripe sends for it */
-const refund = (amount: number) => {
+/** support refunds `amount` from the dashboard; returns the event stripe sends
+ * for it. a bank refund (ach, acss) starts pending */
+const refund = (amount: number, status = "succeeded") => {
   const before = charge_now().amount_refunded;
   clock += 60;
   refunds.unshift({
     id: `re_${refunds.length + 1}`,
     amount,
-    status: "succeeded",
+    status,
     created: clock,
   });
   return {
@@ -89,6 +92,24 @@ const refund = (amount: number) => {
       // unconfirmed that stripe sends this on charge.refunded; tests that
       // delete it cover the event without it
       previous_attributes: { amount_refunded: before },
+    },
+  } as any;
+};
+
+/** the bank settles refund `id` as `status`; returns stripe's refund.updated for it */
+const settle = (id: string, status: string) => {
+  const r = refunds.find((x) => x.id === id);
+  if (!r) throw new Error(`no refund ${id}`);
+  const previous = r.status;
+  r.status = status;
+  clock += 60;
+  return {
+    id: `evt_${id}_${status}`,
+    type: "refund.updated",
+    created: clock,
+    data: {
+      object: { ...r, charge: "ch_1", payment_intent: "pi_1", currency: "usd" },
+      previous_attributes: { status: previous },
     },
   } as any;
 };
@@ -277,6 +298,70 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
+  it("leaves the donation unreversed while the bank refund that completes it is pending", async () => {
+    await expect(
+      handle_charge_refunded(refund(AMOUNT, "pending"))
+    ).resolves.toBeUndefined();
+
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(don_status).toBe("settled");
+  });
+
+  it("stops a recurring gift's billing while its full bank refund is pending", async () => {
+    billed_by("sub_1", "active");
+
+    await handle_charge_refunded(refund(AMOUNT, "pending"));
+
+    expect(deactivations()).toHaveLength(1);
+    expect(deactivations()[0].payload).toMatchObject({
+      id: "sub_1",
+      status_cancel_reason: "refunded",
+    });
+  });
+
+  it("tells ops once that the reversal waits on the pending refund succeeding", async () => {
+    const created = refund(AMOUNT, "pending");
+
+    await handle_charge_refunded(created);
+    await handle_charge_refunded(created); // stripe redelivers
+
+    const held = queued().filter((m) => m.payload.id === "re_1_held");
+    expect(held).toHaveLength(2);
+    expect(new Set(held.map((m) => m.dedupe))).toEqual(
+      new Set(["fiat.notice_re_1_held"])
+    );
+    const text = text_of(held[0].payload.alert);
+    expect(text).toContain(ORDER_ID);
+    expect(text).toContain("100.00 USD (re_1, pending)");
+    expect(text).toMatch(/refund\.updated/);
+  });
+
+  it("holds the reversal while an earlier bank refund is pending, though the one completing the charge succeeded", async () => {
+    await handle_charge_refunded(refund(9_500, "pending"));
+    const completing = refund(500);
+
+    await handle_charge_refunded(completing);
+    await handle_charge_refunded(completing); // stripe redelivers
+
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(don_status).toBe("settled");
+    const held = queued().filter((m) => /_held$/.test(m.payload.id));
+    expect(new Set(held.map((m) => m.dedupe))).toEqual(
+      new Set(["fiat.notice_re_2_held"])
+    );
+    expect(text_of(held[0].payload.alert)).toContain(
+      "95.00 USD (re_1, pending)"
+    );
+  });
+
+  it("fails the delivery when the held-reversal notice can't be queued", async () => {
+    enqueue_mock.mockRejectedValue(new Error("qstash 503"));
+
+    await expect(
+      handle_charge_refunded(refund(AMOUNT, "pending"))
+    ).rejects.toThrow("qstash 503");
+  });
+
   it("ignores a redelivery after a reversal that took a loss", async () => {
     process_refund_mock.mockImplementation(async () => {
       don_status = "refunded_loss";
@@ -334,6 +419,44 @@ describe("stripe charge.refunded → donation reversal", () => {
     const [reversed_at] = process_refund_mock.mock.invocationCallOrder;
     expect(starting_at).toBeLessThan(reversed_at);
     expect(done_at).toBeGreaterThan(reversed_at);
+  });
+
+  it("sends no after-partial notices when a full refund replaces one that failed", async () => {
+    refund(AMOUNT);
+    refunds[0].status = "failed"; // the card was closed
+
+    await handle_charge_refunded(refund(AMOUNT));
+
+    expect(don_status).toBe("refunded");
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(queued()).toHaveLength(0);
+  });
+
+  it("still names a failed partial whose notice ops may have acted on when a full refund follows", async () => {
+    await handle_charge_refunded(refund(500));
+    refunds[0].status = "failed"; // the bank refund bounced back
+
+    await handle_charge_refunded(refund(AMOUNT));
+
+    expect(starts()).toHaveLength(1);
+    const [msg] = outcomes();
+    expect(msg.payload.alert.title).toBe(
+      "Reversal Complete: Undo Hand Adjustment"
+    );
+    expect(msg.payload.alert.body).toContain("5.00 USD (re_1, failed)");
+  });
+
+  it("names a real earlier partial but not the failed full refund it was replaced after", async () => {
+    await handle_charge_refunded(refund(500));
+    refund(9_500);
+    refunds[0].status = "failed";
+
+    await handle_charge_refunded(refund(9_500));
+
+    const [msg] = outcomes();
+    expect(msg.payload.alert.body).toMatch(
+      /^earlier partial refunds: 5\.00 USD \(re_1, succeeded\)$/m
+    );
   });
 
   it("fails the delivery when a full refund's reversal leaves dists unreversed", async () => {
@@ -646,5 +769,94 @@ describe("stripe charge.refunded → donation reversal", () => {
       [graph],
       expect.anything()
     );
+  });
+});
+
+describe("stripe refund.updated → donation reversal", () => {
+  it("reverses the donation once the pending bank refund that completed the charge succeeds", async () => {
+    billed_by("sub_1", "active");
+    await handle_charge_refunded(refund(AMOUNT, "pending"));
+
+    await expect(
+      handle_refund_updated(settle("re_1", "succeeded"))
+    ).resolves.toBeUndefined();
+
+    expect(don_status).toBe("refunded");
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(process_refund_mock).toHaveBeenCalledWith(ORDER_ID, [graph], {
+      form_id: null,
+      program_id: null,
+      alert_from: expect.any(String),
+    });
+  });
+
+  it("reverses once when charge.refunded already reversed a card refund and stripe redelivers its refund.updated", async () => {
+    await handle_charge_refunded(refund(AMOUNT));
+    const updated = settle("re_1", "succeeded");
+
+    await handle_refund_updated(updated);
+    await handle_refund_updated(updated); // stripe redelivers
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(don_status).toBe("refunded");
+  });
+
+  it("reverses once when the refund.updated for a pending refund lands before its charge.refunded", async () => {
+    const created = refund(AMOUNT, "pending");
+    await handle_refund_updated(settle("re_1", "succeeded"));
+
+    await handle_charge_refunded(created);
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(don_status).toBe("refunded");
+  });
+
+  it.each(["failed", "canceled"])(
+    "reverses nothing when the pending bank refund is %s",
+    async (status) => {
+      await handle_charge_refunded(refund(AMOUNT, "pending"));
+
+      await expect(
+        handle_refund_updated(settle("re_1", status))
+      ).resolves.toBeUndefined();
+
+      expect(process_refund_mock).not.toHaveBeenCalled();
+      expect(don_status).toBe("settled");
+    }
+  );
+
+  it("leaves a partial bank refund to ops when it succeeds, looking up no donation", async () => {
+    await handle_charge_refunded(refund(500, "pending"));
+    vi.clearAllMocks();
+
+    await handle_refund_updated(settle("re_1", "succeeded"));
+
+    expect(donation_by_sttl_id_mock).not.toHaveBeenCalled();
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(don_status).toBe("settled");
+  });
+
+  it("waits for the completing refund when an earlier pending partial succeeds first", async () => {
+    await handle_charge_refunded(refund(500, "pending"));
+    await handle_charge_refunded(refund(9_500, "pending"));
+
+    await handle_refund_updated(settle("re_1", "succeeded"));
+    expect(process_refund_mock).not.toHaveBeenCalled();
+
+    await handle_refund_updated(settle("re_2", "succeeded"));
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(don_status).toBe("refunded");
+  });
+
+  it("reverses once when the pending earlier refund succeeds after the completing one", async () => {
+    await handle_charge_refunded(refund(9_500, "pending"));
+    await handle_charge_refunded(refund(500));
+    const updated = settle("re_1", "succeeded");
+
+    await handle_refund_updated(updated);
+    await handle_refund_updated(updated); // stripe redelivers
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(don_status).toBe("refunded");
   });
 });

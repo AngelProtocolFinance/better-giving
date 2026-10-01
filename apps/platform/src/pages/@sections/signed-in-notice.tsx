@@ -1,5 +1,6 @@
 import type { Ref } from "react";
 import { Form, href, Link } from "react-router";
+import { FormNotice } from "./form-notice";
 
 interface ISignedInNotice {
   classes?: string;
@@ -16,12 +17,7 @@ interface ISignedInNotice {
  * the destructive one, and leads with the two ways out. */
 export function SignedInNotice({ classes = "", email, ref }: ISignedInNotice) {
   return (
-    <div
-      ref={ref}
-      role="alert"
-      tabIndex={-1}
-      className={`${classes} grid gap-2.5 bg-gray-3 border border-gray-6 rounded p-4 text-sm/relaxed focus-visible:outline-2 focus-visible:outline-offset-2`}
-    >
+    <FormNotice ref={ref} classes={classes}>
       <p>
         This browser is signed in as{" "}
         <span className="font-semibold">{email}</span>, which isn't the address
@@ -40,6 +36,6 @@ export function SignedInNotice({ classes = "", email, ref }: ISignedInNotice) {
           </button>
         </Form>
       </div>
-    </div>
+    </FormNotice>
   );
 }
