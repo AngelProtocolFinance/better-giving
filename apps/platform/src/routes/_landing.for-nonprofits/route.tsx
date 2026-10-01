@@ -49,6 +49,7 @@ export default function Page() {
             errors={data?.errors}
             values={data?.values}
             signed_in_as={data?.signed_in_as}
+            message={data?.message}
             pending={nav.state === "submitting"}
           />
         </div>

@@ -11,12 +11,15 @@ interface ILeadFormProps {
   errors?: Record<string, string>;
   values?: ILeadValues;
   signed_in_as?: string;
+  message?: string;
   pending?: boolean;
 }
 
 export interface ILeadFormCase {
   /** label of the field carrying the org's name */
   name_label: RegExp;
+  /** accessible name of the resting submit button */
+  submit_label: RegExp;
   /** label of the work-email field */
   email_label: RegExp;
   /** a full echo of a failed submit, as the action sends it back */
@@ -98,6 +101,37 @@ export function describe_lead_form(
       await expect
         .element(screen.getByLabelText(c.name_label))
         .not.toHaveAttribute("aria-invalid", "true");
+    });
+
+    test("a form-level message is announced above the submit and takes focus", async () => {
+      const msg =
+        "Too many submissions from this network. Try again in an hour.";
+      const screen = await mount({
+        values: c.values,
+        errors: {},
+        message: msg,
+      });
+
+      const alert = screen.getByRole("alert");
+      await expect.element(alert).toHaveTextContent(msg);
+      await expect.element(alert).toHaveFocus();
+
+      // above the button just pressed, so the reason sits where the eye is
+      const submit = screen.getByRole("button", { name: c.submit_label });
+      expect(
+        alert.element().compareDocumentPosition(submit.element()) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      await expect
+        .element(screen.getByLabelText(c.name_label))
+        .toHaveValue(c.values.o_name);
+    });
+
+    test("no message, no alert", async () => {
+      const screen = await mount({ values: c.values, errors: {} });
+
+      await expect.element(screen.getByLabelText(c.name_label)).toBeVisible();
+      expect(screen.getByRole("alert").query()).toBeNull();
     });
 
     test("pending reports on the button and locks the fields", async () => {

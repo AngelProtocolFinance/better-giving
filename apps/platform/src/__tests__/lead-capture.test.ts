@@ -150,6 +150,8 @@ import { create_test_db } from "$/pg/test-utils/pglite";
 const BASE_URL = "http://localhost:4200";
 const TEST_SECRET = "test-secret-at-least-32-characters-long!!";
 const LEAD_EMAIL = "lead@example.org";
+const LEAD_THROTTLED =
+  "Too many submissions — please try again in a few minutes.";
 
 // --- setup ---
 
@@ -428,10 +430,16 @@ describe("marketing lead → application", () => {
       }),
     } as any);
 
-    // visible, and deliberately the bare 400 a honeypot trip already answers
-    // with — it fires on volume, never on anything about the address, so it
-    // tells a prober nothing it did not already know
-    await expect(over).rejects.toMatchObject({ status: 400 });
+    // visible on the form, values kept — it fires on volume, never on anything
+    // about the address, so it tells a prober nothing it did not already know
+    const res: any = await over;
+    expect(res.init.status).toBe(400);
+    expect(res.data.message).toBe(LEAD_THROTTLED);
+    expect(res.data.errors).toEqual({});
+    expect(res.data.values).toMatchObject({
+      o_ein: "98-7654321",
+      email: "over@example.org",
+    });
     // and it refuses before spending any of what it exists to protect
     expect(mock_evaluate).not.toHaveBeenCalled();
     expect(await all_regs()).toHaveLength(LEAD_PER_IP.max);
@@ -463,7 +471,9 @@ describe("marketing lead → application", () => {
       }),
     } as any);
 
-    await expect(over).rejects.toMatchObject({ status: 400 });
+    const res: any = await over;
+    expect(res.init.status).toBe(400);
+    expect(res.data.message).toBe(LEAD_THROTTLED);
     expect(mock_evaluate).not.toHaveBeenCalled();
     expect(await all_regs()).toHaveLength(LEAD_PER_USER.max);
   }, 60_000);
@@ -492,7 +502,7 @@ describe("marketing lead → application", () => {
         email: "anon@example.org",
       }),
     } as any);
-    await expect(anon).rejects.toMatchObject({ status: 400 });
+    expect(((await anon) as any).data.message).toBe(LEAD_THROTTLED);
 
     // two colleagues in that same building, each signed in: neither inherits it
     const pairs = [
