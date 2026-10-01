@@ -186,6 +186,7 @@ async function issue_refund(payment_intent: string, idempotencyKey: string) {
   }
 }
 
+/** the charge's refunds besides `completing`, newest first, as `earlier_partials` keeps them */
 async function earlier_refunds(
   payment_intent: string,
   completing: Stripe.Refund

@@ -16,7 +16,7 @@ import type { Provider } from "../types";
 const NO_GRANT = new Set([400, 404, 410]);
 // chariot's own reason can be about our key or config, so it goes to the report
 const NO_GRANT_MSG =
-  "Your fund couldn't make this grant — please check the amount and try again.";
+  "Your fund couldn't make this grant. Please check the amount and try again.";
 
 export const chariot_intent: Provider = async ({
   to,

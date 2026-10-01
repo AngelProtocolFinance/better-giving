@@ -142,7 +142,7 @@ describe("chariot_intent refusals the donor can retry", () => {
     );
     expect((res as Response).status).toBe(400);
     expect(await (res as Response).text()).toBe(
-      "Your fund couldn't make this grant — please check the amount and try again."
+      "Your fund couldn't make this grant. Please check the amount and try again."
     );
   });
 
@@ -179,7 +179,7 @@ describe("chariot_intent refusals the donor can retry", () => {
     );
     expect((res as Response).status).toBe(410);
     expect(await (res as Response).text()).toBe(
-      "Your fund couldn't make this grant — please check the amount and try again."
+      "Your fund couldn't make this grant. Please check the amount and try again."
     );
   });
 

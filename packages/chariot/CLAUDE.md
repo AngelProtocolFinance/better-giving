@@ -4,7 +4,7 @@ Internal package (`private`), a **built** server-side Chariot SDK. Ships the `Ch
 
 ## Public API (platform relies on these exact names)
 
-`Chariot` (class), `ChariotError` (class) + types `Grant`, `CreateGrantRequest`, `ISdkConfig`. Re-exported from `src/index.ts`. `ChariotError` is what every non-2xx throws: `http_status`, `body`, `request_id` (`x-request-id`), and `reason` (the body's `message`, else `detail`). The field is `http_status`, not `status`, on purpose: platform's `is_user_error` reads any numeric `status` in 400-499 as a donor refusal and keeps it off Sentry. `Chariot` is constructed with `ISdkConfig` = `{ api_key, api_url }`.
+`Chariot` (class), `ChariotError` (class) + types `Grant`, `CreateGrantRequest`, `ISdkConfig`. Re-exported from `src/index.ts`. `ChariotError` (thrown on every non-2xx) carries `http_status`, never `status`: platform's `is_user_error` reads any numeric `status` in 400-499 as a donor refusal and keeps it off Sentry. `Chariot` is constructed with `ISdkConfig` = `{ api_key, api_url }`.
 
 ## Layout
 

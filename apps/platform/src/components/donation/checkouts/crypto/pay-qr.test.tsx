@@ -29,7 +29,7 @@ const xlm: IToken = {
 
 const recipient = "rLHzPsX6oXkzU2qL12kHCH8G8cnZv1rBJh";
 const warning = (label: string) =>
-  `Include this ${label} with your transfer — without it we can't credit your donation.`;
+  `Include this ${label} with your transfer. Without it we can't credit your donation.`;
 
 describe("PayQr", () => {
   test("an XRP transfer warns that its destination tag is required, and copies it by that name", async () => {

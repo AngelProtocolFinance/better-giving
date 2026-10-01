@@ -50,7 +50,7 @@ const invalid = (
   extra: Pick<ILeadInvalid, "signed_in_as" | "message"> = {}
 ) => data<ILeadInvalid>({ errors, values, ...extra }, { status: 400 });
 
-const THROTTLED = "Too many submissions — please try again in a few minutes.";
+const THROTTLED = "Too many submissions. Please try again in a few minutes.";
 
 const str = (fd: FormData, k: string) => fd.get(k)?.toString() ?? "";
 

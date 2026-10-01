@@ -38,7 +38,7 @@ export function PayQr({ classes = "", ...props }: Props) {
       </QrCode.Root>
       {props.extraId && (
         <p className="text-sm text-warning-subtle-fg bg-warning-subtle rounded p-2 mb-3.5 max-w-xs text-center">
-          Include this {label.toLowerCase()} with your transfer — without it we
+          Include this {label.toLowerCase()} with your transfer. Without it we
           can't credit your donation.
         </p>
       )}

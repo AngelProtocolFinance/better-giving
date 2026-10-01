@@ -151,7 +151,7 @@ const BASE_URL = "http://localhost:4200";
 const TEST_SECRET = "test-secret-at-least-32-characters-long!!";
 const LEAD_EMAIL = "lead@example.org";
 const LEAD_THROTTLED =
-  "Too many submissions — please try again in a few minutes.";
+  "Too many submissions. Please try again in a few minutes.";
 
 // --- setup ---
 
