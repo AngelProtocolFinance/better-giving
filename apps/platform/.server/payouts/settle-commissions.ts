@@ -38,9 +38,10 @@ class UnderMinimum extends Error {
 }
 
 /**
- * pays a referrer every commission still pending, the grants way: claims them
- * (pending → processing, ref stored) before wise is asked, so a retry or a
- * later run never takes a claimed commission into a second transfer. a
+ * pays a referrer every commission still pending, as `settle_npo_payouts`
+ * pays grants: claims them (pending → processing, ref stored) before wise is
+ * asked, so a retry or a later run never takes a claimed commission into a
+ * second transfer. a
  * transfer that moved no money releases the claim; any other failure leaves it
  * processing for a manual reconcile by ref.
  */

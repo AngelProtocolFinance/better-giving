@@ -154,7 +154,7 @@ function failure_lead({ refund, reversed }: IIncompleteRefund): string {
     case "not_issued":
       return "No Stripe refund was issued and nothing was reversed. Resolve these before retrying:";
     case "unknown":
-      return "Stripe didn't confirm whether the refund was issued, and nothing was reversed. Retry: a retry finds the same refund rather than issuing a second one.";
+      return "Stripe didn't confirm whether the refund was issued, and nothing was reversed. Retrying is safe: it finds the same refund rather than issuing a second one.";
     case "requires_action":
       return "The Stripe refund needs action before Stripe sends it, so nothing was reversed yet. Retry once Stripe shows it pending or succeeded:";
     case "issued":

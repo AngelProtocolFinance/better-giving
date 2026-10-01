@@ -308,7 +308,7 @@ describe("calc_refund_plan", () => {
       label: "Commission",
       pass: false,
       reason:
-        "$5.00 is in a payout to its referrer, will be reversed as a loss",
+        "$5.00 is in a payout to its referrer, so it will be reversed as a loss",
     });
     expect(plan.preview.effects.map((l) => l.label)).not.toContain(
       "Commission"

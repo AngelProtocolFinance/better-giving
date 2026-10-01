@@ -2,7 +2,7 @@ import { wise as wise_env } from "../env";
 import { wise } from "../kit/wise";
 import { NotFundedError } from "./transfer";
 
-/** awaiting our funding: the one status in which funding it is ours to ask */
+/** awaiting our funding: the one status in which funding is ours to ask for */
 const UNFUNDED = "incoming_payment_waiting";
 /** funded, and the money on its way or delivered */
 const FUNDED = new Set([

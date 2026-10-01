@@ -22,15 +22,18 @@ function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
         We've got great news for you: the documentation you provided was
         successfully vetted by our team and approved.{" "}
         {org_name
-          ? `${org_name}'s account is now live!`
-          : "Your organization's account is now live!"}
+          ? `The account for ${org_name} is now live.`
+          : "Your organization's account is now live."}
       </Text>
       {profile_link ? (
         <>
           <Text>
-            You can see {org_name ? `${org_name}'s` : "your organization's"}{" "}
-            profile here: <Link href={profile_link}>{profile_link}</Link> and
-            start receiving donations from visitors.
+            You can see{" "}
+            {org_name
+              ? `the profile for ${org_name}`
+              : "your organization's profile"}{" "}
+            here: <Link href={profile_link}>{profile_link}</Link> and start
+            receiving donations from visitors.
           </Text>
           <Text>
             Once you've logged in with your email, your profile page is where
@@ -68,7 +71,7 @@ export const template = (data: IData) => {
   return {
     node: <Jsx {...data} />,
     subject: data.org_name
-      ? `Good news! ${data.org_name}'s account has been created!`
-      : "Good news! Your organization's account has been created!",
+      ? `Good news: the account for ${data.org_name} has been created`
+      : "Good news: your organization's account has been created",
   };
 };

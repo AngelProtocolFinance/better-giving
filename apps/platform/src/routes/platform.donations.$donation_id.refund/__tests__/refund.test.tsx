@@ -407,7 +407,7 @@ describe("refund api", () => {
       reversed: null,
     });
     expect(res.failures).toEqual([
-      "Stripe refund re_1 was issued, then: stripe list timed out",
+      "Stripe refund re_1 issued, reversal stopped: stripe list timed out",
     ]);
   });
 

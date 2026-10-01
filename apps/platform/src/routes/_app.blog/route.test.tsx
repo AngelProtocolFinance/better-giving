@@ -179,7 +179,7 @@ describe("blog list", () => {
       .toBeVisible();
 
     release_revalidation();
-    // the cache write sits beside the fresh-data state update; a task later
+    // the cache write sits beside the fresh-data state update; one task later,
     // react has rendered it
     await vi.waitFor(() =>
       expect(cache_set).toHaveBeenCalledWith(

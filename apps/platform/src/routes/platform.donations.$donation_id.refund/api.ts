@@ -309,7 +309,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
     const reason = err instanceof Error ? err.message : String(err);
     return incomplete(
       "issued",
-      [`Stripe refund ${r.id} was issued, then: ${reason}`],
+      [`Stripe refund ${r.id} issued, reversal stopped: ${reason}`],
       null,
       "Refund issued, reversal stopped"
     );

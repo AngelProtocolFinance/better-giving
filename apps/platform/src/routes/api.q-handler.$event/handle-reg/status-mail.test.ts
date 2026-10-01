@@ -59,9 +59,9 @@ describe("registration status mails", () => {
 
     const { subject, text } = await sent();
     expect(subject).toBe(
-      "Good news! Your organization's account has been created!"
+      "Good news: your organization's account has been created"
     );
-    expect(text).toMatch(/approved\. Your organization's account is now live!/);
+    expect(text).toMatch(/approved\. Your organization's account is now live/);
     expect(text).toMatch(/You can see your organization's profile here/);
     // a sentence opening lowercase after terminal punctuation
     expect(`${subject}\n${text}`).not.toMatch(/[.!?]\s+your organization/);
@@ -78,10 +78,10 @@ describe("registration status mails", () => {
 
     const { subject, text } = await sent();
     expect(subject).toBe(
-      "Good news! Rainforest Fund's account has been created!"
+      "Good news: the account for Rainforest Fund has been created"
     );
-    expect(text).toMatch(/Rainforest Fund's account is now live!/);
-    expect(text).toMatch(/You can see Rainforest Fund's profile here/);
+    expect(text).toMatch(/The account for Rainforest Fund is now live\./);
+    expect(text).toMatch(/You can see the profile for Rainforest Fund here/);
   });
 
   test("an approval with no nonprofit id carries no profile link and is reported", async () => {

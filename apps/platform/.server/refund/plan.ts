@@ -181,7 +181,7 @@ export function calc_refund_plan(
     preview.warnings.push({
       label: "Commission",
       pass: false,
-      reason: `$${humanize(commission.amount)} is in a payout to its referrer, will be reversed as a loss`,
+      reason: `$${humanize(commission.amount)} is in a payout to its referrer, so it will be reversed as a loss`,
     });
   } else if (commission) {
     preview.effects.push({
