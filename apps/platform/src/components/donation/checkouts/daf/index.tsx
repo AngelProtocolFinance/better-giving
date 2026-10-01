@@ -35,12 +35,13 @@ const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
  */
 const PROMPT_SLOT = "daf-checkout";
 /**
- * what `/api/donation-intents` answers before create grant runs: the schema,
- * minimum and whole-dollar refusals (400) and a closed recipient (404). nothing
- * exists at chariot, so the donor can go again. any other 4xx (a waf block, a
- * rate limit) isn't the route's and says nothing about the grant.
+ * what `/api/donation-intents` answers when no grant was made: the schema,
+ * minimum and whole-dollar refusals (400), a closed recipient (404), and create
+ * grant's own refusals passed through (400, 404, an expired session's 410).
+ * nothing exists at chariot, so the donor can go again. any other 4xx (a waf
+ * block, a rate limit) isn't the route's and says nothing about the grant.
  */
-const PRE_GRANT_REFUSALS = new Set([400, 404]);
+const PRE_GRANT_REFUSALS = new Set([400, 404, 410]);
 
 /** dafs grant whole dollars only: the total rounds up to the next dollar, the
  * difference landing on the fee allowance when the donor covers fees, else on

@@ -1,3 +1,5 @@
+import { ChariotError } from "@better-giving/chariot";
+import { report_degraded } from "#/errors/report";
 import { MIN_DONATION_USD } from "@/constants/common";
 import type { ChariotMetadata, IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
@@ -8,6 +10,13 @@ import { db } from "$/pg/db";
 import { is_unique_violation } from "$/pg/errors";
 import { donation_get, donation_put } from "$/pg/queries/donation";
 import type { Provider } from "../types";
+
+/** create grant answers these having made no grant, so the donor can go again.
+ * not 409: that's this session's grant already processing, so one may exist */
+const NO_GRANT = new Set([400, 404, 410]);
+// chariot's own reason can be about our key or config, so it goes to the report
+const NO_GRANT_MSG =
+  "Your fund couldn't make this grant — please check the amount and try again.";
 
 export const chariot_intent: Provider = async ({
   to,
@@ -26,10 +35,21 @@ export const chariot_intent: Provider = async ({
   if (!Number.isInteger(dollars))
     return resp.status(400, "DAF grants must be a whole dollar amount");
 
-  const grant = await chariot.create_grant({
-    workflowSessionId: via_extra,
-    amount: dollars * 100,
-  });
+  const grant = await chariot
+    .create_grant({ workflowSessionId: via_extra, amount: dollars * 100 })
+    .catch((err) => {
+      if (!(err instanceof ChariotError) || !NO_GRANT.has(err.http_status))
+        throw err;
+      return err;
+    });
+  if (grant instanceof ChariotError) {
+    report_degraded(grant, {
+      status: grant.http_status,
+      request_id: grant.request_id,
+      reason: grant.reason,
+    });
+    return resp.txt(NO_GRANT_MSG, grant.http_status);
+  }
 
   const { don_id } = grant.metadata as unknown as ChariotMetadata;
   const now = new Date().toISOString();
