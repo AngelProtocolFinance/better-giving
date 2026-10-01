@@ -42,8 +42,13 @@ const ORDER_ID = "0195c1f0-4c37-7c1a-b8f1-1f1f0a2f9d3e";
 const AMOUNT = 10_000;
 
 /** stripe's side of one $100 usd charge; refunds newest first, as stripe lists them */
-let refunds: { id: string; amount: number; status: string; created: number }[] =
-  [];
+let refunds: {
+  id: string;
+  amount: number;
+  status: string;
+  created: number;
+  metadata: Record<string, string>;
+}[] = [];
 let don_status = "settled";
 let clock = 1_700_000_000;
 
@@ -62,7 +67,7 @@ const charge_now = () => {
 };
 
 /** support refunds `amount` from the dashboard; returns the event stripe sends for it */
-const refund = (amount: number) => {
+const refund = (amount: number, metadata: Record<string, string> = {}) => {
   const before = charge_now().amount_refunded;
   clock += 60;
   refunds.unshift({
@@ -70,6 +75,7 @@ const refund = (amount: number) => {
     amount,
     status: "succeeded",
     created: clock,
+    metadata,
   });
   return {
     id: `evt_${refunds.length}`,
@@ -287,8 +293,9 @@ describe("stripe charge.refunded → donation reversal", () => {
     // redelivered webhook would stop at the refunded status
     const [msg] = queued();
     expect(queued()).toHaveLength(1);
+    // keyed on the completing refund, which every path that reverses it sees
     expect(msg).toMatchObject({
-      dedupe: `fiat.notice_${completing.id}_0`,
+      dedupe: `fiat.notice_${refunds[0]!.id}_0`,
       retries: 3,
     });
     const done = msg.payload.alert;
@@ -441,6 +448,19 @@ describe("stripe charge.refunded → donation reversal", () => {
     await expect(handle_charge_refunded(refund(500))).rejects.toThrow(
       "discord 503"
     );
+  });
+
+  it("leaves the admin action's own refund to the action: no reversal, no notice", async () => {
+    await handle_charge_refunded(refund(500));
+    const { ADMIN_REFUND_METADATA } = await import("$/refund/after-partials");
+
+    await expect(
+      handle_charge_refunded(refund(9_500, { ...ADMIN_REFUND_METADATA }))
+    ).resolves.toBeUndefined();
+
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(alerts()).toHaveLength(1); // the partial's own notice
+    expect(queued()).toEqual([]);
   });
 
   it("reverses the rebill a refunded subscription charge settled, not the order it was cloned from", async () => {
