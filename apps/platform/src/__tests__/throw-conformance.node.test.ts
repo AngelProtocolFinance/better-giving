@@ -64,18 +64,20 @@ function page_graph() {
   return seen;
 }
 
+// each matcher stops at the first `;`, so a trailing comment after the
+// returned statement can't let it reach a later throw's status
 const RETURNED_REFUSAL = [
   /\breturn\s+resp\.status\(/,
   // a `new Response(…)` return whose init carries a 4xx/5xx status
-  /\breturn\s+new Response\((?:(?!;\s*$)[\s\S])*?status:\s*[45]\d\d\b/m,
+  /\breturn\s+new Response\([^;]*?status:\s*[45]\d\d\b/m,
   // `Response.json(…, { status })`. react-router's `data(…, { status })` is
   // absent on purpose: it is the action-data error pages read off `props.error`
-  /\breturn\s+Response\.json\((?:(?!;\s*$)[\s\S])*?status:\s*[45]\d\d\b/m,
+  /\breturn\s+Response\.json\([^;]*?status:\s*[45]\d\d\b/m,
   // `resp.err` always answers an error; `resp.json`/`resp.txt` take the status
   // as a bare numeric arg. `resp.fail` is absent on purpose: a tagged json the
   // client reads off `fetcher.data`
   /\breturn\s+resp\.err\(/,
-  /\breturn\s+resp\.(?:json|txt)\((?:(?!;\s*$)[\s\S])*?,\s*[45]\d\d\s*[,)]/m,
+  /\breturn\s+resp\.(?:json|txt)\([^;]*?,\s*[45]\d\d\s*[,)]/m,
   // a plain object shaped like one: a 200 nobody reads
   /\breturn\s+\{\s*status:\s*[45]\d\d\b/,
 ];
@@ -101,6 +103,19 @@ describe("page modules throw refusals, never return them", () => {
       returns_refusal(`return { status: 400, statusText: "not member" };`)
     ).toBe(true);
     expect(returns_refusal(`if (!x) throw resp.status(404);`)).toBe(false);
+    expect(
+      returns_refusal(
+        `return new Response("ok", { status: 200 }); // success\nthrow new Response("no", { status: 404 });`
+      )
+    ).toBe(false);
+    expect(
+      returns_refusal(
+        `return Response.json(x); // ok\nthrow Response.json(y, { status: 404 });`
+      )
+    ).toBe(false);
+    expect(
+      returns_refusal(`return resp.json(x); // ok\nthrow resp.txt("n", 404);`)
+    ).toBe(false);
     expect(
       returns_refusal(`return Response.json({ a: 1 }, { status: 403 });`)
     ).toBe(true);
