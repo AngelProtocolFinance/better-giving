@@ -173,6 +173,22 @@ describe("api.crypto-intents donation id", () => {
     expect(get_payment_mock).not.toHaveBeenCalled();
   });
 
+  it("a self-custody resume describes the payment by the recipient's name alone, as nowpayments' does", async () => {
+    donation_get_mock.mockResolvedValue({
+      id: ORDER_ID,
+      from_email: OWNER,
+      status: "intent",
+      currency: "REEF-1",
+      amount: { base: 10, tip: 0, fee_allowance: 0 },
+      upusd: 500,
+      to_name: "NP Test NPO",
+    });
+    const res = await load(await cookie_for(ORDER_ID), ORDER_ID);
+    expect(await (res as Response).json()).toMatchObject({
+      description: "NP Test NPO",
+    });
+  });
+
   // our own address would take a deposit nowpayments never tracks
   it("a nowpayments donation resolves to its nowpayments payment, not our deposit address", async () => {
     const res = await load(await cookie_for(ORDER_ID), ORDER_ID);
