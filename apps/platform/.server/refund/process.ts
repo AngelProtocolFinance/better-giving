@@ -229,8 +229,10 @@ export async function process_refund(
   // retries the pair.
   //
   // one write site covers both refund entry points: the `charge.refunded`
-  // webhook, and the admin refund action, which calls process_refund itself and
-  // whose resulting webhook short-circuits before reaching here.
+  // webhook, and the admin refund action, which issues its stripe refund
+  // before calling process_refund. each full refund has one of the two as its
+  // owner: the webhook leaves a refund the action issued to the action
+  // (`is_admin_refund`), so its retry is the admin's, not a replayed event.
   //
   // `graphs` is a snapshot, and settle_npo can commit a dist after it was taken.
   // so the flip first locks the donation row: that waits out a settle_npo

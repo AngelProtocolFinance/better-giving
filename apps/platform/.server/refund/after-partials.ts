@@ -7,12 +7,17 @@ import { enqueue } from "../kit/queue";
 import { refund_list } from "../kit/stripe-money";
 import type { RefundResult } from "./process";
 
+/** stamped on the refund the admin refund action issues. that action reverses
+ * the donation itself, so the refund's `charge.refunded` webhook leaves it be */
+export const ADMIN_REFUND_METADATA = { reversed_by: "admin-refund-action" };
+
+export const is_admin_refund = (r: { metadata?: Stripe.Metadata | null }) =>
+  r.metadata?.reversed_by === ADMIN_REFUND_METADATA.reversed_by;
+
 export interface FullRefund {
   donation_id: string;
   /** where the full refund was seen, e.g. `charge ch_1, event evt_1` */
   seen_at: string;
-  /** keys the outcome notice's dedupe; one per full refund and its retries */
-  notice_id: string;
   currency: string;
   /** the refund that refunded the rest of the charge */
   completing: Stripe.Refund;
@@ -69,12 +74,13 @@ export async function reverse_after_partials(
   // queued, not sent: once reversed, a retry stops at the donation's status,
   // so only the queue's retries can land a failed send. a failed enqueue is
   // reported, instruction and all, rather than thrown: once reversed, no retry
-  // gets far enough to queue it. keyed on the outcome as well: a retry failing
-  // alike collapses into the "keep" notice, and one that now completes lands
-  // its "undo" notice.
+  // gets far enough to queue it. keyed on the completing refund, which every
+  // run reversing it sees, so no two runs send it twice; and on the outcome: a
+  // retry failing alike collapses into the "keep" notice, and one that now
+  // completes lands its "undo" notice.
   await enqueue(
     msg("fiat-notice", {
-      id: `${r.notice_id}_${failed}`,
+      id: `${r.completing.id}_${failed}`,
       alert: { type: "NOTICE", from, title, body },
     })
   ).catch((err) =>
