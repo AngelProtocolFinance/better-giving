@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { KINDS, type Kind, type MsgInput, msg } from "./registry";
+import { KINDS, type Kind, type MsgInput, msg, retries_of } from "./registry";
 
 describe("msg() — dedupe keys are wire-format and must not drift", () => {
   // per-row payload shape varies; rely on the test calling msg() to enforce
@@ -94,5 +94,12 @@ describe("reg-updated dedupe", () => {
     expect(msg("reg-updated", submitted).dedupe).not.toBe(
       msg("reg-updated", row).dedupe
     );
+  });
+});
+
+describe("retries_of", () => {
+  test("reads a kind's configured retries, 0 for an at-most-once kind", () => {
+    expect(retries_of("sub-deactivated")).toBe(3);
+    expect(retries_of("don-dist")).toBe(0);
   });
 });

@@ -178,8 +178,14 @@ export type MsgInput<K extends Kind> = K extends "reg-updated"
     }
   : Payloads[K];
 
+/** what the queue says about this delivery */
+export interface IAttempt {
+  /** no retry follows if this one throws */
+  last: boolean;
+}
+
 export type Handlers = {
-  [K in Kind]: (payload: Payloads[K]) => Promise<unknown>;
+  [K in Kind]: (payload: Payloads[K], attempt: IAttempt) => Promise<unknown>;
 };
 
 const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
@@ -275,6 +281,9 @@ export const msg = <K extends Kind>(kind: K, payload: MsgInput<K>): IMsg => ({
   dedupe: (dedupe[kind] as (p: MsgInput<K>) => string)(payload),
   ...delivery[kind],
 });
+
+/** the retries a kind is delivered with; 0 when it's at-most-once */
+export const retries_of = (kind: Kind): number => delivery[kind]?.retries ?? 0;
 
 // runtime enumeration of every Kind, sourced from the dedupe map (which is
 // itself exhaustiveness-enforced by `{ [K in Kind]: ... }`). use in tests
