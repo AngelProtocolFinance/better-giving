@@ -225,7 +225,7 @@ async function open_and_confirm(donation_id: string) {
 describe("refund modal", () => {
   it.each([
     ["succeeded", /stripe refund completed/i],
-    ["pending", /awaiting stripe/i],
+    ["pending", /reverses once the bank refund succeeds/i],
   ])("reports a %s stripe refund by its status", async (status, wording) => {
     refunds_create.mockResolvedValue({ id: "re_1", status });
     const id = await seed_donation();
@@ -234,9 +234,10 @@ describe("refund modal", () => {
     const screen = await open_and_confirm(id);
 
     await expect.element(screen.getByText(wording)).toBeInTheDocument();
-    const others = [/stripe refund completed/i, /awaiting stripe/i].filter(
-      (w) => String(w) !== String(wording)
-    );
+    const others = [
+      /stripe refund completed/i,
+      /reverses once the bank refund succeeds/i,
+    ].filter((w) => String(w) !== String(wording));
     for (const w of others) expect(screen.getByText(w).query()).toBeNull();
     expect(refunds_create).toHaveBeenCalledWith(
       expect.objectContaining({ payment_intent: `pi_${id}` }),
@@ -761,6 +762,44 @@ describe("refund api", () => {
     const res: any = await action({ params: { donation_id: id } } as any);
 
     expect(res).toMatchObject({ ok: true, stripe_refund: "succeeded" });
+    expect(process_refund).toHaveBeenCalledOnce();
+  });
+
+  it("leaves the reversal to refund.updated while the bank refund is pending, stopping the gift's billing now", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "pending" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const sub_id = await seed_subscription(`pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({
+      ok: true,
+      stripe_refund: "pending",
+      reversal: "held",
+    });
+    expect(process_refund).not.toHaveBeenCalled();
+    const [deactivated] = enqueue.mock.calls
+      .flat()
+      .filter((m) => m.id === "sub-deactivated");
+    expect(deactivated?.payload).toMatchObject({
+      id: sub_id,
+      status_cancel_reason: "refunded",
+    });
+  });
+
+  it("reverses a succeeded card refund at once", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({
+      ok: true,
+      stripe_refund: "succeeded",
+      reversal: "done",
+    });
     expect(process_refund).toHaveBeenCalledOnce();
   });
 

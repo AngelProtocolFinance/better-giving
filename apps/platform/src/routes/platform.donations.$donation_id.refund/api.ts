@@ -320,8 +320,9 @@ export const action = async ({ params }: Route.ActionArgs) => {
     const failure = `Stripe refund ${r.id} is ${r.status}: nothing was reversed`;
     return incomplete("not_issued", [failure], 0, "Refund not issued");
   }
-  // requires_action, chiefly. it can still expire to canceled, with no event
-  // this app hears, so nothing is reversed until a retry finds it accepted
+  // requires_action, chiefly. it can still expire to canceled, so nothing is
+  // reversed here; once it succeeds refund.updated reverses it, or a retry
+  // finds it accepted
   if (!is_accepted(r.status)) {
     const failure = `Stripe refund ${r.id} needs action before Stripe sends it (${r.status}): nothing was reversed`;
     return incomplete(
@@ -332,6 +333,21 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
   const stripe_refund = r.status;
+
+  // a bank refund can still fail while pending, so its reversal waits for
+  // refund.updated to see it succeed. the gift stops billing now
+  if (stripe_refund === "pending") {
+    try {
+      await cancel_refunded_subscription(intent_id);
+    } catch (err) {
+      // the refund's own charge.refunded webhook cancels it too
+      report_error(err, { donation_id, refund_id: r.id });
+    }
+    return dataWithSuccess(
+      { ok: true as const, stripe_refund, reversal: "held" as const },
+      "Refund issued"
+    );
+  }
 
   // past here the donor is refunded, so the admin hears that whatever throws
   let result: RefundResult;
@@ -358,7 +374,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
   }
 
   return dataWithSuccess(
-    { ok: true as const, stripe_refund },
+    { ok: true as const, stripe_refund, reversal: "done" as const },
     "Refund processed"
   );
 };

@@ -205,7 +205,7 @@ function RefundOutcome({ status }: IRefundOutcome) {
     <p className="text-sm text-gray-11 mb-4">
       {status === "succeeded"
         ? "All records have been reversed and the Stripe refund completed."
-        : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
+        : "The Stripe refund was issued and is pending with the bank. Nothing is reversed yet: the donation reverses once the bank refund succeeds."}
     </p>
   );
 }
