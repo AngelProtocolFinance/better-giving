@@ -1,4 +1,9 @@
-export type TStatus = "pending" | "paid" | "refunded" | "refunded_loss";
+export type TStatus =
+  | "pending"
+  | "processing"
+  | "paid"
+  | "refunded"
+  | "refunded_loss";
 
 export interface ICommission {
   /** iso timestamp */
@@ -11,6 +16,8 @@ export interface ICommission {
   /** combined from various sources */
   amount: number;
   status: TStatus;
+  /** wise customerTransactionId, set while processing and kept once paid */
+  ref?: string;
 }
 /** referrer lifetime data — per-npo commission aggregates */
 export interface ICommissionsLtd {

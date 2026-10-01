@@ -23,8 +23,10 @@ export const referrer_commissions = pgTable(
       .references(() => npos.id),
     amount: numeric_as_number("amount", { precision: 38, scale: 18 }).notNull(),
     status: text("status")
-      .$type<"pending" | "paid" | "refunded" | "refunded_loss">()
+      .$type<"pending" | "processing" | "paid" | "refunded" | "refunded_loss">()
       .notNull(),
+    /** wise customerTransactionId of the transfer that claimed it */
+    ref: text("ref"),
   },
   (t) => [
     check(
@@ -33,7 +35,7 @@ export const referrer_commissions = pgTable(
     ),
     check(
       "status_check",
-      sql`${t.status} IN ('pending','paid','refunded','refunded_loss')`
+      sql`${t.status} IN ('pending','processing','paid','refunded','refunded_loss')`
     ),
     index("referrer_commissions_donation_id_idx").on(t.donation_id),
     index("referrer_commissions_status_idx").on(t.status),
