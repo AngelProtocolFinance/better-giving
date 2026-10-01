@@ -104,8 +104,11 @@ export function Form({
         }
       />
       <Videos {...rhf.videos} classes="mt-4 mb-8" />
-      <p className="label mb-2 mt-4">Logo</p>
+      <label htmlFor="fund-logo" className="label mb-2 mt-4">
+        Logo
+      </label>
       <ImgEditor
+        id="fund-logo"
         ref={rhf.logo.ref}
         disabled={is_submitting}
         value={rhf.logo.value}
@@ -122,8 +125,11 @@ export function Form({
         error={rhf.errors.logo?.message}
       />
 
-      <p className="label mt-6 mb-2">Banner</p>
+      <label htmlFor="fund-banner" className="label mt-6 mb-2">
+        Banner
+      </label>
       <ImgEditor
+        id="fund-banner"
         ref={rhf.banner.ref}
         disabled={is_submitting}
         value={rhf.banner.value}

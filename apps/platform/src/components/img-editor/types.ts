@@ -53,6 +53,8 @@ export type ImgEditorHandle = { focus: () => void };
 
 export interface ControlledProps extends Omit<Props<any, any>, "name"> {
   ref?: React.Ref<ImgEditorHandle>;
+  /** the file input's id — what the caller's caption `<label htmlFor>` points at */
+  id?: string;
   value: ImgOutput;
   /** optional: also run some validation */
   on_change: (value: ImgOutput) => void;

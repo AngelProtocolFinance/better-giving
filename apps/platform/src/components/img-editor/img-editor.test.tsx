@@ -1,4 +1,5 @@
 import { AskHost } from "@better-giving/ui";
+import { useState } from "react";
 import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
@@ -352,5 +353,83 @@ describe("ImgEditor: focus target", () => {
       expect(document.activeElement).toBe(root.querySelector("label"));
       expect(scroll).toHaveBeenCalledWith({ block: "start" });
     });
+  });
+});
+
+const reject_messages: Partial<Record<ImgOutput, string>> = {
+  "invalid-type": "invalid file type",
+  "exceeds-size": "exceeds file size limit",
+};
+
+/** a caller whose error follows the value, the way every call site's schema
+ * turns a picked file's sentinel into a message */
+function CaptionedEditor() {
+  const [value, set_value] = useState<ImgOutput>("");
+  return (
+    <>
+      <label htmlFor="banner">Banner</label>
+      <ImgEditor
+        id="banner"
+        value={value}
+        on_change={set_value}
+        on_undo={() => set_value("")}
+        spec={spec}
+        error={reject_messages[value]}
+      />
+      <AskHost />
+    </>
+  );
+}
+
+describe("ImgEditor: description", () => {
+  test("the types and size hint describes the input before any error", async () => {
+    const screen = await render(<CaptionedEditor />);
+    const input = screen.getByLabelText("Banner", { exact: true });
+
+    await expect.element(input).toHaveAccessibleDescription(/JPEG, PNG/);
+    await expect.element(input).not.toHaveAttribute("aria-invalid", "true");
+  });
+
+  test.each([
+    {
+      case: "wrong type",
+      file: new File(["data"], "file.svg", { type: "image/svg+xml" }),
+      message: "invalid file type",
+    },
+    {
+      case: "too large",
+      file: new File([new ArrayBuffer(6e6)], "big.png", { type: "image/png" }),
+      message: "exceeds file size limit",
+    },
+  ])(
+    "a $case file's message lands in a polite live region that describes the input, after the hint",
+    async ({ file, message }) => {
+      const screen = await render(<CaptionedEditor />);
+      const input = screen.getByLabelText("Banner", { exact: true });
+      const el = input.element() as HTMLInputElement;
+
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(el, "files", { value: dt.files });
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+
+      const region = screen.getByText(message, { exact: true });
+      await expect.element(region).toHaveAttribute("aria-live", "polite");
+      await expect.element(input).toHaveAttribute("aria-invalid", "true");
+      const [hint_id, error_id] = (
+        el.getAttribute("aria-describedby") ?? ""
+      ).split(" ");
+      expect(document.getElementById(hint_id)?.textContent).toMatch(
+        /JPEG, PNG/
+      );
+      expect(error_id).toBe(region.element().id);
+    }
+  );
+
+  test("the live region is mounted before any error, so its first message is a change", async () => {
+    const screen = await render(<CaptionedEditor />);
+    const live = screen.container.querySelectorAll("[aria-live='polite']");
+    expect(live).toHaveLength(1);
+    expect(live[0].textContent).toBe("");
   });
 });

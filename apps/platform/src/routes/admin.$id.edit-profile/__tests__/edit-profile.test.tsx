@@ -1015,15 +1015,6 @@ describe("edit profile — validation", () => {
   });
 });
 
-/** each editor is preceded by its visible <Label> and carries no accessible
- * name of its own, so the label text is the only stable handle on one of the
- * three */
-const banner_editor = (screen: {
-  getByText: (t: string) => { element: () => Element };
-}) =>
-  screen.getByText("Banner image of your organization").element()
-    .nextElementSibling as HTMLElement;
-
 describe("edit profile — focus after a keyboard save", () => {
   // a saved group's button disarms (nothing dirty), so the focus its
   // fieldset ejected lands on the form, not <body>
@@ -1081,7 +1072,7 @@ describe("edit profile — focus on error", () => {
 
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(
-        banner_editor(screen).querySelector("input[type='file']")
+        screen.getByLabelText("Banner image of your organization").element()
       );
     });
   });
@@ -1103,9 +1094,37 @@ describe("edit profile — focus on error", () => {
 
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(
-        banner_editor(screen).querySelector("input[type='file']")
+        screen.getByLabelText("Banner image of your organization").element()
       );
     });
+  });
+});
+
+describe("edit profile — image fields", () => {
+  it("each upload is named by its caption; a missing one is invalid and described by its error", async () => {
+    const npo = await seed_npo({ image: "", logo: "", card_img: "" });
+    const screen = await render_edit(npo.id);
+
+    const captions = [
+      "Banner image of your organization",
+      "Logo of your organization",
+      "Marketplace Card image for your organization",
+    ];
+    const inputs = captions.map((c) => screen.getByLabelText(c));
+    for (const [i, input] of inputs.entries()) {
+      await expect.element(input).toHaveAccessibleName(captions[i]);
+      await expect.element(input).not.toHaveAttribute("aria-invalid", "true");
+    }
+
+    const tagline = screen.getByLabelText(/tagline/i);
+    await tagline.clear();
+    await tagline.fill("Still helping the world");
+    await screen.getByRole("button", { name: "Save general" }).click();
+
+    for (const input of inputs) {
+      await expect.element(input).toHaveAttribute("aria-invalid", "true");
+      await expect.element(input).toHaveAccessibleDescription(/required/);
+    }
   });
 });
 

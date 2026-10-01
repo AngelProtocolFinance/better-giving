@@ -2,7 +2,7 @@ import { use_ask } from "@better-giving/ui";
 import { unpack } from "@better-giving/ui/helpers";
 import { ArrowUpFromLine, Crop, Undo } from "lucide-react";
 import type React from "react";
-import { useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { report_error } from "#/errors/report";
 import { uploadFile } from "#/helpers/upload-file";
 import { humanize } from "@/helpers/decimal";
@@ -12,8 +12,12 @@ import { type ControlledProps, sentinels } from "./types";
 
 const BYTES_IN_MB = 1e6;
 
-export function ImgEditor({ ref, ...props }: ControlledProps) {
+export function ImgEditor({ ref, id, ...props }: ControlledProps) {
   const ask = use_ask();
+  const fallback_id = useId();
+  const input_id = id ?? fallback_id;
+  const hint_id = `${input_id}-hint`;
+  const error_id = `${input_id}-error`;
   const [file, setFile] = useState<File>();
   const [drag_active, set_drag_active] = useState(false);
   const root_ref = useRef<HTMLDivElement>(null);
@@ -111,10 +115,13 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
   const file_input = (
     <input
       ref={input_ref}
+      id={input_id}
       type="file"
       className="sr-only"
       accept={props.spec.type.join(",")}
       disabled={disabled}
+      aria-invalid={!!props.error}
+      aria-describedby={props.error ? `${hint_id} ${error_id}` : hint_id}
       onChange={(e) => {
         const files = Array.from(e.target.files ?? []);
         if (files.length) handle_files(files);
@@ -130,7 +137,7 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
       className={`${styles.container} grid grid-rows-[1fr_auto] scroll-mt-24`}
     >
       <p className="text-xs text-gray-11 mb-2">
-        <span>
+        <span id={hint_id}>
           Valid types are:{" "}
           {props.spec.type
             .map((m) => m.split("/")[1].toUpperCase().replace(/\+xml/gi, ""))
@@ -192,8 +199,12 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
           >
             {file_input}
             <ArrowUpFromLine className="mb-5 icon-xl" />
-            <p className="font-semibold mb-1">Upload file</p>
-            <span className="text-center">
+            {/* the dropzone label wraps the input, so its text would join the
+                caller's caption in the input's name */}
+            <p aria-hidden className="font-semibold mb-1">
+              Upload file
+            </p>
+            <span aria-hidden className="text-center">
               Click to Browse or Drag &amp; Drop
             </span>
           </div>
@@ -235,7 +246,13 @@ export function ImgEditor({ ref, ...props }: ControlledProps) {
         )}
       </label>
 
-      <span className="empty:hidden text-destructive-subtle-fg text-xs mt-1">
+      {/* always mounted: a message raised by picking a file is announced as
+          a change, which a region inserted with its text is not reliably */}
+      <span
+        id={error_id}
+        aria-live="polite"
+        className="empty:hidden text-destructive-subtle-fg text-xs mt-1"
+      >
         {props.error}
       </span>
     </div>
