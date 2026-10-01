@@ -288,6 +288,13 @@
       "when": 1790553373103,
       "tag": "0040_payouts_type_processing",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790817984665,
+      "tag": "0041_referrer_commissions_processing",
+      "breakpoints": true
     }
   ]
 }

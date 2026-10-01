@@ -4,9 +4,9 @@ import type { IPayout, IPendingStatus } from "@/payouts";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
 import { settle_npo_payouts } from "$/payouts/settle";
+import { wise_pay } from "$/payouts/wise-pay";
 import { pending_payouts, processing_payouts } from "$/pg/queries/payout";
 import { grant_eligibility } from "./eligibility";
-import { transfer_grant } from "./transfer-grant";
 
 // optional npo_id to retry a single npo
 interface IInput {
@@ -78,8 +78,10 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
   try {
     // the minimum check skips the locking claim tx each run for an npo still
     // under it; the settle's locked recheck is the authoritative one
-    const snapshot_total = items.reduce((a, b) => a + b.amount, 0);
-    const el = await grant_eligibility(npo_id, snapshot_total);
+    const el = await grant_eligibility(
+      npo_id,
+      items.map((i) => i.amount)
+    );
     if (el.status === "not_found") throw new Error(`npo:${npo_id} not found`);
     if (el.status === "skipped") {
       console.info(`npo:${npo_id} not paid: ${el.reason}`);
@@ -91,7 +93,7 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
       { id: npo.id, name: npo.name, payout_minimum: minimum },
       items.map((i) => i.id),
       wise_id,
-      (ref, total) => transfer_grant(+wise_id, total, ref)
+      (ref, total) => wise_pay(+wise_id, total, ref)
     );
     if (res.status !== "settled") {
       console.info(`npo:${npo_id} not paid: ${res.status}`);

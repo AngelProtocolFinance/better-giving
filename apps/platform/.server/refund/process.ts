@@ -90,6 +90,7 @@ function project_inputs(
       ? {
           donation_id: g.commission.donation_id,
           amount: g.commission.amount ?? 0,
+          status: g.commission.status,
         }
       : null,
     rev_log_ids: g.rev_logs.map((rl) => rl.id),
@@ -168,11 +169,11 @@ export async function process_refund(
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
       if (!cur || is_reversed(cur)) return { skipped: true } as const;
-      const loss = await apply_refund_plan(tx, plan);
+      const applied = await apply_refund_plan(tx, plan);
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
       });
-      return { skipped: false, loss } as const;
+      return { skipped: false, ...applied } as const;
     });
   }
 
@@ -194,9 +195,14 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss } = res;
+      const { loss, commission_in_flight: c } = res;
       if (loss) {
         loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
+      }
+      if (c) {
+        loss_msgs.push(
+          `commission ${c.donation_id}: $${c.amount} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

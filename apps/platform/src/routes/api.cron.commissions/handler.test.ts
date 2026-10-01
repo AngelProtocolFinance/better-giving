@@ -1,94 +1,279 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { eq } from "drizzle-orm";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
+import type { TestDb } from "$/pg/test-utils/pglite";
 
-const pending = vi.hoisted(() => ({ current: [] as any[] }));
-const wise = vi.hoisted(() => ({
-  v2_account: vi.fn(),
-  quote: vi.fn(),
-  transfer: vi.fn(),
-  fund_transfer: vi.fn(),
-}));
-const transaction = vi.hoisted(() => vi.fn());
-const payout_put = vi.hoisted(() => vi.fn());
+const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const send_alert = vi.hoisted(() => vi.fn());
+const referrer = vi.hoisted(() => ({ pay_id: 42, pay_min: 50 }));
+
+/**
+ * wise at its http boundary: `customerTransactionId` is the idempotency key,
+ * so a reused ref answers with the original transfer, funded or not
+ */
+const wise = vi.hoisted(() => {
+  const by_ref = new Map<string, { id: number; status: string }>();
+  const by_id = new Map<number, { id: number; status: string }>();
+  return {
+    by_ref,
+    by_id,
+    v2_account: vi.fn(async () => ({ currency: "USD" })),
+    quote: vi.fn(async (_: string, q: { sourceAmount: number }) => ({
+      id: `q-${q.sourceAmount}`,
+    })),
+    transfer: vi.fn(
+      async (t: { customerTransactionId: string; targetAccount: string }) => {
+        const seen = by_ref.get(t.customerTransactionId);
+        if (seen) return { ...seen };
+        const created = {
+          id: 9000 + by_ref.size,
+          status: "incoming_payment_waiting",
+        };
+        by_ref.set(t.customerTransactionId, created);
+        by_id.set(created.id, created);
+        return { ...created };
+      }
+    ),
+    fund_transfer: vi.fn(),
+  };
+});
+/** funding as wise does it: the transfer moves on to processing */
+const fund_ok = async (id: number) => {
+  wise.by_id.get(id)!.status = "processing";
+  return { status: "COMPLETED" as const };
+};
 
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 vi.mock("$/env", () => ({ stage: "test", wise: { profile_id: "1" } }));
-vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert: vi.fn() } }));
+vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
 vi.mock("$/kit/wise", () => ({ wise }));
-vi.mock("$/pg/db", () => ({ db: { transaction } }));
-vi.mock("$/pg/queries/referrer", () => ({
-  commissions_all_by_status: async () => pending.current,
-  commission_update_status: vi.fn(),
-  referrer_payout_put: payout_put,
-}));
 vi.mock("./helpers", () => ({
   get_referrer: async (id: string) => ({
     id,
     name: "Ref",
     email: "ref@example.com",
-    pay_id: 42,
-    pay_min: 10,
+    pay_id: referrer.pay_id,
+    pay_min: referrer.pay_min,
   }),
+}));
+vi.mock("$/pg/db", () => ({
+  db: new Proxy(
+    {},
+    {
+      get(_, prop) {
+        const real = test_db.current?.db;
+        if (!real) throw new Error("test_db not initialized");
+        return (real as any)[prop];
+      },
+    }
+  ),
 }));
 
 const { index } = await import("./handler");
+const { commission_refund } = await import("$/pg/queries/referrer");
+const { create_test_db } = await import("$/pg/test-utils/pglite");
+const { npos } = await import("$/pg/schema/npo");
+const { referrer_commissions, referrer_payouts } = await import(
+  "$/pg/schema/referrer"
+);
 
-const commission = (donation_id: string, amount: number) => ({
-  donation_id,
-  amount,
-  referrer_user: "REF-1",
-  status: "pending",
+const db = () => test_db.current!.db;
+const REFERRER = "NPO-REF";
+let npo_id: number;
+
+beforeAll(async () => {
+  test_db.current = await create_test_db();
+}, 30_000);
+
+afterAll(async () => {
+  await test_db.current?.client.close();
 });
 
-const transfer_refs = () =>
+beforeEach(async () => {
+  send_alert.mockReset();
+  referrer.pay_id = 42;
+  referrer.pay_min = 50;
+  wise.by_ref.clear();
+  wise.by_id.clear();
+  wise.quote.mockClear();
+  wise.transfer.mockClear();
+  wise.fund_transfer.mockReset().mockImplementation(fund_ok);
+  await db().delete(referrer_payouts);
+  await db().delete(referrer_commissions);
+  await db().delete(npos);
+  const [npo] = await db()
+    .insert(npos)
+    .values({
+      registration_number: "EIN-COMMISSION",
+      name: "Commission Test NPO",
+      endow_designation: "Charity",
+      overview_pt: "[]",
+      hq_country: "United States",
+      referral_id: REFERRER,
+    })
+    .returning();
+  npo_id = npo!.id;
+});
+
+async function seed(donation_id: string, amount: number) {
+  await db().insert(referrer_commissions).values({
+    referrer_npo: REFERRER,
+    date: "2026-09-01T00:00:00.000Z",
+    donation_id,
+    npo_id,
+    amount,
+    status: "pending",
+  });
+}
+
+const statuses = async () =>
+  Object.fromEntries(
+    (
+      await db()
+        .select({
+          id: referrer_commissions.donation_id,
+          status: referrer_commissions.status,
+        })
+        .from(referrer_commissions)
+    ).map((r) => [r.id, r.status])
+  );
+
+const quoted = () => wise.quote.mock.calls.map(([, q]) => q.sourceAmount);
+const refs = () =>
   wise.transfer.mock.calls.map(([t]) => t.customerTransactionId);
-
-beforeEach(() => {
-  wise.v2_account.mockReset().mockResolvedValue({ currency: "USD" });
-  wise.quote.mockReset().mockResolvedValue({ id: "q-1" });
-  wise.transfer.mockReset().mockResolvedValue({ id: 555 });
-  wise.fund_transfer.mockReset().mockResolvedValue({ status: "COMPLETED" });
-  transaction.mockReset();
-  payout_put.mockReset();
-});
+const alert_titles = () => send_alert.mock.calls.map(([a]) => a.title);
 
 describe("commissions cron", () => {
-  test("a re-run over a set whose paid-marking failed reuses wise's idempotency key", async () => {
-    pending.current = [commission("d-2", 30), commission("d-1", 25)];
-    transaction.mockRejectedValueOnce(new Error("connection lost"));
+  test("pays the pending total in cents, half down, and marks every commission paid", async () => {
+    await seed("d-1", 10.005);
+    await seed("d-2", 40);
+
     await index();
 
-    // the next run reads the same set, in another order
-    pending.current = [commission("d-1", 25), commission("d-2", 30)];
-    transaction.mockResolvedValueOnce(undefined);
-    await index();
+    expect(quoted()).toEqual([50]);
+    expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+    const [payout] = await db().select().from(referrer_payouts);
+    expect(payout).toMatchObject({
+      id: refs()[0],
+      amount: 50,
+      transfer_id: 9000,
+      error: null,
+    });
+  });
 
-    const [first, second] = transfer_refs();
-    expect(first).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+  test("a retry over a grown set after an unknown funding outcome pays only the new commission", async () => {
+    await seed("d-1", 25);
+    await seed("d-2", 30);
+    wise.fund_transfer.mockRejectedValueOnce("fetch failed");
+    await index();
+    expect(alert_titles()).toContain(
+      `commission funding status unknown for ${REFERRER}`
     );
-    expect(second).toBe(first);
-  });
 
-  test("a different commission set gets a different key", async () => {
-    pending.current = [commission("d-1", 25), commission("d-2", 30)];
-    transaction.mockResolvedValue(undefined);
-    await index();
-    pending.current = [commission("d-1", 25), commission("d-3", 30)];
+    await seed("d-3", 60);
     await index();
 
-    const [first, second] = transfer_refs();
+    expect(quoted()).toEqual([55, 60]);
+    expect(await statuses()).toEqual({
+      "d-1": "processing",
+      "d-2": "processing",
+      "d-3": "paid",
+    });
+    const [first, second] = refs();
     expect(second).not.toBe(first);
+    const stuck = send_alert.mock.calls.find(
+      ([a]) => a.title === "commissions claimed but not paid"
+    );
+    expect(stuck?.[0].body).toContain(`${REFERRER} ref ${first}: d-1, d-2`);
   });
 
-  test("the failed run's error row and the paid run's row keep distinct ids", async () => {
-    pending.current = [commission("d-1", 25), commission("d-2", 30)];
-    transaction.mockRejectedValueOnce(new Error("connection lost"));
+  test("a same-set retry whose transfer an earlier run funded is marked paid, not funded again", async () => {
+    await seed("d-1", 25);
+    await seed("d-2", 30);
+    // wise funds it, and the reply is lost
+    wise.fund_transfer.mockImplementationOnce(async (id: number) => {
+      await fund_ok(id);
+      throw "socket hang up";
+    });
     await index();
-    transaction.mockImplementationOnce(async (fn) => fn("tx"));
+    // ops reset the claim without reconciling it in wise
+    await db()
+      .update(referrer_commissions)
+      .set({ status: "pending", ref: null });
+
     await index();
 
-    const ids = payout_put.mock.calls.map(([, p]) => p.id);
-    expect(ids).toHaveLength(2);
-    expect(new Set(ids).size).toBe(2);
+    expect(refs()).toHaveLength(2);
+    expect(refs()[1]).toBe(refs()[0]);
+    expect(wise.fund_transfer).toHaveBeenCalledOnce();
+    expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+    const paid = await db()
+      .select()
+      .from(referrer_payouts)
+      .where(eq(referrer_payouts.id, refs()[0]!));
+    expect(paid).toMatchObject([{ amount: 55, transfer_id: 9000 }]);
   });
+
+  test("a set released after unfunded transfer goes to a changed recipient under a different ref", async () => {
+    await seed("d-1", 25);
+    await seed("d-2", 30);
+    wise.fund_transfer.mockResolvedValueOnce({
+      status: "REJECTED",
+      errorCode: "balance.payment-option-unavailable",
+    });
+    await index();
+    expect(await statuses()).toEqual({ "d-1": "pending", "d-2": "pending" });
+
+    referrer.pay_id = 43;
+    await index();
+
+    const [first, second] = refs();
+    expect(second).not.toBe(first);
+    expect(wise.transfer.mock.calls[1]![0].targetAccount).toBe("43");
+    expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+  });
+
+  test("a commission refunded while its transfer went unfunded stays a loss, named in an alert with the ref", async () => {
+    await seed("d-1", 25);
+    await seed("d-2", 30);
+    wise.fund_transfer.mockImplementationOnce(async () => {
+      await commission_refund(db() as any, "d-1", "refunded");
+      return { status: "REJECTED", errorCode: "balance.insufficient" };
+    });
+
+    await index();
+
+    expect(await statuses()).toEqual({
+      "d-1": "refunded_loss",
+      "d-2": "pending",
+    });
+    const [a] = send_alert.mock.calls.find(([a]) =>
+      a.title.startsWith("commission refunded in flight, not funded")
+    )!;
+    expect(a.body).toContain(refs()[0]);
+    expect(a.fields).toContainEqual({ name: "not_released", value: "d-1" });
+  });
+
+  test.each([
+    [24.998, 50, "paid"],
+    [24.997, undefined, "pending"],
+  ])(
+    "two commissions of %s are judged against a 50 minimum as the cents they pay",
+    async (amount, paid, status) => {
+      await seed("d-1", amount);
+      await seed("d-2", amount);
+
+      await index();
+
+      expect(quoted()).toEqual(paid === undefined ? [] : [paid]);
+      expect(await statuses()).toEqual({ "d-1": status, "d-2": status });
+    }
+  );
 });
