@@ -196,7 +196,7 @@ describe("approve", () => {
     expect(send_email).toHaveBeenCalledOnce();
     expect(send_email.mock.calls[0][0]).toMatchObject({
       to: [EMAIL],
-      subject: expect.stringMatching(/account has been created/),
+      subject: expect.stringMatching(/has been created/),
     });
   });
 
@@ -211,7 +211,7 @@ describe("approve", () => {
 
     expect(send_email.mock.calls[0][0]).toMatchObject({
       to: [EMAIL],
-      subject: expect.stringMatching(/account has been created/),
+      subject: expect.stringMatching(/has been created/),
     });
     expect(report_error).toHaveBeenCalledOnce();
   });

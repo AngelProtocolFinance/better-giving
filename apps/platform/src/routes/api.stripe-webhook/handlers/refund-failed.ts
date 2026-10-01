@@ -4,7 +4,7 @@ import { is_reversed } from "@/donations";
 import { msg } from "@/queue";
 import { stage } from "$/env";
 import { enqueue } from "$/kit/queue";
-import { money } from "../helpers/money";
+import { money } from "$/kit/stripe-money";
 import { settled_donation } from "../helpers/settled-donation";
 
 /**

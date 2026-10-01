@@ -2,7 +2,7 @@ import type { POSTS_QUERY_RESULT } from "blog-types";
 import { useEffect, useState } from "react";
 import { NavLink, useFetcher, useSearchParams } from "react-router";
 import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
-import { PAGE_SIZE, posts } from "#/api/get/posts";
+import { PAGE_SIZE, post_path, posts } from "#/api/get/posts";
 import { urlFor } from "#/api/sanity";
 import { base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
@@ -52,6 +52,19 @@ export const meta: Route.MetaFunction = () =>
 export { ErrorBoundary } from "#/components/error";
 export default CacheRoute(Posts);
 function Posts({ loaderData: firstPage }: Route.ComponentProps) {
+  // the client cache renders its cached copy, then swaps in the revalidated
+  // one, always as a new object. the list remounts (dropping appended pages and
+  // the fetcher) only when that first page's content differs; ids alone would
+  // miss an edited post.
+  return (
+    <PostList key={JSON.stringify(firstPage.posts)} firstPage={firstPage} />
+  );
+}
+
+interface IPostList {
+  firstPage: IPostsPage;
+}
+function PostList({ firstPage }: IPostList) {
   const [params] = useSearchParams();
   const { data, state, load } = useFetcher<typeof loader>();
   // seed from firstPage; both firstPage.posts and data.posts are the loader's
@@ -109,30 +122,35 @@ function Posts({ loaderData: firstPage }: Route.ComponentProps) {
 }
 
 const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
-  props.posts.map((post) => (
-    <NavLink
-      key={post._id}
-      to={post.slug.current}
-      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lift-card transition-shadow group"
-    >
-      {post.image?.asset ? (
-        <img
-          src={urlFor(post.image).width(1024).height(576).url()}
-          alt={post.image.alt ?? post.title}
-          className="w-full aspect-video object-cover"
-        />
-      ) : (
-        <div className="w-full aspect-video bg-secondary" />
-      )}
-      <div className="flex flex-col p-6 gap-3">
-        <h2 className="text-lg font-bold text-pretty group-has-[:hover]:text-primary">
-          {post.title}
-        </h2>
-        {post.excerpt && (
-          <p className="text-gray-11 line-clamp-4 text-pretty">
-            {post.excerpt}
-          </p>
+  props.posts.map((post) => {
+    const path = post_path(post.slug.current);
+    if (!path) return null;
+    const img_src = urlFor(post.image)?.width(1024).height(576).url();
+    return (
+      <NavLink
+        key={post._id}
+        to={path}
+        className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lift-card transition-shadow group"
+      >
+        {img_src ? (
+          <img
+            src={img_src}
+            alt={post.image?.alt ?? post.title}
+            className="w-full aspect-video object-cover"
+          />
+        ) : (
+          <div className="w-full aspect-video bg-secondary" />
         )}
-      </div>
-    </NavLink>
-  ));
+        <div className="flex flex-col p-6 gap-3">
+          <h2 className="text-lg font-bold text-pretty group-has-[:hover]:text-primary">
+            {post.title}
+          </h2>
+          {post.excerpt && (
+            <p className="text-gray-11 line-clamp-4 text-pretty">
+              {post.excerpt}
+            </p>
+          )}
+        </div>
+      </NavLink>
+    );
+  });

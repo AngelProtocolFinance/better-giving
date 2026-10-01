@@ -156,7 +156,7 @@ export async function handle_reg_updated(reg: IReg) {
   // mail is reported and left rather than re-driving everything around it.
   if (reg.status === "04") {
     const { node, subject } = registration_rejected.template({
-      registrant_first_name: reg.r_first_name || "missing",
+      registrant_first_name: reg.r_first_name || "there",
       rejection_reason: reg.status_rejected_reason || "not specified",
     });
     const res = await send_email({ node, subject, to: [reg.r_id] });
@@ -164,10 +164,16 @@ export async function handle_reg_updated(reg: IReg) {
   }
 
   if (reg.status === "03") {
+    const npo_id = reg.status_approved_npo_id;
+    if (npo_id == null) {
+      report_error(new Error("approved registration has no npo id"), {
+        reg_id: reg.id,
+      });
+    }
     const { node, subject } = registration_approved.template({
-      registrant_first_name: reg.r_first_name || "missing",
-      org_name: reg.o_name || "missing",
-      endow_id: reg.status_approved_npo_id?.toString() || "0",
+      registrant_first_name: reg.r_first_name || "there",
+      org_name: reg.o_name || undefined,
+      endow_id: npo_id?.toString(),
     });
 
     const res = await send_email({ node, subject, to: [reg.r_id] });

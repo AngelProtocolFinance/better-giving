@@ -20,6 +20,7 @@ import {
 import { donation_match_events } from "../pg/schema/match";
 import { npos } from "../pg/schema/npo";
 import { payouts } from "../pg/schema/payout";
+import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
 import type { TestDb } from "../pg/test-utils/pglite";
 
@@ -40,7 +41,8 @@ vi.mock("../pg/db", () => ({
   ),
 }));
 
-vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
+const fiat_alert = vi.hoisted(() => vi.fn());
+vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: fiat_alert } }));
 
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
@@ -119,6 +121,7 @@ beforeEach(async () => {
   await test_db.current!.db.delete(donation_donors);
   await test_db.current!.db.delete(donation_recipients);
   await test_db.current!.db.delete(donations);
+  await test_db.current!.db.delete(referrer_commissions);
   await test_db.current!.db.delete(npos);
   counter = 0;
 });
@@ -594,5 +597,147 @@ describe("process_refund — a loss reversed before the flip", () => {
     ]);
     expect((await dons())[0]!.status).toBe("refunded");
     expect((await events())[0]!.void_reason).toBe("refunded");
+  });
+});
+
+describe("process_refund — a commission the commissions cron claims mid-refund", () => {
+  async function seed_referred_dist(donation_id: string, npo_id: number) {
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ liq: 100, referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await db.insert(dists).values({
+      id: `dist-${donation_id}`,
+      donation_id,
+      status: "settled",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id: npo_id,
+      to_name: "npo",
+      amount: 100,
+      amount_denom: "USD",
+      net: 100,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      alloc: { liq: 100, lock: 0, cash: 0 },
+    });
+    await db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-07-01T00:00:00.000Z",
+      donation_id: `dist-${donation_id}`,
+      npo_id,
+      amount: 5,
+      status: "pending",
+    });
+  }
+
+  test("a commission claimed for a Wise transfer is refunded as a loss and alerted", async () => {
+    const { id, npo_id } = await seed({ event: false });
+    await seed_referred_dist(id, npo_id);
+    const db = test_db.current!.db;
+    const graphs = await dists_for_refund(id);
+    // the cron commits its claim after the caller's snapshot
+    await db
+      .update(referrer_commissions)
+      .set({ status: "processing", ref: "ref-1" })
+      .where(eq(referrer_commissions.donation_id, `dist-${id}`));
+
+    const res = await process_refund(id, graphs, ctx);
+
+    expect(res.failures).toEqual([]);
+    const [comm] = await db.select().from(referrer_commissions);
+    expect(comm!.status).toBe("refunded_loss");
+    // the npo's side reverses in full; only the commission is lost
+    const [dist] = await db.select().from(dists);
+    expect(dist!.refund_status).toBe("completed");
+    expect((await dons())[0]!.status).toBe("refunded");
+    expect(res.loss_msgs).toEqual([
+      expect.stringContaining(`commission dist-${id}: $5`),
+    ]);
+    expect(res.loss_msgs[0]).toContain("ref-1");
+    expect(fiat_alert).toHaveBeenCalledWith(
+      expect.objectContaining({ body: expect.stringContaining("ref-1") })
+    );
+  });
+
+  /** one cash dist whose payout is in flight, refunded as a loss, then that payout's transfer goes unfunded */
+  async function refund_then_unfund(commission: {
+    status: "pending" | "processing";
+    ref: string | null;
+  }) {
+    const { id, npo_id } = await seed({ event: false });
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ cash: 100, referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await db.insert(dists).values({
+      id: "dist-1",
+      donation_id: id,
+      status: "settled",
+      date_created: "2026-07-01T00:00:00.000Z",
+      to_id: npo_id,
+      to_name: "npo",
+      amount: 100,
+      amount_denom: "USD",
+      net: 100,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 0,
+      alloc: { liq: 0, lock: 0, cash: 100 },
+    });
+    await db.insert(payouts).values({
+      id: "payout-1",
+      source_id: "dist-1",
+      npo_id,
+      source: "donation",
+      date: "2026-07-01T00:00:00.000Z",
+      amount: 100,
+      type: "processing",
+    });
+    await db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-07-01T00:00:00.000Z",
+      donation_id: "dist-1",
+      npo_id,
+      amount: 5,
+      ...commission,
+    });
+    await process_refund(id, await dists_for_refund(id), ctx);
+    const [refunded] = await db.select().from(referrer_commissions);
+
+    const reversed = await db.transaction((tx) =>
+      reverse_unfunded_payout_loss(as_db(tx), "payout-1")
+    );
+
+    expect(reversed).toEqual({ status: "reversed" });
+    const [dist] = await db.select().from(dists);
+    expect(dist!.refund_status).toBe("completed");
+    const [comm] = await db.select().from(referrer_commissions);
+    return { after_refund: refunded!.status, after_reversal: comm!.status };
+  }
+
+  // its payout's transfer went unfunded, but the commission's transfer is its own
+  test("an unfunded payout's loss reversal leaves a commission claimed for a transfer refunded_loss", async () => {
+    const res = await refund_then_unfund({
+      status: "processing",
+      ref: "ref-1",
+    });
+
+    expect(res).toEqual({
+      after_refund: "refunded_loss",
+      after_reversal: "refunded_loss",
+    });
+  });
+
+  // its loss came only from the npo's payout, which the reversal undoes
+  test("an unfunded payout's loss reversal returns an unclaimed commission to refunded", async () => {
+    const res = await refund_then_unfund({ status: "pending", ref: null });
+
+    expect(res).toEqual({
+      after_refund: "refunded_loss",
+      after_reversal: "refunded",
+    });
   });
 });

@@ -90,6 +90,7 @@ function project_inputs(
       ? {
           donation_id: g.commission.donation_id,
           amount: g.commission.amount ?? 0,
+          status: g.commission.status,
         }
       : null,
     rev_log_ids: g.rev_logs.map((rl) => rl.id),
@@ -168,11 +169,11 @@ export async function process_refund(
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
       if (!cur || is_reversed(cur)) return { skipped: true } as const;
-      const loss = await apply_refund_plan(tx, plan);
+      const applied = await apply_refund_plan(tx, plan);
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
       });
-      return { skipped: false, loss } as const;
+      return { skipped: false, ...applied } as const;
     });
   }
 
@@ -194,9 +195,14 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss } = res;
+      const { loss, commission_in_flight: c } = res;
       if (loss) {
         loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
+      }
+      if (c) {
+        loss_msgs.push(
+          `commission ${c.donation_id}: $${c.amount} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -213,10 +219,9 @@ export async function process_refund(
 
   // only finalize the donation status when every dist was applied. with
   // failures present the dists are in mixed states (some "completed",
-  // some "failed") and the donation must stay reversible so admin can
-  // retry once the failed dists are fixed. webhook path gets the same
-  // semantics: a partial failure leaves the row in "settled" and a future
-  // retry (manual or replayed event) can complete the refund.
+  // some "failed") and the donation stays "settled", so a later run can finish
+  // it: the admin retrying, or stripe redelivering the full refund's
+  // `charge.refunded`, whose handler fails the delivery until this completes.
   //
   // the status flip and the match void go together in one transaction because
   // a void that fails silently is worse than no void at all: every suppression
@@ -229,8 +234,10 @@ export async function process_refund(
   // retries the pair.
   //
   // one write site covers both refund entry points: the `charge.refunded`
-  // webhook, and the admin refund action, which calls process_refund itself and
-  // whose resulting webhook short-circuits before reaching here.
+  // webhook, and the admin refund action, whose own stripe refund fires that
+  // webhook too. so both can run on one donation at once; each dist is
+  // reversed once under its row lock in apply_dist, and the flip once under
+  // the donation lock below.
   //
   // `graphs` is a snapshot, and settle_npo can commit a dist after it was taken.
   // so the flip first locks the donation row: that waits out a settle_npo

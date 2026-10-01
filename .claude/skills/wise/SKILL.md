@@ -1,6 +1,6 @@
 ---
 name: wise
-description: Wise (TransferWise) money movement — sandbox V2 hosts and credentials (V1 dies June 30 2026), the single `WISE_API_URL` host source, recipient-account lookups behind /api/wise/*, and the grant payout quote → transfer → fund chain.
+description: Wise (TransferWise) money movement — sandbox V2 hosts and credentials (V1 dies June 30 2026), the single `WISE_API_URL` host source, recipient-account lookups behind /api/wise/*, and the payout quote → transfer → fund chain the grants and referrer-commission crons share.
 ---
 
 # Wise
@@ -48,13 +48,13 @@ curl -s "$WISE_API_URL/v4/profiles/$WISE_PROFILE_ID/balances?types=STANDARD" \
 
 | method | endpoint | called from |
 |---|---|---|
-| `v2_account(id)` | `GET /v2/accounts/{id}` | `src/pages/platform-admin/banking-applications/api.ts`, `src/routes/dashboard.referrals/api.ts`, `transfer-grant.ts` |
+| `v2_account(id)` | `GET /v2/accounts/{id}` | `src/pages/platform-admin/banking-applications/api.ts`, `src/routes/dashboard.referrals/api.ts`, `.server/payouts/wise-pay.ts` |
 | `balance(id, profile_id)` | `GET /v4/profiles/{p}/balances/{id}` | `src/routes/api.cron.grants/notif.ts` |
-| `quote(profile_id, …)` | `POST /v3/profiles/{p}/quotes` | `transfer-grant.ts` |
-| `transfer(…)` | `POST /v1/transfers` | `transfer-grant.ts` |
-| `fund_transfer(…)` | `POST /v3/profiles/{p}/transfers/{t}/payments` | `transfer-grant.ts` |
+| `quote(profile_id, …)` | `POST /v3/profiles/{p}/quotes` | `.server/payouts/wise-pay.ts` |
+| `transfer(…)` | `POST /v1/transfers` | `.server/payouts/wise-pay.ts` |
+| `fund_transfer(…)` | `POST /v3/profiles/{p}/transfers/{t}/payments` | `.server/payouts/wise-pay.ts` |
 
-**Payout chain** — `src/routes/api.cron.grants/transfer-grant.ts`: `v2_account` → `quote` → `transfer` → `fund_transfer`. `customerTransactionId` is the caller's `ref` and is Wise's idempotency key: reusing a ref returns the original transfer instead of creating a second one. `transfer()` resolves with HTTP 200 while carrying `errors` — the call site throws on it. `fund_transfer` returning `status: "REJECTED"` is the insufficient-balance case (`errorCode`), not an exception. The cron wraps the chain: `.server/payouts/settle.ts` claims payouts `pending → processing` before paying. `transfer-grant.ts` throws `NotFundedError` for a failure before `fund_transfer` or a `REJECTED` funding, and settle releases those payouts back to `pending`; any other failure leaves them `processing` for manual reconcile by ref.
+**Payout chain** — `.server/payouts/wise-pay.ts` (`wise_pay`), the one chain both payout crons (grants, referrer commissions) call: `v2_account` → `quote` → `transfer` → `fund_transfer`. `customerTransactionId` is the caller's `ref` and is Wise's idempotency key: reusing a ref returns the original transfer instead of creating a second one, so `wise_pay` reads the returned `status`: it funds only `incoming_payment_waiting`, returns an already-funded transfer as paid without funding it again, and throws on anything else (`NotFundedError` for a `cancelled` one). `transfer()` resolves with HTTP 200 while carrying `errors` — the call site throws on it. `fund_transfer` returning `status: "REJECTED"` is the insufficient-balance case (`errorCode`), not an exception. `wise_pay` throws `NotFundedError` (`.server/payouts/transfer.ts`) for a failure before `fund_transfer` or a `REJECTED` funding; any other throw means money may have moved. Each cron claims its rows `pending → processing` with the ref stored before paying — `.server/payouts/settle.ts` for grant payouts, `.server/payouts/settle-commissions.ts` for commissions — releases them to `pending` on `NotFundedError`, and leaves any other failure `processing` with an alert for manual reconcile by ref. The ref is `transfer_ref` and the total `payout_total`, both in `.server/payouts/transfer.ts`; the grants notice and eligibility judge the minimum on that same total. The ref carries a nonce drawn per claim, so a released set claimed again never meets its earlier, possibly cancelled, transfer.
 
 ## Browser surface
 

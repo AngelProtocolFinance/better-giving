@@ -25,7 +25,7 @@ export interface RefundDistInput {
 export interface RefundInputs {
   dist: RefundDistInput;
   payout: { id: string; type: string | null } | null;
-  commission: { donation_id: string; amount: number } | null;
+  commission: { donation_id: string; amount: number; status: string } | null;
   rev_log_ids: string[];
   bal: { liq: number; lock_units: number; cash: number };
   nav: { price: number } | null;
@@ -175,8 +175,15 @@ export function calc_refund_plan(
     }
   }
 
-  // commission — always reversed (preview only; status follows is_loss below)
-  if (commission) {
+  // commission — always reversed (preview only; status follows is_loss below,
+  // and apply re-reads it under lock: a processing one goes refunded_loss)
+  if (commission?.status === "processing") {
+    preview.warnings.push({
+      label: "Commission",
+      pass: false,
+      reason: `$${humanize(commission.amount)} is in a payout to its referrer, so it will be reversed as a loss`,
+    });
+  } else if (commission) {
     preview.effects.push({
       label: "Commission",
       pass: true,

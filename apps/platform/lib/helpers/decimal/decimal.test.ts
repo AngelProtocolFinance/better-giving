@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { humanize, rd, rd2num, toPreciseLocaleString } from "./utils";
+import { humanize, rd, rd2num, to_units, toPreciseLocaleString } from "./utils";
 
 describe("common decimal helpers", () => {
   test("round down", () => {
@@ -114,5 +114,14 @@ describe("common decimal helpers", () => {
     expect(humanize(1_234_567_891.2345679, 4, false)).toBe(
       toPreciseLocaleString(1_234_567_891.2345, 4)
     );
+  });
+});
+
+describe("to_units half_down", () => {
+  test("a zero total is positive zero, not -0", () => {
+    expect(Object.is(to_units(0, 2, "half_down"), 0)).toBe(true);
+  });
+  test("an exact half rounds down", () => {
+    expect(to_units(100.005, 2, "half_down")).toBe(10000);
   });
 });

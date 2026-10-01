@@ -16,8 +16,9 @@ interface IFromAddress {
   zip?: string;
 }
 
-// dedupe keys ship to qstash and gate at-most-once delivery — preserve
-// existing strings verbatim.
+// dedupe keys ship to qstash and gate at-most-once delivery. change one only
+// when no enqueue can repeat across the deploy: a repeat under the new string
+// isn't deduped against the old.
 
 /** receive-only: see its `dedupe` entry */
 export interface IDonFundReceiptPayload {
@@ -81,7 +82,9 @@ export interface IFundMemberRemovedPayload {
   fund_id: string;
   creator_id: string;
   creator_name: string;
-  removed_npo_ids: number[];
+  npo_id: number;
+  /** receive-only: the pre-`npo_id` shape, still reachable from a retry or the dlq */
+  removed_npo_ids?: number[];
 }
 
 export interface IInviteEmailPayload {
@@ -203,7 +206,8 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "don-sttl-dist": (p) => `don.sttl-dist_${p.id}`,
   "don-sttl-receipt": (p) => `don.sttl-receipt_${p.id}`,
   "fiat-notice": (p) => `fiat.notice_${p.id}`,
-  "fund-member-removed": (p) => `fund.removed_${p.fund_id}_${p.creator_id}`,
+  "fund-member-removed": (p) =>
+    `fund.removed_${p.fund_id}_${p.creator_id}_${p.npo_id}`,
   "invite-email": (p) => `invite_${p.invitee}`,
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,

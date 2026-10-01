@@ -82,7 +82,7 @@ async function seed_opt_out(creator_id: string) {
     fund_id: "fund-1",
     creator_id,
     creator_name: "Ocean Fund",
-    removed_npo_ids: [npo.id],
+    npo_id: npo.id,
   } satisfies IFundMemberRemovedPayload;
 }
 
@@ -108,6 +108,31 @@ describe("handle_fund_member_removed", () => {
     expect(text).toMatch(/Save the Whales has opted out of your fundraiser/);
   });
 
+  test("a retry after a failed send mails the one nonprofit its message names, once", async () => {
+    const creator = await seed_creator("ada@test.com", "Ada", "Lovelace");
+    const payload = await seed_opt_out(creator.id);
+    send_email_or_throw.mockRejectedValueOnce(new Error("smtp 421"));
+
+    await expect(handle_fund_member_removed(payload)).rejects.toThrow();
+    await handle_fund_member_removed(payload);
+
+    expect(send_email_or_throw).toHaveBeenCalledTimes(2);
+    const subjects = send_email_or_throw.mock.calls.map(([m]) => m.subject);
+    expect(subjects.every((s) => /Save the Whales/.test(s))).toBe(true);
+  });
+
+  test("a message queued before the payload carried npo_id still mails its nonprofit", async () => {
+    const creator = await seed_creator("ada@test.com", "Ada", "Lovelace");
+    const { npo_id, ...rest } = await seed_opt_out(creator.id);
+
+    await handle_fund_member_removed({ ...rest, removed_npo_ids: [npo_id] });
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0][0].subject).toMatch(
+      /Save the Whales/
+    );
+  });
+
   test("greets a creator who has no first name as there", async () => {
     const creator = await seed_creator("anon@test.com", "", "");
     const payload = await seed_opt_out(creator.id);
@@ -126,5 +151,19 @@ describe("handle_fund_member_removed", () => {
 
     expect(send_email_or_throw).not.toHaveBeenCalled();
     expect(report_error).toHaveBeenCalledOnce();
+  });
+
+  test("a nonprofit with no row is reported, not mailed, and not retried", async () => {
+    const creator = await seed_creator("ada@test.com", "Ada", "Lovelace");
+    const payload = await seed_opt_out(creator.id);
+    await db().delete(npos);
+
+    await expect(handle_fund_member_removed(payload)).resolves.toBeUndefined();
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(report_error).toHaveBeenCalledOnce();
+    expect(report_error.mock.calls[0][1]).toMatchObject({
+      npo_id: payload.npo_id,
+    });
   });
 });

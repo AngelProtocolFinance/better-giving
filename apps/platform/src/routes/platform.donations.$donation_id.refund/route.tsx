@@ -4,7 +4,12 @@ import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type { action, DistPreview, StripeRefundStatus } from "./api";
+import type {
+  action,
+  DistPreview,
+  RefundState,
+  StripeRefundStatus,
+} from "./api";
 
 export { action, loader } from "./api";
 
@@ -28,7 +33,8 @@ function Content({
   on_close: () => void;
 }) {
   const fetcher = useFetcher<typeof action>();
-  const failures = fetcher.data?.ok === false ? fetcher.data.failures : [];
+  const failed = fetcher.data?.ok === false ? fetcher.data : null;
+  const failures = failed?.failures ?? [];
   const submitting = fetcher.state !== "idle";
   const has_blockers = data.previews.some((p) => p.blockers.length > 0);
   const no_dists = data.previews.length === 0;
@@ -98,11 +104,7 @@ function Content({
         {failures.length > 0 && (
           <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg">
             <p className="font-semibold">Refund not completed</p>
-            <p>
-              Some distributions couldn't be reversed, so no Stripe refund was
-              issued and the donation is still settled. Resolve these before
-              retrying:
-            </p>
+            {failed && <p>{failure_lead(failed)}</p>}
             <ul className="list-disc pl-5 mt-1">
               {failures.map((f) => (
                 <li key={f}>{f}</li>
@@ -141,25 +143,41 @@ function Content({
   );
 }
 
-function RefundOutcome({ status }: { status: StripeRefundStatus | null }) {
-  if (status === "failed" || status === "canceled") {
-    return (
-      <div className="mb-4 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg text-left">
-        <p className="font-semibold">Stripe refund not completed</p>
-        <p>
-          All records have been reversed, but Stripe did not complete the
-          refund, so the donor has not been refunded. Resolve it in Stripe.
-        </p>
-      </div>
-    );
+interface IIncompleteRefund {
+  refund: RefundState;
+  /** dists this attempt reversed; null when it stopped without counting */
+  reversed: number | null;
+}
+
+function failure_lead({ refund, reversed }: IIncompleteRefund): string {
+  switch (refund) {
+    case "not_issued":
+      return "No Stripe refund was issued and nothing was reversed. Resolve these before retrying:";
+    case "unknown":
+      return "Stripe didn't confirm whether the refund was issued, and nothing was reversed. Check the payment in the Stripe dashboard before retrying: a retry within 24 hours gets the same answer back.";
+    case "requires_action":
+      return "The Stripe refund needs action before Stripe sends it, so nothing was reversed yet. Retry once Stripe shows it pending or succeeded:";
+    case "issued":
+      if (reversed === null) {
+        return "The Stripe refund was issued, but the reversal stopped with an error and the donation is still settled. Some distributions may already be reversed. Retry to finish it:";
+      }
+      if (reversed === 0) {
+        return "The Stripe refund was issued, but no distribution was reversed and the donation is still settled. Resolve these:";
+      }
+      return `The Stripe refund was issued and ${reversed} distribution(s) were reversed, but the rest couldn't be and the donation is still settled. Resolve these:`;
   }
+}
+
+interface IRefundOutcome {
+  status: StripeRefundStatus;
+}
+
+function RefundOutcome({ status }: IRefundOutcome) {
   return (
     <p className="text-sm text-gray-11 mb-4">
-      {status === null
-        ? "All records have been reversed. No Stripe refund was issued, so no money was moved."
-        : status === "succeeded"
-          ? "All records have been reversed and the Stripe refund completed."
-          : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
+      {status === "succeeded"
+        ? "All records have been reversed and the Stripe refund completed."
+        : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
     </p>
   );
 }
