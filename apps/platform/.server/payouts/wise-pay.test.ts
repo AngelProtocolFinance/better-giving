@@ -82,7 +82,7 @@ describe("wise_pay", () => {
     "funds_converted",
     "outgoing_payment_sent",
   ])(
-    "a reused ref whose transfer an earlier run funded (%s) is paid, and not funded again",
+    "a ref reused within its claim whose transfer is already funded (%s) is paid, and not funded again",
     async (status) => {
       wise.transfer.mockResolvedValue({ id: TRANSFER_ID, status });
 
