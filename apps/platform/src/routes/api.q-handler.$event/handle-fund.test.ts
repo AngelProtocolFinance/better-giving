@@ -109,7 +109,7 @@ describe("handle_fund_member_removed", () => {
   });
 
   test("a retry after a failed send mails the one nonprofit its message names, once", async () => {
-    const creator = await seed_user(db(), "ada@test.com", "Ada", "Lovelace");
+    const creator = await seed_creator("ada@test.com", "Ada", "Lovelace");
     const payload = await seed_opt_out(creator.id);
     send_email_or_throw.mockRejectedValueOnce(new Error("smtp 421"));
 
