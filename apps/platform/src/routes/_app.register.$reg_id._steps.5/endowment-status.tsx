@@ -16,12 +16,12 @@ export function EndowmentStatus({ status, classes = "" }: Props) {
   const is_submitting = fetcher.state !== "idle";
   const conversion_pushed = useRef(false);
 
-  // gtm conversion, keyed to this fetcher's submitted answer — not to status
+  // gtm conversion, keyed to this fetcher's first-submit answer — not to status
   // "02", so a returning visitor opening an already-submitted application never re-fires it.
   // dataLayer only exists once consent init runs (prod), hence the optional call.
   useEffect(() => {
     if (conversion_pushed.current) return;
-    if (fetcher.state !== "idle" || !fetcher.data?.submitted) return;
+    if (fetcher.state !== "idle" || !fetcher.data?.first) return;
     conversion_pushed.current = true;
     window.dataLayer?.push({ event: "nonprofit_signup" });
   }, [fetcher.state, fetcher.data]);

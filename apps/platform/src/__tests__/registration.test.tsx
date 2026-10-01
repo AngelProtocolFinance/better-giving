@@ -1173,6 +1173,23 @@ describe("E2E: submitted state disables dashboard", () => {
     expect((await get_reg(id)).status).toBe("01");
     expect(window.dataLayer).toEqual([]);
   }, 15_000);
+
+  it("resubmitting a rejected application pushes no conversion", async () => {
+    const { id } = await seed_reg({
+      ...CONTACT_FIELDS,
+      ...ORG_FIELDS,
+      ...BANKING_FIELDS,
+      status: "04",
+    });
+    const screen = await render_registration(id, "5");
+
+    await screen.getByRole("button", { name: /resubmit/i }).click();
+
+    await expect
+      .element(screen.getByText(/submitted for review/i))
+      .toBeInTheDocument();
+    expect(window.dataLayer).toEqual([]);
+  }, 15_000);
 });
 
 // --- reg_put: seed data ---

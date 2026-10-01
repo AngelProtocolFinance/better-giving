@@ -33,7 +33,7 @@ export const submit_action = async ({
   }
 
   //reset previous review
-  const { row } = await reg_update_from(db, r.id, EDITABLE, {
+  const { won, row } = await reg_update_from(db, r.id, EDITABLE, {
     status: "02",
     status_rejected_reason: null,
   });
@@ -55,7 +55,8 @@ export const submit_action = async ({
   }
 
   return dataWithSuccess(
-    { submitted: true as const },
+    // a resubmit after rejection, or a press another one beat, is no new signup
+    { first: won && reg.status !== "04" },
     "Your application has been submitted. We will get back to you soon!"
   );
 };
