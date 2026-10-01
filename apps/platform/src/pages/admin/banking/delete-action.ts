@@ -4,7 +4,11 @@ import { admin_ctx } from "#/.server/auth";
 import { dataWithError, redirectWithSuccess } from "#/.server/toast";
 import { resp } from "@/helpers/https";
 import { $int_gte1 } from "@/schemas";
-import { bapp_delete, bapp_get, bapps_by_status } from "$/pg/queries/banking";
+import {
+  bapp_delete_guarded,
+  bapp_get,
+  bapps_by_status,
+} from "$/pg/queries/banking";
 
 type TArgs = Pick<
   LoaderFunctionArgs | ActionFunctionArgs,
@@ -42,14 +46,15 @@ export const delete_action = async (x: TArgs) => {
   const ba = await own_bapp(x);
   if (!ba) return dataWithError(null, "Payout method not found");
 
-  if (await is_guarded_default(ba)) {
+  const result = await bapp_delete_guarded(ba.id, ba.npo_id);
+  if (result === "refused") {
     return dataWithError(
       null,
       "Kindly set another payout method as default before deleting"
     );
   }
-
-  const deleted = await bapp_delete(ba.id, ba.npo_id);
-  if (!deleted) return dataWithError(null, "Payout method not found");
+  if (result === "not_found") {
+    return dataWithError(null, "Payout method not found");
+  }
   return redirectWithSuccess("../..", "Payout method deleted");
 };
