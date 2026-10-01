@@ -16,8 +16,9 @@ interface IFromAddress {
   zip?: string;
 }
 
-// dedupe keys ship to qstash and gate at-most-once delivery — preserve
-// existing strings verbatim.
+// dedupe keys ship to qstash and gate at-most-once delivery. change one only
+// when no enqueue can repeat across the deploy: a repeat under the new string
+// isn't deduped against the old.
 
 /** receive-only: see its `dedupe` entry */
 export interface IDonFundReceiptPayload {
@@ -81,8 +82,9 @@ export interface IFundMemberRemovedPayload {
   fund_id: string;
   creator_id: string;
   creator_name: string;
-  /** the nonprofit that left */
   npo_id: number;
+  /** receive-only: the pre-`npo_id` shape, still reachable from a retry or the dlq */
+  removed_npo_ids?: number[];
 }
 
 export interface IInviteEmailPayload {
