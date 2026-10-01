@@ -118,3 +118,82 @@ describe("post cta links", () => {
     expect(screen.container.textContent).not.toContain("Donate");
   });
 });
+
+const span = (text: string, marks: string[] = []) => ({
+  _type: "span",
+  _key: text,
+  text,
+  marks,
+});
+const block = (key: string, children: object[], markDefs: object[] = []) => ({
+  _type: "block",
+  _key: key,
+  style: "normal",
+  markDefs,
+  children,
+});
+// written around the studio (api token, migration); the url builder throws on it
+const bad_image = {
+  _type: "image",
+  asset: { _ref: "image-nope", _type: "reference" },
+};
+
+const malformed_post = (body: object[], extra: object = {}) =>
+  ({
+    ...post_linking("https://better.giving"),
+    body,
+    ...extra,
+  }) as unknown as PostData;
+
+describe("malformed post data", () => {
+  it("renders image refs the url builder can't parse as no image", async () => {
+    const screen = await render_post(
+      malformed_post(
+        [
+          block("b1", [span("Body text survives")]),
+          { ...bad_image, _key: "i1" },
+        ],
+        {
+          image: bad_image,
+          cta: {
+            eyebrow: null,
+            heading: "Cta heading",
+            body: null,
+            image: bad_image,
+            link1: { href: "https://better.giving", label: "Go" },
+            link2: null,
+          },
+        }
+      )
+    );
+    await expect.element(screen.getByText("Body text survives")).toBeVisible();
+    await expect.element(screen.getByText("Cta heading")).toBeVisible();
+    expect(screen.container.querySelectorAll("img").length).toBe(0);
+  });
+
+  it("renders the text of a mark, type, style or list named after an Object.prototype key", async () => {
+    const screen = await render_post(
+      malformed_post([
+        block("b1", [span("Decorated text", ["constructor"])]),
+        block(
+          "b2",
+          [span("Annotated text", ["k1"])],
+          [{ _key: "k1", _type: "toString" }]
+        ),
+        { _type: "constructor", _key: "c1" },
+        { ...block("b3", [span("Odd style text")]), style: "constructor" },
+        {
+          ...block("b4", [span("Odd list text")]),
+          listItem: "toString",
+          level: 1,
+        },
+        block("b5", [span("After the odd block")]),
+      ])
+    );
+    await expect.element(screen.getByText("Decorated text")).toBeVisible();
+    await expect.element(screen.getByText("Annotated text")).toBeVisible();
+    await expect.element(screen.getByText("Odd style text")).toBeVisible();
+    await expect.element(screen.getByText("Odd list text")).toBeVisible();
+    await expect.element(screen.getByText("After the odd block")).toBeVisible();
+  });
+});

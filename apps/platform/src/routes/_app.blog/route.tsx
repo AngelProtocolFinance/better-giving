@@ -123,31 +123,36 @@ function PostList({ firstPage }: IPostList) {
 }
 
 const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
-  props.posts.map((post) => (
-    <NavLink
-      key={post._id}
-      // slug is free text in the studio; encoded, it stays one path segment
-      to={href("/blog/:slug", { slug: encodeURIComponent(post.slug.current) })}
-      className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lift-card transition-shadow group"
-    >
-      {post.image?.asset ? (
-        <img
-          src={urlFor(post.image).width(1024).height(576).url()}
-          alt={post.image.alt ?? post.title}
-          className="w-full aspect-video object-cover"
-        />
-      ) : (
-        <div className="w-full aspect-video bg-secondary" />
-      )}
-      <div className="flex flex-col p-6 gap-3">
-        <h2 className="text-lg font-bold text-pretty group-has-[:hover]:text-primary">
-          {post.title}
-        </h2>
-        {post.excerpt && (
-          <p className="text-gray-11 line-clamp-4 text-pretty">
-            {post.excerpt}
-          </p>
+  props.posts.map((post) => {
+    const img_src = urlFor(post.image)?.width(1024).height(576).url();
+    return (
+      <NavLink
+        key={post._id}
+        // slug is free text in the studio; encoded, it stays one path segment
+        to={href("/blog/:slug", {
+          slug: encodeURIComponent(post.slug.current),
+        })}
+        className="grid [.pending]:grayscale grid-rows-[auto_1fr] h-full rounded overflow-hidden bg-panel border border-gray-6 hover:shadow-lift-card transition-shadow group"
+      >
+        {img_src ? (
+          <img
+            src={img_src}
+            alt={post.image?.alt ?? post.title}
+            className="w-full aspect-video object-cover"
+          />
+        ) : (
+          <div className="w-full aspect-video bg-secondary" />
         )}
-      </div>
-    </NavLink>
-  ));
+        <div className="flex flex-col p-6 gap-3">
+          <h2 className="text-lg font-bold text-pretty group-has-[:hover]:text-primary">
+            {post.title}
+          </h2>
+          {post.excerpt && (
+            <p className="text-gray-11 line-clamp-4 text-pretty">
+              {post.excerpt}
+            </p>
+          )}
+        </div>
+      </NavLink>
+    );
+  });
