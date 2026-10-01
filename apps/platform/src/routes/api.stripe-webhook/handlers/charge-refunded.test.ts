@@ -336,6 +336,24 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(text).toMatch(/refund\.updated/);
   });
 
+  it("holds the reversal while an earlier bank refund is pending, though the one completing the charge succeeded", async () => {
+    await handle_charge_refunded(refund(9_500, "pending"));
+    const completing = refund(500);
+
+    await handle_charge_refunded(completing);
+    await handle_charge_refunded(completing); // stripe redelivers
+
+    expect(process_refund_mock).not.toHaveBeenCalled();
+    expect(don_status).toBe("settled");
+    const held = queued().filter((m) => /_held$/.test(m.payload.id));
+    expect(new Set(held.map((m) => m.dedupe))).toEqual(
+      new Set(["fiat.notice_re_2_held"])
+    );
+    expect(text_of(held[0].payload.alert)).toContain(
+      "95.00 USD (re_1, pending)"
+    );
+  });
+
   it("fails the delivery when the held-reversal notice can't be queued", async () => {
     enqueue_mock.mockRejectedValue(new Error("qstash 503"));
 
@@ -826,6 +844,18 @@ describe("stripe refund.updated → donation reversal", () => {
     expect(process_refund_mock).not.toHaveBeenCalled();
 
     await handle_refund_updated(settle("re_2", "succeeded"));
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(don_status).toBe("refunded");
+  });
+
+  it("reverses once when the pending earlier refund succeeds after the completing one", async () => {
+    await handle_charge_refunded(refund(9_500, "pending"));
+    await handle_charge_refunded(refund(500));
+    const updated = settle("re_1", "succeeded");
+
+    await handle_refund_updated(updated);
+    await handle_refund_updated(updated); // stripe redelivers
+
     expect(process_refund_mock).toHaveBeenCalledOnce();
     expect(don_status).toBe("refunded");
   });

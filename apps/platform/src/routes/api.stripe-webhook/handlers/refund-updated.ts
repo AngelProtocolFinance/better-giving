@@ -6,9 +6,9 @@ import { refunded_charge, reverse_full_refund } from "../helpers/full-refund";
 const ALERT_FROM = "refund-updated";
 
 /**
- * reverses the donation that charge.refunded left for a pending refund, once
- * that refund succeeds. a failed or canceled one reverses nothing: refund.failed
- * tells ops.
+ * reverses the donation that charge.refunded held for a pending refund, once
+ * the last one on the charge succeeds. a failed or canceled one reverses
+ * nothing: refund.failed tells ops.
  */
 export async function handle_refund_updated(event: Stripe.RefundUpdatedEvent) {
   const refund = event.data.object;

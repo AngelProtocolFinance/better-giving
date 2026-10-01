@@ -788,6 +788,23 @@ describe("refund api", () => {
     });
   });
 
+  it("holds the reversal when its own refund succeeded but an earlier one on the charge is pending", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    refunds_list.mockResolvedValue({
+      data: [
+        { id: "re_1", status: "succeeded", amount: 500 },
+        { id: "re_earlier", status: "pending", amount: 9500 },
+      ],
+    });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({ ok: true, reversal: "held" });
+    expect(process_refund).not.toHaveBeenCalled();
+  });
+
   it("reverses a succeeded card refund at once", async () => {
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
     const id = await seed_donation();

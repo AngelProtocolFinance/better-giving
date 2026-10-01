@@ -10,6 +10,7 @@ import { dists_for_refund } from "$/pg/queries/dist";
 import {
   earlier_partials,
   reverse_after_partials,
+  unsent_refunds,
 } from "$/refund/after-partials";
 import { process_refund } from "$/refund/process";
 import { cancel_refunded_subscription } from "$/refund/subscription";
@@ -50,10 +51,10 @@ export async function refunded_charge(
 
 /**
  * ends the gift's billing and reverses the donation of a charge refunded in
- * full, once the refund that completed it has succeeded. charge.refunded
- * counts a refund once made, not once sent: a bank refund (ach, acss) is
- * pending for days and can still fail, so its reversal waits for the
- * refund.updated that sees it succeed.
+ * full, once every refund on it has succeeded. charge.refunded counts a refund
+ * once made, not once sent: a bank refund (ach, acss) is pending for days and
+ * can still fail, so the reversal waits for the refund.updated that sees the
+ * last one succeed.
  */
 export async function reverse_full_refund(
   { charge, intent_id, don, refunds, newest }: RefundedCharge,
@@ -66,11 +67,13 @@ export async function reverse_full_refund(
   // a pending one can't bill again meanwhile
   await cancel_refunded_subscription(intent_id);
 
-  if (newest.status !== "succeeded") {
+  const unsent = unsent_refunds(refunds);
+  if (unsent.length > 0) {
     console.info(
-      `${alert_from}: reversal held, refund ${newest.id} ${newest.status}: ${don_id}`
+      `${alert_from}: reversal held on ${unsent.map((r) => r.id).join(", ")}: ${don_id}`
     );
-    // awaited: a lost notice fails the delivery, so stripe redelivers it
+    // awaited: a lost notice fails the delivery, so stripe redelivers it.
+    // keyed on the completing refund, which stays the same while held
     await enqueue(
       msg("fiat-notice", {
         id: `${newest.id}_held`,
@@ -81,7 +84,8 @@ export async function reverse_full_refund(
           body: [
             `donation ${don_id}, ${seen_at}`,
             `completing refund: ${refund_list([newest], charge.currency)}`,
-            "nothing is reversed until stripe reports this refund succeeded (refund.updated), when the donation reverses automatically. if the refund shows succeeded in stripe and the donation is still settled, check that the webhook endpoint subscribes to refund.updated.",
+            `waiting on: ${refund_list(unsent, charge.currency)}`,
+            "nothing is reversed until stripe reports every refund here succeeded (refund.updated), when the donation reverses automatically. if they show succeeded in stripe and the donation is still settled, check that the webhook endpoint subscribes to refund.updated.",
           ].join("\n"),
         },
       })

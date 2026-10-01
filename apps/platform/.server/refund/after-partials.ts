@@ -25,6 +25,11 @@ export interface FullRefund {
 export const is_failed_or_canceled = (r: Stripe.Refund) =>
   r.status === "failed" || r.status === "canceled";
 
+/** live refunds stripe hasn't sent yet: any one can still fail, so a full
+ * refund's reversal waits until none is left */
+export const unsent_refunds = (refunds: Stripe.Refund[]) =>
+  refunds.filter((r) => !is_failed_or_canceled(r) && r.status !== "succeeded");
+
 /**
  * `refunds` besides `completing`, less any failed or canceled attempt at
  * refunding the whole rest of the charge. such an attempt sent ops no partial

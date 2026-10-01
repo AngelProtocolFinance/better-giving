@@ -10,6 +10,7 @@ import {
   type FullRefund,
   is_failed_or_canceled,
   reverse_after_partials,
+  unsent_refunds,
 } from "$/refund/after-partials";
 import type { PreviewLine, RefundPreview } from "$/refund/plan";
 import {
@@ -186,18 +187,6 @@ async function issue_refund(payment_intent: string, idempotencyKey: string) {
   }
 }
 
-/** the charge's refunds besides `completing`, newest first, as `earlier_partials` keeps them */
-async function earlier_refunds(
-  payment_intent: string,
-  completing: Stripe.Refund
-) {
-  const [{ data }, intent] = await Promise.all([
-    stripe.refunds.list({ payment_intent, limit: 100 }),
-    stripe.paymentIntents.retrieve(payment_intent),
-  ]);
-  return earlier_partials(data, completing, intent.amount_received);
-}
-
 const ALERT_FROM = "refund-action";
 
 /** thrown once the sdk's own retries are spent, by a request stripe may have
@@ -233,23 +222,34 @@ const incomplete = (
     toast
   );
 
-/** stops the gift's billing, then reverses the donation `r` refunded */
+/** stops the gift's billing, then reverses the donation `r` refunded, or
+ * holds the reversal while a refund on the charge is unsent */
 async function finish_refund(
   r: Stripe.Refund,
   intent_id: string,
   don: IDonation,
   graphs: DistRefundGraph[]
-): Promise<RefundResult> {
+): Promise<RefundResult | "held"> {
   // the donor is refunded whatever the reversal does next, so the gift stops
   // billing now
   await cancel_refunded_subscription(intent_id);
+
+  const [{ data }, intent] = await Promise.all([
+    stripe.refunds.list({ payment_intent: intent_id, limit: 100 }),
+    stripe.paymentIntents.retrieve(intent_id),
+  ]);
+  // newest first, with `r` as just retrieved rather than as the list read it
+  const refunds = [r, ...data.filter((x) => x.id !== r.id)];
+  // an unsent one (a pending bank refund) can still fail: refund.updated
+  // reverses once the last succeeds
+  if (unsent_refunds(refunds).length > 0) return "held";
 
   const full: FullRefund = {
     donation_id: don.id,
     seen_at: `payment ${intent_id}, admin refund ${r.id}`,
     currency: r.currency,
     completing: r,
-    earlier: await earlier_refunds(intent_id, r),
+    earlier: earlier_partials(refunds, r, intent.amount_received),
     alert_from: ALERT_FROM,
     dist_count: graphs.length,
   };
@@ -335,23 +335,8 @@ export const action = async ({ params }: Route.ActionArgs) => {
   }
   const stripe_refund = r.status;
 
-  // a bank refund can still fail while pending, so its reversal waits for
-  // refund.updated to see it succeed. the gift stops billing now
-  if (stripe_refund === "pending") {
-    try {
-      await cancel_refunded_subscription(intent_id);
-    } catch (err) {
-      // the refund's own charge.refunded webhook cancels it too
-      report_error(err, { donation_id, refund_id: r.id });
-    }
-    return dataWithSuccess(
-      { ok: true as const, stripe_refund, reversal: "held" as const },
-      "Refund issued"
-    );
-  }
-
   // past here the donor is refunded, so the admin hears that whatever throws
-  let result: RefundResult;
+  let result: RefundResult | "held";
   try {
     result = await finish_refund(r, intent_id, don, graphs);
   } catch (err) {
@@ -362,6 +347,13 @@ export const action = async ({ params }: Route.ActionArgs) => {
       [`Stripe refund ${r.id} issued, reversal stopped: ${reason}`],
       null,
       "Refund issued, reversal stopped"
+    );
+  }
+
+  if (result === "held") {
+    return dataWithSuccess(
+      { ok: true as const, stripe_refund, reversal: "held" as const },
+      "Refund issued"
     );
   }
 

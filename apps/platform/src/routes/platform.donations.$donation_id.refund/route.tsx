@@ -5,12 +5,7 @@ import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type {
-  action,
-  DistPreview,
-  RefundState,
-  StripeRefundStatus,
-} from "./api";
+import type { action, DistPreview, RefundState } from "./api";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
@@ -45,7 +40,7 @@ function Content({
   if (fetcher.data?.ok === true) {
     return (
       <RefundProcessed
-        status={fetcher.data.stripe_refund}
+        held={fetcher.data.reversal === "held"}
         on_close={on_close}
       />
     );
@@ -174,14 +169,15 @@ function failure_lead({
 }
 
 interface IRefundOutcome {
-  status: StripeRefundStatus;
+  /** a refund on the charge is unsent, so nothing is reversed yet */
+  held: boolean;
 }
 
 interface IRefundProcessed extends IRefundOutcome {
   on_close: () => void;
 }
 
-function RefundProcessed({ status, on_close }: IRefundProcessed) {
+function RefundProcessed({ held, on_close }: IRefundProcessed) {
   const heading = useRef<HTMLHeadingElement>(null);
   // the panel replaces the confirm button, which takes focus with it
   useEffect(() => heading.current?.focus(), []);
@@ -192,7 +188,7 @@ function RefundProcessed({ status, on_close }: IRefundProcessed) {
       <h3 ref={heading} tabIndex={-1} className="text-lg font-bold mb-1">
         Refund processed
       </h3>
-      <RefundOutcome status={status} />
+      <RefundOutcome held={held} />
       <button type="button" onClick={on_close} className="btn btn-primary">
         Close
       </button>
@@ -200,12 +196,12 @@ function RefundProcessed({ status, on_close }: IRefundProcessed) {
   );
 }
 
-function RefundOutcome({ status }: IRefundOutcome) {
+function RefundOutcome({ held }: IRefundOutcome) {
   return (
     <p className="text-sm text-gray-11 mb-4">
-      {status === "succeeded"
-        ? "All records have been reversed and the Stripe refund completed."
-        : "The Stripe refund was issued and is pending with the bank. Nothing is reversed yet: the donation reverses once the bank refund succeeds."}
+      {held
+        ? "The Stripe refund was issued, and a refund on this charge is pending with the bank. Nothing is reversed yet: the donation reverses once the bank refund succeeds."
+        : "All records have been reversed and the Stripe refund completed."}
     </p>
   );
 }
