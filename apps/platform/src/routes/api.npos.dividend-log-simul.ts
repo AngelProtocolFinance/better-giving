@@ -9,9 +9,11 @@ import { nav_ltd } from "$/pg/queries/nav";
 export const action: ActionFunction = async ({ request }) => {
   const { user } = await get_session(request);
   if (!user) return to_auth(request);
-  if (user.role !== "admin") return { status: 403 };
+  if (user.role !== "admin") return resp.status(403);
 
-  const p = safeParse(dividend_log_fv, await request.json());
+  const body = await request.json().catch(() => undefined);
+  if (body === undefined) return resp.status(400, "body is not json");
+  const p = safeParse(dividend_log_fv, body);
   if (p.issues) return resp.status(400, p.issues[0].message);
   const fv = p.output;
 
