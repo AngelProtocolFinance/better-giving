@@ -1,6 +1,11 @@
 import { Actions, Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
-import { isRouteErrorResponse, useNavigate, useRouteError } from "react-router";
+import {
+  isRouteErrorResponse,
+  useLocation,
+  useNavigate,
+  useRouteError,
+} from "react-router";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
 
 const STATUS_MESSAGES: Record<number, string> = {
@@ -10,13 +15,18 @@ const STATUS_MESSAGES: Record<number, string> = {
   500: "Something went wrong on our end.",
 };
 
+// error boundary for modal child routes: closes back to the parent route, query kept
 export function ErrorModal() {
   // route errors already reported by entry.server handleError; only renders UI.
   const error = useRouteError();
   const navigate = useNavigate();
+  const { search } = useLocation();
   // a reload re-runs the loader that threw, so the modal would only come back
   const close = () =>
-    navigate("..", { replace: true, preventScrollReset: true });
+    navigate(
+      { pathname: "..", search },
+      { replace: true, preventScrollReset: true }
+    );
 
   let message = GENERIC_ERROR_MESSAGE;
   if (isRouteErrorResponse(error)) {
