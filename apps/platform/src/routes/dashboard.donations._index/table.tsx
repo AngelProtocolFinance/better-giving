@@ -42,6 +42,7 @@ export function Table({
     <div className={classes}>
       <div className="flex items-center justify-end mb-2">
         <CsvExporter
+          label="Export my donations as CSV"
           classes="hover:text-primary"
           headers={csv_headers}
           data={items}

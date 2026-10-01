@@ -10,6 +10,8 @@ interface ICsvExporterProps {
   headers: IHeader[];
   filename?: string;
   classes?: string;
+  /** the button's accessible name; `children` are the visual (an icon) */
+  label: string;
   children: ReactNode;
 }
 
@@ -42,6 +44,7 @@ export function CsvExporter({
   headers,
   filename = "export.csv",
   classes,
+  label,
   children,
 }: ICsvExporterProps) {
   function handle_click() {
@@ -61,6 +64,7 @@ export function CsvExporter({
       onClick={handle_click}
       className={`flex gap-1 items-center ${classes ?? ""}`}
     >
+      <span className="sr-only">{label}</span>
       {children}
     </button>
   );
