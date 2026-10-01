@@ -394,7 +394,9 @@ describe("refund api", () => {
 
   it("tells the admin the refund went out when the reversal throws after it", async () => {
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    refunds_list.mockRejectedValue(new Error("stripe list timed out"));
+    refunds_list
+      .mockResolvedValueOnce({ data: [] }) // keying the refund
+      .mockRejectedValueOnce(new Error("stripe list timed out"));
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
 
@@ -409,6 +411,50 @@ describe("refund api", () => {
     expect(res.failures).toEqual([
       "Stripe refund re_1 issued, reversal stopped: stripe list timed out",
     ]);
+  });
+
+  it("issues a replacement refund when a retry follows a failed one", async () => {
+    // stripe's side: a repeated key replays its first refund, and the
+    // charge's refunds are listed newest first
+    const by_key = new Map<string, object>();
+    refunds_create.mockImplementation(
+      async (_p: unknown, opts: { idempotencyKey: string }) => {
+        const r = by_key.get(opts.idempotencyKey) ?? {
+          id: `re_${by_key.size + 1}`,
+          status: by_key.size === 0 ? "failed" : "succeeded",
+          amount: 10000,
+          currency: "usd",
+        };
+        by_key.set(opts.idempotencyKey, r);
+        return r;
+      }
+    );
+    refunds_list.mockImplementation(async () => ({
+      data: [...by_key.values()].reverse(),
+    }));
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const args = { params: { donation_id: id } } as any;
+
+    const first: any = await action(args);
+    const retry: any = await action(args);
+
+    expect(first).toMatchObject({ ok: false, refund: "not_issued" });
+    expect(by_key.size).toBe(2);
+    expect(retry).toMatchObject({ ok: true, stripe_refund: "succeeded" });
+  });
+
+  it("sends one idempotency key for two submits racing before any failure", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    refund.failures = ["dist dist-1: db timeout"]; // keeps the donation open
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const args = { params: { donation_id: id } } as any;
+
+    await Promise.all([action(args), action(args)]);
+
+    const [[, a], [, b]] = refunds_create.mock.calls as any;
+    expect(a.idempotencyKey).toBe(b.idempotencyKey);
   });
 
   it("refunds the donor once across a retried submit", async () => {

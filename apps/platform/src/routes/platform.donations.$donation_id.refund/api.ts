@@ -155,9 +155,16 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
  * stripe's idempotency window finds already made */
 async function issue_refund(payment_intent: string, donation_id: string) {
   try {
+    // one key per failed attempt: submits racing before any failure share it,
+    // so the donor is refunded once, and a retry after a refund stripe failed
+    // or canceled gets a new one instead of a replay of the failure
+    const { data } = await stripe.refunds.list({ payment_intent, limit: 100 });
+    const failed = data.filter(
+      (r) => r.status === "failed" || r.status === "canceled"
+    ).length;
     const created = await stripe.refunds.create(
       { payment_intent },
-      { idempotencyKey: `refund_${donation_id}` }
+      { idempotencyKey: `refund_${donation_id}_${failed}` }
     );
     // a replay inside the idempotency window answers with the first response,
     // not the refund as it stands now
