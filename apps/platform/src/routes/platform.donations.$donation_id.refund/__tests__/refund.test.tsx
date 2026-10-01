@@ -95,8 +95,8 @@ vi.mock("$/pg/queries/dist", async (orig) => ({
   ]),
 }));
 
+import { dists_for_refund } from "$/pg/queries/dist";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { is_admin_refund } from "$/refund/after-partials";
 import { process_refund } from "$/refund/process";
 import { action, loader } from "../api";
 import Page from "../route";
@@ -298,6 +298,32 @@ describe("refund modal", () => {
     expect(screen.getByText("Refund processed").query()).toBeNull();
   });
 
+  it("lets the admin retry a dist whose reversal failed before", async () => {
+    vi.mocked(dists_for_refund).mockResolvedValue([
+      {
+        dist: {
+          id: "dist-1",
+          to_id: 7,
+          to_name: "Save the Whales",
+          amount: 100,
+          net: 95,
+          refund_status: "failed",
+          refund_error: "payout already sent",
+        },
+      },
+    ] as any);
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const screen = await open_and_confirm(id);
+
+    await expect
+      .element(screen.getByText("Refund processed"))
+      .toBeInTheDocument();
+    expect(process_refund).toHaveBeenCalledOnce();
+  });
+
   it("says how many dists were reversed when only some were", async () => {
     refund.failures = ["dist dist-2: payout already sent"];
     refund.applied = 1;
@@ -375,17 +401,6 @@ describe("refund api", () => {
     expect(res.failures).toEqual([
       "Stripe refund re_1 was issued, then: stripe list timed out",
     ]);
-  });
-
-  it("marks its refund as one it reverses itself, so the webhook leaves it be", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    await action({ params: { donation_id: id } } as any);
-
-    const [sent] = refunds_create.mock.calls[0]!;
-    expect(is_admin_refund(sent)).toBe(true);
   });
 
   it("refunds the donor once across a retried submit", async () => {

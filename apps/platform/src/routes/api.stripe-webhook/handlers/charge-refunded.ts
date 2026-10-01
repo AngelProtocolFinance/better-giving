@@ -6,10 +6,7 @@ import { fiat_monitor } from "$/kit/discord";
 import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { dists_for_refund } from "$/pg/queries/dist";
-import {
-  is_admin_refund,
-  reverse_after_partials,
-} from "$/refund/after-partials";
+import { reverse_after_partials } from "$/refund/after-partials";
 import { process_refund } from "$/refund/process";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
@@ -89,17 +86,14 @@ export async function handle_charge_refunded(
     return;
   }
 
-  // nothing can be refunded past a full refund, so the newest completed it
-  if (is_admin_refund(newest)) {
-    console.info(`admin refund ${newest.id} reverses ${don_id} itself`);
-    return;
-  }
-
   const graphs = await dists_for_refund(don_id);
   if (graphs.length === 0) {
     throw new Error(`no settled dists for donation: ${don_id}`);
   }
 
+  // nothing can be refunded past a full refund, so the newest completed it.
+  // the admin refund action reverses its own refund too: this is the backstop
+  // for a run of it that left dists unreversed or never reached them
   const result = await reverse_after_partials(
     {
       donation_id: don_id,

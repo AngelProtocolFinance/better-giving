@@ -219,10 +219,9 @@ export async function process_refund(
 
   // only finalize the donation status when every dist was applied. with
   // failures present the dists are in mixed states (some "completed",
-  // some "failed") and the donation must stay reversible so admin can
-  // retry once the failed dists are fixed. webhook path gets the same
-  // semantics: a partial failure leaves the row in "settled" and a future
-  // retry (manual or replayed event) can complete the refund.
+  // some "failed") and the donation stays "settled", so a later run can finish
+  // it: the admin retrying, or stripe redelivering the full refund's
+  // `charge.refunded`, whose handler fails the delivery until this completes.
   //
   // the status flip and the match void go together in one transaction because
   // a void that fails silently is worse than no void at all: every suppression
@@ -235,10 +234,10 @@ export async function process_refund(
   // retries the pair.
   //
   // one write site covers both refund entry points: the `charge.refunded`
-  // webhook, and the admin refund action, which issues its stripe refund
-  // before calling process_refund. each full refund has one of the two as its
-  // owner: the webhook leaves a refund the action issued to the action
-  // (`is_admin_refund`), so its retry is the admin's, not a replayed event.
+  // webhook, and the admin refund action, whose own stripe refund fires that
+  // webhook too. so both can run on one donation at once; each dist is
+  // reversed once under its row lock in apply_dist, and the flip once under
+  // the donation lock below.
   //
   // `graphs` is a snapshot, and settle_npo can commit a dist after it was taken.
   // so the flip first locks the donation row: that waits out a settle_npo

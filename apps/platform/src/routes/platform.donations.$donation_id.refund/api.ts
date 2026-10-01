@@ -11,7 +11,6 @@ import { type DistRefundGraph, dists_for_refund } from "$/pg/queries/dist";
 import { donation_get, donation_settlement_get } from "$/pg/queries/donation";
 import { sub_update } from "$/pg/queries/subscription";
 import {
-  ADMIN_REFUND_METADATA,
   type FullRefund,
   reverse_after_partials,
 } from "$/refund/after-partials";
@@ -119,28 +118,6 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       });
       continue;
     }
-    if (dist.refund_status === "failed") {
-      previews.push({
-        id: dist.id,
-        npo_id: dist.to_id ?? 0,
-        npo_name: dist.to_name ?? "",
-        amount: dist.amount ?? 0,
-        net: dist.net ?? 0,
-        refund_status: dist.refund_status,
-        refund_error: dist.refund_error,
-        effects: [],
-        blockers: [
-          {
-            label: "Previously failed",
-            pass: false,
-            reason: dist.refund_error ?? "unknown",
-          },
-        ],
-        warnings: [],
-      });
-      continue;
-    }
-
     const plan = await load_refund_plan(g, {
       form_id: don.form_id ?? null,
       program_id: don.program?.id ?? null,
@@ -155,7 +132,19 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       amount: dist.amount ?? 0,
       net: dist.net ?? 0,
       refund_status: dist.refund_status,
-      effects: p.effects,
+      refund_error: dist.refund_error,
+      // process_refund retries a failed dist, so it shows as a retry, not a blocker
+      effects:
+        dist.refund_status === "failed"
+          ? [
+              {
+                label: "Retry failed reversal",
+                pass: true,
+                reason: dist.refund_error ?? "unknown",
+              },
+              ...p.effects,
+            ]
+          : p.effects,
       blockers: p.blockers,
       warnings: p.warnings,
     });
@@ -180,7 +169,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
 async function issue_refund(payment_intent: string, donation_id: string) {
   try {
     const created = await stripe.refunds.create(
-      { payment_intent, metadata: ADMIN_REFUND_METADATA },
+      { payment_intent },
       { idempotencyKey: `refund_${donation_id}` }
     );
     // a replay inside the idempotency window answers with the first response,

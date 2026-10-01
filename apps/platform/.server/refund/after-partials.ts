@@ -7,13 +7,6 @@ import { enqueue } from "../kit/queue";
 import { refund_list } from "../kit/stripe-money";
 import type { RefundResult } from "./process";
 
-/** stamped on the refund the admin refund action issues. that action reverses
- * the donation itself, so the refund's `charge.refunded` webhook leaves it be */
-export const ADMIN_REFUND_METADATA = { reversed_by: "admin-refund-action" };
-
-export const is_admin_refund = (r: { metadata?: Stripe.Metadata | null }) =>
-  r.metadata?.reversed_by === ADMIN_REFUND_METADATA.reversed_by;
-
 export interface FullRefund {
   donation_id: string;
   /** where the full refund was seen, e.g. `charge ch_1, event evt_1` */

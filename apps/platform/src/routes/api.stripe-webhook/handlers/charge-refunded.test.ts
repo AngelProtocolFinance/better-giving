@@ -47,7 +47,6 @@ let refunds: {
   amount: number;
   status: string;
   created: number;
-  metadata: Record<string, string>;
 }[] = [];
 let don_status = "settled";
 let clock = 1_700_000_000;
@@ -67,7 +66,7 @@ const charge_now = () => {
 };
 
 /** support refunds `amount` from the dashboard; returns the event stripe sends for it */
-const refund = (amount: number, metadata: Record<string, string> = {}) => {
+const refund = (amount: number) => {
   const before = charge_now().amount_refunded;
   clock += 60;
   refunds.unshift({
@@ -75,7 +74,6 @@ const refund = (amount: number, metadata: Record<string, string> = {}) => {
     amount,
     status: "succeeded",
     created: clock,
-    metadata,
   });
   return {
     id: `evt_${refunds.length}`,
@@ -450,16 +448,41 @@ describe("stripe charge.refunded → donation reversal", () => {
     );
   });
 
-  it("leaves the admin action's own refund to the action: no reversal, no notice", async () => {
-    await handle_charge_refunded(refund(500));
-    const { ADMIN_REFUND_METADATA } = await import("$/refund/after-partials");
+  it("finishes a reversal the admin refund left with a failed dist", async () => {
+    // the admin action refunded the charge in full, then a dist failed to reverse
+    const by_admin = refund(AMOUNT);
+    dists_for_refund_mock.mockResolvedValue([
+      { dist: { id: "dist_1", refund_status: "failed" } },
+    ]);
 
-    await expect(
-      handle_charge_refunded(refund(9_500, { ...ADMIN_REFUND_METADATA }))
-    ).resolves.toBeUndefined();
+    await expect(handle_charge_refunded(by_admin)).resolves.toBeUndefined();
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(don_status).toBe("refunded");
+  });
+
+  it("fails the delivery while an admin refund's reversal stays incomplete, so stripe redelivers", async () => {
+    const by_admin = refund(AMOUNT);
+    process_refund_mock.mockResolvedValue({
+      failures: ["dist dist_1: db timeout"],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 0,
+    });
+
+    await expect(handle_charge_refunded(by_admin)).rejects.toBeInstanceOf(
+      ReversalIncompleteError
+    );
+  });
+
+  it("leaves an admin refund alone once the donation is reversed", async () => {
+    const by_admin = refund(AMOUNT);
+    don_status = "refunded"; // the admin action reversed it
+
+    await expect(handle_charge_refunded(by_admin)).resolves.toBeUndefined();
 
     expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(alerts()).toHaveLength(1); // the partial's own notice
+    expect(alerts()).toEqual([]);
     expect(queued()).toEqual([]);
   });
 
