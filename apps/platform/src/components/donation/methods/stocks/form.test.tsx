@@ -1,6 +1,6 @@
 import { HttpResponse, http } from "msw";
 import { href } from "react-router";
-import { afterAll, describe, expect, test, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import {
@@ -159,19 +159,30 @@ async function pick_aapl(screen: Awaited<ReturnType<typeof render>>) {
   await screen.getByRole("option", { name: /AAPL/ }).click();
 }
 
+// a held estimate is released after each test, so a failed assertion can't
+// leave its request pending into the next one
+let release_estimate = () => {};
+afterEach(() => release_estimate());
+
+function hold_estimate(reply: () => Response) {
+  const gate = new Promise<void>((r) => {
+    release_estimate = r;
+  });
+  mswWorker.use(
+    http.get(estimate_url, async () => {
+      await gate;
+      return reply();
+    })
+  );
+}
+
+const estimate_ok = () => HttpResponse.json({ min: 1, usdpu: 150 });
+const estimate_failed = () => new HttpResponse(null, { status: 500 });
+
 describe("Stocks form: price estimate after a ticker pick", () => {
   test("an amount typed while the estimate is pending survives its resolve", async () => {
     don_mock.value = live_init();
-    let open_gate = () => {};
-    const gate = new Promise<void>((r) => {
-      open_gate = r;
-    });
-    mswWorker.use(
-      http.get(estimate_url, async () => {
-        await gate;
-        return HttpResponse.json({ min: 1, usdpu: 150 });
-      })
-    );
+    hold_estimate(estimate_ok);
 
     const screen = await render(<Form type="stocks" step="form" />);
     await pick_aapl(screen);
@@ -179,8 +190,10 @@ describe("Stocks form: price estimate after a ticker pick", () => {
     // combobox is locked while the estimate is in flight; the amount is not
     await expect.element(screen.getByRole("combobox")).toBeDisabled();
     await screen.getByPlaceholder(/enter amount/i).fill("5");
+    // no price yet, so no usd preview — not a NaN one
+    expect(screen.getByText("~$").query()).toBeNull();
 
-    open_gate();
+    release_estimate();
 
     await expect.element(screen.getByRole("combobox")).toBeEnabled();
     await expect
@@ -193,16 +206,7 @@ describe("Stocks form: price estimate after a ticker pick", () => {
   test("Continue during a pending estimate says the price is still coming", async () => {
     don_mock.value = live_init();
     don_set_mock.mockClear();
-    let open_gate = () => {};
-    const gate = new Promise<void>((r) => {
-      open_gate = r;
-    });
-    mswWorker.use(
-      http.get(estimate_url, async () => {
-        await gate;
-        return HttpResponse.json({ min: 1, usdpu: 150 });
-      })
-    );
+    hold_estimate(estimate_ok);
 
     const screen = await render(<Form type="stocks" step="form" />);
     await pick_aapl(screen);
@@ -218,28 +222,56 @@ describe("Stocks form: price estimate after a ticker pick", () => {
       )
       .toBeVisible();
     expect(don_set_mock).not.toHaveBeenCalled();
-    open_gate();
   });
 
-  test("a failed estimate tells the donor why Continue does nothing", async () => {
+  test("a failed estimate clears the pick, and picking the same stock again retries", async () => {
     don_mock.value = live_init();
     don_set_mock.mockClear();
-    mswWorker.use(
-      http.get(estimate_url, () => new HttpResponse(null, { status: 500 }))
-    );
+    const failed_msg =
+      "Couldn't get a price for this stock. Pick it again or choose another.";
+    hold_estimate(estimate_failed);
 
     const screen = await render(<Form type="stocks" step="form" />);
     await pick_aapl(screen);
+    await expect.element(screen.getByRole("combobox")).toBeDisabled();
     await screen.getByPlaceholder(/enter amount/i).fill("5");
+    expect(screen.getByText(failed_msg).query()).toBeNull();
+
+    release_estimate();
+
+    await expect.element(screen.getByText(failed_msg)).toBeVisible();
+    // the pick is cleared so the same option emits again; the amount stays
+    await expect.element(screen.getByRole("combobox")).toHaveValue("");
+    await expect
+      .element(screen.getByPlaceholder(/enter amount/i))
+      .toHaveValue("5");
+    expect(screen.getByText("~$").query()).toBeNull();
+
     await screen.getByRole("button", { name: /continue/i }).click();
+    expect(don_set_mock).not.toHaveBeenCalled();
+
+    hold_estimate(estimate_ok);
+    await pick_aapl(screen);
+    await expect.element(screen.getByText(failed_msg)).not.toBeInTheDocument();
+    release_estimate();
+
+    await expect.element(screen.getByRole("combobox")).toHaveValue("AAPL");
+    await expect.element(screen.getByText("~$750")).toBeVisible();
+    await screen.getByRole("button", { name: /continue/i }).click();
+    await vi.waitFor(() => expect(don_set_mock).toHaveBeenCalledOnce());
+  });
+
+  test("a zero quote is a failed estimate, not a price", async () => {
+    don_mock.value = live_init();
+    hold_estimate(() => HttpResponse.json({ min: null, usdpu: 0 }));
+
+    const screen = await render(<Form type="stocks" step="form" />);
+    await pick_aapl(screen);
+    release_estimate();
 
     await expect
-      .element(
-        screen.getByText(
-          "Couldn't get a price for this stock. Try again or pick another."
-        )
-      )
+      .element(screen.getByText(/couldn't get a price for this stock/i))
       .toBeVisible();
-    expect(don_set_mock).not.toHaveBeenCalled();
+    await expect.element(screen.getByRole("combobox")).toHaveValue("");
   });
 });
