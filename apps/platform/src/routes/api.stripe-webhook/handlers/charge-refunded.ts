@@ -8,6 +8,7 @@ import { money, refund_list } from "$/kit/stripe-money";
 import { dists_for_refund } from "$/pg/queries/dist";
 import { reverse_after_partials } from "$/refund/after-partials";
 import { process_refund } from "$/refund/process";
+import { cancel_refunded_subscription } from "$/refund/subscription";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
 
@@ -85,6 +86,9 @@ export async function handle_charge_refunded(
     });
     return;
   }
+
+  // refunded in full, so the gift stops billing; a no-op once cancelled
+  await cancel_refunded_subscription(intent_id);
 
   const graphs = await dists_for_refund(don_id);
   if (graphs.length === 0) {

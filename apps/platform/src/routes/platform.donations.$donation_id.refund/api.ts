@@ -1,15 +1,10 @@
 import Stripe from "stripe";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { report_error } from "#/errors/report";
-import { str_id } from "#/helpers/stripe";
 import type { IDonation } from "@/donations";
-import { msg } from "@/queue";
-import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
-import { db } from "$/pg/db";
 import { type DistRefundGraph, dists_for_refund } from "$/pg/queries/dist";
 import { donation_get, donation_settlement_get } from "$/pg/queries/donation";
-import { sub_update } from "$/pg/queries/subscription";
 import {
   type FullRefund,
   reverse_after_partials,
@@ -20,6 +15,10 @@ import {
   process_refund,
   type RefundResult,
 } from "$/refund/process";
+import {
+  cancel_refunded_subscription,
+  subscription_id_of,
+} from "$/refund/subscription";
 import type { Route } from "./+types/route";
 
 export interface DistPreview {
@@ -52,18 +51,6 @@ export interface LoaderData {
   total_loss: number;
   /** stripe subscription id if payment originated from a subscription */
   subscription_id: string | null;
-}
-
-/** the subscription whose invoice `intent_id` paid, if any */
-async function subscription_id_of(intent_id: string): Promise<string | null> {
-  const { data: ips } = await stripe.invoicePayments.list({
-    payment: { payment_intent: intent_id, type: "payment_intent" },
-    expand: ["data.invoice"],
-  });
-  const inv = ips[0]?.invoice;
-  const invoice = inv && typeof inv !== "string" && !inv.deleted ? inv : null;
-  const sub = invoice?.parent?.subscription_details?.subscription;
-  return sub ? str_id(sub) : null;
 }
 
 // the preview only shows it, so a failed lookup costs nothing there
@@ -197,17 +184,6 @@ async function earlier_refunds(payment_intent: string, completing_id: string) {
 
 const ALERT_FROM = "refund-action";
 
-async function cancel_subscription(sub_id: string) {
-  const { row, prev_status } = await sub_update(db, sub_id, {
-    status: "inactive",
-    status_cancel_reason: "refunded",
-    updated_at: new Date().toISOString(),
-  });
-  if (row && prev_status === "active") {
-    await enqueue(msg("sub-deactivated", row));
-  }
-}
-
 /** thrown once the sdk's own retries are spent, by a request stripe may have
  * carried out before the answer was lost */
 const outcome_unknown = (err: unknown) =>
@@ -247,8 +223,7 @@ async function finish_refund(
 ): Promise<RefundResult> {
   // the donor is refunded whatever the reversal does next, so the gift stops
   // billing now
-  const sub_id = await subscription_id_of(intent_id);
-  if (sub_id) await cancel_subscription(sub_id);
+  await cancel_refunded_subscription(intent_id);
 
   const full: FullRefund = {
     donation_id: don.id,

@@ -1,10 +1,11 @@
 import type Stripe from "stripe";
 import { report_error } from "#/errors/report";
+import { is_reversed } from "@/donations";
 import { msg } from "@/queue";
 import { stage } from "../env";
-import { fiat_monitor } from "../kit/discord";
 import { enqueue } from "../kit/queue";
 import { refund_list } from "../kit/stripe-money";
+import { donation_get } from "../pg/queries/donation";
 import type { RefundResult } from "./process";
 
 export interface FullRefund {
@@ -38,42 +39,50 @@ export async function reverse_after_partials(
     `completing refund: ${refund_list([r.completing], r.currency)}`,
     `earlier partial refunds: ${refund_list(r.earlier, r.currency)}`,
   ];
-  // sent before reversing: once reversed, a retry short-circuits on the
-  // donation status and a failed send is never retried
-  await fiat_monitor.send_alert({
-    type: "NOTICE",
-    from,
-    title: "Full Refund After Partial: Reversal Starting",
-    body: [
-      ...detail,
-      "Full refund received after earlier partial refund(s); automatic reversal is starting. Don't undo your hand adjustment until the reversal is confirmed.",
-    ].join("\n"),
-  });
+  // queued before reversing, and awaited: a failed enqueue stops the run
+  // before anything is reversed, so the retry gets to queue it again. keyed
+  // on the completing refund, so an admin run and its webhook overlapping
+  // send it once
+  await enqueue(
+    msg("fiat-notice", {
+      id: `${r.completing.id}_start`,
+      alert: {
+        type: "NOTICE",
+        from,
+        title: "Full Refund After Partial: Reversal Starting",
+        body: [
+          ...detail,
+          "Full refund received after earlier partial refund(s); automatic reversal is starting. Don't undo your hand adjustment until the reversal is confirmed.",
+        ].join("\n"),
+      },
+    })
+  );
 
   const result = await reverse();
 
+  // read from the donation, not this run's failures: an overlapping run may
+  // have reversed the dists this one failed
+  const don = await donation_get(r.donation_id);
+  const reversed = !!don && is_reversed(don.status);
   const failed = result.failures.length;
-  const [title, lead] =
-    failed === 0
-      ? [
-          "Reversal Complete: Undo Hand Adjustment",
-          "Reversal complete: undo the hand adjustment for the earlier partial refunds, or they are debited twice.",
-        ]
-      : [
-          "Reversal Did Not Complete: Keep Hand Adjustment",
-          `Reversal did not complete: keep the hand adjustment. ${failed} of ${r.dist_count} dists failed to reverse, and the donation stays settled.`,
-        ];
+  const [title, lead] = reversed
+    ? [
+        "Reversal Complete: Undo Hand Adjustment",
+        "Reversal complete: undo the hand adjustment for the earlier partial refunds, or they are debited twice.",
+      ]
+    : [
+        "Reversal Did Not Complete: Keep Hand Adjustment",
+        `Reversal did not complete: keep the hand adjustment. ${failed} of ${r.dist_count} dists failed to reverse, and the donation stays settled.`,
+      ];
   const body = [lead, ...detail].join("\n");
   // queued, not sent: once reversed, a retry stops at the donation's status,
   // so only the queue's retries can land a failed send. a failed enqueue is
   // reported, instruction and all, rather than thrown: once reversed, no retry
-  // gets far enough to queue it. keyed on the completing refund, which every
-  // run reversing it sees, so no two runs send it twice; and on the outcome: a
-  // retry failing alike collapses into the "keep" notice, and one that now
-  // completes lands its "undo" notice.
+  // gets far enough to queue it. keyed on the outcome: retries that fall short
+  // collapse into one "keep", and the run that completes lands its "undo"
   await enqueue(
     msg("fiat-notice", {
-      id: `${r.completing.id}_${failed}`,
+      id: `${r.completing.id}_${reversed ? "undo" : "keep"}`,
       alert: { type: "NOTICE", from, title, body },
     })
   ).catch((err) =>

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import Stripe from "stripe";
 import {
@@ -56,10 +57,8 @@ vi.mock("$/kit/stripe", () => ({
 }));
 const enqueue = vi.hoisted(() => vi.fn(async (_m: any) => undefined));
 vi.mock("$/kit/queue", () => ({ enqueue }));
-const send_alert = vi.hoisted(() => vi.fn());
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
-vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert } }));
 
 // the dist graph and its reversal are `process.test.ts`'s ground; here they are
 // the boundary, so the route's own branching on the reversal's answer runs real
@@ -72,12 +71,21 @@ vi.mock("$/refund/process", () => ({
       warnings: [],
     },
   })),
-  process_refund: vi.fn(async () => ({
-    failures: refund.failures,
-    loss_msgs: [],
-    has_loss: false,
-    applied: refund.applied,
-  })),
+  // flips the donation as the real one does once nothing failed
+  process_refund: vi.fn(async (donation_id: string) => {
+    if (refund.failures.length === 0) {
+      await test_db
+        .current!.db.update(donations)
+        .set({ status: "refunded" })
+        .where(eq(donations.id, donation_id));
+    }
+    return {
+      failures: refund.failures,
+      loss_msgs: [],
+      has_loss: false,
+      applied: refund.applied,
+    };
+  }),
 }));
 vi.mock("$/pg/queries/dist", async (orig) => ({
   ...(await orig<typeof import("$/pg/queries/dist")>()),
@@ -421,7 +429,9 @@ describe("refund api", () => {
     await seed_settlement(id, `pi_${id}`);
     const args = { params: { donation_id: id } } as any;
 
+    refund.failures = ["dist dist-1: db timeout"];
     await action(args);
+    refund.failures = [];
     await action(args);
 
     expect(issued.size).toBe(1);
@@ -447,21 +457,22 @@ describe("refund api", () => {
 
     await action({ params: { donation_id: id } } as any);
 
-    const [starting] = send_alert.mock.calls.map(([a]) => a);
-    expect(starting.title).toBe("Full Refund After Partial: Reversal Starting");
-    expect(starting.body).toContain(
-      "earlier partial refunds: 5.00 USD (re_part, succeeded)"
-    );
-    const [notice] = enqueue.mock.calls
+    const [starting, notice] = enqueue.mock.calls
       .flat()
       .filter((m) => m.id === "fiat-notice");
+    expect(starting.payload.alert.title).toBe(
+      "Full Refund After Partial: Reversal Starting"
+    );
+    expect(starting.payload.alert.body).toContain(
+      "earlier partial refunds: 5.00 USD (re_part, succeeded)"
+    );
     expect(notice.payload.alert.title).toBe(
       "Reversal Complete: Undo Hand Adjustment"
     );
     expect(notice.payload.alert.body).toContain(
       "completing refund: 95.00 USD (re_full, succeeded)"
     );
-    const [starting_at] = send_alert.mock.invocationCallOrder;
+    const [starting_at] = enqueue.mock.invocationCallOrder;
     const [reversed_at] = vi.mocked(process_refund).mock.invocationCallOrder;
     expect(starting_at).toBeLessThan(reversed_at);
   });
@@ -490,8 +501,8 @@ describe("refund api", () => {
     const notices = enqueue.mock.calls
       .flat()
       .filter((m) => m.id === "fiat-notice");
-    expect(notices).toHaveLength(1);
-    const [notice] = notices;
+    expect(notices).toHaveLength(2);
+    const [, notice] = notices;
     expect(notice.payload.alert.title).toBe(
       "Reversal Did Not Complete: Keep Hand Adjustment"
     );
@@ -499,7 +510,7 @@ describe("refund api", () => {
       "1 of 1 dists failed to reverse"
     );
     // the key the webhook would use for the same refund, so the two never both land
-    expect(notice.dedupe).toBe("fiat.notice_re_full_1");
+    expect(notice.dedupe).toBe("fiat.notice_re_full_keep");
   });
 
   it("still reports the refund processed when its outcome notice can't be queued, keeping the instruction in sentry", async () => {
@@ -517,7 +528,9 @@ describe("refund api", () => {
     };
     refunds_create.mockResolvedValue(ours);
     refunds_list.mockResolvedValue({ data: [ours, partial] });
-    enqueue.mockRejectedValue(new Error("qstash 503"));
+    enqueue
+      .mockResolvedValueOnce(undefined) // the start notice
+      .mockRejectedValueOnce(new Error("qstash 503"));
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
 
@@ -549,7 +562,6 @@ describe("refund api", () => {
 
     expect(res.ok).toBe(true);
     expect(refunds_list).toHaveBeenCalled();
-    expect(send_alert).not.toHaveBeenCalled();
     expect(
       enqueue.mock.calls.flat().filter((m) => m.id === "fiat-notice")
     ).toEqual([]);
