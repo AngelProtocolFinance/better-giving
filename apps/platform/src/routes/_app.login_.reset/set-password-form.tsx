@@ -31,12 +31,16 @@ export function SetPasswordForm(props: Props) {
         <PasswordInput
           {...register("password")}
           error={errors.password?.message}
+          label="New Password"
           placeholder="New Password"
+          autoComplete="new-password"
         />
         <PasswordInput
           {...register("password_confirmation")}
           error={errors.password_confirmation?.message}
+          label="Confirm New Password"
           placeholder="Confirm New Password"
+          autoComplete="new-password"
         />
       </div>
 
