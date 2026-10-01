@@ -19,11 +19,32 @@ export function PasswordInput({
   label,
   error,
   ref,
+  id,
+  name,
+  disabled,
+  required,
+  readOnly,
   ...rest
 }: Props) {
   const error_id = useId();
+  // see `field.tsx`: the errormessage relationship is the correct one and the
+  // describedby is the one every screen reader reads. spread only with an
+  // error: an explicit undefined overwrites what Ark takes from a `Field.Root`
+  const error_aria = error
+    ? { "aria-errormessage": error_id, "aria-describedby": error_id }
+    : {};
   return (
-    <Ark.Root autoComplete={autoComplete} invalid={!!error}>
+    // zag owns these: on the input they'd skip the toggle and label, and a
+    // caller id there breaks the label's htmlFor and the toggle's aria-controls
+    <Ark.Root
+      autoComplete={autoComplete}
+      invalid={error ? true : undefined}
+      ids={id ? { input: id } : undefined}
+      name={name}
+      disabled={disabled}
+      required={required}
+      readOnly={readOnly}
+    >
       {label && <Ark.Label className="label mb-1">{label}</Ark.Label>}
       <Ark.Control className="relative">
         <Lock className="text-gray-11 absolute top-1/2 -translate-y-1/2 left-4 icon-xl" />
@@ -35,10 +56,7 @@ export function PasswordInput({
           // password runs under the eye — and the eye's hit area is the field's
           // full right edge, so a click meant to place the caret reveals it.
           className="w-full h-full field-input pl-12 pr-12"
-          // see `field.tsx`: the errormessage relationship is the correct one and
-          // the describedby is the one every screen reader reads
-          aria-errormessage={error ? error_id : undefined}
-          aria-describedby={error ? error_id : undefined}
+          {...error_aria}
         />
         <Ark.VisibilityTrigger
           className={`${ornament_end_cls} text-gray-11 hover:text-gray-11 active:text-gray-12 rounded`}

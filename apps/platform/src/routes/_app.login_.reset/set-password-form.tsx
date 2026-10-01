@@ -19,6 +19,17 @@ export function SetPasswordForm(props: Props) {
     <fetcher.Form method="POST" className="solo-card">
       <input type="hidden" name="email" value={props.email} />
       <input type="hidden" name="token" value={props.token} />
+      {/* password managers skip type="hidden", so without this the new
+       * password is saved with no account. unnamed: not part of the payload */}
+      <input
+        type="text"
+        autoComplete="username"
+        value={props.email}
+        readOnly
+        tabIndex={-1}
+        aria-hidden
+        className="sr-only"
+      />
       <h3 className="text-center text-xl sm:text-2xl font-bold">
         Set new password
       </h3>
