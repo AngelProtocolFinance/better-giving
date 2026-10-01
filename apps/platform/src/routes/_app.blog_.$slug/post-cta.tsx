@@ -1,7 +1,7 @@
 import { ExtLink } from "@better-giving/ui";
 import type { POST_QUERY_RESULT } from "blog-types";
 import { urlFor } from "#/api/sanity";
-import { is_safe_href } from "./safe-href";
+import { is_safe_href } from "@/helpers/safe-href";
 
 // editor-picked per post, so every field past heading/link1 is optional.
 // shape defined in blog/schemaTypes/ctaType.ts.
@@ -12,7 +12,7 @@ interface IPostCta {
 }
 
 export function PostCta({ cta }: IPostCta) {
-  const img_url = cta.image?.asset ? urlFor(cta.image).width(560).url() : null;
+  const img_url = urlFor(cta.image)?.width(560).url();
   const heading_mb = cta.body ? "mb-6" : "mb-9";
   const link1 = is_safe_href(cta.link1?.href) ? cta.link1 : null;
   const link2 = is_safe_href(cta.link2?.href) ? cta.link2 : null;

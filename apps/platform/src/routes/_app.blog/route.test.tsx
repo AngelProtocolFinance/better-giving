@@ -4,7 +4,10 @@ import { render } from "vitest-browser-react";
 import type { Route } from "./+types/route";
 
 const posts_mock = vi.hoisted(() => vi.fn());
-vi.mock("#/api/get/posts", () => ({ posts: posts_mock }));
+vi.mock("#/api/get/posts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("#/api/get/posts")>()),
+  posts: posts_mock,
+}));
 
 import BlogRoute, { clientLoader, loader } from "./route";
 
@@ -55,5 +58,21 @@ describe("blog list", () => {
     await expect
       .element(screen.getByRole("link", { name: /tricky/i }))
       .toHaveAttribute("href", "/blog/%2F%2Fevil.com");
+  });
+
+  test("a card whose image ref the url builder can't parse renders without an image", async () => {
+    posts_mock.mockResolvedValue([
+      [
+        {
+          ...post("m", "Malformed image"),
+          image: { asset: { _ref: "image-nope", _type: "reference" } },
+        },
+      ],
+      1,
+    ]);
+    const screen = await render(<Stub initialEntries={["/blog?t=img"]} />);
+    const card = screen.getByRole("link", { name: /malformed image/i });
+    await expect.element(card).toBeVisible();
+    expect(card.element().querySelector("img")).toBeNull();
   });
 });
