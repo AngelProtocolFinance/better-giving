@@ -1,4 +1,5 @@
 import { defineField, defineType } from "sanity";
+import { altField } from "./altField";
 
 const linkField = (name: string, title: string, required = false) =>
   defineField({
@@ -57,20 +58,7 @@ export const ctaType = defineType({
       description:
         "Optional. Shown in the right column of the CTA card. Recommended: square, min 280×280 (renders at ~140px @2x). PNG with transparency or WebP.",
       options: { hotspot: true },
-      fields: [
-        defineField({
-          name: "alt",
-          type: "string",
-          title: "Alt text",
-          validation: (rule) =>
-            rule.custom((alt, ctx) => {
-              const img = ctx.parent as { asset?: unknown } | undefined;
-              if (img?.asset && !alt)
-                return "Alt text required when image is set";
-              return true;
-            }),
-        }),
-      ],
+      fields: [altField],
     }),
     linkField("link1", "Primary link", true),
     linkField("link2", "Secondary link"),

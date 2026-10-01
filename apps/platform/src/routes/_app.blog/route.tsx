@@ -135,7 +135,8 @@ const Cards = (props: { posts: POSTS_QUERY_RESULT["items"] }) =>
         {img_src ? (
           <img
             src={img_src}
-            alt={post.image?.alt ?? post.title}
+            // the title below already names the link, so the cover is decorative
+            alt=""
             className="w-full aspect-video object-cover"
           />
         ) : (
