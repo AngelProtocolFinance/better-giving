@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useFetcher } from "react-router";
 import { steps } from "#/pages/registration/routes";
 import type { TStatus } from "@/reg";
+import type { submit_action } from "./submit-action";
 
 type Props = {
   status?: TStatus;
@@ -11,16 +12,16 @@ type Props = {
 };
 
 export function EndowmentStatus({ status, classes = "" }: Props) {
-  const fetcher = useFetcher({ key: "reg-sub" });
+  const fetcher = useFetcher<typeof submit_action>({ key: "reg-sub" });
   const is_submitting = fetcher.state !== "idle";
   const conversion_pushed = useRef(false);
 
-  // gtm conversion, keyed to this fetcher completing — not to status "02", so a
-  // returning visitor opening an already-submitted application never re-fires it.
+  // gtm conversion, keyed to this fetcher's submitted answer — not to status
+  // "02", so a returning visitor opening an already-submitted application never re-fires it.
   // dataLayer only exists once consent init runs (prod), hence the optional call.
   useEffect(() => {
     if (conversion_pushed.current) return;
-    if (fetcher.state !== "idle" || !fetcher.data) return;
+    if (fetcher.state !== "idle" || !fetcher.data?.submitted) return;
     conversion_pushed.current = true;
     window.dataLayer?.push({ event: "nonprofit_signup" });
   }, [fetcher.state, fetcher.data]);

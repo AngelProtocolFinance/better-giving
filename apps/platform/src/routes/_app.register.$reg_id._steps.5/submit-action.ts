@@ -1,4 +1,4 @@
-import { type ActionFunction, redirect } from "react-router";
+import { type ActionFunctionArgs, redirect } from "react-router";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { dataWithSuccess } from "#/.server/toast";
@@ -11,7 +11,10 @@ import { enqueue, in_dedupe_window } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { reg_get, reg_update_from } from "$/pg/queries/registration";
 
-export const submit_action: ActionFunction = async ({ request, params }) => {
+export const submit_action = async ({
+  request,
+  params,
+}: ActionFunctionArgs) => {
   const { user } = await get_session(request);
   if (!user) return to_auth(request);
 
@@ -52,7 +55,7 @@ export const submit_action: ActionFunction = async ({ request, params }) => {
   }
 
   return dataWithSuccess(
-    null,
+    { submitted: true as const },
     "Your application has been submitted. We will get back to you soon!"
   );
 };
