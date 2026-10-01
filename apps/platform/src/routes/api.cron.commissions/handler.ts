@@ -1,21 +1,19 @@
-import crypto from "node:crypto";
 import { report_error } from "#/errors/report";
-import type { ICommission, IPayout } from "@/referrals";
+import { group_by } from "@/helpers/array";
+import type { ICommission } from "@/referrals";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
-import { db } from "$/pg/db";
-import {
-  commission_update_status,
-  commissions_all_by_status,
-  referrer_payout_put,
-} from "$/pg/queries/referrer";
+import { settle_referrer_commissions } from "$/payouts/settle-commissions";
+import { payout_total } from "$/payouts/transfer";
+import { wise_pay } from "$/payouts/wise-pay";
+import { commissions_all_by_status } from "$/pg/queries/referrer";
 import { get_referrer } from "./helpers";
-import { commission_ref, send_commission } from "./send-commission";
 
 const lambda = `commissions-processor:${stage}`;
 
 export async function index() {
   try {
+    await alert_unsettled_claims();
     const items = await commissions_all_by_status("pending");
 
     if (items.length === 0) {
@@ -49,18 +47,36 @@ export async function index() {
   }
 }
 
+/**
+ * a processing commission was claimed by a transfer and never paid or
+ * released: a killed run, a failed release, or a transfer whose funding or
+ * record is unknown. the pending read never returns it, so without this it
+ * sits unpaid and unannounced
+ */
+async function alert_unsettled_claims() {
+  try {
+    const stuck = await commissions_all_by_status("processing");
+    if (stuck.length === 0) return;
+    const by_claim = group_by(
+      stuck,
+      (c) => `${c.referrer_user ?? c.referrer_npo} ref ${c.ref || "unknown"}`
+    );
+    const lines = Object.entries(by_claim).map(
+      ([claim, cs = []]) =>
+        `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`
+    );
+    await aws_monitor.send_alert({
+      type: "ERROR",
+      from: lambda,
+      title: "commissions claimed but not paid",
+      body: `reconcile in Wise before resetting any to pending\n${lines.join("\n")}`,
+    });
+  } catch (err) {
+    report_error(err);
+  }
+}
+
 async function process_item(ref_id: string, items: ICommission[]) {
-  const total = items.reduce((a, b) => a + b.amount, 0);
-
-  const is_npo = ref_id.startsWith("NPO-");
-  const payout: IPayout = {
-    amount: total,
-    date: new Date().toISOString(),
-    id: crypto.randomUUID(),
-    referrer_user: is_npo ? undefined : ref_id,
-    referrer_npo: is_npo ? ref_id : undefined,
-  };
-
   try {
     const ref = await get_referrer(ref_id);
     if (!ref) throw new Error(`referrer:${ref_id} not found`);
@@ -68,39 +84,36 @@ async function process_item(ref_id: string, items: ICommission[]) {
     if (!ref.pay_id) {
       return console.info(`referrer:${ref_id} has no payout method`);
     }
-    if (total < ref.pay_min) {
+    // skips the locking claim for a referrer still under it; the claim rechecks
+    const snapshot = payout_total(items.map((i) => i.amount));
+    if (snapshot < ref.pay_min) {
       return console.info(
-        `referrer:${ref_id} payout ${total} is less than minimum ${ref.pay_min}`
+        `referrer:${ref_id} payout ${snapshot} is less than minimum ${ref.pay_min}`
       );
     }
 
-    const res = await send_commission(
-      ref.pay_id,
-      total,
-      commission_ref(items.map((i) => i.donation_id))
+    const pay_id = ref.pay_id;
+    const res = await settle_referrer_commissions(
+      { id: ref_id, pay_id, pay_min: ref.pay_min },
+      (wise_ref, total) => wise_pay(pay_id, total, wise_ref)
     );
-    payout.transfer_id = res;
-
-    await db.transaction(async (tx) => {
-      for (const item of items) {
-        await commission_update_status(tx, item.donation_id, "paid");
-      }
-      await referrer_payout_put(tx, payout);
-    });
+    if (res.status !== "paid") {
+      return console.info(`referrer:${ref_id} not paid: ${res.status}`);
+    }
 
     await aws_monitor.send_alert({
       type: "NOTICE",
       from: lambda,
       title: `Commission paid for ${ref_id}`,
       fields: [
-        { name: "amount", value: payout.amount.toString() },
+        { name: "amount", value: res.total.toString() },
         { name: "name", value: ref.name },
         { name: "email", value: ref.email },
+        { name: "transfer_id", value: res.transfer_id },
+        { name: "ref_id", value: res.ref },
       ],
     });
   } catch (err) {
     report_error(err, { ref_id });
-    payout.error = "Failed to process commission";
-    await referrer_payout_put(db, payout);
   }
 }
