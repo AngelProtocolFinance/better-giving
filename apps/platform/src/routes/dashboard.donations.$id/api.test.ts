@@ -268,11 +268,19 @@ describe("a resend that fails", () => {
     expect(report_error).toHaveBeenCalledWith(refused, expect.anything());
   });
 
-  test("a gift to a nonprofit that no longer exists is not found", async () => {
+  test("a gift to a nonprofit that no longer exists says so in place, and is reported", async () => {
     store.don = { ...fund_don([]), to_id: "99", to_type: "npo" } as IDonation;
 
-    await expect(resend()).rejects.toMatchObject({ status: 404 });
+    const res = await resend();
+
+    expect(res).toEqual({
+      error: "We couldn't build your receipt. Please contact support.",
+    });
     expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(report_error).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "NpoNotFoundError" }),
+      expect.anything()
+    );
   });
 });
 

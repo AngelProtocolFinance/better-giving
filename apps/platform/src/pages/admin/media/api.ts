@@ -3,7 +3,11 @@ import type { ActionFunction } from "react-router";
 import { getValidatedFormData } from "remix-hook-form";
 import { safeParse } from "valibot";
 import { admin_ctx } from "#/.server/auth";
-import { dataWithSuccess, redirectWithSuccess } from "#/.server/toast";
+import {
+  dataWithError,
+  dataWithSuccess,
+  redirectWithSuccess,
+} from "#/.server/toast";
 import { resp } from "@/helpers/https";
 import { media_id } from "@/npo/schema";
 import {
@@ -25,7 +29,7 @@ export const videos_action: ActionFunction = async (x) => {
   const mid = p_mid.output;
 
   const prev = await npo_media_get(mid);
-  if (!prev) throw resp.status(404);
+  if (!prev) return dataWithError(null, "Video not found");
 
   if (intent === "feature") {
     await npo_media_update(id, prev.id, {
@@ -65,7 +69,7 @@ export const edit_action: ActionFunction = async (x) => {
   if (fv.errors) return fv;
 
   const m = await npo_media_get(mid);
-  if (!m) throw resp.status(404);
+  if (!m) return dataWithError(null, "Video not found");
 
   await npo_media_update(id, m.id, {
     url: fv.data.url,

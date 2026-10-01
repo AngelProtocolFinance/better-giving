@@ -114,10 +114,16 @@ export const action = async ({
   };
 
   const data = await build_receipt(don, donor).catch((e) => {
-    if (e instanceof NpoNotFoundError) return null;
-    throw e;
+    if (!(e instanceof NpoNotFoundError)) throw e;
+    report_error(e, { donation_id: don.id, during: "receipt resend" });
+    return null;
   });
-  if (!data) throw resp.status(404);
+  if (!data) {
+    return dataWithError(
+      null,
+      "We couldn't build your receipt. Please contact support."
+    );
+  }
   const { node, subject } = dr.template(data);
   // `send_email` reports a refusal, but a render error throws before it
   const sent = await send_email_or_throw({

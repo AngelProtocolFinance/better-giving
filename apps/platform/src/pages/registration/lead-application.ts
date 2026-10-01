@@ -231,7 +231,8 @@ export async function lead_application(request: Request, fd: FormData) {
     );
   }
 
-  const to = res.headers.get("location") ?? undefined;
+  const to = res.headers.get("location");
+  if (!to) throw res;
 
   if (signed_in) {
     // signed in as the address they typed: proven already, and the wizard is

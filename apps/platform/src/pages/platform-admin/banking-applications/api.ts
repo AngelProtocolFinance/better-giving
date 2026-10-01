@@ -61,7 +61,7 @@ export const action: ActionFunction = async ({ params, request }) => {
   const bank_id = p_id.output;
 
   const x = await bapp_get(bank_id.toString());
-  if (!x) return { status: 404, statusText: `Bank:${bank_id} not found` };
+  if (!x) throw resp.status(404, `Bank:${bank_id} not found`);
 
   if (fv.data.type === "approved") {
     // auto-default if npo has no other banking apps

@@ -582,3 +582,47 @@ describe("funds — published visibility on npo profile", () => {
       .toBeInTheDocument();
   });
 });
+
+describe("funds — stale opt out", () => {
+  const opt_out = (npo_id: number, fund_id: string) => {
+    const fd = new FormData();
+    fd.set("fund_id", fund_id);
+    return (action as any)({
+      request: new Request(`http://x/admin/${npo_id}/funds`, {
+        method: "POST",
+        body: fd,
+      }),
+      params: { id: String(npo_id) },
+      context: { get: (k: unknown) => (k === admin_ctx ? npo_id : undefined) },
+    });
+  };
+
+  it("a second press after the fund is gone answers in place", async () => {
+    const npo = await seed_npo();
+
+    const res = await opt_out(npo.id, "ffffffff-0001-0001-0001-000000000001");
+
+    expect(res).toEqual({ error: "Fund not found" });
+  });
+
+  it("a second press after the opt-out committed answers in place", async () => {
+    const npo = await seed_npo();
+    const other_npo = await seed_npo({
+      registration_number: "EIN-STALE",
+      name: "Stale Creator NPO",
+    });
+    const creator = await seed_user("stale@test.com", "Stale", "Creator");
+    const fid = "ffffffff-0002-0002-0002-000000000002";
+    await seed_fund({
+      id: fid,
+      name: "Already Left",
+      npo_owner: other_npo.id,
+      creator_id: creator.id,
+      members: [other_npo.id],
+    });
+
+    const res = await opt_out(npo.id, fid);
+
+    expect(res).toEqual({ error: "You're no longer a member of this fund" });
+  });
+});

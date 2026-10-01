@@ -1,7 +1,7 @@
 import { safeParse } from "valibot";
 import { admin_ctx, user_ctx } from "#/.server/auth";
 import { get_funds_npo_memberof } from "#/.server/funds";
-import { dataWithSuccess } from "#/.server/toast";
+import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import type { AuthUser } from "#/types/auth";
 import type { IFundItem } from "@/fundraiser";
 import { fund_id } from "@/fundraiser/schema";
@@ -49,11 +49,11 @@ export const action = async (x: Route.ActionArgs) => {
   const fid = p.output;
 
   const fund = await fund_get_or_slug(fid);
-  if (!fund) return { status: 404 };
+  if (!fund) return dataWithError(null, "Fund not found");
 
   const is_member = await fund_has_member(fund.id, id);
   if (!is_member) {
-    return { status: 400, statusText: `${id} not member of this fund` };
+    return dataWithError(null, "You're no longer a member of this fund");
   }
 
   const members = await fund_members_get(fund.id);

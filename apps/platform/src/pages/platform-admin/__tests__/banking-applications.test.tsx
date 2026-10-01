@@ -576,23 +576,26 @@ describe("reject flow", () => {
 });
 
 describe("action edge cases", () => {
-  it("returns 404 for non-existent bapp", async () => {
+  it("throws 404 for non-existent bapp", async () => {
     const form = new FormData();
     form.set("type", "approved");
 
-    const result = await (action as (...args: unknown[]) => unknown)({
-      params: { id: "99999" },
-      request: new Request("http://test/platform/banking-applications/99999", {
-        method: "POST",
-        body: form,
-      }),
-      context: {},
-    });
+    const thrown = await Promise.resolve(
+      (action as (...args: unknown[]) => unknown)({
+        params: { id: "99999" },
+        request: new Request(
+          "http://test/platform/banking-applications/99999",
+          { method: "POST", body: form }
+        ),
+        context: {},
+      })
+    ).then(
+      () => undefined,
+      (e: unknown) => e
+    );
 
-    expect(result).toMatchObject({
-      status: 404,
-      statusText: expect.stringContaining("not found"),
-    });
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(404);
   });
 });
 

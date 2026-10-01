@@ -6,6 +6,7 @@ import { LogForm } from "./log-form";
 import { Review } from "./review";
 import type { State } from "./types";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action } from "./api";
 
 export default function Page() {

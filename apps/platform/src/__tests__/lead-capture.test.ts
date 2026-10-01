@@ -75,6 +75,15 @@ vi.mock("#/.server/auth/draft-grant", async (orig) => {
   };
 });
 
+vi.mock("#/pages/registration/new-application", async (orig) => {
+  const actual =
+    (await orig()) as typeof import("#/pages/registration/new-application");
+  return {
+    ...actual,
+    new_application_for: vi.fn(actual.new_application_for),
+  };
+});
+
 vi.mock("$/kit/queue", () => ({
   receiver: {},
   client: {},
@@ -117,6 +126,7 @@ import {
   LEAD_PER_IP,
   LEAD_PER_USER,
 } from "#/pages/registration/lead-application";
+import { new_application_for } from "#/pages/registration/new-application";
 import { resume_application } from "#/pages/registration/resume-application";
 import { next_step } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
@@ -496,6 +506,18 @@ describe("marketing lead → application", () => {
       expect(res.status).toBe(302);
     }
   }, 60_000);
+
+  it("fails loudly when starting the application answers with nowhere to go, creating no account", async () => {
+    const odd = new Response(null, { status: 200 });
+    vi.mocked(new_application_for).mockResolvedValueOnce(odd);
+
+    await expect(us_action({ request: post(US_LEAD) } as any)).rejects.toBe(
+      odd
+    );
+
+    expect(await all_users()).toHaveLength(0);
+    expect(issued).toHaveLength(0);
+  }, 30_000);
 
   it("faults an EIN that is not nine digits and creates nothing", async () => {
     const res: any = await us_action({

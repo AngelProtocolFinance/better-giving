@@ -1,7 +1,9 @@
 import { redirect } from "react-router";
 import { safeParse } from "valibot";
+import { dataWithError } from "#/.server/toast";
 import { resp } from "@/helpers/https";
 import type { IComposition, ITicker } from "@/nav";
+import { NEGATIVE_BAL_MSG } from "@/nav/schemas";
 import { db } from "$/pg/db";
 import { nav_log_put, nav_ltd, rebalance_log_put } from "$/pg/queries/nav";
 import type { Route } from "./+types/route";
@@ -20,7 +22,11 @@ export const action = async ({ request }: Route.ActionArgs) => {
     txs: await request.json(),
     bals,
   });
-  if (p.issues) throw resp.status(400, p.issues[0].message);
+  if (p.issues) {
+    const { message } = p.issues[0];
+    if (message === NEGATIVE_BAL_MSG) return dataWithError(null, message);
+    throw resp.status(400, message);
+  }
   const fv = p.output;
 
   const timestamp = new Date().toISOString();
