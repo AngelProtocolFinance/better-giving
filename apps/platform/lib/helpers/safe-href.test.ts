@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { is_safe_href } from "./safe-href";
+import { is_absolute_web_href, is_safe_href } from "./safe-href";
 
 describe("is_safe_href", () => {
   it.each([
@@ -41,7 +41,48 @@ describe("is_safe_href", () => {
     "",
     "   ",
     undefined,
+    null,
+    42,
+    { href: "https://example.org" },
+    ["https://example.org"],
   ])("rejects %j", (href) => {
     expect(is_safe_href(href)).toBe(false);
+  });
+});
+
+describe("is_absolute_web_href", () => {
+  it.each([
+    "https://better.giving",
+    "http://example.org/a?b=c#d",
+    "HTTPS://EXAMPLE.ORG",
+    "  https://padded.example  ",
+  ])("accepts %j", (href) => {
+    expect(is_absolute_web_href(href)).toBe(true);
+  });
+
+  it.each([
+    "www.example.org",
+    "example.org",
+    "/donate",
+    "other-page",
+    "#section",
+    "//example.org",
+    "https:example.org",
+    "https:/example.org",
+    "http://",
+    "mailto:hi@better.giving",
+    "tel:+15551234567",
+    "ftp://example.org",
+    "javascript:alert(1)",
+    "\u0001https://example.org",
+    "ht\ntps://example.org",
+    "",
+    "   ",
+    undefined,
+    null,
+    42,
+    { href: "https://example.org" },
+  ])("rejects %j", (href) => {
+    expect(is_absolute_web_href(href)).toBe(false);
   });
 });
