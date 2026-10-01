@@ -5,10 +5,10 @@ import { href, Link } from "react-router";
 import { sanity, urlFor } from "#/api/sanity";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
+import { is_safe_href } from "@/helpers/safe-href";
 import type { Route } from "./+types/route";
 import { PostCta } from "./post-cta";
 import { pt_value } from "./pt-value";
-import { is_safe_href } from "./safe-href";
 
 const container_style = "w-full px-5 max-w-4xl mx-auto pb-4";
 

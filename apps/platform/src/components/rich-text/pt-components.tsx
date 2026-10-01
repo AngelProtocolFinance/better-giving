@@ -1,4 +1,5 @@
 import type { PortableTextComponents } from "@portabletext/react";
+import { is_safe_href } from "@/helpers/safe-href";
 
 export const pt_components: PortableTextComponents = {
   block: {
@@ -7,16 +8,20 @@ export const pt_components: PortableTextComponents = {
   marks: {
     strong: ({ children }) => <strong>{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
-    link: ({ children, value }) => (
-      <a
-        href={value?.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-primary underline"
-      >
-        {children}
-      </a>
-    ),
+    // react blocks only `javascript:`; a write that skips the editor can store any scheme
+    link: ({ children, value }) =>
+      is_safe_href(value?.href) ? (
+        <a
+          href={value.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline"
+        >
+          {children}
+        </a>
+      ) : (
+        children
+      ),
   },
   list: {
     bullet: ({ children }) => <ul className="list-disc pl-6">{children}</ul>,
