@@ -4,6 +4,7 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -43,7 +44,10 @@ vi.mock("$/kit/stripe", () => ({
     invoicePayments: { list: vi.fn(async () => ({ data: [] })) },
   },
 }));
-vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
+const enqueue = vi.hoisted(() => vi.fn(async (_m: any) => undefined));
+vi.mock("$/kit/queue", () => ({ enqueue }));
+const send_alert = vi.hoisted(() => vi.fn());
+vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert } }));
 
 // the dist graph and its reversal are `process.test.ts`'s ground; here they are
 // the boundary, so the route's own branching on the reversal's answer runs real
@@ -90,6 +94,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await test_db.current?.client.close();
+});
+
+beforeEach(() => {
+  refunds_list.mockResolvedValue({ data: [] });
 });
 
 afterEach(async () => {
@@ -260,6 +268,67 @@ describe("refund api", () => {
     await action(args);
 
     expect(issued.size).toBe(1);
+  });
+
+  it("tells ops to undo their hand adjustment when earlier partial refunds exist", async () => {
+    const ours = {
+      id: "re_full",
+      status: "succeeded",
+      amount: 9500,
+      currency: "usd",
+    };
+    const partial = {
+      id: "re_part",
+      status: "succeeded",
+      amount: 500,
+      currency: "usd",
+    };
+    refunds_create.mockResolvedValue(ours);
+    refunds_list.mockResolvedValue({ data: [ours, partial] });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    await action({ params: { donation_id: id } } as any);
+
+    const [starting] = send_alert.mock.calls.map(([a]) => a);
+    expect(starting.title).toBe("Full Refund After Partial: Reversal Starting");
+    expect(starting.body).toContain(
+      "earlier partial refunds: 5.00 USD (re_part, succeeded)"
+    );
+    const [notice] = enqueue.mock.calls
+      .flat()
+      .filter((m) => m.id === "fiat-notice");
+    expect(notice.payload.alert.title).toBe(
+      "Reversal Complete: Undo Hand Adjustment"
+    );
+    expect(notice.payload.alert.body).toContain(
+      "completing refund: 95.00 USD (re_full, succeeded)"
+    );
+    const [starting_at] = send_alert.mock.invocationCallOrder;
+    const [reversed_at] = vi.mocked(process_refund).mock.invocationCallOrder;
+    expect(starting_at).toBeLessThan(reversed_at);
+  });
+
+  it("posts no partial-refund notice when the admin refund is the charge's only one", async () => {
+    const ours = {
+      id: "re_full",
+      status: "succeeded",
+      amount: 10000,
+      currency: "usd",
+    };
+    refunds_create.mockResolvedValue(ours);
+    refunds_list.mockResolvedValue({ data: [ours] });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res.ok).toBe(true);
+    expect(refunds_list).toHaveBeenCalled();
+    expect(send_alert).not.toHaveBeenCalled();
+    expect(
+      enqueue.mock.calls.flat().filter((m) => m.id === "fiat-notice")
+    ).toEqual([]);
   });
 
   it("reverses a donation whose charge an earlier attempt already refunded", async () => {
