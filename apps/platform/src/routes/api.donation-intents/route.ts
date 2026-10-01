@@ -54,10 +54,28 @@ const json_with_cookie_fn =
     });
   };
 
+// a 4xx body reaches the donor verbatim; the detail stays in the log
+const refused = (detail: string) => {
+  console.info(`[resp] 400 - ${detail}`);
+  return resp.txt(
+    "We couldn't process this donation. Please refresh the page and try again.",
+    400
+  );
+};
+
+// json can't encode `undefined`, so it marks a body that didn't parse
+const json_body = (request: Request): Promise<unknown> =>
+  request.json().catch(() => undefined);
+
 export const action: ActionFunction = async ({ request }) => {
   // server-side paypal capture
   if (request.method === "PATCH") {
-    const { order_id, don_id } = await request.json();
+    const body = await json_body(request);
+    if (body === undefined) return refused("body is not json");
+    const { order_id, don_id } = (body ?? {}) as {
+      order_id?: string;
+      don_id?: string;
+    };
     if (!order_id || !don_id)
       return resp.status(400, "missing order_id/don_id");
     const capture = await capture_order({ order_id, don_id });
@@ -67,15 +85,12 @@ export const action: ActionFunction = async ({ request }) => {
   const expiry_per_intent: IDonationIntentExpiries | null =
     await donations_cookie.parse(request.headers.get("cookie"));
 
-  const parsed = safeParse(schema, await request.json());
+  const body = await json_body(request);
+  if (body === undefined) return refused("body is not json");
+  const parsed = safeParse(schema, body);
   if (parsed.issues) {
     const i = parsed.issues[0];
-    // a 4xx body reaches the donor verbatim; the detail stays in the log
-    console.info(`[resp] 400 - ${getDotPath(i)}: ${i.message}`);
-    return resp.txt(
-      "We couldn't process this donation. Please refresh the page and try again.",
-      400
-    );
+    return refused(`${getDotPath(i)}: ${i.message}`);
   }
   const { to_id, via, via_extra, donor, program, ...rest } = parsed.output;
 
