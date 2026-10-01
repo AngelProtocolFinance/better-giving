@@ -83,6 +83,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   const subscription_id = await preview_subscription_id(sttl?.sttl_id ?? null);
 
   const previews: DistPreview[] = [];
+  let total_loss = 0;
   for (const g of graphs) {
     const { dist } = g;
     if (dist.refund_status === "completed" || dist.refund_status === "loss") {
@@ -113,6 +114,8 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       sub_id: subscription_id,
       strict: false,
     });
+    total_loss +=
+      (plan.is_loss ? plan.amount : 0) + (plan.paid_commission?.amount ?? 0);
     const p: RefundPreview = plan.preview;
     previews.push({
       id: dist.id,
@@ -138,11 +141,6 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
       warnings: p.warnings,
     });
   }
-
-  const total_loss = previews.reduce(
-    (sum, p) => sum + (p.warnings.length > 0 ? p.amount : 0),
-    0
-  );
 
   return {
     donation_id,

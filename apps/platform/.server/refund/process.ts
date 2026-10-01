@@ -195,9 +195,14 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss, commission_in_flight: c } = res;
+      const { loss, commission_in_flight: c, paid_commission: pc } = res;
       if (loss) {
         loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
+      }
+      if (pc) {
+        loss_msgs.push(
+          `commission ${pc.donation_id}: $${pc.amount} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
+        );
       }
       if (c) {
         loss_msgs.push(

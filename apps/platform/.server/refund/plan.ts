@@ -87,6 +87,8 @@ export interface RefundPlan {
   is_loss: boolean;
   loss_reasons: string[];
   amount: number;
+  /** a commission its referrer was already paid: left `paid`, the platform's loss */
+  paid_commission: { donation_id: string; amount: number } | null;
   effects: RefundEffect[];
   preview: RefundPreview;
 }
@@ -175,9 +177,15 @@ export function calc_refund_plan(
     }
   }
 
-  // commission — always reversed (preview only; status follows is_loss below,
-  // and apply re-reads it under lock: a processing one goes refunded_loss)
-  if (commission?.status === "processing") {
+  // commission (preview only; status follows is_loss below, and apply re-reads
+  // it under lock: a processing one goes refunded_loss, a paid one stays paid)
+  if (commission?.status === "paid") {
+    preview.warnings.push({
+      label: "Commission",
+      pass: false,
+      reason: `$${humanize(commission.amount)} was already paid to its referrer, so it stays with them as the platform's loss (ops is alerted)`,
+    });
+  } else if (commission?.status === "processing") {
     preview.warnings.push({
       label: "Commission",
       pass: false,
@@ -299,8 +307,14 @@ export function calc_refund_plan(
     effects.push({ kind: "rev_log_status", rev_log_id: id, status });
   }
 
-  // always-reversed: commission
-  if (commission) {
+  // reversed unless the referrer was already paid: that money stays with them
+  // as the platform's loss, carried on `paid_commission` rather than logged —
+  // loss_logs is per npo, and the npo's side still reverses in full
+  const paid_commission =
+    commission?.status === "paid"
+      ? { donation_id: commission.donation_id, amount: commission.amount }
+      : null;
+  if (commission && !paid_commission) {
     effects.push({
       kind: "commission_status",
       donation_id: commission.donation_id,
@@ -348,6 +362,7 @@ export function calc_refund_plan(
     is_loss,
     loss_reasons,
     amount: dist.amount,
+    paid_commission,
     effects,
     preview,
   };

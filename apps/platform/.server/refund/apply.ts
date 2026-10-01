@@ -25,6 +25,7 @@ export class StalePayoutError extends Error {
 
 export interface IAppliedRefund {
   loss?: ILossLog;
+  paid_commission?: NonNullable<RefundPlan["paid_commission"]>;
   /** the commission was claimed by a Wise transfer, so it was taken as a loss */
   commission_in_flight?: { donation_id: string; amount: number; ref?: string };
 }
@@ -34,6 +35,7 @@ export async function apply_refund_plan(
   plan: RefundPlan
 ): Promise<IAppliedRefund> {
   const res: IAppliedRefund = {};
+  if (plan.paid_commission) res.paid_commission = plan.paid_commission;
 
   for (const e of plan.effects) {
     switch (e.kind) {
@@ -65,6 +67,9 @@ export async function apply_refund_plan(
         if (was?.status === "processing") {
           const { donation_id, amount, ref } = was;
           res.commission_in_flight = { donation_id, amount, ref };
+        } else if (was?.status === "paid") {
+          const { donation_id, amount } = was;
+          res.paid_commission = { donation_id, amount };
         }
         break;
       }

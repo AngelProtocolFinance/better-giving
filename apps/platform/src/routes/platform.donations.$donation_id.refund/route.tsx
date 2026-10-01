@@ -92,9 +92,7 @@ function Content({
       {has_warnings && (
         <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning-subtle border border-warning flex items-center gap-2 text-sm text-warning-subtle-fg">
           <AlertTriangleIcon className="shrink-0 icon-md" />
-          <span>
-            ${humanize(data.total_loss)} will be recorded as platform loss
-          </span>
+          <span>${humanize(data.total_loss)} will be a platform loss</span>
         </div>
       )}
 

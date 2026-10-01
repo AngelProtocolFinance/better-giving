@@ -107,7 +107,7 @@ vi.mock("$/pg/queries/dist", async (orig) => ({
 
 import { dists_for_refund } from "$/pg/queries/dist";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { process_refund } from "$/refund/process";
+import { load_refund_plan, process_refund } from "$/refund/process";
 import { action, loader } from "../api";
 import Page from "../route";
 
@@ -395,6 +395,59 @@ describe("refund modal", () => {
       .element(alert)
       .toMatchTextContent(/1 distribution\(s\) were reversed/);
     expect(alert.element().textContent).not.toMatch(/nothing was reversed/i);
+  });
+});
+
+describe("refund preview", () => {
+  // the npo's $100 reverses in full; only the referrer's paid $5 is lost
+  it("totals the loss from what the plan loses, not the dist's amount", async () => {
+    vi.mocked(load_refund_plan).mockResolvedValue({
+      is_loss: false,
+      amount: 100,
+      paid_commission: { donation_id: "dist-1", amount: 5 },
+      preview: {
+        effects: [{ label: "Reverse payout", pass: true }],
+        blockers: [],
+        warnings: [{ label: "Commission", pass: false, reason: "paid" }],
+      },
+    } as any);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const data: any = await loader({ params: { donation_id: id } } as any);
+
+    expect(data.total_loss).toBe(5);
+  });
+
+  it("banners the loss without saying it is recorded", async () => {
+    vi.mocked(load_refund_plan).mockResolvedValue({
+      is_loss: true,
+      amount: 100,
+      paid_commission: null,
+      preview: {
+        effects: [],
+        blockers: [],
+        warnings: [{ label: "Grant payout", pass: false, reason: "settled" }],
+      },
+    } as any);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const Stub = createRoutesStub([
+      {
+        path: "/platform/donations/:donation_id/refund",
+        Component: Page,
+        HydrateFallback: () => null,
+        loader: loader as any,
+      },
+    ]);
+
+    const screen = await render(
+      <Stub initialEntries={[`/platform/donations/${id}/refund`]} />
+    );
+
+    await expect
+      .element(screen.getByText("$100.00 will be a platform loss"))
+      .toBeInTheDocument();
   });
 });
 
