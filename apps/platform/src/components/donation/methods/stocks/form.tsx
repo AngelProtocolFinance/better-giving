@@ -33,8 +33,15 @@ async function search_tickers(
   return res.json();
 }
 
+const ESTIMATE_ERROR =
+  "Couldn't get a price for this stock. Try again or pick another.";
+const ESTIMATE_PENDING =
+  "Getting a price for this stock — try again in a moment.";
+
 export function Form(props: TMethodState<"stocks">) {
   const [ticker_state, set_ticker_state] = useState<TTokenState>(undefined);
+  const [submitted_while_estimating, set_submitted_while_estimating] =
+    useState(false);
 
   const { don_set, don } = use_donation();
   const initial: FV = {
@@ -129,20 +136,29 @@ export function Form(props: TMethodState<"stocks">) {
       value={ticker.value.symbol ? ticker.value : undefined}
       on_change={async (t) => {
         if (!t) return;
+        // usdpu/min stay unset until this ticker's own estimate lands — the
+        // previous pick's price must not pass the schema for a new symbol
+        ticker.onChange({
+          symbol: t.symbol,
+          name: t.name,
+          amount: getValues("ticker.amount"),
+        });
+        set_ticker_state("loading");
+        set_submitted_while_estimating(false);
+        const is_current = () => getValues("ticker.symbol") === t.symbol;
         try {
-          const current_amount = ticker.value.amount;
-          ticker.onChange({ ...t, amount: current_amount });
-          set_ticker_state("loading");
           const res = await fetch(
             href("/api/tickers/:symbol/estimate", { symbol: t.symbol })
           );
           if (!res.ok) throw res;
           const { usdpu, min }: ITokenEstimate = await res.json();
+          if (!is_current()) return;
           set_ticker_state(undefined);
-          ticker.onChange({ ...t, amount: current_amount, usdpu, min });
+          // the amount input stays live while estimating: read it now
+          ticker.onChange({ ...getValues("ticker"), usdpu, min });
         } catch (err) {
           report_error(err);
-          set_ticker_state("error");
+          if (is_current()) set_ticker_state("error");
         }
       }}
     />
@@ -151,9 +167,15 @@ export function Form(props: TMethodState<"stocks">) {
   return (
     <FormContainer
       className="flex flex-col gap-y-2 h-full"
-      onSubmit={handleSubmit((fv) =>
-        // skip donor step
-        to_step("stocks", fv, "checkout", don_set)
+      onSubmit={handleSubmit(
+        (fv) =>
+          // skip donor step
+          to_step("stocks", fv, "checkout", don_set),
+        // usdpu is unset until the estimate lands, so the schema rejects every
+        // submit in that window — say why instead of failing silently
+        () => {
+          if (ticker_state === "loading") set_submitted_while_estimating(true);
+        }
       )}
     >
       <TokenField
@@ -162,7 +184,13 @@ export function Form(props: TMethodState<"stocks">) {
         amount={ticker.value.amount}
         amount_usd={ticker.value.usdpu * +ticker.value.amount}
         on_change={(x) => ticker.onChange({ ...ticker.value, amount: x })}
-        error={errors.ticker?.amount?.message || errors.ticker?.symbol?.message}
+        error={
+          ticker_state === "error"
+            ? ESTIMATE_ERROR
+            : ticker_state === "loading" && submitted_while_estimating
+              ? ESTIMATE_PENDING
+              : errors.ticker?.amount?.message || errors.ticker?.symbol?.message
+        }
         label="Stock donation details"
       />
 
