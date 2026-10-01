@@ -3,6 +3,7 @@ import {
   type DateInputDateValue as DateValue,
 } from "@ark-ui/react/date-input";
 import { parseDate } from "@ark-ui/react/date-picker";
+import { useViewerToday } from "./use-viewer-today";
 
 interface IDateRangeField {
   startValue: string;
@@ -30,9 +31,8 @@ export function DateRangeField({
   maxToday = true,
   classes = "",
 }: IDateRangeField) {
-  const max = maxToday
-    ? parseDate(new Date().toISOString().slice(0, 10))
-    : undefined;
+  const viewer_today = useViewerToday("max");
+  const max = maxToday ? parseDate(viewer_today) : undefined;
 
   return (
     <DateInput.Root
