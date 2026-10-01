@@ -121,6 +121,18 @@ describe("handle_fund_member_removed", () => {
     expect(subjects.every((s) => /Save the Whales/.test(s))).toBe(true);
   });
 
+  test("a message queued before the payload carried npo_id still mails its nonprofit", async () => {
+    const creator = await seed_creator("ada@test.com", "Ada", "Lovelace");
+    const { npo_id, ...rest } = await seed_opt_out(creator.id);
+
+    await handle_fund_member_removed({ ...rest, removed_npo_ids: [npo_id] });
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0][0].subject).toMatch(
+      /Save the Whales/
+    );
+  });
+
   test("greets a creator who has no first name as there", async () => {
     const creator = await seed_creator("anon@test.com", "", "");
     const payload = await seed_opt_out(creator.id);
@@ -139,5 +151,19 @@ describe("handle_fund_member_removed", () => {
 
     expect(send_email_or_throw).not.toHaveBeenCalled();
     expect(report_error).toHaveBeenCalledOnce();
+  });
+
+  test("a nonprofit with no row is reported, not mailed, and not retried", async () => {
+    const creator = await seed_creator("ada@test.com", "Ada", "Lovelace");
+    const payload = await seed_opt_out(creator.id);
+    await db().delete(npos);
+
+    await expect(handle_fund_member_removed(payload)).resolves.toBeUndefined();
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(report_error).toHaveBeenCalledOnce();
+    expect(report_error.mock.calls[0][1]).toMatchObject({
+      npo_id: payload.npo_id,
+    });
   });
 });
