@@ -655,4 +655,25 @@ describe("send_receipt - the mail the donor reads", () => {
     );
     expect(text).not.toContain("chosen nonprofit");
   });
+
+  test("a tax receipt says the full amount is a charitable contribution", async () => {
+    await handle_don_receipt(don());
+
+    const text = await render(send_email_or_throw.mock.calls[0]![0].node, {
+      plainText: true,
+    });
+    expect(text).toContain("qualifies as a charitable contribution");
+  });
+
+  test("a chariot summary makes no deductibility claim of its own", async () => {
+    // the daf issues the donor's tax receipt for a grant
+    await handle_don_receipt({ ...don(), via: "chariot" });
+
+    const text = await render(send_email_or_throw.mock.calls[0]![0].node, {
+      plainText: true,
+    });
+    expect(text).toContain("YOUR DONATION SUMMARY");
+    expect(text).toContain("is a US 501(c)(3) tax-exempt nonprofit");
+    expect(text).not.toContain("charitable contribution");
+  });
 });
