@@ -13,7 +13,7 @@ vi.mock("../env", () => ({
   qstash: qstash_env,
 }));
 
-const { verify_qstash } = await import("./queue");
+const { receiver, verify_qstash } = await import("./queue");
 
 const TARGET_URL = "https://app.test/api/cron/grants";
 
@@ -62,6 +62,7 @@ afterEach(() => {
   qstash_env.current_signing_key = "sig_current";
   qstash_env.next_signing_key = "sig_next";
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("verify_qstash", () => {
@@ -69,6 +70,15 @@ describe("verify_qstash", () => {
     const res = await verify_qstash(signed("x")).catch((e: unknown) => e);
 
     expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(401);
+  });
+
+  test("answers a verify that resolves false 401", async () => {
+    // 2.10.1 only throws, but its type is Promise<boolean>
+    vi.spyOn(receiver, "verify").mockResolvedValueOnce(false);
+
+    const res = await verify_qstash(signed("x")).catch((e: unknown) => e);
+
     expect((res as Response).status).toBe(401);
   });
 
