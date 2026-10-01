@@ -188,7 +188,7 @@ function RowAction({ row }: { row: IRow }) {
     row.via_id.startsWith("crypto") &&
     row.via_extra
   ) {
-    return <PaymentResumer payment_id={row.via_extra} amount={row.amount} />;
+    return <PaymentResumer payment_id={row.via_extra} />;
   }
 
   // stripe bank verification
