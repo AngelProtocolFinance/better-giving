@@ -1,4 +1,4 @@
-import { and, desc, eq, or, sql, sum } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql, sum } from "drizzle-orm";
 import type { ICommission, IPayout, TStatus } from "@/referrals";
 import { db } from "../db";
 import { referrer_commissions, referrer_payouts } from "../schema/referrer";
@@ -108,6 +108,102 @@ export async function commission_update_status(
     .update(referrer_commissions)
     .set({ status })
     .where(eq(referrer_commissions.donation_id, donation_id));
+}
+
+// --- wise payout claim ---
+
+type CommissionRow = typeof referrer_commissions.$inferSelect;
+
+function to_commission(r: CommissionRow): ICommission {
+  return {
+    date: r.date,
+    referrer_user: r.referrer_user ?? undefined,
+    referrer_npo: r.referrer_npo ?? undefined,
+    donation_id: r.donation_id,
+    npo_id: r.npo_id,
+    amount: r.amount,
+    status: r.status,
+    ref: r.ref ?? undefined,
+  };
+}
+
+const of_referrer = (referrer: string) =>
+  or(
+    eq(referrer_commissions.referrer_user, referrer),
+    eq(referrer_commissions.referrer_npo, referrer)
+  );
+
+/**
+ * claims every pending commission of `referrer` for one transfer: moves them
+ * to processing with `mk_ref(pending)` stored as their ref. undefined when
+ * none is pending — a concurrent claim waits on the row locks, then finds
+ * them processing and takes nothing.
+ */
+export async function commissions_claim(
+  db: DbOrTx,
+  referrer: string,
+  mk_ref: (pending: ICommission[]) => string
+): Promise<{ ref: string; commissions: ICommission[] } | undefined> {
+  return db.transaction(async (tx) => {
+    const locked = await tx
+      .select()
+      .from(referrer_commissions)
+      .where(
+        and(of_referrer(referrer), eq(referrer_commissions.status, "pending"))
+      )
+      .orderBy(asc(referrer_commissions.donation_id))
+      .for("update");
+    if (locked.length === 0) return undefined;
+    const pending = locked.map(to_commission);
+    const ref = mk_ref(pending);
+    await tx
+      .update(referrer_commissions)
+      .set({ status: "processing", ref })
+      .where(
+        and(
+          inArray(
+            referrer_commissions.donation_id,
+            pending.map((c) => c.donation_id)
+          ),
+          eq(referrer_commissions.status, "pending")
+        )
+      );
+    return {
+      ref,
+      commissions: pending.map((c) => ({ ...c, status: "processing", ref })),
+    };
+  });
+}
+
+/** compare-and-set of the ref's commissions still processing; returns those it moved */
+async function claimed_move(
+  db: DbOrTx,
+  ref: string,
+  upd: { status: "pending"; ref: null } | { status: "paid" }
+): Promise<ICommission[]> {
+  const rows = await db
+    .update(referrer_commissions)
+    .set(upd)
+    .where(
+      and(
+        eq(referrer_commissions.ref, ref),
+        eq(referrer_commissions.status, "processing")
+      )
+    )
+    .returning();
+  return rows
+    .map(to_commission)
+    .sort((a, b) => a.donation_id.localeCompare(b.donation_id));
+}
+
+/** the transfer was never funded: the ref's claimed commissions go back to pending */
+export function commissions_release(db: DbOrTx, ref: string) {
+  return claimed_move(db, ref, { status: "pending", ref: null });
+}
+
+/** the transfer was funded: the ref's claimed commissions are paid, ref kept */
+export function commissions_mark_paid(db: DbOrTx, ref: string) {
+  return claimed_move(db, ref, { status: "paid" });
 }
 
 export async function referrer_payout_put(db: DbOrTx, data: IPayout) {
