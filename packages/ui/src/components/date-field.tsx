@@ -19,8 +19,6 @@ interface IDateField {
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const to_dv = (s: string) => (ISO.test(s) ? [parseDate(s)] : []);
-const utc_today = () => new Date().toISOString().slice(0, 10);
-
 export function DateField({
   value,
   onChange,
@@ -32,13 +30,14 @@ export function DateField({
   required,
   classes = "",
 }: IDateField) {
-  const viewer_today = useViewerToday("min");
+  const min_today = useViewerToday("min");
+  const max_today = useViewerToday("max");
   return (
     <DateInput.Root
       selectionMode="single"
       value={to_dv(value)}
-      min={minToday ? parseDate(viewer_today) : undefined}
-      max={maxToday ? parseDate(utc_today()) : undefined}
+      min={minToday ? parseDate(min_today) : undefined}
+      max={maxToday ? parseDate(max_today) : undefined}
       onValueChange={({ value }) => onChange(value[0]?.toString() ?? "")}
       className={classes}
     >

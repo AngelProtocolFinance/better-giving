@@ -20,7 +20,12 @@ const ZONE = "America/Los_Angeles";
 
 // en-US segment order: month, day, year. each segment is clicked and settled
 // on its own — typing straight through races the auto-advance.
-async function typeDate(month: string, day: string, year: string) {
+async function typeDate(
+  month: string,
+  day: string,
+  year: string,
+  bound: "minToday" | "maxToday" = "minToday"
+) {
   const changes: string[] = [];
   function Host() {
     const [value, setValue] = useState("");
@@ -33,7 +38,7 @@ async function typeDate(month: string, day: string, year: string) {
           changes.push(v);
           setValue(v);
         }}
-        minToday
+        {...{ [bound]: true }}
       />
     );
   }
@@ -100,5 +105,50 @@ describe("DateField minToday", () => {
       .map((el) => el.textContent)
       .join("/");
     expect(shown).toBe("3/14/2026");
+  });
+});
+
+// 2026-03-14 20:00 UTC is 2026-03-15 05:00 in tokyo (JST, UTC+9):
+// the viewer's today is a day ahead of the UTC date.
+const EAST_NOW = new Date("2026-03-14T20:00:00Z");
+const EAST_ZONE = "Asia/Tokyo";
+
+describe("DateField maxToday", () => {
+  beforeAll(async () => {
+    await cdp().send("Emulation.setTimezoneOverride", {
+      timezoneId: EAST_ZONE,
+    });
+  });
+  afterAll(async () => {
+    await cdp().send("Emulation.setTimezoneOverride", { timezoneId: "" });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test("the zone override reaches the page", () => {
+    expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(EAST_ZONE);
+    expect(EAST_NOW.getDate()).toBe(15);
+  });
+
+  test("allows the viewer's local today when the UTC date is still yesterday", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(EAST_NOW);
+    const { changes, shown } = await typeDate("03", "15", "2026", "maxToday");
+    await expect.poll(shown).toBe("3/15/2026");
+    expect(changes.at(-1)).toBe("2026-03-15");
+  });
+
+  test("a server render keeps a date that is already today east of UTC", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(EAST_NOW);
+    const html = renderToString(
+      <DateField value="2026-03-15" onChange={() => {}} maxToday />
+    );
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const shown = [...doc.querySelectorAll('[role="spinbutton"]')]
+      .map((el) => el.textContent)
+      .join("/");
+    expect(shown).toBe("3/15/2026");
   });
 });
