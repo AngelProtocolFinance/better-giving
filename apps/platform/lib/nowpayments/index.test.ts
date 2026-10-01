@@ -101,6 +101,19 @@ describe("nowpayments client", () => {
     }
   );
 
+  it("min_amount quotes the token against the account's polygon usdc outcome, not against itself", async () => {
+    const spy = fetch_mock().mockResolvedValueOnce(
+      Response.json({ min_amount: 0.001, fiat_equivalent: 2 })
+    );
+    await client.min_amount("ETH");
+
+    const url = new URL(requested(spy).url);
+    expect(url.pathname).toBe("/v1/min-amount");
+    expect(url.searchParams.get("currency_from")).toBe("ETH");
+    expect(url.searchParams.get("currency_to")).toBe("usdcmatic");
+    expect(url.searchParams.get("fiat_equivalent")).toBe("usd");
+  });
+
   it("every request carries a 10s timeout", async () => {
     const ctl = new AbortController();
     const timeout = vi

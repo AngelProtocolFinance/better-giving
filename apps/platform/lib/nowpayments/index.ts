@@ -11,6 +11,12 @@ interface Init<T extends string> {
 
 const TIMEOUT_MS = 10_000;
 const RATE_PROBE_USD = 100;
+/**
+ * the account pays out to usdc on polygon; nowpayments' lowercase `code` for
+ * it, and no endpoint reads it. without `currency_to`, min-amount quotes the
+ * coin to itself (the bare network floor), not the conversion to the payout
+ */
+const OUTCOME_CURRENCY = "usdcmatic";
 
 const is_positive = (x: unknown): x is number =>
   typeof x === "number" && Number.isFinite(x) && x > 0;
@@ -100,6 +106,7 @@ export class Nowpayments {
       await this.send<NP.MinAmount>(path, {
         params: {
           currency_from: token_code,
+          currency_to: OUTCOME_CURRENCY,
           fiat_equivalent: "usd",
         } satisfies NP.MinAmount.Params,
       });
