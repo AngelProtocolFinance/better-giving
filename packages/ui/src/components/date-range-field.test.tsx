@@ -60,6 +60,16 @@ async function typeStart(month: string, day: string, year: string) {
   return { changes, shown };
 }
 
+function server_shown(node: React.ReactElement) {
+  const doc = new DOMParser().parseFromString(
+    renderToString(node),
+    "text/html"
+  );
+  return [...doc.querySelectorAll('[role="spinbutton"]')]
+    .map((el) => el.textContent)
+    .join("/");
+}
+
 describe("DateRangeField maxToday", () => {
   beforeAll(async () => {
     await cdp().send("Emulation.setTimezoneOverride", { timezoneId: ZONE });
@@ -91,20 +101,43 @@ describe("DateRangeField maxToday", () => {
     await expect.poll(shown).toBe("3/15/2026");
   });
 
-  test("a server render keeps a date that is already today east of UTC", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(NOW);
-    const html = renderToString(
-      <DateRangeField
-        startValue="2026-03-15"
-        endValue="2026-03-15"
-        onChange={() => {}}
-      />
-    );
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const shown = [...doc.querySelectorAll('[role="spinbutton"]')]
-      .map((el) => el.textContent)
-      .join("/");
-    expect(shown).toBe("3/15/2026/3/15/2026");
+  // a server render has no viewer zone, so the upper bound is the date in UTC+14,
+  // the earliest-arriving today on earth. at 10:30Z that is already 03-15 while
+  // UTC+13 is still 03-14, so only the +14 fallback keeps 03-15.
+  describe("server render", () => {
+    const SERVER_NOW = new Date("2026-03-14T10:30:00Z");
+    const render_range = (start: string, end: string, maxToday?: boolean) =>
+      server_shown(
+        <DateRangeField
+          startValue={start}
+          endValue={end}
+          onChange={() => {}}
+          {...(maxToday === undefined ? {} : { maxToday })}
+        />
+      );
+
+    test("keeps a date that is today only in UTC+14", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(SERVER_NOW);
+      expect(render_range("2026-03-15", "2026-03-15")).toBe(
+        "3/15/2026/3/15/2026"
+      );
+    });
+
+    test("clamps a date past UTC+14's today down to it", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(SERVER_NOW);
+      expect(render_range("2026-03-16", "2026-03-16")).toBe(
+        "3/15/2026/3/15/2026"
+      );
+    });
+
+    test("maxToday={false} leaves a future date alone", () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(SERVER_NOW);
+      expect(render_range("2026-03-16", "2026-03-16", false)).toBe(
+        "3/16/2026/3/16/2026"
+      );
+    });
   });
 });
