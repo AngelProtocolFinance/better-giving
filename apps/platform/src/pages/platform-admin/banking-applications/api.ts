@@ -57,7 +57,7 @@ export const action: ActionFunction = async ({ params, request }) => {
   if (fv.errors) return fv;
 
   const p_id = v.safeParse($int_gte1, params.id);
-  if (p_id.issues) return resp.status(400, p_id.issues[0].message);
+  if (p_id.issues) throw resp.status(400, p_id.issues[0].message);
   const bank_id = p_id.output;
 
   const x = await bapp_get(bank_id.toString());

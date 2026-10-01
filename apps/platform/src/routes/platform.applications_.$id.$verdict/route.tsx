@@ -24,13 +24,13 @@ export const action: ActionFunction = async ({ request, params }) => {
   const fv: { reason?: string } = await request.json();
 
   const p1 = safeParse(reg_id, params.id);
-  if (p1.issues) return resp.status(400, p1.issues[0].message);
+  if (p1.issues) throw resp.status(400, p1.issues[0].message);
   const id = p1.output;
   const p2 = safeParse(schema, {
     type: params.verdict,
     reason: fv.reason ?? "",
   });
-  if (p2.issues) return resp.status(400, p2.issues[0].message);
+  if (p2.issues) throw resp.status(400, p2.issues[0].message);
   const verdict = p2.output;
 
   const reg = await reg_get(id);

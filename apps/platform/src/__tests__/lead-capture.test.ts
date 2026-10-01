@@ -410,7 +410,7 @@ describe("marketing lead → application", () => {
     }
 
     mock_evaluate.mockClear();
-    const over: any = await us_action({
+    const over = us_action({
       request: post_from("203.0.113.30", {
         ...US_LEAD,
         o_ein: "98-7654321",
@@ -421,7 +421,7 @@ describe("marketing lead → application", () => {
     // visible, and deliberately the bare 400 a honeypot trip already answers
     // with — it fires on volume, never on anything about the address, so it
     // tells a prober nothing it did not already know
-    expect(over.status).toBe(400);
+    await expect(over).rejects.toMatchObject({ status: 400 });
     // and it refuses before spending any of what it exists to protect
     expect(mock_evaluate).not.toHaveBeenCalled();
     expect(await all_regs()).toHaveLength(LEAD_PER_IP.max);
@@ -445,7 +445,7 @@ describe("marketing lead → application", () => {
     }
 
     mock_evaluate.mockClear();
-    const over: any = await us_action({
+    const over = us_action({
       request: post_as_from(cookie, "203.0.113.31", {
         ...US_LEAD,
         o_ein: "98-7654321",
@@ -453,7 +453,7 @@ describe("marketing lead → application", () => {
       }),
     } as any);
 
-    expect(over.status).toBe(400);
+    await expect(over).rejects.toMatchObject({ status: 400 });
     expect(mock_evaluate).not.toHaveBeenCalled();
     expect(await all_regs()).toHaveLength(LEAD_PER_USER.max);
   }, 60_000);
@@ -475,14 +475,14 @@ describe("marketing lead → application", () => {
     }
 
     // spent, for anyone anonymous behind it
-    const anon: any = await us_action({
+    const anon = us_action({
       request: post_from(ip, {
         ...US_LEAD,
         o_ein: "98-7654321",
         email: "anon@example.org",
       }),
     } as any);
-    expect(anon.status).toBe(400);
+    await expect(anon).rejects.toMatchObject({ status: 400 });
 
     // two colleagues in that same building, each signed in: neither inherits it
     const pairs = [
@@ -526,21 +526,21 @@ describe("marketing lead → application", () => {
   it("creates nothing for a post carrying no org type", async () => {
     const { o_type: _, ...without } = US_LEAD;
 
-    const res: any = await us_action({ request: post(without) } as any);
+    const res = us_action({ request: post(without) } as any);
 
     // `o_type` is a hidden input no one can edit — a fault on it is malformed,
     // not correctable, and must not reach a write
-    expect(res.status).toBe(400);
+    await expect(res).rejects.toMatchObject({ status: 400 });
     expect(await all_users()).toHaveLength(0);
     expect(await all_regs()).toHaveLength(0);
   }, 30_000);
 
   it("creates nothing when the honeypot is filled", async () => {
-    const res: any = await us_action({
+    const res = us_action({
       request: post({ ...US_LEAD, middle_name: "i am a bot" }),
     } as any);
 
-    expect(res.status).toBe(400);
+    await expect(res).rejects.toMatchObject({ status: 400 });
     expect(await all_users()).toHaveLength(0);
     expect(await all_regs()).toHaveLength(0);
     // the screen never ran, so nothing was spent on it either

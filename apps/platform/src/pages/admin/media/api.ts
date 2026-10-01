@@ -21,11 +21,11 @@ export const videos_action: ActionFunction = async (x) => {
   const intent = fv.get("intent") as "feature" | "delete";
   const featured = fv.get("featured") === "1";
   const p_mid = safeParse(media_id, fv.get("mediaId"));
-  if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
+  if (p_mid.issues) throw resp.status(400, p_mid.issues[0].message);
   const mid = p_mid.output;
 
   const prev = await npo_media_get(mid);
-  if (!prev) return { status: 404 };
+  if (!prev) throw resp.status(404);
 
   if (intent === "feature") {
     await npo_media_update(id, prev.id, {
@@ -54,7 +54,7 @@ export const new_action: ActionFunction = async (x) => {
 
 export const edit_action: ActionFunction = async (x) => {
   const p_mid = safeParse(media_id, x.params.media_id);
-  if (p_mid.issues) return resp.status(400, p_mid.issues[0].message);
+  if (p_mid.issues) throw resp.status(400, p_mid.issues[0].message);
   const mid = p_mid.output;
   const id = x.context.get(admin_ctx);
 
@@ -65,7 +65,7 @@ export const edit_action: ActionFunction = async (x) => {
   if (fv.errors) return fv;
 
   const m = await npo_media_get(mid);
-  if (!m) return { status: 404 };
+  if (!m) throw resp.status(404);
 
   await npo_media_update(id, m.id, {
     url: fv.data.url,

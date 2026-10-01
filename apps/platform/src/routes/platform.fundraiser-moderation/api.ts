@@ -15,7 +15,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 export const action = async ({ request }: Route.ActionArgs) => {
   const fd = await request.formData();
   const p = safeParse(fund_id, fd.get("fund_id"));
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const id = p.output;
 
   await fund_delete(id);

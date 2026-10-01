@@ -10,7 +10,7 @@ export const delete_action = async (
   x: Pick<ActionFunctionArgs, "params" | "context">
 ) => {
   const p_del = v.safeParse($int_gte1, x.params.bank_id);
-  if (p_del.issues) return resp.status(400, p_del.issues[0].message);
+  if (p_del.issues) throw resp.status(400, p_del.issues[0].message);
   const bank_id = p_del.output;
   const npo_id = x.context.get(admin_ctx);
 

@@ -14,13 +14,13 @@ export const action = async (x: {
   context: { get: (key: typeof user_ctx) => { id: string } };
 }) => {
   const { form_id } = x.params;
-  if (!form_id) return resp.status(400, "form_id required");
+  if (!form_id) throw resp.status(400, "form_id required");
 
   const form = await form_get(form_id);
-  if (!form) return resp.status(404, "form not found");
+  if (!form) throw resp.status(404, "form not found");
 
   const user = x.context.get(user_ctx);
-  if (form.owner_user_id !== user.id) return resp.status(403, "not authorized");
+  if (form.owner_user_id !== user.id) throw resp.status(403, "not authorized");
 
   await form_update(form_id, { status: "inactive" });
   return redirectWithSuccess("..", "Form deactivated");

@@ -20,7 +20,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
     txs: await request.json(),
     bals,
   });
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const fv = p.output;
 
   const timestamp = new Date().toISOString();

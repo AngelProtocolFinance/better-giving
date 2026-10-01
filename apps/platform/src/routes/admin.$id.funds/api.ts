@@ -45,7 +45,7 @@ export const action = async (x: Route.ActionArgs) => {
 
   const fv = await x.request.formData();
   const p = safeParse(fund_id, fv.get("fund_id"));
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const fid = p.output;
 
   const fund = await fund_get_or_slug(fid);

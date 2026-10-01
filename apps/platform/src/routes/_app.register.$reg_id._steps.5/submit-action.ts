@@ -16,7 +16,7 @@ export const submit_action: ActionFunction = async ({ request, params }) => {
   if (!user) return to_auth(request);
 
   const p = safeParse(reg_id, params.reg_id);
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const id = p.output;
   const reg = await reg_get(id);
 

@@ -28,10 +28,10 @@ export const loader = async ({ params, context }: Route.LoaderArgs) => {
     donation_get(params.id),
     user_get(user.email),
   ]);
-  if (!don) return resp.status(404);
+  if (!don) throw resp.status(404);
 
   if (don.from_email.toLowerCase() !== user.email.toLowerCase()) {
-    return resp.status(403);
+    throw resp.status(403);
   }
 
   return {
@@ -52,10 +52,10 @@ export const action = async ({
   if (fv.errors) return fv;
 
   const don = await donation_get(params.id);
-  if (!don) return resp.status(404);
+  if (!don) throw resp.status(404);
 
   if (don.from_email.toLowerCase() !== user.email.toLowerCase()) {
-    return resp.status(403);
+    throw resp.status(403);
   }
 
   if (is_reversed(don.status)) {
@@ -117,7 +117,7 @@ export const action = async ({
     if (e instanceof NpoNotFoundError) return null;
     throw e;
   });
-  if (!data) return resp.status(404);
+  if (!data) throw resp.status(404);
   const { node, subject } = dr.template(data);
   // `send_email` reports a refusal, but a render error throws before it
   const sent = await send_email_or_throw({
