@@ -32,7 +32,11 @@ export function to_units(
 ): number {
   const scaled = snap(num * 10 ** precision);
   if (mode === "up") return Math.ceil(scaled);
-  if (mode === "half_down") return Math.ceil(scaled - 0.5);
+  if (mode === "half_down") {
+    const r = Math.ceil(scaled - 0.5);
+    // ceil(-0.5) is -0, which formats as "-0"
+    return r === 0 ? 0 : r;
+  }
   return Math.round(scaled);
 }
 
