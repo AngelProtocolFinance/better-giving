@@ -79,6 +79,7 @@ vi.mock("$/kit/wise", () => ({
 
 // --- imports (after mocks hoisted) ---
 
+import { dataWithError } from "#/.server/toast";
 import { delete_action } from "#/pages/admin/banking/delete-action";
 import { loader as list_loader } from "#/routes/admin.$id.banking._index/api";
 import PayoutMethodsList from "#/routes/admin.$id.banking._index/route";
@@ -683,6 +684,92 @@ describe("delete", () => {
     await expect
       .element(screen.getByText(/no payout methods yet/i))
       .toBeVisible();
+  });
+
+  async function proceed_delete(npo_id: number, bank_id: string) {
+    vi.mocked(wise.v2_account).mockResolvedValue(WISE_FIXTURE as any);
+    const screen = await render_banking_app(
+      npo_id,
+      `/admin/${npo_id}/banking/${bank_id}`
+    );
+    await screen.getByRole("link", { name: /delete/i }).click();
+    const proceed_btn = screen.getByRole("button", { name: /proceed/i });
+    await expect.element(proceed_btn).toBeVisible();
+    (proceed_btn.element() as HTMLElement).click();
+    return screen;
+  }
+
+  const DEFAULT_SUMMARY = "USD ending 1111";
+  const OTHER_SUMMARY = "EUR ending 2222";
+
+  it("refuses deleting the default while another approved method exists", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "approved",
+      bank_summary: OTHER_SUMMARY,
+    });
+
+    await proceed_delete(npo.id, "100");
+
+    await vi.waitFor(() =>
+      expect(dataWithError).toHaveBeenCalledWith(
+        null,
+        expect.stringMatching(/set another payout method as default/i),
+        expect.objectContaining({ status: 409 })
+      )
+    );
+    await cleanup();
+    const list = await render_banking_app(npo.id, `/admin/${npo.id}/banking`);
+    await expect.element(list.getByText(DEFAULT_SUMMARY)).toBeVisible();
+    await expect.element(list.getByText(OTHER_SUMMARY)).toBeVisible();
+  });
+
+  it("deletes the default when it is the only approved method", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "under-review",
+      bank_summary: OTHER_SUMMARY,
+    });
+
+    const screen = await proceed_delete(npo.id, "100");
+
+    await expect.element(screen.getByText(OTHER_SUMMARY)).toBeVisible();
+    await expect
+      .element(screen.getByText(DEFAULT_SUMMARY))
+      .not.toBeInTheDocument();
+  });
+
+  it("deletes a non-default method beside the default", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "approved",
+      bank_summary: OTHER_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+
+    const screen = await proceed_delete(npo.id, "100");
+
+    await expect.element(screen.getByText(DEFAULT_SUMMARY)).toBeVisible();
+    await expect
+      .element(screen.getByText(OTHER_SUMMARY))
+      .not.toBeInTheDocument();
   });
 
   it("detail → Delete → Cancel → stays on detail", async () => {
