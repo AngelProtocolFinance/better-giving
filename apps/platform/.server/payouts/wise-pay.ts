@@ -16,7 +16,7 @@ const FUNDED = new Set([
  * pays `amount` USD to wise recipient `to` under `ref`, wise's idempotency key:
  * quote → transfer → fund. resolves with the transfer id once funding was
  * accepted, or at once when the ref's transfer was already funded by an
- * earlier run. throws `NotFundedError` only when no money moved; any other
+ * earlier attempt under the same claim. throws `NotFundedError` only when no money moved; any other
  * throw means it may have.
  */
 export async function wise_pay(
@@ -30,8 +30,16 @@ export async function wise_pay(
 
   // a reused ref returns the original transfer, which an earlier run may have funded
   if (FUNDED.has(transfer.status ?? "")) return transfer.id;
+  if (transfer.status === "cancelled") {
+    // wise cancels a transfer left unfunded; cancelled before funding, no money moved
+    throw new NotFundedError(
+      new Error(
+        `transfer ${transfer.id} (customerTransactionId ${ref}) is cancelled`
+      )
+    );
+  }
   if (transfer.status !== UNFUNDED) {
-    // cancelled, bounced, refunded or unrecognised: not ours to fund or to call unpaid
+    // refunded, bounced, charged back or unrecognised: money may have moved
     throw new Error(
       `transfer ${transfer.id} (customerTransactionId ${ref}) is ${transfer.status}`
     );

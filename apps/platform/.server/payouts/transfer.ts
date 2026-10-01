@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { to_units } from "@/helpers/decimal";
 
 /** a Wise payout failed with no money moved */
@@ -28,16 +28,24 @@ export function payout_total(amounts: number[]): number {
 const REF_NAMESPACE = Buffer.from("cb853edef275466b85c79409fa3f037a", "hex");
 
 /**
- * uuid v5 of recipient + total + claimed id set: wise's `customerTransactionId`
- * is its idempotency key, so only a retry of the same transfer to the same
- * account reuses it.
+ * a claim's wise `customerTransactionId` (its idempotency key): uuid v5 of
+ * recipient + total + claimed id set + a nonce drawn per claim. made once, in
+ * the claim's tx, and stored on the claimed rows, so a retry within the claim
+ * reuses it; a set released and claimed again gets a new one, never the
+ * earlier claim's transfer, which wise may have cancelled meanwhile.
  */
 export function transfer_ref(
   ref_key: string,
   total: number,
-  ids: string[]
+  ids: string[],
+  nonce: string = randomUUID()
 ): string {
-  const name = JSON.stringify([ref_key, total.toFixed(2), [...ids].sort()]);
+  const name = JSON.stringify([
+    ref_key,
+    total.toFixed(2),
+    [...ids].sort(),
+    nonce,
+  ]);
   const b = createHash("sha1")
     .update(REF_NAMESPACE)
     .update(name)

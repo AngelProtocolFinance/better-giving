@@ -194,51 +194,38 @@ describe("commissions cron", () => {
     expect(stuck?.[0].body).toContain(`${REFERRER} ref ${first}: d-1, d-2`);
   });
 
-  test("a same-set retry whose transfer an earlier run funded is marked paid, not funded again", async () => {
-    await seed("d-1", 25);
-    await seed("d-2", 30);
-    // wise funds it, and the reply is lost
-    wise.fund_transfer.mockImplementationOnce(async (id: number) => {
-      await fund_ok(id);
-      throw "socket hang up";
-    });
-    await index();
-    // ops reset the claim without reconciling it in wise
-    await db()
-      .update(referrer_commissions)
-      .set({ status: "pending", ref: null });
+  test.each([
+    ["the same", 42],
+    ["a changed", 43],
+  ])(
+    "a set released after an unfunded transfer wise then cancelled is claimed again under a new ref and paid to %s recipient",
+    async (_, pay_id) => {
+      await seed("d-1", 25);
+      await seed("d-2", 30);
+      wise.fund_transfer.mockImplementationOnce(async (id: number) => {
+        // wise cancels the transfer it was refused funding for
+        wise.by_id.get(id)!.status = "cancelled";
+        return { status: "REJECTED", errorCode: "balance.insufficient" };
+      });
+      await index();
+      expect(await statuses()).toEqual({ "d-1": "pending", "d-2": "pending" });
 
-    await index();
+      referrer.pay_id = pay_id;
+      await index();
 
-    expect(refs()).toHaveLength(2);
-    expect(refs()[1]).toBe(refs()[0]);
-    expect(wise.fund_transfer).toHaveBeenCalledOnce();
-    expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
-    const paid = await db()
-      .select()
-      .from(referrer_payouts)
-      .where(eq(referrer_payouts.id, refs()[0]!));
-    expect(paid).toMatchObject([{ amount: 55, transfer_id: 9000 }]);
-  });
-
-  test("a set released after unfunded transfer goes to a changed recipient under a different ref", async () => {
-    await seed("d-1", 25);
-    await seed("d-2", 30);
-    wise.fund_transfer.mockResolvedValueOnce({
-      status: "REJECTED",
-      errorCode: "balance.payment-option-unavailable",
-    });
-    await index();
-    expect(await statuses()).toEqual({ "d-1": "pending", "d-2": "pending" });
-
-    referrer.pay_id = 43;
-    await index();
-
-    const [first, second] = refs();
-    expect(second).not.toBe(first);
-    expect(wise.transfer.mock.calls[1]![0].targetAccount).toBe("43");
-    expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
-  });
+      const [first, second] = refs();
+      expect(second).not.toBe(first);
+      expect(wise.transfer.mock.calls[1]![0].targetAccount).toBe(
+        String(pay_id)
+      );
+      expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+      const [payout] = await db()
+        .select()
+        .from(referrer_payouts)
+        .where(eq(referrer_payouts.id, second!));
+      expect(payout).toMatchObject({ amount: 55, transfer_id: 9001 });
+    }
+  );
 
   test("a commission refunded while its transfer went unfunded stays a loss, named in an alert with the ref", async () => {
     await seed("d-1", 25);

@@ -17,8 +17,6 @@ import {
 } from "../refund/unfunded";
 import { NotFundedError, payout_total, transfer_ref } from "./transfer";
 
-export { NotFundedError };
-
 /**
  * wires the money: returns the transfer id once funding was accepted. throws
  * `NotFundedError` only when wise was never asked to fund or refused funding

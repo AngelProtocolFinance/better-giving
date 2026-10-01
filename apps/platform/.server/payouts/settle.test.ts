@@ -50,7 +50,8 @@ vi.mock("../pg/db", () => ({
   ),
 }));
 
-const { NotFundedError, settle_npo_payouts } = await import("./settle");
+const { settle_npo_payouts } = await import("./settle");
+const { NotFundedError } = await import("./transfer");
 const { processing_payouts } = await import("../pg/queries/payout");
 const { dists_for_refund } = await import("../pg/queries/dist");
 const { process_refund } = await import("../refund/process");
@@ -438,25 +439,28 @@ describe("settle_npo_payouts", () => {
     expect(alert.body).toContain(String(TRANSFER_ID));
   });
 
-  test("pays the same payout set under the same uuid ref whatever order the ids came in", async () => {
+  test("a set released after an unfunded transfer is claimed again under a new ref, and paid under it", async () => {
     const npo = await seed_npo({ cash: 500 });
     await seed_payout(npo.id, "p-1", 60);
     await seed_payout(npo.id, "p-2", 40);
-    await seed_payout(npo.id, "p-3", 50);
-    const pay = vi.fn<Pay>(async () => {
-      throw new NotFundedError(new Error("wise 503"));
-    });
+    const pay = vi
+      .fn<Pay>()
+      .mockRejectedValueOnce(new NotFundedError(new Error("wise 503")))
+      .mockResolvedValueOnce(TRANSFER_ID);
 
     await settle_npo_payouts(npo, ["p-2", "p-1"], RECIPIENT, pay);
-    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
-    await settle_npo_payouts(npo, ["p-1", "p-3"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
 
-    const [first, again, other] = pay.mock.calls.map(([ref]) => ref);
-    expect(first).toMatch(
+    const [first, again] = pay.mock.calls.map(([ref]) => ref);
+    expect(again).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
     );
-    expect(again).toBe(first);
-    expect(other).not.toBe(first);
+    expect(again).not.toBe(first);
+    expect(res).toMatchObject({ status: "settled", ref: again });
+    expect(await payout_types()).toEqual({
+      "p-1": "settled",
+      "p-2": "settled",
+    });
   });
 
   test("a payout loss-refunded while its transfer was in flight stays refunded_loss and is still settled for", async () => {
@@ -610,25 +614,6 @@ describe("settle_npo_payouts", () => {
     const logs = await db().select().from(loss_logs);
     expect(logs.map((l) => l.type)).toEqual(["balance_liq"]);
     expect(send_alert).not.toHaveBeenCalled();
-  });
-
-  test("binds the ref to the recipient and the total, not just the payout ids", async () => {
-    const npo = await seed_npo({ cash: 500 });
-    await seed_payout(npo.id, "p-1", 60);
-    await seed_payout(npo.id, "p-2", 40);
-    const pay = vi.fn<Pay>(async () => {
-      throw new NotFundedError(new Error("wise 503"));
-    });
-
-    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
-    await settle_npo_payouts(npo, ["p-1", "p-2"], "888", pay);
-    await db().update(payouts).set({ amount: 45 }).where(eq(payouts.id, "p-2"));
-    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
-
-    const [first, other_recipient, other_total] = pay.mock.calls.map(
-      ([ref]) => ref
-    );
-    expect(new Set([first, other_recipient, other_total]).size).toBe(3);
   });
 
   test("a release that fails after an unfunded transfer alerts that the payouts are safe to reset", async () => {

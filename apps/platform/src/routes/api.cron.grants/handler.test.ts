@@ -55,7 +55,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { index } = await import("./handler");
-const { NotFundedError } = await import("$/payouts/settle");
+const { NotFundedError } = await import("$/payouts/transfer");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { banking_apps } = await import("$/pg/schema/banking");
 const { npos } = await import("$/pg/schema/npo");

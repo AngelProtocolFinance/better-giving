@@ -91,7 +91,17 @@ describe("wise_pay", () => {
     }
   );
 
-  test.each(["cancelled", "funds_refunded", "bounced_back", undefined])(
+  test("a reused ref whose transfer wise cancelled unfunded is not funded, and funding is never asked", async () => {
+    wise.transfer.mockResolvedValue({ id: TRANSFER_ID, status: "cancelled" });
+
+    const err = await wise_pay(777, 100, REF).catch((e) => e);
+
+    expect(err).toBeInstanceOf(NotFundedError);
+    expect(String(err.cause)).toContain(REF);
+    expect(wise.fund_transfer).not.toHaveBeenCalled();
+  });
+
+  test.each(["funds_refunded", "bounced_back", "charged_back", undefined])(
     "a reused ref whose transfer is %s is neither funded nor called unfunded",
     async (status) => {
       wise.transfer.mockResolvedValue({ id: TRANSFER_ID, status });
