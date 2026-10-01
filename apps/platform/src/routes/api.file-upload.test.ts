@@ -127,4 +127,24 @@ describe("file upload", () => {
     );
     expect(res.status).toBe(415);
   });
+
+  test("refuses a run of comments with no svg after them, quickly", async () => {
+    const t0 = performance.now();
+    const res: Response = await upload(
+      new Blob(["<!-- x -->".repeat(1000)], { type: "image/svg+xml" }),
+      "x.svg"
+    );
+    expect(res.status).toBe(415);
+    expect(performance.now() - t0).toBeLessThan(100);
+  });
+
+  test("reads past a doctype carrying an internal subset", async () => {
+    const svg =
+      '<!DOCTYPE svg [<!ENTITY a "<b>">]><svg xmlns="http://www.w3.org/2000/svg"/>';
+    const res = await upload(
+      new Blob([svg], { type: "image/svg+xml" }),
+      "a.svg"
+    );
+    expect(res.data).toEqual({ url: "https://blob.test/u/photo-abc.png" });
+  });
 });

@@ -33,10 +33,35 @@ const type_of = (file: Blob, name: string): string | undefined => {
   )?.[0];
 };
 
-/** an svg root, after whatever prolog xml allows before it: xml declaration,
- * comments, doctype (with an internal subset) */
-const SVG_ROOT =
-  /^\s*(?:<\?xml[^>]*\?>\s*)?(?:(?:<!--[\s\S]*?-->|<!DOCTYPE[^>[]*(?:\[[\s\S]*?\])?\s*>)\s*)*<svg[\s/>]/;
+/** an svg root, after whatever prolog xml allows before it: processing
+ * instructions, comments, doctype (with an internal subset). a linear scan —
+ * a regex over repeated comments backtracks exponentially. */
+const opens_svg = (text: string): boolean => {
+  let i = 0;
+  const skip_ws = () => {
+    while (i < text.length && /\s/.test(text[i]!)) i++;
+  };
+  /** index past `end`, or -1 when it never closes */
+  const past = (end: string, from: number) => {
+    const j = text.indexOf(end, from);
+    return j < 0 ? -1 : j + end.length;
+  };
+  skip_ws();
+  for (;;) {
+    if (text.startsWith("<?", i)) i = past("?>", i + 2);
+    else if (text.startsWith("<!--", i)) i = past("-->", i + 4);
+    else if (text.startsWith("<!DOCTYPE", i)) {
+      const close = text.indexOf(">", i);
+      const subset = text.indexOf("[", i);
+      const has_subset = subset >= 0 && (close < 0 || subset < close);
+      const from = has_subset ? past("]", subset) : i;
+      i = from < 0 ? -1 : past(">", from);
+    } else break;
+    if (i < 0) return false;
+    skip_ws();
+  }
+  return text.startsWith("<svg", i) && /[\s/>]/.test(text[i + 4] ?? "");
+};
 
 /** what the bytes are, never what the caller says they are */
 const sniff = async (file: Blob): Promise<string | undefined> => {
@@ -47,7 +72,7 @@ const sniff = async (file: Blob): Promise<string | undefined> => {
   if (signed) return signed[0];
   // the decoder drops a leading BOM
   const text = new TextDecoder().decode(head);
-  return SVG_ROOT.test(text) ? "image/svg+xml" : undefined;
+  return opens_svg(text) ? "image/svg+xml" : undefined;
 };
 
 export const action: ActionFunction = async ({ request }) => {
