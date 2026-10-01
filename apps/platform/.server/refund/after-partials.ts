@@ -60,11 +60,17 @@ export async function reverse_after_partials(
 
   const result = await reverse();
 
-  // read from the donation, not this run's failures: an overlapping run may
-  // have reversed the dists this one failed
-  const don = await donation_get(r.donation_id);
-  const reversed = !!don && is_reversed(don.status);
   const failed = result.failures.length;
+  // read from the donation, not this run's failures: an overlapping run may
+  // have reversed the dists this one failed. a failed read falls back to this
+  // run's own answer rather than losing the notice
+  const reversed = await donation_get(r.donation_id).then(
+    (don) => !!don && is_reversed(don.status),
+    (err) => {
+      report_error(err, { donation_id: r.donation_id });
+      return failed === 0;
+    }
+  );
   const [title, lead] = reversed
     ? [
         "Reversal Complete: Undo Hand Adjustment",

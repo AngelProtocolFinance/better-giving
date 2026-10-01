@@ -146,10 +146,12 @@ const billed_by = (sub_id: string, status: "active" | "inactive") => {
       },
     ],
   });
-  sub_update_mock.mockImplementation(async (_db, id, data) => ({
-    row: { id, ...data },
-    prev_status: status,
-  }));
+  let current: string = status;
+  sub_update_mock.mockImplementation(async (_db, id, data) => {
+    const prev_status = current;
+    current = data.status ?? current;
+    return { row: { id, ...data }, prev_status };
+  });
 };
 const deactivations = () =>
   enqueue_mock.mock.calls.flat().filter((m) => m.id === "sub-deactivated");
@@ -576,7 +578,41 @@ describe("stripe charge.refunded → donation reversal", () => {
     ).resolves.toBeUndefined();
 
     expect(don_status).toBe("refunded");
-    expect(deactivations()).toEqual([]);
+  });
+
+  it("queues the stripe cancel on a redelivery when the first delivery couldn't", async () => {
+    billed_by("sub_1", "active");
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash 503"));
+    const full = refund(AMOUNT);
+
+    await expect(handle_charge_refunded(full)).rejects.toThrow("qstash 503");
+    expect(don_status).toBe("settled");
+    await handle_charge_refunded(full); // stripe redelivers
+
+    expect(deactivations()).toHaveLength(2);
+    expect(deactivations()[1].payload).toMatchObject({ id: "sub_1" });
+    expect(don_status).toBe("refunded");
+  });
+
+  it("still queues the outcome notice when the donation can't be re-read after reversing", async () => {
+    await handle_charge_refunded(refund(500));
+    const completing = refund(9_500);
+    const settled_read = donation_get_mock.getMockImplementation()!;
+    donation_get_mock
+      .mockImplementationOnce(settled_read)
+      .mockRejectedValueOnce(new Error("connection terminated"));
+
+    await handle_charge_refunded(completing);
+
+    const [outcome] = outcomes();
+    expect(outcomes()).toHaveLength(1);
+    expect(outcome.payload.alert.title).toBe(
+      "Reversal Complete: Undo Hand Adjustment"
+    );
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "connection terminated" }),
+      expect.objectContaining({ donation_id: ORDER_ID })
+    );
   });
 
   it("leaves an admin refund alone once the donation is reversed", async () => {

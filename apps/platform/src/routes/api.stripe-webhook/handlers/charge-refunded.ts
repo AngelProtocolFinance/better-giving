@@ -87,7 +87,8 @@ export async function handle_charge_refunded(
     return;
   }
 
-  // refunded in full, so the gift stops billing; a no-op once cancelled
+  // product rule: a full refund of a subscription payment ends the recurring
+  // gift, from whatever surface it was issued
   await cancel_refunded_subscription(intent_id);
 
   const graphs = await dists_for_refund(don_id);

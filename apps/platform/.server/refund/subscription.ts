@@ -20,19 +20,21 @@ export async function subscription_id_of(
 }
 
 /**
- * stops the billing of the gift whose payment `intent_id` was refunded in
- * full. safe to repeat: only the run that deactivates the row queues the
- * stripe cancel.
+ * a full refund of a subscription payment ends the recurring gift, whatever
+ * surface issued it (admin page or stripe dashboard). the stripe cancel is
+ * queued whenever the row ends up refunded-inactive, not only on the
+ * transition, so a retry after a failed enqueue still queues it; the queue's
+ * dedupe and the handler's already-ended check make a repeat a no-op.
  */
 export async function cancel_refunded_subscription(intent_id: string) {
   const sub_id = await subscription_id_of(intent_id);
   if (!sub_id) return;
-  const { row, prev_status } = await sub_update(db, sub_id, {
+  const { row } = await sub_update(db, sub_id, {
     status: "inactive",
     status_cancel_reason: "refunded",
     updated_at: new Date().toISOString(),
   });
-  if (row && prev_status === "active") {
+  if (row?.status === "inactive" && row.status_cancel_reason === "refunded") {
     await enqueue(msg("sub-deactivated", row));
   }
 }
