@@ -579,10 +579,15 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
     const owner_id = await c.owner();
     const owner = owner_id ? await donation_get(owner_id) : undefined;
     // the settle event is still on its way: paypal guarantees no ordering
-    if (owner)
-      return new Response(`nothing settled for ${c.sttl_id} yet`, {
-        status: 503,
+    if (owner) {
+      const reason = `charge ${c.sttl_id} not settled yet`;
+      report_degraded(new Error(`[paypal webhook] ${reason}`), {
+        event_id: ev.id,
+        event_type: ev.event_type,
+        sttl_id: c.sttl_id,
       });
+      return new Response(reason, { status: 503 });
+    }
     // a charge of another integration on the account, or one whose settle was
     // acknowledged unroutable: no redelivery gives it a donation
     report_error(new Error("[paypal webhook] refund of a charge not ours"), {
@@ -738,10 +743,15 @@ export async function action({ request }: Route.ActionArgs) {
           }),
         });
         // the activation that creates the row is still on its way
-        if (!row)
-          return new Response(`no subscription record ${subs_id} yet`, {
-            status: 503,
+        if (!row) {
+          const reason = `subscription ${subs_id} not recorded yet`;
+          report_degraded(new Error(`[paypal webhook] ${reason}`), {
+            event_id: ev.id,
+            event_type: ev.event_type,
+            subs_id,
           });
+          return new Response(reason, { status: 503 });
+        }
         return new Response(`subscription ${subs_id} is ${row.status}`, {
           status: 200,
         });
@@ -1063,9 +1073,9 @@ export async function action({ request }: Route.ActionArgs) {
         if (!cid || !don_id)
           return unroutable(ev, "missing capture or donation id");
 
+        // the row is written before its order exists, so no redelivery brings it
         const don = await donation_get(don_id);
-        if (!don)
-          return new Response(`donation not found: ${don_id}`, { status: 500 });
+        if (!don) return unroutable(ev, `no donation for capture ${cid}`);
         if (!AWAITING_CAPTURE.has(don.status))
           return new Response(`donation is ${don.status}`, { status: 200 });
 
@@ -1099,6 +1109,33 @@ export async function action({ request }: Route.ActionArgs) {
           reason: status_details?.reason,
         });
         return new Response("capture pending", { status: 200 });
+      }
+      case "CUSTOMER.DISPUTE.CREATED": {
+        // ids and amount only: the resource carries the buyer's name and email
+        const d = ev.resource as {
+          dispute_id?: string;
+          reason?: string;
+          dispute_amount?: { value?: string; currency_code?: string };
+          disputed_transactions?: { seller_transaction_id?: string }[];
+        };
+        const charges = (d.disputed_transactions ?? [])
+          .map((t) => t.seller_transaction_id)
+          .filter(Boolean);
+        const alert = {
+          type: "NOTICE" as const,
+          from: `paypal-webhook-${stage}`,
+          title: "PayPal Dispute Opened",
+          body: [
+            `dispute ${d.dispute_id ?? "unknown"}, charge ${charges.join(", ") || "unknown"}, event ${ev.id ?? "unknown"}`,
+            `disputed: ${money(d.dispute_amount?.value, d.dispute_amount?.currency_code)}, reason ${d.reason ?? "unknown"}`,
+            "nothing was reversed. ops must respond in the paypal resolution center before its deadline.",
+          ].join("\n"),
+        };
+        // keyed on the event, so a duplicate delivery posts one notice
+        await enqueue(
+          msg("fiat-notice", { id: `paypal-dispute_${ev.id}`, alert })
+        );
+        return new Response("dispute reported", { status: 200 });
       }
       case "PAYMENT.SALE.COMPLETED": {
         const { id: sale_id, billing_agreement_id: ev_subs_id } =
@@ -1144,9 +1181,10 @@ export async function action({ request }: Route.ActionArgs) {
         if (!sale_amount?.total)
           return unroutable(ev, `missing total for sale: ${sale_id}`);
 
-        const tf = transaction_fee?.value ?? 0;
+        const tf = transaction_fee?.value ?? "0";
         // receivable_amount only present on currency conversions
-        const net = receivable_amount?.value ?? +sale_amount.total - +tf;
+        const net =
+          receivable_amount?.value ?? dec_sub(sale_amount.total, [tf]);
         const cur = receivable_amount?.currency ?? sale_amount.currency;
 
         const settled: ISettlement = {
