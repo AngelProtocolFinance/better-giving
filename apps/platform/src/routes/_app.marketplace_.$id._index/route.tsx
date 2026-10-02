@@ -65,7 +65,15 @@ export default function Page() {
         classes="self-start lg:sticky lg:top-22"
         fundraisers={
           <Suspense fallback={<ContentLoader className="h-40 mt-4" />}>
-            <Await resolve={funds}>
+            <Await
+              resolve={funds}
+              errorElement={
+                <p className="mt-4 px-8 text-sm text-gray-11">
+                  We couldn't load this nonprofit's fundraisers right now.
+                  Please try again later.
+                </p>
+              }
+            >
               {(f) =>
                 f.length > 0 ? <Fundraisers classes="mt-4" funds={f} /> : null
               }
