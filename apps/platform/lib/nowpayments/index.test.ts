@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Nowpayments,
   NowpaymentsError,
-  NowpaymentsNoMinimumError,
+  NowpaymentsNotPayableError,
 } from "./index";
 
 const client = new Nowpayments({
@@ -87,7 +87,10 @@ describe("nowpayments client", () => {
     "estimate throws on %s rather than return a usd rate of Infinity or NaN",
     async (_, body) => {
       fetch_mock().mockResolvedValueOnce(Response.json(body));
-      await expect(client.estimate("ETH")).rejects.toThrow(/v1\/estimate/);
+      const err = await client.estimate("ETH").catch((e: unknown) => e);
+      // the same "pair not payable" an unusable minimum is, not an outage
+      expect(err).toBeInstanceOf(NowpaymentsNotPayableError);
+      expect((err as Error).message).toContain("v1/estimate");
     }
   );
 
@@ -102,9 +105,9 @@ describe("nowpayments client", () => {
       fetch_mock().mockResolvedValueOnce(Response.json(body));
       const err = await client.min_amount("ETH").catch((e: unknown) => e);
       // a 200 with an unusable quote is "pair not payable", not an http outage
-      expect(err).toBeInstanceOf(NowpaymentsNoMinimumError);
+      expect(err).toBeInstanceOf(NowpaymentsNotPayableError);
       expect(err).not.toBeInstanceOf(NowpaymentsError);
-      expect((err as Error).name).toBe("NowpaymentsNoMinimumError");
+      expect((err as Error).name).toBe("NowpaymentsNotPayableError");
       expect((err as Error).message).toContain("v1/min-amount");
       expect((err as Error).message).toContain("ETH");
     }

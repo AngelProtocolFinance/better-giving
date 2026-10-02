@@ -34,11 +34,11 @@ export class NowpaymentsError extends Error {
   }
 }
 
-/** a 200 that quotes no usable minimum: the pair isn't payable, not an outage */
-export class NowpaymentsNoMinimumError extends Error {
+/** a 200 that quotes no usable minimum or rate: the pair isn't payable, not an outage */
+export class NowpaymentsNotPayableError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "NowpaymentsNoMinimumError";
+    this.name = "NowpaymentsNotPayableError";
   }
 }
 
@@ -92,7 +92,7 @@ export class Nowpayments {
     );
     const usdpu = amount_from / estimated_amount;
     if (!is_positive(estimated_amount) || !is_positive(usdpu)) {
-      throw new Error(
+      throw new NowpaymentsNotPayableError(
         `nowpayments ${path} ${token_code}: amount_from:${amount_from} estimated_amount:${estimated_amount}`
       );
     }
@@ -111,7 +111,7 @@ export class Nowpayments {
         } satisfies NP.MinAmount.Params,
       });
     if (!is_positive(min) || !is_positive(min_usd)) {
-      throw new NowpaymentsNoMinimumError(
+      throw new NowpaymentsNotPayableError(
         `nowpayments ${path} ${token_code}: min_amount:${min} fiat_equivalent:${min_usd}`
       );
     }

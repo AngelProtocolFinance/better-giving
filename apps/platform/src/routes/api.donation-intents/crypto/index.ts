@@ -4,7 +4,7 @@ import type { Payment } from "#/types/crypto";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
-import { NowpaymentsError, NowpaymentsNoMinimumError } from "@/nowpayments";
+import { NowpaymentsError, NowpaymentsNotPayableError } from "@/nowpayments";
 import { donation_quote } from "@/nowpayments/min";
 import { deposit_addr } from "$/deposit-addr";
 import { base_url } from "$/env";
@@ -32,7 +32,7 @@ const np_failure = (err: unknown, order_id: string, t: IToken) => {
   report_error(err, { order_id, currency: t.code });
   // a pair nowpayments won't quote or a coin disabled on the account:
   // retrying it can never succeed
-  if (err instanceof NowpaymentsNoMinimumError) return unavailable();
+  if (err instanceof NowpaymentsNotPayableError) return unavailable();
   if (!(err instanceof NowpaymentsError)) return try_later();
   const s = err.http_status;
   if (s === 400 || s === 404) return unavailable();
