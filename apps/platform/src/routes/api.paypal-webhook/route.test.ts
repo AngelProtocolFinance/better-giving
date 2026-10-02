@@ -124,6 +124,7 @@ const ORDER_ID = "don-pp-1";
 const CAPTURE_ID = "capture-1";
 const SALE_ID = "sale-1";
 const SUBS_ID = "I-SUBS-1";
+const CAPTURE_EV_ID = "WH-CAPTURE-1";
 
 interface ISigner {
   key: KeyObject;
@@ -232,13 +233,14 @@ const capture_copy = () => ({
   seller_receivable_breakdown: {
     gross_amount: { value: "100", currency_code: "USD" },
     net_amount: { value: "96.5", currency_code: "USD" },
-    paypal_fee: { value: "3.5" },
+    paypal_fee: { value: "3.5", currency_code: "USD" },
   },
 });
 
 /** the event announcing it. its amounts are decoys that disagree with
  * paypal's copy, so a settle read off the event body fails every assertion */
 const capture_ev = () => ({
+  id: CAPTURE_EV_ID,
   event_type: "PAYMENT.CAPTURE.COMPLETED",
   resource: {
     id: CAPTURE_ID,
@@ -247,7 +249,7 @@ const capture_ev = () => ({
     seller_receivable_breakdown: {
       gross_amount: { value: "1", currency_code: "USD" },
       net_amount: { value: "1", currency_code: "USD" },
-      paypal_fee: { value: "0" },
+      paypal_fee: { value: "0", currency_code: "USD" },
     },
   },
 });
@@ -381,6 +383,7 @@ beforeEach(async () => {
   get_subscription_mock.mockResolvedValue({
     id: SUBS_ID,
     plan_id: "P-1",
+    status: "ACTIVE",
     custom_id: ORDER_ID,
     create_time: "2026-01-01T00:00:00.000Z",
     update_time: "2026-01-01T00:00:00.000Z",
@@ -1625,7 +1628,9 @@ describe("BILLING.SUBSCRIPTION.ACTIVATED", () => {
     expect(await sub_rows()).toHaveLength(0);
   });
 
-  it("acknowledges and reports an activation with no subscriber email, writing no row", async () => {
+  // defensive guard, not a paypal case: an ACTIVE subscription's subscriber
+  // carries the payer's paypal account email; the spec only marks it optional
+  it("guard: acknowledges and reports an activation with no subscriber email, writing no row", async () => {
     await seed_donation({ frequency: "monthly" });
 
     const res = await deliver(activated_ev({ subscriber: {} }));
@@ -2021,7 +2026,7 @@ describe("signature verification", () => {
       {
         unverified: {
           transmission_id: "t-1",
-          event_id: null,
+          event_id: CAPTURE_EV_ID,
           event_type: "PAYMENT.CAPTURE.COMPLETED",
           cert_host: "attacker.example",
         },
@@ -2100,7 +2105,7 @@ describe("signature verification", () => {
         {
           unverified: {
             transmission_id: "t-1",
-            event_id: null,
+            event_id: CAPTURE_EV_ID,
             event_type: "PAYMENT.CAPTURE.COMPLETED",
             cert_host,
           },
