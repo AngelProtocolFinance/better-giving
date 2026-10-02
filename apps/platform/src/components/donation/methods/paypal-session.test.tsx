@@ -18,8 +18,12 @@ vi.mock("@paypal/paypal-js/sdk-v6", () => ({
         isEligible: (m: string) => sdk.eligible && m === "paypal",
       }),
       createPayPalOneTimePaymentSession: () => ({
-        // popup blocked / network drop after the donor clicked
-        start: () => Promise.reject(new Error("session start failed")),
+        // popup blocked / network drop after the donor clicked. waits on the
+        // order as the sdk does, so a refused intent rejects it first
+        start: async (_: unknown, order: Promise<unknown>) => {
+          await order;
+          throw new Error("session start failed");
+        },
       }),
     }),
   }),
@@ -100,5 +104,48 @@ describe("paypal express: a payment that dies mid-flight", () => {
       "PayPal failed — please try another payment method."
     );
     expect(on_unavailable).not.toHaveBeenCalled();
+  });
+});
+
+describe("paypal express: an intent our api refuses", () => {
+  const click = async (intent_res: Response) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(intent_res);
+    const on_error = vi.fn();
+    const Stub = mount(on_error, vi.fn());
+    const screen = await render(<Stub />);
+    const btn = await vi.waitFor(() => {
+      const el = screen.container.querySelector("paypal-button");
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    btn.click();
+    await vi.waitFor(() => expect(on_error).toHaveBeenCalled());
+    return on_error;
+  };
+
+  test("shows the donor the api's own refusal", async () => {
+    // the shape the route answers a refusal in: resp.txt, text/plain
+    const msg = "PayPal doesn't accept NGN. Try another payment method.";
+    const on_error = await click(
+      new Response(msg, {
+        status: 400,
+        headers: { "content-type": "text/plain" },
+      })
+    );
+
+    expect(on_error).toHaveBeenCalledExactlyOnceWith(msg);
+  });
+
+  test("keeps the generic message for an edge page that isn't ours", async () => {
+    const on_error = await click(
+      new Response("<html>bad gateway</html>", {
+        status: 502,
+        headers: { "content-type": "text/html" },
+      })
+    );
+
+    expect(on_error).toHaveBeenCalledExactlyOnceWith(
+      "PayPal failed — please try another payment method."
+    );
   });
 });

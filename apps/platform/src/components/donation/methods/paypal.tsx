@@ -15,6 +15,7 @@ import {
   type TCaptureOutcome,
 } from "@/donations/paypal-capture";
 import { donor_fv_init, type IDonationIntent } from "@/donations/schema";
+import { HttpError, json_ok } from "@/helpers/https";
 import { use_donation_redirect } from "../common/redirect";
 import { retry_once } from "../common/retry";
 import { donation_return_url, type IDonationDest } from "../common/return-url";
@@ -198,12 +199,12 @@ export function Paypal({
         if (d.program) intent.program = d.program;
         if (d.config?.id) intent.form_id = d.config.id;
 
-        const res = await fetch(href("/api/donation-intents"), {
-          method: "POST",
-          body: JSON.stringify(intent),
-        });
-        if (!res.ok) throw res;
-        const { tx_id, don_id, amount } = await res.json();
+        const { tx_id, don_id, amount } = await fetch(
+          href("/api/donation-intents"),
+          { method: "POST", body: JSON.stringify(intent) }
+        ).then((res) =>
+          json_ok<{ tx_id: string; don_id?: string; amount?: string }>(res)
+        );
         return {
           tx_id,
           don_id: don_id ?? "",
@@ -257,6 +258,23 @@ export function Paypal({
         on_error_ref.current(
           "PayPal failed — please try another payment method."
         );
+      };
+
+      // the donor's answer to a refused intent is our api's own sentence. read
+      // off the intent request, not the session: the sdk hands onError a
+      // wrapped error without it. attached before session.start chains on the
+      // same promise, so it runs first and the session's error for this click
+      // can't overwrite it.
+      const session_error_for = (intent_promise: Promise<unknown>) => {
+        let refused = false;
+        intent_promise.catch((err) => {
+          if (!(err instanceof HttpError && err.message)) return;
+          refused = true;
+          on_error_ref.current(err.message);
+        });
+        return (err: unknown) => {
+          if (!refused) on_session_error(err);
+        };
       };
 
       // one-time approval: PATCH our server to capture, then redirect.
@@ -331,6 +349,7 @@ export function Paypal({
           if (paid_ref.current) return;
           // each click owns its intent_promise — no shared mutable don_id.
           const intent_promise = create_intent();
+          const on_click_error = session_error_for(intent_promise);
           if (is_recurring) {
             const session = sdk.createPayPalSubscriptionPaymentSession({
               onApprove: async () => {
@@ -346,14 +365,14 @@ export function Paypal({
                   );
                 }
               },
-              onError: on_session_error,
+              onError: on_click_error,
             });
             session
               .start(
                 { presentationMode: "auto" },
                 intent_promise.then(({ tx_id }) => ({ subscriptionId: tx_id }))
               )
-              .catch(on_session_error);
+              .catch(on_click_error);
           } else {
             const session = sdk.createPayPalOneTimePaymentSession({
               onApprove: async ({ orderId }) => {
@@ -363,14 +382,14 @@ export function Paypal({
                   "PayPal"
                 );
               },
-              onError: on_session_error,
+              onError: on_click_error,
             });
             session
               .start(
                 { presentationMode: "auto" },
                 intent_promise.then(({ tx_id }) => ({ orderId: tx_id }))
               )
-              .catch(on_session_error);
+              .catch(on_click_error);
           }
         });
         container_ref.current.appendChild(btn);
@@ -383,6 +402,7 @@ export function Paypal({
         btn.addEventListener("click", () => {
           if (paid_ref.current) return;
           const intent_promise = create_intent();
+          const on_click_error = session_error_for(intent_promise);
           const session = sdk.createVenmoOneTimePaymentSession({
             onApprove: async ({ orderId }) => {
               await handle_one_time_approve(
@@ -391,14 +411,14 @@ export function Paypal({
                 "Venmo"
               );
             },
-            onError: on_session_error,
+            onError: on_click_error,
           });
           session
             .start(
               { presentationMode: "auto" },
               intent_promise.then(({ tx_id }) => ({ orderId: tx_id }))
             )
-            .catch(on_session_error);
+            .catch(on_click_error);
         });
         container_ref.current.appendChild(btn);
         mounted_btns.push(btn);

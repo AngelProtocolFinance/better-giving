@@ -24,7 +24,15 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
 
   const upusd = await unit_per_usd(intent.currency);
   const base_usd = rd2num(charge.amount.base / upusd, 1);
-  if (base_usd < MIN_DONATION_USD) return resp.status(400, "less than min");
+  if (base_usd < MIN_DONATION_USD) {
+    const usd = `${MIN_DONATION_USD} USD`;
+    return resp.txt(
+      intent.currency === "USD"
+        ? `The minimum PayPal donation is ${usd}.`
+        : `The minimum PayPal donation is ${usd}, or its equivalent in ${intent.currency}.`,
+      400
+    );
+  }
 
   const r_id = crypto.randomUUID();
   const now = new Date().toISOString();

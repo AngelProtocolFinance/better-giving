@@ -27,7 +27,10 @@ export const chariot_intent: Provider = async ({
 }) => {
   // chariot is usd-only; upusd = 1 so base_usd === intent.amount.base
   if (intent.amount.base < MIN_DONATION_USD)
-    return resp.status(400, "less than min");
+    return resp.txt(
+      `The minimum DAF donation is ${MIN_DONATION_USD} USD.`,
+      400
+    );
 
   // dafs grant whole dollars only; chariot 400s anything else after the donor
   // has already authorized, so it's refused here with a message they can read

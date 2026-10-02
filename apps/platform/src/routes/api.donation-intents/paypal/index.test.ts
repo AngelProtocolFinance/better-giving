@@ -77,7 +77,23 @@ describe("paypal_intent minimum", () => {
     )) as Response;
 
     expect(res.status).toBe(400);
+    // text/plain is what the checkout reads a refusal's sentence from
+    expect(res.headers.get("content-type")).toBe("text/plain");
+    await expect(res.text()).resolves.toBe(
+      "The minimum PayPal donation is 2 USD, or its equivalent in JPY."
+    );
     expect(donation_put_mock).not.toHaveBeenCalled();
+  });
+
+  it("names the minimum in usd alone for a usd gift", async () => {
+    const res = (await paypal_intent(
+      ctx({ amount: { base: 1.5, tip: 0, fee_allowance: 0 } })
+    )) as Response;
+
+    expect(res.status).toBe(400);
+    await expect(res.text()).resolves.toBe(
+      "The minimum PayPal donation is 2 USD."
+    );
   });
 });
 
