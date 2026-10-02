@@ -97,6 +97,44 @@ describe("report_error", () => {
     expect(capture_exception).not.toHaveBeenCalled();
   });
 
+  // a background loader's thrown Response reaches the unhandled sink; sentry
+  // records an untitled event for anything that isn't an Error
+  const sent_message = () => {
+    const sent = capture_exception.mock.calls.at(-1)?.[0];
+    expect(sent).toBeInstanceOf(Error);
+    return (sent as Error).message;
+  };
+
+  test("titles a 5xx Response with its status and path", () => {
+    const res = new Response(null, { status: 500 });
+    Object.defineProperty(res, "url", {
+      value: "https://better.giving/register/r-1/2.data?_routes=x",
+    });
+    report_unhandled(res);
+    expect(sent_message()).toBe("Response 500 /register/r-1/2.data");
+  });
+
+  // react-router throws a redirect with no url; its target is the Location
+  test("titles a redirect Response with its status and target", () => {
+    report_unhandled(
+      new Response(null, {
+        status: 302,
+        headers: { Location: "/register/r-1/5?email=a%40b.co" },
+      })
+    );
+    expect(sent_message()).toBe("Response 302 /register/r-1/5");
+  });
+
+  test("titles a Response with no url by its status", () => {
+    report_error(new Response(null, { status: 503 }));
+    expect(sent_message()).toBe("Response 503");
+  });
+
+  test("keeps a 4xx Response off sentry", () => {
+    report_error(new Response(null, { status: 404 }));
+    expect(capture_exception).not.toHaveBeenCalled();
+  });
+
   test("reports a 5xx HttpError", () => {
     report_error(new HttpError(500, ""));
     expect(capture_exception).toHaveBeenCalledOnce();

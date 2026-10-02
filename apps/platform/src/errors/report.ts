@@ -12,10 +12,19 @@ function is_user_error(err: unknown): boolean {
   return false;
 }
 
+// a thrown redirect has no url — react-router builds it — so its Location is
+// what names it. either keeps only its path: the query can carry input.
+function response_error(res: Response): Error {
+  const target = res.headers.get("Location") ?? res.url;
+  const where = target ? new URL(target, "https://x").pathname : "";
+  return new Error(`Response ${res.status}${where ? ` ${where}` : ""}`);
+}
+
 // wrap non-Error throws so sentry gets a stack from the report site.
 // handles cross-realm Error objects (instanceof fails across iframes/workers).
 function normalize(err: unknown): unknown {
-  if (err instanceof Error || err instanceof Response) return err;
+  if (err instanceof Error) return err;
+  if (err instanceof Response) return response_error(err);
   if (typeof err === "string") return new Error(err);
   if (err && typeof err === "object") {
     const msg =

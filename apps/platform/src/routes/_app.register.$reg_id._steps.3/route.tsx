@@ -1,5 +1,4 @@
 import { redirect } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import { next_step, steps } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
@@ -28,10 +27,8 @@ export const loader = async (args: Route.LoaderArgs) => {
   return res;
 };
 
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const action = update_action(next_step[3]);
-export default CacheRoute(Page);
 
-function Page({ loaderData: reg }: Route.ComponentProps) {
+export default function Page({ loaderData: reg }: Route.ComponentProps) {
   return <FsaForm {...reg} />;
 }

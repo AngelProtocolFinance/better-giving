@@ -46,11 +46,6 @@ vi.mock("#/.server/auth", async () =>
   })
 );
 
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: any) => Component,
-  createClientLoaderCache: () => undefined,
-}));
-
 // the step hands `BankDetails` an `onSubmit` and owns no error surface of its
 // own — the wiring under test is what the step does with the result, so the
 // form itself stands in as a button that fires the callback.

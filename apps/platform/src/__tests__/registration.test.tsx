@@ -149,11 +149,6 @@ vi.mock("#/components/bank-details/use-currencies", () => ({
   }),
 }));
 
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: any) => Component,
-  createClientLoaderCache: () => undefined,
-}));
-
 // mock anvil signing — return a route the stub can handle
 vi.mock("#/.server/registration/gen-fsa-signing-url", () => ({
   gen_fsa_signing_url: vi.fn(async (reg_id: string) => ({
