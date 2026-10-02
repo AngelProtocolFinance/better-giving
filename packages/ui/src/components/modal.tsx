@@ -1,7 +1,11 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
-import { type PropsWithChildren, useId } from "react";
+import { type PropsWithChildren, useId, useLayoutEffect, useRef } from "react";
 import { name_from_heading } from "../helpers/dialog-name";
+import {
+  dialog_return_target,
+  settle_return_target,
+} from "../helpers/ejected-focus";
 import { type ModalSize, modal_box } from "../helpers/modal-box";
 
 interface Props extends PropsWithChildren {
@@ -31,9 +35,23 @@ interface Props extends PropsWithChildren {
 }
 export function Modal({ size = "sm", ...props }: Props) {
   const title_id = useId();
+  const content_id = useId();
+  // zag records its own return target a frame after opening; by then a form
+  // that raised this from its submit handler has its submit button disabled
+  // and focus on `<body>`
+  const return_to = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (props.open) return_to.current = dialog_return_target();
+  }, [props.open]);
   return (
     <Dialog.Root
-      ids={{ title: title_id }}
+      ids={{ title: title_id, content: content_id }}
+      finalFocusEl={() =>
+        settle_return_target(
+          return_to.current,
+          document.getElementById(content_id)
+        )
+      }
       open={props.open}
       onOpenChange={(e) => {
         if (!e.open) props.onClose();

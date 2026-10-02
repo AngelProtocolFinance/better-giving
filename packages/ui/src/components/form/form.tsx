@@ -6,6 +6,11 @@ import {
   useRef,
 } from "react";
 import { Form as RemixForm, useActionData, useNavigation } from "react-router";
+import {
+  clear_ejected,
+  focus_without_tab_stop,
+  note_ejected,
+} from "../../helpers/ejected-focus";
 
 interface IForm extends FormHTMLAttributes<HTMLFormElement> {
   disabled?: boolean;
@@ -45,7 +50,8 @@ interface IFieldset extends FieldsetHTMLAttributes<HTMLFieldSetElement> {
  * disabling the fieldset ejects focus from whatever control held it (usually
  * the submit button) to `<body>`. when it re-enables, focus returns to that
  * control — or to the enclosing `<form>` if the control is itself still
- * disabled — unless something else took focus meanwhile.
+ * disabled — unless something else took focus meanwhile. a `Modal` opened
+ * while it is disabled returns focus to that control too.
  */
 export function Fieldset({ disabled, children, ...props }: IFieldset) {
   const fieldset = useRef<HTMLFieldSetElement>(null);
@@ -62,11 +68,16 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
         !e.relatedTarget &&
         e.target instanceof HTMLElement &&
         e.target.matches(":disabled")
-      )
+      ) {
         ejected.current = e.target;
+        note_ejected(el, e.target);
+      }
     };
     el.addEventListener("focusout", on_focusout);
-    return () => el.removeEventListener("focusout", on_focusout);
+    return () => {
+      el.removeEventListener("focusout", on_focusout);
+      clear_ejected(el);
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -78,12 +89,15 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
         active instanceof HTMLElement &&
         fieldset.current?.contains(active) &&
         active.matches(":disabled")
-      )
+      ) {
         ejected.current = active;
+        note_ejected(fieldset.current, active);
+      }
       return;
     }
     const el = ejected.current;
     ejected.current = null;
+    if (fieldset.current) clear_ejected(fieldset.current);
     const unclaimed =
       !document.activeElement || document.activeElement === document.body;
     if (!el?.isConnected || !unclaimed) return;
@@ -97,16 +111,6 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
       {children}
     </fieldset>
   );
-}
-
-/** `tabindex=-1` only while focused — removing it sooner would unfocus it */
-function focus_without_tab_stop(el: HTMLElement) {
-  if (el.hasAttribute("tabindex")) return el.focus();
-  el.tabIndex = -1;
-  el.addEventListener("blur", () => el.removeAttribute("tabindex"), {
-    once: true,
-  });
-  el.focus();
 }
 
 export function useRmxForm<T = unknown>() {
