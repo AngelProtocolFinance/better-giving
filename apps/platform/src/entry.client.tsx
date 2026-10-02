@@ -11,6 +11,7 @@ import * as Sentry from "@sentry/react-router";
 import { StrictMode, startTransition } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { HydratedRouter } from "react-router/dom";
+import { client_integrations } from "#/errors/integrations";
 import { report_error, report_unhandled } from "#/errors/report";
 
 // only report from prod — preview/dev noise drowns out real signal.
@@ -22,7 +23,7 @@ if (dsn && stage === "production") {
     environment: stage,
     sendDefaultPii: false,
     tracesSampleRate: 0,
-    integrations: [],
+    integrations: client_integrations,
   });
 
   window.addEventListener("unhandledrejection", (e) => {
