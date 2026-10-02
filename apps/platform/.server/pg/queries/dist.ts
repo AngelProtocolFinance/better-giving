@@ -412,17 +412,14 @@ export async function donation_has_dists(
   return !!row;
 }
 
-/** true once this donation's share for `to_id` is distributed */
-export async function dist_exists(
-  donation_id: string,
-  to_id: number
-): Promise<boolean> {
+/** this donation's share for `to_id`, once it is distributed */
+export async function dist_of(donation_id: string, to_id: number) {
   const [row] = await db
-    .select({ id: dists.id })
+    .select({ id: dists.id, net: dists.net })
     .from(dists)
     .where(and(eq(dists.donation_id, donation_id), eq(dists.to_id, to_id)))
     .limit(1);
-  return !!row;
+  return row;
 }
 
 // -- refund support --
