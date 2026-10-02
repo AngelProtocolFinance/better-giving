@@ -59,6 +59,17 @@ describe("report_unhandled", () => {
     expect(report()).toBe("bug");
   });
 
+  // this sink is the only capture path, so a reason it cannot serialise has to
+  // still reach sentry rather than throw on the way
+  test("survives a reason that references itself", () => {
+    const cyclic: Record<string, unknown> = { code: "ERR" };
+    cyclic.self = cyclic;
+    expect(() => report_unhandled(cyclic)).not.toThrow();
+    expect(capture_exception).toHaveBeenCalledTimes(1);
+    expect(level()).toBe("error");
+    expect(report()).toBe("bug");
+  });
+
   // the sink takes whatever a rejected promise carried, which need not be an
   // object at all
   test("survives a primitive reason", () => {
