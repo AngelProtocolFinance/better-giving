@@ -81,40 +81,81 @@ async function email_cancel_failed(row: ISub): Promise<boolean> {
 }
 
 /** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
-const STRIPE_ENDED = new Set(["canceled", "incomplete_expired"]);
-/** the paypal states that still bill, or can again */
-const PAYPAL_LIVE = new Set(["ACTIVE", "SUSPENDED"]);
+const STRIPE_ENDED: Set<Stripe.Subscription.Status> = new Set([
+  "canceled",
+  "incomplete_expired",
+]);
+/** unpaid and paused generate no charged invoice; incomplete's first payment never cleared */
+const STRIPE_BILLING: Set<Stripe.Subscription.Status> = new Set([
+  "active",
+  "past_due",
+  "trialing",
+]);
 
-async function still_billing(data: ISubDeactivatedPayload): Promise<boolean> {
-  if (data.platform === "stripe") {
-    const live = await stripe.subscriptions.retrieve(data.id);
-    return !STRIPE_ENDED.has(live.status);
-  }
-  const live = await paypal.get_subscription(data.id);
-  return PAYPAL_LIVE.has(live.status ?? "");
+const is_not_found = (err: unknown) =>
+  (err instanceof Stripe.errors.StripeError &&
+    err.code === "resource_missing") ||
+  (err instanceof PayPalApiError && err.http_status === 404);
+
+interface ILiveRead {
+  billing: boolean;
+  status: string;
 }
+
+/** a provider with no record of the subscription bills nothing */
+async function read_live(data: ISubDeactivatedPayload): Promise<ILiveRead> {
+  try {
+    if (data.platform === "stripe") {
+      const { status } = await stripe.subscriptions.retrieve(data.id);
+      return { billing: STRIPE_BILLING.has(status), status };
+    }
+    // SUSPENDED bills nothing until reactivated, and our webhook maps it inactive
+    const { status = "no status" } = await paypal.get_subscription(data.id);
+    return { billing: status === "ACTIVE", status };
+  } catch (err) {
+    if (is_not_found(err)) return { billing: false, status: "not found" };
+    throw err;
+  }
+}
+
+interface IOutcome {
+  text: string;
+  /** false once the provider is known to bill nothing */
+  cancel_by_hand: boolean;
+}
+const by_hand = (text: string): IOutcome => ({ text, cancel_by_hand: true });
 
 /**
  * the donor was shown their cancel as done: while the provider still bills it,
  * the row goes back to active and the donor is told. returns what happened, for ops.
  */
-async function undo_donor_cancel(data: ISubDeactivatedPayload) {
+async function undo_donor_cancel(
+  data: ISubDeactivatedPayload
+): Promise<IOutcome> {
   const unchanged = "its row was left cancelled and the donor was not emailed";
   if (!data.by_donor || !data.status_cancel_reason) {
-    return "The donor sees this subscription as cancelled and may still be charged.";
+    return by_hand(
+      "The donor sees this subscription as cancelled and may still be charged."
+    );
   }
 
   // a refusal alone doesn't say it still bills: a 404 leaves nothing to
   // charge, and a 5xx past the last retry may have cancelled after all
-  let live: boolean;
+  let live: ILiveRead;
   try {
-    live = await still_billing(data);
+    live = await read_live(data);
   } catch (err) {
     report_error(err, { sub_id: data.id });
-    return `Reading it live from ${data.platform} failed, so ${unchanged}; it may still be charged.`;
+    return by_hand(
+      `Reading it live from ${data.platform} failed, so ${unchanged}; it may still be charged.`
+    );
   }
-  if (!live)
-    return `It has already ended at ${data.platform}, so ${unchanged}.`;
+  if (!live.billing) {
+    return {
+      text: `It isn't billing at ${data.platform} (${live.status}), so ${unchanged}.`,
+      cancel_by_hand: false,
+    };
+  }
 
   let changed: boolean;
   try {
@@ -123,7 +164,9 @@ async function undo_donor_cancel(data: ISubDeactivatedPayload) {
     changed = await sub_reactivate_if(db, data.id, data.status_cancel_reason);
   } catch (err) {
     report_error(err, { sub_id: data.id });
-    return "Restoring its row failed: the donor sees this subscription as cancelled and may still be charged.";
+    return by_hand(
+      "Restoring its row failed: the donor sees this subscription as cancelled and may still be charged."
+    );
   }
 
   const restored = "Its row was restored to active";
@@ -132,41 +175,54 @@ async function undo_donor_cancel(data: ISubDeactivatedPayload) {
     if (!changed) {
       // an earlier delivery or a provider webhook made it active, or a
       // refund rewrote the reason
-      return row?.status === "active"
-        ? "Its row was already active — the donor may not have been emailed by this delivery."
-        : "Its row has changed since the donor's cancel, so it was left as is and the donor was not emailed.";
+      return by_hand(
+        row?.status === "active"
+          ? "Its row was already active — the donor may not have been emailed by this delivery."
+          : "Its row has changed since the donor's cancel, so it was left as is and the donor was not emailed."
+      );
     }
     if (!row?.from_id) {
-      return `${restored}, but it has no donor email address, so the donor was not told.`;
+      return by_hand(
+        `${restored}, but it has no donor email address, so the donor was not told.`
+      );
     }
-    return (await email_cancel_failed(row))
-      ? `${restored} and the donor was emailed that the cancel didn't go through.`
-      : `${restored}, but the email telling the donor failed: they still see it as cancelled.`;
+    return by_hand(
+      (await email_cancel_failed(row))
+        ? `${restored} and the donor was emailed that the cancel didn't go through.`
+        : `${restored}, but the email telling the donor failed: they still see it as cancelled.`
+    );
   } catch (err) {
     report_error(err, { sub_id: data.id });
-    return changed
-      ? `${restored}, but telling the donor failed: they still see it as cancelled.`
-      : "Reading its row back failed.";
+    return by_hand(
+      changed
+        ? `${restored}, but telling the donor failed: they still see it as cancelled.`
+        : "Reading its row back failed."
+    );
   }
 }
 
 /**
- * someone has to cancel it by hand. answered as handled — a redelivery can
- * only repeat the refusal into the dlq.
+ * ops is told what became of it, and to cancel it by hand unless the provider
+ * bills nothing. answered as handled — a redelivery can only repeat the
+ * refusal into the dlq.
  */
 async function alert_cancel_failed(
   data: ISubDeactivatedPayload,
   err: unknown,
-  reason: string | number
+  reason: string | number,
+  known?: IOutcome
 ) {
   report_error(err, { sub_id: data.id, platform: data.platform });
-  const outcome = await undo_donor_cancel(data);
+  const { text, cancel_by_hand } = known ?? (await undo_donor_cancel(data));
+  const instruction = cancel_by_hand
+    ? ` Cancel ${data.id} in the ${data.platform} dashboard.`
+    : "";
   await fiat_monitor
     .send_alert({
       type: "ERROR",
       from: "sub-deactivated",
       title: `${data.platform} refused to cancel subscription ${data.id}`,
-      body: `${data.platform} answered ${reason}. ${outcome} Cancel ${data.id} in the ${data.platform} dashboard.`,
+      body: `${data.platform} answered ${reason}. ${text}${instruction}`,
     })
     .catch((e) => report_error(e, { sub_id: data.id }));
 }
@@ -216,6 +272,12 @@ async function cancel_on_paypal(
     ) {
       console.info(`subscription ${data.id} not active on paypal`);
       return;
+    }
+    if (issues.includes("USER_ACCOUNT_CLOSED")) {
+      return alert_cancel_failed(data, err, issues.join(","), {
+        text: "The payer's paypal account is closed, so it can't be charged; its row was left cancelled and the donor was not emailed.",
+        cancel_by_hand: false,
+      });
     }
     if (!is_final_refusal(err.http_status) && !attempt.last) throw err;
     return alert_cancel_failed(data, err, issues.join(",") || err.http_status);
