@@ -52,6 +52,21 @@ async function expect_closed_at(
 }
 
 describe("ErrorModal", () => {
+  test("names the failure once in the dialog's accessible tree", async () => {
+    const screen = await open_at(
+      [
+        {
+          path: "/dashboard/donations",
+          Component: Parent,
+          children: [failing_child(":id")],
+        },
+      ],
+      "/dashboard/donations/foreign-id"
+    );
+    const dialog = screen.getByRole("dialog", { name: "Something went wrong" });
+    expect(dialog.getByText("Something went wrong").elements()).toHaveLength(1);
+  });
+
   test("ok on a loader error leaves for the parent instead of re-throwing", async () => {
     const screen = await open_at(
       [

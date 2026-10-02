@@ -12,7 +12,9 @@ function TallPage() {
   return (
     <div>
       {Array.from({ length: 300 }, (_, i) => (
-        <p key={i}>section {i}</p>
+        <p key={i} id={`section-${i}`}>
+          section {i}
+        </p>
       ))}
     </div>
   );
@@ -77,14 +79,38 @@ describe("PublicLayout header", () => {
     expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(0);
   });
 
-  test("hash jumps land below the pinned header, not under it", async () => {
+  test.each([
+    ["marketing", "/about-us"],
+    ["minimal", "/marketplace"],
+  ])(
+    "a hash jump lands the target below the pinned header on a %s route",
+    async (_, path) => {
+      const Stub = layout_stub();
+      const screen = await render(
+        <Stub initialEntries={[path]} future={{ v8_middleware: true }} />
+      );
+      await expect.element(screen.getByText("section 299")).toBeInTheDocument();
+
+      document.getElementById("section-150")!.scrollIntoView();
+
+      const header = screen.container.querySelector("header") as HTMLElement;
+      const target = document.getElementById("section-150")!;
+      expect(target.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        header.getBoundingClientRect().bottom
+      );
+    }
+  );
+
+  test("scroll-padding equals the header's measured height", async () => {
     const Stub = layout_stub();
-    await render(
+    const screen = await render(
       <Stub initialEntries={["/about-us"]} future={{ v8_middleware: true }} />
     );
+    await expect.element(screen.getByText("section 299")).toBeInTheDocument();
 
+    const header = screen.container.querySelector("header") as HTMLElement;
     expect(getComputedStyle(document.documentElement).scrollPaddingTop).toBe(
-      "64px"
+      `${header.getBoundingClientRect().height}px`
     );
   });
 });

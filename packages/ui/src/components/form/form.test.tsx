@@ -1,6 +1,6 @@
 import { type ComponentType, type ReactNode, useState } from "react";
 import { createRoutesStub } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Fieldset, Form, RmxForm } from "./form";
@@ -198,7 +198,7 @@ describe.each([
   it("announces the request while it is in flight, and nothing after", async () => {
     const screen = await mount();
     const status = screen.getByRole("group").getByRole("status");
-    await expect.element(status).toHaveTextContent("");
+    expect(status.element().textContent).toBe("");
 
     set_disabled(true);
     await expect.element(status).toHaveTextContent("Submitting…");
@@ -241,9 +241,8 @@ describe.each([
     await expect.element(save).toBeDisabled();
     // a navigation's `submitting` ends at `loading`, still disabled
     set_busy(false);
-    await expect
-      .element(screen.getByRole("group").getByRole("status"))
-      .toHaveTextContent("");
+    const status = screen.getByRole("group").getByRole("status");
+    await vi.waitFor(() => expect(status.element().textContent).toBe(""));
     set_disabled(false);
     await expect.element(save).toBeEnabled();
 
