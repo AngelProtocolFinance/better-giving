@@ -116,14 +116,7 @@ export type TRegCas =
   | { won: true; row: TRegRow }
   | { won: false; row: TRegRow | null };
 
-const status_in = (from: (TStatus | null)[]) =>
-  or(
-    inArray(
-      registrations.status,
-      from.filter((s) => s !== null)
-    ),
-    from.includes(null) ? isNull(registrations.status) : undefined
-  );
+const status_in = (from: TStatus[]) => inArray(registrations.status, from);
 
 async function reg_cas(
   db: DbOrTx,
@@ -157,7 +150,7 @@ async function reg_cas(
 export function reg_update_from(
   db: DbOrTx,
   id: string,
-  from: (TStatus | null)[],
+  from: TStatus[],
   attrs: TRegAttrs
 ): Promise<TRegCas> {
   return reg_cas(db, id, status_in(from), attrs);
