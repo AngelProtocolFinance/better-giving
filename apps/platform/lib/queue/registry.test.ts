@@ -21,7 +21,11 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
       { fund_id: "f1", creator_id: "u1", npo_id: 7 },
       "fund.removed_f1_u1_7",
     ],
-    ["invite-email", { invitee: "x@y.z", npo_id: 7 }, "invite_x@y.z_7"],
+    [
+      "invite-email",
+      { invitee: "x@y.z", npo_id: 7, sent_at: "2026-10-02T12:30:45.678Z" },
+      "invite_x@y.z_7_2026-10-02T123045.678Z",
+    ],
     [
       "paypal-order-capture",
       { order_id: "O-1", don_id: "d6" },
@@ -46,7 +50,11 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
     ["sub-deactivated", { id: "s1" }, "sub.deactivated_s1"],
     [
       "sub-deactivated",
-      { id: "s2", by_donor: true, updated_at: "2026-10-02T12:30:45.678Z" },
+      {
+        id: "s2",
+        by_donor: true,
+        cancel_requested_at: "2026-10-02T12:30:45.678Z",
+      },
       "sub.deactivated_s2_2026-10-02T123045.678Z",
     ],
     ["tip-received", { id: "t1" }, "tip_t1"],
@@ -69,9 +77,9 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
 
 describe("sub-deactivated dedupe", () => {
   // keyed `..._undefined`, every donor cancel of a sub would dedupe to one
-  test("a donor's cancel cannot be enqueued without the row's updated_at", () => {
+  test("a donor's cancel cannot be enqueued without its cancel_requested_at", () => {
     expect(() =>
-      // @ts-expect-error updated_at is required with by_donor
+      // @ts-expect-error cancel_requested_at is required with by_donor
       msg("sub-deactivated", { id: "s3", platform: "stripe", by_donor: true })
     ).toThrow();
     expect(
@@ -116,16 +124,31 @@ describe("fund-member-removed dedupe", () => {
 });
 
 describe("invite-email dedupe", () => {
-  const invite = (npo_id: number) => ({
+  const SENT_AT = "2026-10-02T12:30:45.678Z";
+  const invite = (npo_id: number, sent_at = SENT_AT) => ({
     invitee: "ada@test.com",
     invitee_first_name: "Ada",
     invitor: "admin@test.com",
     npo_id,
     npo_name: `npo ${npo_id}`,
+    sent_at,
   });
 
   test("an invite to a second nonprofit is its own message", () => {
     expect(msg("invite-email", invite(8)).dedupe).not.toBe(
+      msg("invite-email", invite(7)).dedupe
+    );
+  });
+
+  // a re-invite refreshes the expiry, so the invitee needs the new mail
+  test("the same nonprofit re-inviting is its own message", () => {
+    expect(
+      msg("invite-email", invite(7, "2026-10-02T12:31:00.000Z")).dedupe
+    ).not.toBe(msg("invite-email", invite(7)).dedupe);
+  });
+
+  test("one invite keeps its key", () => {
+    expect(msg("invite-email", invite(7)).dedupe).toBe(
       msg("invite-email", invite(7)).dedupe
     );
   });

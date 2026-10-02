@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- mocks (hoisted) ---
 
@@ -52,6 +52,10 @@ beforeEach(() => {
   vi.mocked(enqueue).mockReset();
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("invite member", () => {
   it("throws 404 for a nonprofit that does not exist and invites no one", async () => {
     q.npo_get.mockResolvedValue(undefined);
@@ -66,8 +70,12 @@ describe("invite member", () => {
     expect(q.npo_admin_tx).not.toHaveBeenCalled();
   });
 
-  // invites are per (invitee, npo): the email's dedupe needs the npo
-  it("queues the invite email for this nonprofit", async () => {
+  // invites are per (invitee, npo) and per send: the dedupe needs both
+  it("queues the invite email for this nonprofit, stamped with when it was sent", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-02T12:30:45.678Z"),
+    });
     q.npo_get.mockResolvedValue({ id: NPO_ID, name: "Save The Rainforest" });
 
     await call();
@@ -79,9 +87,26 @@ describe("invite member", () => {
           invitee: "ada@test.com",
           npo_id: NPO_ID,
           npo_name: "Save The Rainforest",
+          sent_at: "2026-10-02T12:30:45.678Z",
         }),
-        dedupe: `invite_ada@test.com_${NPO_ID}`,
+        dedupe: `invite_ada@test.com_${NPO_ID}_2026-10-02T123045.678Z`,
       })
     );
+  });
+
+  it("queues a re-invite to the same person as its own email", async () => {
+    q.npo_get.mockResolvedValue({ id: NPO_ID, name: "Save The Rainforest" });
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-02T12:30:00.000Z"),
+    });
+    await call();
+    vi.setSystemTime(new Date("2026-10-02T12:31:00.000Z"));
+    await call();
+
+    const [first, second] = vi
+      .mocked(enqueue)
+      .mock.calls.map(([m]) => m.dedupe);
+    expect(second).not.toBe(first);
   });
 });

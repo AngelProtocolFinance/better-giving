@@ -93,9 +93,9 @@ export async function sub_cancel_reason_default(
 /**
  * reactivates a row only while it still carries `pending_reason`, in one
  * statement: a cancel that lands meanwhile overwrites the reason and wins.
- * `cancelled_at`, when given, pins it to that one cancel's write, so an older
- * job can't undo a newer cancel that reused the reason. true when this call
- * is the one that reactivated it.
+ * `cancelled_at`, when given, is that one cancel's `cancel_requested_at`, so an
+ * older job can't undo a newer cancel that reused the reason. true when this
+ * call is the one that reactivated it.
  */
 export async function sub_reactivate_if(
   db: DbOrTx,
@@ -108,6 +108,7 @@ export async function sub_reactivate_if(
     .set({
       status: "active",
       status_cancel_reason: null,
+      cancel_requested_at: null,
       updated_at: new Date().toISOString(),
     })
     .where(
@@ -115,7 +116,9 @@ export async function sub_reactivate_if(
         eq(subscriptions.id, id),
         eq(subscriptions.status, "inactive"),
         eq(subscriptions.status_cancel_reason, pending_reason),
-        cancelled_at ? eq(subscriptions.updated_at, cancelled_at) : undefined
+        cancelled_at
+          ? eq(subscriptions.cancel_requested_at, cancelled_at)
+          : undefined
       )
     )
     .returning({ id: subscriptions.id });

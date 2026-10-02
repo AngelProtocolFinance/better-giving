@@ -94,6 +94,8 @@ export interface IInviteEmailPayload {
   invitor: string;
   npo_id: number;
   npo_name: string;
+  /** iso, when the producer sent it, so each re-invite keys apart */
+  sent_at: string;
 }
 
 export interface ILockTxCreatedPayload {
@@ -139,8 +141,8 @@ interface ISubDeactivatedOther extends ISubDeactivatedBase {
 /** the donor's own cancel, which told them it went through */
 interface ISubDeactivatedByDonor extends ISubDeactivatedBase {
   by_donor: true;
-  /** the row's, so each donor cancel keys apart */
-  updated_at: string;
+  /** when the donor asked, so each donor cancel keys apart */
+  cancel_requested_at: string;
 }
 
 export type ISubDeactivatedPayload =
@@ -161,7 +163,7 @@ export interface ISubCancelFailedEmailPayload
   > {
   /** the donor's email */
   to: string;
-  /** the refused cancel's `updated_at` */
+  /** the refused cancel's `cancel_requested_at` */
   cancelled_at: string;
 }
 
@@ -243,8 +245,10 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "fiat-notice": (p) => `fiat.notice_${p.id}`,
   "fund-member-removed": (p) =>
     `fund.removed_${p.fund_id}_${p.creator_id}_${p.npo_id}`,
-  // one invite per (invitee, npo): a second nonprofit's invite is its own mail
-  "invite-email": (p) => `invite_${p.invitee}_${p.npo_id}`,
+  // one per send: a re-invite is its own mail (it refreshes a pending invite's
+  // expiry), and so is a second nonprofit's invite to the same person
+  "invite-email": (p) =>
+    `invite_${p.invitee}_${p.npo_id}_${p.sent_at.replace(/:/g, "")}`,
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,
   "paypal-order-capture": (p) => `paypal.order-capture_${p.order_id}`,
@@ -256,11 +260,11 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   // per refused cancel: a later cancel that is refused too mails again
   "sub-cancel-failed-email": (p) =>
     `sub.cancel-failed-email_${p.id}_${p.cancelled_at.replace(/:/g, "")}`,
-  // a donor's cancel per row state, like `reg-updated`: a second cancel after a
-  // refused one must reach the provider rather than dedupe against the first
+  // one per donor cancel: a second cancel after a refused one must reach the
+  // provider rather than dedupe against the first
   "sub-deactivated": (p) =>
     p.by_donor
-      ? `sub.deactivated_${p.id}_${p.updated_at.replace(/:/g, "")}`
+      ? `sub.deactivated_${p.id}_${p.cancel_requested_at.replace(/:/g, "")}`
       : `sub.deactivated_${p.id}`,
   "tip-received": (p) => `tip_${p.id}`,
 };

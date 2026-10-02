@@ -93,6 +93,16 @@ async function queue_cancel_failed_email(
 export async function handle_sub_cancel_failed_email(
   p: ISubCancelFailedEmailPayload
 ) {
+  // a retry can land after the donor cancelled again or a refund ended it,
+  // when "it still bills" is no longer true; the restore clears
+  // cancel_requested_at, so a set one is a newer cancel
+  const row = await sub_get(p.id);
+  if (row?.status !== "active" || row.cancel_requested_at) {
+    console.info(
+      `subscription ${p.id} changed since its refused cancel; cancel-failed email not sent`
+    );
+    return;
+  }
   const { node, subject } = subscription_cancel_failed.template({
     to_name: p.to_name,
     amount: to_amount(p.amount, p.amount_usd, p.currency.toUpperCase()),
@@ -192,7 +202,7 @@ async function undo_donor_cancel(
       db,
       data.id,
       data.status_cancel_reason,
-      data.updated_at
+      data.cancel_requested_at
     );
   } catch (err) {
     report_error(err, { sub_id: data.id });
@@ -219,7 +229,7 @@ async function undo_donor_cancel(
       );
     }
     return by_hand(
-      (await queue_cancel_failed_email(row, data.updated_at))
+      (await queue_cancel_failed_email(row, data.cancel_requested_at))
         ? `${restored}; the donor's email was queued to tell them the cancel didn't go through.`
         : `${restored}, but queueing the donor's email failed: they still see it as cancelled.`
     );

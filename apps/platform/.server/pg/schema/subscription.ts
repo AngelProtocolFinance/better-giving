@@ -26,6 +26,8 @@ export const subscriptions = pgTable(
     platform: text("platform").$type<"stripe" | "paypal">().notNull(),
     status: text("status").$type<"active" | "inactive">().notNull(),
     status_cancel_reason: text("status_cancel_reason"),
+    /** the donor's cancel, and only theirs: provider webhooks move `updated_at` without touching it */
+    cancel_requested_at: timestamptz("cancel_requested_at"),
     from_id: text("from_id").notNull(),
     created_at: timestamptz("created_at").notNull(),
     updated_at: timestamptz("updated_at").notNull(),

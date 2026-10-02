@@ -308,6 +308,8 @@ describe("a donor's cancel the provider refuses for good", () => {
   const REASON = "moving abroad";
   /** the donor's cancel stamps the row; the producer carries the stamp */
   const CANCELLED_AT = "2026-10-01T00:00:00.000Z";
+  /** `sub_update` stamps updated_at itself, a moment after */
+  const STAMPED_AT = "2026-10-01T00:00:00.004Z";
 
   /** the row as the donor's cancel leaves it */
   const seed_cancelled = async (
@@ -333,9 +335,10 @@ describe("a donor's cancel the provider refuses for good", () => {
       platform,
       status: "inactive",
       status_cancel_reason,
+      cancel_requested_at: CANCELLED_AT,
       from_id: DONOR,
       created_at: "2026-09-01T00:00:00.000Z",
-      updated_at: CANCELLED_AT,
+      updated_at: STAMPED_AT,
     });
   };
 
@@ -373,7 +376,9 @@ describe("a donor's cancel the provider refuses for good", () => {
     platform,
     status_cancel_reason: REASON,
     by_donor: true as const,
-    updated_at: CANCELLED_AT,
+    cancel_requested_at: CANCELLED_AT,
+    // the producer spreads the row, so its updated_at rides along
+    updated_at: STAMPED_AT,
   });
 
   const alert_body = (n = 0) =>
@@ -617,6 +622,26 @@ describe("a donor's cancel the provider refuses for good", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
+  // a webhook stamps updated_at, not the donor's cancel
+  it("restores the row when the provider updated it between the cancel and the refusal", async () => {
+    await seed_cancelled("I-SUB1", "paypal");
+    await test_db
+      .current!.db.update(subscriptions)
+      .set({ updated_at: "2026-10-01T06:00:00.000Z" });
+    paypal_refuses();
+
+    await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
+
+    const row = await sub_get("I-SUB1");
+    expect(row?.status).toBe("active");
+    expect(row?.cancel_requested_at).toBeNull();
+    expect(queued_emails()).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ cancelled_at: CANCELLED_AT }),
+      }),
+    ]);
+  });
+
   // the donor cancelled again with the same reason; the earlier cancel's job
   // is the one paypal refused
   it("leaves the row alone for a refused cancel older than the row's", async () => {
@@ -625,7 +650,7 @@ describe("a donor's cancel the provider refuses for good", () => {
 
     await handle_sub_deactivated({
       ...donor_cancelled("I-SUB1", "paypal"),
-      updated_at: "2026-09-30T00:00:00.000Z",
+      cancel_requested_at: "2026-09-30T00:00:00.000Z",
     });
 
     const row = await sub_get("I-SUB1");
@@ -681,6 +706,62 @@ describe("handle_sub_cancel_failed_email", () => {
     interval: "month" as const,
     interval_count: 1,
   };
+
+  /** the row as the restore leaves it, unless `o` moves it on */
+  const seed_restored = async (
+    o: Partial<typeof subscriptions.$inferInsert>
+  ) => {
+    const db = test_db.current!.db;
+    await db.delete(subscriptions);
+    await db.delete(npos);
+    const npo = await seed_npo(db);
+    await db.insert(subscriptions).values({
+      id: payload.id,
+      interval: "month",
+      interval_count: 1,
+      next_billing: "2026-11-01T00:00:00.000Z",
+      amount: 25,
+      amount_usd: 25,
+      currency: "usd",
+      product_id: "prod_1",
+      to_npo_id: npo!.id,
+      to_name: payload.to_name,
+      platform: "paypal",
+      status: "active",
+      status_cancel_reason: null,
+      cancel_requested_at: null,
+      from_id: payload.to,
+      created_at: "2026-09-01T00:00:00.000Z",
+      updated_at: "2026-10-01T00:05:00.000Z",
+      ...o,
+    });
+  };
+
+  beforeEach(() => seed_restored({}));
+
+  // the mail is about the row as the donor will find it, not as it was restored
+  it.each([
+    [
+      "the donor cancelled again",
+      {
+        status: "inactive" as const,
+        status_cancel_reason: "still moving",
+        cancel_requested_at: "2026-10-01T01:00:00.000Z",
+      },
+    ],
+    [
+      "a refund ended it",
+      { status: "inactive" as const, status_cancel_reason: "refunded" },
+    ],
+  ])("sends nothing once %s, and resolves", async (_, since) => {
+    await seed_restored(since);
+
+    await expect(
+      handle_sub_cancel_failed_email(payload)
+    ).resolves.toBeUndefined();
+
+    expect(send_email_mock).not.toHaveBeenCalled();
+  });
 
   it("tells the donor their cancel didn't go through", async () => {
     await handle_sub_cancel_failed_email(payload);
