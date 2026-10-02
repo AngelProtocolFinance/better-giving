@@ -38,17 +38,19 @@ export function Table({
                 <td>
                   <div className="relative">
                     {payout.error && (
-                      <Tooltip
-                        tip={
-                          <Content className="max-w-xs text-xs">
-                            <Arrow />
-                            Commission amount not paid out and will be retried
-                            in the next cycle.
-                          </Content>
-                        }
-                      >
-                        <Info className="absolute -left-5 top-0.5 icon-md" />
-                      </Tooltip>
+                      <span className="absolute -left-5 top-0.5 flex">
+                        <Tooltip
+                          tip={
+                            <Content className="max-w-xs text-xs">
+                              <Arrow />
+                              Commission amount not paid out and will be retried
+                              in the next cycle.
+                            </Content>
+                          }
+                        >
+                          <Info className="icon-md" />
+                        </Tooltip>
+                      </span>
                     )}
                     ${humanize(payout.amount)}{" "}
                   </div>

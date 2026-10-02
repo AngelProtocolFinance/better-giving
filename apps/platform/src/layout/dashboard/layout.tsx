@@ -40,10 +40,11 @@ export function Layout({
           linkGroups={linkGroups}
           sidebarHeader={sidebarHeader}
         />
-        {/** views */}
-        <div className="@container min-h-[100dvh]">
+        {/* the page's one main landmark: route focus lands on the first h1
+            inside it, so the views below must not render a <main> of their own */}
+        <main className="@container min-h-[100dvh]">
           <Outlet />
-        </div>
+        </main>
       </div>
       <Footer variant="minimal" />
     </div>

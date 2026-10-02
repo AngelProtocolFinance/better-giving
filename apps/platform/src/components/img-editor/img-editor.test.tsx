@@ -2,10 +2,10 @@ import { AskHost } from "@better-giving/ui";
 import { useState } from "react";
 import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-// the preview branch hides its controls in css (`sr-only` until hover or
-// focus-within), and whether they can take focus and then show is the point
+// the preview branch hides its controls in css (`sr-only` until hover or a
+// keyboard focus inside), and whether they can take focus and then show is the point
 // of several cases — so the real stylesheet must be loaded to observe it.
 import "#/index.css";
 import { ImgEditor } from "./img-editor";
@@ -367,10 +367,32 @@ describe("ImgEditor: focus target", () => {
     await screen.getByRole("button", { name: /submit/i }).click();
 
     // the input is disabled while loading, so focus() on it is a no-op — the
-    // dropzone takes it instead, where the focus-within ring paints
+    // dropzone takes it instead, which paints its own focus ring
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(root.querySelector("[data-drag]"));
     });
+  });
+
+  test("the dropzone fallback paints its ring after a mouse submit, until blur", async () => {
+    const screen = await render(
+      <RHFHarness initial="loading" rule={() => "rejected"} />
+    );
+    const root = screen.getByText(LABEL).element()
+      .nextElementSibling as HTMLElement;
+    const dropzone = root.querySelector("[data-drag]") as HTMLElement;
+
+    // a real pointer press: a focus that follows it is not :focus-visible
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(dropzone);
+      expect(getComputedStyle(dropzone).outlineStyle).toBe("solid");
+    });
+
+    await screen.getByLabelText("Title").click();
+    await vi.waitFor(() =>
+      expect(getComputedStyle(dropzone).outlineStyle).toBe("none")
+    );
   });
 });
 
@@ -395,6 +417,62 @@ describe("ImgEditor: preview controls", () => {
     await expect.element(input).toHaveFocus();
     expect(row.getBoundingClientRect().width).toBeGreaterThan(1);
     await expect.element(control).toBeVisible();
+  });
+
+  test("a mouse click does not leave the controls painted once the pointer leaves", async () => {
+    // a size, as every call site gives it: the preview branch's content is
+    // absolute, so the dropzone is otherwise a 0px box nothing can click
+    const screen = await render_editor(
+      make_props({ value: PIXEL, classes: { dropzone: "w-60 aspect-square" } })
+    );
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    // the native picker never opens in a test browser; this stands in for it
+    vi.spyOn(input, "click").mockImplementation(() => {});
+    const row = (input.parentElement as HTMLElement)
+      .parentElement as HTMLElement;
+    const dropzone = screen.container.querySelector(
+      "[data-drag]"
+    ) as HTMLElement;
+
+    await page.elementLocator(dropzone).click();
+    // the press focused the dropzone — the state that used to keep them shown
+    expect(document.activeElement).toBe(dropzone);
+    await page.elementLocator(dropzone).unhover();
+
+    await vi.waitFor(() =>
+      expect(row.getBoundingClientRect().width).toBeLessThanOrEqual(1)
+    );
+  });
+
+  test("a touch screen shows the controls at rest", async () => {
+    // touch emulation, not an emulated media feature, so `(hover: none)`
+    // comes from the device the way a phone reports it. it lands a frame or so
+    // after the call
+    await cdp().send("Emulation.setTouchEmulationEnabled", {
+      enabled: true,
+      maxTouchPoints: 1,
+    });
+    try {
+      await vi.waitFor(() =>
+        expect(matchMedia("(hover: none)").matches).toBe(true)
+      );
+      const screen = await render_editor(make_props({ value: PIXEL }));
+      const input = screen.container.querySelector(
+        "input[type='file']"
+      ) as HTMLInputElement;
+      const control = input.parentElement as HTMLElement;
+
+      expect(
+        (control.parentElement as HTMLElement).getBoundingClientRect().width
+      ).toBeGreaterThan(1);
+      await expect.element(control).toBeVisible();
+    } finally {
+      await cdp().send("Emulation.setTouchEmulationEnabled", {
+        enabled: false,
+      });
+    }
   });
 
   // the dropzone forwards a pointer click to the input, as a wrapping label did
