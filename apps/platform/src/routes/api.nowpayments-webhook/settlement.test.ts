@@ -811,17 +811,37 @@ describe("nowpayments ipn settlement", () => {
     expect(sent[1].body).toContain("outcome:990 USDC");
   });
 
-  it("settles no repeated deposit onto a held donation", async () => {
+  it("records a repeated deposit in the order's asset on a held order as its own donation, leaving the held parent unsettled", async () => {
     await seed_donation();
     await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
 
-    const res = await deliver(
-      payment({ payment_id: 5002, parent_payment_id: 5001, actually_paid: 0.2 })
-    );
+    const res = await deliver(child());
+
+    expect(res.status).toBe(200);
+    const rows = await settlements();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sttl_id).toBe("5002");
+    const clone = (await donation_get(rows[0].donation_id))!;
+    expect(clone.id).not.toBe(ORDER_ID);
+    expect(clone.status).toBe("settled");
+    expect(clone.amount.base).toBeCloseTo(0.2);
+    expect(clone.hold).toBeUndefined();
+    const parent = (await donation_get(ORDER_ID))!;
+    expect(parent.status).toBe("confirmed");
+    expect(parent.hold?.asset).toBe("USDTERC20");
+  });
+
+  it("applies none of the held payment's own later ipns, a finished in the order's asset included", async () => {
+    await seed_donation();
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    const res = await deliver(payment());
 
     expect(res.status).toBe(200);
     expect(await settlements()).toHaveLength(0);
-    expect((await donation_get(ORDER_ID))!.status).toBe("confirmed");
+    const parent = (await donation_get(ORDER_ID))!;
+    expect(parent.status).toBe("confirmed");
+    expect(parent.hold?.asset).toBe("USDTERC20");
   });
 
   it("leaves a donation a concurrent delivery held after this one read it unsettled", async () => {

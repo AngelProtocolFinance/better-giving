@@ -200,13 +200,15 @@ async function dispatch(payment: NP.PaymentPayload): Promise<void> {
     return log("wrong asset on a closed hold", ref);
   }
 
-  // a hold is per donation and closes only by hand — any payment on its order
-  // settling it would drop the row out of the open-holds query unreconciled
-  if (prior.hold) return log(`held, ${status} not applied`, ref);
-
+  // ahead of the hold: a repeated deposit in the order's asset is money of its
+  // own, recorded as a separate donation that never writes the held order row
   if (payment.parent_payment_id != null) {
     return handle_repeat(payment, prior);
   }
+
+  // a hold is per donation and closes only by hand — any payment on its order
+  // settling it would drop the row out of the open-holds query unreconciled
+  if (prior.hold) return log(`held, ${status} not applied`, ref);
 
   const action = transition(settle_state_of(prior), payment, ORDER);
   switch (action.op) {
