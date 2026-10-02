@@ -413,12 +413,14 @@ export async function donation_has_dists(
 }
 
 /** this donation's share for `to_id`, once it is distributed */
-export async function dist_of(donation_id: string, to_id: number) {
+export async function dist_of(
+  donation_id: string,
+  to_id: number
+): Promise<{ id: string; net: number | null } | undefined> {
   const [row] = await db
     .select({ id: dists.id, net: dists.net })
     .from(dists)
-    .where(and(eq(dists.donation_id, donation_id), eq(dists.to_id, to_id)))
-    .limit(1);
+    .where(and(eq(dists.donation_id, donation_id), eq(dists.to_id, to_id)));
   return row;
 }
 

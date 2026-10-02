@@ -28,15 +28,17 @@ beforeAll(async () => {
     insert into donations (id, upusd, status, amount_base, amount_tip, amount_fee_allowance, currency, frequency, source, via)
       values ('don-old', 1, 'settled', 10, 0, 0, 'USD', 'one-time', 'bg-marketplace', 'stripe:card');
     insert into dists (id, donation_id, status, date_created, amount_denom)
-      values ('dist-historical', 'don-old', 'settled', now() - interval '2 hours', 'USD');
+      values ('dist-historical', 'don-old', 'settled', '2026-09-01T00:00:00Z', 'USD');
     insert into dists (id, donation_id, status, date_created, amount_denom)
-      values ('dist-fresh', 'don-old', 'settled', now() - interval '5 minutes', 'USD');
+      values ('dist-after-cutoff', 'don-old', 'settled', '2026-10-02T05:00:00Z', 'USD');
     insert into dists (id, donation_id, status, date_created, amount_denom, notice_sent_at, metric_counted_at, hooks_sent_at)
-      values ('dist-done', 'don-old', 'settled', now(), 'USD', '2026-09-30T12:00:00Z', '2026-09-30T12:00:01Z', '2026-09-30T12:00:02Z');
+      values ('dist-done', 'don-old', 'settled', '2026-09-01T00:00:00Z', 'USD', '2026-09-30T12:00:00Z', '2026-09-30T12:00:01Z', '2026-09-30T12:00:02Z');
     insert into dists (id, donation_id, status, date_created, amount_denom, notice_claimed_at, notice_sent_at)
-      values ('dist-inflight', 'don-old', 'settled', now(), 'USD', now(), '2026-10-01T09:00:00Z');
+      values ('dist-inflight', 'don-old', 'settled', '2026-09-01T00:00:00Z', 'USD', now(), '2026-10-01T09:00:00Z');
+    insert into dists (id, donation_id, status, date_created, amount_denom, notice_sent_at)
+      values ('dist-released', 'don-old', 'settled', '2026-09-01T00:00:00Z', 'USD', '2026-10-01T09:00:00Z');
     insert into dists (id, donation_id, status, date_created, amount_denom)
-      values ('dist-refunded', 'don-old', 'refunded', now(), 'USD');
+      values ('dist-refunded', 'don-old', 'refunded', '2026-09-01T00:00:00Z', 'USD');
   `);
   await t.migrate_rest();
 }, 30_000);
@@ -45,7 +47,7 @@ afterAll(async () => {
   await test_db.current?.client.close();
 });
 
-test("stamps every step of an unclaimed settled dist older than an hour, leaving fresh, stamped, in-flight and refunded rows as they were", async () => {
+test("stamps every step of an untouched settled dist dated before 0042, leaving later, stamped, claimed, released and refunded rows as they were", async () => {
   const r = await test_db.current!.client.query<Record<string, unknown>>(
     `select id,
             to_char(notice_sent_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') as sent,
@@ -55,20 +57,20 @@ test("stamps every step of an unclaimed settled dist older than an hour, leaving
        from dists order by id`
   );
   expect(r.rows).toEqual([
+    // provider-dated after 0042 shipped: settled by the per-step code, its first don-dist may still be queued
+    {
+      id: "dist-after-cutoff",
+      sent: null,
+      counted: null,
+      hooked: null,
+      stamps: 0,
+    },
     {
       id: "dist-done",
       sent: "2026-09-30T12:00:00",
       counted: "2026-09-30T12:00:01",
       hooked: "2026-09-30T12:00:02",
       stamps: 3,
-    },
-    // settled minutes ago: its first don-dist delivery may still be queued
-    {
-      id: "dist-fresh",
-      sent: null,
-      counted: null,
-      hooked: null,
-      stamps: 0,
     },
     {
       id: "dist-historical",
@@ -91,6 +93,14 @@ test("stamps every step of an unclaimed settled dist older than an hour, leaving
       counted: null,
       hooked: null,
       stamps: 0,
+    },
+    // a claim released after its mail went: the metric and hooks retry is still owed
+    {
+      id: "dist-released",
+      sent: "2026-10-01T09:00:00",
+      counted: null,
+      hooked: null,
+      stamps: 1,
     },
   ]);
 });
