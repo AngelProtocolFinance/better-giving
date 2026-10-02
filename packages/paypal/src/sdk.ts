@@ -53,6 +53,13 @@ export class PayPalApiError extends Error {
   }
 }
 
+/**
+ * bounds every call: a hung one otherwise holds its caller until the function
+ * is killed. a timed-out call that carried a `PayPal-Request-Id` is safe to
+ * retry under the same one
+ */
+const TIMEOUT_MS = 30_000;
+
 export class PayPalSDK {
   private config: ISdkConfig;
   private access_token?: string;
@@ -60,6 +67,13 @@ export class PayPalSDK {
 
   constructor(config: ISdkConfig) {
     this.config = config;
+  }
+
+  private fetch(url: string, init: RequestInit): Promise<Response> {
+    return globalThis.fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
   }
 
   /**
@@ -79,7 +93,7 @@ export class PayPalSDK {
       `${this.config.client_id}:${this.config.client_secret}`
     ).toString("base64");
 
-    const response = await globalThis.fetch(
+    const response = await this.fetch(
       `${this.config.api_url}${oauth_token_path}`,
       {
         method: "POST",
@@ -114,7 +128,7 @@ export class PayPalSDK {
   ): Promise<CreateOrderResponse> {
     const token = await this.get_access_token();
 
-    const response = await globalThis.fetch(
+    const response = await this.fetch(
       `${this.config.api_url}${create_order_path}`,
       {
         method: "POST",
@@ -139,7 +153,7 @@ export class PayPalSDK {
     const token = await this.get_access_token();
 
     const path = get_order_path.replace("{id}", order_id);
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -165,7 +179,7 @@ export class PayPalSDK {
     const token = await this.get_access_token();
 
     const path = capture_order_path.replace("{id}", order_id);
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -189,7 +203,7 @@ export class PayPalSDK {
   ): Promise<CreateProductResponse> {
     const token = await this.get_access_token();
 
-    const response = await globalThis.fetch(
+    const response = await this.fetch(
       `${this.config.api_url}${create_product_path}`,
       {
         method: "POST",
@@ -219,7 +233,7 @@ export class PayPalSDK {
   ): Promise<CreatePlanResponse> {
     const token = await this.get_access_token();
 
-    const response = await globalThis.fetch(
+    const response = await this.fetch(
       `${this.config.api_url}${create_plan_path}`,
       {
         method: "POST",
@@ -252,7 +266,7 @@ export class PayPalSDK {
       }
     }
 
-    const response = await globalThis.fetch(url.toString(), {
+    const response = await this.fetch(url.toString(), {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -272,7 +286,7 @@ export class PayPalSDK {
     const token = await this.get_access_token();
 
     const path = get_plan_path.replace("{id}", plan_id);
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -292,7 +306,7 @@ export class PayPalSDK {
     const token = await this.get_access_token();
 
     const path = deactivate_plan_path.replace("{id}", plan_id);
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -318,7 +332,7 @@ export class PayPalSDK {
   ): Promise<CreateSubscriptionResponse> {
     const token = await this.get_access_token();
 
-    const response = await globalThis.fetch(
+    const response = await this.fetch(
       `${this.config.api_url}${create_subscription_path}`,
       {
         method: "POST",
@@ -346,7 +360,7 @@ export class PayPalSDK {
     const token = await this.get_access_token();
 
     const path = get_subscription_path.replace("{id}", subscription_id);
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -379,7 +393,7 @@ export class PayPalSDK {
 
   private async get<T>(op: string, path: string): Promise<T> {
     const token = await this.get_access_token();
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -400,7 +414,7 @@ export class PayPalSDK {
     const token = await this.get_access_token();
 
     const path = cancel_subscription_path.replace("{id}", subscription_id);
-    const response = await globalThis.fetch(`${this.config.api_url}${path}`, {
+    const response = await this.fetch(`${this.config.api_url}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
