@@ -130,7 +130,7 @@ export interface ISubDeactivatedPayload {
   platform: string;
   status_cancel_reason?: string | null;
   /** set by the donor's own cancel, which told them it went through. absent from
-   * the refund and stripe-webhook cancels, and from messages enqueued before it */
+   * the refund and stripe-webhook cancels */
   by_donor?: boolean;
   /** the row's, so each donor cancel keys apart */
   updated_at?: string;
