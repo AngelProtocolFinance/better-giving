@@ -84,6 +84,12 @@ interface IGrantRef {
   statuses?: readonly { createdAt?: string }[];
 }
 
+/** chariot doesn't promise `statuses` in date order */
+const dates_of = (statuses: readonly { createdAt?: string }[] = []) =>
+  statuses
+    .flatMap((x) => (x.createdAt ? [x.createdAt] : []))
+    .sort((a, b) => Date.parse(a) - Date.parse(b));
+
 /** what an operator needs to act on: the money and whose it is, never the donor */
 const grant_facts = (grant: IGrantRef, don?: IDonation, sttl_id?: string) =>
   [
@@ -170,7 +176,7 @@ async function ack_unfixable(
 const RECORDING_GRACE_MS = 60 * 60_000;
 
 function is_young(grant: IGrantRef): boolean {
-  const created = grant.createdAt ?? grant.statuses?.[0]?.createdAt;
+  const created = grant.createdAt ?? dates_of(grant.statuses)[0];
   // no age to judge by would never age out of redelivery: treat as an orphan
   if (!created) return false;
   return Date.now() - new Date(created).getTime() < RECORDING_GRACE_MS;
@@ -369,8 +375,9 @@ export async function action({ request }: Route.ActionArgs) {
     const { fee, fee_parts } = grant_fees(grant);
 
     const completed_at =
-      grant.statuses?.filter((x) => x.status === "Completed").at(-1)
-        ?.createdAt ?? grant.updatedAt;
+      dates_of(grant.statuses?.filter((x) => x.status === "Completed")).at(
+        -1
+      ) ?? grant.updatedAt;
 
     const settlement: ISettlement = {
       date: new Date(completed_at ?? Date.now()).toISOString(),

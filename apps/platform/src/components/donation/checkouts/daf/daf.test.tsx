@@ -1,9 +1,8 @@
-import { AskHost } from "@better-giving/ui";
 import { HttpResponse, http } from "msw";
-import type { ReactNode } from "react";
-import { createRoutesStub, href } from "react-router";
+import { href } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { CDN_SRC, fv, stb, success_detail } from "#/__tests__/fixtures/daf";
 import { mswWorker } from "#/setup-tests-browser";
 import { resp } from "@/helpers/https";
 import type { Config, DafDonationDetails } from "../../types";
@@ -30,55 +29,6 @@ const redirect_mock = vi.hoisted(() => vi.fn());
 vi.mock("../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
-
-const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
-
-const fv: DafDonationDetails = {
-  amount: "100",
-  tip: "",
-  tip_format: "none",
-  cover_processing_fee: false,
-};
-
-/** what chariot hands back on CHARIOT_SUCCESS — a grant that has already been
- * recommended, in cents, with the donor's details off their daf account. */
-const success_detail = {
-  workflowSessionId: "ws_1",
-  grantIntent: {
-    amount: 10_000,
-    metadata: {
-      don_id: "11111111-1111-4111-8111-111111111111",
-      amount: { base: 100, tip: 0, fee_allowance: 0 },
-    },
-  },
-  user: {
-    firstName: "John",
-    lastName: "Doe",
-    email: "john@doe.com",
-    address: {
-      line1: "1 Main St",
-      line2: "",
-      city: "Springfield",
-      state: "IL",
-      postalCode: "62701",
-    },
-  },
-};
-
-// the checkout's prompts are raised through `ask`, which mounts at `AskHost`
-const stb = (node: ReactNode) =>
-  createRoutesStub([
-    {
-      path: "/",
-      Component: () => (
-        <>
-          {node}
-          <AskHost />
-        </>
-      ),
-      HydrateFallback: () => null,
-    },
-  ]);
 
 describe("daf checkout: a grant that goes through but never lands", () => {
   afterEach(() => {
@@ -526,120 +476,5 @@ describe("daf checkout: the grant is what the summary shows, in whole dollars", 
       tip: 2.5,
       fee_allowance: 0.83,
     });
-  });
-});
-
-describe("daf checkout: a second launch while the first intent is in flight", () => {
-  afterEach(() => {
-    redirect_mock.mockReset();
-    for (const s of document.querySelectorAll(`script[src="${CDN_SRC}"]`)) {
-      s.remove();
-    }
-  });
-
-  // chariot's element is a custom element the cdn script defines; the script is
-  // never loaded here, so this stands in for it with the one behavior that
-  // matters: a launch button inside its shadow root that reports a recommended
-  // grant. defined once for the rest of the file's page.
-  if (!customElements.get("chariot-connect")) {
-    customElements.define(
-      "chariot-connect",
-      class extends HTMLElement {
-        connectedCallback() {
-          const btn = document.createElement("button");
-          btn.textContent = "Launch DAF";
-          btn.addEventListener("click", () =>
-            this.dispatchEvent(
-              new CustomEvent("CHARIOT_SUCCESS", { detail: success_detail })
-            )
-          );
-          this.attachShadow({ mode: "open" }).appendChild(btn);
-        }
-      }
-    );
-  }
-
-  test("the launcher goes inert before the intent is answered, so a second launch cannot make a second intent", async () => {
-    const posted: unknown[] = [];
-    let answer!: () => void;
-    const answered = new Promise<void>((r) => {
-      answer = r;
-    });
-    mswWorker.use(
-      http.post(href("/api/donation-intents"), async ({ request }) => {
-        posted.push(await request.json());
-        await answered;
-        return HttpResponse.json({ id: "don_1" });
-      })
-    );
-    redirect_mock.mockImplementation(() => {});
-    const s = document.createElement("script");
-    s.type = "text/plain";
-    s.src = CDN_SRC;
-    document.head.appendChild(s);
-
-    const Stub = stb(<ChariotCheckout {...fv} />);
-    const screen = await render(<Stub />);
-    const launch = screen.getByRole("button", { name: /launch daf/i });
-    // `closest` stops at the shadow boundary, so inertness is read off the host
-    const host = screen.container.querySelector("chariot-connect")!;
-
-    await launch.click();
-    await vi.waitFor(() => expect(posted).toHaveLength(1));
-
-    // the first intent has no answer yet. `inert` is what stops the second
-    // click: it shuts out pointer and keyboard, where a programmatic click()
-    // still reaches the handler, which holds no latch of its own.
-    await vi.waitFor(() => expect(host.closest("[inert]")).not.toBeNull());
-    // and the donor cannot reach it by role either
-    expect(
-      screen.getByRole("button", { name: /launch daf/i }).query()
-    ).toBeNull();
-
-    answer();
-    await vi.waitFor(() => expect(redirect_mock).toHaveBeenCalledOnce());
-    expect(posted).toHaveLength(1);
-  });
-
-  test("a refusal that made no grant brings the launcher back, and a second launch posts a second intent", async () => {
-    // the live read for the test above: the same click does post when nothing
-    // has been sent, so one intent there is the guard and not a dead button
-    const posted: unknown[] = [];
-    let refuse_first = true;
-    mswWorker.use(
-      http.post(href("/api/donation-intents"), async ({ request }) => {
-        posted.push(await request.json());
-        if (refuse_first) {
-          refuse_first = false;
-          return resp.refuse("Your fund couldn't make this grant.", 410);
-        }
-        return HttpResponse.json({ id: "don_1" });
-      })
-    );
-    redirect_mock.mockImplementation(() => {});
-    const s = document.createElement("script");
-    s.type = "text/plain";
-    s.src = CDN_SRC;
-    document.head.appendChild(s);
-
-    const Stub = stb(<ChariotCheckout {...fv} />);
-    const screen = await render(<Stub />);
-    const launch = screen.getByRole("button", { name: /launch daf/i });
-
-    await launch.click();
-    await expect
-      .element(screen.getByRole("dialog"))
-      .toMatchTextContent(/couldn't make this grant/i);
-    (
-      screen
-        .getByRole("button", { name: "Ok", exact: true })
-        .element() as HTMLElement
-    ).click();
-    await vi.waitFor(() =>
-      expect(screen.getByRole("dialog").query()).toBeNull()
-    );
-    await launch.click();
-
-    await vi.waitFor(() => expect(posted).toHaveLength(2));
   });
 });

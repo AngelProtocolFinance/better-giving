@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import type { Grant } from "@better-giving/chariot";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const get_grant_mock = vi.hoisted(() => vi.fn());
@@ -660,7 +661,9 @@ describe("chariot webhook completed grant", () => {
   });
 
   describe("which status entry dates the settlement", () => {
-    const settled_date = async (grant: Record<string, unknown>) => {
+    const settled_date = async (
+      grant: Pick<Grant, "updatedAt" | "statuses">
+    ) => {
       quiet_console();
       get_grant_mock.mockResolvedValue({ ...completed_grant, ...grant });
       donation_mocks.get.mockResolvedValue({
@@ -679,9 +682,24 @@ describe("chariot webhook completed grant", () => {
       const date = await settled_date({
         updatedAt: "2026-09-09T00:00:00Z",
         statuses: [
-          { id: "s1", status: "Completed", createdAt: "2026-09-01T10:00:00Z" },
-          { id: "s2", status: "Completed", createdAt: "2026-09-03T08:00:00Z" },
-          { id: "s3", status: "Processing", createdAt: "2026-09-04T00:00:00Z" },
+          { id: "s1", status: "Initiated", createdAt: "2026-08-30T09:00:00Z" },
+          { id: "s2", status: "Completed", createdAt: "2026-09-01T10:00:00Z" },
+          { id: "s3", status: "Canceled", createdAt: "2026-09-02T11:00:00Z" },
+          { id: "s4", status: "Completed", createdAt: "2026-09-03T08:00:00Z" },
+        ],
+      });
+
+      expect(date).toBe("2026-09-03T08:00:00.000Z");
+    });
+
+    it("takes the latest Completed entry by its own date, not by its place in the list", async () => {
+      const date = await settled_date({
+        updatedAt: "2026-09-09T00:00:00Z",
+        statuses: [
+          { id: "s4", status: "Completed", createdAt: "2026-09-03T08:00:00Z" },
+          { id: "s1", status: "Initiated", createdAt: "2026-08-30T09:00:00Z" },
+          { id: "s3", status: "Canceled", createdAt: "2026-09-02T11:00:00Z" },
+          { id: "s2", status: "Completed", createdAt: "2026-09-01T10:00:00Z" },
         ],
       });
 
@@ -694,6 +712,15 @@ describe("chariot webhook completed grant", () => {
         statuses: [
           { id: "s1", status: "Initiated", createdAt: "2026-08-01T10:00:00Z" },
         ],
+      });
+
+      expect(date).toBe("2026-09-05T00:00:00.000Z");
+    });
+
+    it("falls back to when the grant was last updated when it carries no statuses", async () => {
+      const date = await settled_date({
+        updatedAt: "2026-09-05T00:00:00Z",
+        statuses: undefined,
       });
 
       expect(date).toBe("2026-09-05T00:00:00.000Z");
@@ -1061,6 +1088,21 @@ describe("chariot webhook completed grant", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
     expect(donation_mocks.update).not.toHaveBeenCalled();
     expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("ages a grant by its earliest status entry, not by its first in the list", async () => {
+    quiet_console();
+    const statuses: Grant["statuses"] = [
+      { id: "s2", status: "Completed", createdAt: minutes_ago(1) },
+      { id: "s1", status: "Initiated", createdAt: minutes_ago(3 * 60) },
+    ];
+    get_grant_mock.mockResolvedValue({ ...completed_grant, statuses });
+    donation_mocks.get.mockResolvedValue(undefined);
+
+    const res = await deliver(complete_event);
+
+    expect(res.status).toBe(200);
+    expect(alert_body()).toContain("not found");
   });
 
   it("alert for a cancelled donation carries the amount and recipient, no donor data", async () => {
