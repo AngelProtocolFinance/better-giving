@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { HttpError, json_ok } from "./https";
+import { HttpError, json_ok, resp } from "./https";
 
 describe("json_ok", () => {
   test("ok response yields the parsed body", async () => {
@@ -7,20 +7,26 @@ describe("json_ok", () => {
     await expect(json_ok<{ a: number }>(res)).resolves.toEqual({ a: 1 });
   });
 
-  test("plain-text 4xx throws with the status and the trimmed body text", async () => {
-    const res = new Response("  The minimum donation is $2.\n", {
-      status: 400,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
+  test("a refusal throws with the status and the trimmed body text", async () => {
+    const res = resp.refuse("  The minimum donation is $2.\n");
     const err = await json_ok<never>(res).catch((e: HttpError) => e);
     expect(err).toBeInstanceOf(HttpError);
     expect(err.status).toBe(400);
     expect(err.message).toBe("The minimum donation is $2.");
   });
 
+  test("a refusal keeps the status it was given", async () => {
+    const err = await json_ok<never>(resp.refuse("closed", 404)).catch(
+      (e: HttpError) => e
+    );
+    expect(err.status).toBe(404);
+    expect(err.message).toBe("closed");
+  });
+
   test.each([
     ["an html page", "text/html", "<!doctype html><h1>Forbidden</h1>"],
     ["json", "application/json", '{"error":"rate limited"}'],
+    ["unmarked plain text", "text/plain", "order_id: Invalid key"],
   ])(
     "4xx with %s throws with the status and no message",
     async (_, type, body) => {
@@ -34,6 +40,14 @@ describe("json_ok", () => {
       expect(err.message).toBe("");
     }
   );
+
+  test("5xx throws with no message even when marked a refusal", async () => {
+    const err = await json_ok<never>(resp.refuse("boom", 500)).catch(
+      (e: HttpError) => e
+    );
+    expect(err.status).toBe(500);
+    expect(err.message).toBe("");
+  });
 
   test("5xx throws with the status and no message", async () => {
     const res = new Response("<!doctype html><h1>Application Error</h1>", {

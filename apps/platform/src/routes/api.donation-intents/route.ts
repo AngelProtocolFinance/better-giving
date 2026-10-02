@@ -58,12 +58,12 @@ const json_with_cookie_fn =
     });
   };
 
-// a 4xx body reaches the donor verbatim; the detail stays in the log
+// the card, bank and paypal checkouts show this body via `json_ok`; the daf
+// and crypto checkouts read it raw. the detail stays in the log
 const refused = (detail: string) => {
   console.info(`[resp] 400 - ${detail}`);
-  return resp.txt(
-    "We couldn't process this donation. Please refresh the page and try again.",
-    400
+  return resp.refuse(
+    "We couldn't process this donation. Please refresh the page and try again."
   );
 };
 
@@ -99,7 +99,7 @@ export const action: ActionFunction = async ({ request }) => {
   if (!to) {
     const recipient = typeof to_id === "number" ? "nonprofit" : "fundraiser";
     console.info(`[resp] 404 - ${recipient}:${to_id} not found or closed`);
-    return resp.txt(
+    return resp.refuse(
       `This ${recipient} isn't accepting donations right now.`,
       404
     );

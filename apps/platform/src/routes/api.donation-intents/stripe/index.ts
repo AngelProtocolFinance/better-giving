@@ -21,9 +21,8 @@ export const stripe_intent: Provider = async ({
   const upusd = await unit_per_usd(intent.currency);
   const base_usd = rd2num(intent.amount.base / upusd, 1);
   if (base_usd < MIN_DONATION_USD) {
-    return resp.txt(
-      `The minimum donation is $${MIN_DONATION_USD}. Try a larger amount.`,
-      400
+    return resp.refuse(
+      `The minimum donation is $${MIN_DONATION_USD}. Try a larger amount.`
     );
   }
 
@@ -33,9 +32,8 @@ export const stripe_intent: Provider = async ({
     intent.frequency !== "one-time" &&
     recurring_bank_methods(intent.currency).length === 0
   ) {
-    return resp.txt(
-      "Recurring bank payments are available in USD and CAD. Choose one of those currencies or pay by card.",
-      400
+    return resp.refuse(
+      "Recurring bank payments are available in USD and CAD. Choose one of those currencies or pay by card."
     );
   }
 
@@ -78,7 +76,7 @@ export const stripe_intent: Provider = async ({
     console.info(
       `[stripe-intent] 400 - ${refusal.code} - don ${don.id} - ${refusal.message}`
     );
-    return resp.txt(refusal.reason, 400);
+    return resp.refuse(refusal.reason);
   }
 
   const body: IStripeIntentReturn = {

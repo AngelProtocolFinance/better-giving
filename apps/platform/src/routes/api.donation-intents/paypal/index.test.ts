@@ -63,6 +63,7 @@ describe("paypal_intent currency", () => {
     const res = (await paypal_intent(ctx({ currency: "NGN" }))) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(donation_put_mock).not.toHaveBeenCalled();
     expect(create_order_mock).not.toHaveBeenCalled();
   });
@@ -77,7 +78,8 @@ describe("paypal_intent minimum", () => {
     )) as Response;
 
     expect(res.status).toBe(400);
-    // text/plain is what the checkout reads a refusal's sentence from
+    expect(res.headers.get("x-refusal")).toBe("1");
+    // the refusal marker is what lets `json_ok` show the donor this sentence
     expect(res.headers.get("content-type")).toBe("text/plain");
     await expect(res.text()).resolves.toBe(
       "The minimum PayPal donation is 2 USD, or its equivalent in JPY."
@@ -91,6 +93,7 @@ describe("paypal_intent minimum", () => {
     )) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     await expect(res.text()).resolves.toBe(
       "The minimum PayPal donation is 2 USD."
     );

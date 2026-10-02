@@ -15,9 +15,8 @@ import { create_subs } from "./create-subs";
 export const paypal_intent: Provider = async ({ to, from, intent }) => {
   const scale = paypal_currencies[intent.currency];
   if (scale === undefined) {
-    return resp.txt(
-      `PayPal doesn't accept ${intent.currency}. Try another payment method.`,
-      400
+    return resp.refuse(
+      `PayPal doesn't accept ${intent.currency}. Try another payment method.`
     );
   }
   const charge = paypal_charge(intent.amount, scale);
@@ -26,11 +25,10 @@ export const paypal_intent: Provider = async ({ to, from, intent }) => {
   const base_usd = rd2num(charge.amount.base / upusd, 1);
   if (base_usd < MIN_DONATION_USD) {
     const usd = `${MIN_DONATION_USD} USD`;
-    return resp.txt(
+    return resp.refuse(
       intent.currency === "USD"
         ? `The minimum PayPal donation is ${usd}.`
-        : `The minimum PayPal donation is ${usd}, or its equivalent in ${intent.currency}.`,
-      400
+        : `The minimum PayPal donation is ${usd}, or its equivalent in ${intent.currency}.`
     );
   }
 
