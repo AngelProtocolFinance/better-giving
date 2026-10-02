@@ -99,12 +99,36 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   // never rejects for a hook: each one's failure is reported by its id
   await trigger_webhooks(r).catch(report_error);
 
-  // reported, not thrown: the work is done, and a throw only buys redeliveries
-  // that answer busy until the lease runs out, then take the claim and repeat
-  // the mail, the metric and every hook
-  await mark_dist_notice_sent(r.id, db).catch((e) =>
-    report_error(e, { dist_id: r.id, during: "dist notice sent stamp" })
-  );
+  await stamp_notice_sent(db, r.id);
+}
+
+// waits before the 2nd and 3rd attempt
+const STAMP_BACKOFF_MS = [200, 1_000];
+
+/**
+ * the mail, metric and hooks already went, so the stamp is retried inline: it
+ * is one idempotent update. if every attempt fails the run still resolves — a
+ * throw only buys redeliveries that answer busy until the lease runs out, then
+ * take the claim and repeat everything. an unstamped notice repeats the same
+ * way on any later delivery (a dlq replay, a re-enqueue), so that is reported
+ * at error level.
+ */
+async function stamp_notice_sent(db: DbOrTx, dist_id: string) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await mark_dist_notice_sent(dist_id, db);
+    } catch (e) {
+      const backoff = STAMP_BACKOFF_MS[attempt];
+      if (backoff == null) {
+        const err = new Error(
+          `dist ${dist_id} notice sent but unstamped after ${attempt + 1} attempts: its mail, metric and hooks repeat if the message is replayed`,
+          { cause: e }
+        );
+        return report_error(err, { dist_id });
+      }
+      await new Promise((ok) => setTimeout(ok, backoff));
+    }
+  }
 }
 
 async function send_npo_notice(r: IDonDistPayload) {

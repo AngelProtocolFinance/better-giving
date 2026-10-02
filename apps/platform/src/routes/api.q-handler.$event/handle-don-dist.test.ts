@@ -465,17 +465,68 @@ describe("handle_don_dist redelivery", () => {
     });
   });
 
-  test("a failed sent stamp is reported, and the run still answers ok", async () => {
-    query_webhooks.mockResolvedValue([]);
-    const outage = new Error("connection terminated");
-    dist_writes.mark_dist_notice_sent.mockRejectedValueOnce(outage);
+  describe("sent stamp", () => {
+    // only setTimeout is faked: the backoff is the clock under test, and
+    // pglite's own scheduling stays real
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout"] });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+    const backoff_queued = async (run: Promise<unknown>) => {
+      let settled = false;
+      run.then(
+        () => (settled = true),
+        () => (settled = true)
+      );
+      while (vi.getTimerCount() === 0) {
+        if (settled) throw new Error("the run settled without a backoff");
+        await new Promise((ok) => setImmediate(ok));
+      }
+    };
 
-    await handle_don_dist(app_db, eur_gift);
+    test("a stamp that fails once is retried after 200ms, and nothing is reported", async () => {
+      query_webhooks.mockResolvedValue([]);
+      dist_writes.mark_dist_notice_sent.mockRejectedValueOnce(
+        new Error("connection terminated")
+      );
 
-    expect(send_email_or_throw).toHaveBeenCalledOnce();
-    expect(report_error).toHaveBeenCalledExactlyOnceWith(outage, {
-      dist_id: "don-1",
-      during: "dist notice sent stamp",
+      const run = handle_don_dist(app_db, eur_gift);
+      await backoff_queued(run);
+      await vi.advanceTimersByTimeAsync(199);
+      expect(dist_writes.mark_dist_notice_sent).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(1);
+      await run;
+
+      expect(dist_writes.mark_dist_notice_sent).toHaveBeenCalledTimes(2);
+      expect(report_error).not.toHaveBeenCalled();
+      // stamped: a replay finds the notice done and mails nothing
+      await handle_don_dist(app_db, eur_gift);
+      expect(send_email_or_throw).toHaveBeenCalledOnce();
+    });
+
+    test("a stamp that fails every attempt is reported once by dist id, and the run still answers ok", async () => {
+      query_webhooks.mockResolvedValue([]);
+      const outage = new Error("connection terminated");
+      dist_writes.mark_dist_notice_sent.mockRejectedValue(outage);
+
+      const run = handle_don_dist(app_db, eur_gift);
+      await backoff_queued(run);
+      await vi.advanceTimersByTimeAsync(200);
+      await backoff_queued(run);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(dist_writes.mark_dist_notice_sent).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1);
+      await run;
+
+      expect(dist_writes.mark_dist_notice_sent).toHaveBeenCalledTimes(3);
+      expect(send_email_or_throw).toHaveBeenCalledOnce();
+      expect(report_error).toHaveBeenCalledOnce();
+      const [err, context] = report_error.mock.calls[0]!;
+      expect(context).toEqual({ dist_id: "don-1" });
+      expect(err.message).toMatch(/dist don-1 .*repeat.*replay/);
+      expect(err.cause).toBe(outage);
     });
   });
 
