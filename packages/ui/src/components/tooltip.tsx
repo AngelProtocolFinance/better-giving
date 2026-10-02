@@ -91,7 +91,9 @@ export function Tooltip(props: Props) {
 
   useEffect(() => {
     const el = wrap_ref.current;
-    if (!import.meta.env?.DEV || !el) return;
+    // cast: not every consumer's tsconfig (design-sync) carries vite's ImportMeta types
+    const dev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
+    if (!dev || !el) return;
     if (el.querySelector(INTERACTIVE)) {
       console.warn(
         'Tooltip wrapped a child that renders its own interactive element in a second button; pass trigger="child".',
