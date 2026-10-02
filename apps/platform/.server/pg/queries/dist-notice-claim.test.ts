@@ -17,12 +17,16 @@ vi.mock("../db", () => ({
 }));
 
 import { eq } from "drizzle-orm";
+import { country_metrics } from "../schema/country";
 import { dists } from "../schema/dist";
 import { donations } from "../schema/donation";
 import { create_test_db } from "../test-utils/pglite";
+import { country_update } from "./country";
 import {
   claim_dist_notice,
+  count_dist_metric,
   DIST_NOTICE_LEASE_MS,
+  mark_dist_hooks_sent,
   mark_dist_notice_sent,
   release_dist_notice,
 } from "./dist";
@@ -40,6 +44,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { db } = test_db.current!;
   await db.delete(dists);
+  await db.delete(country_metrics);
   await db.delete(donations);
   await db.insert(donations).values({
     id: "don-1",
@@ -112,12 +117,31 @@ test("a holder that outlived its lease cannot release the claim taken since", as
   expect((await notice_of()).claimed).toBeNull();
 });
 
-test("a sent notice is never claimed again, even by a release that comes late", async () => {
+const finish_all_steps = async () => {
+  await mark_dist_notice_sent(DIST_ID);
+  await count_dist_metric(DIST_ID, async () => {});
+  await mark_dist_hooks_sent(DIST_ID);
+};
+
+test("a finished notice is never claimed again, even by a release that comes late", async () => {
+  const stamp = await claim_stamp();
+  await finish_all_steps();
+  await release_dist_notice(DIST_ID, stamp);
+  expect((await notice_of()).claimed).not.toBeNull();
+  expect(await claim_dist_notice(DIST_ID)).toEqual({ status: "done" });
+});
+
+test("a release after the mail but before the metric reopens the notice for the rest", async () => {
   const stamp = await claim_stamp();
   await mark_dist_notice_sent(DIST_ID);
   await release_dist_notice(DIST_ID, stamp);
-  expect(await claim_dist_notice(DIST_ID)).toEqual({ status: "done" });
-  expect((await notice_of()).sent).not.toBeNull();
+  expect((await notice_of()).claimed).toBeNull();
+  expect(await claim_dist_notice(DIST_ID)).toMatchObject({
+    status: "claimed",
+    mailed: true,
+    counted: false,
+    hooked: false,
+  });
 });
 
 test("a claim whose holder died expires after the lease", async () => {
@@ -133,4 +157,56 @@ test("a dist refunded before its notice ran is not claimed", async () => {
     .set({ status: "refunded" })
     .where(eq(dists.id, DIST_ID));
   expect(await claim_dist_notice(DIST_ID)).toEqual({ status: "done" });
+});
+
+test("a fresh claim reports no step done, and all three stamps end the notice", async () => {
+  expect(await claim_dist_notice(DIST_ID)).toMatchObject({
+    status: "claimed",
+    mailed: false,
+    counted: false,
+    hooked: false,
+  });
+  await finish_all_steps();
+  expect(await claim_dist_notice(DIST_ID)).toEqual({ status: "done" });
+});
+
+const add_usa = (tx: Parameters<typeof country_update>[0]) =>
+  country_update(tx, {
+    country_key: "usa",
+    country_name: "USA",
+    inc_amount: 50,
+    is_new_week: false,
+  });
+
+const usa_total = async () => {
+  const [row] = await test_db
+    .current!.db.select({ total: country_metrics.total_donations })
+    .from(country_metrics)
+    .where(eq(country_metrics.country_key, "usa"));
+  return row?.total;
+};
+
+test("the metric counts once however many holders reach it", async () => {
+  expect(await count_dist_metric(DIST_ID, add_usa)).toBe(true);
+  expect(await count_dist_metric(DIST_ID, add_usa)).toBe(false);
+  expect(await usa_total()).toBe(50);
+});
+
+test("a metric write that throws rolls back with its stamp and is retried whole", async () => {
+  const boom = new Error("boom");
+  await expect(
+    count_dist_metric(DIST_ID, async (tx) => {
+      await add_usa(tx);
+      throw boom;
+    })
+  ).rejects.toBe(boom);
+  expect(await usa_total()).toBeUndefined();
+  const [row] = await test_db
+    .current!.db.select({ counted: dists.metric_counted_at })
+    .from(dists)
+    .where(eq(dists.id, DIST_ID));
+  expect(row?.counted).toBeNull();
+
+  expect(await count_dist_metric(DIST_ID, add_usa)).toBe(true);
+  expect(await usa_total()).toBe(50);
 });

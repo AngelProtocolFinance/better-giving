@@ -10,6 +10,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { IBalanceTx } from "@/balance-txs";
 import type { IDonationsSearch, IPageOpts } from "@/donations";
 import type { IAddr } from "@/types/donation";
@@ -26,7 +27,7 @@ import { npos } from "../schema/npo";
 import { payouts } from "../schema/payout";
 import { referrer_commissions } from "../schema/referrer";
 import { rev_logs } from "../schema/revenue";
-import type { DbOrTx, IPage } from "./helpers";
+import type { DbOrTx, IPage, Tx } from "./helpers";
 import { decode_date_cursor, encode_date_cursor } from "./helpers";
 
 export type DistRow = typeof dists.$inferSelect;
@@ -173,27 +174,40 @@ const lease_cutoff = sql`now() - make_interval(secs => ${DIST_NOTICE_LEASE_MS / 
 
 /**
  * - `claimed`: the caller holds the notice; `stamp` is its claim, the one
- *   `release_dist_notice` gives back
- * - `done`: nothing left to send, ever — the notice is out, or the dist is no
- *   longer `settled` (the queue payload is a snapshot from before enqueue, and
- *   the row is what knows a refund landed since)
+ *   `release_dist_notice` gives back. `mailed`/`counted`/`hooked` say which
+ *   steps an earlier holder already finished — the caller runs only the rest
+ * - `done`: nothing left to run, ever — all three steps are stamped, or the
+ *   dist is no longer `settled` (the queue payload is a snapshot from before
+ *   enqueue, and the row is what knows a refund landed since)
  * - `busy`: another holder's claim is inside its lease, and may yet die
- *   without sending — the caller has to come back after the lease, not drop it
+ *   without finishing — the caller has to come back after the lease, not drop it
  */
 export type DistNoticeClaim =
-  | { status: "claimed"; stamp: string }
+  | {
+      status: "claimed";
+      stamp: string;
+      mailed: boolean;
+      counted: boolean;
+      hooked: boolean;
+    }
   | { status: "done" }
   | { status: "busy" };
 
+const stamped = (step: AnyPgColumn) => sql<boolean>`${step} is not null`;
+
+const steps_pending = sql<boolean>`(${dists.notice_sent_at} is null or ${dists.metric_counted_at} is null or ${dists.hooks_sent_at} is null)`;
+
 /**
- * claim the right to run this dist's npo notice — country metrics, the npo's
- * mail, its zapier hooks.
+ * claim the right to run this dist's npo notice — the npo's mail, the country
+ * metric, its zapier hooks.
  *
- * the same two-stamp lease as `claim_receipt_send`: `notice_claimed_at` is
- * taken here and expires after `DIST_NOTICE_LEASE_MS`, so a holder killed
- * mid-run does not take the notice with it; `notice_sent_at` is written by
- * `mark_dist_notice_sent` once the side effects are done and never expires.
- * both the stamp and the expiry read the database clock, never an instance's.
+ * one lease covers all three: `notice_claimed_at` is taken here and expires
+ * after `DIST_NOTICE_LEASE_MS`, so a holder killed mid-run does not take the
+ * notice with it. each step has its own permanent stamp — `notice_sent_at`
+ * (`mark_dist_notice_sent`), `metric_counted_at` (`count_dist_metric`),
+ * `hooks_sent_at` (`mark_dist_hooks_sent`) — so a step that finished is never
+ * repeated and one that failed is retried alone. both the lease and the stamps
+ * read the database clock, never an instance's.
  */
 export async function claim_dist_notice(
   dist_id: string,
@@ -208,33 +222,40 @@ export async function claim_dist_notice(
       and(
         eq(dists.id, dist_id),
         eq(dists.status, "settled"),
-        isNull(dists.notice_sent_at),
+        steps_pending,
         or(
           isNull(dists.notice_claimed_at),
           lt(dists.notice_claimed_at, lease_cutoff)
         )
       )
     )
-    .returning({ stamp: dists.notice_claimed_at });
-  if (claimed?.stamp) return { status: "claimed", stamp: claimed.stamp };
+    .returning({
+      stamp: dists.notice_claimed_at,
+      mailed: stamped(dists.notice_sent_at),
+      counted: stamped(dists.metric_counted_at),
+      hooked: stamped(dists.hooks_sent_at),
+    });
+  if (claimed?.stamp) {
+    const { stamp, mailed, counted, hooked } = claimed;
+    return { status: "claimed", stamp, mailed, counted, hooked };
+  }
 
   // read after the miss, so a state that moved in between can only read as
-  // busy, whose retry then sees it — sent and refunded never move back
+  // busy, whose retry then sees it — stamps and refunds never move back
   const [row] = await tx
-    .select({ status: dists.status, sent: dists.notice_sent_at })
+    .select({ status: dists.status, pending: steps_pending })
     .from(dists)
     .where(eq(dists.id, dist_id));
   // a missing dist has nothing to send either
-  if (row?.status !== "settled" || row.sent) return { status: "done" };
+  if (row?.status !== "settled" || !row.pending) return { status: "done" };
   return { status: "busy" };
 }
 
 /**
- * give back a notice claim whose side effects did not complete, so the
+ * give back a notice claim whose steps did not all complete, so the
  * redelivery can take it. only the claim `stamp` names: a holder that outlived
- * its lease must not clear the claim a later holder took since. the
- * `notice_sent_at` guard keeps a late release from reopening a notice that
- * already went out.
+ * its lease must not clear the claim a later holder took since. a notice with
+ * every step stamped stays claimed, so a late release cannot reopen it.
  */
 export async function release_dist_notice(
   dist_id: string,
@@ -248,14 +269,14 @@ export async function release_dist_notice(
       and(
         eq(dists.id, dist_id),
         eq(dists.notice_claimed_at, stamp),
-        isNull(dists.notice_sent_at)
+        steps_pending
       )
     );
 }
 
 /**
- * record that this dist's notice is out; permanent, every later claim stops on
- * it. not tied to a claim: once the mail has gone, sent is true whoever holds.
+ * record that this dist's npo mail is out; permanent. not tied to a claim:
+ * once the mail has gone, sent is true whoever holds.
  */
 export async function mark_dist_notice_sent(
   dist_id: string,
@@ -264,6 +285,46 @@ export async function mark_dist_notice_sent(
   await tx
     .update(dists)
     .set({ notice_sent_at: sql`now()` })
+    .where(eq(dists.id, dist_id));
+}
+
+/**
+ * run `write` — the country metric increment — at most once per dist. the
+ * stamp and `write` share one transaction, so either both land or neither:
+ * a `write` that throws rolls the stamp back and the error propagates, leaving
+ * the step for a later call. `write` must issue every statement on the `tx` it
+ * is handed, or that statement escapes the rollback. true when this call
+ * counted, false when the metric was already counted.
+ */
+export async function count_dist_metric(
+  dist_id: string,
+  write: (tx: Tx) => Promise<void>,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  // handed a tx, this nests as a savepoint inside the caller's transaction
+  return tx.transaction(async (t) => {
+    const [stamped] = await t
+      .update(dists)
+      .set({ metric_counted_at: sql`now()` })
+      .where(and(eq(dists.id, dist_id), isNull(dists.metric_counted_at)))
+      .returning({ id: dists.id });
+    if (!stamped) return false;
+    await write(t);
+    return true;
+  });
+}
+
+/**
+ * record that this dist's zapier hooks went out; permanent, and like
+ * `mark_dist_notice_sent` not tied to a claim.
+ */
+export async function mark_dist_hooks_sent(
+  dist_id: string,
+  tx: DbOrTx = db
+): Promise<void> {
+  await tx
+    .update(dists)
+    .set({ hooks_sent_at: sql`now()` })
     .where(eq(dists.id, dist_id));
 }
 

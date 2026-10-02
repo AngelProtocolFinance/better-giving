@@ -49,12 +49,18 @@ vi.mock("#/errors/report", () => ({ report_error, report_degraded }));
 const dist_writes = vi.hoisted(() => ({
   release_dist_notice: vi.fn(),
   mark_dist_notice_sent: vi.fn(),
+  count_dist_metric: vi.fn(),
+  mark_dist_hooks_sent: vi.fn(),
 }));
 vi.mock("$/pg/queries/dist", async (actual) => {
   const real = await actual<typeof import("$/pg/queries/dist")>();
   dist_writes.release_dist_notice.mockImplementation(real.release_dist_notice);
   dist_writes.mark_dist_notice_sent.mockImplementation(
     real.mark_dist_notice_sent
+  );
+  dist_writes.count_dist_metric.mockImplementation(real.count_dist_metric);
+  dist_writes.mark_dist_hooks_sent.mockImplementation(
+    real.mark_dist_hooks_sent
   );
   return { ...real, ...dist_writes };
 });
@@ -465,7 +471,83 @@ describe("handle_don_dist redelivery", () => {
     });
   });
 
-  describe("sent stamp", () => {
+  test("a metric write that throws fails the run, and the redelivery counts once without mailing again", async () => {
+    query_webhooks.mockResolvedValue(one_hook);
+    with_metrics();
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response("ok", { status: 200 }));
+    const outage = new Error("connection terminated");
+    country.country_update.mockRejectedValueOnce(outage);
+
+    await expect(handle_don_dist(app_db, eur_gift)).rejects.toBe(outage);
+    expect(fetch_spy).not.toHaveBeenCalled();
+
+    await handle_don_dist(app_db, eur_gift);
+    await handle_don_dist(app_db, eur_gift);
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    // the failed write and the one that landed; the replay counts nothing
+    expect(country.country_update).toHaveBeenCalledTimes(2);
+    // on the stamp's transaction, so the failed one rolled the stamp back
+    expect(country.country_update.mock.calls[1]![0]).not.toBe(app_db);
+    expect(fetch_spy).toHaveBeenCalledOnce();
+  });
+
+  test("a failed hook lookup fails the run, and the redelivery posts once without mailing or counting again", async () => {
+    with_metrics();
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response("ok", { status: 200 }));
+    const outage = new Error("connection terminated");
+    query_webhooks.mockRejectedValueOnce(outage);
+    query_webhooks.mockResolvedValue(one_hook);
+
+    await expect(handle_don_dist(app_db, eur_gift)).rejects.toBe(outage);
+
+    await handle_don_dist(app_db, eur_gift);
+    await handle_don_dist(app_db, eur_gift);
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(country.country_update).toHaveBeenCalledOnce();
+    expect(fetch_spy).toHaveBeenCalledOnce();
+  });
+
+  test("a dist whose mail alone is stamped counts and posts, and mails nothing", async () => {
+    query_webhooks.mockResolvedValue(one_hook);
+    with_metrics();
+    const fetch_spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response("ok", { status: 200 }));
+    await db()
+      .update(dists)
+      .set({ notice_sent_at: "2026-09-21T10:00:00.000Z" })
+      .where(eq(dists.id, "don-1"));
+
+    await handle_don_dist(app_db, eur_gift);
+
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(country.country_update).toHaveBeenCalledOnce();
+    expect(fetch_spy).toHaveBeenCalledOnce();
+  });
+
+  test("an npo with no country still stamps its metric, so a redelivery doesn't look it up again", async () => {
+    npo_get.mockResolvedValue({ hq_country: null });
+    country.country_metrics_time_get.mockResolvedValue(2638);
+    // the hooks fail so the claim comes back and the redelivery runs
+    const outage = new Error("connection terminated");
+    query_webhooks.mockRejectedValueOnce(outage);
+    query_webhooks.mockResolvedValue([]);
+
+    await expect(handle_don_dist(app_db, eur_gift)).rejects.toBe(outage);
+    await handle_don_dist(app_db, eur_gift);
+
+    expect(npo_get).toHaveBeenCalledOnce();
+    expect(country.country_update).not.toHaveBeenCalled();
+    expect(query_webhooks).toHaveBeenCalledTimes(2);
+  });
+
+  describe("step stamps", () => {
     // only setTimeout is faked: the backoff is the clock under test, and
     // pglite's own scheduling stays real
     beforeEach(() => {
@@ -559,6 +641,58 @@ describe("handle_don_dist redelivery", () => {
       expect(send_email_or_throw).toHaveBeenCalledTimes(2);
       expect(country.country_update).toHaveBeenCalledOnce();
       expect(fetch_spy).toHaveBeenCalledOnce();
+    });
+
+    test("a hooks stamp that fails every attempt is reported and thrown, and after the lease only the hooks go again", async () => {
+      query_webhooks.mockResolvedValue(one_hook);
+      with_metrics();
+      const fetch_spy = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async () => new Response("ok", { status: 200 }));
+      const outage = new Error("connection terminated");
+      dist_writes.mark_dist_hooks_sent.mockRejectedValue(outage);
+
+      const run = handle_don_dist(app_db, eur_gift);
+      const failed = run.then(
+        () => null,
+        (e: unknown) => e
+      );
+      await backoff_queued(run);
+      await vi.advanceTimersByTimeAsync(200);
+      await backoff_queued(run);
+      await vi.advanceTimersByTimeAsync(1_000);
+      const err = (await failed) as Error;
+
+      expect(dist_writes.mark_dist_hooks_sent).toHaveBeenCalledTimes(3);
+      expect(err.message).toMatch(/dist don-1 hooks .*unstamped/);
+      expect(err.cause).toBe(outage);
+      expect(report_error).toHaveBeenCalledExactlyOnceWith(err, {
+        dist_id: "don-1",
+      });
+      expect(fetch_spy).toHaveBeenCalledOnce();
+
+      // the claim stays held, so the redelivery waits out the lease
+      vi.useRealTimers();
+      dist_writes.mark_dist_hooks_sent.mockImplementation(
+        (
+          await vi.importActual<typeof import("$/pg/queries/dist")>(
+            "$/pg/queries/dist"
+          )
+        ).mark_dist_hooks_sent
+      );
+      await expect(handle_don_dist(app_db, eur_gift)).rejects.toBeInstanceOf(
+        Response
+      );
+      await db()
+        .update(dists)
+        .set({ notice_claimed_at: "2000-01-01T00:00:00.000Z" })
+        .where(eq(dists.id, "don-1"));
+      await handle_don_dist(app_db, eur_gift);
+      await handle_don_dist(app_db, eur_gift);
+
+      expect(send_email_or_throw).toHaveBeenCalledOnce();
+      expect(country.country_update).toHaveBeenCalledOnce();
+      expect(fetch_spy).toHaveBeenCalledTimes(2);
     });
   });
 

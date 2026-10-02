@@ -15,6 +15,8 @@ import {
 } from "$/pg/queries/country";
 import {
   claim_dist_notice,
+  count_dist_metric,
+  mark_dist_hooks_sent,
   mark_dist_notice_sent,
   release_dist_notice,
 } from "$/pg/queries/dist";
@@ -30,103 +32,120 @@ function YYWW(iso: string): number {
   return +`${year}${week_num}`;
 }
 
-// country metrics
-async function update_country_metrics(
-  db: DbOrTx,
-  r: { npo: number; date: string; inc_amount: number }
-) {
-  const npo = await npo_get(r.npo);
-  if (!npo?.hq_country) return;
-
-  const week_num_current = await country_metrics_time_get();
-  if (week_num_current == null) return;
-
-  const week_num = YYWW(r.date);
-  const is_new_week = week_num > week_num_current;
-
-  const country_key = npo.hq_country.trim().toLowerCase().replace(/ /g, "_");
-
-  await country_update(db, {
-    country_key,
-    country_name: npo.hq_country,
-    inc_amount: r.inc_amount,
-    is_new_week,
-  });
-
-  if (is_new_week) {
-    await country_time_update(db, week_num);
-  }
-
-  console.info(`${r.npo}:${country_key} +${r.inc_amount}`);
-}
-
 /**
- * the npo's notice of its share of a donation: its mail, the country metric,
- * its zapier hooks, under the dist's notice lease. the metric and the hooks
- * run at most once per dist; only the mail can repeat, and only when the sent
- * stamp can't be written.
+ * the npo's notice of its share of a donation, three steps under the dist's
+ * notice lease: its mail, the country metric, its zapier hooks. each step has
+ * its own stamp and a holder runs only the ones still unstamped, so a step
+ * that failed is retried alone. the metric's stamp commits with its write, so
+ * it counts exactly once; the mail and the hooks can't be taken back, so they
+ * repeat only when their stamp can't be written after they went.
  */
 export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   const claim = await claim_dist_notice(r.id, db);
-  // the notice is out, or the dist was refunded since it was queued
+  // every step is stamped, or the dist was refunded since it was queued
   if (claim.status === "done") return;
   if (claim.status === "busy") {
-    // the holder may still die without sending, so the message must come back:
+    // the holder may still die unfinished, so the message must come back:
     // any non-2xx is a qstash retry. a 4xx stays out of the incident list.
     report_degraded(new Error(`dist ${r.id} notice busy`), { dist_id: r.id });
     throw new Response("dist notice busy", { status: 409 });
   }
 
-  // the mail is the only step whose failure gives the claim back, so it runs
-  // first: the redelivery that takes the claim then repeats nothing that went.
-  try {
-    await send_npo_notice(r);
-  } catch (e) {
-    // the refusal is the error that has to survive. a failed release leaves the
-    // claim held, and redeliveries answer busy until its lease runs out.
-    await release_dist_notice(r.id, claim.stamp, db).catch((re) =>
-      report_error(re, { dist_id: r.id, during: "dist notice release" })
+  // a step that fails before anything irreversible went gives the claim back,
+  // so the redelivery retries it at once; the steps already stamped stay put
+  const or_release = async (step: () => Promise<unknown>) => {
+    try {
+      await step();
+    } catch (e) {
+      // the step's error is the one that has to survive. a failed release
+      // leaves the claim held, and redeliveries answer busy until its lease
+      // runs out.
+      await release_dist_notice(r.id, claim.stamp, db).catch((re) =>
+        report_error(re, { dist_id: r.id, during: "dist notice release" })
+      );
+      throw e;
+    }
+  };
+
+  if (!claim.mailed) {
+    await or_release(() => send_npo_notice(r));
+    // the mail went: an unstamped run throws with the claim still held, so
+    // its redeliveries answer busy until the lease runs out, then mail again
+    await stamp_or_throw(r.id, "notice mailed", () =>
+      mark_dist_notice_sent(r.id, db)
     );
-    throw e;
   }
 
-  // the mail went, so the stamp comes next: the metric is an ungated
-  // `total + inc` and a hook post can't be taken back, so neither runs until
-  // the stamp guarantees no later delivery runs them again. an unstamped run
-  // throws with the claim still held: its redeliveries answer busy until the
-  // lease runs out, then take the claim and repeat only the mail.
-  await stamp_notice_sent(db, r.id);
+  if (!claim.counted) await or_release(() => count_country_metric(db, r));
 
-  // from here nothing gives the claim back: a release would re-mail the npo.
-  // failures are reported instead.
-  await update_country_metrics(db, {
-    npo: r.to_id,
-    date: r.sttl_date,
-    inc_amount: r.net,
-  }).catch(report_error);
+  if (!claim.hooked) {
+    // only the hook lookup throws: each hook's own failure is reported by its
+    // id and not retried, since a retry reposts every hook that answered
+    await or_release(() => trigger_webhooks(r));
+    // the hooks went: as with the mail, an unstamped run keeps the claim, and
+    // the redelivery after the lease posts them again
+    await stamp_or_throw(r.id, "hooks posted", () =>
+      mark_dist_hooks_sent(r.id, db)
+    );
+  }
+}
 
-  // never rejects for a hook: each one's failure is reported by its id
-  await trigger_webhooks(r).catch(report_error);
+/** the country metric's increment, written in one transaction with its stamp */
+async function count_country_metric(db: DbOrTx, r: IDonDistPayload) {
+  const npo = await npo_get(r.to_id);
+  const week_num_current = npo?.hq_country
+    ? await country_metrics_time_get()
+    : undefined;
+
+  // nothing to count still stamps the step, so no redelivery looks again
+  if (!npo?.hq_country || week_num_current == null) {
+    await count_dist_metric(r.id, async () => {}, db);
+    return;
+  }
+
+  const country_name = npo.hq_country;
+  const country_key = country_name.trim().toLowerCase().replace(/ /g, "_");
+  const week_num = YYWW(r.sttl_date);
+  const is_new_week = week_num > week_num_current;
+
+  const counted = await count_dist_metric(
+    r.id,
+    async (tx) => {
+      await country_update(tx, {
+        country_key,
+        country_name,
+        inc_amount: r.net,
+        is_new_week,
+      });
+      if (is_new_week) await country_time_update(tx, week_num);
+    },
+    db
+  );
+  if (counted) console.info(`${r.to_id}:${country_key} +${r.net}`);
 }
 
 // waits before the 2nd and 3rd attempt
 const STAMP_BACKOFF_MS = [200, 1_000];
 
 /**
- * the mail already went, so the stamp is retried inline: it is one idempotent
- * update, and every failed delivery from here costs the npo a second mail. if
- * every attempt fails it is reported at error level and thrown, so the metric
- * and the hooks wait for the redelivery that stamps.
+ * a stamp written after its step went is retried inline: it is one idempotent
+ * update, and every failed delivery from here repeats the step. if every
+ * attempt fails it is reported at error level and thrown, with the claim
+ * still held.
  */
-async function stamp_notice_sent(db: DbOrTx, dist_id: string) {
+async function stamp_or_throw(
+  dist_id: string,
+  step: string,
+  stamp: () => Promise<void>
+) {
   for (let attempt = 0; ; attempt++) {
     try {
-      return await mark_dist_notice_sent(dist_id, db);
+      return await stamp();
     } catch (e) {
       const backoff = STAMP_BACKOFF_MS[attempt];
       if (backoff == null) {
         const err = new Error(
-          `dist ${dist_id} notice mailed but unstamped after ${attempt + 1} attempts: its metric and hooks wait for a redelivery, which mails again`,
+          `dist ${dist_id} ${step} but unstamped after ${attempt + 1} attempts`,
           { cause: e }
         );
         report_error(err, { dist_id });
