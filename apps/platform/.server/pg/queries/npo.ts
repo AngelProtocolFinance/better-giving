@@ -33,6 +33,39 @@ export type INpo = Omit<NpoRow, "target_number" | "target_smart"> & {
   contributions_count: number;
 };
 
+// balances, payout and referral bookkeeping, the stored tax-form id, and the
+// internal split of each donation — never sent to an unauthenticated page
+type NpoPrivateKey =
+  | "liq"
+  | "cash"
+  | "lock_units"
+  | "payout_minimum"
+  | "allocation"
+  | "w_form"
+  | "referral_id"
+  | "referrer_user"
+  | "referrer_npo"
+  | "referrer_expiry";
+
+export type INpoPublic = Omit<INpo, NpoPrivateKey>;
+
+export function npo_public(npo: INpo): INpoPublic {
+  const {
+    liq,
+    cash,
+    lock_units,
+    payout_minimum,
+    allocation,
+    w_form,
+    referral_id,
+    referrer_user,
+    referrer_npo,
+    referrer_expiry,
+    ...pub
+  } = npo;
+  return pub;
+}
+
 type JoinedRow = Awaited<ReturnType<typeof joined_select>>[number];
 
 // sql<T> alone skips the columns' decoders, and numeric and int8 arrive as text

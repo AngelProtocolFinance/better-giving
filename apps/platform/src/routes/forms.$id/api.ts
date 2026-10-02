@@ -27,7 +27,11 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
 
   return {
     ...form,
-    recipient_details: x,
+    recipient_details: {
+      name: x.name,
+      hide_bg_tip: x.hide_bg_tip,
+      donor_address_required: x.donor_address_required,
+    },
     base_url: new URL(request.url).origin,
   } satisfies ILoader;
 };

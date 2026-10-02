@@ -1,6 +1,6 @@
 import { get_funds_npo_memberof } from "#/.server/funds";
 import { npo_id } from "#/pages/marketplace/npo-id";
-import { npo_by_slug, npo_get } from "$/pg/queries/npo";
+import { npo_by_slug, npo_get, npo_public } from "$/pg/queries/npo";
 import { npo_media_list } from "$/pg/queries/npo-media";
 import { npo_programs } from "$/pg/queries/program";
 import type { Route } from "./+types/route";
@@ -19,7 +19,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   });
 
   return {
-    npo,
+    npo: npo_public(npo),
 
     //lazy
     funds: get_funds_npo_memberof(npo.id, { published: true }),

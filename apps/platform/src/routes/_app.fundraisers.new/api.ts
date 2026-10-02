@@ -13,7 +13,7 @@ import { resp, search } from "@/helpers/https";
 import { $int_gte1 } from "@/schemas";
 import { db } from "$/pg/db";
 import { fund_put } from "$/pg/queries/fund";
-import { npo_get, npos_batch_get } from "$/pg/queries/npo";
+import { npo_get, npo_public, npos_batch_get } from "$/pg/queries/npo";
 import { userxfund_put } from "$/pg/queries/user";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { Route } from "./+types/route";
@@ -27,7 +27,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   if (id) {
     const npo = await npo_get(+id);
     if (!npo) throw resp.status(404);
-    return npo;
+    return npo_public(npo);
   }
   return null;
 };

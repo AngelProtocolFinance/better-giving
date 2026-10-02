@@ -1,14 +1,14 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { href, NavLink } from "react-router";
 import type { UnSdgNum } from "@/npo";
-import type { INpo } from "$/pg/queries/npo";
+import type { INpoPublic } from "$/pg/queries/npo";
 import { Socials } from "./socials";
 import { Tags } from "./tags";
 
 interface Props {
   fundraisers?: ReactNode;
   target?: ReactNode;
-  npo: INpo;
+  npo: INpoPublic;
   classes?: string;
 }
 
