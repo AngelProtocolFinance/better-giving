@@ -2,6 +2,7 @@ import { show_toast } from "@better-giving/ui";
 import { useEffect } from "react";
 import { type LinksFunction, type MetaFunction, Outlet } from "react-router";
 import { metas } from "#/helpers/seo";
+import { use_route_focus } from "#/hooks/use-route-focus";
 import type { Route } from "./+types/root";
 import laira from "./assets/images/flying-character.webp";
 import tailwind from "./index.css?url";
@@ -30,6 +31,7 @@ export function HydrateFallback() {
 
 export { ErrorBoundary } from "#/components/error";
 export default function Root({ loaderData: data }: Route.ComponentProps) {
+  use_route_focus();
   useEffect(() => {
     if (!data?.toast) return;
     const { type, message } = data.toast;
