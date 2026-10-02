@@ -38,9 +38,9 @@ export function VideoModal(props: IVideoModal) {
         }}
       >
         <div className="relative">
-          <p className="text-xl font-bold text-center border-b bg-gray-3 p-5">
+          <h2 className="text-xl font-bold text-center border-b bg-gray-3 p-5">
             {props.initUrl ? "Edit" : "Add"} video
-          </p>
+          </h2>
           <button
             type="button"
             aria-label="Close"

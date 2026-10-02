@@ -54,9 +54,9 @@ function Content(props: IProps) {
       onSubmit={handleSubmit}
     >
       <div className="relative">
-        <p className="text-xl capitalize font-bold text-center border-b bg-gray-3 p-5">
+        <h2 className="text-xl capitalize font-bold text-center border-b bg-gray-3 p-5">
           {props.action} video
-        </p>
+        </h2>
         <Link
           to=".."
           aria-label="Close"

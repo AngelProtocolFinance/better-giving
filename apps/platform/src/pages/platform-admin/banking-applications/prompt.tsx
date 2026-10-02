@@ -11,18 +11,21 @@ type Props = {
   verdict: Extract<TStatus, "approved" | "rejected">;
 };
 
+const fetcher_key = (verdict: Props["verdict"]) =>
+  `banking-application-${verdict}`;
+
 export function Prompt(props: Props) {
+  const in_flight =
+    useFetcher({ key: fetcher_key(props.verdict) }).state !== "idle";
   return (
-    <RouteModal classes="bg-panel">
+    <RouteModal classes="bg-panel" busy={in_flight}>
       <Content {...props} />
     </RouteModal>
   );
 }
 
 function Content({ verdict }: Props) {
-  const fetcher = useFetcher({
-    key: `banking-application-${verdict}`,
-  });
+  const fetcher = useFetcher({ key: fetcher_key(verdict) });
   const {
     register,
     formState: { errors },
@@ -39,9 +42,9 @@ function Content({ verdict }: Props) {
     >
       <input type="hidden" value={verdict} name="type" />
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
+        <h2 className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Banking application
-        </p>
+        </h2>
         <Link
           to=".."
           aria-label="Close"
