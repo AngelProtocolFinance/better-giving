@@ -1,7 +1,7 @@
 import { currency_precision } from "#/helpers/stripe";
 import { currency_fv, type ICurrencyFv } from "#/types/currency";
 import type { IDonorFv } from "@/donations/schema";
-import { ru_vdec, snap } from "@/helpers/decimal";
+import { ru, ru_vdec, snap } from "@/helpers/decimal";
 import type { DonateMethodId } from "@/npo";
 import {
   $int_gte1,
@@ -238,7 +238,7 @@ export const stripe_donation_details = v.pipe(
       [["amount"], ["currency"]],
       is_min_met,
       ({ input: i }) =>
-        `minimum of ${ru_vdec(i.currency.min, 1 / i.currency.rate)} ${i.currency.code}`
+        `minimum of ${ru(i.currency.min, currency_precision(i.currency.code))} ${i.currency.code}`
     ),
     ["amount"]
   ),

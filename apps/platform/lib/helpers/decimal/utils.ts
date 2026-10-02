@@ -47,6 +47,11 @@ export function rd(num: number | string, precision = 2): string {
   return fmt(num, precision, "trunc");
 }
 
+/** round up, from the snapped value so float drift (0.07 * 100) can't add a unit */
+export function ru(num: number | string, precision: number): string {
+  return fmt(snap(+num), precision, "expand");
+}
+
 /** round down to num
  *  @param precision - default: `2`
  *

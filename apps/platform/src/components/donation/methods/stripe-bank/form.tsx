@@ -8,8 +8,9 @@ import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { href } from "react-router";
 import use_swr from "swr/immutable";
+import { currency_precision } from "#/helpers/stripe";
 import type { ICurrenciesFv } from "#/types/currency";
-import { ru_vdec } from "@/helpers/decimal";
+import { ru } from "@/helpers/decimal";
 import { json_ok } from "@/helpers/https";
 import { btn_disp, TokenField } from "../../../token-field";
 import { usd_option } from "../../common/constants";
@@ -47,7 +48,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
     str: (pct) => {
       const [c, amnt] = rhf.getValues(["currency", "amount"]);
       if (!amnt) return "";
-      return ru_vdec((pct / 100) * +amnt, 1 / c.rate);
+      return ru((pct / 100) * +amnt, currency_precision(c.code));
     },
   });
 
@@ -62,7 +63,7 @@ export function Form(props: TMethodState<"stripe_bank">) {
 
         const u1_usd_str = rhf.getValues("amount");
         const u2 = u1_usd_str ? +u1_usd_str * data.pref.rate : 0;
-        const u2str = u2 ? ru_vdec(u2, 1 / data.pref.rate) : "";
+        const u2str = u2 ? ru(u2, currency_precision(data.pref.code)) : "";
         rhf.amount.onChange(u2str);
       },
     }
