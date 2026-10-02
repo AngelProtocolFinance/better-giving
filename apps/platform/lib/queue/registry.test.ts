@@ -21,7 +21,7 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
       { fund_id: "f1", creator_id: "u1", npo_id: 7 },
       "fund.removed_f1_u1_7",
     ],
-    ["invite-email", { invitee: "x@y.z" }, "invite_x@y.z"],
+    ["invite-email", { invitee: "x@y.z", npo_id: 7 }, "invite_x@y.z_7"],
     [
       "paypal-order-capture",
       { order_id: "O-1", don_id: "d6" },
@@ -37,6 +37,11 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
       "reg-updated",
       { id: "r2", status: "02", updated_at: "2026-09-01T10:20:30.456Z" },
       "reg.updated_r2_02_2026-09-01T102030.456Z",
+    ],
+    [
+      "sub-cancel-failed-email",
+      { id: "s4", cancelled_at: "2026-10-02T12:30:45.678Z" },
+      "sub.cancel-failed-email_s4_2026-10-02T123045.678Z",
     ],
     ["sub-deactivated", { id: "s1" }, "sub.deactivated_s1"],
     [
@@ -75,6 +80,16 @@ describe("sub-deactivated dedupe", () => {
   });
 });
 
+describe("sub-cancel-failed-email delivery", () => {
+  // the restore it follows has already flipped the row: only the queue retries the mail
+  test("retries like the other mail-only kinds", () => {
+    expect(retries_of("sub-cancel-failed-email")).toBe(
+      retries_of("invite-email")
+    );
+    expect(retries_of("sub-cancel-failed-email")).toBeGreaterThan(0);
+  });
+});
+
 describe("paypal-order-capture delivery", () => {
   test("holds past the browser's capture, then retries for over a day", () => {
     const m = msg("paypal-order-capture", { order_id: "O-1", don_id: "d6" });
@@ -96,6 +111,22 @@ describe("fund-member-removed dedupe", () => {
   test("a second nonprofit leaving the same fund is its own message", () => {
     expect(msg("fund-member-removed", removal(8)).dedupe).not.toBe(
       msg("fund-member-removed", removal(7)).dedupe
+    );
+  });
+});
+
+describe("invite-email dedupe", () => {
+  const invite = (npo_id: number) => ({
+    invitee: "ada@test.com",
+    invitee_first_name: "Ada",
+    invitor: "admin@test.com",
+    npo_id,
+    npo_name: `npo ${npo_id}`,
+  });
+
+  test("an invite to a second nonprofit is its own message", () => {
+    expect(msg("invite-email", invite(8)).dedupe).not.toBe(
+      msg("invite-email", invite(7)).dedupe
     );
   });
 });

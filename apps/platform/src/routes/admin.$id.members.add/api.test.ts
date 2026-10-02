@@ -19,6 +19,7 @@ vi.mock("#/.server/toast", async () => {
 // --- imports (after mocks hoisted) ---
 
 import { admin_ctx, user_ctx } from "#/.server/auth";
+import { enqueue } from "$/kit/queue";
 import { add_action } from "./api";
 
 const NPO_ID = 11;
@@ -48,6 +49,7 @@ const call = () => {
 beforeEach(() => {
   q.npo_get.mockReset();
   q.npo_admin_tx.mockReset();
+  vi.mocked(enqueue).mockReset();
 });
 
 describe("invite member", () => {
@@ -62,5 +64,24 @@ describe("invite member", () => {
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).status).toBe(404);
     expect(q.npo_admin_tx).not.toHaveBeenCalled();
+  });
+
+  // invites are per (invitee, npo): the email's dedupe needs the npo
+  it("queues the invite email for this nonprofit", async () => {
+    q.npo_get.mockResolvedValue({ id: NPO_ID, name: "Save The Rainforest" });
+
+    await call();
+
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        id: "invite-email",
+        payload: expect.objectContaining({
+          invitee: "ada@test.com",
+          npo_id: NPO_ID,
+          npo_name: "Save The Rainforest",
+        }),
+        dedupe: `invite_ada@test.com_${NPO_ID}`,
+      })
+    );
   });
 });

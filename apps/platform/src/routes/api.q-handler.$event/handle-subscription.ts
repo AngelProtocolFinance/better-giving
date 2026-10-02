@@ -4,12 +4,18 @@ import { href } from "react-router";
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
 import { to_amount } from "@/helpers/email";
-import type { IAttempt, ISubDeactivatedPayload } from "@/queue";
+import {
+  type IAttempt,
+  type ISubCancelFailedEmailPayload,
+  type ISubDeactivatedPayload,
+  msg,
+} from "@/queue";
 import type { ISub } from "@/subscriptions";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 import { base_url } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
+import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { sub_get, sub_reactivate_if } from "$/pg/queries/subscription";
@@ -59,25 +65,46 @@ const RETRYABLE_4XX = new Set([408, 409, 429]);
 const is_final_refusal = (http_status: number) =>
   http_status >= 400 && http_status < 500 && !RETRYABLE_4XX.has(http_status);
 
-/** `send_email` reports its own refusal; a render throw reaches the rejection handler below */
-async function email_cancel_failed(row: ISub): Promise<boolean> {
-  const { node, subject } = subscription_cancel_failed.template({
+/** its own message, so the queue retries a failed send: the row is already restored */
+async function queue_cancel_failed_email(
+  row: ISub,
+  cancelled_at: string
+): Promise<boolean> {
+  const payload: ISubCancelFailedEmailPayload = {
+    id: row.id,
+    cancelled_at,
+    to: row.from_id,
     to_name: row.to_name,
-    amount: to_amount(row.amount, row.amount_usd, row.currency.toUpperCase()),
+    amount: row.amount,
+    amount_usd: row.amount_usd,
+    currency: row.currency,
     interval: row.interval,
     interval_count: row.interval_count,
-    subscriptions_url: new URL(
-      href("/dashboard/subscriptions"),
-      base_url
-    ).toString(),
-  });
-  return send_email({ node, subject, to: [row.from_id] }).then(
-    (res) => res.data !== null,
+  };
+  return enqueue(msg("sub-cancel-failed-email", payload)).then(
+    () => true,
     (err) => {
       report_error(err, { sub_id: row.id });
       return false;
     }
   );
+}
+
+export async function handle_sub_cancel_failed_email(
+  p: ISubCancelFailedEmailPayload
+) {
+  const { node, subject } = subscription_cancel_failed.template({
+    to_name: p.to_name,
+    amount: to_amount(p.amount, p.amount_usd, p.currency.toUpperCase()),
+    interval: p.interval,
+    interval_count: p.interval_count,
+    subscriptions_url: new URL(
+      href("/dashboard/subscriptions"),
+      base_url
+    ).toString(),
+  });
+  await send_email_or_throw({ node, subject, to: [p.to] });
+  console.info(`subscription ${p.id} cancel-failed email sent`);
 }
 
 /** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
@@ -159,9 +186,14 @@ async function undo_donor_cancel(
 
   let changed: boolean;
   try {
-    // only while the row still carries the donor's cancel: a refund that
-    // landed since rewrote the reason and wins
-    changed = await sub_reactivate_if(db, data.id, data.status_cancel_reason);
+    // only while the row still carries this cancel: a refund that landed
+    // since rewrote the reason, and a later cancel restamped the row
+    changed = await sub_reactivate_if(
+      db,
+      data.id,
+      data.status_cancel_reason,
+      data.updated_at
+    );
   } catch (err) {
     report_error(err, { sub_id: data.id });
     return by_hand(
@@ -187,9 +219,9 @@ async function undo_donor_cancel(
       );
     }
     return by_hand(
-      (await email_cancel_failed(row))
-        ? `${restored} and the donor was emailed that the cancel didn't go through.`
-        : `${restored}, but the email telling the donor failed: they still see it as cancelled.`
+      (await queue_cancel_failed_email(row, data.updated_at))
+        ? `${restored}; the donor's email was queued to tell them the cancel didn't go through.`
+        : `${restored}, but queueing the donor's email failed: they still see it as cancelled.`
     );
   } catch (err) {
     report_error(err, { sub_id: data.id });
@@ -209,11 +241,10 @@ async function undo_donor_cancel(
 async function alert_cancel_failed(
   data: ISubDeactivatedPayload,
   err: unknown,
-  reason: string | number,
-  known?: IOutcome
+  reason: string | number
 ) {
   report_error(err, { sub_id: data.id, platform: data.platform });
-  const { text, cancel_by_hand } = known ?? (await undo_donor_cancel(data));
+  const { text, cancel_by_hand } = await undo_donor_cancel(data);
   const instruction = cancel_by_hand
     ? ` Cancel ${data.id} in the ${data.platform} dashboard.`
     : "";
@@ -272,12 +303,6 @@ async function cancel_on_paypal(
     ) {
       console.info(`subscription ${data.id} not active on paypal`);
       return;
-    }
-    if (issues.includes("USER_ACCOUNT_CLOSED")) {
-      return alert_cancel_failed(data, err, issues.join(","), {
-        text: "The payer's paypal account is closed, so it can't be charged; its row was left cancelled and the donor was not emailed.",
-        cancel_by_hand: false,
-      });
     }
     if (!is_final_refusal(err.http_status) && !attempt.last) throw err;
     return alert_cancel_failed(data, err, issues.join(",") || err.http_status);

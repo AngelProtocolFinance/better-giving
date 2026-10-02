@@ -93,12 +93,15 @@ export async function sub_cancel_reason_default(
 /**
  * reactivates a row only while it still carries `pending_reason`, in one
  * statement: a cancel that lands meanwhile overwrites the reason and wins.
- * true when this call is the one that reactivated it.
+ * `cancelled_at`, when given, pins it to that one cancel's write, so an older
+ * job can't undo a newer cancel that reused the reason. true when this call
+ * is the one that reactivated it.
  */
 export async function sub_reactivate_if(
   db: DbOrTx,
   id: string,
-  pending_reason: string
+  pending_reason: string,
+  cancelled_at?: string
 ): Promise<boolean> {
   const rows = await db
     .update(subscriptions)
@@ -111,7 +114,8 @@ export async function sub_reactivate_if(
       and(
         eq(subscriptions.id, id),
         eq(subscriptions.status, "inactive"),
-        eq(subscriptions.status_cancel_reason, pending_reason)
+        eq(subscriptions.status_cancel_reason, pending_reason),
+        cancelled_at ? eq(subscriptions.updated_at, cancelled_at) : undefined
       )
     )
     .returning({ id: subscriptions.id });

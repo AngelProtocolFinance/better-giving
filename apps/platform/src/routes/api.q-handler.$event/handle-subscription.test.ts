@@ -38,7 +38,10 @@ vi.mock("$/kit/discord", () => ({
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 const send_email_mock = vi.hoisted(() => vi.fn());
-vi.mock("$/email", () => ({ send_email: send_email_mock }));
+vi.mock("$/email", () => ({ send_email_or_throw: send_email_mock }));
+
+const enqueue_mock = vi.hoisted(() => vi.fn());
+vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 vi.mock("$/pg/db", () => ({
@@ -54,7 +57,9 @@ vi.mock("$/pg/db", () => ({
   ),
 }));
 
-const { handle_sub_deactivated } = await import("./handle-subscription");
+const { handle_sub_cancel_failed_email, handle_sub_deactivated } = await import(
+  "./handle-subscription"
+);
 const { sub_get } = await import("$/pg/queries/subscription");
 const { subscriptions } = await import("$/pg/schema/subscription");
 const { npos } = await import("$/pg/schema/npo");
@@ -82,6 +87,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   cancel_subscription_mock.mockResolvedValue(undefined);
   send_alert_mock.mockResolvedValue(undefined);
+  enqueue_mock.mockResolvedValue(undefined);
   send_email_mock.mockResolvedValue({
     data: { id: "email-1", response: "250 ok" },
     error: null,
@@ -300,7 +306,8 @@ describe("handle_sub_deactivated stripe cancel", () => {
 describe("a donor's cancel the provider refuses for good", () => {
   const DONOR = "ada@test.com";
   const REASON = "moving abroad";
-  const DASHBOARD = "http://localhost:4200/dashboard/subscriptions";
+  /** the donor's cancel stamps the row; the producer carries the stamp */
+  const CANCELLED_AT = "2026-10-01T00:00:00.000Z";
 
   /** the row as the donor's cancel leaves it */
   const seed_cancelled = async (
@@ -328,7 +335,7 @@ describe("a donor's cancel the provider refuses for good", () => {
       status_cancel_reason,
       from_id: DONOR,
       created_at: "2026-09-01T00:00:00.000Z",
-      updated_at: "2026-10-01T00:00:00.000Z",
+      updated_at: CANCELLED_AT,
     });
   };
 
@@ -366,13 +373,19 @@ describe("a donor's cancel the provider refuses for good", () => {
     platform,
     status_cancel_reason: REASON,
     by_donor: true as const,
-    updated_at: "2026-10-02T12:00:00.000Z",
+    updated_at: CANCELLED_AT,
   });
 
   const alert_body = (n = 0) =>
     send_alert_mock.mock.calls[n]![0].body as string;
 
-  it("puts a paypal subscription back to active and tells the donor", async () => {
+  /** the donor-email messages the handler enqueued */
+  const queued_emails = () =>
+    enqueue_mock.mock.calls
+      .flat()
+      .filter((m) => m.id === "sub-cancel-failed-email");
+
+  it("puts a paypal subscription back to active and queues the donor's email", async () => {
     await seed_cancelled("I-SUB1", "paypal");
     paypal_refuses();
 
@@ -383,21 +396,27 @@ describe("a donor's cancel the provider refuses for good", () => {
     const row = await sub_get("I-SUB1");
     expect(row?.status).toBe("active");
     expect(row?.status_cancel_reason).toBeNull();
-    expect(send_email_mock).toHaveBeenCalledOnce();
-    const mail = send_email_mock.mock.calls[0]![0];
-    expect(mail.to).toEqual([DONOR]);
-    const { render } = await import("react-email");
-    const text = await render(mail.node, { plainText: true });
-    expect(text).toContain(DASHBOARD);
-    expect(text).toContain("25.00 USD");
-    expect(text).toContain("Save The Rainforest");
-    // the refusal was final: ops stops it, the donor is not sent to retry
-    expect(text).toContain("Our team has been told and will stop it");
-    expect(text).not.toMatch(/try cancelling/i);
+    expect(queued_emails()).toEqual([
+      expect.objectContaining({
+        payload: {
+          id: "I-SUB1",
+          cancelled_at: CANCELLED_AT,
+          to: DONOR,
+          to_name: "Save The Rainforest",
+          amount: 25,
+          amount_usd: 25,
+          currency: "USD",
+          interval: "month",
+          interval_count: 1,
+        },
+        retries: 3,
+      }),
+    ]);
+    expect(alert_body()).toContain("the donor's email was queued");
     expect(alert_body()).toContain("Cancel I-SUB1 in the paypal dashboard.");
   });
 
-  it("puts a stripe subscription back to active and tells the donor", async () => {
+  it("puts a stripe subscription back to active and queues the donor's email", async () => {
     await seed_cancelled("sub_donor1", "stripe");
     stripe_refuses();
 
@@ -408,11 +427,11 @@ describe("a donor's cancel the provider refuses for good", () => {
     const row = await sub_get("sub_donor1");
     expect(row?.status).toBe("active");
     expect(row?.status_cancel_reason).toBeNull();
-    expect(send_email_mock).toHaveBeenCalledOnce();
-    const mail = send_email_mock.mock.calls[0]![0];
-    expect(mail.to).toEqual([DONOR]);
-    const { render } = await import("react-email");
-    expect(await render(mail.node, { plainText: true })).toContain(DASHBOARD);
+    expect(queued_emails()).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ id: "sub_donor1", to: DONOR }),
+      }),
+    ]);
     expect(alert_body()).toContain(
       "Cancel sub_donor1 in the stripe dashboard."
     );
@@ -428,7 +447,7 @@ describe("a donor's cancel the provider refuses for good", () => {
       await handle_sub_deactivated(donor_cancelled("sub_donor1", "stripe"));
 
       expect((await sub_get("sub_donor1"))?.status).toBe("inactive");
-      expect(send_email_mock).not.toHaveBeenCalled();
+      expect(enqueue_mock).not.toHaveBeenCalled();
       expect(alert_body()).toContain(
         `isn't billing at stripe (${live_status})`
       );
@@ -444,12 +463,13 @@ describe("a donor's cancel the provider refuses for good", () => {
     await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
 
     expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(alert_body()).toContain("isn't billing at paypal (SUSPENDED)");
     expect(alert_body()).not.toContain("dashboard");
   });
 
-  it("leaves the row cancelled when the paypal payer's account is closed", async () => {
+  // a closed payer account is a final refusal like any other: the live read decides
+  it("restores the row when paypal refuses over a closed payer account but still reads it active", async () => {
     await seed_cancelled("I-SUB1", "paypal");
     cancel_subscription_mock.mockRejectedValue(
       new PayPalApiError(
@@ -465,10 +485,11 @@ describe("a donor's cancel the provider refuses for good", () => {
 
     await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
 
-    expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
-    expect(alert_body()).toContain("account is closed");
-    expect(alert_body()).not.toContain("dashboard");
+    expect(get_subscription_mock).toHaveBeenCalledOnce();
+    expect((await sub_get("I-SUB1"))?.status).toBe("active");
+    expect(queued_emails()).toHaveLength(1);
+    expect(alert_body()).toContain("paypal answered USER_ACCOUNT_CLOSED");
+    expect(alert_body()).toContain("Cancel I-SUB1 in the paypal dashboard.");
   });
 
   it("leaves the row cancelled and mails nobody while a retry is left", async () => {
@@ -480,7 +501,7 @@ describe("a donor's cancel the provider refuses for good", () => {
     ).rejects.toThrow();
 
     expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
   // a 5xx on the last attempt: the cancel may have landed after all
@@ -502,7 +523,7 @@ describe("a donor's cancel the provider refuses for good", () => {
     });
 
     expect((await sub_get("sub_donor1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(alert_body()).toContain("isn't billing at stripe (canceled)");
     expect(alert_body()).not.toContain("dashboard");
   });
@@ -516,7 +537,7 @@ describe("a donor's cancel the provider refuses for good", () => {
     });
 
     expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(alert_body()).toContain("isn't billing at paypal (CANCELLED)");
     expect(alert_body()).not.toContain("dashboard");
   });
@@ -529,7 +550,7 @@ describe("a donor's cancel the provider refuses for good", () => {
     await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
 
     expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(alert_body()).toContain("isn't billing at paypal (not found)");
     expect(alert_body()).not.toContain("dashboard");
   });
@@ -548,7 +569,7 @@ describe("a donor's cancel the provider refuses for good", () => {
     await handle_sub_deactivated(donor_cancelled("sub_donor1", "stripe"));
 
     expect((await sub_get("sub_donor1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(alert_body()).toContain("isn't billing at stripe (not found)");
     expect(alert_body()).not.toContain("dashboard");
   });
@@ -564,19 +585,19 @@ describe("a donor's cancel the provider refuses for good", () => {
     });
 
     expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(alert_body()).toContain("Reading it live from paypal failed");
     expect(alert_body()).toContain("Cancel I-SUB1 in the paypal dashboard.");
   });
 
-  it("emails the donor once when the refused cancel is delivered twice", async () => {
+  it("queues the donor's email once when the refused cancel is delivered twice", async () => {
     await seed_cancelled("I-SUB1", "paypal");
     paypal_refuses();
 
     await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
     await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
 
-    expect(send_email_mock).toHaveBeenCalledOnce();
+    expect(queued_emails()).toHaveLength(1);
     expect(send_alert_mock).toHaveBeenCalledTimes(2);
     expect(alert_body(1)).toContain(
       "already active — the donor may not have been emailed by this delivery"
@@ -593,13 +614,33 @@ describe("a donor's cancel the provider refuses for good", () => {
     const row = await sub_get("I-SUB1");
     expect(row?.status).toBe("inactive");
     expect(row?.status_cancel_reason).toBe("refunded");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
-  it("still restores the row and alerts ops when the email fails", async () => {
+  // the donor cancelled again with the same reason; the earlier cancel's job
+  // is the one paypal refused
+  it("leaves the row alone for a refused cancel older than the row's", async () => {
     await seed_cancelled("I-SUB1", "paypal");
     paypal_refuses();
-    send_email_mock.mockResolvedValue({ data: null, error: new Error("550") });
+
+    await handle_sub_deactivated({
+      ...donor_cancelled("I-SUB1", "paypal"),
+      updated_at: "2026-09-30T00:00:00.000Z",
+    });
+
+    const row = await sub_get("I-SUB1");
+    expect(row?.status).toBe("inactive");
+    expect(row?.status_cancel_reason).toBe(REASON);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(alert_body()).toContain(
+      "Its row has changed since the donor's cancel"
+    );
+  });
+
+  it("still restores the row and tells ops when queueing the email fails", async () => {
+    await seed_cancelled("I-SUB1", "paypal");
+    paypal_refuses();
+    enqueue_mock.mockRejectedValue(new Error("qstash is down"));
 
     await expect(
       handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"))
@@ -607,21 +648,8 @@ describe("a donor's cancel the provider refuses for good", () => {
 
     expect((await sub_get("I-SUB1"))?.status).toBe("active");
     expect(send_alert_mock).toHaveBeenCalledOnce();
-    expect(alert_body()).toContain("the email telling the donor failed");
-  });
-
-  it("tells ops the row is active when building the email throws", async () => {
-    await seed_cancelled("I-SUB1", "paypal");
-    paypal_refuses();
-    send_email_mock.mockImplementation(() => {
-      throw new Error("render failed");
-    });
-
-    await handle_sub_deactivated(donor_cancelled("I-SUB1", "paypal"));
-
-    expect((await sub_get("I-SUB1"))?.status).toBe("active");
     expect(alert_body()).toContain("Its row was restored to active");
-    expect(alert_body()).not.toContain("Restoring its row failed");
+    expect(alert_body()).toContain("queueing the donor's email failed");
   });
 
   // a refund or a stripe-side end queues the same cancel; the donor asked for nothing
@@ -636,7 +664,45 @@ describe("a donor's cancel the provider refuses for good", () => {
     });
 
     expect((await sub_get("sub_donor1"))?.status).toBe("inactive");
-    expect(send_email_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).not.toHaveBeenCalled();
     expect(send_alert_mock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handle_sub_cancel_failed_email", () => {
+  const payload = {
+    id: "I-SUB1",
+    cancelled_at: "2026-10-01T00:00:00.000Z",
+    to: "ada@test.com",
+    to_name: "Save The Rainforest",
+    amount: 25,
+    amount_usd: 25,
+    currency: "usd",
+    interval: "month" as const,
+    interval_count: 1,
+  };
+
+  it("tells the donor their cancel didn't go through", async () => {
+    await handle_sub_cancel_failed_email(payload);
+
+    expect(send_email_mock).toHaveBeenCalledOnce();
+    const mail = send_email_mock.mock.calls[0]![0];
+    expect(mail.to).toEqual(["ada@test.com"]);
+    const { render } = await import("react-email");
+    const text = await render(mail.node, { plainText: true });
+    expect(text).toContain("http://localhost:4200/dashboard/subscriptions");
+    expect(text).toContain("25.00 USD");
+    expect(text).toContain("Save The Rainforest");
+    // the refusal was final: ops stops it, the donor is not sent to retry
+    expect(text).toContain("Our team has been told and will stop it");
+    expect(text).not.toMatch(/try cancelling/i);
+  });
+
+  it("throws when the send fails, so the queue retries it", async () => {
+    send_email_mock.mockRejectedValue(new Error("550 mailbox unavailable"));
+
+    await expect(handle_sub_cancel_failed_email(payload)).rejects.toThrow(
+      "550"
+    );
   });
 });
