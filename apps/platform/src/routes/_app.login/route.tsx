@@ -246,6 +246,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         )}
         <RmxForm
           disabled={is_submitting}
+          busy={nav.state === "submitting"}
           method="POST"
           action={form_action}
           className="contents"
