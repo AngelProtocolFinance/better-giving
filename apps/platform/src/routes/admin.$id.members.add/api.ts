@@ -31,7 +31,13 @@ export const add_action = async (x: Route.ActionArgs) => {
     invitor: user.email,
   };
   await npo_admin_tx(db, id, invite, user.id);
-  await enqueue(msg("invite-email", invite));
+  await enqueue(
+    msg("invite-email", {
+      ...invite,
+      npo_id: id,
+      sent_at: new Date().toISOString(),
+    })
+  );
 
   return redirectWithSuccess("..", "Member invited");
 };

@@ -16,9 +16,11 @@ interface IRouteModal extends PropsWithChildren {
   size?: ModalSize;
   /**
    * the dialog's accessible name, read to screen readers only. without it the
-   * dialog is named by the first `h1`–`h3` in its content.
+   * dialog is named by the first `h1`–`h6` in its content.
    */
   title?: string;
+  /** holds the dialog open against Escape and outside clicks, e.g. mid-submit */
+  busy?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export function RouteModal({
   size = "sm",
   classes = "",
   title,
+  busy = false,
   children,
 }: IRouteModal) {
   const navigate = useNavigate();
@@ -40,6 +43,8 @@ export function RouteModal({
     <Dialog.Root
       ids={{ title: title_id }}
       open={true}
+      closeOnEscape={!busy}
+      closeOnInteractOutside={!busy}
       onOpenChange={(e) => {
         if (!e.open) navigate(to, { replace: true, preventScrollReset: true });
       }}

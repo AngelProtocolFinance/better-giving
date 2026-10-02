@@ -1,4 +1,5 @@
 import { get_funds_npo_memberof } from "#/.server/funds";
+import { report_error } from "#/errors/report";
 import { npo_id } from "#/pages/marketplace/npo-id";
 import { npo_by_slug, npo_get, npo_public } from "$/pg/queries/npo";
 import { npo_media_list } from "$/pg/queries/npo-media";
@@ -22,7 +23,11 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     npo: npo_public(npo),
 
     //lazy
-    funds: get_funds_npo_memberof(npo.id, { published: true }),
+    funds: get_funds_npo_memberof(npo.id, { published: true }).catch((err) => {
+      // a rejected deferred streams to <Await errorElement> and never reaches handleError
+      report_error(err, { endow_id: npo.id });
+      throw err;
+    }),
     media: med_page.then((x) => x.items),
     programs: npo_programs(npo.id),
   };

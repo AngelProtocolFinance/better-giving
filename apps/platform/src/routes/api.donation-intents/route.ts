@@ -58,8 +58,8 @@ const json_with_cookie_fn =
     });
   };
 
-// the card, bank and paypal checkouts show this body via `json_ok`; the daf
-// and crypto checkouts read it raw. the detail stays in the log
+// every checkout shows this body via `json_ok`, which surfaces it for the
+// refusal header `resp.refuse` sets. the detail stays in the log
 const refused = (detail: string) => {
   console.info(`[resp] 400 - ${detail}`);
   return resp.refuse(

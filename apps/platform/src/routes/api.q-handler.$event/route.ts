@@ -23,7 +23,10 @@ import { handle_invite } from "./handle-invite";
 import { handle_paypal_order_capture } from "./handle-paypal-order";
 import { handle_reg_created, handle_reg_updated } from "./handle-reg";
 import { handle_tip_received } from "./handle-rev-log";
-import { handle_sub_deactivated } from "./handle-subscription";
+import {
+  handle_sub_cancel_failed_email,
+  handle_sub_deactivated,
+} from "./handle-subscription";
 
 const handlers: Handlers = {
   "banking-approved": handle_banking_approved,
@@ -43,6 +46,7 @@ const handlers: Handlers = {
   "paypal-order-capture": handle_paypal_order_capture,
   "reg-created": handle_reg_created,
   "reg-updated": handle_reg_updated,
+  "sub-cancel-failed-email": handle_sub_cancel_failed_email,
   "sub-deactivated": handle_sub_deactivated,
   "tip-received": handle_tip_received,
 };

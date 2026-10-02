@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- mocks (hoisted) ---
 
@@ -19,6 +19,7 @@ vi.mock("#/.server/toast", async () => {
 // --- imports (after mocks hoisted) ---
 
 import { admin_ctx, user_ctx } from "#/.server/auth";
+import { enqueue } from "$/kit/queue";
 import { add_action } from "./api";
 
 const NPO_ID = 11;
@@ -48,6 +49,11 @@ const call = () => {
 beforeEach(() => {
   q.npo_get.mockReset();
   q.npo_admin_tx.mockReset();
+  vi.mocked(enqueue).mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("invite member", () => {
@@ -62,5 +68,45 @@ describe("invite member", () => {
     expect(thrown).toBeInstanceOf(Response);
     expect((thrown as Response).status).toBe(404);
     expect(q.npo_admin_tx).not.toHaveBeenCalled();
+  });
+
+  // invites are per (invitee, npo) and per send: the dedupe needs both
+  it("queues the invite email for this nonprofit, stamped with when it was sent", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-02T12:30:45.678Z"),
+    });
+    q.npo_get.mockResolvedValue({ id: NPO_ID, name: "Save The Rainforest" });
+
+    await call();
+
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        id: "invite-email",
+        payload: expect.objectContaining({
+          invitee: "ada@test.com",
+          npo_id: NPO_ID,
+          npo_name: "Save The Rainforest",
+          sent_at: "2026-10-02T12:30:45.678Z",
+        }),
+        dedupe: `invite_ada@test.com_${NPO_ID}_2026-10-02T123045.678Z`,
+      })
+    );
+  });
+
+  it("queues a re-invite to the same person as its own email", async () => {
+    q.npo_get.mockResolvedValue({ id: NPO_ID, name: "Save The Rainforest" });
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-02T12:30:00.000Z"),
+    });
+    await call();
+    vi.setSystemTime(new Date("2026-10-02T12:31:00.000Z"));
+    await call();
+
+    const [first, second] = vi
+      .mocked(enqueue)
+      .mock.calls.map(([m]) => m.dedupe);
+    expect(second).not.toBe(first);
   });
 });

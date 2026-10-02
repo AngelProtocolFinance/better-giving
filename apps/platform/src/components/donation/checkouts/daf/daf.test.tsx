@@ -1,10 +1,10 @@
-import { AskHost } from "@better-giving/ui";
 import { HttpResponse, http } from "msw";
-import type { ReactNode } from "react";
-import { createRoutesStub, href } from "react-router";
+import { href } from "react-router";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
+import { CDN_SRC, fv, stb, success_detail } from "#/__tests__/fixtures/daf";
 import { mswWorker } from "#/setup-tests-browser";
+import { resp } from "@/helpers/https";
 import type { Config, DafDonationDetails } from "../../types";
 import { ChariotCheckout } from ".";
 
@@ -29,55 +29,6 @@ const redirect_mock = vi.hoisted(() => vi.fn());
 vi.mock("../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
-
-const CDN_SRC = "https://cdn.givechariot.com/chariot-connect.umd.js";
-
-const fv: DafDonationDetails = {
-  amount: "100",
-  tip: "",
-  tip_format: "none",
-  cover_processing_fee: false,
-};
-
-/** what chariot hands back on CHARIOT_SUCCESS — a grant that has already been
- * recommended, in cents, with the donor's details off their daf account. */
-const success_detail = {
-  workflowSessionId: "ws_1",
-  grantIntent: {
-    amount: 10_000,
-    metadata: {
-      don_id: "11111111-1111-4111-8111-111111111111",
-      amount: { base: 100, tip: 0, fee_allowance: 0 },
-    },
-  },
-  user: {
-    firstName: "John",
-    lastName: "Doe",
-    email: "john@doe.com",
-    address: {
-      line1: "1 Main St",
-      line2: "",
-      city: "Springfield",
-      state: "IL",
-      postalCode: "62701",
-    },
-  },
-};
-
-// the checkout's prompts are raised through `ask`, which mounts at `AskHost`
-const stb = (node: ReactNode) =>
-  createRoutesStub([
-    {
-      path: "/",
-      Component: () => (
-        <>
-          {node}
-          <AskHost />
-        </>
-      ),
-      HydrateFallback: () => null,
-    },
-  ]);
 
 describe("daf checkout: a grant that goes through but never lands", () => {
   afterEach(() => {
@@ -206,9 +157,7 @@ describe("daf checkout: a grant that goes through but never lands", () => {
   test("a refusal the server answers before any grant exists leaves the launcher live, and says why", async () => {
     mswWorker.use(
       http.post(href("/api/donation-intents"), () =>
-        HttpResponse.text("DAF grants must be a whole dollar amount", {
-          status: 400,
-        })
+        resp.refuse("DAF grants must be a whole dollar amount", 400)
       )
     );
     seed_script();
@@ -321,11 +270,29 @@ describe("daf checkout: the launcher comes back only on a refusal it can read", 
     }
   );
 
-  test("chariot's 410 for an expired session leaves the launcher live, and says why", async () => {
+  test("a 400 page from in front of the route never reaches the donor, and keeps the launcher dead", async () => {
     const screen = await answered_with(() =>
       HttpResponse.text(
+        "<html><body>Request blocked by edge-waf-7</body></html>",
+        {
+          status: 400,
+        }
+      )
+    );
+
+    const dialog = screen.getByRole("dialog");
+    await expect
+      .element(dialog)
+      .toMatchTextContent(/error occurred while processing donation/i);
+    expect(dialog.element().textContent).not.toMatch(/edge-waf-7/);
+    expect(launcher_inert(screen.container)).not.toBeNull();
+  });
+
+  test("chariot's 410 for an expired session leaves the launcher live, and says why", async () => {
+    const screen = await answered_with(() =>
+      resp.refuse(
         "Your fund couldn't make this grant. Please check the amount and try again.",
-        { status: 410 }
+        410
       )
     );
 
@@ -337,9 +304,7 @@ describe("daf checkout: the launcher comes back only on a refusal it can read", 
 
   test("a closed recipient's 404 leaves the launcher live, and says why", async () => {
     const screen = await answered_with(() =>
-      HttpResponse.text("This nonprofit isn't accepting donations right now.", {
-        status: 404,
-      })
+      resp.refuse("This nonprofit isn't accepting donations right now.", 404)
     );
 
     await expect

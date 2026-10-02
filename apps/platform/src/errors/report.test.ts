@@ -26,6 +26,14 @@ const insecure_parent = {
     "Trying to start an Apple Pay session from a document with an insecure parent frame.",
 };
 
+// webkit's wording for the same refusal on an https embed of another origin —
+// the supported cross-origin embed, where the probe also can't run
+const cross_origin = {
+  name: "InvalidAccessError",
+  message:
+    "Trying to start an Apple Pay session from a document with an different security origin than its top-level frame.",
+};
+
 describe("report_unhandled", () => {
   beforeEach(() => {
     capture_exception.mockClear();
@@ -35,6 +43,12 @@ describe("report_unhandled", () => {
 
   test("degrades safari's insecure-parent apple pay rejection", () => {
     report_unhandled(insecure_parent);
+    expect(level()).toBe("warning");
+    expect(report()).toBe("degraded");
+  });
+
+  test("degrades webkit's cross-origin apple pay rejection", () => {
+    report_unhandled(cross_origin);
     expect(level()).toBe("warning");
     expect(report()).toBe("degraded");
   });
@@ -83,9 +97,65 @@ describe("report_error", () => {
     expect(capture_exception).not.toHaveBeenCalled();
   });
 
-  test("reports a 5xx HttpError", () => {
-    report_error(new HttpError(500, ""));
+  // a background loader's thrown Response reaches the unhandled sink; sentry
+  // records an untitled event for anything that isn't an Error
+  const sent_message = () => {
+    const sent = capture_exception.mock.calls.at(-1)?.[0];
+    expect(sent).toBeInstanceOf(Error);
+    return (sent as Error).message;
+  };
+
+  test("titles a 5xx Response with its status and path", () => {
+    const res = new Response(null, { status: 500 });
+    Object.defineProperty(res, "url", {
+      value: "https://better.giving/register/r-1/2.data?_routes=x",
+    });
+    report_unhandled(res);
+    expect(sent_message()).toBe("Response 500 /register/r-1/2.data");
+  });
+
+  // react-router throws a redirect with no url; its target is the Location
+  test("titles a redirect Response with its status and target", () => {
+    report_unhandled(
+      new Response(null, {
+        status: 302,
+        headers: { Location: "/register/r-1/5?email=a%40b.co" },
+      })
+    );
+    expect(sent_message()).toBe("Response 302 /register/r-1/5");
+  });
+
+  test("titles a redirect to an unparseable Location by its status", () => {
+    report_unhandled(
+      new Response(null, { status: 302, headers: { Location: "http://[" } })
+    );
+    expect(sent_message()).toBe("Response 302");
+  });
+
+  test("titles a Response with no url by its status", () => {
+    report_error(new Response(null, { status: 503 }));
+    expect(sent_message()).toBe("Response 503");
+  });
+
+  test("keeps a 4xx Response off sentry", () => {
+    report_error(new Response(null, { status: 404 }));
+    expect(capture_exception).not.toHaveBeenCalled();
+  });
+
+  // every 5xx titled blank grouped into one tracker issue
+  test("reports a 5xx HttpError titled by its status", () => {
+    report_error(new HttpError(502));
     expect(capture_exception).toHaveBeenCalledOnce();
+    expect(sent_message()).toBe("HTTP 502");
+  });
+
+  // a 4xx without the refusal marker came from something in front of the route
+  // (a waf block, a rate limit) or a route answer nobody worded for the donor
+  test("reports an unmarked 4xx HttpError as a bug", () => {
+    report_error(new HttpError(403));
+    expect(capture_exception).toHaveBeenCalledOnce();
+    expect(level()).toBe("error");
+    expect(report()).toBe("bug");
   });
 
   // chariot's 4xx is our request refused (a bad key, a grant already

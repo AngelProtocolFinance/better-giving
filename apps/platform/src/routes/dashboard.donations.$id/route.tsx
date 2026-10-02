@@ -19,6 +19,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         )
       }
       size="panel"
+      title="View receipt"
       classes="grid border bg-background"
     >
       <Form user={loaderData} />

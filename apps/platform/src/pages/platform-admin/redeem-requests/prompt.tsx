@@ -15,19 +15,23 @@ type Props = {
 
 export function Prompt(props: Props) {
   const { tx_id } = useParams();
+  const fetcher_key = `tx-request-${tx_id}-${props.verdict}`;
+  const in_flight = useFetcher({ key: fetcher_key }).state !== "idle";
   return (
-    <RouteModal classes="bg-panel">
+    <RouteModal classes="bg-panel" busy={in_flight}>
       {/* keyed: the route stays mounted across requests, and the latch from
           one must not swallow the first press on the next */}
-      <Content key={tx_id} tx_id={tx_id} {...props} />
+      <Content key={tx_id} fetcher_key={fetcher_key} {...props} />
     </RouteModal>
   );
 }
 
-function Content({ verdict, tx_id }: Props & { tx_id?: string }) {
-  const fetcher = useFetcher({
-    key: `tx-request-${tx_id}-${verdict}`,
-  });
+interface IContent extends Props {
+  fetcher_key: string;
+}
+
+function Content({ verdict, fetcher_key }: IContent) {
+  const fetcher = useFetcher({ key: fetcher_key });
   // held, not `disabled`: disabling Submit would blur it onto <body>
   const busy = fetcher.state !== "idle";
   // `busy` lags the submit by a render, so in that gap a second press would
@@ -53,9 +57,9 @@ function Content({ verdict, tx_id }: Props & { tx_id?: string }) {
     >
       <input type="hidden" value={verdict} name="verdict" />
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
+        <h2 className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Redeem units request
-        </p>
+        </h2>
         <Link
           to=".."
           aria-label="Close"

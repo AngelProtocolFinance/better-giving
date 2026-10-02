@@ -26,9 +26,17 @@ export const action = async (x: {
   return redirectWithSuccess("..", "Form deactivated");
 };
 
+// keyed, so the modal shell reads the submission Content makes
+const fetcher_key = "disable-form";
+
 export default function DisablePrompt() {
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-panel">
+    <RouteModal
+      title="Disable form"
+      busy={fetcher.state !== "idle"}
+      classes="grid content-start justify-items-center bg-panel"
+    >
       <Content />
     </RouteModal>
   );
@@ -36,7 +44,7 @@ export default function DisablePrompt() {
 
 function Content() {
   const { form_id } = useParams();
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: fetcher_key });
   const is_submitting = fetcher.state !== "idle";
 
   return (

@@ -1,19 +1,67 @@
 import { report_error } from "#/errors/report";
 import { is_reversed } from "@/donations/settle";
-import { calc_settlement_plan } from "@/settlement/plan";
+import { type IDonDistPayload, type IMsg, msg } from "@/queue";
+import {
+  calc_settlement_plan,
+  type NpoSettlementContext,
+} from "@/settlement/plan";
 import type { IInput } from "@/types/donation-dist";
 import { bal_tx_put } from "$/pg/queries/bal-tx";
-import { dist_put } from "$/pg/queries/dist";
+import { dist_of, dist_put } from "$/pg/queries/dist";
 import { donation_status_shared } from "$/pg/queries/donation";
 import { donation_message_put } from "$/pg/queries/donation-message";
 import { form_ltd_inc } from "$/pg/queries/form";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { nav_log_append } from "$/pg/queries/nav";
-import { npo_balance_update, npo_get_locked } from "$/pg/queries/npo";
+import {
+  type INpo,
+  npo_balance_update,
+  npo_get,
+  npo_get_locked,
+} from "$/pg/queries/npo";
 import { payout_put } from "$/pg/queries/payout";
 import { npo_prog_contrib } from "$/pg/queries/program";
 import { commission_put } from "$/pg/queries/referrer";
 import { rev_log_put } from "$/pg/queries/revenue";
+
+const plan_ctx = (npo: INpo): NpoSettlementContext => ({
+  id: npo.id,
+  name: npo.name,
+  fiscal_sponsored: npo.fiscal_sponsored,
+  hide_bg_tip: npo.hide_bg_tip,
+  allocation: npo.allocation,
+  lock_units: npo.lock_units,
+  liq: npo.liq,
+  referrer_user: npo.referrer_user,
+  referrer_npo: npo.referrer_npo,
+  referrer_expiry: npo.referrer_expiry,
+});
+
+/**
+ * the msgs of an npo share already settled, for a redelivery to resend when
+ * the first delivery may have died between its commit and its enqueue. only
+ * `don-dist` is resent — its handler's notice claim on the dist row runs each
+ * step once. `tip-received` and `lock-tx-created` mail ops with no send-once
+ * gate, and qstash's dedupe holds only inside its window, so a resend would
+ * mail them twice.
+ *
+ * the msgs come from a replan, read without a lock: its ids are minted afresh
+ * and its figures follow the npo's terms now, not at settlement. so `id` is the
+ * stored dist's, which the notice claim and the dedupe key are on, and so is
+ * `net`.
+ */
+export async function settled_npo_msgs(db: DbOrTx, i: IInput): Promise<IMsg[]> {
+  const dist = await dist_of(i.prnt.id, +i.id, db);
+  if (!dist) throw new Error(`dist for npo:${i.id} vanished after settling`);
+  const npo = await npo_get(+i.id, db);
+  if (!npo) throw new Error(`npo:${i.id} not found`);
+  const plan = calc_settlement_plan(i, plan_ctx(npo));
+  return plan.msgs.flatMap((m) => {
+    if (m.id !== "don-dist") return [];
+    const p = m.payload as IDonDistPayload;
+    return [msg("don-dist", { ...p, id: dist.id, net: dist.net ?? p.net })];
+  });
+}
 
 export async function settle_npo(db: DbOrTx, i: IInput) {
   // the payload's status can predate a refund; the row's is what counts.
@@ -59,18 +107,7 @@ export async function settle_npo(db: DbOrTx, i: IInput) {
     return { msgs: [], txs: [] };
   }
 
-  const plan = calc_settlement_plan(i, {
-    id: npo.id,
-    name: npo.name,
-    fiscal_sponsored: npo.fiscal_sponsored,
-    hide_bg_tip: npo.hide_bg_tip,
-    allocation: npo.allocation,
-    lock_units: npo.lock_units,
-    liq: npo.liq,
-    referrer_user: npo.referrer_user,
-    referrer_npo: npo.referrer_npo,
-    referrer_expiry: npo.referrer_expiry,
-  });
+  const plan = calc_settlement_plan(i, plan_ctx(npo));
 
   if (plan.alloc_fell_back) {
     report_error(

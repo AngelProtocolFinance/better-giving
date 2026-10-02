@@ -189,12 +189,10 @@ export const auth_options = (deps: AuthOptionDeps) => ({
               .from(schema.user_invites)
               .where(eq(schema.user_invites.invitee, user.email));
             for (const inv of invites) {
-              if (inv.npo_id != null) {
-                await tx
-                  .insert(schema.user_npo_memberships)
-                  .values({ user_id: user.id, npo_id: inv.npo_id })
-                  .onConflictDoNothing();
-              }
+              await tx
+                .insert(schema.user_npo_memberships)
+                .values({ user_id: user.id, npo_id: inv.npo_id })
+                .onConflictDoNothing();
             }
             await tx
               .delete(schema.user_invites)

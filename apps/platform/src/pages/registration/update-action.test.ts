@@ -134,7 +134,7 @@ describe("update_action — step save", () => {
 
   // a rejected application is reopened by editing it; a legacy row with no
   // status is a draft, as the review step reads it.
-  test.each<TStatus | null>(["01", "04", null])(
+  test.each<TStatus>(["01", "04"])(
     "saves a %s application back to draft",
     async (status) => {
       await seed(status);

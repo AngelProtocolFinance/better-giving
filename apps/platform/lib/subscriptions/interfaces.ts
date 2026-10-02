@@ -37,6 +37,8 @@ export interface ISub {
   platform: TPlatform;
   status: TStatus;
   status_cancel_reason?: string | null;
+  /** iso; written by the donor's cancel alone, the identity `sub_reactivate_if` matches */
+  cancel_requested_at?: string | null;
 
   /** email, */
   from_id: string;

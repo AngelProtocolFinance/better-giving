@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FIRST_PAYMENT_INCOMPLETE } from "@/subscriptions";
 
 const sub_retrieve_mock = vi.hoisted(() => vi.fn());
 const donation_get_mock = vi.hoisted(() => vi.fn());
@@ -50,30 +51,41 @@ beforeEach(() => {
 
 const written = () => sub_put_mock.mock.calls[0]![1];
 
+// subscriptions.create (setup-intent-succeeded.ts) sets no trial, so neither `trialing`
+// nor `paused` (only a trial ending without a payment method pauses) reaches this handler
 describe("customer.subscription.created → subscription row", () => {
-  it("writes a sub stripe has already ended as inactive, whatever the event's copy says", async () => {
-    sub_retrieve_mock.mockResolvedValue(stripe_sub("canceled"));
+  it.each([
+    { live: "active", status: "active", reason: undefined },
+    { live: "past_due", status: "active", reason: undefined },
+    { live: "unpaid", status: "inactive", reason: undefined },
+    { live: "canceled", status: "inactive", reason: undefined },
+    { live: "incomplete_expired", status: "inactive", reason: undefined },
+    {
+      live: "incomplete",
+      status: "inactive",
+      reason: FIRST_PAYMENT_INCOMPLETE,
+    },
+  ])(
+    "writes a sub stripe reads back as $live as $status, whatever the event's copy says",
+    async ({ live, status, reason }) => {
+      sub_retrieve_mock.mockResolvedValue(stripe_sub(live));
 
-    await handle_subscription_created({ object: stripe_sub("active") } as any);
+      await handle_subscription_created({
+        object: stripe_sub(status === "active" ? "canceled" : "active"),
+      } as any);
 
-    expect(written().status).toBe("inactive");
-  });
+      expect(written().status).toBe(status);
+      expect(written().status_cancel_reason).toBe(reason);
+    }
+  );
 
-  it("writes a sub whose first charge hasn't landed (incomplete) as inactive", async () => {
-    sub_retrieve_mock.mockResolvedValue(stripe_sub("incomplete"));
-
-    await handle_subscription_created({
-      object: stripe_sub("incomplete"),
-    } as any);
-
-    expect(written().status).toBe("inactive");
-  });
-
-  it("writes a sub whose first charge landed as active", async () => {
+  it("throws and writes nothing when the order is gone", async () => {
     sub_retrieve_mock.mockResolvedValue(stripe_sub("active"));
+    donation_get_mock.mockResolvedValue(undefined);
 
-    await handle_subscription_created({ object: stripe_sub("active") } as any);
-
-    expect(written().status).toBe("active");
+    await expect(
+      handle_subscription_created({ object: stripe_sub("active") } as any)
+    ).rejects.toThrow(/Order not found for id:order-1/);
+    expect(sub_put_mock).not.toHaveBeenCalled();
   });
 });

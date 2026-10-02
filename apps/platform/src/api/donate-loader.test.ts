@@ -132,3 +132,18 @@ describe("donate loader npo", () => {
     expect(Object.keys(d.endow).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
   });
 });
+
+describe("donate loader inactive npo", () => {
+  it("is not found once the npo is deactivated, like its profile page", async () => {
+    const npo = await seed_npo("Closed");
+    await test_db
+      .current!.db.update(npos)
+      .set({ active: false })
+      .where(eq(npos.id, npo.id));
+
+    const res = await load(npo.id).catch((e: unknown) => e);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(404);
+  });
+});

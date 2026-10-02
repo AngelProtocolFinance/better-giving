@@ -1,6 +1,11 @@
 import { Actions } from "@better-giving/ui";
 import { ChevronRight, X } from "lucide-react";
-import type { PropsWithChildren } from "react";
+import {
+  type FormEvent,
+  type PropsWithChildren,
+  useEffect,
+  useRef,
+} from "react";
 import { Link, useFetcher } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { RouteModal } from "#/components/route-modal";
@@ -11,18 +16,21 @@ type Props = {
   verdict: Extract<TStatus, "approved" | "rejected">;
 };
 
+const fetcher_key = (verdict: Props["verdict"]) =>
+  `banking-application-${verdict}`;
+
 export function Prompt(props: Props) {
+  const in_flight =
+    useFetcher({ key: fetcher_key(props.verdict) }).state !== "idle";
   return (
-    <RouteModal classes="bg-panel">
+    <RouteModal classes="bg-panel" busy={in_flight}>
       <Content {...props} />
     </RouteModal>
   );
 }
 
 function Content({ verdict }: Props) {
-  const fetcher = useFetcher({
-    key: `banking-application-${verdict}`,
-  });
+  const fetcher = useFetcher({ key: fetcher_key(verdict) });
   const {
     register,
     formState: { errors },
@@ -31,22 +39,39 @@ function Content({ verdict }: Props) {
     fetcher,
   });
   const reason_id = "reject-reason";
+  // held, not `disabled`: disabling Submit would blur it onto <body>
+  const busy = fetcher.state !== "idle";
+  // `busy` lags the submit by a render, so in that gap a second press would
+  // send again and Close/Cancel would leave; the latch closes on the press itself
+  const sent = useRef(false);
+  useEffect(() => {
+    if (fetcher.state === "idle") sent.current = false;
+  }, [fetcher.state]);
+  const hold = (e: { preventDefault(): void }) => {
+    if (busy || sent.current) e.preventDefault();
+  };
+  const submit_once = (e: FormEvent) => {
+    if (busy || sent.current) return e.preventDefault();
+    sent.current = true;
+  };
 
   return (
     <fetcher.Form
       method="POST"
+      onSubmit={submit_once}
       className="grid content-start justify-items-center"
     >
       <input type="hidden" value={verdict} name="type" />
       <div className="relative w-full">
-        <p className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
+        <h2 className="sm:text-xl font-bold text-center border-b bg-gray-3 p-5">
           Banking application
-        </p>
+        </h2>
         <Link
           to=".."
           aria-label="Close"
-          aria-disabled={fetcher.state !== "idle"}
-          className="border p-2 rounded absolute top-1/2 right-4 transfetcher.Form -translate-y-1/2 disabled:text-gray-11"
+          aria-disabled={busy}
+          onClick={hold}
+          className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />
         </Link>
@@ -93,17 +118,19 @@ function Content({ verdict }: Props) {
           replace
           preventScrollReset
           to=".."
-          aria-disabled={fetcher.state !== "idle"}
+          aria-disabled={busy}
+          onClick={hold}
           className="btn-secondary btn"
         >
           Cancel
         </Link>
         <button
-          disabled={fetcher.state !== "idle"}
+          aria-disabled={busy}
+          aria-busy={busy}
           type="submit"
-          className="btn btn-primary"
+          className={`btn btn-primary ${busy ? "pending" : ""}`}
         >
-          Submit
+          {busy ? "Submitting…" : "Submit"}
         </button>
       </Actions>
     </fetcher.Form>

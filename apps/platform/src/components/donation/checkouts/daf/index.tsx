@@ -13,6 +13,7 @@ import type {
   IDonorAddress,
 } from "@/donations/schema";
 import { to_units } from "@/helpers/decimal";
+import { HttpError, json_ok } from "@/helpers/https";
 import { donation_amounts } from "../../common/amounts";
 import { usd_option } from "../../common/constants";
 import { currency } from "../../common/currency";
@@ -39,7 +40,8 @@ const PROMPT_SLOT = "daf-checkout";
  * minimum and whole-dollar refusals (400), a closed recipient (404), and create
  * grant's own refusals passed through (400, 404, an expired session's 410).
  * nothing exists at chariot, so the donor can go again. any other 4xx (a waf
- * block, a rate limit) isn't the route's and says nothing about the grant.
+ * block, a rate limit), or one of these without the route's refusal marker,
+ * isn't the route's and says nothing about the grant.
  */
 const PRE_GRANT_REFUSALS = new Set([400, 404, 410]);
 
@@ -243,13 +245,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
           method: "POST",
           body: JSON.stringify(intent),
         });
-        if (PRE_GRANT_REFUSALS.has(res.status)) {
-          set_sent(false);
-          ask_prompt(user_error_prompt(await res.text()), { key: PROMPT_SLOT });
-          return;
-        }
-        if (!res.ok) throw await res.text();
-        const { id } = await res.json();
+        const { id } = await json_ok<{ id: string }>(res);
 
         const dest = donation_return_url({
           donation_id: id,
@@ -276,6 +272,15 @@ export function ChariotCheckout(props: DafDonationDetails) {
           },
         });
       } catch (err) {
+        if (
+          err instanceof HttpError &&
+          err.refused &&
+          PRE_GRANT_REFUSALS.has(err.status)
+        ) {
+          set_sent(false);
+          ask_prompt(user_error_prompt(err.message), { key: PROMPT_SLOT });
+          return;
+        }
         ask_prompt(error_prompt(err, { context: "processing donation" }), {
           key: PROMPT_SLOT,
         });

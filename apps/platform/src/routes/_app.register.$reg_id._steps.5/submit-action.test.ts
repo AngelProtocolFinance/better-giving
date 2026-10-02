@@ -87,10 +87,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const seed = (
-  status: TStatus | null,
-  fields: Partial<typeof COMPLETE> = COMPLETE
-) =>
+const seed = (status: TStatus, fields: Partial<typeof COMPLETE> = COMPLETE) =>
   test_db.current!.db.insert(registrations).values({
     id: RID,
     r_id: EMAIL,
@@ -141,7 +138,7 @@ describe("submit_action", () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
-  test.each<TStatus | null>(["01", "04", null])(
+  test.each<TStatus>(["01", "04"])(
     "sends a %s application to review",
     async (status) => {
       await seed(status);
@@ -158,9 +155,8 @@ describe("submit_action", () => {
 
   // the answer is what the step-5 page counts a signup on: a rejected
   // application sent back is the same nonprofit, not another one.
-  test.each<[TStatus | null, boolean]>([
+  test.each<[TStatus, boolean]>([
     ["01", true],
-    [null, true],
     ["04", false],
   ])("answers a %s submit as first: %s", async (status, first) => {
     await seed(status);

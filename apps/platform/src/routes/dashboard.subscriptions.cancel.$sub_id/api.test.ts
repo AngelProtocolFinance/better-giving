@@ -127,6 +127,18 @@ describe("donor cancels a gift whose first payment is still incomplete", () => {
     });
   });
 
+  // the handler undoes only a cancel the donor was told went through, and
+  // keys it to this cancel, so a re-cancel after a refused one is sent
+  it("marks the queued cancel as the donor's own, stamped with when they asked", async () => {
+    await donor_cancels("changed my mind");
+
+    const { payload } = enqueue_mock.mock.calls[0]![0];
+    const row = await sub_get(SUB_ID);
+    expect(payload.by_donor).toBe(true);
+    expect(row?.cancel_requested_at).toEqual(expect.any(String));
+    expect(payload.cancel_requested_at).toBe(row?.cancel_requested_at);
+  });
+
   it("stays cancelled when the first payment lands afterwards", async () => {
     await donor_cancels("changed my mind");
 

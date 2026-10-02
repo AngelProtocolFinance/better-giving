@@ -38,17 +38,20 @@ export const action = async ({
   const fv = safeParse(cancel_fv, body);
   if (!fv.success) throw data(fv.issues[0].message, { status: 400 });
   const { reason } = fv.output;
+  const cancel_requested_at = new Date().toISOString();
   const { row, prev_status } = await sub_update(db, params.sub_id, {
     status: "inactive",
     status_cancel_reason: reason,
-    updated_at: new Date().toISOString(),
+    cancel_requested_at,
   });
   // an incomplete gift can still be paid at stripe, so it is live there too
   const live_at_stripe =
     prev_status === "active" ||
     existing.status_cancel_reason === FIRST_PAYMENT_INCOMPLETE;
   if (row && live_at_stripe) {
-    await enqueue(msg("sub-deactivated", row));
+    await enqueue(
+      msg("sub-deactivated", { ...row, by_donor: true, cancel_requested_at })
+    );
   }
   return redirectWithSuccess("..", "Subscription cancelled");
 };

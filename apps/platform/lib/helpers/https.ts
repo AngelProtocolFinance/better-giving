@@ -39,21 +39,28 @@ class Resp {
 
 export const resp = new Resp();
 
-/** `status` is what `is_user_error` reads to keep a 4xx off sentry */
+/**
+ * a non-ok response. `refused` — the route's own donor-worded refusal, which
+ * is then the message and stays off sentry; any other carries `HTTP <status>`,
+ * never for a donor's eyes.
+ */
 export class HttpError extends Error {
+  override name = "HttpError";
+  readonly refused: boolean;
   constructor(
     readonly status: number,
-    message: string
+    refusal?: string
   ) {
-    super(message);
+    super(refusal || `HTTP ${status}`);
+    this.refused = !!refusal;
   }
 }
 
 /**
  * parsed body of an ok response; otherwise throws `HttpError`. only a 4xx
- * built by `resp.refuse` lends its body as the message — any other body
+ * built by `resp.refuse` with a non-empty body is `refused` — any other body
  * (an internal `resp.status` string, an edge/firewall page, a 5xx) is left
- * out, and the caller decides what to show for an empty one.
+ * out, and the caller decides what to show when it isn't.
  */
 export async function json_ok<T>(res: Response): Promise<T> {
   if (res.ok) return res.json();

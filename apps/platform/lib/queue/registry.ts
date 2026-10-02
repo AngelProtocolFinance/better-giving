@@ -6,6 +6,7 @@ import type {
 } from "../donations";
 import type { IReg } from "../reg/schema";
 import type { TFrequency } from "../schemas";
+import type { ISub } from "../subscriptions";
 import type { IDelivery, IMsg } from "./types";
 
 interface IFromAddress {
@@ -91,7 +92,10 @@ export interface IInviteEmailPayload {
   invitee: string;
   invitee_first_name: string;
   invitor: string;
+  npo_id: number;
   npo_name: string;
+  /** iso, when the producer sent it, so each re-invite keys apart */
+  sent_at: string;
 }
 
 export interface ILockTxCreatedPayload {
@@ -119,16 +123,48 @@ export interface IRegCreatedPayload {
   id: string;
   r_id: string;
   /** the producer could not establish that whoever started this application
-   * owns `r_id` — the lead form, where the poster is a stranger to the address.
-   * optional, and absent must keep meaning "mail them": messages enqueued
-   * before this field existed are still in flight against newer deploys. */
-  unproven?: boolean;
+   * owns `r_id` — the lead form, where the poster is a stranger to the address. */
+  unproven: boolean;
 }
 
-export interface ISubDeactivatedPayload {
+interface ISubDeactivatedBase {
   id: string;
   platform: string;
   status_cancel_reason?: string | null;
+}
+
+/** the refund and stripe-webhook cancels */
+interface ISubDeactivatedOther extends ISubDeactivatedBase {
+  by_donor?: false;
+}
+
+/** the donor's own cancel, which told them it went through */
+interface ISubDeactivatedByDonor extends ISubDeactivatedBase {
+  by_donor: true;
+  /** when the donor asked, so each donor cancel keys apart */
+  cancel_requested_at: string;
+}
+
+export type ISubDeactivatedPayload =
+  | ISubDeactivatedOther
+  | ISubDeactivatedByDonor;
+
+/** the donor's refused cancel, after its row was restored to active */
+export interface ISubCancelFailedEmailPayload
+  extends Pick<
+    ISub,
+    | "id"
+    | "to_name"
+    | "amount"
+    | "amount_usd"
+    | "currency"
+    | "interval"
+    | "interval_count"
+  > {
+  /** the donor's email */
+  to: string;
+  /** the refused cancel's `cancel_requested_at` */
+  cancelled_at: string;
 }
 
 export interface ITipReceivedPayload {
@@ -162,6 +198,7 @@ export type Payloads = {
   "paypal-order-capture": IPaypalOrderCapturePayload;
   "reg-created": IRegCreatedPayload;
   "reg-updated": IReg;
+  "sub-cancel-failed-email": ISubCancelFailedEmailPayload;
   "sub-deactivated": ISubDeactivatedPayload;
   "tip-received": ITipReceivedPayload;
 };
@@ -208,7 +245,10 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   "fiat-notice": (p) => `fiat.notice_${p.id}`,
   "fund-member-removed": (p) =>
     `fund.removed_${p.fund_id}_${p.creator_id}_${p.npo_id}`,
-  "invite-email": (p) => `invite_${p.invitee}`,
+  // one per send: a re-invite is its own mail (it refreshes a pending invite's
+  // expiry), and so is a second nonprofit's invite to the same person
+  "invite-email": (p) =>
+    `invite_${p.invitee}_${p.npo_id}_${p.sent_at.replace(/:/g, "")}`,
   "lock-tx-created": (p) =>
     `lock_tx_${p.npo_id}_${String(p.date_created).replace(/:/g, "")}`,
   "paypal-order-capture": (p) => `paypal.order-capture_${p.order_id}`,
@@ -217,7 +257,15 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   // new key and a repeat enqueue of the same row is not.
   "reg-updated": (p) =>
     `reg.updated_${p.id}_${p.status}_${String(p.updated_at).replace(/:/g, "")}`,
-  "sub-deactivated": (p) => `sub.deactivated_${p.id}`,
+  // per refused cancel: a later cancel that is refused too mails again
+  "sub-cancel-failed-email": (p) =>
+    `sub.cancel-failed-email_${p.id}_${p.cancelled_at.replace(/:/g, "")}`,
+  // one per donor cancel: a second cancel after a refused one must reach the
+  // provider rather than dedupe against the first
+  "sub-deactivated": (p) =>
+    p.by_donor
+      ? `sub.deactivated_${p.id}_${p.cancel_requested_at.replace(/:/g, "")}`
+      : `sub.deactivated_${p.id}`,
   "tip-received": (p) => `tip_${p.id}`,
 };
 
@@ -257,6 +305,7 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   "lock-tx-created": { retries: 3 },
   // only the welcome mail; registration's update side is `reg-updated`.
   "reg-created": { retries: 3 },
+  "sub-cancel-failed-email": { retries: 3 },
   "tip-received": { retries: 3 },
   // a lost cancel keeps charging a donor who cancelled. a stripe repeat is
   // harmless: handle_sub_deactivated reads the live sub first and returns on

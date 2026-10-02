@@ -11,8 +11,10 @@ import { cancel_fv } from "./schema";
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
+const fetcher_key = "cancel-subscription";
+
 function Content({ recipient_name }: { recipient_name: string }) {
-  const fetcher = useFetcher({ key: "cancel-subscription" });
+  const fetcher = useFetcher({ key: fetcher_key });
   const busy = fetcher.state !== "idle";
 
   const {
@@ -93,8 +95,13 @@ function Content({ recipient_name }: { recipient_name: string }) {
 export default function CancelPrompt({
   loaderData: { recipient_name },
 }: Route.ComponentProps) {
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-panel">
+    <RouteModal
+      title="Cancel recurring donation"
+      busy={fetcher.state !== "idle"}
+      classes="grid content-start justify-items-center bg-panel"
+    >
       <Content recipient_name={recipient_name} />
     </RouteModal>
   );

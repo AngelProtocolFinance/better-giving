@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import { amnt_sum, partition } from "@/donations/helpers";
 import { snap } from "@/helpers/decimal";
+import { json_ok } from "@/helpers/https";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import type { Ctx } from "../types";
 
@@ -76,6 +77,15 @@ const chariot_answers = (status: number, body: unknown) => {
   create_grant_mock.mockImplementation((d) => sdk.create_grant(d));
 };
 
+/** create grant's 400 as chariot-openapi's v1 spec gives it, an rfc 7807
+ * problem; the vendored spec's `Error` shape predates it */
+const bad_request = {
+  type: "about:blank",
+  title: "API Error",
+  status: 400,
+  detail: "The request is invalid or contains invalid parameters.",
+};
+
 const granted_cents = () => create_grant_mock.mock.calls[0][0].amount;
 
 beforeAll(async () => {
@@ -118,42 +128,39 @@ describe("chariot_intent repeat for one workflow session", () => {
   });
 });
 
-// the checkout reads a 400, 404 or 410 as "nothing exists at chariot" and lets the
-// donor retry, so a 4xx may only ever answer a request that made no grant
+// the checkout reads a 400, 404 or 410 marked by resp.refuse as "nothing exists
+// at chariot" and lets the donor retry, so a marked 4xx may only ever answer a
+// request that made no grant
 describe("chariot_intent refusals the donor can retry", () => {
-  it("refuses a base under the minimum with a 4xx before creating the grant", async () => {
+  it("refuses a base under the minimum with a 4xx the donor reads, before creating the grant", async () => {
     const res = await chariot_intent(
       ctx({ base: 0.5, tip: 0, fee_allowance: 0.5 })
     );
-    expect((res as Response).status).toBe(400);
-    await expect((res as Response).text()).resolves.toBe(
-      "The minimum DAF donation is 2 USD."
-    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 400,
+      message: "The minimum DAF donation is 2 USD.",
+    });
     expect(create_grant_mock).not.toHaveBeenCalled();
   });
 
   it("answers chariot's 400 with a 400 and the fallback message, never chariot's own", async () => {
     // chariot's message can be about our key or config, not the donor's gift
-    chariot_answers(400, {
-      timestamp: "2026-10-01T00:00:00Z",
-      code: 400,
-      error: "Bad Request",
-      message: "Expected an API key to be provided",
-    });
+    chariot_answers(400, bad_request);
     const res = await chariot_intent(
       ctx({ base: 10, tip: 0, fee_allowance: 0 })
     );
-    expect((res as Response).status).toBe(400);
-    expect(await (res as Response).text()).toBe(
-      "Your fund couldn't make this grant. Please check the amount and try again."
-    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 400,
+      message:
+        "Your fund couldn't make this grant. Please check the amount and try again.",
+    });
   });
 
   // a 400 can be our missing key, a 404 a wrong api url: every checkout would
   // read "check the amount" and nothing else would say so
   it("reports chariot's refusal as degraded, with its status, request id and reason", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    chariot_answers(400, { code: 400, message: "Expected an API key" });
+    chariot_answers(400, bad_request);
     await chariot_intent(ctx({ base: 10, tip: 0, fee_allowance: 0 }));
     expect(capture_exception.mock.calls[0]?.[1]).toMatchObject({
       level: "warning",
@@ -161,7 +168,7 @@ describe("chariot_intent refusals the donor can retry", () => {
       extra: {
         status: 400,
         request_id: "req_1",
-        reason: "Expected an API key",
+        reason: "The request is invalid or contains invalid parameters.",
       },
     });
   });
@@ -175,15 +182,16 @@ describe("chariot_intent refusals the donor can retry", () => {
     );
   });
 
-  it("answers chariot's 410 for an expired session with a 410 and the fallback message", async () => {
+  it("answers chariot's 410 for an expired session with a 410 and the fallback message, for the donor", async () => {
     chariot_answers(410, "Gone");
     const res = await chariot_intent(
       ctx({ base: 10, tip: 0, fee_allowance: 0 })
     );
-    expect((res as Response).status).toBe(410);
-    expect(await (res as Response).text()).toBe(
-      "Your fund couldn't make this grant. Please check the amount and try again."
-    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 410,
+      message:
+        "Your fund couldn't make this grant. Please check the amount and try again.",
+    });
   });
 
   it("answers chariot's 404 for an unknown workflow session with a 404", async () => {
@@ -191,8 +199,10 @@ describe("chariot_intent refusals the donor can retry", () => {
     const res = await chariot_intent(
       ctx({ base: 10, tip: 0, fee_allowance: 0 })
     );
-    expect((res as Response).status).toBe(404);
-    expect(await (res as Response).text()).toMatch(/couldn't make this grant/);
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 404,
+      message: expect.stringMatching(/couldn't make this grant/),
+    });
   });
 
   it("never answers chariot's 500 with a 4xx", async () => {
@@ -244,6 +254,16 @@ describe("chariot_intent grant amount", () => {
     expect(await (res as Response).text()).toMatch(/whole dollar/i);
     expect(create_grant_mock).not.toHaveBeenCalled();
     expect(await db().select().from(donations)).toEqual([]);
+  });
+
+  it("refuses a total that isn't whole dollars in words the checkout shows the donor", async () => {
+    const res = await chariot_intent(
+      ctx({ base: 10, tip: 0, fee_allowance: 0.3 })
+    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 400,
+      message: "DAF grants must be a whole dollar amount",
+    });
   });
 
   it("creates a whole-dollar total as its cents: 10 + 1 fee allowance is 1100", async () => {

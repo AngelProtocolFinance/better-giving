@@ -89,8 +89,7 @@
         "VITE_STRIPE_PK",
         "VITE_PAYPAL_CLIENT_ID",
         "VITE_CHARIOT_CONNECT_ID",
-        "QSTASH_URL",
-        "VERCEL_GIT_COMMIT_SHA"
+        "QSTASH_URL"
       ]
     },
     "dev": {

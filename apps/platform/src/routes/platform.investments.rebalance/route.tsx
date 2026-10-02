@@ -11,9 +11,18 @@ import type { State } from "./types";
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
+// keyed, so the modal shell reads the submission Content makes
+const fetcher_key = "rebalance";
+
 export default function Page({ loaderData: data }: Route.ComponentProps) {
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal size="lg" classes="bg-panel">
+    <RouteModal
+      size="lg"
+      title="Rebalance investments"
+      busy={fetcher.state !== "idle"}
+      classes="bg-panel"
+    >
       <Content {...data} />
     </RouteModal>
   );
@@ -21,7 +30,10 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
 
 function Content(props: ILog) {
   const [state, setState] = useState<State>({ type: "form" });
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: fetcher_key });
+  const hold = (e: { preventDefault(): void }) => {
+    if (fetcher.state !== "idle") e.preventDefault();
+  };
 
   return (
     <div>
@@ -41,6 +53,7 @@ function Content(props: ILog) {
             preventScrollReset
             to=".."
             aria-disabled={fetcher.state !== "idle"}
+            onClick={hold}
             className="btn-secondary btn"
           >
             Back

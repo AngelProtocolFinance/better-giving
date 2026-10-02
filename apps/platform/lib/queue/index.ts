@@ -12,6 +12,7 @@ export {
   type ILockTxCreatedPayload,
   type IPaypalOrderCapturePayload,
   type IRegCreatedPayload,
+  type ISubCancelFailedEmailPayload,
   type ISubDeactivatedPayload,
   type ITipReceivedPayload,
   type Kind,

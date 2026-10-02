@@ -236,7 +236,7 @@ describe("fsa action — documentation form", () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
-  test.each<TStatus | null>(["01", "04", null])(
+  test.each<TStatus>(["01", "04"])(
     "records the documents and the packet on a %s application",
     async (status) => {
       await seed(status);

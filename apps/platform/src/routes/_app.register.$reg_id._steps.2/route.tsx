@@ -9,7 +9,6 @@ import {
 } from "@better-giving/ui";
 import type { SubmitHandler } from "react-hook-form";
 import { NavLink, useFetcher, useNavigate } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { country_names as cnames } from "#/constants/countries";
 import { TERMS_OF_USE_NPO } from "#/constants/urls";
 import { step_loader } from "#/pages/registration/data/step-loader";
@@ -25,10 +24,8 @@ import { use_rhf } from "./use-rhf";
 export { ErrorBoundary } from "#/components/error";
 
 export const loader = step_loader(2);
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const action = update_action((reg) => after_org(reg.o_type));
-export default CacheRoute(Page);
-function Page({ loaderData: reg }: Route.ComponentProps) {
+export default function Page({ loaderData: reg }: Route.ComponentProps) {
   const fetcher = useFetcher();
   const navigate = useNavigate();
 

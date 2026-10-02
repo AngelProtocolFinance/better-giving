@@ -2,7 +2,6 @@ import { Actions, ExtLink, use_ask_prompt } from "@better-giving/ui";
 import { SquareArrowOutUpRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useFetcher } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { BankDetails, type OnSubmit } from "#/components/bank-details";
 import { submit_error_prompt } from "#/helpers/error-prompt";
 import { step_loader } from "#/pages/registration/data/step-loader";
@@ -14,11 +13,9 @@ import { form_buttons } from "./form-buttons";
 
 export { ErrorBoundary } from "#/components/error";
 export const loader = step_loader(4);
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const action = update_action(next_step[4]);
-export default CacheRoute(Page);
 
-function Page({ loaderData: reg }: Route.ComponentProps) {
+export default function Page({ loaderData: reg }: Route.ComponentProps) {
   const [is_changing, set_is_changing] = useState(false);
   const fetcher = useFetcher();
   const ask_prompt = use_ask_prompt();

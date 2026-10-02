@@ -2,7 +2,7 @@ const HEADING = "h1, h2, h3, h4, h5, h6";
 
 /**
  * ref callback for a dialog content element that has no explicit title: keeps
- * `title_id` on its first `h1`–`h3`, following the content as it swaps steps.
+ * `title_id` on its first `h1`–`h6`, following the content as it swaps steps.
  * pass the same id as `ids.title` on `Dialog.Root` — zag then points the
  * content's `aria-labelledby` at it, but only if an element carries that id
  * when it checks, one frame after opening. a dialog with no heading by then

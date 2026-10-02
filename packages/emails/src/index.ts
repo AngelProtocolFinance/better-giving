@@ -34,6 +34,8 @@ export * as registration_approved from "./templates/registration-approved";
 export * as registration_new from "./templates/registration-new";
 export * as registration_rejected from "./templates/registration-rejected";
 export * as reset_password from "./templates/reset-password";
+// subscription
+export * as subscription_cancel_failed from "./templates/subscription-cancel-failed";
 export * as tip_notif from "./templates/tip-notif";
 
 export type * from "./types";

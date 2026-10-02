@@ -48,6 +48,48 @@ const stub = (action: (args: ActionFunctionArgs) => Promise<null>) =>
 const press = (el: Element) => (el as HTMLElement).click();
 
 describe("redeem request verdict prompt", () => {
+  test("is a dialog named for the request, and Escape doesn't close it while the verdict is in flight", async () => {
+    const { action, release } = held_action();
+    const Stub = stub(action);
+    const screen = await render(
+      <Stub initialEntries={["/redeem-requests/tx-1/approve"]} />
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Redeem units request",
+      exact: true,
+    });
+    await expect.element(dialog).toBeVisible();
+    const press_escape = () =>
+      document.dispatchEvent(
+        // cancelable, as a real key press is: ark holds the dialog by preventing it
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+
+    press(screen.getByRole("button", { name: "Submit" }).element());
+    const pending = screen.getByRole("button", { name: "Submitting…" });
+    await expect.element(pending).toBeInTheDocument();
+    // spread over frames, so at least one lands after ark's deferred listener
+    for (let i = 0; i < 5; i++) {
+      press_escape();
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    await expect.element(pending).toBeInTheDocument();
+
+    release();
+    await expect
+      .element(screen.getByRole("button", { name: "Submit", exact: true }))
+      .toBeInTheDocument();
+    await vi.waitFor(() => {
+      press_escape();
+      expect(dialog.query()).toBeNull();
+    });
+    await expect.element(screen.getByText("requests list")).toBeVisible();
+  });
+
   test("Submit holds focus while the verdict is in flight and a second press sends nothing", async () => {
     const { action, release } = held_action();
     const Stub = stub(action);

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { donor_fv_blank } from "@/donations/schema";
+import { resp } from "@/helpers/https";
 import { donation_recipient_init, type Init } from "../../types";
 import { DirectMode } from "./direct-mode";
 
@@ -145,7 +146,7 @@ describe("crypto direct mode: the donor says they've paid", () => {
     expect(screen.getByText(/send 0\.80+\s/).query()).toBeNull();
   });
 
-  test("a server failure shows the generic message, not a blank frame", async () => {
+  test("a server failure asks the donor to try again later, not a blank frame", async () => {
     mswWorker.use(
       http.post(href("/api/donation-intents"), () =>
         HttpResponse.text("boom", { status: 500 })
@@ -163,13 +164,74 @@ describe("crypto direct mode: the donor says they've paid", () => {
     );
     const screen = await render(<Stub />);
 
-    // a 5xx body is a framework error page, so the donor gets the fallback —
-    // never the server's own text
+    // a 5xx body is a framework error page, so the donor gets the try-later
+    // line — never the server's own text
     await expect
-      .element(screen.getByText(/failed to load donation address/i))
+      .element(
+        screen.getByText(
+          "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
+          { exact: true }
+        )
+      )
       .toBeVisible();
+    expect(screen.getByText(/boom/).query()).toBeNull();
+    expect(
+      screen.getByText(/failed to load donation address/i).query()
+    ).toBeNull();
     await expect
       .element(screen.getByRole("button", { name: /completed the payment/i }))
       .toBeDisabled();
+  });
+
+  test("a refusal from the route reaches the donor in its own words", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        resp.refuse("This amount is below the minimum of 0.0001 BTC.", 400)
+      )
+    );
+
+    const Stub = stb(
+      <DirectMode
+        fv={{ ...fv, token: { ...fv.token, amount: "0.7" } }}
+        init={init()}
+        donor={donor}
+        fee_allowance={0}
+        tipv={0}
+      />
+    );
+    const screen = await render(<Stub />);
+
+    await expect
+      .element(screen.getByText(/below the minimum of 0\.0001 BTC/))
+      .toBeVisible();
+  });
+
+  test("a 4xx page from in front of the route never reaches the donor", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.text(
+          "<html><body>Request blocked by edge-waf</body></html>",
+          {
+            status: 403,
+          }
+        )
+      )
+    );
+
+    const Stub = stb(
+      <DirectMode
+        fv={{ ...fv, token: { ...fv.token, amount: "0.7" } }}
+        init={init()}
+        donor={donor}
+        fee_allowance={0}
+        tipv={0}
+      />
+    );
+    const screen = await render(<Stub />);
+
+    await expect
+      .element(screen.getByText(/failed to load donation address/i))
+      .toBeVisible();
+    expect(screen.getByText(/edge-waf/).query()).toBeNull();
   });
 });

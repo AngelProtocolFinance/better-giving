@@ -90,7 +90,7 @@ export function StripeCheckout(props: IStripeCheckoutProps) {
           <Loader msg="Loading payment form.." />
         ) : error || !data ? (
           <ErrorStatus>
-            {error instanceof HttpError && error.message
+            {error instanceof HttpError && error.refused
               ? error.message
               : "We couldn't start the payment. Please try again or choose a different payment method."}
           </ErrorStatus>

@@ -35,7 +35,7 @@ interface Props extends PropsWithChildren {
   onExitComplete?: () => void;
   /**
    * the dialog's accessible name, read to screen readers only. without it the
-   * dialog is named by the first `h1`–`h3` in its content.
+   * dialog is named by the first `h1`–`h6` in its content.
    */
   title?: string;
 }
