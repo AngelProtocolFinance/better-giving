@@ -30,6 +30,11 @@ async function open_at(routes: StubRoute[], entry: string) {
   const Stub = createRoutesStub(routes);
   const screen = await render(<Stub initialEntries={[entry]} />);
   await expect.element(screen.getByText(NOT_FOUND)).toBeVisible();
+  await expect
+    .element(
+      screen.getByRole("dialog", { name: "Something went wrong", exact: true })
+    )
+    .toBeVisible();
   return screen;
 }
 

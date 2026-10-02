@@ -1,17 +1,18 @@
 import { createRoutesStub, Outlet } from "react-router";
 import { describe, expect, test, vi } from "vitest";
-import { render } from "vitest-browser-react";
+import { cleanup, render } from "vitest-browser-react";
 import { RouteModal } from "./route-modal";
 
 function Modal() {
   return (
     <RouteModal classes="bg-panel p-4">
+      <h3>Refund preview</h3>
       <p>modal body</p>
     </RouteModal>
   );
 }
 
-function stub() {
+function stub(Child = Modal) {
   return createRoutesStub([
     {
       path: "/parent",
@@ -24,7 +25,7 @@ function stub() {
       children: [
         {
           path: "child",
-          Component: () => <Modal />,
+          Component: Child,
           HydrateFallback: () => null,
         },
       ],
@@ -43,6 +44,39 @@ describe("RouteModal", () => {
     );
     await expect.element(screen.getByText("modal body")).toBeVisible();
     await expect.element(screen.getByText("parent route")).toBeVisible();
+  });
+
+  test("is named by its first heading, or by an explicit title", async () => {
+    const Stub = stub();
+    const screen = await render(
+      <Stub
+        initialEntries={["/parent/child"]}
+        future={{ v8_middleware: true }}
+      />
+    );
+    await expect
+      .element(
+        screen.getByRole("dialog", { name: "Refund preview", exact: true })
+      )
+      .toBeVisible();
+    await cleanup();
+
+    const Titled = stub(() => (
+      <RouteModal title="Edit allocation">
+        <p>modal body</p>
+      </RouteModal>
+    ));
+    const titled = await render(
+      <Titled
+        initialEntries={["/parent/child"]}
+        future={{ v8_middleware: true }}
+      />
+    );
+    await expect
+      .element(
+        titled.getByRole("dialog", { name: "Edit allocation", exact: true })
+      )
+      .toBeVisible();
   });
 
   test("Escape closes by navigating to parent (default '..')", async () => {

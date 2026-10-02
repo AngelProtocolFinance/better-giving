@@ -8,6 +8,8 @@ import {
 } from "react-router";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
 
+const TITLE = "Something went wrong";
+
 const STATUS_MESSAGES: Record<number, string> = {
   400: "The request was invalid.",
   403: "You don't have permission to do that.",
@@ -37,10 +39,15 @@ export function ErrorModal() {
   }
 
   return (
-    <Modal open={true} onClose={close} classes="grid bg-panel text-gray-12">
+    <Modal
+      open={true}
+      onClose={close}
+      title={TITLE}
+      classes="grid bg-panel text-gray-12"
+    >
       <div className="px-6 pb-4 text-center mt-6">
         <CircleAlert className="text-destructive mx-auto pictogram-md" />
-        <p className="font-bold mt-3">Something went wrong</p>
+        <p className="font-bold mt-3">{TITLE}</p>
         <p className="text-gray-11 text-sm mt-2 text-balance">{message}</p>
       </div>
       <Actions band>

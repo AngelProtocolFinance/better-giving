@@ -1,6 +1,7 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
-import type { PropsWithChildren } from "react";
+import { type PropsWithChildren, useId } from "react";
+import { name_from_heading } from "../helpers/dialog-name";
 import { type ModalSize, modal_box } from "../helpers/modal-box";
 
 interface Props extends PropsWithChildren {
@@ -22,10 +23,17 @@ interface Props extends PropsWithChildren {
    * then.
    */
   onExitComplete?: () => void;
+  /**
+   * the dialog's accessible name, read to screen readers only. without it the
+   * dialog is named by the first `h1`–`h3` in its content.
+   */
+  title?: string;
 }
 export function Modal({ size = "sm", ...props }: Props) {
+  const title_id = useId();
   return (
     <Dialog.Root
+      ids={{ title: title_id }}
       open={props.open}
       onOpenChange={(e) => {
         if (!e.open) props.onClose();
@@ -38,8 +46,12 @@ export function Modal({ size = "sm", ...props }: Props) {
         <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
+            ref={props.title ? undefined : name_from_heading(title_id)}
             className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${size === "none" ? "z-modal" : modal_box[size]} ${props.classes ?? ""}`}
           >
+            {props.title && (
+              <Dialog.Title className="sr-only">{props.title}</Dialog.Title>
+            )}
             {props.children}
           </Dialog.Content>
         </Dialog.Positioner>
