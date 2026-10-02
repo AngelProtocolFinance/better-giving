@@ -1,4 +1,4 @@
-const HEADING = "h1, h2, h3";
+const HEADING = "h1, h2, h3, h4, h5, h6";
 
 /**
  * ref callback for a dialog content element that has no explicit title: keeps

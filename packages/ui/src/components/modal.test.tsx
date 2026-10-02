@@ -25,6 +25,17 @@ describe("Modal accessible name", () => {
       .toBeVisible();
   });
 
+  test("a lower-level heading names it too", async () => {
+    await render(
+      <Modal open onClose={noop}>
+        <h4>Add member</h4>
+      </Modal>
+    );
+    await expect
+      .element(page.getByRole("dialog", { name: "Add member", exact: true }))
+      .toBeVisible();
+  });
+
   test("an explicit title names it over any heading", async () => {
     await render(
       <Modal open onClose={noop} title="X">
