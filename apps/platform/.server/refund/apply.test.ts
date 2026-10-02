@@ -317,3 +317,64 @@ describe("apply_refund_plan losses", () => {
     expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
   });
 });
+
+// a savings shortfall is the loss; the cash share still sits in a pending payout
+describe("apply_refund_plan savings shortfall beside a cash payout", () => {
+  function plan_liq_short(npo_id: number, payout: "pending" | "settled") {
+    return calc_refund_plan(
+      {
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: npo_id,
+          to_name: "Apply Test NPO",
+          alloc: { liq: 50, lock: 0, cash: 50 },
+          net: 100,
+          amount: 110,
+          amount_usd: 110,
+          fee_base: 5,
+          fee_fsa: 3,
+          fee_processing: 2,
+        },
+        payout: { id: PAYOUT_ID, type: payout },
+        commission: null,
+        rev_log_ids: [],
+        bal: { liq: 10, lock_units: 0, cash: 100 },
+        nav: null,
+        sub_id: null,
+      },
+      {
+        now: "2026-09-03T00:00:00.000Z",
+        nav_date: "2026-09-03T00:00:00.001Z",
+        form_id: null,
+        program_id: null,
+      }
+    );
+  }
+
+  test("a pending payout is cancelled as refunded and its cash comes off the npo", async () => {
+    const npo_id = await seed_payout("pending");
+
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_liq_short(npo_id, "pending")
+    );
+
+    expect(await payout_type()).toBe("refunded");
+    expect(await npo_cash(npo_id)).toBe(50);
+    const rows = await test_db.db.select().from(loss_logs);
+    expect(rows.map((r) => r.type)).toEqual(["balance_liq"]);
+  });
+
+  test("a payout already sent is marked refunded_loss and its cash stays", async () => {
+    const npo_id = await seed_payout("settled");
+
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_liq_short(npo_id, "settled")
+    );
+
+    expect(await payout_type()).toBe("refunded_loss");
+    expect(await npo_cash(npo_id)).toBe(100);
+  });
+});

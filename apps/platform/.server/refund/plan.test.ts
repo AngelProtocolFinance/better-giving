@@ -218,6 +218,47 @@ describe("calc_refund_plan", () => {
     expect(po.kind === "payout_status" && po.status).toBe("refunded_loss");
   });
 
+  test("savings short, cash payout pending → payout cancelled, only the shortfall is the loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: 1,
+          to_name: "Test NPO",
+          alloc: { liq: 60, lock: 0, cash: 40 },
+          net: 100,
+          amount: 110,
+          amount_usd: 110,
+          fee_base: 5,
+          fee_fsa: 3,
+          fee_processing: 2,
+        },
+        payout: { id: "po-1", type: "pending" },
+        bal: { liq: 10, lock_units: 0, cash: 40 },
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(true);
+    expect(plan.effects.slice(0, 2)).toEqual([
+      { kind: "payout_status", payout_id: "po-1", status: "refunded" },
+      {
+        kind: "balance_update",
+        npo_id: 1,
+        deltas: { liq: 0, lock: 0, lock_units: 0, cash: 40 },
+      },
+    ]);
+    const loss = plan.effects.find((e) => e.kind === "loss_log");
+    expect(loss?.kind === "loss_log" && loss.loss).toMatchObject({
+      type: "balance_liq",
+      amount: 70,
+      npo_amount: 60,
+      fees_bg: 8,
+      fees_processing: 2,
+    });
+    expect(plan.amount).toBe(70);
+  });
+
   test("cash payout mid-transfer (processing) → loss, like a paid one", () => {
     const plan = calc_refund_plan(
       make_inputs({

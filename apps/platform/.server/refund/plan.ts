@@ -88,7 +88,8 @@ export interface RefundPreview {
 export interface RefundPlan {
   is_loss: boolean;
   loss_reasons: string[];
-  /** usd, like every loss figure — `dist.amount` is in the donation's currency */
+  /** the loss in usd, like every loss figure — `dist.amount` is in the donation's
+   * currency. the dist's gross less the cash share a cancelled payout recovers */
   amount: number;
   /** a commission its referrer was already paid: left `paid`, the platform's loss */
   paid_commission: { donation_id: string; amount: number } | null;
@@ -111,7 +112,6 @@ export function calc_refund_plan(
 ): RefundPlan {
   const { dist, payout, commission, rev_log_ids, bal, nav, sub_id } = inputs;
   const { now, nav_date, form_id, program_id } = ctx;
-  const amount_usd = dist_amount_usd(dist);
 
   // reverse what settlement credited: a share missing from the stored jsonb credited 0
   const alloc = {
@@ -233,12 +233,30 @@ export function calc_refund_plan(
     ? "refunded_loss"
     : "refunded";
 
+  // a pending payout hasn't paid out its cash, so it is cancelled and its cash
+  // reversed even when a savings/investment shortfall makes the refund a loss
+  const payout_cancelled = payout?.type === "pending";
+  const cash_recovered = payout_cancelled ? bd.cash : 0;
+  const loss_usd = dist_amount_usd(dist) - cash_recovered;
+
   const effects: RefundEffect[] = [];
 
   // payout row before the npos row: the grants cron's settle writes payouts
   // then the npos row, so the reverse order deadlocks it
   if (payout) {
-    effects.push({ kind: "payout_status", payout_id: payout.id, status });
+    effects.push({
+      kind: "payout_status",
+      payout_id: payout.id,
+      status: payout_cancelled ? "refunded" : status,
+    });
+  }
+
+  if (is_loss && cash_recovered > 0) {
+    effects.push({
+      kind: "balance_update",
+      npo_id: dist.to_id,
+      deltas: { liq: 0, lock: 0, lock_units: 0, cash: cash_recovered },
+    });
   }
 
   // balance/NAV writes — only when fully reversible
@@ -362,8 +380,8 @@ export function calc_refund_plan(
       dist_id: dist.id,
       npo_id: dist.to_id,
       type: loss_type,
-      amount: amount_usd,
-      npo_amount: dist.net,
+      amount: loss_usd,
+      npo_amount: dist.net - cash_recovered,
       fees_bg: dist.fee_base + dist.fee_fsa,
       fees_processing: dist.fee_processing,
       reason: loss_reasons.join("; "),
@@ -374,7 +392,7 @@ export function calc_refund_plan(
   return {
     is_loss,
     loss_reasons,
-    amount: amount_usd,
+    amount: loss_usd,
     paid_commission,
     effects,
     preview,
