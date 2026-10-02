@@ -12,17 +12,24 @@ import { AllocationSlider } from "./slider";
 
 export { ErrorModal as ErrorBoundary } from "#/components/error";
 
+// keyed, so the modal shell reads the submission Content makes
+const fetcher_key = "edit-alloc";
+
 export default function AllocationEdit() {
   const data = use_admin_data();
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal classes="grid gap-y-4 bg-panel p-6">
+    <RouteModal
+      busy={fetcher.state !== "idle"}
+      classes="grid gap-y-4 bg-panel p-6"
+    >
       <Content {...(data?.endow.allocation ?? default_allocation)} />
     </RouteModal>
   );
 }
 
 function Content(props: IAllocation) {
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: fetcher_key });
   const [alloc, set_alloc] = useState<IAllocation>(props);
   const [is_custom, set_is_custom] = useState(
     alloc_opts.every((opt) => opt.value !== to_alloc_opt_value(props))

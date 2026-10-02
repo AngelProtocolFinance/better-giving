@@ -14,16 +14,25 @@ export {
   delete_action as action,
   delete_loader as loader,
 } from "#/pages/admin/banking/delete-action";
+
+// keyed, so the modal shell reads the submission Content makes
+const fetcher_key = "delete-bank";
+
 export default function DeletePrompt({ loaderData }: Route.ComponentProps) {
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-panel">
+    <RouteModal
+      title="Delete payout method"
+      busy={fetcher.state !== "idle"}
+      classes="grid content-start justify-items-center bg-panel"
+    >
       <Content {...loaderData} />
     </RouteModal>
   );
 }
 
 function Content({ is_default, is_guarded }: IContent) {
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: fetcher_key });
   const is_submitting = fetcher.state !== "idle";
   const [canProceed, message] = is_guarded
     ? [false, "Kindly set another payout method as default before deleting"]
