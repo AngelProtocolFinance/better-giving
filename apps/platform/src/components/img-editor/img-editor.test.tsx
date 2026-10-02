@@ -437,7 +437,7 @@ describe("ImgEditor: preview controls", () => {
     ) as HTMLElement;
 
     await page.elementLocator(dropzone).click();
-    // the press focused the dropzone — the state that used to keep them shown
+    // the press focused the dropzone: a reveal keyed off :focus would keep them shown
     expect(document.activeElement).toBe(dropzone);
     await page.elementLocator(dropzone).unhover();
 
@@ -475,7 +475,7 @@ describe("ImgEditor: preview controls", () => {
     }
   });
 
-  // the dropzone forwards a pointer click to the input, as a wrapping label did
+  // the dropzone forwards a pointer click to the input
   test("a click on the preview opens the picker", async () => {
     const screen = await render_editor(make_props({ value: PIXEL }));
     const input = screen.container.querySelector(

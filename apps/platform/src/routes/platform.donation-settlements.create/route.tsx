@@ -148,7 +148,7 @@ function Content({ on_close }: { on_close: () => void }) {
         </p>
         {submit_fetcher.data && "replayed" in submit_fetcher.data && (
           <p className="text-sm text-gray-11 mb-4">
-            It was already recorded by an earlier confirm — nothing was added
+            It was already recorded by an earlier confirm, so nothing was added
             twice.
           </p>
         )}

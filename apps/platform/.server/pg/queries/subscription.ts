@@ -36,7 +36,7 @@ export async function sub_user_list(
     .from(subscriptions)
     .where(
       and(
-        // the expression subscriptions_from_id_lower_status_idx is built on
+        // matches the expression subscriptions_from_id_lower_status_idx is built on
         sql`lower(${subscriptions.from_id}) = lower(${email})`,
         status ? eq(subscriptions.status, status) : undefined
       )

@@ -3,7 +3,7 @@ import { type CustomValidator, defineField } from "sanity";
 // optional on an empty image; required once an asset is set
 const requireAltWithAsset: CustomValidator<string | undefined> = (alt, ctx) => {
   const img = ctx.parent as { asset?: unknown } | undefined;
-  if (img?.asset && !alt?.trim()) return "Alt text required when image is set";
+  if (img?.asset && !alt?.trim()) return "Required when an image is set";
   return true;
 };
 

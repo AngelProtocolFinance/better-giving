@@ -197,7 +197,7 @@ describe("donation amount precision", () => {
     expect(stripe("1000", "JPY", 150).success).toBe(true);
   });
 
-  // a cad is worth under a usd, which the usd-magnitude rule printed at 1 decimal
+  // a cad is worth under a usd, which a usd-magnitude rule prints at 1 decimal
   test.each([
     ["CAD", 1.37, 1.37, "1.37"],
     ["MXN", 17.2, 34.567, "34.57"],

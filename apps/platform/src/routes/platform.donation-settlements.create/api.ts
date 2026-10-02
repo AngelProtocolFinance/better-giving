@@ -38,8 +38,7 @@ const text = (fallback: string) =>
  * the one refusal that names no field: a page loaded before the key existed
  * posts none, and the fix is the reload, not a box to correct
  */
-const stale_page_msg =
-  "This page is out of date — reload it and confirm again.";
+const stale_page_msg = "This page is out of date. Reload it and confirm again.";
 
 const schema = v.object({
   from: v.optional(v.picklist(["cheque", "daf", "match"]), "cheque"),

@@ -964,7 +964,7 @@ describe("settlement create — a confirm sent twice", () => {
 
     expect(res).toEqual({
       ok: false,
-      error: "This page is out of date — reload it and confirm again.",
+      error: "This page is out of date. Reload it and confirm again.",
     });
     expect(await dons()).toHaveLength(0);
   });
