@@ -22,7 +22,7 @@ mcp.context7.com
 
 ```bash
 #!/bin/bash
-# kru v0.129.0
+# kru v0.137.0
 set -uo pipefail
 exec > >(tee -a /tmp/setup.log) 2>&1
 

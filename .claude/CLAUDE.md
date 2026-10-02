@@ -2,7 +2,7 @@
 
 Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **Each member's own `CLAUDE.md` is the authority on that member — read it before working there.**
 
-<!-- kru v0.129.0 · derived 2026-10-01 · /kru:setup to re-derive -->
+<!-- kru v0.137.0 · derived 2026-10-02 · /kru:setup to re-derive -->
 ## Team
 
 Load **`kru:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.
@@ -19,7 +19,7 @@ Load **`kru:lead`** before building, reviewing, or dispatching a seat — it car
 - **cms** → `kru:sanity-builder` — sanity 6.1.0 + `@sanity/client` 7.22.1 in platform: `apps/blog/`, `packages/types/blog/`
 - **platform** → `kru:vercel-platform-engineer` — `@vercel/react-router` 1.3.1 + `vercelPreset`, and CI: `apps/emails-preview/vercel.json`, `.github/workflows/`
 - **toolchain** → `kru:toolchain-engineer` — turbo 2.11.2, biome 2.5.14, pnpm 12.4.2
-- **skills** → `kru:drizzle`, `neon`, `tailwind`, `react-hook-form`, `valibot`, `vitest`, `react-email`, `api-design` — drizzle-orm 0.45.2 on `@neondatabase/serverless` 1.1.0 (the driver seam answers separately from the ORM), tailwind 4.3.1 (v4, not `v3-lts`), react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.5.0 (platform + ui peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default. react-email 6.9.5 in emails + emails-preview; platform is on 6.1.1, outside the ≥6.9.0 pin emails-preview's own `CLAUDE.md` holds that pair to. `api-design` for the Zapier surface — minted `x-api-key`s and outbound donation webhooks.
+- **skills** → `kru:drizzle`, `neon`, `tailwind`, `react-hook-form`, `valibot`, `vitest`, `msw`, `react-email`, `api-design` — drizzle-orm 0.45.2 on `@neondatabase/serverless` 1.1.0 (the driver seam answers separately from the ORM), tailwind 4.3.1 (v4, not `v3-lts`), react-hook-form 7.75.0 (+ remix-hook-form 7.1.1), valibot 1.5.0 (platform + ui peer), vitest 5.0.0 everywhere; browser locators are pinned to substring matching (`browser.locators.exact: false`) against the v5 default. msw 2.14.5 in platform's tests — the skill is written against 3. react-email 6.9.5 in emails + emails-preview; platform is on 6.1.1, outside the ≥6.9.0 pin emails-preview's own `CLAUDE.md` holds that pair to. `api-design` for the Zapier surface — minted `x-api-key`s and outbound donation webhooks.
 - **not a seat** — `next` 16.3.3 in `apps/emails-preview` is `email build`'s toolchain, which generates a throwaway Next app into `.react-email/`. No App Router source exists in the repo; routing off that manifest to `nextjs-builder` is a mis-route. Nothing owns `packages/stocks`' ticker data, or the `ai` 6.0.176 / `@ai-sdk/valibot` evaluation calls in `_app.fundraisers.new/evaluate.ts` and `_app.signup._index/evaluate.ts`.
 - **project seats** — `.claude/skills/`: `platform-tests`, `db-admin`, `chariot-webhooks`, `upstash-manager`, `wise`. Prefer these over a plugin seat wherever they overlap; `platform-tests` outranks `test-writer` on platform's tests
 
