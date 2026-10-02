@@ -223,16 +223,6 @@ describe("handle_reg_created", () => {
     expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
-  it("mails on a message enqueued before the flag existed", async () => {
-    // in-flight messages from the previous deploy carry no `unproven`, and the
-    // absent field has to mean the behavior they were enqueued under.
-    await verified("owner@example.org");
-
-    await handle_reg_created({ id: "reg-4", r_id: "owner@example.org" });
-
-    expect(send_email_or_throw).toHaveBeenCalledOnce();
-  });
-
   it("gives the unproven applicant a way back in, not just a reference", async () => {
     await create_unverified_user({ email: "lead@example.org" });
     const rid = await seed_reg("lead@example.org");

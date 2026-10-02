@@ -72,7 +72,6 @@ interface BappCursor {
   /** the ordering timestamp — `updated_at` on the admin list, `date_created`
    * on an npo's own list */
   ts: string;
-  /** empty on a cursor issued before the tie-breaker existed */
   id: string;
 }
 
@@ -84,10 +83,9 @@ interface BappCursor {
  * tie.
  *
  * carried as `<iso>|<id>` through the same base64url pair the date cursor uses
- * — neither field can contain a pipe, and a decoded value without one is a
- * cursor issued by an older deploy, read on the legacy path below rather than
- * throwing. `encode_cursor`'s json form is `Buffer`-based and unavailable in
- * the browser test env. */
+ * — neither field can contain a pipe, and a decoded value without both halves
+ * reads as no cursor (the first page). `encode_cursor`'s json form is
+ * `Buffer`-based and unavailable in the browser test env. */
 function encode_bapp_cursor(c: BappCursor) {
   return encode_date_cursor(`${c.ts}|${c.id}`);
 }
@@ -95,20 +93,14 @@ function encode_bapp_cursor(c: BappCursor) {
 function decode_bapp_cursor(next?: string): BappCursor | undefined {
   const raw = decode_date_cursor(next);
   if (!raw) return undefined;
-  const [ts, id = ""] = raw.split("|");
+  const [ts, id] = raw.split("|");
+  if (!ts || !id) return undefined;
   return { ts, id };
 }
 
-/** a legacy cursor names an instant but not which of its ties were already
- * served, so it takes `<=`: everything at the boundary comes back, the ones
- * the previous page showed included. a repeated row is visible and harmless;
- * a dropped one is neither. bounded to a single page — the cursor the response
- * issues carries an id, so the next request is back on the row comparison. */
 function bapp_keyset(col: PgColumn, cursor?: BappCursor) {
   if (!cursor) return undefined;
-  return cursor.id
-    ? sql`(${col}, ${banking_apps.id}) < (${cursor.ts}::timestamptz, ${cursor.id}::text)`
-    : sql`${col} <= ${cursor.ts}::timestamptz`;
+  return sql`(${col}, ${banking_apps.id}) < (${cursor.ts}::timestamptz, ${cursor.id}::text)`;
 }
 
 /** the admin list: keyed on `updated_at` so a verdict on an old submission
