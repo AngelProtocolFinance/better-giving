@@ -506,27 +506,59 @@ describe("handle_don_dist redelivery", () => {
       expect(send_email_or_throw).toHaveBeenCalledOnce();
     });
 
-    test("a stamp that fails every attempt is reported once by dist id, and the run still answers ok", async () => {
-      query_webhooks.mockResolvedValue([]);
+    test("a stamp that fails every attempt is reported and thrown before the metric and hooks, which the redelivery runs once", async () => {
+      query_webhooks.mockResolvedValue(one_hook);
+      with_metrics();
+      const fetch_spy = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async () => new Response("ok", { status: 200 }));
       const outage = new Error("connection terminated");
       dist_writes.mark_dist_notice_sent.mockRejectedValue(outage);
 
       const run = handle_don_dist(app_db, eur_gift);
+      const failed = run.then(
+        () => null,
+        (e: unknown) => e
+      );
       await backoff_queued(run);
       await vi.advanceTimersByTimeAsync(200);
       await backoff_queued(run);
       await vi.advanceTimersByTimeAsync(999);
       expect(dist_writes.mark_dist_notice_sent).toHaveBeenCalledTimes(2);
       await vi.advanceTimersByTimeAsync(1);
-      await run;
+      const err = (await failed) as Error;
 
       expect(dist_writes.mark_dist_notice_sent).toHaveBeenCalledTimes(3);
-      expect(send_email_or_throw).toHaveBeenCalledOnce();
-      expect(report_error).toHaveBeenCalledOnce();
-      const [err, context] = report_error.mock.calls[0]!;
-      expect(context).toEqual({ dist_id: "don-1" });
-      expect(err.message).toMatch(/dist don-1 .*repeat.*replay/);
+      expect(err.message).toMatch(/dist don-1 .*unstamped/);
       expect(err.cause).toBe(outage);
+      expect(report_error).toHaveBeenCalledExactlyOnceWith(err, {
+        dist_id: "don-1",
+      });
+      expect(country.country_update).not.toHaveBeenCalled();
+      expect(fetch_spy).not.toHaveBeenCalled();
+
+      // the claim stays held, so the redelivery waits out the lease
+      vi.useRealTimers();
+      dist_writes.mark_dist_notice_sent.mockImplementation(
+        (
+          await vi.importActual<typeof import("$/pg/queries/dist")>(
+            "$/pg/queries/dist"
+          )
+        ).mark_dist_notice_sent
+      );
+      await expect(handle_don_dist(app_db, eur_gift)).rejects.toBeInstanceOf(
+        Response
+      );
+      await db()
+        .update(dists)
+        .set({ notice_claimed_at: "2000-01-01T00:00:00.000Z" })
+        .where(eq(dists.id, "don-1"));
+      await handle_don_dist(app_db, eur_gift);
+      await handle_don_dist(app_db, eur_gift);
+
+      expect(send_email_or_throw).toHaveBeenCalledTimes(2);
+      expect(country.country_update).toHaveBeenCalledOnce();
+      expect(fetch_spy).toHaveBeenCalledOnce();
     });
   });
 

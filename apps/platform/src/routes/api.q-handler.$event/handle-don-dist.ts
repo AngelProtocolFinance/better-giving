@@ -62,7 +62,9 @@ async function update_country_metrics(
 
 /**
  * the npo's notice of its share of a donation: its mail, the country metric,
- * its zapier hooks — each at most once per dist, under the dist's notice lease.
+ * its zapier hooks, under the dist's notice lease. the metric and the hooks
+ * run at most once per dist; only the mail can repeat, and only when the sent
+ * stamp can't be written.
  */
 export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   const claim = await claim_dist_notice(r.id, db);
@@ -88,8 +90,15 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
     throw e;
   }
 
-  // from here nothing gives the claim back: a release would re-mail the npo,
-  // and the metric is an ungated `total + inc`. failures are reported instead.
+  // the mail went, so the stamp comes next: the metric is an ungated
+  // `total + inc` and a hook post can't be taken back, so neither runs until
+  // the stamp guarantees no later delivery runs them again. an unstamped run
+  // throws with the claim still held: its redeliveries answer busy until the
+  // lease runs out, then take the claim and repeat only the mail.
+  await stamp_notice_sent(db, r.id);
+
+  // from here nothing gives the claim back: a release would re-mail the npo.
+  // failures are reported instead.
   await update_country_metrics(db, {
     npo: r.to_id,
     date: r.sttl_date,
@@ -98,20 +107,16 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
 
   // never rejects for a hook: each one's failure is reported by its id
   await trigger_webhooks(r).catch(report_error);
-
-  await stamp_notice_sent(db, r.id);
 }
 
 // waits before the 2nd and 3rd attempt
 const STAMP_BACKOFF_MS = [200, 1_000];
 
 /**
- * the mail, metric and hooks already went, so the stamp is retried inline: it
- * is one idempotent update. if every attempt fails the run still resolves — a
- * throw only buys redeliveries that answer busy until the lease runs out, then
- * take the claim and repeat everything. an unstamped notice repeats the same
- * way on any later delivery (a dlq replay, a re-enqueue), so that is reported
- * at error level.
+ * the mail already went, so the stamp is retried inline: it is one idempotent
+ * update, and every failed delivery from here costs the npo a second mail. if
+ * every attempt fails it is reported at error level and thrown, so the metric
+ * and the hooks wait for the redelivery that stamps.
  */
 async function stamp_notice_sent(db: DbOrTx, dist_id: string) {
   for (let attempt = 0; ; attempt++) {
@@ -121,10 +126,11 @@ async function stamp_notice_sent(db: DbOrTx, dist_id: string) {
       const backoff = STAMP_BACKOFF_MS[attempt];
       if (backoff == null) {
         const err = new Error(
-          `dist ${dist_id} notice sent but unstamped after ${attempt + 1} attempts: its mail, metric and hooks repeat if the message is replayed`,
+          `dist ${dist_id} notice mailed but unstamped after ${attempt + 1} attempts: its metric and hooks wait for a redelivery, which mails again`,
           { cause: e }
         );
-        return report_error(err, { dist_id });
+        report_error(err, { dist_id });
+        throw err;
       }
       await new Promise((ok) => setTimeout(ok, backoff));
     }
