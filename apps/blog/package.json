@@ -3,7 +3,6 @@
   "private": true,
   "scripts": {
     "build": "sanity build",
-    "studio:deploy": "pnpm run schema && pnpm run typegen && sanity deploy",
     "deploy-graphql": "sanity graphql deploy",
     "dev": "sanity dev",
     "start": "sanity start",

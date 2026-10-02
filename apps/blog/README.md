@@ -26,11 +26,3 @@ pnpm --filter blog dev   # http://localhost:3333
 - Env vars: none (projectId/dataset are hardcoded, see above)
 
 After first deploy, add the Vercel URL as a CORS origin in [Sanity manage](https://www.sanity.io/manage/project/5820hdyj/api) so the studio can reach the Content Lake.
-
-### Sanity-hosted (alternative)
-
-Run from `main` only, after the schema change is merged:
-
-```sh
-pnpm --filter blog run studio:deploy   # publishes to <hostname>.sanity.studio
-```
