@@ -197,6 +197,28 @@ describe("stripe express: an element that reports a load error", () => {
     expect(reported[0]![0]).toBe("error");
   });
 
+  test("one stripe error reports the same way in every donor language", async () => {
+    // stripe localises `message` to the donor's browser, and the tracker
+    // groups on the reported message — so the localised text can't be it
+    const reported_for = async (message: string) => {
+      el.load_error = true;
+      el.error = { type: "api_connection_error", message };
+      const Stub = mount({ on_error: vi.fn(), on_unavailable: vi.fn() });
+      const screen = await render(<Stub />);
+      await vi.waitFor(() => expect(reported).toHaveLength(1));
+      const [, e] = reported.pop()!;
+      await screen.unmount();
+      return e;
+    };
+    const en = await reported_for("We are experiencing issues connecting");
+    const zh = await reported_for("连接我们的支付服务商时出现了问题");
+
+    expect(en).toBeInstanceOf(Error);
+    expect((en as Error).message).toBe((zh as Error).message);
+    expect((en as Error).message).toContain("api_connection_error");
+    expect((en as Error).message).not.toContain("We are experiencing");
+  });
+
   test("still surfaces through on_error when the caller doesn't handle it", async () => {
     el.load_error = true;
     const on_error = vi.fn();

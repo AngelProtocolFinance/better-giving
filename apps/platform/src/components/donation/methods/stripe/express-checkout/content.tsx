@@ -203,10 +203,20 @@ export function Content({
         // network, nothing to fix. anything else is the request we sent, and an
         // amount stripe rejects for the currency lands here too, so it has to
         // stay loud.
-        const kind = (ev.error as { type?: string } | undefined)?.type;
+        //
+        // stripe localises `message` to the donor's browser and the tracker
+        // groups on the message, so the stable type/code is what gets reported
+        // and the localised error rides along as context.
+        const { type: kind, code } =
+          (ev.error as { type?: string; code?: string } | undefined) ?? {};
         const report =
           kind === "api_connection_error" ? report_degraded : report_error;
-        report(ev.error);
+        report(
+          new Error(
+            `stripe express checkout failed to load: ${kind ?? "unknown"}${code ? ` (${code})` : ""}`
+          ),
+          { stripe_error: ev.error }
+        );
         (on_unavailable ?? on_error)(LOAD_FAILED);
       }}
       options={{
