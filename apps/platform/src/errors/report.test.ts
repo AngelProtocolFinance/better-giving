@@ -125,6 +125,13 @@ describe("report_error", () => {
     expect(sent_message()).toBe("Response 302 /register/r-1/5");
   });
 
+  test("titles a redirect to an unparseable Location by its status", () => {
+    report_unhandled(
+      new Response(null, { status: 302, headers: { Location: "http://[" } })
+    );
+    expect(sent_message()).toBe("Response 302");
+  });
+
   test("titles a Response with no url by its status", () => {
     report_error(new Response(null, { status: 503 }));
     expect(sent_message()).toBe("Response 503");

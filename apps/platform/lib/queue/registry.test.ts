@@ -62,6 +62,19 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
   });
 });
 
+describe("sub-deactivated dedupe", () => {
+  // keyed `..._undefined`, every donor cancel of a sub would dedupe to one
+  test("a donor's cancel cannot be enqueued without the row's updated_at", () => {
+    expect(() =>
+      // @ts-expect-error updated_at is required with by_donor
+      msg("sub-deactivated", { id: "s3", platform: "stripe", by_donor: true })
+    ).toThrow();
+    expect(
+      msg("sub-deactivated", { id: "s3", platform: "stripe" }).dedupe
+    ).toBe("sub.deactivated_s3");
+  });
+});
+
 describe("paypal-order-capture delivery", () => {
   test("holds past the browser's capture, then retries for over a day", () => {
     const m = msg("paypal-order-capture", { order_id: "O-1", don_id: "d6" });

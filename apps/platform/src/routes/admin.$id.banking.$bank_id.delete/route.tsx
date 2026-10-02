@@ -34,6 +34,9 @@ export default function DeletePrompt({ loaderData }: Route.ComponentProps) {
 function Content({ is_default, is_guarded }: IContent) {
   const fetcher = useFetcher({ key: fetcher_key });
   const is_submitting = fetcher.state !== "idle";
+  const hold = (e: { preventDefault(): void }) => {
+    if (is_submitting) e.preventDefault();
+  };
   const [canProceed, message] = is_guarded
     ? [false, "Kindly set another payout method as default before deleting"]
     : is_default
@@ -53,6 +56,7 @@ function Content({ is_default, is_guarded }: IContent) {
           to=".."
           aria-label="Close"
           aria-disabled={is_submitting}
+          onClick={hold}
           className="[.pending]:text-gray-11 border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X className="size-4.5 sm:size-6" />

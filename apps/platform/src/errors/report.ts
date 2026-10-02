@@ -19,8 +19,18 @@ function is_user_error(err: unknown): boolean {
 // what names it. either keeps only its path: the query can carry input.
 function response_error(res: Response): Error {
   const target = res.headers.get("Location") ?? res.url;
-  const where = target ? new URL(target, "https://x").pathname : "";
+  const where = target ? path_of(target) : "";
   return new Error(`Response ${res.status}${where ? ` ${where}` : ""}`);
+}
+
+// try, not URL.parse: this runs in donors' browsers, and safari has it from 18.
+// an unparseable target leaves the status alone — a throw here loses the report
+function path_of(target: string): string {
+  try {
+    return new URL(target, "https://x").pathname;
+  } catch {
+    return "";
+  }
 }
 
 // wrap non-Error throws so sentry gets a stack from the report site.

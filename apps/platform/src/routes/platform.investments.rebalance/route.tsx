@@ -31,6 +31,9 @@ export default function Page({ loaderData: data }: Route.ComponentProps) {
 function Content(props: ILog) {
   const [state, setState] = useState<State>({ type: "form" });
   const fetcher = useFetcher({ key: fetcher_key });
+  const hold = (e: { preventDefault(): void }) => {
+    if (fetcher.state !== "idle") e.preventDefault();
+  };
 
   return (
     <div>
@@ -50,6 +53,7 @@ function Content(props: ILog) {
             preventScrollReset
             to=".."
             aria-disabled={fetcher.state !== "idle"}
+            onClick={hold}
             className="btn-secondary btn"
           >
             Back

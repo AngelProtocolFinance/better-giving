@@ -174,6 +174,21 @@ describe("handle_npo", () => {
     });
   });
 
+  it("resends the stored dist's net, not one replanned from the npo's terms since", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    // a fiscal sponsor's fee would come out of a replanned net
+    await db()
+      .update(npos)
+      .set({ fiscal_sponsored: true })
+      .where(eq(npos.id, npo_id));
+
+    await handle_npo(make_input(npo_id));
+
+    const [resent] = enqueue_mock.mock.calls[1]!;
+    expect(resent.payload.net).toBe(100);
+  });
+
   it("resends neither the tip nor the lock notice, which have no send-once gate", async () => {
     await db()
       .update(npos)
@@ -249,16 +264,13 @@ describe("handle_npo", () => {
     });
   });
 
-  it("reports and rethrows a redelivery whose resend fails", async () => {
+  // entry.server's handleError reports the action's throw; a report here doubles it
+  it("rethrows a redelivery whose resend fails without reporting it itself", async () => {
     await handle_npo(make_input(npo_id));
     enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
 
     await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
-    expect(report_error_mock).toHaveBeenCalledOnce();
-    expect(report_error_mock.mock.calls[0]![1]).toMatchObject({
-      donation_id: DON_ID,
-      npo_id,
-    });
+    expect(report_error_mock).not.toHaveBeenCalled();
     expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 

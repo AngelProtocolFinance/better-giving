@@ -365,7 +365,8 @@ describe("a donor's cancel the provider refuses for good", () => {
     id,
     platform,
     status_cancel_reason: REASON,
-    by_donor: true,
+    by_donor: true as const,
+    updated_at: "2026-10-02T12:00:00.000Z",
   });
 
   const alert_body = (n = 0) =>

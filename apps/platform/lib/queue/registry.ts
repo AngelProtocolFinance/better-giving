@@ -125,16 +125,27 @@ export interface IRegCreatedPayload {
   unproven?: boolean;
 }
 
-export interface ISubDeactivatedPayload {
+interface ISubDeactivatedBase {
   id: string;
   platform: string;
   status_cancel_reason?: string | null;
-  /** set by the donor's own cancel, which told them it went through. absent from
-   * the refund and stripe-webhook cancels */
-  by_donor?: boolean;
-  /** the row's, so each donor cancel keys apart */
-  updated_at?: string;
 }
+
+/** the refund and stripe-webhook cancels */
+interface ISubDeactivatedOther extends ISubDeactivatedBase {
+  by_donor?: false;
+}
+
+/** the donor's own cancel, which told them it went through */
+interface ISubDeactivatedByDonor extends ISubDeactivatedBase {
+  by_donor: true;
+  /** the row's, so each donor cancel keys apart */
+  updated_at: string;
+}
+
+export type ISubDeactivatedPayload =
+  | ISubDeactivatedOther
+  | ISubDeactivatedByDonor;
 
 export interface ITipReceivedPayload {
   id: string;
@@ -226,7 +237,7 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   // refused one must reach the provider rather than dedupe against the first
   "sub-deactivated": (p) =>
     p.by_donor
-      ? `sub.deactivated_${p.id}_${String(p.updated_at).replace(/:/g, "")}`
+      ? `sub.deactivated_${p.id}_${p.updated_at.replace(/:/g, "")}`
       : `sub.deactivated_${p.id}`,
   "tip-received": (p) => `tip_${p.id}`,
 };
