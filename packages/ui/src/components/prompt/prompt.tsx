@@ -1,3 +1,4 @@
+import { Dialog } from "@ark-ui/react/dialog";
 import { X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useNavigate } from "react-router";
@@ -58,7 +59,10 @@ export function Prompt({
       </div>
 
       <PromptIcon type={type} classes="mb-6 sm:mb-8 mt-4 sm:mt-12" />
-      <div className="px-6 pb-4 text-center text-gray-11">{children}</div>
+      {/* a div: callers pass block content */}
+      <Dialog.Description asChild>
+        <div className="px-6 pb-4 text-center text-gray-11">{children}</div>
+      </Dialog.Description>
       <Actions band>
         <button
           onClick={close}

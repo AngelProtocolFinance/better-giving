@@ -15,13 +15,15 @@ import {
 
 interface IForm extends FormHTMLAttributes<HTMLFormElement> {
   disabled?: boolean;
+  /** see `Fieldset` */
+  busy?: boolean;
   ref?: React.Ref<HTMLFormElement>;
 }
 
-export function Form({ disabled, children, ref, ...props }: IForm) {
+export function Form({ disabled, busy, children, ref, ...props }: IForm) {
   return (
     <form ref={ref} {...props}>
-      <Fieldset disabled={disabled} className="contents">
+      <Fieldset disabled={disabled} busy={busy} className="contents">
         {children}
       </Fieldset>
     </form>
@@ -30,13 +32,15 @@ export function Form({ disabled, children, ref, ...props }: IForm) {
 
 interface IRmxForm extends ComponentProps<typeof RemixForm> {
   disabled?: boolean;
+  /** see `Fieldset` */
+  busy?: boolean;
   ref?: React.Ref<HTMLFormElement>;
 }
 
-export function RmxForm({ disabled, children, ref, ...props }: IRmxForm) {
+export function RmxForm({ disabled, busy, children, ref, ...props }: IRmxForm) {
   return (
     <RemixForm ref={ref} {...props}>
-      <Fieldset disabled={disabled} className="contents">
+      <Fieldset disabled={disabled} busy={busy} className="contents">
         {children}
       </Fieldset>
     </RemixForm>
@@ -45,6 +49,13 @@ export function RmxForm({ disabled, children, ref, ...props }: IRmxForm) {
 
 interface IFieldset extends FieldsetHTMLAttributes<HTMLFieldSetElement> {
   disabled?: boolean;
+  /**
+   * a request this form sent is in flight — a polite status says
+   * "Submitting…" while it holds. omitted, `disabled` is read as busy; pass
+   * it wherever `disabled` can hold for any other reason (a navigation
+   * elsewhere, a locked or read-only form).
+   */
+  busy?: boolean;
 }
 
 /**
@@ -53,14 +64,22 @@ interface IFieldset extends FieldsetHTMLAttributes<HTMLFieldSetElement> {
  * control — or to the enclosing `<form>` if the control is itself still
  * disabled — unless something else took focus meanwhile. a Tab pressed from
  * `<body>` doesn't count as taking it: the user is looking for the focus they
- * lost, so the control that Tab landed on is given back up, unless a click or
- * any other focus move followed. a `Modal` opened while it is disabled returns
- * focus to that control too.
+ * lost, so the control that Tab landed on is given back up, unless a click,
+ * typing or any other focus move followed. firefox and safari leave focus on
+ * the disabled control instead of ejecting it; a Tab pressed from there counts
+ * the same. a `Modal` opened while it is disabled returns focus to that
+ * control too.
  *
- * `disabled` is read as "submitting": a polite status says so while it holds.
- * the outcome is the caller's to render.
+ * the focus handling keys off `disabled`, whatever disabled it — a request's
+ * `busy` can end before the fieldset re-enables. the outcome is the caller's
+ * to render.
  */
-export function Fieldset({ disabled, children, ...props }: IFieldset) {
+export function Fieldset({
+  disabled,
+  busy = disabled,
+  children,
+  ...props
+}: IFieldset) {
   const fieldset = useRef<HTMLFieldSetElement>(null);
   const ejected = useRef<HTMLElement | null>(null);
   const reached_by_tab = useRef<HTMLElement | null>(null);
@@ -112,6 +131,7 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
     const unclaimed =
       !active ||
       active === document.body ||
+      active === el ||
       (active === tabbed_to && !active.closest(OPEN_DIALOG));
     if (!el?.isConnected || !unclaimed) return;
     if (!el.matches(":disabled")) return el.focus();
@@ -125,7 +145,7 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
       {/* after children, so a caller's `<legend>` stays first; rendered while
           empty, so the text written in on submit is announced */}
       <p role="status" className="sr-only">
-        {disabled ? "Submitting…" : ""}
+        {busy ? "Submitting…" : ""}
       </p>
     </fieldset>
   );
@@ -133,8 +153,9 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
 
 /**
  * while the fieldset holds an ejected control, records in `reached` the
- * element a Tab (or Shift+Tab) pressed on `<body>` lands on — cleared by a
- * pointerdown or any later focus move
+ * element a Tab (or Shift+Tab) pressed on `<body>` — or on the ejected control
+ * itself, where an engine left focus there — lands on. cleared by a
+ * pointerdown, any input, any other key, or any later focus move
  */
 function watch_tab_from_body(
   ejected: RefObject<HTMLElement | null>,
@@ -142,8 +163,13 @@ function watch_tab_from_body(
 ) {
   let tabbing = false;
   const on_keydown = (e: KeyboardEvent) => {
-    if (e.key !== "Tab" || !ejected.current) return;
-    if (document.activeElement !== document.body) return;
+    if (e.key !== "Tab") {
+      if (!MODIFIER_KEYS.has(e.key)) reached.current = null;
+      return;
+    }
+    if (!ejected.current) return;
+    const active = document.activeElement;
+    if (active !== document.body && active !== ejected.current) return;
     tabbing = true;
     // the focus move is the keydown's default action; a prevented one leaves
     // no move to attribute
@@ -156,18 +182,24 @@ function watch_tab_from_body(
       tabbing && e.target instanceof HTMLElement ? e.target : null;
     tabbing = false;
   };
-  const on_pointerdown = () => {
+  const release = () => {
     reached.current = null;
   };
   document.addEventListener("keydown", on_keydown, true);
   document.addEventListener("focusin", on_focusin, true);
-  document.addEventListener("pointerdown", on_pointerdown, true);
+  document.addEventListener("pointerdown", release, true);
+  // typing reaches a field without a keydown too: paste, dictation, an IME
+  document.addEventListener("input", release, true);
   return () => {
     document.removeEventListener("keydown", on_keydown, true);
     document.removeEventListener("focusin", on_focusin, true);
-    document.removeEventListener("pointerdown", on_pointerdown, true);
+    document.removeEventListener("pointerdown", release, true);
+    document.removeEventListener("input", release, true);
   };
 }
+
+// held down for a Shift+Tab, or by a screen reader's own commands
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock"]);
 
 const OPEN_DIALOG = 'dialog[open], [role="dialog"], [role="alertdialog"]';
 

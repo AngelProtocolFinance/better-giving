@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createRoutesStub } from "react-router";
-import { describe, expect, test } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Form } from "./form/form";
@@ -70,6 +70,82 @@ describe("Modal accessible name", () => {
   });
 });
 
+describe("Modal heading name", () => {
+  test("one observer watches the content across re-renders", async () => {
+    const observe = vi.spyOn(MutationObserver.prototype, "observe");
+    onTestFinished(() => observe.mockRestore());
+    let bump = () => {};
+    function Rerendering() {
+      const [n, set] = useState(0);
+      bump = () => set((x) => x + 1);
+      return (
+        <>
+          <output data-testid="renders">{n}</output>
+          <Modal open onClose={() => {}}>
+            <h2>Rename fund</h2>
+          </Modal>
+        </>
+      );
+    }
+    const screen = await render(<Rerendering />);
+    const dialog = page.getByRole("dialog", { name: "Rename fund" });
+    await expect.element(dialog).toBeVisible();
+    bump();
+    bump();
+    await expect.element(screen.getByTestId("renders")).toHaveTextContent("2");
+
+    // zag observes the content too, for attributes
+    const heading_watches = observe.mock.calls.filter(
+      ([target, options]) =>
+        target === dialog.element() &&
+        !options?.attributes &&
+        options?.childList
+    );
+    expect(heading_watches).toHaveLength(1);
+  });
+
+  test("the id planted on the heading is removed once a title takes over", async () => {
+    let set_title: (t: string) => void = () => {};
+    function Titled() {
+      const [title, set] = useState<string>();
+      set_title = set;
+      return (
+        <Modal open onClose={noop} title={title}>
+          <h2>Rename fund</h2>
+        </Modal>
+      );
+    }
+    await render(<Titled />);
+    const heading = page.getByRole("heading", { name: "Rename fund" });
+    await expect.element(heading).toHaveAttribute("id");
+    const heading_el = heading.element();
+    const id = heading_el.id;
+
+    set_title("Rename");
+    await expect
+      .element(page.getByRole("dialog", { name: "Rename", exact: true }))
+      .toBeVisible();
+
+    await expect.poll(() => heading_el.hasAttribute("id")).toBe(false);
+    expect(document.querySelectorAll(`[id="${id}"]`)).toHaveLength(1);
+  });
+
+  test("the id planted on the heading is removed on unmount", async () => {
+    const screen = await render(
+      <Modal open onClose={noop}>
+        <h2>Rename fund</h2>
+      </Modal>
+    );
+    const heading = page.getByRole("heading", { name: "Rename fund" });
+    await expect.element(heading).toHaveAttribute("id");
+    const heading_el = heading.element();
+
+    await screen.unmount();
+
+    await expect.poll(() => heading_el.hasAttribute("id")).toBe(false);
+  });
+});
+
 describe("Prompt accessible name", () => {
   test.each([
     ["success", "Success"],
@@ -89,6 +165,23 @@ describe("Prompt accessible name", () => {
     await expect
       .element(page.getByRole("dialog", { name, exact: true }))
       .toBeVisible();
+  });
+
+  test("its message describes it", async () => {
+    const Stub = createRoutesStub([
+      {
+        path: "/",
+        Component: () => (
+          <Prompt type="error" onClose={noop}>
+            <p>Review couldn't be submitted.</p>
+          </Prompt>
+        ),
+      },
+    ]);
+    await render(<Stub />);
+    await expect
+      .element(page.getByRole("dialog", { name: "Error", exact: true }))
+      .toHaveAccessibleDescription("Review couldn't be submitted.");
   });
 });
 

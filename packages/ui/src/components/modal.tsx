@@ -1,6 +1,12 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
-import { type PropsWithChildren, useId, useLayoutEffect, useRef } from "react";
+import {
+  type PropsWithChildren,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { name_from_heading } from "../helpers/dialog-name";
 import {
   dialog_return_target,
@@ -36,6 +42,7 @@ interface Props extends PropsWithChildren {
 export function Modal({ size = "sm", ...props }: Props) {
   const title_id = useId();
   const content_id = useId();
+  const name_ref = useMemo(() => name_from_heading(title_id), [title_id]);
   // zag records its own return target a frame after opening; by then a form
   // that raised this from its submit handler has its submit button disabled
   // and focus on `<body>`
@@ -64,7 +71,7 @@ export function Modal({ size = "sm", ...props }: Props) {
         <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
-            ref={props.title ? undefined : name_from_heading(title_id)}
+            ref={props.title ? undefined : name_ref}
             className={`data-[state=open]:animate-popup-in data-[state=closed]:animate-popup-out ${size === "none" ? "z-modal" : modal_box[size]} ${props.classes ?? ""}`}
           >
             {props.title && (

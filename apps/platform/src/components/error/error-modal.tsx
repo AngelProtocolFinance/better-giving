@@ -1,3 +1,4 @@
+import { Dialog } from "@ark-ui/react/dialog";
 import { Actions, Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 import {
@@ -39,15 +40,10 @@ export function ErrorModal() {
   }
 
   return (
-    <Modal
-      open={true}
-      onClose={close}
-      title={TITLE}
-      classes="grid bg-panel text-gray-12"
-    >
+    <Modal open={true} onClose={close} classes="grid bg-panel text-gray-12">
       <div className="px-6 pb-4 text-center mt-6">
         <CircleAlert className="text-destructive mx-auto pictogram-md" />
-        <p className="font-bold mt-3">{TITLE}</p>
+        <Dialog.Title className="font-bold mt-3">{TITLE}</Dialog.Title>
         <p className="text-gray-11 text-sm mt-2 text-balance">{message}</p>
       </div>
       <Actions band>

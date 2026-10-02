@@ -5,7 +5,7 @@ import {
   modal_box,
   name_from_heading,
 } from "@better-giving/ui/helpers";
-import { type PropsWithChildren, useId } from "react";
+import { type PropsWithChildren, useId, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 interface IRouteModal extends PropsWithChildren {
@@ -35,6 +35,7 @@ export function RouteModal({
 }: IRouteModal) {
   const navigate = useNavigate();
   const title_id = useId();
+  const name_ref = useMemo(() => name_from_heading(title_id), [title_id]);
   return (
     <Dialog.Root
       ids={{ title: title_id }}
@@ -51,7 +52,7 @@ export function RouteModal({
         <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
-            ref={title ? undefined : name_from_heading(title_id)}
+            ref={title ? undefined : name_ref}
             className={`data-[state=open]:animate-popup-in ${modal_box[size]} ${classes}`}
           >
             {title && <Dialog.Title className="sr-only">{title}</Dialog.Title>}
