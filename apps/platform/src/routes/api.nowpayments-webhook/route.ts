@@ -1,8 +1,11 @@
 import crypto from "node:crypto";
 import { report_resp } from "#/errors/report";
+import type { Alert } from "@/discord";
 import { type IDonation, reversed_statuses } from "@/donations";
 import type { NP } from "@/nowpayments/types";
-import { nowpayments } from "$/env";
+import { msg } from "@/queue";
+import { nowpayments, stage } from "$/env";
+import { enqueue } from "$/kit/queue";
 import {
   donation_get,
   donation_hold_mark,
@@ -102,6 +105,69 @@ const is_closed = (d: IDonation): boolean =>
   d.status === "settled" ||
   (reversed_statuses as readonly string[]).includes(d.status);
 
+const upper = (code: string | null | undefined) =>
+  code ? code.toUpperCase() : "?";
+
+const amounts = (p: NP.PaymentPayload) =>
+  `paid:${p.actually_paid} ${upper(p.pay_currency)} outcome:${p.outcome_amount} ${upper(p.outcome_currency)}`;
+
+interface INotice {
+  /** the queue's dedupe key — a redelivery inside its window posts nothing */
+  key: string;
+  alert: Omit<Alert, "from">;
+}
+
+/**
+ * one per payment and status: the hold is usually marked at `confirming`,
+ * whose amounts are not yet final, so the final status sends its own
+ */
+const held_notice = (
+  p: NP.PaymentPayload,
+  prior: IDonation,
+  ref: string
+): INotice => {
+  const provisional = p.payment_status === "confirming";
+  return {
+    key: `nowpayments-hold_${p.payment_id}_${p.payment_status}`,
+    alert: {
+      title: provisional
+        ? "Deposit in another asset held"
+        : `Held deposit in another asset ${p.payment_status}`,
+      type: "ERROR",
+      body:
+        `${ref} ${amounts(p)} order:${prior.currency}. ` +
+        (provisional
+          ? "Amounts are provisional while confirming; a final notice follows. "
+          : "Final amounts. ") +
+        "Ipns never settle a held donation, a later finished for this payment included: " +
+        "reconcile by hand against the NOWPayments dashboard, then settle or refund the donation " +
+        "(open holds: donations where held_at is set and status isn't settled).",
+    },
+  };
+};
+
+const closed_notice = (
+  p: NP.PaymentPayload,
+  prior: IDonation,
+  ref: string
+): INotice => ({
+  key: `nowpayments-closed-asset_${p.payment_id}`,
+  alert: {
+    title: "Deposit in another asset on a closed donation",
+    type: "ERROR",
+    body: `${ref} prior:${prior.status} ${p.payment_status} ${amounts(p)}`,
+  },
+});
+
+/** queued, not posted: the queue retries a refused discord post */
+const notify = ({ key, alert }: INotice) =>
+  enqueue(
+    msg("fiat-notice", {
+      id: key,
+      alert: { from: `nowpayments-webhook-${stage}`, ...alert },
+    })
+  );
+
 async function dispatch(payment: NP.PaymentPayload): Promise<void> {
   const status = payment.payment_status;
   const ref = ref_of(payment);
@@ -115,35 +181,28 @@ async function dispatch(payment: NP.PaymentPayload): Promise<void> {
   // a wrong-asset deposit reports `actually_paid` in the asset that arrived,
   // which recorded against the order's currency misstates the gift. how a
   // deposit ops process in the dashboard reports back is undocumented to us, so
-  // no later ipn settles a hold — the first mark pages ops to settle it by hand
+  // no later ipn settles a hold — the mark pages ops to settle it by hand
   if (
     carries_amount.has(status) &&
     payment.pay_currency.toUpperCase() !== prior.currency
   ) {
     log("wrong asset held", ref);
-    if (!(await donation_hold_mark(prior.id, payment.pay_currency))) {
-      // the mark refuses a closed row; one never held took this deposit after it closed
-      if (!prior.hold && is_closed(prior)) {
-        await alert({
-          title: "Deposit in another asset on a closed donation",
-          type: "ERROR",
-          body: `${ref} prior:${prior.status} paid:${payment.actually_paid} ${payment.pay_currency.toUpperCase()} outcome:${payment.outcome_amount} ${payment.outcome_currency.toUpperCase()}`,
-        });
-      }
-      return;
+    // built before the mark: a body that throws after it commits loses the notice
+    const held = held_notice(payment, prior, ref);
+    const closed = closed_notice(payment, prior, ref);
+    if (await donation_hold_mark(prior.id, payment.pay_currency)) {
+      return notify(held);
     }
-    await alert({
-      title: "Deposit in another asset held",
-      type: "ERROR",
-      body:
-        `${ref} paid:${payment.actually_paid} ${payment.pay_currency.toUpperCase()} order:${prior.currency} ` +
-        `outcome:${payment.outcome_amount} ${payment.outcome_currency.toUpperCase()}. ` +
-        "Ipns never settle a held donation, a later finished for this payment included: " +
-        "reconcile by hand against the NOWPayments dashboard, then settle or refund the donation " +
-        "(open holds: donations where held_at is set and status isn't settled).",
-    });
-    return;
+    // the mark refuses a closed row or one already held. a hold ops already
+    // closed by hand needs nothing more
+    if (!is_closed(prior)) return notify(held);
+    if (!prior.hold) return notify(closed);
+    return log("wrong asset on a closed hold", ref);
   }
+
+  // a hold is per donation and closes only by hand — any payment on its order
+  // settling it would drop the row out of the open-holds query unreconciled
+  if (prior.hold) return log(`held, ${status} not applied`, ref);
 
   if (payment.parent_payment_id != null) {
     return handle_repeat(payment, prior);

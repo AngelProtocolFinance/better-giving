@@ -16,6 +16,7 @@ vi.mock("$/env", () => ({
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert: send_alert_mock },
 }));
+vi.mock("$/kit/queue", () => ({ enqueue: vi.fn() }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("$/pg/queries/donation")>()),
