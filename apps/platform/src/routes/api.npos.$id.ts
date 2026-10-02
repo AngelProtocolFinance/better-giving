@@ -2,7 +2,7 @@ import type { LoaderFunction } from "react-router";
 import * as v from "valibot";
 import { resp } from "@/helpers/https";
 import { $int_gte1, segment } from "@/schemas";
-import { npo_by_slug, npo_get } from "$/pg/queries/npo";
+import { npo_by_slug, npo_get, npo_public } from "$/pg/queries/npo";
 
 const cache = "public, s-maxage=60, stale-while-revalidate=300";
 
@@ -13,5 +13,5 @@ export const loader: LoaderFunction = async ({ params }) => {
   const npo =
     typeof id === "number" ? await npo_get(id) : await npo_by_slug(id);
   if (!npo || npo.active === false) return resp.status(404);
-  return resp.json(npo, 200, { "cache-control": cache });
+  return resp.json(npo_public(npo), 200, { "cache-control": cache });
 };
