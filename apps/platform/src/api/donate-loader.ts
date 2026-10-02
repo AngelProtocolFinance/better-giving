@@ -26,7 +26,9 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   if (p2.issues) throw resp.status(400, p2.issues[0].message);
   const id = p2.output;
   const endow = await npo_get(id);
-  if (!endow) throw new Response(null, { status: 404 });
+  if (!endow || endow.active === false) {
+    throw new Response(null, { status: 404 });
+  }
 
   const { user } = await get_session(request);
   // another npo's program is dropped, not refused: the link still reaches this npo
