@@ -111,15 +111,14 @@ async function seed_form(
   return id;
 }
 
-/** one parent gift on the form, settled as one dist per recipient */
-async function seed_settled_gift(form_id: string, to_ids: number[]) {
+/** one parent gift on the form, with no dists */
+async function seed_gift(form_id: string, status: "confirmed" | "settled") {
   counter++;
   const donation_id = `don-${counter}`;
-  const { db } = test_db.current!;
-  await db.insert(donations).values({
+  await test_db.current!.db.insert(donations).values({
     id: donation_id,
     upusd: 1,
-    status: "settled",
+    status,
     amount_base: 100,
     amount_tip: 0,
     amount_fee_allowance: 0,
@@ -129,7 +128,13 @@ async function seed_settled_gift(form_id: string, to_ids: number[]) {
     via: "stripe:card",
     form_id,
   });
-  await db.insert(dists).values(
+  return donation_id;
+}
+
+/** one parent gift on the form, settled as one dist per recipient */
+async function seed_settled_gift(form_id: string, to_ids: number[]) {
+  const donation_id = await seed_gift(form_id, "settled");
+  await test_db.current!.db.insert(dists).values(
     to_ids.map((to_id) => ({
       id: `${donation_id}-${to_id}`,
       donation_id,
@@ -302,6 +307,18 @@ describe("admin reads a form's donation count", () => {
     await expect.element(screen.getByText("fund-form")).toBeVisible();
     const table = screen.getByRole("table").element() as HTMLElement;
     expect(donations_cell(table, "fund-form")).toBe("1");
+  });
+
+  it("does not count a confirmed gift that has no settled dist yet", async () => {
+    const npo = await seed_npo();
+    const form_id = await seed_form(npo.id, { tag: "pending-form" });
+    await seed_gift(form_id, "confirmed");
+
+    const screen = await render_page(npo.id);
+
+    await expect.element(screen.getByText("pending-form")).toBeVisible();
+    const table = screen.getByRole("table").element() as HTMLElement;
+    expect(donations_cell(table, "pending-form")).toBe("0");
   });
 });
 

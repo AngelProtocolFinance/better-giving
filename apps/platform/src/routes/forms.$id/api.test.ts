@@ -67,4 +67,52 @@ describe("public form loader", () => {
       donor_address_required: true,
     });
   });
+
+  it("sends only the form fields the donation widget renders", async () => {
+    const [npo] = await test_db
+      .current!.db.insert(npos)
+      .values({
+        registration_number: "EIN-FORM-KEYS",
+        name: "Owner",
+        endow_designation: "Charity",
+        overview_pt: "[]",
+        hq_country: "United States",
+      })
+      .returning();
+    await test_db.current!.db.insert(forms).values({
+      id: "form-keys",
+      name: "Keys drive",
+      tag: "internal-campaign-tag",
+      owner_npo_id: npo.id,
+      recipient_npo_id: npo.id,
+      ltd: 9999,
+      ltd_count: 42,
+    });
+
+    const d = await loader({
+      request: new Request("https://x/forms/form-keys"),
+      params: { id: "form-keys" },
+    } as any);
+
+    expect(Object.keys(d).sort()).toEqual(
+      [
+        "accent_primary",
+        "accent_secondary",
+        "base_url",
+        "defaults",
+        "donate_methods",
+        "freq_opts",
+        "id",
+        "increments",
+        "name",
+        "program_id",
+        "program_name",
+        "recipient_details",
+        "recipient_fund_id",
+        "recipient_npo_id",
+        "status",
+        "success_redirect",
+      ].sort()
+    );
+  });
 });

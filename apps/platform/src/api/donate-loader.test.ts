@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { NPO_PUBLIC_KEYS } from "$/pg/queries/npo";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
 import type { TestDb } from "$/pg/test-utils/pglite";
@@ -128,19 +129,6 @@ describe("donate loader npo", () => {
     const d = await load(npo.id);
 
     expect(d.endow).toMatchObject({ id: npo.id, name: "Recipient" });
-    for (const k of [
-      "liq",
-      "cash",
-      "lock_units",
-      "w_form",
-      "referral_id",
-      "referrer_user",
-      "referrer_npo",
-      "referrer_expiry",
-      "payout_minimum",
-      "allocation",
-    ]) {
-      expect(d.endow).not.toHaveProperty(k);
-    }
+    expect(Object.keys(d.endow).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
   });
 });

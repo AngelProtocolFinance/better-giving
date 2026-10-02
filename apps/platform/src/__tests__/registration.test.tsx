@@ -1146,7 +1146,7 @@ describe("E2E: submitted state disables dashboard", () => {
 
     // no Continue or Resubmit button
     await expect
-      .element(screen.getByRole("button", { name: "Continue", exact: true }))
+      .element(screen.getByRole("button", { name: /^continue\b/i }))
       .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: /resubmit/i }))
@@ -1168,7 +1168,7 @@ describe("E2E: submitted state disables dashboard", () => {
     await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect
-      .element(screen.getByRole("button", { name: "Continue", exact: true }))
+      .element(screen.getByRole("button", { name: /^continue\b/i }))
       .not.toBeInTheDocument();
     expect((await get_reg(id)).status).toBe("01");
     expect(window.dataLayer).toEqual([]);

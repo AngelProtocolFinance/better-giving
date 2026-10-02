@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { NPO_PUBLIC_KEYS } from "$/pg/queries/npo";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -39,6 +40,8 @@ describe("GET /api/npos/:id", () => {
         endow_designation: "Charity",
         overview_pt: "[]",
         hq_country: "United States",
+        // an unset target is `undefined`, which JSON.stringify drops off the wire
+        target_smart: true,
       })
       .returning();
 
@@ -51,15 +54,7 @@ describe("GET /api/npos/:id", () => {
 
       expect(res.status).toBe(200);
       expect(body).toMatchObject({ id: npo.id, name: "Public Name" });
-      for (const key of [
-        "liq",
-        "cash",
-        "lock_units",
-        "w_form",
-        "referral_id",
-      ]) {
-        expect(body).not.toHaveProperty(key);
-      }
+      expect(Object.keys(body).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
       expect(res.headers.get("cache-control")).toBe(
         "public, s-maxage=60, stale-while-revalidate=300"
       );

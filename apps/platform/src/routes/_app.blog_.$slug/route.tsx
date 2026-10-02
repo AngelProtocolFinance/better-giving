@@ -115,7 +115,7 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
       {heroUrl ? (
         <img
           src={heroUrl}
-          alt={post.image?.alt ?? post.title}
+          alt={post.image?.alt ?? ""}
           className="relative w-full aspect-9/5 object-cover object-top mt-4 rounded"
         />
       ) : (

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { NPO_PUBLIC_KEYS } from "$/pg/queries/npo";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
@@ -66,19 +67,6 @@ describe("new fundraiser loader", () => {
       name: "Member Org",
       logo: "https://x/logo.png",
     });
-    for (const k of [
-      "liq",
-      "cash",
-      "lock_units",
-      "w_form",
-      "referral_id",
-      "referrer_user",
-      "referrer_npo",
-      "referrer_expiry",
-      "payout_minimum",
-      "allocation",
-    ]) {
-      expect(d).not.toHaveProperty(k);
-    }
+    expect(Object.keys(d).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
   });
 });

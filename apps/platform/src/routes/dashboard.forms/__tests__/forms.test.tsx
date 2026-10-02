@@ -76,13 +76,13 @@ beforeEach(async () => {
   });
 });
 
-/** one parent gift on the form, settled as one dist per recipient */
-async function seed_settled_gift(form_id: string, to_ids: number[]) {
+/** one parent gift on the form, with no dists */
+async function seed_gift(form_id: string, status: "confirmed" | "settled") {
   const donation_id = "don-1";
   await db().insert(donations).values({
     id: donation_id,
     upusd: 1,
-    status: "settled",
+    status,
     amount_base: 100,
     amount_tip: 0,
     amount_fee_allowance: 0,
@@ -92,6 +92,12 @@ async function seed_settled_gift(form_id: string, to_ids: number[]) {
     via: "stripe:card",
     form_id,
   });
+  return donation_id;
+}
+
+/** one parent gift on the form, settled as one dist per recipient */
+async function seed_settled_gift(form_id: string, to_ids: number[]) {
+  const donation_id = await seed_gift(form_id, "settled");
   await db()
     .insert(dists)
     .values(
@@ -104,6 +110,13 @@ async function seed_settled_gift(form_id: string, to_ids: number[]) {
         amount_denom: "USD",
       }))
     );
+}
+
+/** text of the Donations column in the table's only row */
+function donations_cell(table: HTMLElement) {
+  const heads = [...table.querySelectorAll("thead th")];
+  const col = heads.findIndex((th) => th.textContent === "Donations");
+  return table.querySelectorAll("tbody tr td")[col]?.textContent;
 }
 
 async function render_page() {
@@ -161,9 +174,23 @@ describe("donor reads a form's donation count", () => {
 
     await expect.element(screen.getByText("Fund form")).toBeVisible();
     const table = screen.getByRole("table").element() as HTMLElement;
-    const heads = [...table.querySelectorAll("thead th")];
-    const col = heads.findIndex((th) => th.textContent === "Donations");
-    const cell = table.querySelectorAll("tbody tr td")[col];
-    expect(cell?.textContent).toBe("1");
+    expect(donations_cell(table)).toBe("1");
+  });
+
+  it("does not count a confirmed gift that has no settled dist yet", async () => {
+    await db().insert(forms).values({
+      id: FORM_ID,
+      name: "Pending form",
+      owner_user_id: USER_ID,
+      status: "active",
+      date_created: new Date().toISOString(),
+    });
+    await seed_gift(FORM_ID, "confirmed");
+
+    const screen = await render_page();
+
+    await expect.element(screen.getByText("Pending form")).toBeVisible();
+    const table = screen.getByRole("table").element() as HTMLElement;
+    expect(donations_cell(table)).toBe("0");
   });
 });
