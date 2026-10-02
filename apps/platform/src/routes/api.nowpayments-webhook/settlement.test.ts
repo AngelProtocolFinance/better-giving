@@ -744,8 +744,8 @@ describe("nowpayments ipn settlement", () => {
     expect(second).toBe(first);
   });
 
-  // how a wrong-asset deposit ops process reports back is undocumented to us,
-  // so no later ipn settles a hold — the alert is the whole handoff
+  // what a wrong-asset deposit reports back once ops process it is unknown, so
+  // no later ipn settles a hold — the alert is the whole handoff
   it("tells ops the held deposit settles only by hand", async () => {
     await seed_donation();
 

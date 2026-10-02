@@ -243,7 +243,7 @@ describe("ImgEditor", () => {
           screen.container.querySelector<HTMLElement>("[data-drag]");
         expect(dropzone?.style.background).toBe("");
       });
-      // no preview means the upload prompt, not the hover-only control
+      // no preview means the upload prompt, not the bare icon control
       await expect.element(screen.getByText("Upload file")).toBeVisible();
     }
   );

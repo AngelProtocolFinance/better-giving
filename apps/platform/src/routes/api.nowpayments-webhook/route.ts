@@ -179,8 +179,8 @@ async function dispatch(payment: NP.PaymentPayload): Promise<void> {
   if (!prior) return log("donation not found", ref);
 
   // a wrong-asset deposit reports `actually_paid` in the asset that arrived,
-  // which recorded against the order's currency misstates the gift. how a
-  // deposit ops process in the dashboard reports back is undocumented to us, so
+  // which recorded against the order's currency misstates the gift. what a
+  // deposit reports back once ops process it in the dashboard is unknown, so
   // no later ipn settles a hold — the mark pages ops to settle it by hand
   if (
     carries_amount.has(status) &&
