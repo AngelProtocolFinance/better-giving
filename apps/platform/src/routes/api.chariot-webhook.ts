@@ -215,6 +215,19 @@ async function grant_donation(
   return prior;
 }
 
+/** dollars per `feeType`; an untyped contribution goes under `other` so the parts sum to the total */
+function fee_by_type(
+  contributions: readonly { amount: number; feeType?: string }[] | undefined
+): Record<string, number> | undefined {
+  const parts: Record<string, number> = {};
+  for (const { amount, feeType = "other" } of contributions ?? []) {
+    parts[feeType] = (parts[feeType] ?? 0) + amount;
+  }
+  const entries = Object.entries(parts);
+  if (!entries.length) return undefined;
+  return Object.fromEntries(entries.map(([k, cents]) => [k, cents / 100]));
+}
+
 const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
 /** compares decoded bytes, so hex case can't decide a match */
@@ -321,6 +334,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     const gross = grant.amount / 100;
     const fee = (grant.feeDetail?.total ?? 0) / 100;
+    const fee_parts = fee_by_type(grant.feeDetail?.contributions);
 
     const completed_at =
       grant.statuses?.filter((x) => x.status === "Completed").at(-1)
@@ -330,6 +344,7 @@ export async function action({ request }: Route.ActionArgs) {
       date: new Date(completed_at ?? Date.now()).toISOString(),
       net: gross - fee,
       fee,
+      ...(fee_parts && { fee_parts }),
       id: grant.id,
       currency: "USD",
     };

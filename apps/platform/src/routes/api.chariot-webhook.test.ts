@@ -659,6 +659,81 @@ describe("chariot webhook completed grant", () => {
     );
   });
 
+  it("splits the fee by who charged it", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...completed_grant,
+      feeDetail: {
+        total: 450,
+        contributions: [
+          { name: "Chariot", amount: 300, feeType: "chariot" },
+          { name: "Fidelity", amount: 150, feeType: "daf" },
+        ],
+      },
+    });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
+      id: "don-20",
+      status: "intent",
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+    await deliver(complete_event);
+
+    expect(donation_mocks.update).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      "don-20",
+      expect.objectContaining({
+        settlement: expect.objectContaining({
+          fee: 4.5,
+          fee_parts: { chariot: 3, daf: 1.5 },
+        }),
+      })
+    );
+  });
+
+  it("books a fee entry with no fee type as other", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({
+      ...completed_grant,
+      feeDetail: {
+        total: 400,
+        contributions: [
+          { name: "Chariot", amount: 300, feeType: "chariot" },
+          { name: "Unlabelled", amount: 100 },
+        ],
+      },
+    });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
+      id: "don-20",
+      status: "intent",
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+    await deliver(complete_event);
+
+    const [, , patch] = donation_mocks.update.mock.calls[0];
+    expect(patch.settlement.fee_parts).toEqual({ chariot: 3, other: 1 });
+  });
+
+  it("stores no fee split for a grant without a fee breakdown", async () => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue(completed_grant);
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
+      id: "don-20",
+      status: "intent",
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+    await deliver(complete_event);
+
+    const [, , patch] = donation_mocks.update.mock.calls[0];
+    expect(patch.settlement.fee).toBe(3);
+    expect(patch.settlement).not.toHaveProperty("fee_parts");
+  });
+
   it("leaves a cancelled donation unsettled and alerts", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(completed_grant);
