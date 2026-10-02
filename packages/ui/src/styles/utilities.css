@@ -419,6 +419,21 @@
   @apply bg-panel border rounded p-6;
 }
 
+/* `card` for a card whose ground is `bg-band`, not the page. the panel rung
+   sits one step below the page, but --band is blue-2 — the same rung as
+   --panel in another hue — so a panel on a band measures 1.004:1 and is not
+   an object. on a tinted ground a container separates by going UP, to
+   --surface (gray-1, 1.033:1 on the band); the "Resting surfaces" rule in
+   packages/brand/design-system.md says so.
+
+   its own name rather than `card bg-surface`: a second fill beside `card`
+   resolves by stylesheet order, which is what shell-conformance fails on.
+   everything else is `card`'s, and so is everything `card` leaves to the
+   caller. */
+@utility card-on-band {
+  @apply bg-surface border rounded p-6;
+}
+
 /* the card that is the whole of a single-purpose screen — login, signup,
    check-email, and the five password-reset panels each sit alone on an
    otherwise empty page in exactly this shape. not a narrower `page`: that one
