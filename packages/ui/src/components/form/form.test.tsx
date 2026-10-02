@@ -1,6 +1,7 @@
 import { type ComponentType, type ReactNode, useState } from "react";
 import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Fieldset, Form, RmxForm } from "./form";
 
@@ -146,5 +147,52 @@ describe.each([
       .toHaveTextContent("false");
 
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it("returns focus to the submit button after a Tab pressed during the request", async () => {
+    const screen = await mount();
+    const save = screen.getByRole("button", { name: "Save" });
+    (save.element() as HTMLElement).focus();
+
+    set_disabled(true);
+    await expect.element(save).toBeDisabled();
+    expect(document.activeElement).toBe(document.body);
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).not.toBe(document.body);
+    set_disabled(false);
+    await expect.element(save).toBeEnabled();
+
+    await expect.element(save).toHaveFocus();
+  });
+
+  it("leaves focus on a control clicked during the request", async () => {
+    const screen = await mount();
+    const save = screen.getByRole("button", { name: "Save" });
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" });
+    (save.element() as HTMLElement).focus();
+
+    set_disabled(true);
+    await expect.element(save).toBeDisabled();
+    await userEvent.keyboard("{Tab}");
+    await elsewhere.click();
+    set_disabled(false);
+    await expect.element(save).toBeEnabled();
+
+    await expect.element(elsewhere).toHaveFocus();
+  });
+
+  it("announces the request while it is in flight, and nothing after", async () => {
+    const screen = await mount();
+    const status = screen.getByRole("group").getByRole("status");
+    await expect.element(status).toHaveTextContent("");
+
+    set_disabled(true);
+    await expect.element(status).toHaveTextContent("Submitting…");
+    set_disabled(false);
+    await expect
+      .element(screen.getByTestId("committed"))
+      .toHaveTextContent("false");
+
+    expect(status.element().textContent).toBe("");
   });
 });

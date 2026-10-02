@@ -2,6 +2,7 @@ import {
   type ComponentProps,
   type FieldsetHTMLAttributes,
   type FormHTMLAttributes,
+  type RefObject,
   useLayoutEffect,
   useRef,
 } from "react";
@@ -50,12 +51,19 @@ interface IFieldset extends FieldsetHTMLAttributes<HTMLFieldSetElement> {
  * disabling the fieldset ejects focus from whatever control held it (usually
  * the submit button) to `<body>`. when it re-enables, focus returns to that
  * control — or to the enclosing `<form>` if the control is itself still
- * disabled — unless something else took focus meanwhile. a `Modal` opened
- * while it is disabled returns focus to that control too.
+ * disabled — unless something else took focus meanwhile. a Tab pressed from
+ * `<body>` doesn't count as taking it: the user is looking for the focus they
+ * lost, so the control that Tab landed on is given back up, unless a click or
+ * any other focus move followed. a `Modal` opened while it is disabled returns
+ * focus to that control too.
+ *
+ * `disabled` is read as "submitting": a polite status says so while it holds.
+ * the outcome is the caller's to render.
  */
 export function Fieldset({ disabled, children, ...props }: IFieldset) {
   const fieldset = useRef<HTMLFieldSetElement>(null);
   const ejected = useRef<HTMLElement | null>(null);
+  const reached_by_tab = useRef<HTMLElement | null>(null);
 
   // chromium blurs the control synchronously as the commit writes `disabled`,
   // so `focusout` fires before any effect of that commit runs
@@ -93,13 +101,18 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
         ejected.current = active;
         note_ejected(fieldset.current, active);
       }
-      return;
+      return watch_tab_from_body(ejected, reached_by_tab);
     }
     const el = ejected.current;
+    const tabbed_to = reached_by_tab.current;
     ejected.current = null;
+    reached_by_tab.current = null;
     if (fieldset.current) clear_ejected(fieldset.current);
+    const active = document.activeElement;
     const unclaimed =
-      !document.activeElement || document.activeElement === document.body;
+      !active ||
+      active === document.body ||
+      (active === tabbed_to && !active.closest(OPEN_DIALOG));
     if (!el?.isConnected || !unclaimed) return;
     if (!el.matches(":disabled")) return el.focus();
     const form = el.closest("form");
@@ -109,9 +122,54 @@ export function Fieldset({ disabled, children, ...props }: IFieldset) {
   return (
     <fieldset ref={fieldset} disabled={disabled} {...props}>
       {children}
+      {/* after children, so a caller's `<legend>` stays first; rendered while
+          empty, so the text written in on submit is announced */}
+      <p role="status" className="sr-only">
+        {disabled ? "Submitting…" : ""}
+      </p>
     </fieldset>
   );
 }
+
+/**
+ * while the fieldset holds an ejected control, records in `reached` the
+ * element a Tab (or Shift+Tab) pressed on `<body>` lands on — cleared by a
+ * pointerdown or any later focus move
+ */
+function watch_tab_from_body(
+  ejected: RefObject<HTMLElement | null>,
+  reached: RefObject<HTMLElement | null>
+) {
+  let tabbing = false;
+  const on_keydown = (e: KeyboardEvent) => {
+    if (e.key !== "Tab" || !ejected.current) return;
+    if (document.activeElement !== document.body) return;
+    tabbing = true;
+    // the focus move is the keydown's default action; a prevented one leaves
+    // no move to attribute
+    setTimeout(() => {
+      tabbing = false;
+    });
+  };
+  const on_focusin = (e: FocusEvent) => {
+    reached.current =
+      tabbing && e.target instanceof HTMLElement ? e.target : null;
+    tabbing = false;
+  };
+  const on_pointerdown = () => {
+    reached.current = null;
+  };
+  document.addEventListener("keydown", on_keydown, true);
+  document.addEventListener("focusin", on_focusin, true);
+  document.addEventListener("pointerdown", on_pointerdown, true);
+  return () => {
+    document.removeEventListener("keydown", on_keydown, true);
+    document.removeEventListener("focusin", on_focusin, true);
+    document.removeEventListener("pointerdown", on_pointerdown, true);
+  };
+}
+
+const OPEN_DIALOG = 'dialog[open], [role="dialog"], [role="alertdialog"]';
 
 export function useRmxForm<T = unknown>() {
   const nav = useNavigation();
