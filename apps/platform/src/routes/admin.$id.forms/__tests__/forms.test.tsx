@@ -9,6 +9,8 @@ import {
   vi,
 } from "vitest";
 import { render } from "vitest-browser-react";
+import { dists } from "$/pg/schema/dist";
+import { donations } from "$/pg/schema/donation";
 import { forms } from "$/pg/schema/form";
 import { npos } from "$/pg/schema/npo";
 import type { TestDb } from "$/pg/test-utils/pglite";
@@ -109,6 +111,46 @@ async function seed_form(
   return id;
 }
 
+/** one parent gift on the form, settled as one dist per recipient */
+async function seed_settled_gift(form_id: string, to_ids: number[]) {
+  counter++;
+  const donation_id = `don-${counter}`;
+  const { db } = test_db.current!;
+  await db.insert(donations).values({
+    id: donation_id,
+    upusd: 1,
+    status: "settled",
+    amount_base: 100,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+    form_id,
+  });
+  await db.insert(dists).values(
+    to_ids.map((to_id) => ({
+      id: `${donation_id}-${to_id}`,
+      donation_id,
+      status: "settled" as const,
+      date_created: new Date().toISOString(),
+      to_id,
+      amount_denom: "USD",
+    }))
+  );
+}
+
+/** text of the Donations column in the row whose link reads `label` */
+function donations_cell(table: HTMLElement, label: string) {
+  const heads = [...table.querySelectorAll("thead th")];
+  const col = heads.findIndex((th) => th.textContent === "Donations");
+  const row = [...table.querySelectorAll("tbody tr")].find(
+    (r) => r.querySelector("a")?.textContent === label
+  );
+  return row?.querySelectorAll("td")[col]?.textContent;
+}
+
 async function render_page(npo_id: number, status?: string) {
   const qs = status ? `?status=${status}` : "";
   const Stub = createRoutesStub([
@@ -153,6 +195,8 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await test_db.current!.db.delete(dists);
+  await test_db.current!.db.delete(donations);
   await test_db.current!.db.delete(forms);
   await test_db.current!.db.delete(npos);
   counter = 0;
@@ -237,6 +281,27 @@ describe("admin views donation forms", () => {
     await expect
       .element(screen.getByRole("link", { name: "Gala 2026" }))
       .toBeVisible();
+  });
+});
+
+describe("admin reads a form's donation count", () => {
+  it("counts one fund gift settled to five members as one donation", async () => {
+    const npo = await seed_npo();
+    const members = await Promise.all(
+      Array.from({ length: 5 }, () => seed_npo())
+    );
+    // the stored counter takes one bump per member's settlement
+    const form_id = await seed_form(npo.id, { tag: "fund-form", ltd_count: 5 });
+    await seed_settled_gift(
+      form_id,
+      members.map((m) => m.id)
+    );
+
+    const screen = await render_page(npo.id);
+
+    await expect.element(screen.getByText("fund-form")).toBeVisible();
+    const table = screen.getByRole("table").element() as HTMLElement;
+    expect(donations_cell(table, "fund-form")).toBe("1");
   });
 });
 
