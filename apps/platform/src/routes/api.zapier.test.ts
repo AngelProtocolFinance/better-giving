@@ -23,7 +23,10 @@ vi.mock("$/pg/db", () => ({
 
 const session = vi.hoisted(() => ({ user: null as { role: string } | null }));
 vi.mock("#/.server/auth", () => ({ get_session: async () => session }));
-vi.mock("$/email", () => ({ send_email: async () => ({}) }));
+vi.mock("$/email", () => ({
+  send_email: async () => ({}),
+  send_email_or_throw: async () => ({}),
+}));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 import { handle_don_dist } from "#/routes/api.q-handler.$event/handle-don-dist";

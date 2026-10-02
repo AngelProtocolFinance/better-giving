@@ -780,7 +780,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
     // and nothing is worded as a failure yet: the browser may still be on its
     // way to the receipt.
     expect(screen.getByText(/couldn't open your receipt/i).query()).toBeNull();
-    expect(screen.getByRole("status").element().textContent).toBe("");
+    expect(screen.getByRole("status").first().element().textContent).toBe("");
   });
 
   test("a paypal capture nobody can confirm shuts every rail and says so on the form", async () => {
@@ -791,8 +791,9 @@ describe("Stripe form: an express rail that can't be offered", () => {
     const screen = await render(<Stub />);
 
     // the region is in place before anything is written into it, so the
-    // notice arrives as a change a screen reader announces
-    const region = screen.getByRole("status");
+    // notice arrives as a change a screen reader announces. first(): the
+    // form's Fieldset appends its own "Submitting…" status after its children
+    const region = screen.getByRole("status").first();
     await expect.element(region).toBeInTheDocument();
     expect(region.element().textContent).toBe("");
 
@@ -803,7 +804,7 @@ describe("Stripe form: an express rail that can't be offered", () => {
     );
 
     await expect
-      .element(screen.getByRole("status"))
+      .element(screen.getByRole("status").first())
       .toHaveTextContent(
         "We couldn't confirm your payment yet. Please don't pay again. Check your email for a receipt, or contact us."
       );

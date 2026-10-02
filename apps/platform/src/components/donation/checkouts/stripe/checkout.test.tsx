@@ -141,7 +141,11 @@ describe("stripe checkout", () => {
       "This amount is above the limit for this payment method. Try a smaller amount or a different payment method.";
     mswWorker.use(
       http.post(href("/api/donation-intents"), () =>
-        HttpResponse.text(sentence, { status: 400 })
+        // marked the way `resp.refuse` marks a refusal the donor may read
+        HttpResponse.text(sentence, {
+          status: 400,
+          headers: { "x-refusal": "1" },
+        })
       )
     );
     const screen = await render(fresh_swr(<Checkout {...fv} />));
@@ -186,7 +190,10 @@ describe("stripe checkout", () => {
     mswWorker.use(
       http.post(href("/api/donation-intents"), () => {
         calls++;
-        return HttpResponse.text("nope", { status: 400 });
+        return HttpResponse.text("nope", {
+          status: 400,
+          headers: { "x-refusal": "1" },
+        });
       })
     );
     const screen = await render(fresh_swr(<Checkout {...fv} />));
