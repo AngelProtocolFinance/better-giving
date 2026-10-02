@@ -66,7 +66,10 @@ export interface ISettlement {
   /** e.g. USD, USDC*/
   currency: string;
   net: number;
+  /** every party's fee combined */
   fee: number;
+  /** `fee` split by the party that charged it, where the provider reports one */
+  fee_parts?: Record<string, number>;
 }
 
 export interface IReferrer {
@@ -141,12 +144,23 @@ export interface IDonation extends ITo, IFrom, IFromLegacyOrPostDonation {
 
   //misc
   tribute?: ITribute;
+
+  /** a deposit held for arriving in an asset other than `currency` */
+  hold?: IHold;
+}
+
+export interface IHold {
+  /** the asset that arrived, uppercase */
+  asset: string;
+  at: string;
 }
 
 export interface IDonationSettled extends Ensure<IDonation, "settlement"> {}
 
 export interface IDonationUpdate
-  extends Partial<Except<IDonation, "id" | "created_at" | "updated_at">> {}
+  extends Partial<
+    Except<IDonation, "id" | "created_at" | "updated_at" | "hold">
+  > {}
 
 export interface IDonsFromOpts {
   limit?: number;

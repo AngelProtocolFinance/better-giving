@@ -13,7 +13,26 @@ export interface IRecipient {
   donor_address_required?: boolean;
 }
 
-export interface ILoader extends FormRow {
+// the anonymous, cdn-cached payload: only what the donation widget renders
+type FormPublic = Pick<
+  FormRow,
+  | "id"
+  | "name"
+  | "status"
+  | "accent_primary"
+  | "accent_secondary"
+  | "donate_methods"
+  | "increments"
+  | "freq_opts"
+  | "defaults"
+  | "success_redirect"
+  | "recipient_npo_id"
+  | "recipient_fund_id"
+  | "program_id"
+  | "program_name"
+>;
+
+export interface ILoader extends FormPublic {
   recipient_details: IRecipient;
   base_url: string;
 }
@@ -26,8 +45,25 @@ export const loader = async ({ request, params }: Route.LoaderArgs) => {
   if (!x) throw resp.err(404, "recipient not found");
 
   return {
-    ...form,
-    recipient_details: x,
+    id: form.id,
+    name: form.name,
+    status: form.status,
+    accent_primary: form.accent_primary,
+    accent_secondary: form.accent_secondary,
+    donate_methods: form.donate_methods,
+    increments: form.increments,
+    freq_opts: form.freq_opts,
+    defaults: form.defaults,
+    success_redirect: form.success_redirect,
+    recipient_npo_id: form.recipient_npo_id,
+    recipient_fund_id: form.recipient_fund_id,
+    program_id: form.program_id,
+    program_name: form.program_name,
+    recipient_details: {
+      name: x.name,
+      hide_bg_tip: x.hide_bg_tip,
+      donor_address_required: x.donor_address_required,
+    },
     base_url: new URL(request.url).origin,
   } satisfies ILoader;
 };

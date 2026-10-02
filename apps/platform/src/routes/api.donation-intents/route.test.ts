@@ -147,12 +147,13 @@ describe("api.donation-intents action", () => {
     await expect(res!.json()).resolves.toEqual({ id: "don-5" });
   });
 
-  // the checkout renders a 4xx text body to the donor verbatim
+  // a marked 4xx body is what `json_ok` shows the donor
   it("returns a donor sentence with 404 when recipient not found", async () => {
     npo_get_mock.mockResolvedValueOnce(undefined);
     const res = await invoke(post(valid_body("card")));
 
     expect(res!.status).toBe(404);
+    expect(res!.headers.get("x-refusal")).toBe("1");
     expect(res!.headers.get("content-type")).toBe("text/plain");
     await expect(res!.text()).resolves.toBe(
       "This nonprofit isn't accepting donations right now."
@@ -181,6 +182,7 @@ describe("api.donation-intents action", () => {
       const res = await invoke(post(fund_body()));
 
       expect(res.status).toBe(404);
+      expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
         "This fundraiser isn't accepting donations right now."
       );
@@ -195,6 +197,7 @@ describe("api.donation-intents action", () => {
       const res = await invoke(post(fund_body()));
 
       expect(res.status).toBe(404);
+      expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
         "This fundraiser isn't accepting donations right now."
       );
@@ -207,6 +210,7 @@ describe("api.donation-intents action", () => {
       const res = await invoke(post(fund_body()));
 
       expect(res.status).toBe(404);
+      expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
         "This fundraiser isn't accepting donations right now."
       );
@@ -232,6 +236,7 @@ describe("api.donation-intents action", () => {
         const res = await invoke(post(fund_body()));
 
         expect(res.status).toBe(404);
+        expect(res.headers.get("x-refusal")).toBe("1");
         expect(stripe_intent_mock).not.toHaveBeenCalled();
       });
 
@@ -279,6 +284,7 @@ describe("api.donation-intents action", () => {
     const res = await invoke(post(valid_body("card")));
 
     expect(res.status).toBe(404);
+    expect(res.headers.get("x-refusal")).toBe("1");
     await expect(res.text()).resolves.toBe(
       "This nonprofit isn't accepting donations right now."
     );
@@ -292,6 +298,7 @@ describe("api.donation-intents action", () => {
     );
 
     expect(res!.status).toBe(400);
+    expect(res!.headers.get("x-refusal")).toBe("1");
     expect(res!.headers.get("content-type")).toBe("text/plain");
     await expect(res!.text()).resolves.toBe(
       "We couldn't process this donation. Please refresh the page and try again."
@@ -311,6 +318,7 @@ describe("api.donation-intents action", () => {
       );
 
       expect(res.status).toBe(400);
+      expect(res.headers.get("x-refusal")).toBe("1");
       expect(res.headers.get("content-type")).toBe("text/plain");
       await expect(res.text()).resolves.toBe(
         "We couldn't process this donation. Please refresh the page and try again."
@@ -496,6 +504,7 @@ describe("api.donation-intents action", () => {
     );
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     await expect(res.text()).resolves.toBe(
       "We couldn't process this donation. Please refresh the page and try again."
     );
@@ -511,6 +520,7 @@ describe("api.donation-intents action", () => {
     const res = await invoke(req);
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(res.headers.get("content-type")).toBe("text/plain");
     await expect(res.text()).resolves.toBe(
       "We couldn't process this donation. Please refresh the page and try again."
@@ -527,6 +537,7 @@ describe("api.donation-intents action", () => {
     const res = await invoke(req);
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(capture_order_mock).not.toHaveBeenCalled();
   });
 });

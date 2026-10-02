@@ -50,6 +50,7 @@ function Content(props: IProps) {
     <RmxForm
       method="POST"
       disabled={nav.state !== "idle"}
+      busy={nav.state === "submitting"}
       onSubmit={handleSubmit}
     >
       <div className="relative">

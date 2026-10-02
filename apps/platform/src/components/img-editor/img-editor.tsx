@@ -21,22 +21,26 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
   const [file, setFile] = useState<File>();
   const [drag_active, set_drag_active] = useState(false);
   const root_ref = useRef<HTMLDivElement>(null);
-  const dropzone_ref = useRef<HTMLLabelElement>(null);
+  const dropzone_ref = useRef<HTMLDivElement>(null);
   const input_ref = useRef<HTMLInputElement>(null);
 
   useImperativeHandle(
     ref,
     () => ({
       focus: () => {
-        // the file input is the control, but the preview branch keeps it under
-        // `hidden` and an upload in flight disables it — focus() is a no-op in
-        // both. read the outcome back rather than predict it from the branch,
-        // and fall back to the dropzone, so focus-on-error never lands nowhere.
+        // the file input is the control, but an upload in flight disables it
+        // and focus() is then a no-op. read the outcome back rather than
+        // predict it, and fall back to the dropzone, so focus-on-error never
+        // lands nowhere.
         // the dropzone and not the root: it is what paints the ring, so the
         // fallback is visible rather than a silent scroll to an unmarked field.
         input_ref.current?.focus({ preventScroll: true });
-        if (document.activeElement !== input_ref.current) {
-          dropzone_ref.current?.focus({ preventScroll: true });
+        const dropzone = dropzone_ref.current;
+        if (document.activeElement !== input_ref.current && dropzone) {
+          // after a mouse submit this focus is not :focus-visible, so the
+          // ring would not paint; the attribute paints it until blur
+          dropzone.dataset.focusError = "";
+          dropzone.focus({ preventScroll: true });
         }
         // "start", not "nearest": nearest no-ops when the field is already
         // partly in view, which is the case scroll-mt-24 exists to correct
@@ -158,16 +162,33 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
         </span>{" "}
         <AspectTooltip aspect={props.spec.aspect} />
       </p>
-      {/* biome-ignore lint/a11y/noLabelWithoutControl: wraps file input */}
-      <label
+      {/* a div, not a <label> around the input: a wrapping label names the
+          input from its whole subtree, which would read the undo/crop buttons'
+          names into it. keyboard users reach the input itself, so the click is
+          pointer-only convenience. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: the input inside is the keyboard path */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: same — the click only forwards to the input */}
+      <div
         ref={dropzone_ref}
         // -1: never in the tab order, but focusable as the handle's fallback
-        // target — and focus-within below then paints the ring on it
+        // target. a mouse press focuses it too, so the ring and the controls
+        // key off :focus-visible, never :focus — or a click leaves both painted
+        // over the preview after the pointer has gone
         tabIndex={-1}
+        onBlur={(e) => {
+          if (e.target === e.currentTarget)
+            delete e.currentTarget.dataset.focusError;
+        }}
         data-loading={is_loading}
         data-invalid={!!props.error}
         data-drag={drag_active}
         data-disabled={disabled}
+        onClick={(e) => {
+          const target = e.target as Element;
+          // the forwarded click bubbles back here; buttons act for themselves
+          if (target === input_ref.current || target.closest("button")) return;
+          input_ref.current?.click();
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           if (!disabled) set_drag_active(true);
@@ -181,7 +202,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
           if (files.length) handle_files(files);
         }}
         className={`relative ${overlay} ${styles.dropzone} group rounded border border-dashed bg-surface cursor-pointer
-          focus-within:outline-2 data-[drag="true"]:outline-2 outline-ring
+          focus-visible:outline-2 has-focus-visible:outline-2 data-[focus-error]:outline-2 data-[drag="true"]:outline-2 outline-ring
           hover:bg-secondary
           data-[disabled="true"]:bg-gray-3 data-[disabled="true"]:pointer-events-none
           data-[invalid="true"]:border-destructive
@@ -199,8 +220,8 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
           >
             {file_input}
             <ArrowUpFromLine className="mb-5 icon-xl" />
-            {/* the dropzone label wraps the input, so its text would join the
-                caller's caption in the input's name */}
+            {/* pointer-only instructions: a keyboard user is on the input,
+                which the caller's caption names and the hint describes */}
             <p aria-hidden className="font-semibold mb-1">
               Upload file
             </p>
@@ -212,7 +233,11 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
           /** something is uploaded and would disrupt text above
            *  so just show upload icon instead of it.
            */
-          <div className="absolute-center hidden group-hover:flex">
+          // sr-only at rest, not `hidden`: display:none takes the input and
+          // buttons out of the tab order, so focus could never reveal them.
+          // only where the device can hover — a touch screen has no hover to
+          // reveal them with, so there they always show
+          <div className="absolute-center flex [@media(hover:hover)]:not-group-hover:not-group-has-focus-visible:sr-only">
             <div className={buttonStyle}>
               {file_input}
               <ArrowUpFromLine className="icon-md" />
@@ -221,6 +246,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
               /** only show controls if new file is uploaded */
               (file || props.value === "invalid-type") && !is_loading && (
                 <IconButton
+                  aria-label="Undo image change"
                   disabled={props.disabled}
                   onClick={(e) => {
                     setFile(undefined);
@@ -233,6 +259,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
             }
             {file && !props.error && (
               <IconButton
+                aria-label="Crop image"
                 onClick={(e) => {
                   e.stopPropagation();
                   crop_and_upload(file);
@@ -244,7 +271,7 @@ export function ImgEditor({ ref, id, ...props }: ControlledProps) {
             )}
           </div>
         )}
-      </label>
+      </div>
 
       {/* always mounted: a message raised by picking a file is announced as
           a change, which a region inserted with its text is not reliably */}

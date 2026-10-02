@@ -1,3 +1,4 @@
+import { Dialog } from "@ark-ui/react/dialog";
 import { Actions, Modal } from "@better-giving/ui";
 import { CircleAlert } from "lucide-react";
 import {
@@ -7,6 +8,8 @@ import {
   useRouteError,
 } from "react-router";
 import { GENERIC_ERROR_MESSAGE } from "@/constants/common";
+
+const TITLE = "Something went wrong";
 
 const STATUS_MESSAGES: Record<number, string> = {
   400: "The request was invalid.",
@@ -40,7 +43,7 @@ export function ErrorModal() {
     <Modal open={true} onClose={close} classes="grid bg-panel text-gray-12">
       <div className="px-6 pb-4 text-center mt-6">
         <CircleAlert className="text-destructive mx-auto pictogram-md" />
-        <p className="font-bold mt-3">Something went wrong</p>
+        <Dialog.Title className="font-bold mt-3">{TITLE}</Dialog.Title>
         <p className="text-gray-11 text-sm mt-2 text-balance">{message}</p>
       </div>
       <Actions band>

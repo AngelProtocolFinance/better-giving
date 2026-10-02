@@ -5,13 +5,12 @@ import { resp, search } from "@/helpers/https";
 import type { IProgram } from "@/npo";
 import { program_id } from "@/npo/schema";
 import { $int_gte1 } from "@/schemas";
-import type { INpo } from "$/pg/queries/npo";
-import { npo_get } from "$/pg/queries/npo";
+import { type INpoPublic, npo_get, npo_public } from "$/pg/queries/npo";
 import { npo_program_get, npo_program_owned } from "$/pg/queries/program";
 
 export interface DonateData {
   id: number;
-  endow: INpo;
+  endow: INpoPublic;
   /** need to await */
   program?: IProgram;
   user?: AuthUser;
@@ -38,7 +37,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
   return data({
     id,
-    endow,
+    endow: npo_public(endow),
     program,
     user,
     base_url: new URL(request.url).origin,

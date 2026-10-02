@@ -126,6 +126,9 @@ describe("chariot_intent refusals the donor can retry", () => {
       ctx({ base: 0.5, tip: 0, fee_allowance: 0.5 })
     );
     expect((res as Response).status).toBe(400);
+    await expect((res as Response).text()).resolves.toBe(
+      "The minimum DAF donation is 2 USD."
+    );
     expect(create_grant_mock).not.toHaveBeenCalled();
   });
 

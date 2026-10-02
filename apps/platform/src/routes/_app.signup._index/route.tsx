@@ -104,7 +104,12 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           {ctx.description}
         </p>
 
-        <RmxForm disabled={is_submitting} method="POST" className="contents">
+        <RmxForm
+          disabled={is_submitting}
+          busy={nav.state === "submitting"}
+          method="POST"
+          className="contents"
+        >
           <button
             name="intent"
             value="oauth"

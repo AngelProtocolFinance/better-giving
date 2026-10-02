@@ -7,7 +7,18 @@ vi.mock("#/.server/auth", () => ({
 }));
 vi.mock("$/env", () => ({ blob: { read_write_token: "tok" } }));
 
+import { sources_of } from "#/__tests__/conformance/walk";
+import { img_spec as funds_img_spec } from "#/pages/funds/common";
+import { upload_limits } from "@/constants/upload";
+import { fileSpec as fsa_spec } from "./_app.register.$reg_id._steps.3/fsa/types";
+import {
+  bannerSpec,
+  cardImgSpec,
+  logoSpec,
+} from "./admin.$id.edit-profile/schema";
+import { img_spec as program_img_spec } from "./admin.$id.program-editor.$program_id/common";
 import { action } from "./api.file-upload";
+import { avatar_spec } from "./dashboard.edit-profile/use-rhf";
 
 const upload = (body: Blob, filename = "photo.png") =>
   action({
@@ -54,17 +65,21 @@ describe("file upload", () => {
     expect(put).not.toHaveBeenCalled();
   });
 
-  test("refuses a file past 6 MiB, storing nothing", async () => {
-    const res: Response = await upload(
-      new Blob([new Uint8Array(6 * 1024 * 1024 + 1)], { type: "image/png" })
-    );
-    expect(res.status).toBe(413);
-    expect(put).not.toHaveBeenCalled();
-  });
+  test.each(Object.keys(upload_limits.types))(
+    "refuses a %s file past the cap, storing nothing",
+    async (type) => {
+      const res: Response = await upload(
+        new Blob([new Uint8Array(upload_limits.max_bytes + 1)], { type }),
+        "big"
+      );
+      expect(res.status).toBe(413);
+      expect(put).not.toHaveBeenCalled();
+    }
+  );
 
   test("stores an accepted file under the type that was checked", async () => {
     const res = await upload(
-      new Blob(["%PDF-1.7\n", new Uint8Array(6 * 1024 * 1024 - 9)], {
+      new Blob(["%PDF-1.7\n", new Uint8Array(4 * 1024 * 1024 - 9)], {
         type: "application/pdf",
       }),
       "statement.pdf"
@@ -146,5 +161,44 @@ describe("file upload", () => {
       "a.svg"
     );
     expect(res.data).toEqual({ url: "https://blob.test/u/photo-abc.png" });
+  });
+});
+
+describe("upload size limits", () => {
+  // vercel functions refuse a request body over 4.5 MB before the route runs,
+  // with no app message — every limit must sit under it
+  const VERCEL_BODY_CAP = 4.5e6;
+
+  test("the server cap fits under the platform's body cap", () => {
+    expect(upload_limits.max_bytes).toBeLessThan(VERCEL_BODY_CAP);
+  });
+
+  test("the fsa dropzone's limit fits under the server cap", () => {
+    expect(fsa_spec.mbLimit * 1e6).toBeLessThanOrEqual(upload_limits.max_bytes);
+  });
+});
+
+describe("client upload limits", () => {
+  test.each([
+    ["funds img_spec", funds_img_spec([1, 1])],
+    ["avatar_spec", avatar_spec],
+    ["logoSpec", logoSpec],
+    ["cardImgSpec", cardImgSpec],
+    ["bannerSpec", bannerSpec],
+    ["program img_spec", program_img_spec([1, 1])],
+  ])("the %s image editor limit fits under the server cap", (_, spec) => {
+    expect(spec.max_size).toBeGreaterThan(0);
+    expect(spec.max_size!).toBeLessThanOrEqual(upload_limits.max_bytes);
+  });
+
+  // the recipient-details dropzone spec is inline in the form's JSX, so its
+  // literal is read from source
+  test("the recipient-details dropzone limit fits under the server cap", () => {
+    const form = sources_of(import.meta.url).find((s) =>
+      s.file.endsWith("recipient-details/recipient-details-form.tsx")
+    );
+    const limit = /mbLimit:\s*(\d+(?:\.\d+)?)/.exec(form?.text ?? "")?.[1];
+    expect(limit).toBeDefined();
+    expect(+limit! * 1e6).toBeLessThanOrEqual(upload_limits.max_bytes);
   });
 });

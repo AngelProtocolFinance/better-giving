@@ -1,7 +1,11 @@
 import { Dialog } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
-import { type ModalSize, modal_box } from "@better-giving/ui/helpers";
-import type { PropsWithChildren } from "react";
+import {
+  type ModalSize,
+  modal_box,
+  name_from_heading,
+} from "@better-giving/ui/helpers";
+import { type PropsWithChildren, useId, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 interface IRouteModal extends PropsWithChildren {
@@ -10,6 +14,11 @@ interface IRouteModal extends PropsWithChildren {
   classes?: string;
   /** content-box geometry tier. defaults to `sm` (512px). */
   size?: ModalSize;
+  /**
+   * the dialog's accessible name, read to screen readers only. without it the
+   * dialog is named by the first `h1`–`h3` in its content.
+   */
+  title?: string;
 }
 
 /**
@@ -21,11 +30,15 @@ export function RouteModal({
   to = "..",
   size = "sm",
   classes = "",
+  title,
   children,
 }: IRouteModal) {
   const navigate = useNavigate();
+  const title_id = useId();
+  const name_ref = useMemo(() => name_from_heading(title_id), [title_id]);
   return (
     <Dialog.Root
+      ids={{ title: title_id }}
       open={true}
       onOpenChange={(e) => {
         if (!e.open) navigate(to, { replace: true, preventScrollReset: true });
@@ -39,8 +52,10 @@ export function RouteModal({
         <Dialog.Backdrop className="fixed inset-0 bg-overlay z-scrim data-[state=open]:animate-overlay-in" />
         <Dialog.Positioner className="contents">
           <Dialog.Content
+            ref={title ? undefined : name_ref}
             className={`data-[state=open]:animate-popup-in ${modal_box[size]} ${classes}`}
           >
+            {title && <Dialog.Title className="sr-only">{title}</Dialog.Title>}
             {children}
           </Dialog.Content>
         </Dialog.Positioner>

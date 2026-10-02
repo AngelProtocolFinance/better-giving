@@ -54,6 +54,13 @@ export const dists = pgTable(
       "completed" | "failed" | "loss"
     >(),
     refund_error: text("refund_error"),
+    // the npo notice runs under one lease (`notice_claimed_at`) with a stamp
+    // per side effect — npo mail, country metric, zapier hooks — so each runs
+    // once and a failed one is retried alone; see `claim_dist_notice`
+    notice_claimed_at: timestamptz("notice_claimed_at"),
+    notice_sent_at: timestamptz("notice_sent_at"),
+    metric_counted_at: timestamptz("metric_counted_at"),
+    hooks_sent_at: timestamptz("hooks_sent_at"),
   },
   (t) => [
     check(

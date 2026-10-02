@@ -92,6 +92,10 @@ describe("handle_paypal_order_capture", () => {
       "a capture already in progress",
       orders_422("PREVIOUS_REQUEST_IN_PROGRESS"),
     ],
+    [
+      "a capture call the sdk timed out",
+      new DOMException("signal timed out", "TimeoutError"),
+    ],
   ])("throws on %s, so qstash retries", async (_, err) => {
     capture_order_mock.mockRejectedValue(err);
 

@@ -6,6 +6,7 @@
 // so this entry is where a consumer should reach them, not the component barrel.
 export { fileOutput } from "../components/file-dropzone/types";
 export { toYYYMMDD } from "../components/form/helpers";
+export { name_from_heading } from "./dialog-name";
 export type { ModalSize } from "./modal-box";
 export { modal_box } from "./modal-box";
 export { to_usd } from "./to-usd";

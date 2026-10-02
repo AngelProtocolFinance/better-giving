@@ -420,6 +420,49 @@ describe("refund preview", () => {
     expect(data.total_loss).toBe(5);
   });
 
+  // ¥50,000 gift pledged at $333.33 that settled at $313.50: the row's $
+  // column shows the settled usd, the money the refund moves
+  const yen_dist = (refund_status: string | null) => ({
+    dist: {
+      id: "dist-1",
+      to_id: 7,
+      to_name: "Save the Whales",
+      amount: 50_000,
+      amount_usd: 333.33,
+      net: 300,
+      fee_base: 0,
+      fee_fsa: 0,
+      fee_processing: 13.5,
+      refund_status,
+    },
+  });
+
+  it("shows a non-USD dist's settled amount in USD", async () => {
+    vi.mocked(dists_for_refund).mockResolvedValue([yen_dist(null)] as any);
+    vi.mocked(load_refund_plan).mockResolvedValue({
+      is_loss: false,
+      amount: 313.5,
+      paid_commission: null,
+      preview: { effects: [], blockers: [], warnings: [] },
+    } as any);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const data: any = await loader({ params: { donation_id: id } } as any);
+
+    expect(data.previews[0].amount).toBe(313.5);
+  });
+
+  it("shows an already-reversed non-USD dist's settled amount in USD", async () => {
+    vi.mocked(dists_for_refund).mockResolvedValue([yen_dist("loss")] as any);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const data: any = await loader({ params: { donation_id: id } } as any);
+
+    expect(data.previews[0].amount).toBe(313.5);
+  });
+
   it("banners the loss without saying it is recorded", async () => {
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: true,

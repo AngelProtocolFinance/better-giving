@@ -1,4 +1,5 @@
 import { defineArrayMember, defineField, defineType } from "sanity";
+import { altField } from "./altField";
 
 export const postType = defineType({
   name: "post",
@@ -40,7 +41,7 @@ export const postType = defineType({
       title: "Featured image",
       type: "image",
       options: { hotspot: true },
-      fields: [defineField({ name: "alt", type: "string", title: "Alt text" })],
+      fields: [altField],
     }),
     defineField({
       name: "cta",
@@ -58,10 +59,7 @@ export const postType = defineType({
         defineArrayMember({
           type: "image",
           options: { hotspot: true },
-          fields: [
-            defineField({ name: "alt", type: "string", title: "Alt text" }),
-            defineField({ name: "caption", type: "string" }),
-          ],
+          fields: [altField, defineField({ name: "caption", type: "string" })],
         }),
       ],
     }),

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -7,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { NPO_PUBLIC_KEYS } from "$/pg/queries/npo";
 import { npos } from "$/pg/schema/npo";
 import { programs } from "$/pg/schema/program";
 import type { TestDb } from "$/pg/test-utils/pglite";
@@ -64,10 +66,9 @@ async function seed_program(npo_id: number, title: string) {
   return id;
 }
 
-async function load(npo_id: number, program_id: string) {
-  const request = new Request(
-    `https://x/donate/${npo_id}?programId=${program_id}`
-  );
+async function load(npo_id: number, program_id?: string) {
+  const qs = program_id ? `?programId=${program_id}` : "";
+  const request = new Request(`https://x/donate/${npo_id}${qs}`);
   const res: any = await loader({
     request,
     params: { id: String(npo_id) },
@@ -107,5 +108,27 @@ describe("donate loader program", () => {
     const d = await load(recipient.id, own);
 
     expect(d.program).toMatchObject({ id: own, title: "Own Program" });
+  });
+});
+
+describe("donate loader npo", () => {
+  it("sends the npo's display fields and none of its private columns", async () => {
+    const npo = await seed_npo("Recipient");
+    await test_db
+      .current!.db.update(npos)
+      .set({
+        liq: 1234,
+        cash: 567,
+        lock_units: 89,
+        w_form: "w9-eid",
+        referral_id: `REF-${npo.id}`,
+        payout_minimum: 50,
+      })
+      .where(eq(npos.id, npo.id));
+
+    const d = await load(npo.id);
+
+    expect(d.endow).toMatchObject({ id: npo.id, name: "Recipient" });
+    expect(Object.keys(d.endow).sort()).toEqual([...NPO_PUBLIC_KEYS].sort());
   });
 });

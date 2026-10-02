@@ -23,6 +23,56 @@ const defaults: IFormValues = {
   for_donation_id: "",
 };
 
+/** exactly what the confirm posts, less the key — so the key can be found by it */
+const confirm_body = (form: IFormValues) => ({
+  from: form.from,
+  npo_id: form.npo?.id.toString() ?? "",
+  donor_name: form.donor_name || "",
+  donor_email: form.donor_email,
+  net: form.net,
+  reference: form.reference,
+  for_donation_id: form.for_donation_id,
+});
+type IConfirmBody = ReturnType<typeof confirm_body>;
+
+/**
+ * the settlement's idempotency key, held in the tab rather than the component.
+ *
+ * a confirm that fails with a 5xx lands on the route's error boundary, which
+ * unmounts the page — a key in component state would be lost, and the admin
+ * reopening the dialog for the same cheque would settle it a second time. the
+ * values themselves name the entry, so previewing the same settlement again
+ * finds its key and any edit is a new settlement. the memory map stands in for
+ * a tab whose storage throws (blocked site data), lasting until reload.
+ */
+const keys_in_memory = new Map<string, string>();
+const key_slot = (body: IConfirmBody) =>
+  `settlement-idempotency:${JSON.stringify(body)}`;
+
+function held_key(body: IConfirmBody): string {
+  const slot = key_slot(body);
+  try {
+    const held = sessionStorage.getItem(slot);
+    if (held) return held;
+    const fresh = crypto.randomUUID();
+    sessionStorage.setItem(slot, fresh);
+    return fresh;
+  } catch {
+    const fresh = keys_in_memory.get(slot) ?? crypto.randomUUID();
+    keys_in_memory.set(slot, fresh);
+    return fresh;
+  }
+}
+
+/** a recorded settlement frees its values: the same cheque keyed again is a new one */
+function release_key(body: IConfirmBody) {
+  const slot = key_slot(body);
+  keys_in_memory.delete(slot);
+  try {
+    sessionStorage.removeItem(slot);
+  } catch {}
+}
+
 export default function Page(_: Route.ComponentProps) {
   const navigate = useNavigate();
   const close = () =>
@@ -41,13 +91,18 @@ function Content({ on_close }: { on_close: () => void }) {
   const awaiting_preview = useRef(false);
   const [step, set_step] = useState<Step>("form");
   const [form, set_form] = useState<IFormValues>(defaults);
+  // one per previewed set of values: every confirm of it, retries and reopened
+  // dialogs included, is the same settlement to the server
+  const [idempotency_key, set_idempotency_key] = useState("");
 
   const submitting = submit_fetcher.state !== "idle";
   const loading_preview = preview_fetcher.state !== "idle";
 
   useEffect(() => {
-    if (step === "preview" && submit_fetcher.data?.ok) set_step("done");
-  }, [step, submit_fetcher.data]);
+    if (step !== "preview" || !submit_fetcher.data?.ok) return;
+    release_key(confirm_body(form));
+    set_step("done");
+  }, [step, submit_fetcher.data, form]);
 
   // transition to preview when preview data arrives. a load that completed with
   // nothing to show keeps the admin on the form, where the loader's reason is
@@ -56,8 +111,10 @@ function Content({ on_close }: { on_close: () => void }) {
     if (!awaiting_preview.current || preview_fetcher.state !== "idle") return;
     if (!preview_fetcher.data) return;
     awaiting_preview.current = false;
-    if (preview_fetcher.data.preview) set_step("preview");
-  }, [preview_fetcher.data, preview_fetcher.state]);
+    if (!preview_fetcher.data.preview) return;
+    set_idempotency_key(held_key(confirm_body(form)));
+    set_step("preview");
+  }, [preview_fetcher.data, preview_fetcher.state, form]);
 
   // a match that names a gift takes its recipient from that gift, so the
   // nonprofit may legitimately be unset — the loader resolves it from the id
@@ -89,6 +146,12 @@ function Content({ on_close }: { on_close: () => void }) {
         <p className="text-sm text-gray-11 mb-4">
           Settlement for ${form.net} to {recipients} has been recorded.
         </p>
+        {submit_fetcher.data && "replayed" in submit_fetcher.data && (
+          <p className="text-sm text-gray-11 mb-4">
+            It was already recorded by an earlier confirm, so nothing was added
+            twice.
+          </p>
+        )}
         <button type="button" onClick={on_close} className="btn btn-primary">
           Close
         </button>
@@ -111,15 +174,7 @@ function Content({ on_close }: { on_close: () => void }) {
         on_back={() => set_step("form")}
         on_confirm={() =>
           submit_fetcher.submit(
-            {
-              from: form.from,
-              npo_id: form.npo?.id.toString() ?? "",
-              donor_name: form.donor_name || "",
-              donor_email: form.donor_email,
-              net: form.net,
-              reference: form.reference,
-              for_donation_id: form.for_donation_id,
-            },
+            { ...confirm_body(form), idempotency_key },
             { method: "post" }
           )
         }

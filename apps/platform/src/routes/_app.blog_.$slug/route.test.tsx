@@ -227,6 +227,18 @@ describe("post images", () => {
         );
     }
   });
+
+  it("marks a hero image without alt text decorative, since the h1 beside it names the post", async () => {
+    const screen = await render_post(
+      malformed_post([block("b1", [span("Body text")])], {
+        image: valid_image,
+      })
+    );
+    await expect
+      .element(screen.getByRole("heading", { level: 1 }))
+      .toBeVisible();
+    expect(screen.container.querySelector("img")).toHaveAttribute("alt", "");
+  });
 });
 
 describe("post list items", () => {

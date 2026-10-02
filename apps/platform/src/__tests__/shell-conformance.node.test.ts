@@ -3,8 +3,8 @@ import { sources_of } from "./conformance/walk";
 
 /**
  * the names sweep for the shells: the scrollbar skin, the table scroller, the
- * popup content shell, the dashboard shell and the card. same reason as the
- * other two sweeps — tailwind v4 is a
+ * popup content shell, the dashboard shell and the card (and its band
+ * variant). same reason as the other two sweeps — tailwind v4 is a
  * jit over source text, so a half-spelled skin or a re-hand-rolled shell
  * produces no error, just a surface that quietly stops matching the others.
  *
@@ -170,6 +170,22 @@ describe("the card shell", () => {
     ]);
   });
 
+  test("the band card is the card a rung up, and differs in nothing else", () => {
+    // on a `bg-band` ground the panel rung measures 1.004:1, so the card there
+    // goes up to --surface (packages/brand/design-system.md, "Resting
+    // surfaces"). a name of its own, because `card bg-surface` is a second
+    // fill resolved by stylesheet order.
+    const recipe = utilities?.text.match(
+      /@utility card-on-band \{\s*@apply ([^;]*);/
+    );
+    expect(tokens(recipe?.[1] ?? "")).toEqual([
+      "bg-surface",
+      "border",
+      "rounded",
+      "p-6",
+    ]);
+  });
+
   // the fill, edge and corner that make a surface a card. the edge accepts the
   // step spelling too (`border-gray-6`) because that is how two thirds of the
   // hand-assembled ones were written, and the corner accepts a side because a
@@ -285,13 +301,22 @@ describe("the card shell", () => {
       // something else below it, so what the surface is at the other widths —
       // an inset included — is the caller's to spell, and the two variants
       // never both apply.
-      if (!t.includes("card")) return [];
+      const name = t.find((x) => x === "card" || x === "card-on-band");
+      if (!name) return [];
+      // --surface counts as a fill here and only here: beside a card it is the
+      // band card spelled by hand, while on its own it is a control's box.
       const bad = t
         .filter((x) => {
           const c = bare(x);
-          return is_fill(c) || is_edge(c) || is_corner(c) || is_inset(c);
+          return (
+            is_fill(c) ||
+            c === "bg-surface" ||
+            is_edge(c) ||
+            is_corner(c) ||
+            is_inset(c)
+          );
         })
-        .filter((x) => bare(x) !== "card");
+        .filter((x) => x !== name);
       return bad.length ? [`${file}:${n} ${bad.join(" ")}`] : [];
     });
     expect(offenders).toEqual([]);

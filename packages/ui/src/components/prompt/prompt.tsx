@@ -1,9 +1,18 @@
+import { Dialog } from "@ark-ui/react/dialog";
 import { X } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { useNavigate } from "react-router";
 import { Actions } from "../form/actions";
 import { Modal } from "../modal";
 import { PromptIcon } from "./prompt-icon";
+
+// what the icon says to a sighted reader, said to a screen reader as the name
+const type_titles = {
+  success: "Success",
+  error: "Error",
+  loading: "Loading",
+} as const;
+
 export interface IPrompt extends PropsWithChildren {
   type?: "success" | "error" | "loading";
   open?: boolean;
@@ -11,10 +20,13 @@ export interface IPrompt extends PropsWithChildren {
   isDismissable?: boolean;
   /** fired once the close animation has finished and the content is unmounted. */
   onExitComplete?: () => void;
+  /** accessible name — defaults to the one `type`'s icon conveys. */
+  title?: string;
 }
 
 export function Prompt({
   type,
+  title = type && type_titles[type],
   children,
   onClose,
   open,
@@ -32,6 +44,7 @@ export function Prompt({
       open={open ?? true}
       onClose={close}
       onExitComplete={onExitComplete}
+      title={title}
       classes="grid bg-panel text-gray-12"
     >
       <div className="flex justify-end p-4 border-b">
@@ -46,7 +59,10 @@ export function Prompt({
       </div>
 
       <PromptIcon type={type} classes="mb-6 sm:mb-8 mt-4 sm:mt-12" />
-      <div className="px-6 pb-4 text-center text-gray-11">{children}</div>
+      {/* a div: callers pass block content */}
+      <Dialog.Description asChild>
+        <div className="px-6 pb-4 text-center text-gray-11">{children}</div>
+      </Dialog.Description>
       <Actions band>
         <button
           onClick={close}

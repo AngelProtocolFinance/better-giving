@@ -32,6 +32,7 @@ function Content() {
       controls close while a mint is in flight. */}
       <RmxForm
         disabled={navigation.state !== "idle"}
+        busy={navigation.state === "submitting"}
         method="post"
         action="../w-form-start"
       >

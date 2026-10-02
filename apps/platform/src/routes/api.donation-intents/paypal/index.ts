@@ -12,19 +12,32 @@ import { paypal_charge } from "./charge";
 import { create_order } from "./create-order";
 import { create_subs } from "./create-subs";
 
-export const paypal_intent: Provider = async ({ to, from, intent }) => {
+export const paypal_intent: Provider = async ({
+  to,
+  from,
+  via_extra,
+  intent,
+}) => {
+  // venmo rides paypal's rail: its donor reads the method they clicked
+  const method = via_extra === "venmo" ? "Venmo" : "PayPal";
   const scale = paypal_currencies[intent.currency];
   if (scale === undefined) {
-    return resp.txt(
-      `PayPal doesn't accept ${intent.currency}. Try another payment method.`,
-      400
+    return resp.refuse(
+      `${method} doesn't accept ${intent.currency}. Try another payment method.`
     );
   }
   const charge = paypal_charge(intent.amount, scale);
 
   const upusd = await unit_per_usd(intent.currency);
   const base_usd = rd2num(charge.amount.base / upusd, 1);
-  if (base_usd < MIN_DONATION_USD) return resp.status(400, "less than min");
+  if (base_usd < MIN_DONATION_USD) {
+    const usd = `${MIN_DONATION_USD} USD`;
+    return resp.refuse(
+      intent.currency === "USD"
+        ? `The minimum ${method} donation is ${usd}.`
+        : `The minimum ${method} donation is ${usd}, or its equivalent in ${intent.currency}.`
+    );
+  }
 
   const r_id = crypto.randomUUID();
   const now = new Date().toISOString();

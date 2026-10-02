@@ -20,16 +20,20 @@ export default function Reference({ id, classes = "" }: Props) {
         <span className="font-semibold mr-2">Your registration number:</span>
         <span className="block mt-1 md:inline md:mt-0">{id}</span>
 
-        <Tooltip
-          tip={
-            <Content className="text-xs max-w-xs">
-              {tooltip}
-              <Arrow />
-            </Content>
-          }
-        >
-          <CircleHelp className="hidden md:inline-block ml-5 icon-xs" />
-        </Tooltip>
+        {/* hidden outside the Tooltip: a glyph hidden inside it would leave
+            the wrapping button as an invisible tab stop */}
+        <span className="hidden md:inline-block ml-5">
+          <Tooltip
+            tip={
+              <Content className="text-xs max-w-xs">
+                {tooltip}
+                <Arrow />
+              </Content>
+            }
+          >
+            <CircleHelp className="inline-block icon-xs" />
+          </Tooltip>
+        </span>
         <button
           type="button"
           aria-label={

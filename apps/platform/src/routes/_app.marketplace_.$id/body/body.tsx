@@ -2,10 +2,10 @@ import { Breadcrumbs, ExtLink, Target, to_target } from "@better-giving/ui";
 import { Globe, MapPin } from "lucide-react";
 import { href, NavLink } from "react-router";
 import { BookmarkBtn } from "#/components/bookmark-btn";
-import type { INpo } from "$/pg/queries/npo";
+import type { INpoPublic } from "$/pg/queries/npo";
 
 interface Props {
-  npo: INpo;
+  npo: INpoPublic;
   classes?: string;
   children?: React.ReactNode;
   program?: string;

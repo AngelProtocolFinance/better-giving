@@ -49,6 +49,13 @@ export const subscriptions = pgTable(
     index("subscriptions_active_idx")
       .on(t.from_id, t.created_at)
       .where(sql`${t.status} = 'active'`),
+    // the donor's own list: `from_id` is an email, stored in whatever case
+    // the checkout sent it
+    index("subscriptions_from_id_lower_status_idx").on(
+      sql`lower(${t.from_id})`,
+      t.status,
+      t.created_at
+    ),
     index("subscriptions_to_npo_id_status_idx").on(
       t.to_npo_id,
       t.status,

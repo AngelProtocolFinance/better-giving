@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { humanize, rd, rd2num, to_units, toPreciseLocaleString } from "./utils";
+import {
+  humanize,
+  rd,
+  rd2num,
+  ru_amount,
+  to_units,
+  toPreciseLocaleString,
+} from "./utils";
 
 describe("common decimal helpers", () => {
   test("round down", () => {
@@ -124,4 +131,19 @@ describe("to_units half_down", () => {
   test("an exact half rounds down", () => {
     expect(to_units(100.005, 2, "half_down")).toBe(10000);
   });
+});
+
+describe("ru_amount", () => {
+  test.each([
+    [25.99, 18.97, "CAD", "25.99"],
+    [500.501, 25.03, "MXN", "500.51"],
+    [4999.2, 34, "JPY", "5000"],
+    [0.0050001, 600, "BTC", "0.0050001"],
+    [0.00500001, 600, "BTC", "0.0050001"],
+  ] as const)(
+    "%s worth %s usd in %s prints %s",
+    (amount, usd, cur, expected) => {
+      expect(ru_amount(amount, usd, cur)).toBe(expected);
+    }
+  );
 });

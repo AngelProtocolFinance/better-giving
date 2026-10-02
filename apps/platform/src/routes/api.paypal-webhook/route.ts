@@ -22,7 +22,6 @@ import { PLACEHOLDER_EMAIL } from "@/donations/schema";
 import { msg } from "@/queue";
 import type { ISub, TInterval, TStatus } from "@/subscriptions";
 import { paypal as paypal_env, stage } from "$/env";
-import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
 import { enqueue, schedule } from "$/kit/queue";
 import { db } from "$/pg/db";
@@ -35,7 +34,12 @@ import {
   donation_update,
   settlement_exists,
 } from "$/pg/queries/donation";
-import { sub_get, sub_put, sub_update } from "$/pg/queries/subscription";
+import {
+  sub_cancel_reason_default,
+  sub_get,
+  sub_put,
+  sub_update,
+} from "$/pg/queries/subscription";
 import { process_refund } from "$/refund/process";
 import type { Route } from "./+types/route";
 
@@ -451,6 +455,15 @@ const SUB_STATUS: Partial<Record<NonNullable<Subs["status"]>, TStatus>> = {
   EXPIRED: "inactive",
 };
 
+/** paypal's reason for ending a subscription; a suspension can still resume */
+const paypal_end_reason = (sub: Subs): string | null => {
+  if (sub.status !== "CANCELLED" && sub.status !== "EXPIRED") return null;
+  const reason = sub.status.toLowerCase();
+  return sub.status_change_note
+    ? `${reason}: ${sub.status_change_note}`
+    : reason;
+};
+
 const AWAITING_CAPTURE = new Set<IDonation["status"]>(["created", "intent"]);
 
 // a completed charge refunded or reversed since still settles: its refund or
@@ -752,6 +765,11 @@ export async function action({ request }: Route.ActionArgs) {
           });
           return new Response(reason, { status: 503 });
         }
+        // the first reason recorded stays: a donor's cancel here reaches
+        // paypal and comes back as this event
+        const end_reason = paypal_end_reason(sub);
+        if (end_reason)
+          await sub_cancel_reason_default(db, subs_id, end_reason);
         return new Response(`subscription ${subs_id} is ${row.status}`, {
           status: 200,
         });
@@ -1079,17 +1097,21 @@ export async function action({ request }: Route.ActionArgs) {
         if (!AWAITING_CAPTURE.has(don.status))
           return new Response(`donation is ${don.status}`, { status: 200 });
 
-        // sent before the write: once failed, a redelivery stops at the
-        // status above and a failed send is never retried
-        await fiat_monitor.send_alert({
-          type: "NOTICE",
+        const alert = {
+          type: "NOTICE" as const,
           from: `paypal-webhook-${stage}`,
           title: "PayPal Capture Denied",
           body: [
             `donation ${don_id}, capture ${cid}, event ${ev.id}`,
             "paypal denied a capture it had held pending. the donor saw the thank-you page; the donation is marked failed and nothing was settled.",
           ].join("\n"),
-        });
+        };
+        // enqueued before the write: once failed, a redelivery stops at the
+        // status above and a failed enqueue is never retried. keyed on the
+        // capture, so deliveries racing past that status post one notice
+        await enqueue(
+          msg("fiat-notice", { id: `paypal-denied_${cid}`, alert })
+        );
         await db.transaction(async (tx) => {
           const state = await donation_settle_state_locked(tx, don_id);
           if (state && AWAITING_CAPTURE.has(state.status))

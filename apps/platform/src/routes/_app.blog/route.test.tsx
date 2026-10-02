@@ -133,6 +133,28 @@ describe("blog list", () => {
     expect(img?.getAttribute("src")).toMatch(/^https:\/\/cdn\.sanity\.io\//);
   });
 
+  test("a card names its link once: the cover is decorative beside the title", async () => {
+    posts_mock.mockResolvedValue([
+      [
+        {
+          ...post("d", "Donor guide"),
+          image: {
+            asset: {
+              _ref: "image-abc_DEF-100x100-png",
+              _type: "reference",
+            },
+            alt: "Chart of donations",
+          },
+        },
+      ],
+      1,
+    ]);
+    const screen = await render(<Stub initialEntries={["/blog"]} />);
+    await expect
+      .element(screen.getByRole("link", { name: "Donor guide", exact: true }))
+      .toBeVisible();
+  });
+
   test.each([
     ["an empty crop", { crop: {} }],
     ["a hotspot with a missing field", { hotspot: { x: 0.5, y: 0.5 } }],

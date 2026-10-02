@@ -33,6 +33,55 @@ export type INpo = Omit<NpoRow, "target_number" | "target_smart"> & {
   contributions_count: number;
 };
 
+// what an unauthenticated, CDN-cached page may see. an allow-list: a new npos
+// column is private until it is added here. balances, payout and referral
+// bookkeeping, the stored tax-form id and the donation split stay off it.
+export const NPO_PUBLIC_KEYS = [
+  "id",
+  "slug",
+  "keyword",
+  "registration_number",
+  "name",
+  "endow_designation",
+  "overview_v2",
+  "overview_pt",
+  "tagline",
+  "image",
+  "logo",
+  "card_img",
+  "hq_country",
+  "active_in_countries",
+  "social_media_urls",
+  "url",
+  "sdgs",
+  "receipt_msg",
+  "hide_bg_tip",
+  "published",
+  "active",
+  "prog_donations_allowed",
+  "donate_methods",
+  "donate_frequencies",
+  "increments",
+  "fund_opt_in",
+  "kyc_donors_only",
+  "fiscal_sponsored",
+  "street_address",
+  "donor_address_required",
+  "created_at",
+  "updated_at",
+  "target",
+  "contributions_total",
+  "contributions_count",
+] as const satisfies readonly (keyof INpo)[];
+
+export type INpoPublic = Pick<INpo, (typeof NPO_PUBLIC_KEYS)[number]>;
+
+export function npo_public(npo: INpo): INpoPublic {
+  return Object.fromEntries(
+    NPO_PUBLIC_KEYS.map((k) => [k, npo[k]])
+  ) as INpoPublic;
+}
+
 type JoinedRow = Awaited<ReturnType<typeof joined_select>>[number];
 
 // sql<T> alone skips the columns' decoders, and numeric and int8 arrive as text

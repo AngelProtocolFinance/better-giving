@@ -595,7 +595,7 @@ describe("settle_npo_payouts", () => {
     expect(send_alert).not.toHaveBeenCalled();
   });
 
-  test("an unfunded payout whose refund was a loss on savings alone keeps that loss, with no alert", async () => {
+  test("an unfunded payout whose refund was a loss on savings is cancelled and cuts the loss to the shortfall, with no alert", async () => {
     const npo = await seed_npo({ cash: 500, liq: 0 });
     const { don } = await seed_donation_payout(npo.id, "p-1", 100, {
       liq: 30,
@@ -609,10 +609,12 @@ describe("settle_npo_payouts", () => {
 
     await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
 
-    expect(await payout_types()).toEqual({ "p-1": "refunded_loss" });
-    expect(await npo_cash(npo.id)).toBe(500);
+    expect(await payout_types()).toEqual({ "p-1": "refunded" });
+    expect(await npo_cash(npo.id)).toBe(430);
     const logs = await db().select().from(loss_logs);
-    expect(logs.map((l) => l.type)).toEqual(["balance_liq"]);
+    expect(
+      logs.map(({ type, amount, npo_amount }) => ({ type, amount, npo_amount }))
+    ).toEqual([{ type: "balance_liq", amount: 30, npo_amount: 30 }]);
     expect(send_alert).not.toHaveBeenCalled();
   });
 

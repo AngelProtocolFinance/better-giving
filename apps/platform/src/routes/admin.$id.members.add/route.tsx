@@ -40,6 +40,7 @@ function Content() {
     <RmxForm
       onSubmit={handleSubmit}
       disabled={nav.state !== "idle"}
+      busy={nav.state === "submitting"}
       method="POST"
       className="w-full grid gap-4"
     >

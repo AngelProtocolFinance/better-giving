@@ -68,6 +68,7 @@ describe("stripe_intent refusals", () => {
     const res = (await stripe_intent(ctx())) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(await res.text()).toBe(reason);
   });
 
@@ -93,6 +94,7 @@ describe("stripe_intent refusals", () => {
     )) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(await res.text()).toBe(
       "The minimum donation is $2. Try a larger amount."
     );
@@ -164,6 +166,7 @@ describe("recurring setup: acss mandate currency", () => {
     )) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(await res.text()).toBe(
       "Recurring bank payments are available in USD and CAD. Choose one of those currencies or pay by card."
     );

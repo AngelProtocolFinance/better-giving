@@ -1312,6 +1312,51 @@ describe("subscription lifecycle", () => {
     }
   );
 
+  // a suspension can still resume, so it records no end reason
+  it.each([
+    ["BILLING.SUBSCRIPTION.CANCELLED", "CANCELLED", "cancelled"],
+    ["BILLING.SUBSCRIPTION.EXPIRED", "EXPIRED", "expired"],
+    ["BILLING.SUBSCRIPTION.SUSPENDED", "SUSPENDED", null],
+  ])(
+    "records why paypal ended a subscription on %s",
+    async (event_type, status, reason) => {
+      await active_sub();
+      await paypal_sub_is(status);
+
+      await deliver(lifecycle_ev(event_type));
+
+      expect((await sub_row())!.status_cancel_reason).toBe(reason);
+    }
+  );
+
+  it("records paypal's note alongside why it ended a subscription", async () => {
+    await active_sub();
+    await paypal_sub_is("CANCELLED");
+    get_subscription_mock.mockResolvedValue({
+      ...(await get_subscription_mock()),
+      status_change_note: "Item out of stock",
+    });
+
+    await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.CANCELLED"));
+
+    expect((await sub_row())!.status_cancel_reason).toBe(
+      "cancelled: Item out of stock"
+    );
+  });
+
+  it("keeps the donor's reason when paypal reports the cancel they made here", async () => {
+    await active_sub();
+    await db()
+      .update(subscriptions)
+      .set({ status: "inactive", status_cancel_reason: "too expensive" })
+      .where(eq(subscriptions.id, SUBS_ID));
+    await paypal_sub_is("CANCELLED");
+
+    await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.CANCELLED"));
+
+    expect((await sub_row())!.status_cancel_reason).toBe("too expensive");
+  });
+
   it("brings a suspended subscription back when paypal reactivates it", async () => {
     await active_sub();
     await paypal_sub_is("SUSPENDED");
@@ -1417,9 +1462,12 @@ describe("subscription lifecycle", () => {
 
 describe("PAYMENT.CAPTURE.DENIED", () => {
   const denied_ev = () => ({
+    id: "WH-DEN-1",
     event_type: "PAYMENT.CAPTURE.DENIED",
     resource: { id: CAPTURE_ID, status: "DECLINED", custom_id: ORDER_ID },
   });
+  const notices = () =>
+    enqueue_mock.mock.calls.flat().filter((m: any) => m.id === "fiat-notice");
 
   it("fails the donation and alerts ops once, however often it is delivered", async () => {
     await seed_donation();
@@ -1429,9 +1477,23 @@ describe("PAYMENT.CAPTURE.DENIED", () => {
 
     expect([first.status, again.status]).toEqual([200, 200]);
     expect((await donation_get(ORDER_ID))!.status).toBe("failed");
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    expect(send_alert_mock.mock.calls[0]![0].body).toContain(CAPTURE_ID);
-    expect(enqueue_mock).not.toHaveBeenCalled();
+    const [notice, ...rest] = notices();
+    expect(rest).toEqual([]);
+    expect(notice.payload.alert.title).toBe("PayPal Capture Denied");
+    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
+  });
+
+  // the queue drops a second message under a dedupe key it already holds;
+  // that drop is the queue's and is mocked here, so this pins the key alone
+  it("keys every delivery's denial notice to the capture", async () => {
+    await seed_donation();
+
+    const res = await Promise.all([deliver(denied_ev()), deliver(denied_ev())]);
+
+    expect(res.map((r) => r.status)).toEqual([200, 200]);
+    expect(send_alert_mock).not.toHaveBeenCalled();
+    const keys = new Set(notices().map((m: any) => m.dedupe));
+    expect([...keys]).toEqual([`fiat.notice_paypal-denied_${CAPTURE_ID}`]);
   });
 
   it("acknowledges and reports a denial naming no donation here", async () => {

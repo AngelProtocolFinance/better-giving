@@ -17,9 +17,13 @@ export interface RefundDistInput {
   alloc: { liq?: number; lock?: number; cash?: number };
   net: number;
   amount: number;
+  /** null on legacy rows that predate it */
+  amount_usd: number | null;
   fee_base: number;
   fee_fsa: number;
   fee_processing: number;
+  /** 0 or absent when the donor didn't cover fees */
+  fee_allowance?: number;
 }
 
 export interface RefundInputs {
@@ -86,12 +90,33 @@ export interface RefundPreview {
 export interface RefundPlan {
   is_loss: boolean;
   loss_reasons: string[];
+  /** the loss in usd, like every loss figure — `dist.amount` is in the donation's
+   * currency. the dist's settled gross less the cash share a cancelled payout recovers */
   amount: number;
   /** a commission its referrer was already paid: left `paid`, the platform's loss */
   paid_commission: { donation_id: string; amount: number } | null;
   effects: RefundEffect[];
   preview: RefundPreview;
 }
+
+/** a dist's gross in settled usd. a fee allowance credits the processing fee
+ * into `net` (`credit_fa` in `lib/settlement/plan.ts`), so it is counted once */
+export const dist_settled_usd = (
+  d: Pick<
+    RefundDistInput,
+    "net" | "fee_base" | "fee_fsa" | "fee_processing" | "fee_allowance"
+  >
+): number =>
+  d.net + d.fee_base + d.fee_fsa + (d.fee_allowance ? 0 : d.fee_processing);
+
+/** what is wrong with a loss's figures, or null. the loss covers the npo's
+ * share plus fees, so it is never under `npo_amount`, and neither goes negative */
+export const loss_figures_off = (
+  l: Pick<ILossLog, "amount" | "npo_amount">
+): string | null =>
+  l.npo_amount < 0 || l.amount < l.npo_amount
+    ? `loss figures off: amount ${l.amount}, npo_amount ${l.npo_amount}`
+    : null;
 
 export function calc_refund_plan(
   inputs: RefundInputs,
@@ -220,12 +245,30 @@ export function calc_refund_plan(
     ? "refunded_loss"
     : "refunded";
 
+  // a pending payout hasn't paid out its cash, so it is cancelled and its cash
+  // reversed even when a savings/investment shortfall makes the refund a loss
+  const payout_cancelled = payout?.type === "pending";
+  const cash_recovered = payout_cancelled ? bd.cash : 0;
+  const loss_usd = dist_settled_usd(dist) - cash_recovered;
+
   const effects: RefundEffect[] = [];
 
   // payout row before the npos row: the grants cron's settle writes payouts
   // then the npos row, so the reverse order deadlocks it
   if (payout) {
-    effects.push({ kind: "payout_status", payout_id: payout.id, status });
+    effects.push({
+      kind: "payout_status",
+      payout_id: payout.id,
+      status: payout_cancelled ? "refunded" : status,
+    });
+  }
+
+  if (is_loss && cash_recovered > 0) {
+    effects.push({
+      kind: "balance_update",
+      npo_id: dist.to_id,
+      deltas: { liq: 0, lock: 0, lock_units: 0, cash: cash_recovered },
+    });
   }
 
   // balance/NAV writes — only when fully reversible
@@ -349,8 +392,8 @@ export function calc_refund_plan(
       dist_id: dist.id,
       npo_id: dist.to_id,
       type: loss_type,
-      amount: dist.amount,
-      npo_amount: dist.net,
+      amount: loss_usd,
+      npo_amount: dist.net - cash_recovered,
       fees_bg: dist.fee_base + dist.fee_fsa,
       fees_processing: dist.fee_processing,
       reason: loss_reasons.join("; "),
@@ -361,7 +404,7 @@ export function calc_refund_plan(
   return {
     is_loss,
     loss_reasons,
-    amount: dist.amount,
+    amount: loss_usd,
     paid_commission,
     effects,
     preview,

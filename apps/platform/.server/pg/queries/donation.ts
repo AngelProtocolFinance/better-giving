@@ -100,8 +100,14 @@ function to_donation(
           currency: settlement.currency,
           net: settlement.net,
           fee: settlement.fee,
+          fee_parts: settlement.fee_parts ?? undefined,
         }
       : undefined,
+
+    hold:
+      don.held_at && don.hold_asset
+        ? { asset: don.hold_asset, at: don.held_at }
+        : undefined,
 
     // tribute
     tribute: tribute
@@ -283,6 +289,7 @@ export async function donation_put(
         currency: data.settlement.currency,
         net: data.settlement.net,
         fee: data.settlement.fee,
+        fee_parts: data.settlement.fee_parts,
       });
     }
 
@@ -330,6 +337,7 @@ export async function donation_settlement_upsert(
         currency: data.currency,
         net: data.net,
         fee: data.fee,
+        fee_parts: data.fee_parts,
       },
     });
 }
@@ -686,15 +694,18 @@ export async function donation_update(
         currency: settlement.currency,
         net: settlement.net,
         fee: settlement.fee,
+        fee_parts: settlement.fee_parts,
       })
       .onConflictDoUpdate({
         target: donation_settlements.donation_id,
+        // an absent breakdown leaves the recorded one: drizzle drops undefined keys from `set`
         set: {
           sttl_id: settlement.id,
           date: settlement.date,
           currency: settlement.currency,
           net: settlement.net,
           fee: settlement.fee,
+          fee_parts: settlement.fee_parts,
         },
       });
   }
@@ -1013,6 +1024,37 @@ export async function mark_receipt_sent(
     .update(donations)
     .set({ receipt_sent_at: new Date().toISOString() })
     .where(eq(donations.id, donation_id));
+}
+
+/**
+ * mark a deposit that arrived in an asset other than the donation's own
+ * `currency`, so ops can find it: nothing settles a held donation on its own,
+ * ops settle or refund it by hand.
+ *
+ * true only the first time: the provider resends the same payment, and only
+ * the first mark should page anyone. false for a donation already settled or
+ * reversed — a hold there would describe money already accounted for.
+ */
+export async function donation_hold_mark(
+  donation_id: string,
+  asset: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const [row] = await tx
+    .update(donations)
+    .set({
+      held_at: new Date().toISOString(),
+      hold_asset: asset.toUpperCase(),
+    })
+    .where(
+      and(
+        eq(donations.id, donation_id),
+        isNull(donations.held_at),
+        notInArray(donations.status, ["settled", ...reversed_statuses])
+      )
+    )
+    .returning({ id: donations.id });
+  return !!row;
 }
 
 export async function donation_tribute_get(
