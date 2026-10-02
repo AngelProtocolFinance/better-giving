@@ -39,6 +39,11 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
       "reg.updated_r2_02_2026-09-01T102030.456Z",
     ],
     ["sub-deactivated", { id: "s1" }, "sub.deactivated_s1"],
+    [
+      "sub-deactivated",
+      { id: "s2", by_donor: true, updated_at: "2026-10-02T12:30:45.678Z" },
+      "sub.deactivated_s2_2026-10-02T123045.678Z",
+    ],
     ["tip-received", { id: "t1" }, "tip_t1"],
   ];
 

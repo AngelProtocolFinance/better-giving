@@ -127,6 +127,13 @@ describe("donor cancels a gift whose first payment is still incomplete", () => {
     });
   });
 
+  // the handler undoes only a cancel the donor was told went through
+  it("marks the queued cancel as the donor's own", async () => {
+    await donor_cancels("changed my mind");
+
+    expect(enqueue_mock.mock.calls[0]![0].payload.by_donor).toBe(true);
+  });
+
   it("stays cancelled when the first payment lands afterwards", async () => {
     await donor_cancels("changed my mind");
 

@@ -48,7 +48,7 @@ export const action = async ({
     prev_status === "active" ||
     existing.status_cancel_reason === FIRST_PAYMENT_INCOMPLETE;
   if (row && live_at_stripe) {
-    await enqueue(msg("sub-deactivated", row));
+    await enqueue(msg("sub-deactivated", { ...row, by_donor: true }));
   }
   return redirectWithSuccess("..", "Subscription cancelled");
 };

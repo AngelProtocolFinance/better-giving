@@ -1,10 +1,18 @@
 import { PayPalApiError } from "@better-giving/paypal";
+import { subscription_cancel_failed } from "emails";
+import { href } from "react-router";
 import Stripe from "stripe";
 import { report_error } from "#/errors/report";
+import { to_amount } from "@/helpers/email";
 import type { IAttempt, ISubDeactivatedPayload } from "@/queue";
+import type { ISub } from "@/subscriptions";
+import { send_email } from "$/email";
+import { base_url } from "$/env";
 import { fiat_monitor } from "$/kit/discord";
 import { paypal } from "$/kit/paypal";
 import { stripe } from "$/kit/stripe";
+import { db } from "$/pg/db";
+import { sub_get, sub_reactivate_if } from "$/pg/queries/subscription";
 
 const PAYPAL_CANCEL_REASON_MAX_BYTES = 128;
 /** stripe's `cancellation_details.comment` maxLength */
@@ -51,10 +59,100 @@ const RETRYABLE_4XX = new Set([408, 409, 429]);
 const is_final_refusal = (http_status: number) =>
   http_status >= 400 && http_status < 500 && !RETRYABLE_4XX.has(http_status);
 
+/** `send_email` reports its own refusal; a render throw reaches the rejection handler below */
+async function email_cancel_failed(row: ISub): Promise<boolean> {
+  const { node, subject } = subscription_cancel_failed.template({
+    to_name: row.to_name,
+    amount: to_amount(row.amount, row.amount_usd, row.currency.toUpperCase()),
+    interval: row.interval,
+    interval_count: row.interval_count,
+    subscriptions_url: new URL(
+      href("/dashboard/subscriptions"),
+      base_url
+    ).toString(),
+  });
+  return send_email({ node, subject, to: [row.from_id] }).then(
+    (res) => res.data !== null,
+    (err) => {
+      report_error(err, { sub_id: row.id });
+      return false;
+    }
+  );
+}
+
+/** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
+const STRIPE_ENDED = new Set(["canceled", "incomplete_expired"]);
+/** the paypal states that still bill, or can again */
+const PAYPAL_LIVE = new Set(["ACTIVE", "SUSPENDED"]);
+
+async function still_billing(data: ISubDeactivatedPayload): Promise<boolean> {
+  if (data.platform === "stripe") {
+    const live = await stripe.subscriptions.retrieve(data.id);
+    return !STRIPE_ENDED.has(live.status);
+  }
+  const live = await paypal.get_subscription(data.id);
+  return PAYPAL_LIVE.has(live.status ?? "");
+}
+
 /**
- * the donor was already shown the subscription as cancelled, and the provider
- * may still charge it: someone has to cancel it by hand. answered as handled —
- * a redelivery can only repeat the refusal into the dlq.
+ * the donor was shown their cancel as done: while the provider still bills it,
+ * the row goes back to active and the donor is told. returns what happened, for ops.
+ */
+async function undo_donor_cancel(data: ISubDeactivatedPayload) {
+  const unchanged = "its row was left cancelled and the donor was not emailed";
+  if (!data.by_donor || !data.status_cancel_reason) {
+    return "The donor sees this subscription as cancelled and may still be charged.";
+  }
+
+  // a refusal alone doesn't say it still bills: a 404 leaves nothing to
+  // charge, and a 5xx past the last retry may have cancelled after all
+  let live: boolean;
+  try {
+    live = await still_billing(data);
+  } catch (err) {
+    report_error(err, { sub_id: data.id });
+    return `Reading it live from ${data.platform} failed, so ${unchanged}; it may still be charged.`;
+  }
+  if (!live)
+    return `It has already ended at ${data.platform}, so ${unchanged}.`;
+
+  let changed: boolean;
+  try {
+    // only while the row still carries the donor's cancel: a refund that
+    // landed since rewrote the reason and wins
+    changed = await sub_reactivate_if(db, data.id, data.status_cancel_reason);
+  } catch (err) {
+    report_error(err, { sub_id: data.id });
+    return "Restoring its row failed: the donor sees this subscription as cancelled and may still be charged.";
+  }
+
+  const restored = "Its row was restored to active";
+  try {
+    const row = await sub_get(data.id);
+    if (!changed) {
+      // an earlier delivery or a provider webhook made it active, or a
+      // refund rewrote the reason
+      return row?.status === "active"
+        ? "Its row was already active — the donor may not have been emailed by this delivery."
+        : "Its row has changed since the donor's cancel, so it was left as is and the donor was not emailed.";
+    }
+    if (!row?.from_id) {
+      return `${restored}, but it has no donor email address, so the donor was not told.`;
+    }
+    return (await email_cancel_failed(row))
+      ? `${restored} and the donor was emailed that the cancel didn't go through.`
+      : `${restored}, but the email telling the donor failed: they still see it as cancelled.`;
+  } catch (err) {
+    report_error(err, { sub_id: data.id });
+    return changed
+      ? `${restored}, but telling the donor failed: they still see it as cancelled.`
+      : "Reading its row back failed.";
+  }
+}
+
+/**
+ * someone has to cancel it by hand. answered as handled — a redelivery can
+ * only repeat the refusal into the dlq.
  */
 async function alert_cancel_failed(
   data: ISubDeactivatedPayload,
@@ -62,18 +160,16 @@ async function alert_cancel_failed(
   reason: string | number
 ) {
   report_error(err, { sub_id: data.id, platform: data.platform });
+  const outcome = await undo_donor_cancel(data);
   await fiat_monitor
     .send_alert({
       type: "ERROR",
       from: "sub-deactivated",
       title: `${data.platform} refused to cancel subscription ${data.id}`,
-      body: `${data.platform} answered ${reason}. The donor sees this subscription as cancelled and may still be charged. Cancel ${data.id} in the ${data.platform} dashboard.`,
+      body: `${data.platform} answered ${reason}. ${outcome} Cancel ${data.id} in the ${data.platform} dashboard.`,
     })
     .catch((e) => report_error(e, { sub_id: data.id }));
 }
-
-/** ended at stripe, where a cancel call errors; a retried or re-queued cancel can find its sub in one */
-const STRIPE_ENDED = new Set(["canceled", "incomplete_expired"]);
 
 async function cancel_on_stripe(
   data: ISubDeactivatedPayload,

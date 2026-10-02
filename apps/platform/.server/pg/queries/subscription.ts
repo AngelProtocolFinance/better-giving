@@ -92,14 +92,15 @@ export async function sub_cancel_reason_default(
 
 /**
  * reactivates a row only while it still carries `pending_reason`, in one
- * statement: a cancel that lands meanwhile overwrites the reason and wins
+ * statement: a cancel that lands meanwhile overwrites the reason and wins.
+ * true when this call is the one that reactivated it.
  */
 export async function sub_reactivate_if(
   db: DbOrTx,
   id: string,
   pending_reason: string
-) {
-  await db
+): Promise<boolean> {
+  const rows = await db
     .update(subscriptions)
     .set({
       status: "active",
@@ -112,7 +113,9 @@ export async function sub_reactivate_if(
         eq(subscriptions.status, "inactive"),
         eq(subscriptions.status_cancel_reason, pending_reason)
       )
-    );
+    )
+    .returning({ id: subscriptions.id });
+  return rows.length > 0;
 }
 
 // -- npo subscriber queries --

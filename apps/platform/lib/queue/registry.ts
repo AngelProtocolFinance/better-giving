@@ -129,6 +129,11 @@ export interface ISubDeactivatedPayload {
   id: string;
   platform: string;
   status_cancel_reason?: string | null;
+  /** set by the donor's own cancel, which told them it went through. absent from
+   * the refund and stripe-webhook cancels, and from messages enqueued before it */
+  by_donor?: boolean;
+  /** the row's, so each donor cancel keys apart */
+  updated_at?: string;
 }
 
 export interface ITipReceivedPayload {
@@ -217,7 +222,12 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
   // new key and a repeat enqueue of the same row is not.
   "reg-updated": (p) =>
     `reg.updated_${p.id}_${p.status}_${String(p.updated_at).replace(/:/g, "")}`,
-  "sub-deactivated": (p) => `sub.deactivated_${p.id}`,
+  // a donor's cancel per row state, like `reg-updated`: a second cancel after a
+  // refused one must reach the provider rather than dedupe against the first
+  "sub-deactivated": (p) =>
+    p.by_donor
+      ? `sub.deactivated_${p.id}_${String(p.updated_at).replace(/:/g, "")}`
+      : `sub.deactivated_${p.id}`,
   "tip-received": (p) => `tip_${p.id}`,
 };
 
