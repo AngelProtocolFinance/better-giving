@@ -9,6 +9,7 @@ function Shell() {
   use_route_focus();
   return (
     <>
+      <h1>layout heading</h1>
       <nav>
         <Link to="/b">to b</Link>
         <Link to="/a?tab=2">tab 2</Link>
@@ -16,6 +17,8 @@ function Shell() {
         <Link to="/b" preventScrollReset>
           b in place
         </Link>
+        <Link to="/b#section">b section</Link>
+        <Link to="/b#missing">b missing</Link>
       </nav>
       <main>
         <Outlet />
@@ -53,7 +56,17 @@ const Stub = createRoutesStub([
           },
         ],
       },
-      { path: "/b", Component: () => <h1>page b</h1> },
+      {
+        path: "/b",
+        Component: () => (
+          <>
+            <h1>page b</h1>
+            <section id="section">
+              <h2>section</h2>
+            </section>
+          </>
+        ),
+      },
     ],
   },
 ]);
@@ -79,6 +92,38 @@ describe("use_route_focus", () => {
     await expect.element(heading).toHaveFocus();
     expect(heading.element().matches(":focus-visible")).toBe(true);
     expect(getComputedStyle(heading.element()).outlineStyle).toBe("none");
+  });
+
+  test("a navigation to a #hash focuses the element it names, without a ring", async () => {
+    const screen = await render(<Stub initialEntries={["/a"]} />);
+
+    await screen.getByRole("link", { name: "b section" }).click();
+
+    await expect
+      .element(screen.getByRole("heading", { name: "page b" }))
+      .toBeVisible();
+    await vi.waitFor(() => expect(document.activeElement?.id).toBe("section"));
+    expect(getComputedStyle(document.activeElement!).outlineStyle).toBe("none");
+  });
+
+  test("a #hash naming no element falls back to the page heading", async () => {
+    const screen = await render(<Stub initialEntries={["/a"]} />);
+
+    await screen.getByRole("link", { name: "b missing" }).click();
+
+    await expect
+      .element(screen.getByRole("heading", { name: "page b" }))
+      .toHaveFocus();
+  });
+
+  test("the page heading inside main wins over one outside it", async () => {
+    const screen = await render(<Stub initialEntries={["/a"]} />);
+
+    await screen.getByRole("link", { name: "to b" }).click();
+
+    await expect
+      .element(screen.getByRole("heading", { name: "page b" }))
+      .toHaveFocus();
   });
 
   test("a search-param change keeps focus where it was", async () => {
