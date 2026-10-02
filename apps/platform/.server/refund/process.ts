@@ -1,6 +1,7 @@
 import { donation_match_refund_notif as dmr } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
+import { humanize } from "@/helpers/decimal";
 import { to_amount } from "@/helpers/email";
 import { nav_log_date } from "@/nav";
 import { stage } from "../env";
@@ -26,6 +27,7 @@ import { apply_refund_plan, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
 import {
   calc_refund_plan,
+  loss_figures_off,
   type RefundCtx,
   type RefundInputs,
   type RefundPlan,
@@ -85,6 +87,7 @@ function project_inputs(
       fee_base: dist.fee_base ?? 0,
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
+      fee_allowance: dist.fee_allowance ?? 0,
     },
     payout: g.payout ? { id: g.payout.id, type: g.payout.type ?? null } : null,
     commission: g.commission
@@ -198,16 +201,21 @@ export async function process_refund(
 
       const { loss, commission_in_flight: c, paid_commission: pc } = res;
       if (loss) {
-        loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
+        const off = loss_figures_off(loss);
+        if (off)
+          report_error(new Error(off), { loss_id: loss.id, donation_id });
+        loss_msgs.push(
+          `npo ${g.dist.to_id}: $${humanize(loss.amount)} — ${loss.reason}`
+        );
       }
       if (pc) {
         loss_msgs.push(
-          `commission ${pc.donation_id}: $${pc.amount} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
+          `commission ${pc.donation_id}: $${humanize(pc.amount)} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
         );
       }
       if (c) {
         loss_msgs.push(
-          `commission ${c.donation_id}: $${c.amount} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
+          `commission ${c.donation_id}: $${humanize(c.amount)} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
         );
       }
     } catch (err) {

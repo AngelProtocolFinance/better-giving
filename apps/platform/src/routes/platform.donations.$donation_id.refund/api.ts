@@ -13,7 +13,7 @@ import {
   unsent_refunds,
 } from "$/refund/after-partials";
 import {
-  dist_amount_usd,
+  dist_settled_usd,
   type PreviewLine,
   type RefundPreview,
 } from "$/refund/plan";
@@ -92,12 +92,12 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   let total_loss = 0;
   for (const g of graphs) {
     const { dist } = g;
-    const amount = dist_amount_usd({
-      amount_usd: dist.amount_usd,
+    const amount = dist_settled_usd({
       net: dist.net ?? 0,
       fee_base: dist.fee_base ?? 0,
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
+      fee_allowance: dist.fee_allowance ?? 0,
     });
     if (dist.refund_status === "completed" || dist.refund_status === "loss") {
       previews.push({
