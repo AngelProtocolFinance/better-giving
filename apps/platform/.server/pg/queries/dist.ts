@@ -169,63 +169,101 @@ export async function dist_update(
 /** must outlast the don-dist handler's longest run, or a live holder loses its claim */
 export const DIST_NOTICE_LEASE_MS = 15 * 60 * 1000;
 
+const lease_cutoff = sql`now() - make_interval(secs => ${DIST_NOTICE_LEASE_MS / 1000})`;
+
+/**
+ * - `claimed`: the caller holds the notice; `stamp` is its claim, the one
+ *   `release_dist_notice` gives back
+ * - `done`: nothing left to send, ever — the notice is out, or the dist is no
+ *   longer `settled` (the queue payload is a snapshot from before enqueue, and
+ *   the row is what knows a refund landed since)
+ * - `busy`: another holder's claim is inside its lease, and may yet die
+ *   without sending — the caller has to come back after the lease, not drop it
+ */
+export type DistNoticeClaim =
+  | { status: "claimed"; stamp: string }
+  | { status: "done" }
+  | { status: "busy" };
+
 /**
  * claim the right to run this dist's npo notice — country metrics, the npo's
- * mail, its zapier hooks. true only for the caller that takes it.
+ * mail, its zapier hooks.
  *
  * the same two-stamp lease as `claim_receipt_send`: `notice_claimed_at` is
  * taken here and expires after `DIST_NOTICE_LEASE_MS`, so a holder killed
  * mid-run does not take the notice with it; `notice_sent_at` is written by
  * `mark_dist_notice_sent` once the side effects are done and never expires.
- *
- * false for a dist no longer `settled` — the queue payload is a snapshot from
- * before enqueue, and the row is what knows a refund landed since.
+ * both the stamp and the expiry read the database clock, never an instance's.
  */
 export async function claim_dist_notice(
   dist_id: string,
   tx: DbOrTx = db
-): Promise<boolean> {
-  const now = new Date();
-  const stale = new Date(now.getTime() - DIST_NOTICE_LEASE_MS).toISOString();
-
-  const [row] = await tx
+): Promise<DistNoticeClaim> {
+  const [claimed] = await tx
     .update(dists)
-    .set({ notice_claimed_at: now.toISOString() })
+    // ms, so the stamp survives a driver that hands back a Date and still
+    // matches `release_dist_notice`'s equality
+    .set({ notice_claimed_at: sql`date_trunc('milliseconds', now())` })
     .where(
       and(
         eq(dists.id, dist_id),
         eq(dists.status, "settled"),
         isNull(dists.notice_sent_at),
-        or(isNull(dists.notice_claimed_at), lt(dists.notice_claimed_at, stale))
+        or(
+          isNull(dists.notice_claimed_at),
+          lt(dists.notice_claimed_at, lease_cutoff)
+        )
       )
     )
-    .returning({ id: dists.id });
-  return !!row;
+    .returning({ stamp: dists.notice_claimed_at });
+  if (claimed?.stamp) return { status: "claimed", stamp: claimed.stamp };
+
+  // read after the miss, so a state that moved in between can only read as
+  // busy, whose retry then sees it — sent and refunded never move back
+  const [row] = await tx
+    .select({ status: dists.status, sent: dists.notice_sent_at })
+    .from(dists)
+    .where(eq(dists.id, dist_id));
+  // a missing dist has nothing to send either
+  if (row?.status !== "settled" || row.sent) return { status: "done" };
+  return { status: "busy" };
 }
 
 /**
  * give back a notice claim whose side effects did not complete, so the
- * redelivery can take it. the `notice_sent_at` guard keeps a late release from
- * reopening a notice that already went out.
+ * redelivery can take it. only the claim `stamp` names: a holder that outlived
+ * its lease must not clear the claim a later holder took since. the
+ * `notice_sent_at` guard keeps a late release from reopening a notice that
+ * already went out.
  */
 export async function release_dist_notice(
   dist_id: string,
+  stamp: string,
   tx: DbOrTx = db
 ): Promise<void> {
   await tx
     .update(dists)
     .set({ notice_claimed_at: null })
-    .where(and(eq(dists.id, dist_id), isNull(dists.notice_sent_at)));
+    .where(
+      and(
+        eq(dists.id, dist_id),
+        eq(dists.notice_claimed_at, stamp),
+        isNull(dists.notice_sent_at)
+      )
+    );
 }
 
-/** record that this dist's notice is out; permanent, every later claim stops on it */
+/**
+ * record that this dist's notice is out; permanent, every later claim stops on
+ * it. not tied to a claim: once the mail has gone, sent is true whoever holds.
+ */
 export async function mark_dist_notice_sent(
   dist_id: string,
   tx: DbOrTx = db
 ): Promise<void> {
   await tx
     .update(dists)
-    .set({ notice_sent_at: new Date().toISOString() })
+    .set({ notice_sent_at: sql`now()` })
     .where(eq(dists.id, dist_id));
 }
 

@@ -1,6 +1,6 @@
 import { getWeek } from "date-fns";
 import { donation_nonprofit_notif } from "emails";
-import { report_error } from "#/errors/report";
+import { report_degraded, report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
 import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
@@ -65,18 +65,24 @@ async function update_country_metrics(
  * its zapier hooks — each at most once per dist, under the dist's notice lease.
  */
 export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
-  // not an error: a redelivery of a notice already out or in flight, or a dist
-  // refunded since it was queued — answered 200 with nothing sent
-  if (!(await claim_dist_notice(r.id, db))) return;
+  const claim = await claim_dist_notice(r.id, db);
+  // the notice is out, or the dist was refunded since it was queued
+  if (claim.status === "done") return;
+  if (claim.status === "busy") {
+    // the holder may still die without sending, so the message must come back:
+    // any non-2xx is a qstash retry. a 4xx stays out of the incident list.
+    report_degraded(new Error(`dist ${r.id} notice busy`), { dist_id: r.id });
+    throw new Response("dist notice busy", { status: 409 });
+  }
 
   // the mail is the only step whose failure gives the claim back, so it runs
   // first: the redelivery that takes the claim then repeats nothing that went.
   try {
     await send_npo_notice(r);
   } catch (e) {
-    // the refusal is the error that has to survive; a failed release only
-    // delays the redelivery to the lease's expiry
-    await release_dist_notice(r.id, db).catch((re) =>
+    // the refusal is the error that has to survive. a failed release leaves the
+    // claim held, and redeliveries answer busy until its lease runs out.
+    await release_dist_notice(r.id, claim.stamp, db).catch((re) =>
       report_error(re, { dist_id: r.id, during: "dist notice release" })
     );
     throw e;
@@ -93,20 +99,17 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   // never rejects for a hook: each one's failure is reported by its id
   await trigger_webhooks(r).catch(report_error);
 
-  // not thrown: a throw is a redelivery, which finds the claim held and does
-  // nothing until the lease expires, then re-posts every hook
+  // reported, not thrown: the work is done, and a throw only buys redeliveries
+  // that answer busy until the lease runs out, then take the claim and repeat
+  // the mail, the metric and every hook
   await mark_dist_notice_sent(r.id, db).catch((e) =>
     report_error(e, { dist_id: r.id, during: "dist notice sent stamp" })
   );
 }
 
 async function send_npo_notice(r: IDonDistPayload) {
-  const admin_emails = await npo_admins(r.to_id)
-    .then((x) => x.map((u) => u.email))
-    .catch((err) => {
-      report_error(err, { to_id: r.to_id });
-      return [] as string[];
-    });
+  // a failed lookup throws: mailing ops alone would mark the npo's notice sent
+  const admin_emails = (await npo_admins(r.to_id)).map((u) => u.email);
 
   const is_recurring = r.frequency ? r.frequency !== "one-time" : false;
 

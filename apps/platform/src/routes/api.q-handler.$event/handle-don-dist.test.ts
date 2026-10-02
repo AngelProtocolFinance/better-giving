@@ -34,17 +34,34 @@ const country = vi.hoisted(() => ({
   country_update: vi.fn(),
 }));
 vi.mock("$/pg/queries/country", () => country);
-vi.mock("$/pg/queries/user", () => ({ npo_admins: vi.fn(async () => []) }));
+const npo_admins = vi.hoisted(() =>
+  vi.fn(async (_: number): Promise<{ email: string }[]> => [])
+);
+vi.mock("$/pg/queries/user", () => ({ npo_admins }));
+// the handler mails through the throwing variant: a refusal has to reach it
 const send_email = vi.hoisted(() => vi.fn(async (_: any) => ({})));
-vi.mock("$/email", () => ({
-  send_email,
-  send_email_or_throw: send_email,
-}));
+const send_email_or_throw = vi.hoisted(() => vi.fn(async (_: any) => ({})));
+vi.mock("$/email", () => ({ send_email, send_email_or_throw }));
 const report_error = vi.hoisted(() => vi.fn());
-vi.mock("#/errors/report", () => ({ report_error }));
+const report_degraded = vi.hoisted(() => vi.fn());
+vi.mock("#/errors/report", () => ({ report_error, report_degraded }));
+// real against pglite; wrapped so a test can make one write reject
+const dist_writes = vi.hoisted(() => ({
+  release_dist_notice: vi.fn(),
+  mark_dist_notice_sent: vi.fn(),
+}));
+vi.mock("$/pg/queries/dist", async (actual) => {
+  const real = await actual<typeof import("$/pg/queries/dist")>();
+  dist_writes.release_dist_notice.mockImplementation(real.release_dist_notice);
+  dist_writes.mark_dist_notice_sent.mockImplementation(
+    real.mark_dist_notice_sent
+  );
+  return { ...real, ...dist_writes };
+});
 
 import { eq } from "drizzle-orm";
 import { db as app_db } from "$/pg/db";
+import { claim_dist_notice } from "$/pg/queries/dist";
 import { dists } from "$/pg/schema/dist";
 import { donations } from "$/pg/schema/donation";
 import { create_test_db } from "$/pg/test-utils/pglite";
@@ -373,8 +390,9 @@ describe("handle_don_dist npo notification", () => {
 
     await handle_don_dist(app_db, eur_gift);
 
-    expect(send_email).toHaveBeenCalledOnce();
-    const { node } = send_email.mock.calls[0]![0];
+    expect(send_email).not.toHaveBeenCalled();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    const { node } = send_email_or_throw.mock.calls[0]![0];
     expect(node.props.date).toBe("2026-09-21 10:00:00 (UTC)");
   });
 });
@@ -405,7 +423,7 @@ describe("handle_don_dist redelivery", () => {
     expect(fetch_spy.mock.calls.map(([url]) => url)).toEqual([
       "https://hooks.zapier.com/hooks/1",
     ]);
-    expect(send_email).toHaveBeenCalledOnce();
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
   });
 
   test("a refused npo mail gives the notice back, and the redelivery runs it once", async () => {
@@ -415,7 +433,7 @@ describe("handle_don_dist redelivery", () => {
       .spyOn(globalThis, "fetch")
       .mockImplementation(async () => new Response("ok", { status: 200 }));
     const refusal = new Error("550 mailbox unavailable");
-    send_email.mockRejectedValueOnce(refusal);
+    send_email_or_throw.mockRejectedValueOnce(refusal);
 
     await expect(handle_don_dist(app_db, eur_gift)).rejects.toBe(refusal);
     expect(fetch_spy).not.toHaveBeenCalled();
@@ -424,9 +442,76 @@ describe("handle_don_dist redelivery", () => {
     await handle_don_dist(app_db, eur_gift);
     await handle_don_dist(app_db, eur_gift);
 
-    expect(send_email).toHaveBeenCalledTimes(2);
+    expect(send_email_or_throw).toHaveBeenCalledTimes(2);
     expect(fetch_spy).toHaveBeenCalledOnce();
     expect(country.country_update).toHaveBeenCalledOnce();
+  });
+
+  test("a failed admin lookup gives the notice back unsent, and the redelivery mails the admins", async () => {
+    query_webhooks.mockResolvedValue([]);
+    const outage = new Error("connection terminated");
+    npo_admins.mockRejectedValueOnce(outage);
+    npo_admins.mockResolvedValueOnce([{ email: "admin@whales.org" }]);
+
+    await expect(handle_don_dist(app_db, eur_gift)).rejects.toBe(outage);
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+
+    await handle_don_dist(app_db, eur_gift);
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(send_email_or_throw.mock.calls[0]![0]).toMatchObject({
+      to: ["admin@whales.org"],
+      bcc: ["hi@better.giving"],
+    });
+  });
+
+  test("a failed sent stamp is reported, and the run still answers ok", async () => {
+    query_webhooks.mockResolvedValue([]);
+    const outage = new Error("connection terminated");
+    dist_writes.mark_dist_notice_sent.mockRejectedValueOnce(outage);
+
+    await handle_don_dist(app_db, eur_gift);
+
+    expect(send_email_or_throw).toHaveBeenCalledOnce();
+    expect(report_error).toHaveBeenCalledExactlyOnceWith(outage, {
+      dist_id: "don-1",
+      during: "dist notice sent stamp",
+    });
+  });
+
+  test("a failed release is reported, and the mail's refusal is what the run throws", async () => {
+    query_webhooks.mockResolvedValue([]);
+    const refusal = new Error("550 mailbox unavailable");
+    send_email_or_throw.mockRejectedValueOnce(refusal);
+    const outage = new Error("connection terminated");
+    dist_writes.release_dist_notice.mockRejectedValueOnce(outage);
+
+    await expect(handle_don_dist(app_db, eur_gift)).rejects.toBe(refusal);
+
+    expect(report_error).toHaveBeenCalledExactlyOnceWith(outage, {
+      dist_id: "don-1",
+      during: "dist notice release",
+    });
+  });
+
+  test("a redelivery while another run holds the notice fails for a retry and sends nothing", async () => {
+    query_webhooks.mockResolvedValue(one_hook);
+    with_metrics();
+    const fetch_spy = vi.spyOn(globalThis, "fetch");
+    await claim_dist_notice("don-1", app_db);
+
+    const busy = await handle_don_dist(app_db, eur_gift).then(
+      () => null,
+      (e: unknown) => e
+    );
+
+    expect(busy).toBeInstanceOf(Response);
+    expect((busy as Response).status).toBe(409);
+    expect(send_email_or_throw).not.toHaveBeenCalled();
+    expect(country.country_update).not.toHaveBeenCalled();
+    expect(fetch_spy).not.toHaveBeenCalled();
+    expect(report_error).not.toHaveBeenCalled();
+    expect(report_degraded).toHaveBeenCalledOnce();
   });
 
   test("a dist refunded before its notice runs mails, counts and posts nothing", async () => {
@@ -442,7 +527,7 @@ describe("handle_don_dist redelivery", () => {
 
     await handle_don_dist(app_db, eur_gift);
 
-    expect(send_email).not.toHaveBeenCalled();
+    expect(send_email_or_throw).not.toHaveBeenCalled();
     expect(country.country_update).not.toHaveBeenCalled();
     expect(fetch_spy).not.toHaveBeenCalled();
   });

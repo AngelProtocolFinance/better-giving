@@ -115,7 +115,7 @@ describe("reg-updated dedupe", () => {
 describe("retries_of", () => {
   test("reads a kind's configured retries, 0 for an at-most-once kind", () => {
     expect(retries_of("sub-deactivated")).toBe(3);
-    expect(retries_of("don-dist")).toBe(3);
+    expect(retries_of("don-dist")).toBe(4);
     expect(retries_of("reg-updated")).toBe(0);
   });
 });

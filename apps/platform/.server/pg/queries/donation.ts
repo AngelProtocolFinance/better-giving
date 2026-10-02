@@ -1028,7 +1028,8 @@ export async function mark_receipt_sent(
 
 /**
  * mark a deposit that arrived in an asset other than the donation's own
- * `currency`, so ops can find it and a later `finished` can settle it.
+ * `currency`, so ops can find it: nothing settles a held donation on its own,
+ * ops settle or refund it by hand.
  *
  * true only the first time: the provider resends the same payment, and only
  * the first mark should page anyone. false for a donation already settled or
