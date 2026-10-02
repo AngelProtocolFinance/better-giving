@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { json_ok } from "@/helpers/https";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import type { Ctx } from "../types";
 
@@ -157,6 +158,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// what the checkout shows the donor: `json_ok` lends only a marked refusal's
+// body to the message
+const shown = (res: unknown) =>
+  json_ok(res as Response).then(
+    () => "",
+    (e: Error) => e.message
+  );
+
 describe("crypto_intent", () => {
   it("a currency outside the token map is a 400 before nowpayments or the db", async () => {
     const spy = fetch_spy();
@@ -164,6 +173,7 @@ describe("crypto_intent", () => {
 
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(400);
+    expect(await shown(res)).toMatch(/isn't supported.*different currency/);
     expect(spy).not.toHaveBeenCalled();
     expect(await rows()).toHaveLength(0);
   });
@@ -181,7 +191,7 @@ describe("crypto_intent", () => {
       );
 
       expect((res as Response).status).toBe(400);
-      const msg = await (res as Response).text();
+      const msg = await shown(res);
       expect(msg).toMatch(/isn't available right now.*different currency/);
       expect(msg).not.toMatch(/currency disabled/);
       expect(report_error_mock).toHaveBeenCalledOnce();
@@ -222,7 +232,7 @@ describe("crypto_intent", () => {
       );
 
       expect((res as Response).status).toBe(400);
-      expect(await (res as Response).text()).toMatch(
+      expect(await shown(res)).toMatch(
         /isn't available right now.*different currency/
       );
       expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
@@ -318,9 +328,7 @@ describe("crypto_intent", () => {
     );
 
     expect((res as Response).status).toBe(400);
-    expect(await (res as Response).text()).toMatch(
-      /below the minimum of .+ ETH/
-    );
+    expect(await shown(res)).toMatch(/below the minimum of .+ ETH/);
     expect(await rows()).toHaveLength(0);
   });
 

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { donor_fv_blank } from "@/donations/schema";
+import { resp } from "@/helpers/https";
 import { donation_recipient_init, type Init } from "../../types";
 import { DirectMode } from "./direct-mode";
 
@@ -171,5 +172,57 @@ describe("crypto direct mode: the donor says they've paid", () => {
     await expect
       .element(screen.getByRole("button", { name: /completed the payment/i }))
       .toBeDisabled();
+  });
+
+  test("a refusal from the route reaches the donor in its own words", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        resp.refuse("This amount is below the minimum of 0.0001 BTC.", 400)
+      )
+    );
+
+    const Stub = stb(
+      <DirectMode
+        fv={{ ...fv, token: { ...fv.token, amount: "0.7" } }}
+        init={init()}
+        donor={donor}
+        fee_allowance={0}
+        tipv={0}
+      />
+    );
+    const screen = await render(<Stub />);
+
+    await expect
+      .element(screen.getByText(/below the minimum of 0\.0001 BTC/))
+      .toBeVisible();
+  });
+
+  test("a 4xx page from in front of the route never reaches the donor", async () => {
+    mswWorker.use(
+      http.post(href("/api/donation-intents"), () =>
+        HttpResponse.text(
+          "<html><body>Request blocked by edge-waf</body></html>",
+          {
+            status: 403,
+          }
+        )
+      )
+    );
+
+    const Stub = stb(
+      <DirectMode
+        fv={{ ...fv, token: { ...fv.token, amount: "0.7" } }}
+        init={init()}
+        donor={donor}
+        fee_allowance={0}
+        tipv={0}
+      />
+    );
+    const screen = await render(<Stub />);
+
+    await expect
+      .element(screen.getByText(/failed to load donation address/i))
+      .toBeVisible();
+    expect(screen.getByText(/edge-waf/).query()).toBeNull();
   });
 });

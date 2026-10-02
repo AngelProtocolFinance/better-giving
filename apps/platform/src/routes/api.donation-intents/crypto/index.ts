@@ -17,7 +17,7 @@ import type { Ctx, Provider } from "../types";
 import { crypto_payment } from "./np-payment";
 
 const unavailable = () =>
-  resp.txt(
+  resp.refuse(
     "This currency isn't available right now. Choose a different currency.",
     400
   );
@@ -48,7 +48,7 @@ export const crypto_intent: Provider = async (ctx) => {
     console.info(
       `[resp] 400 - unknown crypto currency: ${ctx.intent.currency}`
     );
-    return resp.txt(
+    return resp.refuse(
       "This currency isn't supported. Choose a different currency.",
       400
     );
@@ -90,7 +90,7 @@ async function custom_intent(c: Ctx, token: IToken) {
 
   const to_pay = amnt_sum(c.intent.amount);
   const min = 1 / usdpu;
-  if (to_pay < min) return resp.txt(min_msg(min, token), 400);
+  if (to_pay < min) return resp.refuse(min_msg(min, token), 400);
 
   const r_id = crypto.randomUUID();
   const don = await donation_put(db, {
@@ -172,14 +172,14 @@ async function np_intent(c: Ctx, token: IToken) {
     return np_failure(err, r_id, token);
   }
 
-  if (!q.payment) return resp.txt(min_msg(q.min, token), 400);
+  if (!q.payment) return resp.refuse(min_msg(q.min, token), 400);
   // nowpayments converts `price_amount` back at its own rate; under the pair
   // floor the deposit lands `failed` or `partially_paid`
   if (q.payment.amount < q.floor) {
     console.info(
       `[resp] 400 - pay_amount ${q.payment.amount} under floor ${q.floor} order:${r_id}`
     );
-    return resp.txt(min_msg(q.min, token), 400);
+    return resp.refuse(min_msg(q.min, token), 400);
   }
 
   const don = await donation_put(db, {
