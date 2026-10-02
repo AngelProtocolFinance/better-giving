@@ -755,7 +755,7 @@ rather than by a hand-picked number.
 | step | value | what sits here |
 | --- | --- | --- |
 | `z-subbar` | 20 | a bar pinned *beneath* a pinned header: the checklist's progress bar at `top-16` |
-| `z-sticky` | 30 | page chrome that pins: the app and marketing headers, the announcement bar |
+| `z-sticky` | 30 | page chrome that pins: the app and marketing headers (the announcement bar above them scrolls away) |
 | `z-scrim` | 40 | the `--overlay` a modal lays over the page |
 | `z-modal` | 50 | dialog, drawer, route-modal: above its own scrim |
 | `z-floating` | 60 | menu, popup, tooltip, toast: **above an open modal**, which is what retired the hand-picked value |

@@ -426,7 +426,7 @@
      the header it is supposed to sit under. the rule is fixed: a pinned header
      is always above a bar pinned beneath it. */
   --z-index-subbar: 20; /* a bar pinned BENEATH a pinned header */
-  --z-index-sticky: 30; /* page chrome that pins: header, announcement bar */
+  --z-index-sticky: 30; /* page chrome that pins: the header (the announcement bar scrolls away) */
   --z-index-scrim: 40; /* the --overlay a modal lays over the page */
   --z-index-modal: 50; /* dialog, drawer, route-modal — above their own scrim */
   --z-index-floating: 60; /* menu, popup, tooltip, toast — above an open modal */
