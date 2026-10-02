@@ -7,12 +7,17 @@ import { to_amount } from "@/helpers/email";
 import type { IDonDistPayload } from "@/queue";
 import { is_zapier_hook_url } from "@/zapier/hook-url";
 import { new_donation_item } from "@/zapier/new-donation";
-import { send_email } from "$/email";
+import { send_email_or_throw } from "$/email";
 import {
   country_metrics_time_get,
   country_time_update,
   country_update,
 } from "$/pg/queries/country";
+import {
+  claim_dist_notice,
+  mark_dist_notice_sent,
+  release_dist_notice,
+} from "$/pg/queries/dist";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_get } from "$/pg/queries/npo";
 import { npo_admins } from "$/pg/queries/user";
@@ -55,16 +60,47 @@ async function update_country_metrics(
   console.info(`${r.npo}:${country_key} +${r.inc_amount}`);
 }
 
+/**
+ * the npo's notice of its share of a donation: its mail, the country metric,
+ * its zapier hooks — each at most once per dist, under the dist's notice lease.
+ */
 export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
+  // not an error: a redelivery of a notice already out or in flight, or a dist
+  // refunded since it was queued — answered 200 with nothing sent
+  if (!(await claim_dist_notice(r.id, db))) return;
+
+  // the mail is the only step whose failure gives the claim back, so it runs
+  // first: the redelivery that takes the claim then repeats nothing that went.
+  try {
+    await send_npo_notice(r);
+  } catch (e) {
+    // the refusal is the error that has to survive; a failed release only
+    // delays the redelivery to the lease's expiry
+    await release_dist_notice(r.id, db).catch((re) =>
+      report_error(re, { dist_id: r.id, during: "dist notice release" })
+    );
+    throw e;
+  }
+
+  // from here nothing gives the claim back: a release would re-mail the npo,
+  // and the metric is an ungated `total + inc`. failures are reported instead.
   await update_country_metrics(db, {
     npo: r.to_id,
     date: r.sttl_date,
     inc_amount: r.net,
   }).catch(report_error);
 
+  // never rejects for a hook: each one's failure is reported by its id
   await trigger_webhooks(r).catch(report_error);
 
-  // npo notification email
+  // not thrown: a throw is a redelivery, which finds the claim held and does
+  // nothing until the lease expires, then re-posts every hook
+  await mark_dist_notice_sent(r.id, db).catch((e) =>
+    report_error(e, { dist_id: r.id, during: "dist notice sent stamp" })
+  );
+}
+
+async function send_npo_notice(r: IDonDistPayload) {
   const admin_emails = await npo_admins(r.to_id)
     .then((x) => x.map((u) => u.email))
     .catch((err) => {
@@ -99,12 +135,7 @@ export async function handle_don_dist(db: DbOrTx, r: IDonDistPayload) {
   };
   const { node, subject } = donation_nonprofit_notif.template(data);
 
-  // the swallowing send, and an at-most-once kind behind it: the country metric
-  // above is an ungated `total + inc` and the webhooks are already delivered by
-  // the time this runs, so a redelivery double-counts the donation and re-fires
-  // every subscriber's endpoint. a refusal is still reported by the send itself,
-  // which is what makes a notification lost here survivable.
-  const res = await send_email({
+  const res = await send_email_or_throw({
     node,
     subject,
     ...(admin_emails.length === 0

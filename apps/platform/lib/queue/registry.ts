@@ -232,8 +232,8 @@ const dedupe: { [K in Kind]: (p: Payloads[K]) => string } = {
 // mail is away and burns the retry on nothing.
 //
 // a kind stays absent when its handler does non-idempotent work a redelivery
-// would repeat — `don-dist` and `reg-updated`, each of which keeps the
-// swallowing send and carries its own reasoning at the handler.
+// would repeat — `reg-updated`, which keeps the swallowing send and carries
+// its own reasoning at the handler.
 const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   "banking-approved": { retries: 3 },
   "banking-default": { retries: 3 },
@@ -243,6 +243,10 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   // mail: a redelivery that finds the claim taken returns without sending, and
   // one that finds the sent stamp never mails a second tax receipt.
   "don-sttl-receipt": { retries: 3 },
+  // same shape: the dist's notice lease (`claim_dist_notice`) turns away a
+  // redelivery once the notice is sent, and only a refused npo mail — which
+  // runs before the metrics and hooks — gives the claim back for the retry.
+  "don-dist": { retries: 3 },
   // an instruction to ops that has no other record once the work behind it is
   // done. `send_alert` throws on a refused post, as `send_email_or_throw` does.
   "fiat-notice": { retries: 3 },
