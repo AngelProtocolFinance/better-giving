@@ -41,7 +41,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
   return (
     <section className={classes} aria-labelledby="governance-heading">
       <div className="page grid gap-14 lg:grid-cols-2 items-center">
-        <div className="card shadow-lift-card grid gap-6 justify-items-center">
+        <div className="card-on-band shadow-lift-card grid gap-6 justify-items-center">
           <span className="text-lg font-bold">Target allocation</span>
           <div
             className="size-55 rounded-full grid place-items-center"
@@ -49,7 +49,7 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
             role="img"
             aria-label="Target allocation: 50% U.S. equities, 10% non-U.S. equities, 32.5% fixed income, 7.5% metals"
           >
-            <div className="size-32.5 rounded-full bg-panel grid place-items-center text-center">
+            <div className="size-32.5 rounded-full bg-surface grid place-items-center text-center">
               <div>
                 <span className="block text-2xl font-bold">100%</span>
                 <span className="text-xs text-gray-11">
@@ -82,7 +82,10 @@ export function AllocationGovernance({ classes = "" }: IAllocationGovernance) {
           </h2>
           <div className="grid gap-3.5">
             {pillars.map((p) => (
-              <div key={p.title} className="card flex gap-3.5 items-start">
+              <div
+                key={p.title}
+                className="card-on-band flex gap-3.5 items-start"
+              >
                 <span
                   className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                   aria-hidden

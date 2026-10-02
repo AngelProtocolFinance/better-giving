@@ -32,7 +32,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             Route any share of your donations into two places money grows:
           </p>
           <div className="grid gap-3.5">
-            <div className="card flex gap-3.5 items-start">
+            <div className="card-on-band flex gap-3.5 items-start">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -47,7 +47,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
                 </p>
               </div>
             </div>
-            <div className="card flex gap-3.5 items-start">
+            <div className="card-on-band flex gap-3.5 items-start">
               <span
                 className="flex-none size-9.5 rounded bg-secondary grid place-items-center font-bold"
                 aria-hidden
@@ -70,7 +70,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
           </p>
         </div>
 
-        <div className="card shadow-lift-card grid gap-6 justify-items-center">
+        <div className="card-on-band shadow-lift-card grid gap-6 justify-items-center">
           <span className="text-lg font-bold">
             Sustainability Fund target allocation
           </span>
@@ -80,7 +80,7 @@ export function GrowFunds({ classes = "" }: IGrowFunds) {
             role="img"
             aria-label="Target allocation: 50% U.S. equities, 10% non-U.S. equities, 32.5% fixed income, 7.5% metals"
           >
-            <div className="size-32.5 rounded-full bg-panel grid place-items-center text-center">
+            <div className="size-32.5 rounded-full bg-surface grid place-items-center text-center">
               <div>
                 <span className="block text-2xl font-bold">~11%</span>
                 <span className="text-xs text-gray-11">
