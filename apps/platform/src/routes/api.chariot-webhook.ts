@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { Grant } from "@better-giving/chariot";
 import { report_error, report_resp } from "#/errors/report";
 import {
   type ChariotMetadata,
@@ -215,17 +216,49 @@ async function grant_donation(
   return prior;
 }
 
-/** dollars per `feeType`; an untyped contribution goes under `other` so the parts sum to the total */
-function fee_by_type(
-  contributions: readonly { amount: number; feeType?: string }[] | undefined
-): Record<string, number> | undefined {
-  const parts: Record<string, number> = {};
-  for (const { amount, feeType = "other" } of contributions ?? []) {
-    parts[feeType] = (parts[feeType] ?? 0) + amount;
+/**
+ * chariot's fee and its split by `feeType`, in dollars, the parts summing to
+ * the fee in cents. `total` and the entries are both optional and unchecked
+ * against each other, so the fee is `total` when present, and whatever the
+ * entries leave of it goes under `other`
+ */
+function grant_fees({ id, feeDetail }: Pick<Grant, "id" | "feeDetail">): {
+  fee: number;
+  fee_parts?: Record<string, number>;
+} {
+  const raw: Record<string, number> = {};
+  let raw_sum = 0;
+  for (const { amount, feeType = "other" } of feeDetail?.contributions ?? []) {
+    raw[feeType] = (raw[feeType] ?? 0) + amount;
+    raw_sum += amount;
   }
-  const entries = Object.entries(parts);
-  if (!entries.length) return undefined;
-  return Object.fromEntries(entries.map(([k, cents]) => [k, cents / 100]));
+  const fee = Math.round(feeDetail?.total ?? raw_sum);
+  const keys = Object.keys(raw);
+  if (!keys.length) return { fee: fee / 100 };
+
+  const cents: Record<string, number> = {};
+  for (const k of keys) cents[k] = Math.round(raw[k]);
+  const unbooked = fee - Math.round(raw_sum);
+  if (unbooked) {
+    console.warn(
+      `[chariot webhook] grant ${id} fee entries sum to ${raw_sum} of total ${fee} cents: remainder booked as other`
+    );
+    cents.other = (cents.other ?? 0) + unbooked;
+  }
+  // per-part rounding can drift a cent from the fee
+  const drift = fee - Object.values(cents).reduce((a, b) => a + b, 0);
+  if (drift) {
+    const largest = Object.keys(cents).reduce((a, b) =>
+      cents[b] > cents[a] ? b : a
+    );
+    cents[largest] += drift;
+  }
+  return {
+    fee: fee / 100,
+    fee_parts: Object.fromEntries(
+      Object.entries(cents).map(([k, c]) => [k, c / 100])
+    ),
+  };
 }
 
 const SHA256_HEX = /^[0-9a-f]{64}$/i;
@@ -333,8 +366,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     const gross = grant.amount / 100;
-    const fee = (grant.feeDetail?.total ?? 0) / 100;
-    const fee_parts = fee_by_type(grant.feeDetail?.contributions);
+    const { fee, fee_parts } = grant_fees(grant);
 
     const completed_at =
       grant.statuses?.filter((x) => x.status === "Completed").at(-1)

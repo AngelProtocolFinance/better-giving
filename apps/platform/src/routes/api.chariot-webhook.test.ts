@@ -717,6 +717,109 @@ describe("chariot webhook completed grant", () => {
     expect(patch.settlement.fee_parts).toEqual({ chariot: 3, other: 1 });
   });
 
+  const settle_with_fees = async (feeDetail: unknown) => {
+    quiet_console();
+    get_grant_mock.mockResolvedValue({ ...completed_grant, feeDetail });
+    donation_mocks.get.mockResolvedValue({
+      ...recorded_by("grant-20"),
+      id: "don-20",
+      status: "intent",
+    });
+    donation_mocks.locked.mockResolvedValue({ status: "intent" });
+    await deliver(complete_event);
+    const [, , patch] = donation_mocks.update.mock.calls[0];
+    return patch.settlement;
+  };
+
+  it("sums fee entries of the same type", async () => {
+    const settlement = await settle_with_fees({
+      total: 450,
+      contributions: [
+        { name: "Chariot", amount: 300, feeType: "chariot" },
+        { name: "Chariot", amount: 150, feeType: "chariot" },
+      ],
+    });
+    expect(settlement.fee_parts).toEqual({ chariot: 4.5 });
+  });
+
+  it("takes the fee from its entries when the grant has no total", async () => {
+    const settlement = await settle_with_fees({
+      contributions: [
+        { name: "Chariot", amount: 300, feeType: "chariot" },
+        { name: "Fidelity", amount: 150, feeType: "daf" },
+      ],
+    });
+    expect(settlement).toMatchObject({
+      fee: 4.5,
+      net: 95.5,
+      fee_parts: { chariot: 3, daf: 1.5 },
+    });
+  });
+
+  it("books what the entries leave of the total as other", async () => {
+    const settlement = await settle_with_fees({
+      total: 500,
+      contributions: [
+        { name: "Chariot", amount: 300, feeType: "chariot" },
+        { name: "Fidelity", amount: 150, feeType: "daf" },
+      ],
+    });
+    expect(settlement).toMatchObject({
+      fee: 5,
+      net: 95,
+      fee_parts: { chariot: 3, daf: 1.5, other: 0.5 },
+    });
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("grant-20")
+    );
+  });
+
+  const in_cents = (dollars: number) => Math.round(dollars * 100);
+  const parts_in_cents = (parts: Record<string, number>) =>
+    Object.values(parts).reduce((sum, d) => sum + in_cents(d), 0);
+
+  it("splits a fee whose parts aren't float-clean exactly", async () => {
+    const settlement = await settle_with_fees({
+      total: 33,
+      contributions: [
+        { name: "Chariot", amount: 10, feeType: "chariot" },
+        { name: "Fidelity", amount: 20, feeType: "daf" },
+        {
+          name: "Better Giving",
+          amount: 3,
+          feeType: "fundraising_application",
+        },
+      ],
+    });
+    expect(settlement.fee_parts).toEqual({
+      chariot: 0.1,
+      daf: 0.2,
+      fundraising_application: 0.03,
+    });
+    expect(parts_in_cents(settlement.fee_parts)).toBe(33);
+    expect(in_cents(settlement.fee)).toBe(33);
+  });
+
+  it("rounds fractional-cent parts to cents, the remainder on the largest", async () => {
+    const settlement = await settle_with_fees({
+      total: 100,
+      contributions: [
+        { name: "Chariot", amount: 33.4, feeType: "chariot" },
+        { name: "Fidelity", amount: 33.3, feeType: "daf" },
+        {
+          name: "Better Giving",
+          amount: 33.3,
+          feeType: "fundraising_application",
+        },
+      ],
+    });
+    expect(settlement.fee_parts).toEqual({
+      chariot: 0.34,
+      daf: 0.33,
+      fundraising_application: 0.33,
+    });
+  });
+
   it("stores no fee split for a grant without a fee breakdown", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue(completed_grant);

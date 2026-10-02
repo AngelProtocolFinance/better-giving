@@ -36,7 +36,7 @@ export const chariot_intent: Provider = async ({
   // has already authorized, so it's refused here with a message they can read
   const dollars = snap(amnt_sum(intent.amount));
   if (!Number.isInteger(dollars))
-    return resp.status(400, "DAF grants must be a whole dollar amount");
+    return resp.txt("DAF grants must be a whole dollar amount", 400);
 
   const grant = await chariot
     .create_grant({ workflowSessionId: via_extra, amount: dollars * 100 })
