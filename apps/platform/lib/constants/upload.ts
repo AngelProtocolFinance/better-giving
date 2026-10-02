@@ -8,8 +8,10 @@ export const upload_limits = {
     "image/svg+xml": [".svg"],
     "application/pdf": [".pdf"],
   } as Record<string, readonly string[]>,
-  /** MiB, so a client limit of 6 MB in either convention fits under it */
-  max_bytes: 6 * 1024 * 1024,
+  /** under Vercel Functions' 4.5 MB request-body cap, which refuses a larger
+   * upload before this route runs; MiB, so a client limit of 4 MB in either
+   * convention fits under it */
+  max_bytes: 4 * 1024 * 1024,
 };
 
 /** the opening bytes each binary format must carry; `null` is any byte.

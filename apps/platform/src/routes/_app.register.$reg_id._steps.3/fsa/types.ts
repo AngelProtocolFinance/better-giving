@@ -10,7 +10,7 @@ export interface Props extends Partial<IFsaDocs> {
 }
 
 export const fileSpec: FileSpec = {
-  mbLimit: 6,
+  mbLimit: 4,
   mimeTypes: ["image/jpeg", "image/png", "application/pdf", "image/webp"],
 };
 

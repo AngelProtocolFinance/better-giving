@@ -7,6 +7,8 @@ vi.mock("#/.server/auth", () => ({
 }));
 vi.mock("$/env", () => ({ blob: { read_write_token: "tok" } }));
 
+import { upload_limits } from "@/constants/upload";
+import { fileSpec as fsa_spec } from "./_app.register.$reg_id._steps.3/fsa/types";
 import { action } from "./api.file-upload";
 
 const upload = (body: Blob, filename = "photo.png") =>
@@ -54,9 +56,9 @@ describe("file upload", () => {
     expect(put).not.toHaveBeenCalled();
   });
 
-  test("refuses a file past 6 MiB, storing nothing", async () => {
+  test("refuses a file past 4 MiB, storing nothing", async () => {
     const res: Response = await upload(
-      new Blob([new Uint8Array(6 * 1024 * 1024 + 1)], { type: "image/png" })
+      new Blob([new Uint8Array(4 * 1024 * 1024 + 1)], { type: "image/png" })
     );
     expect(res.status).toBe(413);
     expect(put).not.toHaveBeenCalled();
@@ -64,7 +66,7 @@ describe("file upload", () => {
 
   test("stores an accepted file under the type that was checked", async () => {
     const res = await upload(
-      new Blob(["%PDF-1.7\n", new Uint8Array(6 * 1024 * 1024 - 9)], {
+      new Blob(["%PDF-1.7\n", new Uint8Array(4 * 1024 * 1024 - 9)], {
         type: "application/pdf",
       }),
       "statement.pdf"
@@ -146,5 +148,19 @@ describe("file upload", () => {
       "a.svg"
     );
     expect(res.data).toEqual({ url: "https://blob.test/u/photo-abc.png" });
+  });
+});
+
+describe("upload size limits", () => {
+  // vercel functions refuse a request body over 4.5 MB before the route runs,
+  // with no app message — every limit must sit under it
+  const VERCEL_BODY_CAP = 4.5e6;
+
+  test("the server cap fits under the platform's body cap", () => {
+    expect(upload_limits.max_bytes).toBeLessThan(VERCEL_BODY_CAP);
+  });
+
+  test("the fsa dropzone's limit fits under the server cap", () => {
+    expect(fsa_spec.mbLimit * 1e6).toBeLessThanOrEqual(upload_limits.max_bytes);
   });
 });

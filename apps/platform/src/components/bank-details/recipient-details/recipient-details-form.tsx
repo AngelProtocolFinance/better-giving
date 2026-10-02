@@ -443,7 +443,7 @@ export function RecipientDetailsForm({
               Bank statement
             </Label>
           }
-          specs={{ mbLimit: 6, mimeTypes: ["application/pdf"] }}
+          specs={{ mbLimit: 4, mimeTypes: ["application/pdf"] }}
           disabled={disabled}
           ref={bankStatement.ref}
           value={bankStatement.value}
