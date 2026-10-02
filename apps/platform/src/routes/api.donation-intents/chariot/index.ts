@@ -27,7 +27,7 @@ export const chariot_intent: Provider = async ({
 }) => {
   // chariot is usd-only; upusd = 1 so base_usd === intent.amount.base
   if (intent.amount.base < MIN_DONATION_USD)
-    return resp.txt(
+    return resp.refuse(
       `The minimum DAF donation is ${MIN_DONATION_USD} USD.`,
       400
     );
@@ -36,7 +36,7 @@ export const chariot_intent: Provider = async ({
   // has already authorized, so it's refused here with a message they can read
   const dollars = snap(amnt_sum(intent.amount));
   if (!Number.isInteger(dollars))
-    return resp.txt("DAF grants must be a whole dollar amount", 400);
+    return resp.refuse("DAF grants must be a whole dollar amount", 400);
 
   const grant = await chariot
     .create_grant({ workflowSessionId: via_extra, amount: dollars * 100 })
@@ -51,7 +51,7 @@ export const chariot_intent: Provider = async ({
       request_id: grant.request_id,
       reason: grant.reason,
     });
-    return resp.txt(NO_GRANT_MSG, grant.http_status);
+    return resp.refuse(NO_GRANT_MSG, grant.http_status);
   }
 
   const { don_id } = grant.metadata as unknown as ChariotMetadata;

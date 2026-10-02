@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import { amnt_sum, partition } from "@/donations/helpers";
 import { snap } from "@/helpers/decimal";
+import { json_ok } from "@/helpers/https";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import type { Ctx } from "../types";
 
@@ -121,14 +122,14 @@ describe("chariot_intent repeat for one workflow session", () => {
 // the checkout reads a 400, 404 or 410 as "nothing exists at chariot" and lets the
 // donor retry, so a 4xx may only ever answer a request that made no grant
 describe("chariot_intent refusals the donor can retry", () => {
-  it("refuses a base under the minimum with a 4xx before creating the grant", async () => {
+  it("refuses a base under the minimum with a 4xx the donor reads, before creating the grant", async () => {
     const res = await chariot_intent(
       ctx({ base: 0.5, tip: 0, fee_allowance: 0.5 })
     );
-    expect((res as Response).status).toBe(400);
-    await expect((res as Response).text()).resolves.toBe(
-      "The minimum DAF donation is 2 USD."
-    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 400,
+      message: "The minimum DAF donation is 2 USD.",
+    });
     expect(create_grant_mock).not.toHaveBeenCalled();
   });
 
@@ -175,15 +176,16 @@ describe("chariot_intent refusals the donor can retry", () => {
     );
   });
 
-  it("answers chariot's 410 for an expired session with a 410 and the fallback message", async () => {
+  it("answers chariot's 410 for an expired session with a 410 and the fallback message, for the donor", async () => {
     chariot_answers(410, "Gone");
     const res = await chariot_intent(
       ctx({ base: 10, tip: 0, fee_allowance: 0 })
     );
-    expect((res as Response).status).toBe(410);
-    expect(await (res as Response).text()).toBe(
-      "Your fund couldn't make this grant. Please check the amount and try again."
-    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 410,
+      message:
+        "Your fund couldn't make this grant. Please check the amount and try again.",
+    });
   });
 
   it("answers chariot's 404 for an unknown workflow session with a 404", async () => {
@@ -244,6 +246,16 @@ describe("chariot_intent grant amount", () => {
     expect(await (res as Response).text()).toMatch(/whole dollar/i);
     expect(create_grant_mock).not.toHaveBeenCalled();
     expect(await db().select().from(donations)).toEqual([]);
+  });
+
+  it("refuses a total that isn't whole dollars in words the checkout shows the donor", async () => {
+    const res = await chariot_intent(
+      ctx({ base: 10, tip: 0, fee_allowance: 0.3 })
+    );
+    await expect(json_ok(res as Response)).rejects.toMatchObject({
+      status: 400,
+      message: "DAF grants must be a whole dollar amount",
+    });
   });
 
   it("creates a whole-dollar total as its cents: 10 + 1 fee allowance is 1100", async () => {
