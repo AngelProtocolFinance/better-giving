@@ -236,8 +236,7 @@ export async function npo_admin_tx(
 
     if (invitee_user) {
       // existing account: skip the invite row entirely — there's nothing for
-      // the signup hook to consume, and a stale row would block re-invites of
-      // this email until expire_at.
+      // the signup hook to consume.
       await tx
         .insert(user_npo_memberships)
         .values({ user_id: invitee_user.id, npo_id })
@@ -245,14 +244,20 @@ export async function npo_admin_tx(
       return;
     }
 
-    await tx.insert(user_invites).values({
-      invitee: invite.invitee,
+    const pending = {
       invitee_first: invite.invitee_first_name,
       invitor_id,
       npo_name: invite.npo_name,
-      npo_id,
       expire_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    });
+    };
+    // a re-invite from the same npo refreshes its pending row; another npo's invite is its own row
+    await tx
+      .insert(user_invites)
+      .values({ invitee: invite.invitee, npo_id, ...pending })
+      .onConflictDoUpdate({
+        target: [user_invites.invitee, user_invites.npo_id],
+        set: pending,
+      });
   });
 }
 
