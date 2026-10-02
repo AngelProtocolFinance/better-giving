@@ -170,7 +170,13 @@ async function undo_donor_cancel(
   data: ISubDeactivatedPayload
 ): Promise<IOutcome> {
   const unchanged = "its row was left cancelled and the donor was not emailed";
-  if (!data.by_donor || !data.status_cancel_reason) {
+  // no stamp, no identity to restore against: a row can't be told apart from
+  // a later cancel with the same reason, so it's left as ops finds it
+  if (
+    !data.by_donor ||
+    !data.status_cancel_reason ||
+    !data.cancel_requested_at
+  ) {
     return by_hand(
       "The donor sees this subscription as cancelled and may still be charged."
     );

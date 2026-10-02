@@ -677,6 +677,25 @@ describe("a donor's cancel the provider refuses for good", () => {
     expect(alert_body()).toContain("queueing the donor's email failed");
   });
 
+  // queued before the stamp existed: nothing ties it to the row's cancel
+  it("leaves the row alone for a donor's cancel that carries no stamp", async () => {
+    await seed_cancelled("I-SUB1", "paypal");
+    paypal_refuses();
+    const { cancel_requested_at: _, ...unstamped } = donor_cancelled(
+      "I-SUB1",
+      "paypal"
+    );
+
+    await expect(
+      handle_sub_deactivated(unstamped as never)
+    ).resolves.toBeUndefined();
+
+    expect((await sub_get("I-SUB1"))?.status).toBe("inactive");
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(alert_body()).toContain("Cancel I-SUB1 in the paypal dashboard");
+  });
+
   // a refund or a stripe-side end queues the same cancel; the donor asked for nothing
   it("leaves a cancel the donor didn't make alone", async () => {
     await seed_cancelled("sub_donor1", "stripe");
