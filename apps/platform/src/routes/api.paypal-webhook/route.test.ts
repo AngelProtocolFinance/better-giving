@@ -115,6 +115,7 @@ const {
   donations,
 } = await import("$/pg/schema/donation");
 const { npos } = await import("$/pg/schema/npo");
+const { PLACEHOLDER_EMAIL } = await import("@/donations/schema");
 const { subscriptions } = await import("$/pg/schema/subscription");
 
 const db = () => test_db.current!.db;
@@ -471,6 +472,20 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
     expect(enqueue_mock).not.toHaveBeenCalled();
   });
 
+  it("acknowledges a redelivered capture of a donation refunded since it settled, settling and queuing nothing more", async () => {
+    await seed_donation();
+    await deliver(capture_ev());
+    await donation_update(db() as any, ORDER_ID, { status: "refunded" });
+    enqueue_mock.mockClear();
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toHaveLength(1);
+    expect((await donation_get(ORDER_ID))!.status).toBe("refunded");
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
   it("re-queues the receipt when the distribution landed and it did not", async () => {
     await seed_donation();
     await deliver(capture_ev());
@@ -556,6 +571,88 @@ describe("PAYMENT.CAPTURE.COMPLETED", () => {
     expect(await settlements()).toEqual([
       expect.objectContaining({ net: 47.06 }),
     ]);
+  });
+});
+
+describe("a capture whose donor email is still the placeholder", () => {
+  const hours_ago = (h: number) =>
+    new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+  const with_order = () => {
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+  };
+
+  it("asks for redelivery within the hour, settling nothing and reporting nothing", async () => {
+    await seed_donation({
+      from_email: PLACEHOLDER_EMAIL,
+      created_at: hours_ago(0.5),
+    });
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(503);
+    expect(await res.text()).toBe("placeholder email, retry later");
+    expect(await settlements()).toHaveLength(0);
+    expect((await donation_get(ORDER_ID))!.status).toBe("intent");
+    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("settles it after the hour, reporting the timeout", async () => {
+    await seed_donation({
+      from_email: PLACEHOLDER_EMAIL,
+      created_at: hours_ago(2),
+    });
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toHaveLength(1);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expect.stringContaining("placeholder email (timeout)"),
+      }),
+      { don_id: ORDER_ID }
+    );
+  });
+
+  it("settles at once, unreported, when the order paypal holds names the payer", async () => {
+    await seed_donation({
+      from_email: PLACEHOLDER_EMAIL,
+      created_at: hours_ago(0.5),
+    });
+    with_order();
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      payment_source: {
+        paypal: { email_address: "payer@test.com", name: { given_name: "P" } },
+      },
+    });
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(200);
+    const don = await donation_get(ORDER_ID);
+    expect(don!.from_email).toBe("payer@test.com");
+    expect(don!.status).toBe("settled");
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("keeps asking for redelivery when the order paypal holds names no payer either", async () => {
+    await seed_donation({
+      from_email: PLACEHOLDER_EMAIL,
+      created_at: hours_ago(0.5),
+    });
+    with_order();
+    get_order_mock.mockResolvedValue({ id: "ORDER-1", payment_source: {} });
+
+    const res = await deliver(capture_ev());
+
+    expect(res.status).toBe(503);
+    expect(await settlements()).toHaveLength(0);
   });
 });
 
@@ -1457,6 +1554,86 @@ describe("subscription lifecycle", () => {
     const res = await deliver(lifecycle_ev("BILLING.SUBSCRIPTION.CANCELLED"));
 
     expect(res.ok).toBe(false);
+  });
+});
+
+describe("BILLING.SUBSCRIPTION.ACTIVATED", () => {
+  const activated_ev = (resource: Record<string, unknown> = {}) => ({
+    id: "WH-ACTIVATED",
+    event_type: "BILLING.SUBSCRIPTION.ACTIVATED",
+    resource: {
+      id: SUBS_ID,
+      plan_id: "P-1",
+      custom_id: ORDER_ID,
+      status: "ACTIVE",
+      create_time: "2026-01-01T00:00:00.000Z",
+      update_time: "2026-01-01T00:00:00.000Z",
+      subscriber: {
+        email_address: "subscriber@test.com",
+        name: { given_name: "Sub", surname: "Scriber" },
+      },
+      billing_info: { next_billing_time: "2026-02-01T00:00:00.000Z" },
+      ...resource,
+    },
+  });
+  const sub_rows = () => db().select().from(subscriptions);
+
+  it("creates the subscription row and writes the subscriber onto the placeholder donation", async () => {
+    await seed_donation({
+      frequency: "monthly",
+      from_email: PLACEHOLDER_EMAIL,
+    });
+
+    const res = await deliver(activated_ev());
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe(`created subscription record ${SUBS_ID}`);
+    expect(await sub_rows()).toEqual([
+      expect.objectContaining({
+        id: SUBS_ID,
+        platform: "paypal",
+        status: "active",
+        interval: "month",
+        interval_count: 1,
+        amount: 100,
+        product_id: "PROD-1",
+        to_npo_id: npo_id,
+        from_id: "subscriber@test.com",
+        next_billing: "2026-02-01T00:00:00.000Z",
+      }),
+    ]);
+    expect((await donation_get(ORDER_ID))!.from_email).toBe(
+      "subscriber@test.com"
+    );
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a second delivery of the same activation as one row", async () => {
+    await seed_donation({ frequency: "monthly" });
+
+    await deliver(activated_ev());
+    const res = await deliver(activated_ev());
+
+    expect(res.status).toBe(200);
+    expect(await sub_rows()).toHaveLength(1);
+  });
+
+  it("asks for redelivery when the donation is not there yet, writing no row", async () => {
+    const res = await deliver(activated_ev());
+
+    expect(res.status).toBe(500);
+    expect(await sub_rows()).toHaveLength(0);
+  });
+
+  it("acknowledges and reports an activation with no subscriber email, writing no row", async () => {
+    await seed_donation({ frequency: "monthly" });
+
+    const res = await deliver(activated_ev({ subscriber: {} }));
+
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/^not routable: /);
+    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await sub_rows()).toHaveLength(0);
   });
 });
 

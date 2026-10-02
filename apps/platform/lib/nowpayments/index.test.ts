@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Nowpayments, NowpaymentsError } from "./index";
+import {
+  Nowpayments,
+  NowpaymentsError,
+  NowpaymentsNoMinimumError,
+} from "./index";
 
 const client = new Nowpayments({
   baseUrl: "https://api-sandbox.nowpayments.io",
@@ -97,9 +101,21 @@ describe("nowpayments client", () => {
     async (_, body) => {
       fetch_mock().mockResolvedValueOnce(Response.json(body));
       const err = await client.min_amount("ETH").catch((e: unknown) => e);
-      expect(err).toBeInstanceOf(Error);
+      // a 200 with an unusable quote is "pair not payable", not an http outage
+      expect(err).toBeInstanceOf(NowpaymentsNoMinimumError);
+      expect(err).not.toBeInstanceOf(NowpaymentsError);
+      expect((err as Error).name).toBe("NowpaymentsNoMinimumError");
+      expect((err as Error).message).toContain("v1/min-amount");
+      expect((err as Error).message).toContain("ETH");
     }
   );
+
+  it("min_amount returns both figures when the quote is usable", async () => {
+    fetch_mock().mockResolvedValueOnce(
+      Response.json({ min_amount: 0.001, fiat_equivalent: 2 })
+    );
+    expect(await client.min_amount("ETH")).toEqual({ min: 0.001, min_usd: 2 });
+  });
 
   it("min_amount quotes the token against the account's polygon usdc outcome, not against itself", async () => {
     const spy = fetch_mock().mockResolvedValueOnce(

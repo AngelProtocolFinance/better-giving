@@ -659,6 +659,47 @@ describe("chariot webhook completed grant", () => {
     );
   });
 
+  describe("which status entry dates the settlement", () => {
+    const settled_date = async (grant: Record<string, unknown>) => {
+      quiet_console();
+      get_grant_mock.mockResolvedValue({ ...completed_grant, ...grant });
+      donation_mocks.get.mockResolvedValue({
+        ...recorded_by("grant-20"),
+        id: "don-20",
+        status: "intent",
+      });
+      donation_mocks.locked.mockResolvedValue({ status: "intent" });
+
+      await deliver(complete_event);
+
+      return donation_mocks.update.mock.calls[0]![2].settlement.date;
+    };
+
+    it("takes the latest Completed entry of a grant that completed more than once, whatever follows it", async () => {
+      const date = await settled_date({
+        updatedAt: "2026-09-09T00:00:00Z",
+        statuses: [
+          { id: "s1", status: "Completed", createdAt: "2026-09-01T10:00:00Z" },
+          { id: "s2", status: "Completed", createdAt: "2026-09-03T08:00:00Z" },
+          { id: "s3", status: "Processing", createdAt: "2026-09-04T00:00:00Z" },
+        ],
+      });
+
+      expect(date).toBe("2026-09-03T08:00:00.000Z");
+    });
+
+    it("falls back to when the grant was last updated when no entry says Completed", async () => {
+      const date = await settled_date({
+        updatedAt: "2026-09-05T00:00:00Z",
+        statuses: [
+          { id: "s1", status: "Initiated", createdAt: "2026-08-01T10:00:00Z" },
+        ],
+      });
+
+      expect(date).toBe("2026-09-05T00:00:00.000Z");
+    });
+  });
+
   it("splits the fee by who charged it", async () => {
     quiet_console();
     get_grant_mock.mockResolvedValue({

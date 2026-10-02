@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FIRST_PAYMENT_INCOMPLETE } from "@/subscriptions";
 
 const sub_retrieve_mock = vi.hoisted(() => vi.fn());
 const donation_get_mock = vi.hoisted(() => vi.fn());
@@ -49,6 +50,55 @@ beforeEach(() => {
 });
 
 const written = () => sub_put_mock.mock.calls[0]![1];
+
+describe("customer.subscription.created → every status the handler branches on", () => {
+  it.each(["unpaid", "canceled", "incomplete_expired"])(
+    "writes a %s sub as inactive",
+    async (status) => {
+      sub_retrieve_mock.mockResolvedValue(stripe_sub(status));
+
+      await handle_subscription_created({
+        object: stripe_sub("active"),
+      } as any);
+
+      expect(written().status).toBe("inactive");
+      expect(written().status_cancel_reason).toBeUndefined();
+    }
+  );
+
+  it("marks an incomplete sub inactive with the first-payment marker the webhook reactivates on", async () => {
+    sub_retrieve_mock.mockResolvedValue(stripe_sub("incomplete"));
+
+    await handle_subscription_created({ object: stripe_sub("active") } as any);
+
+    expect(written().status).toBe("inactive");
+    expect(written().status_cancel_reason).toBe(FIRST_PAYMENT_INCOMPLETE);
+  });
+
+  it.each(["active", "trialing", "past_due", "paused"])(
+    "writes a %s sub as active, since it can still recover",
+    async (status) => {
+      sub_retrieve_mock.mockResolvedValue(stripe_sub(status));
+
+      await handle_subscription_created({
+        object: stripe_sub("canceled"),
+      } as any);
+
+      expect(written().status).toBe("active");
+      expect(written().status_cancel_reason).toBeUndefined();
+    }
+  );
+
+  it("throws and writes nothing when the order is gone", async () => {
+    sub_retrieve_mock.mockResolvedValue(stripe_sub("active"));
+    donation_get_mock.mockResolvedValue(undefined);
+
+    await expect(
+      handle_subscription_created({ object: stripe_sub("active") } as any)
+    ).rejects.toThrow(/Order not found for id:order-1/);
+    expect(sub_put_mock).not.toHaveBeenCalled();
+  });
+});
 
 describe("customer.subscription.created → subscription row", () => {
   it("writes a sub stripe has already ended as inactive, whatever the event's copy says", async () => {
