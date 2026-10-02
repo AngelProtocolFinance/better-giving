@@ -1,9 +1,13 @@
 import crypto from "node:crypto";
 import { report_resp } from "#/errors/report";
-import type { IDonation } from "@/donations";
+import { type IDonation, reversed_statuses } from "@/donations";
 import type { NP } from "@/nowpayments/types";
 import { nowpayments } from "$/env";
-import { donation_get, settle_state_of } from "$/pg/queries/donation";
+import {
+  donation_get,
+  donation_hold_mark,
+  settle_state_of,
+} from "$/pg/queries/donation";
 import type { Route } from "./+types/route";
 import { alert } from "./handlers/alert";
 import { handle_confirming } from "./handlers/confirming";
@@ -94,6 +98,10 @@ const log = (msg: string, ref: string) =>
 
 const ORDER = { repeat: false };
 
+const is_closed = (d: IDonation): boolean =>
+  d.status === "settled" ||
+  (reversed_statuses as readonly string[]).includes(d.status);
+
 async function dispatch(payment: NP.PaymentPayload): Promise<void> {
   const status = payment.payment_status;
   const ref = ref_of(payment);
@@ -105,16 +113,34 @@ async function dispatch(payment: NP.PaymentPayload): Promise<void> {
   if (!prior) return log("donation not found", ref);
 
   // a wrong-asset deposit reports `actually_paid` in the asset that arrived,
-  // which recorded against the order's currency misstates the gift
+  // which recorded against the order's currency misstates the gift. how a
+  // deposit ops process in the dashboard reports back is undocumented to us, so
+  // no later ipn settles a hold — the first mark pages ops to settle it by hand
   if (
     carries_amount.has(status) &&
     payment.pay_currency.toUpperCase() !== prior.currency
   ) {
     log("wrong asset held", ref);
+    if (!(await donation_hold_mark(prior.id, payment.pay_currency))) {
+      // the mark refuses a closed row; one never held took this deposit after it closed
+      if (!prior.hold && is_closed(prior)) {
+        await alert({
+          title: "Deposit in another asset on a closed donation",
+          type: "ERROR",
+          body: `${ref} prior:${prior.status} paid:${payment.actually_paid} ${payment.pay_currency.toUpperCase()} outcome:${payment.outcome_amount} ${payment.outcome_currency.toUpperCase()}`,
+        });
+      }
+      return;
+    }
     await alert({
       title: "Deposit in another asset held",
       type: "ERROR",
-      body: `${ref} paid:${payment.pay_currency.toUpperCase()} order:${prior.currency}`,
+      body:
+        `${ref} paid:${payment.actually_paid} ${payment.pay_currency.toUpperCase()} order:${prior.currency} ` +
+        `outcome:${payment.outcome_amount} ${payment.outcome_currency.toUpperCase()}. ` +
+        "Ipns never settle a held donation, a later finished for this payment included: " +
+        "reconcile by hand against the NOWPayments dashboard, then settle or refund the donation " +
+        "(open holds: donations where held_at is set and status isn't settled).",
     });
     return;
   }

@@ -693,6 +693,56 @@ describe("nowpayments ipn settlement", () => {
     }
   );
 
+  it("marks a deposit in another asset as held on the donation", async () => {
+    await seed_donation();
+
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    const don = await donation_get(ORDER_ID);
+    expect(don!.hold?.asset).toBe("USDTERC20");
+    expect(don!.hold?.at).toBeTruthy();
+  });
+
+  it("alerts a held deposit once across redeliveries", async () => {
+    await seed_donation();
+    const held = payment({ pay_currency: "usdterc20", actually_paid: 50 });
+
+    await deliver(held);
+    const res = await deliver(held);
+
+    expect(res.status).toBe(200);
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+  });
+
+  // nowpayments' docs on how a processed wrong-asset deposit reports back were
+  // unreachable, so no later ipn settles a hold — the alert is the whole handoff
+  it("tells ops the held deposit settles only by hand", async () => {
+    await seed_donation();
+
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    expect((await donation_get(ORDER_ID))!.status).toBe("confirmed");
+    const [a] = send_alert_mock.mock.calls[0];
+    expect(a.body).toMatch(/never settle/i);
+    expect(a.body).toMatch(/reconcile by hand/i);
+    expect(a.body).toContain("held_at");
+    expect(a.body).toContain("outcome:990 USDC");
+  });
+
+  it("still alerts a deposit in another asset on a settled donation", async () => {
+    await seed_donation({ status: "settled" });
+
+    const res = await deliver(
+      payment({ pay_currency: "usdterc20", actually_paid: 50 })
+    );
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.hold).toBeUndefined();
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+    expect(send_alert_mock.mock.calls[0][0].body).toContain("prior:settled");
+  });
+
   // the estimate carries nowpayments' conversion spread; usdc is a dollar
   it.each(["usdc", "usdcmatic"])(
     "records a %s outcome and fee at a dollar a unit, whatever the live estimate says",
