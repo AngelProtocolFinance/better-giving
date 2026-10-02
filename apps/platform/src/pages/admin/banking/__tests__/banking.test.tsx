@@ -654,7 +654,7 @@ describe("delete", () => {
     );
     await screen.getByRole("link", { name: /delete/i }).click();
     await expect
-      .element(screen.getByText("Delete payout method", { exact: true }))
+      .element(screen.getByRole("dialog", { name: "Delete payout method" }))
       .toBeVisible();
     return screen;
   }

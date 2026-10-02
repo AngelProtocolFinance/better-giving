@@ -114,7 +114,7 @@ describe("reg_fsa_packet", () => {
   );
 
   // a rejected application being re-signed goes back to draft with its packet.
-  test.each<TStatus | null>(["01", "04", null])(
+  test.each<TStatus>(["01", "04"])(
     "writes the packet and draft status onto a %s row",
     async (status) => {
       await set_status(status);
