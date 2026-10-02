@@ -254,8 +254,9 @@ type Fields = {
   net?: string;
   reference?: string;
   for_donation_id?: string;
-  /** the confirm's idempotency key; a fresh one per call unless named */
-  key?: string;
+  /** the confirm's idempotency key; a fresh one per call unless named, and
+   * left off the body when null, as a page loaded before the key existed posts */
+  key?: string | null;
 };
 
 function settle(f: Fields) {
@@ -269,8 +270,8 @@ function settle(f: Fields) {
     ...(f.donor_name !== undefined ? { donor_name: f.donor_name } : {}),
     ...(f.donor_email !== undefined ? { donor_email: f.donor_email } : {}),
     ...(f.for_donation_id ? { for_donation_id: f.for_donation_id } : {}),
-    idempotency_key: f.key ?? crypto.randomUUID(),
   });
+  if (f.key !== null) body.set("idempotency_key", f.key ?? crypto.randomUUID());
   const url = "http://localhost/platform/donation-settlements/create";
   return action({
     request: new Request(url, { method: "POST", body }),
@@ -905,7 +906,7 @@ describe("settlement create — a confirm sent twice", () => {
     ["daf", {}],
     ["match", { for_donation_id: "" }],
   ] as const)(
-    "a %s replayed under the same key settles once, and says it already did",
+    "a %s replayed under the same key settles once, and reports the success it already had",
     async (from, extra) => {
       const key = crypto.randomUUID();
       const first = await settle({ from, key, ...extra });
@@ -915,10 +916,9 @@ describe("settlement create — a confirm sent twice", () => {
 
       const replay = await settle({ from, key, ...extra });
 
-      expect(replay).toEqual({
-        ok: false,
-        error: "This settlement was already recorded",
-      });
+      // ok, not a refusal: the money committed, and an admin told otherwise
+      // goes back and previews again — under a new key, settling it twice
+      expect(replay).toEqual({ ok: true, replayed: true });
       expect(await dons()).toHaveLength(1);
       expect(await sttl_rows()).toHaveLength(1);
       expect(await bal_tx_rows()).toEqual(bal_after_first);
@@ -937,10 +937,7 @@ describe("settlement create — a confirm sent twice", () => {
 
     const replay = await settle({ from: "match", for_donation_id: gift, key });
 
-    expect(replay).toEqual({
-      ok: false,
-      error: "This settlement was already recorded",
-    });
+    expect(replay).toEqual({ ok: true, replayed: true });
     expect(send_email).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
     expect(await sttl_rows()).toHaveLength(1);
@@ -959,6 +956,16 @@ describe("settlement create — a confirm sent twice", () => {
 
     expect(res.ok).toBe(false);
     expect(!res.ok && res.error).toMatch(/^idempotency_key: /);
+    expect(await dons()).toHaveLength(0);
+  });
+
+  test("a page from before the key existed is told to reload, and writes nothing", async () => {
+    const res = await settle({ key: null });
+
+    expect(res).toEqual({
+      ok: false,
+      error: "This page is out of date — reload it and confirm again.",
+    });
     expect(await dons()).toHaveLength(0);
   });
 });

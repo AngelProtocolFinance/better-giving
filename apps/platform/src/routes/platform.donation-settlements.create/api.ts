@@ -34,6 +34,13 @@ const text = (fallback: string) =>
     fallback
   );
 
+/**
+ * the one refusal that names no field: a page loaded before the key existed
+ * posts none, and the fix is the reload, not a box to correct
+ */
+const stale_page_msg =
+  "This page is out of date — reload it and confirm again.";
+
 const schema = v.object({
   from: v.optional(v.picklist(["cheque", "daf", "match"]), "cheque"),
   /**
@@ -67,8 +74,17 @@ const schema = v.object({
    * minted by the client when the preview opens, so a confirm whose response
    * was lost replays under the same key. the settlement's ids derive from it,
    * and the donation's primary key refuses the second write.
+   *
+   * required, with no server-minted fallback: a key minted here is fresh on
+   * every post, so the page that lost its response would settle twice. the
+   * absent key folds to "" only so the refusal reads as `stale_page_msg` —
+   * an object's missing-key issue carries the object's message, not this one's.
    */
-  idempotency_key: v.pipe(v.string(), v.uuid()),
+  idempotency_key: v.pipe(
+    v.optional(v.string(), ""),
+    v.nonEmpty(stale_page_msg),
+    v.uuid()
+  ),
 });
 
 /**
@@ -316,6 +332,11 @@ export const action = async ({ request }: Route.ActionArgs) => {
   const fd = await request.formData();
   const result = v.safeParse(schema, Object.fromEntries(fd));
   if (!result.success) {
+    // outranks every field: nothing on a stale page is worth correcting, and the
+    // pipe goes on to report the blank key as a bad uuid beside it
+    if (result.issues.some((i) => i.message === stale_page_msg)) {
+      return { ok: false as const, error: stale_page_msg };
+    }
     // named, not "Invalid input": the submit happens from the preview step where
     // nothing is editable, so the field is the only thing that tells an admin
     // holding a cheque which box to go back and fix
@@ -484,13 +505,12 @@ export const action = async ({ request }: Route.ActionArgs) => {
       return { matched: row, msgs };
     }));
   } catch (err) {
-    // the employer's row is the transaction's first write and is keyed by the
-    // idempotency key, so a replay fails there and rolls back before any credit
+    // the parent donation row is the transaction's first write and is keyed by
+    // the idempotency key, so a replay fails there and rolls back before any
+    // credit. reported as the success it already was: a refusal sends the admin
+    // back to preview again under a new key, which settles the money twice.
     if (is_unique_violation(err, "donations_pkey")) {
-      return {
-        ok: false as const,
-        error: "This settlement was already recorded",
-      };
+      return { ok: true as const, replayed: true as const };
     }
     if (!(err instanceof MatchRefusedError)) throw err;
     // the claim gates on two things and says which by way of the row it left
