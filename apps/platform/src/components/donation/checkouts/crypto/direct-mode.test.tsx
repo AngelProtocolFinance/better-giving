@@ -146,7 +146,7 @@ describe("crypto direct mode: the donor says they've paid", () => {
     expect(screen.getByText(/send 0\.80+\s/).query()).toBeNull();
   });
 
-  test("a server failure shows the generic message, not a blank frame", async () => {
+  test("a server failure asks the donor to try again later, not a blank frame", async () => {
     mswWorker.use(
       http.post(href("/api/donation-intents"), () =>
         HttpResponse.text("boom", { status: 500 })
@@ -164,11 +164,20 @@ describe("crypto direct mode: the donor says they've paid", () => {
     );
     const screen = await render(<Stub />);
 
-    // a 5xx body is a framework error page, so the donor gets the fallback —
-    // never the server's own text
+    // a 5xx body is a framework error page, so the donor gets the try-later
+    // line — never the server's own text
     await expect
-      .element(screen.getByText(/failed to load donation address/i))
+      .element(
+        screen.getByText(
+          "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
+          { exact: true }
+        )
+      )
       .toBeVisible();
+    expect(screen.getByText(/boom/).query()).toBeNull();
+    expect(
+      screen.getByText(/failed to load donation address/i).query()
+    ).toBeNull();
     await expect
       .element(screen.getByRole("button", { name: /completed the payment/i }))
       .toBeDisabled();

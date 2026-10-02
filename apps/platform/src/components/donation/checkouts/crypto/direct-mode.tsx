@@ -35,9 +35,22 @@ const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   // there.
   //
   // the route's refusals are donor-facing text — most usefully the token's
-  // actual minimum. anything else (a 5xx error page, an edge block) keeps the
-  // generic message.
+  // actual minimum. a 5xx asks the donor to try again later; anything else
+  // (an edge block, a malformed body) keeps the generic message.
   return json_ok<Payment>(res);
+};
+
+// the intent route's `try_later` wording (routes/api.donation-intents/crypto);
+// json_ok never reads a 5xx body, so the client spells it out
+const TRY_LATER =
+  "We couldn't reach our crypto payment processor. Please try again in a few minutes.";
+
+const error_text = (error: unknown) => {
+  if (error instanceof HttpError) {
+    if (error.refused) return error.message;
+    if (error.status >= 500) return TRY_LATER;
+  }
+  return "Failed to load donation address";
 };
 
 /**
@@ -129,11 +142,7 @@ export function DirectMode({
       {isLoading ? (
         <ContentLoader className="size-48 rounded" />
       ) : error || !data ? (
-        <ErrorStatus>
-          {error instanceof HttpError && error.refused
-            ? error.message
-            : "Failed to load donation address"}
-        </ErrorStatus>
+        <ErrorStatus>{error_text(error)}</ErrorStatus>
       ) : (
         <PayQr
           token={fv.token}

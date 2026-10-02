@@ -38,6 +38,11 @@ interface IProps {
 
 function Content(props: IProps) {
   const nav = useNavigation();
+  const busy = nav.state !== "idle";
+  // aria-disabled only blocks the pointer; Enter on a focused link still navigates
+  const hold = (e: { preventDefault(): void }) => {
+    if (busy) e.preventDefault();
+  };
   const {
     handleSubmit,
     register,
@@ -49,7 +54,7 @@ function Content(props: IProps) {
   return (
     <RmxForm
       method="POST"
-      disabled={nav.state !== "idle"}
+      disabled={busy}
       busy={nav.state === "submitting"}
       onSubmit={handleSubmit}
     >
@@ -60,7 +65,8 @@ function Content(props: IProps) {
         <Link
           to=".."
           aria-label="Close"
-          aria-disabled={nav.state !== "idle"}
+          aria-disabled={busy}
+          onClick={hold}
           className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X className="icon-2xl" />
@@ -77,7 +83,12 @@ function Content(props: IProps) {
       </div>
 
       <Actions band classes="mt-4">
-        <Link to=".." className="btn-secondary btn">
+        <Link
+          to=".."
+          aria-disabled={busy}
+          onClick={hold}
+          className="btn-secondary btn"
+        >
           Cancel
         </Link>
         <button disabled={!isDirty} type="submit" className="btn btn-primary">

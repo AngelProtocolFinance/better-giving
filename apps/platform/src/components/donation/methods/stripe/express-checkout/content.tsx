@@ -199,21 +199,20 @@ export function Content({
         // and no donor action is waiting on an answer.
         //
         // two unrelated failures arrive here. `api_connection_error` is
-        // stripe's own code for "the browser could not reach us" — the donor's
-        // network, nothing to fix. anything else is the request we sent, and an
-        // amount stripe rejects for the currency lands here too, so it has to
-        // stay loud.
+        // stripe's error `type` for "the browser could not reach us" — the
+        // donor's network, nothing to fix. anything else is the request we
+        // sent, and an amount stripe rejects for the currency lands here too,
+        // so it has to stay loud.
         //
         // stripe localises `message` to the donor's browser and the tracker
         // groups on the message, so the stable type/code is what gets reported
         // and the localised error rides along as context.
-        const { type: kind, code } =
-          (ev.error as { type?: string; code?: string } | undefined) ?? {};
+        const { type: kind, code } = ev.error;
         const report =
           kind === "api_connection_error" ? report_degraded : report_error;
         report(
           new Error(
-            `stripe express checkout failed to load: ${kind ?? "unknown"}${code ? ` (${code})` : ""}`
+            `stripe express checkout failed to load: ${kind}${code ? ` (${code})` : ""}`
           ),
           { stripe_error: ev.error }
         );

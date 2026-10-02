@@ -56,14 +56,14 @@ const redirect_mock = vi.hoisted(() => vi.fn());
 vi.mock("../../../common/redirect", () => ({
   use_donation_redirect: () => redirect_mock,
 }));
-const reported = vi.hoisted(() => [] as [string, unknown][]);
+const reported = vi.hoisted(() => [] as [string, unknown, unknown][]);
 vi.mock("#/errors/report", async (orig) => ({
   ...(await orig<typeof import("#/errors/report")>()),
-  report_error: (e: unknown) => {
-    reported.push(["error", e]);
+  report_error: (e: unknown, ctx?: unknown) => {
+    reported.push(["error", e, ctx]);
   },
-  report_degraded: (e: unknown) => {
-    reported.push(["degraded", e]);
+  report_degraded: (e: unknown, ctx?: unknown) => {
+    reported.push(["degraded", e, ctx]);
   },
 }));
 const stripe = vi.hoisted(() => ({ value: null as any }));
@@ -176,7 +176,7 @@ describe("stripe express: an element that reports a load error", () => {
   });
 
   test("a donor who can't reach stripe is not an application defect", async () => {
-    // stripe's own code for it. nothing in this repo is broken, and these
+    // stripe's own error type for it. nothing in this repo is broken, and these
     // outnumber real defects enough to bury them if they page the same way
     el.load_error = true;
     el.error = { type: "api_connection_error", message: "network" };
@@ -199,15 +199,17 @@ describe("stripe express: an element that reports a load error", () => {
 
   test("one stripe error reports the same way in every donor language", async () => {
     // stripe localises `message` to the donor's browser, and the tracker
-    // groups on the reported message — so the localised text can't be it
+    // groups on the reported message — so the localised text can't be it,
+    // and rides along as context instead
     const reported_for = async (message: string) => {
       el.load_error = true;
       el.error = { type: "api_connection_error", message };
       const Stub = mount({ on_error: vi.fn(), on_unavailable: vi.fn() });
       const screen = await render(<Stub />);
       await vi.waitFor(() => expect(reported).toHaveLength(1));
-      const [, e] = reported.pop()!;
+      const [, e, ctx] = reported.pop()!;
       await screen.unmount();
+      expect(ctx).toMatchObject({ stripe_error: { message } });
       return e;
     };
     const en = await reported_for("We are experiencing issues connecting");
