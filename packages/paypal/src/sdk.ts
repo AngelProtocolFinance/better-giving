@@ -56,7 +56,11 @@ export class PayPalApiError extends Error {
 /**
  * bounds every call: a hung one otherwise holds its caller until the function
  * is killed. a timed-out call that carried a `PayPal-Request-Id` is safe to
- * retry under the same one
+ * retry under the same one within the API's key window — orders: 6 h,
+ * subscriptions: 72 h. past it the key is forgotten and the call runs again,
+ * so a late retry is safe only where its caller re-reads state first —
+ * platform's fallback capture captures only an APPROVED order and takes
+ * ORDER_ALREADY_CAPTURED as done
  */
 const TIMEOUT_MS = 30_000;
 

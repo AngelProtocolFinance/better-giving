@@ -1312,9 +1312,11 @@ describe("subscription lifecycle", () => {
     }
   );
 
+  // a suspension can still resume, so it records no end reason
   it.each([
     ["BILLING.SUBSCRIPTION.CANCELLED", "CANCELLED", "cancelled"],
     ["BILLING.SUBSCRIPTION.EXPIRED", "EXPIRED", "expired"],
+    ["BILLING.SUBSCRIPTION.SUSPENDED", "SUSPENDED", null],
   ])(
     "records why paypal ended a subscription on %s",
     async (event_type, status, reason) => {
@@ -1481,9 +1483,9 @@ describe("PAYMENT.CAPTURE.DENIED", () => {
     expect(notice.payload.alert.body).toContain(CAPTURE_ID);
   });
 
-  // the queue drops a second message under a dedupe key it already holds, so
-  // two deliveries that both read the donation as awaiting capture alert once
-  it("alerts ops once when two deliveries race", async () => {
+  // the queue drops a second message under a dedupe key it already holds;
+  // that drop is the queue's and is mocked here, so this pins the key alone
+  it("keys every delivery's denial notice to the capture", async () => {
     await seed_donation();
 
     const res = await Promise.all([deliver(denied_ev()), deliver(denied_ev())]);

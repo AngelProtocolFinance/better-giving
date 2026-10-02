@@ -34,13 +34,13 @@ vi.mock("$/pg/queries/donation", () => ({
 
 const { paypal_intent } = await import("./index");
 
-const ctx = (patch: Partial<Ctx["intent"]> = {}) =>
+const ctx = (patch: Partial<Ctx["intent"]> = {}, via_extra = "") =>
   ({
     to: { to_id: "1", to_type: "npo", to_name: "ACME" },
     from: { from_email: "a@b.co" },
     donor: { email: "a@b.co" },
     via: "paypal",
-    via_extra: "",
+    via_extra,
     intent: {
       amount: { base: 25, tip: 0, fee_allowance: 0 },
       currency: "USD",
@@ -96,6 +96,27 @@ describe("paypal_intent minimum", () => {
     expect(res.headers.get("x-refusal")).toBe("1");
     await expect(res.text()).resolves.toBe(
       "The minimum PayPal donation is 2 USD."
+    );
+  });
+});
+
+describe("paypal_intent refusals name the method", () => {
+  it.each([
+    ["", "PayPal"],
+    ["venmo", "Venmo"],
+  ])("via_extra %j: %s", async (via_extra, method) => {
+    const currency = (await paypal_intent(
+      ctx({ currency: "NGN" }, via_extra)
+    )) as Response;
+    const minimum = (await paypal_intent(
+      ctx({ amount: { base: 1.5, tip: 0, fee_allowance: 0 } }, via_extra)
+    )) as Response;
+
+    await expect(currency.text()).resolves.toBe(
+      `${method} doesn't accept NGN. Try another payment method.`
+    );
+    await expect(minimum.text()).resolves.toBe(
+      `The minimum ${method} donation is 2 USD.`
     );
   });
 });

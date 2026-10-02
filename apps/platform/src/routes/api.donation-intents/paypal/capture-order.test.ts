@@ -510,3 +510,17 @@ describe("capture_order when paypal refuses the payer's instrument", () => {
     expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 });
+
+// the sdk bounds every call at 30s; paypal may have captured before the
+// answer was lost, so this must not read as a decline
+describe("capture_order when paypal's capture call times out", () => {
+  it("rejects with the timeout, writing nothing", async () => {
+    const timeout = new DOMException("signal timed out", "TimeoutError");
+    capture_order_mock.mockRejectedValue(timeout);
+
+    await expect(capture_order({ order_id: "o30", don_id: "d1" })).rejects.toBe(
+      timeout
+    );
+    expect(donation_update_mock).not.toHaveBeenCalled();
+  });
+});
