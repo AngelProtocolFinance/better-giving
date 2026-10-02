@@ -15,8 +15,9 @@ type Intent = Stripe.PaymentIntent | Stripe.SetupIntent;
 const AWAITING_PAYMENT = new Set<IDonation["status"]>(["created", "intent"]);
 
 /**
- * Payment Intent - Updates intent transaction with deposit verification URL, status is still "intent"
- * Setup Intent   - Creates an "intent" donation record with deposit verification URL
+ * Payment and Setup Intent alike - moves the order's existing donation to "intent"
+ * with the deposit verification URL and emails the donor that link; throws if the
+ * donation is missing, skips one already past awaiting payment
  */
 export async function handle_intent_requires_action(intent: Intent) {
   if (!intent.metadata) {

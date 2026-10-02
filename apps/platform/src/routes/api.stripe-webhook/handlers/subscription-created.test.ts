@@ -51,41 +51,31 @@ beforeEach(() => {
 
 const written = () => sub_put_mock.mock.calls[0]![1];
 
-describe("customer.subscription.created → every status the handler branches on", () => {
-  it.each(["unpaid", "canceled", "incomplete_expired"])(
-    "writes a %s sub as inactive",
-    async (status) => {
-      sub_retrieve_mock.mockResolvedValue(stripe_sub(status));
+// subscriptions.create (setup-intent-succeeded.ts) sets no trial, so neither `trialing`
+// nor `paused` (only a trial ending without a payment method pauses) reaches this handler
+describe("customer.subscription.created → subscription row", () => {
+  it.each([
+    { live: "active", status: "active", reason: undefined },
+    { live: "past_due", status: "active", reason: undefined },
+    { live: "unpaid", status: "inactive", reason: undefined },
+    { live: "canceled", status: "inactive", reason: undefined },
+    { live: "incomplete_expired", status: "inactive", reason: undefined },
+    {
+      live: "incomplete",
+      status: "inactive",
+      reason: FIRST_PAYMENT_INCOMPLETE,
+    },
+  ])(
+    "writes a sub stripe reads back as $live as $status, whatever the event's copy says",
+    async ({ live, status, reason }) => {
+      sub_retrieve_mock.mockResolvedValue(stripe_sub(live));
 
       await handle_subscription_created({
-        object: stripe_sub("active"),
+        object: stripe_sub(status === "active" ? "canceled" : "active"),
       } as any);
 
-      expect(written().status).toBe("inactive");
-      expect(written().status_cancel_reason).toBeUndefined();
-    }
-  );
-
-  it("marks an incomplete sub inactive with the first-payment marker the webhook reactivates on", async () => {
-    sub_retrieve_mock.mockResolvedValue(stripe_sub("incomplete"));
-
-    await handle_subscription_created({ object: stripe_sub("active") } as any);
-
-    expect(written().status).toBe("inactive");
-    expect(written().status_cancel_reason).toBe(FIRST_PAYMENT_INCOMPLETE);
-  });
-
-  it.each(["active", "trialing", "past_due", "paused"])(
-    "writes a %s sub as active, since it can still recover",
-    async (status) => {
-      sub_retrieve_mock.mockResolvedValue(stripe_sub(status));
-
-      await handle_subscription_created({
-        object: stripe_sub("canceled"),
-      } as any);
-
-      expect(written().status).toBe("active");
-      expect(written().status_cancel_reason).toBeUndefined();
+      expect(written().status).toBe(status);
+      expect(written().status_cancel_reason).toBe(reason);
     }
   );
 
@@ -97,33 +87,5 @@ describe("customer.subscription.created → every status the handler branches on
       handle_subscription_created({ object: stripe_sub("active") } as any)
     ).rejects.toThrow(/Order not found for id:order-1/);
     expect(sub_put_mock).not.toHaveBeenCalled();
-  });
-});
-
-describe("customer.subscription.created → subscription row", () => {
-  it("writes a sub stripe has already ended as inactive, whatever the event's copy says", async () => {
-    sub_retrieve_mock.mockResolvedValue(stripe_sub("canceled"));
-
-    await handle_subscription_created({ object: stripe_sub("active") } as any);
-
-    expect(written().status).toBe("inactive");
-  });
-
-  it("writes a sub whose first charge hasn't landed (incomplete) as inactive", async () => {
-    sub_retrieve_mock.mockResolvedValue(stripe_sub("incomplete"));
-
-    await handle_subscription_created({
-      object: stripe_sub("incomplete"),
-    } as any);
-
-    expect(written().status).toBe("inactive");
-  });
-
-  it("writes a sub whose first charge landed as active", async () => {
-    sub_retrieve_mock.mockResolvedValue(stripe_sub("active"));
-
-    await handle_subscription_created({ object: stripe_sub("active") } as any);
-
-    expect(written().status).toBe("active");
   });
 });

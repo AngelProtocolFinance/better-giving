@@ -354,7 +354,7 @@ describe("a donor's cancel the provider refuses for good", () => {
     stripe_cancel_mock.mockRejectedValue(
       new Stripe.errors.StripeInvalidRequestError({
         type: "invalid_request_error",
-        code: "parameter_invalid",
+        code: "status_transition_invalid",
         statusCode: 400,
         message: "cannot cancel",
       })
