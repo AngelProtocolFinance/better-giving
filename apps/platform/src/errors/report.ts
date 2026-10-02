@@ -1,9 +1,12 @@
 import * as Sentry from "@sentry/react-router";
 import { DrizzleQueryError } from "drizzle-orm/errors";
+import { HttpError } from "@/helpers/https";
 
-// user errors (4xx Responses, thrown data() with 4xx status) are expected and
-// must not page the team. only unexpected exceptions / 5xx bubble to sentry.
+// user errors (4xx Responses, thrown data() with 4xx status, a refused
+// HttpError) are expected and must not page the team. everything else reaches
+// sentry — an unrefused HttpError at any status included.
 function is_user_error(err: unknown): boolean {
+  if (err instanceof HttpError) return err.refused;
   if (err instanceof Response) return err.status >= 400 && err.status < 500;
   if (err && typeof err === "object" && "status" in err) {
     const s = (err as { status: unknown }).status;

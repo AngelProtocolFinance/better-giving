@@ -13,6 +13,7 @@ describe("json_ok", () => {
     expect(err).toBeInstanceOf(HttpError);
     expect(err.status).toBe(400);
     expect(err.message).toBe("The minimum donation is $2.");
+    expect(err.refused).toBe(true);
   });
 
   test("a refusal keeps the status it was given", async () => {
@@ -28,7 +29,7 @@ describe("json_ok", () => {
     ["json", "application/json", '{"error":"rate limited"}'],
     ["unmarked plain text", "text/plain", "order_id: Invalid key"],
   ])(
-    "4xx with %s throws with the status and no message",
+    "4xx with %s throws unrefused, its message naming only the status",
     async (_, type, body) => {
       const res = new Response(body, {
         status: 429,
@@ -37,25 +38,36 @@ describe("json_ok", () => {
       const err = await json_ok<never>(res).catch((e: HttpError) => e);
       expect(err).toBeInstanceOf(HttpError);
       expect(err.status).toBe(429);
-      expect(err.message).toBe("");
+      expect(err.refused).toBe(false);
+      expect(err.message).toBe("HTTP 429");
     }
   );
 
-  test("5xx throws with no message even when marked a refusal", async () => {
+  test("5xx throws unrefused even when marked a refusal", async () => {
     const err = await json_ok<never>(resp.refuse("boom", 500)).catch(
       (e: HttpError) => e
     );
     expect(err.status).toBe(500);
-    expect(err.message).toBe("");
+    expect(err.refused).toBe(false);
+    expect(err.message).toBe("HTTP 500");
   });
 
-  test("5xx throws with the status and no message", async () => {
+  test("a marked refusal with an empty body throws unrefused", async () => {
+    const err = await json_ok<never>(resp.refuse("  ")).catch(
+      (e: HttpError) => e
+    );
+    expect(err.refused).toBe(false);
+    expect(err.message).toBe("HTTP 400");
+  });
+
+  test("5xx throws with the status naming it", async () => {
     const res = new Response("<!doctype html><h1>Application Error</h1>", {
       status: 500,
     });
     const err = await json_ok<never>(res).catch((e: HttpError) => e);
     expect(err).toBeInstanceOf(HttpError);
     expect(err.status).toBe(500);
-    expect(err.message).toBe("");
+    expect(err.name).toBe("HttpError");
+    expect(err.message).toBe("HTTP 500");
   });
 });

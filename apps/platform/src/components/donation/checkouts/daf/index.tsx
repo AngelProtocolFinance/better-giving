@@ -274,7 +274,7 @@ export function ChariotCheckout(props: DafDonationDetails) {
       } catch (err) {
         if (
           err instanceof HttpError &&
-          err.message &&
+          err.refused &&
           PRE_GRANT_REFUSALS.has(err.status)
         ) {
           set_sent(false);

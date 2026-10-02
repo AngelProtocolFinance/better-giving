@@ -272,7 +272,7 @@ export function Paypal({
       const session_error_for = (intent_promise: Promise<unknown>) => {
         let reported = false;
         intent_promise.catch((err) => {
-          if (!(err instanceof HttpError && err.message)) return;
+          if (!(err instanceof HttpError && err.refused)) return;
           reported = true;
           on_error_ref.current(err.message);
         });

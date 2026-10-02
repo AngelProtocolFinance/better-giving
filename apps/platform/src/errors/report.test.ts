@@ -135,9 +135,20 @@ describe("report_error", () => {
     expect(capture_exception).not.toHaveBeenCalled();
   });
 
-  test("reports a 5xx HttpError", () => {
-    report_error(new HttpError(500, ""));
+  // every 5xx titled blank grouped into one tracker issue
+  test("reports a 5xx HttpError titled by its status", () => {
+    report_error(new HttpError(502));
     expect(capture_exception).toHaveBeenCalledOnce();
+    expect(sent_message()).toBe("HTTP 502");
+  });
+
+  // a 4xx without the refusal marker came from something in front of the route
+  // (a waf block, a rate limit) or a route answer nobody worded for the donor
+  test("reports an unmarked 4xx HttpError as a bug", () => {
+    report_error(new HttpError(403));
+    expect(capture_exception).toHaveBeenCalledOnce();
+    expect(level()).toBe("error");
+    expect(report()).toBe("bug");
   });
 
   // chariot's 4xx is our request refused (a bad key, a grant already

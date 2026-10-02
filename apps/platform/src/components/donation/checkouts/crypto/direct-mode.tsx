@@ -103,8 +103,8 @@ export function DirectMode({
 
   const { data, isLoading, error } = use_swr(intent, fetcher);
 
-  // report_error drops anything carrying a 4xx status, so the deliberate
-  // below-minimum answer never pages; a 5xx or a malformed body does
+  // report_error drops a refused HttpError, so the deliberate below-minimum
+  // answer never pages; any other non-ok answer or a malformed body does
   useEffect(() => {
     if (error) report_error(error);
   }, [error]);
@@ -130,7 +130,7 @@ export function DirectMode({
         <ContentLoader className="size-48 rounded" />
       ) : error || !data ? (
         <ErrorStatus>
-          {error instanceof HttpError && error.message
+          {error instanceof HttpError && error.refused
             ? error.message
             : "Failed to load donation address"}
         </ErrorStatus>
