@@ -40,20 +40,21 @@ function normalize(err: unknown): unknown {
  * plain http, and stripe's availability probe throws it inside a promise nobody
  * owns — so it lands in the unhandled-rejection sink. nothing of ours is broken:
  * apple pay simply doesn't render and every other method works, and http
- * embedders are not a supported configuration.
+ * embedders are not a supported configuration. webkit refuses the same way, in
+ * other words, when the https embedder is a different origin from the form.
  *
  * both halves are required. the name alone is a generic dom error and keying on
  * it would bury real defects. read as plain properties rather than
  * `instanceof DOMException` because the rejection crosses the embedder's realm,
  * where instanceof fails — the same reasoning `normalize` already carries.
  */
-function is_apple_pay_insecure_parent(err: unknown): boolean {
+function is_apple_pay_embed_refusal(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const { name, message } = err as { name?: unknown; message?: unknown };
   return (
     name === "InvalidAccessError" &&
     typeof message === "string" &&
-    /apple pay session from a document with an insecure parent frame/i.test(
+    /apple pay session from a document with an? (insecure parent frame|different security origin than its top-level frame)/i.test(
       message
     )
   );
@@ -156,7 +157,7 @@ export function report_degraded(
  * known third-party noise, not a filter over our own bugs.
  */
 export function report_unhandled(reason: unknown): void {
-  if (is_apple_pay_insecure_parent(reason)) {
+  if (is_apple_pay_embed_refusal(reason)) {
     report_degraded(reason);
     return;
   }

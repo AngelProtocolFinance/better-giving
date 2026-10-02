@@ -26,6 +26,14 @@ const insecure_parent = {
     "Trying to start an Apple Pay session from a document with an insecure parent frame.",
 };
 
+// webkit's wording for the same refusal on an https embed of another origin —
+// the supported cross-origin embed, where the probe also can't run
+const cross_origin = {
+  name: "InvalidAccessError",
+  message:
+    "Trying to start an Apple Pay session from a document with an different security origin than its top-level frame.",
+};
+
 describe("report_unhandled", () => {
   beforeEach(() => {
     capture_exception.mockClear();
@@ -35,6 +43,12 @@ describe("report_unhandled", () => {
 
   test("degrades safari's insecure-parent apple pay rejection", () => {
     report_unhandled(insecure_parent);
+    expect(level()).toBe("warning");
+    expect(report()).toBe("degraded");
+  });
+
+  test("degrades webkit's cross-origin apple pay rejection", () => {
+    report_unhandled(cross_origin);
     expect(level()).toBe("warning");
     expect(report()).toBe("degraded");
   });
