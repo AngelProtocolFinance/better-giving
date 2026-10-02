@@ -54,6 +54,10 @@ export const dists = pgTable(
       "completed" | "failed" | "loss"
     >(),
     refund_error: text("refund_error"),
+    // the npo notice (country metrics, npo mail, zapier hooks) runs under the
+    // same two-stamp lease as a donation's receipt — see `claim_dist_notice`
+    notice_claimed_at: timestamptz("notice_claimed_at"),
+    notice_sent_at: timestamptz("notice_sent_at"),
   },
   (t) => [
     check(

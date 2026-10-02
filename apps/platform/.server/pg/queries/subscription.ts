@@ -26,8 +26,9 @@ export async function sub_get(id: string): Promise<ISub | undefined> {
   return row;
 }
 
+/** the donor's subscriptions; `from_id` keeps the case checkout sent, so the match ignores it */
 export async function sub_user_list(
-  user_id: string,
+  email: string,
   status?: TStatus
 ): Promise<ISub[]> {
   const rows = await db
@@ -35,7 +36,8 @@ export async function sub_user_list(
     .from(subscriptions)
     .where(
       and(
-        eq(subscriptions.from_id, user_id),
+        // the expression subscriptions_from_id_lower_status_idx is built on
+        sql`lower(${subscriptions.from_id}) = lower(${email})`,
         status ? eq(subscriptions.status, status) : undefined
       )
     )

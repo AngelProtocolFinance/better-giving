@@ -1,4 +1,15 @@
-import { and, desc, eq, gte, isNotNull, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import type { IBalanceTx } from "@/balance-txs";
 import type { IDonationsSearch, IPageOpts } from "@/donations";
 import type { IAddr } from "@/types/donation";
@@ -153,6 +164,69 @@ export async function dist_update(
   data: Partial<Omit<DistInsert, "id">>
 ) {
   await db.update(dists).set(data).where(eq(dists.id, id));
+}
+
+/** must outlast the don-dist handler's longest run, or a live holder loses its claim */
+export const DIST_NOTICE_LEASE_MS = 15 * 60 * 1000;
+
+/**
+ * claim the right to run this dist's npo notice — country metrics, the npo's
+ * mail, its zapier hooks. true only for the caller that takes it.
+ *
+ * the same two-stamp lease as `claim_receipt_send`: `notice_claimed_at` is
+ * taken here and expires after `DIST_NOTICE_LEASE_MS`, so a holder killed
+ * mid-run does not take the notice with it; `notice_sent_at` is written by
+ * `mark_dist_notice_sent` once the side effects are done and never expires.
+ *
+ * false for a dist no longer `settled` — the queue payload is a snapshot from
+ * before enqueue, and the row is what knows a refund landed since.
+ */
+export async function claim_dist_notice(
+  dist_id: string,
+  tx: DbOrTx = db
+): Promise<boolean> {
+  const now = new Date();
+  const stale = new Date(now.getTime() - DIST_NOTICE_LEASE_MS).toISOString();
+
+  const [row] = await tx
+    .update(dists)
+    .set({ notice_claimed_at: now.toISOString() })
+    .where(
+      and(
+        eq(dists.id, dist_id),
+        eq(dists.status, "settled"),
+        isNull(dists.notice_sent_at),
+        or(isNull(dists.notice_claimed_at), lt(dists.notice_claimed_at, stale))
+      )
+    )
+    .returning({ id: dists.id });
+  return !!row;
+}
+
+/**
+ * give back a notice claim whose side effects did not complete, so the
+ * redelivery can take it. the `notice_sent_at` guard keeps a late release from
+ * reopening a notice that already went out.
+ */
+export async function release_dist_notice(
+  dist_id: string,
+  tx: DbOrTx = db
+): Promise<void> {
+  await tx
+    .update(dists)
+    .set({ notice_claimed_at: null })
+    .where(and(eq(dists.id, dist_id), isNull(dists.notice_sent_at)));
+}
+
+/** record that this dist's notice is out; permanent, every later claim stops on it */
+export async function mark_dist_notice_sent(
+  dist_id: string,
+  tx: DbOrTx = db
+): Promise<void> {
+  await tx
+    .update(dists)
+    .set({ notice_sent_at: new Date().toISOString() })
+    .where(eq(dists.id, dist_id));
 }
 
 /** paginated donations received by npo */

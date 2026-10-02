@@ -58,6 +58,11 @@ export const donations = pgTable(
     // donor a second number for one gift.
     receipt_claimed_at: timestamptz("receipt_claimed_at"),
     receipt_sent_at: timestamptz("receipt_sent_at"),
+    // a deposit that arrived in an asset other than `currency` — set once, by
+    // `donation_hold_mark`, and never cleared, so a settled row still shows it
+    // was held
+    held_at: timestamptz("held_at"),
+    hold_asset: text("hold_asset"),
     created_at: timestamptz_now("created_at"),
     updated_at: timestamptz_now("updated_at"),
   },
@@ -65,6 +70,10 @@ export const donations = pgTable(
     check(
       "status_check",
       sql`${t.status} IN ('created','intent','expired','confirmed','settled','failed','refunded','refunded_loss','cancelled')`
+    ),
+    check(
+      "hold_pair_check",
+      sql`num_nonnulls(${t.held_at}, ${t.hold_asset}) IN (0, 2)`
     ),
     index("donations_form_id_idx").on(t.form_id),
     index("donations_subscription_id_idx").on(t.subscription_id),
@@ -123,7 +132,10 @@ export const donation_settlements = pgTable(
     date: timestamptz("date").notNull(),
     currency: text("currency").notNull(),
     net: numeric_as_number("net", { precision: 38, scale: 18 }).notNull(),
+    // the total of every party's fee; `fee_parts` splits it where the
+    // provider reports a breakdown (chariot's `feeType`)
     fee: numeric_as_number("fee", { precision: 38, scale: 18 }).notNull(),
+    fee_parts: jsonb("fee_parts").$type<Record<string, number> | null>(),
   },
   // the provider's charge id. what each handler does with it differs, and the
   // difference matters:
@@ -146,7 +158,13 @@ export const donation_settlements = pgTable(
   // (rebill, redeposit) is a new donation_id, so only this stops the second
   // one. it does not cover a redelivery settling the *same* row: that upsert's
   // arbiter is donation_id, so it updates in place rather than violating.
-  (t) => [uniqueIndex(DONATION_SETTLEMENTS_STTL_ID_IDX).on(t.sttl_id)]
+  (t) => [
+    uniqueIndex(DONATION_SETTLEMENTS_STTL_ID_IDX).on(t.sttl_id),
+    check(
+      "fee_parts_object_check",
+      sql`jsonb_typeof(${t.fee_parts}) = 'object'`
+    ),
+  ]
 );
 
 export const donation_tributes = pgTable("donation_tributes", {
