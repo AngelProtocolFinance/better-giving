@@ -43,10 +43,10 @@ describe("GET /api/npos/:id", () => {
       .returning();
 
     for (const id of [String(npo.id), "public-name"]) {
-      const res: Response = await loader({
+      const res = (await loader({
         request: new Request(`https://x/api/npos/${id}`),
         params: { id },
-      } as any);
+      } as any)) as Response;
       const body = await res.json();
 
       expect(res.status).toBe(200);
