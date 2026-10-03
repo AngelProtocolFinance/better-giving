@@ -158,8 +158,10 @@ jobs:
             exit 1
           fi
           for c in $newer; do
+            # the combined status keeps one entry per context, newest first;
+            # take only the first match so a repeated context can't yield two lines
             state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$c/status" \
-              --jq '.statuses[] | select(.context == env.VERCEL_CONTEXT) | .state')
+              --jq '[.statuses[] | select(.context == env.VERCEL_CONTEXT)] | first | .state // ""')
             case "$state" in
               pending | success)
                 echo "::error::superseded by $c ($VERCEL_CONTEXT: $state); not migrating production"
