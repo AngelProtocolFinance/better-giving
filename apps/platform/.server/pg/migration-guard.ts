@@ -6,7 +6,34 @@ const ALTER_TABLE = /^ALTER\s+TABLE\b/i;
  * migrates: it reads or writes the old shape. each runs against one statement,
  * comments and literals already blanked out.
  */
-const RULES: { kind: string; re: RegExp; scope?: RegExp }[] = [
+type Rule = { kind: string; scope?: RegExp } & (
+  | { re: RegExp }
+  | { match: (stmt: string) => boolean }
+);
+
+/** an ALTER TABLE's comma-separated subcommands, commas inside parens kept */
+function subcommands(stmt: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < stmt.length; i++) {
+    if (stmt[i] === "(") depth++;
+    else if (stmt[i] === ")") depth--;
+    else if (stmt[i] === "," && depth === 0) {
+      parts.push(stmt.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(stmt.slice(start));
+  return parts.map((p) => p.trim());
+}
+
+const ADD_COLUMN = new RegExp(
+  String.raw`\bADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?(?!(?:CONSTRAINT|PRIMARY|UNIQUE|CHECK|FOREIGN|EXCLUDE)\b)${IDENT}`,
+  "i"
+);
+
+const RULES: Rule[] = [
   { kind: "drop table", re: /^DROP\s+TABLE\b/i },
   {
     kind: "drop column",
@@ -33,6 +60,18 @@ const RULES: { kind: string; re: RegExp; scope?: RegExp }[] = [
     scope: ALTER_TABLE,
   },
   { kind: "set not null", re: /\bSET\s+NOT\s+NULL\b/i, scope: ALTER_TABLE },
+  {
+    kind: "add not null column without default",
+    // the old deployment's inserts omit the new column; GENERATED supplies a value
+    match: (stmt) =>
+      subcommands(stmt).some(
+        (sub) =>
+          ADD_COLUMN.test(sub) &&
+          /\bNOT\s+NULL\b/i.test(sub) &&
+          !/\b(?:DEFAULT|GENERATED)\b/i.test(sub)
+      ),
+    scope: ALTER_TABLE,
+  },
   // an old insert that omits the column relied on it
   { kind: "drop default", re: /\bDROP\s+DEFAULT\b/i, scope: ALTER_TABLE },
   // also how drizzle-kit removes an enum value: drop and recreate the type
@@ -129,10 +168,11 @@ export function check_migration(file: string, sql: string): string[] {
   if (CONTRACT_MARKER.test(sql)) return [];
   const errors: string[] = [];
   for (const stmt of statements(sql)) {
-    for (const { kind, re, scope } of RULES) {
-      if ((!scope || scope.test(stmt)) && re.test(stmt)) {
+    for (const rule of RULES) {
+      if (rule.scope && !rule.scope.test(stmt)) continue;
+      if ("re" in rule ? rule.re.test(stmt) : rule.match(stmt)) {
         errors.push(
-          `${file}: ${kind} without a "-- contract: <sha> <what it stopped reading>" line — ${stmt}`
+          `${file}: ${rule.kind} without a "-- contract: <sha> <what it stopped reading>" line — ${stmt}`
         );
       }
     }

@@ -107,6 +107,27 @@ describe("check_migration", () => {
     expect(error).toContain(kind);
   });
 
+  test.each([
+    'ALTER TABLE "npos" ADD COLUMN "tier" text NOT NULL;',
+    'ALTER TABLE "npos" ADD "tier" text NOT NULL;',
+    'ALTER TABLE "npos" ADD COLUMN "x" text DEFAULT \'a\', ADD COLUMN "tier" integer NOT NULL;',
+  ])("a NOT NULL column added without a default fails: %s", (stmt) => {
+    const errors = check_migration("0046_x.sql", stmt);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("add not null column without default");
+  });
+
+  test.each([
+    'ALTER TABLE "npos" ADD COLUMN "tier" text DEFAULT \'basic\' NOT NULL;',
+    'ALTER TABLE "npos" ADD COLUMN "tier" text NOT NULL DEFAULT \'basic\';',
+    'ALTER TABLE "npos" ADD COLUMN "tier" text;',
+    'ALTER TABLE "npos" ADD COLUMN "n" integer GENERATED ALWAYS AS IDENTITY NOT NULL;',
+    'ALTER TABLE "npos" ADD CONSTRAINT "npos_t_nn" CHECK ("t" IS NOT NULL) NOT VALID;',
+    'CREATE TABLE "tiers" ("id" text PRIMARY KEY NOT NULL, "name" text NOT NULL);',
+  ])("an added column old inserts can omit passes: %s", (stmt) => {
+    expect(check_migration("0046_x.sql", stmt)).toEqual([]);
+  });
+
   test("a migration numbered 0045 or below is grandfathered", () => {
     const sql = 'ALTER TABLE "npos" DROP COLUMN "claimed";';
     expect(check_migration("0038_drop_claim.sql", sql)).toEqual([]);
