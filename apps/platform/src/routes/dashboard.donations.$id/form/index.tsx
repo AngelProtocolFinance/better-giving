@@ -1,6 +1,6 @@
 import { ExtLink, Field, Select } from "@better-giving/ui";
 import { useController } from "react-hook-form";
-import { useFetcher, useParams } from "react-router";
+import { type FetcherWithComponents, useParams } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import { CountryCombo } from "#/components/country-combo";
 import { PRIVACY_POLICY, TERMS_OF_USE_DONOR } from "#/constants/urls";
@@ -14,10 +14,10 @@ export const form_style = "w-full p-3";
 interface IForm {
   classes?: string;
   user: KycLoaderData;
+  fetcher: FetcherWithComponents<unknown>;
 }
-export function Form({ classes = "", user }: IForm) {
+export function Form({ classes = "", user, fetcher }: IForm) {
   const params = useParams();
-  const fetcher = useFetcher();
 
   const init: FV = {
     name: { first: user.first_name, last: user.last_name },

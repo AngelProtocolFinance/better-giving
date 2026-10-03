@@ -4,11 +4,13 @@ import { ErrorBand } from "../components/error-band";
 import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
+import { APP_NAME, EMAILS } from "../constants";
 
 type Action = "rejected" | "approved" | "default" | "new";
 
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   action: Action;
   account_summary: string;
   rejection_reason?: string;
@@ -28,7 +30,7 @@ const subjects: Record<Action, string> = {
   default: `${APP_NAME}: Banking application received`,
 };
 
-function Jsx({ action, account_summary, rejection_reason }: IData) {
+function Jsx({ action, account_summary, rejection_reason, base_url }: IData) {
   return (
     <PublicLayout
       bottom_content={
@@ -40,7 +42,7 @@ function Jsx({ action, account_summary, rejection_reason }: IData) {
           }}
         >
           Getting too many emails?{" "}
-          <Link href={`${DAPP_URL}/dashboard/settings`}>
+          <Link href={`${base_url}/dashboard/settings`}>
             Manage your preferences
           </Link>
         </Text>

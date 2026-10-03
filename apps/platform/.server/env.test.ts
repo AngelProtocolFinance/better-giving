@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { OPTIONAL_KEYS, SERVER_KEYS } from "@/env";
+import { ALCHEMY_CHAINS } from "./alchemy-webhook/types";
 
 const load = async (o: Record<string, string>) => {
   for (const [k, v] of Object.entries(o)) vi.stubEnv(k, v);
@@ -36,5 +38,34 @@ describe("env: nowpayments host", () => {
 
   it("a missing BASE_URL refuses to boot", async () => {
     await expect(load({ BASE_URL: "" })).rejects.toThrow(/BASE_URL/);
+  });
+});
+
+describe("env: BASE_URL", () => {
+  it.each([
+    ["https://better.giving/", "https://better.giving"],
+    ["https://better.giving//", "https://better.giving"],
+    ["https://better.giving", "https://better.giving"],
+  ])("%s reads as %s", async (raw, expected) => {
+    const env = await load({ BASE_URL: raw });
+    expect(env.base_url).toBe(expected);
+  });
+});
+
+describe("env: alchemy signing keys", () => {
+  it.each(Object.entries(ALCHEMY_CHAINS))(
+    "%s reads its key from the env var its chain names",
+    async (chain_id, { signing_key_env }) => {
+      const env = await load({ [signing_key_env]: `key-of-${chain_id}` });
+      expect(env.alchemy_signing_key).toEqual(
+        expect.objectContaining({ [chain_id]: `key-of-${chain_id}` })
+      );
+    }
+  );
+
+  it("every chain's key is a declared, optional server key", () => {
+    const names = Object.values(ALCHEMY_CHAINS).map((c) => c.signing_key_env);
+    expect(OPTIONAL_KEYS).toEqual(expect.arrayContaining(names));
+    expect(SERVER_KEYS).toEqual(expect.arrayContaining(names));
   });
 });

@@ -1,9 +1,11 @@
 import { Text } from "react-email";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL } from "../constants";
+import { APP_NAME } from "../constants";
 
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   donor_first_name: string;
   nonprofit_name: string;
   transaction_id: string;
@@ -19,6 +21,7 @@ function Jsx({
   is_guest,
   is_recurring,
   program_name,
+  base_url,
 }: IData) {
   return (
     <PublicLayout>
@@ -42,12 +45,12 @@ function Jsx({
         {is_guest && (
           <>
             To get started,{" "}
-            <Link href={`${DAPP_URL}/signup`}>create a {APP_NAME} account</Link>{" "}
+            <Link href={`${base_url}/signup`}>create a {APP_NAME} account</Link>{" "}
             using this email address.{" "}
           </>
         )}
         Then visit your{" "}
-        <Link href={`${DAPP_URL}/dashboard/donations`}>My Donations page</Link>{" "}
+        <Link href={`${base_url}/dashboard/donations`}>My Donations page</Link>{" "}
         to find your donation using the Reference ID above. From there, you can
         request a tax receipt by providing your donor information.
       </Text>

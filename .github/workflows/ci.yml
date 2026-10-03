@@ -1,10 +1,11 @@
 name: CI
 
 # push (main) + pull_request only. no other events, no `paths:`/`paths-ignore:`
-# on the triggers or `if:` on the jobs below — a workflow run that gets skipped
-# produces no check run at all, and vercel's own docs don't say how a missing
-# check is treated. every job here must fire on every push and every PR, so
-# vercel always has a check run to read.
+# on the triggers or skipping `if:` on the jobs below (`gate`'s always() only
+# widens when it runs) — a workflow run that gets skipped produces no check run
+# at all, and vercel's own docs don't say how a missing check is treated. every
+# job here must fire on every push and every PR, so vercel always has a check
+# run to read.
 #
 # `staging` is deliberately NOT in the push list. it carries an open pr to main,
 # so a push to it already fires `pull_request` — listing it here too ran every
@@ -117,3 +118,21 @@ jobs:
       # reads. the env guard also stands down under vitest (see
       # apps/platform/vite.config.ts), so nothing here needs real credentials.
       - run: pnpm test
+
+  # the one check smoke.yml's production migrate waits on, so the job set lives
+  # here alone: a job newly required in vercel goes into `needs` too, or
+  # production migrates before it passes. always() + the explicit result test
+  # make this conclude failure, never skipped, when a need fails or is
+  # cancelled. re-running a failed need re-runs this job with it.
+  gate:
+    name: gate
+    needs: [checks, test]
+    if: always()
+    # one shell loop — the label is the whole blacksmith integration (above).
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "needs: $RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || exit 1; done

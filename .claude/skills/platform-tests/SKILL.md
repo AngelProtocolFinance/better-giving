@@ -188,6 +188,8 @@ await vi.waitFor(() => {
 });
 ```
 
+That synthetic event isn't `cancelable`, so zag's `preventDefault()` does nothing: fine for proving a dialog closes, wrong for proving a `busy` dialog *stays open* — it closes anyway and the test goes red for no product reason. For a "stays open" assertion, wait for the layer with `layer_ready()` (`src/__tests__/fixtures/layer-ready.ts`), then press with `userEvent.keyboard("{Escape}")` (or dispatch with `cancelable: true`).
+
 ### A press right after a route change
 
 A single press, as a person makes it, is the test. When one press on a new route is swallowed intermittently, the component is carrying state across records: per-record state reset in a `useEffect` (a submit latch, a "sent" flag) lags the new route's paint, so the press lands on the old record's state. That is a product bug, fixed in the component: key it by the record id so the state starts fresh within the render (`src/pages/platform-admin/redeem-requests/prompt.tsx`, `<Content key={tx_id} …>`). A press retried inside `vi.waitFor` passes over exactly the click a person loses.

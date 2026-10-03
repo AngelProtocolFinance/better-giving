@@ -5,7 +5,7 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL } from "../constants";
+import { APP_NAME } from "../constants";
 import { format_amount } from "../helpers";
 import type { IDonation, IDonor } from "../types";
 
@@ -21,6 +21,8 @@ import type { IDonation, IDonor } from "../types";
  * sentence stays conditional, and there is no deadline to be late for.
  */
 export interface IData extends IDonation {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   from: IDonor;
   /** the donor's own input, echoed back — never treated as a known employer */
   employer_name: string;
@@ -69,7 +71,7 @@ function Jsx(d: IData) {
 
       <Hr />
       <Text style={{ marginTop: 20 }}>
-        <Link href={`${DAPP_URL}/donations/${d.id}`}>
+        <Link href={`${d.base_url}/donations/${d.id}`}>
           Your donation page has the rest
         </Link>{" "}
         — the transaction ID, your receipt, and the button to tell us once

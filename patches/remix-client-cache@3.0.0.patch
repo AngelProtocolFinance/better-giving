@@ -1,0 +1,30 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 67f3a09016f41d2d641e56c1f53774afda2153fc..a6b9f53f6be1b5d19f49c543811f698f115925a4 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -167,7 +167,9 @@ function useCachedLoaderData({ adapter = cache } = { adapter: cache }) {
+         const res = e instanceof Response ? e : void 0;
+         if (res && res.status === 302) {
+           const to = res.headers.get("Location");
+-          to && navigate(to);
++          to && Promise.resolve(navigate(to)).catch((err) => {
++            if (err?.name !== "AbortError") throw err;
++          });
+         } else {
+           throw e;
+         }
+diff --git a/dist/index.js b/dist/index.js
+index b0d6667f33733a781870c99c4cc3fbd47b34fae5..d3e81e42b018fdb99a3ee627f7a204b31305205b 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -127,7 +127,9 @@ function useCachedLoaderData({ adapter = cache } = { adapter: cache }) {
+         const res = e instanceof Response ? e : void 0;
+         if (res && res.status === 302) {
+           const to = res.headers.get("Location");
+-          to && navigate(to);
++          to && Promise.resolve(navigate(to)).catch((err) => {
++            if (err?.name !== "AbortError") throw err;
++          });
+         } else {
+           throw e;
+         }

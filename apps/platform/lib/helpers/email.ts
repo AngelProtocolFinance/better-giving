@@ -65,6 +65,8 @@ export interface IReceiptCtx {
   tax_receipt_id?: string;
   /** the npo id better giving receives gifts under */
   bg_npo_id: number;
+  /** the sending environment's origin the receipt's links are built on */
+  base_url: string;
 }
 
 type TReceiptDon = Pick<
@@ -170,5 +172,6 @@ export const to_receipt = (
     tax_receipt_id: ctx.tax_receipt_id,
     from: ctx.from,
     lines,
+    base_url: ctx.base_url,
   };
 };

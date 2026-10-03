@@ -1,6 +1,7 @@
 import { donation_match_filed_notif } from "emails";
 
 const { node } = donation_match_filed_notif.template({
+  base_url: "https://better.giving",
   id: "TXN-2025-001234",
   date: "December 17, 2025",
   amount: { value: 250, currency: "USD", value_usd: 250 },

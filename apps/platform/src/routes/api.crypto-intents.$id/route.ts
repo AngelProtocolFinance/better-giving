@@ -20,7 +20,7 @@ import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
 import { usdpu_of } from "@/nowpayments/usdpu";
-import { deposit_addr } from "$/deposit-addr";
+import { deposit_addr, is_deposit_chain } from "$/deposit-addr";
 import { np } from "$/kit/nowpayments";
 import { donation_get } from "$/pg/queries/donation";
 
@@ -105,7 +105,9 @@ export const loader: LoaderFunction = async ({ params, request }) => {
     return np_payment(payment_id, async (order_id) => order_id === don.id);
   }
 
-  const addr = deposit_addr(token.network);
+  const addr = is_deposit_chain(token.network)
+    ? deposit_addr(token.network)
+    : undefined;
   if (!addr) {
     console.error(
       `crypto intent ${don.id}: no deposit address for ${token.network}`

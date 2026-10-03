@@ -171,6 +171,9 @@ catalogs:
       specifier: 5.9.3
       version: 5.9.3
 
+patchedDependencies:
+  remix-client-cache@3.0.0: 6b5c83d026eb95476102c974c4831e437bcfe341ab2e77fd043e0e28d5794d19
+
 importers:
 
   .:
@@ -514,7 +517,7 @@ importers:
         version: 2.15.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       remix-client-cache:
         specifier: 3.0.0
-        version: 3.0.0(react-dom@19.2.6(react@19.2.6))(react-router@7.18.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
+        version: 3.0.0(patch_hash=6b5c83d026eb95476102c974c4831e437bcfe341ab2e77fd043e0e28d5794d19)(react-dom@19.2.6(react@19.2.6))(react-router@7.18.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
       remix-hook-form:
         specifier: 7.1.1
         version: 7.1.1(react-dom@19.2.6(react@19.2.6))(react-hook-form@7.75.0(react@19.2.6))(react-router@7.18.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)
@@ -18177,7 +18180,7 @@ snapshots:
     dependencies:
       jsesc: 3.1.0
 
-  remix-client-cache@3.0.0(react-dom@19.2.6(react@19.2.6))(react-router@7.18.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6):
+  remix-client-cache@3.0.0(patch_hash=6b5c83d026eb95476102c974c4831e437bcfe341ab2e77fd043e0e28d5794d19)(react-dom@19.2.6(react@19.2.6))(react-router@7.18.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6):
     dependencies:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)

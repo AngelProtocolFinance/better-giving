@@ -38,8 +38,14 @@ interface Props extends PropsWithChildren {
    * dialog is named by the first `h1`–`h6` in its content.
    */
   title?: string;
+  /**
+   * holds the dialog open against Escape and outside clicks, e.g. mid-submit.
+   * a `Dialog.CloseTrigger` in the content, or the caller's own close
+   * controls, still close it — those stay the caller's to disable.
+   */
+  busy?: boolean;
 }
-export function Modal({ size = "sm", ...props }: Props) {
+export function Modal({ size = "sm", busy = false, ...props }: Props) {
   const title_id = useId();
   const content_id = useId();
   const name_ref = useMemo(() => name_from_heading(title_id), [title_id]);
@@ -60,6 +66,8 @@ export function Modal({ size = "sm", ...props }: Props) {
         )
       }
       open={props.open}
+      closeOnEscape={!busy}
+      closeOnInteractOutside={!busy}
       onOpenChange={(e) => {
         if (!e.open) props.onClose();
       }}

@@ -22,6 +22,7 @@ import { from_full } from "@/helpers/name";
 import { is_gift_returned } from "@/match";
 import { msg } from "@/queue";
 import { send_email } from "$/email";
+import { base_url } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
 import { donation_get, donation_update } from "$/pg/queries/donation";
@@ -270,6 +271,7 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
         },
         from_email: don.from_email,
         employer_name: don.from_company_name,
+        base_url,
       };
       const { node, subject } = dmfn.template(data);
       // to us, never the beneficiary: we are the charity on the receipt, so the

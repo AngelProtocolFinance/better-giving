@@ -1,6 +1,7 @@
 import { donation_match_refund_notif } from "emails";
 
 const { node } = donation_match_refund_notif.template({
+  base_url: "https://better.giving",
   to_name: "Save The Rainforest Foundation",
   donor_name: "Jane Doe",
   donor_email: "jane@example.com",

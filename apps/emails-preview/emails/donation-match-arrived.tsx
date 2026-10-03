@@ -1,6 +1,7 @@
 import { donation_match_arrived } from "emails";
 
 const { node } = donation_match_arrived.template({
+  base_url: "https://better.giving",
   donation_id: "TXN-2025-001234",
   amount: { value: 250, currency: "USD", value_usd: 250 },
   to_name: "Save The Rainforest Foundation",

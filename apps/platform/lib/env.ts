@@ -62,6 +62,8 @@ export const SERVER_KEYS = [
   "CRYPTO_DEPOSIT_ADDR_EVM",
   "CRYPTO_DEPOSIT_ADDR_HBAR",
   "CRYPTO_DEPOSIT_ADDR_REEF",
+  "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
+  "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
 ] as const;
 
 export const CLIENT_KEYS = [
@@ -90,6 +92,10 @@ export const OPTIONAL_KEYS = [
   // optional alone — staging sets it with no token — but check_env refuses the
   // token without it, since that pair uploads nothing and still builds green
   "SENTRY_PROJECT",
+  // per-chain alchemy webhook keys: a missing one fails only that chain's
+  // webhook, at request time (.server/alchemy-webhook/handler.ts)
+  "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
+  "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];

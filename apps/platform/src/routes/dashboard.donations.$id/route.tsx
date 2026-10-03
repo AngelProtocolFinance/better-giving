@@ -1,5 +1,5 @@
 import { Modal } from "@better-giving/ui";
-import { useNavigate } from "react-router";
+import { useFetcher, useNavigate } from "react-router";
 import type { Route } from "./+types/route";
 import { Form } from "./form";
 
@@ -8,6 +8,8 @@ export { action, loader } from "./api";
 
 export default function Page({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
+  // owned here, not in Form, so the dialog can hold itself open while it submits
+  const fetcher = useFetcher();
 
   return (
     <Modal
@@ -21,8 +23,9 @@ export default function Page({ loaderData }: Route.ComponentProps) {
       size="panel"
       title="View receipt"
       classes="grid border bg-background"
+      busy={fetcher.state !== "idle"}
     >
-      <Form user={loaderData} />
+      <Form user={loaderData} fetcher={fetcher} />
     </Modal>
   );
 }

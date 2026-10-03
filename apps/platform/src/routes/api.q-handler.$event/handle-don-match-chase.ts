@@ -8,6 +8,7 @@ import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
 import type { IDonMatchChasePayload } from "@/queue";
 import { send_email } from "$/email";
+import { base_url } from "$/env";
 import { donation_get } from "$/pg/queries/donation";
 import { claim_match_chase, mark_match_send_failed } from "$/pg/queries/match";
 
@@ -63,6 +64,7 @@ export async function handle_don_match_chase(p: IDonMatchChasePayload) {
     // name that was cleared after the pack went out; the copy is written so the
     // reminder still reads correctly without one.
     employer_name: don.from_company_name || "your employer",
+    base_url,
   };
   const { node, subject } = donation_match_chase.template(data);
   const res = await send_email({ node, subject, to: [don.from_email] });

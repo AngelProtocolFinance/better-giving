@@ -1,6 +1,7 @@
 import { donation_receipt } from "emails";
 
 const { node } = donation_receipt.template({
+  base_url: "https://better.giving",
   id: "TXN-2025-001234",
   date: "December 17, 2025",
   amount: { value: 103.2, currency: "USD", value_usd: 103.2 },

@@ -4,7 +4,7 @@ import { emails } from "@/constants/common";
 import { humanize } from "@/helpers/decimal";
 import { to_amount } from "@/helpers/email";
 import { nav_log_date } from "@/nav";
-import { stage } from "../env";
+import { base_url, stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import {
@@ -363,6 +363,7 @@ async function notify_filed_claim_refunded(
     filed_at: ev.submitted_at ?? ev.created_at,
     refunded_at: ev.voided_at ?? new Date().toISOString(),
     void_reason: reason,
+    base_url,
   });
 
   // imported here rather than at the top: `../email` pulls in nodemailer, which

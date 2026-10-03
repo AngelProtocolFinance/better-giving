@@ -195,6 +195,23 @@ describe("check_env", () => {
     }
   });
 
+  // the alchemy keys are in no `.env*` committed for tests, so a bare check_env
+  // sees them genuinely unset: a deploy without them has to boot, and the webhook
+  // route answers for the missing key itself.
+  test.each([
+    "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
+    "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+  ])("validation passes with %s unset", (key) => {
+    const restore = snapshot_env();
+    delete env[key];
+    try {
+      expect(() => check_env("test", true)).not.toThrow();
+      expect(check_env("test", true)).not.toHaveProperty(key);
+    } finally {
+      restore();
+    }
+  });
+
   // the other direction is staging's live shape — upload off, slug still set —
   // and has to keep deploying.
   test("accepts SENTRY_PROJECT with no token", () => {
@@ -341,7 +358,12 @@ describe("missing_keys", () => {
   // optional could be added with the suite still green. widening is an edit
   // here, deliberately.
   test("the optional registry holds exactly these keys", () => {
-    expect([...OPTIONAL_KEYS]).toEqual(["SENTRY_AUTH_TOKEN", "SENTRY_PROJECT"]);
+    expect([...OPTIONAL_KEYS]).toEqual([
+      "SENTRY_AUTH_TOKEN",
+      "SENTRY_PROJECT",
+      "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
+      "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+    ]);
   });
 
   // one case per key rather than a shared loop: a loop's failure names no key

@@ -2,8 +2,6 @@ import { INTERCOM_HELP } from "@better-giving/brand";
 
 export { EMAILS } from "@better-giving/brand";
 
-const DOMAIN = "better.giving";
-export const DAPP_URL = `https://${DOMAIN}`;
 export const APP_NAME = "Better Giving";
 
 // intercom deep links, named because a bare `/articles/7064094-how-do-we-…` in the
