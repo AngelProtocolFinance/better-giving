@@ -68,6 +68,12 @@ describe("is_pooled_url", () => {
     ).toBe(true);
   });
 
+  test("flags an uppercase -POOLER host, which URL leaves uncased for postgres://", () => {
+    expect(
+      is_pooled_url("postgresql://u:p@EP-COOL-NAME-POOLER.aws.neon.tech/db")
+    ).toBe(true);
+  });
+
   test("passes the direct host", () => {
     expect(
       is_pooled_url(

@@ -7,7 +7,7 @@
     "start": "react-router-serve build/server/index.js",
     "build": "react-router build",
     "postbuild": "if [ -z \"$CI\" ]; then echo 'postbuild: skipping migrations (CI unset)'; elif [ \"$VERCEL_ENV\" = production ]; then node .server/pg/check-migrations.ts && echo 'postbuild: production migrates in smoke.yml once checks pass'; else pnpm run migrate; fi",
-    "migrate": "node .server/pg/check-migrations.ts && node --env-file-if-exists=.env .server/pg/migrate.ts",
+    "migrate": "node --env-file-if-exists=.env .server/pg/migrate.ts",
     "format": "biome check --write .",
     "format-unsafe": "biome check --write --unsafe src",
     "lint": "biome check .",

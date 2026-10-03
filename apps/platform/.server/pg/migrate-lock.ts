@@ -7,7 +7,8 @@ export const MIGRATE_LOCK_KEY = "7306195201";
  * — the lock leaks and every later migrate waits on it forever
  */
 export const is_pooled_url = (url: string) =>
-  new URL(url).hostname.split(".")[0].endsWith("-pooler");
+  // postgres:// isn't a WHATWG special scheme, so URL leaves the host's case
+  new URL(url).hostname.toLowerCase().split(".")[0].endsWith("-pooler");
 
 /** the slice of a pg client the lock uses — neon's `Client`, or a test fake */
 export interface LockClient {
@@ -17,8 +18,8 @@ export interface LockClient {
 /**
  * runs `work` while `client`'s session holds `pg_advisory_lock(key)`; a second
  * caller blocks in `pg_advisory_lock` until this one unlocks or disconnects.
- * session-level, so `work` may use other connections — the lock serializes
- * callers, it doesn't wrap their statements.
+ * session-level: it serializes callers, it doesn't wrap their statements, so
+ * work that must stop when the lock is lost runs on `client` too.
  */
 export async function with_advisory_lock<T>(
   client: LockClient,

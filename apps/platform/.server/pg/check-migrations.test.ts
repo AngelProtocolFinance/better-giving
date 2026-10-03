@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { migration_guard_errors } from "./check-migrations.ts";
 
 const script = join(import.meta.dirname, "check-migrations.ts");
 
@@ -52,5 +53,15 @@ describe("the migration preflight", () => {
     const run = preflight(dir);
     expect(run.status).toBe(1);
     expect(run.stderr).toContain("0046_orphan.sql");
+  });
+});
+
+describe("migration_guard_errors", () => {
+  test("is importable without running the cli, and returns the problems", () => {
+    expect(migration_guard_errors()).toEqual([]);
+    const dir = migrations_dir('ALTER TABLE "npos" DROP COLUMN "claimed";');
+    expect(migration_guard_errors(dir).join("\n")).toContain(
+      "0046_m.sql: drop column"
+    );
   });
 });

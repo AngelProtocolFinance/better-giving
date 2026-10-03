@@ -1,89 +1,50 @@
 /**
- * `drizzle-kit migrate` under a postgres advisory lock, so runs against one
- * database — concurrent builds of a commit, the production release step in
- * `.github/workflows/smoke.yml` — apply one at a time and the later ones find
- * nothing pending. plain `node` like `check-migrations.ts`: erasable TS only.
+ * the migration guard, then drizzle-orm's migrator under a postgres advisory
+ * lock, so runs against one database — concurrent preview/staging builds, the
+ * production release step in `.github/workflows/smoke.yml` — apply one at a
+ * time and the later ones find nothing pending. plain `node` like
+ * `check-migrations.ts`: erasable TS only.
  *
  *   node --env-file-if-exists=.env .server/pg/migrate.ts
  *
- * the lock lives on its own session while drizzle-kit migrates on another, so
- * the url must be the direct (unpooled) endpoint — see `is_pooled_url`.
- * drizzle-kit takes no lock of its own, and the holder's session sits idle
- * holding only the advisory lock, so the two connections can't deadlock.
+ * lock and migration share one session, so they end together: a dropped
+ * socket or a killed process frees the lock and rolls back the open
+ * transaction at once, and no waiter can start beside a migration still
+ * running. the url must be the direct (unpooled) endpoint — see
+ * `is_pooled_url`. no signal handler: node's default exit closes the socket,
+ * which is the cleanup.
  *
- * if the holder's socket drops, postgres frees the lock and the next waiter
- * starts while this drizzle-kit may still be mid-transaction; drizzle reads its
- * last-applied row outside that transaction, so the waiter would re-apply the
- * same files. so a lost session kills the child, whose single transaction then
- * rolls back with its connection. a drop the client never hears about (no
- * socket error) isn't covered.
+ * drizzle-kit migrate called this same migrator with no `migrations` block in
+ * `drizzle.config.ts`, so the defaults here (`drizzle.__drizzle_migrations`,
+ * rows keyed on the journal's `when`) read the rows it already wrote.
  */
-import { type ChildProcess, spawn } from "node:child_process";
-import { constants } from "node:os";
-import { join } from "node:path";
 import { Client, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { migrate } from "drizzle-orm/neon-serverless/migrator";
 import ws from "ws";
-import {
-  is_pooled_url,
-  MIGRATE_LOCK_KEY,
-  with_advisory_lock,
-} from "./migrate-lock.ts";
+import { MIGRATIONS_DIR, migration_guard_errors } from "./check-migrations.ts";
+import { run_migrate } from "./migrate-run.ts";
 
-const url = process.env.DATABASE_URL_UNPOOLED;
-if (!url) {
-  console.error("migrate: DATABASE_URL_UNPOOLED is unset; not migrating");
-  process.exit(1);
-}
-if (is_pooled_url(url)) {
-  console.error(
-    "migrate: DATABASE_URL_UNPOOLED is a -pooler host; not migrating"
-  );
-  process.exit(1);
-}
-
-const drizzle_kit = join(
-  import.meta.dirname,
-  "../../node_modules/.bin/drizzle-kit"
-);
-
-let child: ChildProcess | undefined;
-
-/** exit code of `drizzle-kit migrate`, pinned to the url the lock is on */
-const drizzle_kit_migrate = () =>
-  new Promise<number>((resolve, reject) => {
-    child = spawn(drizzle_kit, ["migrate"], {
-      stdio: "inherit",
-      env: { ...process.env, DATABASE_URL_UNPOOLED: url },
-    })
-      .on("error", reject)
-      // a signal-killed child has no code; fail closed
-      .on("exit", (code) => resolve(code ?? 1));
-  });
-
-// a handler replaces node's exit-on-signal: while drizzle-kit runs, let it
-// stop (rolling back) and exit through the unlock below; before, just exit
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.on(signal, () => {
-    const running = child?.exitCode === null && child.signalCode === null;
-    if (running) child?.kill(signal);
-    else process.exit(128 + constants.signals[signal]);
-  });
-}
-
-// node 24 has a global WebSocket the driver would find; explicit is inert
+// the constructor db.ts gives the app's pool, so migrations ride the same
+// transport rather than whichever global WebSocket the node version ships
 neonConfig.webSocketConstructor = ws;
-const client = new Client(url);
-let session_lost = false;
-// unhandled, this 'error' crashes the process and orphans drizzle-kit
-client.on("error", (err) => {
-  session_lost = true;
-  console.error("migrate: lock session lost, stopping drizzle-kit:", err);
-  child?.kill("SIGTERM");
-});
-await client.connect();
-console.log("migrate: waiting for the migration lock");
-const code = await with_advisory_lock(client, MIGRATE_LOCK_KEY, () => {
-  console.log("migrate: lock held, running drizzle-kit migrate");
-  return drizzle_kit_migrate();
-}).finally(() => (session_lost ? undefined : client.end()));
-process.exit(code);
+
+function session(url: string) {
+  const client = new Client(url);
+  // a socket error also rejects the pending query, which ends the run;
+  // unheard, it would crash the process before the exit code is set
+  client.on("error", (err) => console.error("migrate: session lost:", err));
+  return client;
+}
+
+process.exit(
+  await run_migrate({
+    url: process.env.DATABASE_URL_UNPOOLED,
+    client: session,
+    guard: migration_guard_errors,
+    apply: (client) =>
+      migrate(drizzle({ client }), {
+        migrationsFolder: MIGRATIONS_DIR,
+      }),
+  })
+);
