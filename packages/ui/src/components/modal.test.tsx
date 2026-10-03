@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createRoutesStub } from "react-router";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Form } from "./form/form";
 import { Modal } from "./modal";
@@ -407,5 +407,71 @@ describe("Modal return focus, beyond the submit button", () => {
 
     await expect.element(dialog).not.toBeInTheDocument();
     await expect.element(save_a).toHaveFocus();
+  });
+});
+
+describe("Modal busy", () => {
+  // the open dialog sets `pointer-events: none` on the page under it, so the
+  // click lands on the root, at a corner the content box never reaches
+  const click_outside = () =>
+    page
+      .elementLocator(document.documentElement)
+      .click({ position: { x: 4, y: 4 } });
+
+  test("busy, Escape doesn't close it", async () => {
+    const on_close = vi.fn();
+    await render(
+      <Modal open busy onClose={on_close}>
+        <h2>Saving receipt</h2>
+      </Modal>
+    );
+    const dialog = page.getByRole("dialog");
+    await expect
+      .poll(() => dialog.element().contains(document.activeElement))
+      .toBe(true);
+    await userEvent.keyboard("{Escape}");
+    await expect.element(dialog).toBeVisible();
+    expect(on_close).not.toHaveBeenCalled();
+  });
+
+  test("busy, a click outside doesn't close it", async () => {
+    const on_close = vi.fn();
+    await render(
+      <Modal open busy onClose={on_close}>
+        <h2>Saving receipt</h2>
+      </Modal>
+    );
+    const dialog = page.getByRole("dialog");
+    await expect.element(dialog).toBeVisible();
+    await click_outside();
+    await expect.element(dialog).toBeVisible();
+    expect(on_close).not.toHaveBeenCalled();
+  });
+
+  test("not busy, Escape closes it", async () => {
+    const on_close = vi.fn();
+    await render(
+      <Modal open onClose={on_close}>
+        <h2>Receipt</h2>
+      </Modal>
+    );
+    const dialog = page.getByRole("dialog");
+    await expect
+      .poll(() => dialog.element().contains(document.activeElement))
+      .toBe(true);
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => on_close.mock.calls.length).toBe(1);
+  });
+
+  test("not busy, a click outside closes it", async () => {
+    const on_close = vi.fn();
+    await render(
+      <Modal open onClose={on_close}>
+        <h2>Receipt</h2>
+      </Modal>
+    );
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    await click_outside();
+    await expect.poll(() => on_close.mock.calls.length).toBe(1);
   });
 });

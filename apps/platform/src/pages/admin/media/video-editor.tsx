@@ -14,6 +14,7 @@ export default function Page() {
   const [sp] = useSearchParams();
   const params = useParams();
   const navigate = useNavigate();
+  const nav = useNavigation();
 
   return (
     <Modal
@@ -22,6 +23,7 @@ export default function Page() {
         navigate("..", { preventScrollReset: true, replace: true })
       }
       classes="grid bg-panel"
+      busy={nav.state !== "idle"}
     >
       <Content
         action={params.media_id ? "edit" : "add"}
