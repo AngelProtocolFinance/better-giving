@@ -267,7 +267,7 @@ describe("alchemy webhook", () => {
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
-  test("a delivery over the cap processes the first 50 and reports once", async () => {
+  test("a delivery of more than 50 receives alerts for every one", async () => {
     quiet_console();
     keys["eth-mainnet"] = ETH_KEY;
     price(1);
@@ -281,13 +281,132 @@ describe("alchemy webhook", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(coingecko_mock).toHaveBeenCalledTimes(50);
-    expect(send_alert_mock).toHaveBeenCalledTimes(50);
-    expect(send_alert_mock).not.toHaveBeenCalledWith(
+    expect(send_alert_mock).toHaveBeenCalledTimes(51);
+    expect(send_alert_mock).toHaveBeenCalledWith(
       expect.objectContaining({
         fields: expect.arrayContaining([{ name: "Hash", value: "0xhash50" }]),
       })
     );
-    expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(report_error_mock).not.toHaveBeenCalled();
   });
+
+  test("activities sharing an asset fetch its price once per request", async () => {
+    quiet_console();
+    keys["eth-mainnet"] = ETH_KEY;
+    const usd: Record<string, number> = { "0xusdc": 1, "0xdai": 3 };
+    coingecko_mock.mockImplementation(async (edit: (u: URL) => URL) => {
+      const href = edit(new URL("https://cg.test")).href;
+      const contract = Object.keys(usd).find((c) => href.includes(c)) ?? "";
+      return Response.json({ [contract]: { usd: usd[contract] } });
+    });
+    const dai = { ...activity(2), rawContract: { address: "0xDAI" } };
+    const body = JSON.stringify({
+      event: {
+        activity: [activity(0), activity(1), dai, { ...dai, hash: "0xhash3" }],
+      },
+    });
+
+    const res = await post(
+      keyless.action,
+      { chain_id: "eth-mainnet" },
+      body,
+      sign(body, ETH_KEY)
+    );
+
+    expect(res.status).toBe(200);
+    expect(coingecko_mock).toHaveBeenCalledTimes(2);
+    expect(send_alert_mock).toHaveBeenCalledTimes(4);
+    const usd_values = send_alert_mock.mock.calls.map(
+      ([a]: any) => a.fields.find((f: any) => f.name === "USD Value").value
+    );
+    expect(usd_values).toEqual(["2.00", "2.00", "6.00", "6.00"]);
+  });
+  test("a checksum-cased deposit address matches a lowercase receive", async () => {
+    quiet_console();
+    keys["eth-mainnet"] = ETH_KEY;
+    vi.stubEnv("CRYPTO_DEPOSIT_ADDR_EVM", "0xDePoSiT");
+    price(1);
+    const body = JSON.stringify({
+      event: { activity: [{ ...activity(), toAddress: "0xdeposit" }] },
+    });
+
+    const res = await post(
+      keyless.action,
+      { chain_id: "eth-mainnet" },
+      body,
+      sign(body, ETH_KEY)
+    );
+
+    expect(res.status).toBe(200);
+    expect(send_alert_mock).toHaveBeenCalledOnce();
+  });
+
+  test.each([
+    ["a non-ok response", async () => new Response(null, { status: 429 })],
+    [
+      "a throw",
+      async () => {
+        throw new TypeError("fetch failed");
+      },
+    ],
+  ])(
+    "a price lookup failing with %s still alerts, with the usd value unavailable, and reports once per asset",
+    async (_, cg) => {
+      quiet_console();
+      keys["eth-mainnet"] = ETH_KEY;
+      coingecko_mock.mockImplementation(cg);
+      const body = payload(2);
+
+      const res = await post(
+        keyless.action,
+        { chain_id: "eth-mainnet" },
+        body,
+        sign(body, ETH_KEY)
+      );
+
+      expect(res.status).toBe(200);
+      expect(coingecko_mock).toHaveBeenCalledOnce();
+      expect(send_alert_mock).toHaveBeenCalledTimes(2);
+      for (const [alert] of send_alert_mock.mock.calls as any[]) {
+        expect(alert.fields).toContainEqual({
+          name: "USD Value",
+          value: "unavailable",
+          inline: true,
+        });
+      }
+      expect(report_error_mock).toHaveBeenCalledOnce();
+    }
+  );
+
+  test.each([
+    ["a non-ok response", async () => new Response(null, { status: 502 })],
+    [
+      "a throw",
+      async () => {
+        throw new TypeError("fetch failed");
+      },
+    ],
+  ])(
+    "an alert send failing with %s finishes the batch, then 500s for redelivery",
+    async (_, failing_send) => {
+      quiet_console();
+      keys["eth-mainnet"] = ETH_KEY;
+      price(1);
+      send_alert_mock.mockImplementationOnce(
+        async () => new Response(null, { status: 204 })
+      );
+      send_alert_mock.mockImplementationOnce(failing_send);
+      const body = payload(3);
+
+      const res = await post(
+        keyless.action,
+        { chain_id: "eth-mainnet" },
+        body,
+        sign(body, ETH_KEY)
+      );
+
+      expect(send_alert_mock).toHaveBeenCalledTimes(3);
+      expect(res.status).toBe(500);
+    }
+  );
 });

@@ -14,8 +14,6 @@ import {
   type TAlchemyChainId,
 } from "./types";
 
-// each processed activity costs a coingecko call and a discord post
-const MAX_ACTIVITIES = 50;
 const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
 const is_chain_id = (x: string): x is TAlchemyChainId =>
@@ -40,6 +38,35 @@ function report_unconfigured(chain_id: TAlchemyChainId) {
   }
   reported_unconfigured.add(chain_id);
   report_error(new Error(`${env} is not set`), { chain_id });
+}
+
+// a batch repeats an asset across activities, so each contract's price is
+// fetched once per request; a failed fetch resolves null and is not retried
+function usd_rate_lookup(chain_id: TAlchemyChainId) {
+  const platform = ALCHEMY_CHAINS[chain_id].cg_platform;
+  const rates = new Map<string, Promise<number | null>>();
+  const fetch_rate = async (contract: string): Promise<number | null> => {
+    try {
+      const cg_res = await coingecko((x) => {
+        x.pathname = `api/v3/simple/token_price/${platform}?contract_addresses=${contract}&vs_currencies=usd`;
+        return x;
+      });
+      if (!cg_res.ok) throw new Error(`cg fetch failed: ${cg_res.statusText}`);
+      const data: IPriceByKey = await cg_res.json();
+      return data?.[contract]?.usd ?? 0;
+    } catch (err) {
+      report_error(err, { chain_id, contract });
+      return null;
+    }
+  };
+  return (contract: string) => {
+    let rate = rates.get(contract);
+    if (!rate) {
+      rate = fetch_rate(contract);
+      rates.set(contract, rate);
+    }
+    return rate;
+  };
 }
 
 // other webhook types and the dashboard's test delivery reach this url too
@@ -81,20 +108,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
     console.warn(`alchemy webhook: no activity to process for ${chain_id}`);
     return new Response("ok", { status: 200 });
   }
-  if (activities.length > MAX_ACTIVITIES) {
-    report_error(
-      new Error(
-        `alchemy webhook: ${activities.length} activities, processing first ${MAX_ACTIVITIES}`
-      ),
-      { chain_id }
-    );
-  }
 
   const chain = ALCHEMY_CHAINS[chain_id];
-  for (const activity of activities.slice(0, MAX_ACTIVITIES)) {
+  const usd_rate_of = usd_rate_lookup(chain_id);
+  // evm addresses arrive checksum-cased (EIP-55) or lowercase
+  const deposit = deposit_addr(chain.deposit_chain).toLowerCase();
+  let alerts_failed = 0;
+  for (const activity of activities) {
     // we are only interested in receives
-    const to = deposit_addr(chain.deposit_chain);
-    if (activity.toAddress !== to) {
+    if (activity.toAddress?.toLowerCase() !== deposit) {
       console.warn(`not a receive transaction, to: ${activity.toAddress}`);
       continue;
     }
@@ -104,25 +126,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       continue;
     }
 
-    // fetch usd_rate
-    const platform = chain.cg_platform;
-    const cg_res = await coingecko((x) => {
-      x.pathname = `api/v3/simple/token_price/${platform}?contract_addresses=${contract}&vs_currencies=usd`;
-      return x;
-    });
-
-    if (!cg_res.ok) {
-      report_error(new Error(`cg fetch failed: ${cg_res.statusText}`), {
-        chain_id,
-        contract,
-      });
-      continue;
-    }
-
-    const data: IPriceByKey = await cg_res.json();
-    const usd_rate = data?.[contract]?.usd ?? 0;
-
-    const usd_value = activity.value * usd_rate;
+    const usd_rate = await usd_rate_of(contract);
+    const usd_value =
+      usd_rate === null
+        ? "unavailable"
+        : (activity.value * usd_rate).toFixed(2);
     const alert: Alert = {
       from: "alchemy-webhook",
       type: "NOTICE",
@@ -132,15 +140,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
         { name: "Chain", value: chain_id, inline: true },
         { name: "From", value: activity.fromAddress },
         { name: "Amount", value: activity.value.toString(), inline: true },
-        { name: "USD Value", value: usd_value.toFixed(2), inline: true },
+        { name: "USD Value", value: usd_value, inline: true },
         { name: "Hash", value: activity.hash },
       ],
     };
     console.info(JSON.stringify(alert, null, 2));
 
-    const res = await aws_monitor.send_alert(alert);
-    console.info("discord notif", res.status, res.statusText);
+    try {
+      const res = await aws_monitor.send_alert(alert);
+      console.info("discord notif", res.status, res.statusText);
+      if (!res.ok) alerts_failed++;
+    } catch (err) {
+      console.error("discord notif failed", err);
+      alerts_failed++;
+    }
   }
 
+  if (alerts_failed > 0) {
+    // no idempotency store: redelivery repeats sent alerts — a duplicate alert beats a missed one
+    return new Response("alert delivery failed", { status: 500 });
+  }
   return new Response("ok", { status: 200 });
 }
