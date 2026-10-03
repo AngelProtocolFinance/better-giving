@@ -115,6 +115,16 @@ function block_comment_end(sql: string, start: number): number {
   return sql.length;
 }
 
+/**
+ * whether only whitespace precedes `i` on its physical line. a DO body's first
+ * line is the DO's own, so it never opens one
+ */
+function opens_line(sql: string, i: number, do_body: boolean): boolean {
+  const nl = sql.lastIndexOf("\n", i - 1);
+  if (nl < 0 && do_body) return false;
+  return sql.slice(nl + 1, i).trim() === "";
+}
+
 /** in a DO body these end the statement before them, like `;` */
 const PLPGSQL_BLOCK = /^(?:BEGIN|DECLARE|THEN|ELSE|LOOP)\b/i;
 
@@ -130,20 +140,18 @@ type Statement = { text: string; marked: boolean };
  * and dollar-quoted strings and function bodies. a DO block's body runs now, so
  * its statements are returned too, split at plpgsql's block keywords as well.
  * "quoted identifiers" are kept. a contract marker counts only as a `--`
- * comment opening its line, and waives the next statement if nothing but
- * comments comes between — inside a DO body too, never across its `$$`.
+ * comment opening its physical line, and waives the next statement if nothing
+ * but comments comes between — inside a DO body too, never across its `$$`.
  */
-function statements(sql: string, plpgsql = false): Statement[] {
+function statements(sql: string, do_body = false): Statement[] {
   const out: Statement[] = [];
   let text = "";
   let marked = false;
   let pending_marker = false;
-  let line_start = true;
   const code = (s: string) => {
     if (text === "" && s.trim() === "") return;
     if (text === "") marked = pending_marker;
     pending_marker = false;
-    if (/\S/.test(s)) line_start = false;
     text += s;
   };
   const end = () => {
@@ -158,7 +166,10 @@ function statements(sql: string, plpgsql = false): Statement[] {
     if (rest.startsWith("--")) {
       const nl = sql.indexOf("\n", i);
       const stop = nl < 0 ? sql.length : nl;
-      if (line_start && CONTRACT_MARKER.test(sql.slice(i, stop))) {
+      if (
+        opens_line(sql, i, do_body) &&
+        CONTRACT_MARKER.test(sql.slice(i, stop))
+      ) {
         pending_marker = true;
       }
       i = stop;
@@ -193,7 +204,7 @@ function statements(sql: string, plpgsql = false): Statement[] {
       pending_marker = false;
       i++;
     } else if (
-      plpgsql &&
+      do_body &&
       PLPGSQL_BLOCK.test(rest) &&
       !/[\w$]/.test(sql[i - 1] ?? "")
     ) {
@@ -202,7 +213,6 @@ function statements(sql: string, plpgsql = false): Statement[] {
       i += PLPGSQL_BLOCK.exec(rest)![0].length;
     } else {
       code(sql[i]);
-      if (sql[i] === "\n") line_start = true;
       i++;
     }
   }

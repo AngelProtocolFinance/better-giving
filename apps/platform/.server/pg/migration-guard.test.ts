@@ -363,6 +363,57 @@ describe("check_migration", () => {
     expect(check_migration("0046_x.sql", sql)).toEqual([]);
   });
 
+  test.each(["DECLARE n int; BEGIN NULL;", "IF true THEN"])(
+    "a marker trailing `%s` on its line waives nothing",
+    (head) => {
+      const sql = [
+        `DO $$ BEGIN ${head} -- contract: d7ef67b stopped reading npos.claimed`,
+        '  ALTER TABLE "npos" DROP COLUMN "claimed";',
+        "END $$;",
+      ].join("\n");
+      expect_one(sql, "drop column");
+    }
+  );
+
+  test.each(["BEGIN", "DECLARE", "THEN", "LOOP"])(
+    "a marker right after %s on its line waives nothing",
+    (kw) => {
+      const sql = [
+        `DO $$ ${kw} -- contract: d7ef67b stopped reading npos.claimed`,
+        '  ALTER TABLE "npos" DROP COLUMN "claimed";',
+        "END $$;",
+      ].join("\n");
+      expect_one(sql, "drop column");
+    }
+  );
+
+  test("a marker on the DO line itself waives nothing", () => {
+    const sql = [
+      "DO $$ -- contract: d7ef67b stopped reading npos.claimed",
+      'ALTER TABLE "npos" DROP COLUMN "claimed";',
+      "END $$;",
+    ].join("\n");
+    expect_one(sql, "drop column");
+  });
+
+  test("a marker after a block comment on its line waives nothing", () => {
+    const sql = [
+      "/* note */ -- contract: d7ef67b stopped reading npos.claimed",
+      'ALTER TABLE "npos" DROP COLUMN "claimed";',
+    ].join("\n");
+    expect_one(sql, "drop column");
+  });
+
+  test("a marker on its own line after BEGIN waives", () => {
+    const sql = [
+      "DO $$ BEGIN",
+      "  -- contract: d7ef67b stopped reading npos.claimed",
+      '  ALTER TABLE "npos" DROP COLUMN "claimed";',
+      "END $$;",
+    ].join("\n");
+    expect(check_migration("0046_x.sql", sql)).toEqual([]);
+  });
+
   test("inside a DO block, one marker waives only the statement after it", () => {
     const sql = [
       "DO $$ BEGIN",
