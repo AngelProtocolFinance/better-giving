@@ -10,6 +10,8 @@ const migrations = import.meta.glob("./migrations/*.sql", {
 
 describe("the committed migrations", () => {
   test("hold no unacknowledged destructive statement", () => {
+    // an empty glob would pass vacuously
+    expect(Object.keys(migrations).length).toBeGreaterThan(45);
     const errors = Object.entries(migrations).flatMap(([file, sql]) =>
       check_migration(file, sql)
     );
@@ -22,6 +24,16 @@ describe("the committed migrations", () => {
     expect(check_journal(journal.entries, files)).toEqual([]);
   });
 });
+
+const FILE = "0046_x.sql";
+
+/** exactly one error, of this kind, from the rule that names it */
+function expect_one(sql: string, kind: string, file = FILE) {
+  const errors = check_migration(file, sql);
+  expect(errors, sql).toHaveLength(1);
+  const prefix = `${file}: ${kind} without`;
+  expect(errors[0]?.slice(0, prefix.length), errors[0]).toBe(prefix);
+}
 
 const entry = (idx: number, when: number, tag: string) => ({ idx, when, tag });
 
@@ -43,20 +55,40 @@ describe("check_journal", () => {
       "0002_c.sql",
     ]);
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("0002_c");
+    expect(errors[0]).toMatch(
+      /^_journal\.json: 0002_c has when 300, not after 0001_b's 300;/
+    );
+  });
+
+  test("a when that decreases fails too", () => {
+    const entries = [entry(0, 200, "0000_a"), entry(1, 100, "0001_b")];
+    const errors = check_journal(entries, ["0000_a.sql", "0001_b.sql"]);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(
+      /^_journal\.json: 0001_b has when 100, not after 0000_a's 200;/
+    );
   });
 
   test("an entry whose idx is not its position fails", () => {
     const entries = [entry(0, 100, "0000_a"), entry(2, 200, "0002_c")];
-    const [error] = check_journal(entries, ["0000_a.sql", "0002_c.sql"]);
-    expect(error).toContain("0002_c");
+    const errors = check_journal(entries, ["0000_a.sql", "0002_c.sql"]);
+    expect(errors).toEqual(["_journal.json: 0002_c has idx 2 at position 1"]);
+  });
+
+  test("an empty journal passes with no files, and flags every file it leaves out", () => {
+    expect(check_journal([], [])).toEqual([]);
+    expect(check_journal([], ["0000_a.sql", "0001_b.sql"])).toEqual([
+      "0000_a.sql: not in _journal.json, so production never runs it",
+      "0001_b.sql: not in _journal.json, so production never runs it",
+    ]);
   });
 
   test("a tag numbered other than its idx fails, so a new file can't pose as grandfathered", () => {
     const entries = [entry(0, 100, "0000_a"), entry(1, 200, "0012_x")];
     const errors = check_journal(entries, ["0000_a.sql", "0012_x.sql"]);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("0012_x");
+    expect(errors).toEqual([
+      "_journal.json: 0012_x is numbered other than its idx 1",
+    ]);
   });
 
   test("a tag with no leading number fails", () => {
@@ -67,8 +99,7 @@ describe("check_journal", () => {
   test("a tag without its .sql file fails", () => {
     const entries = [entry(0, 100, "0000_a"), entry(1, 200, "0001_b")];
     const errors = check_journal(entries, ["0000_a.sql"]);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("0001_b.sql");
+    expect(errors).toEqual(["_journal.json: 0001_b has no 0001_b.sql"]);
   });
 
   test("a .sql file the journal does not list fails", () => {
@@ -77,8 +108,9 @@ describe("check_journal", () => {
       "0000_a.sql",
       "0001_hand_written.sql",
     ]);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("0001_hand_written.sql");
+    expect(errors).toEqual([
+      "0001_hand_written.sql: not in _journal.json, so production never runs it",
+    ]);
   });
 });
 
@@ -89,7 +121,9 @@ describe("check_migration", () => {
       'ALTER TABLE "npos" DROP COLUMN "claimed";'
     );
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("0046_drop_x.sql");
+    expect(errors[0]).toMatch(
+      /^0046_drop_x\.sql: drop column without a "-- contract/
+    );
     expect(errors[0]).toContain('ALTER TABLE "npos" DROP COLUMN "claimed"');
     expect(errors[0]).toContain(
       "-- contract: <sha> <what that release changed>"
@@ -100,18 +134,29 @@ describe("check_migration", () => {
     ["drop table", 'DROP TABLE "claims" CASCADE;'],
     ["drop column", 'ALTER TABLE "npos" DROP "claimed";'],
     ["drop column", 'ALTER TABLE "npos" DROP IF EXISTS "claimed";'],
+    ["drop column", 'ALTER TABLE "npos" DROP COLUMN IF EXISTS "claimed";'],
+    ["drop column", "ALTER TABLE npos DROP COLUMN IF EXISTS claimed;"],
+    [
+      "drop column",
+      'ALTER TABLE "npos" ADD COLUMN "x" text, DROP COLUMN "claimed";',
+    ],
     ["rename", 'ALTER TABLE "npos" RENAME COLUMN "claimed" TO "is_claimed";'],
     ["rename", 'ALTER TABLE "npos" RENAME TO "nonprofits";'],
+    [
+      "rename",
+      'ALTER TABLE "npos" ADD COLUMN "x" text, RENAME COLUMN "a" TO "b";',
+    ],
+    ["rename", 'ALTER VIEW "v" RENAME TO "v2";'],
+    ["rename", 'ALTER VIEW "v" RENAME COLUMN "a" TO "b";'],
+    ["rename", 'ALTER MATERIALIZED VIEW "mv" RENAME TO "mv2";'],
+    ["rename", 'ALTER SCHEMA "legacy" RENAME TO "old";'],
     ["rename", "ALTER TYPE \"status\" RENAME VALUE 'a' TO 'b';"],
     [
       "alter column type",
       'ALTER TABLE "dists" ALTER COLUMN "n" SET DATA TYPE integer USING "n"::integer;',
     ],
     ["alter column type", 'ALTER TABLE "dists" ALTER "n" TYPE bigint;'],
-    [
-      "set not null",
-      'ALTER TABLE "npos" ADD COLUMN "x" text, ALTER COLUMN "y" SET NOT NULL;',
-    ],
+    ["set not null", 'ALTER TABLE "npos" ALTER COLUMN "y" SET NOT NULL;'],
     ["drop default", 'ALTER TABLE "npos" ALTER COLUMN "y" DROP DEFAULT;'],
     ["drop type", 'DROP TYPE "public"."status";'],
     ["drop view", 'DROP VIEW "public"."v_balances";'],
@@ -131,18 +176,42 @@ describe("check_migration", () => {
       'ALTER TABLE "npos" ALTER COLUMN "id" SET GENERATED ALWAYS;',
     ],
   ])("an unmarked %s fails: %s", (kind, stmt) => {
-    const [error] = check_migration("0046_x.sql", stmt);
-    expect(error).toContain(kind);
+    expect_one(stmt, kind);
+  });
+
+  test("a SET NOT NULL beside an ADD COLUMN is reported once, as itself", () => {
+    expect_one(
+      'ALTER TABLE "npos" ADD COLUMN "x" text, ALTER COLUMN "y" SET NOT NULL;',
+      "set not null"
+    );
   });
 
   test.each([
     'ALTER TABLE "npos" ADD COLUMN "tier" text NOT NULL;',
     'ALTER TABLE "npos" ADD "tier" text NOT NULL;',
     'ALTER TABLE "npos" ADD COLUMN "x" text DEFAULT \'a\', ADD COLUMN "tier" integer NOT NULL;',
+    'ALTER TABLE "npos" ADD COLUMN "amt" numeric(10,2) NOT NULL;',
+    'ALTER TABLE "npos" ADD COLUMN "x" text DEFAULT \'a\', ADD COLUMN "amt" numeric(10,2) NOT NULL;',
   ])("a NOT NULL column added without a default fails: %s", (stmt) => {
-    const errors = check_migration("0046_x.sql", stmt);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("add not null column without default");
+    expect_one(stmt, "add not null column without default");
+  });
+
+  test.each([
+    'ALTER TABLE "npos" ADD COLUMN "amt" numeric(10,2) DEFAULT 0 NOT NULL;',
+    'ALTER TABLE "npos" ADD COLUMN "amt" numeric(10,2);',
+  ])("a comma inside parens does not split an ADD: %s", (stmt) => {
+    expect(check_migration(FILE, stmt)).toEqual([]);
+  });
+
+  test.each([
+    'ALTER TABLE "npos" ADD PRIMARY KEY ("a") NOT NULL;',
+    'ALTER TABLE "npos" ADD UNIQUE ("a") NOT NULL;',
+    'ALTER TABLE "npos" ADD FOREIGN KEY ("a") REFERENCES "t"("id") NOT NULL;',
+    'ALTER TABLE "npos" ADD EXCLUDE USING gist ("a" WITH =) NOT NULL;',
+    'ALTER TABLE "npos" ADD CONSTRAINT "c" CHECK ("a" > 0) NOT NULL;',
+    'ALTER TABLE "npos" ADD CHECK ("a" > 0) NOT NULL;',
+  ])("an ADD of a table constraint is not an ADD COLUMN: %s", (stmt) => {
+    expect(check_migration(FILE, stmt)).toEqual([]);
   });
 
   test.each([
@@ -167,24 +236,38 @@ describe("check_migration", () => {
     expect(check_migration("../migrations/0046_x.sql", sql)).toHaveLength(1);
   });
 
-  test("an additive migration passes", () => {
+  test("the glob's own key shape is numbered by its file name, not its directory", () => {
+    const sql = 'ALTER TABLE "npos" DROP COLUMN "claimed";';
+    expect(check_migration("./migrations/0000_init.sql", sql)).toEqual([]);
+    expect(check_migration("./migrations/0045_x.sql", sql)).toEqual([]);
+    expect_one(sql, "drop column", "./migrations/0046_x.sql");
+  });
+
+  test.each([
+    "CREATE TYPE \"public\".\"status\" AS ENUM('a', 'b');",
+    'CREATE TABLE "things" ("id" text PRIMARY KEY NOT NULL, "type" text NOT NULL);',
+    'ALTER TABLE "npos" ADD COLUMN "type" text DEFAULT \'x\' NOT NULL;',
+    'ALTER TABLE "npos" ADD CONSTRAINT "npos_t_fk" FOREIGN KEY ("t") REFERENCES "things"("id") ON DELETE SET NULL;',
+    'ALTER TABLE "npos" ALTER COLUMN "y" DROP NOT NULL;',
+    'ALTER TABLE "npos" ALTER COLUMN "y" SET DEFAULT 0;',
+    'ALTER TABLE "npos" ALTER COLUMN "id" SET GENERATED BY DEFAULT;',
+    'ALTER TABLE "npos" DROP CONSTRAINT IF EXISTS "npos_old_check";',
+    'ALTER TABLE "npos" RENAME CONSTRAINT "a" TO "b";',
+    'ALTER INDEX "npos_a_idx" RENAME TO "npos_b_idx";',
+    'ALTER TYPE "public"."status" ADD VALUE \'c\';',
+    'DROP INDEX "npos_old_idx";',
+    'CREATE INDEX "npos_type_idx" ON "npos" USING btree ("type");',
+    'CREATE OR REPLACE VIEW "v" AS (SELECT 1);',
+    "CREATE OR REPLACE FUNCTION f() RETURNS trigger AS $$ BEGIN DROP TABLE x; END; $$ LANGUAGE plpgsql;",
+    'COMMENT ON COLUMN "npos"."type" IS \'replaces the column we will DROP COLUMN later\';',
+  ])("an additive statement passes: %s", (stmt) => {
+    expect(check_migration("0046_add.sql", stmt)).toEqual([]);
+  });
+
+  test("drizzle's statement breakpoints between additive statements pass", () => {
     const sql = [
-      "CREATE TYPE \"public\".\"status\" AS ENUM('a', 'b');--> statement-breakpoint",
-      'CREATE TABLE "things" ("id" text PRIMARY KEY NOT NULL, "type" text NOT NULL);--> statement-breakpoint',
       'ALTER TABLE "npos" ADD COLUMN "type" text DEFAULT \'x\' NOT NULL;--> statement-breakpoint',
-      'ALTER TABLE "npos" ADD CONSTRAINT "npos_t_fk" FOREIGN KEY ("t") REFERENCES "things"("id") ON DELETE SET NULL;--> statement-breakpoint',
-      'ALTER TABLE "npos" ALTER COLUMN "y" DROP NOT NULL;--> statement-breakpoint',
-      'ALTER TABLE "npos" ALTER COLUMN "y" SET DEFAULT 0;--> statement-breakpoint',
-      'ALTER TABLE "npos" ALTER COLUMN "id" SET GENERATED BY DEFAULT;--> statement-breakpoint',
-      'ALTER TABLE "npos" DROP CONSTRAINT IF EXISTS "npos_old_check";--> statement-breakpoint',
-      'ALTER TABLE "npos" RENAME CONSTRAINT "a" TO "b";--> statement-breakpoint',
-      'ALTER INDEX "npos_a_idx" RENAME TO "npos_b_idx";--> statement-breakpoint',
-      'ALTER TYPE "public"."status" ADD VALUE \'c\';--> statement-breakpoint',
-      'DROP INDEX "npos_old_idx";--> statement-breakpoint',
-      'CREATE INDEX "npos_type_idx" ON "npos" USING btree ("type");--> statement-breakpoint',
-      'CREATE OR REPLACE VIEW "v" AS (SELECT 1);--> statement-breakpoint',
-      "CREATE OR REPLACE FUNCTION f() RETURNS trigger AS $$ BEGIN DROP TABLE x; END; $$ LANGUAGE plpgsql;--> statement-breakpoint",
-      'COMMENT ON COLUMN "npos"."type" IS \'replaces the column we will DROP COLUMN later\';',
+      'CREATE INDEX "npos_type_idx" ON "npos" USING btree ("type");',
     ].join("\n");
     expect(check_migration("0046_add.sql", sql)).toEqual([]);
   });
@@ -205,7 +288,9 @@ describe("check_migration", () => {
     ].join("\n");
     const errors = check_migration("0046_x.sql", sql);
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain('"dists" DROP COLUMN "legacy"');
+    expect(errors[0]).toMatch(
+      /^0046_x\.sql: drop column without .* — ALTER TABLE "dists" DROP COLUMN "legacy"$/
+    );
   });
 
   test("comment lines may sit between a marker and its statement", () => {
@@ -274,9 +359,7 @@ describe("check_migration", () => {
     ["a nested block comment", "/* outer /* inner */ still outer */"],
   ])("%s does not swallow the DDL after it", (_, head) => {
     const sql = `${head}\nALTER TABLE "npos" DROP COLUMN "claimed";\nSELECT 'x';`;
-    const errors = check_migration("0046_x.sql", sql);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("drop column");
+    expect_one(sql, "drop column");
   });
 
   test("a nested block comment hides everything up to its last close", () => {
@@ -295,9 +378,7 @@ describe("check_migration", () => {
   ])(
     "a column named like the exempting keyword is still flagged: %s",
     (sql) => {
-      const errors = check_migration("0046_x.sql", sql);
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toContain("add not null column without default");
+      expect_one(sql, "add not null column without default");
     }
   );
 
@@ -332,9 +413,26 @@ describe("check_migration", () => {
     'DROP VIEW "public"."v_bal";\nCREATE VIEW "audit"."v_bal" AS (select 1);',
     'DROP VIEW "a", "b";\nCREATE VIEW "a" AS (select 1);',
   ])("a view dropped and not recreated after fails: %s", (sql) => {
-    const errors = check_migration("0046_x.sql", sql);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("drop view");
+    expect_one(sql, "drop view");
+  });
+
+  test.each([
+    ["7 hex", "d7ef67b", true],
+    ["40 hex", "a".repeat(40), true],
+    ["uppercase hex", "D7EF67B", true],
+    ["6 hex", "d7ef67", false],
+    ["41 hex", "a".repeat(41), false],
+    ["non-hex", "g7ef67b", false],
+  ])("a marker sha of %s: acknowledges is %s", (_, sha, waives) => {
+    const sql = `-- contract: ${sha} stopped reading npos.claimed\nALTER TABLE "npos" DROP COLUMN "claimed";`;
+    if (waives) expect(check_migration(FILE, sql)).toEqual([]);
+    else expect_one(sql, "drop column");
+  });
+
+  test("a marker trailing the statement it would excuse waives nothing", () => {
+    const sql =
+      'ALTER TABLE "npos" DROP COLUMN "claimed"; -- contract: d7ef67b stopped reading npos.claimed';
+    expect_one(sql, "drop column");
   });
 
   test("a marker without a sha does not acknowledge it", () => {
@@ -351,6 +449,22 @@ describe("check_migration", () => {
       'ALTER TABLE "npos" DROP COLUMN "claimed";',
     ].join("\n");
     expect(check_migration("0046_drop_claimed.sql", sql)).toHaveLength(1);
+  });
+
+  test.each([
+    [
+      "a block comment",
+      "/* DROP TABLE x;\nALTER TABLE a DROP COLUMN b; */ SELECT 1;",
+    ],
+    ["a doubled quote", "UPDATE t SET a = 'it''s DROP TABLE x';"],
+    ["a string with a semicolon", "UPDATE t SET a = 'x; DROP TABLE y';"],
+    ["a dollar-quoted string", "UPDATE t SET a = $q$ DROP TABLE x; $q$;"],
+  ])("DDL hidden in %s does not trigger", (_, sql) => {
+    expect(check_migration(FILE, sql)).toEqual([]);
+  });
+
+  test("a doubled quote does not end the string early, nor hide what follows it", () => {
+    expect_one(`UPDATE t SET a = 'it''s';\nDROP TABLE "x";`, "drop table");
   });
 
   test("a destructive keyword inside a -- comment does not trigger", () => {
