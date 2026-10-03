@@ -25,7 +25,15 @@ export default function Page() {
           />
         </Container>
         <Suspense fallback={<ContentLoader className="h-40" />}>
-          <Await resolve={programs}>
+          <Await
+            resolve={programs}
+            errorElement={
+              <p className="px-8 text-sm text-gray-11">
+                We couldn't load this nonprofit's programs right now. Please try
+                again later.
+              </p>
+            }
+          >
             {(p) =>
               p.length > 0 ? (
                 <Container title="Programs">
@@ -37,7 +45,15 @@ export default function Page() {
         </Suspense>
 
         <Suspense fallback={<ContentLoader className="h-40" />}>
-          <Await resolve={media}>
+          <Await
+            resolve={media}
+            errorElement={
+              <p className="px-8 text-sm text-gray-11">
+                We couldn't load this nonprofit's videos right now. Please try
+                again later.
+              </p>
+            }
+          >
             {(m) =>
               m.length > 0 ? (
                 <Container title="Media">

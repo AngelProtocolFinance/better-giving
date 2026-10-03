@@ -19,16 +19,19 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     featured: true,
   });
 
+  // a rejected deferred streams to <Await errorElement> and never reaches handleError
+  const reported = <T>(deferred: Promise<T>) =>
+    deferred.catch((err) => {
+      report_error(err, { endow_id: npo.id });
+      throw err;
+    });
+
   return {
     npo: npo_public(npo),
 
     //lazy
-    funds: get_funds_npo_memberof(npo.id, { published: true }).catch((err) => {
-      // a rejected deferred streams to <Await errorElement> and never reaches handleError
-      report_error(err, { endow_id: npo.id });
-      throw err;
-    }),
-    media: med_page.then((x) => x.items),
-    programs: npo_programs(npo.id),
+    funds: reported(get_funds_npo_memberof(npo.id, { published: true })),
+    media: reported(med_page.then((x) => x.items)),
+    programs: reported(npo_programs(npo.id)),
   };
 };
