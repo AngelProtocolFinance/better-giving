@@ -1,7 +1,7 @@
 import type { donation_receipt, IDonor } from "emails";
 import { type IDonation, tax_receipt_id } from "@/donations";
 import { to_receipt } from "@/helpers/email";
-import { app } from "./env";
+import { app, base_url } from "./env";
 import { npo_get } from "./pg/queries/npo";
 
 export class NpoNotFoundError extends Error {
@@ -29,6 +29,7 @@ export async function build_receipt(
       ? undefined
       : await tax_receipt_id(d.id),
     bg_npo_id: +app.npo_id,
+    base_url,
   };
 
   if (d.to_type === "npo") {

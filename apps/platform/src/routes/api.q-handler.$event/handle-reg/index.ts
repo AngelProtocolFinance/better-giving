@@ -174,6 +174,7 @@ export async function handle_reg_updated(reg: IReg) {
       registrant_first_name: reg.r_first_name || "there",
       org_name: reg.o_name || undefined,
       endow_id: npo_id?.toString(),
+      base_url,
     });
 
     const res = await send_email({ node, subject, to: [reg.r_id] });

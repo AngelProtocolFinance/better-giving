@@ -10,7 +10,10 @@ vi.mock("#/.server/toast", () => ({
   redirectWithSuccess: vi.fn(() => new Response(null, { status: 302 })),
   dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
 }));
-vi.mock("$/env", () => ({ app: { npo_id: "1" } }));
+vi.mock("$/env", () => ({
+  app: { npo_id: "1" },
+  base_url: "https://better.giving",
+}));
 
 const send_email_or_throw = vi.hoisted(() =>
   vi.fn(async (_i: { node: any; to: string[]; subject: string }) => ({

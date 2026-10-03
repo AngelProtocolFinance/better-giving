@@ -1,15 +1,16 @@
 import { banking } from "emails";
 import type { IBankingPayload } from "@/queue";
 import { send_email_or_throw } from "$/email";
+import { base_url } from "$/env";
 import { npo_admins } from "$/pg/queries/user";
 
 async function send_banking_email(
   npo_id: number,
-  template_data: Parameters<typeof banking.template>[0]
+  template_data: Omit<banking.IData, "base_url">
 ) {
   const admins = await npo_admins(npo_id);
   if (admins.length === 0) return;
-  const { node, subject } = banking.template(template_data);
+  const { node, subject } = banking.template({ ...template_data, base_url });
   await send_email_or_throw({ node, subject, to: admins.map((a) => a.email) });
 }
 

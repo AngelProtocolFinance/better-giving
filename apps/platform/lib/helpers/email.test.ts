@@ -109,6 +109,7 @@ describe("to_receipt", () => {
     from: { first_name: "Ada", full_name: "Ada Lovelace" },
     tax_receipt_id: "R-1",
     bg_npo_id: 1,
+    base_url: "https://better.giving",
   };
   const npo = (
     id: number,

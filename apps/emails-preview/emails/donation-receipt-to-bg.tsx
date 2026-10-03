@@ -3,6 +3,7 @@ import { donation_receipt } from "emails";
 const usd = (value: number) => ({ value, currency: "USD", value_usd: value });
 
 const { node } = donation_receipt.template({
+  base_url: "https://better.giving",
   id: "TXN-2025-005102",
   date: "December 17, 2025",
   amount: usd(110),

@@ -1,9 +1,11 @@
 import { Text } from "react-email";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL, HELP } from "../constants";
+import { APP_NAME, HELP } from "../constants";
 
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   /** absent: the mail says "your organization" in its own sentences */
   org_name?: string;
   registrant_first_name: string;
@@ -11,9 +13,9 @@ export interface IData {
   endow_id?: string;
 }
 
-function Jsx({ org_name, registrant_first_name, endow_id }: IData) {
-  const profile_link = endow_id && `${DAPP_URL}/profile/${endow_id}`;
-  const login_link = `${DAPP_URL}/login`;
+function Jsx({ org_name, registrant_first_name, endow_id, base_url }: IData) {
+  const profile_link = endow_id && `${base_url}/profile/${endow_id}`;
+  const login_link = `${base_url}/login`;
 
   return (
     <PublicLayout type="registration">

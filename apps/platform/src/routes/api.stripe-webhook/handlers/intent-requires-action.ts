@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { str_id } from "#/helpers/stripe";
 import type { IDonation } from "@/donations";
 import { send_email } from "$/email";
+import { base_url } from "$/env";
 import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import {
@@ -58,6 +59,7 @@ export async function handle_intent_requires_action(intent: Intent) {
     to_name: don.to_name,
     from_name: don.from_name?.split(" ")[0] ?? "Donor",
     verification_link: verification_link,
+    base_url,
   };
   const { node, subject } = email.template(x);
 

@@ -1,6 +1,7 @@
 import { banking } from "emails";
 
 const { node } = banking.template({
+  base_url: "https://better.giving",
   action: "default",
   account_summary: "Chase Bank ending in 1234",
 });

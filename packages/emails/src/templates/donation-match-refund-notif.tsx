@@ -5,7 +5,7 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PlatformLayout } from "../components/platform-layout";
-import { APP_NAME, DAPP_URL } from "../constants";
+import { APP_NAME } from "../constants";
 import { format_amount, format_gap } from "../helpers";
 import type { IAmount } from "../types";
 
@@ -23,6 +23,8 @@ import type { IAmount } from "../types";
  * which is theirs to ask for; the outstanding claim is ours to close.
  */
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   /** where the grant would have landed — the nonprofit or fund donated to */
   to_name: string;
   donor_name: string;
@@ -88,7 +90,7 @@ function Jsx(d: IData) {
       <KeyValue
         label="Transaction ID"
         value={
-          <Link href={`${DAPP_URL}/donations/${d.donation.id}`}>
+          <Link href={`${d.base_url}/donations/${d.donation.id}`}>
             {d.donation.id}
           </Link>
         }

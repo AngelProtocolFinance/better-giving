@@ -8,6 +8,7 @@ import type { IDonDistPayload } from "@/queue";
 import { is_zapier_hook_url } from "@/zapier/hook-url";
 import { new_donation_item } from "@/zapier/new-donation";
 import { send_email_or_throw } from "$/email";
+import { base_url } from "$/env";
 import {
   country_metrics_time_get,
   country_time_update,
@@ -184,6 +185,7 @@ async function send_npo_notice(r: IDonDistPayload) {
           .filter(Boolean)
           .join(", ") || undefined,
     },
+    base_url,
   };
   const { node, subject } = donation_nonprofit_notif.template(data);
 
