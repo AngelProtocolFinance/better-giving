@@ -586,12 +586,19 @@ describe("a capture whose donor email is still the placeholder", () => {
       supplementary_data: { related_ids: { order_id: "ORDER-1" } },
     });
   };
+  const order_refused = () => {
+    with_order();
+    get_order_mock.mockRejectedValue(
+      new PayPalApiError("get order", 404, '{"name":"RESOURCE_NOT_FOUND"}')
+    );
+  };
 
-  it("asks for redelivery within the hour, settling nothing and reporting nothing", async () => {
+  it("asks for redelivery within the hour when paypal refuses the order, settling nothing and reporting nothing", async () => {
     await seed_donation({
       from_email: PLACEHOLDER_EMAIL,
       created_at: hours_ago(0.5),
     });
+    order_refused();
 
     const res = await deliver(capture_ev());
 
@@ -601,13 +608,15 @@ describe("a capture whose donor email is still the placeholder", () => {
     expect((await donation_get(ORDER_ID))!.status).toBe("intent");
     expect(enqueue_mock).not.toHaveBeenCalled();
     expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 
-  it("settles it after the hour, reporting the timeout", async () => {
+  it("settles it after the hour when paypal refuses the order, reporting the timeout", async () => {
     await seed_donation({
       from_email: PLACEHOLDER_EMAIL,
       created_at: hours_ago(2),
     });
+    order_refused();
 
     const res = await deliver(capture_ev());
 
@@ -620,6 +629,7 @@ describe("a capture whose donor email is still the placeholder", () => {
       }),
       { don_id: ORDER_ID }
     );
+    expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 
   it("settles at once, unreported, when the order paypal holds names the payer", async () => {
@@ -642,20 +652,36 @@ describe("a capture whose donor email is still the placeholder", () => {
     expect(don!.from_email).toBe("payer@test.com");
     expect(don!.status).toBe("settled");
     expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 
-  it("keeps asking for redelivery when the order paypal holds names no payer either", async () => {
+  // a payer may withhold their email (venmo often does), and the order's
+  // payment_source is fixed once captured: no redelivery would ever add one
+  it("settles at once on the placeholder, as degraded, when the order paypal holds names no payer", async () => {
     await seed_donation({
       from_email: PLACEHOLDER_EMAIL,
       created_at: hours_ago(0.5),
     });
     with_order();
-    get_order_mock.mockResolvedValue({ id: "ORDER-1", payment_source: {} });
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      payment_source: { venmo: { name: { given_name: "V" } } },
+    });
 
     const res = await deliver(capture_ev());
 
-    expect(res.status).toBe(503);
-    expect(await settlements()).toHaveLength(0);
+    expect(res.status).toBe(200);
+    expect(await settlements()).toHaveLength(1);
+    const don = await donation_get(ORDER_ID);
+    expect(don!.status).toBe("settled");
+    expect(don!.from_email).toBe(PLACEHOLDER_EMAIL);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expect.stringContaining("placeholder email"),
+      }),
+      { don_id: ORDER_ID }
+    );
   });
 });
 

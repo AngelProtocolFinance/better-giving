@@ -888,10 +888,11 @@ export async function action({ request }: Route.ActionArgs) {
         // fetch order to get real payer email before settling
         const order_id = supplementary_data?.related_ids?.order_id;
         // an order paypal refuses leaves the donor as the approval wrote it
-        const order = order_id
+        const fetched = order_id
           ? await fetch_resource(() => paypal.get_order(order_id))
           : undefined;
-        if (order && typeof order !== "number") {
+        const order = typeof fetched === "object" ? fetched : undefined;
+        if (order) {
           const ps =
             order.payment_source?.venmo || order.payment_source?.paypal;
           if (ps?.email_address) {
@@ -900,9 +901,18 @@ export async function action({ request }: Route.ActionArgs) {
           }
         }
 
-        // if still placeholder email, retry unless donation is old (>1h)
         const don = await donation_get(don_id);
-        if (don && don.from_email === PLACEHOLDER_EMAIL) {
+        // a captured order's payment_source is final: a payer who withheld
+        // their email (routine on venmo) never gains one on redelivery
+        if (order && don?.from_email === PLACEHOLDER_EMAIL) {
+          report_degraded(
+            new Error(
+              `[paypal webhook] settling ${don_id} with placeholder email (payer withheld it)`
+            ),
+            { don_id }
+          );
+        } else if (don?.from_email === PLACEHOLDER_EMAIL) {
+          // order unread: retry unless donation is old (>1h)
           const age_ms = Date.now() - new Date(don.created_at).getTime();
           if (age_ms < 60 * 60 * 1000) {
             console.warn(
