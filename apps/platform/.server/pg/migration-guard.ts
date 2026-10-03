@@ -9,11 +9,8 @@ const ALTER_TABLE = /^ALTER\s+TABLE\b/i;
  */
 type Rule = { kind: string; scope?: RegExp } & (
   | { re: RegExp }
-  | { match: (bare: string, at: Context) => boolean }
+  | { match: (bare: string) => boolean }
 );
-
-/** a statement with its identifiers kept, and the file's statements after it */
-type Context = { text: string; later: string[] };
 
 /** an ALTER TABLE's comma-separated subcommands, commas inside parens kept */
 function subcommands(stmt: string): string[] {
@@ -32,23 +29,7 @@ function subcommands(stmt: string): string[] {
   return parts.map((p) => p.trim());
 }
 
-const QNAME = String.raw`${IDENT}(?:\s*\.\s*${IDENT})?`;
-const DROP_VIEW =
-  /^DROP\s+(?:MATERIALIZED\s+)?VIEW\s+(?:IF\s+EXISTS\s+)?(.*?)(?:\s+(?:CASCADE|RESTRICT))?$/i;
-const CREATE_VIEW = new RegExp(
-  String.raw`^CREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:TEMP|TEMPORARY|RECURSIVE)\s+)?(?:MATERIALIZED\s+)?VIEW\s+(?:IF\s+NOT\s+EXISTS\s+)?(${QNAME})`,
-  "i"
-);
-
-/** `"public"."V"`, `public."V"` and `"V"` name one view; unquoted folds to lower */
-function view_key(qname: string): string {
-  const parts = qname
-    .match(new RegExp(IDENT, "g"))!
-    .map((p) =>
-      p.startsWith('"') ? p.slice(1, -1).replaceAll('""', '"') : p.toLowerCase()
-    );
-  return (parts.length === 1 ? ["public", ...parts] : parts).join(".");
-}
+const FK_ACTION = /\bON\s+(?:DELETE|UPDATE)\s+SET\s+(?:DEFAULT|NULL)\b/gi;
 
 const ADD_COLUMN = new RegExp(
   String.raw`\bADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?(?!(?:CONSTRAINT|PRIMARY|UNIQUE|CHECK|FOREIGN|EXCLUDE)\b)${IDENT}`,
@@ -86,13 +67,16 @@ const RULES: Rule[] = [
   {
     kind: "add not null column without default",
     // the old deployment's inserts omit the new column; GENERATED and serial
-    // supply a value. `IS NOT NULL` is a CHECK's expression, not the constraint
+    // supply a value. `IS NOT NULL` is a CHECK's expression, not the constraint,
+    // and a foreign key's `ON DELETE SET DEFAULT` is an action, not a default
     match: (stmt) =>
       subcommands(stmt).some(
         (sub) =>
           ADD_COLUMN.test(sub) &&
           /(?<!\bIS\s+)\bNOT\s+NULL\b/i.test(sub) &&
-          !/\b(?:DEFAULT|GENERATED|(?:SMALL|BIG)?SERIAL[248]?)\b/i.test(sub)
+          !/\b(?:DEFAULT|GENERATED|(?:SMALL|BIG)?SERIAL[248]?)\b/i.test(
+            sub.replace(FK_ACTION, "")
+          )
       ),
     scope: ALTER_TABLE,
   },
@@ -108,23 +92,9 @@ const RULES: Rule[] = [
   },
   // also how drizzle-kit removes an enum value: drop and recreate the type
   { kind: "drop type", re: /^DROP\s+TYPE\b/i },
-  {
-    kind: "drop view",
-    // drizzle-kit writes every view edit as DROP + CREATE, and drizzle-kit
-    // migrate runs all pending files in one transaction, so a view recreated
-    // later in the file is never missing to the old deployment
-    match: (_, { text, later }) => {
-      const recreated = new Set(
-        later.flatMap((t) => {
-          const m = CREATE_VIEW.exec(t);
-          return m ? [view_key(m[1])] : [];
-        })
-      );
-      const names = DROP_VIEW.exec(text)![1].match(new RegExp(QNAME, "g"))!;
-      return names.some((n) => !recreated.has(view_key(n)));
-    },
-    scope: /^DROP\s+(?:MATERIALIZED\s+)?VIEW\b/i,
-  },
+  // a recreate can still drop a column the old deployment selects; telling
+  // needs the two column lists, so every view drop takes its own marker
+  { kind: "drop view", re: /^DROP\s+(?:MATERIALIZED\s+)?VIEW\b/i },
   { kind: "drop schema", re: /^DROP\s+SCHEMA\b/i },
 ];
 
@@ -145,16 +115,8 @@ function block_comment_end(sql: string, start: number): number {
   return sql.length;
 }
 
-const PLPGSQL_BLOCK = /("(?:[^"]|"")*")|\b(?:BEGIN|DECLARE|THEN|ELSE|LOOP)\b/gi;
-
-/** a plpgsql statement's SQL, with the block keywords before it cut off */
-function plpgsql_parts(stmt: string): string[] {
-  return stmt
-    .replace(PLPGSQL_BLOCK, (_, quoted) => quoted ?? ";")
-    .split(";")
-    .map((p) => p.trim())
-    .filter(Boolean);
-}
+/** in a DO body these end the statement before them, like `;` */
+const PLPGSQL_BLOCK = /^(?:BEGIN|DECLARE|THEN|ELSE|LOOP)\b/i;
 
 /** `-- contract: <sha> <what that release changed>` */
 const CONTRACT_MARKER = /^--[ \t]*contract:[ \t]*[0-9a-f]{7,40}[ \t]+\S/i;
@@ -166,11 +128,12 @@ type Statement = { text: string; marked: boolean };
  * splits on `;`, blanking what the server never runs as DDL: `--` and block
  * comments (drizzle's `--> statement-breakpoint` among them), string literals,
  * and dollar-quoted strings and function bodies. a DO block's body runs now, so
- * its statements are returned too. "quoted identifiers" are kept. a contract
- * marker counts only as a `--` comment opening its line, and waives the next
- * statement if nothing but comments comes between.
+ * its statements are returned too, split at plpgsql's block keywords as well.
+ * "quoted identifiers" are kept. a contract marker counts only as a `--`
+ * comment opening its line, and waives the next statement if nothing but
+ * comments comes between — inside a DO body too, never across its `$$`.
  */
-function statements(sql: string): Statement[] {
+function statements(sql: string, plpgsql = false): Statement[] {
   const out: Statement[] = [];
   let text = "";
   let marked = false;
@@ -220,12 +183,8 @@ function statements(sql: string): Statement[] {
       const close = sql.indexOf(tag, i + tag.length);
       const body_end = close < 0 ? sql.length : close;
       if (/^\s*DO\b/i.test(text)) {
-        // the body runs now; markers inside it are not this file's
-        for (const inner of statements(sql.slice(i + tag.length, body_end))) {
-          for (const part of plpgsql_parts(inner.text)) {
-            out.push({ text: part, marked });
-          }
-        }
+        // the body runs now, its statements each waived by their own marker
+        out.push(...statements(sql.slice(i + tag.length, body_end), true));
       }
       code("$$");
       i = close < 0 ? sql.length : close + tag.length;
@@ -233,6 +192,14 @@ function statements(sql: string): Statement[] {
       end();
       pending_marker = false;
       i++;
+    } else if (
+      plpgsql &&
+      PLPGSQL_BLOCK.test(rest) &&
+      !/[\w$]/.test(sql[i - 1] ?? "")
+    ) {
+      end();
+      pending_marker = false;
+      i += PLPGSQL_BLOCK.exec(rest)![0].length;
     } else {
       code(sql[i]);
       if (sql[i] === "\n") line_start = true;
@@ -287,15 +254,13 @@ export function check_migration(file: string, sql: string): string[] {
   const num = /(?:^|\/)(\d+)_[^/]*$/.exec(file)?.[1];
   if (num !== undefined && Number(num) <= LAST_GRANDFATHERED) return [];
   const errors: string[] = [];
-  const all = statements(sql);
-  for (const [k, { text: stmt, marked }] of all.entries()) {
+  for (const { text: stmt, marked } of statements(sql)) {
     if (marked) continue;
-    const at = { text: stmt, later: all.slice(k + 1).map((s) => s.text) };
     // a keyword inside "quoted identifier" is a name, not the keyword
     const bare = stmt.replace(QUOTED_IDENT, '""');
     for (const rule of RULES) {
       if (rule.scope && !rule.scope.test(bare)) continue;
-      if ("re" in rule ? rule.re.test(bare) : rule.match(bare, at)) {
+      if ("re" in rule ? rule.re.test(bare) : rule.match(bare)) {
         errors.push(
           `${file}: ${rule.kind} without a "-- contract: <sha> <what that release changed>" line above it — ${stmt}`
         );

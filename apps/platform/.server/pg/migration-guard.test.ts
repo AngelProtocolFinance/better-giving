@@ -337,12 +337,43 @@ describe("check_migration", () => {
     expect(check_migration("0046_x.sql", sql)).toHaveLength(1);
   });
 
-  test("a marker above a DO block waives its body", () => {
+  test("a marker above a DO block waives nothing inside it", () => {
     const sql = [
       "-- contract: d7ef67b stopped reading npos.claimed",
-      'DO $$ BEGIN ALTER TABLE "npos" DROP COLUMN "claimed"; END $$;',
+      "DO $$ BEGIN",
+      '  ALTER TABLE "npos" DROP COLUMN "claimed";',
+      '  ALTER TABLE "dists" DROP COLUMN "legacy";',
+      "END $$;",
+    ].join("\n");
+    const errors = check_migration("0046_x.sql", sql);
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toContain('"npos" DROP COLUMN "claimed"');
+    expect(errors[1]).toContain('"dists" DROP COLUMN "legacy"');
+  });
+
+  test("inside a DO block, each statement's own marker waives it", () => {
+    const sql = [
+      "DO $$ BEGIN",
+      "  -- contract: d7ef67b stopped reading npos.claimed",
+      '  ALTER TABLE "npos" DROP COLUMN "claimed";',
+      "  -- contract: d7ef67b stopped reading dists.legacy",
+      '  ALTER TABLE "dists" DROP COLUMN "legacy";',
+      "END $$;",
     ].join("\n");
     expect(check_migration("0046_x.sql", sql)).toEqual([]);
+  });
+
+  test("inside a DO block, one marker waives only the statement after it", () => {
+    const sql = [
+      "DO $$ BEGIN",
+      "  -- contract: d7ef67b stopped reading npos.claimed",
+      '  ALTER TABLE "npos" DROP COLUMN "claimed";',
+      '  ALTER TABLE "dists" DROP COLUMN "legacy";',
+      "END $$;",
+    ].join("\n");
+    const errors = check_migration("0046_x.sql", sql);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('"dists" DROP COLUMN "legacy"');
   });
 
   test.each([
@@ -383,6 +414,22 @@ describe("check_migration", () => {
   );
 
   test.each([
+    'ALTER TABLE "npos" ADD COLUMN "x" text NOT NULL REFERENCES "p"("id") ON DELETE SET DEFAULT;',
+    'ALTER TABLE "npos" ADD COLUMN "x" text NOT NULL REFERENCES "p"("id") ON UPDATE SET DEFAULT ON DELETE CASCADE;',
+  ])(
+    "a foreign key's SET DEFAULT action is not a column default: %s",
+    (sql) => {
+      expect_one(sql, "add not null column without default");
+    }
+  );
+
+  test("a real DEFAULT beside a foreign key action passes", () => {
+    const sql =
+      'ALTER TABLE "npos" ADD COLUMN "x" text DEFAULT \'a\' NOT NULL REFERENCES "p"("id") ON DELETE SET DEFAULT;';
+    expect(check_migration("0046_x.sql", sql)).toEqual([]);
+  });
+
+  test.each([
     'ALTER TABLE "npos" ADD COLUMN "rename" text;',
     'ALTER TABLE "npos" ADD COLUMN "set not null" text;',
     'CREATE INDEX "drop_default_idx" ON "npos" ("x");',
@@ -403,7 +450,19 @@ describe("check_migration", () => {
     'DROP VIEW "v_bal";--> statement-breakpoint\nCREATE VIEW public.V_BAL AS (select 1);',
     'DROP MATERIALIZED VIEW IF EXISTS "mv";\nCREATE MATERIALIZED VIEW "public"."mv" AS (select 1);',
     'DROP VIEW "v_bal" CASCADE;\nCREATE VIEW "v_bal" AS (select 1);',
-  ])("a view dropped and recreated in the same file passes: %s", (sql) => {
+  ])(
+    "a view recreated in the same file still needs a marker — its columns may shrink: %s",
+    (sql) => {
+      expect_one(sql, "drop view");
+    }
+  );
+
+  test("a marker above a view's DROP waives its recreate", () => {
+    const sql = [
+      "-- contract: d7ef67b stopped reading v_bal.total",
+      'DROP VIEW "public"."v_bal";--> statement-breakpoint',
+      'CREATE VIEW "public"."v_bal" AS (select 1);',
+    ].join("\n");
     expect(check_migration("0046_x.sql", sql)).toEqual([]);
   });
 
