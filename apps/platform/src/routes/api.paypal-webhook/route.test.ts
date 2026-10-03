@@ -833,6 +833,71 @@ describe("a capture whose donor email is still the placeholder", () => {
   });
 });
 
+// the order read is the webhook's one chance at a name or address the browser's
+// capture failed to save: once settled, every redelivery short-circuits
+describe("a capture whose order paypal fails to read, on a donor's real email", () => {
+  const hours_ago = (h: number) =>
+    new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+  const order_unread = (err: unknown) => {
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockRejectedValue(err);
+  };
+  const transient = [
+    ["a 500", new PayPalApiError("get order", 500, '{"name":"INTERNAL"}')],
+    ["a 429", new PayPalApiError("get order", 429, '{"name":"RATE_LIMIT"}')],
+    ["a network failure", new TypeError("fetch failed")],
+  ] as const;
+
+  it.each(transient)(
+    "asks for redelivery within the hour while the order read meets %s, settling and reporting nothing",
+    async (_, err) => {
+      await seed_donation({ created_at: hours_ago(0.5) });
+      order_unread(err);
+
+      const res = await deliver(capture_ev());
+
+      expect(res.status).toBe(503);
+      expect(await settlements()).toHaveLength(0);
+      expect((await donation_get(ORDER_ID))!.status).toBe("intent");
+      expect(enqueue_mock).not.toHaveBeenCalled();
+      expect(report_error_mock).not.toHaveBeenCalled();
+      expect(report_degraded_mock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(transient)(
+    "settles on the donor's email after the hour while the order read meets %s, reporting it as a bug",
+    async (_, err) => {
+      await seed_donation({ created_at: hours_ago(2) });
+      order_unread(err);
+
+      const res = await deliver(capture_ev());
+
+      expect(res.status).toBe(200);
+      expect(await settlements()).toHaveLength(1);
+      const don = await donation_get(ORDER_ID);
+      expect(don!.status).toBe("settled");
+      expect(don!.from_email).toBe("donor@test.com");
+      expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          message: expect.stringContaining("order unread"),
+          cause: err,
+        }),
+        {
+          don_id: ORDER_ID,
+          event_id: CAPTURE_EV_ID,
+          capture_id: CAPTURE_ID,
+          order_id: "ORDER-1",
+        }
+      );
+      expect(report_degraded_mock).not.toHaveBeenCalled();
+    }
+  );
+});
+
 describe("settling from paypal's copy, not the event's", () => {
   it("settles a capture onto the donation paypal names, whatever the event says", async () => {
     await seed_donation();

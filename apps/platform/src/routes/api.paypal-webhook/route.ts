@@ -917,35 +917,47 @@ export async function action({ request }: Route.ActionArgs) {
         if (!prior)
           return new Response(`donation not found: ${don_id}`, { status: 500 });
 
-        const placeholder = (() => {
-          if (prior.from_email !== PLACEHOLDER_EMAIL) return undefined;
+        // the order read is the one chance at a name or address the browser's
+        // capture failed to save, and a settled capture never reads it again:
+        // a read that may heal is worth an hour of redeliveries, email or not
+        if ("unread" in read) {
+          const age_ms = Date.now() - new Date(prior.created_at).getTime();
+          if (age_ms < 60 * 60 * 1000) {
+            console.warn(
+              `[paypal webhook] order of ${don_id} unread, requesting retry`
+            );
+            return new Response("order unread, retry later", { status: 503 });
+          }
+        }
+
+        // what settling on this read leaves ops to look at
+        const finding = (() => {
+          if (prior.from_email !== PLACEHOLDER_EMAIL)
+            return "unread" in read
+              ? {
+                  report: report_error,
+                  what: "with its order unread after an hour",
+                  cause: read.unread,
+                }
+              : undefined;
+          const on = (why: string) => `on the placeholder email: ${why}`;
           if ("refused" in read)
-            return { report: report_error, why: read.refused };
+            return { report: report_error, what: on(read.refused) };
           // a captured order's payment_source is final: a payer who withheld
           // their email (routine on venmo) never gains one on redelivery
           if ("order" in read)
             return ps
-              ? { report: report_degraded, why: "the payer withheld it" }
-              : { report: report_error, why: "its order has no payer wallet" };
+              ? { report: report_degraded, what: on("the payer withheld it") }
+              : {
+                  report: report_error,
+                  what: on("its order has no payer wallet"),
+                };
           return {
             report: report_error,
-            why: "its order is unread after an hour",
+            what: on("its order is unread after an hour"),
             cause: read.unread,
           };
         })();
-        // a donor with a real email settles on it, order read or not; only the
-        // placeholder is worth an hour of redeliveries for a read that may heal
-        if ("unread" in read && placeholder) {
-          const age_ms = Date.now() - new Date(prior.created_at).getTime();
-          if (age_ms < 60 * 60 * 1000) {
-            console.warn(
-              `[paypal webhook] order of ${don_id} unread on the placeholder email, requesting retry`
-            );
-            return new Response("placeholder email, retry later", {
-              status: 503,
-            });
-          }
-        }
 
         const sttl_record = {
           id: cid,
@@ -1005,11 +1017,10 @@ export async function action({ request }: Route.ActionArgs) {
         }
         // before the enqueue: a throw there redelivers into the dup branch,
         // which never reports
-        placeholder?.report(
-          new Error(
-            `[paypal webhook] settled ${don_id} on the placeholder email: ${placeholder.why}`,
-            { cause: placeholder.cause }
-          ),
+        finding?.report(
+          new Error(`[paypal webhook] settled ${don_id} ${finding.what}`, {
+            cause: finding.cause,
+          }),
           { don_id, event_id: ev.id, capture_id: cid, order_id }
         );
         await enqueue(...result.msgs);
