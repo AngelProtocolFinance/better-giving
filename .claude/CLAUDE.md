@@ -2,7 +2,7 @@
 
 Turborepo + pnpm workspace. Root is a thin turbo delegator with no app code. **Each member's own `CLAUDE.md` is the authority on that member — read it before working there.**
 
-<!-- kru v0.137.0 · derived 2026-10-02 · /kru:setup to re-derive -->
+<!-- kru v0.138.0 · derived 2026-10-03 · /kru:setup to re-derive -->
 ## Team
 
 Load **`kru:lead`** before building, reviewing, or dispatching a seat — it carries how the team works.
