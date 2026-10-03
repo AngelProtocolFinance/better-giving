@@ -1,6 +1,29 @@
-export type TAlchemyChainId = "bnb-mainnet" | "eth-mainnet";
+import type { ServerKey } from "@/env";
+import type { DepositChain } from "../deposit-addr";
 
-interface IActivity {
+interface IAlchemyChain {
+  /** coingecko asset platform id, for token prices */
+  cg_platform: string;
+  deposit_chain: DepositChain;
+  signing_key_env: ServerKey;
+}
+
+export const ALCHEMY_CHAINS = {
+  "eth-mainnet": {
+    cg_platform: "ethereum",
+    deposit_chain: "eth",
+    signing_key_env: "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
+  },
+  "bnb-mainnet": {
+    cg_platform: "binance-smart-chain",
+    deposit_chain: "bnb",
+    signing_key_env: "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+  },
+} as const satisfies Record<string, IAlchemyChain>;
+
+export type TAlchemyChainId = keyof typeof ALCHEMY_CHAINS;
+
+export interface IActivity {
   /** sender wallet address  */
   fromAddress: string;
   /** recipient wallet address */

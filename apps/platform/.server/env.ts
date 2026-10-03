@@ -1,3 +1,5 @@
+import type { TAlchemyChainId } from "./alchemy-webhook/types";
+
 export const stage = process.env.STAGE;
 
 // the value is passed in rather than looked up by name: the browser test
@@ -10,7 +12,11 @@ const required = (name: string, value: string | undefined): string => {
   return value;
 };
 
-export const base_url = required("BASE_URL", process.env.BASE_URL);
+// stripped: every consumer appends "/path"
+export const base_url = required("BASE_URL", process.env.BASE_URL).replace(
+  /\/+$/,
+  ""
+);
 
 // the app's own crypto keys, checked where they are produced so a miss names
 // itself. an absent signing secret is otherwise silent: `secrets: [undefined]`
@@ -51,16 +57,11 @@ export const blob = {
   read_write_token: process.env.BLOB_READ_WRITE_TOKEN,
 } as const;
 
-// optional, and read on access: a chain without its key fails its own webhook
-// (route 500s), never the server's boot.
+// optional: a chain without its key fails only its own webhook, which 500s
 export const alchemy_signing_key = {
-  get "eth-mainnet"() {
-    return process.env.ALCHEMY_SIGNING_KEY_ETH_MAINNET;
-  },
-  get "bnb-mainnet"() {
-    return process.env.ALCHEMY_SIGNING_KEY_BNB_MAINNET;
-  },
-};
+  "eth-mainnet": process.env.ALCHEMY_SIGNING_KEY_ETH_MAINNET,
+  "bnb-mainnet": process.env.ALCHEMY_SIGNING_KEY_BNB_MAINNET,
+} as const satisfies Record<TAlchemyChainId, string | undefined>;
 
 export const chariot = {
   api_key: process.env.CHARIOT_API_KEY,

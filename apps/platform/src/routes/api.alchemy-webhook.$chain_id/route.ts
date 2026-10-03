@@ -1,1 +1,1 @@
-export { action } from "./handler";
+export { action } from "$/alchemy-webhook/handler";

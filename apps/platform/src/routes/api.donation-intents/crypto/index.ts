@@ -6,7 +6,7 @@ import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
 import { NowpaymentsError, NowpaymentsNotPayableError } from "@/nowpayments";
 import { donation_quote } from "@/nowpayments/min";
-import { deposit_addr } from "$/deposit-addr";
+import { deposit_addr, is_deposit_chain } from "$/deposit-addr";
 import { base_url } from "$/env";
 import { coingecko } from "$/kit/coingecko";
 import { aws_monitor } from "$/kit/discord";
@@ -79,6 +79,7 @@ const to_row = (
 };
 
 async function custom_intent(c: Ctx, token: IToken) {
+  if (!is_deposit_chain(token.network)) return unavailable();
   const res = await coingecko((x) => {
     x.pathname = `api/v3/simple/price?ids=${token.cg_id}&vs_currencies=usd`;
     return x;

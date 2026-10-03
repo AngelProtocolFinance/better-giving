@@ -93,7 +93,7 @@ export const OPTIONAL_KEYS = [
   // token without it, since that pair uploads nothing and still builds green
   "SENTRY_PROJECT",
   // per-chain alchemy webhook keys: a missing one fails only that chain's
-  // webhook, at request time (routes/api.alchemy-webhook.$chain_id/handler.ts)
+  // webhook, at request time (.server/alchemy-webhook/handler.ts)
   "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
 ] as const satisfies readonly ServerKey[];

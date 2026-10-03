@@ -1,29 +1,25 @@
 import crypto from "node:crypto";
+import type { ActionFunctionArgs } from "react-router";
 import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
-import { deposit_addr } from "$/deposit-addr";
-import { alchemy_signing_key } from "$/env";
-import { coingecko } from "$/kit/coingecko";
-import { aws_monitor } from "$/kit/discord";
-import type { Route } from "./+types/route";
-import type { IPayload, IPriceByKey, TAlchemyChainId } from "./types";
+import { deposit_addr } from "../deposit-addr";
+import { alchemy_signing_key } from "../env";
+import { coingecko } from "../kit/coingecko";
+import { aws_monitor } from "../kit/discord";
+import {
+  ALCHEMY_CHAINS,
+  type IActivity,
+  type IPayload,
+  type IPriceByKey,
+  type TAlchemyChainId,
+} from "./types";
 
 // each processed activity costs a coingecko call and a discord post
 const MAX_ACTIVITIES = 50;
-const SHA256_HEX = /^[0-9a-f]{64}$/;
-
-const cg_platform_ids: { [key in TAlchemyChainId]: string } = {
-  "eth-mainnet": "ethereum",
-  "bnb-mainnet": "binance-smart-chain",
-};
-
-const chain_env_key: { [key in TAlchemyChainId]: string } = {
-  "eth-mainnet": "eth",
-  "bnb-mainnet": "bnb",
-};
+const SHA256_HEX = /^[0-9a-f]{64}$/i;
 
 const is_chain_id = (x: string): x is TAlchemyChainId =>
-  Object.hasOwn(cg_platform_ids, x);
+  Object.hasOwn(ALCHEMY_CHAINS, x);
 
 function is_signed(body: string, sig: string | null, key: string): boolean {
   // timingSafeEqual throws on unequal lengths, so only a digest-shaped
@@ -33,8 +29,31 @@ function is_signed(body: string, sig: string | null, key: string): boolean {
   return crypto.timingSafeEqual(digest, Buffer.from(sig, "hex"));
 }
 
-export async function action({ request, params }: Route.ActionArgs) {
-  const chain_id = params.chain_id;
+// the request reaching here is unauthenticated, so a report per request
+// would let anyone flood the error tracker
+const reported_unconfigured = new Set<TAlchemyChainId>();
+function report_unconfigured(chain_id: TAlchemyChainId) {
+  const env = ALCHEMY_CHAINS[chain_id].signing_key_env;
+  if (reported_unconfigured.has(chain_id)) {
+    console.error(`alchemy webhook: ${env} is not set`);
+    return;
+  }
+  reported_unconfigured.add(chain_id);
+  report_error(new Error(`${env} is not set`), { chain_id });
+}
+
+// other webhook types and the dashboard's test delivery reach this url too
+function activities_of(body: string): IActivity[] | null {
+  try {
+    const p: Partial<IPayload> | null = JSON.parse(body);
+    return Array.isArray(p?.event?.activity) ? p.event.activity : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const chain_id = params.chain_id ?? "";
   if (!is_chain_id(chain_id)) {
     return new Response("unknown chain", { status: 404 });
   }
@@ -42,9 +61,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   // 5xx so alchemy redelivers once the key is set
   const signing_key = alchemy_signing_key[chain_id];
   if (!signing_key) {
-    report_error(new Error(`alchemy signing key not set for ${chain_id}`), {
-      chain_id,
-    });
+    report_unconfigured(chain_id);
     return new Response("webhook not configured", { status: 500 });
   }
 
@@ -57,10 +74,13 @@ export async function action({ request, params }: Route.ActionArgs) {
     return new Response("invalid signature", { status: 401 });
   }
 
-  const p: IPayload = JSON.parse(body);
-  console.info(JSON.stringify(p, null, 2));
-
-  const activities = p.event.activity;
+  console.info(body);
+  // 200, not 5xx: a redelivery of a signed body carries the same shape
+  const activities = activities_of(body);
+  if (!activities) {
+    console.warn(`alchemy webhook: no activity to process for ${chain_id}`);
+    return new Response("ok", { status: 200 });
+  }
   if (activities.length > MAX_ACTIVITIES) {
     report_error(
       new Error(
@@ -70,9 +90,10 @@ export async function action({ request, params }: Route.ActionArgs) {
     );
   }
 
+  const chain = ALCHEMY_CHAINS[chain_id];
   for (const activity of activities.slice(0, MAX_ACTIVITIES)) {
     // we are only interested in receives
-    const to = deposit_addr(chain_env_key[chain_id]);
+    const to = deposit_addr(chain.deposit_chain);
     if (activity.toAddress !== to) {
       console.warn(`not a receive transaction, to: ${activity.toAddress}`);
       continue;
@@ -84,7 +105,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     // fetch usd_rate
-    const platform = cg_platform_ids[chain_id];
+    const platform = chain.cg_platform;
     const cg_res = await coingecko((x) => {
       x.pathname = `api/v3/simple/token_price/${platform}?contract_addresses=${contract}&vs_currencies=usd`;
       return x;
