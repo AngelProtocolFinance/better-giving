@@ -411,59 +411,57 @@ describe("Modal return focus, beyond the submit button", () => {
 });
 
 describe("Modal busy", () => {
-  // the open dialog sets `pointer-events: none` on the page under it, so the
-  // click lands on the root, at a corner the content box never reaches
+  const next_frame = () =>
+    new Promise<void>((r) => requestAnimationFrame(() => r()));
+  // zag attaches its Escape and outside-pointer listeners a frame after open,
+  // and the pointer one a frame later still; `data-inert` lands on <body> in a
+  // microtask right after the first. a press before then hits no listener and
+  // proves nothing about `busy`
+  const layer_ready = async () => {
+    await expect
+      .poll(() => document.body.hasAttribute("data-inert"))
+      .toBe(true);
+    await next_frame();
+  };
+  // the open dialog sets `pointer-events: none` on <body>, which the portalled
+  // backdrop inherits, so the click lands on the root, at a corner the content
+  // box never reaches
   const click_outside = () =>
     page
       .elementLocator(document.documentElement)
       .click({ position: { x: 4, y: 4 } });
+  const press_escape = () => userEvent.keyboard("{Escape}");
 
-  test("busy, Escape doesn't close it", async () => {
+  test.each([
+    ["Escape", press_escape],
+    ["a click outside", click_outside],
+  ])("busy, %s doesn't close it until busy clears", async (_, dismiss) => {
     const on_close = vi.fn();
-    await render(
+    const screen = await render(
       <Modal open busy onClose={on_close}>
         <h2>Saving receipt</h2>
       </Modal>
     );
-    const dialog = page.getByRole("dialog");
-    await expect
-      .poll(() => dialog.element().contains(document.activeElement))
-      .toBe(true);
-    await userEvent.keyboard("{Escape}");
-    await expect.element(dialog).toBeVisible();
+    await layer_ready();
+    await dismiss();
     expect(on_close).not.toHaveBeenCalled();
-  });
 
-  test("busy, a click outside doesn't close it", async () => {
-    const on_close = vi.fn();
-    await render(
-      <Modal open busy onClose={on_close}>
-        <h2>Saving receipt</h2>
-      </Modal>
-    );
-    const dialog = page.getByRole("dialog");
-    await expect.element(dialog).toBeVisible();
-    await click_outside();
-    await expect.element(dialog).toBeVisible();
-    expect(on_close).not.toHaveBeenCalled();
-  });
-
-  test("not busy, Escape closes it", async () => {
-    const on_close = vi.fn();
-    await render(
+    await screen.rerender(
       <Modal open onClose={on_close}>
-        <h2>Receipt</h2>
+        <h2>Saving receipt</h2>
       </Modal>
     );
-    const dialog = page.getByRole("dialog");
-    await expect
-      .poll(() => dialog.element().contains(document.activeElement))
-      .toBe(true);
-    await userEvent.keyboard("{Escape}");
-    await expect.poll(() => on_close.mock.calls.length).toBe(1);
+    await vi.waitFor(async () => {
+      await dismiss();
+      expect(on_close).toHaveBeenCalled();
+    });
+    expect(on_close).toHaveBeenCalledOnce();
   });
 
-  test("not busy, a click outside closes it", async () => {
+  test.each([
+    ["Escape", press_escape],
+    ["a click outside", click_outside],
+  ])("not busy, %s closes it", async (_, dismiss) => {
     const on_close = vi.fn();
     await render(
       <Modal open onClose={on_close}>
@@ -471,7 +469,10 @@ describe("Modal busy", () => {
       </Modal>
     );
     await expect.element(page.getByRole("dialog")).toBeVisible();
-    await click_outside();
-    await expect.poll(() => on_close.mock.calls.length).toBe(1);
+    await vi.waitFor(async () => {
+      await dismiss();
+      expect(on_close).toHaveBeenCalled();
+    });
+    expect(on_close).toHaveBeenCalledOnce();
   });
 });
