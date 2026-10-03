@@ -19,7 +19,7 @@ const cg_platform_ids: { [key in TAlchemyChainId]: string } = {
 
 const chain_env_key: { [key in TAlchemyChainId]: string } = {
   "eth-mainnet": "eth",
-  "bnb-mainnet": "bsc",
+  "bnb-mainnet": "bnb",
 };
 
 const is_chain_id = (x: string): x is TAlchemyChainId =>

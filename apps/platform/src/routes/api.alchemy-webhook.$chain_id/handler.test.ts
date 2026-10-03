@@ -15,7 +15,8 @@ const coingecko_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/env", () => ({ alchemy_signing_key: keys }));
-vi.mock("$/deposit-addr", () => ({ deposit_addr: () => DEPOSIT }));
+// the real lookup: a chain name it doesn't know never matches a receive
+process.env.CRYPTO_DEPOSIT_ADDR_EVM = DEPOSIT;
 vi.mock("$/kit/coingecko", () => ({ coingecko: coingecko_mock }));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert: send_alert_mock },
@@ -132,6 +133,25 @@ describe("alchemy webhook", () => {
       );
     }
   );
+
+  test("a bnb delivery to the deposit address raises an alert", async () => {
+    quiet_console();
+    keys["bnb-mainnet"] = ETH_KEY;
+    price(1.5);
+    const body = payload();
+
+    const res = await post(
+      keyless.action,
+      { chain_id: "bnb-mainnet" },
+      body,
+      sign(body, ETH_KEY)
+    );
+
+    expect(res.status).toBe(200);
+    expect(send_alert_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "New bnb-mainnet donation" })
+    );
+  });
 
   test.each(["sol-mainnet", "__proto__"])(
     "an unknown chain %s is a 404 before any work",
