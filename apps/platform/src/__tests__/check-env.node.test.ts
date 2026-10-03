@@ -341,7 +341,12 @@ describe("missing_keys", () => {
   // optional could be added with the suite still green. widening is an edit
   // here, deliberately.
   test("the optional registry holds exactly these keys", () => {
-    expect([...OPTIONAL_KEYS]).toEqual(["SENTRY_AUTH_TOKEN", "SENTRY_PROJECT"]);
+    expect([...OPTIONAL_KEYS]).toEqual([
+      "SENTRY_AUTH_TOKEN",
+      "SENTRY_PROJECT",
+      "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
+      "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+    ]);
   });
 
   // one case per key rather than a shared loop: a loop's failure names no key

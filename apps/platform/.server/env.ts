@@ -51,6 +51,17 @@ export const blob = {
   read_write_token: process.env.BLOB_READ_WRITE_TOKEN,
 } as const;
 
+// optional, and read on access: a chain without its key fails its own webhook
+// (route 500s), never the server's boot.
+export const alchemy_signing_key = {
+  get "eth-mainnet"() {
+    return process.env.ALCHEMY_SIGNING_KEY_ETH_MAINNET;
+  },
+  get "bnb-mainnet"() {
+    return process.env.ALCHEMY_SIGNING_KEY_BNB_MAINNET;
+  },
+};
+
 export const chariot = {
   api_key: process.env.CHARIOT_API_KEY,
   api_url: process.env.CHARIOT_API_URL,

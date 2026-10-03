@@ -1,0 +1,1 @@
+export { action } from "./handler";
