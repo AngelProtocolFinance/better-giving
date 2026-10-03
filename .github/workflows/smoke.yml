@@ -16,10 +16,11 @@ name: Smoke
 # production also migrates here (the `migrate` job), not in the build: vercel
 # builds and sends `ready` while ci.yml's `checks`/`test` may still be running,
 # so a build-time migrate would change the production database for a commit
-# whose checks then go red. this job waits for both to pass on the sha, then
-# migrates, and only then lets smoke report — `smoke (production)` is a
-# required check, so the production domain stays on the previous deployment
-# until it's green. preview/staging still migrate in `postbuild`.
+# whose checks then go red. this job waits for ci.yml's `gate` on main's push
+# run of the sha, then migrates, and only then lets smoke report —
+# `smoke (production)` is a required check, so the production domain stays on
+# the previous deployment until it's green. preview/staging still migrate in
+# `postbuild`.
 on:
   repository_dispatch:
     types: [vercel.deployment.ready]
@@ -28,8 +29,8 @@ run-name: smoke ${{ github.event.client_payload.project.name }} (${{ github.even
 
 # a dispatch run's own check run lands on main's HEAD, not the deployed sha,
 # so the result vercel reads is the commit status written below. `statuses`
-# is for that status; `checks` and `contents` are the migrate job's reads of
-# ci.yml's results and of the deployed sha.
+# is for that status and for reading vercel's on newer commits; `checks` and
+# `contents` are the migrate job's reads of ci.yml's results and of main.
 permissions:
   statuses: write
   checks: read
@@ -49,6 +50,8 @@ env:
   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
+  # this job's name is not the check to require in vercel either — like
+  # smoke-dispatch's, its check run sits on main's HEAD, not the deployed sha.
   migrate:
     name: migrate-dispatch
     if: >-
@@ -60,16 +63,18 @@ jobs:
     # admits main only, which a repository_dispatch run's ref always is.
     environment: production-migrate
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    timeout-minutes: 45
+    # the 30m ci wait, install, then migrate.ts's advisory-lock wait.
+    timeout-minutes: 50
     steps:
-      # first, so the required context exists while this job waits on ci.
+      # a deploy with no git metadata has no commit to hold a status. failing
+      # here, before any status write, leaves it held with this error as the
+      # only trace: migrate it by hand (.claude/CLAUDE.md → deploy).
+      - name: sha present
+        run: '[ -n "$SHA" ] || { echo "::error::no git sha in the dispatch payload; not migrating production"; exit 1; }'
+
+      # first after that, so the required context exists while this job waits.
       - name: status pending
-        run: |
-          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
-            -H "accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
-            -d "{\"state\":\"pending\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
-            -o /dev/null
+        run: gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending -f context="$STATUS_CONTEXT" -f target_url="$RUN_URL" --silent
 
       # the payload names the sha; this step is what stops a production
       # deployment of anything not on main from running its own code with
@@ -82,35 +87,34 @@ jobs:
             *) echo "::error::$SHA is $rel relative to main; not migrating production"; exit 1 ;;
           esac
 
-      # ci.yml's job names. a ci job added to vercel's required list goes
-      # here too, or production migrates before it passes. app 15368 is
-      # github actions, so
-      # another app's check named `checks` can't satisfy it. each workflow
-      # run (push, pull_request) is its own check suite, and a re-run's
-      # newest check run supersedes the older one in its suite — so after
-      # re-running a red ci job, re-run this workflow run to migrate.
-      - name: wait for checks and test
+      # ci.yml's `gate`, from main's push run of the sha only: each
+      # pull_request run on it is a check suite of its own, whose stale red or
+      # early green says nothing about main. no main suite yet reads as
+      # pending. app 15368 is github actions, so another app's `gate` can't
+      # satisfy it. a re-run's newest check run supersedes the older one in
+      # its suite — after re-running a red ci job, re-run this workflow too.
+      - name: wait for gate
         run: |
           set -uo pipefail
           deadline=$((SECONDS + 1800))
           while :; do
-            states=""
-            for name in checks test; do
-              state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=$name&app_id=15368&filter=all&per_page=100" \
-                --jq '[.check_runs | group_by(.check_suite.id)[] | max_by(.id)]
-                  | if length == 0 or any(.[]; .status != "completed") then "pending"
-                    elif all(.[]; .conclusion == "success") then "success"
-                    else "failure" end') || state=pending
-              states="$states $name=$state"
-            done
-            echo "$(date -u +%T)$states"
-            case "$states" in
-              *=failure*) echo "::error::ci failed on $SHA; not migrating production"; exit 1 ;;
-              *=pending*) ;;
-              *) exit 0 ;;
+            state=$(
+              suites=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-suites?app_id=15368&per_page=100" \
+                --jq '[.check_suites[] | select(.head_branch == "main") | .id]') &&
+              gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=gate&app_id=15368&filter=all&per_page=100" |
+              jq -r --argjson suites "$suites" '[.check_runs[] | select(.check_suite.id as $s | $suites | index($s))]
+                | max_by(.id)
+                | if . == null or .status != "completed" then "pending"
+                  elif .conclusion == "success" then "success"
+                  else "failure" end'
+            ) || state=pending
+            echo "$(date -u +%T) gate=$state"
+            case "$state" in
+              success) exit 0 ;;
+              failure) echo "::error::ci gate failed on main for $SHA; not migrating production"; exit 1 ;;
             esac
             if [ "$SECONDS" -ge "$deadline" ]; then
-              echo "::error::checks/test not green on $SHA after 30m; not migrating production"
+              echo "::error::ci gate not green on main for $SHA after 30m; not migrating production"
               exit 1
             fi
             sleep 20
@@ -133,6 +137,38 @@ jobs:
         env:
           GH_TOKEN: ""
 
+      # an older sha going green after a newer one could be promoted over it,
+      # putting old code on the newer schema. vercel sets its
+      # `Vercel – <project>` status pending when a build starts, so a newer
+      # main commit carrying it pending or success has a production
+      # deployment queued, held or live; failure/error (a dead build) doesn't
+      # count. not the deployments api: vercel creates that record only once
+      # a deployment completes, after the checks this run is part of. last
+      # before migrate to keep the window — a newer deployment that starts
+      # after this step and promotes before smoke ends — as short as it gets.
+      - name: not superseded
+        env:
+          VERCEL_CONTEXT: Vercel – ${{ github.event.client_payload.project.name }}
+        run: |
+          set -euo pipefail
+          newer=$(gh api "repos/$GITHUB_REPOSITORY/compare/$SHA...main" \
+            --jq 'if .total_commits > (.commits | length) then "too-far" else (.commits | reverse | .[].sha) end')
+          if [ "$newer" = too-far ]; then
+            echo "::error::$SHA is over 250 commits behind main; treating it as superseded"
+            exit 1
+          fi
+          for c in $newer; do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$c/status" \
+              --jq '.statuses[] | select(.context == env.VERCEL_CONTEXT) | .state')
+            case "$state" in
+              pending | success)
+                echo "::error::superseded by $c ($VERCEL_CONTEXT: $state); not migrating production"
+                exit 1
+                ;;
+            esac
+          done
+          echo "no newer $VERCEL_CONTEXT deployment on main"
+
       # the migration guard, then drizzle-kit under the advisory lock
       # (apps/platform/.server/pg/migrate.ts). empty url fails closed.
       - name: migrate production
@@ -143,13 +179,8 @@ jobs:
 
       # a failure here leaves the context failed even if smoke never starts.
       - name: status failure
-        if: failure() || cancelled()
-        run: |
-          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
-            -H "accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
-            -d "{\"state\":\"failure\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
-            -o /dev/null
+        if: (failure() || cancelled()) && env.SHA != ''
+        run: gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=failure -f context="$STATUS_CONTEXT" -f target_url="$RUN_URL" --silent
 
   # this job's name is not the check to require in vercel — its check run sits
   # on main's HEAD. require the commit status `smoke (production)`.
@@ -157,8 +188,11 @@ jobs:
     name: smoke-dispatch
     needs: migrate
     # always(): `migrate` is skipped outside production and a skipped need
-    # would otherwise skip this job too. a failed migrate already wrote the
-    # failure status, so this job only runs on success or skip.
+    # would otherwise skip this job too; it also runs this job when the run is
+    # cancelled after migrate succeeded, so the pending context still gets a
+    # final state (stopping it then takes a force-cancel). a failed or
+    # cancelled migrate already wrote the failure status, so this job only
+    # runs on success or skip.
     # docs and emails-preview share this repo and dispatch the same event;
     # their runs skip here and write no status. only platform is gated.
     if: >-
@@ -169,16 +203,15 @@ jobs:
     # integration (see ci.yml).
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
+      # see the migrate job's step of the same name.
+      - name: sha present
+        run: '[ -n "$SHA" ] || { echo "::error::no git sha in the dispatch payload; nothing to report a status on"; exit 1; }'
+
       # hand-written, not vercel/repository-dispatch/actions/status: that
       # action reports success for any job without a failed step, so a
       # cancelled or timed-out run would read green.
       - name: status pending
-        run: |
-          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
-            -H "accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
-            -d "{\"state\":\"pending\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
-            -o /dev/null
+        run: gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending -f context="$STATUS_CONTEXT" -f target_url="$RUN_URL" --silent
 
       - name: request paths
         env:
@@ -225,14 +258,10 @@ jobs:
           exit "$failed"
 
       - name: status final
-        if: always()
+        if: always() && env.SHA != ''
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           state=failure
           [ "$JOB_STATUS" = success ] && state=success
-          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
-            -H "accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
-            -d "{\"state\":\"$state\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
-            -o /dev/null
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$state" -f context="$STATUS_CONTEXT" -f target_url="$RUN_URL" --silent
