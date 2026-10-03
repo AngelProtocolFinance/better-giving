@@ -153,7 +153,7 @@ const dec_sub = (from: string, parts: string[]): number => {
 
 // paypal hands the three parts separately at every call site — an order's
 // payment source, a subscriber, a shipping address — so they are gathered here
-// rather than at each of the four
+// rather than at each one
 const donor_update = (
   email: string,
   name: IName | undefined,
@@ -489,6 +489,22 @@ const fetch_resource = async <T>(get: () => Promise<T>): Promise<T | number> =>
     if (is_refusal(e)) return e.http_status;
     throw e;
   });
+
+/** paypal's copy of a capture's order; `refused` says why no redelivery
+ * would read it, `unread` holds the failure one may clear */
+const read_order = (
+  order_id: string | undefined
+): Promise<{ order: Order } | { refused: string } | { unread: unknown }> => {
+  if (!order_id)
+    return Promise.resolve({ refused: "its capture names no order" });
+  return paypal.get_order(order_id).then(
+    (order) => ({ order }),
+    (e: unknown) =>
+      is_refusal(e)
+        ? { refused: `paypal answered ${e.http_status} for its order` }
+        : { unread: e }
+  );
+};
 
 const money = (value?: string, currency?: string) =>
   value ? `${value} ${currency ?? ""}`.trim() : "unknown";
@@ -885,49 +901,50 @@ export async function action({ request }: Route.ActionArgs) {
           return { net: +n, fee: +p, c };
         })(b.exchange_rate?.value);
 
-        // fetch order to get real payer email before settling
         const order_id = supplementary_data?.related_ids?.order_id;
-        // an order paypal refuses leaves the donor as the approval wrote it
-        const fetched = order_id
-          ? await fetch_resource(() => paypal.get_order(order_id))
-          : undefined;
-        const order = typeof fetched === "object" ? fetched : undefined;
-        if (order) {
-          const ps =
-            order.payment_source?.venmo || order.payment_source?.paypal;
-          if (ps?.email_address) {
-            const donor = donor_update(ps.email_address, ps.name, ps.address);
-            await donation_update(db, don_id, donor);
-          }
-        }
+        const read = await read_order(order_id);
+        const ps =
+          "order" in read
+            ? read.order.payment_source?.venmo ||
+              read.order.payment_source?.paypal
+            : undefined;
+        // a payer who withholds their email may still give a name or address
+        const donor = ps ? paypal_donor_update(ps) : {};
+        if (Object.keys(donor).length > 0)
+          await donation_update(db, don_id, donor);
 
-        const don = await donation_get(don_id);
-        // a captured order's payment_source is final: a payer who withheld
-        // their email (routine on venmo) never gains one on redelivery
-        if (order && don?.from_email === PLACEHOLDER_EMAIL) {
-          report_degraded(
-            new Error(
-              `[paypal webhook] settling ${don_id} with placeholder email (payer withheld it)`
-            ),
-            { don_id }
-          );
-        } else if (don?.from_email === PLACEHOLDER_EMAIL) {
-          // order unread: retry unless donation is old (>1h)
-          const age_ms = Date.now() - new Date(don.created_at).getTime();
+        const prior = await donation_get(don_id);
+        if (!prior)
+          return new Response(`donation not found: ${don_id}`, { status: 500 });
+
+        const placeholder = (() => {
+          if (prior.from_email !== PLACEHOLDER_EMAIL) return undefined;
+          if ("refused" in read)
+            return { report: report_error, why: read.refused };
+          // a captured order's payment_source is final: a payer who withheld
+          // their email (routine on venmo) never gains one on redelivery
+          if ("order" in read)
+            return ps
+              ? { report: report_degraded, why: "the payer withheld it" }
+              : { report: report_error, why: "its order has no payer wallet" };
+          return {
+            report: report_error,
+            why: "its order is unread after an hour",
+            cause: read.unread,
+          };
+        })();
+        // a donor with a real email settles on it, order read or not; only the
+        // placeholder is worth an hour of redeliveries for a read that may heal
+        if ("unread" in read && placeholder) {
+          const age_ms = Date.now() - new Date(prior.created_at).getTime();
           if (age_ms < 60 * 60 * 1000) {
             console.warn(
-              `[paypal webhook] placeholder email on ${don_id}, requesting retry`
+              `[paypal webhook] order of ${don_id} unread on the placeholder email, requesting retry`
             );
             return new Response("placeholder email, retry later", {
               status: 503,
             });
           }
-          report_error(
-            new Error(
-              `[paypal webhook] settling ${don_id} with placeholder email (timeout)`
-            ),
-            { don_id }
-          );
         }
 
         const sttl_record = {
@@ -938,9 +955,6 @@ export async function action({ request }: Route.ActionArgs) {
           net: settled.net,
         };
 
-        const prior = await donation_get(don_id);
-        if (!prior)
-          return new Response(`donation not found: ${don_id}`, { status: 500 });
         const result = calc_donation_settle({
           kind: "one-time",
           order_id: don_id,
@@ -989,6 +1003,15 @@ export async function action({ request }: Route.ActionArgs) {
           await requeue(p.row, don_id);
           return new Response("already processed", { status: 200 });
         }
+        // before the enqueue: a throw there redelivers into the dup branch,
+        // which never reports
+        placeholder?.report(
+          new Error(
+            `[paypal webhook] settled ${don_id} on the placeholder email: ${placeholder.why}`,
+            { cause: placeholder.cause }
+          ),
+          { don_id, event_id: ev.id, capture_id: cid, order_id }
+        );
         await enqueue(...result.msgs);
 
         console.info(`donation settled: ${p.row.id}`);

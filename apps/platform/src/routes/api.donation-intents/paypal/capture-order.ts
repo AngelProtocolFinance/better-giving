@@ -119,9 +119,8 @@ export const capture_order = async ({
   if (Object.keys(update).length > 0) {
     // paypal has already taken the money: failing the response here tells the
     // donor it didn't, and they pay again. the capture webhook re-writes these
-    // details only when paypal returns an email, so a venmo / email-withheld
-    // payer's name and address are lost on this failure — data loss, so an
-    // error rather than a degrade.
+    // details from paypal's copy of the order, so they are lost only when that
+    // read fails too.
     await donation_update(db, don_id, update).catch((err) =>
       report_error(err, { don_id, order_id })
     );
