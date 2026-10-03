@@ -77,7 +77,7 @@ const quiet_console = () =>
     vi.spyOn(console, m).mockImplementation(() => {})
   );
 
-// the real deposit lookup: a chain name it doesn't know never matches a receive
+// the real deposit lookup, so each chain's deposit-address mapping is tested
 beforeEach(() => {
   vi.stubEnv("CRYPTO_DEPOSIT_ADDR_EVM", DEPOSIT);
 });

@@ -3,8 +3,9 @@ name: CI
 # push (main) + pull_request only. no other events, no `paths:`/`paths-ignore:`
 # on the triggers or skipping `if:` on the jobs below (`gate`'s always() only
 # widens when it runs) — a workflow run that gets skipped produces no check run
-# at all, and vercel's own docs don't say how a missing check is treated. every job here must fire on every push and every PR, so
-# vercel always has a check run to read.
+# at all, and vercel's own docs don't say how a missing check is treated. every
+# job here must fire on every push and every PR, so vercel always has a check
+# run to read.
 #
 # `staging` is deliberately NOT in the push list. it carries an open pr to main,
 # so a push to it already fires `pull_request` — listing it here too ran every

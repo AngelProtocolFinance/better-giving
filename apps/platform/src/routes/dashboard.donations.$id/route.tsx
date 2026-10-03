@@ -8,7 +8,7 @@ export { action, loader } from "./api";
 
 export default function Page({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
-  // lifted so the dialog can hold itself open while the form submits
+  // owned here, not in Form, so the dialog can hold itself open while it submits
   const fetcher = useFetcher();
 
   return (

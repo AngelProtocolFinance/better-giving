@@ -169,7 +169,7 @@ jobs:
           done
           echo "no newer $VERCEL_CONTEXT deployment on main"
 
-      # the migration guard, then drizzle-kit under the advisory lock
+      # the migration guard, then drizzle-orm's migrator under the advisory lock
       # (apps/platform/.server/pg/migrate.ts). empty url fails closed.
       - name: migrate production
         env:

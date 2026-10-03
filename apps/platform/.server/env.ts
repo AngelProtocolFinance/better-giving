@@ -12,7 +12,7 @@ const required = (name: string, value: string | undefined): string => {
   return value;
 };
 
-// stripped: every consumer appends "/path"
+// trailing slashes stripped: every consumer appends "/path"
 export const base_url = required("BASE_URL", process.env.BASE_URL).replace(
   /\/+$/,
   ""
