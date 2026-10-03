@@ -12,6 +12,14 @@ name: Smoke
 #
 # repository_dispatch runs this file as it exists on the default branch, so an
 # edit on another branch has no effect until it lands on main.
+#
+# production also migrates here (the `migrate` job), not in the build: vercel
+# builds and sends `ready` while ci.yml's `checks`/`test` may still be running,
+# so a build-time migrate would change the production database for a commit
+# whose checks then go red. this job waits for both to pass on the sha, then
+# migrates, and only then lets smoke report — `smoke (production)` is a
+# required check, so the production domain stays on the previous deployment
+# until it's green. preview/staging still migrate in `postbuild`.
 on:
   repository_dispatch:
     types: [vercel.deployment.ready]
@@ -19,33 +27,147 @@ on:
 run-name: smoke ${{ github.event.client_payload.project.name }} (${{ github.event.client_payload.environment }}) ${{ github.event.client_payload.git.shortSha }}
 
 # a dispatch run's own check run lands on main's HEAD, not the deployed sha,
-# so the result vercel reads is the commit status written below. these
-# permissions are for that status and nothing else.
+# so the result vercel reads is the commit status written below. `statuses`
+# is for that status; `checks` and `contents` are the migrate job's reads of
+# ci.yml's results and of the deployed sha.
 permissions:
   statuses: write
+  checks: read
+  contents: read
 
 # no concurrency block — same reason as ci.yml: a cancelled run must never be
 # what vercel reads. the final status step maps a cancelled job to failure.
 
+# each job writes the same commit status; these are its inputs.
+env:
+  GH_TOKEN: ${{ github.token }}
+  SHA: ${{ github.event.client_payload.git.sha }}
+  # environment in the name: a sha fast-forwarded to main already carries
+  # its preview deployment's result, which a bare `smoke` status would
+  # hand to the production deployment before its own run starts.
+  STATUS_CONTEXT: smoke (${{ github.event.client_payload.environment }})
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
 jobs:
+  migrate:
+    name: migrate-dispatch
+    if: >-
+      github.event.client_payload.project.id == 'prj_xpN1ud1WKyuw84TLzlhXyAzYNo3f'
+      && github.event.client_payload.environment == 'production'
+    # holds DATABASE_URL_UNPOOLED as an environment secret, not a repository
+    # one: a same-repo pull_request run gets every repository secret, and
+    # this one is production ddl. the environment's deployment-branch rule
+    # admits main only, which a repository_dispatch run's ref always is.
+    environment: production-migrate
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    timeout-minutes: 45
+    steps:
+      # first, so the required context exists while this job waits on ci.
+      - name: status pending
+        run: |
+          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
+            -H "accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -d "{\"state\":\"pending\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
+            -o /dev/null
+
+      # the payload names the sha; this step is what stops a production
+      # deployment of anything not on main from running its own code with
+      # the production database url.
+      - name: sha is on main
+        run: |
+          rel=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$SHA" --jq .status)
+          case "$rel" in
+            behind | identical) echo "$SHA is on main" ;;
+            *) echo "::error::$SHA is $rel relative to main; not migrating production"; exit 1 ;;
+          esac
+
+      # ci.yml's job names. a ci job added to vercel's required list goes
+      # here too, or production migrates before it passes. app 15368 is
+      # github actions, so
+      # another app's check named `checks` can't satisfy it. each workflow
+      # run (push, pull_request) is its own check suite, and a re-run's
+      # newest check run supersedes the older one in its suite — so after
+      # re-running a red ci job, re-run this workflow run to migrate.
+      - name: wait for checks and test
+        run: |
+          set -uo pipefail
+          deadline=$((SECONDS + 1800))
+          while :; do
+            states=""
+            for name in checks test; do
+              state=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=$name&app_id=15368&filter=all&per_page=100" \
+                --jq '[.check_runs | group_by(.check_suite.id)[] | max_by(.id)]
+                  | if length == 0 or any(.[]; .status != "completed") then "pending"
+                    elif all(.[]; .conclusion == "success") then "success"
+                    else "failure" end') || state=pending
+              states="$states $name=$state"
+            done
+            echo "$(date -u +%T)$states"
+            case "$states" in
+              *=failure*) echo "::error::ci failed on $SHA; not migrating production"; exit 1 ;;
+              *=pending*) ;;
+              *) exit 0 ;;
+            esac
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::checks/test not green on $SHA after 30m; not migrating production"
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # GH_TOKEN blanked on the two steps that run dependency code.
+      - run: pnpm install --frozen-lockfile
+        env:
+          GH_TOKEN: ""
+
+      # the migration guard, then drizzle-kit under the advisory lock
+      # (apps/platform/.server/pg/migrate.ts). empty url fails closed.
+      - name: migrate production
+        env:
+          GH_TOKEN: ""
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+        run: pnpm --filter platform run migrate
+
+      # a failure here leaves the context failed even if smoke never starts.
+      - name: status failure
+        if: failure() || cancelled()
+        run: |
+          curl -fsS -X POST -H "authorization: Bearer $GH_TOKEN" \
+            -H "accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -d "{\"state\":\"failure\",\"context\":\"$STATUS_CONTEXT\",\"target_url\":\"$RUN_URL\"}" \
+            -o /dev/null
+
   # this job's name is not the check to require in vercel — its check run sits
   # on main's HEAD. require the commit status `smoke (production)`.
   smoke:
     name: smoke-dispatch
+    needs: migrate
+    # always(): `migrate` is skipped outside production and a skipped need
+    # would otherwise skip this job too. a failed migrate already wrote the
+    # failure status, so this job only runs on success or skip.
     # docs and emails-preview share this repo and dispatch the same event;
     # their runs skip here and write no status. only platform is gated.
-    if: github.event.client_payload.project.id == 'prj_xpN1ud1WKyuw84TLzlhXyAzYNo3f'
+    if: >-
+      always()
+      && contains(fromJSON('["success", "skipped"]'), needs.migrate.result)
+      && github.event.client_payload.project.id == 'prj_xpN1ud1WKyuw84TLzlhXyAzYNo3f'
     # a curl loop — 2 vcpu is plenty. the label is the whole blacksmith
     # integration (see ci.yml).
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    env:
-      GH_TOKEN: ${{ github.token }}
-      SHA: ${{ github.event.client_payload.git.sha }}
-      # environment in the name: a sha fast-forwarded to main already carries
-      # its preview deployment's result, which a bare `smoke` status would
-      # hand to the production deployment before its own run starts.
-      STATUS_CONTEXT: smoke (${{ github.event.client_payload.environment }})
-      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       # hand-written, not vercel/repository-dispatch/actions/status: that
       # action reports success for any job without a failed step, so a

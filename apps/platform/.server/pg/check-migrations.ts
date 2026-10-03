@@ -1,7 +1,8 @@
 /**
- * `postbuild` runs this before `drizzle-kit migrate`, as plain `node` (type
- * stripping, no loader) — so erasable TS only, and no import that needs vite.
- * Non-zero exit fails the Vercel build before anything touches the database.
+ * `pnpm migrate` runs this before `migrate.ts`, and a production `postbuild`
+ * on its own, as plain `node` (type stripping, no loader) — so erasable TS
+ * only, and no import that needs vite. Non-zero exit stops the build or the
+ * release step before anything touches the database.
  *
  *   node .server/pg/check-migrations.ts [migrations dir]
  */
