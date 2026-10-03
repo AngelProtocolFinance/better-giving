@@ -12,7 +12,7 @@ vi.mock("#/.server/toast", () => ({
 }));
 vi.mock("$/env", () => ({
   app: { npo_id: "1" },
-  base_url: "https://better.giving",
+  base_url: "https://staging.example",
 }));
 
 const send_email_or_throw = vi.hoisted(() =>
@@ -131,6 +131,10 @@ describe("send_receipts - resending a fund gift's receipt", () => {
       ["Climate Fund", "100.00"],
       ["Better Giving", "5.00"],
     ]);
+    // links in the mail point at this deployment, not production
+    expect(send_email_or_throw.mock.calls[0]![0].node.props.base_url).toBe(
+      "https://staging.example"
+    );
   });
 });
 

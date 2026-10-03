@@ -109,7 +109,7 @@ describe("to_receipt", () => {
     from: { first_name: "Ada", full_name: "Ada Lovelace" },
     tax_receipt_id: "R-1",
     bg_npo_id: 1,
-    base_url: "https://better.giving",
+    base_url: "https://staging.example",
   };
   const npo = (
     id: number,
@@ -135,6 +135,7 @@ describe("to_receipt", () => {
     ]);
     expect(r.amount).toEqual({ value: 105, currency: "USD", value_usd: 105 });
     expect(r.tax_receipt_id).toBe("R-1");
+    expect(r.base_url).toBe("https://staging.example");
     expect(r.to_name).toBe("Climate Fund");
     expect(r.is_fund).toBe(true);
     expect(r.is_bg).toBe(false);

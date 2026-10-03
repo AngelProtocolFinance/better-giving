@@ -19,9 +19,37 @@ function Probe() {
   return <p>probe</p>;
 }
 
-// `unhandledrejection` fires after the microtask checkpoint that follows the
-// rejection, so a macrotask hop is enough to observe it
-const settle = () => new Promise((r) => setTimeout(r, 100));
+// rejections are reported in the order they happened, so once a sentinel
+// rejection has been reported every earlier one has been too
+async function reported_through_sentinel() {
+  Promise.reject(new Error("sentinel"));
+  await vi.waitFor(() =>
+    expect(unhandled.map((e) => e.reason?.message)).toContain("sentinel")
+  );
+  return unhandled
+    .map((e) => e.reason)
+    .filter((r) => r?.message !== "sentinel");
+}
+
+// the revalidation's rejection exists only once the hook subscribes, as a
+// real request's does: a promise rejected before anything listens is itself
+// reported as unhandled and would pollute what the test counts
+function rejects_when_listened_to(reason: unknown) {
+  let reject!: (r: unknown) => void;
+  const p = new Promise<never>((_, rej) => {
+    reject = rej;
+  });
+  const then = p.then.bind(p);
+  // biome-ignore lint/suspicious/noThenProperty: the subscription is what arms the rejection
+  Object.defineProperty(p, "then", {
+    value: (...a: Parameters<typeof then>) => {
+      const chained = then(...a);
+      queueMicrotask(() => reject(reason));
+      return chained;
+    },
+  });
+  return p;
+}
 
 function render_redirected_route(navigate: (...a: unknown[]) => Promise<void>) {
   const router = createMemoryRouter(
@@ -34,7 +62,7 @@ function render_redirected_route(navigate: (...a: unknown[]) => Promise<void>) {
           serverData: {},
           key: "/",
           // the background revalidation of an expired session
-          deferredServerData: Promise.reject(
+          deferredServerData: rejects_when_listened_to(
             new Response(null, {
               status: 302,
               headers: { Location: "/login" },
@@ -64,8 +92,7 @@ describe("useCachedLoaderData background redirect", () => {
       expect(navigate).toHaveBeenCalledWith("/login", expect.anything())
     );
 
-    await settle();
-    expect(unhandled.map((e) => e.reason?.name)).toEqual([]);
+    expect(await reported_through_sentinel()).toEqual([]);
   });
 
   test("a navigate failure that is not an interruption still surfaces", async () => {

@@ -13,6 +13,7 @@ import {
 import { cleanup, render } from "vitest-browser-react";
 import { mswWorker } from "#/setup-tests-browser";
 import { npos } from "$/pg/schema/npo";
+import { programs } from "$/pg/schema/program";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 // --- mocks ---
@@ -170,5 +171,62 @@ describe("npo profile — media section", () => {
     // a rejected deferred never reaches handleError, so the loader reports it
     expect(report_error_mock).toHaveBeenCalledOnce();
     expect(report_error_mock).toHaveBeenCalledWith(err, { endow_id: npo.id });
+  });
+});
+
+describe("npo profile — programs and media together", () => {
+  it("says both couldn't be loaded when both queries fail, reporting each", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-PROFILE-BOTH-FAIL",
+      name: "Unreachable Both Org",
+      street_address: "56 Outage Ave",
+    });
+    const programs_err = unreachable();
+    const media_err = unreachable();
+    programs_failure.current = programs_err;
+    media_failure.current = media_err;
+
+    const screen = await render_profile(npo.id);
+
+    await expect.element(screen.getByText(PROGRAMS_COULDNT_LOAD)).toBeVisible();
+    await expect.element(screen.getByText(MEDIA_COULDNT_LOAD)).toBeVisible();
+    await expect.element(screen.getByText("56 Outage Ave")).toBeVisible();
+    await vi.waitFor(() => expect(report_error_mock).toHaveBeenCalledTimes(2));
+    expect(report_error_mock).toHaveBeenCalledWith(programs_err, {
+      endow_id: npo.id,
+    });
+    expect(report_error_mock).toHaveBeenCalledWith(media_err, {
+      endow_id: npo.id,
+    });
+  });
+
+  it("shows neither error when both queries succeed", async () => {
+    const npo = await seed_npo(db(), {
+      registration_number: "EIN-PROFILE-BOTH-OK",
+      name: "Reachable Org",
+      street_address: "78 Quiet Ave",
+    });
+    await db().insert(programs).values({
+      id: "prog-ok",
+      npo_id: npo.id,
+      title: "School Lunches",
+      description_pt: "feeds classrooms",
+      target_raise: 500,
+      total_donations: 0,
+      created_at: new Date().toISOString(),
+    });
+
+    const screen = await render_profile(npo.id);
+
+    await expect.element(screen.getByText("78 Quiet Ave")).toBeVisible();
+    await expect
+      .element(screen.getByText("Overview", { exact: true }))
+      .toBeVisible();
+    // the programs section has settled once its card is up, and the media
+    // query resolves in the same loader pass
+    await expect.element(screen.getByText("School Lunches")).toBeVisible();
+    expect(screen.getByText(PROGRAMS_COULDNT_LOAD).query()).toBeNull();
+    expect(screen.getByText(MEDIA_COULDNT_LOAD).query()).toBeNull();
+    expect(report_error_mock).not.toHaveBeenCalled();
   });
 });
