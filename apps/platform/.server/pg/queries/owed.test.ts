@@ -1,5 +1,12 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, expect, test } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "vitest";
 import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
 import { user } from "../schema/auth";
 import { donations } from "../schema/donation";
@@ -9,9 +16,11 @@ import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
 import {
   credit_back,
+  credit_owed,
   type OwedParty,
   owed_for_donation,
   record_owed,
+  recover_owed,
 } from "./owed";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
@@ -110,8 +119,32 @@ test("a larger cumulative figure replaces the row's, never adds to it", async ()
     received_usd: 90,
     fee_processing_usd: 3.2,
     outstanding_usd: 93.2,
-    source_ref: "re_2",
+    source_ref: "re_1",
     recorded_at: NOW,
+  });
+});
+
+test("a refund after a partly lost dispute keeps the dispute fee and the dispute as source", async () => {
+  await record_owed(as_db(t.db), {
+    ...refund_of(npo_a, 25),
+    source: "dispute",
+    source_ref: "dp_1",
+    fee_processing_usd: 2.96,
+    fee_dispute_usd: 15,
+  });
+  await record_owed(as_db(t.db), {
+    ...refund_of(npo_a, 90),
+    source_ref: "re_2",
+  });
+
+  const [row] = await owed_for_donation(DON, as_db(t.db));
+  expect(row).toMatchObject({
+    source: "dispute",
+    source_ref: "dp_1",
+    received_usd: 90,
+    fee_processing_usd: 3.2,
+    fee_dispute_usd: 15,
+    outstanding_usd: 108.2,
   });
 });
 
@@ -292,4 +325,109 @@ test("a credit beyond what the row owes is refused", async () => {
     cause: { code: "23514" },
   });
   await expect(credit(93.2)).resolves.toMatchObject({ outstanding_usd: 0 });
+});
+
+describe("credit_owed", () => {
+  const credit = (ref: string, usd?: number) =>
+    credit_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd,
+      reason: "payout_cancelled",
+      ref,
+      now: NOW,
+    });
+
+  test("each credit adds to what was credited before", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+
+    await credit("payout-1", 30);
+    const row = await credit("payout-2", 20);
+
+    expect(row).toMatchObject({
+      credited_back_usd: 50,
+      credited_back_at: NOW,
+      outstanding_usd: 43.2,
+    });
+  });
+
+  test("crediting all after a write-off credits only what was not written off", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    // write-offs have no verb yet, so set here by hand
+    await t.db.update(owed_amounts).set({
+      written_off_usd: 20,
+      written_off_at: NOW,
+      write_off_reason: "npo closed",
+      written_off_by: admin!.id,
+    });
+    await recover_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 10,
+      reason: "grant_run",
+      ref: "run-1",
+      now: NOW,
+    });
+
+    const row = await credit("dispute-won");
+
+    expect(row).toMatchObject({
+      credited_back_usd: 73.2,
+      outstanding_usd: -10,
+    });
+  });
+
+  test("a credit that with the write-off exceeds what is owed is refused", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    await t.db.update(owed_amounts).set({
+      written_off_usd: 20,
+      written_off_at: NOW,
+      write_off_reason: "npo closed",
+      written_off_by: admin!.id,
+    });
+
+    await expect(credit("dispute-won", 73.21)).rejects.toMatchObject({
+      cause: { code: "23514" },
+    });
+    await expect(credit("dispute-won", 73.2)).resolves.toMatchObject({
+      outstanding_usd: 0,
+    });
+  });
+
+  test("a credit retried under the same ref adds nothing", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+
+    const first = await credit("payout-1", 30);
+    const again = await credit("payout-1", 30);
+
+    expect(again).toEqual(first);
+    expect(again).toMatchObject({ credited_back_usd: 30 });
+  });
+});
+
+describe("recover_owed", () => {
+  test("each run's recovery adds to the row's recovered figure", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    const LATER = "2026-11-01T00:00:00.000Z";
+    const recover = (ref: string, usd: number, now: string) =>
+      recover_owed(as_db(t.db), {
+        donation_id: DON,
+        party: { npo_id: npo_a },
+        usd,
+        reason: "grant_run",
+        ref,
+        now,
+      });
+
+    await recover("run-1", 80, NOW);
+    const row = await recover("run-2", 13.2, LATER);
+
+    expect(row).toMatchObject({
+      recovered_usd: 93.2,
+      recovered_at: LATER,
+      outstanding_usd: 0,
+    });
+  });
 });

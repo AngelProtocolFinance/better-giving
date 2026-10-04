@@ -15,7 +15,9 @@ import { npos } from "./npo";
 const usd = (name: string) =>
   numeric_as_number(name, { precision: 38, scale: 18 });
 
-/** what a party owes back on a reversed gift, one row per gift per party, in usd */
+/** what a party owes back on a reversed gift, one row per gift per party, in
+ * usd. credited back / recovered / written off are sums of `owed_entries`,
+ * each `_at` the latest entry's */
 export const owed_amounts = pgTable(
   "owed_amounts",
   {
@@ -28,7 +30,7 @@ export const owed_amounts = pgTable(
     referrer_user: text("referrer_user").references(() => user.referral_code),
     referrer_npo: text("referrer_npo").references(() => npos.referral_id),
     source: text("source").$type<"refund" | "dispute">().notNull(),
-    /** the provider's id for the refund or dispute */
+    /** the provider's id for the first refund or dispute recorded */
     source_ref: text("source_ref").notNull(),
     recorded_at: timestamptz("recorded_at").notNull(),
     received_usd: usd("received_usd").notNull(),
@@ -67,10 +69,13 @@ export const owed_amounts = pgTable(
       sql`${t.received_usd} >= 0 AND ${t.fee_processing_usd} >= 0 AND ${t.fee_dispute_usd} >= 0
         AND ${t.credited_back_usd} >= 0 AND ${t.recovered_usd} >= 0 AND ${t.written_off_usd} >= 0`
     ),
+    // recovered is left out of the sum: recovering, then crediting back, is
+    // how a party comes to be due money back
     check(
       "owed_amounts_settled_within_owed_check",
-      sql`GREATEST(${t.credited_back_usd}, ${t.recovered_usd}, ${t.written_off_usd})
-        <= ${t.received_usd} + ${t.fee_processing_usd} + ${t.fee_dispute_usd}`
+      sql`${t.credited_back_usd} + ${t.written_off_usd}
+          <= ${t.received_usd} + ${t.fee_processing_usd} + ${t.fee_dispute_usd}
+        AND ${t.recovered_usd} <= ${t.received_usd} + ${t.fee_processing_usd} + ${t.fee_dispute_usd}`
     ),
     check(
       "owed_amounts_credit_dated_check",
@@ -90,5 +95,35 @@ export const owed_amounts = pgTable(
     index("owed_amounts_npo_outstanding_idx")
       .on(t.npo_id)
       .where(sql`${t.npo_id} IS NOT NULL AND ${t.outstanding_usd} <> 0`),
+  ]
+);
+
+/** each credit, recovery or write-off against an owed row; the row's
+ * credited / recovered / written-off figures are these entries' sums */
+export const owed_entries = pgTable(
+  "owed_entries",
+  {
+    id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
+    owed_id: text("owed_id")
+      .notNull()
+      .references(() => owed_amounts.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"credit" | "recover" | "write_off">().notNull(),
+    usd: usd("usd").notNull(),
+    reason: text("reason").notNull(),
+    /** what the entry answers to (a payout, a grant run, a dispute); a second
+     * entry of one kind under one ref is a retry */
+    ref: text("ref").notNull(),
+    at: timestamptz("at").notNull(),
+    actor: text("actor").references(() => user.id),
+  },
+  (t) => [
+    unique("owed_entries_owed_kind_ref_uniq").on(t.owed_id, t.kind, t.ref),
+    check(
+      "owed_entries_kind_check",
+      sql`${t.kind} IN ('credit','recover','write_off')`
+    ),
+    check("owed_entries_usd_check", sql`${t.usd} > 0`),
+    check("owed_entries_reason_check", sql`btrim(${t.reason}) <> ''`),
+    check("owed_entries_ref_check", sql`${t.ref} <> ''`),
   ]
 );
