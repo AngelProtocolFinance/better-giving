@@ -64,6 +64,7 @@ export const SERVER_KEYS = [
   "CRYPTO_DEPOSIT_ADDR_REEF",
   "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+  "OWED_DEDUCTIONS",
 ] as const;
 
 export const CLIENT_KEYS = [
@@ -96,6 +97,8 @@ export const OPTIONAL_KEYS = [
   // webhook, at request time (.server/alchemy-webhook/handler.ts)
   "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
+  // the owed-deductions switch, off unless "on"
+  "OWED_DEDUCTIONS",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];

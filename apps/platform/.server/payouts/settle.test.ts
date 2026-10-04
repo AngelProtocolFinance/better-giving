@@ -751,3 +751,70 @@ describe("settle_npo_payouts", () => {
     expect(alert.fields).toContainEqual({ name: "unsettled", value: "p-2" });
   });
 });
+
+/** a gift refunded after its grant went out, the npo owing `usd` on it */
+async function seed_owed(npo_id: number, donation_id: string, usd: number) {
+  await db().insert(donations).values({
+    id: donation_id,
+    upusd: 1,
+    status: "refunded_loss",
+    amount_base: usd,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+  });
+  await db()
+    .insert(owed_amounts)
+    .values({
+      donation_id,
+      npo_id,
+      source: "refund",
+      source_ref: `re_${donation_id}`,
+      recorded_at: "2026-09-15T00:00:00.000Z",
+      received_usd: usd,
+    });
+}
+
+describe("settle_npo_payouts: owed deductions", () => {
+  test("switched off, an npo owing $93.20 is paid its $500 pending and nothing is recovered", async () => {
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 500);
+    await seed_owed(npo.id, "don-owed", 93.2);
+    const pay = vi.fn<Pay>(async () => TRANSFER_ID);
+
+    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+
+    expect(pay).toHaveBeenCalledWith(expect.any(String), 500);
+    expect(res).toMatchObject({ status: "settled", total: 500 });
+    expect(await npo_cash(npo.id)).toBe(0);
+    expect(await owed()).toEqual([
+      { donation_id: "don-owed", credited_back_usd: 0, outstanding_usd: 93.2 },
+    ]);
+    expect(await credits()).toEqual([]);
+  });
+
+  test.todo(
+    "switched on, the same npo is paid $406.80 and its row shows $93.20 recovered on the run's date, $0 outstanding (needs the npo's locked outstanding-owed read)"
+  );
+  test.todo(
+    "switched on, $80 pending against $93.20 owed settles the payouts with no transfer, $80 recovered, $13.20 still owed and recovered by the next run (needs the npo's locked outstanding-owed read)"
+  );
+  test.todo(
+    "switched on, $150 pending against $93.20 owed with a $100 minimum claims and recovers nothing (needs the npo's locked outstanding-owed read)"
+  );
+  test.todo(
+    "switched on, an npo due $50 back from a credit is sent its pending total + $50 and the row's due-back clears (needs a repay entry verb)"
+  );
+  test.todo(
+    "switched on, a refund committing while the run holds the claim's lock is netted wholly in this run or wholly in the next (needs the npo's locked outstanding-owed read)"
+  );
+  test.todo(
+    "switched on, a recovery never takes a row past what it still owes (needs recover_owed capped at outstanding)"
+  );
+  test.todo(
+    "switched on, every payout row the run writes keeps amount > 0 (needs the npo's locked outstanding-owed read)"
+  );
+});

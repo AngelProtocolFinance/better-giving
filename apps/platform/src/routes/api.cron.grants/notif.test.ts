@@ -139,4 +139,8 @@ describe("grants schedule notice", () => {
     expect(rows).toEqual({ Edge: [50, "pass"], Under: [49.99, "skipped"] });
     expect(data.total_grant).toBe(50);
   });
+
+  test.todo(
+    "switched on, an npo's row shows its gross, each deduction by gift and its net, the total summing nets (needs the npo's outstanding-owed read)"
+  );
 });

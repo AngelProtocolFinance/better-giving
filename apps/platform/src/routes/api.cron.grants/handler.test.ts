@@ -352,4 +352,8 @@ describe("grants cron execute", () => {
     expect(await db().select().from(settlements)).toEqual([]);
     expect(await npo_cash(npo_id)).toBe(500);
   });
+
+  test.todo(
+    "switched on, an npo whose pending total is under its minimum, or that has no wise recipient, but owes at least that total is settled with no transfer (needs the npo's locked outstanding-owed read)"
+  );
 });
