@@ -1,9 +1,23 @@
-import { and, eq, getTableColumns, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "../db";
+import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
+import { npos } from "../schema/npo";
 import { owed_amounts, owed_entries } from "../schema/owed";
-import type { DbOrTx } from "./helpers";
+import { loss_logs } from "../schema/revenue";
+import type { DbOrTx, IPage } from "./helpers";
 
 export type IOwed = typeof owed_amounts.$inferSelect;
 
@@ -85,7 +99,7 @@ export async function credit_owed(
     c.usd === undefined
       ? sql`${owed_total} - ${owed_amounts.credited_back_usd} - ${owed_amounts.written_off_usd}`
       : sql`${finite(c.usd, "credit_owed usd")}::numeric`;
-  return put_entry(tx, "credit", c, usd);
+  return put_entry(tx, "credit", party_row(c), c, usd);
 }
 
 export interface IOwedRecovery {
@@ -106,9 +120,103 @@ export async function recover_owed(
   return put_entry(
     tx,
     "recover",
+    party_row(r),
     r,
     sql`${finite(r.usd, "recover_owed usd")}::numeric`
   );
+}
+
+export interface IOwedAdminCredit {
+  owed_id: string;
+  usd: number;
+  /** the admin's own words; the entry's `actor` is what marks it an admin's */
+  reason: string;
+  /** what the credit answers to; a second credit under one ref adds nothing */
+  ref: string;
+  /** the admin's user id */
+  actor: string;
+  now: string;
+}
+
+/** null when the row does not exist */
+export async function admin_credit_owed(
+  tx: DbOrTx,
+  c: IOwedAdminCredit
+): Promise<IOwed | null> {
+  return put_entry(
+    tx,
+    "credit",
+    eq(owed_amounts.id, c.owed_id),
+    c,
+    sql`${finite(c.usd, "admin_credit_owed usd")}::numeric`
+  );
+}
+
+export interface IOwedWriteOff {
+  owed_id: string;
+  reason: string;
+  /** the admin's user id */
+  actor: string;
+  now: string;
+}
+
+/** writes off all the row still owes and books it as a loss, once per row: a
+ * second call adds nothing. null when the row owes nothing and was never
+ * written off */
+export async function write_off_owed(
+  tx: DbOrTx,
+  w: IOwedWriteOff
+): Promise<IOwed | null> {
+  const row = await put_entry(
+    tx,
+    "write_off",
+    eq(owed_amounts.id, w.owed_id),
+    { ...w, ref: w.owed_id },
+    sql`${owed_amounts.outstanding_usd}`
+  );
+  if (!row || row.written_off_usd === 0) return null;
+  await book_write_off_loss(tx, w.owed_id);
+  return row;
+}
+
+/** the row's write-off entry as a loss log, keyed by the row so a retry books
+ * nothing */
+async function book_write_off_loss(tx: DbOrTx, owed_id: string) {
+  await tx
+    .insert(loss_logs)
+    .select(
+      tx
+        // drizzle's insert-select wants every column, in table order
+        .select({
+          id: sql<string>`'write_off:' || ${owed_amounts.id}`.as("id"),
+          date: owed_entries.at,
+          donation_id: owed_amounts.donation_id,
+          dist_id: sql<string | null>`null`.as("dist_id"),
+          npo_id: owed_amounts.npo_id,
+          referrer_user: owed_amounts.referrer_user,
+          referrer_npo: owed_amounts.referrer_npo,
+          type: sql<"write_off">`'write_off'`.as("type"),
+          amount: owed_entries.usd,
+          npo_amount:
+            sql<number>`CASE WHEN ${owed_amounts.npo_id} IS NULL THEN 0 ELSE ${owed_entries.usd} END`.as(
+              "npo_amount"
+            ),
+          fees_bg: sql<number>`0`.as("fees_bg"),
+          fees_processing: sql<number>`0`.as("fees_processing"),
+          reason: owed_entries.reason,
+          actor: owed_entries.actor,
+        })
+        .from(owed_entries)
+        .innerJoin(owed_amounts, eq(owed_amounts.id, owed_entries.owed_id))
+        .where(
+          and(
+            eq(owed_entries.owed_id, owed_id),
+            eq(owed_entries.kind, "write_off"),
+            eq(owed_entries.ref, owed_id)
+          )
+        )
+    )
+    .onConflictDoNothing({ target: loss_logs.id });
 }
 
 type IOwedEntry = typeof owed_entries.$inferSelect;
@@ -118,13 +226,8 @@ type IOwedEntry = typeof owed_entries.$inferSelect;
 async function put_entry(
   tx: DbOrTx,
   kind: keyof typeof SUM_OF,
-  e: {
-    donation_id: string;
-    party: OwedParty;
-    reason: string;
-    ref: string;
-    now: string;
-  },
+  row_is: SQL,
+  e: IEntryFields,
   usd: SQL
 ): Promise<IOwed | null> {
   const entry = tx.$with("entry").as(
@@ -141,16 +244,10 @@ async function put_entry(
             reason: sql<string>`${e.reason}`.as("reason"),
             ref: sql<string>`${e.ref}`.as("ref"),
             at: sql<string>`${e.now}::timestamptz`.as("at"),
-            actor: sql<string | null>`null`.as("actor"),
+            actor: sql<string | null>`${e.actor ?? null}`.as("actor"),
           })
           .from(owed_amounts)
-          .where(
-            and(
-              eq(owed_amounts.donation_id, e.donation_id),
-              party_is(e.party),
-              sql`${usd} > 0`
-            )
-          )
+          .where(and(row_is, sql`${usd} > 0`))
           .for("update")
       )
       .onConflictDoNothing({
@@ -161,21 +258,37 @@ async function put_entry(
   const [row] = await tx
     .with(entry)
     .update(owed_amounts)
-    .set(SUM_OF[kind](sql`${entry.usd}`, e.now))
+    .set(SUM_OF[kind](sql`${entry.usd}`, e))
     .from(entry)
     .where(eq(owed_amounts.id, entry.owed_id))
     .returning(getTableColumns(owed_amounts));
-  return row ?? (await owed_for_party(e.donation_id, e.party, tx)) ?? null;
+  if (row) return row;
+  const [as_was] = await tx.select().from(owed_amounts).where(row_is);
+  return as_was ?? null;
+}
+
+interface IEntryFields {
+  reason: string;
+  ref: string;
+  now: string;
+  actor?: string;
 }
 
 const SUM_OF = {
-  credit: (usd: SQL, at: string) => ({
+  credit: (usd: SQL, e: IEntryFields) => ({
     credited_back_usd: sql`${owed_amounts.credited_back_usd} + ${usd}`,
-    credited_back_at: at,
+    credited_back_at: e.now,
   }),
-  recover: (usd: SQL, at: string) => ({
+  recover: (usd: SQL, e: IEntryFields) => ({
     recovered_usd: sql`${owed_amounts.recovered_usd} + ${usd}`,
-    recovered_at: at,
+    recovered_at: e.now,
+  }),
+  // a row is written off once, so its reason and admin are that entry's
+  write_off: (usd: SQL, e: IEntryFields) => ({
+    written_off_usd: sql`${owed_amounts.written_off_usd} + ${usd}`,
+    written_off_at: e.now,
+    write_off_reason: e.reason,
+    written_off_by: e.actor,
   }),
 };
 
@@ -185,6 +298,9 @@ const PARTY_KEY = [
   owed_amounts.referrer_user,
   owed_amounts.referrer_npo,
 ];
+
+const party_row = (e: { donation_id: string; party: OwedParty }) =>
+  sql`${owed_amounts.donation_id} = ${e.donation_id} AND ${party_is(e.party)}`;
 
 const party_is = (p: OwedParty) =>
   "npo_id" in p
@@ -203,6 +319,107 @@ export async function owed_for_party(
     .from(owed_amounts)
     .where(and(eq(owed_amounts.donation_id, donation_id), party_is(party)));
   return row;
+}
+
+export interface IOwedListOptions {
+  party?: "npo" | "referrer";
+  sort: "date" | "outstanding";
+  dir: "asc" | "desc";
+  limit?: number;
+  /** the `next` of the page before */
+  next?: string;
+}
+
+export interface IOwedListItem
+  extends Pick<
+    IOwed,
+    | "id"
+    | "donation_id"
+    | "npo_id"
+    | "referrer_user"
+    | "referrer_npo"
+    | "source"
+    | "source_ref"
+    | "recorded_at"
+    | "received_usd"
+    | "fee_processing_usd"
+    | "fee_dispute_usd"
+    | "credited_back_usd"
+    | "recovered_usd"
+  > {
+  outstanding_usd: number;
+  party: "npo" | "referrer";
+  /** the npo's name, or the referrer's: a user's or an npo's */
+  party_name: string | null;
+}
+
+/** rows still owed (> $0), both parties */
+export async function owed_list(
+  o: IOwedListOptions,
+  tx: DbOrTx = db
+): Promise<IPage<IOwedListItem>> {
+  const limit = o.limit ?? 20;
+  const key =
+    o.sort === "date" ? owed_amounts.recorded_at : owed_amounts.outstanding_usd;
+  const [order, past] =
+    o.dir === "asc" ? [asc, sql.raw(">")] : [desc, sql.raw("<")];
+  // keyed by row id, so the sort value is read back from the row exactly
+  const after_cursor = o.next
+    ? sql`(${key}, ${owed_amounts.id}) ${past} (
+        SELECT ${key}, ${owed_amounts.id} FROM ${owed_amounts} WHERE ${owed_amounts.id} = ${o.next})`
+    : undefined;
+
+  const rows = await tx
+    .select({
+      id: owed_amounts.id,
+      donation_id: owed_amounts.donation_id,
+      npo_id: owed_amounts.npo_id,
+      referrer_user: owed_amounts.referrer_user,
+      referrer_npo: owed_amounts.referrer_npo,
+      source: owed_amounts.source,
+      source_ref: owed_amounts.source_ref,
+      recorded_at: owed_amounts.recorded_at,
+      received_usd: owed_amounts.received_usd,
+      fee_processing_usd: owed_amounts.fee_processing_usd,
+      fee_dispute_usd: owed_amounts.fee_dispute_usd,
+      credited_back_usd: owed_amounts.credited_back_usd,
+      recovered_usd: owed_amounts.recovered_usd,
+      outstanding_usd: sql<number>`${owed_amounts.outstanding_usd}`.mapWith(
+        owed_amounts.outstanding_usd
+      ),
+      party: sql<
+        IOwedListItem["party"]
+      >`CASE WHEN ${owed_amounts.npo_id} IS NULL THEN 'referrer' ELSE 'npo' END`,
+      party_name: sql<string | null>`COALESCE(${npos.name}, ${user.name})`,
+    })
+    .from(owed_amounts)
+    .leftJoin(
+      npos,
+      or(
+        eq(npos.id, owed_amounts.npo_id),
+        eq(npos.referral_id, owed_amounts.referrer_npo)
+      )
+    )
+    .leftJoin(user, eq(user.referral_code, owed_amounts.referrer_user))
+    .where(
+      and(
+        sql`${owed_amounts.outstanding_usd} > 0`,
+        o.party === "npo"
+          ? isNotNull(owed_amounts.npo_id)
+          : o.party === "referrer"
+            ? isNull(owed_amounts.npo_id)
+            : undefined,
+        after_cursor
+      )
+    )
+    .orderBy(order(key), order(owed_amounts.id))
+    .limit(limit + 1);
+
+  const items = rows.slice(0, limit);
+  return {
+    items,
+    next: rows.length > limit ? items[items.length - 1]?.id : undefined,
+  };
 }
 
 export async function owed_for_donation(

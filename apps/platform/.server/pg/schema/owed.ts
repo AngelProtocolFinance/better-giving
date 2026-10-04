@@ -70,13 +70,14 @@ export const owed_amounts = pgTable(
       sql`${t.received_usd} >= 0 AND ${t.fee_processing_usd} >= 0 AND ${t.fee_dispute_usd} >= 0
         AND ${t.credited_back_usd} >= 0 AND ${t.recovered_usd} >= 0 AND ${t.written_off_usd} >= 0`
     ),
-    // recovered is left out of the sum: recovering, then crediting back, is
-    // how a party comes to be due money back
+    // recovered is left out of the credited sum: recovering, then crediting
+    // back, is how a party comes to be due money back. what was written off
+    // is no longer there to recover
     check(
       "owed_amounts_settled_within_owed_check",
       sql`${t.credited_back_usd} + ${t.written_off_usd}
           <= ${t.received_usd} + ${t.fee_processing_usd} + ${t.fee_dispute_usd}
-        AND ${t.recovered_usd} <= ${t.received_usd} + ${t.fee_processing_usd} + ${t.fee_dispute_usd}`
+        AND ${t.recovered_usd} + ${t.written_off_usd} <= ${t.received_usd} + ${t.fee_processing_usd} + ${t.fee_dispute_usd}`
     ),
     check(
       "owed_amounts_credit_dated_check",

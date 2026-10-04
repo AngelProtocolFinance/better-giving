@@ -7,10 +7,14 @@ import { type Source, sources_of } from "#/__tests__/conformance/walk";
 const platform = "apps/platform";
 const in_refund_core = (file: string) =>
   file.startsWith(`${platform}/.server/refund/`);
+const in_owed_admin = (file: string) =>
+  file.startsWith(`${platform}/src/routes/platform.owed/`);
 const OWNER: Record<string, (file: string) => boolean> = {
   record_owed: in_refund_core,
   credit_owed: in_refund_core,
   recover_owed: (file) => file === `${platform}/.server/payouts/settle.ts`,
+  write_off_owed: in_owed_admin,
+  admin_credit_owed: in_owed_admin,
 };
 const LEDGER_HOME = [
   `${platform}/.server/pg/queries/owed.ts`,
@@ -66,12 +70,18 @@ describe("owed ledger fence", () => {
         ),
         at(".server/refund/z.ts", `await recover_owed(tx, r);`),
         at(".server/refund/ok.ts", `await credit_owed(tx, c); // owed_amounts`),
+        at(
+          "src/routes/platform.owed/api.ts",
+          `await write_off_owed(tx, w);\nawait admin_credit_owed(tx, c);`
+        ),
+        at("src/routes/platform.losses/api.ts", `await write_off_owed(tx, w);`),
       ])
     ).toEqual([
       `${platform}/src/routes/x/api.ts: credit_owed`,
       `${platform}/.server/jobs/y.ts: owed_amounts`,
       `${platform}/.server/jobs/y.ts: owed_amounts`,
       `${platform}/.server/refund/z.ts: recover_owed`,
+      `${platform}/src/routes/platform.losses/api.ts: write_off_owed`,
     ]);
   });
 });
