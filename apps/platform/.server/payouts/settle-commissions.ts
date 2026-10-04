@@ -11,6 +11,7 @@ import {
   commissions_release,
   referrer_payout_put,
 } from "../pg/queries/referrer";
+import { credit_unfunded_commissions } from "../refund/commission";
 import type { Pay } from "./settle";
 import { NotFundedError, payout_total, transfer_ref } from "./transfer";
 
@@ -104,9 +105,16 @@ export async function settle_referrer_commissions(
       }
       const not_released = ids.filter((id) => !released.includes(id));
       if (not_released.length > 0) {
+        let credited = true;
+        try {
+          await db.transaction((tx) => credit_unfunded_commissions(tx, ref));
+        } catch (credit_err) {
+          report_error(credit_err, ctx);
+          credited = false;
+        }
         await alert({
           title: `commission refunded in flight, not funded, ${referrer.id}`,
-          body: `these commissions were refunded while their transfer was in flight, and were taken as a loss; the transfer then failed before funding, so the referrer was never paid them and no loss happened: set each to refunded. customerTransactionId ${ref}`,
+          body: `these commissions were refunded while their transfer was in flight, and recorded as owed by the referrer; the transfer then failed before funding, so the referrer was never paid them. ${credited ? "what the referrer owes for them is credited back" : "crediting back what the referrer owes for them failed: credit each gift's referrer row by its commission"}, then set each to refunded. customerTransactionId ${ref}`,
           fields: [
             ...fields,
             { name: "not_released", value: not_released.join(", ") },
@@ -155,7 +163,7 @@ export async function settle_referrer_commissions(
   if (unpaid.length > 0) {
     await alert({
       title: `commission paid but refunded in flight, ${referrer.id}`,
-      body: `Wise transfer ${transfer_id} (customerTransactionId ${ref}) paid these commissions, but they were refunded while it was in flight and are a loss: the referrer was paid for refunded donations`,
+      body: `Wise transfer ${transfer_id} (customerTransactionId ${ref}) paid these commissions, but they were refunded while it was in flight: each is recorded as owed by the referrer, recovered from its next commission`,
       fields: [...fields, { name: "refunded", value: unpaid.join(", ") }],
     });
   }

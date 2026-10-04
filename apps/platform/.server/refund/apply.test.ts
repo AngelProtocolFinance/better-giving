@@ -89,8 +89,7 @@ function plan_marking(status: "refunded" | "refunded_loss"): RefundPlan {
   return {
     is_loss: status === "refunded_loss",
     loss_reasons: [],
-    amount: 100,
-    paid_commission: null,
+    amount: [],
     effects: [{ kind: "payout_status", payout_id: PAYOUT_ID, status }],
     preview: { effects: [], blockers: [], warnings: [] },
   };
@@ -216,6 +215,7 @@ describe("apply_refund_plan commission_status", () => {
         referral_id: "NPO-REF",
       })
       .returning();
+    await seed_donation();
     await test_db.db.insert(referrer_commissions).values({
       referrer_npo: "NPO-REF",
       date: "2026-09-01T00:00:00.000Z",
@@ -230,12 +230,32 @@ describe("apply_refund_plan commission_status", () => {
   const plan_reversing_commission = (): RefundPlan => ({
     is_loss: false,
     loss_reasons: [],
-    amount: 100,
-    paid_commission: null,
+    amount: [],
     effects: [
-      { kind: "commission_status", donation_id: "dist-1", status: "refunded" },
+      {
+        kind: "commission_status",
+        donation_id: "dist-1",
+        status: "refunded",
+        owed: {
+          donation_id: "don-1",
+          party: { referrer_npo: "NPO-REF" },
+          received_usd: 5,
+          fee_processing_usd: 0,
+          now: "2026-09-03T00:00:00.000Z",
+        },
+      },
     ],
     preview: { effects: [], blockers: [], warnings: [] },
+  });
+
+  const referrer_row = expect.objectContaining({
+    donation_id: "don-1",
+    npo_id: null,
+    referrer_npo: "NPO-REF",
+    source: "refund",
+    source_ref: "re_1",
+    received_usd: 5,
+    outstanding_usd: 5,
   });
 
   async function commission_status() {
@@ -246,7 +266,7 @@ describe("apply_refund_plan commission_status", () => {
     return row?.status;
   }
 
-  test("a pending commission is marked refunded", async () => {
+  test("a pending commission is marked refunded, owed by nobody", async () => {
     await seed_commission("pending");
 
     const res = await apply_refund_plan(
@@ -257,10 +277,12 @@ describe("apply_refund_plan commission_status", () => {
 
     expect(await commission_status()).toBe("refunded");
     expect(res.commission_in_flight).toBeUndefined();
+    expect(res.owed).toEqual([]);
+    expect(await owed_for_donation("don-1", as_db(test_db.db))).toEqual([]);
   });
 
   // its wise transfer may already be paying the referrer
-  test("a processing commission is marked refunded_loss and reported", async () => {
+  test("a processing commission is marked refunded_loss, reported, and owed by its referrer", async () => {
     await seed_commission("processing");
 
     const res = await apply_refund_plan(
@@ -275,10 +297,11 @@ describe("apply_refund_plan commission_status", () => {
       amount: 5,
       ref: "ref-1",
     });
+    expect(res.owed).toEqual([referrer_row]);
   });
 
   // paid after the plan was drawn: the referrer has the money, so it stays paid
-  test("a paid commission is left paid and reported", async () => {
+  test("a paid commission is left paid and owed by its referrer", async () => {
     await seed_commission("paid");
 
     const res = await apply_refund_plan(
@@ -288,7 +311,10 @@ describe("apply_refund_plan commission_status", () => {
     );
 
     expect(await commission_status()).toBe("paid");
-    expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
+    expect(res.owed).toEqual([referrer_row]);
+    expect(await owed_for_donation("don-1", as_db(test_db.db))).toEqual([
+      referrer_row,
+    ]);
   });
 });
 
@@ -308,10 +334,23 @@ async function seed_donation() {
 }
 
 describe("apply_refund_plan owed", () => {
-  // the referrer's paid commission is the platform's loss, never the npo's row
-  test("records what the npo owes, no loss, and reports the paid commission", async () => {
+  // the referrer's paid commission is its own row, never the npo's
+  test("records what the npo owes and what the referrer owes, one row each, no loss", async () => {
     const npo_id = await seed_payout("settled");
     await seed_donation();
+    await test_db.db
+      .update(npos)
+      .set({ referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await test_db.db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-09-01T00:00:00.000Z",
+      donation_id: "dist-1",
+      npo_id,
+      amount: 5,
+      status: "paid",
+      ref: "ref-1",
+    });
     const plan = calc_refund_plan(
       {
         dist: {
@@ -328,7 +367,12 @@ describe("apply_refund_plan owed", () => {
           fee_processing: 0,
         },
         payout: { id: PAYOUT_ID, type: "settled" },
-        commission: { donation_id: "dist-1", amount: 5, status: "paid" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "paid",
+          referrer: { referrer_npo: "NPO-REF" },
+        },
         rev_log_ids: [],
         bal: { liq: 0, lock_units: 0, cash: 100 },
         nav: null,
@@ -345,20 +389,28 @@ describe("apply_refund_plan owed", () => {
     const res = await apply_refund_plan(as_db(test_db.db), plan, SRC);
 
     const owed = await owed_for_donation("don-1", as_db(test_db.db));
-    expect(owed).toEqual([
-      expect.objectContaining({
-        npo_id,
-        source: "refund",
-        source_ref: "re_1",
-        recorded_at: "2026-09-03T00:00:00.000Z",
-        received_usd: 100,
-        fee_processing_usd: 0,
-        outstanding_usd: 100,
-      }),
-    ]);
-    expect(res.owed).toEqual(owed[0]);
+    const npo_row = expect.objectContaining({
+      npo_id,
+      source: "refund",
+      source_ref: "re_1",
+      recorded_at: "2026-09-03T00:00:00.000Z",
+      received_usd: 100,
+      fee_processing_usd: 0,
+      outstanding_usd: 100,
+    });
+    const referrer_row = expect.objectContaining({
+      npo_id: null,
+      referrer_npo: "NPO-REF",
+      source: "refund",
+      source_ref: "re_1",
+      recorded_at: "2026-09-03T00:00:00.000Z",
+      received_usd: 5,
+      outstanding_usd: 5,
+    });
+    expect(owed).toHaveLength(2);
+    expect(owed).toEqual(expect.arrayContaining([npo_row, referrer_row]));
+    expect(res.owed).toEqual([referrer_row, npo_row]);
     expect(await test_db.db.select().from(loss_logs)).toEqual([]);
-    expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
   });
 });
 

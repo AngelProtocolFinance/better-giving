@@ -40,7 +40,6 @@ vi.mock("$/refund/reverse", () => ({
     dists: 1,
     applied: 1,
     owed_msgs: [],
-    loss_msgs: [],
     has_loss: false,
   })),
 }));

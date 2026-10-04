@@ -85,7 +85,6 @@ export type ReversalResult =
       dists: number;
       applied: number;
       owed_msgs: string[];
-      loss_msgs: string[];
       has_loss: boolean;
     }
   /** an earlier run took the money back: acknowledge, nothing written */
@@ -201,7 +200,7 @@ export async function reverse_charge(
 
   const failed = res.failures.length;
   console.info(
-    `${r.alert_from}: reversed ${r.donation_id}, dists: ${graphs.length}, failures: ${failed}, owed: ${res.owed_msgs.length}, losses: ${res.loss_msgs.length}`
+    `${r.alert_from}: reversed ${r.donation_id}, dists: ${graphs.length}, failures: ${failed}, owed: ${res.owed_msgs.length}`
   );
   if (r.source === "dispute") await notify_dispute_lost(r, graphs.length, res);
 
@@ -219,7 +218,6 @@ export async function reverse_charge(
     dists: graphs.length,
     applied: res.applied,
     owed_msgs: res.owed_msgs,
-    loss_msgs: res.loss_msgs,
     has_loss: res.has_loss,
   };
 }
@@ -245,7 +243,6 @@ async function notify_dispute_lost(
     failed === 0
       ? `all ${dists} dists reversed.`
       : `${failed} of ${dists} dists failed to reverse, and the donation stays settled.`,
-    ...res.loss_msgs.map((m) => `loss: ${m}`),
     ...res.owed_msgs.map((m) => `owed: ${m}`),
   ].join("\n");
   // queued, not sent: once reversed, a redelivery stops at the guard, so only
@@ -276,15 +273,13 @@ export interface DistPreview {
   effects: PreviewLine[];
   /** blockers preventing the refund from proceeding */
   blockers: PreviewLine[];
-  /** non-reversible items — refund proceeds; the npo owes them back, or a paid commission is the platform's loss */
+  /** non-reversible items — refund proceeds; the npo or the referrer owes them back */
   warnings: PreviewLine[];
 }
 
 export interface ReversalPreview {
   /** one per settled dist; none means there is nothing to reverse yet */
   dists: DistPreview[];
-  /** usd the platform would absorb as loss: commissions already paid out */
-  total_loss: number;
 }
 
 /** what reversing `don` would do to each of its dists, writing nothing.
@@ -296,7 +291,6 @@ export async function reversal_preview(
   const graphs = await dists_for_refund(don.id);
 
   const dists: DistPreview[] = [];
-  let total_loss = 0;
   for (const g of graphs) {
     const { dist } = g;
     const amount = dist_settled_usd({
@@ -335,7 +329,6 @@ export async function reversal_preview(
       sub_id,
       strict: false,
     });
-    total_loss += plan.paid_commission?.amount ?? 0;
     const p = plan.preview;
     dists.push({
       id: dist.id,
@@ -345,7 +338,7 @@ export async function reversal_preview(
       net: dist.net ?? 0,
       refund_status: dist.refund_status,
       refund_error: dist.refund_error,
-      owed: plan.is_loss ? plan.amount : 0,
+      owed: plan.amount.find((a) => "npo_id" in a.party)?.usd ?? 0,
       // process_refund retries a failed dist, so it shows as a retry, not a blocker
       effects:
         dist.refund_status === "failed"
@@ -362,5 +355,5 @@ export async function reversal_preview(
       warnings: p.warnings,
     });
   }
-  return { dists, total_loss };
+  return { dists };
 }

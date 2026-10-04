@@ -80,7 +80,6 @@ describe("reverse_after_partials", () => {
   const result = (failures: string[]) => ({
     failures,
     owed_msgs: [],
-    loss_msgs: [],
     has_loss: false,
     applied: 2 - failures.length,
   });

@@ -33,7 +33,8 @@ export interface LoaderData {
   donation_id: string;
   already_refunded: boolean;
   previews: DistPreview[];
-  /** usd the platform absorbs as loss: commissions already paid out */
+  /** always 0: a paid commission is owed by its referrer, not lost. kept for
+   * clients built while it was read (skew protection) */
   total_loss: number;
   /** stripe subscription id if payment originated from a subscription */
   subscription_id: string | null;
@@ -67,7 +68,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
     donation_id,
     already_refunded: is_reversed(don.status),
     previews: preview.dists,
-    total_loss: preview.total_loss,
+    total_loss: 0,
     subscription_id,
   } satisfies LoaderData;
 };

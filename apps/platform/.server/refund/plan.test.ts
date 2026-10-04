@@ -44,6 +44,8 @@ const make_ctx = (overrides: Partial<RefundCtx> = {}): RefundCtx => ({
 
 const kinds = (effects: RefundEffect[]) => effects.map((e) => e.kind);
 
+const REFERRER = { referrer_npo: "NPO-REF" };
+
 const owed_of = (plan: RefundPlan) =>
   plan.effects.flatMap((e) => (e.kind === "owed" ? [e.owed] : []))[0];
 
@@ -224,7 +226,7 @@ describe("calc_refund_plan", () => {
       fee_processing_usd: 3.2,
       now: "2026-06-22T00:00:00.000Z",
     });
-    expect(plan.amount).toBe(93.2);
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 93.2 }]);
   });
 
   test("cash payout already paid → the npo owes it", () => {
@@ -279,7 +281,7 @@ describe("calc_refund_plan", () => {
       received_usd: 60,
       fee_processing_usd: 2,
     });
-    expect(plan.amount).toBe(62);
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 62 }]);
   });
 
   // dists.amount_usd is the pledge at the donation-time rate; net is settled usd
@@ -298,7 +300,7 @@ describe("calc_refund_plan", () => {
     );
     expect(plan.is_loss).toBe(true);
     expect(owed_of(plan)).toMatchObject({ received_usd: 60 });
-    expect(plan.amount).toBe(62);
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 62 }]);
   });
 
   test("cash payout mid-transfer (processing) → owed, like a paid one", () => {
@@ -334,7 +336,12 @@ describe("calc_refund_plan", () => {
         payout: { id: "po-1", type: "pending" },
         bal: { liq: 100, lock_units: 100, cash: 0 },
         nav: { price: 1 },
-        commission: { donation_id: "don-1", amount: 5, status: "pending" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "pending",
+          referrer: REFERRER,
+        },
         rev_log_ids: ["rl-1", "rl-2"],
       }),
       make_ctx({ form_id: "form-1", program_id: "prog-1" })
@@ -359,7 +366,12 @@ describe("calc_refund_plan", () => {
     const plan_ok = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5, status: "pending" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "pending",
+          referrer: REFERRER,
+        },
       }),
       make_ctx()
     );
@@ -371,7 +383,12 @@ describe("calc_refund_plan", () => {
     const plan_loss = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "settled" },
-        commission: { donation_id: "don-1", amount: 5, status: "pending" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "pending",
+          referrer: REFERRER,
+        },
       }),
       make_ctx()
     );
@@ -383,12 +400,17 @@ describe("calc_refund_plan", () => {
     );
   });
 
-  // apply decides the loss under the row lock; the preview only says it's likely
-  test("a commission claimed for a payout previews as a loss", () => {
+  // apply decides under the row lock whether the referrer owes it
+  test("a commission claimed for a payout previews as recovered from the referrer if that payout goes through", () => {
     const plan = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5, status: "processing" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "processing",
+          referrer: REFERRER,
+        },
       }),
       make_ctx()
     );
@@ -396,7 +418,7 @@ describe("calc_refund_plan", () => {
       label: "Commission",
       pass: false,
       reason:
-        "$5.00 is in a payout to its referrer, so it will be reversed as a loss",
+        "$5.00 is in a payout to its referrer: if that payout goes through, it will be recovered from the referrer's next commission",
     });
     expect(plan.preview.effects.map((l) => l.label)).not.toContain(
       "Commission"
@@ -404,39 +426,68 @@ describe("calc_refund_plan", () => {
     expect(plan.is_loss).toBe(false);
   });
 
-  // the referrer has the money: the refund can't take it back
-  test("a paid commission is left paid", () => {
+  // the referrer has the money; the npo never owes it
+  test("a paid commission is owed by its referrer, at its usd amount, and nothing by the npo", () => {
     const plan = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "paid",
+          referrer: REFERRER,
+        },
       }),
       make_ctx()
     );
-    expect(kinds(plan.effects)).not.toContain("commission_status");
-    expect(plan.is_loss).toBe(false);
-  });
-
-  // the referrer's, not the npo's: nothing owed by the npo
-  test("a paid commission is carried for the alert, not owed by the npo", () => {
-    const plan = calc_refund_plan(
-      make_inputs({
-        payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5, status: "paid" },
-      }),
-      make_ctx()
-    );
-    expect(plan.paid_commission).toEqual({ donation_id: "don-1", amount: 5 });
+    expect(
+      plan.effects.find((e) => e.kind === "commission_status")
+    ).toMatchObject({
+      donation_id: "dist-1",
+      owed: {
+        donation_id: "don-1",
+        party: REFERRER,
+        received_usd: 5,
+        fee_processing_usd: 0,
+      },
+    });
+    expect(plan.amount).toEqual([{ party: REFERRER, usd: 5 }]);
     expect(kinds(plan.effects)).not.toContain("owed");
     expect(kinds(plan.effects)).toContain("balance_update");
     expect(plan.loss_reasons).toEqual([]);
   });
 
-  test("a paid commission previews as already paid and the platform's loss", () => {
+  test("an unpaid commission is reversed and nobody owes it", () => {
     const plan = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "pending",
+          referrer: REFERRER,
+        },
+      }),
+      make_ctx()
+    );
+    expect(plan.amount).toEqual([]);
+    expect(plan.preview.effects).toContainEqual({
+      label: "Commission",
+      pass: true,
+      reason: "$5.00 will be reversed",
+    });
+  });
+
+  test("a paid commission previews as recovered from the referrer's next commission", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: {
+          donation_id: "dist-1",
+          amount: 5,
+          status: "paid",
+          referrer: REFERRER,
+        },
       }),
       make_ctx()
     );
@@ -444,7 +495,7 @@ describe("calc_refund_plan", () => {
       label: "Commission",
       pass: false,
       reason:
-        "$5.00 was already paid to its referrer, so it stays with them as the platform's loss (ops is alerted)",
+        "$5.00 was already paid to its referrer, so it will be recovered from the referrer's next commission",
     });
     expect(plan.preview.effects.map((l) => l.label)).not.toContain(
       "Commission"
@@ -573,7 +624,7 @@ describe("calc_refund_plan", () => {
     );
     expect(plan.is_loss).toBe(true);
     expect(owed_of(plan)?.received_usd).toBe(320);
-    expect(plan.amount).toBe(320);
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 320 }]);
   });
 
   // credit_fa adds the processing fee into net when the donor covered it
@@ -591,6 +642,6 @@ describe("calc_refund_plan", () => {
       received_usd: 102,
       fee_processing_usd: 0,
     });
-    expect(plan.amount).toBe(102);
+    expect(plan.amount).toEqual([{ party: { npo_id: 1 }, usd: 102 }]);
   });
 });

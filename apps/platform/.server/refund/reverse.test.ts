@@ -939,7 +939,6 @@ describe("reversal_preview — what an admin refund would reverse", () => {
           warnings: [],
         },
       ],
-      total_loss: 0,
     });
     // a preview writes nothing
     expect((await state(id, npo_id)).dist).toEqual(["settled", null]);
@@ -955,7 +954,42 @@ describe("reversal_preview — what an admin refund would reverse", () => {
     expect(preview.dists).toEqual([
       expect.objectContaining({ npo_id, amount: 100, net: 90, owed: 93.2 }),
     ]);
-    expect(preview.total_loss).toBe(0);
+    expect(await owed_rows()).toEqual([]);
+  });
+
+  test("a paid commission previews as recovered from the referrer's next commission, not owed by the npo", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-07-01T00:00:00.000Z",
+      donation_id: `dist-${id}`,
+      npo_id,
+      amount: 5,
+      status: "paid",
+      ref: "ref-1",
+    });
+    const don = (await donation_get(id))!;
+
+    const preview = await reversal_preview(don, null);
+
+    expect(preview.dists).toEqual([
+      expect.objectContaining({
+        owed: 0,
+        warnings: [
+          {
+            label: "Commission",
+            pass: false,
+            reason:
+              "$5.00 was already paid to its referrer, so it will be recovered from the referrer's next commission",
+          },
+        ],
+      }),
+    ]);
     expect(await owed_rows()).toEqual([]);
   });
 
@@ -964,9 +998,6 @@ describe("reversal_preview — what an admin refund would reverse", () => {
     await test_db.current!.db.delete(dists).where(eq(dists.donation_id, id));
     const don = (await donation_get(id))!;
 
-    expect(await reversal_preview(don, null)).toEqual({
-      dists: [],
-      total_loss: 0,
-    });
+    expect(await reversal_preview(don, null)).toEqual({ dists: [] });
   });
 });

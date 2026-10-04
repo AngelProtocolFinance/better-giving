@@ -30,6 +30,7 @@ import {
   type RefundCtx,
   type RefundInputs,
   type RefundPlan,
+  referrer_of,
 } from "./plan";
 
 export interface ProcessRefundCtx extends OwedSource {
@@ -41,10 +42,8 @@ export interface ProcessRefundCtx extends OwedSource {
 
 export interface RefundResult {
   failures: string[];
-  /** what a npo now owes back, one line per dist */
+  /** what each party now owes back, one line per row */
   owed_msgs: string[];
-  /** what the platform absorbs: commissions it couldn't take back */
-  loss_msgs: string[];
   has_loss: boolean;
   applied: number;
 }
@@ -97,6 +96,7 @@ function project_inputs(
           donation_id: g.commission.donation_id,
           amount: g.commission.amount ?? 0,
           status: g.commission.status,
+          referrer: referrer_of(g.commission),
         }
       : null,
     rev_log_ids: g.rev_logs.map((rl) => rl.id),
@@ -162,7 +162,6 @@ export async function process_refund(
 ): Promise<RefundResult> {
   const failures: string[] = [];
   const owed_msgs: string[] = [];
-  const loss_msgs: string[] = [];
   const src: OwedSource = { source: ctx.source, source_ref: ctx.source_ref };
   let applied = 0;
 
@@ -207,22 +206,20 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { owed, commission_in_flight: c, paid_commission: pc } = res;
-      if (owed) {
-        const usd =
-          owed.received_usd + owed.fee_processing_usd + owed.fee_dispute_usd;
+      const { owed, commission_in_flight: c } = res;
+      for (const o of owed) {
+        const usd = o.received_usd + o.fee_processing_usd + o.fee_dispute_usd;
+        if (o.npo_id !== null) {
+          owed_msgs.push(
+            `$${humanize(usd)} recorded as owed by ${g.dist.to_name ?? "its npo"} (npo ${g.dist.to_id}), to recover from its future grants — ${res.reasons.join("; ")}`
+          );
+          continue;
+        }
+        const in_flight = c
+          ? `; claimed by the Wise transfer with customerTransactionId ${c.ref}, so credited back if that transfer goes unfunded`
+          : "";
         owed_msgs.push(
-          `$${humanize(usd)} recorded as owed by ${g.dist.to_name ?? "its npo"} (npo ${g.dist.to_id}), to recover from its future grants — ${res.reasons.join("; ")}`
-        );
-      }
-      if (pc) {
-        loss_msgs.push(
-          `commission ${pc.donation_id}: $${humanize(pc.amount)} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
-        );
-      }
-      if (c) {
-        loss_msgs.push(
-          `commission ${c.donation_id}: $${humanize(c.amount)} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
+          `$${humanize(usd)} recorded as owed by referrer ${o.referrer_user ?? o.referrer_npo}, on commission ${g.dist.id}, to recover from its next commission${in_flight}`
         );
       }
     } catch (err) {
@@ -313,26 +310,20 @@ export async function process_refund(
     for (const g of await dists_for_refund(donation_id)) await reverse(g);
   }
 
-  // owed amounts and losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
-  if (owed_msgs.length > 0 || loss_msgs.length > 0) {
+  // owed amounts are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
+  if (owed_msgs.length > 0) {
     await fiat_monitor.send_alert({
       type: "NOTICE",
       from: `${ctx.alert_from}-${stage}`,
-      title:
-        owed_msgs.length > 0
-          ? "Refund Recorded as Owed"
-          : "Refund Completed with Losses",
-      body: [
-        ...(owed_msgs.length > 0 ? ["OWED:", ...owed_msgs] : []),
-        ...(loss_msgs.length > 0 ? ["LOSSES:", ...loss_msgs] : []),
-      ].join("\n"),
+      title: "Refund Recorded as Owed",
+      body: ["OWED:", ...owed_msgs].join("\n"),
     });
   }
 
   const has_loss =
     (final ?? (await donation_refund_status(db, donation_id))) ===
     "refunded_loss";
-  return { failures, owed_msgs, loss_msgs, has_loss, applied };
+  return { failures, owed_msgs, has_loss, applied };
 }
 
 /**

@@ -14,7 +14,7 @@ import { referrer_commissions } from "../pg/schema/referrer";
 import { rev_logs } from "../pg/schema/revenue";
 import { apply_refund_plan, type IAppliedRefund } from "./apply";
 import { donation_refund_status } from "./donation-status";
-import { calc_refund_plan, type RefundEffect } from "./plan";
+import { calc_refund_plan, type RefundEffect, referrer_of } from "./plan";
 
 export type UnfundedLossReversal =
   | {
@@ -153,6 +153,8 @@ async function uninvested_refund_plan(
         donation_id: referrer_commissions.donation_id,
         amount: referrer_commissions.amount,
         status: referrer_commissions.status,
+        referrer_user: referrer_commissions.referrer_user,
+        referrer_npo: referrer_commissions.referrer_npo,
       })
       .from(referrer_commissions)
       .where(eq(referrer_commissions.donation_id, dist.id)),
@@ -175,7 +177,14 @@ async function uninvested_refund_plan(
         fee_allowance: dist.fee_allowance ?? 0,
       },
       payout: { id: payout_id, type: "pending" },
-      commission: comm ?? null,
+      commission: comm
+        ? {
+            donation_id: comm.donation_id,
+            amount: comm.amount,
+            status: comm.status,
+            referrer: referrer_of(comm),
+          }
+        : null,
       rev_log_ids: rls.map((r) => r.id),
       bal: {
         liq: npo.liq ?? 0,

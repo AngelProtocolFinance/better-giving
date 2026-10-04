@@ -87,7 +87,6 @@ vi.mock("$/refund/reverse", async (orig) => ({
       dists: 1,
       applied: 1,
       owed_msgs: [],
-      loss_msgs: [],
       has_loss: false,
     };
   }),
@@ -96,6 +95,7 @@ vi.mock("$/refund/reverse", async (orig) => ({
 // `reverse` module makes, so `process_refund` is stubbed though never reached
 vi.mock("$/refund/process", () => ({
   load_refund_plan: vi.fn(async () => ({
+    amount: [],
     preview: {
       effects: [{ label: "Reverse payout", pass: true }],
       blockers: [],
@@ -416,26 +416,6 @@ describe("refund modal", () => {
 });
 
 describe("refund preview", () => {
-  // the npo's $100 reverses in full; only the referrer's paid $5 is lost
-  it("totals the loss from what the plan loses, not the dist's amount", async () => {
-    vi.mocked(load_refund_plan).mockResolvedValue({
-      is_loss: false,
-      amount: 100,
-      paid_commission: { donation_id: "dist-1", amount: 5 },
-      preview: {
-        effects: [{ label: "Reverse payout", pass: true }],
-        blockers: [],
-        warnings: [{ label: "Commission", pass: false, reason: "paid" }],
-      },
-    } as any);
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    const data: any = await loader({ params: { donation_id: id } } as any);
-
-    expect(data.total_loss).toBe(5);
-  });
-
   // ¥50,000 gift pledged at $333.33 that settled at $313.50: the row's $
   // column shows the settled usd, the money the refund moves
   const yen_dist = (refund_status: string | null) => ({
@@ -457,8 +437,7 @@ describe("refund preview", () => {
     vi.mocked(dists_for_refund).mockResolvedValue([yen_dist(null)] as any);
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: false,
-      amount: 313.5,
-      paid_commission: null,
+      amount: [],
       preview: { effects: [], blockers: [], warnings: [] },
     } as any);
     const id = await seed_donation();
@@ -505,8 +484,7 @@ describe("refund preview", () => {
   it("says a paid grant will be recovered from the npo's future grants, not lost", async () => {
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: true,
-      amount: 93.2,
-      paid_commission: null,
+      amount: [{ party: { npo_id: 7 }, usd: 93.2 }],
       preview: {
         effects: [],
         blockers: [],

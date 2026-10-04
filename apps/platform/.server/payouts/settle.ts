@@ -117,7 +117,7 @@ export async function settle_npo_payouts(
         // the commission side of the refund the release just redid, as process_refund reports it
         await alert({
           title: `commission refunded in flight, npo:${npo.id}`,
-          body: `releasing these unfunded payouts reversed their loss refunds, and each one's referrer commission was claimed for a Wise payout to its referrer, so it was refunded as a loss. check each transfer by its customerTransactionId`,
+          body: `releasing these unfunded payouts reversed their loss refunds, and each one's referrer commission was claimed for a Wise payout to its referrer, so it is recorded as owed by that referrer and credited back if that payout goes unfunded. check each transfer by its customerTransactionId`,
           fields: [
             ...fields,
             {
