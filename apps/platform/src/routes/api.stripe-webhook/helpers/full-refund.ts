@@ -6,13 +6,8 @@ import { stage } from "$/env";
 import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { refund_list } from "$/kit/stripe-money";
-import { dists_for_refund } from "$/pg/queries/dist";
-import {
-  earlier_partials,
-  reverse_after_partials,
-  unsent_refunds,
-} from "$/refund/after-partials";
-import { process_refund } from "$/refund/process";
+import { earlier_partials, unsent_refunds } from "$/refund/after-partials";
+import { reverse_charge } from "$/refund/reverse";
 import { cancel_refunded_subscription } from "$/refund/subscription";
 import { ReversalIncompleteError } from "./reversal-incomplete";
 import { settled_donation } from "./settled-donation";
@@ -62,13 +57,11 @@ export async function reverse_full_refund(
 ) {
   const don_id = don.id;
 
-  // product rule: a full refund of a subscription payment ends the recurring
-  // gift, from whatever surface it was issued. not held with the reversal, so
-  // a pending one can't bill again meanwhile
-  await cancel_refunded_subscription(intent_id);
-
   const unsent = unsent_refunds(refunds);
   if (unsent.length > 0) {
+    // the reversal ends the recurring gift itself; this ends it now, so a
+    // pending refund can't bill again meanwhile
+    await cancel_refunded_subscription(intent_id);
     console.info(
       `${alert_from}: reversal held on ${unsent.map((r) => r.id).join(", ")}: ${don_id}`
     );
@@ -93,37 +86,33 @@ export async function reverse_full_refund(
     return;
   }
 
-  const graphs = await dists_for_refund(don_id);
-  if (graphs.length === 0) {
-    throw new Error(`no settled dists for donation: ${don_id}`);
-  }
-
   // nothing can be refunded past a full refund, so the newest completed it.
   // the admin refund action reverses its own refund too: this is the backstop
   // for a run of it that left dists unreversed or never reached them
-  const result = await reverse_after_partials(
-    {
-      donation_id: don_id,
+  const result = await reverse_charge({
+    donation_id: don_id,
+    rail: "stripe",
+    source: "refund",
+    alert_from,
+    notice: { id: newest.id, lines: [`donation ${don_id}, ${seen_at}`] },
+    after_partials: {
       seen_at,
       currency: charge.currency,
       completing: newest,
       earlier: earlier_partials(refunds, newest, charge.amount_captured),
-      alert_from,
-      dist_count: graphs.length,
     },
-    () =>
-      process_refund(don_id, graphs, {
-        form_id: don.form_id ?? null,
-        program_id: don.program?.id ?? null,
-        alert_from,
-      })
-  );
+  });
 
-  const failed = result.failures.length;
-  console.info(
-    `${alert_from}: reversed ${don_id}, dists: ${graphs.length}, failures: ${failed}, losses: ${result.loss_msgs.length}`
-  );
-  if (failed > 0) {
-    throw new ReversalIncompleteError(don_id, failed, graphs.length);
+  if (result.status === "already_reversed") {
+    console.info(`already refunded: ${don_id}`);
   }
+  if (result.status !== "failed") return;
+  if (result.reason === "incomplete") {
+    throw new ReversalIncompleteError(
+      don_id,
+      result.failures.length,
+      result.dists
+    );
+  }
+  throw new Error(`refund not reversed: ${don_id}: ${result.reason}`);
 }

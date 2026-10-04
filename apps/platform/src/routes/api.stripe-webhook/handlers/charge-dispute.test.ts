@@ -67,7 +67,6 @@ const dispute_event = (type: string, status: string, amount = 10_000) =>
     },
   }) as any;
 
-const alerts = () => send_alert_mock.mock.calls.map(([a]) => a);
 const queued = () =>
   enqueue_mock.mock.calls.flat().filter((m) => m.id === "fiat-notice");
 
@@ -84,12 +83,16 @@ beforeEach(() => {
       .reduce((sum, r) => sum + r.amount, 0),
   }));
   refunds_list_mock.mockImplementation(async () => ({ data: [...refunds] }));
-  donation_by_sttl_id_mock.mockImplementation(async () => ({
+  const settled = async () => ({
     id: DON_ID,
     status: don_status,
+    via: "stripe:card",
+    settlement: { id: "pi_1", fee: 320, currency: "USD" },
     form_id: "form-1",
     program: { id: "prog-1", name: "Clean Water" },
-  }));
+  });
+  donation_by_sttl_id_mock.mockImplementation(settled);
+  donation_get_mock.mockImplementation(settled);
   dists_for_refund_mock.mockResolvedValue([graph]);
   process_refund_mock.mockImplementation(async () => {
     don_status = "refunded";
@@ -154,11 +157,23 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
 
     expect(process_refund_mock).not.toHaveBeenCalled();
     expect(don_status).toBe("settled");
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    const { title, body } = alerts()[0];
+    expect(send_alert_mock).not.toHaveBeenCalled();
+    expect(queued()).toHaveLength(1);
+    const { title, body } = queued()[0].payload.alert;
     expect(title).toMatch(/not reversed/i);
     expect(body).toContain(DON_ID);
     expect(body).toContain("40.00 USD of 100.00 USD");
+    expect(body).toMatch(/fee.*15\.00 USD/);
+  });
+
+  it("tells ops of a partial loss once when stripe redelivers it", async () => {
+    const partial = dispute_event("charge.dispute.closed", "lost", 4_000);
+    await handle_dispute_closed(partial);
+    await handle_dispute_closed(partial);
+
+    const [first, again] = queued();
+    expect(first.dedupe).toBe(`fiat.notice_${partial.id}`);
+    expect(again.dedupe).toBe(first.dedupe);
   });
 
   it("reverses when a lost dispute takes what earlier refunds left, and names those refunds", async () => {

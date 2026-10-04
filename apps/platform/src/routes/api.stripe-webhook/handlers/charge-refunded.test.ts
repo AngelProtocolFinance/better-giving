@@ -114,15 +114,19 @@ const settle = (id: string, status: string) => {
   } as any;
 };
 
-const alerts = () => send_alert_mock.mock.calls.map(([a]) => a);
 /** notices queued for retried delivery rather than sent in the webhook */
 const queued = () =>
   enqueue_mock.mock.calls.flat().filter((m) => m.id === "fiat-notice");
-const is_start = (m: { payload: { alert: { title: string } } }) =>
+type Notice = { payload: { alert: { title: string } } };
+const is_start = (m: Notice) =>
   /reversal starting/i.test(m.payload.alert.title);
+const is_partial = (m: Notice) =>
+  /partial refund not reversed/i.test(m.payload.alert.title);
 const starts = () => queued().filter(is_start);
 /** the "undo" or "keep" notices that close a reversal */
-const outcomes = () => queued().filter((m) => !is_start(m));
+const outcomes = () => queued().filter((m) => !is_start(m) && !is_partial(m));
+const partial_msgs = () => queued().filter(is_partial);
+const partials = () => partial_msgs().map((m) => m.payload.alert);
 const text_of = (a: { title: string; body?: string }) =>
   `${a.title}\n${a.body ?? ""}`;
 const new_line = (a: { body?: string }) =>
@@ -144,6 +148,8 @@ beforeEach(() => {
   donation_get_mock.mockImplementation(async () => ({
     id: ORDER_ID,
     status: don_status,
+    via: "stripe:card",
+    settlement: { id: "pi_1", fee: 320, currency: "USD" },
     form_id: null,
     program: null,
   }));
@@ -184,8 +190,9 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     expect(process_refund_mock).not.toHaveBeenCalled();
     expect(don_status).toBe("settled");
-    expect(send_alert_mock).toHaveBeenCalledOnce();
-    const text = text_of(alerts()[0]);
+    expect(send_alert_mock).not.toHaveBeenCalled();
+    expect(partials()).toHaveLength(1);
+    const text = text_of(partials()[0]);
     expect(text).toContain(ORDER_ID);
     expect(text).toContain("5.00 USD (re_1, succeeded)");
     expect(text).toMatch(/total refunded so far: 5\.00 USD of 100\.00 USD/);
@@ -194,13 +201,13 @@ describe("stripe charge.refunded → donation reversal", () => {
 
   it("names every partial when a failed first notice is redelivered after a second partial", async () => {
     const first = refund(500);
-    send_alert_mock.mockRejectedValueOnce(new Error("discord 503"));
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash 503"));
     await expect(handle_charge_refunded(first)).rejects.toThrow();
 
     await handle_charge_refunded(refund(1_000));
     await handle_charge_refunded(first); // stripe redelivers
 
-    const redelivered = alerts().at(-1);
+    const redelivered = partials().at(-1);
     expect(new_line(redelivered)).toBe(
       "new in this event: 5.00 USD (re_1, succeeded)"
     );
@@ -214,7 +221,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     await handle_charge_refunded(refund(500));
     await handle_charge_refunded(refund(1_000));
 
-    const second = alerts().at(-1);
+    const second = partials().at(-1);
     expect(new_line(second)).toBe(
       "new in this event: 10.00 USD (re_2, succeeded)"
     );
@@ -230,12 +237,15 @@ describe("stripe charge.refunded → donation reversal", () => {
     await handle_charge_refunded(second);
     await handle_charge_refunded(second); // stripe redelivers
 
-    const [sent, resent] = alerts().slice(-2);
-    expect(new_line(resent)).toBe(new_line(sent));
-    expect(new_line(resent)).toBe(
+    const [sent, resent] = partial_msgs().slice(-2);
+    // keyed on the event, so the queue collapses the redelivery into one notice
+    expect(sent.dedupe).toBe("fiat.notice_evt_2");
+    expect(resent.dedupe).toBe(sent.dedupe);
+    expect(new_line(resent.payload.alert)).toBe(new_line(sent.payload.alert));
+    expect(new_line(resent.payload.alert)).toBe(
       "new in this event: 10.00 USD (re_2, succeeded)"
     );
-    expect(resent.body).toMatch(/\bevent evt_2\b/);
+    expect(resent.payload.alert.body).toMatch(/\bevent evt_2\b/);
   });
 
   it("names the latest refund by the event's time when the event carries no previous attributes", async () => {
@@ -246,7 +256,7 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     await handle_charge_refunded(second);
 
-    const notice = alerts().at(-1);
+    const notice = partials().at(-1);
     expect(new_line(notice)).toBe(
       "new in this event: 10.00 USD (re_2, succeeded)"
     );
@@ -263,7 +273,7 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     await handle_charge_refunded(second);
 
-    expect(new_line(alerts().at(-1))).toBe(
+    expect(new_line(partials().at(-1))).toBe(
       "new in this event: could not tell which refund is new"
     );
   });
@@ -274,7 +284,7 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     await handle_charge_refunded(refund(500));
 
-    expect(new_line(alerts().at(-1))).toBe(
+    expect(new_line(partials().at(-1))).toBe(
       "new in this event: could not tell which refund is new"
     );
   });
@@ -283,6 +293,8 @@ describe("stripe charge.refunded → donation reversal", () => {
     donation_get_mock.mockImplementation(async () => ({
       id: ORDER_ID,
       status: don_status,
+      via: "stripe:card",
+      settlement: { id: "pi_1", fee: 320, currency: "USD" },
       form_id: "form-1",
       program: { id: "prog-1", name: "Clean Water" },
     }));
@@ -395,7 +407,7 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     expect(don_status).toBe("refunded");
     expect(process_refund_mock).toHaveBeenCalledOnce();
-    expect(alerts()).toHaveLength(1); // the partial's own notice
+    expect(partials()).toHaveLength(1);
     const [start] = starts();
     expect(starts()).toHaveLength(1);
     expect(start.payload.alert.body).toContain(
@@ -415,7 +427,12 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(done.body).toMatch(/^Reversal complete: undo the hand adjustment/m);
     expect(text_of(done)).toContain(ORDER_ID);
     expect(text_of(done)).toContain("5.00 USD (re_1, succeeded)");
-    const [starting_at, done_at] = enqueue_mock.mock.invocationCallOrder;
+    const order_of = (m: unknown) =>
+      enqueue_mock.mock.invocationCallOrder[
+        enqueue_mock.mock.calls.findIndex(([x]) => x === m)
+      ];
+    const starting_at = order_of(start);
+    const done_at = order_of(msg);
     const [reversed_at] = process_refund_mock.mock.invocationCallOrder;
     expect(starting_at).toBeLessThan(reversed_at);
     expect(done_at).toBeGreaterThan(reversed_at);
@@ -575,9 +592,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     await handle_charge_refunded(stale);
 
     expect(don_status).toBe("refunded");
-    expect(
-      alerts().some((a) => /partial refund not reversed/i.test(a.title))
-    ).toBe(false);
+    expect(partials()).toEqual([]);
   });
 
   it("ignores a partial event that arrives after the donation was reversed", async () => {
@@ -588,15 +603,15 @@ describe("stripe charge.refunded → donation reversal", () => {
     await handle_charge_refunded(late);
 
     expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(send_alert_mock).not.toHaveBeenCalled();
+    expect(queued()).toEqual([]);
   });
 
   // the notice is the only record ops gets, so a lost one must be redelivered
-  it("fails the delivery when the partial-refund notice can't be sent", async () => {
-    send_alert_mock.mockRejectedValue(new Error("discord 503"));
+  it("fails the delivery when the partial-refund notice can't be queued", async () => {
+    enqueue_mock.mockRejectedValue(new Error("qstash 503"));
 
     await expect(handle_charge_refunded(refund(500))).rejects.toThrow(
-      "discord 503"
+      "qstash 503"
     );
   });
 
@@ -653,7 +668,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(new Set(starts().map((m) => m.dedupe))).toEqual(
       new Set([`fiat.notice_${refunds[0]!.id}_start`])
     );
-    expect(alerts()).toHaveLength(1); // the partial's own notice
+    expect(partials()).toHaveLength(1);
   });
 
   it("says undo, not keep, when a dist this run failed was reversed by the other run", async () => {
@@ -722,7 +737,8 @@ describe("stripe charge.refunded → donation reversal", () => {
     const completing = refund(9_500);
     const settled_read = donation_get_mock.getMockImplementation()!;
     donation_get_mock
-      .mockImplementationOnce(settled_read)
+      .mockImplementationOnce(settled_read) // the webhook's lookup
+      .mockImplementationOnce(settled_read) // the reversal's guard
       .mockRejectedValueOnce(new Error("connection terminated"));
 
     await handle_charge_refunded(completing);
@@ -745,7 +761,6 @@ describe("stripe charge.refunded → donation reversal", () => {
     await expect(handle_charge_refunded(by_admin)).resolves.toBeUndefined();
 
     expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(alerts()).toEqual([]);
     expect(queued()).toEqual([]);
   });
 

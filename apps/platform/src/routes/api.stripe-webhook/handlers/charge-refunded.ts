@@ -1,8 +1,7 @@
 import type Stripe from "stripe";
-import { stage } from "$/env";
-import { fiat_monitor } from "$/kit/discord";
 import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
+import { reverse_charge } from "$/refund/reverse";
 import { refunded_charge, reverse_full_refund } from "../helpers/full-refund";
 
 const ALERT_FROM = "charge-refunded";
@@ -49,23 +48,29 @@ export async function handle_charge_refunded(
   const { charge, don, refunds } = refunded;
   const don_id = don.id;
 
-  // process_refund reverses every dist in full; a partial reversal isn't
-  // supported yet, so ops settles it by hand. the refund that completes the
-  // charge reverses the donation as a full refund.
+  // a partial reverses nothing and ops settles it by hand. the refund that
+  // completes the charge reverses the donation as a full refund.
   if (!charge.refunded) {
     const added = added_by(event, refunds);
-    await fiat_monitor.send_alert({
-      type: "NOTICE",
-      from: `${ALERT_FROM}-${stage}`,
-      title: "Partial Refund Not Reversed",
-      body: [
-        `donation ${don_id}, charge ${charge.id}, event ${event.id}`,
-        `new in this event: ${added ? refund_list(added, charge.currency) : "could not tell which refund is new"}`,
-        `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
-        `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount, charge.currency)}`,
-        "nothing was reversed automatically. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for these refunds must then be undone.",
-      ].join("\n"),
+    const result = await reverse_charge({
+      donation_id: don_id,
+      rail: "stripe",
+      source: "refund",
+      amount: charge.amount_refunded,
+      alert_from: ALERT_FROM,
+      notice: {
+        id: event.id,
+        lines: [
+          `donation ${don_id}, charge ${charge.id}, event ${event.id}`,
+          `new in this event: ${added ? refund_list(added, charge.currency) : "could not tell which refund is new"}`,
+          `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
+          `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount, charge.currency)}`,
+        ],
+      },
     });
+    if (result.status === "failed") {
+      throw new Error(`partial refund not noted: ${don_id}: ${result.reason}`);
+    }
     return;
   }
 
