@@ -73,6 +73,9 @@ vi.mock("$/kit/queue", () => ({
   schedule: schedule_mock,
 }));
 vi.mock("$/refund/process", () => ({ process_refund: process_refund_mock }));
+// the reversal entry imports the stripe rail's adapter, which builds a client
+// off env this file mocks away; the paypal rail never calls it
+vi.mock("$/kit/stripe", () => ({ stripe: {} }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
@@ -365,6 +368,7 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   before_lock.current = null;
+  enqueue_mock.mockResolvedValue(undefined);
   schedule_mock.mockResolvedValue(undefined);
   process_refund_mock.mockResolvedValue({
     failures: [],
@@ -1315,9 +1319,13 @@ describe("refunds and reversals", () => {
       payload: { alert: { title: "Partial Refund Not Reversed" } },
     });
     expect(notice.payload.alert.body).toContain(CAPTURE_ID);
+    // a later refund of the rest reverses it all, undoing ops' hand fix
+    expect(notice.payload.alert.body).toContain(
+      "the whole donation reverses automatically"
+    );
   });
 
-  it("reverses a chargeback of the whole capture, whatever status paypal leaves on it", async () => {
+  it("reverses a chargeback of the whole capture, whatever status paypal leaves on it, and tells ops the dispute was lost", async () => {
     await settled_capture();
     paypal_capture_is("COMPLETED");
 
@@ -1325,9 +1333,29 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(process_refund_mock).toHaveBeenCalledOnce();
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-full_WH-REF-1_0",
+      payload: { alert: { title: "Dispute Lost: Donation Reversed" } },
+    });
+    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
   });
 
-  it("reports a chargeback of part of the capture and reverses nothing", async () => {
+  it("tells ops of no lost dispute on a refund of the whole capture", async () => {
+    await settled_capture();
+    paypal_capture_is("REFUNDED");
+    enqueue_mock.mockClear();
+
+    await deliver(capture_refund_ev());
+
+    expect(process_refund_mock).toHaveBeenCalledOnce();
+    expect(
+      enqueue_mock.mock.calls.filter(([m]) => m.id === "fiat-notice")
+    ).toEqual([]);
+  });
+
+  it("reports a chargeback of part of the capture to ops as a lost dispute and reverses nothing", async () => {
     await settled_capture();
     paypal_capture_is("COMPLETED");
     const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
@@ -1337,7 +1365,13 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(process_refund_mock).not.toHaveBeenCalled();
-    expect(enqueue_mock.mock.calls.at(-1)![0].id).toBe("fiat-notice");
+    const [notice] = enqueue_mock.mock.calls.at(-1)!;
+    expect(notice).toMatchObject({
+      id: "fiat-notice",
+      dedupe: "fiat.notice_paypal-partial_WH-REF-1",
+      payload: { alert: { title: "Lost Dispute Not Reversed" } },
+    });
+    expect(notice.payload.alert.body).toContain("-40.00 USD");
   });
 
   it("reverses a chargeback of what a partial refund left, once the two take the whole capture", async () => {
@@ -1513,6 +1547,7 @@ describe("refunds and reversals", () => {
     expect(process_refund_mock).not.toHaveBeenCalled();
     const [notice] = enqueue_mock.mock.calls.at(-1)!;
     expect(notice.id).toBe("fiat-notice");
+    expect(notice.payload.alert.title).toBe("Lost Dispute Not Reversed");
     expect(notice.payload.alert.body).toContain(SALE_ID);
     expect(notice.payload.alert.body).toContain(
       "earlier refunds of this sale could not be counted"

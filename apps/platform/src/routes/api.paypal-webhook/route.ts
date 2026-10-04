@@ -25,7 +25,6 @@ import { paypal as paypal_env, stage } from "$/env";
 import { paypal } from "$/kit/paypal";
 import { enqueue, schedule } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { dists_for_refund } from "$/pg/queries/dist";
 import {
   donation_by_sttl_id,
   donation_get,
@@ -40,7 +39,7 @@ import {
   sub_put,
   sub_update,
 } from "$/pg/queries/subscription";
-import { process_refund } from "$/refund/process";
+import { type ReversalSource, reverse_charge } from "$/refund/reverse";
 import type { Route } from "./+types/route";
 
 type TIntervalFrom = "DAY" | "WEEK" | "MONTH" | "YEAR";
@@ -568,26 +567,16 @@ const REFUND_ALERT_FROM = "paypal-refund";
  * because what earlier refunds took can't be read */
 type TExtent = "full" | "partial" | "unsized";
 
-const NOT_REVERSED_NOTICE: Record<
-  Exclude<TExtent, "full">,
-  { title: string; action: string }
-> = {
-  partial: {
-    title: "Partial Refund Not Reversed",
-    action:
-      "nothing was reversed automatically. ops must settle the rest by hand.",
-  },
-  unsized: {
-    title: "Reversal Not Sized",
-    action:
-      "paypal refused the lookup of earlier refunds, so this reversal could not be sized against the charge. nothing was reversed automatically. ops must settle it by hand.",
-  },
-};
+const UNSIZED_ACTION =
+  "paypal refused the lookup of earlier refunds, so this reversal could not be sized against the charge. nothing was reversed automatically. ops must settle it by hand.";
 
 interface IReversal {
   sttl_id: string;
   extent: TExtent;
+  source: ReversalSource;
   status: string | undefined;
+  /** the amount on the event, signed as paypal sends it */
+  taken: string | undefined;
   refunded: string;
   charged: string;
   /** what a not-reversed notice adds about how the extent was judged */
@@ -598,9 +587,9 @@ interface IReversal {
 
 /**
  * reverses the donation a capture or sale settled, once it is refunded or
- * reversed in full. process_refund reverses every dist in full, so a partial
- * refund is ops' to settle by hand: they get a notice and nothing is
- * reversed. the refund that completes the charge reverses it all.
+ * reversed in full. a partial refund is ops' to settle by hand: they get a
+ * notice and nothing is reversed. the refund that completes the charge
+ * reverses it all.
  */
 const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
   const don = await donation_by_sttl_id(c.sttl_id);
@@ -625,47 +614,68 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
     });
     return new Response(`no donation for ${c.sttl_id}`, { status: 200 });
   }
-  if (is_reversed(don.status))
-    return new Response(`donation is ${don.status}`, { status: 200 });
+  const lines = [
+    `donation ${don.id}, charge ${c.sttl_id}, event ${ev.id}`,
+    `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
+    ...(c.caveat ? [c.caveat] : []),
+  ];
+  // keyed on the event, so a duplicate delivery posts one notice
+  const notice_id = `paypal-${c.extent}_${ev.id}`;
 
-  const detail = `donation ${don.id}, charge ${c.sttl_id}, event ${ev.id}`;
-  if (c.extent !== "full") {
-    const notice = NOT_REVERSED_NOTICE[c.extent];
-    const alert = {
-      type: "NOTICE" as const,
-      from: `${REFUND_ALERT_FROM}-${stage}`,
-      title: notice.title,
-      body: [
-        detail,
-        `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
-        ...(c.caveat ? [c.caveat] : []),
-        notice.action,
-      ].join("\n"),
-    };
-    // keyed on the event, so a duplicate delivery posts one notice
+  if (c.extent === "unsized") {
+    if (is_reversed(don.status))
+      return new Response(`donation is ${don.status}`, { status: 200 });
     await enqueue(
-      msg("fiat-notice", { id: `paypal-${c.extent}_${ev.id}`, alert })
+      msg("fiat-notice", {
+        id: notice_id,
+        alert: {
+          type: "NOTICE",
+          from: `${REFUND_ALERT_FROM}-${stage}`,
+          title: "Reversal Not Sized",
+          body: [...lines, UNSIZED_ACTION].join("\n"),
+        },
+      })
     );
-    return new Response(`${c.extent} reversal reported`, { status: 200 });
+    return new Response("unsized reversal reported", { status: 200 });
   }
 
-  const graphs = await dists_for_refund(don.id);
-  // the dist lands on the queue after the settle; a redelivery finds it
-  if (graphs.length === 0)
-    throw new Error(`no settled dists for donation: ${don.id}`);
-  const result = await process_refund(don.id, graphs, {
-    form_id: don.form_id ?? null,
-    program_id: don.program?.id ?? null,
+  const res = await reverse_charge({
+    donation_id: don.id,
+    rail: "paypal",
+    source: c.source,
+    // a reversal's amount is negative; the share is what it takes back
+    amount: c.extent === "partial" ? Math.abs(Number(c.taken)) : undefined,
     alert_from: REFUND_ALERT_FROM,
+    notice: { id: notice_id, lines },
   });
-  console.info(
-    `[paypal webhook] ${detail} refunded, dists: ${graphs.length}, failures: ${result.failures.length}, losses: ${result.loss_msgs.length}`
-  );
-  // process_refund skips what it already reversed and retries what failed,
-  // so a redelivery finishes the job
-  if (result.failures.length > 0)
-    return new Response("reversal incomplete", { status: 503 });
-  return new Response("donation reversed", { status: 200 });
+  switch (res.status) {
+    case "reversed":
+      return new Response("donation reversed", { status: 200 });
+    case "already_reversed":
+      return new Response(`donation is ${res.donation_status}`, {
+        status: 200,
+      });
+    case "partial_not_acted":
+      return new Response("partial reversal reported", { status: 200 });
+  }
+  switch (res.reason) {
+    // a rerun skips what was reversed and retries what failed, so a
+    // redelivery finishes the job
+    case "incomplete":
+      return new Response("reversal incomplete", { status: 503 });
+    // the dist lands on the queue after the settle; a redelivery finds it
+    case "not_distributed":
+      throw new Error(`no settled dists for donation: ${don.id}`);
+    // the row was just read by this charge's id: no redelivery changes it
+    case "no_donation":
+    case "wrong_rail":
+      report_error(new Error(`[paypal webhook] not reversed: ${res.reason}`), {
+        event_id: ev.id,
+        donation_id: don.id,
+        sttl_id: c.sttl_id,
+      });
+      return new Response(`not reversed: ${res.reason}`, { status: 200 });
+  }
 };
 
 // -- route action --
@@ -1073,7 +1083,9 @@ export async function action({ request }: Route.ActionArgs) {
         return reverse_settled(ev, {
           sttl_id: cid,
           extent,
+          source: is_reversal ? "dispute" : "refund",
           status: capture.status,
+          taken: part?.value,
           refunded: money(part?.value, part?.currency_code),
           charged: money(gross?.value, gross?.currency_code),
           owner: async () => capture.custom_id,
@@ -1117,7 +1129,9 @@ export async function action({ request }: Route.ActionArgs) {
               ))
               ? "full"
               : "partial",
+          source: is_reversal ? "dispute" : "refund",
           status: state,
+          taken: r.amount?.total,
           refunded: money(r.amount?.total, r.amount?.currency),
           charged: money(whole?.total, whole?.currency),
           owner: async () => {
