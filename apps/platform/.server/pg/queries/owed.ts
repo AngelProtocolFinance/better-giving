@@ -14,6 +14,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
+import { donations } from "../schema/donation";
 import { npos } from "../schema/npo";
 import { owed_amounts, owed_entries } from "../schema/owed";
 import { loss_logs } from "../schema/revenue";
@@ -107,23 +108,67 @@ export interface IOwedRecovery {
   party: OwedParty;
   usd: number;
   reason: "grant_run";
-  /** the run; a second recovery under one ref adds nothing */
+  /** the run; a second recovery, or repayment, under one ref adds nothing */
   ref: string;
   now: string;
 }
 
-/** null when the gift owes nothing for `party` */
+/** the row, with what the entry under the call's ref holds: this call's, or
+ * an earlier call's under that ref; 0 when there is none */
+export type IOwedWithEntry = IOwed & { entry_usd: number };
+
+/** recovers `usd`, or only what is outstanding when that is less. null when
+ * the gift owes nothing for `party` */
 export async function recover_owed(
   tx: DbOrTx,
   r: IOwedRecovery
-): Promise<IOwed | null> {
-  return put_entry(
+): Promise<IOwedWithEntry | null> {
+  const row = await put_entry(
     tx,
     "recover",
     party_row(r),
     r,
-    sql`${finite(r.usd, "recover_owed usd")}::numeric`
+    sql`LEAST(${finite(r.usd, "recover_owed usd")}::numeric, ${owed_amounts.outstanding_usd})`
   );
+  return row && with_entry(tx, row, "recover", r.ref);
+}
+
+export type IOwedRepayment = IOwedRecovery;
+
+/** pays back `usd` of what the party is due back (a negative outstanding), or
+ * only what is due when that is less; it comes off the recovered figure. null
+ * when the gift owes nothing for `party` */
+export async function repay_owed(
+  tx: DbOrTx,
+  r: IOwedRepayment
+): Promise<IOwedWithEntry | null> {
+  const row = await put_entry(
+    tx,
+    "repay",
+    party_row(r),
+    r,
+    sql`LEAST(${finite(r.usd, "repay_owed usd")}::numeric, -${owed_amounts.outstanding_usd})`
+  );
+  return row && with_entry(tx, row, "repay", r.ref);
+}
+
+async function with_entry(
+  tx: DbOrTx,
+  row: IOwed,
+  kind: IOwedEntry["kind"],
+  ref: string
+): Promise<IOwedWithEntry> {
+  const [entry] = await tx
+    .select({ usd: owed_entries.usd })
+    .from(owed_entries)
+    .where(
+      and(
+        eq(owed_entries.owed_id, row.id),
+        eq(owed_entries.kind, kind),
+        eq(owed_entries.ref, ref)
+      )
+    );
+  return { ...row, entry_usd: entry?.usd ?? 0 };
 }
 
 export interface IOwedAdminCredit {
@@ -283,6 +328,10 @@ const SUM_OF = {
     recovered_usd: sql`${owed_amounts.recovered_usd} + ${usd}`,
     recovered_at: e.now,
   }),
+  // recovered_at stays the last recovery's; the entry dates the repayment
+  repay: (usd: SQL) => ({
+    recovered_usd: sql`${owed_amounts.recovered_usd} - ${usd}`,
+  }),
   // a row is written off once, so its reason and admin are that entry's
   write_off: (usd: SQL, e: IEntryFields) => ({
     written_off_usd: sql`${owed_amounts.written_off_usd} + ${usd}`,
@@ -420,6 +469,26 @@ export async function owed_list(
     items,
     next: rows.length > limit ? items[items.length - 1]?.id : undefined,
   };
+}
+
+/** the npo's rows owed (> 0) or due back (< 0), oldest gift first, each held
+ * locked until `tx` ends: a refund or credit landing on one waits for it */
+export async function outstanding_for_npo(
+  tx: DbOrTx,
+  npo_id: number
+): Promise<IOwed[]> {
+  return tx
+    .select(getTableColumns(owed_amounts))
+    .from(owed_amounts)
+    .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+    .where(
+      and(
+        eq(owed_amounts.npo_id, npo_id),
+        sql`${owed_amounts.outstanding_usd} <> 0`
+      )
+    )
+    .orderBy(asc(donations.created_at), asc(owed_amounts.id))
+    .for("update", { of: owed_amounts });
 }
 
 export async function owed_for_donation(

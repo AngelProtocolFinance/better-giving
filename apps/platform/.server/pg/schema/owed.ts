@@ -100,8 +100,9 @@ export const owed_amounts = pgTable(
   ]
 );
 
-/** each credit, recovery or write-off against an owed row; the row's
- * credited / recovered / written-off figures are these entries' sums */
+/** each credit, recovery, repayment or write-off against an owed row; the
+ * row's credited / recovered / written-off figures are these entries' sums,
+ * recovered less repaid */
 export const owed_entries = pgTable(
   "owed_entries",
   {
@@ -109,7 +110,9 @@ export const owed_entries = pgTable(
     owed_id: text("owed_id")
       .notNull()
       .references(() => owed_amounts.id, { onDelete: "cascade" }),
-    kind: text("kind").$type<"credit" | "recover" | "write_off">().notNull(),
+    kind: text("kind")
+      .$type<"credit" | "recover" | "repay" | "write_off">()
+      .notNull(),
     usd: usd("usd").notNull(),
     reason: text("reason").notNull(),
     /** what the entry answers to (a payout, a grant run, a dispute); a second
@@ -122,7 +125,7 @@ export const owed_entries = pgTable(
     unique("owed_entries_owed_kind_ref_uniq").on(t.owed_id, t.kind, t.ref),
     check(
       "owed_entries_kind_check",
-      sql`${t.kind} IN ('credit','recover','write_off')`
+      sql`${t.kind} IN ('credit','recover','repay','write_off')`
     ),
     check("owed_entries_usd_check", sql`${t.usd} > 0`),
     check("owed_entries_reason_check", sql`btrim(${t.reason}) <> ''`),

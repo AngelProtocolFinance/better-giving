@@ -344,6 +344,13 @@
       "when": 1791143293626,
       "tag": "0048_loss_logs_write_off",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791144116233,
+      "tag": "0049_owed_entries_repay",
+      "breakpoints": true
     }
   ]
 }

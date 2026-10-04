@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -19,10 +19,12 @@ import {
   admin_credit_owed,
   credit_owed,
   type OwedParty,
+  outstanding_for_npo,
   owed_for_donation,
   owed_list,
   record_owed,
   recover_owed,
+  repay_owed,
   write_off_owed,
 } from "./owed";
 
@@ -425,18 +427,19 @@ describe("credit_owed", () => {
 });
 
 describe("recover_owed", () => {
+  const recover = (ref: string, usd: number, now = NOW) =>
+    recover_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd,
+      reason: "grant_run",
+      ref,
+      now,
+    });
+
   test("each run's recovery adds to the row's recovered figure", async () => {
     await record_owed(as_db(t.db), refund_of(npo_a));
     const LATER = "2026-11-01T00:00:00.000Z";
-    const recover = (ref: string, usd: number, now: string) =>
-      recover_owed(as_db(t.db), {
-        donation_id: DON,
-        party: { npo_id: npo_a },
-        usd,
-        reason: "grant_run",
-        ref,
-        now,
-      });
 
     await recover("run-1", 80, NOW);
     const row = await recover("run-2", 13.2, LATER);
@@ -445,6 +448,108 @@ describe("recover_owed", () => {
       recovered_usd: 93.2,
       recovered_at: LATER,
       outstanding_usd: 0,
+    });
+  });
+
+  test("a run asking more than is outstanding takes only what is outstanding", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+
+    const row = await recover("run-1", 100);
+
+    expect(row).toMatchObject({
+      entry_usd: 93.2,
+      recovered_usd: 93.2,
+      outstanding_usd: 0,
+    });
+  });
+
+  test("a run retried under its ref recovers nothing more and reports what it took", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+
+    await recover("run-1", 40);
+    const again = await recover("run-1", 40);
+
+    expect(again).toMatchObject({
+      entry_usd: 40,
+      recovered_usd: 40,
+      outstanding_usd: 53.2,
+    });
+  });
+});
+
+describe("repay_owed", () => {
+  const repay = (ref: string, usd: number) =>
+    repay_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd,
+      reason: "grant_run",
+      ref,
+      now: NOW,
+    });
+
+  /** recovered in full by run-1, then $50 of it credited back */
+  const due_back_50 = async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    await recover_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 93.2,
+      reason: "grant_run",
+      ref: "run-1",
+      now: NOW,
+    });
+    await credit_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 50,
+      reason: "payout_cancelled",
+      ref: "payout-1",
+      now: NOW,
+    });
+  };
+
+  test("repays what the npo is due back, and no more", async () => {
+    await due_back_50();
+
+    expect(await repay("run-2", 60)).toMatchObject({
+      entry_usd: 50,
+      recovered_usd: 43.2,
+      outstanding_usd: 0,
+    });
+    expect(await repay("run-3", 10)).toMatchObject({
+      entry_usd: 0,
+      recovered_usd: 43.2,
+      outstanding_usd: 0,
+    });
+  });
+
+  test("a row due money back has nothing for a run to recover", async () => {
+    await due_back_50();
+
+    const row = await recover_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 10,
+      reason: "grant_run",
+      ref: "run-2",
+      now: NOW,
+    });
+
+    expect(row).toMatchObject({
+      entry_usd: 0,
+      recovered_usd: 93.2,
+      outstanding_usd: -50,
+    });
+  });
+
+  test("a row still owing has nothing to repay", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+
+    expect(await repay("run-1", 10)).toMatchObject({
+      entry_usd: 0,
+      recovered_usd: 0,
+      outstanding_usd: 93.2,
     });
   });
 });
@@ -553,11 +658,11 @@ describe("write_off_owed", () => {
     await recover("run-1", 40);
     await write_off(owed.id, admin!.id);
 
-    await expect(recover("run-2", 0.01)).rejects.toMatchObject({
-      cause: { code: "23514" },
+    expect(await recover("run-2", 0.01)).toMatchObject({
+      entry_usd: 0,
+      recovered_usd: 40,
+      outstanding_usd: 0,
     });
-    const [row] = await owed_for_donation(DON, as_db(t.db));
-    expect(row).toMatchObject({ recovered_usd: 40, outstanding_usd: 0 });
   });
 
   test("a referrer's write-off is booked as a loss of that referrer", async () => {
@@ -585,6 +690,102 @@ describe("write_off_owed", () => {
         actor: admin!.id,
       }),
     ]);
+  });
+});
+
+describe("outstanding_for_npo", () => {
+  const gift = async (id: string, created_at: string) => {
+    const [base] = await t.db
+      .select()
+      .from(donations)
+      .where(eq(donations.id, DON));
+    await t.db.insert(donations).values({ ...base!, id, created_at });
+  };
+  const owing = (donation_id: string, npo_id: number, usd: number, now = NOW) =>
+    record_owed(as_db(t.db), {
+      ...refund_of(npo_id, usd),
+      donation_id,
+      fee_processing_usd: 0,
+      now,
+    });
+  const credit_all = (donation_id: string, npo_id: number) =>
+    credit_owed(as_db(t.db), {
+      donation_id,
+      party: { npo_id },
+      reason: "payout_cancelled",
+      ref: "payout-1",
+      now: NOW,
+    });
+
+  /** npo_a: a $10 due back on the oldest gift, $20 owed on a later one,
+   * $93.20 on DON, the newest, and one gift owing $0; another npo's $5. the
+   * newer the gift, the earlier its refund */
+  async function seed_npo_a_rows() {
+    const npo_b = (await seed_npo(t.db, { registration_number: "EIN-B" }))!.id;
+    await t.db
+      .update(donations)
+      .set({ created_at: "2026-09-01T00:00:00.000Z" })
+      .where(eq(donations.id, DON));
+    await gift("don-old", "2026-01-01T00:00:00.000Z");
+    await gift("don-zero", "2026-01-15T00:00:00.000Z");
+    await gift("don-mid", "2026-02-01T00:00:00.000Z");
+    await gift("don-b", "2025-06-01T00:00:00.000Z");
+
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    await owing("don-mid", npo_a, 20, "2026-10-05T00:00:00.000Z");
+    await owing("don-old", npo_a, 10, "2026-10-06T00:00:00.000Z");
+    await recover_owed(as_db(t.db), {
+      donation_id: "don-old",
+      party: { npo_id: npo_a },
+      usd: 10,
+      reason: "grant_run",
+      ref: "run-1",
+      now: NOW,
+    });
+    await credit_all("don-old", npo_a);
+    await owing("don-zero", npo_a, 15);
+    await credit_all("don-zero", npo_a);
+    await owing("don-b", npo_b, 5);
+  }
+
+  test("reads the npo's rows owed or due back, oldest gift first", async () => {
+    await seed_npo_a_rows();
+
+    const rows = await t.db.transaction((tx) =>
+      outstanding_for_npo(as_db(tx), npo_a)
+    );
+
+    expect(rows.map((r) => [r.donation_id, r.outstanding_usd])).toEqual([
+      ["don-old", -10],
+      ["don-mid", 20],
+      [DON, 93.2],
+    ]);
+  });
+
+  // a row lock stamps the locker's xid into xmax; a plain read leaves it 0
+  test("holds the rows it read locked, and not their gifts", async () => {
+    await seed_npo_a_rows();
+
+    const [owed, gifts] = await t.db.transaction(async (tx) => {
+      await outstanding_for_npo(as_db(tx), npo_a);
+      const locked = sql<boolean>`xmax::text = pg_current_xact_id()::text`;
+      return Promise.all([
+        tx
+          .select({ donation_id: owed_amounts.donation_id, locked })
+          .from(owed_amounts)
+          .orderBy(owed_amounts.donation_id),
+        tx.select({ locked }).from(donations).where(sql`${locked}`),
+      ]);
+    });
+
+    expect(owed).toEqual([
+      { donation_id: DON, locked: true },
+      { donation_id: "don-b", locked: false },
+      { donation_id: "don-mid", locked: true },
+      { donation_id: "don-old", locked: true },
+      { donation_id: "don-zero", locked: false },
+    ]);
+    expect(gifts).toEqual([]);
   });
 });
 
