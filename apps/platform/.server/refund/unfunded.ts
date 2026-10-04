@@ -4,7 +4,7 @@ import { dist_refund_update } from "../pg/queries/dist";
 import { donation_lock, donation_update } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { npo_balance_update, npo_get_locked } from "../pg/queries/npo";
-import { credit_back, owed_for_donation } from "../pg/queries/owed";
+import { credit_owed, owed_for_party } from "../pg/queries/owed";
 import { payouts_move } from "../pg/queries/payout";
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
@@ -25,8 +25,9 @@ export type UnfundedLossReversal =
   /** the savings/investment share stays owed: the payout is cancelled and
    * its cash taken back and credited, as with the payout pending */
   | { status: "owed_reduced" }
-  /** nothing written */
-  | { status: "kept"; reason: string };
+  /** nothing written. `pre_ledger`: the refund was recorded before the owed
+   * ledger, as a loss log with no owed row */
+  | { status: "kept"; reason: string; pre_ledger?: true };
 
 // what the loss path skipped or wrote with the loss status. form/program
 // decrements and the message delete ran the same on both paths.
@@ -68,12 +69,10 @@ export async function reverse_unfunded_payout_loss(
   }
   const to_id = dist.to_id ?? 0;
   const party = { npo_id: to_id };
-  const owed = (await owed_for_donation(dist.donation_id, tx)).find(
-    (o) => o.npo_id === to_id
-  );
+  const owed = await owed_for_party(dist.donation_id, party, tx);
   if (!owed) {
     const reason = `dist ${dist.id} has no amount owed by npo:${to_id}`;
-    return { status: "kept", reason };
+    return { status: "kept", reason, pre_ledger: true };
   }
   const alloc = dist.alloc ?? { liq: 0, lock: 0, cash: 0 };
 
@@ -105,10 +104,12 @@ export async function reverse_unfunded_payout_loss(
       { liq: 0, lock: 0, lock_units: 0, cash },
       "dec"
     );
-    await credit_back(tx, {
+    await credit_owed(tx, {
       donation_id: dist.donation_id,
       party,
       usd: cash,
+      reason: "payout_cancelled",
+      ref: payout_id,
       now,
     });
     return { status: "owed_reduced" };
@@ -122,7 +123,13 @@ export async function reverse_unfunded_payout_loss(
     },
     { source: owed.source, source_ref: owed.source_ref }
   );
-  await credit_back(tx, { donation_id: dist.donation_id, party, now });
+  await credit_owed(tx, {
+    donation_id: dist.donation_id,
+    party,
+    reason: "transfer_unfunded",
+    ref: payout_id,
+    now,
+  });
   await dist_refund_update(tx, dist.id, { refund_status: "completed" });
   await donation_status_recompute(tx, dist.donation_id, now);
   return { status: "reversed", commission_in_flight };

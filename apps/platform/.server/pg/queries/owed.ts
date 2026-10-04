@@ -111,29 +111,6 @@ export async function recover_owed(
   );
 }
 
-/** @deprecated use `credit_owed`. `usd` here is the row's whole credit so far,
- * not an increment; absent credits back all that is creditable */
-export async function credit_back(
-  tx: DbOrTx,
-  c: Omit<IOwedCredit, "reason" | "ref">
-): Promise<IOwed | null> {
-  const target =
-    c.usd === undefined
-      ? sql`${owed_total} - ${owed_amounts.written_off_usd}`
-      : sql`${finite(c.usd, "credit_back usd")}::numeric`;
-  return put_entry(
-    tx,
-    "credit",
-    {
-      ...c,
-      // the two credits unfunded.ts makes
-      reason: c.usd === undefined ? "transfer_unfunded" : "payout_cancelled",
-      ref: `credit_back:${c.now}`,
-    },
-    sql`${target} - ${owed_amounts.credited_back_usd}`
-  );
-}
-
 type IOwedEntry = typeof owed_entries.$inferSelect;
 
 /** inserts the entry and adds it to its row's sum in one statement, the row

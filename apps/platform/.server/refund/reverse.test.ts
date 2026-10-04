@@ -420,6 +420,23 @@ describe("reverse_charge — a gift whose grant was already paid", () => {
     }
   );
 
+  test("a reversal naming the provider's refund records it as the source, not the event", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+
+    await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      source_ref: "re_1",
+      alert_from: "test",
+      notice,
+    });
+
+    const [owed] = await owed_rows();
+    expect(owed).toMatchObject({ source: "refund", source_ref: "re_1" });
+  });
+
   test("a gift whose payout is still pending cancels it and owes nothing", async () => {
     const { id, npo_id } = await seed("stripe:card");
     await grant_paid(id, npo_id);

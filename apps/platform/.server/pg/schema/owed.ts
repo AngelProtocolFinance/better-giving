@@ -30,7 +30,8 @@ export const owed_amounts = pgTable(
     referrer_user: text("referrer_user").references(() => user.referral_code),
     referrer_npo: text("referrer_npo").references(() => npos.referral_id),
     source: text("source").$type<"refund" | "dispute">().notNull(),
-    /** the provider's id for the first refund or dispute recorded */
+    /** the provider's refund or dispute id for the first one recorded, or its
+     * event id when the caller has none */
     source_ref: text("source_ref").notNull(),
     recorded_at: timestamptz("recorded_at").notNull(),
     received_usd: usd("received_usd").notNull(),

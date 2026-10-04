@@ -15,7 +15,6 @@ import { owed_amounts } from "../schema/owed";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
 import {
-  credit_back,
   credit_owed,
   type OwedParty,
   owed_for_donation,
@@ -218,9 +217,11 @@ test("crediting a row back clears what it owes", async () => {
   await record_owed(as_db(t.db), refund_of(npo_a));
   const LATER = "2026-10-06T00:00:00.000Z";
 
-  await credit_back(as_db(t.db), {
+  await credit_owed(as_db(t.db), {
     donation_id: DON,
     party: { npo_id: npo_a },
+    reason: "transfer_unfunded",
+    ref: "payout-1",
     now: LATER,
   });
 
@@ -236,10 +237,15 @@ test("crediting a row back clears what it owes", async () => {
 
 test("crediting the same row back again keeps the first credit", async () => {
   await record_owed(as_db(t.db), refund_of(npo_a));
-  const credit = { donation_id: DON, party: { npo_id: npo_a } };
-  const first = await credit_back(as_db(t.db), { ...credit, now: NOW });
+  const credit = {
+    donation_id: DON,
+    party: { npo_id: npo_a },
+    reason: "transfer_unfunded" as const,
+    ref: "payout-1",
+  };
+  const first = await credit_owed(as_db(t.db), { ...credit, now: NOW });
 
-  await credit_back(as_db(t.db), {
+  await credit_owed(as_db(t.db), {
     ...credit,
     now: "2026-10-07T00:00:00.000Z",
   });
@@ -250,10 +256,12 @@ test("crediting the same row back again keeps the first credit", async () => {
 test("crediting back a share leaves the rest owed", async () => {
   await record_owed(as_db(t.db), refund_of(npo_a));
 
-  const row = await credit_back(as_db(t.db), {
+  const row = await credit_owed(as_db(t.db), {
     donation_id: DON,
     party: { npo_id: npo_a },
     usd: 60,
+    reason: "payout_cancelled",
+    ref: "payout-1",
     now: NOW,
   });
 
@@ -265,9 +273,11 @@ test("a row credited back after part was recovered is due that part back", async
   // recoveries are the grant run's to write, so set here by hand
   await t.db.update(owed_amounts).set({ recovered_usd: 50, recovered_at: NOW });
 
-  const row = await credit_back(as_db(t.db), {
+  const row = await credit_owed(as_db(t.db), {
     donation_id: DON,
     party: { npo_id: npo_a },
+    reason: "transfer_unfunded",
+    ref: "payout-1",
     now: NOW,
   });
 
@@ -314,10 +324,12 @@ test("a write-off without a reason is refused", async () => {
 test("a credit beyond what the row owes is refused", async () => {
   await record_owed(as_db(t.db), refund_of(npo_a));
   const credit = (usd: number) =>
-    credit_back(as_db(t.db), {
+    credit_owed(as_db(t.db), {
       donation_id: DON,
       party: { npo_id: npo_a },
       usd,
+      reason: "payout_cancelled",
+      ref: "payout-1",
       now: NOW,
     });
 

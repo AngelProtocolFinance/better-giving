@@ -59,7 +59,7 @@ const { dists } = await import("../pg/schema/dist");
 const { bal_txs } = await import("../pg/schema/bal-tx");
 const { donations } = await import("../pg/schema/donation");
 const { loss_logs, rev_logs } = await import("../pg/schema/revenue");
-const { owed_amounts } = await import("../pg/schema/owed");
+const { owed_amounts, owed_entries } = await import("../pg/schema/owed");
 const { create_test_db } = await import("../pg/test-utils/pglite");
 const { npos } = await import("../pg/schema/npo");
 const { payouts, settlements } = await import("../pg/schema/payout");
@@ -202,6 +202,15 @@ const owed = async () =>
     donation_id: o.donation_id,
     credited_back_usd: o.credited_back_usd,
     outstanding_usd: o.outstanding_usd,
+  }));
+
+/** each credit against what is owed, as why and against what */
+const credits = async () =>
+  (await db().select().from(owed_entries)).map((e) => ({
+    kind: e.kind,
+    reason: e.reason,
+    ref: e.ref,
+    usd: e.usd,
   }));
 
 const payout_types = async () =>
@@ -535,6 +544,9 @@ describe("settle_npo_payouts", () => {
     expect(await owed()).toEqual([
       { donation_id: don, credited_back_usd: 40, outstanding_usd: 60 },
     ]);
+    expect(await credits()).toEqual([
+      { kind: "credit", reason: "payout_cancelled", ref: "p-2", usd: 40 },
+    ]);
     expect(send_alert).not.toHaveBeenCalled();
   });
 
@@ -557,6 +569,9 @@ describe("settle_npo_payouts", () => {
     expect(await npo_cash(npo.id)).toBe(460);
     expect(await owed()).toEqual([
       { donation_id: don, credited_back_usd: 40, outstanding_usd: 0 },
+    ]);
+    expect(await credits()).toEqual([
+      { kind: "credit", reason: "transfer_unfunded", ref: "p-2", usd: 40 },
     ]);
     const [d] = await db().select().from(dists);
     expect([d?.status, d?.refund_status]).toEqual(["refunded", "completed"]);
@@ -620,6 +635,58 @@ describe("settle_npo_payouts", () => {
       { donation_id: don, credited_back_usd: 70, outstanding_usd: 30 },
     ]);
     expect(send_alert).not.toHaveBeenCalled();
+  });
+
+  test("an unfunded payout whose owed refund can't be redone tells ops to debit its cash share and credit the owed row", async () => {
+    const npo = await seed_npo({ cash: 500 });
+    const { don } = await seed_donation_payout(npo.id, "p-1", 100);
+    const pay = vi.fn<Pay>(async () => {
+      await refund_in_flight(don);
+      fail_move.from = "refunded_loss";
+      throw new NotFundedError(new Error("wise 503"));
+    });
+
+    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+
+    expect(await payout_types()).toEqual({ "p-1": "refunded_loss" });
+    expect(await owed()).toEqual([
+      { donation_id: don, credited_back_usd: 0, outstanding_usd: 100 },
+    ]);
+    expect(send_alert).toHaveBeenCalledOnce();
+    const [alert] = send_alert.mock.calls[0]!;
+    expect(alert.body).toMatch(
+      /debit the npo's cash by each one's cash share, then credit that amount on the gift's owed row/
+    );
+    expect(alert.body).not.toMatch(/loss log/);
+    expect(alert.fields).toContainEqual({
+      name: "not_reversed",
+      value: expect.stringMatching(/^p-1: .*Connection terminated/),
+    });
+  });
+
+  test("an unfunded payout refunded before the owed ledger tells ops to reverse its loss log", async () => {
+    const npo = await seed_npo({ cash: 500 });
+    const { don } = await seed_donation_payout(npo.id, "p-1", 100);
+    const pay = vi.fn<Pay>(async () => {
+      await refund_in_flight(don);
+      // a refund recorded before the ledger wrote a loss log and no owed row
+      await db().delete(owed_amounts);
+      throw new NotFundedError(new Error("wise 503"));
+    });
+
+    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+
+    expect(await payout_types()).toEqual({ "p-1": "refunded_loss" });
+    expect(send_alert).toHaveBeenCalledOnce();
+    const [alert] = send_alert.mock.calls[0]!;
+    expect(alert.body).toMatch(
+      /their loss log records a loss that did not happen: debit the cash or reverse the loss log/
+    );
+    expect(alert.body).not.toMatch(/owed row/);
+    expect(alert.fields).toContainEqual({
+      name: "not_reversed",
+      value: expect.stringMatching(/^p-1: .*has no amount owed/),
+    });
   });
 
   test("a release that fails after an unfunded transfer alerts that the payouts are safe to reset", async () => {

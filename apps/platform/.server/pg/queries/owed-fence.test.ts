@@ -10,7 +10,6 @@ const in_refund_core = (file: string) =>
 const OWNER: Record<string, (file: string) => boolean> = {
   record_owed: in_refund_core,
   credit_owed: in_refund_core,
-  credit_back: in_refund_core,
   recover_owed: (file) => file === `${platform}/.server/payouts/settle.ts`,
 };
 const LEDGER_HOME = [

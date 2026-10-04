@@ -28,9 +28,6 @@ const statements = [
   /\bimport\s*()["']([^"']+)["']/g,
 ];
 
-// the owed ledger's writes, which the refund core alone makes
-const owed_write = /\b(record_owed|credit_back)\b/;
-
 /** `file: statement` for each import outside the refund core that `bad` flags */
 const imports_outside_core = (
   bad: (file: string, names: string, from: string) => boolean
@@ -57,13 +54,6 @@ describe("refund core boundary", () => {
       (file, names, from) =>
         !exempt(file, from) &&
         (internal_module.test(from) || internal_name.test(names))
-    );
-    expect(offenders).toEqual([]);
-  });
-
-  test("nothing outside the refund core writes the owed ledger", () => {
-    const offenders = imports_outside_core((_, names) =>
-      owed_write.test(names)
     );
     expect(offenders).toEqual([]);
   });

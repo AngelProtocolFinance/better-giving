@@ -63,6 +63,9 @@ export interface ChargeReversal {
   amount?: number;
   /** what the provider charged for the dispute. carried, not yet acted on */
   dispute_fee?: Money;
+  /** the provider's own refund or dispute id, recorded on what the npo owes;
+   * absent records `notice.id` */
+  source_ref?: string;
   /** discord sender identity, e.g. `charge-refunded`; the stage is appended */
   alert_from: string;
   /** the event's own lines for an ops notice, and its dedupe id: a redelivery
@@ -182,7 +185,7 @@ export async function reverse_charge(
       program_id: don.program?.id ?? null,
       alert_from: r.alert_from,
       source: r.source === "dispute" ? "dispute" : "refund",
-      source_ref: r.notice.id,
+      source_ref: r.source_ref ?? r.notice.id,
     });
   const res = r.after_partials
     ? await reverse_after_partials(
@@ -316,7 +319,7 @@ export async function reversal_preview(
           {
             label:
               dist.refund_status === "loss"
-                ? "Completed with losses"
+                ? "Recorded as owed"
                 : "Already completed",
             pass: true,
           },

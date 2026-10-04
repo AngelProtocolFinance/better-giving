@@ -479,6 +479,29 @@ describe("refund preview", () => {
     expect(data.previews[0].amount).toBe(313.5);
   });
 
+  it("shows a dist already refunded after its grant as recorded as owed, not a loss", async () => {
+    vi.mocked(dists_for_refund).mockResolvedValue([yen_dist("loss")] as any);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const Stub = createRoutesStub([
+      {
+        path: "/platform/donations/:donation_id/refund",
+        Component: Page,
+        HydrateFallback: () => null,
+        loader: loader as any,
+      },
+    ]);
+
+    const screen = await render(
+      <Stub initialEntries={[`/platform/donations/${id}/refund`]} />
+    );
+
+    await expect
+      .element(screen.getByText("Recorded as owed", { exact: true }))
+      .toBeInTheDocument();
+    expect(screen.getByText("Completed with losses").query()).toBeNull();
+  });
+
   it("says a paid grant will be recovered from the npo's future grants, not lost", async () => {
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: true,
@@ -705,6 +728,7 @@ describe("refund api", () => {
       donation_id: id,
       rail: "stripe",
       source: "admin",
+      source_ref: "re_full",
       alert_from: "refund-action",
       notice: {
         id: "re_full",
@@ -717,6 +741,18 @@ describe("refund api", () => {
         earlier: [expect.objectContaining({ id: "re_part" })],
       },
     });
+  });
+
+  it("names the Stripe refund as the reversal's source", async () => {
+    refunds_create.mockResolvedValue({ id: "re_full", status: "succeeded" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    await action({ params: { donation_id: id } } as any);
+
+    expect(vi.mocked(reverse_charge).mock.calls[0]![0].source_ref).toBe(
+      "re_full"
+    );
   });
 
   it("hands the reversal no earlier partials when the admin refund is the charge's only one", async () => {

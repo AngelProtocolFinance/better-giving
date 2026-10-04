@@ -95,15 +95,20 @@ export async function settle_npo_payouts(
         ...ctx,
         ...(not_released.length > 0 && { not_released }),
       });
-      if (kept.length > 0) {
+      // ops undoes a refund from before the owed ledger another way
+      for (const pre_ledger of [true, false]) {
+        const payouts = kept.filter((k) => k.pre_ledger === pre_ledger);
+        if (payouts.length === 0) continue;
         await alert({
-          title: `refunded as a loss but never paid, npo:${npo.id}`,
-          body: `these payouts were loss-refunded while their transfer was in flight, and the transfer failed before funding. the loss could not be reversed automatically, so the npo's cash still carries them and their loss log records a loss that did not happen: debit the cash or reverse the loss log. customerTransactionId ${ref}`,
+          title: `refunded ${pre_ledger ? "as a loss" : "as owed"} but never paid, npo:${npo.id}`,
+          body: pre_ledger
+            ? `these payouts were loss-refunded while their transfer was in flight, and the transfer failed before funding. the loss could not be reversed automatically, so the npo's cash still carries them and their loss log records a loss that did not happen: debit the cash or reverse the loss log. customerTransactionId ${ref}`
+            : `these payouts were refunded while their transfer was in flight, and the transfer failed before funding, so the npo was never paid them. the refund could not be redone as if they were pending, so the npo's cash still carries each one's cash share and the gift's owed row stays, still counting it: debit the npo's cash by each one's cash share, then credit that amount on the gift's owed row. customerTransactionId ${ref}`,
           fields: [
             ...fields,
             {
               name: "not_reversed",
-              value: kept.map((k) => `${k.id}: ${k.reason}`).join("\n"),
+              value: payouts.map((k) => `${k.id}: ${k.reason}`).join("\n"),
             },
           ],
         });
@@ -195,8 +200,10 @@ export async function settle_npo_payouts(
 
 interface IRelease {
   not_released: string[];
-  /** loss-refunded in flight and left as a loss the npo was never paid for */
-  kept: { id: string; reason: string }[];
+  /** refunded in flight and not reversed, so what the npo owes (or, for a
+   * refund recorded before the owed ledger, its loss log) still counts a payout
+   * the npo was never paid */
+  kept: { id: string; reason: string; pre_ledger: boolean }[];
   /** commissions a reversed loss refund took while a referrer transfer held them */
   commissions_in_flight: NonNullable<
     Extract<
@@ -223,13 +230,15 @@ async function release(tx: DbOrTx, ids: string[]): Promise<IRelease> {
       const r = await tx.transaction((sp) =>
         reverse_unfunded_payout_loss(sp, id)
       );
-      if (r.status === "kept") kept.push({ id, reason: r.reason });
+      if (r.status === "kept") {
+        kept.push({ id, reason: r.reason, pre_ledger: r.pre_ledger === true });
+      }
       if (r.status === "reversed" && r.commission_in_flight) {
         commissions_in_flight.push(r.commission_in_flight);
       }
     } catch (err) {
       report_error(err, { payout_id: id });
-      kept.push({ id, reason: String(err) });
+      kept.push({ id, reason: String(err), pre_ledger: false });
     }
   }
   return { not_released, kept, commissions_in_flight };

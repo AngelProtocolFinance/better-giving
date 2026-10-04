@@ -171,6 +171,7 @@ async function finish_refund(
     donation_id: don.id,
     rail: "stripe",
     source: "admin",
+    source_ref: r.id,
     alert_from: ALERT_FROM,
     notice: { id: r.id, lines: [seen_at] },
     after_partials: {
