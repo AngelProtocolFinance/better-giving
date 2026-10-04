@@ -39,7 +39,8 @@ export const owed_amounts = pgTable(
     fee_dispute_usd: usd("fee_dispute_usd").notNull().default(0),
     credited_back_usd: usd("credited_back_usd").notNull().default(0),
     credited_back_at: timestamptz("credited_back_at"),
-    /** net of any due-back paid out, so it falls back when a credit is repaid */
+    /** net of any due-back paid out, so it falls back when a credit is repaid;
+     * an unfunded run's recoveries and payouts of due-back are both undone */
     recovered_usd: usd("recovered_usd").notNull().default(0),
     recovered_at: timestamptz("recovered_at"),
     written_off_usd: usd("written_off_usd").notNull().default(0),

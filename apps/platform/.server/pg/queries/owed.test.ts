@@ -567,8 +567,8 @@ describe("unrecover_owed", () => {
       ref,
       now: NOW,
     });
-  const unrecover = (ref: string) =>
-    unrecover_owed(as_db(t.db), { npo_id: npo_a, ref, now: NOW });
+  const unrecover = (ref: string, now = NOW) =>
+    unrecover_owed(as_db(t.db), { npo_id: npo_a, ref, now });
   const outstanding = async (donation_id: string) =>
     (await owed_for_party(donation_id, { npo_id: npo_a }, as_db(t.db)))
       ?.outstanding_usd;
@@ -598,7 +598,9 @@ describe("unrecover_owed", () => {
 
     expect(await outstanding(DON)).toBe(93.2);
     expect(await outstanding(DON_2)).toBe(50);
-    expect(undone.map((r) => [r.donation_id, r.entry_usd]).sort()).toEqual([
+    expect(
+      undone.map((r) => [r.donation_id, r.recovery_undone_usd]).sort()
+    ).toEqual([
       [DON, 93.2],
       [DON_2, 40],
     ]);
@@ -612,7 +614,9 @@ describe("unrecover_owed", () => {
 
     expect(await outstanding(DON)).toBe(93.2);
     expect(await outstanding(DON_2)).toBe(50);
-    expect(again.map((r) => [r.donation_id, r.entry_usd]).sort()).toEqual([
+    expect(
+      again.map((r) => [r.donation_id, r.recovery_undone_usd]).sort()
+    ).toEqual([
       [DON, 93.2],
       [DON_2, 40],
     ]);
@@ -626,7 +630,7 @@ describe("unrecover_owed", () => {
     const [row] = await unrecover("R");
 
     expect(row).toMatchObject({
-      entry_usd: 40,
+      recovery_undone_usd: 40,
       recovered_usd: 30,
       outstanding_usd: 63.2,
     });
@@ -647,10 +651,69 @@ describe("unrecover_owed", () => {
     const [row] = await unrecover("R");
 
     expect(row).toMatchObject({
-      entry_usd: 93.2,
+      recovery_undone_usd: 93.2,
       recovered_usd: 0,
       outstanding_usd: 43.2,
     });
+  });
+
+  test("a recovery a later run already paid back as due-back is refused", async () => {
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    await recover(DON, "R", 93.2);
+    await credit_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      reason: "payout_cancelled",
+      ref: "payout-1",
+      now: NOW,
+    });
+    await repay_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 93.2,
+      reason: "grant_run",
+      ref: "R2",
+      now: NOW,
+    });
+
+    await expect(unrecover("R")).rejects.toMatchObject({
+      cause: { code: "23514", constraint: "owed_amounts_figures_check" },
+    });
+  });
+
+  test("a due-back the run paid out is due again, once", async () => {
+    const LATER = "2026-11-01T00:00:00.000Z";
+    await record_owed(as_db(t.db), refund_of(npo_a));
+    await recover(DON, "run-1", 93.2);
+    await credit_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 50,
+      reason: "payout_cancelled",
+      ref: "payout-1",
+      now: NOW,
+    });
+    await repay_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 50,
+      reason: "grant_run",
+      ref: "R",
+      now: NOW,
+    });
+
+    const [row] = await unrecover("R", LATER);
+    const [again] = await unrecover("R", LATER);
+
+    for (const r of [row, again]) {
+      expect(r).toMatchObject({
+        recovery_undone_usd: 0,
+        repayment_undone_usd: 50,
+        recovered_usd: 93.2,
+        recovered_at: NOW,
+        outstanding_usd: -50,
+      });
+    }
   });
 });
 

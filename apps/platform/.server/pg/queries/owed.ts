@@ -10,7 +10,11 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  alias,
+  type PgUpdateSetSource,
+} from "drizzle-orm/pg-core";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
@@ -154,47 +158,84 @@ export async function repay_owed(
 
 export interface IOwedUnrecovery {
   npo_id: number;
-  /** the run whose recoveries its transfer, found unfunded, never paid for */
+  /** the run whose transfer, found unfunded, never moved what its recoveries
+   * and due-back payments assumed */
   ref: string;
   now: string;
 }
 
-/** takes back every recovery the run made from the npo's rows, each by exactly
- * what it took, whatever the row owes now; once per row, so a retry adds
- * nothing. each row comes back with what was taken back from it */
+/** a row the run recovered from or paid a due-back to, with what was undone */
+export type IOwedUnrecovered = IOwed & {
+  /** the run's recovery, taken back: the row owes it again */
+  recovery_undone_usd: number;
+  /** the run's due-back payment, taken back: the row is due it again */
+  repayment_undone_usd: number;
+};
+
+/** undoes every recovery and due-back payment the run made on the npo's rows,
+ * each by exactly what it moved, whatever the row owes now; once per row, so
+ * a retry adds nothing */
 export async function unrecover_owed(
   tx: DbOrTx,
   u: IOwedUnrecovery
-): Promise<IOwedWithEntry[]> {
+): Promise<IOwedUnrecovered[]> {
   const of_npo = eq(owed_amounts.npo_id, u.npo_id);
+  const run_entry = (kind: IOwedEntry["kind"]) =>
+    sql`(SELECT ${owed_entries.usd} FROM ${owed_entries}
+      WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
+        AND ${owed_entries.kind} = ${kind} AND ${owed_entries.ref} = ${u.ref})`;
   const e = {
     reason: "transfer_unfunded",
     ref: `unfunded:${u.ref}`,
     now: u.now,
   };
-  // a repay under its own ref, uncapped: repay_owed's cap at what is due back
-  // would leave a row the run took to $0 with nothing to undo
-  await put_entries(
-    tx,
-    "repay",
-    of_npo,
-    e,
-    sql`(SELECT ${owed_entries.usd} FROM ${owed_entries}
-      WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
-        AND ${owed_entries.kind} = 'recover' AND ${owed_entries.ref} = ${u.ref})`
-  );
-  return tx
-    .select({ ...getTableColumns(owed_amounts), entry_usd: owed_entries.usd })
+  // every row both writes below lock, taken at once in id order, so two
+  // releases for one npo can't each hold a row the other waits on
+  await tx
+    .select({ id: owed_amounts.id })
     .from(owed_amounts)
-    .innerJoin(
-      owed_entries,
+    .where(
       and(
-        eq(owed_entries.owed_id, owed_amounts.id),
-        eq(owed_entries.kind, "repay"),
-        eq(owed_entries.ref, e.ref)
+        of_npo,
+        sql`EXISTS (SELECT 1 FROM ${owed_entries}
+          WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
+            AND ${owed_entries.kind} IN ('recover', 'repay')
+            AND ${owed_entries.ref} = ${u.ref})`
       )
     )
-    .where(of_npo);
+    .orderBy(asc(owed_amounts.id))
+    .for("update");
+  // uncapped, unlike repay_owed's cap at what is due back and recover_owed's
+  // at what is outstanding: either would leave a row the run settled to $0
+  // with nothing to undo
+  await put_entries(tx, "repay", of_npo, e, run_entry("recover"));
+  await put_entries(tx, "recover", of_npo, e, run_entry("repay"), UNREPAY);
+
+  const recovery = alias(owed_entries, "recovery_undone");
+  const repayment = alias(owed_entries, "repayment_undone");
+  const undone_by = (
+    entry: typeof recovery | typeof repayment,
+    kind: IOwedEntry["kind"]
+  ) =>
+    and(
+      eq(entry.owed_id, owed_amounts.id),
+      eq(entry.kind, kind),
+      eq(entry.ref, e.ref)
+    );
+  return tx
+    .select({
+      ...getTableColumns(owed_amounts),
+      recovery_undone_usd: sql<number>`COALESCE(${recovery.usd}, 0)`.mapWith(
+        owed_entries.usd
+      ),
+      repayment_undone_usd: sql<number>`COALESCE(${repayment.usd}, 0)`.mapWith(
+        owed_entries.usd
+      ),
+    })
+    .from(owed_amounts)
+    .leftJoin(recovery, undone_by(recovery, "repay"))
+    .leftJoin(repayment, undone_by(repayment, "recover"))
+    .where(and(of_npo, or(isNotNull(recovery.id), isNotNull(repayment.id))));
 }
 
 async function with_entry(
@@ -314,7 +355,7 @@ type IOwedEntry = typeof owed_entries.$inferSelect;
 /** `put_entries` on one row; the row as it stands when no entry went in */
 async function put_entry(
   tx: DbOrTx,
-  kind: keyof typeof SUM_OF,
+  kind: IOwedEntry["kind"],
   row_is: SQL,
   e: IEntryFields,
   usd: SQL
@@ -332,10 +373,11 @@ async function put_entry(
  * returned */
 async function put_entries(
   tx: DbOrTx,
-  kind: keyof typeof SUM_OF,
+  kind: IOwedEntry["kind"],
   row_is: SQL,
   e: IEntryFields,
-  usd: SQL
+  usd: SQL,
+  sum: Sum = SUM_OF[kind]
 ): Promise<IOwed[]> {
   const entry = tx.$with("entry").as(
     tx
@@ -365,7 +407,7 @@ async function put_entries(
   return tx
     .with(entry)
     .update(owed_amounts)
-    .set(SUM_OF[kind](sql`${entry.usd}`, e))
+    .set(sum(sql`${entry.usd}`, e))
     .from(entry)
     .where(eq(owed_amounts.id, entry.owed_id))
     .returning(getTableColumns(owed_amounts));
@@ -378,7 +420,12 @@ interface IEntryFields {
   actor?: string;
 }
 
-const SUM_OF = {
+type Sum = (
+  usd: SQL,
+  e: IEntryFields
+) => PgUpdateSetSource<typeof owed_amounts>;
+
+const SUM_OF: Record<IOwedEntry["kind"], Sum> = {
   credit: (usd: SQL, e: IEntryFields) => ({
     credited_back_usd: sql`${owed_amounts.credited_back_usd} + ${usd}`,
     credited_back_at: e.now,
@@ -399,6 +446,11 @@ const SUM_OF = {
     written_off_by: e.actor,
   }),
 };
+
+// a due-back payment undone is no new recovery, so recovered_at stays
+const UNREPAY: Sum = (usd) => ({
+  recovered_usd: sql`${owed_amounts.recovered_usd} + ${usd}`,
+});
 
 const PARTY_KEY = [
   owed_amounts.donation_id,
