@@ -152,6 +152,51 @@ export async function repay_owed(
   return row && with_entry(tx, row, "repay", r.ref);
 }
 
+export interface IOwedUnrecovery {
+  npo_id: number;
+  /** the run whose recoveries its transfer, found unfunded, never paid for */
+  ref: string;
+  now: string;
+}
+
+/** takes back every recovery the run made from the npo's rows, each by exactly
+ * what it took, whatever the row owes now; once per row, so a retry adds
+ * nothing. each row comes back with what was taken back from it */
+export async function unrecover_owed(
+  tx: DbOrTx,
+  u: IOwedUnrecovery
+): Promise<IOwedWithEntry[]> {
+  const of_npo = eq(owed_amounts.npo_id, u.npo_id);
+  const e = {
+    reason: "transfer_unfunded",
+    ref: `unfunded:${u.ref}`,
+    now: u.now,
+  };
+  // a repay under its own ref, uncapped: repay_owed's cap at what is due back
+  // would leave a row the run took to $0 with nothing to undo
+  await put_entries(
+    tx,
+    "repay",
+    of_npo,
+    e,
+    sql`(SELECT ${owed_entries.usd} FROM ${owed_entries}
+      WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
+        AND ${owed_entries.kind} = 'recover' AND ${owed_entries.ref} = ${u.ref})`
+  );
+  return tx
+    .select({ ...getTableColumns(owed_amounts), entry_usd: owed_entries.usd })
+    .from(owed_amounts)
+    .innerJoin(
+      owed_entries,
+      and(
+        eq(owed_entries.owed_id, owed_amounts.id),
+        eq(owed_entries.kind, "repay"),
+        eq(owed_entries.ref, e.ref)
+      )
+    )
+    .where(of_npo);
+}
+
 async function with_entry(
   tx: DbOrTx,
   row: IOwed,
@@ -266,8 +311,7 @@ async function book_write_off_loss(tx: DbOrTx, owed_id: string) {
 
 type IOwedEntry = typeof owed_entries.$inferSelect;
 
-/** inserts the entry and adds it to its row's sum in one statement, the row
- * locked first so a concurrent entry computes `usd` against this one's sum */
+/** `put_entries` on one row; the row as it stands when no entry went in */
 async function put_entry(
   tx: DbOrTx,
   kind: keyof typeof SUM_OF,
@@ -275,6 +319,24 @@ async function put_entry(
   e: IEntryFields,
   usd: SQL
 ): Promise<IOwed | null> {
+  const [row] = await put_entries(tx, kind, row_is, e, usd);
+  if (row) return row;
+  const [as_was] = await tx.select().from(owed_amounts).where(row_is);
+  return as_was ?? null;
+}
+
+/** inserts an entry on each row and adds it to the row's sum in one
+ * statement, the rows locked first so a concurrent entry computes `usd`
+ * against this one's sum. `usd` is per row, and a row where it is not > 0, or
+ * that already has an entry of `kind` under the ref, gets none and is not
+ * returned */
+async function put_entries(
+  tx: DbOrTx,
+  kind: keyof typeof SUM_OF,
+  row_is: SQL,
+  e: IEntryFields,
+  usd: SQL
+): Promise<IOwed[]> {
   const entry = tx.$with("entry").as(
     tx
       .insert(owed_entries)
@@ -300,16 +362,13 @@ async function put_entry(
       })
       .returning({ owed_id: owed_entries.owed_id, usd: owed_entries.usd })
   );
-  const [row] = await tx
+  return tx
     .with(entry)
     .update(owed_amounts)
     .set(SUM_OF[kind](sql`${entry.usd}`, e))
     .from(entry)
     .where(eq(owed_amounts.id, entry.owed_id))
     .returning(getTableColumns(owed_amounts));
-  if (row) return row;
-  const [as_was] = await tx.select().from(owed_amounts).where(row_is);
-  return as_was ?? null;
 }
 
 interface IEntryFields {

@@ -16,6 +16,7 @@ const OWNER: Record<string, (file: string) => boolean> = {
   credit_owed: in_refund_core,
   recover_owed: in_grant_run,
   repay_owed: in_grant_run,
+  unrecover_owed: in_grant_run,
   write_off_owed: in_owed_admin,
   admin_credit_owed: in_owed_admin,
 };
@@ -73,9 +74,10 @@ describe("owed ledger fence", () => {
         ),
         at(".server/refund/z.ts", `await recover_owed(tx, r);`),
         at(".server/refund/w.ts", `await repay_owed(tx, r);`),
+        at(".server/refund/v.ts", `await unrecover_owed(tx, u);`),
         at(
           ".server/payouts/settle.ts",
-          `await recover_owed(tx, r);\nawait repay_owed(tx, r);`
+          `await recover_owed(tx, r);\nawait repay_owed(tx, r);\nawait unrecover_owed(tx, u);`
         ),
         at(".server/refund/ok.ts", `await credit_owed(tx, c); // owed_amounts`),
         at(
@@ -90,6 +92,7 @@ describe("owed ledger fence", () => {
       `${platform}/.server/jobs/y.ts: owed_amounts`,
       `${platform}/.server/refund/z.ts: recover_owed`,
       `${platform}/.server/refund/w.ts: repay_owed`,
+      `${platform}/.server/refund/v.ts: unrecover_owed`,
       `${platform}/src/routes/platform.losses/api.ts: write_off_owed`,
     ]);
   });
