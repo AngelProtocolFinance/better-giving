@@ -11,7 +11,11 @@ import {
   commissions_release,
   referrer_payout_put,
 } from "../pg/queries/referrer";
-import { credit_unfunded_commissions } from "../refund/commission";
+import {
+  CREDIT_BY_HAND,
+  credit_unfunded_commissions,
+  refunded_in_flight_lines,
+} from "../refund/commission";
 import type { Pay } from "./settle";
 import { NotFundedError, payout_total, transfer_ref } from "./transfer";
 
@@ -89,32 +93,49 @@ export async function settle_referrer_commissions(
     await error_row(referrer.id, total);
     if (err instanceof NotFundedError) {
       report_error(err.cause, ctx);
-      let released: string[];
+      let not_released: string[];
       try {
-        released = (await commissions_release(db, ref)).map(
-          (c) => c.donation_id
-        );
+        // one transaction: a run dying between the two would leave the claim
+        // released, so no stuck-claim alert, with the referrer rows uncredited
+        not_released = await db.transaction(async (tx) => {
+          const released = (await commissions_release(tx, ref)).map(
+            (c) => c.donation_id
+          );
+          const refunded = ids.filter((id) => !released.includes(id));
+          if (refunded.length > 0) await credit_unfunded_commissions(tx, ref);
+          return refunded;
+        });
       } catch (release_err) {
         report_error(release_err, ctx);
+        // unfunded either way, so the referrer rows are owed nothing for it
+        const credit = await db
+          .transaction((tx) => credit_unfunded_commissions(tx, ref))
+          .then(
+            () =>
+              "any refunded while it was in flight have what their referrer owes for them credited back",
+            async (credit_err) => {
+              report_error(credit_err, ctx);
+              const lines = await refunded_in_flight_lines([ref]).catch((e) => {
+                report_error(e, ctx);
+                return [];
+              });
+              return [
+                `crediting back what the referrer owes for any refunded while it was in flight failed: ${CREDIT_BY_HAND}`,
+                ...lines,
+              ].join("\n");
+            }
+          );
         await alert({
           title: `commission not funded, release failed for ${referrer.id}`,
-          body: `the transfer was not funded (${String(err.cause)}); these commissions are safe to reset to pending. customerTransactionId ${ref}`,
+          body: `the transfer was not funded (${String(err.cause)}); these commissions are safe to reset to pending. ${credit}. customerTransactionId ${ref}`,
           fields,
         });
         return { status: "unreleased", ref };
       }
-      const not_released = ids.filter((id) => !released.includes(id));
       if (not_released.length > 0) {
-        let credited = true;
-        try {
-          await db.transaction((tx) => credit_unfunded_commissions(tx, ref));
-        } catch (credit_err) {
-          report_error(credit_err, ctx);
-          credited = false;
-        }
         await alert({
           title: `commission refunded in flight, not funded, ${referrer.id}`,
-          body: `these commissions were refunded while their transfer was in flight, and recorded as owed by the referrer; the transfer then failed before funding, so the referrer was never paid them. ${credited ? "what the referrer owes for them is credited back" : "crediting back what the referrer owes for them failed: credit each gift's referrer row by its commission"}, then set each to refunded. customerTransactionId ${ref}`,
+          body: `these commissions were refunded while their transfer was in flight, and recorded as owed by the referrer; the transfer then failed before funding, so the referrer was never paid them, and what the referrer owes for them is credited back. customerTransactionId ${ref}`,
           fields: [
             ...fields,
             { name: "not_released", value: not_released.join(", ") },
@@ -124,9 +145,21 @@ export async function settle_referrer_commissions(
       return { status: "released", ref };
     }
     report_error(err, ctx);
+    const in_flight = await refunded_in_flight_lines([ref]).catch((e) => {
+      report_error(e, ctx);
+      return [];
+    });
     await alert({
       title: `commission funding status unknown for ${referrer.id}`,
-      body: `do not reset these commissions to pending or pay them again; reconcile in Wise by customerTransactionId ${ref}`,
+      body: [
+        `do not reset these commissions to pending or pay them again; reconcile in Wise by customerTransactionId ${ref}`,
+        ...(in_flight.length > 0
+          ? [
+              `refunded while the transfer held them, so recorded as owed by the referrer: once the transfer is confirmed unfunded, ${CREDIT_BY_HAND}`,
+              ...in_flight,
+            ]
+          : []),
+      ].join("\n"),
       fields,
     });
     return { status: "fund_unknown", ref };

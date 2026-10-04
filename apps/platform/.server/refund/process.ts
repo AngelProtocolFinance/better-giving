@@ -216,10 +216,10 @@ export async function process_refund(
           continue;
         }
         const in_flight = c
-          ? `; claimed by the Wise transfer with customerTransactionId ${c.ref}, so credited back if that transfer goes unfunded`
+          ? `. claimed by the Wise transfer with customerTransactionId ${c.ref}, so owed only if that transfer pays: if it goes unfunded, the commission run credits it back when it catches that, otherwise credit it on Amounts owed (/platform/owed)`
           : "";
         owed_msgs.push(
-          `$${humanize(usd)} recorded as owed by referrer ${o.referrer_user ?? o.referrer_npo}, on commission ${g.dist.id}, to recover from its next commission${in_flight}`
+          `$${humanize(g.commission?.amount ?? 0)} commission ${g.dist.id} recorded as owed by referrer ${o.referrer_user ?? o.referrer_npo}, to recover from its next commission; the gift's row for that referrer totals $${humanize(usd)}${in_flight}`
         );
       }
     } catch (err) {

@@ -12,16 +12,12 @@ import { donation_match_events } from "../pg/schema/match";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { rev_logs } from "../pg/schema/revenue";
-import { apply_refund_plan, type IAppliedRefund } from "./apply";
+import { apply_refund_plan } from "./apply";
 import { donation_refund_status } from "./donation-status";
 import { calc_refund_plan, type RefundEffect, referrer_of } from "./plan";
 
 export type UnfundedLossReversal =
-  | {
-      status: "reversed";
-      /** its commission was claimed by a referrer transfer, so it went refunded_loss */
-      commission_in_flight?: IAppliedRefund["commission_in_flight"];
-    }
+  | { status: "reversed" }
   /** the savings/investment share stays owed: the payout is cancelled and
    * its cash taken back and credited, as with the payout pending */
   | { status: "owed_reduced" }
@@ -115,7 +111,7 @@ export async function reverse_unfunded_payout_loss(
     return { status: "owed_reduced" };
   }
 
-  const { commission_in_flight } = await apply_refund_plan(
+  await apply_refund_plan(
     tx,
     {
       ...plan,
@@ -132,7 +128,7 @@ export async function reverse_unfunded_payout_loss(
   });
   await dist_refund_update(tx, dist.id, { refund_status: "completed" });
   await donation_status_recompute(tx, dist.donation_id, now);
-  return { status: "reversed", commission_in_flight };
+  return { status: "reversed" };
 }
 
 /** the refund of `dist` as it would run now with its payout pending */

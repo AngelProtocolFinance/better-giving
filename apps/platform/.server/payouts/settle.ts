@@ -11,10 +11,7 @@ import {
   pending_payouts_locked,
   settlement_put,
 } from "../pg/queries/payout";
-import {
-  reverse_unfunded_payout_loss,
-  type UnfundedLossReversal,
-} from "../refund/unfunded";
+import { reverse_unfunded_payout_loss } from "../refund/unfunded";
 import { NotFundedError, payout_total, transfer_ref } from "./transfer";
 
 /**
@@ -90,7 +87,7 @@ export async function settle_npo_payouts(
         });
         return { status: "unreleased", ref };
       }
-      const { not_released, kept, commissions_in_flight } = released;
+      const { not_released, kept } = released;
       report_error(err.cause, {
         ...ctx,
         ...(not_released.length > 0 && { not_released }),
@@ -109,25 +106,6 @@ export async function settle_npo_payouts(
             {
               name: "not_reversed",
               value: payouts.map((k) => `${k.id}: ${k.reason}`).join("\n"),
-            },
-          ],
-        });
-      }
-      if (commissions_in_flight.length > 0) {
-        // the commission side of the refund the release just redid, as process_refund reports it
-        await alert({
-          title: `commission refunded in flight, npo:${npo.id}`,
-          body: `releasing these unfunded payouts reversed their loss refunds, and each one's referrer commission was claimed for a Wise payout to its referrer, so it is recorded as owed by that referrer and credited back if that payout goes unfunded. check each transfer by its customerTransactionId`,
-          fields: [
-            ...fields,
-            {
-              name: "commissions",
-              value: commissions_in_flight
-                .map(
-                  (c) =>
-                    `commission ${c.donation_id}: $${c.amount} — customerTransactionId ${c.ref}`
-                )
-                .join("\n"),
             },
           ],
         });
@@ -204,13 +182,6 @@ interface IRelease {
    * refund recorded before the owed ledger, its loss log) still counts a payout
    * the npo was never paid */
   kept: { id: string; reason: string; pre_ledger: boolean }[];
-  /** commissions a reversed loss refund took while a referrer transfer held them */
-  commissions_in_flight: NonNullable<
-    Extract<
-      UnfundedLossReversal,
-      { status: "reversed" }
-    >["commission_in_flight"]
-  >[];
 }
 
 /**
@@ -224,7 +195,6 @@ async function release(tx: DbOrTx, ids: string[]): Promise<IRelease> {
   });
   const not_released = ids.filter((id) => !released.includes(id));
   const kept: IRelease["kept"] = [];
-  const commissions_in_flight: IRelease["commissions_in_flight"] = [];
   for (const id of await payouts_in(tx, not_released, "refunded_loss")) {
     try {
       const r = await tx.transaction((sp) =>
@@ -233,15 +203,12 @@ async function release(tx: DbOrTx, ids: string[]): Promise<IRelease> {
       if (r.status === "kept") {
         kept.push({ id, reason: r.reason, pre_ledger: r.pre_ledger === true });
       }
-      if (r.status === "reversed" && r.commission_in_flight) {
-        commissions_in_flight.push(r.commission_in_flight);
-      }
     } catch (err) {
       report_error(err, { payout_id: id });
       kept.push({ id, reason: String(err), pre_ledger: false });
     }
   }
-  return { not_released, kept, commissions_in_flight };
+  return { not_released, kept };
 }
 
 /** an alert that fails to send is reported, never thrown past the money */

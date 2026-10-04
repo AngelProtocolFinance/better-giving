@@ -7,6 +7,7 @@ import { settle_referrer_commissions } from "$/payouts/settle-commissions";
 import { payout_total } from "$/payouts/transfer";
 import { wise_pay } from "$/payouts/wise-pay";
 import { commissions_all_by_status } from "$/pg/queries/referrer";
+import { CREDIT_BY_HAND, refunded_in_flight_lines } from "$/refund/commission";
 import { get_referrer } from "./helpers";
 
 const lambda = `commissions-processor:${stage}`;
@@ -65,11 +66,25 @@ async function alert_unsettled_claims() {
       ([claim, cs = []]) =>
         `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`
     );
+    const refs = [...new Set(stuck.flatMap((c) => (c.ref ? [c.ref] : [])))];
+    const in_flight = await refunded_in_flight_lines(refs).catch((err) => {
+      report_error(err);
+      return [];
+    });
     await aws_monitor.send_alert({
       type: "ERROR",
       from: lambda,
       title: "commissions claimed but not paid",
-      body: `reconcile in Wise before resetting any to pending\n${lines.join("\n")}`,
+      body: [
+        "reconcile in Wise before resetting any to pending",
+        ...lines,
+        ...(in_flight.length > 0
+          ? [
+              `refunded while a claim held them, so recorded as owed by the referrer: once that transfer is confirmed unfunded, ${CREDIT_BY_HAND}`,
+              ...in_flight,
+            ]
+          : []),
+      ].join("\n"),
     });
   } catch (err) {
     report_error(err);

@@ -1027,7 +1027,7 @@ describe("process_refund — a commission the commissions cron claims mid-refund
     expect(dist!.refund_status).toBe("completed");
     expect((await dons())[0]!.status).toBe("refunded");
     expect(res.owed_msgs).toEqual([
-      `$5.00 recorded as owed by referrer NPO-REF, on commission dist-${id}, to recover from its next commission; claimed by the Wise transfer with customerTransactionId ref-1, so credited back if that transfer goes unfunded`,
+      `$5.00 commission dist-${id} recorded as owed by referrer NPO-REF, to recover from its next commission; the gift's row for that referrer totals $5.00. claimed by the Wise transfer with customerTransactionId ref-1, so owed only if that transfer pays: if it goes unfunded, the commission run credits it back when it catches that, otherwise credit it on Amounts owed (/platform/owed)`,
     ]);
   });
 
@@ -1138,7 +1138,7 @@ describe("process_refund — a commission the commissions cron claims mid-refund
       expect.objectContaining({
         title: "Refund Recorded as Owed",
         body: expect.stringContaining(
-          `$5.00 recorded as owed by referrer NPO-REF, on commission dist-${id}, to recover from its next commission`
+          `$5.00 commission dist-${id} recorded as owed by referrer NPO-REF, to recover from its next commission; the gift's row for that referrer totals $5.00`
         ),
       })
     );
@@ -1205,6 +1205,10 @@ describe("process_refund — a commission the commissions cron claims mid-refund
         received_usd: 8,
         outstanding_usd: 8,
       }),
+    ]);
+    expect(res.owed_msgs).toEqual([
+      "$5.00 commission dist-0 recorded as owed by referrer REF-USER, to recover from its next commission; the gift's row for that referrer totals $5.00",
+      "$3.00 commission dist-1 recorded as owed by referrer REF-USER, to recover from its next commission; the gift's row for that referrer totals $8.00",
     ]);
   });
 

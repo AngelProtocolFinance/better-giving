@@ -118,6 +118,12 @@ async function referrer_owed_on_other_dists(
   dist_id: string
 ): Promise<number> {
   const { party } = owed;
+  const key = `${owed.donation_id}:${"referrer_user" in party ? `u:${party.referrer_user}` : `n:${party.referrer_npo}`}`;
+  // held to commit: a run applying a sibling dist for this referrer waits
+  // here, and its read below then sees this one's commit
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`
+  );
   const [row] = await tx
     .select({
       usd: sql<number>`coalesce(sum(${referrer_commissions.amount}), 0)`.mapWith(

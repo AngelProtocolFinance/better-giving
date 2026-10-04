@@ -70,6 +70,19 @@ vi.mock("$/refund/commission", async (orig) => {
     },
   };
 });
+const release = vi.hoisted(() => ({ fails: false }));
+vi.mock("$/pg/queries/referrer", async (orig) => {
+  const real = await orig<typeof import("$/pg/queries/referrer")>();
+  return {
+    ...real,
+    commissions_release: (
+      ...args: Parameters<typeof real.commissions_release>
+    ) => {
+      if (release.fails) throw new Error("release failed");
+      return real.commissions_release(...args);
+    },
+  };
+});
 vi.mock("./helpers", () => ({
   get_referrer: async (id: string) => ({
     id,
@@ -120,6 +133,7 @@ afterAll(async () => {
 beforeEach(async () => {
   send_alert.mockReset();
   credit.fails = false;
+  release.fails = false;
   referrer.pay_id = 42;
   referrer.pay_min = 50;
   wise.by_ref.clear();
@@ -332,10 +346,16 @@ describe("commissions cron", () => {
     )!;
     expect(a.body).toContain(refs()[0]);
     expect(a.body).not.toContain("loss");
+    // the sibling sum keeps counting a credited commission only while it stays refunded_loss
+    expect(a.body).not.toMatch(/set each to refunded/);
     expect(a.fields).toContainEqual({ name: "not_released", value: "d-1" });
   });
 
-  test("a credit that fails leaves the release standing and the alert says to credit by hand", async () => {
+  const alert_titled = (prefix: string) =>
+    send_alert.mock.calls.find(([a]) => a.title.startsWith(prefix))?.[0];
+
+  // released and uncredited would leave nothing processing for the stuck-claim alert to find
+  test("a credit that fails rolls the release back with it, leaving the claim processing", async () => {
     await seed_gift("d-1", 25);
     await seed("d-2", 30);
     credit.fails = true;
@@ -348,17 +368,75 @@ describe("commissions cron", () => {
 
     expect(await statuses()).toEqual({
       "d-1": "refunded_loss",
-      "d-2": "pending",
+      "d-2": "processing",
     });
     expect(await owed()).toEqual([
       expect.objectContaining({ credited_back_usd: 0, outstanding_usd: 25 }),
     ]);
-    const [a] = send_alert.mock.calls.find(([a]) =>
-      a.title.startsWith("commission refunded in flight, not funded")
-    )!;
+    const a = alert_titled("commission not funded, release failed");
+    expect(a.body).toContain("/platform/owed");
+  });
+
+  test("a release that fails still credits what the referrer owes for commissions refunded in flight", async () => {
+    await seed_gift("d-1", 25);
+    await seed("d-2", 30);
+    release.fails = true;
+    wise.fund_transfer.mockImplementationOnce(async () => {
+      await refund_in_flight("d-1");
+      return { status: "REJECTED", errorCode: "balance.insufficient" };
+    });
+
+    await index();
+
+    expect(await statuses()).toEqual({
+      "d-1": "refunded_loss",
+      "d-2": "processing",
+    });
+    expect(await owed()).toEqual([
+      expect.objectContaining({ credited_back_usd: 25, outstanding_usd: 0 }),
+    ]);
+    const a = alert_titled("commission not funded, release failed");
+    expect(a.body).toContain("credited back");
+  });
+
+  test("a transfer whose funding is unknown lists each commission refunded in flight and its owed row, to credit by hand once unfunded", async () => {
+    await seed_gift("d-1", 25);
+    await seed("d-2", 30);
+    wise.fund_transfer.mockImplementationOnce(async () => {
+      await refund_in_flight("d-1");
+      throw new Error("timeout");
+    });
+
+    await index();
+
+    expect(await owed()).toEqual([
+      expect.objectContaining({ credited_back_usd: 0, outstanding_usd: 25 }),
+    ]);
+    const a = alert_titled("commission funding status unknown");
     expect(a.body).toContain(
-      "crediting back what the referrer owes for them failed"
+      `commission d-1 ($25.00, gift don-d-1, customerTransactionId ${refs()[0]}): referrer ${REFERRER}'s row on the gift has $25.00 outstanding`
     );
+    expect(a.body).toContain("/platform/owed");
+  });
+
+  test("a stuck claim's alert lists the commissions refunded under its ref and their owed rows", async () => {
+    await seed_gift("d-1", 25);
+    await seed("d-2", 30);
+    wise.fund_transfer.mockImplementationOnce(async () => {
+      await refund_in_flight("d-1");
+      throw new Error("timeout");
+    });
+    await index();
+    send_alert.mockReset();
+
+    await index();
+
+    const a = alert_titled("commissions claimed but not paid");
+    expect(a.body).toContain(`d-2`);
+    expect(a.body).toContain(
+      `commission d-1 ($25.00, gift don-d-1, customerTransactionId ${refs()[0]}): referrer ${REFERRER}'s row on the gift has $25.00 outstanding`
+    );
+    expect(a.body).toContain("/platform/owed");
   });
 
   test("a commission refunded while its transfer was in flight, which then paid, stays owed by its referrer", async () => {
