@@ -23,17 +23,16 @@ import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
 import type { MatchEvent } from "../pg/schema/match";
-import { apply_refund_plan, StalePayoutError } from "./apply";
+import { apply_refund_plan, type OwedSource, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
 import {
   calc_refund_plan,
-  loss_figures_off,
   type RefundCtx,
   type RefundInputs,
   type RefundPlan,
 } from "./plan";
 
-export interface ProcessRefundCtx {
+export interface ProcessRefundCtx extends OwedSource {
   form_id: string | null;
   program_id: string | null;
   /** discord alert sender identity, e.g. `refund-action-${stage}` */
@@ -42,6 +41,9 @@ export interface ProcessRefundCtx {
 
 export interface RefundResult {
   failures: string[];
+  /** what a npo now owes back, one line per dist */
+  owed_msgs: string[];
+  /** what the platform absorbs: commissions it couldn't take back */
   loss_msgs: string[];
   has_loss: boolean;
   applied: number;
@@ -159,7 +161,9 @@ export async function process_refund(
   ctx: ProcessRefundCtx
 ): Promise<RefundResult> {
   const failures: string[] = [];
+  const owed_msgs: string[] = [];
   const loss_msgs: string[] = [];
+  const src: OwedSource = { source: ctx.source, source_ref: ctx.source_ref };
   let applied = 0;
 
   async function apply_dist(g: DistRefundGraph) {
@@ -173,11 +177,15 @@ export async function process_refund(
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
       if (!cur || dist_is_reversed(cur)) return { skipped: true } as const;
-      const applied = await apply_refund_plan(tx, plan);
+      const applied = await apply_refund_plan(tx, plan, src);
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
       });
-      return { skipped: false, ...applied } as const;
+      return {
+        skipped: false,
+        ...applied,
+        reasons: plan.loss_reasons,
+      } as const;
     });
   }
 
@@ -199,13 +207,12 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss, commission_in_flight: c, paid_commission: pc } = res;
-      if (loss) {
-        const off = loss_figures_off(loss);
-        if (off)
-          report_error(new Error(off), { loss_id: loss.id, donation_id });
-        loss_msgs.push(
-          `npo ${g.dist.to_id}: $${humanize(loss.amount)} — ${loss.reason}`
+      const { owed, commission_in_flight: c, paid_commission: pc } = res;
+      if (owed) {
+        const usd =
+          owed.received_usd + owed.fee_processing_usd + owed.fee_dispute_usd;
+        owed_msgs.push(
+          `$${humanize(usd)} recorded as owed by ${g.dist.to_name ?? "its npo"} (npo ${g.dist.to_id}), to recover from its future grants — ${res.reasons.join("; ")}`
         );
       }
       if (pc) {
@@ -306,20 +313,26 @@ export async function process_refund(
     for (const g of await dists_for_refund(donation_id)) await reverse(g);
   }
 
-  // losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
-  if (loss_msgs.length > 0) {
+  // owed amounts and losses are finance-ops notices (not bugs) — keep discord. failures go to sentry inline at the throw site.
+  if (owed_msgs.length > 0 || loss_msgs.length > 0) {
     await fiat_monitor.send_alert({
       type: "NOTICE",
       from: `${ctx.alert_from}-${stage}`,
-      title: "Refund Completed with Losses",
-      body: `LOSSES:\n${loss_msgs.join("\n")}`,
+      title:
+        owed_msgs.length > 0
+          ? "Refund Recorded as Owed"
+          : "Refund Completed with Losses",
+      body: [
+        ...(owed_msgs.length > 0 ? ["OWED:", ...owed_msgs] : []),
+        ...(loss_msgs.length > 0 ? ["LOSSES:", ...loss_msgs] : []),
+      ].join("\n"),
     });
   }
 
   const has_loss =
     (final ?? (await donation_refund_status(db, donation_id))) ===
     "refunded_loss";
-  return { failures, loss_msgs, has_loss, applied };
+  return { failures, owed_msgs, loss_msgs, has_loss, applied };
 }
 
 /**

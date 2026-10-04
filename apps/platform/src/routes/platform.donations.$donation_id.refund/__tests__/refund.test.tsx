@@ -62,9 +62,38 @@ vi.mock("$/kit/queue", () => ({ enqueue }));
 const report_error = vi.hoisted(() => vi.fn());
 vi.mock("#/errors/report", () => ({ report_error }));
 
-// the dist graph and its reversal are `process.test.ts`'s ground; here they are
-// the boundary, so the route's own branching on the reversal's answer runs real
+// the reversal is `reverse.test.ts`'s ground; here it is the boundary, so the
+// route's own branching on the reversal's answer runs real
 const refund = vi.hoisted(() => ({ failures: [] as string[], applied: 0 }));
+vi.mock("$/refund/reverse", async (orig) => ({
+  ...(await orig<typeof import("$/refund/reverse")>()),
+  // flips the donation as the real one does once nothing failed
+  reverse_charge: vi.fn(async (r: { donation_id: string }) => {
+    if (refund.failures.length > 0) {
+      return {
+        status: "failed",
+        reason: "incomplete",
+        dists: 1,
+        applied: refund.applied,
+        failures: refund.failures,
+      };
+    }
+    await test_db
+      .current!.db.update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, r.donation_id));
+    return {
+      status: "reversed",
+      dists: 1,
+      applied: 1,
+      owed_msgs: [],
+      loss_msgs: [],
+      has_loss: false,
+    };
+  }),
+}));
+// the preview's plan per dist. browser mode links every named import the real
+// `reverse` module makes, so `process_refund` is stubbed though never reached
 vi.mock("$/refund/process", () => ({
   load_refund_plan: vi.fn(async () => ({
     preview: {
@@ -73,21 +102,7 @@ vi.mock("$/refund/process", () => ({
       warnings: [],
     },
   })),
-  // flips the donation as the real one does once nothing failed
-  process_refund: vi.fn(async (donation_id: string) => {
-    if (refund.failures.length === 0) {
-      await test_db
-        .current!.db.update(donations)
-        .set({ status: "refunded" })
-        .where(eq(donations.id, donation_id));
-    }
-    return {
-      failures: refund.failures,
-      loss_msgs: [],
-      has_loss: false,
-      applied: refund.applied,
-    };
-  }),
+  process_refund: vi.fn(),
 }));
 vi.mock("$/pg/queries/dist", async (orig) => ({
   ...(await orig<typeof import("$/pg/queries/dist")>()),
@@ -107,7 +122,8 @@ vi.mock("$/pg/queries/dist", async (orig) => ({
 
 import { dists_for_refund } from "$/pg/queries/dist";
 import { create_test_db } from "$/pg/test-utils/pglite";
-import { load_refund_plan, process_refund } from "$/refund/process";
+import { load_refund_plan } from "$/refund/process";
+import { reverse_charge } from "$/refund/reverse";
 import { action, loader } from "../api";
 import Page from "../route";
 
@@ -271,7 +287,7 @@ describe("refund modal", () => {
         .element(alert)
         .toMatchTextContent(`Stripe refund re_1 is ${status}`);
       expect(screen.getByText("Refund processed").query()).toBeNull();
-      expect(process_refund).not.toHaveBeenCalled();
+      expect(reverse_charge).not.toHaveBeenCalled();
     }
   );
 
@@ -321,7 +337,7 @@ describe("refund modal", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toMatchTextContent("Stripe refund re_1 is failed");
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("reverses nothing while the stripe refund needs action, and says to retry", async () => {
@@ -335,7 +351,7 @@ describe("refund modal", () => {
     await expect.element(alert).toMatchTextContent(/re_1 needs action/i);
     await expect.element(alert).toMatchTextContent(/nothing was reversed/i);
     await expect.element(alert).toMatchTextContent(/retry/i);
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("keeps a refund with a failed reversal open, listing what failed", async () => {
@@ -379,7 +395,7 @@ describe("refund modal", () => {
     await expect
       .element(screen.getByText("Refund processed"))
       .toBeInTheDocument();
-    expect(process_refund).toHaveBeenCalledOnce();
+    expect(reverse_charge).toHaveBeenCalledOnce();
   });
 
   it("says how many dists were reversed when only some were", async () => {
@@ -463,10 +479,10 @@ describe("refund preview", () => {
     expect(data.previews[0].amount).toBe(313.5);
   });
 
-  it("banners the loss without saying it is recorded", async () => {
+  it("says a paid grant will be recovered from the npo's future grants, not lost", async () => {
     vi.mocked(load_refund_plan).mockResolvedValue({
       is_loss: true,
-      amount: 100,
+      amount: 93.2,
       paid_commission: null,
       preview: {
         effects: [],
@@ -490,8 +506,16 @@ describe("refund preview", () => {
     );
 
     await expect
-      .element(screen.getByText("$100.00 will be a platform loss"))
+      .element(
+        screen.getByText(
+          "$93.20 will be recovered from Save the Whales's future grants"
+        )
+      )
       .toBeInTheDocument();
+    expect(screen.getByText("will be a platform loss").query()).toBeNull();
+    await expect
+      .element(screen.getByRole("button", { name: /confirm refund/i }))
+      .toHaveTextContent("Confirm refund");
   });
 });
 
@@ -507,7 +531,7 @@ describe("refund api", () => {
     expect(res.failures).toEqual([
       "Stripe refund not issued: stripe timed out",
     ]);
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -535,7 +559,7 @@ describe("refund api", () => {
     const res: any = await action({ params: { donation_id: id } } as any);
 
     expect(res).toMatchObject({ ok: false, refund: "unknown", reversed: 0 });
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("tells the admin the refund went out when the reversal throws after it", async () => {
@@ -590,7 +614,7 @@ describe("refund api", () => {
     expect(retry).toMatchObject({ ok: true, stripe_refund: "succeeded" });
   });
 
-  it("sends no after-partial notices for a replacement refund after a failed one", async () => {
+  it("hands the reversal no earlier partials for a replacement refund after a failed one", async () => {
     const failed = {
       id: "re_failed",
       status: "failed",
@@ -612,10 +636,9 @@ describe("refund api", () => {
     const res: any = await action({ params: { donation_id: id } } as any);
 
     expect(res).toMatchObject({ ok: true, stripe_refund: "succeeded" });
-    const notices = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "fiat-notice");
-    expect(notices).toHaveLength(0);
+    expect(vi.mocked(reverse_charge).mock.calls[0]![0].after_partials).toEqual(
+      expect.objectContaining({ earlier: [] })
+    );
   });
 
   it("sends one idempotency key for two submits racing before any failure", async () => {
@@ -657,7 +680,7 @@ describe("refund api", () => {
     expect(issued.size).toBe(1);
   });
 
-  it("tells ops to undo their hand adjustment when earlier partial refunds exist", async () => {
+  it("hands the reversal the charge's earlier partial refunds, for ops' hand adjustment", async () => {
     const ours = {
       id: "re_full",
       status: "succeeded",
@@ -672,101 +695,31 @@ describe("refund api", () => {
     };
     refunds_create.mockResolvedValue(ours);
     refunds_list.mockResolvedValue({ data: [ours, partial] });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    await action({ params: { donation_id: id } } as any);
-
-    const [starting, notice] = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "fiat-notice");
-    expect(starting.payload.alert.title).toBe(
-      "Full Refund After Partial: Reversal Starting"
-    );
-    expect(starting.payload.alert.body).toContain(
-      "earlier partial refunds: 5.00 USD (re_part, succeeded)"
-    );
-    expect(notice.payload.alert.title).toBe(
-      "Reversal Complete: Undo Hand Adjustment"
-    );
-    expect(notice.payload.alert.body).toContain(
-      "completing refund: 95.00 USD (re_full, succeeded)"
-    );
-    const [starting_at] = enqueue.mock.invocationCallOrder;
-    const [reversed_at] = vi.mocked(process_refund).mock.invocationCallOrder;
-    expect(starting_at).toBeLessThan(reversed_at);
-  });
-
-  it("tells ops to keep their hand adjustment when the reversal after partials fails", async () => {
-    const ours = {
-      id: "re_full",
-      status: "succeeded",
-      amount: 9500,
-      currency: "usd",
-    };
-    const partial = {
-      id: "re_part",
-      status: "succeeded",
-      amount: 500,
-      currency: "usd",
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours, partial] });
-    refund.failures = ["dist dist-1: payout already sent"];
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-
-    await action({ params: { donation_id: id } } as any);
-
-    const notices = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "fiat-notice");
-    expect(notices).toHaveLength(2);
-    const [, notice] = notices;
-    expect(notice.payload.alert.title).toBe(
-      "Reversal Did Not Complete: Keep Hand Adjustment"
-    );
-    expect(notice.payload.alert.body).toContain(
-      "1 of 1 dists failed to reverse"
-    );
-    // the key the webhook would use for the same refund, so the two never both land
-    expect(notice.dedupe).toBe("fiat.notice_re_full_keep");
-  });
-
-  it("still reports the refund processed when its outcome notice can't be queued, keeping the instruction in sentry", async () => {
-    const ours = {
-      id: "re_full",
-      status: "succeeded",
-      amount: 9500,
-      currency: "usd",
-    };
-    const partial = {
-      id: "re_part",
-      status: "succeeded",
-      amount: 500,
-      currency: "usd",
-    };
-    refunds_create.mockResolvedValue(ours);
-    refunds_list.mockResolvedValue({ data: [ours, partial] });
-    enqueue
-      .mockResolvedValueOnce(undefined) // the start notice
-      .mockRejectedValueOnce(new Error("qstash 503"));
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
 
     const res: any = await action({ params: { donation_id: id } } as any);
 
-    expect(res.ok).toBe(true);
-    expect(report_error).toHaveBeenCalledOnce();
-    const [err, ctx] = report_error.mock.calls[0]!;
-    expect(err).toMatchObject({ message: "qstash 503" });
-    expect(ctx).toMatchObject({
+    expect(res).toMatchObject({ ok: true, reversal: "done" });
+    expect(reverse_charge).toHaveBeenCalledExactlyOnceWith({
       donation_id: id,
-      title: "Reversal Complete: Undo Hand Adjustment",
+      rail: "stripe",
+      source: "admin",
+      alert_from: "refund-action",
+      notice: {
+        id: "re_full",
+        lines: [`payment pi_${id}, admin refund re_full`],
+      },
+      after_partials: {
+        seen_at: `payment pi_${id}, admin refund re_full`,
+        currency: "usd",
+        completing: expect.objectContaining({ id: "re_full" }),
+        earlier: [expect.objectContaining({ id: "re_part" })],
+      },
     });
   });
 
-  it("posts no partial-refund notice when the admin refund is the charge's only one", async () => {
+  it("hands the reversal no earlier partials when the admin refund is the charge's only one", async () => {
     const ours = {
       id: "re_full",
       status: "succeeded",
@@ -782,9 +735,9 @@ describe("refund api", () => {
 
     expect(res.ok).toBe(true);
     expect(refunds_list).toHaveBeenCalled();
-    expect(
-      enqueue.mock.calls.flat().filter((m) => m.id === "fiat-notice")
-    ).toEqual([]);
+    expect(vi.mocked(reverse_charge).mock.calls[0]![0].after_partials).toEqual(
+      expect.objectContaining({ earlier: [] })
+    );
   });
 
   it("reverses a donation whose charge an earlier attempt already refunded", async () => {
@@ -805,7 +758,7 @@ describe("refund api", () => {
     const res: any = await action({ params: { donation_id: id } } as any);
 
     expect(res).toMatchObject({ ok: true, stripe_refund: "succeeded" });
-    expect(process_refund).toHaveBeenCalledOnce();
+    expect(reverse_charge).toHaveBeenCalledOnce();
   });
 
   it("leaves the reversal to refund.updated while the bank refund is pending, stopping the gift's billing now", async () => {
@@ -821,7 +774,7 @@ describe("refund api", () => {
       stripe_refund: "pending",
       reversal: "held",
     });
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
     const [deactivated] = enqueue.mock.calls
       .flat()
       .filter((m) => m.id === "sub-deactivated");
@@ -845,7 +798,7 @@ describe("refund api", () => {
     const res: any = await action({ params: { donation_id: id } } as any);
 
     expect(res).toMatchObject({ ok: true, reversal: "held" });
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("reverses a succeeded card refund at once", async () => {
@@ -860,7 +813,7 @@ describe("refund api", () => {
       stripe_refund: "succeeded",
       reversal: "done",
     });
-    expect(process_refund).toHaveBeenCalledOnce();
+    expect(reverse_charge).toHaveBeenCalledOnce();
   });
 
   it("refuses a stripe donation with no payment on record, reversing nothing", async () => {
@@ -872,7 +825,7 @@ describe("refund api", () => {
 
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(400);
-    expect(process_refund).not.toHaveBeenCalled();
+    expect(reverse_charge).not.toHaveBeenCalled();
   });
 
   it("answers already refunded for a gift reversed before its refund, issuing none", async () => {
@@ -904,6 +857,10 @@ describe("refund api", () => {
         .where(eq(donations.id, id));
       return { id: "re_1", status: "succeeded" };
     });
+    vi.mocked(reverse_charge).mockResolvedValueOnce({
+      status: "already_reversed",
+      donation_status: "refunded",
+    });
 
     const res: any = await action({ params: { donation_id: id } } as any);
 
@@ -912,7 +869,6 @@ describe("refund api", () => {
       stripe_refund: "succeeded",
       reversal: "done",
     });
-    expect(process_refund).not.toHaveBeenCalled();
   });
 
   it("checks the gift has dists without planning their reversal before the refund", async () => {
@@ -941,39 +897,22 @@ describe("refund api", () => {
     expect(refunds_create).not.toHaveBeenCalled();
   });
 
-  it("stops a recurring gift's billing once refunded, though a dist failed to reverse", async () => {
-    refund.failures = ["dist dist-1: payout already sent"];
+  // `reverse_charge` ends it, ahead of the reversal and whatever becomes of it
+  it("leaves ending a recurring gift's billing to the reversal once the refund succeeds", async () => {
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
-    const sub_id = await seed_subscription(`pi_${id}`);
-
-    const res: any = await action({ params: { donation_id: id } } as any);
-
-    expect(res).toMatchObject({ ok: false, refund_issued: true });
-    const [deactivated] = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "sub-deactivated");
-    expect(deactivated?.payload).toMatchObject({
-      id: sub_id,
-      status: "inactive",
-      status_cancel_reason: "refunded",
-    });
-  });
-
-  it("ends a recurring gift's billing once when the refund reverses at once", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
-    const id = await seed_donation();
-    await seed_settlement(id, `pi_${id}`);
-    const sub_id = await seed_subscription(`pi_${id}`);
+    await seed_subscription(`pi_${id}`);
 
     const res: any = await action({ params: { donation_id: id } } as any);
 
     expect(res).toMatchObject({ ok: true, reversal: "done" });
-    const deactivated = enqueue.mock.calls
-      .flat()
-      .filter((m) => m.id === "sub-deactivated");
-    expect(deactivated.map((m) => m.payload.id)).toEqual([sub_id]);
+    expect(reverse_charge).toHaveBeenCalledWith(
+      expect.objectContaining({ rail: "stripe", source: "admin" })
+    );
+    expect(
+      enqueue.mock.calls.flat().filter((m) => m.id === "sub-deactivated")
+    ).toEqual([]);
   });
 
   it.each(["nowpayments:crypto", "paypal:paypal", "chariot:daf"])(
@@ -990,7 +929,7 @@ describe("refund api", () => {
       expect((from_loader as Response).status).toBe(400);
       expect(from_action).toBeInstanceOf(Response);
       expect((from_action as Response).status).toBe(400);
-      expect(process_refund).not.toHaveBeenCalled();
+      expect(reverse_charge).not.toHaveBeenCalled();
       expect(refunds_create).not.toHaveBeenCalled();
     }
   );

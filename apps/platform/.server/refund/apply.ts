@@ -1,18 +1,18 @@
 import type { IRefundedStatus } from "@/payouts";
-import type { ILossLog } from "@/revenue";
 import { bal_tx_put } from "../pg/queries/bal-tx";
 import { donation_message_del } from "../pg/queries/donation-message";
 import { form_ltd_inc } from "../pg/queries/form";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { nav_log_append } from "../pg/queries/nav";
 import { npo_balance_update } from "../pg/queries/npo";
+import { type IOwed, type IOwedRecord, record_owed } from "../pg/queries/owed";
 import {
   payout_mark_refunded_loss,
   payout_move_from_pending,
 } from "../pg/queries/payout";
 import { npo_prog_contrib } from "../pg/queries/program";
 import { commission_refund } from "../pg/queries/referrer";
-import { loss_log_put, rev_log_update_status } from "../pg/queries/revenue";
+import { rev_log_update_status } from "../pg/queries/revenue";
 import type { RefundPlan } from "./plan";
 
 /** the plan refunds a payout that another writer moved out of `pending` since */
@@ -23,8 +23,11 @@ export class StalePayoutError extends Error {
   }
 }
 
+/** the refund or dispute an owed figure is recorded against */
+export type OwedSource = Pick<IOwedRecord, "source" | "source_ref">;
+
 export interface IAppliedRefund {
-  loss?: ILossLog;
+  owed?: IOwed;
   paid_commission?: NonNullable<RefundPlan["paid_commission"]>;
   /** the commission was claimed by a Wise transfer, so it was taken as a loss */
   commission_in_flight?: { donation_id: string; amount: number; ref?: string };
@@ -32,7 +35,8 @@ export interface IAppliedRefund {
 
 export async function apply_refund_plan(
   tx: DbOrTx,
-  plan: RefundPlan
+  plan: RefundPlan,
+  src: OwedSource
 ): Promise<IAppliedRefund> {
   const res: IAppliedRefund = {};
   if (plan.paid_commission) res.paid_commission = plan.paid_commission;
@@ -82,9 +86,8 @@ export async function apply_refund_plan(
       case "donation_message_del":
         await donation_message_del(tx, e.donation_id);
         break;
-      case "loss_log":
-        res.loss = e.loss;
-        await loss_log_put(tx, e.loss);
+      case "owed":
+        res.owed = await record_owed(tx, { ...e.owed, ...src });
         break;
     }
   }

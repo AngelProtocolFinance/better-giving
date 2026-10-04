@@ -33,7 +33,7 @@ export interface LoaderData {
   donation_id: string;
   already_refunded: boolean;
   previews: DistPreview[];
-  /** total amount platform will absorb as loss */
+  /** usd the platform absorbs as loss: commissions already paid out */
   total_loss: number;
   /** stripe subscription id if payment originated from a subscription */
   subscription_id: string | null;

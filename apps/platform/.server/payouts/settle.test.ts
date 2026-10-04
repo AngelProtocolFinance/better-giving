@@ -59,6 +59,7 @@ const { dists } = await import("../pg/schema/dist");
 const { bal_txs } = await import("../pg/schema/bal-tx");
 const { donations } = await import("../pg/schema/donation");
 const { loss_logs, rev_logs } = await import("../pg/schema/revenue");
+const { owed_amounts } = await import("../pg/schema/owed");
 const { create_test_db } = await import("../pg/test-utils/pglite");
 const { npos } = await import("../pg/schema/npo");
 const { payouts, settlements } = await import("../pg/schema/payout");
@@ -82,6 +83,7 @@ beforeEach(async () => {
   fail_move.from = null;
   await db().delete(bal_txs);
   await db().delete(loss_logs);
+  await db().delete(owed_amounts);
   await db().delete(rev_logs);
   await db().delete(payouts);
   await db().delete(dists);
@@ -190,7 +192,17 @@ const refund_in_flight = async (donation_id: string) =>
     form_id: null,
     program_id: null,
     alert_from: "test",
+    source: "refund",
+    source_ref: "re_1",
   });
+
+/** what the npo owes on each refunded gift, and how much of it is outstanding */
+const owed = async () =>
+  (await db().select().from(owed_amounts)).map((o) => ({
+    donation_id: o.donation_id,
+    credited_back_usd: o.credited_back_usd,
+    outstanding_usd: o.outstanding_usd,
+  }));
 
 const payout_types = async () =>
   Object.fromEntries(
@@ -463,7 +475,7 @@ describe("settle_npo_payouts", () => {
     });
   });
 
-  test("a payout loss-refunded while its transfer was in flight stays refunded_loss and is still settled for", async () => {
+  test("a payout refunded while its transfer was in flight stays refunded_loss, owed by the npo, and is still settled for", async () => {
     const npo = await seed_npo({ cash: 500 });
     await seed_payout(npo.id, "p-1", 60);
     const { don } = await seed_donation_payout(npo.id, "p-2", 40);
@@ -482,10 +494,10 @@ describe("settle_npo_payouts", () => {
     const [stlmt] = await db().select().from(settlements);
     expect(stlmt?.amount).toBe(100);
     expect(await npo_cash(npo.id)).toBe(400);
-    const logs = await db().select().from(loss_logs);
-    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
-      ["dist-p-2", "payout"],
+    expect(await owed()).toEqual([
+      { donation_id: don, credited_back_usd: 0, outstanding_usd: 40 },
     ]);
+    expect(await db().select().from(loss_logs)).toEqual([]);
     const [d] = await db().select().from(dists);
     expect(d?.refund_status).toBe("loss");
     const [dn] = await db()
@@ -498,7 +510,9 @@ describe("settle_npo_payouts", () => {
     expect(send_alert).not.toHaveBeenCalled();
   });
 
-  test("an unfunded payout loss-refunded in flight on a partly invested dist keeps its loss and is named in an alert", async () => {
+  // the units it would have redeemed were priced at refund time, which nothing
+  // records, so the invested share stays owed
+  test("an unfunded payout refunded in flight on a partly invested dist is cancelled and its cash credited, with no alert", async () => {
     const npo = await seed_npo({ cash: 500, lock_units: 1000 });
     await seed_payout(npo.id, "p-1", 60);
     const { don } = await seed_donation_payout(npo.id, "p-2", 100, {
@@ -515,26 +529,13 @@ describe("settle_npo_payouts", () => {
 
     expect(await payout_types()).toEqual({
       "p-1": "pending",
-      "p-2": "refunded_loss",
+      "p-2": "refunded",
     });
-    expect(await npo_cash(npo.id)).toBe(500);
-    const logs = await db().select().from(loss_logs);
-    expect(logs.map((l) => [l.dist_id, l.type])).toEqual([
-      ["dist-p-2", "payout"],
+    expect(await npo_cash(npo.id)).toBe(460);
+    expect(await owed()).toEqual([
+      { donation_id: don, credited_back_usd: 40, outstanding_usd: 60 },
     ]);
-    expect(report_error).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ not_released: ["p-2"] })
-    );
-    expect(send_alert).toHaveBeenCalledOnce();
-    const [alert] = send_alert.mock.calls[0]!;
-    expect(alert.type).toBe("ERROR");
-    expect(alert.body).toMatch(/cash/);
-    expect(alert.body).toMatch(/loss log/);
-    expect(alert.fields).toContainEqual({
-      name: "not_reversed",
-      value: expect.stringMatching(/^p-2: .*nav price/),
-    });
+    expect(send_alert).not.toHaveBeenCalled();
   });
 
   test("a payout loss-refunded in flight whose transfer then went unfunded is refunded as if it had been pending", async () => {
@@ -554,7 +555,9 @@ describe("settle_npo_payouts", () => {
       "p-2": "refunded",
     });
     expect(await npo_cash(npo.id)).toBe(460);
-    expect(await db().select().from(loss_logs)).toEqual([]);
+    expect(await owed()).toEqual([
+      { donation_id: don, credited_back_usd: 40, outstanding_usd: 0 },
+    ]);
     const [d] = await db().select().from(dists);
     expect([d?.status, d?.refund_status]).toEqual(["refunded", "completed"]);
     const [rl] = await db().select().from(rev_logs);
@@ -591,11 +594,13 @@ describe("settle_npo_payouts", () => {
     expect(
       txs.map((t) => [t.account, t.amount, t.bal_begin, t.bal_end])
     ).toEqual([["liq", 30, 200, 170]]);
-    expect(await db().select().from(loss_logs)).toEqual([]);
+    expect(await owed()).toEqual([
+      { donation_id: don, credited_back_usd: 100, outstanding_usd: 0 },
+    ]);
     expect(send_alert).not.toHaveBeenCalled();
   });
 
-  test("an unfunded payout whose refund was a loss on savings is cancelled and cuts the loss to the shortfall, with no alert", async () => {
+  test("an unfunded payout whose refund was short on savings is cancelled and leaves the shortfall owed, with no alert", async () => {
     const npo = await seed_npo({ cash: 500, liq: 0 });
     const { don } = await seed_donation_payout(npo.id, "p-1", 100, {
       liq: 30,
@@ -611,10 +616,9 @@ describe("settle_npo_payouts", () => {
 
     expect(await payout_types()).toEqual({ "p-1": "refunded" });
     expect(await npo_cash(npo.id)).toBe(430);
-    const logs = await db().select().from(loss_logs);
-    expect(
-      logs.map(({ type, amount, npo_amount }) => ({ type, amount, npo_amount }))
-    ).toEqual([{ type: "balance_liq", amount: 30, npo_amount: 30 }]);
+    expect(await owed()).toEqual([
+      { donation_id: don, credited_back_usd: 70, outstanding_usd: 30 },
+    ]);
     expect(send_alert).not.toHaveBeenCalled();
   });
 

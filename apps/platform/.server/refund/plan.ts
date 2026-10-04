@@ -1,7 +1,7 @@
 import type { IBalanceTx } from "@/balance-txs";
 import { humanize } from "@/helpers/decimal";
-import type { ILossLog, LossType } from "@/revenue";
 import type { IBalanceDeltas } from "@/types/donation";
+import type { IOwedRecord } from "../pg/queries/owed";
 
 export interface PreviewLine {
   label: string;
@@ -79,7 +79,10 @@ export type RefundEffect =
   | { kind: "form_decrement"; form_id: string; net: number }
   | { kind: "program_decrement"; program_id: string; net: number }
   | { kind: "donation_message_del"; donation_id: string }
-  | { kind: "loss_log"; loss: ILossLog };
+  | { kind: "owed"; owed: OwedFigure };
+
+/** what the dist's npo owes back; the refund or dispute behind it is the caller's */
+export type OwedFigure = Omit<IOwedRecord, "source" | "source_ref">;
 
 export interface RefundPreview {
   effects: PreviewLine[];
@@ -90,8 +93,9 @@ export interface RefundPreview {
 export interface RefundPlan {
   is_loss: boolean;
   loss_reasons: string[];
-  /** the loss in usd, like every loss figure — `dist.amount` is in the donation's
-   * currency. the dist's settled gross less the cash share a cancelled payout recovers */
+  /** what the npo owes in usd — `dist.amount` is in the donation's currency:
+   * its settled net less the cash share a cancelled payout recovers, plus the
+   * processing fee. bg's own fees are forgone, not owed */
   amount: number;
   /** a commission its referrer was already paid: left `paid`, the platform's loss */
   paid_commission: { donation_id: string; amount: number } | null;
@@ -99,24 +103,19 @@ export interface RefundPlan {
   preview: RefundPreview;
 }
 
-/** a dist's gross in settled usd. a fee allowance credits the processing fee
- * into `net` (`credit_fa` in `lib/settlement/plan.ts`), so it is counted once */
+/** the processing fee a dist cost beyond its `net`, in usd. a fee allowance
+ * credits it into `net` (`credit_fa` in `lib/settlement/plan.ts`), so it is 0 then */
+const fee_processing_usd = (
+  d: Pick<RefundDistInput, "fee_processing" | "fee_allowance">
+): number => (d.fee_allowance ? 0 : d.fee_processing);
+
+/** a dist's gross in settled usd, counting the processing fee once */
 export const dist_settled_usd = (
   d: Pick<
     RefundDistInput,
     "net" | "fee_base" | "fee_fsa" | "fee_processing" | "fee_allowance"
   >
-): number =>
-  d.net + d.fee_base + d.fee_fsa + (d.fee_allowance ? 0 : d.fee_processing);
-
-/** what is wrong with a loss's figures, or null. the loss covers the npo's
- * share plus fees, so it is never under `npo_amount`, and neither goes negative */
-export const loss_figures_off = (
-  l: Pick<ILossLog, "amount" | "npo_amount">
-): string | null =>
-  l.npo_amount < 0 || l.amount < l.npo_amount
-    ? `loss figures off: amount ${l.amount}, npo_amount ${l.npo_amount}`
-    : null;
+): number => d.net + d.fee_base + d.fee_fsa + fee_processing_usd(d);
 
 export function calc_refund_plan(
   inputs: RefundInputs,
@@ -249,7 +248,13 @@ export function calc_refund_plan(
   // reversed even when a savings/investment shortfall makes the refund a loss
   const payout_cancelled = payout?.type === "pending";
   const cash_recovered = payout_cancelled ? bd.cash : 0;
-  const loss_usd = dist_settled_usd(dist) - cash_recovered;
+  const owed: OwedFigure = {
+    donation_id: dist.donation_id,
+    party: { npo_id: dist.to_id },
+    received_usd: dist.net - cash_recovered,
+    fee_processing_usd: fee_processing_usd(dist),
+    now,
+  };
 
   const effects: RefundEffect[] = [];
 
@@ -351,8 +356,8 @@ export function calc_refund_plan(
   }
 
   // reversed unless the referrer was already paid: that money stays with them
-  // as the platform's loss, carried on `paid_commission` rather than logged —
-  // loss_logs is per npo, and the npo's side still reverses in full
+  // as the platform's loss, carried on `paid_commission` for the alert — the
+  // npo never owes it, and the npo's side still reverses in full
   const paid_commission =
     commission?.status === "paid"
       ? { donation_id: commission.donation_id, amount: commission.amount }
@@ -379,32 +384,12 @@ export function calc_refund_plan(
     donation_id: dist.donation_id,
   });
 
-  if (is_loss) {
-    const loss_type: LossType = loss_reasons[0].startsWith("liq")
-      ? "balance_liq"
-      : loss_reasons[0].startsWith("lock")
-        ? "balance_lock"
-        : "payout";
-    const loss: ILossLog = {
-      id: crypto.randomUUID(),
-      date: now,
-      donation_id: dist.donation_id,
-      dist_id: dist.id,
-      npo_id: dist.to_id,
-      type: loss_type,
-      amount: loss_usd,
-      npo_amount: dist.net - cash_recovered,
-      fees_bg: dist.fee_base + dist.fee_fsa,
-      fees_processing: dist.fee_processing,
-      reason: loss_reasons.join("; "),
-    };
-    effects.push({ kind: "loss_log", loss });
-  }
+  if (is_loss) effects.push({ kind: "owed", owed });
 
   return {
     is_loss,
     loss_reasons,
-    amount: loss_usd,
+    amount: owed.received_usd + owed.fee_processing_usd,
     paid_commission,
     effects,
     preview,

@@ -28,27 +28,43 @@ const statements = [
   /\bimport\s*()["']([^"']+)["']/g,
 ];
 
+// the owed ledger's writes, which the refund core alone makes
+const owed_write = /\b(record_owed|credit_back)\b/;
+
+/** `file: statement` for each import outside the refund core that `bad` flags */
+const imports_outside_core = (
+  bad: (file: string, names: string, from: string) => boolean
+) =>
+  sources_of(import.meta.url, uncommented, [
+    `${platform}/src`,
+    `${platform}/lib`,
+    `${platform}/jobs`,
+    `${platform}/.server`,
+  ])
+    .filter(({ file }) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+    .filter(({ file }) => !file.startsWith(fenced))
+    .flatMap(({ file, text }) =>
+      statements.flatMap((re) =>
+        [...text.matchAll(re)]
+          .filter(([, names = "", from = ""]) => bad(file, names, from))
+          .map(([s]) => `${file}: ${s.replace(/\s+/g, " ")}`)
+      )
+    );
+
 describe("refund core boundary", () => {
   test("nothing outside the refund core imports its internals", () => {
-    const offenders = sources_of(import.meta.url, uncommented, [
-      `${platform}/src`,
-      `${platform}/lib`,
-      `${platform}/jobs`,
-      `${platform}/.server`,
-    ])
-      .filter(({ file }) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
-      .filter(({ file }) => !file.startsWith(fenced))
-      .flatMap(({ file, text }) =>
-        statements.flatMap((re) =>
-          [...text.matchAll(re)]
-            .filter(
-              ([, names = "", from = ""]) =>
-                !exempt(file, from) &&
-                (internal_module.test(from) || internal_name.test(names))
-            )
-            .map(([s]) => `${file}: ${s.replace(/\s+/g, " ")}`)
-        )
-      );
+    const offenders = imports_outside_core(
+      (file, names, from) =>
+        !exempt(file, from) &&
+        (internal_module.test(from) || internal_name.test(names))
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  test("nothing outside the refund core writes the owed ledger", () => {
+    const offenders = imports_outside_core((_, names) =>
+      owed_write.test(names)
+    );
     expect(offenders).toEqual([]);
   });
 });
