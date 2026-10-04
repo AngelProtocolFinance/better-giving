@@ -33,6 +33,8 @@ vi.mock("$/kit/discord", () => ({
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
+// the reversal entry imports stripe for its own rail; crypto never calls it
+vi.mock("$/kit/stripe", () => ({ stripe: {} }));
 // the refund plan's own suite covers reversing a dist; here it is the boundary
 vi.mock("$/refund/process", () => ({
   process_refund: vi.fn(async () => ({
@@ -499,6 +501,25 @@ describe("nowpayments ipn settlement", () => {
     expect(ctx.alert_from).toBe("nowpayments-refunded");
     expect(send_alert_mock).toHaveBeenCalledOnce();
     expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5001");
+  });
+
+  it("answers 500 to a refund whose reversal left a dist failed, so it is redelivered", async () => {
+    await seed_donation();
+    await deliver(payment());
+    await seed_dist(ORDER_ID);
+    send_alert_mock.mockClear();
+    vi.mocked(process_refund).mockResolvedValueOnce({
+      failures: [`dist-${ORDER_ID}`],
+      loss_msgs: [],
+      has_loss: false,
+      applied: 0,
+    });
+
+    const res = await deliver(payment({ payment_status: "refunded" }));
+
+    expect(res.status).toBe(500);
+    expect((await donation_get(ORDER_ID))!.status).toBe("settled");
+    expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
   it("answers 500 to a refund on a settled donation not yet distributed, writing nothing", async () => {

@@ -1,17 +1,17 @@
 import type { IDonation } from "@/donations";
 import type { NP } from "@/nowpayments/types";
 import { db } from "$/pg/db";
-import { dists_for_refund } from "$/pg/queries/dist";
 import {
   donation_settle_state_locked,
   donation_update,
 } from "$/pg/queries/donation";
-import { process_refund } from "$/refund/process";
+import { reverse_charge } from "$/refund/reverse";
+import { ref_of } from "./payment";
 import { type Action, transition } from "./status";
 
 /**
  * a donation that never settled is marked `refunded` under its row lock. a
- * settled one is reversed by `process_refund`, which writes the status itself
+ * settled one is reversed by `reverse_charge`, which writes the status itself
  * once every dist is back — never written here first, or the redelivery a
  * failed reversal needs would find the row already closed.
  */
@@ -30,15 +30,28 @@ export async function handle_refund(
   });
   if (now.op !== "refund" || !now.was_settled) return now;
 
-  const graphs = await dists_for_refund(don.id);
-  // settled, not yet distributed: throw so nowpayments redelivers until it is
-  if (graphs.length === 0) {
-    throw new Error(`no settled dists for donation: ${don.id}`);
-  }
-  await process_refund(don.id, graphs, {
-    form_id: don.form_id ?? null,
-    program_id: don.program?.id ?? null,
+  const res = await reverse_charge({
+    donation_id: don.id,
+    rail: "crypto",
+    source: "refund",
     alert_from: "nowpayments-refunded",
+    notice: {
+      id: `nowpayments-refunded_${payment.payment_id}`,
+      lines: [ref_of(payment)],
+    },
   });
-  return now;
+  switch (res.status) {
+    case "reversed":
+    case "already_reversed":
+      return now;
+    // the throw answers 5xx, which nowpayments redelivers: until a dist queued
+    // after the settle lands, or until every failed dist is reversed
+    case "failed":
+      throw new Error(`refund not reversed, ${res.reason}: ${don.id}`);
+    // unreachable: with no amount passed, the entry reverses the whole charge
+    case "partial_not_acted":
+      throw new Error(`refund reversed as partial: ${don.id}`);
+    default:
+      return res satisfies never;
+  }
 }
