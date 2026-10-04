@@ -8,7 +8,6 @@ import {
   test,
   vi,
 } from "vitest";
-import type { IDonation } from "@/donations";
 import { bal_txs } from "../pg/schema/bal-tx";
 import { dists } from "../pg/schema/dist";
 import {
@@ -78,7 +77,7 @@ vi.mock("../kit/stripe", () => ({
 
 import { donation_get } from "../pg/queries/donation";
 import { create_test_db } from "../pg/test-utils/pglite";
-import { rail_adapters, reversal_preview, reverse_charge } from "./reverse";
+import { has_settled_dists, reversal_preview, reverse_charge } from "./reverse";
 
 // --- setup ---
 
@@ -201,6 +200,32 @@ describe("reverse_charge — a full refund", () => {
 
     const res = await reverse_charge({
       donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      alert_from: "charge-refunded",
+      notice,
+    });
+
+    expect(res).toMatchObject({ status: "reversed", applied: 1 });
+    expect(await state(id, npo_id)).toEqual({
+      don: "refunded",
+      dist: ["refunded", "completed"],
+      liq: 900,
+      bal_txs: 1,
+    });
+  });
+});
+
+describe("reverse_charge — a gift named by its v1 id", () => {
+  test("reverses the gift that id loads", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await test_db
+      .current!.db.update(donations)
+      .set({ id_v1: `v1-${id}` })
+      .where(eq(donations.id, id));
+
+    const res = await reverse_charge({
+      donation_id: `v1-${id}`,
       rail: "stripe",
       source: "refund",
       alert_from: "charge-refunded",
@@ -411,51 +436,6 @@ describe("reverse_charge — a gift on another rail", () => {
   });
 });
 
-describe("rail_adapters — what the gift cost us to take", () => {
-  const gift = (settlement?: { fee: number; currency: string }) =>
-    ({
-      settlement: settlement && {
-        id: "sttl-1",
-        date: "2026-07-01T00:00:00.000Z",
-        net: 96.8,
-        ...settlement,
-      },
-    }) as IDonation;
-
-  test.each([
-    ["stripe", { fee: 3.2, currency: "USD" }, { amount: 3.2, currency: "USD" }],
-    ["paypal", { fee: 2.5, currency: "EUR" }, { amount: 2.5, currency: "EUR" }],
-    // nowpayments' fee is converted to usd at settle, beside an outcome token label
-    [
-      "crypto",
-      { fee: 1.1, currency: "USDC" },
-      { amount: 1.1, currency: "USD" },
-    ],
-  ] as const)("%s reads the fee its settlement stored", (rail, sttl, fee) => {
-    expect(rail_adapters[rail].processing_fee(gift(sttl))).toEqual(fee);
-  });
-
-  test.each(["stripe", "paypal", "crypto"] as const)(
-    "%s answers null for a gift with no settlement on record",
-    (rail) => {
-      expect(rail_adapters[rail].processing_fee(gift())).toBeNull();
-    }
-  );
-});
-
-describe("rail_adapters — whether the recurring gift ends", () => {
-  test.each([
-    ["stripe", "refund", true],
-    ["stripe", "admin", true],
-    ["stripe", "dispute", false],
-    ["paypal", "refund", false],
-    ["paypal", "dispute", false],
-    ["crypto", "refund", false],
-  ] as const)("%s %s: %s", (rail, source, ends) => {
-    expect(rail_adapters[rail].subscription_end(source) !== null).toBe(ends);
-  });
-});
-
 describe("reverse_charge — a subscription payment", () => {
   async function seed_sub(npo_id: number) {
     await test_db.current!.db.insert(subscriptions).values({
@@ -482,41 +462,33 @@ describe("reverse_charge — a subscription payment", () => {
   const deactivated = () =>
     enqueue.mock.calls.flat().filter((m) => m.id === "sub-deactivated");
 
-  test("a stripe refund ends the recurring gift", async () => {
-    const { id, npo_id } = await seed("stripe:card");
-    await seed_sub(npo_id);
+  test.each([
+    ["stripe", "stripe:card", "refund", "inactive", 1],
+    ["stripe", "stripe:card", "admin", "inactive", 1],
+    // a lost dispute leaves it billing
+    ["stripe", "stripe:card", "dispute", "active", 0],
+    ["paypal", "paypal", "refund", "active", 0],
+    ["paypal", "paypal", "dispute", "active", 0],
+    ["crypto", "crypto:eth", "refund", "active", 0],
+  ] as const)(
+    "a full %s reversal (%s, %s) leaves the recurring gift %s",
+    async (rail, via, source, status, queued) => {
+      const { id, npo_id } = await seed(via);
+      await seed_sub(npo_id);
 
-    await reverse_charge({
-      donation_id: id,
-      rail: "stripe",
-      source: "refund",
-      alert_from: "charge-refunded",
-      notice,
-    });
+      const res = await reverse_charge({
+        donation_id: id,
+        rail,
+        source,
+        alert_from: "test",
+        notice,
+      });
 
-    expect(await sub()).toMatchObject({
-      status: "inactive",
-      status_cancel_reason: "refunded",
-    });
-    expect(deactivated()).toHaveLength(1);
-  });
-
-  test("a lost stripe dispute leaves it billing", async () => {
-    const { id, npo_id } = await seed("stripe:card");
-    await seed_sub(npo_id);
-
-    const res = await reverse_charge({
-      donation_id: id,
-      rail: "stripe",
-      source: "dispute",
-      alert_from: "charge-dispute",
-      notice,
-    });
-
-    expect(res.status).toBe("reversed");
-    expect((await sub()).status).toBe("active");
-    expect(deactivated()).toHaveLength(0);
-  });
+      expect(res.status).toBe("reversed");
+      expect((await sub()).status).toBe(status);
+      expect(deactivated()).toHaveLength(queued);
+    }
+  );
 });
 
 describe("reverse_charge — the ops notice of a full reversal", () => {
@@ -615,6 +587,21 @@ describe("reverse_charge — the ops notice of a full reversal", () => {
       ["re_2_start", "Full Refund After Partial: Reversal Starting"],
       ["re_2_undo", "Reversal Complete: Undo Hand Adjustment"],
     ]);
+  });
+});
+
+describe("has_settled_dists — whether a reversal has anything to take back", () => {
+  test("a distributed gift has", async () => {
+    const { id } = await seed("stripe:card");
+
+    expect(await has_settled_dists(id)).toBe(true);
+  });
+
+  test("a gift not distributed yet hasn't", async () => {
+    const { id } = await seed("stripe:card");
+    await test_db.current!.db.delete(dists).where(eq(dists.donation_id, id));
+
+    expect(await has_settled_dists(id)).toBe(false);
   });
 });
 

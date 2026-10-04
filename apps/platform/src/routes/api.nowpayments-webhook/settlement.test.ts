@@ -33,8 +33,6 @@ vi.mock("$/kit/discord", () => ({
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
-// the reversal entry imports stripe for its own rail; crypto never calls it
-vi.mock("$/kit/stripe", () => ({ stripe: {} }));
 // the refund plan's own suite covers reversing a dist; here it is the boundary
 vi.mock("$/refund/process", () => ({
   process_refund: vi.fn(async () => ({

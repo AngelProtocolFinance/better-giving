@@ -8,7 +8,6 @@ import { donation_get } from "../pg/queries/donation";
 import { type FullRefund, reverse_after_partials } from "./after-partials";
 import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
-import { cancel_refunded_subscription } from "./subscription";
 
 /** the provider family a gift was paid through, from its `via` */
 export type Rail = "stripe" | "paypal" | "crypto";
@@ -28,10 +27,7 @@ export interface Money {
   currency: string;
 }
 
-export interface RailAdapter {
-  /** what the provider kept to take the gift, or null with no settlement on
-   * record. read from the settlement, never asked of the provider */
-  processing_fee(don: IDonation): Money | null;
+interface RailAdapter {
   /** how a full reversal from `source` ends the recurring gift the payment
    * `sttl_id` belongs to, or null when it ends none */
   subscription_end(
@@ -39,29 +35,22 @@ export interface RailAdapter {
   ): ((sttl_id: string) => Promise<void>) | null;
 }
 
-const stored_fee = (don: IDonation): Money | null =>
-  don.settlement
-    ? { amount: don.settlement.fee, currency: don.settlement.currency }
-    : null;
+// loaded on use: `./subscription` builds a stripe client off env at import,
+// which importing this entry from another rail must not need
+async function cancel_stripe_subscription(intent_id: string) {
+  const { cancel_refunded_subscription } = await import("./subscription");
+  await cancel_refunded_subscription(intent_id);
+}
 
-export const rail_adapters: Record<Rail, RailAdapter> = {
+const rail_adapters: Record<Rail, RailAdapter> = {
   stripe: {
-    processing_fee: stored_fee,
     // a full refund of a subscription payment ends the recurring gift, from
     // whatever surface it was issued. a lost dispute doesn't
     subscription_end: (source) =>
-      source === "dispute" ? null : cancel_refunded_subscription,
+      source === "dispute" ? null : cancel_stripe_subscription,
   },
-  paypal: {
-    processing_fee: stored_fee,
-    subscription_end: () => null,
-  },
-  crypto: {
-    // `fee_usd` stores it in usd, beside the outcome token as the currency
-    processing_fee: (don) =>
-      don.settlement ? { amount: don.settlement.fee, currency: "USD" } : null,
-    subscription_end: () => null,
-  },
+  paypal: { subscription_end: () => null },
+  crypto: { subscription_end: () => null },
 };
 
 export interface ChargeReversal {
@@ -180,13 +169,14 @@ export async function reverse_charge(
     await end_subscription(don.settlement.id);
   }
 
-  const graphs = await dists_for_refund(r.donation_id);
+  // `r.donation_id` may be the v1 id `donation_get` also matches
+  const graphs = await dists_for_refund(don.id);
   if (graphs.length === 0) {
     return { status: "failed", reason: "not_distributed" };
   }
 
   const reverse = () =>
-    process_refund(r.donation_id, graphs, {
+    process_refund(don.id, graphs, {
       form_id: don.form_id ?? null,
       program_id: don.program?.id ?? null,
       alert_from: r.alert_from,
@@ -225,6 +215,12 @@ export async function reverse_charge(
     loss_msgs: res.loss_msgs,
     has_loss: res.has_loss,
   };
+}
+
+/** whether `reverse_charge` would find dists to reverse, rather than answer
+ * `not_distributed`. reads, plans nothing */
+export async function has_settled_dists(donation_id: string) {
+  return (await dists_for_refund(donation_id)).length > 0;
 }
 
 async function notify_dispute_lost(

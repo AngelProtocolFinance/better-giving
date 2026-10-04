@@ -25,7 +25,6 @@ vi.mock("$/pg/queries/donation", async (importOriginal) => ({
 vi.mock("./handlers/write", () => ({ write_on: write_on_mock }));
 vi.mock("./handlers/confirming", () => ({ handle_confirming: vi.fn() }));
 vi.mock("./handlers/failed", () => ({ handle_failed: vi.fn() }));
-vi.mock("./handlers/refund", () => ({ handle_refund: vi.fn() }));
 vi.mock("./handlers/repeat", () => ({ handle_repeat: vi.fn() }));
 vi.mock("./handlers/settled", () => ({ handle_settled: vi.fn() }));
 

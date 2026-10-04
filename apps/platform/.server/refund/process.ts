@@ -166,7 +166,7 @@ export async function process_refund(
     const plan = await load_refund_plan(g, {
       form_id: ctx.form_id,
       program_id: ctx.program_id,
-      sub_id: null, // not used during apply; sub cancel is route-owned
+      sub_id: null, // not used during apply; reverse_charge ends the subscription
       strict: true,
     });
 

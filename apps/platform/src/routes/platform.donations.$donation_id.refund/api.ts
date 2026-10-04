@@ -11,6 +11,7 @@ import {
 } from "$/refund/after-partials";
 import {
   type DistPreview,
+  has_settled_dists,
   reversal_preview,
   reverse_charge,
 } from "$/refund/reverse";
@@ -144,17 +145,13 @@ const incomplete = (
     toast
   );
 
-/** stops the gift's billing, then reverses the donation `r` refunded, or
- * holds the reversal while a refund on the charge is unsent */
+/** reverses the donation `r` refunded, ending its billing, or holds the
+ * reversal while a refund on the charge is unsent */
 async function finish_refund(
   r: Stripe.Refund,
   intent_id: string,
   don: IDonation
 ) {
-  // the donor is refunded whatever the reversal does next, so the gift stops
-  // billing now
-  await cancel_refunded_subscription(intent_id);
-
   const [{ data }, intent] = await Promise.all([
     stripe.refunds.list({ payment_intent: intent_id, limit: 100 }),
     stripe.paymentIntents.retrieve(intent_id),
@@ -162,8 +159,12 @@ async function finish_refund(
   // newest first, with `r` as just retrieved rather than as the list read it
   const refunds = [r, ...data.filter((x) => x.id !== r.id)];
   // an unsent one (a pending bank refund) can still fail: refund.updated
-  // reverses once the last succeeds
-  if (unsent_refunds(refunds).length > 0) return "held";
+  // reverses once the last succeeds. the donor is refunded all the same, so
+  // the gift stops billing now; past this, reverse_charge ends it
+  if (unsent_refunds(refunds).length > 0) {
+    await cancel_refunded_subscription(intent_id);
+    return "held";
+  }
 
   const seen_at = `payment ${intent_id}, admin refund ${r.id}`;
   const res = await reverse_charge({
@@ -197,8 +198,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
   const don = await stripe_donation(donation_id);
   if (is_reversed(don.status)) throw already_refunded();
 
-  const { dists } = await reversal_preview(don, null);
-  if (dists.length === 0)
+  if (!(await has_settled_dists(don.id)))
     throw new Response("no settled dists", { status: 400 });
 
   // with no payment to refund, reversing would take the gift back from the
@@ -285,10 +285,6 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
 
-  // a racing submit reversed it first; the shared idempotency key made the two
-  // submits one refund
-  if (result.status === "already_reversed") throw already_refunded();
-
   if (result.status === "failed") {
     return incomplete(
       "issued",
@@ -298,6 +294,8 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
 
+  // already_reversed lands here too: past this request's own accepted refund,
+  // whoever reversed first (its charge.refunded webhook, chiefly) finished it
   return dataWithSuccess(
     { ok: true as const, stripe_refund, reversal: "done" as const },
     "Refund processed"

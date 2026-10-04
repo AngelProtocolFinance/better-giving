@@ -73,9 +73,6 @@ vi.mock("$/kit/queue", () => ({
   schedule: schedule_mock,
 }));
 vi.mock("$/refund/process", () => ({ process_refund: process_refund_mock }));
-// the reversal entry imports the stripe rail's adapter, which builds a client
-// off env this file mocks away; the paypal rail never calls it
-vi.mock("$/kit/stripe", () => ({ stripe: {} }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));

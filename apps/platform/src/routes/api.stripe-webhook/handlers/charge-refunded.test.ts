@@ -145,8 +145,8 @@ beforeEach(() => {
   });
   charge_retrieve_mock.mockImplementation(async () => charge_now());
   refunds_list_mock.mockImplementation(async () => ({ data: [...refunds] }));
-  donation_get_mock.mockImplementation(async () => ({
-    id: ORDER_ID,
+  donation_get_mock.mockImplementation(async (id: string) => ({
+    id,
     status: don_status,
     via: "stripe:card",
     settlement: { id: "pi_1", fee: 320, currency: "USD" },

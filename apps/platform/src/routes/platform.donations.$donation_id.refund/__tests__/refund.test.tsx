@@ -875,17 +875,13 @@ describe("refund api", () => {
     expect(process_refund).not.toHaveBeenCalled();
   });
 
-  it("answers already refunded when the gift was reversed while its refund was issued", async () => {
+  it("answers already refunded for a gift reversed before its refund, issuing none", async () => {
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
-    // a racing submit's reversal lands between the guard and this one's
-    refunds_create.mockImplementation(async () => {
-      await test_db
-        .current!.db.update(donations)
-        .set({ status: "refunded" })
-        .where(eq(donations.id, id));
-      return { id: "re_1", status: "succeeded" };
-    });
+    await test_db
+      .current!.db.update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, id));
 
     const res = await action({ params: { donation_id: id } } as any).catch(
       (r: unknown) => r
@@ -894,7 +890,40 @@ describe("refund api", () => {
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(400);
     expect(await (res as Response).text()).toBe("already refunded");
+    expect(refunds_create).not.toHaveBeenCalled();
+  });
+
+  it("reports the refund processed when its own charge.refunded webhook reversed the gift first", async () => {
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    // the webhook backstop lands between the refund and this request's reversal
+    refunds_create.mockImplementation(async () => {
+      await test_db
+        .current!.db.update(donations)
+        .set({ status: "refunded" })
+        .where(eq(donations.id, id));
+      return { id: "re_1", status: "succeeded" };
+    });
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({
+      ok: true,
+      stripe_refund: "succeeded",
+      reversal: "done",
+    });
     expect(process_refund).not.toHaveBeenCalled();
+  });
+
+  it("checks the gift has dists without planning their reversal before the refund", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({ ok: true, reversal: "done" });
+    expect(load_refund_plan).not.toHaveBeenCalled();
   });
 
   it("refuses a gift with no settled dists, issuing no refund", async () => {
@@ -930,6 +959,21 @@ describe("refund api", () => {
       status: "inactive",
       status_cancel_reason: "refunded",
     });
+  });
+
+  it("ends a recurring gift's billing once when the refund reverses at once", async () => {
+    refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    const sub_id = await seed_subscription(`pi_${id}`);
+
+    const res: any = await action({ params: { donation_id: id } } as any);
+
+    expect(res).toMatchObject({ ok: true, reversal: "done" });
+    const deactivated = enqueue.mock.calls
+      .flat()
+      .filter((m) => m.id === "sub-deactivated");
+    expect(deactivated.map((m) => m.payload.id)).toEqual([sub_id]);
   });
 
   it.each(["nowpayments:crypto", "paypal:paypal", "chariot:daf"])(
