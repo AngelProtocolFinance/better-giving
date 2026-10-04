@@ -59,7 +59,7 @@ const MAX_STRAGGLER_SWEEPS = 3;
 // the authoritative check, run on the row read under its lock inside the apply
 // transaction. the graph a run was handed can be stale — a concurrent run on
 // the same donation may have reversed the dist since.
-function is_reversed(d: { status: string; refund_status: string | null }) {
+function dist_is_reversed(d: { status: string; refund_status: string | null }) {
   return (
     d.status !== "settled" ||
     (!!d.refund_status && SKIP_STATUSES.has(d.refund_status))
@@ -172,7 +172,7 @@ export async function process_refund(
 
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
-      if (!cur || is_reversed(cur)) return { skipped: true } as const;
+      if (!cur || dist_is_reversed(cur)) return { skipped: true } as const;
       const applied = await apply_refund_plan(tx, plan);
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
@@ -269,7 +269,7 @@ export async function process_refund(
     const fin = await db.transaction(async (tx) => {
       await donation_lock(tx, donation_id);
       const pending = await dists_settled_of(tx, donation_id);
-      if (pending.some((d) => !is_reversed(d))) {
+      if (pending.some((d) => !dist_is_reversed(d))) {
         return { flipped: false } as const;
       }
       const status = await donation_refund_status(tx, donation_id);
