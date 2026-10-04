@@ -6,7 +6,8 @@ import { enqueue } from "../kit/queue";
 import { dists_for_refund } from "../pg/queries/dist";
 import { donation_get } from "../pg/queries/donation";
 import { type FullRefund, reverse_after_partials } from "./after-partials";
-import { process_refund, type RefundResult } from "./process";
+import { dist_settled_usd, type PreviewLine } from "./plan";
+import { load_refund_plan, process_refund, type RefundResult } from "./process";
 import { cancel_refunded_subscription } from "./subscription";
 
 /** the provider family a gift was paid through, from its `via` */
@@ -254,4 +255,105 @@ async function notify_dispute_lost(
   ).catch((err) =>
     report_error(err, { donation_id: r.donation_id, title, body })
   );
+}
+
+export interface DistPreview {
+  id: string;
+  npo_id: number;
+  npo_name: string;
+  /** usd */
+  amount: number;
+  net: number;
+  refund_status: string | null;
+  refund_error?: string | null;
+  /** what will happen when the refund is processed */
+  effects: PreviewLine[];
+  /** blockers preventing the refund from proceeding */
+  blockers: PreviewLine[];
+  /** non-reversible items — refund proceeds, platform absorbs loss */
+  warnings: PreviewLine[];
+}
+
+export interface ReversalPreview {
+  /** one per settled dist; none means there is nothing to reverse yet */
+  dists: DistPreview[];
+  /** usd the platform would absorb as loss */
+  total_loss: number;
+}
+
+/** what reversing `don` would do to each of its dists, writing nothing.
+ * `sub_id` is the recurring gift the payment billed, if any */
+export async function reversal_preview(
+  don: IDonation,
+  sub_id: string | null
+): Promise<ReversalPreview> {
+  const graphs = await dists_for_refund(don.id);
+
+  const dists: DistPreview[] = [];
+  let total_loss = 0;
+  for (const g of graphs) {
+    const { dist } = g;
+    const amount = dist_settled_usd({
+      net: dist.net ?? 0,
+      fee_base: dist.fee_base ?? 0,
+      fee_fsa: dist.fee_fsa ?? 0,
+      fee_processing: dist.fee_processing ?? 0,
+      fee_allowance: dist.fee_allowance ?? 0,
+    });
+    if (dist.refund_status === "completed" || dist.refund_status === "loss") {
+      dists.push({
+        id: dist.id,
+        npo_id: dist.to_id ?? 0,
+        npo_name: dist.to_name ?? "",
+        amount,
+        net: dist.net ?? 0,
+        refund_status: dist.refund_status,
+        effects: [
+          {
+            label:
+              dist.refund_status === "loss"
+                ? "Completed with losses"
+                : "Already completed",
+            pass: true,
+          },
+        ],
+        blockers: [],
+        warnings: [],
+      });
+      continue;
+    }
+    const plan = await load_refund_plan(g, {
+      form_id: don.form_id ?? null,
+      program_id: don.program?.id ?? null,
+      sub_id,
+      strict: false,
+    });
+    total_loss +=
+      (plan.is_loss ? plan.amount : 0) + (plan.paid_commission?.amount ?? 0);
+    const p = plan.preview;
+    dists.push({
+      id: dist.id,
+      npo_id: dist.to_id ?? 0,
+      npo_name: dist.to_name ?? "",
+      amount,
+      net: dist.net ?? 0,
+      refund_status: dist.refund_status,
+      refund_error: dist.refund_error,
+      // process_refund retries a failed dist, so it shows as a retry, not a blocker
+      effects:
+        dist.refund_status === "failed"
+          ? [
+              {
+                label: "Retry failed reversal",
+                pass: true,
+                reason: dist.refund_error ?? "unknown",
+              },
+              ...p.effects,
+            ]
+          : p.effects,
+      blockers: p.blockers,
+      warnings: p.warnings,
+    });
+  }
+  return { dists, total_loss };
 }

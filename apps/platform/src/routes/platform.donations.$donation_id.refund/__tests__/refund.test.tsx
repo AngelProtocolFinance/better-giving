@@ -875,6 +875,43 @@ describe("refund api", () => {
     expect(process_refund).not.toHaveBeenCalled();
   });
 
+  it("answers already refunded when the gift was reversed while its refund was issued", async () => {
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+    // a racing submit's reversal lands between the guard and this one's
+    refunds_create.mockImplementation(async () => {
+      await test_db
+        .current!.db.update(donations)
+        .set({ status: "refunded" })
+        .where(eq(donations.id, id));
+      return { id: "re_1", status: "succeeded" };
+    });
+
+    const res = await action({ params: { donation_id: id } } as any).catch(
+      (r: unknown) => r
+    );
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(400);
+    expect(await (res as Response).text()).toBe("already refunded");
+    expect(process_refund).not.toHaveBeenCalled();
+  });
+
+  it("refuses a gift with no settled dists, issuing no refund", async () => {
+    vi.mocked(dists_for_refund).mockResolvedValue([]);
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    const res = await action({ params: { donation_id: id } } as any).catch(
+      (r: unknown) => r
+    );
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(400);
+    expect(await (res as Response).text()).toBe("no settled dists");
+    expect(refunds_create).not.toHaveBeenCalled();
+  });
+
   it("stops a recurring gift's billing once refunded, though a dist failed to reverse", async () => {
     refund.failures = ["dist dist-1: payout already sent"];
     refunds_create.mockResolvedValue({ id: "re_1", status: "succeeded" });

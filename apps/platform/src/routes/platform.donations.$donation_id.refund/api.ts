@@ -1,49 +1,26 @@
 import Stripe from "stripe";
 import { dataWithError, dataWithSuccess } from "#/.server/toast";
 import { report_error } from "#/errors/report";
-import type { IDonation } from "@/donations";
+import { type IDonation, is_reversed } from "@/donations";
 import { stripe } from "$/kit/stripe";
-import { type DistRefundGraph, dists_for_refund } from "$/pg/queries/dist";
 import { donation_get, donation_settlement_get } from "$/pg/queries/donation";
 import {
   earlier_partials,
-  type FullRefund,
   is_failed_or_canceled,
-  reverse_after_partials,
   unsent_refunds,
 } from "$/refund/after-partials";
 import {
-  dist_settled_usd,
-  type PreviewLine,
-  type RefundPreview,
-} from "$/refund/plan";
-import {
-  load_refund_plan,
-  process_refund,
-  type RefundResult,
-} from "$/refund/process";
+  type DistPreview,
+  reversal_preview,
+  reverse_charge,
+} from "$/refund/reverse";
 import {
   cancel_refunded_subscription,
   subscription_id_of,
 } from "$/refund/subscription";
 import type { Route } from "./+types/route";
 
-export interface DistPreview {
-  id: string;
-  npo_id: number;
-  npo_name: string;
-  /** usd */
-  amount: number;
-  net: number;
-  refund_status: string | null;
-  refund_error?: string | null;
-  /** what will happen when the refund is processed */
-  effects: PreviewLine[];
-  /** blockers preventing the refund from proceeding */
-  blockers: PreviewLine[];
-  /** non-reversible items — refund proceeds, platform absorbs loss */
-  warnings: PreviewLine[];
-}
+export type { DistPreview };
 
 /** a status stripe has taken the refund on: the money is on its way back */
 export type StripeRefundStatus = "succeeded" | "pending";
@@ -81,85 +58,15 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
 
   const don = await stripe_donation(donation_id);
 
-  const already_refunded =
-    don.status === "refunded" || don.status === "refunded_loss";
-  const graphs = await dists_for_refund(donation_id);
-
   const sttl = await donation_settlement_get(donation_id);
   const subscription_id = await preview_subscription_id(sttl?.sttl_id ?? null);
-
-  const previews: DistPreview[] = [];
-  let total_loss = 0;
-  for (const g of graphs) {
-    const { dist } = g;
-    const amount = dist_settled_usd({
-      net: dist.net ?? 0,
-      fee_base: dist.fee_base ?? 0,
-      fee_fsa: dist.fee_fsa ?? 0,
-      fee_processing: dist.fee_processing ?? 0,
-      fee_allowance: dist.fee_allowance ?? 0,
-    });
-    if (dist.refund_status === "completed" || dist.refund_status === "loss") {
-      previews.push({
-        id: dist.id,
-        npo_id: dist.to_id ?? 0,
-        npo_name: dist.to_name ?? "",
-        amount,
-        net: dist.net ?? 0,
-        refund_status: dist.refund_status,
-        effects: [
-          {
-            label:
-              dist.refund_status === "loss"
-                ? "Completed with losses"
-                : "Already completed",
-            pass: true,
-          },
-        ],
-        blockers: [],
-        warnings: [],
-      });
-      continue;
-    }
-    const plan = await load_refund_plan(g, {
-      form_id: don.form_id ?? null,
-      program_id: don.program?.id ?? null,
-      sub_id: subscription_id,
-      strict: false,
-    });
-    total_loss +=
-      (plan.is_loss ? plan.amount : 0) + (plan.paid_commission?.amount ?? 0);
-    const p: RefundPreview = plan.preview;
-    previews.push({
-      id: dist.id,
-      npo_id: dist.to_id ?? 0,
-      npo_name: dist.to_name ?? "",
-      amount,
-      net: dist.net ?? 0,
-      refund_status: dist.refund_status,
-      refund_error: dist.refund_error,
-      // process_refund retries a failed dist, so it shows as a retry, not a blocker
-      effects:
-        dist.refund_status === "failed"
-          ? [
-              {
-                label: "Retry failed reversal",
-                pass: true,
-                reason: dist.refund_error ?? "unknown",
-              },
-              ...p.effects,
-            ]
-          : p.effects,
-      blockers: p.blockers,
-      warnings: p.warnings,
-    });
-  }
+  const preview = await reversal_preview(don, subscription_id);
 
   return {
     donation_id,
-    already_refunded,
-    previews,
-    total_loss,
+    already_refunded: is_reversed(don.status),
+    previews: preview.dists,
+    total_loss: preview.total_loss,
     subscription_id,
   } satisfies LoaderData;
 };
@@ -201,6 +108,9 @@ async function issue_refund(payment_intent: string, idempotencyKey: string) {
 
 const ALERT_FROM = "refund-action";
 
+const already_refunded = () =>
+  new Response("already refunded", { status: 400 });
+
 /** thrown once the sdk's own retries are spent, by a request stripe may have
  * carried out before the answer was lost */
 const outcome_unknown = (err: unknown) =>
@@ -239,9 +149,8 @@ const incomplete = (
 async function finish_refund(
   r: Stripe.Refund,
   intent_id: string,
-  don: IDonation,
-  graphs: DistRefundGraph[]
-): Promise<RefundResult | "held"> {
+  don: IDonation
+) {
   // the donor is refunded whatever the reversal does next, so the gift stops
   // billing now
   await cancel_refunded_subscription(intent_id);
@@ -256,33 +165,40 @@ async function finish_refund(
   // reverses once the last succeeds
   if (unsent_refunds(refunds).length > 0) return "held";
 
-  const full: FullRefund = {
+  const seen_at = `payment ${intent_id}, admin refund ${r.id}`;
+  const res = await reverse_charge({
     donation_id: don.id,
-    seen_at: `payment ${intent_id}, admin refund ${r.id}`,
-    currency: r.currency,
-    completing: r,
-    earlier: earlier_partials(refunds, r, intent.amount_received),
+    rail: "stripe",
+    source: "admin",
     alert_from: ALERT_FROM,
-    dist_count: graphs.length,
-  };
-  return reverse_after_partials(full, () =>
-    process_refund(don.id, graphs, {
-      form_id: don.form_id ?? null,
-      program_id: don.program?.id ?? null,
-      alert_from: ALERT_FROM,
-    })
-  );
+    notice: { id: r.id, lines: [seen_at] },
+    after_partials: {
+      seen_at,
+      currency: r.currency,
+      completing: r,
+      earlier: earlier_partials(refunds, r, intent.amount_received),
+    },
+  });
+  // no amount is passed, and the action checked the gift, its rail and its
+  // dists before the refund: only a gift changed under this request lands here
+  if (
+    res.status === "partial_not_acted" ||
+    (res.status === "failed" && res.reason !== "incomplete")
+  ) {
+    const why = res.status === "failed" ? res.reason : res.status;
+    throw new Error(`nothing reversed: ${why}`);
+  }
+  return res;
 }
 
 export const action = async ({ params }: Route.ActionArgs) => {
   const { donation_id } = params;
 
   const don = await stripe_donation(donation_id);
-  if (don.status === "refunded" || don.status === "refunded_loss")
-    throw new Response("already refunded", { status: 400 });
+  if (is_reversed(don.status)) throw already_refunded();
 
-  const graphs = await dists_for_refund(donation_id);
-  if (graphs.length === 0)
+  const { dists } = await reversal_preview(don, null);
+  if (dists.length === 0)
     throw new Response("no settled dists", { status: 400 });
 
   // with no payment to refund, reversing would take the gift back from the
@@ -348,9 +264,9 @@ export const action = async ({ params }: Route.ActionArgs) => {
   const stripe_refund = r.status;
 
   // past here the donor is refunded, so the admin hears that whatever throws
-  let result: RefundResult | "held";
+  let result: Awaited<ReturnType<typeof finish_refund>>;
   try {
-    result = await finish_refund(r, intent_id, don, graphs);
+    result = await finish_refund(r, intent_id, don);
   } catch (err) {
     report_error(err, { donation_id, refund_id: r.id });
     const reason = err instanceof Error ? err.message : String(err);
@@ -369,7 +285,11 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
 
-  if (result.failures.length > 0) {
+  // a racing submit reversed it first; the shared idempotency key made the two
+  // submits one refund
+  if (result.status === "already_reversed") throw already_refunded();
+
+  if (result.status === "failed") {
     return incomplete(
       "issued",
       result.failures,

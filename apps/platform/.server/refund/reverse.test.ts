@@ -76,8 +76,9 @@ vi.mock("../kit/stripe", () => ({
 
 // --- imports (after mocks) ---
 
+import { donation_get } from "../pg/queries/donation";
 import { create_test_db } from "../pg/test-utils/pglite";
-import { rail_adapters, reverse_charge } from "./reverse";
+import { rail_adapters, reversal_preview, reverse_charge } from "./reverse";
 
 // --- setup ---
 
@@ -614,5 +615,47 @@ describe("reverse_charge — the ops notice of a full reversal", () => {
       ["re_2_start", "Full Refund After Partial: Reversal Starting"],
       ["re_2_undo", "Reversal Complete: Undo Hand Adjustment"],
     ]);
+  });
+});
+
+describe("reversal_preview — what an admin refund would reverse", () => {
+  test("lists a settled gift's dists in usd with what reversing each does", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    const don = (await donation_get(id))!;
+
+    const preview = await reversal_preview(don, null);
+
+    expect(preview).toEqual({
+      dists: [
+        {
+          id: `dist-${id}`,
+          npo_id,
+          npo_name: `Test NPO ${counter}`,
+          amount: 100,
+          net: 100,
+          refund_status: null,
+          refund_error: null,
+          effects: [
+            expect.objectContaining({ label: "Savings balance", pass: true }),
+          ],
+          blockers: [],
+          warnings: [],
+        },
+      ],
+      total_loss: 0,
+    });
+    // a preview writes nothing
+    expect((await state(id, npo_id)).dist).toEqual(["settled", null]);
+  });
+
+  test("lists nothing for a gift not distributed yet", async () => {
+    const { id } = await seed("stripe:card");
+    await test_db.current!.db.delete(dists).where(eq(dists.donation_id, id));
+    const don = (await donation_get(id))!;
+
+    expect(await reversal_preview(don, null)).toEqual({
+      dists: [],
+      total_loss: 0,
+    });
   });
 });
