@@ -7,8 +7,7 @@ import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { db } from "$/pg/db";
 import { dispute_close, dispute_get, dispute_open } from "$/pg/queries/dispute";
-import { type IOwed, owed_total } from "$/pg/queries/owed";
-import { dispute_opened, dispute_won } from "$/refund/dispute";
+import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
 import { load_reversible, reverse_charge } from "$/refund/reverse";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
@@ -246,8 +245,7 @@ export async function handle_dispute_opened(event: DisputeEvent) {
   // a failed enqueue after the write is not resent
   if (!res.owed_written) return;
   await notify_opened(event, don.id, `${dispute.id}_owed`, [
-    `recorded as owed: ${usd(res.owed.reduce((s, o) => s + owed_total(o), 0))}`,
-    ...res.owed.map(owed_line),
+    ...owed_lines(res.owed),
     ...(fee.line ? [fee.line] : []),
     `the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if the dispute is lost, ${partial ? "it stays owed and the donation is not reversed" : "the donation reverses without taking it twice"}; if won, what is owed is credited back.`,
   ]);
@@ -293,13 +291,3 @@ async function notify_opened(
     })
   );
 }
-
-const usd = (n: number) => `${n.toFixed(2)} USD`;
-
-const owed_line = (o: IOwed) => {
-  const party =
-    o.npo_id !== null
-      ? `npo ${o.npo_id}`
-      : `referrer ${o.referrer_user ?? `npo ${o.referrer_npo}`}`;
-  return `- ${party}: ${usd(owed_total(o))} (received ${usd(o.received_usd)}, card fee ${usd(o.fee_processing_usd)}, dispute fee ${usd(o.fee_dispute_usd)})`;
-};

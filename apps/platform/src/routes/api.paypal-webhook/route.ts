@@ -33,12 +33,14 @@ import {
   donation_update,
   settlement_exists,
 } from "$/pg/queries/donation";
+import { owed_for_donation } from "$/pg/queries/owed";
 import {
   sub_cancel_reason_default,
   sub_get,
   sub_put,
   sub_update,
 } from "$/pg/queries/subscription";
+import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
 import {
   type ReversalSource,
   reverse_charge,
@@ -518,6 +520,11 @@ interface IMoney {
   currency?: string;
 }
 
+const v2_money = (m?: { value?: string; currency_code?: string }): IMoney => ({
+  value: m?.value,
+  currency: m?.currency_code,
+});
+
 /** how much of `whole` `parts` (refunds or reversals, signed either way) take
  * together, summed in the finest minor unit any uses, as `dec_sub` does. a
  * part in another currency counts for nothing */
@@ -595,6 +602,14 @@ interface IReversal {
   owner: () => Promise<string | undefined>;
 }
 
+/** the dispute whose filing recorded what the gift owes, if one did. a
+ * chargeback names no dispute, and the refund core credits what a reversal
+ * takes from the npo's balances against the row only when the reversal names
+ * the dispute that recorded it: under any other ref the npo pays twice */
+const filed_dispute = async (donation_id: string) =>
+  (await owed_for_donation(donation_id)).find((o) => o.source === "dispute")
+    ?.source_ref;
+
 /**
  * takes back the donation a capture or sale settled, by the share of the
  * charge refunded or reversed so far: the whole reverses it, less records
@@ -633,7 +648,8 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
     rail: "paypal",
     source: c.source,
     share: c.share,
-    source_ref: c.ref,
+    source_ref:
+      (c.source === "dispute" && (await filed_dispute(don.id))) || c.ref,
     alert_from: REFUND_ALERT_FROM,
     // keyed on the event, so a duplicate delivery posts one notice
     notice: { id: `paypal-reversal_${ev.id}`, lines },
@@ -679,6 +695,223 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
       return new Response(`not reversed: ${res.reason}`, { status: 200 });
   }
 };
+
+/** the fields read off a `CUSTOMER.DISPUTE.*` resource; the rest carries the
+ * buyer's name and email */
+interface IDispute {
+  dispute_id?: string;
+  create_time?: string;
+  update_time?: string;
+  reason?: string;
+  dispute_outcome?: { outcome_code?: string };
+  dispute_amount?: { value?: string; currency_code?: string };
+  disputed_transactions?: {
+    seller_transaction_id?: string;
+    gross_amount?: { value?: string; currency_code?: string };
+  }[];
+  fund_movements?: {
+    party?: string;
+    type?: string;
+    reason?: string;
+    amount?: { value?: string; currency_code?: string };
+  }[];
+}
+
+const DISPUTE_FEE_REASONS = new Set(["CHARGEBACK_FEE", "DISPUTE_FEE"]);
+
+/** the fee paypal reports debiting us for the dispute, in usd, and the line
+ * telling ops what was recorded for it. a fee in another currency is no
+ * figure this can owe: it counts as none */
+const dispute_fee = (d: IDispute): { usd: number; line: string } => {
+  const fees = (d.fund_movements ?? []).flatMap((m) =>
+    m.party === "SELLER" &&
+    m.type === "DEBIT" &&
+    m.reason &&
+    DISPUTE_FEE_REASONS.has(m.reason) &&
+    m.amount?.value
+      ? [{ value: m.amount.value, currency: m.amount.currency_code }]
+      : []
+  );
+  if (fees.length === 0) {
+    return {
+      usd: 0,
+      line: "chargeback fee: none reported by paypal, so recorded as $0 owed.",
+    };
+  }
+  const listed = fees.map((f) => money(f.value, f.currency)).join(", ");
+  if (fees.some((f) => f.currency !== "USD")) {
+    return {
+      usd: 0,
+      line: `chargeback fee: ${listed}, not all in USD, so recorded as $0 owed: settle it by hand.`,
+    };
+  }
+  // dec_sub's minor-unit arithmetic, negated: the fees summed
+  const usd = -dec_sub(
+    "0",
+    fees.map((f) => f.value)
+  );
+  return { usd, line: `chargeback fee: ${listed}` };
+};
+
+const DISPUTE_EXPLAINER =
+  "the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if paypal reverses the charge, the donation reverses without taking it twice; if the dispute resolves in the seller's favour, what is owed is credited back.";
+
+const RESPOND_BY_DEADLINE =
+  "respond in the paypal resolution center before its deadline.";
+
+/** an ops notice of a dispute, under `id`: a redelivery collapses into it */
+const notify_dispute = async (
+  ev: WebhookEvent,
+  d: IDispute,
+  don_id: string | undefined,
+  n: { id: string; title: string; lines: string[] }
+) => {
+  const charges = (d.disputed_transactions ?? [])
+    .map((t) => t.seller_transaction_id)
+    .filter(Boolean);
+  await enqueue(
+    msg("fiat-notice", {
+      id: n.id,
+      alert: {
+        type: "NOTICE",
+        from: `paypal-webhook-${stage}`,
+        title: n.title,
+        body: [
+          `${don_id ? `donation ${don_id}, ` : ""}dispute ${d.dispute_id ?? "unknown"}, charge ${charges.join(", ") || "unknown"}, event ${ev.id ?? "unknown"}`,
+          `disputed: ${money(d.dispute_amount?.value, d.dispute_amount?.currency_code)}, reason ${d.reason ?? "unknown"}`,
+          ...n.lines,
+        ].join("\n"),
+      },
+    })
+  );
+};
+
+/**
+ * a dispute filed on a gift: what each of its parties received, plus the card
+ * fee and any chargeback fee paypal reports, is recorded as owed at once. the
+ * gift stays settled; a REVERSED of its charge, before or after this, takes
+ * nothing twice.
+ */
+async function dispute_created(ev: WebhookEvent): Promise<Response> {
+  const d = ev.resource as IDispute;
+  const tx = d.disputed_transactions?.[0];
+  const charge = tx?.seller_transaction_id;
+  const don = charge ? await donation_by_sttl_id(charge) : undefined;
+  if (!d.dispute_id || !don) {
+    // keyed on the event: nothing is put on record to stop a redelivery
+    await notify_dispute(ev, d, undefined, {
+      id: `paypal-dispute_${ev.id}`,
+      title: "PayPal Dispute Opened",
+      lines: [
+        "no donation settled by this charge, so nothing recorded as owed.",
+        RESPOND_BY_DEADLINE,
+      ],
+    });
+    return new Response("dispute reported", { status: 200 });
+  }
+  const fee = dispute_fee(d);
+  const res = await dispute_opened({
+    donation_id: don.id,
+    rail: "paypal",
+    dispute_id: d.dispute_id,
+    opened_at: d.create_time ?? new Date().toISOString(),
+    // refunds before the dispute aren't counted: a REVERSED that follows
+    // counts them. a share this can't size, the open owes as the whole
+    share: share_of([v2_money(d.dispute_amount)], v2_money(tx?.gross_amount)),
+    fee_usd: fee.usd,
+  });
+  // told on the first sighting, and again only when what is owed grows: a
+  // redelivery tells nothing
+  const news = ((): string[] | null => {
+    switch (res.status) {
+      case "closed":
+        return null;
+      case "failed":
+        return [`nothing recorded as owed: ${res.reason}. settle it by hand.`];
+      case "already_reversed":
+        return res.inserted
+          ? [
+              `the donation was already ${res.donation_status}, so nothing more recorded as owed.`,
+            ]
+          : null;
+      case "recorded":
+        if (res.owed_written) {
+          return [...owed_lines(res.owed), fee.line, DISPUTE_EXPLAINER];
+        }
+        return res.inserted
+          ? [
+              "nothing settled to the gift's parties yet, so nothing recorded as owed.",
+            ]
+          : null;
+    }
+  })();
+  if (news) {
+    await notify_dispute(ev, d, don.id, {
+      id: `paypal-dispute_${d.dispute_id}`,
+      title: "PayPal Dispute Opened",
+      lines: [...news, RESPOND_BY_DEADLINE],
+    });
+  }
+  return new Response(`dispute ${res.status}`, { status: 200 });
+}
+
+/** outcomes where the buyer got the money back: paypal's REVERSED or REFUNDED
+ * of the charge takes the gift back */
+const BUYER_OUTCOMES = new Set(["RESOLVED_BUYER_FAVOUR", "ACCEPTED"]);
+
+/** a dispute resolved. a seller win credits back what its filing recorded;
+ * any other outcome that leaves us the money is ops' to settle */
+async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
+  const d = ev.resource as IDispute;
+  const charge = d.disputed_transactions?.[0]?.seller_transaction_id;
+  const don = charge ? await donation_by_sttl_id(charge) : undefined;
+  if (!d.dispute_id || !don)
+    return new Response("no donation", { status: 200 });
+  const outcome = d.dispute_outcome?.outcome_code;
+  if (outcome !== "RESOLVED_SELLER_FAVOUR") {
+    if (outcome && BUYER_OUTCOMES.has(outcome)) {
+      return new Response(`dispute ${outcome}`, { status: 200 });
+    }
+    const filed = (await owed_for_donation(don.id)).filter(
+      (o) => o.source === "dispute" && o.source_ref === d.dispute_id
+    );
+    if (filed.length > 0) {
+      // keyed on the dispute: a redelivery collapses into it in the queue's
+      // dedupe window
+      await notify_dispute(ev, d, don.id, {
+        id: `paypal-dispute-resolved_${d.dispute_id}`,
+        title: "PayPal Dispute Resolved",
+        lines: [
+          `resolved ${outcome ?? "with no outcome"}, not in the seller's favour, so what its filing recorded stays owed:`,
+          ...owed_lines(filed),
+          "if paypal took no money back for it, credit or write it off by hand on Amounts owed.",
+        ],
+      });
+    }
+    return new Response(`dispute ${outcome}`, { status: 200 });
+  }
+  const at = {
+    opened_at: d.create_time ?? new Date().toISOString(),
+    closed_at: d.update_time ?? new Date().toISOString(),
+  };
+  const won = await dispute_won({
+    donation_id: don.id,
+    rail: "paypal",
+    dispute_id: d.dispute_id,
+    ...at,
+  });
+  // once per dispute: a redelivery finds it on record won already
+  if (won.status === "already_reversed" && won.prior_status !== "won") {
+    await notify_dispute(ev, d, don.id, {
+      id: `paypal-dispute-won_${d.dispute_id}`,
+      title: "PayPal Dispute Won on a Reversed Donation",
+      lines: [
+        `paypal resolved the dispute in the seller's favour, so the disputed amount came back, but the donation was already ${won.donation_status} and the refund core can't undo a reversal. if paypal's chargeback reversed it, restore by hand the donation, its dists and what each party was recorded as owing; if a refund did, the donor kept that money and nothing is owed back.`,
+      ],
+    });
+  }
+  return new Response(`dispute ${won.status}`, { status: 200 });
+}
 
 // -- route action --
 
@@ -1204,33 +1437,10 @@ export async function action({ request }: Route.ActionArgs) {
         });
         return new Response("capture pending", { status: 200 });
       }
-      case "CUSTOMER.DISPUTE.CREATED": {
-        // ids and amount only: the resource carries the buyer's name and email
-        const d = ev.resource as {
-          dispute_id?: string;
-          reason?: string;
-          dispute_amount?: { value?: string; currency_code?: string };
-          disputed_transactions?: { seller_transaction_id?: string }[];
-        };
-        const charges = (d.disputed_transactions ?? [])
-          .map((t) => t.seller_transaction_id)
-          .filter(Boolean);
-        const alert = {
-          type: "NOTICE" as const,
-          from: `paypal-webhook-${stage}`,
-          title: "PayPal Dispute Opened",
-          body: [
-            `dispute ${d.dispute_id ?? "unknown"}, charge ${charges.join(", ") || "unknown"}, event ${ev.id ?? "unknown"}`,
-            `disputed: ${money(d.dispute_amount?.value, d.dispute_amount?.currency_code)}, reason ${d.reason ?? "unknown"}`,
-            "nothing was reversed. ops must respond in the paypal resolution center before its deadline.",
-          ].join("\n"),
-        };
-        // keyed on the event, so a duplicate delivery posts one notice
-        await enqueue(
-          msg("fiat-notice", { id: `paypal-dispute_${ev.id}`, alert })
-        );
-        return new Response("dispute reported", { status: 200 });
-      }
+      case "CUSTOMER.DISPUTE.CREATED":
+        return dispute_created(ev);
+      case "CUSTOMER.DISPUTE.RESOLVED":
+        return dispute_resolved(ev);
       case "PAYMENT.SALE.COMPLETED": {
         const { id: sale_id, billing_agreement_id: ev_subs_id } =
           ev.resource as Sale;

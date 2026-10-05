@@ -130,6 +130,12 @@ const { owed_amounts } = await import("$/pg/schema/owed");
 const { payouts } = await import("$/pg/schema/payout");
 const { reverse_charge: real_reverse_charge } =
   await vi.importActual<typeof import("$/refund/reverse")>("$/refund/reverse");
+const { donation_disputes } = await import("$/pg/schema/dispute");
+const { bal_txs } = await import("$/pg/schema/bal-tx");
+const { loss_logs } = await import("$/pg/schema/revenue");
+const { balance_of, disputes_of, PAID_GRANT, seed_card_gift } = await import(
+  "#/__tests__/fixtures/card-gift"
+);
 
 const db = () => test_db.current!.db;
 
@@ -421,6 +427,9 @@ beforeEach(async () => {
   });
 
   await db().delete(owed_amounts);
+  await db().delete(bal_txs);
+  await db().delete(loss_logs);
+  await db().delete(donation_disputes);
   await db().delete(payouts);
   await db().delete(dists);
   await db().delete(donation_settlements);
@@ -2223,6 +2232,343 @@ describe("CUSTOMER.DISPUTE.CREATED", () => {
     const [notice] = enqueue_mock.mock.calls.at(-1)!;
     expect(notice.payload.alert.body).not.toContain("undefined");
     expect(notice.payload.alert.body).toContain("dispute unknown");
+  });
+});
+
+describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
+  const DISPUTE_ID = "PP-D000-000-001";
+
+  /** a settled paypal gift: $90 granted and paid out, $3.20 card fee.
+   * `payout` pending leaves the grant in the npo's balances */
+  const paypal_gift = async (payout: "settled" | "pending" = "settled") => {
+    const gift = await seed_card_gift(db(), { ...PAID_GRANT, payout });
+    await db()
+      .update(donations)
+      .set({ via: "paypal" })
+      .where(eq(donations.id, gift.id));
+    return { ...gift, npo_id: gift.npo_ids[0]! };
+  };
+
+  /** the dispute resource as paypal sends it on every dispute event */
+  const dispute_resource = (
+    charge: string,
+    o: Record<string, unknown> = {}
+  ) => ({
+    dispute_id: DISPUTE_ID,
+    create_time: "2026-10-01T12:00:00.000Z",
+    update_time: "2026-10-01T12:00:00.000Z",
+    disputed_transactions: [
+      {
+        seller_transaction_id: charge,
+        transaction_status: "COMPLETED",
+        gross_amount: { currency_code: "USD", value: "100.00" },
+        seller: { merchant_id: "MERCHANT-1" },
+        buyer: { name: "Bea Buyer" },
+      },
+    ],
+    reason: "UNAUTHORISED",
+    status: "OPEN",
+    dispute_amount: { currency_code: "USD", value: "100.00" },
+    dispute_life_cycle_stage: "CHARGEBACK",
+    dispute_channel: "EXTERNAL",
+    ...o,
+  });
+
+  const created_ev = (charge: string, o: Record<string, unknown> = {}) => ({
+    id: "WH-DSP-CREATED",
+    event_version: "1.0",
+    create_time: "2026-10-01T12:00:05.000Z",
+    resource_type: "dispute",
+    event_type: "CUSTOMER.DISPUTE.CREATED",
+    resource: dispute_resource(charge, o),
+  });
+
+  const owed_rows = () =>
+    db()
+      .select({
+        npo_id: owed_amounts.npo_id,
+        source: owed_amounts.source,
+        source_ref: owed_amounts.source_ref,
+        received_usd: owed_amounts.received_usd,
+        fee_processing_usd: owed_amounts.fee_processing_usd,
+        fee_dispute_usd: owed_amounts.fee_dispute_usd,
+        outstanding_usd: owed_amounts.outstanding_usd,
+      })
+      .from(owed_amounts);
+
+  beforeEach(() => {
+    reverse_charge_mock.mockImplementation(real_reverse_charge);
+  });
+
+  it("records at filing what the npo received plus its card fee as owed, and the dispute open", async () => {
+    const { id, sttl_id, npo_id } = await paypal_gift();
+
+    const res = await deliver(created_ev(sttl_id));
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toEqual([
+      {
+        npo_id,
+        source: "dispute",
+        source_ref: DISPUTE_ID,
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 0,
+        outstanding_usd: 93.2,
+      },
+    ]);
+    expect(await disputes_of(db(), id)).toMatchObject([
+      { id: DISPUTE_ID, status: "open", opened_at: "2026-10-01T12:00:00.000Z" },
+    ]);
+    expect((await donation_get(id))?.status).toBe("settled");
+  });
+
+  it("adds the chargeback fee paypal reports debiting the seller", async () => {
+    const { sttl_id } = await paypal_gift();
+
+    await deliver(
+      created_ev(sttl_id, {
+        fund_movements: [
+          {
+            party: "SELLER",
+            type: "DEBIT",
+            reason: "DISPUTE_SETTLEMENT",
+            amount: { currency_code: "USD", value: "100.00" },
+          },
+          {
+            party: "SELLER",
+            type: "DEBIT",
+            reason: "CHARGEBACK_FEE",
+            amount: { currency_code: "USD", value: "20.00" },
+          },
+        ],
+      })
+    );
+
+    expect(await owed_rows()).toMatchObject([
+      { fee_dispute_usd: 20, outstanding_usd: 113.2 },
+    ]);
+  });
+
+  it("records that share of what the npo received and its card fee for a dispute over $30 of the $100 capture", async () => {
+    const { sttl_id } = await paypal_gift();
+
+    await deliver(
+      created_ev(sttl_id, {
+        dispute_amount: { currency_code: "USD", value: "30.00" },
+      })
+    );
+
+    expect(await owed_rows()).toMatchObject([
+      { received_usd: 27, fee_processing_usd: 0.96, outstanding_usd: 27.96 },
+    ]);
+  });
+
+  /** the ops notices the deliveries so far enqueued */
+  const notices = () =>
+    enqueue_mock.mock.calls
+      .flat()
+      .filter((m: any) => m.id === "fiat-notice")
+      .map((m: any) => m.payload.alert);
+
+  it("tells ops what is recorded as owed, that paypal reported no fee, and nothing of the payer", async () => {
+    const { id, sttl_id, npo_id } = await paypal_gift();
+    enqueue_mock.mockClear();
+
+    await deliver(created_ev(sttl_id));
+
+    expect(notices()).toEqual([
+      expect.objectContaining({ title: "PayPal Dispute Opened" }),
+    ]);
+    const [{ body }] = notices();
+    expect(body).toContain(`donation ${id}`);
+    expect(body).toContain(DISPUTE_ID);
+    expect(body).toContain(`npo ${npo_id}: 93.20 USD`);
+    expect(body).toContain("none reported by paypal, so recorded as $0");
+    expect(body).not.toContain("Bea Buyer");
+  });
+
+  it("changes nothing further on a redelivered filing, and tells ops nothing again", async () => {
+    const { sttl_id } = await paypal_gift();
+    await deliver(created_ev(sttl_id));
+    const recorded = await owed_rows();
+    enqueue_mock.mockClear();
+
+    const res = await deliver(created_ev(sttl_id));
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toEqual(recorded);
+    expect(notices()).toEqual([]);
+  });
+
+  /** paypal's chargeback of the whole capture: a refund resource, its
+   * amount negative */
+  const reversed_ev = (charge: string) => ({
+    id: "WH-REVERSED-1",
+    event_version: "1.0",
+    create_time: "2026-10-01T12:00:10.000Z",
+    resource_type: "refund",
+    event_type: "PAYMENT.CAPTURE.REVERSED",
+    resource: {
+      id: "REV-1",
+      status: "COMPLETED",
+      amount: { value: "-100.00", currency_code: "USD" },
+      links: [
+        {
+          rel: "up",
+          method: "GET",
+          href: `https://api.paypal.com/v2/payments/captures/${charge}`,
+        },
+      ],
+    },
+  });
+
+  /** what the npo has given back so far: what left its balances, plus what
+   * it owes */
+  const npo_debit = async (npo_id: number, before: number) => {
+    const [row] = await owed_rows();
+    return (
+      before - (await balance_of(db(), npo_id)) + (row?.outstanding_usd ?? 0)
+    );
+  };
+
+  const deliver_in = async (sttl_id: string, order: readonly string[]) => {
+    for (const e of order) {
+      const res = await deliver(
+        e === "created" ? created_ev(sttl_id) : reversed_ev(sttl_id)
+      );
+      expect(res.status).toBe(200);
+    }
+  };
+
+  it.each([
+    ["filed first", ["created", "reversed"]],
+    ["reversed first", ["reversed", "created"]],
+  ] as const)(
+    "%s, owes the npo's $93.20 once, reverses the gift and books no loss",
+    async (_, order) => {
+      const { id, sttl_id, npo_id } = await paypal_gift();
+
+      await deliver_in(sttl_id, order);
+
+      expect(await owed_rows()).toMatchObject([
+        {
+          npo_id,
+          received_usd: 90,
+          fee_processing_usd: 3.2,
+          outstanding_usd: 93.2,
+        },
+      ]);
+      expect((await donation_get(id))?.status).toBe("refunded_loss");
+      expect(await db().select().from(loss_logs)).toEqual([]);
+    }
+  );
+
+  it("filed after paypal reversed the gift, tells ops it is on record and nothing more is owed", async () => {
+    const { sttl_id } = await paypal_gift();
+    await deliver(reversed_ev(sttl_id));
+    enqueue_mock.mockClear();
+
+    await deliver(created_ev(sttl_id));
+
+    expect(notices()).toEqual([
+      expect.objectContaining({ title: "PayPal Dispute Opened" }),
+    ]);
+    expect(notices()[0].body).toContain(
+      "already refunded_loss, so nothing more recorded as owed"
+    );
+  });
+
+  it("filed with the grant still in the npo's balances, then reversed, debits the npo its $93.20 once", async () => {
+    const { sttl_id, npo_id } = await paypal_gift("pending");
+    const before = await balance_of(db(), npo_id);
+
+    await deliver_in(sttl_id, ["created", "reversed"]);
+
+    expect(await npo_debit(npo_id, before)).toBeCloseTo(93.2, 10);
+    expect(await db().select().from(loss_logs)).toEqual([]);
+  });
+
+  const resolved_ev = (charge: string, outcome_code: string) => ({
+    id: `WH-DSP-RESOLVED-${outcome_code}`,
+    event_version: "1.0",
+    create_time: "2026-11-01T12:00:05.000Z",
+    resource_type: "dispute",
+    event_type: "CUSTOMER.DISPUTE.RESOLVED",
+    resource: dispute_resource(charge, {
+      update_time: "2026-11-01T12:00:00.000Z",
+      status: "RESOLVED",
+      dispute_outcome: { outcome_code },
+    }),
+  });
+
+  it("credits what the filing recorded back to nothing outstanding on a seller win", async () => {
+    const { id, sttl_id } = await paypal_gift();
+    await deliver(created_ev(sttl_id));
+
+    const res = await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toMatchObject([
+      { received_usd: 90, outstanding_usd: 0 },
+    ]);
+    expect(await disputes_of(db(), id)).toMatchObject([
+      { id: DISPUTE_ID, status: "won", closed_at: "2026-11-01T12:00:00.000Z" },
+    ]);
+    expect((await donation_get(id))?.status).toBe("settled");
+  });
+
+  it("won after paypal reversed the gift, tells ops once to restore it by hand", async () => {
+    const { id, sttl_id } = await paypal_gift();
+    await deliver_in(sttl_id, ["created", "reversed"]);
+    const owed = await owed_rows();
+    enqueue_mock.mockClear();
+
+    await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+    const res = await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+
+    expect(res.status).toBe(200);
+    expect(notices()).toEqual([
+      expect.objectContaining({
+        title: "PayPal Dispute Won on a Reversed Donation",
+      }),
+    ]);
+    const [{ body }] = notices();
+    expect(body).toContain(`donation ${id}`);
+    expect(body).toContain("refunded_loss");
+    expect(body).toContain("by hand");
+    expect(await owed_rows()).toEqual(owed);
+  });
+
+  it("resolved with the money kept but no seller win, keeps what is owed and tells ops to settle it by hand", async () => {
+    const { sttl_id } = await paypal_gift();
+    await deliver(created_ev(sttl_id));
+    const owed = await owed_rows();
+    enqueue_mock.mockClear();
+
+    const res = await deliver(resolved_ev(sttl_id, "CANCELED_BY_BUYER"));
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toEqual(owed);
+    expect(notices()).toEqual([
+      expect.objectContaining({ title: "PayPal Dispute Resolved" }),
+    ]);
+    const [{ body }] = notices();
+    expect(body).toContain("CANCELED_BY_BUYER");
+    expect(body).toContain("93.20 USD");
+  });
+
+  it("resolved for the buyer, leaves the reversal to paypal's REVERSED and tells ops nothing", async () => {
+    const { sttl_id } = await paypal_gift();
+    await deliver(created_ev(sttl_id));
+    const owed = await owed_rows();
+    enqueue_mock.mockClear();
+
+    const res = await deliver(resolved_ev(sttl_id, "RESOLVED_BUYER_FAVOUR"));
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toEqual(owed);
+    expect(notices()).toEqual([]);
   });
 });
 
