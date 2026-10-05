@@ -9,7 +9,12 @@ import {
 import { donation_disputes } from "../schema/dispute";
 import { donations } from "../schema/donation";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
-import { dispute_close, dispute_open, disputes_of_donation } from "./dispute";
+import {
+  dispute_close,
+  dispute_get,
+  dispute_open,
+  disputes_of_donation,
+} from "./dispute";
 import type { DbOrTx } from "./helpers";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
@@ -80,16 +85,36 @@ describe("dispute_open", () => {
     ]);
   });
 
-  test("a redelivered open changes nothing", async () => {
-    await dispute_open(as_db(t.db), opened);
-    await dispute_open(as_db(t.db), {
+  test("a redelivered open changes nothing, and says it found the dispute", async () => {
+    const first = await dispute_open(as_db(t.db), opened);
+    const again = await dispute_open(as_db(t.db), {
       ...opened,
       opened_at: "2026-10-02T12:00:00.000Z",
     });
 
+    expect([first, again]).toEqual([
+      { status: "open", inserted: true },
+      { status: "open", inserted: false },
+    ]);
     expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
       { id: "du_1", status: "open", opened_at: OPENED },
     ]);
+  });
+});
+
+describe("dispute_get", () => {
+  test("reads one dispute by its provider id", async () => {
+    await dispute_open(as_db(t.db), opened);
+    await dispute_open(as_db(t.db), { ...opened, id: "du_2" });
+
+    expect(await dispute_get("du_2", as_db(t.db))).toEqual({
+      id: "du_2",
+      donation_id: DON,
+      status: "open",
+      opened_at: OPENED,
+      closed_at: null,
+    });
+    expect(await dispute_get("du_none", as_db(t.db))).toBeUndefined();
   });
 });
 
@@ -129,14 +154,17 @@ describe("dispute_close", () => {
   });
 
   test("an open redelivered after its close leaves it closed, and says so", async () => {
-    expect(await dispute_open(as_db(t.db), opened)).toBe("open");
+    await dispute_open(as_db(t.db), opened);
     await dispute_close(as_db(t.db), {
       ...opened,
       status: "won",
       closed_at: CLOSED,
     });
 
-    expect(await dispute_open(as_db(t.db), opened)).toBe("won");
+    expect(await dispute_open(as_db(t.db), opened)).toEqual({
+      status: "won",
+      inserted: false,
+    });
     expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
       { status: "won", closed_at: CLOSED },
     ]);

@@ -143,6 +143,36 @@ describe("dispute_opened", () => {
       .where(eq(owed_amounts.donation_id, id));
     expect(Number(sum?.usd)).toBe(15.01);
   });
+
+  test("flags a second dispute on the payment, owing nothing more for it", async () => {
+    const { id } = await seed(PAID_GRANT);
+
+    const first = await dispute_opened(opened_on(id));
+    const second = await dispute_opened({
+      ...opened_on(id),
+      dispute_id: "du_2",
+    });
+
+    expect([first, second]).toMatchObject([
+      { status: "recorded", prior_refs: [] },
+      { status: "recorded", prior_refs: [`du_${id}`] },
+    ]);
+    expect(await owed_of(id)).toMatchObject([
+      { source_ref: `du_${id}`, outstanding_usd: 108.2 },
+    ]);
+  });
+
+  test("says which call put the dispute on record", async () => {
+    const { id } = await seed(PAID_GRANT);
+
+    const first = await dispute_opened(opened_on(id));
+    const again = await dispute_opened(opened_on(id));
+
+    expect([first, again]).toMatchObject([
+      { status: "recorded", inserted: true },
+      { status: "recorded", inserted: false },
+    ]);
+  });
 });
 
 const CLOSED = "2026-10-20T12:00:00.000Z";
@@ -170,11 +200,57 @@ describe("an open handled after its dispute closed", () => {
 
       const res = await dispute_opened(opened_on(id));
 
-      expect(res).toEqual({ status: "closed", dispute_status: status });
+      expect(res).toEqual({
+        status: "closed",
+        dispute_status: status,
+        inserted: false,
+      });
       expect(await owed_of(id)).toEqual([]);
       expect(await disputes_of_donation(id)).toMatchObject([{ status }]);
     }
   );
+});
+
+describe("a dispute on a gift already reversed", () => {
+  /** a gift whose money already went back to its donor */
+  async function seed_refunded() {
+    const gift = await seed(PAID_GRANT);
+    await test_db
+      .current!.db.update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, gift.id));
+    return gift;
+  }
+
+  test("is recorded open, owing nothing", async () => {
+    const { id } = await seed_refunded();
+
+    const res = await dispute_opened(opened_on(id));
+
+    expect(res).toEqual({
+      status: "already_reversed",
+      donation_status: "refunded",
+      inserted: true,
+    });
+    expect(await owed_of(id)).toEqual([]);
+    expect(await disputes_of_donation(id)).toMatchObject([
+      { id: `du_${id}`, status: "open" },
+    ]);
+  });
+
+  test("is recorded won, crediting nothing", async () => {
+    const { id } = await seed_refunded();
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toEqual({
+      status: "already_reversed",
+      donation_status: "refunded",
+    });
+    expect(await disputes_of_donation(id)).toMatchObject([
+      { id: `du_${id}`, status: "won", closed_at: CLOSED },
+    ]);
+  });
 });
 
 describe("dispute_won", () => {

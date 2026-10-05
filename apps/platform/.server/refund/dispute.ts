@@ -17,7 +17,12 @@ import {
 import { dists } from "../pg/schema/dist";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { dist_settled_usd, fee_processing_usd, referrer_of } from "./plan";
-import { load_reversible, type Rail, type Unreversible } from "./reverse";
+import {
+  load_reversible,
+  type Rail,
+  type Unreversible,
+  unreversible,
+} from "./reverse";
 
 export interface DisputeOpened {
   donation_id: string;
@@ -32,14 +37,28 @@ export interface DisputeOpened {
 }
 
 export type DisputeOpenedResult =
-  /** each party's row as it stands */
-  | { status: "recorded"; owed: IOwed[] }
+  /** `owed`: each party's row as it stands. `inserted`: this call put the
+   * dispute on record, which exactly one call per dispute does.
+   * `prior_refs`: the refunds or disputes whose rows this one found and
+   * merged into, the first one's ref standing — a second dispute on one
+   * payment owes nothing of its own, and a win of it credits nothing */
+  | {
+      status: "recorded";
+      owed: IOwed[];
+      inserted: boolean;
+      prior_refs: string[];
+    }
   /** the dispute was already recorded closed: nothing written */
   | {
       status: "closed";
       dispute_status: Exclude<IDispute["status"], "open">;
+      inserted: false;
     }
-  | Unreversible;
+  /** the dispute is on record, and the gift owes nothing more */
+  | (Extract<Unreversible, { status: "already_reversed" }> & {
+      inserted: boolean;
+    })
+  | Extract<Unreversible, { status: "failed" }>;
 
 /**
  * a chargeback opened on a gift: records the dispute, and as owed what each
@@ -54,17 +73,25 @@ export async function dispute_opened(
   d: DisputeOpened
 ): Promise<DisputeOpenedResult> {
   const loaded = await load_reversible(d.donation_id, d.rail);
-  if (loaded.status !== "reversible") return loaded;
+  if (loaded.status === "failed") return loaded;
   const { don } = loaded;
+  const record = {
+    id: d.dispute_id,
+    donation_id: don.id,
+    opened_at: d.opened_at,
+  };
+  if (loaded.status === "already_reversed") {
+    const { inserted } = await dispute_open(db, record);
+    const { status, donation_status } = loaded;
+    return { status, donation_status, inserted };
+  }
   const now = new Date().toISOString();
 
   return db.transaction(async (tx): Promise<DisputeOpenedResult> => {
-    const status = await dispute_open(tx, {
-      id: d.dispute_id,
-      donation_id: don.id,
-      opened_at: d.opened_at,
-    });
-    if (status !== "open") return { status: "closed", dispute_status: status };
+    const { status, inserted } = await dispute_open(tx, record);
+    if (status !== "open") {
+      return { status: "closed", dispute_status: status, inserted: false };
+    }
     const ds = await settled_dists_locked(tx, don.id);
     const rows: IOwed[] = [];
     for (const f of owed_at_open(ds, d.fee_usd)) {
@@ -78,7 +105,12 @@ export async function dispute_opened(
         })
       );
     }
-    return { status: "recorded", owed: rows };
+    const prior_refs = [
+      ...new Set(
+        rows.map((o) => o.source_ref).filter((ref) => ref !== d.dispute_id)
+      ),
+    ];
+    return { status: "recorded", owed: rows, inserted, prior_refs };
   });
 }
 
@@ -105,18 +137,23 @@ export type DisputeWonResult =
  */
 export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
   const loaded = await load_reversible(d.donation_id, d.rail);
-  if (loaded.status !== "reversible") return loaded;
+  if (loaded.status === "failed") return loaded;
   const { don } = loaded;
+  const record = {
+    id: d.dispute_id,
+    donation_id: don.id,
+    status: "won" as const,
+    opened_at: d.opened_at,
+    closed_at: d.closed_at,
+  };
+  if (loaded.status === "already_reversed") {
+    await dispute_close(db, record);
+    return unreversible(loaded);
+  }
   const now = new Date().toISOString();
 
   const owed = await db.transaction(async (tx) => {
-    await dispute_close(tx, {
-      id: d.dispute_id,
-      donation_id: don.id,
-      status: "won",
-      opened_at: d.opened_at,
-      closed_at: d.closed_at,
-    });
+    await dispute_close(tx, record);
     const rows: IOwed[] = [];
     for (const o of await owed_for_donation(don.id, tx)) {
       if (o.source !== "dispute" || o.source_ref !== d.dispute_id) continue;

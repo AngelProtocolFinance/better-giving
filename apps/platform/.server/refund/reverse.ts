@@ -115,11 +115,18 @@ export type Unreversible = Extract<
 >;
 
 /** the gift a reversal-side event acts on, or why it acts on none: no such
- * gift, not paid on `rail`, or its money already taken back */
+ * gift, not paid on `rail`, or its money already taken back. a gift that
+ * exists comes back with either, so the event can still be put on record */
 export async function load_reversible(
   donation_id: string,
   rail: Rail
-): Promise<{ status: "reversible"; don: IDonation } | Unreversible> {
+): Promise<
+  | { status: "reversible"; don: IDonation }
+  | (Extract<Unreversible, { status: "already_reversed" }> & {
+      don: IDonation;
+    })
+  | Extract<Unreversible, { status: "failed" }>
+> {
   const don = await donation_get(donation_id);
   if (!don) return { status: "failed", reason: "no_donation" };
   if (rail_of(don.via) !== rail) {
@@ -127,10 +134,21 @@ export async function load_reversible(
   }
   const reversed = reversed_statuses.find((s) => s === don.status);
   if (reversed) {
-    return { status: "already_reversed", donation_status: reversed };
+    return { status: "already_reversed", donation_status: reversed, don };
   }
   return { status: "reversible", don };
 }
+
+/** the guard's answer, without the gift it loaded */
+export const unreversible = (
+  u: Exclude<
+    Awaited<ReturnType<typeof load_reversible>>,
+    { status: "reversible" }
+  >
+): Unreversible =>
+  u.status === "already_reversed"
+    ? { status: u.status, donation_status: u.donation_status }
+    : u;
 
 const PARTIAL_REFUND = {
   title: "Partial Refund Not Reversed",
@@ -161,7 +179,7 @@ export async function reverse_charge(
   r: ChargeReversal
 ): Promise<ReversalResult> {
   const loaded = await load_reversible(r.donation_id, r.rail);
-  if (loaded.status !== "reversible") return loaded;
+  if (loaded.status !== "reversible") return unreversible(loaded);
   const { don } = loaded;
 
   if (r.amount !== undefined) {

@@ -28,7 +28,7 @@ export const donation_disputes = pgTable(
       sql`(${t.status} = 'open') = (${t.closed_at} IS NULL)`
     ),
     check("donation_disputes_id_check", sql`${t.id} <> ''`),
-    // the admin donation view's read
+    // `disputes_of_donation`'s read
     index("donation_disputes_donation_id_idx").on(t.donation_id),
   ]
 );

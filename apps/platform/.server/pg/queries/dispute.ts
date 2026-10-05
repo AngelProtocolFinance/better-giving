@@ -13,22 +13,31 @@ export interface IDisputeOpen {
   opened_at: string;
 }
 
-/** the dispute's status as it stands, a close recorded first standing; the
- * row held locked until `tx` ends, so a close of it waits */
+export interface IDisputeOpened {
+  /** as it stands: a close recorded first stands */
+  status: IDispute["status"];
+  /** this call put the dispute on record; every other call for it, however
+   * concurrent, finds it */
+  inserted: boolean;
+}
+
+/** the row is held locked until `tx` ends, so a close of it waits */
 export async function dispute_open(
   tx: DbOrTx,
   d: IDisputeOpen
-): Promise<IDispute["status"]> {
-  await tx
+): Promise<IDisputeOpened> {
+  const [added] = await tx
     .insert(donation_disputes)
     .values({ ...d, status: "open" })
-    .onConflictDoNothing({ target: donation_disputes.id });
+    .onConflictDoNothing({ target: donation_disputes.id })
+    .returning({ status: donation_disputes.status });
+  if (added) return { status: added.status, inserted: true };
   const [row] = await tx
     .select({ status: donation_disputes.status })
     .from(donation_disputes)
     .where(eq(donation_disputes.id, d.id))
     .for("update");
-  return row!.status;
+  return { status: row!.status, inserted: false };
 }
 
 export interface IDisputeClose extends IDisputeOpen {
@@ -51,6 +60,17 @@ export async function dispute_close(
       set: { status: d.status, closed_at: d.closed_at },
       setWhere: eq(donation_disputes.status, "open"),
     });
+}
+
+export async function dispute_get(
+  id: string,
+  tx: DbOrTx = db
+): Promise<IDispute | undefined> {
+  const [row] = await tx
+    .select()
+    .from(donation_disputes)
+    .where(eq(donation_disputes.id, id));
+  return row;
 }
 
 export async function disputes_of_donation(
