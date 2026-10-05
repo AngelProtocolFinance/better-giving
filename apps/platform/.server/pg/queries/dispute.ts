@@ -62,6 +62,16 @@ export async function dispute_close(
     });
 }
 
+/** the dispute's own share of the charge and its fee, as its open recorded
+ * what is owed for it */
+export async function dispute_record_share(
+  tx: DbOrTx,
+  id: string,
+  s: { share: number; fee_usd: number }
+): Promise<void> {
+  await tx.update(donation_disputes).set(s).where(eq(donation_disputes.id, id));
+}
+
 export async function dispute_get(
   id: string,
   tx: DbOrTx = db

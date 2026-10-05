@@ -77,6 +77,8 @@ describe("dispute_open", () => {
         status: "open",
         opened_at: OPENED,
         closed_at: null,
+        share: null,
+        fee_usd: null,
       },
     ]);
   });
@@ -109,6 +111,8 @@ describe("dispute_get", () => {
       status: "open",
       opened_at: OPENED,
       closed_at: null,
+      share: null,
+      fee_usd: null,
     });
     expect(await dispute_get("du_none", as_db(t.db))).toBeUndefined();
   });
@@ -180,6 +184,8 @@ describe("dispute_close", () => {
         status: "lost",
         opened_at: OPENED,
         closed_at: CLOSED,
+        share: null,
+        fee_usd: null,
       },
     ]);
   });

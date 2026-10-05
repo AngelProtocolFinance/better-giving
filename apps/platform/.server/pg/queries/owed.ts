@@ -10,11 +10,7 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
-import {
-  type AnyPgColumn,
-  alias,
-  type PgUpdateSetSource,
-} from "drizzle-orm/pg-core";
+import { alias, type PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { owed_terms_effective } from "../../env";
 import { db } from "../db";
 import { user } from "../schema/auth";
@@ -58,8 +54,8 @@ export const owed_deductible = (): SQL =>
 
 /** the gift's cumulative figure for `party`, across every refund and dispute
  * on it so far, never one event's share. a refund that failed after it was
- * recorded no longer counts in it: what it was credited back for is added on
- * top, so the row's credit keeps offsetting it */
+ * recorded, or a dispute won, no longer counts in it: what it was credited
+ * back for is added on top, so the row's credit keeps offsetting it */
 export interface IOwedRecord {
   donation_id: string;
   party: OwedParty;
@@ -71,20 +67,38 @@ export interface IOwedRecord {
   now: string;
 }
 
-/** what failed refunds credited back on the row under `reason` */
-export const failed_credits = (reason: OwedCreditReason) =>
+/** what the row was credited back under `reasons` */
+const credits_under = (reasons: OwedCreditReason[]) =>
   sql`(SELECT COALESCE(SUM(${owed_entries.usd}), 0) FROM ${owed_entries}
     WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
-      AND ${owed_entries.kind} = 'credit' AND ${owed_entries.reason} = ${reason})`;
+      AND ${owed_entries.kind} = 'credit'
+      AND ${owed_entries.reason} IN (${sql.join(
+        reasons.map((r) => sql`${r}`),
+        sql`, `
+      )}))`;
 
-/** `col`'s figure as recorded, with what failed refunds credited back of it */
-const recorded = (col: AnyPgColumn, failed?: OwedCreditReason) =>
-  failed
-    ? sql`excluded.${sql.identifier(col.name)} + ${failed_credits(failed)}`
-    : sql`excluded.${sql.identifier(col.name)}`;
+/** what failed refunds credited back on the row under `reason` */
+export const failed_credits = (reason: OwedCreditReason) =>
+  credits_under([reason]);
 
-const grown = (col: AnyPgColumn, failed?: OwedCreditReason) =>
-  sql`GREATEST(${col}, ${recorded(col, failed)})`;
+/** per figure, the credits that take an event back out of the cumulative
+ * figure, so a later record adds them back on */
+const UNCOUNTED: Record<
+  "received_usd" | "fee_processing_usd" | "fee_dispute_usd",
+  OwedCreditReason[]
+> = {
+  received_usd: ["refund_failed", "dispute_won"],
+  fee_processing_usd: ["refund_failed_fee", "dispute_won_fee"],
+  fee_dispute_usd: ["dispute_won_fee_dispute"],
+};
+
+/** `figure` as recorded, with what was credited back of it for events
+ * that no longer count */
+const recorded = (figure: keyof typeof UNCOUNTED) =>
+  sql`excluded.${sql.identifier(figure)} + ${credits_under(UNCOUNTED[figure])}`;
+
+const grown = (figure: keyof typeof UNCOUNTED) =>
+  sql`GREATEST(${owed_amounts[figure]}, ${recorded(figure)})`;
 
 const owed_total_sql = sql`${owed_amounts.received_usd} + ${owed_amounts.fee_processing_usd} + ${owed_amounts.fee_dispute_usd}`;
 
@@ -112,16 +126,13 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
       // each figure only grows, so a smaller one is a stale event arriving
       // late; the first event's source stands
       set: {
-        received_usd: grown(owed_amounts.received_usd, "refund_failed"),
-        fee_processing_usd: grown(
-          owed_amounts.fee_processing_usd,
-          "refund_failed_fee"
-        ),
-        fee_dispute_usd: grown(owed_amounts.fee_dispute_usd),
+        received_usd: grown("received_usd"),
+        fee_processing_usd: grown("fee_processing_usd"),
+        fee_dispute_usd: grown("fee_dispute_usd"),
       },
-      setWhere: sql`${recorded(owed_amounts.received_usd, "refund_failed")} > ${owed_amounts.received_usd}
-        OR ${recorded(owed_amounts.fee_processing_usd, "refund_failed_fee")} > ${owed_amounts.fee_processing_usd}
-        OR ${recorded(owed_amounts.fee_dispute_usd)} > ${owed_amounts.fee_dispute_usd}`,
+      setWhere: sql`${recorded("received_usd")} > ${owed_amounts.received_usd}
+        OR ${recorded("fee_processing_usd")} > ${owed_amounts.fee_processing_usd}
+        OR ${recorded("fee_dispute_usd")} > ${owed_amounts.fee_dispute_usd}`,
     })
     .returning();
   // no row back: the conflict's update was skipped, and the row stands as it was
@@ -190,7 +201,12 @@ export type OwedCreditReason =
   /** a reversal, the dispute's loss or a refund, took it back from the npo's
    * balances or pending payout after a dispute's open had recorded it as owed */
   | "dispute_reversed"
+  /** a dispute won: its own share of what the row records as received, of
+   * its card fee, and its dispute fee. a later record of the row adds each
+   * back onto its figure */
   | "dispute_won"
+  | "dispute_won_fee"
+  | "dispute_won_fee_dispute"
   /** a refund the row was recorded for failed after it succeeded: what it
    * recorded as received, and its card fee. a later record of the row adds
    * each back onto its figure */

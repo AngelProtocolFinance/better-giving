@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, pgTable, text } from "drizzle-orm/pg-core";
-import { timestamptz } from "./columns";
+import { numeric_as_number, timestamptz } from "./columns";
 import { donations } from "./donation";
 
 /** a chargeback on a gift, as its provider reports it */
@@ -17,6 +17,11 @@ export const donation_disputes = pgTable(
       .notNull(),
     opened_at: timestamptz("opened_at").notNull(),
     closed_at: timestamptz("closed_at"),
+    /** the dispute's own part of the charge, and the fee charged for it in
+     * usd, once its open recorded what is owed: what a win credits back,
+     * whatever else wrote the gift's rows. null while it recorded nothing */
+    share: numeric_as_number("share", { precision: 38, scale: 18 }),
+    fee_usd: numeric_as_number("fee_usd", { precision: 38, scale: 18 }),
   },
   (t) => [
     check(
@@ -28,6 +33,11 @@ export const donation_disputes = pgTable(
       sql`(${t.status} = 'open') = (${t.closed_at} IS NULL)`
     ),
     check("donation_disputes_id_check", sql`${t.id} <> ''`),
+    check(
+      "donation_disputes_share_check",
+      sql`num_nonnulls(${t.share}, ${t.fee_usd}) IN (0, 2)
+        AND ${t.share} > 0 AND ${t.share} <= 1 AND ${t.fee_usd} >= 0`
+    ),
     // the donation_id fk's: a donation's delete or key change looks its disputes up by it
     index("donation_disputes_donation_id_idx").on(t.donation_id),
   ]

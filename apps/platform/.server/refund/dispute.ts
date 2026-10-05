@@ -3,18 +3,19 @@ import {
   dispute_close,
   dispute_get,
   dispute_open,
+  dispute_record_share,
   type IDispute,
 } from "../pg/queries/dispute";
 import {
-  credit_owed,
   type IOwed,
-  type OwedParty,
   owed_for_donation,
+  owed_for_party,
   owed_total,
   record_owed,
 } from "../pg/queries/owed";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
+  credit_parts,
   fraction_of,
   owed_shares,
   type Share,
@@ -31,6 +32,9 @@ export interface DisputeOpened {
   opened_at: string;
   /** how much of the charge is taken back so far, this dispute included */
   share: Share;
+  /** the dispute's own part of the charge, what a win of it credits back;
+   * absent, `share` */
+  disputed?: Share;
   /** what the provider charged for the dispute, in usd; 0 when none */
   fee_usd: number;
 }
@@ -42,8 +46,8 @@ export type DisputeOpenedResult =
    * grew what a row owes — an inquiry's escalation on record included; never
    * a redelivery, nor a second dispute that adds nothing. `prior_refs`: the
    * other disputes whose rows this one found and merged into, the first
-   * one's ref standing — a second dispute on one payment owes nothing of its
-   * own, and a win of it credits nothing */
+   * one's ref standing — a second dispute on one payment adds to a row only
+   * what the first left uncounted, and a win of it credits its own share */
   | {
       status: "recorded";
       owed: IOwed[];
@@ -119,6 +123,12 @@ export async function dispute_opened(
         })
       );
     }
+    if (rows.length > 0) {
+      await dispute_record_share(tx, d.dispute_id, {
+        share: fraction_of(d.disputed ?? d.share) ?? 1,
+        fee_usd: d.fee_usd,
+      });
+    }
     const prior_refs = [
       ...new Set(
         rows
@@ -162,9 +172,11 @@ export type DisputeWonResult =
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
- * a chargeback closed in the gift's favour: the money came back, so every
- * row its open recorded is credited back in full. what was already recovered
- * from a party's grants is then due back to it.
+ * a chargeback closed in the gift's favour: the money came back, so each
+ * party's row is credited back the dispute's own share of what the party
+ * received and its card fee, and its part of the dispute fee, whatever else
+ * wrote the row. a later record of the row no longer counts it. what was
+ * already recovered from a party's grants is then due back to it.
  *
  * safe to rerun: a redelivery credits nothing new.
  */
@@ -190,29 +202,41 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
 
   const owed = await db.transaction(async (tx) => {
     await dispute_close(tx, record);
+    // set by an open that recorded what is owed; none, it owes nothing
+    const own = await dispute_get(d.dispute_id, tx);
+    if (own?.share == null) return [];
+    const ds = await settled_dists_locked(tx, don.id);
+    const shares = owed_shares(ds, {
+      f: own.share,
+      fee_usd: own.fee_usd ?? 0,
+      owes: () => true,
+    });
     const rows: IOwed[] = [];
-    for (const o of await owed_for_donation(don.id, tx)) {
-      if (o.source !== "dispute" || o.source_ref !== d.dispute_id) continue;
-      const credited = await credit_owed(tx, {
-        donation_id: don.id,
-        party: party_of(o),
-        reason: "dispute_won",
-        ref: d.dispute_id,
-        now,
-      });
-      rows.push(credited ?? o);
+    for (const s of shares) {
+      const row = await owed_for_party(don.id, s.party, tx);
+      if (!row) continue;
+      const id = d.dispute_id;
+      rows.push(
+        await credit_parts(
+          tx,
+          row,
+          { donation_id: don.id, party: s.party, now },
+          [
+            ["dispute_won", s.received_usd, id],
+            ["dispute_won_fee", s.fee_processing_usd, `${id}:fee`],
+            [
+              "dispute_won_fee_dispute",
+              s.fee_dispute_usd ?? 0,
+              `${id}:fee_dispute`,
+            ],
+          ]
+        )
+      );
     }
     return rows;
   });
   return { status: "credited", owed };
 }
-
-const party_of = (o: IOwed): OwedParty =>
-  o.npo_id !== null
-    ? { npo_id: o.npo_id }
-    : o.referrer_user !== null
-      ? { referrer_user: o.referrer_user }
-      : { referrer_npo: o.referrer_npo! };
 
 const usd = (n: number) => `${n.toFixed(2)} USD`;
 

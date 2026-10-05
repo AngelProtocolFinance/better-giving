@@ -1,6 +1,13 @@
 import { and, asc, eq, type SQL, sql } from "drizzle-orm";
 import type { DbOrTx } from "../pg/queries/helpers";
-import type { IOwedRecord } from "../pg/queries/owed";
+import {
+  credit_owed,
+  type IOwed,
+  type IOwedRecord,
+  type OwedCreditReason,
+  type OwedParty,
+  owed_total,
+} from "../pg/queries/owed";
 import { dists } from "../pg/schema/dist";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
@@ -169,4 +176,35 @@ function split_cents(usd: number, weights: number[]): number[] {
     shares[i]! += 1;
   }
   return shares.map((c) => c / 100);
+}
+
+/** one part of an event credited back, under its own reason so a later
+ * record of the row adds it back onto that figure; keyed on `ref` */
+export type CreditPart = readonly [
+  reason: OwedCreditReason,
+  usd: number,
+  ref: string,
+];
+
+/** credits each part back on `row`, each capped at what the row can still be
+ * credited; a part already credited under its ref adds nothing. the row as
+ * it stands after */
+export async function credit_parts(
+  tx: DbOrTx,
+  row: IOwed,
+  c: { donation_id: string; party: OwedParty; now: string },
+  parts: CreditPart[]
+): Promise<IOwed> {
+  let cur = row;
+  for (const [reason, usd, ref] of parts) {
+    // to 1e-9: summed in floats, 65.24 - 64.28 would cap 0.96 at 0.9599…
+    const creditable =
+      Math.round(
+        (owed_total(cur) - cur.credited_back_usd - cur.written_off_usd) * 1e9
+      ) / 1e9;
+    const credit = Math.min(usd, creditable);
+    if (credit <= 0) continue;
+    cur = (await credit_owed(tx, { ...c, usd: credit, reason, ref })) ?? cur;
+  }
+  return cur;
 }

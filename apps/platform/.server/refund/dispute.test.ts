@@ -391,9 +391,92 @@ describe("dispute_won", () => {
 
     expect(at_open).toMatchObject([{ outstanding_usd: 108.2 }]);
     expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 0 }]);
-    expect(
-      await db.select({ usd: owed_entries.usd }).from(owed_entries)
-    ).toEqual([{ usd: 108.2 }]);
+    const credits = await db
+      .select({ usd: owed_entries.usd })
+      .from(owed_entries);
+    expect(credits.reduce((s, c) => s + c.usd, 0)).toBeCloseTo(108.2, 10);
+    expect(credits).toHaveLength(3);
+  });
+});
+
+describe("dispute_won, whatever wrote the row", () => {
+  /** a refund of `taken` of the gift's $100, the charge's share taken back
+   * so far */
+  const refund_share = (donation_id: string, taken: number, ref: string) =>
+    reverse_charge({
+      donation_id,
+      rail: "stripe",
+      source: "refund",
+      share: { taken, of: 100 },
+      source_ref: ref,
+      alert_from: "charge-refunded",
+      notice: { id: `evt_${ref}`, lines: [] },
+    });
+  const outstanding = async (id: string) =>
+    (await owed_of(id)).map((o) => o.outstanding_usd);
+
+  test("a refund of $30 before a dispute over the other $70: the win leaves the refund's share owed", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund_share(id, 30, "re_1");
+    await dispute_opened({
+      ...opened_on(id),
+      disputed: { taken: 70, of: 100 },
+    });
+    expect(await outstanding(id)).toEqual([108.2]);
+
+    await dispute_won(won_on(id));
+
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+
+  test("a second dispute after the first closed with no decision: its win credits the whole", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened({ ...opened_on(id), dispute_id: "PP-D1" });
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: "PP-D1",
+      donation_id: id,
+      status: "inquiry_closed",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    const second = await dispute_opened(opened_on(id));
+    expect(second).toMatchObject({ prior_refs: ["PP-D1"] });
+
+    await dispute_won(won_on(id));
+
+    expect(await outstanding(id)).toEqual([0]);
+  });
+
+  test("a $30 chargeback taken before the dispute was filed: the win credits it", async () => {
+    const { id } = await seed(PAID_GRANT);
+    // a chargeback reversal recorded under its own ref, before its dispute
+    await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: 30, of: 100 },
+      dispute_fee_usd: 15,
+      source_ref: "REV-1",
+      alert_from: "charge-dispute",
+      notice: { id: "WH-1", lines: [] },
+    });
+    expect(await outstanding(id)).toEqual([42.96]);
+    await dispute_opened(opened_on(id, 15, 30));
+
+    await dispute_won(won_on(id));
+
+    expect(await outstanding(id)).toEqual([0]);
+  });
+
+  test("a $30 dispute won, then a $40 refund: the refund owes its own share", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened(opened_on(id, 15, 30));
+    await dispute_won(won_on(id));
+    expect(await outstanding(id)).toEqual([0]);
+
+    await refund_share(id, 40, "re_1");
+
+    expect(await outstanding(id)).toEqual([37.28]);
   });
 });
 
@@ -541,6 +624,19 @@ describe("a dispute lost after it opened", () => {
       expect(taken).toBeCloseTo(108.2, 10);
     }
   );
+
+  test("over part of the charge on a pending payout, says its share is already owed rather than to settle it by hand", async () => {
+    const { id } = await seed({ ...PAID_GRANT, payout: "pending" });
+    await dispute_opened(opened_on(id, 15, 30));
+
+    const res = await lose(id, 30);
+
+    expect(res).toMatchObject({
+      status: "partial_owed",
+      owed_msgs: [expect.stringMatching(/^\$42\.96 recorded as owed by /)],
+    });
+    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 42.96 }]);
+  });
 
   test("over part of the charge, owes what its open recorded and reverses nothing", async () => {
     const { id } = await seed(PAID_GRANT);

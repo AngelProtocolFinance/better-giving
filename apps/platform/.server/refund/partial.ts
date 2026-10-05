@@ -1,11 +1,23 @@
 import { eq, sql } from "drizzle-orm";
 import { humanize } from "@/helpers/decimal";
 import { db } from "../pg/db";
-import { owed_total, record_owed } from "../pg/queries/owed";
+import {
+  type IOwed,
+  type OwedParty,
+  owed_for_party,
+  owed_total,
+  record_owed,
+} from "../pg/queries/owed";
 import { refunds_credited_back } from "../pg/queries/owed-refund";
 import { donations } from "../pg/schema/donation";
 import type { OwedSource } from "./apply";
-import { grant_went_out, owed_shares, settled_dists_locked } from "./share";
+import {
+  grant_went_out,
+  type LockedDist,
+  owed_shares,
+  scaled,
+  settled_dists_locked,
+} from "./share";
 
 export interface ShareTaken extends OwedSource {
   donation_id: string;
@@ -74,6 +86,12 @@ export async function record_share(s: ShareTaken): Promise<ShareRecorded> {
       fee_usd: s.fee_dispute_usd,
       owes: grant_went_out,
     });
+    const owed_line = (row: IOwed, party: OwedParty) => {
+      const usd = humanize(owed_total(row));
+      return "npo_id" in party
+        ? `$${usd} recorded as owed by ${names.get(party.npo_id) || "its npo"} (npo ${party.npo_id}), to recover from its future grants`
+        : `$${usd} of its commission recorded as owed by referrer ${"referrer_user" in party ? party.referrer_user : party.referrer_npo}, to recover from its next commission`;
+    };
     for (const share of shares) {
       const row = await record_owed(tx, {
         ...share,
@@ -82,19 +100,30 @@ export async function record_share(s: ShareTaken): Promise<ShareRecorded> {
         source_ref: s.source_ref,
         now,
       });
-      const usd = humanize(owed_total(row));
-      owed_msgs.push(
-        "npo_id" in share.party
-          ? `$${usd} recorded as owed by ${names.get(share.party.npo_id) || "its npo"} (npo ${share.party.npo_id}), to recover from its future grants`
-          : `$${usd} of its commission recorded as owed by referrer ${"referrer_user" in share.party ? share.party.referrer_user : share.party.referrer_npo}, to recover from its next commission`
-      );
+      owed_msgs.push(owed_line(row, share.party));
     }
-    const pending = ds
-      .filter((d) => !grant_went_out(d))
-      .map(
-        (d) =>
+
+    // a dispute's open owes a grant not yet out too: a dist whose npo's row
+    // already counts this share as received is owed, not ops' to settle
+    const pending: string[] = [];
+    const not_out = new Map<number, LockedDist[]>();
+    for (const d of ds.filter((d) => !grant_went_out(d))) {
+      not_out.set(d.to_id, [...(not_out.get(d.to_id) ?? []), d]);
+    }
+    for (const [npo_id, nds] of not_out) {
+      const party = { npo_id };
+      const row = await owed_for_party(s.donation_id, party, tx);
+      const share = nds.reduce((sum, d) => sum + scaled(d.net, f), 0);
+      if (row && row.received_usd - row.credited_back_usd >= share - 0.005) {
+        owed_msgs.push(owed_line(row, party));
+        continue;
+      }
+      for (const d of nds) {
+        pending.push(
           `dist ${d.id} to ${d.to_name || "its npo"} (npo ${d.to_id}): ${d.payout_type === "pending" ? "its grant payout is still pending" : "its share is still in the npo's balances"}, so nothing of it is recorded as owed`
-      );
+        );
+      }
+    }
     return { undistributed: false, f, owed_msgs, pending };
   });
 }

@@ -4,12 +4,7 @@ import { humanize } from "@/helpers/decimal";
 import { db } from "../pg/db";
 import { donation_lock } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
-import {
-  credit_owed,
-  type OwedParty,
-  owed_for_party,
-  owed_total,
-} from "../pg/queries/owed";
+import { type OwedParty, owed_for_party, owed_total } from "../pg/queries/owed";
 import {
   refund_failed_ref,
   refunds_credited_back,
@@ -19,6 +14,7 @@ import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
+  credit_parts,
   gift_dists_locked,
   grant_went_out,
   type LockedDist,
@@ -162,30 +158,15 @@ export async function refund_failed(
           `${party_name(party, ds)}: $${humanize(Math.min(short, was.written_off_usd))} of the refund's share was written off, so not credited back; reverse by hand owed row ${was.id}'s write-off ${entries.join(", ")}, which still nets it off what a later refund records, and its loss log ${logs.join(", ")}`
         );
       }
-      let row = was;
-      // two entries, so a later record of the row adds each back onto its
-      // own figure
-      for (const [reason, usd, ref] of [
-        ["refund_failed", received, refund_failed_ref(refund.id)],
-        ["refund_failed_fee", fee, `refund_failed_fee:${refund.id}`],
-      ] as const) {
-        // to 1e-9: summed in floats, 65.24 - 64.28 would cap 0.96 at 0.9599…
-        const creditable =
-          Math.round(
-            (owed_total(row) - row.credited_back_usd - row.written_off_usd) *
-              1e9
-          ) / 1e9;
-        if (Math.min(usd, creditable) <= 0) continue;
-        row =
-          (await credit_owed(tx, {
-            donation_id: don.id,
-            party,
-            usd: Math.min(usd, creditable),
-            reason,
-            ref,
-            now,
-          })) ?? row;
-      }
+      const row = await credit_parts(
+        tx,
+        was,
+        { donation_id: don.id, party, now },
+        [
+          ["refund_failed", received, refund_failed_ref(refund.id)],
+          ["refund_failed_fee", fee, `refund_failed_fee:${refund.id}`],
+        ]
+      );
       credited.push(
         `$${humanize(row.credited_back_usd - was.credited_back_usd)} credited back to ${party_name(party, ds)}; outstanding now $${humanize(row.outstanding_usd ?? 0)}`
       );
