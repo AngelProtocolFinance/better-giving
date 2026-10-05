@@ -1563,6 +1563,22 @@ describe("refunds and reversals", () => {
     expect(res.ok).toBe(false);
   });
 
+  // paypal names no unsent refunds, so no later event would lift a hold
+  it("reports and acknowledges a reversal the entry holds", async () => {
+    await settled_capture();
+    paypal_capture_is("REFUNDED");
+    reverse_charge_mock.mockResolvedValue({ status: "held" });
+    report_error_mock.mockClear();
+
+    const res = await deliver(capture_refund_ev());
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining("held") }),
+      expect.objectContaining({ event_id: "WH-REF-1", donation_id: ORDER_ID })
+    );
+  });
+
   it("reports and acknowledges a refund of a charge no donation here owns", async () => {
     get_capture_mock.mockResolvedValue({
       ...capture_copy(),

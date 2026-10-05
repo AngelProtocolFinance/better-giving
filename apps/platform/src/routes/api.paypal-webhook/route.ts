@@ -43,6 +43,7 @@ import {
   type ReversalSource,
   reverse_charge,
   type Share,
+  WHOLE,
 } from "$/refund/reverse";
 import type { Route } from "./+types/route";
 
@@ -536,8 +537,6 @@ const share_of = (parts: IMoney[], whole: IMoney): Share => {
 
 const is_whole = (s: Share) => s.taken >= s.of;
 
-const WHOLE: Share = { taken: 1, of: 1 };
-
 /** what paypal's copy of the order lists as refunded off capture `cid`,
  * leaving out refund `except`. a failed read is reported, never "no earlier
  * refunds", which would pass a chargeback of the rest as partial: undefined
@@ -651,9 +650,15 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
       return new Response("share recorded", { status: 200 });
     case "unsized":
       return new Response("unsized reversal reported", { status: 200 });
-    // paypal names no unsent refunds, so the entry never holds one
+    // paypal names no unsent refunds, so the entry holds none; were it to, a
+    // redelivery would hold again, so it is reported and acknowledged
     case "held":
-      return new Response("reversal held", { status: 503 });
+      report_error(new Error("[paypal webhook] reversal held"), {
+        event_id: ev.id,
+        donation_id: don.id,
+        sttl_id: c.sttl_id,
+      });
+      return new Response("reversal held", { status: 200 });
   }
   switch (res.reason) {
     // a rerun skips what was reversed and retries what failed, so a
