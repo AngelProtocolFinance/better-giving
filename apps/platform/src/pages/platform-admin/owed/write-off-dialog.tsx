@@ -24,6 +24,8 @@ export interface IWriteOffDialog {
   remainder_usd?: number;
   on_submit: (values: IWriteOff) => void;
   on_close: () => void;
+  /** see `Modal`'s `returnFocusFallback` */
+  return_focus_fallback?: () => HTMLElement | null;
 }
 
 const HEADING = "Write off amount owed";
@@ -37,10 +39,17 @@ export function WriteOffDialog({
   row,
   submitting,
   on_close,
+  return_focus_fallback,
   ...rest
 }: IWriteOffDialog) {
   return (
-    <Modal open={open} onClose={on_close} busy={submitting} classes="bg-panel">
+    <Modal
+      open={open}
+      onClose={on_close}
+      busy={submitting}
+      returnFocusFallback={return_focus_fallback}
+      classes="bg-panel"
+    >
       {row &&
         (rest.remainder_usd != null ? (
           <Remainder usd={rest.remainder_usd} on_close={on_close} />

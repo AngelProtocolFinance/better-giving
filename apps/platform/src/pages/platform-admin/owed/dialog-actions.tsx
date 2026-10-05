@@ -1,4 +1,5 @@
 import { Actions } from "@better-giving/ui";
+import { useId } from "react";
 
 interface IDialogActions {
   submitting: boolean;
@@ -24,9 +25,10 @@ export function DialogActions({
   tone,
   on_close,
 }: IDialogActions) {
+  const error_id = useId();
   return (
     <>
-      <div role="alert" id="owed-dialog-error" className="px-6 sm:px-8">
+      <div role="alert" id={error_id} className="px-6 sm:px-8">
         {error && (
           <p className="mb-4 text-sm text-destructive-subtle-fg">{error}</p>
         )}
@@ -46,7 +48,7 @@ export function DialogActions({
           type="submit"
           aria-disabled={submitting}
           aria-busy={submitting}
-          aria-describedby="owed-dialog-error"
+          aria-describedby={error_id}
           onClick={(e) => {
             if (submitting) e.preventDefault();
           }}

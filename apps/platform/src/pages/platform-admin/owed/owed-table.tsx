@@ -61,7 +61,7 @@ export function OwedTable({
         classes={{ container: "mb-4 sm:w-56", option: "text-sm" }}
       />
       <div className="table-scroll">
-        <table className="table">
+        <table className="table" data-owed-table>
           <thead>
             <tr>
               <th scope="col">Gift</th>
@@ -96,7 +96,7 @@ export function OwedTable({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id}>
+              <tr key={r.id} data-row-id={r.id}>
                 <td className="font-mono text-xs">{r.donation_id}</td>
                 <td>
                   {party_name(r)}
@@ -121,6 +121,7 @@ export function OwedTable({
                   <div className="flex gap-2 whitespace-nowrap">
                     <button
                       type="button"
+                      data-action="write_off"
                       aria-label={`Write off ${party_name(r)}, gift ${r.donation_id}`}
                       onClick={() => on_write_off(r.id)}
                       className="btn btn-sm btn-secondary"
@@ -129,6 +130,7 @@ export function OwedTable({
                     </button>
                     <button
                       type="button"
+                      data-action="credit"
                       aria-label={`Credit ${party_name(r)}, gift ${r.donation_id}`}
                       onClick={() => on_credit(r.id)}
                       className="btn btn-sm btn-secondary"
@@ -153,6 +155,37 @@ export function OwedTable({
         </table>
       </div>
     </div>
+  );
+}
+
+export interface IReturnAt {
+  row_id: string;
+  action: "write_off" | "credit";
+  /** the row's position in the list when its dialog opened */
+  index: number;
+}
+
+/**
+ * where a row action's dialog sends focus once that action's button is gone:
+ * the same row's action (it remounted), else the action of the row now in its
+ * place, else of the nearest row above, else the empty state's cell. read
+ * against the table as it stands when called.
+ */
+export function owed_return_target(
+  { row_id, action, index }: IReturnAt,
+  root: ParentNode = document
+): HTMLElement | null {
+  const table = root.querySelector("[data-owed-table]");
+  if (!table) return null;
+  const rows = [...table.querySelectorAll("tbody > tr[data-row-id]")];
+  if (rows.length === 0) return table.querySelector<HTMLElement>("tbody td");
+  const action_of = (tr?: Element) =>
+    tr?.querySelector<HTMLElement>(`[data-action="${action}"]`) ?? null;
+  return (
+    action_of(rows.find((tr) => tr.getAttribute("data-row-id") === row_id)) ??
+    action_of(rows[index]) ??
+    // a reload that dropped later pages leaves no row at `index` or just above
+    action_of(rows[Math.min(index, rows.length) - 1])
   );
 }
 
@@ -200,7 +233,9 @@ function SortHeader({
         onClick={() =>
           on_sort_change(col, active && dir === "desc" ? "asc" : "desc")
         }
-        className="inline-flex items-center gap-1 rounded focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
+        // 24px target on a 20px line: the overhang sits in the cell's padding,
+        // so the header row keeps its height
+        className="inline-flex items-center gap-1 min-h-6 -my-0.5 rounded focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2"
       >
         {label}
         <Icon aria-hidden className="icon-sm" />

@@ -24,6 +24,8 @@ export interface ICreditDialog {
   error?: string;
   on_submit: (values: ICredit) => void;
   on_close: () => void;
+  /** see `Modal`'s `returnFocusFallback` */
+  return_focus_fallback?: () => HTMLElement | null;
 }
 
 const required_text = v.pipe(v.string(), v.trim(), v.nonEmpty("required"));
@@ -53,10 +55,17 @@ export function CreditDialog({
   row,
   submitting,
   on_close,
+  return_focus_fallback,
   ...rest
 }: ICreditDialog) {
   return (
-    <Modal open={open} onClose={on_close} busy={submitting} classes="bg-panel">
+    <Modal
+      open={open}
+      onClose={on_close}
+      busy={submitting}
+      returnFocusFallback={return_focus_fallback}
+      classes="bg-panel"
+    >
       {row && (
         <Body
           key={row.id}
