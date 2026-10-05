@@ -1129,6 +1129,40 @@ describe("owed_list", () => {
     return npo_row;
   }
 
+  test("hides a row left owing under a cent, and lists one owing a cent", async () => {
+    const [base] = await t.db
+      .select()
+      .from(donations)
+      .where(eq(donations.id, DON));
+    /** a $93.20 row on its own gift, `recovered` of it taken by a run */
+    const left_owing = async (donation_id: string, recovered: number) => {
+      if (donation_id !== DON) {
+        await t.db.insert(donations).values({ ...base!, id: donation_id });
+      }
+      await record_owed(as_db(t.db), { ...refund_of(npo_a), donation_id });
+      return recover_owed(as_db(t.db), {
+        donation_id,
+        party: { npo_id: npo_a },
+        usd: recovered,
+        reason: "grant_run",
+        ref: "run-1",
+        now: NOW,
+      });
+    };
+    await left_owing(DON, 93.1951);
+    await left_owing("don-2", 93.1949);
+    const cent = await left_owing("don-3", 93.19);
+
+    const page = await owed_list(
+      { sort: "outstanding", dir: "asc" },
+      as_db(t.db)
+    );
+
+    expect(page.items.map((r) => [r.id, r.outstanding_usd])).toEqual([
+      [cent!.id, 0.01],
+    ]);
+  });
+
   test("lists every party's row still owing and hides those at $0", async () => {
     await seed_three_owing();
     const cleared = await record_owed(as_db(t.db), {

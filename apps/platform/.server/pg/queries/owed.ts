@@ -534,7 +534,8 @@ export interface IOwedListItem
   party_name: string | null;
 }
 
-/** rows still owed (> $0), both parties */
+/** rows still owed, both parties. under a cent counts as settled: the grant
+ * run floors each row to whole cents, so it never takes that remainder */
 export async function owed_list(
   o: IOwedListOptions,
   tx: DbOrTx = db
@@ -584,7 +585,7 @@ export async function owed_list(
     .leftJoin(user, eq(user.referral_code, owed_amounts.referrer_user))
     .where(
       and(
-        sql`${owed_amounts.outstanding_usd} > 0`,
+        sql`${owed_amounts.outstanding_usd} >= 0.01`,
         o.party === "npo"
           ? isNotNull(owed_amounts.npo_id)
           : o.party === "referrer"
