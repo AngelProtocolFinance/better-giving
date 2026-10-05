@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { with_actor_names } from "#/.server/loss-log-actors";
 import { resp } from "@/helpers/https";
 import { loss_log_list } from "$/pg/queries/revenue";
 import type { Route } from "./+types/route";
@@ -14,5 +15,5 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     next: p.output ?? undefined,
   });
 
-  return page;
+  return { ...page, items: await with_actor_names(page.items) };
 };

@@ -7,6 +7,7 @@ export const routes = {
   savings: "savings",
   donations: "donations",
   losses: "losses",
+  owed: "owed",
   donation_settlements: "donation-settlements",
   fundraiser_moderation: "fundraiser-moderation",
 } as const;
