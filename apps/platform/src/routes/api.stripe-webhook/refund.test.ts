@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { DbOrTx } from "$/pg/queries/helpers";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
 // the webhook route with its real refund handlers over pglite; stripe's api
@@ -17,6 +18,7 @@ const charge_retrieve_mock = vi.hoisted(() => vi.fn());
 const refunds_list_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const invoice_payments_list_mock = vi.hoisted(() => vi.fn());
+const report_error_mock = vi.hoisted(() => vi.fn());
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
 vi.mock("$/kit/stripe", () => ({
@@ -41,15 +43,14 @@ vi.mock("$/pg/db", () => ({
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
-vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
+vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 
 const { action } = await import("./route");
-const { owed_for_donation } = await import("$/pg/queries/owed");
+const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
 const { owed_amounts } = await import("$/pg/schema/owed");
-const { PAID_GRANT, clear_card_gifts, seed_card_gift } = await import(
-  "#/__tests__/fixtures/card-gift"
-);
+const { PAID_GRANT, clear_card_gifts, seed_card_gift, seed_paid_commission } =
+  await import("#/__tests__/fixtures/card-gift");
 
 const db = () => test_db.current!.db;
 
@@ -124,6 +125,39 @@ const settle = (id: string, status: string) => {
       previous_attributes: { status: previous },
     },
   };
+};
+
+/** the bank returns refund `id` to stripe; returns stripe's refund.failed */
+const fail = (id: string) => {
+  const r = refunds.find((x) => x.id === id);
+  if (!r) throw new Error(`no refund ${id}`);
+  r.status = "failed";
+  clock += 60;
+  return {
+    id: `evt_${++event_n}`,
+    type: "refund.failed",
+    created: clock,
+    data: {
+      object: {
+        ...r,
+        charge: charge_now().id,
+        payment_intent: charge_of.sttl_id,
+        currency: "usd",
+        failure_reason: "expired_or_canceled_card",
+      },
+    },
+  };
+};
+
+/** the finance alert a failed refund posts, title and body */
+const failed_alert = () => {
+  const [m, ...rest] = enqueue_mock.mock.calls
+    .flat()
+    .filter((x) => x.payload?.alert?.title === "Stripe Refund Failed");
+  if (rest.some((x) => x.dedupe !== m.dedupe)) {
+    throw new Error("more than one alert");
+  }
+  return m ? `${m.payload.alert.title}\n${m.payload.alert.body}` : undefined;
 };
 
 /** verified by the mocked signature check, then handled for real */
@@ -365,5 +399,195 @@ describe("what the share counts", () => {
     expect(await owed_of(charge_of.id)).toMatchObject([
       { source_ref: "re_2", outstanding_usd: 37.28 },
     ]);
+  });
+});
+
+describe("a refund that fails after it succeeded", () => {
+  it("credits back the row the reversal recorded, leaving nothing outstanding, and tells finance", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000));
+
+    const res = await deliver(fail("re_1"));
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { received_usd: 90, fee_processing_usd: 3.2, outstanding_usd: 0 },
+    ]);
+    const alert = failed_alert();
+    expect(alert).toMatch(
+      /\$93\.20 credited back to NPO .*; outstanding now \$0/
+    );
+    expect(alert).not.toMatch(/nothing was changed|reversal stands/);
+  });
+
+  it("leaves the nonprofit due back what a grant run had already recovered", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000));
+    await recover_owed(db() as unknown as DbOrTx, {
+      donation_id: charge_of.id,
+      party: { npo_id: charge_of.npo_ids[0]! },
+      usd: 93.2,
+      reason: "grant_run",
+      ref: "run-1",
+      now: new Date().toISOString(),
+    });
+
+    await deliver(fail("re_1"));
+
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: -93.2 },
+    ]);
+  });
+
+  it("credits back the referrer's row from the same refund", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await seed_paid_commission(db(), charge_of, "REF-1", 5);
+    await deliver(refund(10_000));
+    const referrer_row = async () =>
+      (await owed_for_donation(charge_of.id)).find(
+        (o) => o.referrer_user === "REF-1"
+      );
+    const before = await referrer_row();
+
+    await deliver(fail("re_1"));
+
+    expect(before).toMatchObject({ outstanding_usd: 5 });
+    expect(await referrer_row()).toMatchObject({ outstanding_usd: 0 });
+    expect(failed_alert()).toMatch(/\$5\.00? credited back to referrer REF-1/);
+  });
+
+  it("credits nothing twice when stripe redelivers it", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000));
+    const failed = fail("re_1");
+
+    await deliver(failed);
+    await deliver(failed);
+
+    expect(await owed_of(charge_of.id)).toMatchObject([{ outstanding_usd: 0 }]);
+  });
+});
+
+describe("a partial refund that fails after it succeeded", () => {
+  it("credits back only its share of a gift the refunds reversed", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+    await deliver(refund(6_000));
+
+    await deliver(fail("re_2"));
+
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 37.28 },
+    ]);
+    expect((await gift_of(charge_of.id))?.status).toBe("refunded_loss");
+  });
+
+  it("credits back the share it recorded on a gift still settled, and a later refund records its own", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+
+    await deliver(fail("re_1"));
+    const after_failure = await owed_of(charge_of.id);
+    await deliver(refund(6_000));
+
+    expect(after_failure).toMatchObject([{ outstanding_usd: 0 }]);
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 55.92 },
+    ]);
+    expect(await gift_of(charge_of.id)).toEqual({
+      status: "settled",
+      refunded_share: 0.6,
+    });
+  });
+});
+
+describe("a refund that fails while held", () => {
+  it("credits nothing back of an earlier refund's share, and tells finance nothing changed", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+    await deliver(refund(2_000, "pending"));
+
+    const res = await deliver(fail("re_2"));
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { source_ref: "re_1", outstanding_usd: 37.28 },
+    ]);
+    expect(failed_alert()).toMatch(
+      /taken nothing back from the donation \(status settled\): nothing was changed/
+    );
+  });
+
+  it("leaves a gift its held full refund never reversed as it was", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000, "pending"));
+
+    await deliver(fail("re_1"));
+
+    expect(await owed_of(charge_of.id)).toEqual([]);
+    expect((await gift_of(charge_of.id))?.status).toBe("settled");
+    expect(failed_alert()).toMatch(/nothing was changed/);
+  });
+});
+
+describe("a refund that fails after reversing a gift whose payout was pending", () => {
+  it("credits nothing, and tells finance to re-settle it by hand", async () => {
+    charge_of = await seed_card_gift(db(), {
+      ...PAID_GRANT,
+      payout: "pending",
+    });
+    await deliver(refund(10_000));
+    const after_reversal = await owed_of(charge_of.id);
+
+    await deliver(fail("re_1"));
+
+    expect(await owed_of(charge_of.id)).toEqual(after_reversal);
+    expect(failed_alert()).toMatch(/undo by hand:\n.*re-settle/);
+  });
+});
+
+describe("the finance alert of a failed refund", () => {
+  it("names the refund, its amount and stripe's reason, keyed on the refund", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000));
+
+    await deliver(fail("re_1"));
+
+    const [alert] = enqueue_mock.mock.calls
+      .flat()
+      .filter((m) => m.payload?.alert?.title === "Stripe Refund Failed");
+    expect(alert.dedupe).toBe("fiat.notice_re_1");
+    expect(alert.payload.alert.body).toMatch(
+      /refund re_1[\s\S]*amount: 100\.00 USD[\s\S]*failure reason: expired_or_canceled_card/
+    );
+  });
+
+  it("fails the delivery when the alert of a refund that changed nothing can't be queued", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000, "pending"));
+    const failed = fail("re_1");
+    enqueue_mock.mockRejectedValue(new Error("qstash 503"));
+
+    const res = await deliver(failed);
+
+    expect(res.status).not.toBe(200);
+  });
+
+  // a redelivery would read the credit as already made and tell it wrong
+  it("reports the alert of a credit it can't queue rather than have stripe redeliver it", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(10_000));
+    const failed = fail("re_1");
+    enqueue_mock.mockRejectedValue(new Error("qstash 503"));
+
+    const res = await deliver(failed);
+
+    expect(res.status).toBe(200);
+    expect(report_error_mock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "qstash 503" }),
+      expect.objectContaining({
+        body: expect.stringMatching(/\$93\.20 credited back/),
+      })
+    );
   });
 });
