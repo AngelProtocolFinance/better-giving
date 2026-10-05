@@ -780,6 +780,24 @@ const notify_dispute = async (
   );
 };
 
+/** what refunds took off the charge before its dispute, so the filing owes
+ * the share taken so far. a capture's order lists them; a v1 sale lists
+ * none, and a lookup paypal refuses counts none, leaving a REVERSED that
+ * follows to count them. undefined when a redelivery may read them */
+const refunded_before = async (
+  charge: string,
+  don: IDonation
+): Promise<IMoney[] | undefined> => {
+  if (don.subscription_id) return [];
+  const capture = await fetch_resource(() => paypal.get_capture(charge));
+  if (typeof capture === "number" || capture.status !== "PARTIALLY_REFUNDED")
+    return [];
+  const order_id = capture.supplementary_data?.related_ids?.order_id;
+  if (!order_id) return [];
+  const earlier = await prior_refunds(order_id, charge, undefined);
+  return earlier === "refused" ? [] : earlier;
+};
+
 /**
  * a dispute filed on a gift: what each of its parties received, plus the card
  * fee and any chargeback fee paypal reports, is recorded as owed at once. the
@@ -791,7 +809,7 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
   const tx = d.disputed_transactions?.[0];
   const charge = tx?.seller_transaction_id;
   const don = charge ? await donation_by_sttl_id(charge) : undefined;
-  if (!d.dispute_id || !don) {
+  if (!d.dispute_id || !charge || !don) {
     // keyed on the event: nothing is put on record to stop a redelivery
     await notify_dispute(ev, d, undefined, {
       id: `paypal-dispute_${ev.id}`,
@@ -804,18 +822,23 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
     return new Response("dispute reported", { status: 200 });
   }
   const fee = dispute_fee(d);
-  // refunds before the dispute aren't counted: a REVERSED that follows
-  // counts them. a share this can't size, the open owes as the whole
-  const share = share_of(
-    [v2_money(d.dispute_amount)],
-    v2_money(tx?.gross_amount)
-  );
+  const earlier = await refunded_before(charge, don);
+  if (!earlier) {
+    return new Response("earlier refunds unread, retry later", {
+      status: 503,
+    });
+  }
+  // a share this can't size, the open owes as the whole
+  const disputed = v2_money(d.dispute_amount);
+  const whole = v2_money(tx?.gross_amount);
+  const share = share_of([...earlier, disputed], whole);
   const res = await dispute_opened({
     donation_id: don.id,
     rail: "paypal",
     dispute_id: d.dispute_id,
     opened_at: d.create_time ?? new Date().toISOString(),
     share,
+    disputed: share_of([disputed], whole),
     fee_usd: fee.usd,
   });
   // told on the first sighting, and again only when what is owed grows: a
@@ -838,7 +861,7 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
         const prior =
           res.prior_refs.length > 0
             ? [
-                `what is owed on this payment stands under ${res.prior_refs.join(", ")}, recorded before this dispute, and this dispute's share is merged into it. if this dispute is won, check what is credited back.`,
+                `what is owed on this payment stands under ${res.prior_refs.join(", ")}, recorded before this dispute; this dispute's share is merged into it, and a win of it credits that share back.`,
               ]
             : [];
         if (res.owed_written) {
@@ -963,9 +986,9 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
         id: `paypal-dispute-won-uncredited_${record.id}`,
         title: "PayPal Dispute Won, Nothing Credited",
         lines: [
-          `paypal resolved the dispute ${outcome}, leaving us the disputed amount, but no row on the gift was recorded under it, so nothing was credited back. the gift still owes:`,
+          `paypal resolved the dispute ${outcome}, leaving us the disputed amount, but its filing recorded nothing as owed here (never delivered, or handled after the win), so nothing was credited back. the gift still owes:`,
           ...owed_lines(owing),
-          "if those rows are this dispute's (merged into an earlier dispute's or a refund's), credit them by hand on Amounts owed.",
+          "if any of it is this dispute's share, credit it by hand on Amounts owed.",
         ],
       });
     }

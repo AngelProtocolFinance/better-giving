@@ -2564,28 +2564,143 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
       expect(notices()[0].body).toContain("93.20 USD");
     });
 
-    it("won with nothing credited and the gift still owing, tells ops once", async () => {
+    it("won, credits its own share back and tells ops nothing", async () => {
       const { sttl_id } = await second_filed();
-      const owed = await owed_rows();
       enqueue_mock.mockClear();
 
-      const won = resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR", {
-        dispute_id: SECOND,
-      });
-      await deliver(won);
-      const res = await deliver(won);
+      await deliver(
+        resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR", { dispute_id: SECOND })
+      );
+
+      expect(await owed_rows()).toMatchObject([
+        { received_usd: 90, outstanding_usd: 0 },
+      ]);
+      expect(notices()).toEqual([]);
+    });
+  });
+
+  /** paypal's refund of `value` off the capture, `total` refunded to date */
+  const refunded_ev = (
+    charge: string,
+    id: string,
+    value: string,
+    total: string
+  ) => ({
+    id: `WH-${id}`,
+    event_version: "1.0",
+    create_time: "2026-10-01T11:00:00.000Z",
+    resource_type: "refund",
+    event_type: "PAYMENT.CAPTURE.REFUNDED",
+    resource: {
+      id,
+      status: "COMPLETED",
+      amount: { value, currency_code: "USD" },
+      seller_payable_breakdown: {
+        total_refunded_amount: { value: total, currency_code: "USD" },
+      },
+      links: [
+        {
+          rel: "up",
+          method: "GET",
+          href: `https://api.paypal.com/v2/payments/captures/${charge}`,
+        },
+      ],
+    },
+  });
+
+  /** paypal's copy of the capture, `refunds` taken off it before */
+  const capture_refunded = (charge: string, refunds: [string, string][]) => {
+    get_capture_mock.mockResolvedValue({
+      ...capture_copy(),
+      id: charge,
+      status: "PARTIALLY_REFUNDED",
+      supplementary_data: { related_ids: { order_id: "ORDER-1" } },
+    });
+    get_order_mock.mockResolvedValue({
+      id: "ORDER-1",
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ id: charge }],
+            refunds: refunds.map(([id, value]) => ({
+              id,
+              status: "COMPLETED",
+              amount: { value, currency_code: "USD" },
+            })),
+          },
+        },
+      ],
+    });
+  };
+
+  it("a $30 refund, then a dispute over the other $70 won, leaves the refund's share owed", async () => {
+    const { sttl_id } = await paypal_gift();
+    capture_refunded(sttl_id, [["REF-30", "30.00"]]);
+    await deliver(refunded_ev(sttl_id, "REF-30", "30.00", "30.00"));
+
+    await deliver(
+      created_ev(sttl_id, {
+        dispute_amount: { currency_code: "USD", value: "70.00" },
+      })
+    );
+    const filed = await owed_rows();
+    await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+
+    expect(filed).toMatchObject([{ outstanding_usd: 93.2 }]);
+    expect(await owed_rows()).toMatchObject([
+      { received_usd: 90, outstanding_usd: 27.96 },
+    ]);
+  });
+
+  it.each(["PAYMENT.CAPTURE.REFUNDED", "PAYMENT.CAPTURE.REVERSED"])(
+    "a $30 dispute won, then %s of $40, owes the $40's share",
+    async (event_type) => {
+      const { sttl_id } = await paypal_gift();
+      await deliver(
+        created_ev(sttl_id, {
+          dispute_amount: { currency_code: "USD", value: "30.00" },
+        })
+      );
+      await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+      const ev = refunded_ev(sttl_id, "REF-40", "40.00", "40.00");
+
+      const res = await deliver(
+        event_type === "PAYMENT.CAPTURE.REFUNDED"
+          ? ev
+          : {
+              ...ev,
+              event_type,
+              resource: {
+                ...ev.resource,
+                amount: { value: "-40.00", currency_code: "USD" },
+              },
+            }
+      );
 
       expect(res.status).toBe(200);
-      expect(await owed_rows()).toEqual(owed);
-      expect(notices()).toEqual([
-        expect.objectContaining({
-          title: "PayPal Dispute Won, Nothing Credited",
-        }),
-      ]);
-      const [{ body }] = notices();
-      expect(body).toContain("93.20 USD");
-      expect(body).toContain("by hand");
-    });
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: 37.28 }]);
+    }
+  );
+
+  it("won with no filing on record while a refund's share is owed, tells ops once that nothing was credited", async () => {
+    const { sttl_id } = await paypal_gift();
+    capture_refunded(sttl_id, [["REF-40", "40.00"]]);
+    await deliver(refunded_ev(sttl_id, "REF-40", "40.00", "40.00"));
+    const owed = await owed_rows();
+    enqueue_mock.mockClear();
+
+    const won = resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR");
+    await deliver(won);
+    const res = await deliver(won);
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toEqual(owed);
+    expect(notices()).toEqual([
+      expect.objectContaining({
+        title: "PayPal Dispute Won, Nothing Credited",
+      }),
+    ]);
+    expect(notices()[0].body).toContain("37.28 USD");
   });
 
   it("credits what the filing recorded back to nothing outstanding on a seller win", async () => {
