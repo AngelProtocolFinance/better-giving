@@ -7,11 +7,13 @@ import { owed_amounts, owed_entries } from "../schema/owed";
 import { settlements } from "../schema/payout";
 import type { DbOrTx } from "./helpers";
 import {
-  failed_credits,
+  credits_under,
   type IOwed,
+  type OwedFigureKey,
   type OwedParty,
   owed_reaches_party,
   party_is,
+  uncounted_credits,
 } from "./owed";
 
 /** a row still owing is `partly_recovered` or `recorded`, whatever settled
@@ -36,8 +38,9 @@ export interface IOwedRunLine {
   at: string;
 }
 
-/** received, card fee and credited back are net of what a failed refund
- * credited back, so a gift's row never reads more than the gift */
+/** received, card fee, dispute fee and credited back are net of what a
+ * failed refund or a dispute won credited back, each carried on its own
+ * line, so a gift's row never reads more than the gift */
 export interface IOwedHistoryRow
   extends Pick<
     IOwed,
@@ -64,6 +67,9 @@ export interface IOwedHistoryRow
   /** credited back because a refund failed after it was recorded; kept out
    * of `credited_back_usd`, which holds every other credit */
   refund_failed_usd: number;
+  /** credited back because a dispute was won or a claim accepted; kept out
+   * of `credited_back_usd` the same way */
+  dispute_won_usd: number;
   /** negative: the party is due that much back */
   outstanding_usd: number;
   /** oldest first; a run whose transfer went unfunded is left out, its
@@ -80,10 +86,19 @@ const state = sql<OwedState>`CASE
   WHEN ${owed_amounts.recovered_usd} > 0 THEN 'recovered'
   ELSE 'recorded' END`;
 
-// record_owed adds a failed refund's credits back onto the figures, so they
-// keep offsetting it; the party sees each figure without that pair
-const failed_received = failed_credits("refund_failed");
-const failed_fee = failed_credits("refund_failed_fee");
+// record_owed adds the credits of an event that no longer counts back onto
+// its figure, so they keep offsetting it; the party sees each figure without
+// them, and the credits on their own lines
+const refund_failed = credits_under(["refund_failed", "refund_failed_fee"]);
+const dispute_won = credits_under([
+  "dispute_won",
+  "dispute_won_fee",
+  "dispute_won_fee_dispute",
+]);
+const net_of_uncounted = (figure: OwedFigureKey) =>
+  sql<number>`${owed_amounts[figure]} - ${uncounted_credits(figure)}`.mapWith(
+    owed_amounts[figure]
+  );
 
 /** a recovery as is; a due-back payment, which the run added, negative */
 const signed_usd =
@@ -136,24 +151,20 @@ async function history_of(tx: DbOrTx, where: SQL): Promise<IOwedHistoryRow[]> {
       source: owed_amounts.source,
       recorded_at: owed_amounts.recorded_at,
       state,
-      received_usd:
-        sql<number>`${owed_amounts.received_usd} - ${failed_received}`.mapWith(
-          owed_amounts.received_usd
-        ),
-      fee_processing_usd:
-        sql<number>`${owed_amounts.fee_processing_usd} - ${failed_fee}`.mapWith(
-          owed_amounts.fee_processing_usd
-        ),
-      fee_dispute_usd: owed_amounts.fee_dispute_usd,
+      received_usd: net_of_uncounted("received_usd"),
+      fee_processing_usd: net_of_uncounted("fee_processing_usd"),
+      fee_dispute_usd: net_of_uncounted("fee_dispute_usd"),
       recovered_usd: owed_amounts.recovered_usd,
       credited_back_usd:
-        sql<number>`${owed_amounts.credited_back_usd} - ${failed_received} - ${failed_fee}`.mapWith(
+        sql<number>`${owed_amounts.credited_back_usd} - ${refund_failed} - ${dispute_won}`.mapWith(
           owed_amounts.credited_back_usd
         ),
-      refund_failed_usd:
-        sql<number>`${failed_received} + ${failed_fee}`.mapWith(
-          owed_amounts.credited_back_usd
-        ),
+      refund_failed_usd: sql<number>`${refund_failed}`.mapWith(
+        owed_amounts.credited_back_usd
+      ),
+      dispute_won_usd: sql<number>`${dispute_won}`.mapWith(
+        owed_amounts.credited_back_usd
+      ),
       credited_back_at: owed_amounts.credited_back_at,
       written_off_usd: owed_amounts.written_off_usd,
       written_off_at: owed_amounts.written_off_at,

@@ -20,6 +20,7 @@ import type { DbOrTx } from "./helpers";
 import {
   admin_credit_owed,
   credit_owed,
+  type OwedCreditReason,
   type OwedParty,
   owed_for_donation,
   owed_list,
@@ -156,8 +157,8 @@ describe("npo_owed_history", () => {
     await credit_owed(as_db(t.db), {
       donation_id: "don-3",
       party: { npo_id: npo_a },
-      reason: "dispute_won",
-      ref: "dp_won",
+      reason: "payout_cancelled",
+      ref: "payout-1",
       now: CREDIT_AT,
     });
     const [waived] = await owed_for_donation("don-4", as_db(t.db));
@@ -181,6 +182,7 @@ describe("npo_owed_history", () => {
       recovered_usd: 0,
       credited_back_usd: 0,
       refund_failed_usd: 0,
+      dispute_won_usd: 0,
       written_off_usd: 0,
       credited_back_at: null,
       written_off_at: null,
@@ -330,6 +332,83 @@ describe("npo_owed_history", () => {
       refund_failed_usd: 93.2,
       credited_back_usd: 0,
       outstanding_usd: 0,
+    });
+  });
+
+  describe("after a dispute won", () => {
+    const record = (
+      source: "refund" | "dispute",
+      source_ref: string,
+      received_usd: number,
+      fee: number,
+      fee_dispute_usd = 0
+    ) =>
+      record_owed(as_db(t.db), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        source,
+        source_ref,
+        received_usd,
+        fee_processing_usd: fee,
+        fee_dispute_usd,
+        now: NOW,
+      });
+    const win = async (credits: [OwedCreditReason, number][]) => {
+      for (const [reason, usd] of credits) {
+        await credit_owed(as_db(t.db), {
+          donation_id: "don-1",
+          party: { npo_id: npo_a },
+          usd,
+          reason,
+          ref: `${reason}:dp_1`,
+          now: CREDIT_AT,
+        });
+      }
+    };
+
+    test("a full claim accepted, then the whole refund, reads the gift's own figures", async () => {
+      await gift("don-1", EFFECTIVE);
+      await record("dispute", "dp_1", 90, 3.2);
+      await win([
+        ["dispute_won", 90],
+        ["dispute_won_fee", 3.2],
+      ]);
+      await record("refund", "re_1", 90, 3.2);
+
+      const [row] = await npo_owed_history(npo_a, as_db(t.db));
+      expect(row).toMatchObject({
+        state: "recorded",
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 0,
+        credited_back_usd: 0,
+        dispute_won_usd: 93.2,
+        refund_failed_usd: 0,
+        outstanding_usd: 93.2,
+      });
+    });
+
+    test("a stripe dispute won, then a $40 refund, reads the refund's own figures", async () => {
+      await gift("don-1", EFFECTIVE);
+      await record("dispute", "dp_1", 90, 3.2, 15);
+      await win([
+        ["dispute_won", 90],
+        ["dispute_won_fee", 3.2],
+        ["dispute_won_fee_dispute", 15],
+      ]);
+      await record("refund", "re_1", 36, 1.28);
+
+      const [row] = await npo_owed_history(npo_a, as_db(t.db));
+      expect(row).toMatchObject({
+        state: "recorded",
+        received_usd: 36,
+        fee_processing_usd: 1.28,
+        fee_dispute_usd: 0,
+        credited_back_usd: 0,
+        dispute_won_usd: 108.2,
+        refund_failed_usd: 0,
+        outstanding_usd: 37.28,
+      });
     });
   });
 

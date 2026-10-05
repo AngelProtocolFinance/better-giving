@@ -68,7 +68,7 @@ export interface IOwedRecord {
 }
 
 /** what the row was credited back under `reasons` */
-const credits_under = (reasons: OwedCreditReason[]) =>
+export const credits_under = (reasons: OwedCreditReason[]) =>
   sql`(SELECT COALESCE(SUM(${owed_entries.usd}), 0) FROM ${owed_entries}
     WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
       AND ${owed_entries.kind} = 'credit'
@@ -76,10 +76,6 @@ const credits_under = (reasons: OwedCreditReason[]) =>
         reasons.map((r) => sql`${r}`),
         sql`, `
       )}))`;
-
-/** what failed refunds credited back on the row under `reason` */
-export const failed_credits = (reason: OwedCreditReason) =>
-  credits_under([reason]);
 
 export type OwedFigureKey =
   | "received_usd"
@@ -93,6 +89,11 @@ const UNCOUNTED: Record<OwedFigureKey, OwedCreditReason[]> = {
   fee_processing_usd: ["refund_failed_fee", "dispute_won_fee"],
   fee_dispute_usd: ["dispute_won_fee_dispute"],
 };
+
+/** what the row was credited back of `figure` for events that no longer
+ * count, which a later record adds back onto it */
+export const uncounted_credits = (figure: OwedFigureKey) =>
+  credits_under(UNCOUNTED[figure]);
 
 /** the figure an uncounted credit takes back from */
 export const figure_of = (reason: OwedCreditReason): OwedFigureKey | null =>
