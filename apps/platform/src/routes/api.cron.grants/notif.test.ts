@@ -204,6 +204,23 @@ describe("grants schedule notice", () => {
     expect(data.total_grant).toBe(406.8);
   });
 
+  test("switched on, an npo whose net falls under its minimum is skipped, still showing what it owes", async () => {
+    deductions.on = true;
+    await seed_npo("Small", { amount: 80 });
+    await seed_owed("Small", "don-owed", 50);
+
+    await index();
+
+    const data = template.mock.calls[0]![0] as any;
+    expect(data.rows[0]).toMatchObject({
+      amount: 80,
+      net: 30,
+      effect: "skipped",
+      deductions: [{ donation_id: "don-owed", usd: 50 }],
+    });
+    expect(data.total_grant).toBe(0);
+  });
+
   test("switched on, an npo owed a transfer with no wise recipient is skipped, its total left out", async () => {
     deductions.on = true;
     await seed_npo("Paid", { amount: 100 });

@@ -3,7 +3,7 @@ import { group_by } from "@/helpers/array";
 import type { IPayout, IPendingStatus } from "@/payouts";
 import { owed_deductions, stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
-import { settle_npo_payouts } from "$/payouts/settle";
+import { settle_npo_payouts, undo_deductions } from "$/payouts/settle";
 import { wise_pay } from "$/payouts/wise-pay";
 import { pending_payouts, processing_payouts } from "$/pg/queries/payout";
 import { grant_eligibility } from "./eligibility";
@@ -60,9 +60,13 @@ async function alert_unsettled_claims() {
       stuck,
       (p) => `npo:${p.npo_id} ref ${p.ref || "unknown"}`
     );
-    const lines = Object.entries(by_claim).map(
-      ([claim, ps = []]) => `${claim}: ${ps.map((p) => p.id).join(", ")}`
-    );
+    const lines = Object.entries(by_claim).map(([claim, ps = []]) => {
+      const line = `${claim}: ${ps.map((p) => p.id).join(", ")}`;
+      const { npo_id, ref } = ps[0]!;
+      return ref
+        ? `${line}\n  to reset: ${undo_deductions(npo_id, ref)}`
+        : line;
+    });
     await aws_monitor.send_alert({
       type: "ERROR",
       from: fn,
@@ -76,8 +80,8 @@ async function alert_unsettled_claims() {
 
 async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
   try {
-    // the minimum check skips the locking claim tx each run for an npo still
-    // under it; the settle's locked recheck is the authoritative one
+    // a run that doesn't net skips the locking claim tx for an npo still under
+    // its minimum; one that nets judges the minimum in the claim, under lock
     const el = await grant_eligibility(
       npo_id,
       items.map((i) => i.amount),
@@ -93,9 +97,12 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
     const res = await settle_npo_payouts(
       { id: npo.id, name: npo.name, payout_minimum: minimum },
       items.map((i) => i.id),
-      wise_id,
-      // settle pays only with a recipient
-      (ref, total) => wise_pay(Number(wise_id), total, ref)
+      wise_id === null
+        ? null
+        : {
+            ref_key: wise_id,
+            pay: (ref, total) => wise_pay(+wise_id, total, ref),
+          }
     );
     if (res.status === "recovered") {
       await aws_monitor.send_alert({

@@ -34,7 +34,8 @@ async function netted_row(
     min: el.minimum,
   };
   if (plan.status === "under_minimum") {
-    return { ...base, net: plan.net, effect: "skipped", deductions: [] };
+    const { net, deductions } = plan;
+    return { ...base, net, effect: "skipped", deductions };
   }
   const deductions = [
     ...plan.recovered,

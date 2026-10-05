@@ -37,12 +37,17 @@ describe("net_owed", () => {
     });
   });
 
-  test("a positive net under the minimum claims and recovers nothing", () => {
-    expect(net_owed(150, [owes("d-1", 93.2)], 100)).toEqual({
+  test("a positive net under the minimum claims and recovers nothing, naming what it was judged on", () => {
+    const owed = [owes("d-1", 93.2), owes("d-2", -10)];
+    expect(net_owed(150, owed, 100)).toEqual({
       status: "under_minimum",
       gross: 150,
-      net: 56.8,
+      net: 66.8,
       minimum: 100,
+      deductions: [
+        { donation_id: "d-1", usd: 93.2 },
+        { donation_id: "d-2", usd: -10 },
+      ],
     });
   });
 
@@ -66,10 +71,17 @@ describe("net_owed", () => {
     });
   });
 
-  test("a sub-cent amount owed is recovered whole, the transfer in cents", () => {
-    expect(net_owed(500, [owes("d-1", 93.2047)], 50)).toMatchObject({
+  test("a sub-cent amount owed is recovered to the cent, so the ledger takes what the transfer withholds", () => {
+    expect(net_owed(500, [owes("d-1", 93.2051)], 50)).toMatchObject({
       net: 406.8,
-      recovered: [{ donation_id: "d-1", usd: 93.2047 }],
+      recovered: [{ donation_id: "d-1", usd: 93.2 }],
+    });
+  });
+
+  test("a due-back under a cent is not paid", () => {
+    expect(net_owed(500, [owes("d-1", -0.004)], 50)).toMatchObject({
+      net: 500,
+      repaid: [],
     });
   });
 
@@ -86,6 +98,14 @@ describe("net_owed", () => {
       gross: 40,
       net: 40,
       minimum: 50,
+      deductions: [],
+    });
+  });
+
+  test("a $0 pending total owing nothing, or under a cent, is under the minimum", () => {
+    expect(net_owed(0, [], 50)).toMatchObject({ status: "under_minimum" });
+    expect(net_owed(0, [owes("d-1", 0.004)], 50)).toMatchObject({
+      status: "under_minimum",
     });
   });
 });

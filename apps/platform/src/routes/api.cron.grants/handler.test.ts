@@ -309,6 +309,10 @@ describe("grants cron execute", () => {
       `npo:${npo_id} ref ref-a: stuck-1, stuck-2`
     );
     expect(errors[0].body).toContain(`npo:${npo_id} ref unknown: stuck-3`);
+    // a claim that netted has its deductions booked under its ref
+    expect(errors[0].body).toContain(
+      `unrecover_owed({ npo_id: ${npo_id}, ref: "ref-a" })`
+    );
     expect(wise_pay_mock).toHaveBeenCalledWith(
       WISE_RECIPIENT,
       60,

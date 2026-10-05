@@ -19,6 +19,9 @@ const send_alert = vi.hoisted(() => vi.fn());
 /** makes the next `payouts_move` out of this status throw, as a dropped socket would */
 const fail_move = vi.hoisted(() => ({ from: null as string | null }));
 const deductions = vi.hoisted(() => ({ on: false }));
+/** the netting's reads: the npo's owed rows, and the npo row it locks first */
+const owed_read = vi.hoisted(() => vi.fn());
+const npo_lock = vi.hoisted(() => vi.fn());
 
 vi.mock("#/errors/report", () => ({ report_error }));
 vi.mock("../pg/queries/payout", async (io) => {
@@ -33,6 +36,16 @@ vi.mock("../pg/queries/payout", async (io) => {
       return actual.payouts_move(...args);
     },
   };
+});
+vi.mock("../pg/queries/owed", async (io) => {
+  const actual = await io<typeof import("../pg/queries/owed")>();
+  owed_read.mockImplementation(actual.outstanding_for_npo);
+  return { ...actual, outstanding_for_npo: owed_read };
+});
+vi.mock("../pg/queries/npo", async (io) => {
+  const actual = await io<typeof import("../pg/queries/npo")>();
+  npo_lock.mockImplementation(actual.npo_get_locked);
+  return { ...actual, npo_get_locked: npo_lock };
 });
 vi.mock("../env", () => ({
   stage: "test",
@@ -89,6 +102,8 @@ beforeEach(async () => {
   send_alert.mockReset();
   fail_move.from = null;
   deductions.on = false;
+  owed_read.mockClear();
+  npo_lock.mockClear();
   await db().delete(bal_txs);
   await db().delete(loss_logs);
   await db().delete(owed_amounts);
@@ -243,7 +258,10 @@ describe("settle_npo_payouts", () => {
       return TRANSFER_ID;
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(pay).toHaveBeenCalledOnce();
     expect(pay).toHaveBeenCalledWith(expect.any(String), 100);
@@ -277,7 +295,10 @@ describe("settle_npo_payouts", () => {
     await seed_payout(npo.id, "p-2", 40.001);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 100);
     const [stlmt] = await db().select().from(settlements);
@@ -292,7 +313,7 @@ describe("settle_npo_payouts", () => {
     await seed_payout(npo.id, "p-2", 0.2);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1", "p-2"], { ref_key: RECIPIENT, pay });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 0.3);
     expect(await npo_cash(npo.id)).toBe(499.7);
@@ -307,12 +328,10 @@ describe("settle_npo_payouts", () => {
       .where(eq(payouts.id, "p-1"));
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(
-      npo,
-      ["p-1", "missing"],
-      RECIPIENT,
-      pay
-    );
+    const res = await settle_npo_payouts(npo, ["p-1", "missing"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toEqual({ status: "none_pending" });
     expect(pay).not.toHaveBeenCalled();
@@ -327,7 +346,10 @@ describe("settle_npo_payouts", () => {
     await seed_payout(npo.id, "p-2", 40);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toEqual({ status: "under_minimum", total: 70, minimum: 80 });
     expect(pay).not.toHaveBeenCalled();
@@ -347,7 +369,10 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(quote_failed);
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toMatchObject({ status: "released" });
     expect(await payout_types()).toEqual({
@@ -370,7 +395,7 @@ describe("settle_npo_payouts", () => {
       throw new Error("fetch failed");
     });
 
-    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1", "p-2"], { ref_key: RECIPIENT, pay });
     const ref = pay.mock.calls[0]![0];
 
     const stuck = await processing_payouts();
@@ -388,8 +413,14 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, unfunded);
-    await settle_npo_payouts(npo, ["p-2"], RECIPIENT, async () => TRANSFER_ID);
+    await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay: unfunded,
+    });
+    await settle_npo_payouts(npo, ["p-2"], {
+      ref_key: RECIPIENT,
+      pay: async () => TRANSFER_ID,
+    });
 
     const rows = await db()
       .select({ id: payouts.id, type: payouts.type, message: payouts.message })
@@ -410,7 +441,10 @@ describe("settle_npo_payouts", () => {
       throw socket_dropped;
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
     const ref = pay.mock.calls[0]![0];
 
     expect(res).toEqual({ status: "fund_unknown", ref });
@@ -446,7 +480,10 @@ describe("settle_npo_payouts", () => {
       });
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
     const ref = pay.mock.calls[0]![0];
 
     expect(res).toEqual({
@@ -477,8 +514,11 @@ describe("settle_npo_payouts", () => {
       .mockRejectedValueOnce(new NotFundedError(new Error("wise 503")))
       .mockResolvedValueOnce(TRANSFER_ID);
 
-    await settle_npo_payouts(npo, ["p-2", "p-1"], RECIPIENT, pay);
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-2", "p-1"], { ref_key: RECIPIENT, pay });
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     const [first, again] = pay.mock.calls.map(([ref]) => ref);
     expect(again).toMatch(
@@ -501,7 +541,10 @@ describe("settle_npo_payouts", () => {
       return TRANSFER_ID;
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toMatchObject({ status: "settled", total: 100 });
     expect(await payout_types()).toEqual({
@@ -542,7 +585,7 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1", "p-2"], { ref_key: RECIPIENT, pay });
 
     expect(await payout_types()).toEqual({
       "p-1": "pending",
@@ -567,7 +610,10 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toMatchObject({ status: "released" });
     expect(await payout_types()).toEqual({
@@ -605,7 +651,7 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(await payout_types()).toEqual({ "p-1": "refunded" });
     const [n] = await db()
@@ -635,7 +681,7 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(await payout_types()).toEqual({ "p-1": "refunded" });
     expect(await npo_cash(npo.id)).toBe(430);
@@ -654,7 +700,7 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(await payout_types()).toEqual({ "p-1": "refunded_loss" });
     expect(await owed()).toEqual([
@@ -682,7 +728,7 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(new Error("wise 503"));
     });
 
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(await payout_types()).toEqual({ "p-1": "refunded_loss" });
     expect(send_alert).toHaveBeenCalledOnce();
@@ -707,7 +753,10 @@ describe("settle_npo_payouts", () => {
       throw new NotFundedError(quote_failed);
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
     const ref = pay.mock.calls[0]![0];
 
     expect(res).toEqual({ status: "unreleased", ref });
@@ -744,7 +793,10 @@ describe("settle_npo_payouts", () => {
       return TRANSFER_ID;
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toMatchObject({ status: "settled", total: 100 });
     expect(await payout_types()).toEqual({
@@ -807,7 +859,10 @@ describe("settle_npo_payouts: owed deductions", () => {
     await seed_owed(npo.id, "don-owed", 93.2);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 500);
     expect(res).toMatchObject({ status: "settled", total: 500 });
@@ -816,6 +871,55 @@ describe("settle_npo_payouts: owed deductions", () => {
       { donation_id: "don-owed", credited_back_usd: 0, outstanding_usd: 93.2 },
     ]);
     expect(await credits()).toEqual([]);
+    expect(owed_read).not.toHaveBeenCalled();
+    expect(npo_lock).not.toHaveBeenCalled();
+  });
+
+  test("switched on, the claim locks the npo row, then reads its owed rows", async () => {
+    deductions.on = true;
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 500);
+
+    await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay: async () => TRANSFER_ID,
+    });
+
+    expect(npo_lock).toHaveBeenCalledWith(expect.anything(), npo.id);
+    expect(owed_read).toHaveBeenCalledWith(expect.anything(), npo.id);
+    expect(npo_lock.mock.invocationCallOrder[0]).toBeLessThan(
+      owed_read.mock.invocationCallOrder[0]!
+    );
+  });
+
+  test("switched on, a funded transfer the settle fails to record alerts with the gross to debit and the net to settle", async () => {
+    deductions.on = true;
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 500);
+    await seed_owed(npo.id, "don-owed", 93.2);
+    await db()
+      .insert(settlements)
+      .values({
+        id: String(TRANSFER_ID),
+        npo_id: npo.id,
+        date: "2026-08-01T00:00:00.000Z",
+        amount: 1,
+        status: "",
+      });
+
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay: async () => TRANSFER_ID,
+    });
+
+    expect(res).toMatchObject({ status: "unrecorded" });
+    const [alert] = send_alert.mock.calls[0]!;
+    expect(alert.title).toMatch(/funded, not recorded/);
+    expect(alert.fields).toContainEqual({ name: "amount", value: "406.8" });
+    expect(alert.fields).toContainEqual({ name: "gross", value: "500" });
+    expect(alert.body).toMatch(
+      /settlement amount is the net, 406.8; debit the npo's cash by the gross, 500/
+    );
   });
 
   test("switched on, the same npo is paid $406.80 and its row shows $93.20 recovered on the run's date, $0 outstanding", async () => {
@@ -826,7 +930,10 @@ describe("settle_npo_payouts: owed deductions", () => {
     await seed_owed(npo.id, "don-owed", 93.2);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     const [ref] = pay.mock.calls[0]!;
     expect(pay).toHaveBeenCalledWith(ref, 406.8);
@@ -855,7 +962,10 @@ describe("settle_npo_payouts: owed deductions", () => {
     await seed_owed(npo.id, "don-owed", 93.2);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1", "p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(pay).not.toHaveBeenCalled();
     expect(res).toMatchObject({ status: "recovered", total: 80 });
@@ -890,11 +1000,17 @@ describe("settle_npo_payouts: owed deductions", () => {
     const npo = await seed_npo({ cash: 180 });
     await seed_payout(npo.id, "p-1", 80);
     await seed_owed(npo.id, "don-owed", 93.2);
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, vi.fn<Pay>());
+    await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay: vi.fn<Pay>(),
+    });
     await seed_payout(npo.id, "p-2", 100);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-2"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-2"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 86.8);
     expect(res).toMatchObject({ status: "settled", total: 86.8 });
@@ -910,7 +1026,10 @@ describe("settle_npo_payouts: owed deductions", () => {
     await seed_owed(npo.id, "don-owed", 93.2);
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toEqual({ status: "under_minimum", total: 56.8, minimum: 100 });
     expect(pay).not.toHaveBeenCalled();
@@ -935,7 +1054,10 @@ describe("settle_npo_payouts: owed deductions", () => {
     });
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     const [ref] = pay.mock.calls[0]!;
     expect(pay).toHaveBeenCalledWith(ref, 550);
@@ -957,7 +1079,10 @@ describe("settle_npo_payouts: owed deductions", () => {
       throw new NotFundedError(new Error("insufficient balance"));
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     const [ref] = pay.mock.calls[0]!;
     expect(res).toEqual({ status: "released", ref });
@@ -978,7 +1103,7 @@ describe("settle_npo_payouts: owed deductions", () => {
     expect(send_alert).not.toHaveBeenCalled();
   });
 
-  test("switched on, an unfunded run whose recovery a later run already paid back still releases, and tells ops to undo the recovery by hand", async () => {
+  test("switched on, an unfunded run whose deductions can't be undone stays claimed, and tells ops to undo them in the reset", async () => {
     deductions.on = true;
     const npo = await seed_npo({ cash: 500 });
     await seed_payout(npo.id, "p-1", 500);
@@ -994,19 +1119,25 @@ describe("settle_npo_payouts: owed deductions", () => {
       throw new NotFundedError(new Error("insufficient balance"));
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     const [ref] = pay.mock.calls[0]!;
-    expect(res).toEqual({ status: "released", ref });
-    expect(await payout_types()).toEqual({ "p-1": "pending" });
+    expect(res).toEqual({ status: "unreleased", ref });
+    expect(await payout_types()).toEqual({ "p-1": "processing" });
     expect((await credits()).map((c) => c.kind)).toEqual(["recover"]);
     expect(send_alert).toHaveBeenCalledOnce();
     const [alert] = send_alert.mock.calls[0]!;
     expect(alert.type).toBe("ERROR");
-    expect(alert.title).toBe(
-      `not funded, deductions not undone for npo:${npo.id}`
+    expect(alert.title).toBe(`not funded, release failed for npo:${npo.id}`);
+    expect(alert.body).toContain(
+      `unrecover_owed({ npo_id: ${npo.id}, ref: "${ref}" })`
     );
-    expect(alert.body).toContain(ref);
+    expect(alert.body).toMatch(
+      /reset to pending only with this run.s deductions taken back/
+    );
   });
 
   // pglite runs one connection, so a refund can't commit mid-claim here. the
@@ -1022,7 +1153,10 @@ describe("settle_npo_payouts: owed deductions", () => {
       return TRANSFER_ID;
     });
 
-    const res = await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    const res = await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay,
+    });
 
     expect(res).toMatchObject({ status: "settled", total: 406.8 });
     expect(
@@ -1042,7 +1176,7 @@ describe("settle_npo_payouts: owed deductions", () => {
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
     await expect(
-      settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay)
+      settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay })
     ).rejects.toThrow(/Connection terminated/);
 
     expect(pay).not.toHaveBeenCalled();
@@ -1059,7 +1193,7 @@ describe("settle_npo_payouts: owed deductions", () => {
     await seed_payout(npo.id, "p-1", 80);
     await seed_owed(npo.id, "don-owed", 93.2);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], null, vi.fn<Pay>());
+    const res = await settle_npo_payouts(npo, ["p-1"], null);
 
     expect(res).toMatchObject({ status: "recovered", total: 80 });
     expect(await payout_types()).toEqual({ "p-1": "settled" });
@@ -1071,11 +1205,26 @@ describe("settle_npo_payouts: owed deductions", () => {
     await seed_payout(npo.id, "p-1", 500);
     await seed_owed(npo.id, "don-owed", 93.2);
 
-    const res = await settle_npo_payouts(npo, ["p-1"], null, vi.fn<Pay>());
+    const res = await settle_npo_payouts(npo, ["p-1"], null);
 
     expect(res).toEqual({ status: "no_recipient", total: 406.8 });
     expect(await payout_types()).toEqual({ "p-1": "pending" });
     expect(await credits()).toEqual([]);
+  });
+
+  test("switched on, a sub-cent amount owed is recovered to the cent the transfer withholds, the rest left owed", async () => {
+    deductions.on = true;
+    const npo = await seed_npo({ cash: 500 });
+    await seed_payout(npo.id, "p-1", 500);
+    await seed_owed(npo.id, "don-owed", 93.2051);
+    const pay = vi.fn<Pay>(async () => TRANSFER_ID);
+
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
+
+    expect(pay).toHaveBeenCalledWith(expect.any(String), 406.8);
+    const [row] = await db().select().from(owed_amounts);
+    expect(row).toMatchObject({ recovered_usd: 93.2 });
+    expect(row?.outstanding_usd).toBeCloseTo(0.0051, 10);
   });
 
   test("switched on, a row partly credited back is recovered only for what it still owes", async () => {
@@ -1089,7 +1238,7 @@ describe("settle_npo_payouts: owed deductions", () => {
     });
     const pay = vi.fn<Pay>(async () => TRANSFER_ID);
 
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, pay);
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
 
     expect(pay).toHaveBeenCalledWith(expect.any(String), 456.8);
     const [row] = await db().select().from(owed_amounts);
@@ -1101,12 +1250,18 @@ describe("settle_npo_payouts: owed deductions", () => {
     const npo = await seed_npo({ cash: 580 });
     await seed_owed(npo.id, "don-owed", 93.2);
     await seed_payout(npo.id, "p-1", 80);
-    await settle_npo_payouts(npo, ["p-1"], RECIPIENT, vi.fn<Pay>());
+    await settle_npo_payouts(npo, ["p-1"], {
+      ref_key: RECIPIENT,
+      pay: vi.fn<Pay>(),
+    });
     await seed_payout(npo.id, "p-2", 300);
     await seed_payout(npo.id, "p-3", 200);
 
-    await settle_npo_payouts(npo, ["p-2", "p-3"], RECIPIENT, async () => {
-      return TRANSFER_ID;
+    await settle_npo_payouts(npo, ["p-2", "p-3"], {
+      ref_key: RECIPIENT,
+      pay: async () => {
+        return TRANSFER_ID;
+      },
     });
 
     const rows = await db()

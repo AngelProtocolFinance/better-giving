@@ -5,7 +5,7 @@ import { owed_deductions, stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
-import { npo_balance_update } from "../pg/queries/npo";
+import { npo_balance_update, npo_get_locked } from "../pg/queries/npo";
 import {
   outstanding_for_npo,
   recover_owed,
@@ -53,19 +53,26 @@ export interface ISettleNpo {
   payout_minimum: number;
 }
 
-/** `ref_key` names the recipient; the ref binds it with the claimed set and
- * total. null when the npo has none: only a run that sends nothing settles */
+export interface IRecipient {
+  /** names the recipient; the ref binds it with the claimed set and total */
+  ref_key: string;
+  pay: Pay;
+}
+
+/** `to` is null for an npo with no recipient: only a run that sends nothing
+ * settles */
 export async function settle_npo_payouts(
   npo: ISettleNpo,
   payout_ids: string[],
-  ref_key: string | null,
-  pay: Pay
+  to: IRecipient | null
 ): Promise<SettleResult> {
   const nets = owed_deductions;
   const claim = await db.transaction(async (tx) => {
     if (nets) await lock_npo_run(tx, npo.id);
     const locked = await pending_payouts_locked(tx, payout_ids);
     if (locked.length === 0) return { status: "none_pending" } as const;
+    // a refund locks payout, then npo, then owed row; the claim does too
+    if (nets) await npo_get_locked(tx, npo.id);
     // wise moves cents: the minimum, quote and cash debit all start from this one figure
     const gross = payout_total(locked.map((p) => p.amount));
     const owed = nets ? await outstanding_for_npo(tx, npo.id) : [];
@@ -82,9 +89,9 @@ export async function settle_npo_payouts(
       return { status: "recovered", ref, total: gross } as const;
     }
     const total = plan.net;
-    if (ref_key === null) return { status: "no_recipient", total } as const;
+    if (to === null) return { status: "no_recipient", total } as const;
     // stored with the claim: a run that dies past here leaves only the rows to reconcile by
-    const ref = transfer_ref(ref_key, total, ids);
+    const ref = transfer_ref(to.ref_key, total, ids);
     await deduct(tx, npo.id, plan, ref);
     await payouts_move(tx, ids, "pending", { type: "processing", ref });
     return {
@@ -94,10 +101,11 @@ export async function settle_npo_payouts(
       gross,
       total,
       ref,
+      pay: to.pay,
     } as const;
   });
   if (claim.status !== "claimed") return claim;
-  const { payouts: claimed, ids, gross, total, ref } = claim;
+  const { payouts: claimed, ids, gross, total, ref, pay } = claim;
 
   const fields = [
     { name: "npo", value: `${npo.id}: ${npo.name}` },
@@ -119,21 +127,17 @@ export async function settle_npo_payouts(
       } catch (release_err) {
         report_error(err.cause, ctx);
         report_error(release_err, ctx);
+        const reset = nets
+          ? `these payouts are safe to reset to pending only with this run's deductions taken back: ${undo_deductions(npo.id, ref)}`
+          : "these payouts are safe to reset to pending";
         await alert({
           title: `not funded, release failed for npo:${npo.id}`,
-          body: `the transfer was not funded (${String(err.cause)}); these payouts are safe to reset to pending. customerTransactionId ${ref}`,
+          body: `the transfer was not funded (${String(err.cause)}); ${reset}. customerTransactionId ${ref}`,
           fields,
         });
         return { status: "unreleased", ref };
       }
-      const { not_released, kept, deductions_kept } = released;
-      if (deductions_kept !== undefined) {
-        await alert({
-          title: `not funded, deductions not undone for npo:${npo.id}`,
-          body: `the transfer was not funded and its payouts are back to pending, but what the run recovered from the npo's owed rows, or paid of what it is due back, could not be taken back (${String(deductions_kept)}): a row has moved on since, most often by a later run paying out a due-back. each entry under ref ${ref} on the npo's owed rows still counts money that never moved; reverse those by hand before the next run. customerTransactionId ${ref}`,
-          fields,
-        });
-      }
+      const { not_released, kept } = released;
       report_error(err.cause, {
         ...ctx,
         ...(not_released.length > 0 && { not_released }),
@@ -207,8 +211,8 @@ export async function settle_npo_payouts(
     // the commit may have landed with its reply lost, so the alert says check first
     await alert({
       title: `funded, not recorded for npo:${npo.id}`,
-      body: `do not reset these payouts to pending or pay them again; Wise transfer ${transfer_id} (customerTransactionId ${ref}) was funded. if the payouts are still processing, record the settlement by hand`,
-      fields,
+      body: `do not reset these payouts to pending or pay them again; Wise transfer ${transfer_id} (customerTransactionId ${ref}) was funded. if the payouts are still processing, record the settlement by hand: its settlement amount is the net, ${total}; debit the npo's cash by the gross, ${gross}`,
+      fields: [...fields, { name: "gross", value: gross.toString() }],
     });
     return { status: "unrecorded", ref, transfer_id };
   }
@@ -276,8 +280,6 @@ async function settle_recovered(
 
 interface IRelease {
   not_released: string[];
-  /** why the claim's deductions could not be undone, when they could not */
-  deductions_kept?: unknown;
   /** refunded in flight and not reversed, so what the npo owes (or, for a
    * refund recorded before the owed ledger, its loss log) still counts a payout
    * the npo was never paid */
@@ -289,7 +291,7 @@ interface IRelease {
  * while in flight is refunded as if it had been pending; each in its own
  * savepoint, so one that fails leaves the others and the release standing.
  * `run` names a claim that netted what the npo owes: its deductions are
- * undone with it
+ * undone with it, or the release fails whole and the payouts stay claimed
  */
 async function release(
   tx: DbOrTx,
@@ -300,15 +302,8 @@ async function release(
   const released = await payouts_move(tx, ids, "processing", {
     type: "pending",
   });
-  let deductions_kept: unknown;
   if (run) {
-    const now = new Date().toISOString();
-    try {
-      await tx.transaction((sp) => unrecover_owed(sp, { ...run, now }));
-    } catch (err) {
-      report_error(err, run);
-      deductions_kept = err;
-    }
+    await unrecover_owed(tx, { ...run, now: new Date().toISOString() });
   }
   const not_released = ids.filter((id) => !released.includes(id));
   const kept: IRelease["kept"] = [];
@@ -325,17 +320,24 @@ async function release(
       kept.push({ id, reason: String(err), pre_ledger: false });
     }
   }
-  return { not_released, kept, deductions_kept };
+  return { not_released, kept };
 }
 
 /** one netting run per npo at a time: a claim and an unfunded release take
- * this before any payout or owed row, so they queue instead of each holding a
- * row the other waits on */
+ * this before any payout, npo or owed row, so the two queue instead of each
+ * holding a row the other waits on. a refund takes no such lock; the claim
+ * matches its payout, npo, owed row order instead */
 async function lock_npo_run(tx: DbOrTx, npo_id: number) {
   await tx.execute(
     sql`select pg_advisory_xact_lock(hashtextextended(${`grant_run:npo:${npo_id}`}, 0))`
   );
 }
+
+/** the step that has to go with resetting a netted claim's payouts to
+ * pending by hand, in the same transaction, or the next run pays the npo in
+ * full while the ledger counts what it owes as recovered */
+export const undo_deductions = (npo_id: number, ref: string) =>
+  `run unrecover_owed({ npo_id: ${npo_id}, ref: "${ref}" }) in the transaction that resets them, never the reset alone (it takes back the recover and repay entries under ref ${ref} on the npo's owed rows; a claim that netted nothing has none)`;
 
 /** an alert that fails to send is reported, never thrown past the money */
 async function alert(a: Omit<Alert, "from" | "type">) {
