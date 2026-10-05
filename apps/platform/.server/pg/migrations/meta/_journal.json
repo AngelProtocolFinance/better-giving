@@ -414,6 +414,13 @@
       "when": 1791200989604,
       "tag": "0058_donation_disputes_accepted",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791203056371,
+      "tag": "0059_donation_takes",
+      "breakpoints": true
     }
   ]
 }

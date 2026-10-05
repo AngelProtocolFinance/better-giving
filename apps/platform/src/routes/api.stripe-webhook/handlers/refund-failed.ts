@@ -5,13 +5,11 @@ import { humanize } from "@/helpers/decimal";
 import { msg } from "@/queue";
 import { stage } from "$/env";
 import { enqueue } from "$/kit/queue";
-import { stripe } from "$/kit/stripe";
 import { money } from "$/kit/stripe-money";
 import { db } from "$/pg/db";
 import { type IOwed, owed_for_donation } from "$/pg/queries/owed";
 import { refunds_credited_back } from "$/pg/queries/owed-refund";
 import { refund_failed } from "$/refund/failed";
-import { is_failed_or_canceled } from "$/refund/unsent";
 import { settled_donation } from "../helpers/settled-donation";
 
 const row_line = (o: IOwed) =>
@@ -26,20 +24,11 @@ const row_line = (o: IOwed) =>
 export async function handle_refund_failed(event: Stripe.RefundFailedEvent) {
   const refund = event.data.object;
   const don = await settled_donation(str_id(refund.payment_intent));
-  const charge = await stripe.charges.retrieve(str_id(refund.charge));
-  const { data: refunds } = await stripe.refunds.list({
-    charge: charge.id,
-    limit: 100,
-  });
 
   const res = await refund_failed({
     donation_id: don.id,
     rail: "stripe",
-    refund: { id: refund.id, amount: refund.amount },
-    of: charge.amount_captured,
-    others: refunds
-      .filter((r) => r.id !== refund.id && !is_failed_or_canceled(r))
-      .reduce((sum, r) => sum + r.amount, 0),
+    refund_id: refund.id,
   });
   if (res.status === "failed") {
     throw new Error(`refund ${refund.id} not credited back: ${res.reason}`);

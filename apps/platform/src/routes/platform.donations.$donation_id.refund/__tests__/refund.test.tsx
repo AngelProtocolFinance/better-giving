@@ -761,6 +761,7 @@ describe("refund api", () => {
       rail: "stripe",
       source: "admin",
       share: { taken: 10000, of: 10000 },
+      refunds: [{ id: "re_full", amount: 10000 }],
       unsent_refunds: [],
       intent_id: `pi_${id}`,
       source_ref: "re_full",

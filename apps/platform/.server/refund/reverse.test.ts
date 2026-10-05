@@ -26,6 +26,7 @@ import { programs } from "../pg/schema/program";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
 import { subscriptions } from "../pg/schema/subscription";
+import { donation_takes } from "../pg/schema/take";
 import type { TestDb } from "../pg/test-utils/pglite";
 
 // --- mocks ---
@@ -105,6 +106,7 @@ beforeEach(async () => {
   await db.delete(loss_logs);
   await db.delete(owed_amounts);
   await db.delete(donation_disputes);
+  await db.delete(donation_takes);
   await db.delete(payouts);
   await db.delete(dists);
   await db.delete(donation_match_events);
@@ -510,12 +512,13 @@ describe("reverse_charge — a redelivery", () => {
 });
 
 describe("reverse_charge — part of the charge, its grant paid", () => {
-  const part = (id: string, taken: number, ref = `re_${taken}`) =>
+  /** a refund of `own` of the gift's $100 */
+  const part = (id: string, own: number, ref = `re_${own}`) =>
     reverse_charge({
       donation_id: id,
       rail: "stripe",
       source: "refund",
-      share: { taken, of: 100 },
+      share: { taken: own, of: 100 },
       source_ref: ref,
       alert_from: "charge-refunded",
       notice: { id: `evt_${ref}`, lines: [`donation ${id}`] },
@@ -550,7 +553,7 @@ describe("reverse_charge — part of the charge, its grant paid", () => {
     await grant_paid(id, npo_id);
     await part(id, 40, "re_1");
 
-    const res = await part(id, 100, "re_2");
+    const res = await part(id, 60, "re_2");
 
     expect(res).toMatchObject({ status: "reversed", applied: 1 });
     expect(await owed_rows()).toEqual([
@@ -580,12 +583,12 @@ describe("reverse_charge — part of the charge, its grant paid", () => {
       expect.objectContaining({ received_usd: 45, fee_processing_usd: 1.6 }),
     ]);
 
-    expect((await part(id, 100, "re_2")).status).toBe("reversed");
+    expect((await part(id, 50, "re_2")).status).toBe("reversed");
     expect(await part(id, 50, "re_1")).toEqual({
       status: "already_reversed",
       donation_status: "refunded_loss",
     });
-    expect(await part(id, 100, "re_2")).toMatchObject({
+    expect(await part(id, 50, "re_2")).toMatchObject({
       status: "already_reversed",
     });
     expect(await owed_rows()).toEqual([
@@ -653,7 +656,7 @@ describe("reverse_charge — part of the charge, its grant paid", () => {
       outstanding_usd: 2,
     });
 
-    await part(id, 100, "re_2");
+    await part(id, 60, "re_2");
     expect(await referrer_row()).toMatchObject({
       received_usd: 5,
       outstanding_usd: 5,
@@ -717,10 +720,30 @@ describe("reverse_charge — part of the charge, its grant not yet out", () => {
       .filter((m) => m.id === "fiat-notice")
       .map((m) => m.payload);
 
-  test.each([
-    ["refund", "Partial Refund Not Reversed"],
-    ["dispute", "Lost Dispute Not Reversed"],
-  ] as const)(
+  test("a chargeback of part of a gift whose payout is pending owes its own share, as its dispute's filing would", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    await test_db
+      .current!.db.update(payouts)
+      .set({ type: "pending", settled_date: null })
+      .where(eq(payouts.id, `payout-${id}`));
+
+    const res = await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: 40, of: 100 },
+      alert_from: "charge-dispute",
+      notice: { id: "evt_9", lines: [] },
+    });
+
+    expect(res).toMatchObject({ status: "partial_owed" });
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({ npo_id, outstanding_usd: 37.28 }),
+    ]);
+  });
+
+  test.each([["refund", "Partial Refund Not Reversed"]] as const)(
     "a %s of part of a gift whose payout is pending records nothing and tells ops a pending grant is why",
     async (source, title) => {
       const { id, npo_id } = await seed("stripe:card");

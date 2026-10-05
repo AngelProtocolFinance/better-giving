@@ -191,7 +191,7 @@ describe("dispute_opened", () => {
     expect(res).toMatchObject({ status: "recorded", prior_refs: [] });
   });
 
-  test("flags a second dispute on the payment, owing nothing more for it", async () => {
+  test("flags a second dispute on the payment, owing only its own fee more", async () => {
     const { id } = await seed(PAID_GRANT);
 
     const first = await dispute_opened(opened_on(id));
@@ -202,10 +202,11 @@ describe("dispute_opened", () => {
 
     expect([first, second]).toMatchObject([
       { status: "recorded", prior_refs: [], owed_written: true },
-      { status: "recorded", prior_refs: [`du_${id}`], owed_written: false },
+      { status: "recorded", prior_refs: [`du_${id}`], owed_written: true },
     ]);
+    // the share is the whole already; each dispute's fee is its own
     expect(await owed_of(id)).toMatchObject([
-      { source_ref: `du_${id}`, outstanding_usd: 108.2 },
+      { source_ref: `du_${id}`, fee_dispute_usd: 30, outstanding_usd: 123.2 },
     ]);
   });
 
@@ -405,8 +406,7 @@ describe("dispute_won", () => {
 });
 
 describe("dispute_won, whatever wrote the row", () => {
-  /** a refund of `taken` of the gift's $100, the charge's share taken back
-   * so far */
+  /** a refund of `taken` of the gift's $100 */
   const refund_share = (donation_id: string, taken: number, ref: string) =>
     reverse_charge({
       donation_id,
@@ -485,12 +485,10 @@ describe("dispute_won, whatever wrote the row", () => {
   test("a second dispute after the first closed with no decision: its win credits the whole", async () => {
     const { id } = await seed(PAID_GRANT);
     await dispute_opened({ ...opened_on(id), dispute_id: "PP-D1" });
-    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
-      id: "PP-D1",
-      donation_id: id,
+    await dispute_won({
+      ...won_on(id),
+      dispute_id: "PP-D1",
       status: "inquiry_closed",
-      opened_at: OPENED,
-      closed_at: CLOSED,
     });
     const second = await dispute_opened(opened_on(id));
     expect(second).toMatchObject({ prior_refs: ["PP-D1"] });
@@ -563,7 +561,7 @@ describe("dispute_opened, sized from the gift's own records", () => {
       donation_id: id,
       rail: "stripe",
       source: "dispute",
-      share: { taken: 40, of: 100 },
+      share: { taken: 30, of: 100 },
       source_ref: "PP-D0",
       alert_from: "paypal-dispute",
       notice: { id: "WH-D0", lines: [] },
@@ -622,7 +620,11 @@ describe("dispute_opened, sized from the gift's own records", () => {
   test("a claim accepted and paid as a refund counts once, through the refund", async () => {
     const { id } = await seed(PAID_GRANT);
     await dispute_opened({ ...opened_on(id, 0, 30), dispute_id: "PP-D0" });
-    await close(id, "PP-D0", "accepted");
+    await dispute_won({
+      ...won_on(id),
+      dispute_id: "PP-D0",
+      status: "accepted",
+    });
     await refund_share(id, 30, "re_claim");
     expect(await outstanding(id)).toEqual([27.96]);
 
@@ -634,32 +636,32 @@ describe("dispute_opened, sized from the gift's own records", () => {
 });
 
 describe("a refund after a dispute lost, sized from the gift's own records", () => {
-  /** a refund, `refunded` of the gift's $100 refunded in all so far */
-  const refund_share = (donation_id: string, refunded: number, ref: string) =>
+  /** a refund of `own` of the gift's $100 */
+  const refund_share = (donation_id: string, own: number, ref: string) =>
     reverse_charge({
       donation_id,
       rail: "stripe",
       source: "refund",
-      share: { taken: refunded, of: 100 },
+      share: { taken: own, of: 100 },
       source_ref: ref,
       alert_from: "charge-refunded",
       notice: { id: `evt_${ref}`, lines: [] },
     });
-  /** dispute `dispute_id` over `own` filed, its chargeback of `taken` so far
-   * recorded when `taken` is given, then closed lost */
+  /** dispute `dispute_id` over `own` filed, its chargeback recorded when
+   * `charged_back`, then closed lost */
   const lose_dispute = async (
     id: string,
     dispute_id: string,
     own: number,
-    taken?: number
+    charged_back: boolean
   ) => {
     await dispute_opened({ ...opened_on(id, 0, own), dispute_id });
-    if (taken !== undefined) {
+    if (charged_back) {
       await reverse_charge({
         donation_id: id,
         rail: "stripe",
         source: "dispute",
-        share: { taken, of: 100 },
+        share: { taken: own, of: 100 },
         source_ref: dispute_id,
         alert_from: "paypal-dispute",
         notice: { id: `WH-${dispute_id}`, lines: [] },
@@ -684,13 +686,13 @@ describe("a refund after a dispute lost, sized from the gift's own records", () 
     )[0]?.status;
 
   test.each([
-    ["recorded", 40],
-    ["never recorded", undefined],
+    ["recorded", true],
+    ["never recorded", false],
   ])(
     "a 40 USD dispute lost, its chargeback %s, then a 60 USD refund reverses the gift owing the whole",
-    async (_, taken) => {
+    async (_, charged_back) => {
       const { id } = await seed(PAID_GRANT);
-      await lose_dispute(id, "PP-D0", 40, taken);
+      await lose_dispute(id, "PP-D0", 40, charged_back);
       expect(await outstanding(id)).toEqual([37.28]);
 
       expect((await refund_share(id, 60, "re_1")).status).toBe("reversed");
@@ -704,10 +706,10 @@ describe("a refund after a dispute lost, sized from the gift's own records", () 
     const { id } = await seed(PAID_GRANT);
     await refund_share(id, 20, "re_1");
     expect(await outstanding(id)).toEqual([18.64]);
-    await lose_dispute(id, "PP-D0", 30, 50);
+    await lose_dispute(id, "PP-D0", 30, true);
     expect(await outstanding(id)).toEqual([46.6]);
 
-    expect((await refund_share(id, 30, "re_2")).status).toBe("partial_owed");
+    expect((await refund_share(id, 10, "re_2")).status).toBe("partial_owed");
 
     expect(await outstanding(id)).toEqual([55.92]);
     // and a later dispute counts the lost one once
@@ -829,7 +831,7 @@ describe("a refund after a dispute opened on a pending payout", () => {
     const before = await balance_of(test_db.current!.db, npo_id);
     await dispute_opened(opened_on(id, 15, 30));
 
-    expect((await refund(id, "refund", 70)).status).toBe("partial_pending");
+    expect((await refund(id, "refund", 40)).status).toBe("partial_pending");
 
     expect(await debited(id, npo_id, before)).toBeCloseTo(42.96, 10);
   });
@@ -909,13 +911,22 @@ describe("a dispute lost after it opened", () => {
     expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 42.96 }]);
   });
 
-  test("completing the charge with its payout pending at open, takes back what the npo received and leaves its share of the fees owed", async () => {
+  test("the rest refunded with its payout pending at open, takes back what the npo received and leaves its share of the fees owed", async () => {
     const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
     const npo_id = npo_ids[0]!;
     const before = await balance_of(test_db.current!.db, npo_id);
 
     await dispute_opened(opened_on(id, 15, 30));
-    const res = await lose(id);
+    await lose(id, 30);
+    const res = await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: { taken: 70, of: 100 },
+      source_ref: "re_rest",
+      alert_from: "charge-refunded",
+      notice: { id: "evt_rest", lines: [] },
+    });
 
     expect(res.status).toBe("reversed");
     expect(before - (await balance_of(test_db.current!.db, npo_id))).toBe(90);

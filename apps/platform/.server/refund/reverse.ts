@@ -5,13 +5,15 @@ import { msg } from "@/queue";
 import { stage } from "../env";
 import { enqueue } from "../kit/queue";
 import { db } from "../pg/db";
-import { disputes_lost_of } from "../pg/queries/dispute";
 import { dists_for_refund } from "../pg/queries/dist";
 import { donation_get } from "../pg/queries/donation";
-import { record_share } from "./partial";
+import type { DbOrTx } from "../pg/queries/helpers";
+import { type ITake, takes_of } from "../pg/queries/take";
+import { record_takes } from "./partial";
 import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
 import { fraction_of, type Share } from "./share";
+import { take_chargeback, take_refund, taken_of } from "./takes";
 
 export { type Share, WHOLE } from "./share";
 
@@ -58,22 +60,28 @@ export interface ChargeReversal {
   donation_id: string;
   rail: Rail;
   source: ReversalSource;
-  /** how much of the charge is taken back so far, this event included. the
-   * whole reverses the gift; less records each party's share of it as owed.
-   * a refund's counts the refunds only: the disputes lost on the gift are
-   * added from their records. null when the provider can't say: nothing is
-   * reversed, ops told */
+  /** this event's own part of the charge: one refund, or one chargeback. it
+   * goes on the gift's ledger of takes, and the gift reverses once they take
+   * the whole; less records each party's share of them as owed. null when the
+   * provider can't say: nothing is reversed, ops told */
   share: Share | null;
-  /** what the provider charged for the dispute, in usd. a share owes it in
-   * full; a full loss owes what the dispute's open recorded */
-  dispute_fee_usd?: number;
-  /** the provider's own refund or dispute id, recorded on what a party owes;
-   * absent records `notice.id` */
-  source_ref?: string;
-  /** the provider's refunds `share.taken` counts, by id: one whose failure
-   * was already credited back (`refund_failed`) is taken out of a share short
-   * of the whole, so a list read before it failed doesn't owe it again */
+  /** the provider's refunds the event confirms: each one's own amount, in
+   * `share.of`'s unit, each its own take, put on record by whichever event
+   * names it first. a refund event's `share` then only gives `of` */
   refunds?: { id: string; amount: number }[];
+  /** a refund whose own amount the event lacks: what the provider has
+   * refunded to date, its own part being that less the gift's other refunds
+   * on record */
+  refunded_to_date?: Share;
+  /** a chargeback's dispute, when the provider names it; else it lands on
+   * the dispute filed on the gift, or waits for its filing */
+  dispute_id?: string;
+  /** what the provider charged for the dispute, in usd, owed in full */
+  dispute_fee_usd?: number;
+  /** the provider's own refund or chargeback id: the take's key, so a
+   * redelivery records nothing more, and what a party's row is recorded
+   * against when this event writes it first; absent, `notice.id` */
+  source_ref?: string;
   /** the provider's refunds on the charge not yet sent, which can still
    * fail: while any is, nothing is reversed or recorded as owed */
   unsent_refunds?: string[];
@@ -213,18 +221,10 @@ export async function reverse_charge(
   if (loaded.status !== "reversible") return unreversible(loaded);
   const { don } = loaded;
 
-  // a refund's share counts refunds; what disputes took is on record
-  const lost =
-    r.source === "dispute" || !r.share
-      ? []
-      : await disputes_lost_of(db, don.id);
-  const share = r.share && {
-    taken:
-      r.share.taken + lost.reduce((sum, l) => sum + l.share, 0) * r.share.of,
-    of: r.share.of,
-  };
-  const f = share && fraction_of(share);
-  if (f === null) {
+  const ref = r.source_ref ?? r.notice.id;
+  const refunds = own_refunds(r, ref);
+  const chargeback = r.source === "dispute" && r.share && fraction_of(r.share);
+  if (refunds === null || chargeback === null) {
     // awaited: a lost notice fails the delivery, so the provider redelivers
     // it. keyed on the event, so the redelivery posts one notice
     await enqueue(
@@ -240,15 +240,18 @@ export async function reverse_charge(
     );
     return { status: "unsized" };
   }
-  const partial = f < 1;
 
   // ahead of the reversal and whatever becomes of it, a held one included:
   // the donor has the money back, so the gift stops billing even while a
-  // refund is unsent or a dist is left to retry
+  // refund is unsent or a dist is left to retry. read unlocked: the ledger
+  // is written under the lock below
   const end_subscription = rail_adapters[r.rail].subscription_end(r.source);
   const payment_id = r.intent_id ?? don.settlement?.id;
-  if (!partial && end_subscription && payment_id) {
-    await end_subscription(payment_id);
+  if (end_subscription && payment_id) {
+    const takes = await takes_of(db, don.id);
+    if (refunds_take_all(takes, refunds(takes))) {
+      await end_subscription(payment_id);
+    }
   }
   if (r.unsent_refunds?.length) {
     console.info(
@@ -256,14 +259,33 @@ export async function reverse_charge(
     );
     return { status: "held" };
   }
-  if (partial) {
-    return reverse_share(
-      r,
-      don.id,
-      f,
-      lost.map((l) => l.id)
-    );
+
+  const recorded = await record_takes({
+    donation_id: don.id,
+    src: {
+      source: r.source === "dispute" ? "dispute" : "refund",
+      source_ref: ref,
+    },
+    refund: r.source !== "dispute",
+    put: async (tx: DbOrTx, before: ITake[]) => {
+      for (const t of refunds(before)) {
+        await take_refund(tx, don.id, t.ref, t.share);
+      }
+      if (chargeback !== false) {
+        await take_chargeback(tx, {
+          donation_id: don.id,
+          ref,
+          share: chargeback,
+          fee_usd: r.dispute_fee_usd ?? 0,
+          dispute_id: r.dispute_id,
+        });
+      }
+    },
+  });
+  if (recorded.status === "undistributed") {
+    return { status: "failed", reason: "not_distributed" };
   }
+  if (recorded.status === "share") return notify_share(r, recorded);
 
   // `r.donation_id` may be the v1 id `donation_get` also matches
   const graphs = await dists_for_refund(don.id);
@@ -303,24 +325,47 @@ export async function reverse_charge(
   };
 }
 
-/** part of the charge: each party's share recorded as owed, nothing reversed */
-async function reverse_share(
+/** a refund event's own takes, each its own part of the charge, given the
+ * gift's takes on record; null when the event can't be sized */
+function own_refunds(
   r: ChargeReversal,
-  donation_id: string,
-  f: number,
-  lost: string[]
+  ref: string
+): ((takes: ITake[]) => { ref: string; share: number }[]) | null {
+  const of = r.share?.of;
+  if (r.refunds && of && of > 0) {
+    return () => r.refunds!.map((x) => ({ ref: x.id, share: x.amount / of }));
+  }
+  if (r.source === "dispute") return () => [];
+  const own = r.share && fraction_of(r.share);
+  if (own) return () => [{ ref, share: own }];
+  const to_date = r.refunded_to_date && fraction_of(r.refunded_to_date);
+  if (!to_date) return null;
+  return (takes) => {
+    const others = takes
+      .filter(
+        (t) => t.kind === "refund" && t.status === "active" && t.ref !== ref
+      )
+      .reduce((sum, t) => sum + t.share, 0);
+    return [{ ref, share: to_date - others }];
+  };
+}
+
+/** whether the takes on record, with these refunds added, take the whole */
+const refunds_take_all = (
+  takes: ITake[],
+  refunds: { ref: string; share: number }[]
+) => {
+  const fresh = refunds.filter(
+    (x) => x.share > 0 && !takes.some((t) => t.ref === x.ref)
+  );
+  return taken_of(takes) + fresh.reduce((sum, x) => sum + x.share, 0) >= 1;
+};
+
+/** part of the charge: each party's share recorded as owed, nothing reversed */
+async function notify_share(
+  r: ChargeReversal,
+  res: { taken: number; owed_msgs: string[]; pending: string[] }
 ): Promise<ReversalResult> {
-  const res = await record_share({
-    donation_id,
-    f,
-    lost,
-    of: r.share!.of,
-    refunds: r.refunds,
-    fee_dispute_usd: r.dispute_fee_usd ?? 0,
-    source: r.source === "dispute" ? "dispute" : "refund",
-    source_ref: r.source_ref ?? r.notice.id,
-  });
-  if (res.undistributed) return { status: "failed", reason: "not_distributed" };
   const { owed_msgs, pending } = res;
   const text = SHARE_NOTICE[r.source];
   // awaited: a lost notice fails the delivery, so the provider redelivers it,
@@ -334,7 +379,7 @@ async function reverse_share(
         title: pending.length > 0 ? text.pending : text.owed,
         body: [
           ...r.notice.lines,
-          `${humanize(res.f * 100)}% of the charge taken back so far; the donation is not reversed.`,
+          `${humanize(res.taken * 100)}% of the charge taken back so far; the donation is not reversed.`,
           ...owed_msgs.map((m) => `owed: ${m}`),
           ...pending.map((m) => `not owed: ${m}`),
           ...(pending.length > 0 ? [text.action] : []),

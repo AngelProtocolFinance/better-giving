@@ -5,10 +5,8 @@ import { db } from "../pg/db";
 import { donation_lock } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { type OwedParty, owed_for_party, owed_total } from "../pg/queries/owed";
-import {
-  refund_failed_ref,
-  refunds_credited_back,
-} from "../pg/queries/owed-refund";
+import { refund_failed_ref } from "../pg/queries/owed-refund";
+import { type ITake, take_undo, takes_of } from "../pg/queries/take";
 import { donations } from "../pg/schema/donation";
 import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
@@ -20,17 +18,14 @@ import {
   type LockedDist,
   scaled,
 } from "./share";
+import { mirror_refunded_share, owed_targets, taken_of } from "./takes";
 
 export interface RefundFailed {
   donation_id: string;
   rail: Rail;
-  /** the refund that failed: its provider id, what each credit answers to,
-   * and its amount, in the charge's unit like `of` and `others` */
-  refund: { id: string; amount: number };
-  /** what the charge took */
-  of: number;
-  /** what the charge's other refunds, not failed or canceled, take back */
-  others: number;
+  /** the refund that failed: its provider id, the take it is on record
+   * under and what each credit answers to */
+  refund_id: string;
 }
 
 export type RefundFailedResult =
@@ -59,11 +54,10 @@ export type RefundFailedResult =
 
 /**
  * a refund that failed after it succeeded: the donor got nothing back, so
- * what each party was recorded as owing for it is credited back, by the
- * refund's share of the charge. what was already recovered of it becomes due
- * back. its share is what the gift has on record as taken back beyond what
- * the charge's other refunds still take: all of it once reversed, else the
- * share its partials recorded, which drops by it.
+ * its take is undone and each party's row is credited back what the takes
+ * owed with it less what they owe without it. what was already recovered of
+ * it becomes due back. a reversed gift is not re-settled: what its reversal
+ * took outside the ledger is ops' to undo by hand.
  *
  * safe to rerun: a redelivery credits nothing more.
  */
@@ -73,74 +67,41 @@ export async function refund_failed(
   const loaded = await load_reversible(r.donation_id, r.rail);
   if (loaded.status === "failed") return loaded;
   const { don } = loaded;
-  const { refund, of } = r;
-  if (!(of > 0 && refund.amount > 0 && r.others >= 0)) {
-    throw new Error(`refund ${refund.id}: amounts don't size the charge`);
-  }
   const now = new Date().toISOString();
 
   return db.transaction(async (tx): Promise<RefundFailedResult> => {
     const ds = await gift_dists_locked(tx, don.id);
-    // read under its lock: a concurrent failure of another refund on the
-    // charge lowers the share this one is sized off
     await donation_lock(tx, don.id);
     const [cur] = await tx
-      .select({ status: donations.status, share: donations.refunded_share })
+      .select({ status: donations.status })
       .from(donations)
       .where(eq(donations.id, don.id));
     // the column is text; its check holds it to the statuses
     const donation_status = (cur?.status ?? don.status) as IDonation["status"];
-    // credited back by an earlier run: a redelivery sized now would take the
-    // share of another refund that failed since
-    const done = await refunds_credited_back(tx, don.id, [refund.id]);
-    if (done.size > 0) return { status: "not_recorded", donation_status };
+    const before = await takes_of(tx, don.id);
+    const take = before.find(
+      (t) =>
+        t.ref === r.refund_id && t.kind === "refund" && t.status === "active"
+    );
+    // never recorded (it failed while held), or undone by an earlier run
+    if (!take || !(await take_undo(tx, don.id, take.ref))) {
+      return { status: "not_recorded", donation_status };
+    }
+    const after = await takes_of(tx, don.id);
     const reversed = is_reversed(donation_status);
-    const recorded = reversed ? of : (cur?.share ?? 0) * of;
-    const taken = Math.min(refund.amount, recorded - r.others);
-    if (taken <= 1e-9) return { status: "not_recorded", donation_status };
-    const f = Math.min(taken / of, 1);
-    if (!reversed) {
-      // to 1e-12, so 0.7 - 0.4 is stored as the 0.3 it is
-      const left = Math.round(((cur?.share ?? 0) - f) * 1e12) / 1e12;
-      await tx
-        .update(donations)
-        .set({ refunded_share: left > 0 ? left : null })
-        .where(eq(donations.id, don.id));
-    }
+    if (!reversed) await mirror_refunded_share(tx, don.id, after);
 
-    const parts = new Map<string, Part>();
-    const add = (key: string, p: Part) => {
-      const was = parts.get(key);
-      parts.set(
-        key,
-        was
-          ? { ...p, received: was.received + p.received, fee: was.fee + p.fee }
-          : p
-      );
-    };
-    const by_hand: string[] = [];
-    for (const d of ds) {
+    const parts = reversed
+      ? reversed_parts(ds, taken_of(before), taken_of(after))
+      : settled_parts(
+          ds.filter((d) => d.status === "settled"),
+          before,
+          after
+        );
+    const by_hand = ds.flatMap((d) => {
       const hand = taken_by_hand(d);
-      if (hand) by_hand.push(`dist ${d.id} to ${dist_npo(d)}: ${hand}`);
-      if (owed_on_record(d)) {
-        add(`npo:${d.to_id}`, {
-          party: { npo_id: d.to_id },
-          received: scaled(d.net - cash_recovered(d), f),
-          fee: scaled(fee_processing_usd(d), f),
-        });
-      }
-      const c = d.commission;
-      // paid, or left `refunded_loss` by a reversal that found it paid or
-      // claimed by a transfer
-      if (c?.status === "paid" || c?.status === "refunded_loss") {
-        const party = referrer_of(c);
-        add(`ref:${JSON.stringify(party)}`, {
-          party,
-          received: scaled(c.amount, f),
-          fee: 0,
-        });
-      }
-    }
+      return hand ? [`dist ${d.id} to ${dist_npo(d)}: ${hand}`] : [];
+    });
 
     const credited: string[] = [];
     for (const { party, received, fee } of parts.values()) {
@@ -163,8 +124,8 @@ export async function refund_failed(
         was,
         { donation_id: don.id, party, now },
         [
-          ["refund_failed", received, refund_failed_ref(refund.id)],
-          ["refund_failed_fee", fee, `refund_failed_fee:${refund.id}`],
+          ["refund_failed", received, refund_failed_ref(take.ref)],
+          ["refund_failed_fee", fee, `refund_failed_fee:${take.ref}`],
         ]
       );
       credited.push(
@@ -197,6 +158,60 @@ async function write_off_logs(tx: DbOrTx, donation_id: string, p: OwedParty) {
   return rows.map((l) => l.id);
 }
 
+/** what the takes owed each party on a gift still settled, less what they
+ * owe without the failed refund's */
+function settled_parts(
+  ds: LockedDist[],
+  before: ITake[],
+  after: ITake[]
+): Part[] {
+  const was = owed_targets(ds, before);
+  const now = owed_targets(ds, after);
+  return [...was.entries()].map(([key, b]) => {
+    const a = now.get(key);
+    return {
+      party: b.party,
+      received: b.received_usd - (a?.received_usd ?? 0),
+      fee: b.fee_processing_usd - (a?.fee_processing_usd ?? 0),
+    };
+  });
+}
+
+/** on a reversed gift, what each party owes for the share `from` that its
+ * reversal recorded, less what it owes for the share `to` left without the
+ * failed refund: each dist the reversal left owed (a shortfall, less the cash
+ * a cancelled payout took back), and each commission it found paid */
+function reversed_parts(ds: LockedDist[], from: number, to: number): Part[] {
+  const fall = (x: number) => scaled(x, from) - scaled(x, to);
+  const parts = new Map<string, Part>();
+  const add = (p: Part) => {
+    const key = JSON.stringify(p.party);
+    const was = parts.get(key);
+    parts.set(
+      key,
+      was
+        ? { ...p, received: was.received + p.received, fee: was.fee + p.fee }
+        : p
+    );
+  };
+  for (const d of ds) {
+    if (d.refund_status === "loss") {
+      add({
+        party: { npo_id: d.to_id },
+        received: fall(d.net - cash_recovered(d)),
+        fee: fall(fee_processing_usd(d)),
+      });
+    }
+    const c = d.commission;
+    // paid, or left `refunded_loss` by a reversal that found it paid or
+    // claimed by a transfer
+    if (c?.status === "paid" || c?.status === "refunded_loss") {
+      add({ party: referrer_of(c), received: fall(c.amount), fee: 0 });
+    }
+  }
+  return [...parts.values()];
+}
+
 interface Part {
   party: OwedParty;
   /** what the failed refund recorded the party as receiving, and its card fee */
@@ -214,11 +229,6 @@ const party_name = (p: OwedParty, ds: LockedDist[]) => {
   const d = ds.find((x) => x.to_id === p.npo_id);
   return d ? dist_npo(d) : `npo ${p.npo_id}`;
 };
-
-/** whether the dist's npo was recorded as owing it: its grant had gone out
- * when the refund landed, or a reversal's shortfall left it owed */
-const owed_on_record = (d: LockedDist) =>
-  d.status === "settled" ? grant_went_out(d) : d.refund_status === "loss";
 
 /** the cash share a reversal took back by cancelling the dist's pending
  * payout, the rest of it owed for a shortfall */

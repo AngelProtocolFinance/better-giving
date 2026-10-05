@@ -431,7 +431,7 @@ describe("a fund gift across two nonprofits", () => {
 });
 
 describe("a second dispute on the same payment", () => {
-  it("is recorded owing nothing more, and ops told its rows stand under the first and a win credits its share back", async () => {
+  it("is recorded owing only its own fee more, and ops told its rows stand under the first and a win credits its share back", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await deliver(event_of("charge.dispute.created", dispute_of(gift)));
     const first = await owed_of(gift.id);
@@ -440,13 +440,21 @@ describe("a second dispute on the same payment", () => {
     await deliver(event_of("charge.dispute.created", second));
     await deliver(event_of("charge.dispute.created", second));
 
-    expect(await owed_of(gift.id)).toEqual(first);
+    // the share is the whole already; each dispute's fee is its own
+    expect(await owed_of(gift.id)).toEqual(
+      first.map((o) => ({
+        ...o,
+        fee_dispute_usd: o.fee_dispute_usd + 15,
+        outstanding_usd: (o.outstanding_usd ?? 0) + 15,
+      }))
+    );
     expect((await disputes_of(db(), gift.id)).map((d) => d.id).sort()).toEqual([
       `du_${gift.id}`,
       `du_${gift.id}_2`,
     ]);
+    // its fee grew the row, so it is told as owed too
     const [, flagged, ...rest] = notices();
-    expect(rest).toEqual([]);
+    expect(rest.map((n) => n.payload.id)).toEqual([`du_${gift.id}_2_owed`]);
     expect(flagged.payload.alert.body).toMatch(
       new RegExp(
         `second dispute.*stands under du_${gift.id}\\b.*a win of it credits that share back`

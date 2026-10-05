@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { donation_disputes } from "../schema/dispute";
 import type { DbOrTx } from "./helpers";
@@ -63,128 +63,15 @@ export async function dispute_close(
     });
 }
 
-/** the dispute's own share of the charge, the share its open counted taken
- * back, and its fee, as its open recorded what is owed for it */
+/** a mirror of the dispute's take as its open left it, for the notices that
+ * read it off the record: its own share, what the gift's takes took then,
+ * and its fee */
 export async function dispute_record_share(
   tx: DbOrTx,
   id: string,
   s: { share: number; cumulative_share: number; fee_usd: number }
 ): Promise<void> {
   await tx.update(donation_disputes).set(s).where(eq(donation_disputes.id, id));
-}
-
-/** the gift's disputes closed lost, other than `except`, with the share and
- * fee their opens recorded, and whether a chargeback under each recorded its
- * share on the gift */
-export async function disputes_lost_of(
-  tx: DbOrTx,
-  donation_id: string,
-  except?: string
-): Promise<
-  { id: string; share: number; fee_usd: number; loss_recorded: boolean }[]
-> {
-  const rows = await tx
-    .select({
-      id: donation_disputes.id,
-      share: donation_disputes.share,
-      fee_usd: donation_disputes.fee_usd,
-      loss_recorded_at: donation_disputes.loss_recorded_at,
-    })
-    .from(donation_disputes)
-    .where(
-      and(
-        eq(donation_disputes.donation_id, donation_id),
-        eq(donation_disputes.status, "lost"),
-        except === undefined ? undefined : ne(donation_disputes.id, except),
-        isNotNull(donation_disputes.share)
-      )
-    );
-  return rows.map((r) => ({
-    id: r.id,
-    share: r.share ?? 0,
-    fee_usd: r.fee_usd ?? 0,
-    loss_recorded: r.loss_recorded_at !== null,
-  }));
-}
-
-/** a chargeback under dispute `id` recorded its share on the gift. a ref no
- * dispute is on record under yet (a chargeback that came before its dispute's
- * filing) is put on record open, for that filing to claim */
-export async function dispute_loss_recorded(
-  tx: DbOrTx,
-  d: { id: string; donation_id: string; now: string }
-): Promise<void> {
-  await tx
-    .insert(donation_disputes)
-    .values({
-      id: d.id,
-      donation_id: d.donation_id,
-      status: "open",
-      opened_at: d.now,
-      loss_recorded_at: d.now,
-    })
-    .onConflictDoUpdate({
-      target: donation_disputes.id,
-      set: { loss_recorded_at: d.now },
-      setWhere: and(
-        eq(donation_disputes.donation_id, d.donation_id),
-        isNull(donation_disputes.loss_recorded_at)
-      ),
-    });
-}
-
-/** claims for dispute `id` a chargeback on the gift recorded before any
- * filing named it: that record is dropped, and the dispute takes over that
- * its chargeback is on record. false when there is none */
-export async function dispute_claim_prior_loss(
-  tx: DbOrTx,
-  d: { id: string; donation_id: string; now: string }
-): Promise<boolean> {
-  const [prior] = await tx
-    .select({ id: donation_disputes.id })
-    .from(donation_disputes)
-    .where(
-      and(
-        eq(donation_disputes.donation_id, d.donation_id),
-        ne(donation_disputes.id, d.id),
-        eq(donation_disputes.status, "open"),
-        isNull(donation_disputes.share),
-        isNotNull(donation_disputes.loss_recorded_at)
-      )
-    )
-    .orderBy(donation_disputes.opened_at)
-    .limit(1)
-    .for("update");
-  if (!prior) return false;
-  await tx.delete(donation_disputes).where(eq(donation_disputes.id, prior.id));
-  await tx
-    .update(donation_disputes)
-    .set({ loss_recorded_at: d.now })
-    .where(eq(donation_disputes.id, d.id));
-  return true;
-}
-
-/** the gift's latest dispute whose filing recorded a share, open or lost,
- * that no chargeback has recorded its loss under yet: the dispute a
- * chargeback naming none belongs to */
-export async function dispute_awaiting_loss(
-  donation_id: string,
-  tx: DbOrTx = db
-): Promise<string | undefined> {
-  const [row] = await tx
-    .select({ id: donation_disputes.id })
-    .from(donation_disputes)
-    .where(
-      and(
-        eq(donation_disputes.donation_id, donation_id),
-        inArray(donation_disputes.status, ["open", "lost"]),
-        isNotNull(donation_disputes.share),
-        isNull(donation_disputes.loss_recorded_at)
-      )
-    )
-    .orderBy(desc(donation_disputes.opened_at))
-    .limit(1);
-  return row?.id;
 }
 
 export async function dispute_get(

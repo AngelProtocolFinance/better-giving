@@ -19,6 +19,7 @@ export * from "./referrer";
 export * from "./registration";
 export * from "./revenue";
 export * from "./subscription";
+export * from "./take";
 export * from "./tickers";
 export * from "./user";
 export * from "./views";

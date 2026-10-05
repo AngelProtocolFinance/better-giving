@@ -12,6 +12,7 @@ import { npos } from "$/pg/schema/npo";
 import { payouts } from "$/pg/schema/payout";
 import { referrer_commissions } from "$/pg/schema/referrer";
 import { loss_logs } from "$/pg/schema/revenue";
+import { donation_takes } from "$/pg/schema/take";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import { seed_npo, seed_user } from "./funds";
 
@@ -40,6 +41,7 @@ export async function clear_card_gifts(db: Db) {
   await db.delete(bal_txs);
   await db.delete(loss_logs);
   await db.delete(donation_disputes);
+  await db.delete(donation_takes);
   await db.delete(payouts);
   await db.delete(referrer_commissions);
   await db.delete(dists);

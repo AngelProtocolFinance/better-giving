@@ -1,32 +1,21 @@
-import { eq } from "drizzle-orm";
 import { db } from "../pg/db";
 import {
-  dispute_claim_prior_loss,
   dispute_close,
   dispute_get,
   dispute_open,
   dispute_record_share,
-  disputes_lost_of,
   type IDispute,
 } from "../pg/queries/dispute";
-import {
-  type IOwed,
-  owed_for_donation,
-  owed_for_party,
-  owed_total,
-  record_owed,
-} from "../pg/queries/owed";
-import { donations } from "../pg/schema/donation";
+import { type IOwed, owed_for_donation, owed_total } from "../pg/queries/owed";
+import { take_undo, takes_of } from "../pg/queries/take";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
+import { fraction_of, type Share, settled_dists_locked } from "./share";
 import {
-  credit_parts,
-  fraction_of,
-  grant_went_out,
-  type LockedDist,
-  owed_shares,
-  type Share,
-  settled_dists_locked,
-} from "./share";
+  mirror_refunded_share,
+  move_owed,
+  take_dispute,
+  taken_of,
+} from "./takes";
 
 export interface DisputeOpened {
   donation_id: string;
@@ -73,16 +62,10 @@ export type DisputeOpenedResult =
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
- * a chargeback opened on a gift: records the dispute and, as owed, what each
- * party's share of the charge comes to. the share is read from the gift's own
- * records: what its refunds and partial chargebacks recorded as taken back,
- * the disputes lost on it whose chargeback isn't on record yet, and this
- * dispute's own part. an npo whose grant has gone out owes that share of what
- * it received plus its card fee; one whose grant hasn't owes only the
- * disputes' own parts, an earlier refund there being ops' to settle by hand.
- * each npo owes its part of the dispute fees in full, and each referrer the
- * share of its paid commission. the gift stays settled until the dispute
- * closes.
+ * a chargeback opened on a gift: records the dispute, puts its own part on
+ * the gift's ledger of takes (claiming a chargeback of it recorded before the
+ * filing), and moves what each party owes by the difference that makes: see
+ * `owed_targets`. the gift stays settled until the dispute closes.
  *
  * safe to rerun: a redelivery records nothing new, and an open handled
  * after the dispute's close (providers don't order their events) none at all.
@@ -114,56 +97,33 @@ export async function dispute_opened(
     const was = new Map(
       (await owed_for_donation(don.id, tx)).map((o) => [o.id, owed_total(o)])
     );
-    const lost = await disputes_lost_of(tx, don.id, d.dispute_id);
-    const lost_share = lost.reduce((sum, l) => sum + l.share, 0);
-    // a lost dispute whose chargeback recorded its share is in refunded_share
-    const lost_unrecorded = lost
-      .filter((l) => !l.loss_recorded)
-      .reduce((sum, l) => sum + l.share, 0);
-    const [gift] = await tx
-      .select({ refunded_share: donations.refunded_share })
-      .from(donations)
-      .where(eq(donations.id, don.id));
-    const recorded = (gift?.refunded_share ?? 0) + lost_unrecorded;
+    const before = await takes_of(tx, don.id);
     // unsizable, the rest of the charge: the open owes as much as it can, and
     // a win credits it all back
-    const own = fraction_of(d.disputed) ?? Math.max(1 - recorded, 0);
-    // this dispute's own chargeback, recorded before this open, is in it too
-    const self = await dispute_get(d.dispute_id, tx);
-    const own_recorded =
-      !!self?.loss_recorded_at ||
-      (await dispute_claim_prior_loss(tx, {
-        id: d.dispute_id,
-        donation_id: don.id,
-        now,
-      }));
-    const cumulative = Math.max(
-      Math.min(recorded + (own_recorded ? 0 : own), 1),
-      own
-    );
-    const rows: IOwed[] = [];
-    const shares = owed_shares(ds, {
-      f: cumulative,
-      f_of: by_grant(cumulative, Math.min(own + lost_share, 1)),
-      fee_usd: d.fee_usd + lost.reduce((sum, l) => sum + l.fee_usd, 0),
-      owes: () => true,
+    const own = fraction_of(d.disputed) ?? Math.max(1 - taken_of(before), 0);
+    await take_dispute(tx, {
+      donation_id: don.id,
+      dispute_id: d.dispute_id,
+      share: own,
+      fee_usd: d.fee_usd,
     });
-    for (const share of shares) {
-      rows.push(
-        await record_owed(tx, {
-          ...share,
-          donation_id: don.id,
-          source: "dispute",
-          source_ref: d.dispute_id,
-          now,
-        })
-      );
-    }
-    if (rows.length > 0 && own > 0) {
+    const after = await takes_of(tx, don.id);
+    await mirror_refunded_share(tx, don.id, after);
+    const moves = await move_owed(tx, {
+      donation_id: don.id,
+      ds,
+      before,
+      after,
+      src: { source: "dispute", source_ref: d.dispute_id },
+      now,
+    });
+    const rows = moves.flatMap((m) => (m.row ? [m.row] : []));
+    const take = after.find((t) => t.ref === d.dispute_id);
+    if (take) {
       await dispute_record_share(tx, d.dispute_id, {
-        share: own,
-        cumulative_share: cumulative,
-        fee_usd: d.fee_usd,
+        share: take.share,
+        cumulative_share: Math.max(taken_of(after), take.share),
+        fee_usd: take.fee_usd,
       });
     }
     const prior_refs = [
@@ -191,6 +151,9 @@ export interface DisputeWon {
   rail: Rail;
   /** the provider's dispute id */
   dispute_id: string;
+  /** how it closed without the buyer keeping the money from the gift: won,
+   * a claim accepted that a refund pays, or an inquiry closed; `won` absent */
+  status?: "won" | "accepted" | "inquiry_closed";
   /** when the provider opened it: records the dispute if its open never was */
   opened_at: string;
   closed_at: string;
@@ -209,11 +172,11 @@ export type DisputeWonResult =
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
- * a chargeback closed in the gift's favour: the money came back, so each
- * party's row is credited back the dispute's own share of what the party
- * received and its card fee, and its part of the dispute fee, whatever else
- * wrote the row. a later record of the row no longer counts it. what was
- * already recovered from a party's grants is then due back to it.
+ * a chargeback closed in the gift's favour, or that no longer counts (a claim
+ * accepted, which its refund pays; an inquiry closed): its take is undone, so
+ * each party's row is credited back what the takes owed with it less what
+ * they owe without it, its dispute fee included, whatever else wrote the row.
+ * what was already recovered from a party's grants is then due back to it.
  *
  * safe to rerun: a redelivery credits nothing new.
  */
@@ -224,7 +187,7 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
   const record = {
     id: d.dispute_id,
     donation_id: don.id,
-    status: "won" as const,
+    status: d.status ?? "won",
     opened_at: d.opened_at,
     closed_at: d.closed_at,
   };
@@ -239,58 +202,25 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
 
   const owed = await db.transaction(async (tx) => {
     await dispute_close(tx, record);
-    // set by an open that recorded what is owed; none, it owes nothing
-    const own = await dispute_get(d.dispute_id, tx);
-    if (own?.share == null) return [];
     const ds = await settled_dists_locked(tx, don.id);
-    const lost = await disputes_lost_of(tx, don.id, d.dispute_id);
-    const lost_share = lost.reduce((sum, l) => sum + l.share, 0);
-    const cumulative = own.cumulative_share ?? own.share;
-    const disputes = Math.min(own.share + lost_share, 1);
-    // what the open recorded, less what it would have without this dispute:
-    // the difference of two floors, so no cent of another event is credited
-    const at = owed_shares(ds, {
-      f: cumulative,
-      f_of: by_grant(cumulative, disputes),
-      fee_usd: own.fee_usd ?? 0,
-      owes: () => true,
-    });
-    const below = new Map(
-      owed_shares(ds, {
-        f: cumulative - own.share,
-        f_of: by_grant(cumulative - own.share, disputes - own.share),
-        fee_usd: 0,
-        owes: () => true,
-      }).map((b) => [JSON.stringify(b.party), b])
+    const before = await takes_of(tx, don.id);
+    const take = before.find(
+      (t) => t.ref === d.dispute_id && t.status === "active"
     );
-    const rows: IOwed[] = [];
-    for (const s of at) {
-      const row = await owed_for_party(don.id, s.party, tx);
-      if (!row) continue;
-      const b = below.get(JSON.stringify(s.party));
-      const id = d.dispute_id;
-      rows.push(
-        await credit_parts(
-          tx,
-          row,
-          { donation_id: don.id, party: s.party, now },
-          [
-            ["dispute_won", s.received_usd - (b?.received_usd ?? 0), id],
-            [
-              "dispute_won_fee",
-              s.fee_processing_usd - (b?.fee_processing_usd ?? 0),
-              `${id}:fee`,
-            ],
-            [
-              "dispute_won_fee_dispute",
-              s.fee_dispute_usd ?? 0,
-              `${id}:fee_dispute`,
-            ],
-          ]
-        )
-      );
-    }
-    return rows;
+    // none on record, or a redelivery that undid it already: nothing more
+    if (!take || !(await take_undo(tx, don.id, take.ref))) return [];
+    const after = await takes_of(tx, don.id);
+    await mirror_refunded_share(tx, don.id, after);
+    const moves = await move_owed(tx, {
+      donation_id: don.id,
+      ds,
+      before,
+      after,
+      src: { source: "dispute", source_ref: d.dispute_id },
+      undone: take,
+      now,
+    });
+    return moves.flatMap((m) => (m.row ? [m.row] : []));
   });
   return { status: "credited", owed };
 }
@@ -309,9 +239,3 @@ export const owed_lines = (owed: IOwed[]): string[] => [
     return `- ${party}: ${usd(owed_total(o))} (received ${usd(o.received_usd)}, card fee ${usd(o.fee_processing_usd)}, dispute fee ${usd(o.fee_dispute_usd)})`;
   }),
 ];
-
-/** a dist's share at an open: the whole share taken back once its grant has
- * gone out, else only the disputes' own, since a refund of a grant not yet
- * out is left to ops' hand adjustment and owes nothing on record */
-const by_grant = (cumulative: number, disputes: number) => (d: LockedDist) =>
-  grant_went_out(d) ? cumulative : disputes;

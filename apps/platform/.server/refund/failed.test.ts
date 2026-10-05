@@ -77,11 +77,11 @@ beforeEach(async () => {
 const seed = (...ds: Parameters<typeof seed_card_gift>[1][]) =>
   seed_card_gift(test_db.current!.db, ...ds);
 
-/** a stripe refund that succeeded, `taken` of the gift's $100 now refunded
- * by the refunds `counted` */
+/** a stripe refund of `own` of the gift's $100 that succeeded; an event
+ * confirming the refunds `counted` takes each of them instead */
 const refund = (
   donation_id: string,
-  taken: number,
+  own: number,
   ref: string,
   counted?: { id: string; amount: number }[]
 ) =>
@@ -89,23 +89,16 @@ const refund = (
     donation_id,
     rail: "stripe",
     source: "refund",
-    share: { taken, of: 100 },
+    share: { taken: own, of: 100 },
     refunds: counted,
     source_ref: ref,
     alert_from: "charge-refunded",
     notice: { id: `evt_${ref}`, lines: [] },
   });
 
-/** refund `ref` of `amount` of the gift's $100 failed after succeeding; the
- * charge's other live refunds still take back `others` */
-const fail = (donation_id: string, amount: number, ref: string, others = 0) =>
-  refund_failed({
-    donation_id,
-    rail: "stripe",
-    refund: { id: ref, amount },
-    of: 100,
-    others,
-  });
+/** refund `ref` failed after succeeding */
+const fail = (donation_id: string, ref: string) =>
+  refund_failed({ donation_id, rail: "stripe", refund_id: ref });
 
 const gift = async (id: string) =>
   (
@@ -122,9 +115,9 @@ describe("refund_failed — part of the charge", () => {
   test("a failed $40 of a gift since refunded in full credits back only its share", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
-    await refund(id, 100, "re_2");
+    await refund(id, 60, "re_2");
 
-    await fail(id, 40, "re_1", 60);
+    await fail(id, "re_1");
 
     expect(await outstanding(id)).toEqual([55.92]);
   });
@@ -132,16 +125,16 @@ describe("refund_failed — part of the charge", () => {
   test("two failed partials each credit their own share, and a redelivery of either changes nothing", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
-    await refund(id, 70, "re_2");
+    await refund(id, 30, "re_2");
     expect(await outstanding(id)).toEqual([65.24]);
 
-    await fail(id, 40, "re_1", 30);
+    await fail(id, "re_1");
     expect(await outstanding(id)).toEqual([27.96]);
     expect((await gift(id))?.refunded_share).toBe(0.3);
 
-    await fail(id, 30, "re_2");
-    await fail(id, 40, "re_1");
-    await fail(id, 30, "re_2");
+    await fail(id, "re_2");
+    await fail(id, "re_1");
+    await fail(id, "re_2");
 
     expect(await outstanding(id)).toEqual([0]);
     expect((await gift(id))?.refunded_share).toBeNull();
@@ -150,15 +143,15 @@ describe("refund_failed — part of the charge", () => {
   test("a redelivery of the first failure, landing after the second failed at stripe, leaves the second its own share", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
-    await refund(id, 70, "re_2");
-    await fail(id, 40, "re_1", 30);
+    await refund(id, 30, "re_2");
+    await fail(id, "re_1");
 
     // re_2 has failed at stripe, so re_1's redelivery counts no others
-    const again = await fail(id, 40, "re_1", 0);
+    const again = await fail(id, "re_1");
 
     expect(again).toMatchObject({ status: "not_recorded" });
     expect((await gift(id))?.refunded_share).toBe(0.3);
-    await fail(id, 30, "re_2");
+    await fail(id, "re_2");
     expect(await outstanding(id)).toEqual([0]);
     expect((await gift(id))?.refunded_share).toBeNull();
   });
@@ -166,11 +159,11 @@ describe("refund_failed — part of the charge", () => {
   test("a refund event that read the refunds before one failed doesn't owe the failed one again", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
-    await refund(id, 70, "re_2");
-    await fail(id, 40, "re_1", 30);
+    await refund(id, 30, "re_2");
+    await fail(id, "re_1");
 
     // re_2's redelivery, its list read while re_1 still stood
-    await refund(id, 70, "re_2", [
+    await refund(id, 30, "re_2", [
       { id: "re_1", amount: 40 },
       { id: "re_2", amount: 30 },
     ]);
@@ -182,7 +175,7 @@ describe("refund_failed — part of the charge", () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
 
-    const res = await fail(id, 30, "re_2", 40);
+    const res = await fail(id, "re_2");
 
     expect(res).toEqual({ status: "not_recorded", donation_status: "settled" });
     expect(await outstanding(id)).toEqual([37.28]);
@@ -192,7 +185,7 @@ describe("refund_failed — part of the charge", () => {
   test("a full refund after a failed $40 partial owes the full figure", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
-    await fail(id, 40, "re_1");
+    await fail(id, "re_1");
 
     expect((await refund(id, 100, "re_2")).status).toBe("reversed");
 
@@ -210,7 +203,7 @@ describe("refund_failed — part of the charge", () => {
       ref: "run-1",
       now: "2026-10-02T00:00:00.000Z",
     });
-    await fail(id, 40, "re_1");
+    await fail(id, "re_1");
     expect(await outstanding(id)).toEqual([-37.28]);
 
     await refund(id, 60, "re_2");
@@ -223,7 +216,7 @@ describe("refund_failed — part of the charge", () => {
     await refund(id, 40, "re_1");
     expect(await outstanding(id)).toEqual([37.28]);
 
-    const res = await fail(id, 40, "re_1");
+    const res = await fail(id, "re_1");
 
     expect(res).toMatchObject({
       status: "credited",
@@ -252,7 +245,7 @@ describe("refund_failed — a gift whose grant hadn't gone out", () => {
       const { id } = await seed({ ...PAID_GRANT, payout });
       await refund(id, taken, "re_1");
 
-      const res = await fail(id, taken, "re_1");
+      const res = await fail(id, "re_1");
 
       expect(res).toEqual({
         status: "by_hand",
@@ -279,7 +272,7 @@ describe("refund_failed — a written-off row", () => {
       now: "2026-10-03T00:00:00.000Z",
     });
 
-    const res = await fail(id, 100, "re_1");
+    const res = await fail(id, "re_1");
 
     expect(res).toMatchObject({
       status: "by_hand",
@@ -301,7 +294,7 @@ describe("refund_failed — a reversed paid-grant gift", () => {
     await refund(id, 100, "re_1");
     expect(await outstanding(id)).toEqual([93.2]);
 
-    const res = await fail(id, 100, "re_1");
+    const res = await fail(id, "re_1");
 
     expect(res).toMatchObject({
       status: "credited",
@@ -323,7 +316,7 @@ describe("refund_failed — a reversed paid-grant gift", () => {
       now: "2026-10-02T00:00:00.000Z",
     });
 
-    await fail(id, 100, "re_1");
+    await fail(id, "re_1");
 
     expect(await outstanding(id)).toEqual([-93.2]);
   });
@@ -333,7 +326,7 @@ describe("refund_failed — a reversed paid-grant gift", () => {
     await seed_paid_commission(test_db.current!.db, gift, "REF-1", 5);
     await refund(gift.id, 100, "re_1");
 
-    await fail(gift.id, 100, "re_1");
+    await fail(gift.id, "re_1");
 
     const rows = await owed_for_donation(gift.id);
     expect(rows.map((o) => [o.referrer_user, o.outstanding_usd])).toEqual(
@@ -347,9 +340,9 @@ describe("refund_failed — a reversed paid-grant gift", () => {
   test("a redelivery credits nothing twice", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 100, "re_1");
-    await fail(id, 100, "re_1");
+    await fail(id, "re_1");
 
-    const again = await fail(id, 100, "re_1");
+    const again = await fail(id, "re_1");
 
     expect(await outstanding(id)).toEqual([0]);
     expect(again).toEqual({

@@ -156,14 +156,14 @@ async function finish_refund(
   // included: this refund completes it, so the share is whole. summed off the
   // list: stripe doesn't document whether `charge.amount_refunded` counts a
   // pending refund or drops a failed one
-  const taken = refunds
-    .filter((x) => !is_failed_or_canceled(x))
-    .reduce((sum, x) => sum + x.amount, 0);
+  const counted = refunds.filter((x) => !is_failed_or_canceled(x));
+  const taken = counted.reduce((sum, x) => sum + x.amount, 0);
   const res = await reverse_charge({
     donation_id: don.id,
     rail: "stripe",
     source: "admin",
     share: { taken, of: charge.amount_captured },
+    refunds: counted.map(({ id, amount }) => ({ id, amount })),
     // an unsent one (a pending bank refund) can still fail, so the entry
     // holds: refund.updated reverses once the last succeeds
     unsent_refunds: unsent_refunds(refunds).map((x) => x.id),

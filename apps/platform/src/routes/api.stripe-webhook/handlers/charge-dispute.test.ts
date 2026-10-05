@@ -126,6 +126,7 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
       source: "dispute",
       share: { taken: 10_000, of: 10_000 },
       refunds: [],
+      dispute_id: "dp_1",
       dispute_fee_usd: 15,
       source_ref: "dp_1",
       alert_from: "charge-dispute",
@@ -190,7 +191,8 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
 
     expect(reverse_charge_mock).toHaveBeenCalledOnce();
     const handed = reverse_charge_mock.mock.lastCall![0];
-    expect(handed.share).toEqual({ taken: 10_000, of: 10_000 });
+    // its own part; the refunds it names are each their own take
+    expect(handed.share).toEqual({ taken: 4_000, of: 10_000 });
     expect(handed.refunds).toEqual([{ id: "re_1", amount: 6_000 }]);
     expect(notice_text()).toContain("60.00 USD (re_1, succeeded)");
   });

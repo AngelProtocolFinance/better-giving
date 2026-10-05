@@ -1,0 +1,285 @@
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
+import {
+  clear_card_gifts,
+  PAID_GRANT,
+  seed_card_gift,
+} from "#/__tests__/fixtures/card-gift";
+import { owed_amounts } from "../pg/schema/owed";
+import type { TestDb } from "../pg/test-utils/pglite";
+
+// --- mocks ---
+
+const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+
+vi.mock("../pg/db", () => ({
+  db: new Proxy(
+    {},
+    {
+      get(_, prop) {
+        const real = test_db.current?.db;
+        if (!real) throw new Error("test_db not initialized");
+        return (real as any)[prop];
+      },
+    }
+  ),
+}));
+
+vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
+vi.mock("../kit/queue", () => ({ enqueue: vi.fn(async () => undefined) }));
+vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
+// a full refund's subscription lookup: no gift here is recurring
+vi.mock("../kit/stripe", () => ({
+  stripe: { invoicePayments: { list: vi.fn(async () => ({ data: [] })) } },
+}));
+
+// --- imports (after mocks) ---
+
+import { dispute_close } from "../pg/queries/dispute";
+import type { DbOrTx } from "../pg/queries/helpers";
+import { owed_for_donation } from "../pg/queries/owed";
+import { create_test_db } from "../pg/test-utils/pglite";
+import { dispute_opened, dispute_won } from "./dispute";
+import { reverse_charge } from "./reverse";
+
+// --- setup ---
+
+const OPENED = "2026-10-01T12:00:00.000Z";
+const CLOSED = "2026-10-20T12:00:00.000Z";
+
+beforeAll(async () => {
+  test_db.current = await create_test_db();
+}, 30_000);
+
+afterAll(async () => {
+  await test_db.current?.client.close();
+});
+
+beforeEach(async () => {
+  vi.clearAllMocks();
+  const db = test_db.current!.db;
+  await db.delete(owed_amounts);
+  await clear_card_gifts(db);
+});
+
+/** the events on a $100 card gift whose $90 grant went out ($3.20 card fee),
+ * as a provider delivers them: each acts through the refund core's entries */
+const on = (id: string) => ({
+  refund: (ref: string, usd: number) =>
+    reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: { taken: usd, of: 100 },
+      source_ref: ref,
+      alert_from: "paypal-refund",
+      notice: { id: `WH-${ref}`, lines: [] },
+    }),
+  open: (dispute_id: string, usd: number) =>
+    dispute_opened({
+      donation_id: id,
+      rail: "stripe",
+      dispute_id: `${id}:${dispute_id}`,
+      opened_at: OPENED,
+      disputed: { taken: usd, of: 100 },
+      fee_usd: 0,
+    }),
+  /** a chargeback naming no dispute, as paypal's REVERSED does */
+  chargeback: (ref: string, usd: number) =>
+    reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: usd, of: 100 },
+      source_ref: ref,
+      alert_from: "paypal-refund",
+      notice: { id: `WH-${ref}`, lines: [] },
+    }),
+  close: (
+    dispute_id: string,
+    status: "won" | "lost" | "accepted" | "inquiry_closed"
+  ) =>
+    status === "lost"
+      ? dispute_close(test_db.current!.db as unknown as DbOrTx, {
+          id: `${id}:${dispute_id}`,
+          donation_id: id,
+          status,
+          opened_at: OPENED,
+          closed_at: CLOSED,
+        })
+      : dispute_won({
+          donation_id: id,
+          rail: "stripe",
+          dispute_id: `${id}:${dispute_id}`,
+          status,
+          opened_at: OPENED,
+          closed_at: CLOSED,
+        }),
+});
+
+const outstanding = async (id: string) =>
+  (await owed_for_donation(id)).map((o) => o.outstanding_usd);
+
+describe("the takes ledger, in the orders the review found", () => {
+  test("T1: a refund delivered after a dispute's open counts on top of it, and the win leaves it", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.open("D0", 30);
+    await e.refund("R1", 10);
+
+    await e.close("D0", "won");
+
+    expect(await outstanding(id)).toEqual([9.32]);
+  });
+
+  test("T2: a chargeback delivered twice counts once, its dispute lost, and the next dispute's win leaves it", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.open("D0", 30);
+    await e.chargeback("REV-0", 30);
+    await e.chargeback("REV-0", 30);
+    await e.close("D0", "lost");
+
+    await e.open("D1", 40);
+    expect(await outstanding(id)).toEqual([65.24]);
+    await e.close("D1", "won");
+
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+
+  test("T3: a chargeback won back no longer counts toward the next dispute", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.open("D0", 30);
+    await e.chargeback("REV-0", 30);
+    await e.close("D0", "won");
+    expect(await outstanding(id)).toEqual([0]);
+
+    await e.open("D1", 40);
+    expect(await outstanding(id)).toEqual([37.28]);
+    await e.close("D1", "won");
+
+    expect(await outstanding(id)).toEqual([0]);
+  });
+
+  test("T4: a chargeback landing before its dispute's filing is claimed by it, counted once", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.chargeback("REV-1", 30);
+    await e.open("D1", 30);
+    await e.close("D1", "lost");
+
+    await e.open("D2", 20);
+    expect(await outstanding(id)).toEqual([46.6]);
+    await e.close("D2", "won");
+
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+
+  test("T5: a chargeback redelivered after its filing claimed it finds its take", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.chargeback("REV-1", 30);
+    await e.open("D1", 30);
+    await e.chargeback("REV-1", 30);
+
+    await e.open("D2", 20);
+    expect(await outstanding(id)).toEqual([46.6]);
+    await e.close("D2", "won");
+
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+});
+
+/** a seeded generator, so a failing order reproduces */
+function rng(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) % 2 ** 31;
+    return s / 2 ** 31;
+  };
+}
+
+function shuffled<T>(xs: T[], next: () => number): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+type Step = (e: ReturnType<typeof on>) => Promise<unknown>;
+
+/** the same events in many orders: a dispute's outcome after its filing, the
+ * one ordering providers keep; one event redelivered at the end */
+describe("the takes ledger, in any order", () => {
+  const scenarios: [string, Record<string, Step>, string, number][] = [
+    [
+      "a refund, then a dispute lost with its chargeback",
+      {
+        refund: (e) => e.refund("R1", 20),
+        open: (e) => e.open("D", 30),
+        chargeback: (e) => e.chargeback("REV", 30),
+        outcome: (e) => e.close("D", "lost"),
+      },
+      "outcome",
+      46.6,
+    ],
+    [
+      "a refund, then a dispute won after its chargeback",
+      {
+        refund: (e) => e.refund("R1", 20),
+        open: (e) => e.open("D", 30),
+        chargeback: (e) => e.chargeback("REV", 30),
+        outcome: (e) => e.close("D", "won"),
+      },
+      "outcome",
+      18.64,
+    ],
+    [
+      "a refund, then a claim accepted and paid by a refund",
+      {
+        refund: (e) => e.refund("R1", 20),
+        open: (e) => e.open("D", 30),
+        outcome: (e) => e.close("D", "accepted"),
+        claim: (e) => e.refund("R-claim", 30),
+      },
+      "outcome",
+      46.6,
+    ],
+  ];
+
+  test.each(scenarios)(
+    "%s owes the same in every order",
+    async (_, steps, after_open, owed) => {
+      const next = rng(7);
+      const names = Object.keys(steps);
+      for (let run = 0; run < 8; run++) {
+        let order = shuffled(names, next);
+        // the outcome comes after the filing
+        if (order.indexOf(after_open) < order.indexOf("open")) {
+          order = order.filter((n) => n !== after_open);
+          order.splice(order.indexOf("open") + 1, 0, after_open);
+        }
+        const redelivered = names[Math.floor(next() * names.length)]!;
+        const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+        const e = on(id);
+        for (const n of [...order, redelivered]) await steps[n]!(e);
+
+        expect({ order, redelivered, owed: await outstanding(id) }).toEqual({
+          order,
+          redelivered,
+          owed: [owed],
+        });
+      }
+    }
+  );
+});

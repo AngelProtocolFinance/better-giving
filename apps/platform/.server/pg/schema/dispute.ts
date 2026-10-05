@@ -17,22 +17,17 @@ export const donation_disputes = pgTable(
       .notNull(),
     opened_at: timestamptz("opened_at").notNull(),
     closed_at: timestamptz("closed_at"),
-    /** the dispute's own part of the charge, and the fee charged for it in
-     * usd, once its open recorded what is owed: what a win credits back,
-     * whatever else wrote the gift's rows, and what a later dispute counts of
-     * it once lost. null while it recorded nothing */
+    /** mirrors of the dispute's take on the gift's ledger as its open left
+     * it: its own part of the charge and its fee in usd. null while it has
+     * no take. what is owed is read off the ledger, never off these */
     share: numeric_as_number("share", { precision: 38, scale: 18 }),
     fee_usd: numeric_as_number("fee_usd", { precision: 38, scale: 18 }),
-    /** what of the charge its open counted as taken back, itself and the
-     * refunds and lost disputes before it included: where a win's credit
-     * counts down from on a grant that had gone out */
+    /** a mirror too: what the gift's takes took when it opened */
     cumulative_share: numeric_as_number("cumulative_share", {
       precision: 38,
       scale: 18,
     }),
-    /** when a partial chargeback under this dispute recorded its share on the
-     * gift: from then the gift's `refunded_share` holds it, so a later
-     * dispute doesn't count it again */
+    /** no longer written: the ledger's take carries the chargeback's own ref */
     loss_recorded_at: timestamptz("loss_recorded_at"),
   },
   (t) => [

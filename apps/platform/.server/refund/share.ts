@@ -15,8 +15,7 @@ import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { dist_settled_usd, fee_processing_usd, referrer_of } from "./plan";
 
-/** how much of a charge has been taken back so far, this event included:
- * every refund and every dispute on it, `taken` and `of` in one unit */
+/** a part of a charge, `taken` of `of`, in one unit */
 export interface Share {
   taken: number;
   of: number;
@@ -111,7 +110,7 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
 export const grant_went_out = (d: LockedDist) =>
   d.cash_pct > 0 && d.payout_type !== null && d.payout_type !== "pending";
 
-type OwedShare = Pick<
+export type OwedShare = Pick<
   IOwedRecord,
   "party" | "received_usd" | "fee_processing_usd" | "fee_dispute_usd"
 >;
@@ -125,11 +124,15 @@ export function owed_shares(
     f: number;
     /** the npo part's share for a dist, when not `f` */
     f_of?: (d: LockedDist) => number;
-    fee_usd: number;
+    /** the dispute fee, split over the dists by settled amount; or each
+     * dist's part of it already split */
+    fee_usd: number | number[];
     owes: (d: LockedDist) => boolean;
   }
 ): OwedShare[] {
-  const fee_shares = split_cents(o.fee_usd, ds.map(dist_settled_usd));
+  const fee_shares = Array.isArray(o.fee_usd)
+    ? o.fee_usd
+    : split_cents(o.fee_usd, ds.map(dist_settled_usd));
   const by_party = new Map<string, OwedShare>();
   const add = (key: string, s: OwedShare) => {
     const was = by_party.get(key);
@@ -170,7 +173,7 @@ export function owed_shares(
 
 /** `usd` split in whole cents in proportion to `weights`, the cents rounding
  * leaves going to the largest remainders, so the shares sum to `usd` */
-function split_cents(usd: number, weights: number[]): number[] {
+export function split_cents(usd: number, weights: number[]): number[] {
   const cents = Math.round(usd * 100);
   const total = weights.reduce((s, w) => s + w, 0);
   if (total <= 0) return weights.map(() => 0);
@@ -208,15 +211,15 @@ export async function credit_parts(
   const left = await owed_uncredited(tx, row);
   for (const [reason, usd, ref] of parts) {
     const figure = figure_of(reason);
-    // to 1e-9: summed in floats, 65.24 - 64.28 would cap 0.96 at 0.9599…
-    const creditable =
-      Math.round(
-        (owed_total(cur) - cur.credited_back_usd - cur.written_off_usd) * 1e9
-      ) / 1e9;
+    // each to 1e-9: summed in floats, 65.24 - 64.28 would cap 0.96 at
+    // 0.9599…, and 2.24 - 1.28 credit 0.9600…02, past what the row holds
+    const creditable = to_nano(
+      owed_total(cur) - cur.credited_back_usd - cur.written_off_usd
+    );
     const credit = Math.min(
-      usd,
+      to_nano(usd),
       creditable,
-      figure ? Math.round(left[figure] * 1e9) / 1e9 : usd
+      figure ? to_nano(left[figure]) : Number.POSITIVE_INFINITY
     );
     if (credit <= 0) continue;
     if (figure) left[figure] -= credit;
@@ -224,3 +227,5 @@ export async function credit_parts(
   }
   return cur;
 }
+
+const to_nano = (usd: number) => Math.round(usd * 1e9) / 1e9;
