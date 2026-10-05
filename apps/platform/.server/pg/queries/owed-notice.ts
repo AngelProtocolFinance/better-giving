@@ -1,8 +1,9 @@
-import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../db";
+import { donations } from "../schema/donation";
 import { owed_amounts, owed_notices } from "../schema/owed";
 import type { DbOrTx } from "./helpers";
-import type { OwedParty } from "./owed";
+import { type OwedParty, owed_reaches_party } from "./owed";
 import { type IOwedHistoryRow, owed_history_row } from "./owed-history";
 
 export type IOwedNotice = typeof owed_notices.$inferSelect;
@@ -12,10 +13,67 @@ export const OWED_NOTICE_LEASE_MS = 15 * 60 * 1000;
 
 const lease_cutoff = sql`now() - make_interval(secs => ${OWED_NOTICE_LEASE_MS / 1000})`;
 
-const claimable = and(
-  isNull(owed_notices.sent_at),
-  or(isNull(owed_notices.claimed_at), lt(owed_notices.claimed_at, lease_cutoff))
-);
+/** the notice's row still reaches its party: a date moved later drops what
+ * was queued under the earlier one */
+const reaches = (tx: DbOrTx) =>
+  exists(
+    // a join, so drizzle qualifies every column, the outer notice's included
+    tx
+      .select({ one: sql`1` })
+      .from(owed_amounts)
+      .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+      .where(
+        and(eq(owed_amounts.id, owed_notices.owed_id), owed_reaches_party())
+      )
+  );
+
+const claimable = (tx: DbOrTx) =>
+  and(
+    isNull(owed_notices.sent_at),
+    or(
+      isNull(owed_notices.claimed_at),
+      lt(owed_notices.claimed_at, lease_cutoff)
+    ),
+    reaches(tx)
+  );
+
+/** a `recorded` notice for each row that owes, reaches its party, and has
+ * none: a row recorded before the effective date was set has had no notice
+ * queued. safe to run any number of times; the count it queued */
+export async function queue_owed_notices_missed(
+  tx: DbOrTx = db
+): Promise<number> {
+  const queued = await tx
+    .insert(owed_notices)
+    .select(
+      tx
+        // drizzle's insert-select wants every column, in table order
+        .select({
+          id: sql<string>`gen_random_uuid()::text`.as("id"),
+          owed_id: owed_amounts.id,
+          kind: sql<IOwedNotice["kind"]>`'recorded'`.as("kind"),
+          round: sql<number>`0`.as("round"),
+          created_at: sql<string>`now()`.as("created_at"),
+          claimed_at: sql<string | null>`null`.as("claimed_at"),
+          sent_at: sql<string | null>`null`.as("sent_at"),
+        })
+        .from(owed_amounts)
+        .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+        .where(
+          and(
+            owed_reaches_party(),
+            sql`${owed_amounts.outstanding_usd} >= 0.01`,
+            sql`NOT EXISTS (SELECT 1 FROM ${owed_notices}
+              WHERE ${owed_notices.owed_id} = ${owed_amounts.id} AND ${owed_notices.kind} = 'recorded')`
+          )
+        )
+    )
+    .onConflictDoNothing({
+      target: [owed_notices.owed_id, owed_notices.kind, owed_notices.round],
+    })
+    .returning({ id: owed_notices.id });
+  return queued.length;
+}
 
 /** notices to send, oldest first: unsent, and unclaimed or past their lease */
 export function owed_notices_due(
@@ -29,7 +87,7 @@ export function owed_notices_due(
       kind: owed_notices.kind,
     })
     .from(owed_notices)
-    .where(claimable)
+    .where(claimable(tx))
     .orderBy(asc(owed_notices.created_at), asc(owed_notices.id))
     .limit(limit);
 }
@@ -62,7 +120,7 @@ export async function claim_owed_notice(
     // ms, so the stamp survives a driver that hands back a Date and still
     // matches `release_owed_notice`'s equality
     .set({ claimed_at: sql`date_trunc('milliseconds', now())` })
-    .where(and(eq(owed_notices.id, id), claimable))
+    .where(and(eq(owed_notices.id, id), claimable(tx)))
     .returning({
       stamp: owed_notices.claimed_at,
       kind: owed_notices.kind,
@@ -90,10 +148,12 @@ export async function claim_owed_notice(
   // read after the miss, so a state that moved in between can only read as
   // busy, whose retry then sees it — a sent stamp never moves back
   const [notice] = await tx
-    .select({ sent_at: owed_notices.sent_at })
+    .select({ sent_at: owed_notices.sent_at, reaches: reaches(tx) })
     .from(owed_notices)
     .where(eq(owed_notices.id, id));
-  return !notice || notice.sent_at ? { status: "done" } : { status: "busy" };
+  return !notice || notice.sent_at || !notice.reaches
+    ? { status: "done" }
+    : { status: "busy" };
 }
 
 /** the mail is out; permanent, whoever holds the claim */

@@ -46,6 +46,16 @@ export const owed_reaches_party = (): SQL =>
     ? sql`${donations.created_at} >= ${owed_terms_effective}::timestamptz`
     : sql`false`;
 
+/** whether a run may net the row: it reaches its party, and the party has
+ * been sent the notice of what it owes now — the row's latest `recorded`
+ * notice. like `owed_reaches_party`, the query joins the row's gift */
+export const owed_deductible = (): SQL =>
+  sql`(${owed_reaches_party()} AND (
+    SELECT ${owed_notices.sent_at} IS NOT NULL FROM ${owed_notices}
+    WHERE ${owed_notices.owed_id} = ${owed_amounts.id} AND ${owed_notices.kind} = 'recorded'
+    ORDER BY ${owed_notices.round} DESC LIMIT 1
+  ) IS TRUE)`;
+
 /** the gift's cumulative figure for `party`, across every refund and dispute
  * on it so far, never one event's share. a refund that failed after it was
  * recorded no longer counts in it: what it was credited back for is added on
@@ -62,7 +72,7 @@ export interface IOwedRecord {
 }
 
 /** what failed refunds credited back on the row under `reason` */
-const failed_credits = (reason: OwedCreditReason) =>
+export const failed_credits = (reason: OwedCreditReason) =>
   sql`(SELECT COALESCE(SUM(${owed_entries.usd}), 0) FROM ${owed_entries}
     WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
       AND ${owed_entries.kind} = 'credit' AND ${owed_entries.reason} = ${reason})`;
@@ -79,6 +89,12 @@ const grown = (col: AnyPgColumn, failed?: OwedCreditReason) =>
 const owed_total_sql = sql`${owed_amounts.received_usd} + ${owed_amounts.fee_processing_usd} + ${owed_amounts.fee_dispute_usd}`;
 
 export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
+  // locked, so a concurrent record reads the owing this one leaves
+  const [before] = await tx
+    .select({ outstanding_usd: owed_amounts.outstanding_usd })
+    .from(owed_amounts)
+    .where(party_row(r))
+    .for("update");
   const [row] = await tx
     .insert(owed_amounts)
     .values({
@@ -110,9 +126,22 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
     .returning();
   // no row back: the conflict's update was skipped, and the row stands as it was
   const owed = row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
-  await queue_notice(tx, "recorded", owed.id, r.now);
+  // the party hears of each rise from owing nothing to owing, and of nothing
+  // that only adds to what it already owes. a first row is round 0 even when
+  // a concurrent first record wrote it, so the two share one notice
+  if (owing(owed) && !(before && owing(before))) {
+    const round = before
+      ? sql`(SELECT count(*)::int FROM ${owed_notices}
+          WHERE ${owed_notices.owed_id} = ${owed.id} AND ${owed_notices.kind} = 'recorded')`
+      : sql`0`;
+    await queue_notice(tx, "recorded", owed.id, r.now, round);
+  }
   return owed;
 }
+
+/** under a cent counts as settled, as the runs take it */
+const owing = (o: { outstanding_usd: number | null }) =>
+  (o.outstanding_usd ?? 0) >= 0.01;
 
 type OwedNoticeKind = (typeof owed_notices.$inferSelect)["kind"];
 
@@ -129,7 +158,8 @@ async function queue_notice(
   tx: DbOrTx,
   kind: OwedNoticeKind,
   owed_id: string,
-  now: string
+  now: string,
+  round: SQL = sql`0`
 ) {
   await tx
     .insert(owed_notices)
@@ -140,6 +170,7 @@ async function queue_notice(
           id: sql<string>`gen_random_uuid()::text`.as("id"),
           owed_id: owed_amounts.id,
           kind: sql<OwedNoticeKind>`${kind}`.as("kind"),
+          round: sql<number>`${round}`.as("round"),
           created_at: sql<string>`${now}::timestamptz`.as("created_at"),
           claimed_at: sql<string | null>`null`.as("claimed_at"),
           sent_at: sql<string | null>`null`.as("sent_at"),
@@ -148,7 +179,9 @@ async function queue_notice(
         .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
         .where(and(eq(owed_amounts.id, owed_id), owed_reaches_party()))
     )
-    .onConflictDoNothing({ target: [owed_notices.owed_id, owed_notices.kind] });
+    .onConflictDoNothing({
+      target: [owed_notices.owed_id, owed_notices.kind, owed_notices.round],
+    });
 }
 
 export type OwedCreditReason =

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -18,6 +19,7 @@ import type { DbOrTx } from "./helpers";
 import {
   admin_credit_owed,
   credit_owed,
+  owed_deductible,
   record_owed,
   write_off_owed,
 } from "./owed";
@@ -25,6 +27,7 @@ import {
   claim_owed_notice,
   mark_owed_notice_sent,
   owed_notices_due,
+  queue_owed_notices_missed,
   release_owed_notice,
 } from "./owed-notice";
 
@@ -148,6 +151,18 @@ describe("the recorded notice", () => {
 });
 
 describe("a claim", () => {
+  test("drops a queued notice whose row no longer reaches its party", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    const [notice] = await owed_notices_due(50, as_db(t.db));
+
+    terms.effective = "2026-11-02T00:00:00.000Z";
+    expect(await due()).toEqual([]);
+    expect(await claim_owed_notice(notice!.id, as_db(t.db))).toEqual({
+      status: "done",
+    });
+  });
+
   test("is busy while another holds it, and free again once released", async () => {
     await gift("don-1", EFFECTIVE);
     await refund("don-1");
@@ -162,6 +177,152 @@ describe("a claim", () => {
     if (first.status !== "claimed") throw new Error(first.status);
     await release_owed_notice(notice!.id, first.stamp, as_db(t.db));
     expect(await due()).toEqual(["recorded"]);
+  });
+});
+
+describe("the recorded notice, re-armed", () => {
+  const record = (source_ref: string, received_usd: number, fee: number) =>
+    t.db.transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        source: "refund",
+        source_ref,
+        received_usd,
+        fee_processing_usd: fee,
+        now: NOW,
+      })
+    );
+  const send_all = async () => {
+    for (const n of await owed_notices_due(50, as_db(t.db))) {
+      await claim_owed_notice(n.id, as_db(t.db));
+      await mark_owed_notice_sent(n.id, as_db(t.db));
+    }
+  };
+
+  test("is due once more when a row owing nothing comes to owe again, and once only across redeliveries", async () => {
+    await gift("don-1", EFFECTIVE);
+    await record("re_1", 36, 1.28);
+    await send_all();
+    // the partial refund failed: credited back to nothing
+    for (const [reason, usd] of [
+      ["refund_failed", 36],
+      ["refund_failed_fee", 1.28],
+    ] as const) {
+      await credit_owed(as_db(t.db), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        usd,
+        reason,
+        ref: `${reason}:re_1`,
+        now: NOW,
+      });
+    }
+    await send_all();
+
+    await record("re_2", 90, 3.2);
+    await record("re_2", 90, 3.2);
+
+    expect(await due()).toEqual(["recorded"]);
+  });
+
+  test("is not due again while the row still owes when it grows", async () => {
+    await gift("don-1", EFFECTIVE);
+    await record("re_1", 36, 1.28);
+    await send_all();
+
+    await record("re_2", 90, 3.2);
+
+    expect(await due()).toEqual([]);
+  });
+});
+
+describe("owed_deductible", () => {
+  const deductible = async () =>
+    (
+      await t.db
+        .select({ donation_id: owed_amounts.donation_id })
+        .from(owed_amounts)
+        .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+        .where(owed_deductible())
+    ).map((r) => r.donation_id);
+  const send = async () => {
+    for (const n of await owed_notices_due(50, as_db(t.db))) {
+      await claim_owed_notice(n.id, as_db(t.db));
+      await mark_owed_notice_sent(n.id, as_db(t.db));
+    }
+  };
+
+  test("holds a row back until its recorded notice is sent", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    expect(await deductible()).toEqual([]);
+
+    await send();
+    expect(await deductible()).toEqual(["don-1"]);
+  });
+
+  test("holds a row back again once it owes anew, until that notice is sent", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    await send();
+    await credit_owed(as_db(t.db), {
+      donation_id: "don-1",
+      party: { npo_id: npo_a },
+      reason: "dispute_won",
+      ref: "dp_won",
+      now: NOW,
+    });
+    await t.db.transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        source: "dispute",
+        source_ref: "dp_2",
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        now: NOW,
+      })
+    );
+    expect(await deductible()).toEqual([]);
+
+    await send();
+    expect(await deductible()).toEqual(["don-1"]);
+  });
+
+  test("holds every row back while the date is unset, notice sent or not", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    await send();
+
+    terms.effective = null;
+    expect(await deductible()).toEqual([]);
+  });
+});
+
+describe("queue_owed_notices_missed", () => {
+  test("queues one recorded notice for each owing row that reaches its party with none", async () => {
+    terms.effective = null;
+    await gift("don-1", EFFECTIVE);
+    await gift("don-2", EFFECTIVE);
+    await refund("don-1");
+    await refund("don-2");
+    // owes nothing, so there is nothing to tell of before a deduction
+    await credit_owed(as_db(t.db), {
+      donation_id: "don-2",
+      party: { npo_id: npo_a },
+      reason: "dispute_won",
+      ref: "dp_won",
+      now: NOW,
+    });
+    expect(await due()).toEqual([]);
+
+    terms.effective = EFFECTIVE;
+    expect(await queue_owed_notices_missed(as_db(t.db))).toBe(1);
+    expect(await queue_owed_notices_missed(as_db(t.db))).toBe(0);
+    const notices = await owed_notices_due(50, as_db(t.db));
+    expect(notices.map((n) => n.kind)).toEqual(["recorded"]);
   });
 });
 

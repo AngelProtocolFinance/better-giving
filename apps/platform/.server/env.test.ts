@@ -104,12 +104,15 @@ describe("env: owed terms effective date", () => {
   });
 
   // a typo read as unset would hide every row from its party in silence
-  it.each(["11/01/2026", "2026-02-30", "2026-11-01T00:00", "soon"])(
-    "%j refuses to boot",
-    async (value) => {
-      await expect(load({ OWED_TERMS_EFFECTIVE: value })).rejects.toThrow(
-        /OWED_TERMS_EFFECTIVE/
-      );
-    }
-  );
+  it.each([
+    "11/01/2026",
+    "2026-02-30",
+    "2026-11-01T00:00",
+    "2026-11-01T25:00Z",
+    "soon",
+  ])("%j refuses to boot", async (value) => {
+    await expect(load({ OWED_TERMS_EFFECTIVE: value })).rejects.toThrow(
+      /OWED_TERMS_EFFECTIVE/
+    );
+  });
 });

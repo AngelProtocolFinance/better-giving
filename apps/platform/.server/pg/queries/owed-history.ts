@@ -1,19 +1,22 @@
 import { and, asc, desc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { payout_total } from "../../payouts/transfer";
+import { to_units } from "@/helpers/decimal";
 import { db } from "../db";
 import { donations } from "../schema/donation";
 import { owed_amounts, owed_entries } from "../schema/owed";
-import { payouts, settlements } from "../schema/payout";
+import { settlements } from "../schema/payout";
 import type { DbOrTx } from "./helpers";
 import {
+  failed_credits,
   type IOwed,
   type OwedParty,
   owed_reaches_party,
   party_is,
 } from "./owed";
 
-/** precedence runs top down: a row partly recovered, then written off, is waived */
+/** a row still owing is `partly_recovered` or `recorded`, whatever settled
+ * part of it before; one owing nothing reads by what settled it, `waived`
+ * over `credited_back` over `recovered` */
 export type OwedState =
   | "waived"
   | "credited_back"
@@ -33,6 +36,8 @@ export interface IOwedRunLine {
   at: string;
 }
 
+/** received, card fee and credited back are net of what a failed refund
+ * credited back, so a gift's row never reads more than the gift */
 export interface IOwedHistoryRow
   extends Pick<
     IOwed,
@@ -63,12 +68,19 @@ export interface IOwedHistoryRow
   recoveries: IOwedRunLine[];
 }
 
+// under a cent counts as settled, as the runs take it
 const state = sql<OwedState>`CASE
+  WHEN ${owed_amounts.outstanding_usd} >= 0.01 THEN
+    CASE WHEN ${owed_amounts.recovered_usd} > 0 THEN 'partly_recovered' ELSE 'recorded' END
   WHEN ${owed_amounts.written_off_usd} > 0 THEN 'waived'
   WHEN ${owed_amounts.credited_back_usd} > 0 THEN 'credited_back'
-  WHEN ${owed_amounts.recovered_usd} > 0 AND ${owed_amounts.outstanding_usd} < 0.01 THEN 'recovered'
-  WHEN ${owed_amounts.recovered_usd} > 0 THEN 'partly_recovered'
+  WHEN ${owed_amounts.recovered_usd} > 0 THEN 'recovered'
   ELSE 'recorded' END`;
+
+// record_owed adds a failed refund's credits back onto the figures, so they
+// keep offsetting it; the party sees each figure without that pair
+const failed_received = failed_credits("refund_failed");
+const failed_fee = failed_credits("refund_failed_fee");
 
 /** a recovery as is; a due-back payment, which the run added, negative */
 const signed_usd =
@@ -121,11 +133,20 @@ async function history_of(tx: DbOrTx, where: SQL): Promise<IOwedHistoryRow[]> {
       source: owed_amounts.source,
       recorded_at: owed_amounts.recorded_at,
       state,
-      received_usd: owed_amounts.received_usd,
-      fee_processing_usd: owed_amounts.fee_processing_usd,
+      received_usd:
+        sql<number>`${owed_amounts.received_usd} - ${failed_received}`.mapWith(
+          owed_amounts.received_usd
+        ),
+      fee_processing_usd:
+        sql<number>`${owed_amounts.fee_processing_usd} - ${failed_fee}`.mapWith(
+          owed_amounts.fee_processing_usd
+        ),
       fee_dispute_usd: owed_amounts.fee_dispute_usd,
       recovered_usd: owed_amounts.recovered_usd,
-      credited_back_usd: owed_amounts.credited_back_usd,
+      credited_back_usd:
+        sql<number>`${owed_amounts.credited_back_usd} - ${failed_received} - ${failed_fee}`.mapWith(
+          owed_amounts.credited_back_usd
+        ),
       credited_back_at: owed_amounts.credited_back_at,
       written_off_usd: owed_amounts.written_off_usd,
       written_off_at: owed_amounts.written_off_at,
@@ -183,12 +204,6 @@ export async function grant_run_deductions(
     );
   if (!run) return null;
 
-  const paid = await tx
-    .select({ amount: payouts.amount })
-    .from(payouts)
-    .where(
-      and(eq(payouts.settled_id, settlement_id), eq(payouts.npo_id, npo_id))
-    );
   const deductions = await tx
     .select({
       owed_id: owed_amounts.id,
@@ -210,8 +225,11 @@ export async function grant_run_deductions(
     )
     .orderBy(asc(donations.created_at), asc(owed_amounts.donation_id));
 
+  // the run nets exactly its deductions off its gross; its payouts can't be
+  // summed for it, since one refunded in flight never settles under the run
+  const deducted = deductions.reduce((a, d) => a + d.usd, 0);
   return {
-    gross: payout_total(paid.map((p) => p.amount)),
+    gross: to_units(run.net + deducted, 2) / 100,
     net: run.net,
     deductions,
   };

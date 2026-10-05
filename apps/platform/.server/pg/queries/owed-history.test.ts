@@ -18,6 +18,7 @@ import { loss_logs } from "../schema/revenue";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
 import {
+  admin_credit_owed,
   credit_owed,
   type OwedParty,
   owed_for_donation,
@@ -266,6 +267,84 @@ describe("npo_owed_history", () => {
     ]);
     expect(row!.recovered_usd).toBe(10);
   });
+
+  test("a full refund after a failed partial shows the gift's own figures, net of what the failed refund credited", async () => {
+    await gift("don-1", EFFECTIVE);
+    const record = (source_ref: string, received_usd: number, fee: number) =>
+      record_owed(as_db(t.db), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        source: "refund",
+        source_ref,
+        received_usd,
+        fee_processing_usd: fee,
+        now: NOW,
+      });
+    await record("re_1", 36, 1.28);
+    for (const [reason, usd] of [
+      ["refund_failed", 36],
+      ["refund_failed_fee", 1.28],
+    ] as const) {
+      await credit_owed(as_db(t.db), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        usd,
+        reason,
+        ref: `${reason}:re_1`,
+        now: CREDIT_AT,
+      });
+    }
+    await record("re_2", 90, 3.2);
+
+    const [row] = await npo_owed_history(npo_a, as_db(t.db));
+    expect(row).toMatchObject({
+      state: "recorded",
+      received_usd: 90,
+      fee_processing_usd: 3.2,
+      credited_back_usd: 0,
+      outstanding_usd: 93.2,
+    });
+  });
+
+  test("a row still owing reads by what it owes, not by an earlier credit or write-off", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    await gift("don-1", EFFECTIVE);
+    await gift("don-2", EFFECTIVE);
+    const credited = await refund("don-1", { npo_id: npo_a });
+    const waived = await refund("don-2", { npo_id: npo_a });
+    await admin_credit_owed(as_db(t.db), {
+      owed_id: credited.id,
+      usd: 10,
+      reason: "goodwill",
+      ref: "c-1",
+      actor: admin!.id,
+      now: CREDIT_AT,
+    });
+    await write_off_owed(as_db(t.db), {
+      owed_id: waived.id,
+      reason: "uncollectable",
+      actor: admin!.id,
+      now: WAIVE_AT,
+    });
+    // a lost dispute on the written-off gift owes its fee anew
+    await record_owed(as_db(t.db), {
+      donation_id: "don-2",
+      party: { npo_id: npo_a },
+      source: "dispute",
+      source_ref: "dp_1",
+      received_usd: 90,
+      fee_processing_usd: 3.2,
+      fee_dispute_usd: 15,
+      now: WAIVE_AT,
+    });
+
+    const rows = await npo_owed_history(npo_a, as_db(t.db));
+    expect(
+      Object.fromEntries(
+        rows.map((r) => [r.donation_id, [r.state, r.outstanding_usd]])
+      )
+    ).toEqual({ "don-1": ["recorded", 83.2], "don-2": ["recorded", 15] });
+  });
 });
 
 describe("grant_run_deductions", () => {
@@ -285,7 +364,7 @@ describe("grant_run_deductions", () => {
       now: RUN_AT,
     });
 
-  test("a run's deductions by gift sum to its gross less its net", async () => {
+  test("a run's gross is its net plus its deductions by gift, a payout refunded in flight included", async () => {
     for (const id of ["don-1", "don-2", "don-3"]) {
       await gift(id, "2026-11-05T10:00:00.000Z");
       await refund(id, { npo_id: npo_a });
@@ -311,20 +390,30 @@ describe("grant_run_deductions", () => {
       sources: [],
       status: "",
     });
-    // a sub-cent payout total rounds as the run's transfer did
-    await t.db.insert(payouts).values(
-      [50, 30.004].map((amount, i) => ({
-        id: `p-${i}`,
-        source_id: `d-${i}`,
+    // the run sent $80 for two payouts; one was loss-refunded in flight, so it
+    // never settled under the run's settlement
+    await t.db.insert(payouts).values([
+      {
+        id: "p-0",
+        source_id: "d-0",
         npo_id: npo_a,
-        source: "donation" as const,
+        source: "donation",
         date: RUN_AT,
-        amount,
-        type: "settled" as const,
+        amount: 50,
+        type: "settled",
         settled_date: RUN_AT,
         settled_id: "wise-tx-1",
-      }))
-    );
+      },
+      {
+        id: "p-1",
+        source_id: "d-1",
+        npo_id: npo_a,
+        source: "donation",
+        date: RUN_AT,
+        amount: 30,
+        type: "refunded_loss",
+      },
+    ]);
 
     const run = await grant_run_deductions(npo_a, "wise-tx-1", as_db(t.db));
     expect(run).toEqual({
@@ -344,8 +433,6 @@ describe("grant_run_deductions", () => {
       gift_currency: "USD",
       usd: 12.5,
     });
-    const deducted = run!.deductions.reduce((a, d) => a + d.usd, 0);
-    expect(deducted).toBeCloseTo(80 - 62.5, 9);
   });
 
   test("another npo's settlement reads as none", async () => {
@@ -365,7 +452,7 @@ describe("grant_run_deductions", () => {
     );
     expect(
       await grant_run_deductions(other.id, "wise-tx-2", as_db(t.db))
-    ).toEqual({ gross: 0, net: 10, deductions: [] });
+    ).toEqual({ gross: 10, net: 10, deductions: [] });
   });
 });
 

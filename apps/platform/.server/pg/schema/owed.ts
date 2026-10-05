@@ -134,10 +134,9 @@ export const owed_entries = pgTable(
   ]
 );
 
-/** the party's mail about an owed row, one per row per kind: written in the
- * transaction of the ledger write it tells of, and only for a row that
- * reaches its party. `claimed_at` is a lease, reclaimable once stale;
- * `sent_at` is permanent */
+/** the party's mail about an owed row: written in the transaction of the
+ * ledger write it tells of, and only for a row that reaches its party.
+ * `claimed_at` is a lease, reclaimable once stale; `sent_at` is permanent */
 export const owed_notices = pgTable(
   "owed_notices",
   {
@@ -146,12 +145,19 @@ export const owed_notices = pgTable(
       .notNull()
       .references(() => owed_amounts.id, { onDelete: "cascade" }),
     kind: text("kind").$type<"recorded" | "credited" | "waived">().notNull(),
+    /** a `recorded` notice's count of the row's rises from owing nothing to
+     * owing; 0 for the other kinds, which go once per row */
+    round: integer("round").notNull().default(0),
     created_at: timestamptz("created_at").notNull(),
     claimed_at: timestamptz("claimed_at"),
     sent_at: timestamptz("sent_at"),
   },
   (t) => [
-    unique("owed_notices_owed_kind_uniq").on(t.owed_id, t.kind),
+    unique("owed_notices_owed_kind_round_uniq").on(t.owed_id, t.kind, t.round),
+    check(
+      "owed_notices_round_check",
+      sql`${t.round} >= 0 AND (${t.kind} = 'recorded' OR ${t.round} = 0)`
+    ),
     check(
       "owed_notices_kind_check",
       sql`${t.kind} IN ('recorded','credited','waived')`

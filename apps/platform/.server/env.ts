@@ -146,10 +146,16 @@ function iso_instant(name: string, raw: string | undefined): string | null {
   // Date.parse rolls 2026-02-30 over into march rather than rejecting it
   const [y, mo, d] = [m?.[1], m?.[2], m?.[3]].map(Number);
   const day = new Date(Date.UTC(y!, mo! - 1, d!));
-  if (!m || day.getUTCMonth() !== mo! - 1 || day.getUTCDate() !== d) {
+  const at = Date.parse(value);
+  if (
+    !m ||
+    day.getUTCMonth() !== mo! - 1 ||
+    day.getUTCDate() !== d ||
+    Number.isNaN(at)
+  ) {
     throw new Error(`${name} is not an ISO date: ${value}`);
   }
-  return new Date(value).toISOString();
+  return new Date(at).toISOString();
 }
 
 /** the terms' effective date: an owed row reaches its party only for a gift
