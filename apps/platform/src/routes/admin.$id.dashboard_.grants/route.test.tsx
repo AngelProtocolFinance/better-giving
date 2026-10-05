@@ -222,7 +222,9 @@ describe("the npo's grant history", () => {
     await expect.element(row("don-3")).toMatchTextContent(/Credited back/);
     await expect
       .element(history("don-3"))
-      .toHaveTextContent("Dispute won: $93.20 credited back on Nov 22, 2026");
+      .toHaveTextContent(
+        "Dispute settled: $93.20 credited back on Nov 22, 2026"
+      );
     await expect.element(row("don-4")).toMatchTextContent(/Waived/);
     await expect
       .element(history("don-4"))
@@ -267,7 +269,9 @@ describe("the npo's grant history", () => {
     await expect.element(row).toMatchTextContent(/Owed/);
     await expect
       .element(row.getByRole("list", { name: "History" }))
-      .toHaveTextContent("Dispute won: $93.20 credited back on Nov 22, 2026");
+      .toHaveTextContent(
+        "Dispute settled: $93.20 credited back on Nov 22, 2026"
+      );
     // the won dispute's figures are not added back into the gift's
     await expect.element(row).toMatchTextContent(/\$90\.00\$3\.20\$15\.00/);
     await expect.element(row).toMatchTextContent(/\$108\.20$/);

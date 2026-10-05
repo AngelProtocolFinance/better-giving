@@ -120,7 +120,7 @@ function history(
   }
   if (r.dispute_won_usd > 0) {
     lines.push(
-      `Dispute won: ${usd(r.dispute_won_usd)} credited back on ${credited_on}`
+      `Dispute settled: ${usd(r.dispute_won_usd)} credited back on ${credited_on}`
     );
   }
   if (r.credited_back_usd > 0) {

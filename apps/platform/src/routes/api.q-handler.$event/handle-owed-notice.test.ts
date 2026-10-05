@@ -254,7 +254,7 @@ describe("handle_owed_notice", () => {
     ]);
   });
 
-  test("a won dispute's credit is mailed as the dispute resolved in the party's favor", async () => {
+  test("a dispute's credit is mailed as the dispute settled, whatever settled it", async () => {
     await dispute();
     await deliver_due();
     await win_dispute();
@@ -264,7 +264,7 @@ describe("handle_owed_notice", () => {
     expect(mail.subject).toBe("Amount owed credited back: don-1");
     const text = await mail_text(mail);
     expect(text).toMatch(
-      /dispute on the .* was resolved in your favor, so we credited back \$93\.20/
+      /we credited back \$93\.20 of what was owed on the .*, because its dispute was settled\./
     );
     expect(text).not.toMatch(/\$0\.00/);
   });
@@ -288,7 +288,7 @@ describe("handle_owed_notice", () => {
     const again = await mail_text(mails[2]);
     expect(again).toMatch(/\$108\.20 is owed again/);
     expect(again).toMatch(
-      /Credited back when the dispute was resolved in your favor: \$93\.20/
+      /Credited back when the dispute was settled: \$93\.20/
     );
     expect(again).toMatch(/You received: \$90\.00/);
     expect(again).toMatch(/Total owed: \$108\.20/);

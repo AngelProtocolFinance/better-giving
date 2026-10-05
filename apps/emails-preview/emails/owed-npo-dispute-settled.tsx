@@ -1,6 +1,6 @@
 import { owed_npo_notif } from "emails";
 
-// the dispute won in full: its credit nets every figure to nothing
+// a settled dispute credited the whole row back: every figure nets to nothing
 const { node } = owed_npo_notif.template({
   kind: "credited",
   round: 0,

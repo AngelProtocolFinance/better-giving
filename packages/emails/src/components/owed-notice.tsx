@@ -39,7 +39,8 @@ export interface IOwedNotice {
   fee_dispute_usd: number;
   /** credited back because the refund failed */
   refund_failed_usd: number;
-  /** credited back because a dispute was won or a claim accepted */
+  /** credited back when a dispute settled: won, its claim accepted, its
+   * inquiry closed, or charged back for less than it claimed */
   dispute_won_usd: number;
   /** every other credit */
   credited_back_usd: number;
@@ -127,7 +128,7 @@ export function OwedNotice({ n, party }: IOwedNoticeProps) {
       )}
       {n.dispute_won_usd > 0 && (
         <KeyValue
-          label="Credited back when the dispute was resolved in your favor"
+          label="Credited back when the dispute was settled"
           value={usd(n.dispute_won_usd)}
         />
       )}
@@ -239,13 +240,15 @@ function Credited({ n, party, gift }: IBody) {
       </>,
     ]);
   }
+  // a won dispute, an accepted claim, a closed inquiry or a smaller
+  // chargeback all credit here, so the sentence claims no outcome
   if (n.dispute_won_usd > 0) {
     credits.push([
-      "the dispute",
+      "we credited back",
       <>
         {" "}
-        on the {gift} was resolved in your favor, so we credited back{" "}
-        <strong>{usd(n.dispute_won_usd)}</strong>.
+        <strong>{usd(n.dispute_won_usd)}</strong> of what was owed on the {gift}
+        , because its dispute was settled.
       </>,
     ]);
   }
@@ -262,7 +265,7 @@ function Credited({ n, party, gift }: IBody) {
   return (
     <>
       {credits.map(([opening, rest], i) => (
-        <Text key={opening}>
+        <Text key={i}>
           {i === 0
             ? `On ${n.credited_back_at}, ${opening}`
             : opening[0]!.toUpperCase() + opening.slice(1)}
