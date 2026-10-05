@@ -1,5 +1,5 @@
 import { owed_npo_notif, owed_referrer_notif } from "emails";
-import { report_degraded, report_error } from "#/errors/report";
+import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
 import { to_utc_day } from "@/helpers/date";
 import type { IOwedNoticePayload } from "@/queue";
@@ -8,11 +8,10 @@ import { base_url } from "$/env";
 import type { DbOrTx } from "$/pg/queries/helpers";
 import { npo_by_rid, npo_get } from "$/pg/queries/npo";
 import type { OwedParty } from "$/pg/queries/owed";
-import type { IOwedHistoryRow } from "$/pg/queries/owed-history";
 import {
   claim_owed_notice,
-  type IOwedNotice,
   mark_owed_notice_sent,
+  type OwedNoticeClaim,
   release_owed_notice,
 } from "$/pg/queries/owed-notice";
 import { npo_admins, user_by_referral_code } from "$/pg/queries/user";
@@ -24,16 +23,13 @@ import { npo_admins, user_by_referral_code } from "$/pg/queries/user";
  */
 export async function handle_owed_notice(db: DbOrTx, p: IOwedNoticePayload) {
   const claim = await claim_owed_notice(p.id, db);
-  if (claim.status === "done") return;
-  if (claim.status === "busy") {
-    // the holder may still die unsent: any non-2xx is a qstash retry, and a
-    // 4xx stays out of the incident list
-    report_degraded(new Error(`owed notice ${p.id} busy`), { notice_id: p.id });
-    throw new Response("owed notice busy", { status: 409 });
-  }
+  // done (sent, or a `recorded` whose row no longer owes) and busy both ack:
+  // a retry would hold up the shared FIFO queue behind its backoff, and the
+  // cron enqueues a held notice again once its lease runs out unsent
+  if (claim.status !== "claimed") return;
 
   try {
-    await send_notice(claim.kind, claim.party, claim.row);
+    await send_notice(claim);
   } catch (e) {
     // the send's error is the one that has to survive; a failed release keeps
     // the claim until its lease runs out
@@ -46,12 +42,10 @@ export async function handle_owed_notice(db: DbOrTx, p: IOwedNoticePayload) {
   await mark_owed_notice_sent(p.id, db);
 }
 
-async function send_notice(
-  kind: IOwedNotice["kind"],
-  party: OwedParty,
-  row: IOwedHistoryRow
-) {
-  const { to, node, subject } = await mail_for(party, notice_data(kind, row));
+type IClaimed = Extract<OwedNoticeClaim, { status: "claimed" }>;
+
+async function send_notice(c: IClaimed) {
+  const { to, node, subject } = await mail_for(c.party, notice_data(c));
   // nobody to tell reaches ops instead: marking it sent unread would lose it
   await send_email_or_throw({
     node,
@@ -101,11 +95,9 @@ async function mail_for(party: OwedParty, data: INoticeData) {
 const admin_emails = async (npo_id: number) =>
   (await npo_admins(npo_id)).map((a) => a.email);
 
-const notice_data = (
-  kind: IOwedNotice["kind"],
-  r: IOwedHistoryRow
-): INoticeData => ({
+const notice_data = ({ kind, round, row: r }: IClaimed): INoticeData => ({
   kind,
+  round,
   gift: {
     id: r.donation_id,
     date: to_utc_day(r.gift_date),
@@ -116,6 +108,7 @@ const notice_data = (
   received_usd: r.received_usd,
   fee_processing_usd: r.fee_processing_usd,
   fee_dispute_usd: r.fee_dispute_usd,
+  refund_failed_usd: r.refund_failed_usd,
   credited_back_usd: r.credited_back_usd,
   credited_back_at: r.credited_back_at
     ? to_utc_day(r.credited_back_at)

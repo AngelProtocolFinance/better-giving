@@ -2,6 +2,7 @@ import { owed_referrer_notif } from "emails";
 
 const { node } = owed_referrer_notif.template({
   kind: "credited",
+  round: 0,
   to_name: "Jane",
   history_url: "https://better.giving/dashboard/referrals/payouts",
   gift: {
@@ -14,6 +15,7 @@ const { node } = owed_referrer_notif.template({
   received_usd: 4.5,
   fee_processing_usd: 0,
   fee_dispute_usd: 0,
+  refund_failed_usd: 0,
   credited_back_usd: 4.5,
   credited_back_at: "Dec 2, 2026",
   recovered_usd: 0,

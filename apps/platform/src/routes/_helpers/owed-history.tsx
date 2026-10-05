@@ -13,21 +13,29 @@ export interface IOwedHistory {
 
 const usd = (n: number) => `$${humanize(n)}`;
 
-/** the party's owed rows; each line is `#owed-<id>`, which a run's
- * deductions link to */
+const STATUS: Record<IOwedHistoryRow["state"], string> = {
+  recorded: "Owed",
+  partly_recovered: "Partly recovered",
+  recovered: "Recovered",
+  credited_back: "Credited back",
+  waived: "Waived",
+};
+
+/** the party's owed rows. each gift's row header is `#owed-<id>`, which a
+ * run's deductions link to; it takes focus when the link is followed */
 export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
   return (
     <section aria-labelledby="owed-history" className="mt-8">
-      <h3 id="owed-history" className="font-bold text-lg">
+      <h2 id="owed-history" className="font-bold text-lg">
         Amounts owed
-      </h3>
+      </h2>
       <p className="text-sm text-gray-11 mt-1 mb-3 max-w-3xl">
         When a gift is refunded or disputed after you were paid for it, what you
         received and its fees are owed back and deducted from your next{" "}
         {run_noun}s.
       </p>
       <div className="table-scroll">
-        <table className="table">
+        <table className="table" aria-labelledby="owed-history">
           <thead>
             <tr>
               <th>Gift</th>
@@ -43,48 +51,51 @@ export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
             {rows.length === 0 ? (
               <EmptyRow col_span={7}>No amounts owed yet</EmptyRow>
             ) : (
-              rows.map((r) => (
-                <tr key={r.id} id={`owed-${r.id}`}>
-                  <td>
-                    <div>{r.donation_id}</div>
-                    <div className="text-xs text-gray-11">
-                      {humanize(r.gift_amount)} {r.gift_currency} on{" "}
-                      {to_utc_day(r.gift_date)}
-                    </div>
-                  </td>
-                  <td>
-                    {r.source === "refund" ? "Refund" : "Dispute"}{" "}
-                    {to_utc_day(r.recorded_at)}
-                  </td>
-                  <td>{usd(r.received_usd)}</td>
-                  <td>{usd(r.fee_processing_usd)}</td>
-                  <td>{usd(r.fee_dispute_usd)}</td>
-                  <td>
-                    <div>{status(r)}</div>
-                    {/* a row still owing reads as owed, so what settled part
-                        of it before rides under its status */}
-                    {r.state !== "credited_back" && r.credited_back_usd > 0 && (
-                      <div className="text-xs text-gray-11">{credited(r)}</div>
-                    )}
-                    {r.state !== "waived" && r.written_off_usd > 0 && (
-                      <div className="text-xs text-gray-11">{waived(r)}</div>
-                    )}
-                    {r.recoveries.map((l) => (
-                      <div
-                        key={`${l.run_ref}:${l.usd < 0}`}
-                        className="text-xs text-gray-11"
-                      >
-                        {run_line(l, run_noun)}
+              rows.map((r) => {
+                const events = history(r, run_noun);
+                return (
+                  <tr key={r.id}>
+                    {/* scroll-mt clears the sticky app header (~65px) */}
+                    <th
+                      scope="row"
+                      id={`owed-${r.id}`}
+                      tabIndex={-1}
+                      className="text-left font-normal scroll-mt-20 focus-visible:outline-2 focus-visible:outline-ring focus-visible:-outline-offset-2 target:outline-2 target:outline-ring target:-outline-offset-2"
+                    >
+                      <div>{r.donation_id}</div>
+                      <div className="text-xs text-gray-11">
+                        {humanize(r.gift_amount)} {r.gift_currency} on{" "}
+                        {to_utc_day(r.gift_date)}
                       </div>
-                    ))}
-                  </td>
-                  <td>
-                    {r.outstanding_usd < 0
-                      ? `Due to you ${usd(-r.outstanding_usd)}`
-                      : usd(r.outstanding_usd)}
-                  </td>
-                </tr>
-              ))
+                    </th>
+                    <td>
+                      {r.source === "refund" ? "Refund" : "Dispute"}{" "}
+                      {to_utc_day(r.recorded_at)}
+                    </td>
+                    <td>{usd(r.received_usd)}</td>
+                    <td>{usd(r.fee_processing_usd)}</td>
+                    <td>{usd(r.fee_dispute_usd)}</td>
+                    <td>
+                      <div>{STATUS[r.state]}</div>
+                      {events.length > 0 && (
+                        <ul
+                          aria-label="History"
+                          className="text-xs text-gray-11"
+                        >
+                          {events.map((e) => (
+                            <li key={e}>{e}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                    <td>
+                      {r.outstanding_usd < 0
+                        ? `Due to you ${usd(-r.outstanding_usd)}`
+                        : usd(r.outstanding_usd)}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -93,26 +104,30 @@ export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
   );
 }
 
-function status(r: IOwedHistoryRow): string {
-  switch (r.state) {
-    case "recorded":
-      return "Owed";
-    case "partly_recovered":
-      return "Partly recovered";
-    case "recovered":
-      return "Recovered";
-    case "credited_back":
-      return credited(r);
-    case "waived":
-      return waived(r);
+/** what has settled part of the row so far. both credits carry the row's
+ * latest credit date, the only one it keeps; a credit or write-off figure is
+ * dated by the check constraints on it */
+function history(
+  r: IOwedHistoryRow,
+  run_noun: IOwedHistory["run_noun"]
+): string[] {
+  const credited_on = r.credited_back_at && to_utc_day(r.credited_back_at);
+  const lines: string[] = [];
+  if (r.refund_failed_usd > 0) {
+    lines.push(
+      `Refund failed: ${usd(r.refund_failed_usd)} credited back on ${credited_on}`
+    );
   }
+  if (r.credited_back_usd > 0) {
+    lines.push(`${usd(r.credited_back_usd)} credited back on ${credited_on}`);
+  }
+  if (r.written_off_usd > 0) {
+    lines.push(
+      `${usd(r.written_off_usd)} waived on ${to_utc_day(r.written_off_at!)}`
+    );
+  }
+  return [...lines, ...r.recoveries.map((l) => run_line(l, run_noun))];
 }
-
-// a credited or written-off figure is dated by the check constraints on it
-const credited = (r: IOwedHistoryRow) =>
-  `Credited back ${usd(r.credited_back_usd)} on ${to_utc_day(r.credited_back_at!)}`;
-const waived = (r: IOwedHistoryRow) =>
-  `Waived ${usd(r.written_off_usd)} on ${to_utc_day(r.written_off_at!)}`;
 
 const run_line = (l: IOwedRunLine, run_noun: IOwedHistory["run_noun"]) =>
   l.usd < 0

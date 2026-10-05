@@ -310,10 +310,9 @@ const delivery: Partial<{ [K in Kind]: IDelivery }> = {
   "fund-member-removed": { retries: 3 },
   "invite-email": { retries: 3 },
   "lock-tx-created": { retries: 3 },
-  // `claim_owed_notice` answers a redelivery after the send with done, and one
-  // inside another holder's lease with a throw; a notice still unsent past its
-  // lease is enqueued again by the owed-notices cron, so these retries only
-  // have to cover a failed send
+  // the handler acks a notice already sent or held under another's lease; a
+  // notice still unsent past its lease is enqueued again by the owed-notices
+  // cron, so these retries only have to cover a failed send
   "owed-notice": { retries: 3 },
   // only the welcome mail; registration's update side is `reg-updated`.
   "reg-created": { retries: 3 },

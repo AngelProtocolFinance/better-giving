@@ -1,6 +1,5 @@
 import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
-import { Fragment } from "react";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
 import type { IGrantRunDeductions } from "$/pg/queries/owed-history";
@@ -36,17 +35,14 @@ export function GrantsTable({
             <EmptyRow col_span={2}>No grants yet</EmptyRow>
           ) : (
             items.map((payout, idx) => (
-              <Fragment key={idx}>
-                <tr>
-                  <td>${humanize(payout.amount)} </td>
-                  <td>{format(payout.date, "PP")}</td>
-                </tr>
-                {payout.run && payout.run.deductions.length > 0 && (
-                  <tr>
-                    <td colSpan={2} className="text-sm text-gray-11">
-                      <div>Gross {usd(payout.run.gross)}</div>
+              <tr key={idx}>
+                <td>
+                  ${humanize(payout.amount)}{" "}
+                  {payout.run && payout.run.deductions.length > 0 && (
+                    <ul className="text-sm text-gray-11">
+                      <li>Gross {usd(payout.run.gross)}</li>
                       {payout.run.deductions.map((d) => (
-                        <div key={d.owed_id}>
+                        <li key={d.owed_id}>
                           {d.usd < 0
                             ? "Paid back for gift "
                             : "Deducted for gift "}
@@ -54,13 +50,14 @@ export function GrantsTable({
                             {d.donation_id}
                           </a>{" "}
                           {d.usd < 0 ? `+${usd(-d.usd)}` : `-${usd(d.usd)}`}
-                        </div>
+                        </li>
                       ))}
-                      <div>Net {usd(payout.run.net)}</div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
+                      <li>Net {usd(payout.run.net)}</li>
+                    </ul>
+                  )}
+                </td>
+                <td>{format(payout.date, "PP")}</td>
+              </tr>
             ))
           )}
         </tbody>

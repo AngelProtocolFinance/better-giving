@@ -13,6 +13,9 @@ export type OwedNoticeKind = "recorded" | "credited" | "waived";
  */
 export interface IOwedNotice {
   kind: OwedNoticeKind;
+  /** 0 the first time the row owes; each later round is the row owing again
+   * after it was settled */
+  round: number;
   /** greeting name: the nonprofit, or the referrer's first name */
   to_name: string;
   /** absolute: the party's own history page */
@@ -28,11 +31,15 @@ export interface IOwedNotice {
   source: "refund" | "dispute";
   /** pretty date the refund or dispute was recorded */
   recorded_at: string;
+  /** received, card fee and credited back are net of `refund_failed_usd` */
   received_usd: number;
   fee_processing_usd: number;
   fee_dispute_usd: number;
+  /** credited back because the refund failed */
+  refund_failed_usd: number;
+  /** every other credit */
   credited_back_usd: number;
-  /** pretty date */
+  /** pretty date of the latest credit, of either kind */
   credited_back_at?: string;
   /** net of any due-back already paid */
   recovered_usd: number;
@@ -68,8 +75,7 @@ const owed_total = (n: IOwedNotice) =>
 /** a credit or write-off can leave a cent of float residue either side of 0 */
 const settled = (outstanding: number) => Math.abs(outstanding) < 0.01;
 
-/** anything has come off the row: a `recorded` notice on it is the row
- * owing again after it was settled */
+/** the breakdown runs on to what is still owed once anything came off */
 const part_settled = (n: IOwedNotice) =>
   n.credited_back_usd > 0 || n.written_off_usd > 0 || n.recovered_usd > 0;
 
@@ -109,6 +115,25 @@ export function OwedNotice({ n, party }: IOwedNoticeProps) {
       />
 
       <h2 style={{ fontSize: 16, marginTop: 20 }}>What is owed</h2>
+      {n.refund_failed_usd > 0 && (
+        <KeyValue
+          label="Credited back when the refund failed"
+          value={usd(n.refund_failed_usd)}
+        />
+      )}
+      {/* a row whose refund failed in full owes nothing else: no zero lines */}
+      {owed_total(n) > 0 && <Breakdown n={n} party={party} />}
+
+      <Text>
+        <Link href={n.history_url}>{party.history_label}</Link>
+      </Text>
+    </PublicLayout>
+  );
+}
+
+function Breakdown({ n, party }: Omit<IBody, "gift">) {
+  return (
+    <>
       <KeyValue label={party.received_label} value={usd(n.received_usd)} />
       {n.fee_processing_usd > 0 && (
         <KeyValue
@@ -145,11 +170,7 @@ export function OwedNotice({ n, party }: IOwedNoticeProps) {
       ) : (
         <KeyValue label="Total owed" value={usd(owed_total(n))} />
       )}
-
-      <Text>
-        <Link href={n.history_url}>{party.history_label}</Link>
-      </Text>
-    </PublicLayout>
+    </>
   );
 }
 
@@ -163,7 +184,7 @@ interface IBody {
 function Recorded({ n, party, gift }: IBody) {
   return (
     <>
-      {part_settled(n) ? (
+      {n.round > 0 ? (
         // the row's date and source are its first event's, not the one that
         // made it owe again, so neither is named here
         <Text>
@@ -175,8 +196,8 @@ function Recorded({ n, party, gift }: IBody) {
           {n.source === "refund"
             ? `On ${n.recorded_at}, the ${gift} was refunded to the donor.`
             : `On ${n.recorded_at}, the donor's bank opened a dispute on the ${gift}.`}{" "}
-          {party.already_paid}, so <strong>{usd(n.outstanding_usd)}</strong> is
-          now owed back.
+          {party.already_paid}, so <strong>{usd(owed_total(n))}</strong> is now
+          owed back.
         </Text>
       )}
       <Text>
@@ -195,13 +216,29 @@ function Recorded({ n, party, gift }: IBody) {
 }
 
 function Credited({ n, party, gift }: IBody) {
+  const failed = n.refund_failed_usd > 0;
   return (
     <>
-      <Text>
-        On {n.credited_back_at}, we credited back{" "}
-        <strong>{usd(n.credited_back_usd)}</strong> of what was owed on the{" "}
-        {gift}.
-      </Text>
+      {failed && (
+        <Text>
+          On {n.credited_back_at}, the refund of the {gift} failed, so the gift
+          stands and we credited back{" "}
+          <strong>{usd(n.refund_failed_usd)}</strong> of what was owed on it.
+        </Text>
+      )}
+      {n.credited_back_usd > 0 &&
+        (failed ? (
+          <Text>
+            Other credits on it total{" "}
+            <strong>{usd(n.credited_back_usd)}</strong>.
+          </Text>
+        ) : (
+          <Text>
+            On {n.credited_back_at}, we credited back{" "}
+            <strong>{usd(n.credited_back_usd)}</strong> of what was owed on the{" "}
+            {gift}.
+          </Text>
+        ))}
       <Remaining n={n} party={party} />
     </>
   );

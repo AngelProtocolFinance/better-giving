@@ -30,10 +30,11 @@ vi.mock("$/env", async (io) => ({
 const send_email_or_throw = vi.hoisted(() => vi.fn(async (_: any) => ({})));
 vi.mock("$/email", () => ({ send_email_or_throw }));
 const report_error = vi.hoisted(() => vi.fn());
-const report_degraded = vi.hoisted(() => vi.fn());
-vi.mock("#/errors/report", () => ({ report_error, report_degraded }));
+vi.mock("#/errors/report", () => ({ report_error }));
 
 import { eq } from "drizzle-orm";
+import type { ReactElement } from "react";
+import { render } from "react-email";
 import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
 import { emails } from "@/constants/common";
 import type { DbOrTx } from "$/pg/queries/helpers";
@@ -190,15 +191,13 @@ describe("handle_owed_notice", () => {
     expect(await due()).toEqual([]);
   });
 
-  test("a delivery inside another holder's lease mails nothing and asks to come back", async () => {
+  test("a delivery inside another holder's lease mails nothing and acks, leaving the notice to the cron", async () => {
     await refund();
     const [notice] = await due();
     await claim_owed_notice(notice!.id, as_db(db()));
 
-    const thrown = await notify(notice!.id).catch((e) => e);
+    await expect(notify(notice!.id)).resolves.toBeUndefined();
 
-    expect(thrown).toBeInstanceOf(Response);
-    expect((thrown as Response).status).toBe(409);
     expect(send_email_or_throw).not.toHaveBeenCalled();
   });
 
@@ -231,4 +230,82 @@ describe("handle_owed_notice", () => {
       "Amount owed waived: don-1",
     ]);
   });
+
+  test("a failed refund's credit is mailed as the refund failing, for what it credited", async () => {
+    await refund();
+    await deliver_due();
+    await fail_refund();
+    await deliver_due();
+
+    const [, mail] = send_email_or_throw.mock.calls.map(([m]) => m);
+    expect(mail.subject).toBe("Amount owed credited back: don-1");
+    const text = await mail_text(mail);
+    expect(text).toMatch(/refund of the .* failed, .* credited back \$93\.20/);
+    expect(text).not.toMatch(/\$0\.00/);
+  });
+
+  test("a recorded notice whose row was settled before it went is not mailed; the settling one is", async () => {
+    await refund();
+    await fail_refund();
+    await deliver_due();
+
+    expect(send_email_or_throw.mock.calls.map(([m]) => m.subject)).toEqual([
+      "Amount owed credited back: don-1",
+    ]);
+  });
+
+  test("a row owing again after it was settled is mailed as owed again", async () => {
+    await refund();
+    await deliver_due();
+    await credit_owed(as_db(db()), {
+      donation_id: "don-1",
+      party: { npo_id },
+      reason: "dispute_won",
+      ref: "dp_won",
+      now: NOW,
+    });
+    await deliver_due();
+    await db().transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id: "don-1",
+        party: { npo_id },
+        source: "dispute",
+        source_ref: "dp_2",
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        now: NOW,
+      })
+    );
+    await deliver_due();
+
+    const mails = send_email_or_throw.mock.calls.map(([m]) => m);
+    expect(mails.map((m) => m.subject)).toEqual([
+      "Amount owed on a refunded gift: don-1",
+      "Amount owed credited back: don-1",
+      "Amount owed on a refunded gift: don-1",
+    ]);
+    expect(await mail_text(mails[0])).not.toMatch(/owed again/);
+    expect(await mail_text(mails[2])).toMatch(/\$15\.00 is owed again/);
+  });
 });
+
+/** the refund core's write when the recorded refund fails in full */
+async function fail_refund() {
+  for (const [reason, usd] of [
+    ["refund_failed", 90],
+    ["refund_failed_fee", 3.2],
+  ] as const) {
+    await credit_owed(as_db(db()), {
+      donation_id: "don-1",
+      party: { npo_id },
+      usd,
+      reason,
+      ref: `${reason}:re_1`,
+      now: NOW,
+    });
+  }
+}
+
+const mail_text = (m: { node: ReactElement }) =>
+  render(m.node, { plainText: true });

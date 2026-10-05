@@ -36,7 +36,8 @@ describe("msg() — dedupe keys are wire-format and must not drift", () => {
       { npo_id: 9, date_created: "2026-01-02T03:04:05Z" },
       "lock_tx_9_2026-01-02T030405Z",
     ],
-    // one message per notice row, and a notice row is one per owed row and kind
+    // one message per notice row, and a notice row is one per owed row, kind
+    // and round
     ["owed-notice", { id: "n1" }, "owed.notice_n1"],
     ["reg-created", { id: "r1" }, "reg.created_r1"],
     [

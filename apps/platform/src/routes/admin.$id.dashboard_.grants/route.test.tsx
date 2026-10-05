@@ -179,36 +179,45 @@ describe("the npo's grant history", () => {
     const screen = await render_page();
 
     const owed = screen.getByRole("region", { name: "Amounts owed" });
-    const row = (id: string) => owed.getByRole("row", { name: id });
+    await expect
+      .element(owed.getByRole("heading", { level: 2, name: "Amounts owed" }))
+      .toBeVisible();
+    const table = owed.getByRole("table", { name: "Amounts owed" });
+    const row = (id: string) => table.getByRole("row", { name: id });
+    const history = (id: string) =>
+      row(id).getByRole("list", { name: "History" });
     await expect.element(row("don-1")).toMatchTextContent(/Owed/);
     await expect.element(row("don-1")).toMatchTextContent(/\$90\.00/);
     await expect.element(row("don-1")).toMatchTextContent(/\$3\.20/);
     await expect.element(row("don-1")).toMatchTextContent(/\$93\.20/);
+    expect(history("don-1").query()).toBeNull();
+    await expect.element(row("don-2")).toMatchTextContent(/Partly recovered/);
     await expect
-      .element(row("don-2"))
-      .toMatchTextContent(
-        /Partly recovered.*\$40\.00 from grant of Nov 21, 2026/
-      );
+      .element(history("don-2"))
+      .toHaveTextContent("$40.00 from grant of Nov 21, 2026");
     await expect.element(row("don-2")).toMatchTextContent(/\$53\.20/);
+    await expect.element(row("don-3")).toMatchTextContent(/Credited back/);
     await expect
-      .element(row("don-3"))
-      .toMatchTextContent(/Credited back \$93\.20 on Nov 22, 2026/);
+      .element(history("don-3"))
+      .toHaveTextContent("$93.20 credited back on Nov 22, 2026");
+    await expect.element(row("don-4")).toMatchTextContent(/Waived/);
     await expect
-      .element(row("don-4"))
-      .toMatchTextContent(/Waived \$93\.20 on Nov 23, 2026/);
+      .element(history("don-4"))
+      .toHaveTextContent("$93.20 waived on Nov 23, 2026");
 
+    // the breakdown is part of the grant's own row
     const grant = screen.getByRole("row", { name: /Gross/ });
+    await expect.element(grant).toMatchTextContent(/Nov 21, 2026/);
     await expect.element(grant).toMatchTextContent(/Gross \$100\.00/);
     await expect.element(grant).toMatchTextContent(/don-2.*-\$40\.00/);
     await expect.element(grant).toMatchTextContent(/Net \$60\.00/);
-    // the deduction links to the gift's own line
+
+    // the deduction lands on the gift's own row header, focused
     const [don_2] = await owed_for_donation("don-2", as_db(db()));
-    await expect
-      .element(grant.getByRole("link", { name: "don-2" }))
-      .toHaveAttribute("href", `#owed-${don_2!.id}`);
-    expect((row("don-2").element() as HTMLElement).getAttribute("id")).toBe(
-      `owed-${don_2!.id}`
-    );
+    const gift = table.getByRole("rowheader", { name: "don-2" });
+    await expect.element(gift).toHaveAttribute("id", `owed-${don_2!.id}`);
+    await grant.getByRole("link", { name: "don-2" }).click();
+    await expect.element(gift).toHaveFocus();
   });
 
   it("reads a row credited back and then owed again as owed, keeping its credit-back on the line", async () => {
@@ -235,12 +244,40 @@ describe("the npo's grant history", () => {
     const screen = await render_page();
 
     const row = screen
-      .getByRole("region", { name: "Amounts owed" })
+      .getByRole("table", { name: "Amounts owed" })
       .getByRole("row", { name: "don-5" });
+    await expect.element(row).toMatchTextContent(/Owed/);
     await expect
-      .element(row)
-      .toMatchTextContent(/Owed.*Credited back \$93\.20 on Nov 22, 2026/);
+      .element(row.getByRole("list", { name: "History" }))
+      .toHaveTextContent("$93.20 credited back on Nov 22, 2026");
     await expect.element(row).toMatchTextContent(/\$15\.00$/);
+  });
+
+  it("shows a refund that failed after it was recorded as credited back for the failed amount", async () => {
+    await refunded("don-6");
+    for (const [reason, usd] of [
+      ["refund_failed", 90],
+      ["refund_failed_fee", 3.2],
+    ] as const) {
+      await credit_owed(as_db(db()), {
+        donation_id: "don-6",
+        party: { npo_id },
+        usd,
+        reason,
+        ref: `${reason}:re_don-6`,
+        now: "2026-11-22T00:00:00.000Z",
+      });
+    }
+
+    const screen = await render_page();
+
+    const row = screen
+      .getByRole("table", { name: "Amounts owed" })
+      .getByRole("row", { name: "don-6" });
+    await expect.element(row).toMatchTextContent(/Credited back/);
+    await expect
+      .element(row.getByRole("list", { name: "History" }))
+      .toHaveTextContent("Refund failed: $93.20 credited back on Nov 22, 2026");
   });
 
   it("shows nothing for a gift made before the effective date", async () => {
