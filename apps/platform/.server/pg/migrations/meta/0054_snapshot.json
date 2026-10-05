@@ -1,6 +1,6 @@
 {
-  "id": "80a12501-dff9-4824-a7fe-32afdcb432b1",
-  "prevId": "e49eb707-66bf-4e56-aaf0-be0ec228cb25",
+  "id": "00627046-7b68-4778-ad06-3ee872662510",
+  "prevId": "80a12501-dff9-4824-a7fe-32afdcb432b1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4551,6 +4551,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "round": {
+          "name": "round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamptz",
@@ -4605,17 +4612,22 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "owed_notices_owed_kind_uniq": {
-          "name": "owed_notices_owed_kind_uniq",
+        "owed_notices_owed_kind_round_uniq": {
+          "name": "owed_notices_owed_kind_round_uniq",
           "nullsNotDistinct": false,
           "columns": [
             "owed_id",
-            "kind"
+            "kind",
+            "round"
           ]
         }
       },
       "policies": {},
       "checkConstraints": {
+        "owed_notices_round_check": {
+          "name": "owed_notices_round_check",
+          "value": "\"owed_notices\".\"round\" >= 0 AND (\"owed_notices\".\"kind\" = 'recorded' OR \"owed_notices\".\"round\" = 0)"
+        },
         "owed_notices_kind_check": {
           "name": "owed_notices_kind_check",
           "value": "\"owed_notices\".\"kind\" IN ('recorded','credited','waived')"
