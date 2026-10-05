@@ -5,12 +5,9 @@ import {
   donation_settle_state_locked,
   donation_update,
 } from "$/pg/queries/donation";
-import { reverse_charge, type Share } from "$/refund/reverse";
+import { reverse_charge, WHOLE } from "$/refund/reverse";
 import { ref_of } from "./payment";
 import { type Action, transition } from "./status";
-
-// nowpayments has no partial refund: a refunded payment went back whole
-const WHOLE: Share = { taken: 1, of: 1 };
 
 /**
  * a donation that never settled is marked `refunded` under its row lock. a
@@ -37,6 +34,7 @@ export async function handle_refund(
     donation_id: don.id,
     rail: "crypto",
     source: "refund",
+    // nowpayments has no partial refund: a refunded payment went back whole
     share: WHOLE,
     alert_from: "nowpayments-refunded",
     notice: {

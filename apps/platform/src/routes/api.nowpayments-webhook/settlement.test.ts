@@ -34,7 +34,10 @@ vi.mock("$/kit/discord", () => ({
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/email", () => ({ send_email: send_email_mock }));
 // the reversal is `reverse.test.ts`'s ground; here it is the boundary
-vi.mock("$/refund/reverse", () => ({
+vi.mock("$/refund/reverse", async () => ({
+  WHOLE: (
+    await vi.importActual<typeof import("$/refund/share")>("$/refund/share")
+  ).WHOLE,
   reverse_charge: vi.fn(async () => ({
     status: "reversed",
     dists: 1,
