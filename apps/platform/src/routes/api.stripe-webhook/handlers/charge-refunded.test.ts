@@ -200,6 +200,22 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(text).toMatch(/total refunded so far: 5\.00 USD of 100\.00 USD/);
   });
 
+  // a refund credited back as failed since the list was read isn't owed again
+  it("hands over the refunds its share counts, a failed one left out", async () => {
+    refund(500);
+    refunds[0].status = "failed";
+    refund(1_000);
+
+    await handle_charge_refunded(refund(2_000, "pending"));
+
+    expect(reversals().map((r) => r.refunds)).toEqual([
+      [
+        { id: "re_3", amount: 2_000 },
+        { id: "re_2", amount: 1_000 },
+      ],
+    ]);
+  });
+
   it("names every partial when a failed first notice is redelivered after a second partial", async () => {
     const first = refund(500);
     reverse_charge_mock.mockRejectedValueOnce(new Error("qstash 503"));

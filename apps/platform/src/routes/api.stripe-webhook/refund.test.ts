@@ -499,6 +499,39 @@ describe("a partial refund that fails after it succeeded", () => {
       refunded_share: 0.6,
     });
   });
+
+  it("credits back each of two failed partials its own share", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+    await deliver(refund(2_000));
+
+    await deliver(fail("re_1"));
+    const after_first = await owed_of(charge_of.id);
+    await deliver(fail("re_2"));
+
+    expect(after_first).toMatchObject([{ outstanding_usd: 18.64 }]);
+    expect(await owed_of(charge_of.id)).toMatchObject([{ outstanding_usd: 0 }]);
+    expect(await gift_of(charge_of.id)).toEqual({
+      status: "settled",
+      refunded_share: null,
+    });
+  });
+
+  it("tells finance the earlier credit when stripe redelivers after a delivery that credited it", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+    const failed = fail("re_1");
+    await deliver(failed);
+    enqueue_mock.mockClear();
+
+    const res = await deliver(failed);
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(charge_of.id)).toMatchObject([{ outstanding_usd: 0 }]);
+    const alert = failed_alert();
+    expect(alert).toMatch(/already credited back[\s\S]*\$37\.28 credited back/);
+    expect(alert).not.toMatch(/nothing was changed/);
+  });
 });
 
 describe("a refund that fails while held", () => {

@@ -19,8 +19,8 @@ export interface RefundedCharge {
   refunds: Stripe.Refund[];
   /** the newest refund that took or is taking money back */
   latest: Stripe.Refund;
-  /** what those refunds take back, sent or not, in the charge's minor unit */
-  taken: number;
+  /** the refunds not failed or canceled, sent or not: what the share counts */
+  live: Stripe.Refund[];
 }
 
 /** `charge`'s donation and refunds as stripe has them now, or null when
@@ -47,8 +47,7 @@ export async function refunded_charge(
     console.info(`already refunded: ${don.id}`);
     return null;
   }
-  const taken = live.reduce((sum, r) => sum + r.amount, 0);
-  return { charge, intent_id, don, refunds, latest, taken };
+  return { charge, intent_id, don, refunds, latest, live };
 }
 
 /**
@@ -59,7 +58,7 @@ export async function refunded_charge(
  * until the refund.updated that sees the last one settle.
  */
 export async function reverse_refunds(
-  { charge, intent_id, don, refunds, latest, taken }: RefundedCharge,
+  { charge, intent_id, don, refunds, latest, live }: RefundedCharge,
   o: {
     alert_from: string;
     /** where it was seen, e.g. `charge ch_1, event evt_1` */
@@ -72,11 +71,13 @@ export async function reverse_refunds(
 ) {
   const don_id = don.id;
   const unsent = unsent_refunds(refunds);
+  const taken = live.reduce((sum, r) => sum + r.amount, 0);
   const result = await reverse_charge({
     donation_id: don_id,
     rail: "stripe",
     source: "refund",
     share: { taken, of: charge.amount_captured },
+    refunds: live.map(({ id, amount }) => ({ id, amount })),
     unsent_refunds: unsent.map((r) => r.id),
     intent_id,
     source_ref: latest.id,

@@ -56,11 +56,12 @@ async function taken_from_charge(d: Stripe.Dispute) {
     charge: charge.id,
     limit: 100,
   });
-  const refunded = refunds
+  const counted = refunds
     .filter((r) => r.status === "succeeded")
-    .reduce((sum, r) => sum + r.amount, 0);
+    .map(({ id, amount }) => ({ id, amount }));
+  const refunded = counted.reduce((sum, r) => sum + r.amount, 0);
   const share = { taken: d.amount + refunded, of: charge.amount_captured };
-  return { charge, refunds, share, partial: share.taken < share.of };
+  return { charge, refunds, counted, share, partial: share.taken < share.of };
 }
 
 const CLOSED_STATUSES = new Set<Stripe.Dispute.Status>([
@@ -135,7 +136,8 @@ export async function handle_dispute_closed(
     return;
   }
 
-  const { charge, refunds, share, partial } = await taken_from_charge(dispute);
+  const { charge, refunds, counted, share, partial } =
+    await taken_from_charge(dispute);
   const fee = dispute_fee_usd(dispute);
 
   const result = await reverse_charge({
@@ -143,6 +145,7 @@ export async function handle_dispute_closed(
     rail: "stripe",
     source: "dispute",
     share,
+    refunds: counted,
     dispute_fee_usd: fee.usd,
     source_ref: dispute.id,
     alert_from: ALERT_FROM,
