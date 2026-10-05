@@ -15,12 +15,13 @@ import {
   alias,
   type PgUpdateSetSource,
 } from "drizzle-orm/pg-core";
+import { owed_terms_effective } from "../../env";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
 import { donations } from "../schema/donation";
 import { npos } from "../schema/npo";
-import { owed_amounts, owed_entries } from "../schema/owed";
+import { owed_amounts, owed_entries, owed_notices } from "../schema/owed";
 import { loss_logs } from "../schema/revenue";
 import type { DbOrTx, IPage } from "./helpers";
 
@@ -35,6 +36,15 @@ export type OwedParty =
   | { npo_id: number }
   | { referrer_user: string }
   | { referrer_npo: string };
+
+/** whether an owed row reaches its party — is mailed and shown in its
+ * history: its gift was made at or after the terms'
+ * effective date. none does while the date is unset; admins see every row
+ * regardless. reads `donations.created_at`, so the query joins the row's gift */
+export const owed_reaches_party = (): SQL =>
+  owed_terms_effective
+    ? sql`${donations.created_at} >= ${owed_terms_effective}::timestamptz`
+    : sql`false`;
 
 /** the gift's cumulative figure for `party`, across every refund and dispute
  * on it so far, never one event's share. a refund that failed after it was
@@ -99,7 +109,46 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
     })
     .returning();
   // no row back: the conflict's update was skipped, and the row stands as it was
-  return row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
+  const recorded = row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
+  await queue_notice(tx, "recorded", recorded.id, r.now);
+  return recorded;
+}
+
+type OwedNoticeKind = (typeof owed_notices.$inferSelect)["kind"];
+
+/** the party is told of a credit and a write-off; a run's recovery is told
+ * on its grant or commission line instead */
+const NOTICE_OF_ENTRY: Partial<
+  Record<(typeof owed_entries.$inferSelect)["kind"], OwedNoticeKind>
+> = { credit: "credited", write_off: "waived" };
+
+/** the party's notice of `kind` on the row, once ever per row and kind, in
+ * the transaction of the ledger write it tells of; none for a row that does
+ * not reach its party */
+async function queue_notice(
+  tx: DbOrTx,
+  kind: OwedNoticeKind,
+  owed_id: string,
+  now: string
+) {
+  await tx
+    .insert(owed_notices)
+    .select(
+      tx
+        // drizzle's insert-select wants every column, in table order
+        .select({
+          id: sql<string>`gen_random_uuid()::text`.as("id"),
+          owed_id: owed_amounts.id,
+          kind: sql<OwedNoticeKind>`${kind}`.as("kind"),
+          created_at: sql<string>`${now}::timestamptz`.as("created_at"),
+          claimed_at: sql<string | null>`null`.as("claimed_at"),
+          sent_at: sql<string | null>`null`.as("sent_at"),
+        })
+        .from(owed_amounts)
+        .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
+        .where(and(eq(owed_amounts.id, owed_id), owed_reaches_party()))
+    )
+    .onConflictDoNothing({ target: [owed_notices.owed_id, owed_notices.kind] });
 }
 
 export type OwedCreditReason =
@@ -413,6 +462,8 @@ async function put_entry(
   usd: SQL
 ): Promise<IOwed | null> {
   const [row] = await put_entries(tx, kind, row_is, e, usd);
+  const notice = NOTICE_OF_ENTRY[kind];
+  if (row && notice) await queue_notice(tx, notice, row.id, e.now);
   if (row) return row;
   const [as_was] = await tx.select().from(owed_amounts).where(row_is);
   return as_was ?? null;
@@ -515,7 +566,7 @@ const PARTY_KEY = [
 const party_row = (e: { donation_id: string; party: OwedParty }) =>
   sql`${owed_amounts.donation_id} = ${e.donation_id} AND ${party_is(e.party)}`;
 
-const party_is = (p: OwedParty) =>
+export const party_is = (p: OwedParty) =>
   "npo_id" in p
     ? eq(owed_amounts.npo_id, p.npo_id)
     : "referrer_user" in p

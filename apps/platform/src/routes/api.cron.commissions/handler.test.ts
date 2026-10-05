@@ -60,6 +60,7 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 vi.mock("$/env", () => ({
   stage: "test",
   wise: { profile_id: "1" },
+  owed_terms_effective: null,
   get owed_deductions() {
     return deductions.on;
   },

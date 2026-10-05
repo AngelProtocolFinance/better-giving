@@ -133,6 +133,33 @@ export const nowpayments = {
 // would read "off" as on
 export const owed_deductions = process.env.OWED_DEDUCTIONS === "on";
 
+// a bare date is its midnight in utc; a time must carry its offset, or it
+// would read in whatever zone the server runs in
+const ISO_DATE =
+  /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2}))?$/;
+
+/** an ISO instant; null when unset or blank */
+function iso_instant(name: string, raw: string | undefined): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  const m = ISO_DATE.exec(value);
+  // Date.parse rolls 2026-02-30 over into march rather than rejecting it
+  const [y, mo, d] = [m?.[1], m?.[2], m?.[3]].map(Number);
+  const day = new Date(Date.UTC(y!, mo! - 1, d!));
+  if (!m || day.getUTCMonth() !== mo! - 1 || day.getUTCDate() !== d) {
+    throw new Error(`${name} is not an ISO date: ${value}`);
+  }
+  return new Date(value).toISOString();
+}
+
+/** the terms' effective date: an owed row reaches its party only for a gift
+ * made at or after it, and no row does while it is unset. read through
+ * `owed_reaches_party` (`pg/queries/owed.ts`), never compared directly */
+export const owed_terms_effective = iso_instant(
+  "OWED_TERMS_EFFECTIVE",
+  process.env.OWED_TERMS_EFFECTIVE
+);
+
 export const openexchange = {
   app_id: process.env.OPENEXCHANGE_APP_ID,
 } as const;

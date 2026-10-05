@@ -364,6 +364,7 @@ describe("missing_keys", () => {
       "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
       "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
       "OWED_DEDUCTIONS",
+      "OWED_TERMS_EFFECTIVE",
     ]);
   });
 

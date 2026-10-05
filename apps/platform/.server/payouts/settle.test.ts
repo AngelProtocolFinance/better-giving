@@ -49,6 +49,7 @@ vi.mock("../pg/queries/npo", async (io) => {
 });
 vi.mock("../env", () => ({
   stage: "test",
+  owed_terms_effective: null,
   get owed_deductions() {
     return deductions.on;
   },

@@ -133,3 +133,32 @@ export const owed_entries = pgTable(
     check("owed_entries_ref_check", sql`${t.ref} <> ''`),
   ]
 );
+
+/** the party's mail about an owed row, one per row per kind: written in the
+ * transaction of the ledger write it tells of, and only for a row that
+ * reaches its party. `claimed_at` is a lease, reclaimable once stale;
+ * `sent_at` is permanent */
+export const owed_notices = pgTable(
+  "owed_notices",
+  {
+    id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
+    owed_id: text("owed_id")
+      .notNull()
+      .references(() => owed_amounts.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"recorded" | "credited" | "waived">().notNull(),
+    created_at: timestamptz("created_at").notNull(),
+    claimed_at: timestamptz("claimed_at"),
+    sent_at: timestamptz("sent_at"),
+  },
+  (t) => [
+    unique("owed_notices_owed_kind_uniq").on(t.owed_id, t.kind),
+    check(
+      "owed_notices_kind_check",
+      sql`${t.kind} IN ('recorded','credited','waived')`
+    ),
+    // the sender's read: what is still to send
+    index("owed_notices_unsent_idx")
+      .on(t.created_at)
+      .where(sql`${t.sent_at} IS NULL`),
+  ]
+);

@@ -24,9 +24,11 @@ const OWNER: Record<string, (file: string) => boolean> = {
 };
 const LEDGER_HOME = [
   `${platform}/.server/pg/queries/owed.ts`,
+  `${platform}/.server/pg/queries/owed-history.ts`,
+  `${platform}/.server/pg/queries/owed-notice.ts`,
   `${platform}/.server/pg/schema/owed.ts`,
 ];
-const TABLE = /\b(owed_amounts|owed_entries)\b/g;
+const TABLE = /\b(owed_amounts|owed_entries|owed_notices)\b/g;
 const VERB = new RegExp(`\\b(${Object.keys(OWNER).join("|")})\\b`, "g");
 
 const uncommented = (text: string) =>
@@ -93,6 +95,7 @@ describe("owed ledger fence", () => {
           `await write_off_owed(tx, w);\nawait admin_credit_owed(tx, c);`
         ),
         at("src/routes/platform.losses/api.ts", `await write_off_owed(tx, w);`),
+        at(".server/jobs/n.ts", `await tx.update(owed_notices);`),
       ])
     ).toEqual([
       `${platform}/src/routes/x/api.ts: credit_owed`,
@@ -103,6 +106,7 @@ describe("owed ledger fence", () => {
       `${platform}/.server/refund/v.ts: unrecover_owed`,
       `${platform}/.server/payouts/wise-pay.ts: recover_owed`,
       `${platform}/src/routes/platform.losses/api.ts: write_off_owed`,
+      `${platform}/.server/jobs/n.ts: owed_notices`,
     ]);
   });
 });
