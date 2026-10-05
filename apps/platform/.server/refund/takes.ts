@@ -218,7 +218,8 @@ export async function take_refund(
  * a chargeback onto its dispute's take: a redelivery finds its take by its
  * own ref; else the dispute it names, else the dispute filed on the gift
  * whose own part it matches, won or not (its chargeback delivered late),
- * else the latest open one; with none, a take of its own the filing claims
+ * else the latest open one. with none, a take of its own, which a later
+ * filing claims as `orphan_of` says
  */
 export async function take_chargeback(
   tx: DbOrTx,
@@ -260,25 +261,38 @@ export async function take_chargeback(
 }
 
 /** the chargeback recorded before its dispute was filed that a dispute of
- * `share` is: the one of the same part, or with the dispute unsized, the
- * oldest */
+ * `share` is: the one of the same part; else the oldest recorded while the
+ * gift had no dispute filed, as `take_chargeback` would have landed it on
+ * this one had the filing come first; unsized, the oldest of any. `takes` in
+ * the order they were recorded */
 const orphan_of = (takes: ITake[], share: number | null) => {
   const orphans = takes.filter(
     (t) => active(t) && t.kind === "dispute" && t.dispute_id === null
   );
-  return share === null
-    ? orphans[0]
-    : orphans.find((t) => same_share(t.share, share));
+  if (share === null) return orphans[0];
+  const unfiled = (o: ITake) =>
+    !takes
+      .slice(0, takes.indexOf(o))
+      .some((t) => t.kind === "dispute" && t.dispute_id !== null);
+  return (
+    orphans.find((t) => same_share(t.share, share)) ?? orphans.find(unfiled)
+  );
 };
 
-/** a dispute's take on record, claiming its chargeback recorded before it */
+/** a dispute's take on record, claiming its chargeback recorded before it
+ * unless `claims` is false */
 export async function dispute_take(
   tx: DbOrTx,
-  d: { donation_id: string; dispute_id: string; share: number | null }
+  d: {
+    donation_id: string;
+    dispute_id: string;
+    share: number | null;
+    claims?: boolean;
+  }
 ): Promise<ITake | undefined> {
   const takes = await takes_of(tx, d.donation_id);
   const own = takes.find((t) => t.ref === d.dispute_id);
-  if (own) return own;
+  if (own || d.claims === false) return own;
   const orphan = orphan_of(takes, d.share);
   if (!orphan) return undefined;
   await take_update(tx, orphan.id, {
@@ -290,9 +304,10 @@ export async function dispute_take(
 
 /**
  * a dispute filed: its take, or the chargeback of it recorded before it,
- * which it claims. `share` null is a filing that can't be sized: it claims
- * the oldest such chargeback, else takes the rest of the charge. its own part
- * stands once on record; a later filing of it only raises the fee
+ * which it claims as `orphan_of` says, the chargeback's part standing. `share`
+ * null is a filing that can't be sized: with no chargeback to claim it takes
+ * the rest of the charge. its own part stands once on record; a later filing
+ * of it only raises the fee
  */
 export async function take_dispute(
   tx: DbOrTx,

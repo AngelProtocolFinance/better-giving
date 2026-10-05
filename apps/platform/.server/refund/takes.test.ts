@@ -269,6 +269,49 @@ describe("the takes ledger, in the orders the review found", () => {
 
     expect(await outstanding(id)).toEqual([0]);
   });
+
+  test.each([
+    ["filed", ["open", "chargeback"]],
+    ["charged back", ["chargeback", "open"]],
+  ])(
+    "M-a: a $50 filing and its $40 chargeback, %s first, owe the $40, and its win nothing",
+    async (_, order) => {
+      const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+      const e = on(id);
+      for (const step of order) {
+        await (step === "open" ? e.open("D0", 50) : e.chargeback("REV-0", 40));
+      }
+      expect(await outstanding(id)).toEqual([37.28]);
+
+      await e.close("D0", "won", 50);
+
+      expect(await outstanding(id)).toEqual([0]);
+    }
+  );
+
+  test("M-a: a $50 win resolved before its late filing credits back its $40 chargeback", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.chargeback("REV-0", 40);
+
+    await e.close("D0", "won", 50);
+    await e.open("D0", 50);
+
+    expect(await outstanding(id)).toEqual([0]);
+  });
+
+  test.each(["accepted", "inquiry_closed"] as const)(
+    "L-a: a dispute closed %s never undoes a chargeback of the same part recorded under its reversal",
+    async (status) => {
+      const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+      const e = on(id);
+      await e.chargeback("REV-0", 30);
+
+      await e.close("D1", status, 30);
+
+      expect(await outstanding(id)).toEqual([27.96]);
+    }
+  );
 });
 
 /** a seeded generator, so a failing order reproduces */
@@ -340,6 +383,17 @@ describe("the takes ledger, in any order", () => {
         open: (e) => e.open("D", 0),
         chargeback: (e) => e.chargeback("REV", 40),
         outcome: (e) => e.close("D", "won"),
+      },
+      [...OUTCOME_AFTER_FILING, ["chargeback", "outcome"]],
+      0,
+    ],
+    [
+      // sized, a chargeback after the win can't be told from a new loss
+      "a $50 filing and its $40 chargeback, the dispute won",
+      {
+        open: (e) => e.open("D", 50),
+        chargeback: (e) => e.chargeback("REV", 40),
+        outcome: (e) => e.close("D", "won", 50),
       },
       [...OUTCOME_AFTER_FILING, ["chargeback", "outcome"]],
       0,

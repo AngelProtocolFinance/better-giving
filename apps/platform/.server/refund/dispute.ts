@@ -148,8 +148,10 @@ export interface DisputeWon {
    * a claim accepted that a refund pays, or an inquiry closed; `won` absent */
   status?: "won" | "accepted" | "inquiry_closed";
   /** the dispute's own part of the charge, when the provider states it:
-   * finds a chargeback of it recorded before its filing was. absent or
-   * unsized, the oldest such chargeback */
+   * finds a chargeback of it recorded before its filing was, as a filing
+   * does. absent or unsized, the oldest such chargeback. only a win claims
+   * one: a refund pays an accepted claim, an inquiry withdraws nothing, and
+   * paypal's NONE leaves any chargeback to the dispute that superseded it */
   disputed?: Share;
   /** when the provider opened it: records the dispute if its open never was */
   opened_at: string;
@@ -205,6 +207,7 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
       donation_id: don.id,
       dispute_id: d.dispute_id,
       share: d.disputed ? fraction_of(d.disputed) : null,
+      claims: (d.status ?? "won") === "won",
     });
     // none on record, or undone already: by a redelivery, or by the refund
     // that paid an accepted claim
