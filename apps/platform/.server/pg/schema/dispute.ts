@@ -12,14 +12,16 @@ export const donation_disputes = pgTable(
     donation_id: text("donation_id")
       .notNull()
       .references(() => donations.id),
-    status: text("status").$type<"open" | "lost" | "won">().notNull(),
+    status: text("status")
+      .$type<"open" | "lost" | "won" | "inquiry_closed">()
+      .notNull(),
     opened_at: timestamptz("opened_at").notNull(),
     closed_at: timestamptz("closed_at"),
   },
   (t) => [
     check(
       "donation_disputes_status_check",
-      sql`${t.status} IN ('open','lost','won')`
+      sql`${t.status} IN ('open','lost','won','inquiry_closed')`
     ),
     check(
       "donation_disputes_closed_check",

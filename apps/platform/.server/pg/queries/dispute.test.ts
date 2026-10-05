@@ -94,7 +94,7 @@ describe("dispute_open", () => {
 });
 
 describe("dispute_close", () => {
-  test.each(["lost", "won"] as const)(
+  test.each(["lost", "won", "inquiry_closed"] as const)(
     "records the dispute %s",
     async (status) => {
       await dispute_open(as_db(t.db), opened);
@@ -128,15 +128,15 @@ describe("dispute_close", () => {
     ]);
   });
 
-  test("an open redelivered after its close leaves it closed", async () => {
-    await dispute_open(as_db(t.db), opened);
+  test("an open redelivered after its close leaves it closed, and says so", async () => {
+    expect(await dispute_open(as_db(t.db), opened)).toBe("open");
     await dispute_close(as_db(t.db), {
       ...opened,
       status: "won",
       closed_at: CLOSED,
     });
-    await dispute_open(as_db(t.db), opened);
 
+    expect(await dispute_open(as_db(t.db), opened)).toBe("won");
     expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
       { status: "won", closed_at: CLOSED },
     ]);

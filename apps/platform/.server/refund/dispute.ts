@@ -1,6 +1,10 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../pg/db";
-import { dispute_close, dispute_open } from "../pg/queries/dispute";
+import {
+  dispute_close,
+  dispute_open,
+  type IDispute,
+} from "../pg/queries/dispute";
 import type { DbOrTx } from "../pg/queries/helpers";
 import {
   credit_owed,
@@ -29,7 +33,13 @@ export interface DisputeOpened {
 
 export type DisputeOpenedResult =
   /** each party's row as it stands */
-  { status: "recorded"; owed: IOwed[] } | Unreversible;
+  | { status: "recorded"; owed: IOwed[] }
+  /** the dispute was already recorded closed: nothing written */
+  | {
+      status: "closed";
+      dispute_status: Exclude<IDispute["status"], "open">;
+    }
+  | Unreversible;
 
 /**
  * a chargeback opened on a gift: records the dispute, and as owed what each
@@ -37,7 +47,8 @@ export type DisputeOpenedResult =
  * fee, and each referrer its paid commission. the gift stays settled until
  * the dispute closes.
  *
- * safe to rerun: a redelivery records nothing new.
+ * safe to rerun: a redelivery records nothing new, and an open handled
+ * after the dispute's close (providers don't order their events) none at all.
  */
 export async function dispute_opened(
   d: DisputeOpened
@@ -47,12 +58,13 @@ export async function dispute_opened(
   const { don } = loaded;
   const now = new Date().toISOString();
 
-  const owed = await db.transaction(async (tx) => {
-    await dispute_open(tx, {
+  return db.transaction(async (tx): Promise<DisputeOpenedResult> => {
+    const status = await dispute_open(tx, {
       id: d.dispute_id,
       donation_id: don.id,
       opened_at: d.opened_at,
     });
+    if (status !== "open") return { status: "closed", dispute_status: status };
     const ds = await settled_dists_locked(tx, don.id);
     const rows: IOwed[] = [];
     for (const f of owed_at_open(ds, d.fee_usd)) {
@@ -66,9 +78,8 @@ export async function dispute_opened(
         })
       );
     }
-    return rows;
+    return { status: "recorded", owed: rows };
   });
-  return { status: "recorded", owed };
 }
 
 export interface DisputeWon {

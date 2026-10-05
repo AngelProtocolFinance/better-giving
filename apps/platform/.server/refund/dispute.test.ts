@@ -48,7 +48,7 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 // --- imports (after mocks) ---
 
-import { disputes_of_donation } from "../pg/queries/dispute";
+import { dispute_close, disputes_of_donation } from "../pg/queries/dispute";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { owed_for_donation, recover_owed } from "../pg/queries/owed";
 import { create_test_db } from "../pg/test-utils/pglite";
@@ -263,6 +263,28 @@ const won_on = (donation_id: string) => ({
   dispute_id: `du_${donation_id}`,
   opened_at: OPENED,
   closed_at: CLOSED,
+});
+
+describe("an open handled after its dispute closed", () => {
+  test.each(["won", "lost", "inquiry_closed"] as const)(
+    "owes nothing once closed %s",
+    async (status) => {
+      const { id } = await seed(PAID_GRANT);
+      await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+        id: `du_${id}`,
+        donation_id: id,
+        status,
+        opened_at: OPENED,
+        closed_at: CLOSED,
+      });
+
+      const res = await dispute_opened(opened_on(id));
+
+      expect(res).toEqual({ status: "closed", dispute_status: status });
+      expect(await owed_of(id)).toEqual([]);
+      expect(await disputes_of_donation(id)).toMatchObject([{ status }]);
+    }
+  );
 });
 
 describe("dispute_won", () => {

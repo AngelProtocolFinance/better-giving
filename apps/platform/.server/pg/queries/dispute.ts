@@ -13,15 +13,28 @@ export interface IDisputeOpen {
   opened_at: string;
 }
 
-export async function dispute_open(tx: DbOrTx, d: IDisputeOpen): Promise<void> {
+/** the dispute's status as it stands, a close recorded first standing; the
+ * row held locked until `tx` ends, so a close of it waits */
+export async function dispute_open(
+  tx: DbOrTx,
+  d: IDisputeOpen
+): Promise<IDispute["status"]> {
   await tx
     .insert(donation_disputes)
     .values({ ...d, status: "open" })
     .onConflictDoNothing({ target: donation_disputes.id });
+  const [row] = await tx
+    .select({ status: donation_disputes.status })
+    .from(donation_disputes)
+    .where(eq(donation_disputes.id, d.id))
+    .for("update");
+  return row!.status;
 }
 
 export interface IDisputeClose extends IDisputeOpen {
-  status: "lost" | "won";
+  /** `inquiry_closed`: an inquiry that ended with no chargeback, so nothing
+   * was taken or owed */
+  status: Exclude<IDispute["status"], "open">;
   closed_at: string;
 }
 
