@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, type SQL, sql } from "drizzle-orm";
 import type { DbOrTx } from "../pg/queries/helpers";
 import type { IOwedRecord } from "../pg/queries/owed";
 import { dists } from "../pg/schema/dist";
@@ -27,19 +27,31 @@ export function fraction_of(s: Share): number | null {
 /** `usd` scaled by `f`, in whole cents rounded down so a share never passes
  * the whole; the whole as it is. the epsilon keeps 0.3 * 90 from flooring to
  * 26.99 */
-const scaled = (usd: number, f: number) =>
+export const scaled = (usd: number, f: number) =>
   f >= 1 ? usd : Math.floor(usd * f * 100 + 1e-6) / 100;
 
 type PayoutType = (typeof payouts.$inferSelect)["type"];
 
-type LockedDist = Awaited<ReturnType<typeof settled_dists_locked>>[number];
+export type LockedDist = Awaited<ReturnType<typeof dists_locked>>[number];
 
 /** the gift's dists not yet reversed, each with its commission and its
  * payout's type, held locked: a reversal of one waits */
-export async function settled_dists_locked(tx: DbOrTx, donation_id: string) {
+export const settled_dists_locked = (tx: DbOrTx, donation_id: string) =>
+  dists_locked(
+    tx,
+    and(eq(dists.donation_id, donation_id), eq(dists.status, "settled"))
+  );
+
+/** `settled_dists_locked`, reversed dists included */
+export const gift_dists_locked = (tx: DbOrTx, donation_id: string) =>
+  dists_locked(tx, eq(dists.donation_id, donation_id));
+
+async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
   const rows = await tx
     .select({
       id: dists.id,
+      status: dists.status,
+      refund_status: dists.refund_status,
       to_id: dists.to_id,
       to_name: dists.to_name,
       net: dists.net,
@@ -65,11 +77,13 @@ export async function settled_dists_locked(tx: DbOrTx, donation_id: string) {
       referrer_commissions,
       eq(referrer_commissions.donation_id, dists.id)
     )
-    .where(and(eq(dists.donation_id, donation_id), eq(dists.status, "settled")))
+    .where(where)
     .orderBy(asc(dists.id))
     .for("update", { of: dists });
   return rows.map((r) => ({
     id: r.id,
+    status: r.status,
+    refund_status: r.refund_status,
     to_id: r.to_id ?? 0,
     to_name: r.to_name ?? "",
     net: r.net ?? 0,

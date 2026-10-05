@@ -37,7 +37,9 @@ export type OwedParty =
   | { referrer_npo: string };
 
 /** the gift's cumulative figure for `party`, across every refund and dispute
- * on it so far, never one event's share */
+ * on it so far, never one event's share. a refund that failed after it was
+ * recorded no longer counts in it: what it was credited back for is added on
+ * top, so the row's credit keeps offsetting it */
 export interface IOwedRecord {
   donation_id: string;
   party: OwedParty;
@@ -49,8 +51,20 @@ export interface IOwedRecord {
   now: string;
 }
 
-const grown = (col: AnyPgColumn) =>
-  sql`GREATEST(${col}, excluded.${sql.identifier(col.name)})`;
+/** what failed refunds credited back on the row under `reason` */
+const failed_credits = (reason: OwedCreditReason) =>
+  sql`(SELECT COALESCE(SUM(${owed_entries.usd}), 0) FROM ${owed_entries}
+    WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
+      AND ${owed_entries.kind} = 'credit' AND ${owed_entries.reason} = ${reason})`;
+
+/** `col`'s figure as recorded, with what failed refunds credited back of it */
+const recorded = (col: AnyPgColumn, failed?: OwedCreditReason) =>
+  failed
+    ? sql`excluded.${sql.identifier(col.name)} + ${failed_credits(failed)}`
+    : sql`excluded.${sql.identifier(col.name)}`;
+
+const grown = (col: AnyPgColumn, failed?: OwedCreditReason) =>
+  sql`GREATEST(${col}, ${recorded(col, failed)})`;
 
 const owed_total_sql = sql`${owed_amounts.received_usd} + ${owed_amounts.fee_processing_usd} + ${owed_amounts.fee_dispute_usd}`;
 
@@ -72,13 +86,16 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
       // each figure only grows, so a smaller one is a stale event arriving
       // late; the first event's source stands
       set: {
-        received_usd: grown(owed_amounts.received_usd),
-        fee_processing_usd: grown(owed_amounts.fee_processing_usd),
+        received_usd: grown(owed_amounts.received_usd, "refund_failed"),
+        fee_processing_usd: grown(
+          owed_amounts.fee_processing_usd,
+          "refund_failed_fee"
+        ),
         fee_dispute_usd: grown(owed_amounts.fee_dispute_usd),
       },
-      setWhere: sql`excluded.received_usd > ${owed_amounts.received_usd}
-        OR excluded.fee_processing_usd > ${owed_amounts.fee_processing_usd}
-        OR excluded.fee_dispute_usd > ${owed_amounts.fee_dispute_usd}`,
+      setWhere: sql`${recorded(owed_amounts.received_usd, "refund_failed")} > ${owed_amounts.received_usd}
+        OR ${recorded(owed_amounts.fee_processing_usd, "refund_failed_fee")} > ${owed_amounts.fee_processing_usd}
+        OR ${recorded(owed_amounts.fee_dispute_usd)} > ${owed_amounts.fee_dispute_usd}`,
     })
     .returning();
   // no row back: the conflict's update was skipped, and the row stands as it was
@@ -91,7 +108,12 @@ export type OwedCreditReason =
   /** a lost dispute's reversal took it back from the npo's balances or
    * pending payout, after the dispute's open had recorded it as owed */
   | "dispute_reversed"
-  | "dispute_won";
+  | "dispute_won"
+  /** a refund the row was recorded for failed after it succeeded: what it
+   * recorded as received, and its card fee. a later record of the row adds
+   * each back onto its figure */
+  | "refund_failed"
+  | "refund_failed_fee";
 
 export interface IOwedCredit {
   donation_id: string;
