@@ -52,25 +52,26 @@ let refunds: {
 let don_status = "settled";
 let clock = 1_700_000_000;
 
-const charge_now = () => {
-  const amount_refunded = refunds
+// as stripe returns it: the share is read off the refund list, not a
+// refunded total stripe doesn't document for pending or failed refunds
+const charge_now = () => ({
+  id: "ch_1",
+  payment_intent: "pi_1",
+  currency: "usd",
+  amount: AMOUNT,
+  amount_captured: AMOUNT,
+});
+
+/** the event's own copy of the charge names its refunded total */
+const live_refunded = () =>
+  refunds
     .filter((r) => r.status !== "failed" && r.status !== "canceled")
     .reduce((sum, r) => sum + r.amount, 0);
-  return {
-    id: "ch_1",
-    payment_intent: "pi_1",
-    currency: "usd",
-    amount: AMOUNT,
-    amount_captured: AMOUNT,
-    amount_refunded,
-    refunded: amount_refunded === AMOUNT,
-  };
-};
 
 /** support refunds `amount` from the dashboard; returns the event stripe sends
  * for it. a bank refund (ach, acss) starts pending */
 const refund = (amount: number, status = "succeeded") => {
-  const before = charge_now().amount_refunded;
+  const before = live_refunded();
   clock += 60;
   refunds.unshift({
     id: `re_${refunds.length + 1}`,
@@ -83,7 +84,7 @@ const refund = (amount: number, status = "succeeded") => {
     type: "charge.refunded",
     created: clock,
     data: {
-      object: charge_now(),
+      object: { ...charge_now(), amount_refunded: live_refunded() },
       // unconfirmed that stripe sends this on charge.refunded; tests that
       // delete it cover the event without it
       previous_attributes: { amount_refunded: before },

@@ -48,14 +48,19 @@ const dispute_fee_usd = (d: Stripe.Dispute): { usd: number; line?: string } => {
 
 /** dispute.amount can be part of the charge: the gift reverses only once the
  * dispute and the refunds leave nothing on it, and less owes its share. a
- * charge has at most one dispute */
+ * charge has at most one dispute. only succeeded refunds count: stripe fails
+ * one still pending when the charge is disputed */
 async function taken_from_charge(d: Stripe.Dispute) {
   const charge = await stripe.charges.retrieve(str_id(d.charge));
-  const share = {
-    taken: d.amount + charge.amount_refunded,
-    of: charge.amount_captured,
-  };
-  return { charge, share, partial: share.taken < share.of };
+  const { data: refunds } = await stripe.refunds.list({
+    charge: charge.id,
+    limit: 100,
+  });
+  const refunded = refunds
+    .filter((r) => r.status === "succeeded")
+    .reduce((sum, r) => sum + r.amount, 0);
+  const share = { taken: d.amount + refunded, of: charge.amount_captured };
+  return { charge, refunds, share, partial: share.taken < share.of };
 }
 
 const CLOSED_STATUSES = new Set<Stripe.Dispute.Status>([
@@ -130,11 +135,7 @@ export async function handle_dispute_closed(
     return;
   }
 
-  const { charge, share, partial } = await taken_from_charge(dispute);
-  const { data: refunds } = await stripe.refunds.list({
-    charge: charge.id,
-    limit: 100,
-  });
+  const { charge, refunds, share, partial } = await taken_from_charge(dispute);
   const fee = dispute_fee_usd(dispute);
 
   const result = await reverse_charge({

@@ -16,6 +16,7 @@ const construct_event_mock = vi.hoisted(() => vi.fn());
 const charge_retrieve_mock = vi.hoisted(() => vi.fn());
 const refunds_list_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
+const invoice_payments_list_mock = vi.hoisted(() => vi.fn());
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 
 vi.mock("$/kit/stripe", () => ({
@@ -23,7 +24,7 @@ vi.mock("$/kit/stripe", () => ({
     webhooks: { constructEvent: construct_event_mock },
     charges: { retrieve: charge_retrieve_mock },
     refunds: { list: refunds_list_mock },
-    invoicePayments: { list: async () => ({ data: [] }) },
+    invoicePayments: { list: invoice_payments_list_mock },
   },
 }));
 vi.mock("$/pg/db", () => ({
@@ -68,25 +69,27 @@ let charge_of: Gift;
 let clock = 1_790_000_000;
 let event_n = 0;
 
-const charge_now = () => {
-  const amount_refunded = refunds
+// stripe doesn't document whether its refunded total counts a pending refund
+// or drops a failed one, so the charge stripe returns here carries none: the
+// share is read off the refund list
+const charge_now = () => ({
+  id: `ch_${charge_of.id}`,
+  payment_intent: charge_of.sttl_id,
+  currency: "usd",
+  amount: 10_000,
+  amount_captured: 10_000,
+});
+
+/** the event's own copy of the charge, which names its refunded total */
+const live_refunded = () =>
+  refunds
     .filter((r) => r.status !== "failed" && r.status !== "canceled")
     .reduce((sum, r) => sum + r.amount, 0);
-  return {
-    id: `ch_${charge_of.id}`,
-    payment_intent: charge_of.sttl_id,
-    currency: "usd",
-    amount: 10_000,
-    amount_captured: 10_000,
-    amount_refunded,
-    refunded: amount_refunded === 10_000,
-  };
-};
 
 /** support refunds `amount` cents; returns the charge.refunded stripe sends.
  * a bank refund (ach, acss) starts pending */
 const refund = (amount: number, status = "succeeded") => {
-  const before = charge_now().amount_refunded;
+  const before = live_refunded();
   clock += 60;
   refunds.unshift({
     id: `re_${refunds.length + 1}`,
@@ -99,7 +102,7 @@ const refund = (amount: number, status = "succeeded") => {
     type: "charge.refunded",
     created: clock,
     data: {
-      object: charge_now(),
+      object: { ...charge_now(), amount_refunded: live_refunded() },
       previous_attributes: { amount_refunded: before },
     },
   };
@@ -178,6 +181,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   refunds = [];
   enqueue_mock.mockResolvedValue(undefined);
+  invoice_payments_list_mock.mockResolvedValue({ data: [] });
   charge_retrieve_mock.mockImplementation(async () => charge_now());
   refunds_list_mock.mockImplementation(async () => ({ data: [...refunds] }));
   await db().delete(owed_amounts);
@@ -326,5 +330,40 @@ describe("a refund.updated that changes no status", () => {
     expect(res.status).toBe(200);
     expect(after_refund).toMatch(/Partial Refund Recorded as Owed/);
     expect(notice_text()).toBe(after_refund);
+  });
+});
+
+describe("what the share counts", () => {
+  it("counts a pending refund, so a pending full refund ends the recurring gift while it holds", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+
+    await deliver(refund(10_000, "pending"));
+
+    expect(await owed_of(charge_of.id)).toEqual([]);
+    expect(invoice_payments_list_mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment: { payment_intent: charge_of.sttl_id, type: "payment_intent" },
+      })
+    );
+  });
+
+  it("ends no recurring gift while a pending refund is only part of the charge", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+
+    await deliver(refund(4_000, "pending"));
+
+    expect(invoice_payments_list_mock).not.toHaveBeenCalled();
+  });
+
+  it("counts nothing of a refund that failed", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(2_000, "pending"));
+    await deliver(settle("re_1", "failed"));
+
+    await deliver(refund(4_000));
+
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { source_ref: "re_2", outstanding_usd: 37.28 },
+    ]);
   });
 });

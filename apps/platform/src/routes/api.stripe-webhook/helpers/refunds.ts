@@ -19,6 +19,8 @@ export interface RefundedCharge {
   refunds: Stripe.Refund[];
   /** the newest refund that took or is taking money back */
   latest: Stripe.Refund;
+  /** what those refunds take back, sent or not, in the charge's minor unit */
+  taken: number;
 }
 
 /** `charge`'s donation and refunds as stripe has them now, or null when
@@ -29,21 +31,24 @@ export interface RefundedCharge {
 export async function refunded_charge(
   charge: Stripe.Charge
 ): Promise<RefundedCharge | null> {
-  if (charge.amount_refunded <= 0) return null;
+  const { data: refunds } = await stripe.refunds.list({
+    charge: charge.id,
+    limit: 100,
+  });
+  // summed off the list: stripe doesn't document whether
+  // `charge.amount_refunded` counts a pending refund or drops a failed one
+  const live = refunds.filter((r) => !is_failed_or_canceled(r));
+  const [latest] = live;
+  if (!latest) return null;
+
   const intent_id = str_id(charge.payment_intent);
   const don = await settled_donation(intent_id);
   if (is_reversed(don.status)) {
     console.info(`already refunded: ${don.id}`);
     return null;
   }
-
-  const { data: refunds } = await stripe.refunds.list({
-    charge: charge.id,
-    limit: 100,
-  });
-  const latest = refunds.find((r) => !is_failed_or_canceled(r));
-  if (!latest) throw new Error(`no live refund on charge: ${charge.id}`);
-  return { charge, intent_id, don, refunds, latest };
+  const taken = live.reduce((sum, r) => sum + r.amount, 0);
+  return { charge, intent_id, don, refunds, latest, taken };
 }
 
 /**
@@ -54,7 +59,7 @@ export async function refunded_charge(
  * until the refund.updated that sees the last one settle.
  */
 export async function reverse_refunds(
-  { charge, intent_id, don, refunds, latest }: RefundedCharge,
+  { charge, intent_id, don, refunds, latest, taken }: RefundedCharge,
   o: {
     alert_from: string;
     /** where it was seen, e.g. `charge ch_1, event evt_1` */
@@ -71,7 +76,7 @@ export async function reverse_refunds(
     donation_id: don_id,
     rail: "stripe",
     source: "refund",
-    share: { taken: charge.amount_refunded, of: charge.amount_captured },
+    share: { taken, of: charge.amount_captured },
     unsent_refunds: unsent.map((r) => r.id),
     intent_id,
     source_ref: latest.id,
@@ -82,7 +87,7 @@ export async function reverse_refunds(
         `donation ${don_id}, ${o.seen_at}`,
         ...(o.lines ?? []),
         `refunds on this charge: ${refund_list(refunds, charge.currency)}`,
-        `total refunded so far: ${money(charge.amount_refunded, charge.currency)} of ${money(charge.amount_captured, charge.currency)}`,
+        `total refunded so far: ${money(taken, charge.currency)} of ${money(charge.amount_captured, charge.currency)}`,
       ],
     },
   });
@@ -102,7 +107,7 @@ export async function reverse_refunds(
               `donation ${don_id}, ${o.seen_at}`,
               `latest refund: ${refund_list([latest], charge.currency)}`,
               `waiting on: ${refund_list(unsent, charge.currency)}`,
-              "nothing is reversed or recorded as owed until stripe reports every refund here settled (refund.updated), when the refunded share is taken back automatically. if they show succeeded in stripe and nothing was taken back, check that the webhook endpoint subscribes to refund.updated.",
+              "nothing more is taken back until stripe reports every refund here settled (refund.updated), when the refunded share is taken back automatically. if they show succeeded in stripe and nothing was taken back, check that the webhook endpoint subscribes to refund.updated.",
             ].join("\n"),
           },
         })

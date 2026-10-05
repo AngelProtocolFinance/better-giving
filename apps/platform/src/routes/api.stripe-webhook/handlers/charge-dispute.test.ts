@@ -85,9 +85,6 @@ beforeEach(() => {
     amount: 10_000,
     amount_captured: 10_000,
     currency: "usd",
-    amount_refunded: refunds
-      .filter((r) => r.status !== "failed")
-      .reduce((sum, r) => sum + r.amount, 0),
   }));
   refunds_list_mock.mockImplementation(async () => ({ data: [...refunds] }));
   const settled = async () => ({
