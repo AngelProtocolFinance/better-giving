@@ -80,6 +80,7 @@ describe("dispute_open", () => {
         share: null,
         fee_usd: null,
         cumulative_share: null,
+        loss_recorded_at: null,
       },
     ]);
   });
@@ -115,6 +116,7 @@ describe("dispute_get", () => {
       share: null,
       fee_usd: null,
       cumulative_share: null,
+      loss_recorded_at: null,
     });
     expect(await dispute_get("du_none", as_db(t.db))).toBeUndefined();
   });
@@ -189,6 +191,7 @@ describe("dispute_close", () => {
         share: null,
         fee_usd: null,
         cumulative_share: null,
+        loss_recorded_at: null,
       },
     ]);
   });

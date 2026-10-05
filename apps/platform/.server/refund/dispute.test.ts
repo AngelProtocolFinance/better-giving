@@ -52,7 +52,11 @@ vi.mock("../kit/stripe", () => ({
 
 // --- imports (after mocks) ---
 
-import { dispute_close, dispute_open } from "../pg/queries/dispute";
+import {
+  dispute_close,
+  dispute_get,
+  dispute_open,
+} from "../pg/queries/dispute";
 import type { DbOrTx } from "../pg/queries/helpers";
 import {
   owed_for_donation,
@@ -84,12 +88,13 @@ beforeEach(async () => {
 
 const seed = (...ds: IDistSeed[]) => seed_card_gift(test_db.current!.db, ...ds);
 
-const opened_on = (donation_id: string, fee_usd = 15, taken = 100) => ({
+/** a dispute over `own` of the gift's $100 opened */
+const opened_on = (donation_id: string, fee_usd = 15, own = 100) => ({
   donation_id,
   rail: "stripe" as const,
   dispute_id: `du_${donation_id}`,
   opened_at: OPENED,
-  share: { taken, of: 100 },
+  disputed: { taken: own, of: 100 },
   fee_usd,
 });
 
@@ -525,6 +530,106 @@ describe("dispute_won, whatever wrote the row", () => {
     await refund_share(id, 40, "re_1");
 
     expect(await outstanding(id)).toEqual([37.28]);
+  });
+});
+
+describe("dispute_opened, sized from the gift's own records", () => {
+  const refund_share = (donation_id: string, taken: number, ref: string) =>
+    reverse_charge({
+      donation_id,
+      rail: "stripe",
+      source: "refund",
+      share: { taken, of: 100 },
+      source_ref: ref,
+      alert_from: "charge-refunded",
+      notice: { id: `evt_${ref}`, lines: [] },
+    });
+  const outstanding = async (id: string) =>
+    (await owed_of(id)).map((o) => o.outstanding_usd);
+  const close = (id: string, dispute_id: string, status: "lost" | "accepted") =>
+    dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: dispute_id,
+      donation_id: id,
+      status,
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+
+  test("a $10 refund, a $30 chargeback lost, then a $60 dispute won: owes the refund's and the loss's shares", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund_share(id, 10, "re_1");
+    await dispute_opened({ ...opened_on(id, 0, 30), dispute_id: "PP-D0" });
+    await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: 40, of: 100 },
+      source_ref: "PP-D0",
+      alert_from: "paypal-dispute",
+      notice: { id: "WH-D0", lines: [] },
+    });
+    await close(id, "PP-D0", "lost");
+    expect(await outstanding(id)).toEqual([37.28]);
+
+    await dispute_opened({ ...opened_on(id, 0, 60), dispute_id: "PP-D1" });
+    expect(await outstanding(id)).toEqual([93.2]);
+    await dispute_won({ ...won_on(id), dispute_id: "PP-D1" });
+
+    expect(await outstanding(id)).toEqual([37.28]);
+  });
+
+  test("stores the dispute's own part, and the share it opened at", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund_share(id, 30, "re_1");
+
+    await dispute_opened(opened_on(id, 15, 30));
+
+    expect(await dispute_get(`du_${id}`)).toMatchObject({
+      share: 0.3,
+      cumulative_share: 0.6,
+      fee_usd: 15,
+    });
+  });
+
+  test.each([
+    [30, 27.96],
+    [50, 46.6],
+  ])(
+    "a $%i refund, then a dispute over as much, won: owes the refund's share to the cent",
+    async (usd, owed) => {
+      const { id } = await seed(PAID_GRANT);
+      await refund_share(id, usd, "re_1");
+      expect(await outstanding(id)).toEqual([owed]);
+      await dispute_opened(opened_on(id, 15, usd));
+
+      await dispute_won(won_on(id));
+
+      expect(await outstanding(id)).toEqual([owed]);
+    }
+  );
+
+  test("a lost dispute whose chargeback isn't on record yet counts toward the next one", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened({ ...opened_on(id, 0, 30), dispute_id: "PP-D0" });
+    await close(id, "PP-D0", "lost");
+
+    await dispute_opened({ ...opened_on(id, 0, 70), dispute_id: "PP-D1" });
+    await dispute_won({ ...won_on(id), dispute_id: "PP-D1" });
+
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+
+  test("a claim accepted and paid as a refund counts once, through the refund", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened({ ...opened_on(id, 0, 30), dispute_id: "PP-D0" });
+    await close(id, "PP-D0", "accepted");
+    await refund_share(id, 30, "re_claim");
+    expect(await outstanding(id)).toEqual([27.96]);
+
+    await dispute_opened({ ...opened_on(id, 0, 60), dispute_id: "PP-D1" });
+
+    expect(await outstanding(id)).toEqual([83.88]);
+    expect(await dispute_get("PP-D0")).toMatchObject({ status: "accepted" });
   });
 });
 

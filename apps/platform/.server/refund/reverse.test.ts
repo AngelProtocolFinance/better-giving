@@ -9,6 +9,7 @@ import {
   vi,
 } from "vitest";
 import { bal_txs } from "../pg/schema/bal-tx";
+import { donation_disputes } from "../pg/schema/dispute";
 import { dists } from "../pg/schema/dist";
 import {
   donation_donors,
@@ -103,6 +104,7 @@ beforeEach(async () => {
   await db.delete(bal_txs);
   await db.delete(loss_logs);
   await db.delete(owed_amounts);
+  await db.delete(donation_disputes);
   await db.delete(payouts);
   await db.delete(dists);
   await db.delete(donation_match_events);

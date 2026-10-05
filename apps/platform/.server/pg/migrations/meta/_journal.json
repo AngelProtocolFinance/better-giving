@@ -407,6 +407,13 @@
       "when": 1791199698029,
       "tag": "0057_donation_disputes_cumulative_share",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791200989604,
+      "tag": "0058_donation_disputes_accepted",
+      "breakpoints": true
     }
   ]
 }

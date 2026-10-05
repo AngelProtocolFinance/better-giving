@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { humanize } from "@/helpers/decimal";
 import { db } from "../pg/db";
+import { dispute_loss_recorded } from "../pg/queries/dispute";
 import {
   type IOwed,
   type OwedParty,
@@ -78,6 +79,15 @@ export async function record_share(s: ShareTaken): Promise<ShareRecorded> {
         refunded_share: sql`GREATEST(COALESCE(${donations.refunded_share}, 0), ${f})`,
       })
       .where(eq(donations.id, s.donation_id));
+    // a chargeback lost under a dispute on record: refunded_share now holds
+    // it, so a later dispute's open doesn't count that dispute again
+    if (s.source === "dispute") {
+      await dispute_loss_recorded(tx, {
+        id: s.source_ref,
+        donation_id: s.donation_id,
+        now,
+      });
+    }
 
     const names = new Map(ds.map((d) => [d.to_id, d.to_name]));
     const owed_msgs: string[] = [];

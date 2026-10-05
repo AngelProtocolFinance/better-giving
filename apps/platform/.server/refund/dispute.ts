@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { db } from "../pg/db";
 import {
+  dispute_claim_prior_loss,
   dispute_close,
   dispute_get,
   dispute_open,
@@ -14,6 +16,7 @@ import {
   owed_total,
   record_owed,
 } from "../pg/queries/owed";
+import { donations } from "../pg/schema/donation";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
   credit_parts,
@@ -33,12 +36,10 @@ export interface DisputeOpened {
   dispute_id: string;
   /** when the provider opened it */
   opened_at: string;
-  /** how much of the charge is taken back so far, this dispute included;
-   * the gift's disputes on record lost are added by the open itself */
-  share: Share;
-  /** the dispute's own part of the charge, what a win of it credits back;
-   * absent, `share` */
-  disputed?: Share;
+  /** the dispute's own part of the charge, nothing else: what the open adds
+   * to what the gift has on record as taken back, and what a win of it
+   * credits back. one that can't be sized is the rest of the charge */
+  disputed: Share;
   /** what the provider charged for the dispute, in usd; 0 when none */
   fee_usd: number;
 }
@@ -72,10 +73,15 @@ export type DisputeOpenedResult =
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
- * a chargeback opened on a gift: records the dispute, and as owed the share
- * of the charge taken back so far of what each npo on the gift received plus
- * its card fee, its part of the dispute fee in full, and that share of each
- * referrer's paid commission. the gift stays settled until the dispute
+ * a chargeback opened on a gift: records the dispute and, as owed, what each
+ * party's share of the charge comes to. the share is read from the gift's own
+ * records: what its refunds and partial chargebacks recorded as taken back,
+ * the disputes lost on it whose chargeback isn't on record yet, and this
+ * dispute's own part. an npo whose grant has gone out owes that share of what
+ * it received plus its card fee; one whose grant hasn't owes only the
+ * disputes' own parts, an earlier refund there being ops' to settle by hand.
+ * each npo owes its part of the dispute fees in full, and each referrer the
+ * share of its paid commission. the gift stays settled until the dispute
  * closes.
  *
  * safe to rerun: a redelivery records nothing new, and an open handled
@@ -110,11 +116,31 @@ export async function dispute_opened(
     );
     const lost = await disputes_lost_of(tx, don.id, d.dispute_id);
     const lost_share = lost.reduce((sum, l) => sum + l.share, 0);
-    // an unsizable share is the whole: the open owes as much as it can, and
+    // a lost dispute whose chargeback recorded its share is in refunded_share
+    const lost_unrecorded = lost
+      .filter((l) => !l.loss_recorded)
+      .reduce((sum, l) => sum + l.share, 0);
+    const [gift] = await tx
+      .select({ refunded_share: donations.refunded_share })
+      .from(donations)
+      .where(eq(donations.id, don.id));
+    const recorded = (gift?.refunded_share ?? 0) + lost_unrecorded;
+    // unsizable, the rest of the charge: the open owes as much as it can, and
     // a win credits it all back
-    const taken = fraction_of(d.share) ?? 1;
-    const own = fraction_of(d.disputed ?? d.share) ?? taken;
-    const cumulative = Math.min(taken + lost_share, 1);
+    const own = fraction_of(d.disputed) ?? Math.max(1 - recorded, 0);
+    // this dispute's own chargeback, recorded before this open, is in it too
+    const self = await dispute_get(d.dispute_id, tx);
+    const own_recorded =
+      !!self?.loss_recorded_at ||
+      (await dispute_claim_prior_loss(tx, {
+        id: d.dispute_id,
+        donation_id: don.id,
+        now,
+      }));
+    const cumulative = Math.max(
+      Math.min(recorded + (own_recorded ? 0 : own), 1),
+      own
+    );
     const rows: IOwed[] = [];
     const shares = owed_shares(ds, {
       f: cumulative,
@@ -133,9 +159,9 @@ export async function dispute_opened(
         })
       );
     }
-    if (rows.length > 0) {
+    if (rows.length > 0 && own > 0) {
       await dispute_record_share(tx, d.dispute_id, {
-        share: Math.min(own, cumulative),
+        share: own,
         cumulative_share: cumulative,
         fee_usd: d.fee_usd,
       });

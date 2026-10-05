@@ -13,13 +13,14 @@ export const donation_disputes = pgTable(
       .notNull()
       .references(() => donations.id),
     status: text("status")
-      .$type<"open" | "lost" | "won" | "inquiry_closed">()
+      .$type<"open" | "lost" | "won" | "inquiry_closed" | "accepted">()
       .notNull(),
     opened_at: timestamptz("opened_at").notNull(),
     closed_at: timestamptz("closed_at"),
     /** the dispute's own part of the charge, and the fee charged for it in
      * usd, once its open recorded what is owed: what a win credits back,
-     * whatever else wrote the gift's rows. null while it recorded nothing */
+     * whatever else wrote the gift's rows, and what a later dispute counts of
+     * it once lost. null while it recorded nothing */
     share: numeric_as_number("share", { precision: 38, scale: 18 }),
     fee_usd: numeric_as_number("fee_usd", { precision: 38, scale: 18 }),
     /** what of the charge its open counted as taken back, itself and the
@@ -29,11 +30,15 @@ export const donation_disputes = pgTable(
       precision: 38,
       scale: 18,
     }),
+    /** when a partial chargeback under this dispute recorded its share on the
+     * gift: from then the gift's `refunded_share` holds it, so a later
+     * dispute doesn't count it again */
+    loss_recorded_at: timestamptz("loss_recorded_at"),
   },
   (t) => [
     check(
       "donation_disputes_status_check",
-      sql`${t.status} IN ('open','lost','won','inquiry_closed')`
+      sql`${t.status} IN ('open','lost','won','inquiry_closed','accepted')`
     ),
     check(
       "donation_disputes_closed_check",
