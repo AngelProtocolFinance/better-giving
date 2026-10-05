@@ -8,6 +8,7 @@ import {
   type Subs,
   type WebhookEvent,
 } from "@better-giving/paypal";
+import { and, eq } from "drizzle-orm";
 import { report_degraded, report_error, report_resp } from "#/errors/report";
 import {
   calc_donation_settle,
@@ -41,6 +42,8 @@ import {
   sub_put,
   sub_update,
 } from "$/pg/queries/subscription";
+import { donation_disputes } from "$/pg/schema/dispute";
+import { donations } from "$/pg/schema/donation";
 import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
 import {
   type ReversalSource,
@@ -545,6 +548,13 @@ const share_of = (parts: IMoney[], whole: IMoney): Share => {
 
 const is_whole = (s: Share) => s.taken >= s.of;
 
+/** `s` as a fraction of the charge, at most 1; null when it can't size the
+ * charge, which the refund core then reads as the whole */
+const fraction = (s: Share): number | null =>
+  s.taken > 0 && s.of > 0 && Number.isFinite(s.taken / s.of)
+    ? Math.min(s.taken / s.of, 1)
+    : null;
+
 /** what paypal's copy of the order lists as refunded off capture `cid`,
  * leaving out refund `except`. a failed read is reported, never "no earlier
  * refunds", which would pass a chargeback of the rest as partial: undefined
@@ -745,8 +755,9 @@ const dispute_fee = (d: IDispute): { usd: number; line: string } => {
   return { usd, line: `chargeback fee: ${listed}` };
 };
 
-/** what becomes of what a filing recorded; `partial`: the dispute is over
- * part of the charge, which a reversal records as a share, reversing nothing */
+/** what becomes of what a filing recorded; `partial`: the refunds before the
+ * dispute and the dispute together take part of the charge, which a reversal
+ * records as a share, reversing nothing */
 const dispute_explainer = (partial: boolean) =>
   `the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if paypal reverses the charge, ${partial ? "it stays owed and the donation is not reversed" : "the donation reverses without taking it twice"}; if the dispute resolves leaving us the money (a seller win, the buyer cancelling, the claim denied, or paypal paying the buyer itself), what is owed is credited back.`;
 
@@ -782,20 +793,79 @@ const notify_dispute = async (
 
 /** what refunds took off the charge before its dispute, so the filing owes
  * the share taken so far. a capture's order lists them; a v1 sale lists
- * none, and a lookup paypal refuses counts none, leaving a REVERSED that
- * follows to count them. undefined when a redelivery may read them */
+ * none. `uncounted`: the charge may have refunds this couldn't read, its
+ * capture or order refused, or no completed refund listed on a capture paypal
+ * says is partly refunded. undefined when a redelivery may read them */
 const refunded_before = async (
   charge: string,
   don: IDonation
-): Promise<IMoney[] | undefined> => {
-  if (don.subscription_id) return [];
+): Promise<{ refunds: IMoney[]; uncounted: boolean } | undefined> => {
+  const uncounted = { refunds: [], uncounted: true };
+  if (don.subscription_id) return { refunds: [], uncounted: false };
   const capture = await fetch_resource(() => paypal.get_capture(charge));
-  if (typeof capture === "number" || capture.status !== "PARTIALLY_REFUNDED")
-    return [];
+  if (typeof capture === "number") return uncounted;
+  if (capture.status !== "PARTIALLY_REFUNDED")
+    return { refunds: [], uncounted: false };
   const order_id = capture.supplementary_data?.related_ids?.order_id;
-  if (!order_id) return [];
-  const earlier = await prior_refunds(order_id, charge, undefined);
-  return earlier === "refused" ? [] : earlier;
+  if (!order_id) return uncounted;
+  const refunds = await prior_refunds(order_id, charge, undefined);
+  if (refunds === "refused") return uncounted;
+  if (!refunds) return undefined;
+  return refunds.length > 0 ? { refunds, uncounted: false } : uncounted;
+};
+
+/** the share of the charge that disputes lost on the gift it settled took
+ * back, as each dispute's filing recorded its own part */
+const lost_dispute_share = async (sttl_id: string) => {
+  const don = await donation_by_sttl_id(sttl_id);
+  if (!don) return 0;
+  const lost = await db
+    .select({ share: donation_disputes.share })
+    .from(donation_disputes)
+    .where(
+      and(
+        eq(donation_disputes.donation_id, don.id),
+        eq(donation_disputes.status, "lost")
+      )
+    );
+  return lost.reduce((sum, d) => sum + (d.share ?? 0), 0);
+};
+
+/** the share of the charge partial refunds and reversals recorded here took */
+const recorded_refunded_share = async (donation_id: string) => {
+  const [row] = await db
+    .select({ share: donations.refunded_share })
+    .from(donations)
+    .where(eq(donations.id, donation_id));
+  return row?.share ?? 0;
+};
+
+const REFUNDS_UNCOUNTED =
+  "earlier refunds of this charge could not be read from paypal, so what is owed counts this dispute alone, and a win credits back no more than it adds over the refunds recorded here: check the refunds by hand.";
+
+/** what the filing owes, `share`, and what a win of it credits back,
+ * `disputed`. an amount paypal doesn't state in the charge's currency owes,
+ * and credits, the whole */
+const filing_shares = async (
+  d: IDispute,
+  don: IDonation,
+  earlier: { refunds: IMoney[]; uncounted: boolean }
+): Promise<{ share: Share; disputed: Share; caveat?: string }> => {
+  const amount = v2_money(d.dispute_amount);
+  const whole = v2_money(d.disputed_transactions?.[0]?.gross_amount);
+  const own = fraction(share_of([amount], whole));
+  if (own === null) return { share: WHOLE, disputed: WHOLE };
+  const share = share_of([...earlier.refunds, amount], whole);
+  if (!earlier.uncounted) return { share, disputed: { taken: own, of: 1 } };
+  const added =
+    (fraction(share) ?? 1) - (await recorded_refunded_share(don.id));
+  return {
+    share,
+    // a floor too small to credit a cent: a win of a dispute that added
+    // nothing over the refunds credits only its fee
+    disputed: { taken: Math.max(Math.min(own, added), 1e-9), of: 1 },
+    caveat: REFUNDS_UNCOUNTED,
+  };
 };
 
 /**
@@ -824,23 +894,31 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
   const fee = dispute_fee(d);
   const earlier = await refunded_before(charge, don);
   if (!earlier) {
+    // told now, not once paypal's order reads: the deadline runs meanwhile.
+    // keyed apart from the filing's own notice, which still follows
+    await notify_dispute(ev, d, don.id, {
+      id: `paypal-dispute-held_${d.dispute_id}`,
+      title: "PayPal Dispute Opened",
+      lines: [
+        "paypal's order could not be read to count earlier refunds, so nothing is recorded as owed yet: paypal redelivers this event, and it is recorded then.",
+        RESPOND_BY_DEADLINE,
+      ],
+    });
     return new Response("earlier refunds unread, retry later", {
       status: 503,
     });
   }
-  // a share this can't size, the open owes as the whole
-  const disputed = v2_money(d.dispute_amount);
-  const whole = v2_money(tx?.gross_amount);
-  const share = share_of([...earlier, disputed], whole);
+  const { share, disputed, caveat } = await filing_shares(d, don, earlier);
   const res = await dispute_opened({
     donation_id: don.id,
     rail: "paypal",
     dispute_id: d.dispute_id,
     opened_at: d.create_time ?? new Date().toISOString(),
     share,
-    disputed: share_of([disputed], whole),
+    disputed,
     fee_usd: fee.usd,
   });
+  const caveats = caveat ? [caveat] : [];
   // told on the first sighting, and again only when what is owed grows: a
   // redelivery tells nothing
   const news = ((): string[] | null => {
@@ -868,6 +946,7 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
           return [
             ...owed_lines(res.owed),
             ...prior,
+            ...caveats,
             fee.line,
             dispute_explainer(share.taken > 0 && share.taken < share.of),
           ];
@@ -882,6 +961,7 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
           "nothing more recorded as owed for this dispute; the payment's rows stand as:",
           ...owed_lines(res.owed),
           ...prior,
+          ...caveats,
         ];
       }
     }
@@ -929,11 +1009,11 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
   if (!SELLER_KEEPS_OUTCOMES.has(outcome)) {
-    // under this dispute's ref or an earlier one's it merged into
-    const filed = (await owed_for_donation(don.id)).filter(
-      (o) => o.source === "dispute"
-    );
-    if (filed.length > 0) {
+    // its own share on record: its filing recorded what is owed, into
+    // whatever row a refund or an earlier dispute wrote first
+    const filed = (await dispute_get(record.id))?.share != null;
+    const owing = filed ? await owed_for_donation(don.id) : [];
+    if (owing.length > 0) {
       // keyed on the dispute: a redelivery collapses into it in the queue's
       // dedupe window
       await notify_dispute(ev, d, don.id, {
@@ -941,7 +1021,7 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
         title: "PayPal Dispute Resolved",
         lines: [
           `resolved ${outcome}, which says neither that we kept the money nor that the buyer got it back, so what disputes on this payment recorded stays owed:`,
-          ...owed_lines(filed),
+          ...owed_lines(owing),
           "if paypal took no money back for it, credit or write it off by hand on Amounts owed.",
         ],
       });
@@ -1396,11 +1476,15 @@ export async function action({ request }: Route.ActionArgs) {
             // the entry reads the share as unsized
             const total =
               refund.seller_payable_breakdown?.total_refunded_amount;
+            const refunded = share_of([v2_money(total)], whole);
+            if (refunded.taken <= 0) return { share: refunded };
+            // paypal's total leaves out what lost chargebacks took
+            const lost = await lost_dispute_share(cid);
             return {
-              share: share_of(
-                [{ value: total?.value, currency: total?.currency_code }],
-                whole
-              ),
+              share: {
+                taken: refunded.taken + lost * refunded.of,
+                of: refunded.of,
+              },
             };
           }
           const alone = share_of([taken], whole);
