@@ -152,13 +152,18 @@ async function finish_refund(
   if (!charge || typeof charge === "string") {
     throw new Error(`payment ${intent_id} has no charge`);
   }
+  // the charge's refunds to date, an earlier partial's and a pending one's
+  // included: this refund completes it, so the share is whole. summed off the
+  // list: stripe doesn't document whether `charge.amount_refunded` counts a
+  // pending refund or drops a failed one
+  const taken = refunds
+    .filter((x) => !is_failed_or_canceled(x))
+    .reduce((sum, x) => sum + x.amount, 0);
   const res = await reverse_charge({
     donation_id: don.id,
     rail: "stripe",
     source: "admin",
-    // the charge's refunds to date, an earlier partial's included: this
-    // refund completes it, so the share is whole
-    share: { taken: charge.amount_refunded, of: charge.amount_captured },
+    share: { taken, of: charge.amount_captured },
     // an unsent one (a pending bank refund) can still fail, so the entry
     // holds: refund.updated reverses once the last succeeds
     unsent_refunds: unsent_refunds(refunds).map((x) => x.id),

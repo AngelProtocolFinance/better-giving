@@ -141,9 +141,9 @@ afterAll(async () => {
 
 beforeEach(() => {
   refunds_list.mockResolvedValue({ data: [] });
-  // the charge as stripe reads it once this request's refund completed it
+  // no refunded total: the share is summed off the refund list
   intents_retrieve.mockResolvedValue({
-    latest_charge: { amount_captured: 10000, amount_refunded: 10000 },
+    latest_charge: { amount_captured: 10000 },
   });
   // unless a test says otherwise, the refund stands as stripe created it
   refunds_retrieve.mockImplementation(async (id: string) => ({
@@ -622,7 +622,7 @@ describe("refund api", () => {
     expect(retry).toMatchObject({ ok: true, stripe_refund: "succeeded" });
   });
 
-  it("reverses a replacement refund after a failed one, the failed one holding nothing", async () => {
+  it("reverses a replacement refund after a failed one, the failed one neither holding nor counting", async () => {
     const failed = {
       id: "re_failed",
       status: "failed",
@@ -645,7 +645,10 @@ describe("refund api", () => {
 
     expect(res).toMatchObject({ ok: true, reversal: "done" });
     expect(reverse_charge).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ unsent_refunds: [] })
+      expect.objectContaining({
+        share: { taken: 10000, of: 10000 },
+        unsent_refunds: [],
+      })
     );
   });
 
@@ -790,10 +793,12 @@ describe("refund api", () => {
     expect(reverse_charge).toHaveBeenCalledOnce();
   });
 
-  // the entry ends the recurring gift on a whole share, held or not, so the
-  // route hands it the payment that billed it
-  it("tells the admin the reversal waits on a pending bank refund, handing the entry the whole share", async () => {
-    refunds_create.mockResolvedValue({ id: "re_1", status: "pending" });
+  it("tells the admin the reversal waits on a pending bank refund", async () => {
+    refunds_create.mockResolvedValue({
+      id: "re_1",
+      status: "pending",
+      amount: 10000,
+    });
     const id = await seed_donation();
     await seed_settlement(id, `pi_${id}`);
 
@@ -804,6 +809,28 @@ describe("refund api", () => {
       stripe_refund: "pending",
       reversal: "held",
     });
+    expect(reverse_charge).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ unsent_refunds: ["re_1"] })
+    );
+  });
+
+  // the entry ends the recurring gift on a whole share, held or not, so the
+  // route hands it the payment that billed it
+  it("counts a pending full refund toward the whole, so the held reversal still ends the recurring gift", async () => {
+    refunds_create.mockResolvedValue({
+      id: "re_1",
+      status: "pending",
+      amount: 10000,
+    });
+    // a refunded total that leaves the pending refund out
+    intents_retrieve.mockResolvedValue({
+      latest_charge: { amount_captured: 10000, amount_refunded: 0 },
+    });
+    const id = await seed_donation();
+    await seed_settlement(id, `pi_${id}`);
+
+    await action({ params: { donation_id: id } } as any);
+
     expect(reverse_charge).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         share: { taken: 10000, of: 10000 },
