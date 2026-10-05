@@ -187,8 +187,8 @@ async function queue_notice(
 export type OwedCreditReason =
   | "payout_cancelled"
   | "transfer_unfunded"
-  /** a lost dispute's reversal took it back from the npo's balances or
-   * pending payout, after the dispute's open had recorded it as owed */
+  /** a reversal, the dispute's loss or a refund, took it back from the npo's
+   * balances or pending payout after a dispute's open had recorded it as owed */
   | "dispute_reversed"
   | "dispute_won"
   /** a refund the row was recorded for failed after it succeeded: what it

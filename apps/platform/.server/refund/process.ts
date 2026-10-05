@@ -74,23 +74,22 @@ function dist_is_reversed(d: { status: string; refund_status: string | null }) {
   );
 }
 
-/** the party's row when this dispute's open recorded it: what the npo owes
- * from it was taken then, so the reversal's own take comes off it */
+/** the party's row when a dispute's open recorded it: what the npo owes from
+ * it was taken then, so a reversal's own take comes off it, whichever refund
+ * or dispute reverses the gift. a row a refund recorded first never meets a
+ * take: a partial records none where the grant is pending or in balances,
+ * and a paid grant's reversal takes nothing back */
 async function recorded_at_open(
   tx: DbOrTx,
   donation_id: string,
-  party: { npo_id: number },
-  src: OwedSource
+  party: { npo_id: number }
 ): Promise<IOwed | null> {
-  if (src.source !== "dispute") return null;
   const row = await owed_for_party(donation_id, party, tx);
-  return row?.source === "dispute" && row.source_ref === src.source_ref
-    ? row
-    : null;
+  return row?.source === "dispute" ? row : null;
 }
 
 /** what a reversal taking `taken` from the npo's balances credits on the row
- * its dispute's open recorded: no more than the row counts it received, so a
+ * a dispute's open recorded: no more than the row counts it received, so a
  * share recorded at open keeps its fees owed */
 const open_credit = (row: IOwed, taken: number) =>
   Math.min(
@@ -220,7 +219,7 @@ export async function process_refund(
       if (!cur || dist_is_reversed(cur)) return { skipped: true } as const;
       const party = { npo_id: g.dist.to_id ?? 0 };
       // read before apply, whose loss path records a row of its own
-      const opened = await recorded_at_open(tx, donation_id, party, src);
+      const opened = await recorded_at_open(tx, donation_id, party);
       const applied = await apply_refund_plan(tx, plan, src);
       const credit = opened ? open_credit(opened, taken_from_npo(plan)) : 0;
       if (credit > 0) {

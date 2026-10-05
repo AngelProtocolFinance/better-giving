@@ -45,6 +45,10 @@ vi.mock("../pg/db", () => ({
 vi.mock("../kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 vi.mock("../kit/queue", () => ({ enqueue: vi.fn(async () => undefined) }));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
+// a full refund's subscription lookup: no gift here is recurring
+vi.mock("../kit/stripe", () => ({
+  stripe: { invoicePayments: { list: vi.fn(async () => ({ data: [] })) } },
+}));
 
 // --- imports (after mocks) ---
 
@@ -444,6 +448,73 @@ const lose = (donation_id: string, taken = 100) =>
     alert_from: "charge-dispute",
     notice: { id: `evt_lost_${donation_id}`, lines: [] },
   });
+
+/** a refund of `taken` of the gift's $100 from `source`, not its dispute */
+const refund = (
+  donation_id: string,
+  source: "refund" | "admin",
+  taken = 100,
+  ref = "re_1"
+) =>
+  reverse_charge({
+    donation_id,
+    rail: "stripe",
+    source,
+    share: { taken, of: 100 },
+    source_ref: ref,
+    alert_from: "charge-refunded",
+    notice: { id: `evt_${ref}`, lines: [] },
+  });
+
+describe("a refund after a dispute opened on a pending payout", () => {
+  /** what the npo is out for the gift: taken from its balances, plus what
+   * its row still owes */
+  const debited = async (id: string, npo_id: number, before: number) => {
+    const [row] = await owed_of(id);
+    return (
+      before -
+      (await balance_of(test_db.current!.db, npo_id)) +
+      (row?.outstanding_usd ?? 0)
+    );
+  };
+
+  test.each(["refund", "admin"] as const)(
+    "a full %s takes what the npo received plus fees once",
+    async (source) => {
+      const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
+      const npo_id = npo_ids[0]!;
+      const before = await balance_of(test_db.current!.db, npo_id);
+      await dispute_opened(opened_on(id));
+
+      expect((await refund(id, source)).status).toBe("reversed");
+
+      expect(await debited(id, npo_id, before)).toBeCloseTo(108.2, 10);
+    }
+  );
+
+  test("a redelivery of it changes nothing", async () => {
+    const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
+    const npo_id = npo_ids[0]!;
+    const before = await balance_of(test_db.current!.db, npo_id);
+    await dispute_opened(opened_on(id));
+    await refund(id, "refund");
+
+    expect((await refund(id, "refund")).status).toBe("already_reversed");
+
+    expect(await debited(id, npo_id, before)).toBeCloseTo(108.2, 10);
+  });
+
+  test("a partial refund takes nothing beyond the dispute's share its open recorded", async () => {
+    const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
+    const npo_id = npo_ids[0]!;
+    const before = await balance_of(test_db.current!.db, npo_id);
+    await dispute_opened(opened_on(id, 15, 30));
+
+    expect((await refund(id, "refund", 70)).status).toBe("partial_pending");
+
+    expect(await debited(id, npo_id, before)).toBeCloseTo(42.96, 10);
+  });
+});
 
 describe("a dispute lost after it opened", () => {
   test.each([
