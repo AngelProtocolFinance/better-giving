@@ -5,20 +5,13 @@ import { type IDonation, is_reversed } from "@/donations";
 import { stripe } from "$/kit/stripe";
 import { donation_get, donation_settlement_get } from "$/pg/queries/donation";
 import {
-  earlier_partials,
-  is_failed_or_canceled,
-  unsent_refunds,
-} from "$/refund/after-partials";
-import {
   type DistPreview,
   has_settled_dists,
   reversal_preview,
   reverse_charge,
 } from "$/refund/reverse";
-import {
-  cancel_refunded_subscription,
-  subscription_id_of,
-} from "$/refund/subscription";
+import { subscription_id_of } from "$/refund/subscription";
+import { is_failed_or_canceled, unsent_refunds } from "$/refund/unsent";
 import type { Route } from "./+types/route";
 
 export type { DistPreview };
@@ -151,43 +144,42 @@ async function finish_refund(
 ) {
   const [{ data }, intent] = await Promise.all([
     stripe.refunds.list({ payment_intent: intent_id, limit: 100 }),
-    stripe.paymentIntents.retrieve(intent_id),
+    stripe.paymentIntents.retrieve(intent_id, { expand: ["latest_charge"] }),
   ]);
   // newest first, with `r` as just retrieved rather than as the list read it
   const refunds = [r, ...data.filter((x) => x.id !== r.id)];
-  // an unsent one (a pending bank refund) can still fail: refund.updated
-  // reverses once the last succeeds. the donor is refunded all the same, so
-  // the gift stops billing now; past this, reverse_charge ends it
-  if (unsent_refunds(refunds).length > 0) {
-    await cancel_refunded_subscription(intent_id);
-    return "held";
+  const charge = intent.latest_charge;
+  if (!charge || typeof charge === "string") {
+    throw new Error(`payment ${intent_id} has no charge`);
   }
-
-  const seen_at = `payment ${intent_id}, admin refund ${r.id}`;
   const res = await reverse_charge({
     donation_id: don.id,
     rail: "stripe",
     source: "admin",
+    // the charge's refunds to date, an earlier partial's included: this
+    // refund completes it, so the share is whole
+    share: { taken: charge.amount_refunded, of: charge.amount_captured },
+    // an unsent one (a pending bank refund) can still fail, so the entry
+    // holds: refund.updated reverses once the last succeeds
+    unsent_refunds: unsent_refunds(refunds).map((x) => x.id),
+    intent_id,
     source_ref: r.id,
     alert_from: ALERT_FROM,
-    notice: { id: r.id, lines: [seen_at] },
-    after_partials: {
-      seen_at,
-      currency: r.currency,
-      completing: r,
-      earlier: earlier_partials(refunds, r, intent.amount_received),
-    },
+    notice: { id: r.id, lines: [`payment ${intent_id}, admin refund ${r.id}`] },
   });
-  // no amount is passed, and the action checked the gift, its rail and its
-  // dists before the refund: only a gift changed under this request lands here
   if (
-    res.status === "partial_not_acted" ||
-    (res.status === "failed" && res.reason !== "incomplete")
+    res.status === "reversed" ||
+    res.status === "already_reversed" ||
+    res.status === "held"
   ) {
-    const why = res.status === "failed" ? res.reason : res.status;
-    throw new Error(`nothing reversed: ${why}`);
+    return res;
   }
-  return res;
+  if (res.status === "failed" && res.reason === "incomplete") return res;
+  // the action checked the gift, its rail and its dists before the refund,
+  // and the refund completes the charge: only a gift or charge changed under
+  // this request lands here
+  const why = res.status === "failed" ? res.reason : res.status;
+  throw new Error(`nothing reversed: ${why}`);
 }
 
 export const action = async ({ params }: Route.ActionArgs) => {
@@ -276,7 +268,7 @@ export const action = async ({ params }: Route.ActionArgs) => {
     );
   }
 
-  if (result === "held") {
+  if (result.status === "held") {
     return dataWithSuccess(
       { ok: true as const, stripe_refund, reversal: "held" as const },
       "Refund issued"
