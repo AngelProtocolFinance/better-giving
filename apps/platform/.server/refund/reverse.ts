@@ -171,7 +171,7 @@ const UNSIZED_ACTION =
 
 /** what a later event does on top of a hand adjustment for these dists */
 const LATER_EVENTS =
-  "once the grant has gone out, any later refund or dispute on this donation records as owed the whole share taken back so far, this one included, and a refund of the rest reverses the donation: undo any hand adjustment made for these dists when either happens, or they are debited twice.";
+  "any hand adjustment made for these dists must be undone if the rest is refunded or lost to a dispute, which reverses the donation, or if, once the grant has gone out, a later refund or dispute records as owed the whole share taken back so far, this one included; otherwise they are debited twice. a dispute filed while the grant is still pending records only its own share, so the adjustment stands then.";
 
 const PARTIAL_REFUND = {
   owed: "Partial Refund Recorded as Owed",

@@ -4,6 +4,7 @@ import {
   dispute_get,
   dispute_open,
   dispute_record_share,
+  disputes_lost_of,
   type IDispute,
 } from "../pg/queries/dispute";
 import {
@@ -17,6 +18,8 @@ import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
   credit_parts,
   fraction_of,
+  grant_went_out,
+  type LockedDist,
   owed_shares,
   type Share,
   settled_dists_locked,
@@ -30,7 +33,8 @@ export interface DisputeOpened {
   dispute_id: string;
   /** when the provider opened it */
   opened_at: string;
-  /** how much of the charge is taken back so far, this dispute included */
+  /** how much of the charge is taken back so far, this dispute included;
+   * the gift's disputes on record lost are added by the open itself */
   share: Share;
   /** the dispute's own part of the charge, what a win of it credits back;
    * absent, `share` */
@@ -104,12 +108,18 @@ export async function dispute_opened(
     const was = new Map(
       (await owed_for_donation(don.id, tx)).map((o) => [o.id, owed_total(o)])
     );
+    const lost = await disputes_lost_of(tx, don.id, d.dispute_id);
+    const lost_share = lost.reduce((sum, l) => sum + l.share, 0);
+    // an unsizable share is the whole: the open owes as much as it can, and
+    // a win credits it all back
+    const taken = fraction_of(d.share) ?? 1;
+    const own = fraction_of(d.disputed ?? d.share) ?? taken;
+    const cumulative = Math.min(taken + lost_share, 1);
     const rows: IOwed[] = [];
     const shares = owed_shares(ds, {
-      // an unsizable share is the whole: the open owes as much as it can, and
-      // a win credits it all back
-      f: fraction_of(d.share) ?? 1,
-      fee_usd: d.fee_usd,
+      f: cumulative,
+      f_of: by_grant(cumulative, Math.min(own + lost_share, 1)),
+      fee_usd: d.fee_usd + lost.reduce((sum, l) => sum + l.fee_usd, 0),
       owes: () => true,
     });
     for (const share of shares) {
@@ -125,7 +135,8 @@ export async function dispute_opened(
     }
     if (rows.length > 0) {
       await dispute_record_share(tx, d.dispute_id, {
-        share: fraction_of(d.disputed ?? d.share) ?? 1,
+        share: Math.min(own, cumulative),
+        cumulative_share: cumulative,
         fee_usd: d.fee_usd,
       });
     }
@@ -206,15 +217,31 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     const own = await dispute_get(d.dispute_id, tx);
     if (own?.share == null) return [];
     const ds = await settled_dists_locked(tx, don.id);
-    const shares = owed_shares(ds, {
-      f: own.share,
+    const lost = await disputes_lost_of(tx, don.id, d.dispute_id);
+    const lost_share = lost.reduce((sum, l) => sum + l.share, 0);
+    const cumulative = own.cumulative_share ?? own.share;
+    const disputes = Math.min(own.share + lost_share, 1);
+    // what the open recorded, less what it would have without this dispute:
+    // the difference of two floors, so no cent of another event is credited
+    const at = owed_shares(ds, {
+      f: cumulative,
+      f_of: by_grant(cumulative, disputes),
       fee_usd: own.fee_usd ?? 0,
       owes: () => true,
     });
+    const below = new Map(
+      owed_shares(ds, {
+        f: cumulative - own.share,
+        f_of: by_grant(cumulative - own.share, disputes - own.share),
+        fee_usd: 0,
+        owes: () => true,
+      }).map((b) => [JSON.stringify(b.party), b])
+    );
     const rows: IOwed[] = [];
-    for (const s of shares) {
+    for (const s of at) {
       const row = await owed_for_party(don.id, s.party, tx);
       if (!row) continue;
+      const b = below.get(JSON.stringify(s.party));
       const id = d.dispute_id;
       rows.push(
         await credit_parts(
@@ -222,8 +249,12 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
           row,
           { donation_id: don.id, party: s.party, now },
           [
-            ["dispute_won", s.received_usd, id],
-            ["dispute_won_fee", s.fee_processing_usd, `${id}:fee`],
+            ["dispute_won", s.received_usd - (b?.received_usd ?? 0), id],
+            [
+              "dispute_won_fee",
+              s.fee_processing_usd - (b?.fee_processing_usd ?? 0),
+              `${id}:fee`,
+            ],
             [
               "dispute_won_fee_dispute",
               s.fee_dispute_usd ?? 0,
@@ -252,3 +283,9 @@ export const owed_lines = (owed: IOwed[]): string[] => [
     return `- ${party}: ${usd(owed_total(o))} (received ${usd(o.received_usd)}, card fee ${usd(o.fee_processing_usd)}, dispute fee ${usd(o.fee_dispute_usd)})`;
   }),
 ];
+
+/** a dist's share at an open: the whole share taken back once its grant has
+ * gone out, else only the disputes' own, since a refund of a grant not yet
+ * out is left to ops' hand adjustment and owes nothing on record */
+const by_grant = (cumulative: number, disputes: number) => (d: LockedDist) =>
+  grant_went_out(d) ? cumulative : disputes;

@@ -415,6 +415,54 @@ describe("dispute_won, whatever wrote the row", () => {
   const outstanding = async (id: string) =>
     (await owed_of(id)).map((o) => o.outstanding_usd);
 
+  test("a lost $30 dispute, then a $70 one won: the win leaves the lost one's share and fee owed", async () => {
+    const { id } = await seed(PAID_GRANT);
+    const d0 = { ...opened_on(id, 15, 30), dispute_id: "PP-D0" };
+    await dispute_opened(d0);
+    await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: 30, of: 100 },
+      dispute_fee_usd: 15,
+      source_ref: "PP-D0",
+      alert_from: "paypal-dispute",
+      notice: { id: "WH-D0", lines: [] },
+    });
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: "PP-D0",
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    expect(await outstanding(id)).toEqual([42.96]);
+
+    // the filing counts its own $70 only: the core adds the lost one's share
+    await dispute_opened({
+      ...opened_on(id, 15, 70),
+      disputed: { taken: 70, of: 100 },
+    });
+    expect(await outstanding(id)).toEqual([123.2]);
+    await dispute_won(won_on(id));
+
+    expect(await outstanding(id)).toEqual([42.96]);
+  });
+
+  test("a $33 refund, then a $67 dispute won: owes exactly the refund's share", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund_share(id, 33, "re_1");
+    expect(await outstanding(id)).toEqual([30.75]);
+    await dispute_opened({
+      ...opened_on(id),
+      disputed: { taken: 67, of: 100 },
+    });
+
+    await dispute_won(won_on(id));
+
+    expect(await outstanding(id)).toEqual([30.75]);
+  });
+
   test("a refund of $30 before a dispute over the other $70: the win leaves the refund's share owed", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund_share(id, 30, "re_1");
@@ -596,6 +644,31 @@ describe("a refund after a dispute opened on a pending payout", () => {
     expect((await refund(id, "refund", 70)).status).toBe("partial_pending");
 
     expect(await debited(id, npo_id, before)).toBeCloseTo(42.96, 10);
+  });
+});
+
+describe("a refund, then a dispute, on a grant not yet out", () => {
+  test("the dispute's open owes only its own share, the refund's left to ops' hand adjustment", async () => {
+    const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
+    const before = await balance_of(test_db.current!.db, npo_ids[0]!);
+    const res = await refund(id, "refund", 30);
+    expect(res.status).toBe("partial_pending");
+    expect(await owed_of(id)).toEqual([]);
+
+    await dispute_opened({
+      ...opened_on(id),
+      disputed: { taken: 70, of: 100 },
+    });
+
+    expect(await owed_of(id)).toMatchObject([
+      {
+        received_usd: 63,
+        fee_processing_usd: 2.24,
+        fee_dispute_usd: 15,
+        outstanding_usd: 80.24,
+      },
+    ]);
+    expect(await balance_of(test_db.current!.db, npo_ids[0]!)).toBe(before);
   });
 });
 

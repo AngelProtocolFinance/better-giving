@@ -2,11 +2,13 @@ import { and, asc, eq, type SQL, sql } from "drizzle-orm";
 import type { DbOrTx } from "../pg/queries/helpers";
 import {
   credit_owed,
+  figure_of,
   type IOwed,
   type IOwedRecord,
   type OwedCreditReason,
   type OwedParty,
   owed_total,
+  owed_uncredited,
 } from "../pg/queries/owed";
 import { dists } from "../pg/schema/dist";
 import { payouts } from "../pg/schema/payout";
@@ -119,7 +121,13 @@ type OwedShare = Pick<
  * fee by settled amount, in full; each referrer `f` of its paid commissions */
 export function owed_shares(
   ds: LockedDist[],
-  o: { f: number; fee_usd: number; owes: (d: LockedDist) => boolean }
+  o: {
+    f: number;
+    /** the npo part's share for a dist, when not `f` */
+    f_of?: (d: LockedDist) => number;
+    fee_usd: number;
+    owes: (d: LockedDist) => boolean;
+  }
 ): OwedShare[] {
   const fee_shares = split_cents(o.fee_usd, ds.map(dist_settled_usd));
   const by_party = new Map<string, OwedShare>();
@@ -140,10 +148,11 @@ export function owed_shares(
   };
   for (const [i, x] of ds.entries()) {
     if (o.owes(x)) {
+      const f = o.f_of?.(x) ?? o.f;
       add(`npo:${x.to_id}`, {
         party: { npo_id: x.to_id },
-        received_usd: scaled(x.net, o.f),
-        fee_processing_usd: scaled(fee_processing_usd(x), o.f),
+        received_usd: scaled(x.net, f),
+        fee_processing_usd: scaled(fee_processing_usd(x), f),
         fee_dispute_usd: fee_shares[i]!,
       });
     }
@@ -186,9 +195,9 @@ export type CreditPart = readonly [
   ref: string,
 ];
 
-/** credits each part back on `row`, each capped at what the row can still be
- * credited; a part already credited under its ref adds nothing. the row as
- * it stands after */
+/** credits each part back on `row`, each capped at what its own figure
+ * still holds and at what the row can still be credited; a part already
+ * credited under its ref adds nothing. the row as it stands after */
 export async function credit_parts(
   tx: DbOrTx,
   row: IOwed,
@@ -196,14 +205,21 @@ export async function credit_parts(
   parts: CreditPart[]
 ): Promise<IOwed> {
   let cur = row;
+  const left = await owed_uncredited(tx, row);
   for (const [reason, usd, ref] of parts) {
+    const figure = figure_of(reason);
     // to 1e-9: summed in floats, 65.24 - 64.28 would cap 0.96 at 0.9599…
     const creditable =
       Math.round(
         (owed_total(cur) - cur.credited_back_usd - cur.written_off_usd) * 1e9
       ) / 1e9;
-    const credit = Math.min(usd, creditable);
+    const credit = Math.min(
+      usd,
+      creditable,
+      figure ? Math.round(left[figure] * 1e9) / 1e9 : usd
+    );
     if (credit <= 0) continue;
+    if (figure) left[figure] -= credit;
     cur = (await credit_owed(tx, { ...c, usd: credit, reason, ref })) ?? cur;
   }
   return cur;

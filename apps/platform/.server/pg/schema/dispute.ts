@@ -22,6 +22,13 @@ export const donation_disputes = pgTable(
      * whatever else wrote the gift's rows. null while it recorded nothing */
     share: numeric_as_number("share", { precision: 38, scale: 18 }),
     fee_usd: numeric_as_number("fee_usd", { precision: 38, scale: 18 }),
+    /** what of the charge its open counted as taken back, itself and the
+     * refunds and lost disputes before it included: where a win's credit
+     * counts down from on a grant that had gone out */
+    cumulative_share: numeric_as_number("cumulative_share", {
+      precision: 38,
+      scale: 18,
+    }),
   },
   (t) => [
     check(
@@ -37,6 +44,11 @@ export const donation_disputes = pgTable(
       "donation_disputes_share_check",
       sql`num_nonnulls(${t.share}, ${t.fee_usd}) IN (0, 2)
         AND ${t.share} > 0 AND ${t.share} <= 1 AND ${t.fee_usd} >= 0`
+    ),
+    check(
+      "donation_disputes_cumulative_share_check",
+      sql`${t.cumulative_share} IS NULL OR (${t.share} IS NOT NULL
+        AND ${t.cumulative_share} >= ${t.share} AND ${t.cumulative_share} <= 1)`
     ),
     // the donation_id fk's: a donation's delete or key change looks its disputes up by it
     index("donation_disputes_donation_id_idx").on(t.donation_id),

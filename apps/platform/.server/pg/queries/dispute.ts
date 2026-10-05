@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, ne } from "drizzle-orm";
 import { db } from "../db";
 import { donation_disputes } from "../schema/dispute";
 import type { DbOrTx } from "./helpers";
@@ -62,14 +62,38 @@ export async function dispute_close(
     });
 }
 
-/** the dispute's own share of the charge and its fee, as its open recorded
- * what is owed for it */
+/** the dispute's own share of the charge, the share its open counted taken
+ * back, and its fee, as its open recorded what is owed for it */
 export async function dispute_record_share(
   tx: DbOrTx,
   id: string,
-  s: { share: number; fee_usd: number }
+  s: { share: number; cumulative_share: number; fee_usd: number }
 ): Promise<void> {
   await tx.update(donation_disputes).set(s).where(eq(donation_disputes.id, id));
+}
+
+/** the gift's disputes closed lost, other than `except`, with the share and
+ * fee their opens recorded */
+export async function disputes_lost_of(
+  tx: DbOrTx,
+  donation_id: string,
+  except: string
+): Promise<{ share: number; fee_usd: number }[]> {
+  const rows = await tx
+    .select({
+      share: donation_disputes.share,
+      fee_usd: donation_disputes.fee_usd,
+    })
+    .from(donation_disputes)
+    .where(
+      and(
+        eq(donation_disputes.donation_id, donation_id),
+        eq(donation_disputes.status, "lost"),
+        ne(donation_disputes.id, except),
+        isNotNull(donation_disputes.share)
+      )
+    );
+  return rows.map((r) => ({ share: r.share ?? 0, fee_usd: r.fee_usd ?? 0 }));
 }
 
 export async function dispute_get(

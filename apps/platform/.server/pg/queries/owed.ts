@@ -81,16 +81,52 @@ const credits_under = (reasons: OwedCreditReason[]) =>
 export const failed_credits = (reason: OwedCreditReason) =>
   credits_under([reason]);
 
+export type OwedFigureKey =
+  | "received_usd"
+  | "fee_processing_usd"
+  | "fee_dispute_usd";
+
 /** per figure, the credits that take an event back out of the cumulative
  * figure, so a later record adds them back on */
-const UNCOUNTED: Record<
-  "received_usd" | "fee_processing_usd" | "fee_dispute_usd",
-  OwedCreditReason[]
-> = {
+const UNCOUNTED: Record<OwedFigureKey, OwedCreditReason[]> = {
   received_usd: ["refund_failed", "dispute_won"],
   fee_processing_usd: ["refund_failed_fee", "dispute_won_fee"],
   fee_dispute_usd: ["dispute_won_fee_dispute"],
 };
+
+/** the figure an uncounted credit takes back from */
+export const figure_of = (reason: OwedCreditReason): OwedFigureKey | null =>
+  (Object.keys(UNCOUNTED) as OwedFigureKey[]).find((k) =>
+    UNCOUNTED[k].includes(reason)
+  ) ?? null;
+
+/** each of the row's figures less what was credited back of it for events
+ * that no longer count: what a further such credit can still take */
+export async function owed_uncredited(
+  tx: DbOrTx,
+  row: IOwed
+): Promise<Record<OwedFigureKey, number>> {
+  const credits = await tx
+    .select({
+      reason: owed_entries.reason,
+      usd: sql<number>`SUM(${owed_entries.usd})`.mapWith(Number),
+    })
+    .from(owed_entries)
+    .where(
+      and(eq(owed_entries.owed_id, row.id), eq(owed_entries.kind, "credit"))
+    )
+    .groupBy(owed_entries.reason);
+  const left = {
+    received_usd: row.received_usd,
+    fee_processing_usd: row.fee_processing_usd,
+    fee_dispute_usd: row.fee_dispute_usd,
+  };
+  for (const c of credits) {
+    const figure = figure_of(c.reason as OwedCreditReason);
+    if (figure) left[figure] -= c.usd;
+  }
+  return left;
+}
 
 /** `figure` as recorded, with what was credited back of it for events
  * that no longer count */
