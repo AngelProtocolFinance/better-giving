@@ -846,9 +846,13 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
   return new Response(`dispute ${res.status}`, { status: 200 });
 }
 
-/** outcomes where the buyer got the money back: paypal's REVERSED or REFUNDED
- * of the charge takes the gift back */
-const BUYER_OUTCOMES = new Set(["RESOLVED_BUYER_FAVOUR", "ACCEPTED"]);
+/** outcomes that end the dispute's own take with no loss of it, and how its
+ * record closes. ACCEPTED: the claim is paid through a refund, whose own take
+ * counts it. NONE: paypal closed it because a new dispute was filed on the
+ * same transaction, whose filing takes the share again */
+const CLOSED_WITHOUT_LOSS: Partial<
+  Record<string, "accepted" | "inquiry_closed">
+> = { ACCEPTED: "accepted", NONE: "inquiry_closed" };
 
 /** outcomes where we keep the money, credited back as a win: the buyer
  * cancelled, the claim was denied, or paypal paid the buyer itself */
@@ -868,7 +872,7 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
   const don = charge ? await donation_by_sttl_id(charge) : undefined;
   if (!d.dispute_id || !don)
     return new Response("no donation", { status: 200 });
-  const outcome = d.dispute_outcome?.outcome_code ?? "NONE";
+  const outcome = d.dispute_outcome?.outcome_code;
   // finds a chargeback of it recorded before its filing was
   const disputed = share_of(
     [v2_money(d.dispute_amount)],
@@ -880,25 +884,33 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
     opened_at: d.create_time ?? new Date().toISOString(),
     closed_at: d.update_time ?? new Date().toISOString(),
   };
-  if (outcome === "ACCEPTED") {
-    // an accepted claim is paid through a refund, whose own take counts it:
-    // the dispute's take no longer does
-    await dispute_won({
+  const closed_as = outcome ? CLOSED_WITHOUT_LOSS[outcome] : undefined;
+  if (closed_as) {
+    const closed = await dispute_won({
       donation_id: don.id,
       rail: "paypal",
       dispute_id: record.id,
-      status: "accepted",
+      status: closed_as,
       disputed,
       opened_at: record.opened_at,
       closed_at: record.closed_at,
     });
+    // the charge's own donation, just read: no redelivery changes the answer
+    if (closed.status === "failed") {
+      report_error(
+        new Error(
+          `[paypal webhook] dispute close not credited: ${closed.reason}`
+        ),
+        { event_id: ev.id, dispute_id: record.id, donation_id: don.id }
+      );
+    }
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
-  if (BUYER_OUTCOMES.has(outcome)) {
+  if (outcome === "RESOLVED_BUYER_FAVOUR") {
     await dispute_close(db, { ...record, status: "lost" });
     return new Response(`dispute ${outcome}`, { status: 200 });
   }
-  if (!SELLER_KEEPS_OUTCOMES.has(outcome)) {
+  if (!outcome || !SELLER_KEEPS_OUTCOMES.has(outcome)) {
     // its own share on record: its filing recorded what is owed, into
     // whatever row a refund or an earlier dispute wrote first
     const filed = (await dispute_get(record.id))?.share != null;
@@ -910,13 +922,15 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
         id: `paypal-dispute-resolved_${d.dispute_id}`,
         title: "PayPal Dispute Resolved",
         lines: [
-          `resolved ${outcome}, which says neither that we kept the money nor that the buyer got it back, so what disputes on this payment recorded stays owed:`,
+          `resolved ${outcome ?? "with no outcome"}, which says neither that we kept the money nor that the buyer got it back, so what disputes on this payment recorded stays owed:`,
           ...owed_lines(owing),
           "if paypal took no money back for it, credit or write it off by hand on Amounts owed.",
         ],
       });
     }
-    return new Response(`dispute ${outcome}`, { status: 200 });
+    return new Response(`dispute ${outcome ?? "with no outcome"}`, {
+      status: 200,
+    });
   }
   // read before the win records it won: a redelivery tells nothing again
   const was_won = (await dispute_get(record.id))?.status === "won";

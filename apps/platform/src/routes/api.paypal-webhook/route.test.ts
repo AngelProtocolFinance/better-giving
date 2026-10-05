@@ -2498,55 +2498,56 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     }),
   });
 
-  describe("a second dispute on the payment, after the first closed with no decision", () => {
+  describe("a second dispute on the payment, the first closed with no decision", () => {
     const SECOND = "PP-D000-000-002";
-    /** the first dispute filed and closed NONE, the second filed */
-    const second_filed = async () => {
+    /** the first dispute filed, then closed NONE and the second filed, in
+     * `order` */
+    const second_filed = async (order: "none first" | "second first") => {
       const gift = await paypal_gift();
       await deliver(created_ev(gift.sttl_id));
-      await deliver(resolved_ev(gift.sttl_id, "NONE"));
+      const none = resolved_ev(gift.sttl_id, "NONE");
+      const second = created_ev(gift.sttl_id, { dispute_id: SECOND });
+      for (const ev of order === "none first" ? [none, second] : [second, none])
+        await deliver(ev);
       enqueue_mock.mockClear();
-      await deliver(created_ev(gift.sttl_id, { dispute_id: SECOND }));
       return gift;
     };
 
-    it("tells ops on filing that what is owed stands under the first, not that nothing is settled", async () => {
-      await second_filed();
-
-      expect(notices()).toHaveLength(1);
-      const [{ body }] = notices();
-      expect(body).toContain(SECOND);
-      expect(body).toContain(`stands under ${DISPUTE_ID}`);
-      expect(body).toContain("93.20 USD");
-      expect(body).not.toContain("nothing settled");
-    });
-
-    it("resolved NONE, tells ops what is owed stays though it sits under the first", async () => {
-      const { sttl_id } = await second_filed();
+    it("closed NONE, undoes the first's take, tells ops nothing, and changes nothing on redelivery", async () => {
+      const { sttl_id } = await paypal_gift();
+      await deliver(created_ev(sttl_id));
       enqueue_mock.mockClear();
 
-      await deliver(resolved_ev(sttl_id, "NONE", { dispute_id: SECOND }));
+      const none = resolved_ev(sttl_id, "NONE");
+      await deliver(none);
+      const closed = await owed_rows();
+      const entries = await db().select().from(owed_entries);
+      const res = await deliver(none);
 
-      expect(notices()).toEqual([
-        expect.objectContaining({ title: "PayPal Dispute Resolved" }),
-      ]);
-      expect(notices()[0].body).toContain("93.20 USD");
-    });
-
-    // the first's NONE left its part for ops to settle by hand
-    it("won, credits back only what it added, leaving the first's part standing, and tells ops nothing", async () => {
-      const { sttl_id } = await second_filed();
-      enqueue_mock.mockClear();
-
-      await deliver(
-        resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR", { dispute_id: SECOND })
-      );
-
-      expect(await owed_rows()).toMatchObject([
-        { received_usd: 90, outstanding_usd: 93.2 },
-      ]);
+      expect(res.status).toBe(200);
+      expect(closed).toMatchObject([{ outstanding_usd: 0 }]);
+      expect(await owed_rows()).toEqual(closed);
+      expect(await db().select().from(owed_entries)).toEqual(entries);
       expect(notices()).toEqual([]);
     });
+
+    it.each(["none first", "second first"] as const)(
+      "%s, the second owes the whole charge, and its win leaves nothing owed",
+      async (order) => {
+        const { sttl_id } = await second_filed(order);
+        const filed = await owed_rows();
+
+        await deliver(
+          resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR", {
+            dispute_id: SECOND,
+          })
+        );
+
+        expect(filed).toMatchObject([{ outstanding_usd: 93.2 }]);
+        expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+        expect(notices()).toEqual([]);
+      }
+    );
   });
 
   /** paypal's refund of `value` off the capture, `total` refunded to date */
@@ -2673,7 +2674,7 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
   });
 
-  it("resolved NONE after a refund and a dispute grew the refund's row, tells ops what stays owed", async () => {
+  it("resolved NONE after a refund and a dispute grew the refund's row, undoes the dispute's take and tells ops nothing", async () => {
     const { sttl_id } = await paypal_gift();
     capture_refunded(sttl_id, [["REF-30", "30.00"]]);
     await deliver(refunded_ev(sttl_id, "REF-30", "30.00", "30.00"));
@@ -2686,10 +2687,8 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
 
     await deliver(resolved_ev(sttl_id, "NONE"));
 
-    expect(notices()).toEqual([
-      expect.objectContaining({ title: "PayPal Dispute Resolved" }),
-    ]);
-    expect(notices()[0].body).toContain("93.20 USD");
+    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 27.96 }]);
+    expect(notices()).toEqual([]);
   });
 
   it("resolved NONE on a dispute that recorded nothing, tells ops nothing", async () => {
@@ -2978,23 +2977,35 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     expect(notices()).toEqual([]);
   });
 
-  it("resolved with no outcome it can read, keeps what is owed and tells ops to settle it by hand", async () => {
-    const { sttl_id } = await paypal_gift();
-    await deliver(created_ev(sttl_id));
-    const owed = await owed_rows();
-    enqueue_mock.mockClear();
+  it.each([
+    [
+      "an outcome it doesn't know",
+      { outcome_code: "SOMETHING_NEW" },
+      "SOMETHING_NEW",
+    ],
+    ["no outcome", undefined, "with no outcome"],
+  ])(
+    "resolved with %s, keeps what is owed and tells ops to settle it by hand",
+    async (_, dispute_outcome, says) => {
+      const { sttl_id } = await paypal_gift();
+      await deliver(created_ev(sttl_id));
+      const owed = await owed_rows();
+      enqueue_mock.mockClear();
 
-    const res = await deliver(resolved_ev(sttl_id, "NONE"));
+      const res = await deliver(
+        resolved_ev(sttl_id, "UNUSED", { dispute_outcome })
+      );
 
-    expect(res.status).toBe(200);
-    expect(await owed_rows()).toEqual(owed);
-    expect(notices()).toEqual([
-      expect.objectContaining({ title: "PayPal Dispute Resolved" }),
-    ]);
-    const [{ body }] = notices();
-    expect(body).toContain("NONE");
-    expect(body).toContain("93.20 USD");
-  });
+      expect(res.status).toBe(200);
+      expect(await owed_rows()).toEqual(owed);
+      expect(notices()).toEqual([
+        expect.objectContaining({ title: "PayPal Dispute Resolved" }),
+      ]);
+      const [{ body }] = notices();
+      expect(body).toContain(`resolved ${says}`);
+      expect(body).toContain("93.20 USD");
+    }
+  );
 
   it("reports a win it can't credit, on a charge settling a gift paid on another rail, and acknowledges it", async () => {
     const { sttl_id } = await seed_card_gift(db(), PAID_GRANT);
