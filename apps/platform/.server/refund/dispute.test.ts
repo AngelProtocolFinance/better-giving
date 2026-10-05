@@ -8,20 +8,19 @@ import {
   test,
   vi,
 } from "vitest";
-import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
-import { user } from "../pg/schema/auth";
-import { bal_txs } from "../pg/schema/bal-tx";
-import { donation_disputes } from "../pg/schema/dispute";
-import { dists } from "../pg/schema/dist";
 import {
-  donation_recipients,
-  donation_settlements,
-  donations,
-} from "../pg/schema/donation";
+  balance_of,
+  clear_card_gifts,
+  type IDistSeed,
+  PAID_GRANT,
+  seed_card_gift,
+  seed_paid_commission,
+} from "#/__tests__/fixtures/card-gift";
+import { dists } from "../pg/schema/dist";
+import { donations } from "../pg/schema/donation";
 import { npos } from "../pg/schema/npo";
 import { owed_amounts, owed_entries } from "../pg/schema/owed";
 import { payouts } from "../pg/schema/payout";
-import { referrer_commissions } from "../pg/schema/referrer";
 import { loss_logs } from "../pg/schema/revenue";
 import type { TestDb } from "../pg/test-utils/pglite";
 
@@ -59,8 +58,6 @@ import { reverse_charge } from "./reverse";
 
 const OPENED = "2026-10-01T12:00:00.000Z";
 
-let counter = 0;
-
 beforeAll(async () => {
   test_db.current = await create_test_db();
 }, 30_000);
@@ -72,118 +69,11 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   const db = test_db.current!.db;
-  await db.delete(bal_txs);
-  await db.delete(loss_logs);
   await db.delete(owed_amounts);
-  await db.delete(donation_disputes);
-  await db.delete(payouts);
-  await db.delete(referrer_commissions);
-  await db.delete(dists);
-  await db.delete(donation_settlements);
-  await db.delete(donation_recipients);
-  await db.delete(donations);
-  await db.delete(npos);
-  await db.delete(user);
+  await clear_card_gifts(db);
 });
 
-interface IDistSeed {
-  /** settled usd: net + card fee + bg's fees */
-  net: number;
-  fee_processing: number;
-  fee_base: number;
-  /** the grant run's payout of the dist's cash, or `savings` for a dist
-   * credited whole to the npo's savings balance, which has no payout */
-  payout: "pending" | "settled" | "savings";
-}
-
-/** the ticket's $100 card gift: $90 net, $3.20 card fee, its grant paid */
-const PAID_GRANT: IDistSeed = {
-  net: 90,
-  fee_processing: 3.2,
-  fee_base: 6.8,
-  payout: "settled",
-};
-
-/** a settled card gift with one cash dist per entry, each to its own npo */
-async function seed(...ds: IDistSeed[]) {
-  counter++;
-  const db = test_db.current!.db;
-  const id = `don-${counter}`;
-  const gross = ds.reduce(
-    (s, d) => s + d.net + d.fee_processing + d.fee_base,
-    0
-  );
-  await db.insert(donations).values({
-    id,
-    upusd: 1,
-    status: "settled",
-    amount_base: gross,
-    amount_tip: 0,
-    amount_fee_allowance: 0,
-    currency: "USD",
-    frequency: "one-time",
-    source: "bg-marketplace",
-    via: "stripe:card",
-  });
-  await db.insert(donation_settlements).values({
-    donation_id: id,
-    sttl_id: `pi_${counter}`,
-    date: "2026-07-01T00:00:00.000Z",
-    currency: "USD",
-    net: gross - 3.2,
-    fee: 3.2,
-  });
-  const npo_ids: number[] = [];
-  for (const [i, d] of ds.entries()) {
-    const npo = await seed_npo(db, {
-      registration_number: `EIN-DSP-${counter}-${i}`,
-      name: `NPO ${counter}-${i}`,
-      cash: d.payout === "pending" ? d.net : 0,
-      liq: d.payout === "savings" ? d.net : 0,
-    });
-    npo_ids.push(npo!.id);
-    const dist_id = `dist-${id}-${i}`;
-    await db.insert(dists).values({
-      id: dist_id,
-      donation_id: id,
-      status: "settled",
-      date_created: "2026-07-01T00:00:00.000Z",
-      to_id: npo!.id,
-      to_name: npo!.name,
-      amount: d.net + d.fee_processing + d.fee_base,
-      amount_usd: d.net + d.fee_processing + d.fee_base,
-      amount_denom: "USD",
-      net: d.net,
-      fee_base: d.fee_base,
-      fee_fsa: 0,
-      fee_processing: d.fee_processing,
-      alloc:
-        d.payout === "savings"
-          ? { liq: 100, lock: 0, cash: 0 }
-          : { liq: 0, lock: 0, cash: 100 },
-    });
-    if (d.payout === "savings") continue;
-    await db.insert(payouts).values({
-      id: `payout-${dist_id}`,
-      source_id: dist_id,
-      npo_id: npo!.id,
-      source: "donation",
-      date: "2026-07-01T00:00:00.000Z",
-      amount: d.net,
-      type: d.payout,
-      ...(d.payout === "settled" && {
-        settled_date: "2026-07-02T00:00:00.000Z",
-      }),
-    });
-  }
-  await db.insert(donation_recipients).values({
-    donation_id: id,
-    npo_id: npo_ids[0],
-    name: "recipient",
-    type: "npo",
-  });
-  return { id, npo_ids };
-}
+const seed = (...ds: IDistSeed[]) => seed_card_gift(test_db.current!.db, ...ds);
 
 const opened_on = (donation_id: string, fee_usd = 15) => ({
   donation_id,
@@ -338,30 +228,17 @@ describe("dispute_won", () => {
 });
 
 describe("a paid commission on a disputed gift", () => {
-  /** a $5 commission on the gift's dist, paid to referrer `REF-1` */
-  async function seed_paid_commission(donation_id: string, npo_id: number) {
-    const db = test_db.current!.db;
-    const referrer = await seed_user(db, "referrer@test.com");
-    await db
-      .update(user)
-      .set({ referral_code: "REF-1" })
-      .where(eq(user.id, referrer!.id));
-    await db.insert(referrer_commissions).values({
-      referrer_user: "REF-1",
-      date: "2026-07-01T00:00:00.000Z",
-      donation_id: `dist-${donation_id}-0`,
-      npo_id,
-      amount: 5,
-      status: "paid",
-    });
-  }
+  /** a $5 commission on the gift, paid to referrer `REF-1` */
+  const seed_commission = (gift: { id: string; npo_ids: number[] }) =>
+    seed_paid_commission(test_db.current!.db, gift, "REF-1", 5);
 
   const referrer_row = async (donation_id: string) =>
     (await owed_of(donation_id)).find((o) => o.referrer_user === "REF-1");
 
   test("is owed by its referrer from the open", async () => {
-    const { id, npo_ids } = await seed(PAID_GRANT);
-    await seed_paid_commission(id, npo_ids[0]!);
+    const gift = await seed(PAID_GRANT);
+    const { id } = gift;
+    await seed_commission(gift);
 
     await dispute_opened(opened_on(id));
 
@@ -378,8 +255,9 @@ describe("a paid commission on a disputed gift", () => {
   });
 
   test("is credited back to its referrer on a win", async () => {
-    const { id, npo_ids } = await seed(PAID_GRANT);
-    await seed_paid_commission(id, npo_ids[0]!);
+    const gift = await seed(PAID_GRANT);
+    const { id } = gift;
+    await seed_commission(gift);
     await dispute_opened(opened_on(id));
 
     await dispute_won(won_on(id));
@@ -399,15 +277,6 @@ const lose = (donation_id: string) =>
     notice: { id: `evt_lost_${donation_id}`, lines: [] },
   });
 
-/** the npo's savings and grant cash, in usd */
-const balance_of = async (npo_id: number) => {
-  const [row] = await test_db
-    .current!.db.select({ liq: npos.liq, cash: npos.cash })
-    .from(npos)
-    .where(eq(npos.id, npo_id));
-  return (row?.liq ?? 0) + (row?.cash ?? 0);
-};
-
 describe("a dispute lost after it opened", () => {
   test.each([
     ["its payout still pending", "pending"],
@@ -417,7 +286,7 @@ describe("a dispute lost after it opened", () => {
     async (_, payout) => {
       const { id, npo_ids } = await seed({ ...PAID_GRANT, payout });
       const npo_id = npo_ids[0]!;
-      const before = await balance_of(npo_id);
+      const before = await balance_of(test_db.current!.db, npo_id);
 
       await dispute_opened(opened_on(id));
       const at_open = await owed_of(id);
@@ -427,7 +296,9 @@ describe("a dispute lost after it opened", () => {
       expect(res.status).toBe("reversed");
       const [row] = await owed_of(id);
       const taken =
-        before - (await balance_of(npo_id)) + (row?.outstanding_usd ?? NaN);
+        before -
+        (await balance_of(test_db.current!.db, npo_id)) +
+        (row?.outstanding_usd ?? NaN);
       expect(taken).toBeCloseTo(108.2, 10);
     }
   );
