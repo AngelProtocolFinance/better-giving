@@ -32,9 +32,6 @@ vi.mock("$/env", async (io) => ({
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({ user_ctx: true })
 );
-// the transfer module is node-only (node:crypto, Buffer at load) and only a
-// grant line reads it
-vi.mock("$/payouts/transfer", () => ({ payout_total: vi.fn() }));
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,

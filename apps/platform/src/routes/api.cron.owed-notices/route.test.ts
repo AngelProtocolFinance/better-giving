@@ -125,4 +125,18 @@ describe("api.cron.owed-notices", () => {
       "don-on",
     ]);
   });
+
+  test("a row recorded while the date was unset is enqueued once the date is set", async () => {
+    terms.effective = null;
+    await refunded_gift("don-on", EFFECTIVE);
+    await tick();
+    expect(enqueued()).toEqual([]);
+
+    terms.effective = EFFECTIVE;
+    await tick();
+
+    const [notice, ...more] = await owed_notices_due(50, as_db(db()));
+    expect(more).toEqual([]);
+    expect(enqueued().map((m) => m.payload)).toEqual([{ id: notice!.id }]);
+  });
 });

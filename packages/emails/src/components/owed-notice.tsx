@@ -34,6 +34,8 @@ export interface IOwedNotice {
   credited_back_usd: number;
   /** pretty date */
   credited_back_at?: string;
+  /** net of any due-back already paid */
+  recovered_usd: number;
   written_off_usd: number;
   /** pretty date */
   written_off_at?: string;
@@ -65,6 +67,11 @@ const owed_total = (n: IOwedNotice) =>
 
 /** a credit or write-off can leave a cent of float residue either side of 0 */
 const settled = (outstanding: number) => Math.abs(outstanding) < 0.01;
+
+/** anything has come off the row: a `recorded` notice on it is the row
+ * owing again after it was settled */
+const part_settled = (n: IOwedNotice) =>
+  n.credited_back_usd > 0 || n.written_off_usd > 0 || n.recovered_usd > 0;
 
 export const owed_subject = (n: IOwedNotice): string => {
   switch (n.kind) {
@@ -112,7 +119,32 @@ export function OwedNotice({ n, party }: IOwedNoticeProps) {
       {n.fee_dispute_usd > 0 && (
         <KeyValue label="Dispute fee" value={usd(n.fee_dispute_usd)} />
       )}
-      <KeyValue label="Total owed" value={usd(owed_total(n))} />
+      {part_settled(n) ? (
+        <>
+          <KeyValue label="Total" value={usd(owed_total(n))} />
+          {n.credited_back_usd > 0 && (
+            <KeyValue
+              label="Credited back"
+              value={`-${usd(n.credited_back_usd)}`}
+            />
+          )}
+          {n.written_off_usd > 0 && (
+            <KeyValue label="Waived" value={`-${usd(n.written_off_usd)}`} />
+          )}
+          {n.recovered_usd > 0 && (
+            <KeyValue
+              label="Already deducted"
+              value={`-${usd(n.recovered_usd)}`}
+            />
+          )}
+          <KeyValue
+            label={n.outstanding_usd < 0 ? "Due to you" : "Still owed"}
+            value={usd(Math.abs(n.outstanding_usd))}
+          />
+        </>
+      ) : (
+        <KeyValue label="Total owed" value={usd(owed_total(n))} />
+      )}
 
       <Text>
         <Link href={n.history_url}>{party.history_label}</Link>
@@ -131,13 +163,22 @@ interface IBody {
 function Recorded({ n, party, gift }: IBody) {
   return (
     <>
-      <Text>
-        {n.source === "refund"
-          ? `On ${n.recorded_at}, the ${gift} was refunded to the donor.`
-          : `On ${n.recorded_at}, the donor's bank opened a dispute on the ${gift}.`}{" "}
-        {party.already_paid}, so <strong>{usd(owed_total(n))}</strong> is now
-        owed back.
-      </Text>
+      {part_settled(n) ? (
+        // the row's date and source are its first event's, not the one that
+        // made it owe again, so neither is named here
+        <Text>
+          <strong>{usd(n.outstanding_usd)}</strong> is owed again on the {gift}.
+          What was settled on it before no longer covers what it owes now.
+        </Text>
+      ) : (
+        <Text>
+          {n.source === "refund"
+            ? `On ${n.recorded_at}, the ${gift} was refunded to the donor.`
+            : `On ${n.recorded_at}, the donor's bank opened a dispute on the ${gift}.`}{" "}
+          {party.already_paid}, so <strong>{usd(n.outstanding_usd)}</strong> is
+          now owed back.
+        </Text>
+      )}
       <Text>
         We will deduct it from {party.recovered_from}. If one is smaller than
         what is owed, the rest comes out of the ones after it. You don't need to

@@ -120,6 +120,7 @@ const notice_data = (
   credited_back_at: r.credited_back_at
     ? to_utc_day(r.credited_back_at)
     : undefined,
+  recovered_usd: r.recovered_usd,
   written_off_usd: r.written_off_usd,
   written_off_at: r.written_off_at ? to_utc_day(r.written_off_at) : undefined,
   outstanding_usd: r.outstanding_usd,

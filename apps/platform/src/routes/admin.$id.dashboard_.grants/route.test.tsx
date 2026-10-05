@@ -31,11 +31,6 @@ vi.mock("$/env", async (io) => ({
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock()
 );
-// the transfer module is node-only (node:crypto, Buffer at load); a grant's
-// gross is its payouts' sum, whole dollars here, so rounding never enters
-vi.mock("$/payouts/transfer", () => ({
-  payout_total: (amounts: number[]) => amounts.reduce((a, b) => a + b, 0),
-}));
 vi.mock("remix-client-cache", () => ({
   CacheRoute: (Component: any) => Component,
   createClientLoaderCache: () => undefined,
@@ -118,7 +113,7 @@ async function refunded(id: string, created_at = GIFT_AT) {
   });
 }
 
-/** a grant run that paid $100 of gifts and recovered $40 of don-2 from it */
+/** a grant run that sent $60 after recovering $40 of don-2: $100 gross */
 async function recovering_grant() {
   await db().insert(settlements).values({
     id: "wise-tx-1",
@@ -129,21 +124,6 @@ async function recovering_grant() {
     sources: [],
     status: "",
   });
-  await db()
-    .insert(payouts)
-    .values(
-      [70, 30].map((amount, i) => ({
-        id: `p-${i}`,
-        source_id: `d-${i}`,
-        npo_id,
-        source: "donation" as const,
-        date: RUN_AT,
-        amount,
-        type: "settled" as const,
-        settled_date: RUN_AT,
-        settled_id: "wise-tx-1",
-      }))
-    );
   await recover_owed(as_db(db()), {
     donation_id: "don-2",
     party: { npo_id },
@@ -231,12 +211,42 @@ describe("the npo's grant history", () => {
     );
   });
 
+  it("reads a row credited back and then owed again as owed, keeping its credit-back on the line", async () => {
+    await refunded("don-5");
+    await credit_owed(as_db(db()), {
+      donation_id: "don-5",
+      party: { npo_id },
+      reason: "dispute_won",
+      ref: "dp_won",
+      now: "2026-11-22T00:00:00.000Z",
+    });
+    // a later dispute on the same gift brings its fee
+    await record_owed(as_db(db()), {
+      donation_id: "don-5",
+      party: { npo_id },
+      source: "dispute",
+      source_ref: "dp_2",
+      received_usd: 90,
+      fee_processing_usd: 3.2,
+      fee_dispute_usd: 15,
+      now: "2026-11-24T00:00:00.000Z",
+    });
+
+    const screen = await render_page();
+
+    const row = screen
+      .getByRole("region", { name: "Amounts owed" })
+      .getByRole("row", { name: "don-5" });
+    await expect
+      .element(row)
+      .toMatchTextContent(/Owed.*Credited back \$93\.20 on Nov 22, 2026/);
+    await expect.element(row).toMatchTextContent(/\$15\.00$/);
+  });
+
   it("shows nothing for a gift made before the effective date", async () => {
     await refunded("don-before", "2026-10-31T23:59:59.000Z");
     const screen = await render_page();
-    await expect
-      .element(screen.getByText("Nothing is owed on your gifts."))
-      .toBeVisible();
+    await expect.element(screen.getByText("No amounts owed yet")).toBeVisible();
     expect(screen.getByText("don-before").query()).toBeNull();
   });
 });

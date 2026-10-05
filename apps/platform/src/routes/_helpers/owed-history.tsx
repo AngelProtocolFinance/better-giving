@@ -41,7 +41,7 @@ export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <EmptyRow col_span={7}>Nothing is owed on your gifts.</EmptyRow>
+              <EmptyRow col_span={7}>No amounts owed yet</EmptyRow>
             ) : (
               rows.map((r) => (
                 <tr key={r.id} id={`owed-${r.id}`}>
@@ -61,6 +61,14 @@ export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
                   <td>{usd(r.fee_dispute_usd)}</td>
                   <td>
                     <div>{status(r)}</div>
+                    {/* a row still owing reads as owed, so what settled part
+                        of it before rides under its status */}
+                    {r.state !== "credited_back" && r.credited_back_usd > 0 && (
+                      <div className="text-xs text-gray-11">{credited(r)}</div>
+                    )}
+                    {r.state !== "waived" && r.written_off_usd > 0 && (
+                      <div className="text-xs text-gray-11">{waived(r)}</div>
+                    )}
                     {r.recoveries.map((l) => (
                       <div
                         key={`${l.run_ref}:${l.usd < 0}`}
@@ -94,11 +102,17 @@ function status(r: IOwedHistoryRow): string {
     case "recovered":
       return "Recovered";
     case "credited_back":
-      return `Credited back ${usd(r.credited_back_usd)} on ${to_utc_day(r.credited_back_at!)}`;
+      return credited(r);
     case "waived":
-      return `Waived ${usd(r.written_off_usd)} on ${to_utc_day(r.written_off_at!)}`;
+      return waived(r);
   }
 }
+
+// a credited or written-off figure is dated by the check constraints on it
+const credited = (r: IOwedHistoryRow) =>
+  `Credited back ${usd(r.credited_back_usd)} on ${to_utc_day(r.credited_back_at!)}`;
+const waived = (r: IOwedHistoryRow) =>
+  `Waived ${usd(r.written_off_usd)} on ${to_utc_day(r.written_off_at!)}`;
 
 const run_line = (l: IOwedRunLine, run_noun: IOwedHistory["run_noun"]) =>
   l.usd < 0

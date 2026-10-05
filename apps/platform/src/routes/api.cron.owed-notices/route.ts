@@ -1,7 +1,10 @@
 import type { ActionFunction } from "react-router";
 import { msg } from "@/queue";
 import { enqueue, verify_qstash } from "$/kit/queue";
-import { owed_notices_due } from "$/pg/queries/owed-notice";
+import {
+  owed_notices_due,
+  queue_owed_notices_missed,
+} from "$/pg/queries/owed-notice";
 
 /**
  * the sender's poll: every unsent owed notice goes on the queue as its own
@@ -13,6 +16,8 @@ import { owed_notices_due } from "$/pg/queries/owed-notice";
  */
 export const action: ActionFunction = async ({ request }) => {
   await verify_qstash(request);
+  // rows recorded before the effective date was set have had no notice queued
+  await queue_owed_notices_missed();
   const due = await owed_notices_due();
   await enqueue(...due.map((n) => msg("owed-notice", { id: n.id })));
   return new Response("ok", { status: 200 });
