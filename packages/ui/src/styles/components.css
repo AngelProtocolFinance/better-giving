@@ -431,13 +431,16 @@
       align-items: center;
       justify-content: center;
       gap: calc(var(--spacing) * 2);
-      &:hover:not(:disabled),
+      /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
+      &:hover:not(:disabled):not([aria-disabled="true"]),
       /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
         &:active {
         background-color: var(--secondary);
       }
       /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .btn-* selectors */
-      &:disabled {
+      &:disabled,
+      /* biome-ignore lint/style/noDescendingSpecificity: unrelated to a.btn-* selectors */
+        &[aria-disabled="true"] {
         background-color: var(--gray-3);
         color: var(--gray-11);
       }

@@ -410,6 +410,107 @@ describe("Modal return focus, beyond the submit button", () => {
   });
 });
 
+describe("Modal return focus fallback, when the opener is gone", () => {
+  interface IRemoveRow {
+    rows: string[];
+    fallback: () => HTMLElement | null;
+  }
+  /** a list whose dialog removes the row that opened it, as a write-off does */
+  function RemoveRow({ rows: initial, fallback }: IRemoveRow) {
+    const [rows, set_rows] = useState(initial);
+    const [open, set_open] = useState<string | null>(null);
+    return (
+      <>
+        <ul>
+          {rows.map((r) => (
+            <li key={r}>
+              <button type="button" onClick={() => set_open(r)}>
+                Remove {r}
+              </button>
+            </li>
+          ))}
+          {rows.length === 0 && <li>Nothing left</li>}
+        </ul>
+        <Modal
+          open={open !== null}
+          onClose={() => set_open(null)}
+          returnFocusFallback={fallback}
+        >
+          <h2>Remove row</h2>
+          <button
+            type="button"
+            onClick={() => {
+              set_rows((rs) => rs.filter((x) => x !== open));
+              set_open(null);
+            }}
+          >
+            Confirm
+          </button>
+          <button type="button" onClick={() => set_open(null)}>
+            Cancel
+          </button>
+        </Modal>
+      </>
+    );
+  }
+
+  const open_from = async (name: string) => {
+    const opener = page.getByRole("button", { name });
+    await opener.click();
+    const dialog = page.getByRole("dialog");
+    await expect
+      .poll(() => dialog.element().contains(document.activeElement))
+      .toBe(true);
+    return { opener, dialog };
+  };
+
+  test("focus goes to the fallback, read against the list without the row", async () => {
+    const fallback = vi.fn(() =>
+      document.querySelector<HTMLElement>("li button")
+    );
+    await render(<RemoveRow rows={["Alpha", "Beta"]} fallback={fallback} />);
+    const { dialog } = await open_from("Remove Alpha");
+
+    click(page.getByRole("button", { name: "Confirm" }).element());
+
+    await expect.element(dialog).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Remove Beta" }))
+      .toHaveFocus();
+    expect(fallback).toHaveBeenCalledOnce();
+  });
+
+  test("an opener still on screen gets focus back and the fallback isn't asked", async () => {
+    const fallback = vi.fn(() => null);
+    await render(<RemoveRow rows={["Alpha", "Beta"]} fallback={fallback} />);
+    const { opener, dialog } = await open_from("Remove Alpha");
+
+    click(page.getByRole("button", { name: "Cancel" }).element());
+
+    await expect.element(dialog).not.toBeInTheDocument();
+    await expect.element(opener).toHaveFocus();
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  test("a fallback that can't take focus by itself holds a tab stop only while focused", async () => {
+    const empty_cell = () =>
+      [...document.querySelectorAll<HTMLElement>("li")].find(
+        (li) => li.textContent === "Nothing left"
+      ) ?? null;
+    await render(<RemoveRow rows={["Alpha"]} fallback={empty_cell} />);
+    const { dialog } = await open_from("Remove Alpha");
+
+    click(page.getByRole("button", { name: "Confirm" }).element());
+
+    await expect.element(dialog).not.toBeInTheDocument();
+    const empty = page.getByText("Nothing left");
+    await expect.element(empty).toHaveFocus();
+    await expect.element(empty).toHaveAttribute("tabindex", "-1");
+    (empty.element() as HTMLElement).blur();
+    await expect.element(empty).not.toHaveAttribute("tabindex");
+  });
+});
+
 describe("Modal busy", () => {
   const next_frame = () =>
     new Promise<void>((r) => requestAnimationFrame(() => r()));
