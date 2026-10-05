@@ -50,16 +50,32 @@ async function taken_from_charge(d: Stripe.Dispute) {
   return { charge, taken, partial: taken < charge.amount };
 }
 
+const CLOSED_STATUSES = new Set<Stripe.Dispute.Status>([
+  "lost",
+  "won",
+  "warning_closed",
+]);
+
 export async function handle_dispute_closed(
   event: Stripe.ChargeDisputeClosedEvent
 ) {
   const dispute = event.data.object;
-  if (dispute.status !== "lost" && dispute.status !== "won") {
+  if (!CLOSED_STATUSES.has(dispute.status)) {
     console.info(`dispute ${dispute.id} closed ${dispute.status}: kept`);
     return;
   }
   const don = await settled_donation(str_id(dispute.payment_intent));
   const at = { opened_at: iso(dispute.created), closed_at: iso(event.created) };
+
+  if (dispute.status === "warning_closed") {
+    await dispute_close(db, {
+      id: dispute.id,
+      donation_id: don.id,
+      status: "inquiry_closed",
+      ...at,
+    });
+    return;
+  }
 
   if (dispute.status === "won") {
     const won = await dispute_won({
@@ -153,22 +169,14 @@ type DisputeEvent =
 export async function handle_dispute_opened(event: DisputeEvent) {
   const dispute = event.data.object;
   const don = await settled_donation(str_id(dispute.payment_intent));
-  const on_record = (await disputes_of_donation(don.id)).find(
-    (d) => d.id === dispute.id
-  );
-  // stripe doesn't order its events: a close handled first settled the gift,
-  // and an open recorded now would owe what a win already credited
-  if (on_record && on_record.status !== "open") return;
 
   if (dispute.status.startsWith("warning_")) {
-    if (on_record) return;
     return record_only(event, don.id, [
       "an inquiry: stripe has withdrawn no funds, so nothing recorded as owed. if it escalates to a chargeback, what the gift's parties received is recorded as owed then.",
     ]);
   }
   const { charge, taken, partial } = await taken_from_charge(dispute);
   if (partial) {
-    if (on_record) return;
     return record_only(event, don.id, [
       `part of the charge: ${money(taken, charge.currency)} of ${money(charge.amount, charge.currency)} taken back with earlier refunds, so nothing recorded as owed. if it is lost, settle the donation by hand.`,
     ]);
@@ -191,13 +199,16 @@ export async function handle_dispute_opened(event: DisputeEvent) {
   ]);
 }
 
-/** a dispute put on record with nothing owed for it */
+/** a dispute put on record with nothing owed for it. once on record, open or
+ * closed, a redelivery or a late event notifies nothing again */
 async function record_only(
   event: DisputeEvent,
   donation_id: string,
   why: string[]
 ) {
   const { id, created } = event.data.object;
+  const on_record = await disputes_of_donation(donation_id);
+  if (on_record.some((d) => d.id === id)) return;
   // ahead of the record: a lost notice fails the delivery with nothing
   // written, so the redelivery sends it
   await notify_opened(event, donation_id, `${id}_recorded`, why);

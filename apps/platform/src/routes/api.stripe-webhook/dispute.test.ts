@@ -459,6 +459,28 @@ describe("an inquiry", () => {
     );
   });
 
+  it("reads closed when it ends with no chargeback, nothing owed", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(
+      event_of("charge.dispute.created", dispute_of(gift, inquiry))
+    );
+
+    const res = await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { status: "warning_closed" }),
+        CLOSED_UNIX
+      )
+    );
+
+    expect(res.status).toBe(200);
+    expect(await disputes_of_donation(gift.id)).toMatchObject([
+      { status: "inquiry_closed", closed_at: CLOSED },
+    ]);
+    expect(await owed_of(gift.id)).toEqual([]);
+    expect(await status_of(gift.id)).toBe("settled");
+  });
+
   it("a late inquiry event after the escalation changes nothing", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     const asked = event_of("charge.dispute.created", dispute_of(gift, inquiry));
