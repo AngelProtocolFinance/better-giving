@@ -45,6 +45,8 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 const { action } = await import("./route");
 const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
+const { dists } = await import("$/pg/schema/dist");
+const { payouts } = await import("$/pg/schema/payout");
 const { owed_amounts } = await import("$/pg/schema/owed");
 const { loss_logs } = await import("$/pg/schema/revenue");
 const {
@@ -194,7 +196,7 @@ describe("charge.dispute.created", () => {
         outstanding_usd: 108.2,
       },
     ]);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "open", opened_at: OPENED },
     ]);
   });
@@ -231,6 +233,24 @@ describe("charge.dispute.created", () => {
     ]);
     expect(notices()[0].payload.alert.body).toMatch(
       /dispute fee settled in EUR \(14\.00 EUR\)/
+    );
+  });
+
+  it("tells ops once when the gift has nothing settled to owe yet", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    // settled, its dist still queued
+    await db().delete(payouts);
+    await db().delete(dists).where(eq(dists.donation_id, gift.id));
+    const opened = event_of("charge.dispute.created", dispute_of(gift));
+
+    await deliver(opened);
+    await deliver(opened);
+
+    expect(await owed_of(gift.id)).toEqual([]);
+    const [only, ...again] = notices();
+    expect(again).toEqual([]);
+    expect(only.payload.alert.body).toMatch(
+      /nothing settled to the gift's parties yet, so nothing recorded as owed/
     );
   });
 
@@ -279,7 +299,7 @@ describe("charge.dispute.closed, lost after it opened", () => {
       },
     ]);
     expect(await db().select().from(loss_logs)).toEqual([]);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { status: "lost", closed_at: CLOSED },
     ]);
   });
@@ -323,7 +343,7 @@ describe("charge.dispute.closed, won", () => {
       { received_usd: 90, fee_dispute_usd: 15, outstanding_usd: 0 },
     ]);
     expect(await status_of(gift.id)).toBe("settled");
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { status: "won", closed_at: CLOSED },
     ]);
   });
@@ -355,9 +375,7 @@ describe("charge.dispute.closed, won", () => {
 
     expect(res.status).toBe(200);
     expect(await owed_of(gift.id)).toEqual([]);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
-      { status: "won" },
-    ]);
+    expect(await disputes_of(db(), gift.id)).toMatchObject([{ status: "won" }]);
   });
 });
 
@@ -423,9 +441,10 @@ describe("a second dispute on the same payment", () => {
     await deliver(event_of("charge.dispute.created", second));
 
     expect(await owed_of(gift.id)).toEqual(first);
-    expect(
-      (await disputes_of(test_db.current!.db, gift.id)).map((d) => d.id).sort()
-    ).toEqual([`du_${gift.id}`, `du_${gift.id}_2`]);
+    expect((await disputes_of(db(), gift.id)).map((d) => d.id).sort()).toEqual([
+      `du_${gift.id}`,
+      `du_${gift.id}_2`,
+    ]);
     const [, flagged, ...rest] = notices();
     expect(rest).toEqual([]);
     expect(flagged.payload.alert.body).toMatch(
@@ -457,7 +476,7 @@ describe("a redelivered event", () => {
       expect(at_open).toMatchObject([{ outstanding_usd: 108.2 }]);
       expect(at_close).toMatchObject([{ outstanding_usd: outstanding }]);
       expect(await owed_of(gift.id)).toEqual(at_close);
-      expect(await disputes_of(test_db.current!.db, gift.id)).toHaveLength(1);
+      expect(await disputes_of(db(), gift.id)).toHaveLength(1);
     }
   );
 });
@@ -479,7 +498,7 @@ describe("a dispute on a gift already refunded", () => {
     await deliver(opened);
 
     expect(await owed_of(gift.id)).toEqual([]);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "open" },
     ]);
     const [only, ...again] = notices();
@@ -489,21 +508,64 @@ describe("a dispute on a gift already refunded", () => {
     );
   });
 
-  it("tells ops when stripe returns the funds of a win while the nonprofit stays debited", async () => {
+  it("tells ops again when an inquiry on it escalates and stripe withdraws the funds", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await refund(gift);
+    await deliver(
+      event_of(
+        "charge.dispute.created",
+        dispute_of(gift, { status: "warning_needs_response" })
+      )
+    );
+
+    await deliver(event_of("charge.dispute.funds_withdrawn", dispute_of(gift)));
+
+    expect(await owed_of(gift.id)).toEqual([]);
+    const [asked, escalated, ...rest] = notices();
+    expect(rest).toEqual([]);
+    expect(asked.payload.alert.body).toMatch(/an inquiry/);
+    expect(escalated.dedupe).not.toBe(asked.dedupe);
+    expect(escalated.payload.alert.body).toMatch(
+      /already refunded.*the refund is the evidence to submit/
+    );
+  });
+
+  it("tells ops a win returns only the platform's own funds, nothing owed to the nonprofit", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await refund(gift);
 
     const res = await deliver(won_of(gift));
 
     expect(res.status).toBe(200);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
-      { status: "won" },
-    ]);
+    expect(await disputes_of(db(), gift.id)).toMatchObject([{ status: "won" }]);
     const [notice] = notices();
     expect(notice.payload.alert.title).toBe(
       "Dispute Won on a Reversed Donation"
     );
-    expect(notice.payload.alert.body).toContain(gift.id);
+    const body: string = notice.payload.alert.body;
+    expect(body).toContain(gift.id);
+    expect(body).toMatch(/reversed by its refund.*nothing is owed/);
+    expect(body).not.toMatch(/by hand/);
+  });
+});
+
+describe("a late win after the dispute was lost", () => {
+  it("asks ops to credit the nonprofit by hand what the loss took", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
+    await deliver(lost_of(gift));
+    enqueue_mock.mockClear();
+
+    const res = await deliver(won_of(gift));
+
+    expect(res.status).toBe(200);
+    const [notice] = notices();
+    expect(notice.payload.alert.title).toBe(
+      "Dispute Won on a Reversed Donation"
+    );
+    expect(notice.payload.alert.body).toMatch(
+      /after it was lost.*credit the nonprofit by hand/
+    );
   });
 });
 
@@ -524,7 +586,7 @@ describe("a dispute over part of the charge", () => {
 
     expect(res.status).toBe(200);
     expect(await owed_of(gift.id)).toEqual([]);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "lost" },
     ]);
     expect(await status_of(gift.id)).toBe("settled");
@@ -546,7 +608,7 @@ describe("an inquiry", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "open" },
     ]);
     expect(await owed_of(gift.id)).toEqual([]);
@@ -615,7 +677,7 @@ describe("an inquiry", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
+    expect(await disputes_of(db(), gift.id)).toMatchObject([
       { status: "inquiry_closed", closed_at: CLOSED },
     ]);
     expect(await owed_of(gift.id)).toEqual([]);

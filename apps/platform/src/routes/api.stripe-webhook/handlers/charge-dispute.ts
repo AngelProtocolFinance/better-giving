@@ -7,7 +7,7 @@ import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { db } from "$/pg/db";
 import { dispute_close, dispute_get, dispute_open } from "$/pg/queries/dispute";
-import type { IOwed } from "$/pg/queries/owed";
+import { type IOwed, owed_total } from "$/pg/queries/owed";
 import { dispute_opened, dispute_won } from "$/refund/dispute";
 import { load_reversible, type Money, reverse_charge } from "$/refund/reverse";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
@@ -95,7 +95,9 @@ export async function handle_dispute_closed(
           title: "Dispute Won on a Reversed Donation",
           body: [
             dispute_line(dispute, don.id, event.id),
-            `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, but the donation was already ${won.donation_status}, so nothing was credited back: the nonprofit stays debited. settle it by hand.`,
+            won.prior_status === "lost"
+              ? `stripe returned the disputed ${money(dispute.amount, dispute.currency)} after it was lost, and that loss reversed the donation (${won.donation_status}): credit the nonprofit by hand what the reversal took.`
+              : `stripe returned the disputed ${money(dispute.amount, dispute.currency)}, the platform's own withdrawal: the donation was already ${won.donation_status}, reversed by its refund or another dispute rather than this one, so nothing is owed to the nonprofit.`,
           ].join("\n"),
         },
       })
@@ -226,17 +228,24 @@ export async function handle_dispute_opened(event: DisputeEvent) {
       `nothing recorded as owed: ${res.reason}. settle the donation by hand.`,
     ]);
   }
+  // news that grows nothing owed is told on the first sighting of the funds
+  // leaving: the open, or an escalated inquiry's withdrawal. `created` and
+  // `funds_withdrawn` of one open collapse in the queue's dedupe window
+  const sighted =
+    res.inserted || event.type === "charge.dispute.funds_withdrawn";
   if (res.status === "already_reversed") {
-    if (!res.inserted) return;
-    return notify_opened(event, don.id, `${dispute.id}_recorded`, [
+    if (!sighted) return;
+    return notify_opened(event, don.id, `${dispute.id}_reversed`, [
       `the donation was already ${res.donation_status}, so nothing recorded as owed: the refund is the evidence to submit.`,
     ]);
   }
 
-  // a second dispute grows nothing, so its notice rests on the first sighting
-  // of its funds leaving: the open, or an escalated inquiry's withdrawal
-  const sighted =
-    res.inserted || event.type === "charge.dispute.funds_withdrawn";
+  if (res.owed.length === 0) {
+    if (!sighted) return;
+    return notify_opened(event, don.id, `${dispute.id}_unsettled`, [
+      "nothing settled to the gift's parties yet, so nothing recorded as owed.",
+    ]);
+  }
   if (res.prior_refs.length > 0 && sighted) {
     await notify_opened(event, don.id, `${dispute.id}_prior`, [
       `a second dispute on this payment: what is owed stands under ${res.prior_refs.join(", ")}, and nothing was added for this one, nor will its win credit anything. handle it by hand.`,
@@ -248,7 +257,7 @@ export async function handle_dispute_opened(event: DisputeEvent) {
   // a failed enqueue after the write is not resent
   if (!res.owed_written) return;
   await notify_opened(event, don.id, `${dispute.id}_owed`, [
-    `recorded as owed: ${usd(res.owed.reduce((s, o) => s + owed_usd(o), 0))}`,
+    `recorded as owed: ${usd(res.owed.reduce((s, o) => s + owed_total(o), 0))}`,
     ...res.owed.map(owed_line),
     ...(fee.line ? [fee.line] : []),
     "the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if the dispute is lost, the donation reverses without taking it twice; if won, what is owed is credited back.",
@@ -305,13 +314,10 @@ async function notify_opened(
 
 const usd = (n: number) => `${n.toFixed(2)} USD`;
 
-const owed_usd = (o: IOwed) =>
-  o.received_usd + o.fee_processing_usd + o.fee_dispute_usd;
-
 const owed_line = (o: IOwed) => {
   const party =
     o.npo_id !== null
       ? `npo ${o.npo_id}`
       : `referrer ${o.referrer_user ?? `npo ${o.referrer_npo}`}`;
-  return `- ${party}: ${usd(owed_usd(o))} (received ${usd(o.received_usd)}, card fee ${usd(o.fee_processing_usd)}, dispute fee ${usd(o.fee_dispute_usd)})`;
+  return `- ${party}: ${usd(owed_total(o))} (received ${usd(o.received_usd)}, card fee ${usd(o.fee_processing_usd)}, dispute fee ${usd(o.fee_dispute_usd)})`;
 };
