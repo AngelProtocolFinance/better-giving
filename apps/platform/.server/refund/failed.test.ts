@@ -147,6 +147,22 @@ describe("refund_failed — part of the charge", () => {
     expect((await gift(id))?.refunded_share).toBeNull();
   });
 
+  test("a redelivery of the first failure, landing after the second failed at stripe, leaves the second its own share", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    await refund(id, 70, "re_2");
+    await fail(id, 40, "re_1", 30);
+
+    // re_2 has failed at stripe, so re_1's redelivery counts no others
+    const again = await fail(id, 40, "re_1", 0);
+
+    expect(again).toMatchObject({ status: "not_recorded" });
+    expect((await gift(id))?.refunded_share).toBe(0.3);
+    await fail(id, 30, "re_2");
+    expect(await outstanding(id)).toEqual([0]);
+    expect((await gift(id))?.refunded_share).toBeNull();
+  });
+
   test("a refund event that read the refunds before one failed doesn't owe the failed one again", async () => {
     const { id } = await seed(PAID_GRANT);
     await refund(id, 40, "re_1");
@@ -269,7 +285,9 @@ describe("refund_failed — a written-off row", () => {
       status: "by_hand",
       by_hand: [
         expect.stringMatching(
-          new RegExp(`\\$93\\.20 .*written off.*loss log write_off:${row!.id}:`)
+          new RegExp(
+            `\\$93\\.20 .*written off.*owed row ${row!.id}'s write-off ${row!.id}:\\S+ .*loss log write_off:${row!.id}:`
+          )
         ),
       ],
     });
@@ -334,9 +352,9 @@ describe("refund_failed — a reversed paid-grant gift", () => {
     const again = await fail(id, 100, "re_1");
 
     expect(await outstanding(id)).toEqual([0]);
-    expect(again).toMatchObject({
-      status: "credited",
-      credited: [expect.stringMatching(/^\$0\.00 credited back/)],
+    expect(again).toEqual({
+      status: "not_recorded",
+      donation_status: "refunded_loss",
     });
   });
 });

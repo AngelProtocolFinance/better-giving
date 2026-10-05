@@ -10,7 +10,10 @@ import {
   owed_for_party,
   owed_total,
 } from "../pg/queries/owed";
-import { refund_failed_ref } from "../pg/queries/owed-refund";
+import {
+  refund_failed_ref,
+  refunds_credited_back,
+} from "../pg/queries/owed-refund";
 import { donations } from "../pg/schema/donation";
 import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
@@ -91,9 +94,11 @@ export async function refund_failed(
       .where(eq(donations.id, don.id));
     // the column is text; its check holds it to the statuses
     const donation_status = (cur?.status ?? don.status) as IDonation["status"];
+    // credited back by an earlier run: a redelivery sized now would take the
+    // share of another refund that failed since
+    const done = await refunds_credited_back(tx, don.id, [refund.id]);
+    if (done.size > 0) return { status: "not_recorded", donation_status };
     const reversed = is_reversed(donation_status);
-    // a redelivery finds the share already lowered by it, so counts none of
-    // it; a reversed gift's credits are keyed on the refund instead
     const recorded = reversed ? of : (cur?.share ?? 0) * of;
     const taken = Math.min(refund.amount, recorded - r.others);
     if (taken <= 1e-9) return { status: "not_recorded", donation_status };
@@ -151,8 +156,10 @@ export async function refund_failed(
         (owed_total(was) - was.credited_back_usd - was.written_off_usd);
       if (was.written_off_usd > 0 && short > 0.005) {
         const logs = await write_off_logs(tx, don.id, party);
+        // a write-off's loss log is keyed `write_off:<its entry's ref>`
+        const entries = logs.map((l) => l.replace(/^write_off:/, ""));
         by_hand.push(
-          `${party_name(party, ds)}: $${humanize(Math.min(short, was.written_off_usd))} of the refund's share was written off, so not credited back; reverse that write-off by hand (loss log ${logs.join(", ")})`
+          `${party_name(party, ds)}: $${humanize(Math.min(short, was.written_off_usd))} of the refund's share was written off, so not credited back; reverse by hand owed row ${was.id}'s write-off ${entries.join(", ")}, which still nets it off what a later refund records, and its loss log ${logs.join(", ")}`
         );
       }
       let row = was;
