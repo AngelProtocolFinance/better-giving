@@ -1,5 +1,6 @@
 import { user_ctx } from "#/.server/auth";
 import { search } from "@/helpers/https";
+import { referrer_owed_history } from "$/pg/queries/owed-history";
 import { referrer_payout_list } from "$/pg/queries/referrer";
 import { user_get } from "$/pg/queries/user";
 import type { Route } from "./+types/route";
@@ -11,5 +12,10 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
   const { nextKey: next } = search(request);
   // non-null: see `IUserRow`'s doc comment
-  return referrer_payout_list(db_user.referral_code!, { next, limit: 8 });
+  const code = db_user.referral_code!;
+  const [page, owed] = await Promise.all([
+    referrer_payout_list(code, { next, limit: 8 }),
+    referrer_owed_history({ referrer_user: code }),
+  ]);
+  return { ...page, owed };
 };

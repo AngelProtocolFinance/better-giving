@@ -1,10 +1,19 @@
 import { EmptyRow, LoadMoreRow } from "@better-giving/ui";
 import { format } from "date-fns";
+import { Fragment } from "react";
 import type { IPaginator } from "#/types/components";
 import { humanize } from "@/helpers/decimal";
+import type { IGrantRunDeductions } from "$/pg/queries/owed-history";
 import type { SettlementRow } from "$/pg/queries/payout";
 
-export interface Props extends IPaginator<SettlementRow> {}
+export interface IGrantLine extends SettlementRow {
+  /** set when the grant recovered anything owed */
+  run?: IGrantRunDeductions;
+}
+
+export interface Props extends IPaginator<IGrantLine> {}
+
+const usd = (n: number) => `$${humanize(n)}`;
 
 export function GrantsTable({
   items,
@@ -27,10 +36,31 @@ export function GrantsTable({
             <EmptyRow col_span={2}>No grants yet</EmptyRow>
           ) : (
             items.map((payout, idx) => (
-              <tr key={idx}>
-                <td>${humanize(payout.amount)} </td>
-                <td>{format(payout.date, "PP")}</td>
-              </tr>
+              <Fragment key={idx}>
+                <tr>
+                  <td>${humanize(payout.amount)} </td>
+                  <td>{format(payout.date, "PP")}</td>
+                </tr>
+                {payout.run && payout.run.deductions.length > 0 && (
+                  <tr>
+                    <td colSpan={2} className="text-sm text-gray-11">
+                      <div>Gross {usd(payout.run.gross)}</div>
+                      {payout.run.deductions.map((d) => (
+                        <div key={d.owed_id}>
+                          {d.usd < 0
+                            ? "Paid back for gift "
+                            : "Deducted for gift "}
+                          <a href={`#owed-${d.owed_id}`} className="link">
+                            {d.donation_id}
+                          </a>{" "}
+                          {d.usd < 0 ? `+${usd(-d.usd)}` : `-${usd(d.usd)}`}
+                        </div>
+                      ))}
+                      <div>Net {usd(payout.run.net)}</div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))
           )}
         </tbody>
