@@ -126,7 +126,7 @@ const {
 const { npos } = await import("$/pg/schema/npo");
 const { PLACEHOLDER_EMAIL } = await import("@/donations/schema");
 const { subscriptions } = await import("$/pg/schema/subscription");
-const { owed_amounts } = await import("$/pg/schema/owed");
+const { owed_amounts, owed_entries } = await import("$/pg/schema/owed");
 const { payouts } = await import("$/pg/schema/payout");
 const { reverse_charge: real_reverse_charge } =
   await vi.importActual<typeof import("$/refund/reverse")>("$/refund/reverse");
@@ -2540,13 +2540,45 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     expect(await owed_rows()).toEqual(owed);
   });
 
-  it("resolved with the money kept but no seller win, keeps what is owed and tells ops to settle it by hand", async () => {
+  it.each(["CANCELED_BY_BUYER", "DENIED", "RESOLVED_WITH_PAYOUT"])(
+    "credits what the filing recorded back to nothing outstanding when resolved %s, the money kept",
+    async (outcome) => {
+      const { id, sttl_id } = await paypal_gift();
+      await deliver(created_ev(sttl_id));
+
+      const res = await deliver(resolved_ev(sttl_id, outcome));
+
+      expect(res.status).toBe(200);
+      expect(await owed_rows()).toMatchObject([
+        { received_usd: 90, outstanding_usd: 0 },
+      ]);
+      expect((await donation_get(id))?.status).toBe("settled");
+    }
+  );
+
+  it("changes nothing further on a redelivered resolution that credited back", async () => {
+    const { sttl_id } = await paypal_gift();
+    await deliver(created_ev(sttl_id));
+    await deliver(resolved_ev(sttl_id, "CANCELED_BY_BUYER"));
+    const credited = await owed_rows();
+    const entries = await db().select().from(owed_entries);
+    enqueue_mock.mockClear();
+
+    const res = await deliver(resolved_ev(sttl_id, "CANCELED_BY_BUYER"));
+
+    expect(res.status).toBe(200);
+    expect(await owed_rows()).toEqual(credited);
+    expect(await db().select().from(owed_entries)).toEqual(entries);
+    expect(notices()).toEqual([]);
+  });
+
+  it("resolved with no outcome it can read, keeps what is owed and tells ops to settle it by hand", async () => {
     const { sttl_id } = await paypal_gift();
     await deliver(created_ev(sttl_id));
     const owed = await owed_rows();
     enqueue_mock.mockClear();
 
-    const res = await deliver(resolved_ev(sttl_id, "CANCELED_BY_BUYER"));
+    const res = await deliver(resolved_ev(sttl_id, "NONE"));
 
     expect(res.status).toBe(200);
     expect(await owed_rows()).toEqual(owed);
@@ -2554,7 +2586,7 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
       expect.objectContaining({ title: "PayPal Dispute Resolved" }),
     ]);
     const [{ body }] = notices();
-    expect(body).toContain("CANCELED_BY_BUYER");
+    expect(body).toContain("NONE");
     expect(body).toContain("93.20 USD");
   });
 

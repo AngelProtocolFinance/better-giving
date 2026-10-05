@@ -754,7 +754,7 @@ const dispute_fee = (d: IDispute): { usd: number; line: string } => {
 };
 
 const DISPUTE_EXPLAINER =
-  "the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if paypal reverses the charge, the donation reverses without taking it twice; if the dispute resolves in the seller's favour, what is owed is credited back.";
+  "the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if paypal reverses the charge, the donation reverses without taking it twice; if the dispute resolves leaving us the money (a seller win, the buyer cancelling, the claim denied, or paypal paying the buyer itself), what is owed is credited back.";
 
 const RESPOND_BY_DEADLINE =
   "respond in the paypal resolution center before its deadline.";
@@ -859,19 +859,28 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
  * of the charge takes the gift back */
 const BUYER_OUTCOMES = new Set(["RESOLVED_BUYER_FAVOUR", "ACCEPTED"]);
 
-/** a dispute resolved. a seller win credits back what its filing recorded;
- * any other outcome that leaves us the money is ops' to settle */
+/** outcomes where we keep the money, credited back as a win: the buyer
+ * cancelled, the claim was denied, or paypal paid the buyer itself */
+const SELLER_KEEPS_OUTCOMES = new Set([
+  "RESOLVED_SELLER_FAVOUR",
+  "CANCELED_BY_BUYER",
+  "DENIED",
+  "RESOLVED_WITH_PAYOUT",
+]);
+
+/** a dispute resolved. an outcome that leaves us the money credits back what
+ * its filing recorded; one this can't read is ops' to settle */
 async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
   const d = ev.resource as IDispute;
   const charge = d.disputed_transactions?.[0]?.seller_transaction_id;
   const don = charge ? await donation_by_sttl_id(charge) : undefined;
   if (!d.dispute_id || !don)
     return new Response("no donation", { status: 200 });
-  const outcome = d.dispute_outcome?.outcome_code;
-  if (outcome !== "RESOLVED_SELLER_FAVOUR") {
-    if (outcome && BUYER_OUTCOMES.has(outcome)) {
-      return new Response(`dispute ${outcome}`, { status: 200 });
-    }
+  const outcome = d.dispute_outcome?.outcome_code ?? "NONE";
+  if (BUYER_OUTCOMES.has(outcome)) {
+    return new Response(`dispute ${outcome}`, { status: 200 });
+  }
+  if (!SELLER_KEEPS_OUTCOMES.has(outcome)) {
     const filed = (await owed_for_donation(don.id)).filter(
       (o) => o.source === "dispute" && o.source_ref === d.dispute_id
     );
@@ -882,7 +891,7 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
         id: `paypal-dispute-resolved_${d.dispute_id}`,
         title: "PayPal Dispute Resolved",
         lines: [
-          `resolved ${outcome ?? "with no outcome"}, not in the seller's favour, so what its filing recorded stays owed:`,
+          `resolved ${outcome}, which says neither that we kept the money nor that the buyer got it back, so what its filing recorded stays owed:`,
           ...owed_lines(filed),
           "if paypal took no money back for it, credit or write it off by hand on Amounts owed.",
         ],
@@ -906,7 +915,7 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
       id: `paypal-dispute-won_${d.dispute_id}`,
       title: "PayPal Dispute Won on a Reversed Donation",
       lines: [
-        `paypal resolved the dispute in the seller's favour, so the disputed amount came back, but the donation was already ${won.donation_status} and the refund core can't undo a reversal. if paypal's chargeback reversed it, restore by hand the donation, its dists and what each party was recorded as owing; if a refund did, the donor kept that money and nothing is owed back.`,
+        `paypal resolved the dispute ${outcome}, leaving us the disputed amount, but the donation was already ${won.donation_status} and the refund core can't undo a reversal. if paypal's chargeback reversed it, restore by hand the donation, its dists and what each party was recorded as owing; if a refund did, the donor kept that money and nothing is owed back.`,
       ],
     });
   }
