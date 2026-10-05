@@ -72,8 +72,12 @@ vi.mock("$/kit/queue", () => ({
   enqueue: enqueue_mock,
   schedule: schedule_mock,
 }));
-// the reversal is `reverse.test.ts`'s ground; here it is the boundary
-vi.mock("$/refund/reverse", () => ({ reverse_charge: reverse_charge_mock }));
+// the reversal is `reverse.test.ts`'s ground; here it is the boundary, which
+// a block sizing a share on pglite hands back to the real entry
+vi.mock("$/refund/reverse", async (io) => ({
+  ...(await io<typeof import("$/refund/reverse")>()),
+  reverse_charge: reverse_charge_mock,
+}));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
@@ -118,6 +122,10 @@ const {
 const { npos } = await import("$/pg/schema/npo");
 const { PLACEHOLDER_EMAIL } = await import("@/donations/schema");
 const { subscriptions } = await import("$/pg/schema/subscription");
+const { owed_amounts } = await import("$/pg/schema/owed");
+const { payouts } = await import("$/pg/schema/payout");
+const { reverse_charge: real_reverse_charge } =
+  await vi.importActual<typeof import("$/refund/reverse")>("$/refund/reverse");
 
 const db = () => test_db.current!.db;
 
@@ -368,16 +376,19 @@ beforeEach(async () => {
   before_lock.current = null;
   enqueue_mock.mockResolvedValue(undefined);
   schedule_mock.mockResolvedValue(undefined);
-  reverse_charge_mock.mockImplementation(async (r: { amount?: number }) =>
-    r.amount === undefined
-      ? {
-          status: "reversed",
-          dists: 1,
-          applied: 1,
-          owed_msgs: [],
-          has_loss: false,
-        }
-      : { status: "partial_not_acted" }
+  reverse_charge_mock.mockImplementation(
+    async (r: { share: { taken: number; of: number } | null }) =>
+      !r.share
+        ? { status: "unsized" }
+        : r.share.taken >= r.share.of
+          ? {
+              status: "reversed",
+              dists: 1,
+              applied: 1,
+              owed_msgs: [],
+              has_loss: false,
+            }
+          : { status: "partial_owed", owed_msgs: [] }
   );
   get_capture_mock.mockImplementation(async (id: string) => ({
     ...capture_copy(),
@@ -405,6 +416,8 @@ beforeEach(async () => {
     ],
   });
 
+  await db().delete(owed_amounts);
+  await db().delete(payouts);
   await db().delete(dists);
   await db().delete(donation_settlements);
   await db().delete(donation_donors);
@@ -1288,6 +1301,11 @@ describe("refunds and reversals", () => {
     expect(reverse_charge_mock).toHaveBeenCalledOnce();
     return reverse_charge_mock.mock.calls[0]![0];
   };
+  /** how much of the charge the reversal says is taken back so far */
+  const taken_back = () => {
+    const { taken, of } = reversal().share;
+    return taken / of;
+  };
 
   it.each([
     ["PAYMENT.CAPTURE.REFUNDED", "refund"],
@@ -1302,34 +1320,36 @@ describe("refunds and reversals", () => {
 
       expect(res.status).toBe(200);
       expect(get_capture_mock).toHaveBeenLastCalledWith(CAPTURE_ID);
-      expect(reverse_charge_mock).toHaveBeenCalledExactlyOnceWith({
+      expect(reversal()).toMatchObject({
         donation_id: ORDER_ID,
         rail: "paypal",
         source,
-        amount: undefined,
-        alert_from: "paypal-refund",
-        notice: {
-          id: "paypal-full_WH-REF-1",
-          lines: expect.arrayContaining([expect.stringContaining(CAPTURE_ID)]),
-        },
+        source_ref: "REF-1",
       });
+      expect(taken_back()).toBe(1);
+      expect(reversal().notice.lines.join("\n")).toContain(CAPTURE_ID);
     }
   );
 
-  it("hands a partial refund over as its share for ops, reversing nothing", async () => {
+  it("sizes a partial refund by what paypal says is refunded off the capture to date", async () => {
     await settled_capture();
     paypal_capture_is("PARTIALLY_REFUNDED");
+    const ev = capture_refund_ev();
 
-    const res = await deliver(capture_refund_ev());
+    const res = await deliver({
+      ...ev,
+      resource: {
+        ...ev.resource,
+        amount: { value: "15.00", currency_code: "USD" },
+        seller_payable_breakdown: {
+          total_refunded_amount: { value: "40.00", currency_code: "USD" },
+        },
+      },
+    });
 
     expect(res.status).toBe(200);
-    // keyed on the event, so a duplicate delivery is one notice
-    expect(reversal()).toMatchObject({
-      source: "refund",
-      amount: 100,
-      notice: { id: "paypal-partial_WH-REF-1" },
-    });
-    expect(reversal().notice.lines.join("\n")).toContain(CAPTURE_ID);
+    expect(reversal().source).toBe("refund");
+    expect(taken_back()).toBe(0.4);
   });
 
   it("reverses a chargeback of the whole capture as a dispute, whatever status paypal leaves on it", async () => {
@@ -1339,14 +1359,11 @@ describe("refunds and reversals", () => {
     const res = await deliver(capture_refund_ev("PAYMENT.CAPTURE.REVERSED"));
 
     expect(res.status).toBe(200);
-    expect(reversal()).toMatchObject({
-      source: "dispute",
-      amount: undefined,
-      notice: { id: "paypal-full_WH-REF-1" },
-    });
+    expect(reversal().source).toBe("dispute");
+    expect(taken_back()).toBe(1);
   });
 
-  it("hands a chargeback of part of the capture over as a dispute's share, reversing nothing", async () => {
+  it("hands a chargeback of part of the capture over as a dispute's share", async () => {
     await settled_capture();
     paypal_capture_is("COMPLETED");
     const ev = capture_refund_ev("PAYMENT.CAPTURE.REVERSED");
@@ -1355,11 +1372,8 @@ describe("refunds and reversals", () => {
     const res = await deliver(ev);
 
     expect(res.status).toBe(200);
-    expect(reversal()).toMatchObject({
-      source: "dispute",
-      amount: 40,
-      notice: { id: "paypal-partial_WH-REF-1" },
-    });
+    expect(reversal().source).toBe("dispute");
+    expect(taken_back()).toBe(0.4);
     expect(reversal().notice.lines.join("\n")).toContain("-40.00 USD");
   });
 
@@ -1394,7 +1408,7 @@ describe("refunds and reversals", () => {
 
     expect(res.status).toBe(200);
     expect(get_order_mock).toHaveBeenLastCalledWith("ORDER-1");
-    expect(reversal().amount).toBeUndefined();
+    expect(taken_back()).toBe(1);
   });
 
   /** a capture partly refunded before, so sizing a chargeback of -60 needs
@@ -1435,28 +1449,22 @@ describe("refunds and reversals", () => {
   );
 
   // no redelivery gets the order back, so holding the event buys 25 refusals
-  it("tells ops a chargeback whose order paypal refuses for good can't be sized, reverses nothing, and acknowledges", async () => {
+  it("hands a chargeback whose order paypal refuses for good over unsized, saying why, and acknowledges", async () => {
     await settled_capture();
     partly_refunded_capture();
     get_order_mock.mockRejectedValue(
       new PayPalApiError("get order", 404, '{"name":"RESOURCE_NOT_FOUND"}')
     );
-    enqueue_mock.mockClear();
     report_error_mock.mockClear();
 
     const res = await deliver(partial_chargeback_ev());
 
     expect(res.status).toBe(200);
-    expect(reverse_charge_mock).not.toHaveBeenCalled();
     expect(report_error_mock).toHaveBeenCalledOnce();
-    const [notice] = enqueue_mock.mock.calls.at(-1)!;
-    expect(notice).toMatchObject({
-      id: "fiat-notice",
-      dedupe: "fiat.notice_paypal-unsized_WH-REF-1",
-      payload: { alert: { title: "Reversal Not Sized" } },
-    });
-    expect(notice.payload.alert.body).toContain(CAPTURE_ID);
-    expect(notice.payload.alert.body).toContain("by hand");
+    expect(reversal().share).toBeNull();
+    const lines = reversal().notice.lines.join("\n");
+    expect(lines).toContain(CAPTURE_ID);
+    expect(lines).toContain("earlier refunds of it could not be counted");
   });
 
   it("reverses a chargeback that alone takes the whole capture, without the order", async () => {
@@ -1511,9 +1519,7 @@ describe("refunds and reversals", () => {
     expect(reverse_charge_mock).toHaveBeenCalledOnce();
   });
 
-  // the v1 sale lists neither a refunded total nor its refunds, so a chargeback
-  // of what an earlier refund left reads as partial
-  it("tells ops a sale chargeback of part of the charge may have taken back the rest, reversing nothing", async () => {
+  it("hands a sale chargeback of part of the charge over unsized, saying why", async () => {
     await seed_donation({ frequency: "monthly" });
     await deliver(sale_ev());
     await seed_dist(ORDER_ID);
@@ -1533,13 +1539,12 @@ describe("refunds and reversals", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(reversal()).toMatchObject({ source: "dispute", amount: 60 });
+    expect(reversal()).toMatchObject({ source: "dispute", share: null });
     const lines = reversal().notice.lines.join("\n");
     expect(lines).toContain(SALE_ID);
     expect(lines).toContain(
       "earlier refunds of this sale could not be counted"
     );
-    expect(lines).toContain("fully taken back");
   });
 
   it("asks for redelivery when some dists failed to reverse", async () => {
@@ -1585,8 +1590,8 @@ describe("refunds and reversals", () => {
     expect(reversal()).toMatchObject({
       donation_id: ORDER_ID,
       source: "refund",
-      amount: undefined,
     });
+    expect(taken_back()).toBe(1);
   });
 
   it("acknowledges a refund on a donation already reversed", async () => {
@@ -1627,6 +1632,165 @@ describe("refunds and reversals", () => {
 
     expect(res.ok).toBe(false);
     expect(reverse_charge_mock).not.toHaveBeenCalled();
+  });
+
+  describe("sized on the real entry, the gift's $90 grant and $3.20 card fee paid out", () => {
+    /** paypal's refund of the capture, with `total` refunded off it to date */
+    const refund_ev = (id: string, value: string, total: string) => {
+      const ev = capture_refund_ev();
+      ev.id = `WH-${id}`;
+      return {
+        ...ev,
+        resource: {
+          ...ev.resource,
+          id,
+          amount: { value, currency_code: "USD" },
+          seller_payable_breakdown: {
+            total_refunded_amount: { value: total, currency_code: "USD" },
+          },
+        },
+      };
+    };
+    const grant_paid = async (charge: "capture" | "sale" = "capture") => {
+      if (charge === "capture") {
+        await seed_donation();
+        await deliver(capture_ev());
+      } else {
+        await seed_donation({ frequency: "monthly" });
+        await deliver(sale_ev());
+      }
+      await db()
+        .insert(dists)
+        .values({
+          id: `dist-${ORDER_ID}`,
+          donation_id: ORDER_ID,
+          status: "settled",
+          date_created: "2026-01-02T00:00:00.000Z",
+          to_id: npo_id,
+          to_name: "PP Test NPO",
+          amount: 100,
+          amount_usd: 100,
+          amount_denom: "USD",
+          net: 90,
+          fee_base: 4.3,
+          fee_fsa: 2.5,
+          fee_processing: 3.2,
+          alloc: { liq: 0, lock: 0, cash: 100 },
+        });
+      await db()
+        .insert(payouts)
+        .values({
+          id: `payout-${ORDER_ID}`,
+          source_id: `dist-${ORDER_ID}`,
+          npo_id,
+          source: "donation",
+          date: "2026-01-02T00:00:00.000Z",
+          amount: 90,
+          type: "settled",
+          settled_date: "2026-01-03T00:00:00.000Z",
+        });
+    };
+    const owed_rows = () => db().select().from(owed_amounts);
+
+    beforeEach(() => {
+      reverse_charge_mock.mockImplementation(real_reverse_charge);
+    });
+
+    it("records $40 of $100 as the npo's share of what it received plus its card fee, reversing nothing", async () => {
+      await grant_paid();
+      paypal_capture_is("PARTIALLY_REFUNDED");
+
+      const res = await deliver(refund_ev("REF-40", "40.00", "40.00"));
+
+      expect(res.status).toBe(200);
+      expect(await owed_rows()).toEqual([
+        expect.objectContaining({
+          npo_id,
+          source: "refund",
+          source_ref: "REF-40",
+          received_usd: 36,
+          fee_processing_usd: 1.28,
+          outstanding_usd: 37.28,
+        }),
+      ]);
+      expect((await donation_get(ORDER_ID))?.status).toBe("settled");
+    });
+
+    it("reverses the gift on the $60 that completes the charge, the row grown to the full figure", async () => {
+      await grant_paid();
+      paypal_capture_is("PARTIALLY_REFUNDED");
+      await deliver(refund_ev("REF-40", "40.00", "40.00"));
+      paypal_capture_is("REFUNDED");
+
+      const res = await deliver(refund_ev("REF-60", "60.00", "100.00"));
+
+      expect(res.status).toBe(200);
+      expect(await owed_rows()).toEqual([
+        expect.objectContaining({
+          source_ref: "REF-40",
+          received_usd: 90,
+          fee_processing_usd: 3.2,
+          outstanding_usd: 93.2,
+        }),
+      ]);
+      expect((await donation_get(ORDER_ID))?.status).toBe("refunded_loss");
+    });
+
+    it("records a redelivered partial refund once, its notice under one key", async () => {
+      await grant_paid();
+      paypal_capture_is("PARTIALLY_REFUNDED");
+      await deliver(refund_ev("REF-40", "40.00", "40.00"));
+      const first = dedupes(-1);
+
+      const res = await deliver(refund_ev("REF-40", "40.00", "40.00"));
+
+      expect(res.status).toBe(200);
+      expect(await owed_rows()).toEqual([
+        expect.objectContaining({
+          source_ref: "REF-40",
+          outstanding_usd: 37.28,
+        }),
+      ]);
+      expect((await donation_get(ORDER_ID))?.status).toBe("settled");
+      expect(dedupes(-1)).toEqual(first);
+    });
+
+    it("tells ops a v1 sale refund can't be sized, saying why, and records nothing", async () => {
+      await grant_paid("sale");
+      get_sale_mock.mockResolvedValue({
+        ...sale_copy(),
+        state: "partially_refunded",
+      });
+      enqueue_mock.mockClear();
+
+      const res = await deliver({
+        ...sale_refund_ev(),
+        resource: {
+          ...sale_refund_ev().resource,
+          amount: { total: "40.00", currency: "USD" },
+        },
+      });
+
+      expect(res.status).toBe(200);
+      const notices = enqueue_mock.mock.calls
+        .flat()
+        .filter((m: any) => m.id === "fiat-notice");
+      expect(notices).toEqual([
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            alert: expect.objectContaining({ title: "Reversal Not Sized" }),
+          }),
+        }),
+      ]);
+      const body: string = notices[0].payload.alert.body;
+      expect(body).toContain(SALE_ID);
+      expect(body).toContain(
+        "earlier refunds of this sale could not be counted"
+      );
+      expect(body).toContain("by hand");
+      expect(await owed_rows()).toEqual([]);
+      expect((await donation_get(ORDER_ID))?.status).toBe("settled");
+    });
   });
 });
 

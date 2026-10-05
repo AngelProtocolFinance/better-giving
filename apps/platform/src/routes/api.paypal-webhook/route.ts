@@ -39,7 +39,11 @@ import {
   sub_put,
   sub_update,
 } from "$/pg/queries/subscription";
-import { type ReversalSource, reverse_charge } from "$/refund/reverse";
+import {
+  type ReversalSource,
+  reverse_charge,
+  type Share,
+} from "$/refund/reverse";
 import type { Route } from "./+types/route";
 
 type TIntervalFrom = "DAY" | "WEEK" | "MONTH" | "YEAR";
@@ -513,19 +517,26 @@ interface IMoney {
   currency?: string;
 }
 
-/** whether `parts` (refunds or reversals, signed either way) together take all
- * of `whole`. summed in the finest minor unit any uses, as `dec_sub` does */
-const is_whole = (parts: IMoney[], whole: IMoney) => {
-  if (!whole.value) return false;
+/** how much of `whole` `parts` (refunds or reversals, signed either way) take
+ * together, summed in the finest minor unit any uses, as `dec_sub` does. a
+ * part in another currency counts for nothing */
+const share_of = (parts: IMoney[], whole: IMoney): Share => {
   const taken = parts.flatMap((p) =>
     p.value && p.currency === whole.currency ? [p.value.replace(/^-/, "")] : []
   );
   const dp = Math.max(
-    ...[...taken, whole.value].map((v) => v.split(".")[1]?.length ?? 0)
+    ...[...taken, whole.value ?? ""].map((v) => v.split(".")[1]?.length ?? 0)
   );
   const minor = (v: string) => Math.round(+v * 10 ** dp);
-  return taken.reduce((sum, v) => sum + minor(v), 0) >= minor(whole.value);
+  return {
+    taken: taken.reduce((sum, v) => sum + minor(v), 0),
+    of: whole.value ? minor(whole.value) : Number.NaN,
+  };
 };
+
+const is_whole = (s: Share) => s.taken >= s.of;
+
+const WHOLE: Share = { taken: 1, of: 1 };
 
 /** what paypal's copy of the order lists as refunded off capture `cid`,
  * leaving out refund `except`. a failed read is reported, never "no earlier
@@ -563,33 +574,32 @@ const prior_refunds = async (
 
 const REFUND_ALERT_FROM = "paypal-refund";
 
-/** how much of the charge is now taken back: all of it, less, or unknown
- * because what earlier refunds took can't be read */
-type TExtent = "full" | "partial" | "unsized";
-
-const UNSIZED_ACTION =
-  "paypal refused the lookup of earlier refunds, so this reversal could not be sized against the charge. nothing was reversed automatically. ops must settle it by hand.";
+const ORDER_REFUSED =
+  "paypal refused the lookup of this capture's order, so earlier refunds of it could not be counted.";
+const SALE_UNCOUNTED =
+  "paypal's v1 sale lists neither its refunds nor a refunded total, so earlier refunds of this sale could not be counted.";
 
 interface IReversal {
   sttl_id: string;
-  extent: TExtent;
+  /** how much of the charge is taken back so far, this event included; null
+   * when what earlier refunds took can't be counted */
+  share: Share | null;
   source: ReversalSource;
+  /** paypal's refund or reversal id, recorded on what a party owes */
+  ref: string | undefined;
   status: string | undefined;
-  /** the amount on the event, signed as paypal sends it */
-  taken: string | undefined;
   refunded: string;
   charged: string;
-  /** what a not-reversed notice adds about how the extent was judged */
+  /** why `share` is null, for the notice telling ops to settle it by hand */
   caveat?: string;
   /** the donation paypal's copy of the charge names, for a charge not settled here */
   owner: () => Promise<string | undefined>;
 }
 
 /**
- * reverses the donation a capture or sale settled, once it is refunded or
- * reversed in full. a partial refund is ops' to settle by hand: they get a
- * notice and nothing is reversed. the refund that completes the charge
- * reverses it all.
+ * takes back the donation a capture or sale settled, by the share of the
+ * charge refunded or reversed so far: the whole reverses it, less records
+ * each party's share as owed. the entry posts the notices.
  */
 const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
   const don = await donation_by_sttl_id(c.sttl_id);
@@ -619,34 +629,15 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
     `refunded in this event: ${c.refunded}, of a charge of ${c.charged} (paypal status ${c.status})`,
     ...(c.caveat ? [c.caveat] : []),
   ];
-  // keyed on the event, so a duplicate delivery posts one notice
-  const notice_id = `paypal-${c.extent}_${ev.id}`;
-
-  if (c.extent === "unsized") {
-    if (is_reversed(don.status))
-      return new Response(`donation is ${don.status}`, { status: 200 });
-    await enqueue(
-      msg("fiat-notice", {
-        id: notice_id,
-        alert: {
-          type: "NOTICE",
-          from: `${REFUND_ALERT_FROM}-${stage}`,
-          title: "Reversal Not Sized",
-          body: [...lines, UNSIZED_ACTION].join("\n"),
-        },
-      })
-    );
-    return new Response("unsized reversal reported", { status: 200 });
-  }
-
   const res = await reverse_charge({
     donation_id: don.id,
     rail: "paypal",
     source: c.source,
-    // a reversal's amount is negative; the share is what it takes back
-    amount: c.extent === "partial" ? Math.abs(Number(c.taken)) : undefined,
+    share: c.share,
+    source_ref: c.ref,
     alert_from: REFUND_ALERT_FROM,
-    notice: { id: notice_id, lines },
+    // keyed on the event, so a duplicate delivery posts one notice
+    notice: { id: `paypal-reversal_${ev.id}`, lines },
   });
   switch (res.status) {
     case "reversed":
@@ -655,8 +646,14 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
       return new Response(`donation is ${res.donation_status}`, {
         status: 200,
       });
-    case "partial_not_acted":
-      return new Response("partial reversal reported", { status: 200 });
+    case "partial_owed":
+    case "partial_pending":
+      return new Response("share recorded", { status: 200 });
+    case "unsized":
+      return new Response("unsized reversal reported", { status: 200 });
+    // paypal names no unsent refunds, so the entry never holds one
+    case "held":
+      return new Response("reversal held", { status: 503 });
   }
   switch (res.reason) {
     // a rerun skips what was reversed and retries what failed, so a
@@ -1044,6 +1041,9 @@ export async function action({ request }: Route.ActionArgs) {
         const refund = ev.resource as {
           id?: string;
           amount?: { value?: string; currency_code?: string };
+          seller_payable_breakdown?: {
+            total_refunded_amount?: { value?: string; currency_code?: string };
+          };
           links?: { rel?: string; href?: string }[];
         };
         const up = refund.links?.find((l) => l.rel === "up")?.href;
@@ -1064,28 +1064,42 @@ export async function action({ request }: Route.ActionArgs) {
         const whole = { value: gross?.value, currency: gross?.currency_code };
         // a chargeback may leave the capture's status as it was, and a refund
         // leaves it PARTIALLY_REFUNDED even once a later reversal takes the
-        // rest — so a reversal is also full when it and the refunds before it
-        // take the whole gross. the order is read only when those can decide
-        const extent = await (async (): Promise<TExtent | undefined> => {
-          if (capture.status === "REFUNDED") return "full";
-          if (!is_reversal) return "partial";
-          if (is_whole([taken], whole)) return "full";
-          if (!order_id) return "partial";
+        // rest — so a reversal takes what it and the refunds before it take.
+        // the order is read only when the reversal alone isn't the whole
+        const sized = await (async (): Promise<
+          { share: Share | null; caveat?: string } | undefined
+        > => {
+          if (capture.status === "REFUNDED") return { share: WHOLE };
+          if (!is_reversal) {
+            // to date, this refund included; absent, nothing is counted and
+            // the entry reads the share as unsized
+            const total =
+              refund.seller_payable_breakdown?.total_refunded_amount;
+            return {
+              share: share_of(
+                [{ value: total?.value, currency: total?.currency_code }],
+                whole
+              ),
+            };
+          }
+          const alone = share_of([taken], whole);
+          if (is_whole(alone) || !order_id) return { share: alone };
           const earlier = await prior_refunds(order_id, cid, refund.id);
-          if (earlier === "refused") return "unsized";
+          if (earlier === "refused")
+            return { share: null, caveat: ORDER_REFUSED };
           if (!earlier) return undefined;
-          return is_whole([...earlier, taken], whole) ? "full" : "partial";
+          return { share: share_of([...earlier, taken], whole) };
         })();
-        if (!extent)
+        if (!sized)
           return new Response(`order lookup failed: ${order_id}`, {
             status: 503,
           });
         return reverse_settled(ev, {
           sttl_id: cid,
-          extent,
+          ...sized,
           source: is_reversal ? "dispute" : "refund",
+          ref: refund.id,
           status: capture.status,
-          taken: part?.value,
           refunded: money(part?.value, part?.currency_code),
           charged: money(gross?.value, gross?.currency_code),
           owner: async () => capture.custom_id,
@@ -1111,27 +1125,22 @@ export async function action({ request }: Route.ActionArgs) {
         const state: string | undefined = sale.state;
         const whole = sale.amount;
         const is_reversal = ev.event_type === "PAYMENT.SALE.REVERSED";
+        const alone = share_of(
+          [{ value: r.amount?.total, currency: r.amount?.currency }],
+          { value: whole?.total, currency: whole?.currency }
+        );
+        const sized =
+          state === "refunded" || state === "reversed"
+            ? { share: WHOLE }
+            : !is_sale && is_whole(alone)
+              ? { share: alone }
+              : { share: null, caveat: SALE_UNCOUNTED };
         return reverse_settled(ev, {
           sttl_id: sale_id,
-          // v1 sales carry no refunded total and no list of their refunds, so
-          // unlike a capture's, a reversal can't be summed with earlier refunds
-          caveat: is_reversal
-            ? "earlier refunds of this sale could not be counted, so this reversal was judged on its own. ops must check whether the charge is now fully taken back."
-            : undefined,
-          extent:
-            state === "refunded" ||
-            state === "reversed" ||
-            (is_reversal &&
-              !is_sale &&
-              is_whole(
-                [{ value: r.amount?.total, currency: r.amount?.currency }],
-                { value: whole?.total, currency: whole?.currency }
-              ))
-              ? "full"
-              : "partial",
+          ...sized,
           source: is_reversal ? "dispute" : "refund",
+          ref: r.id,
           status: state,
-          taken: r.amount?.total,
           refunded: money(r.amount?.total, r.amount?.currency),
           charged: money(whole?.total, whole?.currency),
           owner: async () => {
