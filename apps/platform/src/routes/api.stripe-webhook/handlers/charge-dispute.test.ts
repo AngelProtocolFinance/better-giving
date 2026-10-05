@@ -9,6 +9,8 @@ const report_error_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const charge_retrieve_mock = vi.hoisted(() => vi.fn());
 const refunds_list_mock = vi.hoisted(() => vi.fn());
+const load_reversible_mock = vi.hoisted(() => vi.fn());
+const dispute_close_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
@@ -21,17 +23,22 @@ vi.mock("$/pg/queries/donation", () => ({
   donation_get: donation_get_mock,
   donation_by_sttl_id: donation_by_sttl_id_mock,
 }));
-// the reversal is `reverse.test.ts`'s ground; here it is the boundary
-vi.mock("$/refund/reverse", () => ({ reverse_charge: reverse_charge_mock }));
+// the reversal and the dispute record are `.server/refund/`'s ground; here
+// they are the boundary, and `../dispute.test.ts` runs them for real
+vi.mock("$/refund/reverse", () => ({
+  reverse_charge: reverse_charge_mock,
+  load_reversible: load_reversible_mock,
+}));
+vi.mock("$/refund/dispute", () => ({}));
+vi.mock("$/pg/db", () => ({ db: {} }));
+vi.mock("$/pg/queries/dispute", () => ({ dispute_close: dispute_close_mock }));
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
 vi.mock("$/kit/discord", () => ({
   fiat_monitor: { send_alert: send_alert_mock },
 }));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 
-const { handle_dispute_created, handle_dispute_closed } = await import(
-  "./charge-dispute"
-);
+const { handle_dispute_closed } = await import("./charge-dispute");
 
 const { ReversalIncompleteError } = await import(
   "../helpers/reversal-incomplete"
@@ -46,6 +53,7 @@ const dispute_event = (type: string, status: string, amount = 10_000) =>
   ({
     id: `evt_${type}`,
     type,
+    created: 1_793_456_000,
     data: {
       object: {
         id: "dp_1",
@@ -55,6 +63,7 @@ const dispute_event = (type: string, status: string, amount = 10_000) =>
         payment_intent: "pi_1",
         reason: "fraudulent",
         status,
+        created: 1_790_000_000,
         evidence_details: { due_by: 1_767_225_600 },
         balance_transactions: [
           { id: "txn_1", amount: -10_000, fee: 1_500, currency: "usd" },
@@ -62,9 +71,6 @@ const dispute_event = (type: string, status: string, amount = 10_000) =>
       },
     },
   }) as any;
-
-const queued = () =>
-  enqueue_mock.mock.calls.flat().filter((m) => m.id === "fiat-notice");
 
 /** the ops notice lines the latest reversal was handed */
 const notice_text = () =>
@@ -93,6 +99,11 @@ beforeEach(() => {
   });
   donation_by_sttl_id_mock.mockImplementation(settled);
   donation_get_mock.mockImplementation(settled);
+  load_reversible_mock.mockImplementation(async () =>
+    don_status === "settled"
+      ? { status: "reversible" }
+      : { status: "already_reversed", donation_status: don_status }
+  );
   reverse_charge_mock.mockImplementation(async () => {
     don_status = "refunded";
     return {
@@ -107,33 +118,6 @@ beforeEach(() => {
   enqueue_mock.mockResolvedValue(undefined);
 });
 
-describe("stripe charge.dispute.created → ops alert", () => {
-  it("tells ops which donation is disputed, for how much and why, and reverses nothing yet", async () => {
-    await handle_dispute_created(
-      dispute_event("charge.dispute.created", "needs_response")
-    );
-
-    expect(reverse_charge_mock).not.toHaveBeenCalled();
-    expect(queued()).toHaveLength(1);
-    const { alert } = queued()[0].payload;
-    const text = `${alert.title}\n${alert.body}`;
-    expect(text).toContain(DON_ID);
-    expect(text).toContain("100.00 USD");
-    expect(text).toContain("fraudulent");
-    expect(text).toContain("dp_1");
-  });
-
-  it("keys the alert on the event, so a redelivery collapses into it", async () => {
-    const opened = dispute_event("charge.dispute.created", "needs_response");
-    await handle_dispute_created(opened);
-    await handle_dispute_created(opened);
-
-    const [first, again] = queued();
-    expect(first.dedupe).toBe(`fiat.notice_${opened.id}`);
-    expect(again.dedupe).toBe(first.dedupe);
-  });
-});
-
 describe("stripe charge.dispute.closed → reversal on a loss", () => {
   it("reverses a lost dispute's donation and tells ops what it cost, fee included", async () => {
     await handle_dispute_closed(dispute_event("charge.dispute.closed", "lost"));
@@ -142,6 +126,7 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
       donation_id: DON_ID,
       rail: "stripe",
       source: "dispute",
+      source_ref: "dp_1",
       dispute_fee: { amount: 1_500, currency: "usd" },
       alert_from: "charge-dispute",
       notice: { id: "evt_charge.dispute.closed", lines: expect.any(Array) },
@@ -195,22 +180,13 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     expect(notice_text()).toContain("60.00 USD (re_1, succeeded)");
   });
 
-  it("keeps the donation settled when the dispute is won", async () => {
-    await handle_dispute_closed(dispute_event("charge.dispute.closed", "won"));
-
-    expect(reverse_charge_mock).not.toHaveBeenCalled();
-    expect(don_status).toBe("settled");
-  });
-
-  it("acknowledges a lost dispute stripe redelivers after it reversed", async () => {
+  it("acknowledges a lost dispute stripe redelivers after it reversed, asking stripe nothing", async () => {
     const lost = dispute_event("charge.dispute.closed", "lost");
     await handle_dispute_closed(lost);
-    reverse_charge_mock.mockResolvedValue({
-      status: "already_reversed",
-      donation_status: "refunded",
-    });
+    charge_retrieve_mock.mockRejectedValue(new Error("stripe unavailable"));
 
     await expect(handle_dispute_closed(lost)).resolves.toBeUndefined();
+    expect(reverse_charge_mock).toHaveBeenCalledOnce();
   });
 
   const failing = {

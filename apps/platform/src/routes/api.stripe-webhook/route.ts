@@ -15,7 +15,7 @@ import type { Route } from "./+types/route";
 import {
   handle_charge_refunded,
   handle_dispute_closed,
-  handle_dispute_created,
+  handle_dispute_opened,
   handle_intent_failed,
   handle_intent_requires_action,
   handle_refund_failed,
@@ -163,7 +163,8 @@ export async function action({ request }: Route.ActionArgs) {
         await handle_refund_updated(stripe_event);
         break;
       case "charge.dispute.created":
-        await handle_dispute_created(stripe_event);
+      case "charge.dispute.funds_withdrawn":
+        await handle_dispute_opened(stripe_event);
         break;
       case "charge.dispute.closed":
         await handle_dispute_closed(stripe_event);
