@@ -291,35 +291,55 @@ export interface IOwedWriteOff {
   now: string;
 }
 
-/** writes off all the row still owes and books it as a loss, once per row: a
- * second call adds nothing. null when the row owes nothing and was never
- * written off */
+/** a write-off's key: what the row owes net of credits and recoveries. a
+ * write-off leaves it as it was, so a retry lands on the write-off it repeats;
+ * anything that leaves the row owing more after one (a later refund or
+ * dispute, an undone recovery) raises it past every earlier key */
+const write_off_ref = sql<string>`${owed_amounts.id} || ':' || (${owed_amounts.written_off_usd} + ${owed_amounts.outstanding_usd})::text`;
+
+/** writes off all the row still owes and books it as a loss; each time the
+ * row owes more, the next call writes that off as its own loss. a retry of
+ * the last write-off adds nothing and returns the row. null when the row does
+ * not exist, or owes nothing and the call repeats no write-off of it */
 export async function write_off_owed(
   tx: DbOrTx,
   w: IOwedWriteOff
 ): Promise<IOwed | null> {
+  const row_is = eq(owed_amounts.id, w.owed_id);
   const row = await put_entry(
     tx,
     "write_off",
-    eq(owed_amounts.id, w.owed_id),
-    { ...w, ref: w.owed_id },
+    row_is,
+    { ...w, ref: write_off_ref },
     sql`${owed_amounts.outstanding_usd}`
   );
-  if (!row || row.written_off_usd === 0) return null;
-  await book_write_off_loss(tx, w.owed_id);
+  if (!row) return null;
+  const [entry] = await tx
+    .select({ ref: owed_entries.ref })
+    .from(owed_entries)
+    .innerJoin(owed_amounts, eq(owed_amounts.id, owed_entries.owed_id))
+    .where(
+      and(
+        row_is,
+        eq(owed_entries.kind, "write_off"),
+        eq(owed_entries.ref, write_off_ref)
+      )
+    );
+  if (!entry) return null;
+  await book_write_off_loss(tx, w.owed_id, entry.ref);
   return row;
 }
 
-/** the row's write-off entry as a loss log, keyed by the row so a retry books
- * nothing */
-async function book_write_off_loss(tx: DbOrTx, owed_id: string) {
+/** the write-off entry under `ref` as a loss log, keyed by that ref so a
+ * retry books nothing */
+async function book_write_off_loss(tx: DbOrTx, owed_id: string, ref: string) {
   await tx
     .insert(loss_logs)
     .select(
       tx
         // drizzle's insert-select wants every column, in table order
         .select({
-          id: sql<string>`'write_off:' || ${owed_amounts.id}`.as("id"),
+          id: sql<string>`'write_off:' || ${owed_entries.ref}`.as("id"),
           date: owed_entries.at,
           donation_id: owed_amounts.donation_id,
           dist_id: sql<string | null>`null`.as("dist_id"),
@@ -343,7 +363,7 @@ async function book_write_off_loss(tx: DbOrTx, owed_id: string) {
           and(
             eq(owed_entries.owed_id, owed_id),
             eq(owed_entries.kind, "write_off"),
-            eq(owed_entries.ref, owed_id)
+            eq(owed_entries.ref, ref)
           )
         )
     )
@@ -415,7 +435,8 @@ async function put_entries(
 
 interface IEntryFields {
   reason: string;
-  ref: string;
+  /** sql when the key is read off the row */
+  ref: string | SQL;
   now: string;
   actor?: string;
 }
@@ -438,7 +459,7 @@ const SUM_OF: Record<IOwedEntry["kind"], Sum> = {
   repay: (usd: SQL) => ({
     recovered_usd: sql`${owed_amounts.recovered_usd} - ${usd}`,
   }),
-  // a row is written off once, so its reason and admin are that entry's
+  // the reason and admin are the latest write-off's; each entry keeps its own
   write_off: (usd: SQL, e: IEntryFields) => ({
     written_off_usd: sql`${owed_amounts.written_off_usd} + ${usd}`,
     written_off_at: e.now,

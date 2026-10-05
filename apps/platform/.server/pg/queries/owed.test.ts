@@ -762,6 +762,71 @@ describe("write_off_owed", () => {
     ]);
   });
 
+  test("a row that grew after its write-off is written off again as a second loss", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    const owed = await record_owed(as_db(t.db), refund_of(npo_a));
+    await recover_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 40,
+      reason: "grant_run",
+      ref: "run-1",
+      now: NOW,
+    });
+    await write_off(owed.id, admin!.id);
+    const disputed = await record_owed(as_db(t.db), {
+      ...refund_of(npo_a),
+      source: "dispute",
+      fee_dispute_usd: 20,
+    });
+    expect(disputed.outstanding_usd).toBe(20);
+
+    const row = await write_off(owed.id, admin!.id, "dispute lost too");
+
+    expect(row).toMatchObject({
+      written_off_usd: 73.2,
+      write_off_reason: "dispute lost too",
+      outstanding_usd: 0,
+    });
+    const losses = await t.db.select().from(loss_logs);
+    expect(losses.map((l) => [l.amount, l.reason]).sort()).toEqual([
+      [20, "dispute lost too"],
+      [53.2, "npo closed"],
+    ]);
+  });
+
+  test("a recovery undone after the write-off is written off again as a second loss", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    const owed = await record_owed(as_db(t.db), refund_of(npo_a));
+    await recover_owed(as_db(t.db), {
+      donation_id: DON,
+      party: { npo_id: npo_a },
+      usd: 40,
+      reason: "grant_run",
+      ref: "run-1",
+      now: NOW,
+    });
+    await write_off(owed.id, admin!.id);
+    await unrecover_owed(as_db(t.db), {
+      npo_id: npo_a,
+      ref: "run-1",
+      now: NOW,
+    });
+
+    const row = await write_off(owed.id, admin!.id, "run unfunded");
+
+    expect(row).toMatchObject({
+      recovered_usd: 0,
+      written_off_usd: 93.2,
+      outstanding_usd: 0,
+    });
+    const losses = await t.db.select().from(loss_logs);
+    expect(losses.map((l) => [l.amount, l.reason]).sort()).toEqual([
+      [40, "run unfunded"],
+      [53.2, "npo closed"],
+    ]);
+  });
+
   test("a write-off without a reason is refused and writes nothing", async () => {
     const admin = await seed_user(t.db, "admin@test.com");
     const owed = await record_owed(as_db(t.db), refund_of(npo_a));
@@ -788,6 +853,33 @@ describe("write_off_owed", () => {
     const losses = await t.db.select().from(loss_logs);
     expect(losses).toHaveLength(1);
     expect(losses[0]).toMatchObject({ amount: 93.2, reason: "npo closed" });
+  });
+
+  test("the same write-off sent twice at once is one entry and one loss, and both get the row", async () => {
+    const admin = await seed_user(t.db, "admin@test.com");
+    const owed = await record_owed(as_db(t.db), refund_of(npo_a));
+    const send = () =>
+      t.db.transaction((tx) =>
+        write_off_owed(as_db(tx), {
+          owed_id: owed.id,
+          reason: "npo closed",
+          actor: admin!.id,
+          now: NOW,
+        })
+      );
+
+    const [a, b] = await Promise.all([send(), send()]);
+
+    expect(a).toMatchObject({ written_off_usd: 93.2, outstanding_usd: 0 });
+    expect(b).toEqual(a);
+    const entries = await t.db
+      .select()
+      .from(owed_entries)
+      .where(eq(owed_entries.kind, "write_off"));
+    expect(entries.map((e) => e.usd)).toEqual([93.2]);
+    expect((await t.db.select().from(loss_logs)).map((l) => l.amount)).toEqual([
+      93.2,
+    ]);
   });
 
   test("a row that owes nothing is not written off", async () => {
