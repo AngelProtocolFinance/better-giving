@@ -66,19 +66,32 @@ const db = () => test_db.current!.db;
 type Gift = Awaited<ReturnType<typeof seed_card_gift>>;
 
 interface IDisputeSeed {
+  id?: string;
   status?: string;
   /** cents of the $100 charge */
   amount?: number;
-  /** cents, in the settlement currency; none for an inquiry */
+  /** cents, in `fee_currency` */
   fee?: number;
+  /** the account's settlement currency */
+  fee_currency?: string;
+  /** stripe has taken the disputed amount from the balance; never for an
+   * inquiry */
+  withdrawn?: boolean;
 }
 
 /** stripe's dispute over `gift`'s $100 charge, opened at `OPENED` */
 const dispute_of = (
   gift: Gift,
-  { status = "needs_response", amount = 10_000, fee = 1_500 }: IDisputeSeed = {}
+  {
+    id = `du_${gift.id}`,
+    status = "needs_response",
+    amount = 10_000,
+    fee = 1_500,
+    fee_currency = "usd",
+    withdrawn = !status.startsWith("warning_"),
+  }: IDisputeSeed = {}
 ) => ({
-  id: `du_${gift.id}`,
+  id,
   object: "dispute",
   amount,
   currency: "usd",
@@ -88,9 +101,9 @@ const dispute_of = (
   status,
   created: OPENED_UNIX,
   evidence_details: { due_by: OPENED_UNIX + 14 * 86_400 },
-  balance_transactions: status.startsWith("warning_")
-    ? []
-    : [{ id: "txn_dsp", amount: -amount, fee, currency: "usd" }],
+  balance_transactions: withdrawn
+    ? [{ id: "txn_dsp", amount: -amount, fee, currency: fee_currency }]
+    : [],
 });
 
 let event_n = 0;
@@ -186,6 +199,41 @@ describe("charge.dispute.created", () => {
     ]);
   });
 
+  it("owes nothing until stripe has withdrawn the funds, whatever the status says", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+
+    await deliver(
+      event_of(
+        "charge.dispute.created",
+        dispute_of(gift, { status: "prevented", withdrawn: false })
+      )
+    );
+    const before = await owed_of(gift.id);
+    await deliver(event_of("charge.dispute.funds_withdrawn", dispute_of(gift)));
+
+    expect(before).toEqual([]);
+    expect(await owed_of(gift.id)).toMatchObject([{ outstanding_usd: 108.2 }]);
+  });
+
+  it("records a fee settled in another currency as none, and names it for ops", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+
+    const res = await deliver(
+      event_of(
+        "charge.dispute.created",
+        dispute_of(gift, { fee: 1_400, fee_currency: "eur" })
+      )
+    );
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(gift.id)).toMatchObject([
+      { fee_dispute_usd: 0, outstanding_usd: 93.2 },
+    ]);
+    expect(notices()[0].payload.alert.body).toMatch(
+      /dispute fee settled in EUR \(14\.00 EUR\)/
+    );
+  });
+
   it("tells ops once per dispute what it recorded as owed", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     const opened = event_of("charge.dispute.created", dispute_of(gift));
@@ -194,14 +242,15 @@ describe("charge.dispute.created", () => {
     await deliver(opened);
     await deliver(event_of("charge.dispute.funds_withdrawn", dispute_of(gift)));
 
-    const [first, ...again] = notices();
-    expect(first.payload.alert.title).toBe("Stripe Dispute Opened");
-    const body: string = first.payload.alert.body;
+    // queued once, not three times collapsed by the queue's dedupe window
+    const [only, ...again] = notices();
+    expect(again).toEqual([]);
+    expect(only.payload.alert.title).toBe("Stripe Dispute Opened");
+    const body: string = only.payload.alert.body;
     expect(body).toContain(gift.id);
     expect(body).toContain(`du_${gift.id}`);
     expect(body).toMatch(/amount: 100\.00 USD, reason: fraudulent/);
     expect(body).toMatch(/recorded as owed: 108\.20 USD/);
-    expect(again.map((n) => n.dedupe)).toEqual([first.dedupe, first.dedupe]);
   });
 });
 
@@ -363,6 +412,28 @@ describe("a fund gift across two nonprofits", () => {
   });
 });
 
+describe("a second dispute on the same payment", () => {
+  it("is recorded owing nothing more, and ops told to handle it by hand", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(event_of("charge.dispute.created", dispute_of(gift)));
+    const first = await owed_of(gift.id);
+    const second = dispute_of(gift, { id: `du_${gift.id}_2` });
+
+    await deliver(event_of("charge.dispute.created", second));
+    await deliver(event_of("charge.dispute.created", second));
+
+    expect(await owed_of(gift.id)).toEqual(first);
+    expect(
+      (await disputes_of_donation(gift.id)).map((d) => d.id).sort()
+    ).toEqual([`du_${gift.id}`, `du_${gift.id}_2`]);
+    const [, flagged, ...rest] = notices();
+    expect(rest).toEqual([]);
+    expect(flagged.payload.alert.body).toMatch(
+      new RegExp(`second dispute.*du_${gift.id}\\b.*by hand`)
+    );
+  });
+});
+
 describe("a redelivered event", () => {
   it.each([
     ["won", won_of, 0],
@@ -389,6 +460,51 @@ describe("a redelivered event", () => {
       expect(await disputes_of_donation(gift.id)).toHaveLength(1);
     }
   );
+});
+
+/** the gift refunded in full before the dispute */
+const refund = (gift: Gift) =>
+  db()
+    .update(donations)
+    .set({ status: "refunded" })
+    .where(eq(donations.id, gift.id));
+
+describe("a dispute on a gift already refunded", () => {
+  it("is put on record with nothing owed, and ops told once that the refund is their evidence", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await refund(gift);
+    const opened = event_of("charge.dispute.created", dispute_of(gift));
+
+    await deliver(opened);
+    await deliver(opened);
+
+    expect(await owed_of(gift.id)).toEqual([]);
+    expect(await disputes_of_donation(gift.id)).toMatchObject([
+      { id: `du_${gift.id}`, status: "open" },
+    ]);
+    const [only, ...again] = notices();
+    expect(again).toEqual([]);
+    expect(only.payload.alert.body).toMatch(
+      /already refunded.*the refund is the evidence to submit/
+    );
+  });
+
+  it("tells ops when stripe returns the funds of a win while the nonprofit stays debited", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await refund(gift);
+
+    const res = await deliver(won_of(gift));
+
+    expect(res.status).toBe(200);
+    expect(await disputes_of_donation(gift.id)).toMatchObject([
+      { status: "won" },
+    ]);
+    const [notice] = notices();
+    expect(notice.payload.alert.title).toBe(
+      "Dispute Won on a Reversed Donation"
+    );
+    expect(notice.payload.alert.body).toContain(gift.id);
+  });
 });
 
 describe("a dispute over part of the charge", () => {
@@ -456,6 +572,31 @@ describe("an inquiry", () => {
     ]);
     expect(notices().at(-1)!.payload.alert.body).toMatch(
       /recorded as owed: 108\.20 USD/
+    );
+  });
+
+  it("tells ops when it escalates over part of the charge, nothing owed", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(
+      event_of(
+        "charge.dispute.created",
+        dispute_of(gift, { ...inquiry, amount: 4_000 })
+      )
+    );
+
+    await deliver(
+      event_of(
+        "charge.dispute.funds_withdrawn",
+        dispute_of(gift, { amount: 4_000 })
+      )
+    );
+
+    expect(await owed_of(gift.id)).toEqual([]);
+    const [asked, escalated, ...rest] = notices();
+    expect(rest).toEqual([]);
+    expect(asked.payload.alert.body).toMatch(/an inquiry/);
+    expect(escalated.payload.alert.body).toMatch(
+      /part of the charge: 40\.00 USD of 100\.00 USD/
     );
   });
 
