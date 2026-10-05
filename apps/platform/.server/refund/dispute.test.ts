@@ -47,7 +47,11 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 // --- imports (after mocks) ---
 
-import { dispute_close, disputes_of_donation } from "../pg/queries/dispute";
+import {
+  dispute_close,
+  dispute_open,
+  disputes_of_donation,
+} from "../pg/queries/dispute";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { owed_for_donation, recover_owed } from "../pg/queries/owed";
 import { create_test_db } from "../pg/test-utils/pglite";
@@ -154,8 +158,8 @@ describe("dispute_opened", () => {
     });
 
     expect([first, second]).toMatchObject([
-      { status: "recorded", prior_refs: [] },
-      { status: "recorded", prior_refs: [`du_${id}`] },
+      { status: "recorded", prior_refs: [], owed_written: true },
+      { status: "recorded", prior_refs: [`du_${id}`], owed_written: false },
     ]);
     expect(await owed_of(id)).toMatchObject([
       { source_ref: `du_${id}`, outstanding_usd: 108.2 },
@@ -169,9 +173,28 @@ describe("dispute_opened", () => {
     const again = await dispute_opened(opened_on(id));
 
     expect([first, again]).toMatchObject([
-      { status: "recorded", inserted: true },
-      { status: "recorded", inserted: false },
+      { status: "recorded", inserted: true, owed_written: true },
+      { status: "recorded", inserted: false, owed_written: false },
     ]);
+  });
+
+  test("says it wrote what is owed when an inquiry on record escalates", async () => {
+    const { id } = await seed(PAID_GRANT);
+    // the inquiry, put on record with nothing owed
+    await dispute_open(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      opened_at: OPENED,
+    });
+
+    const escalated = await dispute_opened(opened_on(id));
+    const again = await dispute_opened(opened_on(id));
+
+    expect([escalated, again]).toMatchObject([
+      { status: "recorded", inserted: false, owed_written: true },
+      { status: "recorded", inserted: false, owed_written: false },
+    ]);
+    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 108.2 }]);
   });
 });
 

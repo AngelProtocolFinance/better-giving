@@ -39,13 +39,16 @@ export interface DisputeOpened {
 export type DisputeOpenedResult =
   /** `owed`: each party's row as it stands. `inserted`: this call put the
    * dispute on record, which exactly one call per dispute does.
-   * `prior_refs`: the refunds or disputes whose rows this one found and
-   * merged into, the first one's ref standing — a second dispute on one
+   * `owed_written`: this call grew what a row owes — an inquiry's escalation
+   * on record included; never a redelivery, nor a second dispute that adds
+   * nothing. `prior_refs`: the refunds or disputes whose rows this one found
+   * and merged into, the first one's ref standing — a second dispute on one
    * payment owes nothing of its own, and a win of it credits nothing */
   | {
       status: "recorded";
       owed: IOwed[];
       inserted: boolean;
+      owed_written: boolean;
       prior_refs: string[];
     }
   /** the dispute was already recorded closed: nothing written */
@@ -93,6 +96,9 @@ export async function dispute_opened(
       return { status: "closed", dispute_status: status, inserted: false };
     }
     const ds = await settled_dists_locked(tx, don.id);
+    const was = new Map(
+      (await owed_for_donation(don.id, tx)).map((o) => [o.id, owed_total(o)])
+    );
     const rows: IOwed[] = [];
     for (const f of owed_at_open(ds, d.fee_usd)) {
       rows.push(
@@ -110,9 +116,20 @@ export async function dispute_opened(
         rows.map((o) => o.source_ref).filter((ref) => ref !== d.dispute_id)
       ),
     ];
-    return { status: "recorded", owed: rows, inserted, prior_refs };
+    const owed_written = rows.some((o) => owed_total(o) > (was.get(o.id) ?? 0));
+    return {
+      status: "recorded",
+      owed: rows,
+      inserted,
+      owed_written,
+      prior_refs,
+    };
   });
 }
+
+/** what a row records as owed, before anything settles it */
+const owed_total = (o: IOwed) =>
+  o.received_usd + o.fee_processing_usd + o.fee_dispute_usd;
 
 export interface DisputeWon {
   donation_id: string;
