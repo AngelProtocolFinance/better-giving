@@ -6,11 +6,7 @@ import { owed_deductions, stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
-import {
-  type OwedParty,
-  outstanding_for_party,
-  unrecover_owed,
-} from "../pg/queries/owed";
+import { outstanding_for_party, unrecover_owed } from "../pg/queries/owed";
 import {
   commissions_claim,
   commissions_mark_paid,
@@ -20,6 +16,7 @@ import {
 import {
   CREDIT_BY_HAND,
   credit_unfunded_commissions,
+  type ReferrerParty,
   refunded_in_flight_lines,
 } from "../refund/commission";
 import { net_owed } from "./net-owed";
@@ -35,9 +32,13 @@ import {
 export interface ISettleReferrer {
   /** referral code, or the npo's `NPO-` referral id */
   id: string;
+  pay_min: number;
+}
+
+export interface IReferrerRecipient {
   /** wise recipient account id */
   pay_id: number;
-  pay_min: number;
+  pay: Pay;
 }
 
 export type CommissionSettleResult =
@@ -49,11 +50,18 @@ export type CommissionSettleResult =
   | { status: "unrecorded"; ref: string; transfer_id: string }
   | { status: "paid"; ref: string; total: number; transfer_id: string }
   /** every commission went to what the referrer owes: paid with no transfer */
-  | { status: "recovered"; ref: string; total: number };
+  | { status: "recovered"; ref: string; total: number }
+  | { status: "no_recipient"; total: number };
 
-class UnderMinimum extends Error {
-  constructor(readonly total: number) {
-    super("under minimum");
+/** thrown from inside the claim, so its tx rolls back and nothing is claimed */
+class NotClaimed extends Error {
+  constructor(
+    readonly result: Extract<
+      CommissionSettleResult,
+      { status: "under_minimum" | "no_recipient" }
+    >
+  ) {
+    super(result.status);
   }
 }
 
@@ -68,27 +76,24 @@ class UnderMinimum extends Error {
  */
 export async function settle_referrer_commissions(
   referrer: ISettleReferrer,
-  pay: Pay
+  to: IReferrerRecipient | null
 ): Promise<CommissionSettleResult> {
   const nets = owed_deductions;
   const party = party_of(referrer.id);
   let claimed: Awaited<ReturnType<typeof claim>>;
   try {
-    claimed = await claim(referrer, party, nets);
+    claimed = await claim(referrer, to, party, nets);
   } catch (err) {
-    if (!(err instanceof UnderMinimum)) throw err;
-    return {
-      status: "under_minimum",
-      total: err.total,
-      minimum: referrer.pay_min,
-    };
+    if (!(err instanceof NotClaimed)) throw err;
+    return err.result;
   }
   if (!claimed) return { status: "none_pending" };
-  if (claimed.recovered) {
+  if (!claimed.send) {
     return { status: "recovered", ref: claimed.ref, total: claimed.gross };
   }
 
-  const { ref, commissions, gross, total } = claimed;
+  const { ref, commissions, gross } = claimed;
+  const { total, pay } = claimed.send;
   const ids = commissions.map((c) => c.donation_id);
   const fields = [
     { name: "referrer", value: referrer.id },
@@ -124,6 +129,7 @@ export async function settle_referrer_commissions(
         });
       } catch (release_err) {
         report_error(release_err, ctx);
+        const why = `the release failed (${String(release_err)})`;
         // unfunded either way, so the referrer rows are owed nothing for it
         const credit = await db
           .transaction((tx) => credit_unfunded_commissions(tx, ref))
@@ -147,7 +153,7 @@ export async function settle_referrer_commissions(
           : "these commissions are safe to reset to pending";
         await alert({
           title: `commission not funded, release failed for ${referrer.id}`,
-          body: `the transfer was not funded (${String(err.cause)}); ${reset}. ${credit}. customerTransactionId ${ref}`,
+          body: `the transfer was not funded (${String(err.cause)}) and ${why}; ${reset}. ${credit}. customerTransactionId ${ref}`,
           fields,
         });
         return { status: "unreleased", ref };
@@ -177,6 +183,11 @@ export async function settle_referrer_commissions(
           ? [
               `refunded while the transfer held them, so recorded as owed by the referrer: once the transfer is confirmed unfunded, ${CREDIT_BY_HAND}`,
               ...in_flight,
+            ]
+          : []),
+        ...(nets
+          ? [
+              `this claim netted what the referrer owes: any reset to pending needs ${undo_deductions(party, ref)}`,
             ]
           : []),
       ].join("\n"),
@@ -227,18 +238,21 @@ export async function settle_referrer_commissions(
 /**
  * locks the referrer's pending commissions, nets what it owes against them
  * and claims them under one ref, in one transaction. owing at least their
- * total marks them paid with no transfer; a net under the minimum throws
- * `UnderMinimum` and claims nothing
+ * total marks them paid with no transfer and returns no `send`; a net under the
+ * minimum, or one with no recipient to send it to, throws `NotClaimed` and
+ * claims nothing
  */
 async function claim(
   referrer: ISettleReferrer,
+  to: IReferrerRecipient | null,
   party: ReferrerParty,
   nets: boolean
 ) {
   return db.transaction(async (tx) => {
     if (nets) await lock_referrer_run(tx, referrer.id);
     let gross = 0;
-    let plan: ReturnType<typeof net_owed> | undefined;
+    /** set when the claim sends a transfer: the net and who it goes to */
+    let send: { total: number; pay: Pay } | undefined;
     const claimed = await commissions_claim(
       tx,
       referrer.id,
@@ -247,31 +261,40 @@ async function claim(
         gross = payout_total(pending.map((c) => c.amount));
         // a refund locks the commission, then its owed row; the claim does too
         const owed = nets ? await outstanding_for_party(sp, party) : [];
-        plan = net_owed(gross, owed, referrer.pay_min);
-        // thrown, so the claim's tx rolls back and nothing is claimed
-        if (plan.status === "under_minimum") throw new UnderMinimum(plan.net);
+        const plan = net_owed(gross, owed, referrer.pay_min);
+        if (plan.status === "under_minimum") {
+          const { net: total, minimum } = plan;
+          throw new NotClaimed({ status: "under_minimum", total, minimum });
+        }
         const ids = pending.map((c) => c.donation_id);
-        const ref =
-          plan.status === "recover_only"
-            ? recovered_run_ref(referrer.id, ids)
-            : transfer_ref(
-                `referrer-commission:${referrer.pay_id}`,
-                plan.net,
-                ids
-              );
+        let ref: string;
+        if (plan.status === "recover_only") {
+          ref = recovered_run_ref(referrer.id, ids);
+        } else if (to === null) {
+          throw new NotClaimed({ status: "no_recipient", total: plan.net });
+        } else {
+          const key = `referrer-commission:${to.pay_id}`;
+          ref = transfer_ref(key, plan.net, ids);
+          send = { total: plan.net, pay: to.pay };
+        }
         await deduct(sp, party, "commission_run", plan, ref);
         return ref;
       }
     );
-    if (!claimed || !plan) return undefined;
-    const recovered = plan.status === "recover_only";
-    if (recovered) await commissions_mark_paid(tx, claimed.ref);
-    const total = plan.status === "pay" ? plan.net : 0;
-    return { ...claimed, gross, total, recovered };
+    if (!claimed) return undefined;
+    if (!send) {
+      await commissions_mark_paid(tx, claimed.ref);
+      // a payout of $0 under the run's ref, no transfer behind it
+      await referrer_payout_put(tx, {
+        id: claimed.ref,
+        amount: 0,
+        date: new Date().toISOString(),
+        ...party,
+      });
+    }
+    return { ...claimed, gross, send };
   });
 }
-
-type ReferrerParty = Exclude<OwedParty, { npo_id: number }>;
 
 const party_of = (id: string): ReferrerParty =>
   id.startsWith("NPO-") ? { referrer_npo: id } : { referrer_user: id };

@@ -7,6 +7,9 @@ import { dists } from "../pg/schema/dist";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { referrer_of } from "./plan";
 
+// the payout runs name a commission's party too; plan itself is fenced off
+export { type ReferrerParty, referrer_of } from "./plan";
+
 /** where ops credits a referrer row by hand */
 export const CREDIT_BY_HAND =
   "credit each on its gift's referrer row on Amounts owed (/platform/owed)";

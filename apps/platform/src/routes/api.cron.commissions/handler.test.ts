@@ -12,7 +12,12 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const send_alert = vi.hoisted(() => vi.fn());
-const referrer = vi.hoisted(() => ({ pay_id: 42, pay_min: 50 }));
+/** `real`: the referrer as stored, looked up as the cron does */
+const referrer = vi.hoisted(() => ({
+  pay_id: 42 as number | undefined,
+  pay_min: 50,
+  real: false,
+}));
 const deductions = vi.hoisted(() => ({ on: false }));
 
 /**
@@ -90,15 +95,21 @@ vi.mock("$/pg/queries/referrer", async (orig) => {
     },
   };
 });
-vi.mock("./helpers", () => ({
-  get_referrer: async (id: string) => ({
-    id,
-    name: "Ref",
-    email: "ref@example.com",
-    pay_id: referrer.pay_id,
-    pay_min: referrer.pay_min,
-  }),
-}));
+vi.mock("./helpers", async (orig) => {
+  const real = await orig<typeof import("./helpers")>();
+  return {
+    get_referrer: async (id: string) =>
+      referrer.real
+        ? real.get_referrer(id)
+        : {
+            id,
+            name: "Ref",
+            email: "ref@example.com",
+            pay_id: referrer.pay_id,
+            pay_min: referrer.pay_min,
+          },
+  };
+});
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
     {},
@@ -145,6 +156,7 @@ beforeEach(async () => {
   deductions.on = false;
   referrer.pay_id = 42;
   referrer.pay_min = 50;
+  referrer.real = false;
   wise.by_ref.clear();
   wise.by_id.clear();
   wise.quote.mockClear();
@@ -640,7 +652,18 @@ describe("commissions cron", () => {
 
       expect(wise.transfer).not.toHaveBeenCalled();
       expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
-      expect(await db().select().from(referrer_payouts)).toEqual([]);
+      const [{ ref } = { ref: null }] = await db()
+        .selectDistinct({ ref: referrer_commissions.ref })
+        .from(referrer_commissions);
+      expect(await db().select().from(referrer_payouts)).toEqual([
+        expect.objectContaining({
+          id: ref,
+          referrer_npo: REFERRER,
+          amount: 0,
+          transfer_id: null,
+          error: null,
+        }),
+      ]);
       expect(await owed_rows()).toEqual([
         { donation_id: "don-owed", recovered_usd: 30, outstanding_usd: 10 },
       ]);
@@ -754,6 +777,22 @@ describe("commissions cron", () => {
       expect(a.body).toContain(
         `only with this run's deductions taken back: run unrecover_owed({ referrer_npo: "${REFERRER}", ref: "${refs()[0]}" })`
       );
+      expect(a.body).toContain("the release failed (Error: release failed)");
+    });
+
+    test("switched on, a transfer whose funding is unknown says a reset needs the run's recovery taken back", async () => {
+      deductions.on = true;
+      await seed("d-1", 120);
+      await seed("d-2", 80);
+      await seed_owed("don-owed", 9);
+      wise.fund_transfer.mockRejectedValueOnce("fetch failed");
+
+      await index();
+
+      const a = alert_titled("commission funding status unknown");
+      expect(a.body).toContain(
+        `any reset to pending needs run unrecover_owed({ referrer_npo: "${REFERRER}", ref: "${refs()[0]}" })`
+      );
     });
 
     test("each referrer is netted against its own rows only: never a user's against an npo referrer's, nor an npo referrer's against what the npo owes as a grantee", async () => {
@@ -804,6 +843,50 @@ describe("commissions cron", () => {
           outstanding_usd: 9,
         },
         { donation_id: "don-user-owes", recovered_usd: 5, outstanding_usd: 0 },
+      ]);
+    });
+
+    test("switched on, a user referrer with no payout method whose owed covers its commissions is paid them as recovered", async () => {
+      deductions.on = true;
+      referrer.pay_id = undefined;
+      await seed("d-1", 20);
+      await seed_owed("don-owed", 40);
+
+      await index();
+
+      expect(wise.transfer).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({ "d-1": "paid" });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 20, outstanding_usd: 20 },
+      ]);
+    });
+
+    test("switched on, a referrer with no payout method owed a transfer is left pending, nothing recovered", async () => {
+      deductions.on = true;
+      referrer.pay_id = undefined;
+      await seed("d-1", 120);
+      await seed_owed("don-owed", 9);
+
+      await index();
+
+      expect(wise.transfer).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({ "d-1": "pending" });
+      expect(await entries()).toEqual([]);
+      expect(await db().select().from(referrer_payouts)).toEqual([]);
+    });
+
+    test("switched on, an npo referrer with no default bank whose owed covers its commissions is paid them as recovered", async () => {
+      deductions.on = true;
+      referrer.real = true;
+      await seed("d-1", 20);
+      await seed_owed("don-owed", 40);
+
+      await index();
+
+      expect(wise.transfer).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({ "d-1": "paid" });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 20, outstanding_usd: 20 },
       ]);
     });
   });

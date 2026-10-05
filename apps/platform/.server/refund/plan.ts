@@ -30,10 +30,10 @@ export type ReferrerParty = Exclude<OwedParty, { npo_id: number }>;
 
 /** the party a commission row names: exactly one is set, by its check */
 export const referrer_of = (c: {
-  referrer_user: string | null;
-  referrer_npo: string | null;
+  referrer_user?: string | null;
+  referrer_npo?: string | null;
 }): ReferrerParty =>
-  c.referrer_user !== null
+  c.referrer_user != null
     ? { referrer_user: c.referrer_user }
     : { referrer_npo: c.referrer_npo! };
 

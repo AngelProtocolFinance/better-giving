@@ -8,7 +8,11 @@ import { settle_referrer_commissions } from "$/payouts/settle-commissions";
 import { payout_total } from "$/payouts/transfer";
 import { wise_pay } from "$/payouts/wise-pay";
 import { commissions_all_by_status } from "$/pg/queries/referrer";
-import { CREDIT_BY_HAND, refunded_in_flight_lines } from "$/refund/commission";
+import {
+  CREDIT_BY_HAND,
+  referrer_of,
+  refunded_in_flight_lines,
+} from "$/refund/commission";
 import { get_referrer } from "./helpers";
 
 const lambda = `commissions-processor:${stage}`;
@@ -65,11 +69,10 @@ async function alert_unsettled_claims() {
     );
     const lines = Object.entries(by_claim).map(([claim, cs = []]) => {
       const line = `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`;
-      const { referrer_user, referrer_npo, ref } = cs[0]!;
-      const party = referrer_user
-        ? { referrer_user }
-        : { referrer_npo: referrer_npo! };
-      return ref ? `${line}\n  to reset: ${undo_deductions(party, ref)}` : line;
+      const first = cs[0]!;
+      return first.ref
+        ? `${line}\n  to reset: ${undo_deductions(referrer_of(first), first.ref)}`
+        : line;
     });
     const refs = [...new Set(stuck.flatMap((c) => (c.ref ? [c.ref] : [])))];
     const in_flight = await refunded_in_flight_lines(refs).catch((err) => {
@@ -101,7 +104,8 @@ async function process_item(ref_id: string, items: ICommission[]) {
     const ref = await get_referrer(ref_id);
     if (!ref) throw new Error(`referrer:${ref_id} not found`);
 
-    if (!ref.pay_id) {
+    // netting may settle one owing it all with no transfer
+    if (!owed_deductions && !ref.pay_id) {
       return console.info(`referrer:${ref_id} has no payout method`);
     }
     // skips the locking claim for a referrer still under it; the claim rechecks.
@@ -115,8 +119,13 @@ async function process_item(ref_id: string, items: ICommission[]) {
 
     const pay_id = ref.pay_id;
     const res = await settle_referrer_commissions(
-      { id: ref_id, pay_id, pay_min: ref.pay_min },
-      (wise_ref, total) => wise_pay(pay_id, total, wise_ref)
+      { id: ref_id, pay_min: ref.pay_min },
+      pay_id
+        ? {
+            pay_id,
+            pay: (wise_ref, total) => wise_pay(pay_id, total, wise_ref),
+          }
+        : null
     );
     if (res.status === "recovered") {
       await aws_monitor.send_alert({
