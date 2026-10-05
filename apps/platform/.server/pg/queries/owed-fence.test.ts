@@ -26,6 +26,7 @@ const LEDGER_HOME = [
   `${platform}/.server/pg/queries/owed.ts`,
   `${platform}/.server/pg/queries/owed-history.ts`,
   `${platform}/.server/pg/queries/owed-notice.ts`,
+  `${platform}/.server/pg/queries/owed-refund.ts`,
   `${platform}/.server/pg/schema/owed.ts`,
 ];
 const TABLE = /\b(owed_amounts|owed_entries|owed_notices)\b/g;

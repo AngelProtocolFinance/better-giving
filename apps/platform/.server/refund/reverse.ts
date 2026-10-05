@@ -66,6 +66,10 @@ export interface ChargeReversal {
   /** the provider's own refund or dispute id, recorded on what a party owes;
    * absent records `notice.id` */
   source_ref?: string;
+  /** the provider's refunds `share.taken` counts, by id: one whose failure
+   * was already credited back (`refund_failed`) is taken out of a share short
+   * of the whole, so a list read before it failed doesn't owe it again */
+  refunds?: { id: string; amount: number }[];
   /** the provider's refunds on the charge not yet sent, which can still
    * fail: while any is, nothing is reversed or recorded as owed */
   unsent_refunds?: string[];
@@ -287,6 +291,8 @@ async function reverse_share(
   const res = await record_share({
     donation_id,
     f,
+    of: r.share!.of,
+    refunds: r.refunds,
     fee_dispute_usd: r.dispute_fee_usd ?? 0,
     source: r.source === "dispute" ? "dispute" : "refund",
     source_ref: r.source_ref ?? r.notice.id,
@@ -305,7 +311,7 @@ async function reverse_share(
         title: pending.length > 0 ? text.pending : text.owed,
         body: [
           ...r.notice.lines,
-          `${humanize(f * 100)}% of the charge taken back so far; the donation is not reversed.`,
+          `${humanize(res.f * 100)}% of the charge taken back so far; the donation is not reversed.`,
           ...owed_msgs.map((m) => `owed: ${m}`),
           ...pending.map((m) => `not owed: ${m}`),
           ...(pending.length > 0 ? [text.action] : []),

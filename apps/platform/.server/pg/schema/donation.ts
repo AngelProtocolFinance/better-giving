@@ -64,8 +64,9 @@ export const donations = pgTable(
     held_at: timestamptz("held_at"),
     hold_asset: text("hold_asset"),
     /** the share of the charge refunded or lost to disputes, while that is
-     * short of the whole: it only grows, and a full reversal leaves it as the
-     * last partial left it */
+     * short of the whole. a later partial grows it; a refund that fails after
+     * succeeding lowers it by its own share, to null at none. a full reversal
+     * leaves it as the last partial left it */
     refunded_share: numeric_as_number("refunded_share", {
       precision: 38,
       scale: 18,

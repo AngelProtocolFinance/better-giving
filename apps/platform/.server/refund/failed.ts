@@ -1,36 +1,37 @@
-import { eq } from "drizzle-orm";
-import type { IDonation } from "@/donations";
+import { and, eq } from "drizzle-orm";
+import { type IDonation, is_reversed } from "@/donations";
 import { humanize } from "@/helpers/decimal";
 import { db } from "../pg/db";
+import { donation_lock } from "../pg/queries/donation";
+import type { DbOrTx } from "../pg/queries/helpers";
 import {
   credit_owed,
   type OwedParty,
   owed_for_party,
   owed_total,
 } from "../pg/queries/owed";
+import { refund_failed_ref } from "../pg/queries/owed-refund";
 import { donations } from "../pg/schema/donation";
+import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import {
-  fraction_of,
   gift_dists_locked,
   grant_went_out,
   type LockedDist,
-  type Share,
   scaled,
 } from "./share";
 
 export interface RefundFailed {
   donation_id: string;
   rail: Rail;
-  /** the failed refund's own part of the charge */
-  failed_share: Share;
-  /** how much of the charge is still taken back, the failed refund no
-   * longer counted; nothing taken back is `taken: 0` */
-  share: Share;
-  /** the provider's refund id: what each credit answers to, so a redelivery
-   * credits nothing twice */
-  source_ref: string;
+  /** the refund that failed: its provider id, what each credit answers to,
+   * and its amount, in the charge's unit like `of` and `others` */
+  refund: { id: string; amount: number };
+  /** what the charge took */
+  of: number;
+  /** what the charge's other refunds, not failed or canceled, take back */
+  others: number;
 }
 
 export type RefundFailedResult =
@@ -52,15 +53,18 @@ export type RefundFailedResult =
       credited: string[];
       by_hand: string[];
     }
+  /** the gift has none of the refund on record (it failed before an event
+   * recorded it, or a run before this one credited it back): nothing written */
+  | { status: "not_recorded"; donation_status: IDonation["status"] }
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
  * a refund that failed after it succeeded: the donor got nothing back, so
  * what each party was recorded as owing for it is credited back, by the
  * refund's share of the charge. what was already recovered of it becomes due
- * back. a gift not reversed has its refunded share set to what is still taken
- * back. only for a refund that had succeeded: one that failed before reaching
- * the reversal entry recorded nothing.
+ * back. its share is what the gift has on record as taken back beyond what
+ * the charge's other refunds still take: all of it once reversed, else the
+ * share its partials recorded, which drops by it.
  *
  * safe to rerun: a redelivery credits nothing more.
  */
@@ -70,23 +74,39 @@ export async function refund_failed(
   const loaded = await load_reversible(r.donation_id, r.rail);
   if (loaded.status === "failed") return loaded;
   const { don } = loaded;
-  const f = fraction_of(r.failed_share);
-  if (f === null) throw new Error(`refund ${r.source_ref}: no failed share`);
+  const { refund, of } = r;
+  if (!(of > 0 && refund.amount > 0 && r.others >= 0)) {
+    throw new Error(`refund ${refund.id}: amounts don't size the charge`);
+  }
   const now = new Date().toISOString();
 
-  const left = r.share.taken / r.share.of;
-  if (!(left >= 0)) throw new Error(`refund ${r.source_ref}: no share left`);
-
-  return db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<RefundFailedResult> => {
     const ds = await gift_dists_locked(tx, don.id);
-    // set, not grown: the caller counts what the charge has left taken back,
-    // so a redelivery sets the same. a reversed gift keeps the last partial's
-    if (loaded.status === "reversible" && left < 1) {
+    // read under its lock: a concurrent failure of another refund on the
+    // charge lowers the share this one is sized off
+    await donation_lock(tx, don.id);
+    const [cur] = await tx
+      .select({ status: donations.status, share: donations.refunded_share })
+      .from(donations)
+      .where(eq(donations.id, don.id));
+    // the column is text; its check holds it to the statuses
+    const donation_status = (cur?.status ?? don.status) as IDonation["status"];
+    const reversed = is_reversed(donation_status);
+    // a redelivery finds the share already lowered by it, so counts none of
+    // it; a reversed gift's credits are keyed on the refund instead
+    const recorded = reversed ? of : (cur?.share ?? 0) * of;
+    const taken = Math.min(refund.amount, recorded - r.others);
+    if (taken <= 1e-9) return { status: "not_recorded", donation_status };
+    const f = Math.min(taken / of, 1);
+    if (!reversed) {
+      // to 1e-12, so 0.7 - 0.4 is stored as the 0.3 it is
+      const left = Math.round(((cur?.share ?? 0) - f) * 1e12) / 1e12;
       await tx
         .update(donations)
         .set({ refunded_share: left > 0 ? left : null })
         .where(eq(donations.id, don.id));
     }
+
     const parts = new Map<string, Part>();
     const add = (key: string, p: Part) => {
       const was = parts.get(key);
@@ -125,15 +145,29 @@ export async function refund_failed(
     for (const { party, received, fee } of parts.values()) {
       const was = await owed_for_party(don.id, party, tx);
       if (!was) continue;
+      const short =
+        received +
+        fee -
+        (owed_total(was) - was.credited_back_usd - was.written_off_usd);
+      if (was.written_off_usd > 0 && short > 0.005) {
+        const logs = await write_off_logs(tx, don.id, party);
+        by_hand.push(
+          `${party_name(party, ds)}: $${humanize(Math.min(short, was.written_off_usd))} of the refund's share was written off, so not credited back; reverse that write-off by hand (loss log ${logs.join(", ")})`
+        );
+      }
       let row = was;
       // two entries, so a later record of the row adds each back onto its
       // own figure
-      for (const [reason, usd] of [
-        ["refund_failed", received],
-        ["refund_failed_fee", fee],
+      for (const [reason, usd, ref] of [
+        ["refund_failed", received, refund_failed_ref(refund.id)],
+        ["refund_failed_fee", fee, `refund_failed_fee:${refund.id}`],
       ] as const) {
+        // to 1e-9: summed in floats, 65.24 - 64.28 would cap 0.96 at 0.9599…
         const creditable =
-          owed_total(row) - row.credited_back_usd - row.written_off_usd;
+          Math.round(
+            (owed_total(row) - row.credited_back_usd - row.written_off_usd) *
+              1e9
+          ) / 1e9;
         if (Math.min(usd, creditable) <= 0) continue;
         row =
           (await credit_owed(tx, {
@@ -141,7 +175,7 @@ export async function refund_failed(
             party,
             usd: Math.min(usd, creditable),
             reason,
-            ref: `${reason}:${r.source_ref}`,
+            ref,
             now,
           })) ?? row;
       }
@@ -149,11 +183,30 @@ export async function refund_failed(
         `$${humanize(row.credited_back_usd - was.credited_back_usd)} credited back to ${party_name(party, ds)}; outstanding now $${humanize(row.outstanding_usd ?? 0)}`
       );
     }
-    const donation_status = don.status;
     return by_hand.length > 0
       ? { status: "by_hand", donation_status, credited, by_hand }
       : { status: "credited", donation_status, credited };
   });
+}
+
+/** the loss logs the party's write-offs of its row on the gift booked */
+async function write_off_logs(tx: DbOrTx, donation_id: string, p: OwedParty) {
+  const rows = await tx
+    .select({ id: loss_logs.id })
+    .from(loss_logs)
+    .where(
+      and(
+        eq(loss_logs.donation_id, donation_id),
+        eq(loss_logs.type, "write_off"),
+        "npo_id" in p
+          ? eq(loss_logs.npo_id, p.npo_id)
+          : "referrer_user" in p
+            ? eq(loss_logs.referrer_user, p.referrer_user)
+            : eq(loss_logs.referrer_npo, p.referrer_npo)
+      )
+    )
+    .orderBy(loss_logs.date);
+  return rows.map((l) => l.id);
 }
 
 interface Part {

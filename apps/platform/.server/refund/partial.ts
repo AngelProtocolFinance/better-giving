@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { humanize } from "@/helpers/decimal";
 import { db } from "../pg/db";
 import { owed_total, record_owed } from "../pg/queries/owed";
+import { refunds_credited_back } from "../pg/queries/owed-refund";
 import { donations } from "../pg/schema/donation";
 import type { OwedSource } from "./apply";
 import { grant_went_out, owed_shares, settled_dists_locked } from "./share";
@@ -10,11 +11,18 @@ export interface ShareTaken extends OwedSource {
   donation_id: string;
   /** the share of the charge taken back so far, short of the whole */
   f: number;
+  /** what the charge took, in the unit of `refunds` */
+  of: number;
+  /** the provider refunds `f` counts, by id: one whose failure was already
+   * credited back is taken out of it */
+  refunds?: { id: string; amount: number }[];
   /** what the provider charged for the dispute, in usd; 0 when none */
   fee_dispute_usd: number;
 }
 
 export interface ShareRecorded {
+  /** the share recorded: `f`, less any failed refund it counted */
+  f: number;
   /** no dist left to take a share of: none distributed yet, or every one
    * reversed since the gift was read */
   undistributed: boolean;
@@ -36,19 +44,33 @@ export async function record_share(s: ShareTaken): Promise<ShareRecorded> {
   return db.transaction(async (tx) => {
     const ds = await settled_dists_locked(tx, s.donation_id);
     if (ds.length === 0) {
-      return { undistributed: true, owed_msgs: [], pending: [] };
+      return { undistributed: true, f: s.f, owed_msgs: [], pending: [] };
     }
+    // read under the dists' locks, which `refund_failed` takes first: a
+    // failure committed since the provider's list was read is seen here
+    const counted = s.refunds ?? [];
+    const failed = await refunds_credited_back(
+      tx,
+      s.donation_id,
+      counted.map((r) => r.id)
+    );
+    const failed_amount = counted
+      .filter((r) => failed.has(r.id))
+      .reduce((sum, r) => sum + r.amount, 0);
+    const f = s.f - failed_amount / s.of;
+    if (f <= 1e-9)
+      return { undistributed: false, f: 0, owed_msgs: [], pending: [] };
     await tx
       .update(donations)
       .set({
-        refunded_share: sql`GREATEST(COALESCE(${donations.refunded_share}, 0), ${s.f})`,
+        refunded_share: sql`GREATEST(COALESCE(${donations.refunded_share}, 0), ${f})`,
       })
       .where(eq(donations.id, s.donation_id));
 
     const names = new Map(ds.map((d) => [d.to_id, d.to_name]));
     const owed_msgs: string[] = [];
     const shares = owed_shares(ds, {
-      f: s.f,
+      f,
       fee_usd: s.fee_dispute_usd,
       owes: grant_went_out,
     });
@@ -73,6 +95,6 @@ export async function record_share(s: ShareTaken): Promise<ShareRecorded> {
         (d) =>
           `dist ${d.id} to ${d.to_name || "its npo"} (npo ${d.to_id}): ${d.payout_type === "pending" ? "its grant payout is still pending" : "its share is still in the npo's balances"}, so nothing of it is recorded as owed`
       );
-    return { undistributed: false, owed_msgs, pending };
+    return { undistributed: false, f, owed_msgs, pending };
   });
 }

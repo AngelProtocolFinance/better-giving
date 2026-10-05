@@ -14,6 +14,7 @@ import {
   seed_card_gift,
   seed_paid_commission,
 } from "#/__tests__/fixtures/card-gift";
+import { seed_user } from "#/__tests__/fixtures/funds";
 import { donations } from "../pg/schema/donation";
 import { owed_amounts } from "../pg/schema/owed";
 import type { TestDb } from "../pg/test-utils/pglite";
@@ -47,7 +48,11 @@ vi.mock("../kit/stripe", () => ({
 
 import { donation_get } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
-import { owed_for_donation, recover_owed } from "../pg/queries/owed";
+import {
+  owed_for_donation,
+  recover_owed,
+  write_off_owed,
+} from "../pg/queries/owed";
 import { create_test_db } from "../pg/test-utils/pglite";
 import { refund_failed } from "./failed";
 import { reverse_charge } from "./reverse";
@@ -72,27 +77,34 @@ beforeEach(async () => {
 const seed = (...ds: Parameters<typeof seed_card_gift>[1][]) =>
   seed_card_gift(test_db.current!.db, ...ds);
 
-/** a stripe refund of `taken` of the gift's $100 that succeeded */
-const refund = (donation_id: string, taken: number, ref: string) =>
+/** a stripe refund that succeeded, `taken` of the gift's $100 now refunded
+ * by the refunds `counted` */
+const refund = (
+  donation_id: string,
+  taken: number,
+  ref: string,
+  counted?: { id: string; amount: number }[]
+) =>
   reverse_charge({
     donation_id,
     rail: "stripe",
     source: "refund",
     share: { taken, of: 100 },
+    refunds: counted,
     source_ref: ref,
     alert_from: "charge-refunded",
     notice: { id: `evt_${ref}`, lines: [] },
   });
 
-/** refund `ref`, of `failed` of the gift's $100, failed after succeeding,
- * leaving `left` of the charge taken back */
-const fail = (donation_id: string, failed: number, ref: string, left = 0) =>
+/** refund `ref` of `amount` of the gift's $100 failed after succeeding; the
+ * charge's other live refunds still take back `others` */
+const fail = (donation_id: string, amount: number, ref: string, others = 0) =>
   refund_failed({
     donation_id,
     rail: "stripe",
-    failed_share: { taken: failed, of: 100 },
-    share: { taken: left, of: 100 },
-    source_ref: ref,
+    refund: { id: ref, amount },
+    of: 100,
+    others,
   });
 
 const gift = async (id: string) =>
@@ -115,6 +127,50 @@ describe("refund_failed — part of the charge", () => {
     await fail(id, 40, "re_1", 60);
 
     expect(await outstanding(id)).toEqual([55.92]);
+  });
+
+  test("two failed partials each credit their own share, and a redelivery of either changes nothing", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    await refund(id, 70, "re_2");
+    expect(await outstanding(id)).toEqual([65.24]);
+
+    await fail(id, 40, "re_1", 30);
+    expect(await outstanding(id)).toEqual([27.96]);
+    expect((await gift(id))?.refunded_share).toBe(0.3);
+
+    await fail(id, 30, "re_2");
+    await fail(id, 40, "re_1");
+    await fail(id, 30, "re_2");
+
+    expect(await outstanding(id)).toEqual([0]);
+    expect((await gift(id))?.refunded_share).toBeNull();
+  });
+
+  test("a refund event that read the refunds before one failed doesn't owe the failed one again", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+    await refund(id, 70, "re_2");
+    await fail(id, 40, "re_1", 30);
+
+    // re_2's redelivery, its list read while re_1 still stood
+    await refund(id, 70, "re_2", [
+      { id: "re_1", amount: 40 },
+      { id: "re_2", amount: 30 },
+    ]);
+
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+
+  test("a refund that failed before anything recorded it credits nothing", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 40, "re_1");
+
+    const res = await fail(id, 30, "re_2", 40);
+
+    expect(res).toEqual({ status: "not_recorded", donation_status: "settled" });
+    expect(await outstanding(id)).toEqual([37.28]);
+    expect((await gift(id))?.refunded_share).toBe(0.4);
   });
 
   test("a full refund after a failed $40 partial owes the full figure", async () => {
@@ -191,6 +247,34 @@ describe("refund_failed — a gift whose grant hadn't gone out", () => {
       expect(await owed_for_donation(id)).toEqual([]);
     }
   );
+});
+
+describe("refund_failed — a written-off row", () => {
+  test("credits nothing past the write-off and names its loss log for finance to reverse", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await refund(id, 100, "re_1");
+    const db = test_db.current!.db as unknown as DbOrTx;
+    const admin = await seed_user(test_db.current!.db, "admin@test.com");
+    const [row] = await owed_for_donation(id);
+    await write_off_owed(db, {
+      owed_id: row!.id,
+      reason: "pre-terms gift",
+      actor: admin!.id,
+      now: "2026-10-03T00:00:00.000Z",
+    });
+
+    const res = await fail(id, 100, "re_1");
+
+    expect(res).toMatchObject({
+      status: "by_hand",
+      by_hand: [
+        expect.stringMatching(
+          new RegExp(`\\$93\\.20 .*written off.*loss log write_off:${row!.id}:`)
+        ),
+      ],
+    });
+    expect(await outstanding(id)).toEqual([0]);
+  });
 });
 
 describe("refund_failed — a reversed paid-grant gift", () => {
