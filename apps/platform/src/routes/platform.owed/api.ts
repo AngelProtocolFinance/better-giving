@@ -1,4 +1,3 @@
-import { data } from "react-router";
 import * as v from "valibot";
 import { user_ctx } from "#/.server/auth";
 import type { IOwedRow } from "#/pages/platform-admin/owed/types";
@@ -60,34 +59,23 @@ type TBody = v.InferOutput<typeof body>;
 
 interface IDone {
   ok: true;
-  /** the write-off went through and the row still owes this much */
-  remainder_usd?: number;
 }
 
-const refuse = (status: number, error: string) =>
-  data({ ok: false as const, error }, { status });
+/** what the action answers: `resp.fail`'s body on a refusal, which typegen
+ * can't see through the `Response` */
+export type TOwedAnswer = IDone | { status: number; message: string };
 
-const OVER = "That is more than this row has outstanding";
-class OverCredit extends Error {}
+const done: IDone = { ok: true };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
   const p = v.safeParse(body, await request.json().catch(() => null));
-  if (p.issues) return refuse(400, p.issues[0].message);
+  if (p.issues) return resp.fail(400, p.issues[0].message);
   const actor = context.get(user_ctx).id;
   const now = new Date().toISOString();
 
-  try {
-    return p.output.intent === "write_off"
-      ? await write_off(p.output, actor, now)
-      : await credit(p.output, actor, now);
-  } catch (err) {
-    // with the body parsed, settling past what the row owes is the one check
-    // left to fire
-    if (err instanceof OverCredit || is_check_violation(err)) {
-      return refuse(409, OVER);
-    }
-    throw err;
-  }
+  return p.output.intent === "write_off"
+    ? write_off(p.output, actor, now)
+    : credit(p.output, actor, now);
 };
 
 async function write_off(
@@ -98,11 +86,12 @@ async function write_off(
   const row = await db.transaction((tx) =>
     write_off_owed(tx, { owed_id: x.owed_id, reason: x.reason, actor, now })
   );
-  if (!row) return refuse(409, "Nothing left to write off");
-  const left = row.outstanding_usd ?? 0;
-  const done: IDone = { ok: true, remainder_usd: left > 0 ? left : undefined };
+  if (!row) return resp.fail(409, "Nothing left to write off");
   return done;
 }
+
+const OVER = "That is more than this row has outstanding";
+class OverCredit extends Error {}
 
 async function credit(
   x: Extract<TBody, { intent: "credit" }>,
@@ -110,29 +99,48 @@ async function credit(
   now: string
 ) {
   const { owed_id, usd, reason, ref } = x;
-  const row = await db.transaction(async (tx) => {
-    const r = await admin_credit_owed(tx, {
-      owed_id,
-      usd,
-      reason,
-      ref,
-      actor,
-      now,
+  try {
+    const row = await db.transaction(async (tx) => {
+      const r = await admin_credit_owed(tx, {
+        owed_id,
+        usd,
+        reason,
+        ref,
+        actor,
+        now,
+      });
+      // past what is outstanding the party would be due money back; throwing
+      // rolls the credit back
+      if (r && (r.outstanding_usd ?? 0) < 0) throw new OverCredit();
+      return r;
     });
-    // past what is outstanding the party would be due money back; throwing
-    // rolls the credit back
-    if (r && (r.outstanding_usd ?? 0) < 0) throw new OverCredit();
-    return r;
-  });
-  if (!row) return refuse(404, "This row no longer exists");
-  const done: IDone = { ok: true };
-  return done;
+    if (!row) return resp.fail(404, "This row no longer exists");
+    // a credit dates the row with its own `now`; an earlier date means the
+    // ref already had its entry and this call added nothing
+    if (Date.parse(row.credited_back_at ?? "") !== Date.parse(now)) {
+      return resp.fail(
+        409,
+        `The reference ${ref} was already used for a credit on this row`
+      );
+    }
+    return done;
+  } catch (err) {
+    // the ledger's own bound on the same thing: credited plus written off
+    // past what was owed, as on a row already written off
+    if (err instanceof OverCredit || violates(err, OVER_SETTLED)) {
+      return resp.fail(409, OVER);
+    }
+    throw err;
+  }
 }
 
-/** drizzle wraps the driver's error, so the postgres code sits on a `cause` */
-function is_check_violation(err: unknown): boolean {
+const OVER_SETTLED = "owed_amounts_settled_within_owed_check";
+
+/** drizzle wraps the driver's error, so the postgres fields sit on a `cause` */
+function violates(err: unknown, constraint: string): boolean {
   for (let e = err; e instanceof Error; e = e.cause) {
-    if ((e as Error & { code?: unknown }).code === "23514") return true;
+    const pg = e as Error & { code?: unknown; constraint?: unknown };
+    if (pg.code === "23514") return pg.constraint === constraint;
   }
   return false;
 }

@@ -296,7 +296,7 @@ describe("amounts owed", () => {
     expect(entry.elements()).toHaveLength(1);
   });
 
-  it("says what a row still owes when it grew after its one write-off", async () => {
+  it("writes off a row again once it grows past its write-off, booking each as a loss", async () => {
     const admin = { id: await seed_admin("Grace"), role: "admin" };
     const row = await seed_npo_owed("River Trust");
     const first = await post(admin, {
@@ -321,11 +321,22 @@ describe("amounts owed", () => {
     });
 
     const screen = await open_platform("/platform/owed", admin);
-    const dialog = await write_off(screen, "River Trust", "Closed");
+    await write_off(screen, "River Trust", "Dispute fee after closing");
 
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect
-      .element(dialog)
-      .toMatchTextContent("this row still owes $15.00");
+      .element(screen.getByText("No amounts owed found"))
+      .toBeVisible();
+    await cleanup();
+    const losses = await open_platform("/platform/losses", admin);
+    const entries = losses.getByRole("row").filter({ hasText: "Write-off" });
+    await vi.waitFor(() => expect(entries.elements()).toHaveLength(2));
+    await expect
+      .element(entries.filter({ hasText: "Dispute fee after closing" }))
+      .toMatchTextContent("$15.00");
+    await expect
+      .element(entries.filter({ hasText: "Closed" }))
+      .toMatchTextContent("$93.20");
   });
 
   it("refuses to write off a row that owes nothing", async () => {
@@ -452,6 +463,85 @@ describe("amounts owed", () => {
     await expect
       .element(screen.getByRole("status").first())
       .toMatchTextContent("more than this row has outstanding");
+  });
+
+  it("refuses a second credit under a reference already used", async () => {
+    const admin = { id: await seed_admin("Grace"), role: "admin" };
+    const row = await seed_npo_owed("River Trust");
+    await recover(row.id, 40);
+    const credit = (usd: number) => ({
+      intent: "credit",
+      owed_id: row.id,
+      usd,
+      reason: "Payout cancelled by hand",
+      ref: "po_1",
+    });
+    const first = await post(admin, credit(10));
+    await expect
+      .element(first.getByRole("status").first())
+      .toMatchTextContent('{"ok":true}');
+    await cleanup();
+
+    const screen = await post(admin, credit(5));
+
+    await expect
+      .element(screen.getByRole("status").first())
+      .toMatchTextContent(/"status":409.*reference po_1 was already used/);
+    await cleanup();
+    const list = await open_platform("/platform/owed", admin);
+    await expect.element(list.getByText("43.20")).toBeVisible();
+  });
+
+  it("answers 404 to a credit on a row that does not exist", async () => {
+    const admin = { id: await seed_admin("Grace"), role: "admin" };
+
+    const screen = await post(admin, {
+      intent: "credit",
+      owed_id: "no-such-row",
+      usd: 1,
+      reason: "Payout cancelled by hand",
+      ref: "po_1",
+    });
+
+    await expect
+      .element(screen.getByRole("status").first())
+      .toMatchTextContent(/"status":404/);
+  });
+
+  it("fails a credit on any other ledger check rather than calling it over the outstanding", async () => {
+    const admin = { id: await seed_admin("Grace"), role: "admin" };
+    const row = await seed_npo_owed("River Trust");
+
+    // more than $0 to the parse, $0 once stored at the ledger's 18 places
+    const screen = await post(admin, {
+      intent: "credit",
+      owed_id: row.id,
+      usd: 1e-19,
+      reason: "Payout cancelled by hand",
+      ref: "po_1",
+    });
+
+    await expect.element(screen.getByText("status unknown")).toBeVisible();
+    expect(screen.getByText("outstanding").query()).toBeNull();
+  });
+
+  it("puts focus on the next row's write-off once the written-off row leaves", async () => {
+    const admin = { id: await seed_admin("Grace"), role: "admin" };
+    await seed_npo_owed("River Trust");
+    await seed_npo_owed("Lake Trust");
+
+    const screen = await open_platform("/platform/owed", admin);
+    const actions = screen.getByRole("button", { name: /^Write off / });
+    await vi.waitFor(() => expect(actions.elements()).toHaveLength(2));
+    const [first, second] = actions
+      .elements()
+      .map((e) => (e.getAttribute("aria-label") ?? "").split(",")[0]!);
+    await write_off(screen, first!.replace("Write off ", ""), "Closed");
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: second! }))
+      .toHaveFocus();
   });
 
   it("answers 403 to anyone but a platform admin, page and action alike", async () => {

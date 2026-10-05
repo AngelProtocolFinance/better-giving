@@ -3,7 +3,11 @@ import { useFetcher, useSearchParams } from "react-router";
 import { metas } from "#/helpers/seo";
 import { use_table } from "#/hooks/use-table";
 import { CreditDialog } from "#/pages/platform-admin/owed/credit-dialog";
-import { OwedTable } from "#/pages/platform-admin/owed/owed-table";
+import {
+  type IReturnAt,
+  OwedTable,
+  owed_return_target,
+} from "#/pages/platform-admin/owed/owed-table";
 import type {
   IOwedRow,
   TOwedPartyFilter,
@@ -12,13 +16,14 @@ import type {
 } from "#/pages/platform-admin/owed/types";
 import { WriteOffDialog } from "#/pages/platform-admin/owed/write-off-dialog";
 import type { Route } from "./+types/route";
-import type { action } from "./api";
+import type { TOwedAnswer } from "./api";
 
 export { action, loader } from "./api";
 export const meta: Route.MetaFunction = () => metas({ title: "Amounts owed" });
 
 interface IDialog {
-  kind: "write_off" | "credit";
+  /** the action and the row it opened on, with the row's place in the list */
+  at: IReturnAt;
   /** stays set after closing, so the dialog keeps its body while it animates out */
   row: IOwedRow;
   open: boolean;
@@ -33,8 +38,8 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const [search, set_search] = useSearchParams();
   const [dialog, set_dialog] = useState<IDialog | null>(null);
   const n = dialog?.n ?? 0;
-  const write_off = useFetcher<typeof action>({ key: `owed-write-off-${n}` });
-  const credit = useFetcher<typeof action>({ key: `owed-credit-${n}` });
+  const write_off = useFetcher<TOwedAnswer>({ key: `owed-write-off-${n}` });
+  const credit = useFetcher<TOwedAnswer>({ key: `owed-credit-${n}` });
 
   const set_params = (x: Record<string, string | undefined>) =>
     set_search(
@@ -55,9 +60,16 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const [read, set_read] = useState({ data: loaderData, n: 0 });
   if (read.data !== loaderData) set_read({ data: loaderData, n: read.n + 1 });
 
-  const open = (kind: IDialog["kind"], rows: IOwedRow[], id: string) => {
-    const row = rows.find((r) => r.id === id);
-    if (row) set_dialog({ kind, row, open: true, n: n + 1 });
+  const open = (action: IReturnAt["action"], rows: IOwedRow[], id: string) => {
+    const index = rows.findIndex((r) => r.id === id);
+    const row = rows[index];
+    if (!row) return;
+    set_dialog({
+      at: { row_id: id, action, index },
+      row,
+      open: true,
+      n: n + 1,
+    });
   };
   const close = () => set_dialog((d) => d && { ...d, open: false });
 
@@ -92,17 +104,17 @@ export default function Page({ loaderData }: Route.ComponentProps) {
 
   const wo = answer(write_off);
   const cr = answer(credit);
+  const return_focus_fallback = () => dialog && owed_return_target(dialog.at);
 
   return (
     <div className="px-6 py-4 md:px-10 md:py-8 w-full grid content-start">
       <h3 className="font-bold text-2xl mb-4">Amounts owed</h3>
       {node}
       <WriteOffDialog
-        open={dialog?.kind === "write_off" && dialog.open && !wo.done}
-        row={dialog?.kind === "write_off" ? dialog.row : null}
+        open={dialog?.at.action === "write_off" && dialog.open && !wo.done}
+        row={dialog?.at.action === "write_off" ? dialog.row : null}
         submitting={write_off.state !== "idle"}
         error={wo.error}
-        remainder_usd={wo.remainder_usd}
         on_submit={({ reason }) =>
           dialog &&
           write_off.submit(
@@ -111,10 +123,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           )
         }
         on_close={close}
+        return_focus_fallback={return_focus_fallback}
       />
       <CreditDialog
-        open={dialog?.kind === "credit" && dialog.open && !cr.done}
-        row={dialog?.kind === "credit" ? dialog.row : null}
+        open={dialog?.at.action === "credit" && dialog.open && !cr.done}
+        row={dialog?.at.action === "credit" ? dialog.row : null}
         submitting={credit.state !== "idle"}
         error={cr.error}
         on_submit={(x) =>
@@ -125,22 +138,21 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           )
         }
         on_close={close}
+        return_focus_fallback={return_focus_fallback}
       />
     </div>
   );
 }
 
 interface IAnswer {
-  /** landed with nothing left to show: the dialog closes */
+  /** landed: the dialog closes */
   done: boolean;
   error?: string;
-  remainder_usd?: number;
 }
 
 /** the request's answer once it has settled, list revalidated and all */
-function answer(f: ReturnType<typeof useFetcher<typeof action>>): IAnswer {
+function answer(f: ReturnType<typeof useFetcher<TOwedAnswer>>): IAnswer {
   if (f.state !== "idle" || !f.data) return { done: false };
-  if (!f.data.ok) return { done: false, error: f.data.error };
-  const { remainder_usd } = f.data;
-  return { done: remainder_usd == null, remainder_usd };
+  if ("message" in f.data) return { done: false, error: f.data.message };
+  return { done: true };
 }
