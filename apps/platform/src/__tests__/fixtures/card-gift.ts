@@ -9,7 +9,6 @@ import {
   donations,
 } from "$/pg/schema/donation";
 import { npos } from "$/pg/schema/npo";
-import { owed_amounts } from "$/pg/schema/owed";
 import { payouts } from "$/pg/schema/payout";
 import { referrer_commissions } from "$/pg/schema/referrer";
 import { loss_logs } from "$/pg/schema/revenue";
@@ -36,10 +35,10 @@ export const PAID_GRANT: IDistSeed = {
   payout: "settled",
 };
 
+/** the owed ledger's rows hold the gifts, so the caller clears them first */
 export async function clear_card_gifts(db: Db) {
   await db.delete(bal_txs);
   await db.delete(loss_logs);
-  await db.delete(owed_amounts);
   await db.delete(donation_disputes);
   await db.delete(payouts);
   await db.delete(referrer_commissions);

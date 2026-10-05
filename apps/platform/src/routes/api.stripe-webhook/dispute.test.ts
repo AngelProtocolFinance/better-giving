@@ -46,6 +46,7 @@ const { action } = await import("./route");
 const { disputes_of_donation } = await import("$/pg/queries/dispute");
 const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
+const { owed_amounts } = await import("$/pg/schema/owed");
 const { loss_logs } = await import("$/pg/schema/revenue");
 const {
   PAID_GRANT,
@@ -156,6 +157,7 @@ beforeEach(async () => {
     amount_refunded: 0,
   }));
   refunds_list_mock.mockResolvedValue({ data: [] });
+  await db().delete(owed_amounts);
   await clear_card_gifts(db());
 });
 
