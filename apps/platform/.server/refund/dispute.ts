@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "../pg/db";
 import {
   dispute_close,
+  dispute_get,
   dispute_open,
   type IDispute,
 } from "../pg/queries/dispute";
@@ -12,17 +13,13 @@ import {
   type IOwedRecord,
   type OwedParty,
   owed_for_donation,
+  owed_total,
   record_owed,
 } from "../pg/queries/owed";
 import { dists } from "../pg/schema/dist";
 import { referrer_commissions } from "../pg/schema/referrer";
 import { dist_settled_usd, fee_processing_usd, referrer_of } from "./plan";
-import {
-  load_reversible,
-  type Rail,
-  type Unreversible,
-  unreversible,
-} from "./reverse";
+import { load_reversible, type Rail, type Unreversible } from "./reverse";
 
 export interface DisputeOpened {
   donation_id: string;
@@ -38,12 +35,13 @@ export interface DisputeOpened {
 
 export type DisputeOpenedResult =
   /** `owed`: each party's row as it stands. `inserted`: this call put the
-   * dispute on record, which exactly one call per dispute does.
-   * `owed_written`: this call grew what a row owes — an inquiry's escalation
-   * on record included; never a redelivery, nor a second dispute that adds
-   * nothing. `prior_refs`: the refunds or disputes whose rows this one found
-   * and merged into, the first one's ref standing — a second dispute on one
-   * payment owes nothing of its own, and a win of it credits nothing */
+   * dispute on record, which at most one call per dispute does — none when
+   * a record-only open or a close wrote it first. `owed_written`: this call
+   * grew what a row owes — an inquiry's escalation on record included; never
+   * a redelivery, nor a second dispute that adds nothing. `prior_refs`: the
+   * other disputes whose rows this one found and merged into, the first
+   * one's ref standing — a second dispute on one payment owes nothing of its
+   * own, and a win of it credits nothing */
   | {
       status: "recorded";
       owed: IOwed[];
@@ -113,7 +111,11 @@ export async function dispute_opened(
     }
     const prior_refs = [
       ...new Set(
-        rows.map((o) => o.source_ref).filter((ref) => ref !== d.dispute_id)
+        rows
+          .filter(
+            (o) => o.source === "dispute" && o.source_ref !== d.dispute_id
+          )
+          .map((o) => o.source_ref)
       ),
     ];
     const owed_written = rows.some((o) => owed_total(o) > (was.get(o.id) ?? 0));
@@ -127,10 +129,6 @@ export async function dispute_opened(
   });
 }
 
-/** what a row records as owed, before anything settles it */
-const owed_total = (o: IOwed) =>
-  o.received_usd + o.fee_processing_usd + o.fee_dispute_usd;
-
 export interface DisputeWon {
   donation_id: string;
   rail: Rail;
@@ -143,7 +141,15 @@ export interface DisputeWon {
 
 export type DisputeWonResult =
   /** each row the dispute recorded, credited */
-  { status: "credited"; owed: IOwed[] } | Unreversible;
+  | { status: "credited"; owed: IOwed[] }
+  /** the dispute is on record won, and nothing is credited. `prior_status`:
+   * its record before this win, null when there was none. `lost` is a late
+   * win after this dispute's own loss reversed the gift, so the npo was
+   * debited for it; anything else, the gift was reversed some other way */
+  | (Extract<Unreversible, { status: "already_reversed" }> & {
+      prior_status: IDispute["status"] | null;
+    })
+  | Extract<Unreversible, { status: "failed" }>;
 
 /**
  * a chargeback closed in the gift's favour: the money came back, so every
@@ -164,8 +170,11 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     closed_at: d.closed_at,
   };
   if (loaded.status === "already_reversed") {
+    // read before the close, which turns an open record won
+    const prior = await dispute_get(d.dispute_id);
     await dispute_close(db, record);
-    return unreversible(loaded);
+    const { status, donation_status } = loaded;
+    return { status, donation_status, prior_status: prior?.status ?? null };
   }
   const now = new Date().toISOString();
 

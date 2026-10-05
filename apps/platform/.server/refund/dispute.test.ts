@@ -11,6 +11,7 @@ import {
 import {
   balance_of,
   clear_card_gifts,
+  disputes_of,
   type IDistSeed,
   PAID_GRANT,
   seed_card_gift,
@@ -47,13 +48,13 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 // --- imports (after mocks) ---
 
-import {
-  dispute_close,
-  dispute_open,
-  disputes_of_donation,
-} from "../pg/queries/dispute";
+import { dispute_close, dispute_open } from "../pg/queries/dispute";
 import type { DbOrTx } from "../pg/queries/helpers";
-import { owed_for_donation, recover_owed } from "../pg/queries/owed";
+import {
+  owed_for_donation,
+  record_owed,
+  recover_owed,
+} from "../pg/queries/owed";
 import { create_test_db } from "../pg/test-utils/pglite";
 import { dispute_opened, dispute_won } from "./dispute";
 import { reverse_charge } from "./reverse";
@@ -120,7 +121,7 @@ describe("dispute_opened", () => {
         outstanding_usd: 108.2,
       },
     ]);
-    expect(await disputes_of_donation(id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "open", opened_at: OPENED },
     ]);
   });
@@ -146,6 +147,23 @@ describe("dispute_opened", () => {
       .from(owed_amounts)
       .where(eq(owed_amounts.donation_id, id));
     expect(Number(sum?.usd)).toBe(15.01);
+  });
+
+  test("flags no second dispute over a refund's row on the gift", async () => {
+    const { id, npo_ids } = await seed(PAID_GRANT);
+    await record_owed(test_db.current!.db as unknown as DbOrTx, {
+      donation_id: id,
+      party: { npo_id: npo_ids[0]! },
+      source: "refund",
+      source_ref: "re_1",
+      received_usd: 90,
+      fee_processing_usd: 3.2,
+      now: OPENED,
+    });
+
+    const res = await dispute_opened(opened_on(id));
+
+    expect(res).toMatchObject({ status: "recorded", prior_refs: [] });
   });
 
   test("flags a second dispute on the payment, owing nothing more for it", async () => {
@@ -229,7 +247,9 @@ describe("an open handled after its dispute closed", () => {
         inserted: false,
       });
       expect(await owed_of(id)).toEqual([]);
-      expect(await disputes_of_donation(id)).toMatchObject([{ status }]);
+      expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
+        { status },
+      ]);
     }
   );
 });
@@ -256,7 +276,7 @@ describe("a dispute on a gift already reversed", () => {
       inserted: true,
     });
     expect(await owed_of(id)).toEqual([]);
-    expect(await disputes_of_donation(id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "open" },
     ]);
   });
@@ -269,10 +289,41 @@ describe("a dispute on a gift already reversed", () => {
     expect(res).toEqual({
       status: "already_reversed",
       donation_status: "refunded",
+      prior_status: null,
     });
-    expect(await disputes_of_donation(id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "won", closed_at: CLOSED },
     ]);
+  });
+
+  test("won after the dispute's own loss reversed the gift, says it was lost", async () => {
+    const { id } = await seed(PAID_GRANT);
+    await dispute_opened(opened_on(id));
+    await dispute_close(test_db.current!.db as unknown as DbOrTx, {
+      id: `du_${id}`,
+      donation_id: id,
+      status: "lost",
+      opened_at: OPENED,
+      closed_at: CLOSED,
+    });
+    await lose(id);
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toEqual({
+      status: "already_reversed",
+      donation_status: "refunded_loss",
+      prior_status: "lost",
+    });
+  });
+
+  test("won on a gift refunded while the dispute was open, says it was open", async () => {
+    const { id } = await seed_refunded();
+    await dispute_opened(opened_on(id));
+
+    const res = await dispute_won(won_on(id));
+
+    expect(res).toMatchObject({ prior_status: "open" });
   });
 });
 
@@ -286,7 +337,7 @@ describe("dispute_won", () => {
     expect(await owed_of(id)).toMatchObject([
       { received_usd: 90, fee_dispute_usd: 15, outstanding_usd: 0 },
     ]);
-    expect(await disputes_of_donation(id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { status: "won", closed_at: CLOSED },
     ]);
   });

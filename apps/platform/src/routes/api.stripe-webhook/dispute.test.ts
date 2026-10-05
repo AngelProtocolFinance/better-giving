@@ -43,7 +43,6 @@ vi.mock("$/kit/discord", () => ({ fiat_monitor: { send_alert: vi.fn() } }));
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 
 const { action } = await import("./route");
-const { disputes_of_donation } = await import("$/pg/queries/dispute");
 const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
 const { owed_amounts } = await import("$/pg/schema/owed");
@@ -52,6 +51,7 @@ const {
   PAID_GRANT,
   balance_of,
   clear_card_gifts,
+  disputes_of,
   seed_card_gift,
   seed_paid_commission,
 } = await import("#/__tests__/fixtures/card-gift");
@@ -194,7 +194,7 @@ describe("charge.dispute.created", () => {
         outstanding_usd: 108.2,
       },
     ]);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "open", opened_at: OPENED },
     ]);
   });
@@ -279,7 +279,7 @@ describe("charge.dispute.closed, lost after it opened", () => {
       },
     ]);
     expect(await db().select().from(loss_logs)).toEqual([]);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { status: "lost", closed_at: CLOSED },
     ]);
   });
@@ -323,7 +323,7 @@ describe("charge.dispute.closed, won", () => {
       { received_usd: 90, fee_dispute_usd: 15, outstanding_usd: 0 },
     ]);
     expect(await status_of(gift.id)).toBe("settled");
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { status: "won", closed_at: CLOSED },
     ]);
   });
@@ -355,7 +355,7 @@ describe("charge.dispute.closed, won", () => {
 
     expect(res.status).toBe(200);
     expect(await owed_of(gift.id)).toEqual([]);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { status: "won" },
     ]);
   });
@@ -424,7 +424,7 @@ describe("a second dispute on the same payment", () => {
 
     expect(await owed_of(gift.id)).toEqual(first);
     expect(
-      (await disputes_of_donation(gift.id)).map((d) => d.id).sort()
+      (await disputes_of(test_db.current!.db, gift.id)).map((d) => d.id).sort()
     ).toEqual([`du_${gift.id}`, `du_${gift.id}_2`]);
     const [, flagged, ...rest] = notices();
     expect(rest).toEqual([]);
@@ -457,7 +457,7 @@ describe("a redelivered event", () => {
       expect(at_open).toMatchObject([{ outstanding_usd: 108.2 }]);
       expect(at_close).toMatchObject([{ outstanding_usd: outstanding }]);
       expect(await owed_of(gift.id)).toEqual(at_close);
-      expect(await disputes_of_donation(gift.id)).toHaveLength(1);
+      expect(await disputes_of(test_db.current!.db, gift.id)).toHaveLength(1);
     }
   );
 });
@@ -479,7 +479,7 @@ describe("a dispute on a gift already refunded", () => {
     await deliver(opened);
 
     expect(await owed_of(gift.id)).toEqual([]);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "open" },
     ]);
     const [only, ...again] = notices();
@@ -496,7 +496,7 @@ describe("a dispute on a gift already refunded", () => {
     const res = await deliver(won_of(gift));
 
     expect(res.status).toBe(200);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { status: "won" },
     ]);
     const [notice] = notices();
@@ -524,7 +524,7 @@ describe("a dispute over part of the charge", () => {
 
     expect(res.status).toBe(200);
     expect(await owed_of(gift.id)).toEqual([]);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "lost" },
     ]);
     expect(await status_of(gift.id)).toBe("settled");
@@ -546,7 +546,7 @@ describe("an inquiry", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "open" },
     ]);
     expect(await owed_of(gift.id)).toEqual([]);
@@ -615,7 +615,7 @@ describe("an inquiry", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await disputes_of_donation(gift.id)).toMatchObject([
+    expect(await disputes_of(test_db.current!.db, gift.id)).toMatchObject([
       { status: "inquiry_closed", closed_at: CLOSED },
     ]);
     expect(await owed_of(gift.id)).toEqual([]);

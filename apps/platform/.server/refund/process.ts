@@ -23,7 +23,7 @@ import type { DbOrTx } from "../pg/queries/helpers";
 import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
-import { credit_owed, owed_for_party } from "../pg/queries/owed";
+import { credit_owed, owed_for_party, owed_total } from "../pg/queries/owed";
 import type { MatchEvent } from "../pg/schema/match";
 import { apply_refund_plan, type OwedSource, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
@@ -247,7 +247,7 @@ export async function process_refund(
 
       const { owed, commission_in_flight: c } = res;
       for (const o of owed) {
-        const usd = o.received_usd + o.fee_processing_usd + o.fee_dispute_usd;
+        const usd = owed_total(o);
         if (o.npo_id !== null) {
           owed_msgs.push(
             `$${humanize(usd)} recorded as owed by ${g.dist.to_name ?? "its npo"} (npo ${g.dist.to_id}), to recover from its future grants — ${res.reasons.join("; ")}`

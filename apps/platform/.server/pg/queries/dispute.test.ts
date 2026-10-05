@@ -6,15 +6,11 @@ import {
   expect,
   test,
 } from "vitest";
+import { disputes_of } from "#/__tests__/fixtures/card-gift";
 import { donation_disputes } from "../schema/dispute";
 import { donations } from "../schema/donation";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
-import {
-  dispute_close,
-  dispute_get,
-  dispute_open,
-  disputes_of_donation,
-} from "./dispute";
+import { dispute_close, dispute_get, dispute_open } from "./dispute";
 import type { DbOrTx } from "./helpers";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
@@ -74,7 +70,7 @@ describe("dispute_open", () => {
   test("records the dispute open on its gift", async () => {
     await dispute_open(as_db(t.db), opened);
 
-    expect(await disputes_of_donation(DON, as_db(t.db))).toEqual([
+    expect(await disputes_of(t.db, DON)).toEqual([
       {
         id: "du_1",
         donation_id: DON,
@@ -96,7 +92,7 @@ describe("dispute_open", () => {
       { status: "open", inserted: true },
       { status: "open", inserted: false },
     ]);
-    expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
+    expect(await disputes_of(t.db, DON)).toMatchObject([
       { id: "du_1", status: "open", opened_at: OPENED },
     ]);
   });
@@ -129,7 +125,7 @@ describe("dispute_close", () => {
         closed_at: CLOSED,
       });
 
-      expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
+      expect(await disputes_of(t.db, DON)).toMatchObject([
         { id: "du_1", status, opened_at: OPENED, closed_at: CLOSED },
       ]);
     }
@@ -148,7 +144,7 @@ describe("dispute_close", () => {
       closed_at: "2026-10-21T12:00:00.000Z",
     });
 
-    expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
+    expect(await disputes_of(t.db, DON)).toMatchObject([
       { status: "lost", closed_at: CLOSED },
     ]);
   });
@@ -165,7 +161,7 @@ describe("dispute_close", () => {
       status: "won",
       inserted: false,
     });
-    expect(await disputes_of_donation(DON, as_db(t.db))).toMatchObject([
+    expect(await disputes_of(t.db, DON)).toMatchObject([
       { status: "won", closed_at: CLOSED },
     ]);
   });
@@ -177,7 +173,7 @@ describe("dispute_close", () => {
       closed_at: CLOSED,
     });
 
-    expect(await disputes_of_donation(DON, as_db(t.db))).toEqual([
+    expect(await disputes_of(t.db, DON)).toEqual([
       {
         id: "du_1",
         donation_id: DON,

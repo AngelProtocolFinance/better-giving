@@ -26,6 +26,11 @@ import type { DbOrTx, IPage } from "./helpers";
 
 export type IOwed = typeof owed_amounts.$inferSelect;
 
+/** what a row records as owed, before anything settles it */
+export const owed_total = (
+  o: Pick<IOwed, "received_usd" | "fee_processing_usd" | "fee_dispute_usd">
+): number => o.received_usd + o.fee_processing_usd + o.fee_dispute_usd;
+
 export type OwedParty =
   | { npo_id: number }
   | { referrer_user: string }
@@ -47,7 +52,7 @@ export interface IOwedRecord {
 const grown = (col: AnyPgColumn) =>
   sql`GREATEST(${col}, excluded.${sql.identifier(col.name)})`;
 
-const owed_total = sql`${owed_amounts.received_usd} + ${owed_amounts.fee_processing_usd} + ${owed_amounts.fee_dispute_usd}`;
+const owed_total_sql = sql`${owed_amounts.received_usd} + ${owed_amounts.fee_processing_usd} + ${owed_amounts.fee_dispute_usd}`;
 
 export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
   const [row] = await tx
@@ -108,7 +113,7 @@ export async function credit_owed(
 ): Promise<IOwed | null> {
   const usd =
     c.usd === undefined
-      ? sql`${owed_total} - ${owed_amounts.credited_back_usd} - ${owed_amounts.written_off_usd}`
+      ? sql`${owed_total_sql} - ${owed_amounts.credited_back_usd} - ${owed_amounts.written_off_usd}`
       : sql`${finite(c.usd, "credit_owed usd")}::numeric`;
   return put_entry(tx, "credit", party_row(c), c, usd);
 }

@@ -165,3 +165,12 @@ export async function balance_of(db: Db, npo_id: number) {
     .where(eq(npos.id, npo_id));
   return (row?.liq ?? 0) + (row?.cash ?? 0);
 }
+
+/** the gift's disputes on record, by provider id */
+export function disputes_of(db: Db, donation_id: string) {
+  return db
+    .select()
+    .from(donation_disputes)
+    .where(eq(donation_disputes.donation_id, donation_id))
+    .orderBy(donation_disputes.id);
+}

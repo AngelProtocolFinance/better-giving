@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { donation_disputes } from "../schema/dispute";
 import type { DbOrTx } from "./helpers";
@@ -71,15 +71,4 @@ export async function dispute_get(
     .from(donation_disputes)
     .where(eq(donation_disputes.id, id));
   return row;
-}
-
-export async function disputes_of_donation(
-  donation_id: string,
-  tx: DbOrTx = db
-): Promise<IDispute[]> {
-  return tx
-    .select()
-    .from(donation_disputes)
-    .where(eq(donation_disputes.donation_id, donation_id))
-    .orderBy(asc(donation_disputes.opened_at));
 }

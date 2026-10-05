@@ -28,7 +28,7 @@ export const donation_disputes = pgTable(
       sql`(${t.status} = 'open') = (${t.closed_at} IS NULL)`
     ),
     check("donation_disputes_id_check", sql`${t.id} <> ''`),
-    // `disputes_of_donation`'s read
+    // the donation_id fk's: a donation's delete or key change looks its disputes up by it
     index("donation_disputes_donation_id_idx").on(t.donation_id),
   ]
 );
