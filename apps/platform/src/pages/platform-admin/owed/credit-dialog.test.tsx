@@ -31,7 +31,14 @@ describe("credit dialog", () => {
       );
     const usd = screen.getByLabelText("Amount (USD)");
     await screen.getByLabelText("Reason").fill("payout cash share");
-    await screen.getByLabelText("Reference").fill("po_77");
+    const ref = screen.getByLabelText("Reference");
+    // the action refuses a reference this row has already been credited under
+    await expect
+      .element(ref)
+      .toHaveAccessibleDescription(
+        /Each credit on this row needs its own reference/
+      );
+    await ref.fill("po_77");
 
     for (const bad of ["53.21", "0", "-5", "abc"]) {
       await usd.fill(bad);

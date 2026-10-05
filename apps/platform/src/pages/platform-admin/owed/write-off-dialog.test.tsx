@@ -106,19 +106,4 @@ describe("write-off dialog", () => {
       .element(screen.getByRole("button", { name: "Write off", exact: true }))
       .toHaveAccessibleDescription("Row is already settled");
   });
-
-  test("a remainder says the row still owes it, not that it is settled", async () => {
-    const p = dialog_props({ remainder_usd: 12.5 });
-    const screen = await render(<WriteOffDialog {...p} />);
-    const note = screen.getByText(
-      "The write-off went through, but this row still owes $12.50."
-    );
-    await expect.element(note).toBeVisible();
-    await expect.element(note).toHaveFocus();
-    expect(
-      screen.getByRole("button", { name: "Write off", exact: true }).query()
-    ).toBeNull();
-    press(screen.getByRole("button", { name: "Close" }).element());
-    expect(p.on_close).toHaveBeenCalledOnce();
-  });
 });

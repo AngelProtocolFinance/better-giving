@@ -1,9 +1,7 @@
-import { Actions, Field, Modal } from "@better-giving/ui";
+import { Field, Modal } from "@better-giving/ui";
 import { valibotResolver } from "@hookform/resolvers/valibot";
-import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import * as v from "valibot";
-import { humanize } from "@/helpers/decimal";
 import { DialogActions } from "./dialog-actions";
 import { RowSummary } from "./row-summary";
 import type { IOwedRow } from "./types";
@@ -20,15 +18,11 @@ export interface IWriteOffDialog {
   submitting: boolean;
   /** the refusal the last request came back with */
   error?: string;
-  /** set when the write-off went through and the row still owes this much */
-  remainder_usd?: number;
   on_submit: (values: IWriteOff) => void;
   on_close: () => void;
   /** see `Modal`'s `returnFocusFallback` */
   return_focus_fallback?: () => HTMLElement | null;
 }
-
-const HEADING = "Write off amount owed";
 
 const schema = v.object({
   reason: v.pipe(v.string(), v.trim(), v.nonEmpty("required")),
@@ -50,19 +44,16 @@ export function WriteOffDialog({
       returnFocusFallback={return_focus_fallback}
       classes="bg-panel"
     >
-      {row &&
-        (rest.remainder_usd != null ? (
-          <Remainder usd={rest.remainder_usd} on_close={on_close} />
-        ) : (
-          <Body
-            key={row.id}
-            row={row}
-            submitting={submitting}
-            on_close={on_close}
-            error={rest.error}
-            on_submit={rest.on_submit}
-          />
-        ))}
+      {row && (
+        <Body
+          key={row.id}
+          row={row}
+          submitting={submitting}
+          on_close={on_close}
+          error={rest.error}
+          on_submit={rest.on_submit}
+        />
+      )}
     </Modal>
   );
 }
@@ -92,7 +83,7 @@ function Body({ row, submitting, error, on_submit, on_close }: IBody) {
     >
       <div className="p-6 sm:p-8 grid gap-4">
         <div>
-          <h3 className="text-lg font-bold mb-1">{HEADING}</h3>
+          <h3 className="text-lg font-bold mb-1">Write off amount owed</h3>
           <p className="text-sm text-gray-11">
             Sets what this row owes to $0 and books it as a loss.
           </p>
@@ -117,36 +108,5 @@ function Body({ row, submitting, error, on_submit, on_close }: IBody) {
         on_close={on_close}
       />
     </form>
-  );
-}
-
-interface IRemainder {
-  usd: number;
-  on_close: () => void;
-}
-
-function Remainder({ usd, on_close }: IRemainder) {
-  const note = useRef<HTMLParagraphElement>(null);
-  // the panel replaces the submit, which takes focus with it
-  useEffect(() => note.current?.focus(), []);
-
-  return (
-    <div>
-      <div className="p-6 sm:p-8 grid gap-4">
-        <h3 className="text-lg font-bold">{HEADING}</h3>
-        <p
-          ref={note}
-          tabIndex={-1}
-          className="p-3 rounded border border-warning bg-warning-subtle text-sm text-warning-subtle-fg"
-        >
-          The write-off went through, but this row still owes ${humanize(usd)}.
-        </p>
-      </div>
-      <Actions band>
-        <button type="button" onClick={on_close} className="btn btn-primary">
-          Close
-        </button>
-      </Actions>
-    </div>
   );
 }

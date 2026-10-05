@@ -135,7 +135,7 @@ function Body({ row, submitting, error, on_submit, on_close }: IBody) {
         <Field
           {...register("ref")}
           label="Reference"
-          sub="What the credit answers to, such as a payout or transfer id. A second credit under the same reference adds nothing."
+          sub="What the credit answers to, such as a payout or transfer id. Each credit on this row needs its own reference."
           required
           classes={{ input: "w-full" }}
           error={errors.ref?.message}
