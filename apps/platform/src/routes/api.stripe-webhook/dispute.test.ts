@@ -431,7 +431,7 @@ describe("a fund gift across two nonprofits", () => {
 });
 
 describe("a second dispute on the same payment", () => {
-  it("is recorded owing nothing more, and ops told to handle it by hand", async () => {
+  it("is recorded owing nothing more, and ops told its rows stand under the first and a win credits its share back", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await deliver(event_of("charge.dispute.created", dispute_of(gift)));
     const first = await owed_of(gift.id);
@@ -448,7 +448,9 @@ describe("a second dispute on the same payment", () => {
     const [, flagged, ...rest] = notices();
     expect(rest).toEqual([]);
     expect(flagged.payload.alert.body).toMatch(
-      new RegExp(`second dispute.*du_${gift.id}\\b.*by hand`)
+      new RegExp(
+        `second dispute.*stands under du_${gift.id}\\b.*a win of it credits that share back`
+      )
     );
   });
 });

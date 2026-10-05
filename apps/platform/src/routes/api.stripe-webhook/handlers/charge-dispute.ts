@@ -237,7 +237,7 @@ export async function handle_dispute_opened(event: DisputeEvent) {
   }
   if (res.prior_refs.length > 0 && sighted) {
     await notify_opened(event, don.id, `${dispute.id}_prior`, [
-      `a second dispute on this payment: what is owed stands under ${res.prior_refs.join(", ")}, and nothing was added for this one, nor will its win credit anything. handle it by hand.`,
+      `a second dispute on this payment: what is owed stands under ${res.prior_refs.join(", ")}, recorded before this dispute; this dispute's share is merged into it, and a win of it credits that share back.`,
     ]);
   }
 
