@@ -31,6 +31,9 @@ export interface ShareTaken extends OwedSource {
   refunds?: { id: string; amount: number }[];
   /** what the provider charged for the dispute, in usd; 0 when none */
   fee_dispute_usd: number;
+  /** the gift's lost disputes `f` counts: once recorded, the gift's
+   * refunded share holds them */
+  lost?: string[];
 }
 
 export interface ShareRecorded {
@@ -79,14 +82,15 @@ export async function record_share(s: ShareTaken): Promise<ShareRecorded> {
         refunded_share: sql`GREATEST(COALESCE(${donations.refunded_share}, 0), ${f})`,
       })
       .where(eq(donations.id, s.donation_id));
-    // a chargeback lost under a dispute on record: refunded_share now holds
-    // it, so a later dispute's open doesn't count that dispute again
-    if (s.source === "dispute") {
-      await dispute_loss_recorded(tx, {
-        id: s.source_ref,
-        donation_id: s.donation_id,
-        now,
-      });
+    // a chargeback lost under a dispute on record, or a lost dispute this
+    // refund counts: refunded_share now holds it, so a later open or refund
+    // doesn't count that dispute again
+    const lost_disputes = [
+      ...(s.source === "dispute" ? [s.source_ref] : []),
+      ...(s.lost ?? []),
+    ];
+    for (const id of lost_disputes) {
+      await dispute_loss_recorded(tx, { id, donation_id: s.donation_id, now });
     }
 
     const names = new Map(ds.map((d) => [d.to_id, d.to_name]));

@@ -79,10 +79,13 @@ export async function dispute_record_share(
 export async function disputes_lost_of(
   tx: DbOrTx,
   donation_id: string,
-  except: string
-): Promise<{ share: number; fee_usd: number; loss_recorded: boolean }[]> {
+  except?: string
+): Promise<
+  { id: string; share: number; fee_usd: number; loss_recorded: boolean }[]
+> {
   const rows = await tx
     .select({
+      id: donation_disputes.id,
       share: donation_disputes.share,
       fee_usd: donation_disputes.fee_usd,
       loss_recorded_at: donation_disputes.loss_recorded_at,
@@ -92,11 +95,12 @@ export async function disputes_lost_of(
       and(
         eq(donation_disputes.donation_id, donation_id),
         eq(donation_disputes.status, "lost"),
-        ne(donation_disputes.id, except),
+        except === undefined ? undefined : ne(donation_disputes.id, except),
         isNotNull(donation_disputes.share)
       )
     );
   return rows.map((r) => ({
+    id: r.id,
     share: r.share ?? 0,
     fee_usd: r.fee_usd ?? 0,
     loss_recorded: r.loss_recorded_at !== null,

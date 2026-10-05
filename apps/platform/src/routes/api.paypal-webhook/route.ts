@@ -914,7 +914,6 @@ async function dispute_created(ev: WebhookEvent): Promise<Response> {
     rail: "paypal",
     dispute_id: d.dispute_id,
     opened_at: d.create_time ?? new Date().toISOString(),
-    share,
     disputed,
     fee_usd: fee.usd,
   });

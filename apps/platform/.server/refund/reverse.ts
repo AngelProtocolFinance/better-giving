@@ -4,6 +4,8 @@ import { humanize } from "@/helpers/decimal";
 import { msg } from "@/queue";
 import { stage } from "../env";
 import { enqueue } from "../kit/queue";
+import { db } from "../pg/db";
+import { disputes_lost_of } from "../pg/queries/dispute";
 import { dists_for_refund } from "../pg/queries/dist";
 import { donation_get } from "../pg/queries/donation";
 import { record_share } from "./partial";
@@ -58,7 +60,9 @@ export interface ChargeReversal {
   source: ReversalSource;
   /** how much of the charge is taken back so far, this event included. the
    * whole reverses the gift; less records each party's share of it as owed.
-   * null when the provider can't say: nothing is reversed, ops told */
+   * a refund's counts the refunds only: the disputes lost on the gift are
+   * added from their records. null when the provider can't say: nothing is
+   * reversed, ops told */
   share: Share | null;
   /** what the provider charged for the dispute, in usd. a share owes it in
    * full; a full loss owes what the dispute's open recorded */
@@ -209,7 +213,17 @@ export async function reverse_charge(
   if (loaded.status !== "reversible") return unreversible(loaded);
   const { don } = loaded;
 
-  const f = r.share && fraction_of(r.share);
+  // a refund's share counts refunds; what disputes took is on record
+  const lost =
+    r.source === "dispute" || !r.share
+      ? []
+      : await disputes_lost_of(db, don.id);
+  const share = r.share && {
+    taken:
+      r.share.taken + lost.reduce((sum, l) => sum + l.share, 0) * r.share.of,
+    of: r.share.of,
+  };
+  const f = share && fraction_of(share);
   if (f === null) {
     // awaited: a lost notice fails the delivery, so the provider redelivers
     // it. keyed on the event, so the redelivery posts one notice
@@ -242,7 +256,14 @@ export async function reverse_charge(
     );
     return { status: "held" };
   }
-  if (partial) return reverse_share(r, don.id, f);
+  if (partial) {
+    return reverse_share(
+      r,
+      don.id,
+      f,
+      lost.map((l) => l.id)
+    );
+  }
 
   // `r.donation_id` may be the v1 id `donation_get` also matches
   const graphs = await dists_for_refund(don.id);
@@ -286,11 +307,13 @@ export async function reverse_charge(
 async function reverse_share(
   r: ChargeReversal,
   donation_id: string,
-  f: number
+  f: number,
+  lost: string[]
 ): Promise<ReversalResult> {
   const res = await record_share({
     donation_id,
     f,
+    lost,
     of: r.share!.of,
     refunds: r.refunds,
     fee_dispute_usd: r.dispute_fee_usd ?? 0,
