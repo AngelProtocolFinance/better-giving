@@ -80,7 +80,13 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
   return row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
 }
 
-export type OwedCreditReason = "payout_cancelled" | "transfer_unfunded";
+export type OwedCreditReason =
+  | "payout_cancelled"
+  | "transfer_unfunded"
+  /** a lost dispute's reversal took it back from the npo's balances or
+   * pending payout, after the dispute's open had recorded it as owed */
+  | "dispute_reversed"
+  | "dispute_won";
 
 export interface IOwedCredit {
   donation_id: string;

@@ -19,9 +19,11 @@ import {
   donation_lock,
   donation_update,
 } from "../pg/queries/donation";
+import type { DbOrTx } from "../pg/queries/helpers";
 import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
+import { credit_owed, owed_for_party } from "../pg/queries/owed";
 import type { MatchEvent } from "../pg/schema/match";
 import { apply_refund_plan, type OwedSource, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
@@ -66,6 +68,29 @@ function dist_is_reversed(d: { status: string; refund_status: string | null }) {
     (!!d.refund_status && SKIP_STATUSES.has(d.refund_status))
   );
 }
+
+/** whether this dispute's open recorded the party's row: what the npo owes
+ * from it was taken then, so the reversal's own take comes off it */
+async function recorded_at_open(
+  tx: DbOrTx,
+  donation_id: string,
+  party: { npo_id: number },
+  src: OwedSource
+): Promise<boolean> {
+  if (src.source !== "dispute") return false;
+  const row = await owed_for_party(donation_id, party, tx);
+  return row?.source === "dispute" && row.source_ref === src.source_ref;
+}
+
+/** usd the plan takes back from the npo's balances and pending payout */
+const taken_from_npo = (plan: RefundPlan): number =>
+  plan.effects.reduce(
+    (sum, e) =>
+      e.kind === "balance_update"
+        ? sum + e.deltas.liq + e.deltas.lock + e.deltas.cash
+        : sum,
+    0
+  );
 
 /** project a rich DistRefundGraph + fetched npo/nav into the pure calc inputs */
 function project_inputs(
@@ -176,7 +201,21 @@ export async function process_refund(
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
       if (!cur || dist_is_reversed(cur)) return { skipped: true } as const;
+      const party = { npo_id: g.dist.to_id ?? 0 };
+      // read before apply, whose loss path records a row of its own
+      const opened = await recorded_at_open(tx, donation_id, party, src);
       const applied = await apply_refund_plan(tx, plan, src);
+      const taken = taken_from_npo(plan);
+      if (opened && taken > 0) {
+        await credit_owed(tx, {
+          donation_id,
+          party,
+          usd: taken,
+          reason: "dispute_reversed",
+          ref: `${src.source_ref}:${g.dist.id}`,
+          now: new Date().toISOString(),
+        });
+      }
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
       });

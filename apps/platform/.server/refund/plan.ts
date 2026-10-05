@@ -126,7 +126,7 @@ export interface RefundPlan {
 
 /** the processing fee a dist cost beyond its `net`, in usd. a fee allowance
  * credits it into `net` (`credit_fa` in `lib/settlement/plan.ts`), so it is 0 then */
-const fee_processing_usd = (
+export const fee_processing_usd = (
   d: Pick<RefundDistInput, "fee_processing" | "fee_allowance">
 ): number => (d.fee_allowance ? 0 : d.fee_processing);
 

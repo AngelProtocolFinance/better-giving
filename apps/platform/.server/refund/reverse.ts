@@ -109,6 +109,29 @@ export type ReversalResult =
       failures: string[];
     };
 
+export type Unreversible = Extract<
+  ReversalResult,
+  { status: "already_reversed" } | { reason: "no_donation" | "wrong_rail" }
+>;
+
+/** the gift a reversal-side event acts on, or why it acts on none: no such
+ * gift, not paid on `rail`, or its money already taken back */
+export async function load_reversible(
+  donation_id: string,
+  rail: Rail
+): Promise<{ status: "reversible"; don: IDonation } | Unreversible> {
+  const don = await donation_get(donation_id);
+  if (!don) return { status: "failed", reason: "no_donation" };
+  if (rail_of(don.via) !== rail) {
+    return { status: "failed", reason: "wrong_rail" };
+  }
+  const reversed = reversed_statuses.find((s) => s === don.status);
+  if (reversed) {
+    return { status: "already_reversed", donation_status: reversed };
+  }
+  return { status: "reversible", don };
+}
+
 const PARTIAL_REFUND = {
   title: "Partial Refund Not Reversed",
   action:
@@ -137,15 +160,9 @@ const NOT_REVERSED: Record<ReversalSource, { title: string; action: string }> =
 export async function reverse_charge(
   r: ChargeReversal
 ): Promise<ReversalResult> {
-  const don = await donation_get(r.donation_id);
-  if (!don) return { status: "failed", reason: "no_donation" };
-  if (rail_of(don.via) !== r.rail) {
-    return { status: "failed", reason: "wrong_rail" };
-  }
-  const reversed = reversed_statuses.find((s) => s === don.status);
-  if (reversed) {
-    return { status: "already_reversed", donation_status: reversed };
-  }
+  const loaded = await load_reversible(r.donation_id, r.rail);
+  if (loaded.status !== "reversible") return loaded;
+  const { don } = loaded;
 
   if (r.amount !== undefined) {
     const { title, action } = NOT_REVERSED[r.source];

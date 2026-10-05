@@ -2,6 +2,7 @@ export * from "./auth";
 export * from "./bal-tx";
 export * from "./banking";
 export * from "./country";
+export * from "./dispute";
 export * from "./dist";
 export * from "./donation";
 export * from "./donation-message";
