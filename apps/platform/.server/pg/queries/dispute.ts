@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { db } from "../db";
 import { donation_disputes } from "../schema/dispute";
 import type { DbOrTx } from "./helpers";
@@ -162,6 +162,29 @@ export async function dispute_claim_prior_loss(
     .set({ loss_recorded_at: d.now })
     .where(eq(donation_disputes.id, d.id));
   return true;
+}
+
+/** the gift's latest dispute whose filing recorded a share, open or lost,
+ * that no chargeback has recorded its loss under yet: the dispute a
+ * chargeback naming none belongs to */
+export async function dispute_awaiting_loss(
+  donation_id: string,
+  tx: DbOrTx = db
+): Promise<string | undefined> {
+  const [row] = await tx
+    .select({ id: donation_disputes.id })
+    .from(donation_disputes)
+    .where(
+      and(
+        eq(donation_disputes.donation_id, donation_id),
+        inArray(donation_disputes.status, ["open", "lost"]),
+        isNotNull(donation_disputes.share),
+        isNull(donation_disputes.loss_recorded_at)
+      )
+    )
+    .orderBy(desc(donation_disputes.opened_at))
+    .limit(1);
+  return row?.id;
 }
 
 export async function dispute_get(

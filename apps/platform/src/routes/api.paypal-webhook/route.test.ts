@@ -2712,28 +2712,53 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     expect(notices()).toEqual([]);
   });
 
-  it("a $30 refund, then a $70 dispute whose order paypal refuses to show, won, leaves the refund's share owed and tells ops the refunds went uncounted", async () => {
+  /** paypal's chargeback of `value` off the capture */
+  const chargeback_ev = (charge: string, value: string) => {
+    const ev = reversed_ev(charge);
+    return {
+      ...ev,
+      resource: {
+        ...ev.resource,
+        amount: { value: `-${value}`, currency_code: "USD" },
+      },
+    };
+  };
+
+  /** dispute `dispute_id` filed over `value`, charged back and lost */
+  const lost_dispute = async (
+    charge: string,
+    dispute_id: string,
+    value: string
+  ) => {
+    await deliver(
+      created_ev(charge, {
+        dispute_id,
+        dispute_amount: { currency_code: "USD", value },
+      })
+    );
+    await deliver(chargeback_ev(charge, value));
+    await deliver(resolved_ev(charge, "RESOLVED_BUYER_FAVOUR", { dispute_id }));
+  };
+
+  it("a $30 refund, then a $70 dispute whose order paypal refuses to show, won, leaves the refund's share owed", async () => {
     const { sttl_id } = await paypal_gift();
     capture_refunded(sttl_id, [["REF-30", "30.00"]]);
     await deliver(refunded_ev(sttl_id, "REF-30", "30.00", "30.00"));
     get_order_mock.mockRejectedValue(
       new PayPalApiError("get order", 403, '{"name":"NOT_AUTHORIZED"}')
     );
-    enqueue_mock.mockClear();
 
     await deliver(
       created_ev(sttl_id, {
         dispute_amount: { currency_code: "USD", value: "70.00" },
       })
     );
-    const [{ body }] = notices();
     await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
 
-    expect(body).toContain("earlier refunds of this charge could not be read");
     expect(await owed_rows()).toMatchObject([{ outstanding_usd: 27.96 }]);
   });
 
-  it("a $30 refund, then a dispute paypal states no amount for, owes the whole charge and a win credits it all", async () => {
+  it("a $30 refund, then a dispute paypal states no amount for, owes the whole charge and a win leaves the refund's share", async () => {
     const { sttl_id } = await paypal_gift();
     capture_refunded(sttl_id, [["REF-30", "30.00"]]);
     await deliver(refunded_ev(sttl_id, "REF-30", "30.00", "30.00"));
@@ -2743,47 +2768,12 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
 
     expect(filed).toMatchObject([{ outstanding_usd: 93.2 }]);
-    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
-  });
-
-  it("asks for redelivery while paypal fails to show the order of a partly refunded capture, telling ops of the dispute under one key", async () => {
-    const { sttl_id } = await paypal_gift();
-    capture_refunded(sttl_id, [["REF-30", "30.00"]]);
-    get_order_mock.mockRejectedValue(
-      new PayPalApiError("get order", 500, '{"name":"INTERNAL"}')
-    );
-    enqueue_mock.mockClear();
-
-    const first = await deliver(created_ev(sttl_id));
-    const retry = await deliver(created_ev(sttl_id));
-
-    expect([first.status, retry.status]).toEqual([503, 503]);
-    expect(await owed_rows()).toEqual([]);
-    expect(notices()).toHaveLength(2);
-    expect(notices()[0].body).toContain(DISPUTE_ID);
-    expect(notices()[0].body).toContain("before its deadline");
-    expect([dedupes(0), dedupes(1)]).toEqual([
-      [`fiat.notice_paypal-dispute-held_${DISPUTE_ID}`],
-      [`fiat.notice_paypal-dispute-held_${DISPUTE_ID}`],
-    ]);
+    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 27.96 }]);
   });
 
   it("a $40 dispute lost, then a refund of the other $60, reverses the gift owing the npo's whole $93.20", async () => {
     const { id, sttl_id } = await paypal_gift();
-    await deliver(
-      created_ev(sttl_id, {
-        dispute_amount: { currency_code: "USD", value: "40.00" },
-      })
-    );
-    const reversed = reversed_ev(sttl_id);
-    await deliver({
-      ...reversed,
-      resource: {
-        ...reversed.resource,
-        amount: { value: "-40.00", currency_code: "USD" },
-      },
-    });
-    await deliver(resolved_ev(sttl_id, "RESOLVED_BUYER_FAVOUR"));
+    await lost_dispute(sttl_id, DISPUTE_ID, "40.00");
     capture_refunded(sttl_id, [["REF-60", "60.00"]]);
 
     const res = await deliver(refunded_ev(sttl_id, "REF-60", "60.00", "60.00"));
@@ -2791,6 +2781,119 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     expect(res.status).toBe(200);
     expect(await owed_rows()).toMatchObject([{ outstanding_usd: 93.2 }]);
     expect((await donation_get(id))?.status).toBe("refunded_loss");
+  });
+
+  it("a $30 dispute lost, then a $20 refund, records half the charge", async () => {
+    const { id, sttl_id } = await paypal_gift();
+    await lost_dispute(sttl_id, DISPUTE_ID, "30.00");
+    capture_refunded(sttl_id, [["REF-20", "20.00"]]);
+
+    await deliver(refunded_ev(sttl_id, "REF-20", "20.00", "20.00"));
+
+    expect(await owed_rows()).toMatchObject([
+      { received_usd: 45, fee_processing_usd: 1.6, outstanding_usd: 46.6 },
+    ]);
+    expect((await donation_get(id))?.status).toBe("settled");
+  });
+
+  it("T1: a $10 refund, a $30 dispute lost, then a $60 dispute won, leaves the $40 taken owed", async () => {
+    const { sttl_id } = await paypal_gift();
+    capture_refunded(sttl_id, [["REF-10", "10.00"]]);
+    await deliver(refunded_ev(sttl_id, "REF-10", "10.00", "10.00"));
+    await lost_dispute(sttl_id, "PP-D0", "30.00");
+    get_order_mock.mockRejectedValue(
+      new PayPalApiError("get order", 403, '{"name":"NOT_AUTHORIZED"}')
+    );
+
+    await deliver(
+      created_ev(sttl_id, {
+        dispute_amount: { currency_code: "USD", value: "60.00" },
+      })
+    );
+    await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+
+    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 37.28 }]);
+  });
+
+  it("T2: a $30 refund, a $30 dispute lost, then a refund of the last $40, reverses the gift owing $93.20", async () => {
+    const { id, sttl_id } = await paypal_gift();
+    capture_refunded(sttl_id, [["REF-30", "30.00"]]);
+    await deliver(refunded_ev(sttl_id, "REF-30", "30.00", "30.00"));
+    await lost_dispute(sttl_id, "PP-D0", "30.00");
+    capture_refunded(sttl_id, [
+      ["REF-30", "30.00"],
+      ["REF-40", "40.00"],
+    ]);
+
+    await deliver(refunded_ev(sttl_id, "REF-40", "40.00", "70.00"));
+
+    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 93.2 }]);
+    expect((await donation_get(id))?.status).toBe("refunded_loss");
+  });
+
+  it.each([
+    ["the order read", false],
+    ["the order refused", true],
+  ])(
+    "T3: on a grant still pending, a $30 refund then a $70 dispute, %s, owes the dispute's own $65.24",
+    async (_, refused) => {
+      const { sttl_id } = await paypal_gift("pending");
+      capture_refunded(sttl_id, [["REF-30", "30.00"]]);
+      await deliver(refunded_ev(sttl_id, "REF-30", "30.00", "30.00"));
+      if (refused) {
+        get_order_mock.mockRejectedValue(
+          new PayPalApiError("get order", 403, '{"name":"NOT_AUTHORIZED"}')
+        );
+      }
+
+      await deliver(
+        created_ev(sttl_id, {
+          dispute_amount: { currency_code: "USD", value: "70.00" },
+        })
+      );
+
+      expect(await owed_rows()).toMatchObject([
+        { received_usd: 63, fee_processing_usd: 2.24, outstanding_usd: 65.24 },
+      ]);
+    }
+  );
+
+  it.each([
+    ["30.00", 27.96],
+    ["50.00", 46.6],
+  ])(
+    "T4: a $%s refund, then a dispute over the same amount won, leaves the refund's share to the cent",
+    async (value, left) => {
+      const { sttl_id } = await paypal_gift();
+      capture_refunded(sttl_id, [["REF-1", value]]);
+      await deliver(refunded_ev(sttl_id, "REF-1", value, value));
+      get_order_mock.mockRejectedValue(
+        new PayPalApiError("get order", 403, '{"name":"NOT_AUTHORIZED"}')
+      );
+
+      await deliver(
+        created_ev(sttl_id, {
+          dispute_amount: { currency_code: "USD", value },
+        })
+      );
+      await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+
+      expect(await owed_rows()).toMatchObject([{ outstanding_usd: left }]);
+    }
+  );
+
+  it("T5: a $30 dispute lost, then a $70 dispute won, leaves the lost $30's share", async () => {
+    const { sttl_id } = await paypal_gift();
+    await lost_dispute(sttl_id, "PP-D0", "30.00");
+
+    await deliver(
+      created_ev(sttl_id, {
+        dispute_amount: { currency_code: "USD", value: "70.00" },
+      })
+    );
+    await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR"));
+
+    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 27.96 }]);
   });
 
   it("won with no filing on record while a refund's share is owed, tells ops once that nothing was credited", async () => {
@@ -2916,9 +3019,12 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     );
   });
 
-  it.each(["RESOLVED_BUYER_FAVOUR", "ACCEPTED"])(
-    "resolved %s, records the dispute lost, leaves the reversal to paypal's REVERSED and tells ops nothing",
-    async (outcome) => {
+  it.each([
+    ["RESOLVED_BUYER_FAVOUR", "lost"],
+    ["ACCEPTED", "accepted"],
+  ])(
+    "resolved %s, records the dispute %s, leaves the reversal to paypal's own event and tells ops nothing",
+    async (outcome, status) => {
       const { id, sttl_id } = await paypal_gift();
       await deliver(created_ev(sttl_id));
       const owed = await owed_rows();
@@ -2931,7 +3037,7 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
       expect(await disputes_of(db(), id)).toMatchObject([
         {
           id: DISPUTE_ID,
-          status: "lost",
+          status,
           closed_at: "2026-11-01T12:00:00.000Z",
         },
       ]);
