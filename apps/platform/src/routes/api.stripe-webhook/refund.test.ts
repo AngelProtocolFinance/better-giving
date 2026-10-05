@@ -160,6 +160,34 @@ const failed_alert = () => {
   return m ? `${m.payload.alert.title}\n${m.payload.alert.body}` : undefined;
 };
 
+/** stripe's `type` event for a chargeback of `amount` cents on the charge,
+ * its funds withdrawn with a $15 fee; `status` as stripe has it then */
+const dispute_event = (type: string, amount: number, status: string) => {
+  clock += 60;
+  return {
+    id: `evt_${++event_n}`,
+    type,
+    created: clock,
+    data: {
+      object: {
+        id: `du_${charge_of.id}`,
+        object: "dispute",
+        amount,
+        currency: "usd",
+        charge: charge_now().id,
+        payment_intent: charge_of.sttl_id,
+        reason: "fraudulent",
+        status,
+        created: clock,
+        evidence_details: { due_by: clock + 14 * 86_400 },
+        balance_transactions: [
+          { id: "txn_dsp", amount: -amount, fee: 1_500, currency: "usd" },
+        ],
+      },
+    },
+  };
+};
+
 /** verified by the mocked signature check, then handled for real */
 const deliver = async (event: object) => {
   construct_event_mock.mockReturnValue(event);
@@ -622,5 +650,36 @@ describe("the finance alert of a failed refund", () => {
         body: expect.stringMatching(/\$93\.20 credited back/),
       })
     );
+  });
+});
+
+describe("a dispute won on a charge with refunds", () => {
+  it("leaves the refund's share owed after a dispute over the rest is won", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(refund(4_000));
+    await deliver(
+      dispute_event("charge.dispute.created", 6_000, "needs_response")
+    );
+
+    await deliver(dispute_event("charge.dispute.closed", 6_000, "won"));
+
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 37.28 },
+    ]);
+    expect((await gift_of(charge_of.id))?.status).toBe("settled");
+  });
+
+  it("owes a later refund its own share, the won dispute's money being back", async () => {
+    charge_of = await seed_card_gift(db(), PAID_GRANT);
+    await deliver(
+      dispute_event("charge.dispute.created", 3_000, "needs_response")
+    );
+    await deliver(dispute_event("charge.dispute.closed", 3_000, "won"));
+
+    await deliver(refund(4_000));
+
+    expect(await owed_of(charge_of.id)).toMatchObject([
+      { outstanding_usd: 37.28 },
+    ]);
   });
 });

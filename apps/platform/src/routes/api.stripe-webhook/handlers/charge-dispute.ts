@@ -208,6 +208,7 @@ export async function handle_dispute_opened(event: DisputeEvent) {
     dispute_id: dispute.id,
     opened_at: iso(dispute.created),
     share,
+    disputed: { taken: dispute.amount, of: share.of },
     fee_usd: fee.usd,
   });
   if (res.status === "closed") return;
