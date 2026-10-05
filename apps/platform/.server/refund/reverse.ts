@@ -13,7 +13,7 @@ import { record_takes } from "./partial";
 import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
 import { fraction_of, type Share } from "./share";
-import { take_chargeback, take_refund, taken_of } from "./takes";
+import { claim_paid, take_chargeback, take_refund } from "./takes";
 
 export { type Share, WHOLE } from "./share";
 
@@ -185,23 +185,17 @@ const UNSIZED_ACTION =
 const LATER_EVENTS =
   "any hand adjustment made for these dists must be undone if the rest is refunded or lost to a dispute, which reverses the donation, or if, once the grant has gone out, a later refund or dispute records as owed the whole share taken back so far, this one included; otherwise they are debited twice. a dispute filed while the grant is still pending records only its own share, so the adjustment stands then.";
 
-const PARTIAL_REFUND = {
-  owed: "Partial Refund Recorded as Owed",
-  pending: "Partial Refund Not Reversed",
-  action: `nothing was reversed automatically for these dists. ${LATER_EVENTS}`,
+const SHARE_OWED: Record<ReversalSource, string> = {
+  refund: "Partial Refund Recorded as Owed",
+  admin: "Partial Refund Recorded as Owed",
+  dispute: "Lost Dispute: Share Recorded as Owed",
 };
 
-const SHARE_NOTICE: Record<
-  ReversalSource,
-  { owed: string; pending: string; action: string }
-> = {
-  refund: PARTIAL_REFUND,
-  admin: PARTIAL_REFUND,
-  dispute: {
-    owed: "Lost Dispute: Share Recorded as Owed",
-    pending: "Lost Dispute Not Reversed",
-    action: `nothing was reversed automatically for these dists: settle them by hand. ${LATER_EVENTS}`,
-  },
+/** a refund's share, which owes nothing for a dist whose grant hasn't gone
+ * out; a dispute's owes for every dist */
+const REFUND_PENDING = {
+  title: "Partial Refund Not Reversed",
+  action: `nothing was reversed automatically for these dists. ${LATER_EVENTS}`,
 };
 
 /**
@@ -350,15 +344,24 @@ function own_refunds(
   };
 }
 
-/** whether the takes on record, with these refunds added, take the whole */
+/** whether the takes on record, with these refunds added in place of the
+ * claims they pay, take the whole */
 const refunds_take_all = (
   takes: ITake[],
   refunds: { ref: string; share: number }[]
 ) => {
-  const fresh = refunds.filter(
-    (x) => x.share > 0 && !takes.some((t) => t.ref === x.ref)
-  );
-  return taken_of(takes) + fresh.reduce((sum, x) => sum + x.share, 0) >= 1;
+  const left = takes.filter((t) => t.status === "active");
+  let taken = left.reduce((sum, t) => sum + t.share, 0);
+  for (const x of refunds) {
+    if (x.share <= 0 || takes.some((t) => t.ref === x.ref)) continue;
+    const claim = claim_paid(left, x.share);
+    if (claim) {
+      taken -= claim.share;
+      left.splice(left.indexOf(claim), 1);
+    }
+    taken += x.share;
+  }
+  return taken >= 1;
 };
 
 /** part of the charge: each party's share recorded as owed, nothing reversed */
@@ -367,7 +370,6 @@ async function notify_share(
   res: { taken: number; owed_msgs: string[]; pending: string[] }
 ): Promise<ReversalResult> {
   const { owed_msgs, pending } = res;
-  const text = SHARE_NOTICE[r.source];
   // awaited: a lost notice fails the delivery, so the provider redelivers it,
   // which records nothing more. keyed on the event, so it posts once
   await enqueue(
@@ -376,13 +378,13 @@ async function notify_share(
       alert: {
         type: "NOTICE",
         from: `${r.alert_from}-${stage}`,
-        title: pending.length > 0 ? text.pending : text.owed,
+        title: pending.length > 0 ? REFUND_PENDING.title : SHARE_OWED[r.source],
         body: [
           ...r.notice.lines,
           `${humanize(res.taken * 100)}% of the charge taken back so far; the donation is not reversed.`,
           ...owed_msgs.map((m) => `owed: ${m}`),
           ...pending.map((m) => `not owed: ${m}`),
-          ...(pending.length > 0 ? [text.action] : []),
+          ...(pending.length > 0 ? [REFUND_PENDING.action] : []),
         ].join("\n"),
       },
     })

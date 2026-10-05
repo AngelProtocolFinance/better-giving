@@ -5,7 +5,7 @@ import { owed_total } from "../pg/queries/owed";
 import { type ITake, takes_of } from "../pg/queries/take";
 import type { OwedSource } from "./apply";
 import { grant_went_out, settled_dists_locked } from "./share";
-import { mirror_refunded_share, move_owed, taken_of } from "./takes";
+import { move_owed, taken_of } from "./takes";
 
 export interface TakesPut {
   donation_id: string;
@@ -52,7 +52,6 @@ export async function record_takes(s: TakesPut): Promise<TakesRecorded> {
     const taken = taken_of(after);
     if (taken >= 1) return { status: "whole" };
 
-    await mirror_refunded_share(tx, s.donation_id, after);
     const moves = await move_owed(tx, {
       donation_id: s.donation_id,
       ds,

@@ -2652,6 +2652,27 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
     }
   );
 
+  it("a $30 chargeback won before paypal delivers its filing credits it back, and the late filing records nothing", async () => {
+    const { sttl_id } = await paypal_gift();
+    const ev = refunded_ev(sttl_id, "REV-30", "30.00", "30.00");
+    await deliver({
+      ...ev,
+      event_type: "PAYMENT.CAPTURE.REVERSED",
+      resource: {
+        ...ev.resource,
+        amount: { value: "-30.00", currency_code: "USD" },
+      },
+    });
+    const reversed = await owed_rows();
+    const thirty = { dispute_amount: { currency_code: "USD", value: "30.00" } };
+
+    await deliver(resolved_ev(sttl_id, "RESOLVED_SELLER_FAVOUR", thirty));
+    await deliver(created_ev(sttl_id, thirty));
+
+    expect(reversed).toMatchObject([{ outstanding_usd: 27.96 }]);
+    expect(await owed_rows()).toMatchObject([{ outstanding_usd: 0 }]);
+  });
+
   it("resolved NONE after a refund and a dispute grew the refund's row, tells ops what stays owed", async () => {
     const { sttl_id } = await paypal_gift();
     capture_refunded(sttl_id, [["REF-30", "30.00"]]);

@@ -82,6 +82,7 @@ const on = (id: string) => ({
       alert_from: "paypal-refund",
       notice: { id: `WH-${ref}`, lines: [] },
     }),
+  /** `usd` 0: a filing that states no amount, so can't be sized */
   open: (dispute_id: string, usd: number) =>
     dispute_opened({
       donation_id: id,
@@ -102,9 +103,11 @@ const on = (id: string) => ({
       alert_from: "paypal-refund",
       notice: { id: `WH-${ref}`, lines: [] },
     }),
+  /** `usd`: the disputed amount the resolution states */
   close: (
     dispute_id: string,
-    status: "won" | "lost" | "accepted" | "inquiry_closed"
+    status: "won" | "lost" | "accepted" | "inquiry_closed",
+    usd?: number
   ) =>
     status === "lost"
       ? dispute_close(test_db.current!.db as unknown as DbOrTx, {
@@ -119,6 +122,7 @@ const on = (id: string) => ({
           rail: "stripe",
           dispute_id: `${id}:${dispute_id}`,
           status,
+          ...(usd !== undefined && { disputed: { taken: usd, of: 100 } }),
           opened_at: OPENED,
           closed_at: CLOSED,
         }),
@@ -196,6 +200,75 @@ describe("the takes ledger, in the orders the review found", () => {
 
     expect(await outstanding(id)).toEqual([27.96]);
   });
+
+  test.each([
+    ["filed", ["open", "chargeback"]],
+    ["charged back", ["chargeback", "open"]],
+  ])(
+    "M1: an unsized filing and its $40 chargeback, %s first, owe the $40, and its win nothing",
+    async (_, order) => {
+      const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+      const e = on(id);
+      for (const step of order) {
+        await (step === "open" ? e.open("D0", 0) : e.chargeback("REV-0", 40));
+      }
+      expect(await outstanding(id)).toEqual([37.28]);
+
+      await e.close("D0", "won");
+
+      expect(await outstanding(id)).toEqual([0]);
+    }
+  );
+
+  test.each([
+    [60, 55.92],
+    [50, 46.6],
+  ])(
+    "M2: a $%i claim's refund before ACCEPTED counts once and reverses nothing, as after it",
+    async (usd, owed) => {
+      const ends = [];
+      for (const refund_first of [true, false]) {
+        const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+        const e = on(id);
+        await e.open("D0", usd);
+        if (!refund_first) await e.close("D0", "accepted");
+        const res = await e.refund("R-claim", usd);
+        if (refund_first) await e.close("D0", "accepted");
+
+        expect(res.status).toBe("partial_owed");
+        ends.push(await outstanding(id));
+      }
+
+      expect(ends).toEqual([[owed], [owed]]);
+    }
+  );
+
+  test("L1: a dispute's second chargeback isn't claimed by a later filing of another part", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.open("D0", 50);
+    await e.chargeback("REV-1", 20);
+    await e.chargeback("REV-2", 30);
+    await e.close("D0", "lost");
+
+    await e.open("D1", 40);
+    expect(await outstanding(id)).toEqual([83.88]);
+    await e.close("D1", "won");
+
+    expect(await outstanding(id)).toEqual([46.6]);
+  });
+
+  test("L2: a win resolved before its late filing credits back the chargeback recorded under the reversal", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.chargeback("REV-0", 30);
+    expect(await outstanding(id)).toEqual([27.96]);
+
+    await e.close("D0", "won", 30);
+    await e.open("D0", 30);
+
+    expect(await outstanding(id)).toEqual([0]);
+  });
 });
 
 /** a seeded generator, so a failing order reproduces */
@@ -218,10 +291,15 @@ function shuffled<T>(xs: T[], next: () => number): T[] {
 
 type Step = (e: ReturnType<typeof on>) => Promise<unknown>;
 
-/** the same events in many orders: a dispute's outcome after its filing, the
- * one ordering providers keep; one event redelivered at the end */
+/** each [a, b]: a comes before b */
+type Rule = [string, string];
+
+const OUTCOME_AFTER_FILING: Rule[] = [["open", "outcome"]];
+
+/** the same events in many orders, keeping only the orderings providers keep
+ * (`rules`); one event redelivered at the end */
 describe("the takes ledger, in any order", () => {
-  const scenarios: [string, Record<string, Step>, string, number][] = [
+  const scenarios: [string, Record<string, Step>, Rule[], number][] = [
     [
       "a refund, then a dispute lost with its chargeback",
       {
@@ -230,7 +308,7 @@ describe("the takes ledger, in any order", () => {
         chargeback: (e) => e.chargeback("REV", 30),
         outcome: (e) => e.close("D", "lost"),
       },
-      "outcome",
+      OUTCOME_AFTER_FILING,
       46.6,
     ],
     [
@@ -241,7 +319,7 @@ describe("the takes ledger, in any order", () => {
         chargeback: (e) => e.chargeback("REV", 30),
         outcome: (e) => e.close("D", "won"),
       },
-      "outcome",
+      OUTCOME_AFTER_FILING,
       18.64,
     ],
     [
@@ -252,23 +330,63 @@ describe("the takes ledger, in any order", () => {
         outcome: (e) => e.close("D", "accepted"),
         claim: (e) => e.refund("R-claim", 30),
       },
-      "outcome",
+      OUTCOME_AFTER_FILING,
       46.6,
+    ],
+    [
+      // unsized, a chargeback after the win can't be told from a new loss
+      "an unsized filing and its $40 chargeback, the dispute won",
+      {
+        open: (e) => e.open("D", 0),
+        chargeback: (e) => e.chargeback("REV", 40),
+        outcome: (e) => e.close("D", "won"),
+      },
+      [...OUTCOME_AFTER_FILING, ["chargeback", "outcome"]],
+      0,
+    ],
+    [
+      "a $60 claim accepted and paid by its refund",
+      {
+        open: (e) => e.open("D", 60),
+        outcome: (e) => e.close("D", "accepted"),
+        claim: (e) => e.refund("R-claim", 60),
+      },
+      OUTCOME_AFTER_FILING,
+      55.92,
+    ],
+    [
+      // charged back after its filing, and before another's, which a
+      // chargeback naming no dispute could otherwise land on
+      "a dispute charged back in two parts and lost, then another's filing",
+      {
+        open: (e) => e.open("D", 50),
+        first: (e) => e.chargeback("REV-1", 20),
+        second: (e) => e.chargeback("REV-2", 30),
+        outcome: (e) => e.close("D", "lost"),
+        other: (e) => e.open("D1", 40),
+      },
+      [
+        ...OUTCOME_AFTER_FILING,
+        ["open", "first"],
+        ["open", "second"],
+        ["first", "other"],
+        ["second", "other"],
+        ["outcome", "other"],
+      ],
+      83.88,
     ],
   ];
 
   test.each(scenarios)(
     "%s owes the same in every order",
-    async (_, steps, after_open, owed) => {
+    async (_, steps, rules, owed) => {
       const next = rng(7);
       const names = Object.keys(steps);
+      const kept = (order: string[]) =>
+        rules.every(([a, b]) => order.indexOf(a) < order.indexOf(b));
       for (let run = 0; run < 8; run++) {
         let order = shuffled(names, next);
-        // the outcome comes after the filing
-        if (order.indexOf(after_open) < order.indexOf("open")) {
-          order = order.filter((n) => n !== after_open);
-          order.splice(order.indexOf("open") + 1, 0, after_open);
-        }
+        while (!kept(order)) order = shuffled(names, next);
         const redelivered = names[Math.floor(next() * names.length)]!;
         const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
         const e = on(id);

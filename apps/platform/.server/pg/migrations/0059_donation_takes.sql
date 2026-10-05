@@ -1,3 +1,4 @@
+-- no backfill from refunded_share or donation_disputes: production is at 0040 and preview/staging hold test data, so pre-0059 gifts start from an empty ledger
 SET LOCAL lock_timeout = '2s';--> statement-breakpoint
 CREATE TABLE "donation_takes" (
 	"id" text PRIMARY KEY DEFAULT gen_random_uuid()::text NOT NULL,

@@ -545,7 +545,12 @@ describe("reverse_charge — part of the charge, its grant paid", () => {
       .current!.db.select()
       .from(donations)
       .where(eq(donations.id, id));
-    expect([don!.status, don!.refunded_share]).toEqual(["settled", 0.4]);
+    expect(don!.status).toBe("settled");
+    const takes = await test_db
+      .current!.db.select()
+      .from(donation_takes)
+      .where(eq(donation_takes.donation_id, id));
+    expect(takes.map((t) => [t.ref, t.share])).toEqual([["re_1", 0.4]]);
   });
 
   test("the $60 that completes the charge reverses the gift and leaves the row at the full figure, with no hand adjustment to undo", async () => {

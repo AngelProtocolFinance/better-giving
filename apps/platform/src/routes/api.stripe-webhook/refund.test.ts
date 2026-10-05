@@ -49,6 +49,7 @@ const { action } = await import("./route");
 const { owed_for_donation, recover_owed } = await import("$/pg/queries/owed");
 const { donations } = await import("$/pg/schema/donation");
 const { owed_amounts } = await import("$/pg/schema/owed");
+const { donation_takes } = await import("$/pg/schema/take");
 const { PAID_GRANT, clear_card_gifts, seed_card_gift, seed_paid_commission } =
   await import("#/__tests__/fixtures/card-gift");
 
@@ -207,15 +208,20 @@ const notice_text = () =>
     .map((m) => `${m.payload.alert.title}\n${m.payload.alert.body}`)
     .join("\n");
 
+/** the gift's status, and what its active takes take back */
 const gift_of = async (donation_id: string) => {
   const [row] = await db()
-    .select({
-      status: donations.status,
-      refunded_share: donations.refunded_share,
-    })
+    .select({ status: donations.status })
     .from(donations)
     .where(eq(donations.id, donation_id));
-  return row;
+  const takes = await db()
+    .select()
+    .from(donation_takes)
+    .where(eq(donation_takes.donation_id, donation_id));
+  const taken = takes
+    .filter((t) => t.status === "active")
+    .reduce((sum, t) => sum + t.share, 0);
+  return { status: row?.status, taken };
 };
 
 /** each party's row on the gift, npos by id */
@@ -268,7 +274,7 @@ describe("a partial refund on a gift whose grant went out", () => {
     ]);
     expect(await gift_of(charge_of.id)).toEqual({
       status: "settled",
-      refunded_share: 0.4,
+      taken: 0.4,
     });
     expect(notice_text()).toMatch(/Partial Refund Recorded as Owed/);
   });
@@ -524,7 +530,7 @@ describe("a partial refund that fails after it succeeded", () => {
     ]);
     expect(await gift_of(charge_of.id)).toEqual({
       status: "settled",
-      refunded_share: 0.6,
+      taken: 0.6,
     });
   });
 
@@ -541,7 +547,7 @@ describe("a partial refund that fails after it succeeded", () => {
     expect(await owed_of(charge_of.id)).toMatchObject([{ outstanding_usd: 0 }]);
     expect(await gift_of(charge_of.id)).toEqual({
       status: "settled",
-      refunded_share: null,
+      taken: 0,
     });
   });
 

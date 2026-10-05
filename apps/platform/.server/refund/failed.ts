@@ -18,7 +18,7 @@ import {
   type LockedDist,
   scaled,
 } from "./share";
-import { mirror_refunded_share, owed_targets, taken_of } from "./takes";
+import { move_owed, type OwedMove, taken_of } from "./takes";
 
 export interface RefundFailed {
   donation_id: string;
@@ -88,28 +88,33 @@ export async function refund_failed(
       return { status: "not_recorded", donation_status };
     }
     const after = await takes_of(tx, don.id);
-    const reversed = is_reversed(donation_status);
-    if (!reversed) await mirror_refunded_share(tx, don.id, after);
-
-    const parts = reversed
-      ? reversed_parts(ds, taken_of(before), taken_of(after))
-      : settled_parts(
-          ds.filter((d) => d.status === "settled"),
+    const moves = is_reversed(donation_status)
+      ? await credit_reversed(tx, {
+          donation_id: don.id,
+          ds,
+          take,
+          from: taken_of(before),
+          to: taken_of(after),
+          now,
+        })
+      : await move_owed(tx, {
+          donation_id: don.id,
+          ds: ds.filter((d) => d.status === "settled"),
           before,
-          after
-        );
+          after,
+          src: { source: "refund", source_ref: take.ref },
+          now,
+        });
     const by_hand = ds.flatMap((d) => {
       const hand = taken_by_hand(d);
       return hand ? [`dist ${d.id} to ${dist_npo(d)}: ${hand}`] : [];
     });
 
     const credited: string[] = [];
-    for (const { party, received, fee } of parts.values()) {
-      const was = await owed_for_party(don.id, party, tx);
-      if (!was) continue;
+    for (const { party, was, row, credited: back, wanted } of moves) {
+      if (!was || !row) continue;
       const short =
-        received +
-        fee -
+        wanted -
         (owed_total(was) - was.credited_back_usd - was.written_off_usd);
       if (was.written_off_usd > 0 && short > 0.005) {
         const logs = await write_off_logs(tx, don.id, party);
@@ -119,17 +124,8 @@ export async function refund_failed(
           `${party_name(party, ds)}: $${humanize(Math.min(short, was.written_off_usd))} of the refund's share was written off, so not credited back; reverse by hand owed row ${was.id}'s write-off ${entries.join(", ")}, which still nets it off what a later refund records, and its loss log ${logs.join(", ")}`
         );
       }
-      const row = await credit_parts(
-        tx,
-        was,
-        { donation_id: don.id, party, now },
-        [
-          ["refund_failed", received, refund_failed_ref(take.ref)],
-          ["refund_failed_fee", fee, `refund_failed_fee:${take.ref}`],
-        ]
-      );
       credited.push(
-        `$${humanize(row.credited_back_usd - was.credited_back_usd)} credited back to ${party_name(party, ds)}; outstanding now $${humanize(row.outstanding_usd ?? 0)}`
+        `$${humanize(back)} credited back to ${party_name(party, ds)}; outstanding now $${humanize(row.outstanding_usd ?? 0)}`
       );
     }
     return by_hand.length > 0
@@ -158,23 +154,41 @@ async function write_off_logs(tx: DbOrTx, donation_id: string, p: OwedParty) {
   return rows.map((l) => l.id);
 }
 
-/** what the takes owed each party on a gift still settled, less what they
- * owe without the failed refund's */
-function settled_parts(
-  ds: LockedDist[],
-  before: ITake[],
-  after: ITake[]
-): Part[] {
-  const was = owed_targets(ds, before);
-  const now = owed_targets(ds, after);
-  return [...was.entries()].map(([key, b]) => {
-    const a = now.get(key);
-    return {
-      party: b.party,
-      received: b.received_usd - (a?.received_usd ?? 0),
-      fee: b.fee_processing_usd - (a?.fee_processing_usd ?? 0),
-    };
-  });
+/** on a reversed gift, credits each party back what the failed refund's
+ * share recorded, under the refund */
+async function credit_reversed(
+  tx: DbOrTx,
+  c: {
+    donation_id: string;
+    ds: LockedDist[];
+    take: ITake;
+    from: number;
+    to: number;
+    now: string;
+  }
+) {
+  const moves: OwedMove[] = [];
+  for (const { party, received, fee } of reversed_parts(c.ds, c.from, c.to)) {
+    const was = await owed_for_party(c.donation_id, party, tx);
+    if (!was) continue;
+    const row = await credit_parts(
+      tx,
+      was,
+      { donation_id: c.donation_id, party, now: c.now },
+      [
+        ["refund_failed", received, refund_failed_ref(c.take.ref)],
+        ["refund_failed_fee", fee, `refund_failed_fee:${c.take.ref}`],
+      ]
+    );
+    moves.push({
+      party,
+      was,
+      row,
+      credited: row.credited_back_usd - was.credited_back_usd,
+      wanted: received + fee,
+    });
+  }
+  return moves;
 }
 
 /** on a reversed gift, what each party owes for the share `from` that its

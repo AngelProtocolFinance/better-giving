@@ -10,12 +10,7 @@ import { type IOwed, owed_for_donation, owed_total } from "../pg/queries/owed";
 import { take_undo, takes_of } from "../pg/queries/take";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
 import { fraction_of, type Share, settled_dists_locked } from "./share";
-import {
-  mirror_refunded_share,
-  move_owed,
-  take_dispute,
-  taken_of,
-} from "./takes";
+import { dispute_take, move_owed, take_dispute, taken_of } from "./takes";
 
 export interface DisputeOpened {
   donation_id: string;
@@ -27,7 +22,9 @@ export interface DisputeOpened {
   opened_at: string;
   /** the dispute's own part of the charge, nothing else: what the open adds
    * to what the gift has on record as taken back, and what a win of it
-   * credits back. one that can't be sized is the rest of the charge */
+   * credits back. one that can't be sized claims a chargeback recorded
+   * before it, else is the rest of the charge: the open owes as much as it
+   * can, and a win credits it all back */
   disputed: Share;
   /** what the provider charged for the dispute, in usd; 0 when none */
   fee_usd: number;
@@ -98,17 +95,13 @@ export async function dispute_opened(
       (await owed_for_donation(don.id, tx)).map((o) => [o.id, owed_total(o)])
     );
     const before = await takes_of(tx, don.id);
-    // unsizable, the rest of the charge: the open owes as much as it can, and
-    // a win credits it all back
-    const own = fraction_of(d.disputed) ?? Math.max(1 - taken_of(before), 0);
     await take_dispute(tx, {
       donation_id: don.id,
       dispute_id: d.dispute_id,
-      share: own,
+      share: fraction_of(d.disputed),
       fee_usd: d.fee_usd,
     });
     const after = await takes_of(tx, don.id);
-    await mirror_refunded_share(tx, don.id, after);
     const moves = await move_owed(tx, {
       donation_id: don.id,
       ds,
@@ -154,6 +147,10 @@ export interface DisputeWon {
   /** how it closed without the buyer keeping the money from the gift: won,
    * a claim accepted that a refund pays, or an inquiry closed; `won` absent */
   status?: "won" | "accepted" | "inquiry_closed";
+  /** the dispute's own part of the charge, when the provider states it:
+   * finds a chargeback of it recorded before its filing was. absent or
+   * unsized, the oldest such chargeback */
+  disputed?: Share;
   /** when the provider opened it: records the dispute if its open never was */
   opened_at: string;
   closed_at: string;
@@ -204,20 +201,21 @@ export async function dispute_won(d: DisputeWon): Promise<DisputeWonResult> {
     await dispute_close(tx, record);
     const ds = await settled_dists_locked(tx, don.id);
     const before = await takes_of(tx, don.id);
-    const take = before.find(
-      (t) => t.ref === d.dispute_id && t.status === "active"
-    );
-    // none on record, or a redelivery that undid it already: nothing more
+    const take = await dispute_take(tx, {
+      donation_id: don.id,
+      dispute_id: d.dispute_id,
+      share: d.disputed ? fraction_of(d.disputed) : null,
+    });
+    // none on record, or undone already: by a redelivery, or by the refund
+    // that paid an accepted claim
     if (!take || !(await take_undo(tx, don.id, take.ref))) return [];
     const after = await takes_of(tx, don.id);
-    await mirror_refunded_share(tx, don.id, after);
     const moves = await move_owed(tx, {
       donation_id: don.id,
       ds,
       before,
       after,
       src: { source: "dispute", source_ref: d.dispute_id },
-      undone: take,
       now,
     });
     return moves.flatMap((m) => (m.row ? [m.row] : []));

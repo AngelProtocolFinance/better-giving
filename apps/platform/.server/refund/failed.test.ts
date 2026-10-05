@@ -53,9 +53,11 @@ import {
   recover_owed,
   write_off_owed,
 } from "../pg/queries/owed";
+import { takes_of } from "../pg/queries/take";
 import { create_test_db } from "../pg/test-utils/pglite";
 import { refund_failed } from "./failed";
 import { reverse_charge } from "./reverse";
+import { taken_of } from "./takes";
 
 // --- setup ---
 
@@ -108,6 +110,10 @@ const gift = async (id: string) =>
       .where(eq(donations.id, id))
   )[0];
 
+/** what the gift's active takes take back */
+const taken = async (id: string) =>
+  taken_of(await takes_of(test_db.current!.db as unknown as DbOrTx, id));
+
 const outstanding = async (donation_id: string) =>
   (await owed_for_donation(donation_id)).map((o) => o.outstanding_usd);
 
@@ -130,14 +136,14 @@ describe("refund_failed — part of the charge", () => {
 
     await fail(id, "re_1");
     expect(await outstanding(id)).toEqual([27.96]);
-    expect((await gift(id))?.refunded_share).toBe(0.3);
+    expect(await taken(id)).toBe(0.3);
 
     await fail(id, "re_2");
     await fail(id, "re_1");
     await fail(id, "re_2");
 
     expect(await outstanding(id)).toEqual([0]);
-    expect((await gift(id))?.refunded_share).toBeNull();
+    expect(await taken(id)).toBe(0);
   });
 
   test("a redelivery of the first failure, landing after the second failed at stripe, leaves the second its own share", async () => {
@@ -150,10 +156,10 @@ describe("refund_failed — part of the charge", () => {
     const again = await fail(id, "re_1");
 
     expect(again).toMatchObject({ status: "not_recorded" });
-    expect((await gift(id))?.refunded_share).toBe(0.3);
+    expect(await taken(id)).toBe(0.3);
     await fail(id, "re_2");
     expect(await outstanding(id)).toEqual([0]);
-    expect((await gift(id))?.refunded_share).toBeNull();
+    expect(await taken(id)).toBe(0);
   });
 
   test("a refund event that read the refunds before one failed doesn't owe the failed one again", async () => {
@@ -179,7 +185,7 @@ describe("refund_failed — part of the charge", () => {
 
     expect(res).toEqual({ status: "not_recorded", donation_status: "settled" });
     expect(await outstanding(id)).toEqual([37.28]);
-    expect((await gift(id))?.refunded_share).toBe(0.4);
+    expect(await taken(id)).toBe(0.4);
   });
 
   test("a full refund after a failed $40 partial owes the full figure", async () => {
@@ -223,14 +229,12 @@ describe("refund_failed — part of the charge", () => {
       donation_status: "settled",
     });
     expect(await outstanding(id)).toEqual([0]);
-    expect((await gift(id))?.refunded_share).toBeNull();
+    expect(await taken(id)).toBe(0);
 
     expect((await refund(id, 60, "re_2")).status).toBe("partial_owed");
     expect(await outstanding(id)).toEqual([55.92]);
-    expect(await gift(id)).toMatchObject({
-      status: "settled",
-      refunded_share: 0.6,
-    });
+    expect((await gift(id))?.status).toBe("settled");
+    expect(await taken(id)).toBe(0.6);
   });
 });
 

@@ -863,11 +863,17 @@ const SELLER_KEEPS_OUTCOMES = new Set([
  * its filing recorded; one this can't read is ops' to settle */
 async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
   const d = ev.resource as IDispute;
-  const charge = d.disputed_transactions?.[0]?.seller_transaction_id;
+  const tx = d.disputed_transactions?.[0];
+  const charge = tx?.seller_transaction_id;
   const don = charge ? await donation_by_sttl_id(charge) : undefined;
   if (!d.dispute_id || !don)
     return new Response("no donation", { status: 200 });
   const outcome = d.dispute_outcome?.outcome_code ?? "NONE";
+  // finds a chargeback of it recorded before its filing was
+  const disputed = share_of(
+    [v2_money(d.dispute_amount)],
+    v2_money(tx?.gross_amount)
+  );
   const record = {
     id: d.dispute_id,
     donation_id: don.id,
@@ -882,6 +888,7 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
       rail: "paypal",
       dispute_id: record.id,
       status: "accepted",
+      disputed,
       opened_at: record.opened_at,
       closed_at: record.closed_at,
     });
@@ -917,6 +924,7 @@ async function dispute_resolved(ev: WebhookEvent): Promise<Response> {
     donation_id: don.id,
     rail: "paypal",
     dispute_id: record.id,
+    disputed,
     opened_at: record.opened_at,
     closed_at: record.closed_at,
   });

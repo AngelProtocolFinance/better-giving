@@ -63,9 +63,8 @@ export const donations = pgTable(
     // was held
     held_at: timestamptz("held_at"),
     hold_asset: text("hold_asset"),
-    /** a mirror of the gift's active `donation_takes`, summed, while short of
-     * the whole; null at none. a full reversal leaves it as the last partial
-     * left it. the takes are the record, never this */
+    /** no longer written: what a gift has taken back is its active
+     * `donation_takes`, summed */
     refunded_share: numeric_as_number("refunded_share", {
       precision: 38,
       scale: 18,
