@@ -4,6 +4,12 @@ import { payout_total } from "./transfer";
 /** one gift's row the npo still owes on, or is due back from when negative */
 export interface IOwedOutstanding {
   donation_id: string;
+  /** a generated column, typed nullable; its inputs never are */
+  outstanding_usd: number | null;
+}
+
+interface IOwing {
+  donation_id: string;
   outstanding_usd: number;
 }
 
@@ -39,11 +45,15 @@ export function net_owed(
   owed: IOwedOutstanding[],
   minimum: number
 ): NetPlan {
-  const owing = owed.filter((o) => o.outstanding_usd > 0);
-  const repaid = owed
+  const rows: IOwing[] = owed.map((o) => ({
+    donation_id: o.donation_id,
+    outstanding_usd: o.outstanding_usd ?? 0,
+  }));
+  const owing = rows.filter((o) => o.outstanding_usd > 0);
+  const repaid = rows
     .filter((o) => o.outstanding_usd < 0)
     .map((o) => ({ donation_id: o.donation_id, usd: -o.outstanding_usd }));
-  const net = payout_total([gross, ...owed.map((o) => -o.outstanding_usd)]);
+  const net = payout_total([gross, ...rows.map((o) => -o.outstanding_usd)]);
   if (net <= 0) {
     const available = gross + repaid.reduce((a, r) => a + r.usd, 0);
     const recovered = take(owing, snap(available));
@@ -55,7 +65,7 @@ export function net_owed(
 }
 
 /** up to `usd` from the rows, in the order given */
-function take(owing: IOwedOutstanding[], usd: number): IRecovery[] {
+function take(owing: IOwing[], usd: number): IRecovery[] {
   const recovered: IRecovery[] = [];
   let left = usd;
   for (const o of owing) {

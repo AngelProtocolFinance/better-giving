@@ -4,15 +4,47 @@ import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
 import { group_by } from "@/helpers/array";
 import { send_email } from "$/email";
-import { wise as wise_env } from "$/env";
+import { owed_deductions, wise as wise_env } from "$/env";
 import { wise } from "$/kit/wise";
+import { net_owed } from "$/payouts/net-owed";
 import { payout_total } from "$/payouts/transfer";
+import { db } from "$/pg/db";
+import { outstanding_for_npo } from "$/pg/queries/owed";
 import { pending_payouts } from "$/pg/queries/payout";
-import { grant_eligibility } from "./eligibility";
+import { type GrantEligibility, grant_eligibility } from "./eligibility";
 
 function to_yymm(date: string) {
   const parts = date.split("-");
   return parts[0].substring(2, 4) + parts[1];
+}
+
+type Row = grants_schedule.IData["rows"][number];
+
+/** what the run will do for an npo whose owed amounts it nets, as the run's
+ * own plan reads it */
+async function netted_row(
+  el: Extract<GrantEligibility, { status: "nets" }>
+): Promise<Row & { net: number }> {
+  const owed = await outstanding_for_npo(db, el.npo.id);
+  const plan = net_owed(el.total, owed, el.minimum);
+  const base = {
+    id: el.npo.id,
+    name: el.npo.name,
+    amount: el.total,
+    min: el.minimum,
+  };
+  if (plan.status === "under_minimum") {
+    return { ...base, net: plan.net, effect: "skipped", deductions: [] };
+  }
+  const deductions = [
+    ...plan.recovered,
+    ...plan.repaid.map((r) => ({ ...r, usd: -r.usd })),
+  ];
+  if (plan.status === "recover_only") {
+    return { ...base, net: 0, effect: "recovered", deductions };
+  }
+  const effect = el.wise_id ? "pass" : "skipped";
+  return { ...base, net: plan.net, effect, deductions };
 }
 
 /**
@@ -35,10 +67,17 @@ export async function index() {
       // el.total is the cents the payout run sends: notice, minimum and run agree
       const el = await grant_eligibility(
         +npo_id,
-        items.map((i) => i.amount)
+        items.map((i) => i.amount),
+        owed_deductions
       );
       if (el.status === "not_found") {
         console.info(`NPO ${npo_id} not found, skipping`);
+        continue;
+      }
+      if (el.status === "nets") {
+        const row = await netted_row(el);
+        rows.push(row);
+        if (row.effect === "pass") passing.push(row.net);
         continue;
       }
       const effect = el.status === "pass" ? "pass" : "skipped";

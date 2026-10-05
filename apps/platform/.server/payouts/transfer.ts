@@ -40,12 +40,21 @@ export function transfer_ref(
   ids: string[],
   nonce: string = randomUUID()
 ): string {
-  const name = JSON.stringify([
-    ref_key,
-    total.toFixed(2),
-    [...ids].sort(),
-    nonce,
-  ]);
+  return uuid_v5(
+    JSON.stringify([ref_key, total.toFixed(2), [...ids].sort(), nonce])
+  );
+}
+
+/**
+ * a run that sends no transfer, its payouts all recovered as owed: uuid v5 of
+ * the npo + the claimed id set, with no nonce. the claim settles the set in
+ * the same tx, so a retry finds nothing pending and the ref never recurs
+ */
+export function recovered_run_ref(npo_id: number, ids: string[]): string {
+  return uuid_v5(JSON.stringify(["recovered", npo_id, [...ids].sort()]));
+}
+
+function uuid_v5(name: string): string {
   const b = createHash("sha1")
     .update(REF_NAMESPACE)
     .update(name)
