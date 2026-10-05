@@ -1,8 +1,9 @@
 import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
 import type { ICommission } from "@/referrals";
-import { stage } from "$/env";
+import { owed_deductions, stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
+import { undo_deductions } from "$/payouts/owed-run";
 import { settle_referrer_commissions } from "$/payouts/settle-commissions";
 import { payout_total } from "$/payouts/transfer";
 import { wise_pay } from "$/payouts/wise-pay";
@@ -62,10 +63,14 @@ async function alert_unsettled_claims() {
       stuck,
       (c) => `${c.referrer_user ?? c.referrer_npo} ref ${c.ref || "unknown"}`
     );
-    const lines = Object.entries(by_claim).map(
-      ([claim, cs = []]) =>
-        `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`
-    );
+    const lines = Object.entries(by_claim).map(([claim, cs = []]) => {
+      const line = `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`;
+      const { referrer_user, referrer_npo, ref } = cs[0]!;
+      const party = referrer_user
+        ? { referrer_user }
+        : { referrer_npo: referrer_npo! };
+      return ref ? `${line}\n  to reset: ${undo_deductions(party, ref)}` : line;
+    });
     const refs = [...new Set(stuck.flatMap((c) => (c.ref ? [c.ref] : [])))];
     const in_flight = await refunded_in_flight_lines(refs).catch((err) => {
       report_error(err);
@@ -99,9 +104,10 @@ async function process_item(ref_id: string, items: ICommission[]) {
     if (!ref.pay_id) {
       return console.info(`referrer:${ref_id} has no payout method`);
     }
-    // skips the locking claim for a referrer still under it; the claim rechecks
+    // skips the locking claim for a referrer still under it; the claim rechecks.
+    // netting judges the minimum on the net, and owing it all needs no minimum
     const snapshot = payout_total(items.map((i) => i.amount));
-    if (snapshot < ref.pay_min) {
+    if (!owed_deductions && snapshot < ref.pay_min) {
       return console.info(
         `referrer:${ref_id} payout ${snapshot} is less than minimum ${ref.pay_min}`
       );
@@ -112,6 +118,18 @@ async function process_item(ref_id: string, items: ICommission[]) {
       { id: ref_id, pay_id, pay_min: ref.pay_min },
       (wise_ref, total) => wise_pay(pay_id, total, wise_ref)
     );
+    if (res.status === "recovered") {
+      await aws_monitor.send_alert({
+        type: "NOTICE",
+        from: lambda,
+        title: `Commission recovered as owed for ${ref_id}`,
+        fields: [
+          { name: "amount", value: res.total.toString() },
+          { name: "ref_id", value: res.ref },
+        ],
+      });
+      return;
+    }
     if (res.status !== "paid") {
       return console.info(`referrer:${ref_id} not paid: ${res.status}`);
     }

@@ -9,14 +9,16 @@ const in_refund_core = (file: string) =>
   file.startsWith(`${platform}/.server/refund/`);
 const in_owed_admin = (file: string) =>
   file.startsWith(`${platform}/src/routes/platform.owed/`);
-const in_grant_run = (file: string) =>
-  file === `${platform}/.server/payouts/settle.ts`;
+const PAYOUT_RUNS = ["settle.ts", "settle-commissions.ts", "owed-run.ts"].map(
+  (f) => `${platform}/.server/payouts/${f}`
+);
+const in_payout_run = (file: string) => PAYOUT_RUNS.includes(file);
 const OWNER: Record<string, (file: string) => boolean> = {
   record_owed: in_refund_core,
   credit_owed: in_refund_core,
-  recover_owed: in_grant_run,
-  repay_owed: in_grant_run,
-  unrecover_owed: in_grant_run,
+  recover_owed: in_payout_run,
+  repay_owed: in_payout_run,
+  unrecover_owed: in_payout_run,
   write_off_owed: in_owed_admin,
   admin_credit_owed: in_owed_admin,
 };
@@ -76,9 +78,15 @@ describe("owed ledger fence", () => {
         at(".server/refund/w.ts", `await repay_owed(tx, r);`),
         at(".server/refund/v.ts", `await unrecover_owed(tx, u);`),
         at(
-          ".server/payouts/settle.ts",
-          `await recover_owed(tx, r);\nawait repay_owed(tx, r);\nawait unrecover_owed(tx, u);`
+          ".server/payouts/owed-run.ts",
+          `await recover_owed(tx, r);\nawait repay_owed(tx, r);`
         ),
+        at(".server/payouts/settle.ts", `await unrecover_owed(tx, u);`),
+        at(
+          ".server/payouts/settle-commissions.ts",
+          `await unrecover_owed(tx, u);`
+        ),
+        at(".server/payouts/wise-pay.ts", `await recover_owed(tx, r);`),
         at(".server/refund/ok.ts", `await credit_owed(tx, c); // owed_amounts`),
         at(
           "src/routes/platform.owed/api.ts",
@@ -93,6 +101,7 @@ describe("owed ledger fence", () => {
       `${platform}/.server/refund/z.ts: recover_owed`,
       `${platform}/.server/refund/w.ts: repay_owed`,
       `${platform}/.server/refund/v.ts: unrecover_owed`,
+      `${platform}/.server/payouts/wise-pay.ts: recover_owed`,
       `${platform}/src/routes/platform.losses/api.ts: write_off_owed`,
     ]);
   });

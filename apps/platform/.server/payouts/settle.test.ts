@@ -892,6 +892,29 @@ describe("settle_npo_payouts: owed deductions", () => {
     );
   });
 
+  test("switched on, what the npo owes as a referrer is never netted from its grants", async () => {
+    deductions.on = true;
+    const npo = await seed_npo({ cash: 500 });
+    await db()
+      .update(npos)
+      .set({ referral_id: "NPO-SETTLE" })
+      .where(eq(npos.id, npo.id));
+    await seed_payout(npo.id, "p-1", 500);
+    await seed_owed(npo.id, "don-owed", 93.2);
+    await db()
+      .update(owed_amounts)
+      .set({ npo_id: null, referrer_npo: "NPO-SETTLE" })
+      .where(eq(owed_amounts.donation_id, "don-owed"));
+    const pay = vi.fn<Pay>(async () => TRANSFER_ID);
+
+    await settle_npo_payouts(npo, ["p-1"], { ref_key: RECIPIENT, pay });
+
+    expect(pay).toHaveBeenCalledWith(expect.any(String), 500);
+    expect(await owed()).toEqual([
+      { donation_id: "don-owed", credited_back_usd: 0, outstanding_usd: 93.2 },
+    ]);
+  });
+
   test("switched on, a funded transfer the settle fails to record alerts with the gross to debit and the net to settle", async () => {
     deductions.on = true;
     const npo = await seed_npo({ cash: 500 });

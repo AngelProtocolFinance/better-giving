@@ -13,6 +13,7 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const send_alert = vi.hoisted(() => vi.fn());
 const referrer = vi.hoisted(() => ({ pay_id: 42, pay_min: 50 }));
+const deductions = vi.hoisted(() => ({ on: false }));
 
 /**
  * wise at its http boundary: `customerTransactionId` is the idempotency key,
@@ -51,7 +52,13 @@ const fund_ok = async (id: number) => {
 };
 
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
-vi.mock("$/env", () => ({ stage: "test", wise: { profile_id: "1" } }));
+vi.mock("$/env", () => ({
+  stage: "test",
+  wise: { profile_id: "1" },
+  get owed_deductions() {
+    return deductions.on;
+  },
+}));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert },
   fiat_monitor: { send_alert: vi.fn() },
@@ -113,8 +120,9 @@ const { referrer_commissions, referrer_payouts } = await import(
 );
 const { donations } = await import("$/pg/schema/donation");
 const { dists } = await import("$/pg/schema/dist");
-const { owed_amounts } = await import("$/pg/schema/owed");
+const { owed_amounts, owed_entries } = await import("$/pg/schema/owed");
 const { bal_txs } = await import("$/pg/schema/bal-tx");
+const { user } = await import("$/pg/schema/auth");
 const { dists_for_refund } = await import("$/pg/queries/dist");
 const { process_refund } = await import("$/refund/process");
 
@@ -134,6 +142,7 @@ beforeEach(async () => {
   send_alert.mockReset();
   credit.fails = false;
   release.fails = false;
+  deductions.on = false;
   referrer.pay_id = 42;
   referrer.pay_min = 50;
   wise.by_ref.clear();
@@ -233,6 +242,39 @@ describe("commissions cron", () => {
     );
     expect(stuck?.[0].body).toContain(`${REFERRER} ref ${first}: d-1, d-2`);
   });
+
+  test.each([
+    ["off", false],
+    ["on", true],
+  ])(
+    "a retry after a run that died between its claim and its transfer pays nothing again, deductions %s",
+    async (_, on) => {
+      deductions.on = on;
+      await seed("d-1", 25);
+      await seed("d-2", 30);
+      let reached!: () => void;
+      const at_wise = new Promise<void>((r) => {
+        reached = r;
+      });
+      // the first run dies here: claimed, and wise never asked
+      wise.v2_account.mockImplementationOnce(() => {
+        reached();
+        return new Promise(() => {});
+      });
+      void index();
+      await at_wise;
+
+      await index();
+
+      expect(wise.transfer).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({
+        "d-1": "processing",
+        "d-2": "processing",
+      });
+      expect(await db().select().from(referrer_payouts)).toEqual([]);
+      expect(alert_titles()).toContain("commissions claimed but not paid");
+    }
+  );
 
   test.each([
     ["the same", 42],
@@ -480,4 +522,289 @@ describe("commissions cron", () => {
       expect(await statuses()).toEqual({ "d-1": status, "d-2": status });
     }
   );
+
+  /** a gift refunded after its commission was paid, so the referrer owes `usd` on it */
+  async function seed_owed(
+    donation_id: string,
+    usd: number,
+    party:
+      | { referrer_npo: string }
+      | { referrer_user: string }
+      | {
+          npo_id: number;
+        } = { referrer_npo: REFERRER },
+    created_at = "2026-08-01T00:00:00.000Z"
+  ) {
+    await db().insert(donations).values({
+      id: donation_id,
+      created_at,
+      upusd: 1,
+      status: "refunded",
+      amount_base: usd,
+      amount_tip: 0,
+      amount_fee_allowance: 0,
+      currency: "USD",
+      frequency: "one-time",
+      source: "bg-marketplace",
+      via: "stripe:card",
+    });
+    await db()
+      .insert(owed_amounts)
+      .values({
+        donation_id,
+        ...party,
+        source: "refund",
+        source_ref: `re_${donation_id}`,
+        recorded_at: "2026-09-15T00:00:00.000Z",
+        received_usd: usd,
+      });
+  }
+
+  const owed_rows = async () =>
+    (
+      await db()
+        .select({
+          donation_id: owed_amounts.donation_id,
+          recovered_usd: owed_amounts.recovered_usd,
+          outstanding_usd: owed_amounts.outstanding_usd,
+        })
+        .from(owed_amounts)
+    ).sort((a, b) => a.donation_id.localeCompare(b.donation_id));
+
+  describe("netting what the referrer owes", () => {
+    test("switched off, a referrer owing $9 is paid all $200 of its commissions and owes the $9 still", async () => {
+      await seed("d-1", 120);
+      await seed("d-2", 80);
+      await seed_owed("don-owed", 9);
+
+      await index();
+
+      expect(quoted()).toEqual([200]);
+      expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+      const [payout] = await db().select().from(referrer_payouts);
+      expect(payout).toMatchObject({ id: refs()[0], amount: 200 });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 0, outstanding_usd: 9 },
+      ]);
+      expect(await db().select().from(owed_entries)).toEqual([]);
+    });
+
+    test("switched on, a referrer owing $9 is paid $191, and the row shows $9 recovered under the transfer's ref", async () => {
+      deductions.on = true;
+      await seed("d-1", 120);
+      await seed("d-2", 80);
+      await seed_owed("don-owed", 9);
+
+      await index();
+
+      expect(quoted()).toEqual([191]);
+      // commission rows keep what each earned
+      const amounts = await db()
+        .select({
+          amount: referrer_commissions.amount,
+          status: referrer_commissions.status,
+        })
+        .from(referrer_commissions);
+      expect(amounts).toEqual(
+        expect.arrayContaining([
+          { amount: 120, status: "paid" },
+          { amount: 80, status: "paid" },
+        ])
+      );
+      const [payout] = await db().select().from(referrer_payouts);
+      expect(payout).toMatchObject({ id: refs()[0], amount: 191 });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 9, outstanding_usd: 0 },
+      ]);
+      expect(
+        await db()
+          .select({
+            kind: owed_entries.kind,
+            usd: owed_entries.usd,
+            reason: owed_entries.reason,
+            ref: owed_entries.ref,
+          })
+          .from(owed_entries)
+      ).toEqual([
+        { kind: "recover", usd: 9, reason: "commission_run", ref: refs()[0] },
+      ]);
+    });
+
+    test("switched on, owing at least the commissions sends no transfer: they are paid as recovered, and the next run carries the rest", async () => {
+      deductions.on = true;
+      await seed("d-1", 20);
+      await seed("d-2", 10);
+      await seed_owed("don-owed", 40);
+
+      await index();
+
+      expect(wise.transfer).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+      expect(await db().select().from(referrer_payouts)).toEqual([]);
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 30, outstanding_usd: 10 },
+      ]);
+      expect(alert_titles()).toContain(
+        `Commission recovered as owed for ${REFERRER}`
+      );
+
+      await seed("d-3", 70);
+      await index();
+
+      expect(quoted()).toEqual([60]);
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 40, outstanding_usd: 0 },
+      ]);
+    });
+
+    const entries = () =>
+      db()
+        .select({
+          kind: owed_entries.kind,
+          usd: owed_entries.usd,
+          ref: owed_entries.ref,
+        })
+        .from(owed_entries);
+
+    test("a retry after an unknown funding outcome never recovers the row twice, and the stuck claim says how to undo its recovery", async () => {
+      deductions.on = true;
+      await seed("d-1", 120);
+      await seed("d-2", 80);
+      await seed_owed("don-owed", 9);
+      wise.fund_transfer.mockRejectedValueOnce("fetch failed");
+      await index();
+
+      await seed("d-3", 60);
+      await index();
+
+      expect(quoted()).toEqual([191, 60]);
+      const [first] = refs();
+      expect(await entries()).toEqual([
+        { kind: "recover", usd: 9, ref: first },
+      ]);
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 9, outstanding_usd: 0 },
+      ]);
+      const stuck = alert_titled("commissions claimed but not paid");
+      expect(stuck.body).toContain(
+        `unrecover_owed({ referrer_npo: "${REFERRER}", ref: "${first}" })`
+      );
+    });
+
+    test("switched on, a net under the minimum claims and recovers nothing", async () => {
+      deductions.on = true;
+      await seed("d-1", 55);
+      await seed_owed("don-owed", 9);
+
+      await index();
+
+      expect(wise.transfer).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({ "d-1": "pending" });
+      expect(await entries()).toEqual([]);
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 0, outstanding_usd: 9 },
+      ]);
+    });
+
+    const rejected = async () => ({
+      status: "REJECTED" as const,
+      errorCode: "balance.insufficient",
+    });
+
+    test("an unfunded transfer takes its recovery back, so the next claim recovers the row once", async () => {
+      deductions.on = true;
+      await seed("d-1", 120);
+      await seed("d-2", 80);
+      await seed_owed("don-owed", 9);
+      wise.fund_transfer.mockImplementationOnce(rejected);
+      await index();
+
+      expect(await statuses()).toEqual({ "d-1": "pending", "d-2": "pending" });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 0, outstanding_usd: 9 },
+      ]);
+
+      await index();
+
+      expect(quoted()).toEqual([191, 191]);
+      expect(await statuses()).toEqual({ "d-1": "paid", "d-2": "paid" });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 9, outstanding_usd: 0 },
+      ]);
+    });
+
+    test("an unfunded release that fails keeps the claim and its recovery whole, and says to take the recovery back with any reset", async () => {
+      deductions.on = true;
+      await seed("d-1", 120);
+      await seed("d-2", 80);
+      await seed_owed("don-owed", 9);
+      release.fails = true;
+      wise.fund_transfer.mockImplementationOnce(rejected);
+
+      await index();
+
+      expect(await statuses()).toEqual({
+        "d-1": "processing",
+        "d-2": "processing",
+      });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 9, outstanding_usd: 0 },
+      ]);
+      const a = alert_titled("commission not funded, release failed");
+      expect(a.body).toContain(
+        `only with this run's deductions taken back: run unrecover_owed({ referrer_npo: "${REFERRER}", ref: "${refs()[0]}" })`
+      );
+    });
+
+    test("each referrer is netted against its own rows only: never a user's against an npo referrer's, nor an npo referrer's against what the npo owes as a grantee", async () => {
+      deductions.on = true;
+      const USER_REF = "U-REF";
+      await db()
+        .insert(user)
+        .values({
+          id: "u-ref",
+          name: "Ref",
+          email: "ref@test.com",
+          first_name: "R",
+          last_name: "F",
+          referral_code: USER_REF,
+        })
+        .onConflictDoNothing();
+      await seed("d-npo", 200);
+      await db().insert(referrer_commissions).values({
+        referrer_user: USER_REF,
+        date: "2026-09-01T00:00:00.000Z",
+        donation_id: "d-user",
+        npo_id,
+        amount: 100,
+        status: "pending",
+      });
+      await seed_owed("don-user-owes", 5, { referrer_user: USER_REF });
+      await seed_owed("don-grantee-owes", 9, { npo_id });
+
+      await index();
+
+      const paid = await db()
+        .select({
+          referrer_user: referrer_payouts.referrer_user,
+          referrer_npo: referrer_payouts.referrer_npo,
+          amount: referrer_payouts.amount,
+        })
+        .from(referrer_payouts);
+      expect(paid).toEqual(
+        expect.arrayContaining([
+          { referrer_user: null, referrer_npo: REFERRER, amount: 200 },
+          { referrer_user: USER_REF, referrer_npo: null, amount: 95 },
+        ])
+      );
+      expect(await owed_rows()).toEqual([
+        {
+          donation_id: "don-grantee-owes",
+          recovered_usd: 0,
+          outstanding_usd: 9,
+        },
+        { donation_id: "don-user-owes", recovered_usd: 5, outstanding_usd: 0 },
+      ]);
+    });
+  });
 });

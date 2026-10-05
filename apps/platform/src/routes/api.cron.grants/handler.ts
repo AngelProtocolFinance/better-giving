@@ -3,7 +3,8 @@ import { group_by } from "@/helpers/array";
 import type { IPayout, IPendingStatus } from "@/payouts";
 import { owed_deductions, stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
-import { settle_npo_payouts, undo_deductions } from "$/payouts/settle";
+import { undo_deductions } from "$/payouts/owed-run";
+import { settle_npo_payouts } from "$/payouts/settle";
 import { wise_pay } from "$/payouts/wise-pay";
 import { pending_payouts, processing_payouts } from "$/pg/queries/payout";
 import { grant_eligibility } from "./eligibility";
@@ -64,7 +65,7 @@ async function alert_unsettled_claims() {
       const line = `${claim}: ${ps.map((p) => p.id).join(", ")}`;
       const { npo_id, ref } = ps[0]!;
       return ref
-        ? `${line}\n  to reset: ${undo_deductions(npo_id, ref)}`
+        ? `${line}\n  to reset: ${undo_deductions({ npo_id }, ref)}`
         : line;
     });
     await aws_monitor.send_alert({

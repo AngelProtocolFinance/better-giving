@@ -117,7 +117,7 @@ export interface IOwedRecovery {
   donation_id: string;
   party: OwedParty;
   usd: number;
-  reason: "grant_run";
+  reason: "grant_run" | "commission_run";
   /** the run; a second recovery, or repayment, under one ref adds nothing */
   ref: string;
   now: string;
@@ -162,13 +162,12 @@ export async function repay_owed(
   return row && with_entry(tx, row, "repay", r.ref);
 }
 
-export interface IOwedUnrecovery {
-  npo_id: number;
+export type IOwedUnrecovery = OwedParty & {
   /** the run whose transfer, found unfunded, never moved what its recoveries
    * and due-back payments assumed */
   ref: string;
   now: string;
-}
+};
 
 /** a row the run recovered from or paid a due-back to, with what was undone */
 export type IOwedUnrecovered = IOwed & {
@@ -178,14 +177,14 @@ export type IOwedUnrecovered = IOwed & {
   repayment_undone_usd: number;
 };
 
-/** undoes every recovery and due-back payment the run made on the npo's rows,
+/** undoes every recovery and due-back payment the run made on the party's rows,
  * each by exactly what it moved, whatever the row owes now; once per row, so
  * a retry adds nothing */
 export async function unrecover_owed(
   tx: DbOrTx,
   u: IOwedUnrecovery
 ): Promise<IOwedUnrecovered[]> {
-  const of_npo = eq(owed_amounts.npo_id, u.npo_id);
+  const of_party = party_is(u);
   const run_entry = (kind: IOwedEntry["kind"]) =>
     sql`(SELECT ${owed_entries.usd} FROM ${owed_entries}
       WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
@@ -196,13 +195,13 @@ export async function unrecover_owed(
     now: u.now,
   };
   // every row both writes below lock, taken at once in id order, so two
-  // releases for one npo can't each hold a row the other waits on
+  // releases for one party can't each hold a row the other waits on
   await tx
     .select({ id: owed_amounts.id })
     .from(owed_amounts)
     .where(
       and(
-        of_npo,
+        of_party,
         sql`EXISTS (SELECT 1 FROM ${owed_entries}
           WHERE ${owed_entries.owed_id} = ${owed_amounts.id}
             AND ${owed_entries.kind} IN ('recover', 'repay')
@@ -214,8 +213,8 @@ export async function unrecover_owed(
   // uncapped, unlike repay_owed's cap at what is due back and recover_owed's
   // at what is outstanding: either would leave a row the run settled to $0
   // with nothing to undo
-  await put_entries(tx, "repay", of_npo, e, run_entry("recover"));
-  await put_entries(tx, "recover", of_npo, e, run_entry("repay"), UNREPAY);
+  await put_entries(tx, "repay", of_party, e, run_entry("recover"));
+  await put_entries(tx, "recover", of_party, e, run_entry("repay"), UNREPAY);
 
   const recovery = alias(owed_entries, "recovery_undone");
   const repayment = alias(owed_entries, "repayment_undone");
@@ -241,7 +240,7 @@ export async function unrecover_owed(
     .from(owed_amounts)
     .leftJoin(recovery, undone_by(recovery, "repay"))
     .leftJoin(repayment, undone_by(repayment, "recover"))
-    .where(and(of_npo, or(isNotNull(recovery.id), isNotNull(repayment.id))));
+    .where(and(of_party, or(isNotNull(recovery.id), isNotNull(repayment.id))));
 }
 
 async function with_entry(
@@ -612,20 +611,24 @@ export async function owed_list(
 
 /** the npo's rows owed (> 0) or due back (< 0), oldest gift first, each held
  * locked until `tx` ends: a refund or credit landing on one waits for it */
-export async function outstanding_for_npo(
+export function outstanding_for_npo(
   tx: DbOrTx,
   npo_id: number
+): Promise<IOwed[]> {
+  return outstanding_for_party(tx, { npo_id });
+}
+
+/** `outstanding_for_npo` for any party: a referrer's rows only, never the
+ * rows of the npo behind an `NPO-` referral id */
+export async function outstanding_for_party(
+  tx: DbOrTx,
+  party: OwedParty
 ): Promise<IOwed[]> {
   return tx
     .select(getTableColumns(owed_amounts))
     .from(owed_amounts)
     .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
-    .where(
-      and(
-        eq(owed_amounts.npo_id, npo_id),
-        sql`${owed_amounts.outstanding_usd} <> 0`
-      )
-    )
+    .where(and(party_is(party), sql`${owed_amounts.outstanding_usd} <> 0`))
     .orderBy(asc(donations.created_at), asc(owed_amounts.id))
     .for("update", { of: owed_amounts });
 }

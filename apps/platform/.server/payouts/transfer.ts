@@ -46,12 +46,16 @@ export function transfer_ref(
 }
 
 /**
- * a run that sends no transfer, its payouts all recovered as owed: uuid v5 of
- * the npo + the claimed id set, with no nonce. the claim settles the set in
- * the same tx, so a retry finds nothing pending and the ref never recurs
+ * a run that sends no transfer, its rows all recovered as owed: uuid v5 of
+ * the party (an npo id, or a referrer id) + the claimed id set, with no nonce.
+ * the claim settles the set in the same tx, so a retry finds nothing pending
+ * and the ref never recurs
  */
-export function recovered_run_ref(npo_id: number, ids: string[]): string {
-  return uuid_v5(JSON.stringify(["recovered", npo_id, [...ids].sort()]));
+export function recovered_run_ref(
+  party: number | string,
+  ids: string[]
+): string {
+  return uuid_v5(JSON.stringify(["recovered", party, [...ids].sort()]));
 }
 
 function uuid_v5(name: string): string {

@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
 import { owed_deductions, stage } from "../env";
@@ -6,12 +5,7 @@ import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { npo_balance_update, npo_get_locked } from "../pg/queries/npo";
-import {
-  outstanding_for_npo,
-  recover_owed,
-  repay_owed,
-  unrecover_owed,
-} from "../pg/queries/owed";
+import { outstanding_for_npo, unrecover_owed } from "../pg/queries/owed";
 import {
   payouts_in,
   payouts_move,
@@ -19,7 +13,8 @@ import {
   settlement_put,
 } from "../pg/queries/payout";
 import { reverse_unfunded_payout_loss } from "../refund/unfunded";
-import { type IRecovery, type NetPlan, net_owed } from "./net-owed";
+import { net_owed } from "./net-owed";
+import { deduct, lock_run, undo_deductions } from "./owed-run";
 import {
   NotFundedError,
   payout_total,
@@ -84,7 +79,7 @@ export async function settle_npo_payouts(
     const ids = locked.map((p) => p.id);
     if (plan.status === "recover_only") {
       const ref = recovered_run_ref(npo.id, ids);
-      await deduct(tx, npo.id, plan, ref);
+      await deduct(tx, { npo_id: npo.id }, "grant_run", plan, ref);
       await settle_recovered(tx, npo.id, locked, gross, ref);
       return { status: "recovered", ref, total: gross } as const;
     }
@@ -92,7 +87,7 @@ export async function settle_npo_payouts(
     if (to === null) return { status: "no_recipient", total } as const;
     // stored with the claim: a run that dies past here leaves only the rows to reconcile by
     const ref = transfer_ref(to.ref_key, total, ids);
-    await deduct(tx, npo.id, plan, ref);
+    await deduct(tx, { npo_id: npo.id }, "grant_run", plan, ref);
     await payouts_move(tx, ids, "pending", { type: "processing", ref });
     return {
       status: "claimed",
@@ -128,7 +123,7 @@ export async function settle_npo_payouts(
         report_error(err.cause, ctx);
         report_error(release_err, ctx);
         const reset = nets
-          ? `these payouts are safe to reset to pending only with this run's deductions taken back: ${undo_deductions(npo.id, ref)}`
+          ? `these payouts are safe to reset to pending only with this run's deductions taken back: ${undo_deductions({ npo_id: npo.id }, ref)}`
           : "these payouts are safe to reset to pending";
         await alert({
           title: `not funded, release failed for npo:${npo.id}`,
@@ -226,26 +221,6 @@ export async function settle_npo_payouts(
   return { status: "settled", ref, total, transfer_id };
 }
 
-/** each recovery and due-back payment in `plan`, as entries under the run's `ref` */
-async function deduct(
-  tx: DbOrTx,
-  npo_id: number,
-  plan: Exclude<NetPlan, { status: "under_minimum" }>,
-  ref: string
-) {
-  const now = new Date().toISOString();
-  const entry = (r: IRecovery) => ({
-    donation_id: r.donation_id,
-    party: { npo_id },
-    usd: r.usd,
-    reason: "grant_run" as const,
-    ref,
-    now,
-  });
-  for (const r of plan.recovered) await recover_owed(tx, entry(r));
-  for (const r of plan.repaid) await repay_owed(tx, entry(r));
-}
-
 /** a settlement of $0 under the run's ref, no transfer behind it */
 async function settle_recovered(
   tx: DbOrTx,
@@ -323,21 +298,8 @@ async function release(
   return { not_released, kept };
 }
 
-/** one netting run per npo at a time: a claim and an unfunded release take
- * this before any payout, npo or owed row, so the two queue instead of each
- * holding a row the other waits on. a refund takes no such lock; the claim
- * matches its payout, npo, owed row order instead */
-async function lock_npo_run(tx: DbOrTx, npo_id: number) {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`grant_run:npo:${npo_id}`}, 0))`
-  );
-}
-
-/** the step that has to go with resetting a netted claim's payouts to
- * pending by hand, in the same transaction, or the next run pays the npo in
- * full while the ledger counts what it owes as recovered */
-export const undo_deductions = (npo_id: number, ref: string) =>
-  `run unrecover_owed({ npo_id: ${npo_id}, ref: "${ref}" }) in the transaction that resets them, never the reset alone (it takes back the recover and repay entries under ref ${ref} on the npo's owed rows; a claim that netted nothing has none)`;
+const lock_npo_run = (tx: DbOrTx, npo_id: number) =>
+  lock_run(tx, `grant_run:npo:${npo_id}`);
 
 /** an alert that fails to send is reported, never thrown past the money */
 async function alert(a: Omit<Alert, "from" | "type">) {
