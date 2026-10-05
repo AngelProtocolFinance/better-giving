@@ -83,6 +83,7 @@ const { handle_confirming } = await import("./handlers/confirming");
 const { handle_failed } = await import("./handlers/failed");
 const { np } = await import("$/kit/nowpayments");
 const { reverse_charge } = await import("$/refund/reverse");
+const { fraction_of } = await import("$/refund/share");
 const { dists } = await import("$/pg/schema/dist");
 const {
   donation_by_sttl_id,
@@ -497,12 +498,16 @@ describe("nowpayments ipn settlement", () => {
       donation_id: ORDER_ID,
       rail: "crypto",
       source: "refund",
+      share: expect.any(Object),
       alert_from: "nowpayments-refunded",
       notice: {
         id: "nowpayments-refunded_5001",
         lines: [expect.stringContaining("payment:5001")],
       },
     });
+    // nowpayments refunds the whole payment: the entry reverses the gift
+    const { share } = vi.mocked(reverse_charge).mock.calls[0][0];
+    expect(fraction_of(share!)).toBe(1);
     expect(send_alert_mock).toHaveBeenCalledOnce();
     expect(send_alert_mock.mock.calls[0][0].body).toContain("payment:5001");
   });

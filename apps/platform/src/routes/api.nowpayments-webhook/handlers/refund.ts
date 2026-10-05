@@ -5,9 +5,12 @@ import {
   donation_settle_state_locked,
   donation_update,
 } from "$/pg/queries/donation";
-import { reverse_charge } from "$/refund/reverse";
+import { reverse_charge, type Share } from "$/refund/reverse";
 import { ref_of } from "./payment";
 import { type Action, transition } from "./status";
+
+// nowpayments has no partial refund: a refunded payment went back whole
+const WHOLE: Share = { taken: 1, of: 1 };
 
 /**
  * a donation that never settled is marked `refunded` under its row lock. a
@@ -34,6 +37,7 @@ export async function handle_refund(
     donation_id: don.id,
     rail: "crypto",
     source: "refund",
+    share: WHOLE,
     alert_from: "nowpayments-refunded",
     notice: {
       id: `nowpayments-refunded_${payment.payment_id}`,
@@ -43,14 +47,17 @@ export async function handle_refund(
   switch (res.status) {
     case "reversed":
     case "already_reversed":
+    // unreachable with a whole share and no unsent refunds. acked: a
+    // redelivery passes the same share, and the entry posts its own notice
+    case "partial_owed":
+    case "partial_pending":
+    case "held":
+    case "unsized":
       return now;
     // the throw answers 5xx, which nowpayments redelivers: until a dist queued
     // after the settle lands, or until every failed dist is reversed
     case "failed":
       throw new Error(`refund not reversed, ${res.reason}: ${don.id}`);
-    // unreachable: with no amount passed, the entry reverses the whole charge
-    case "partial_not_acted":
-      throw new Error(`refund reversed as partial: ${don.id}`);
     default:
       return res satisfies never;
   }
