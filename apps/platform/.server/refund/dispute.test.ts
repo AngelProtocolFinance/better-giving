@@ -80,11 +80,12 @@ beforeEach(async () => {
 
 const seed = (...ds: IDistSeed[]) => seed_card_gift(test_db.current!.db, ...ds);
 
-const opened_on = (donation_id: string, fee_usd = 15) => ({
+const opened_on = (donation_id: string, fee_usd = 15, taken = 100) => ({
   donation_id,
   rail: "stripe" as const,
   dispute_id: `du_${donation_id}`,
   opened_at: OPENED,
+  share: { taken, of: 100 },
   fee_usd,
 });
 
@@ -123,6 +124,21 @@ describe("dispute_opened", () => {
     ]);
     expect(await disputes_of(test_db.current!.db, id)).toMatchObject([
       { id: `du_${id}`, status: "open", opened_at: OPENED },
+    ]);
+  });
+
+  test("a dispute over $30 of a $100 charge records that share of what the npo received and its card fee, plus the dispute fee in full", async () => {
+    const { id } = await seed(PAID_GRANT);
+
+    await dispute_opened(opened_on(id, 15, 30));
+
+    expect(await owed_of(id)).toMatchObject([
+      {
+        received_usd: 27,
+        fee_processing_usd: 0.96,
+        fee_dispute_usd: 15,
+        outstanding_usd: 42.96,
+      },
     ]);
   });
 
@@ -417,11 +433,13 @@ describe("a paid commission on a disputed gift", () => {
 });
 
 /** the dispute closed lost: the gift reverses through the one reversal entry */
-const lose = (donation_id: string) =>
+const lose = (donation_id: string, taken = 100) =>
   reverse_charge({
     donation_id,
     rail: "stripe",
     source: "dispute",
+    share: { taken, of: 100 },
+    dispute_fee_usd: 15,
     source_ref: `du_${donation_id}`,
     alert_from: "charge-dispute",
     notice: { id: `evt_lost_${donation_id}`, lines: [] },
@@ -452,6 +470,29 @@ describe("a dispute lost after it opened", () => {
       expect(taken).toBeCloseTo(108.2, 10);
     }
   );
+
+  test("over part of the charge, owes what its open recorded and reverses nothing", async () => {
+    const { id } = await seed(PAID_GRANT);
+
+    await dispute_opened(opened_on(id, 15, 30));
+    const res = await lose(id, 30);
+
+    expect(res.status).toBe("partial_owed");
+    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 42.96 }]);
+  });
+
+  test("completing the charge with its payout pending at open, takes back what the npo received and leaves its share of the fees owed", async () => {
+    const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
+    const npo_id = npo_ids[0]!;
+    const before = await balance_of(test_db.current!.db, npo_id);
+
+    await dispute_opened(opened_on(id, 15, 30));
+    const res = await lose(id);
+
+    expect(res.status).toBe("reversed");
+    expect(before - (await balance_of(test_db.current!.db, npo_id))).toBe(90);
+    expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 15.96 }]);
+  });
 
   test("with no open on record, owes what the loss path records", async () => {
     // half to savings the npo no longer holds, half to a pending payout the

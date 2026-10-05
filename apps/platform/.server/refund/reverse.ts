@@ -1,13 +1,17 @@
 import { report_error } from "#/errors/report";
 import { type IDonation, reversed_statuses } from "@/donations";
+import { humanize } from "@/helpers/decimal";
 import { msg } from "@/queue";
 import { stage } from "../env";
 import { enqueue } from "../kit/queue";
 import { dists_for_refund } from "../pg/queries/dist";
 import { donation_get } from "../pg/queries/donation";
-import { type FullRefund, reverse_after_partials } from "./after-partials";
+import { record_share } from "./partial";
 import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
+import { fraction_of, type Share } from "./share";
+
+export type { Share } from "./share";
 
 /** the provider family a gift was paid through, from its `via` */
 export type Rail = "stripe" | "paypal" | "crypto";
@@ -22,17 +26,12 @@ export function rail_of(via: string): Rail | null {
 
 export type ReversalSource = "refund" | "dispute" | "admin";
 
-export interface Money {
-  amount: number;
-  currency: string;
-}
-
 interface RailAdapter {
   /** how a full reversal from `source` ends the recurring gift the payment
-   * `sttl_id` belongs to, or null when it ends none */
+   * `payment_id` belongs to, or null when it ends none */
   subscription_end(
     source: ReversalSource
-  ): ((sttl_id: string) => Promise<void>) | null;
+  ): ((payment_id: string) => Promise<void>) | null;
 }
 
 // loaded on use: `./subscription` builds a stripe client off env at import,
@@ -57,26 +56,27 @@ export interface ChargeReversal {
   donation_id: string;
   rail: Rail;
   source: ReversalSource;
-  /** the refunded or disputed share in the charge's currency, when it is short
-   * of the rest of the charge; absent means the rest. carried, not yet acted
-   * on: a share reverses nothing and ops settles it by hand */
-  amount?: number;
-  /** what the provider charged for the dispute. carried, not yet acted on */
-  dispute_fee?: Money;
-  /** the provider's own refund or dispute id, recorded on what the npo owes;
+  /** how much of the charge is taken back so far, this event included. the
+   * whole reverses the gift; less records each party's share of it as owed.
+   * null when the provider can't say: nothing is reversed, ops told */
+  share: Share | null;
+  /** what the provider charged for the dispute, in usd. a share owes it in
+   * full; a full loss owes what the dispute's open recorded */
+  dispute_fee_usd?: number;
+  /** the provider's own refund or dispute id, recorded on what a party owes;
    * absent records `notice.id` */
   source_ref?: string;
+  /** the provider's refunds on the charge not yet sent, which can still
+   * fail: while any is, nothing is reversed or recorded as owed */
+  unsent_refunds?: string[];
+  /** stripe's payment intent behind the charge: whose recurring gift a full
+   * refund ends. absent, the gift's settlement names it */
+  intent_id?: string;
   /** discord sender identity, e.g. `charge-refunded`; the stage is appended */
   alert_from: string;
   /** the event's own lines for an ops notice, and its dedupe id: a redelivery
    * of the same event reuses it */
   notice: { id: string; lines: string[] };
-  /** a full stripe refund after earlier partial refunds, which ops settled by
-   * hand: the reversal is bracketed by notices saying when to undo that */
-  after_partials?: Omit<
-    FullRefund,
-    "donation_id" | "alert_from" | "dist_count"
-  >;
 }
 
 export type ReversalResult =
@@ -92,8 +92,20 @@ export type ReversalResult =
       status: "already_reversed";
       donation_status: (typeof reversed_statuses)[number];
     }
-  /** part of the charge: nothing reversed, ops notified to settle it by hand */
-  | { status: "partial_not_acted" }
+  /** part of the charge: every party's share recorded as owed, nothing
+   * reversed. `owed_msgs`: each party's row as it stands */
+  | { status: "partial_owed"; owed_msgs: string[] }
+  /** part of the charge, and some dist's grant hasn't gone out (its payout
+   * pending, or its share still in the npo's balances): nothing recorded for
+   * it, nothing reversed, and ops told to settle it by hand. `owed_msgs`: the
+   * rows the gift's other parties owe as they stand */
+  | { status: "partial_pending"; owed_msgs: string[] }
+  /** a refund on the charge is unsent: nothing reversed or recorded, and a
+   * full refund's recurring gift ended all the same */
+  | { status: "held" }
+  /** no share to size the event by: nothing reversed, ops told to settle it
+   * by hand */
+  | { status: "unsized" }
   /** nothing reversed: no such gift, or it wasn't paid on `rail` */
   | { status: "failed"; reason: "no_donation" | "wrong_rail" }
   /** settled but no dist yet (the dist is queued after the settle): nothing
@@ -150,30 +162,39 @@ export const unreversible = (
     ? { status: u.status, donation_status: u.donation_status }
     : u;
 
+const UNSIZED_ACTION =
+  "how much of the charge is taken back could not be read, so this reversal could not be sized against the charge. nothing was reversed automatically: settle it by hand.";
+
 const PARTIAL_REFUND = {
-  title: "Partial Refund Not Reversed",
+  owed: "Partial Refund Recorded as Owed",
+  pending: "Partial Refund Not Reversed",
   action:
-    "nothing was reversed automatically. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for these refunds must then be undone.",
+    "nothing was reversed automatically for these dists. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for them must then be undone.",
 };
 
-const NOT_REVERSED: Record<ReversalSource, { title: string; action: string }> =
-  {
-    refund: PARTIAL_REFUND,
-    admin: PARTIAL_REFUND,
-    dispute: {
-      title: "Lost Dispute Not Reversed",
-      action:
-        "nothing was reversed automatically: settle this donation by hand.",
-    },
-  };
+const SHARE_NOTICE: Record<
+  ReversalSource,
+  { owed: string; pending: string; action: string }
+> = {
+  refund: PARTIAL_REFUND,
+  admin: PARTIAL_REFUND,
+  dispute: {
+    owed: "Lost Dispute: Share Recorded as Owed",
+    pending: "Lost Dispute Not Reversed",
+    action:
+      "nothing was reversed automatically for these dists: settle them by hand.",
+  },
+};
 
 /**
  * takes a gift back after its money went back to the donor: a refund, a lost
- * dispute, or an admin's refund. it loads the dists and runs the refund core
- * itself, so a caller hands over the event and maps the result to its ack.
+ * dispute, or an admin's refund. the whole charge reverses the gift; part of
+ * it records each party's share as owed, reversing nothing. it loads the
+ * dists and runs the refund core itself, so a caller hands over the event and
+ * maps the result to its ack.
  *
- * safe to rerun: a reversed gift is acknowledged, and an incomplete one is
- * finished by the next run.
+ * safe to rerun: a reversed gift is acknowledged, a share already recorded
+ * stays as it is, and an incomplete reversal is finished by the next run.
  */
 export async function reverse_charge(
   r: ChargeReversal
@@ -182,30 +203,40 @@ export async function reverse_charge(
   if (loaded.status !== "reversible") return unreversible(loaded);
   const { don } = loaded;
 
-  if (r.amount !== undefined) {
-    const { title, action } = NOT_REVERSED[r.source];
-    // awaited: a lost notice fails the delivery, so the provider redelivers it.
-    // keyed on the event, so the redelivery posts one notice
+  const f = r.share && fraction_of(r.share);
+  if (f === null) {
+    // awaited: a lost notice fails the delivery, so the provider redelivers
+    // it. keyed on the event, so the redelivery posts one notice
     await enqueue(
       msg("fiat-notice", {
         id: r.notice.id,
         alert: {
           type: "NOTICE",
           from: `${r.alert_from}-${stage}`,
-          title,
-          body: [...r.notice.lines, action].join("\n"),
+          title: "Reversal Not Sized",
+          body: [...r.notice.lines, UNSIZED_ACTION].join("\n"),
         },
       })
     );
-    return { status: "partial_not_acted" };
+    return { status: "unsized" };
   }
+  const partial = f < 1;
 
-  // ahead of the reversal and whatever becomes of it: the donor has the money
-  // back, so the gift stops billing even while a dist is left to retry
+  // ahead of the reversal and whatever becomes of it, a held one included:
+  // the donor has the money back, so the gift stops billing even while a
+  // refund is unsent or a dist is left to retry
   const end_subscription = rail_adapters[r.rail].subscription_end(r.source);
-  if (end_subscription && don.settlement) {
-    await end_subscription(don.settlement.id);
+  const payment_id = r.intent_id ?? don.settlement?.id;
+  if (!partial && end_subscription && payment_id) {
+    await end_subscription(payment_id);
   }
+  if (r.unsent_refunds?.length) {
+    console.info(
+      `${r.alert_from}: reversal of ${don.id} held on ${r.unsent_refunds.join(", ")}`
+    );
+    return { status: "held" };
+  }
+  if (partial) return reverse_share(r, don.id, f);
 
   // `r.donation_id` may be the v1 id `donation_get` also matches
   const graphs = await dists_for_refund(don.id);
@@ -213,25 +244,13 @@ export async function reverse_charge(
     return { status: "failed", reason: "not_distributed" };
   }
 
-  const reverse = () =>
-    process_refund(don.id, graphs, {
-      form_id: don.form_id ?? null,
-      program_id: don.program?.id ?? null,
-      alert_from: r.alert_from,
-      source: r.source === "dispute" ? "dispute" : "refund",
-      source_ref: r.source_ref ?? r.notice.id,
-    });
-  const res = r.after_partials
-    ? await reverse_after_partials(
-        {
-          ...r.after_partials,
-          donation_id: r.donation_id,
-          alert_from: r.alert_from,
-          dist_count: graphs.length,
-        },
-        reverse
-      )
-    : await reverse();
+  const res = await process_refund(don.id, graphs, {
+    form_id: don.form_id ?? null,
+    program_id: don.program?.id ?? null,
+    alert_from: r.alert_from,
+    source: r.source === "dispute" ? "dispute" : "refund",
+    source_ref: r.source_ref ?? r.notice.id,
+  });
 
   const failed = res.failures.length;
   console.info(
@@ -255,6 +274,46 @@ export async function reverse_charge(
     owed_msgs: res.owed_msgs,
     has_loss: res.has_loss,
   };
+}
+
+/** part of the charge: each party's share recorded as owed, nothing reversed */
+async function reverse_share(
+  r: ChargeReversal,
+  donation_id: string,
+  f: number
+): Promise<ReversalResult> {
+  const res = await record_share({
+    donation_id,
+    f,
+    fee_dispute_usd: r.dispute_fee_usd ?? 0,
+    source: r.source === "dispute" ? "dispute" : "refund",
+    source_ref: r.source_ref ?? r.notice.id,
+  });
+  if (res.undistributed) return { status: "failed", reason: "not_distributed" };
+  const { owed_msgs, pending } = res;
+  const text = SHARE_NOTICE[r.source];
+  // awaited: a lost notice fails the delivery, so the provider redelivers it,
+  // which records nothing more. keyed on the event, so it posts once
+  await enqueue(
+    msg("fiat-notice", {
+      id: r.notice.id,
+      alert: {
+        type: "NOTICE",
+        from: `${r.alert_from}-${stage}`,
+        title: pending.length > 0 ? text.pending : text.owed,
+        body: [
+          ...r.notice.lines,
+          `${humanize(f * 100)}% of the charge taken back so far; the donation is not reversed.`,
+          ...owed_msgs.map((m) => `owed: ${m}`),
+          ...pending.map((m) => `not owed: ${m}`),
+          ...(pending.length > 0 ? [text.action] : []),
+        ].join("\n"),
+      },
+    })
+  );
+  return pending.length > 0
+    ? { status: "partial_pending", owed_msgs }
+    : { status: "partial_owed", owed_msgs };
 }
 
 /** whether `reverse_charge` would find dists to reverse, rather than answer

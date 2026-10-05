@@ -23,7 +23,12 @@ import type { DbOrTx } from "../pg/queries/helpers";
 import { void_match_event } from "../pg/queries/match";
 import { nav_ltd } from "../pg/queries/nav";
 import { npo_get } from "../pg/queries/npo";
-import { credit_owed, owed_for_party, owed_total } from "../pg/queries/owed";
+import {
+  credit_owed,
+  type IOwed,
+  owed_for_party,
+  owed_total,
+} from "../pg/queries/owed";
 import type { MatchEvent } from "../pg/schema/match";
 import { apply_refund_plan, type OwedSource, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
@@ -69,18 +74,30 @@ function dist_is_reversed(d: { status: string; refund_status: string | null }) {
   );
 }
 
-/** whether this dispute's open recorded the party's row: what the npo owes
+/** the party's row when this dispute's open recorded it: what the npo owes
  * from it was taken then, so the reversal's own take comes off it */
 async function recorded_at_open(
   tx: DbOrTx,
   donation_id: string,
   party: { npo_id: number },
   src: OwedSource
-): Promise<boolean> {
-  if (src.source !== "dispute") return false;
+): Promise<IOwed | null> {
+  if (src.source !== "dispute") return null;
   const row = await owed_for_party(donation_id, party, tx);
-  return row?.source === "dispute" && row.source_ref === src.source_ref;
+  return row?.source === "dispute" && row.source_ref === src.source_ref
+    ? row
+    : null;
 }
+
+/** what a reversal taking `taken` from the npo's balances credits on the row
+ * its dispute's open recorded: no more than the row counts it received, so a
+ * share recorded at open keeps its fees owed */
+const open_credit = (row: IOwed, taken: number) =>
+  Math.min(
+    taken,
+    row.received_usd,
+    owed_total(row) - row.credited_back_usd - row.written_off_usd
+  );
 
 /** usd the plan takes back from the npo's balances and pending payout */
 const taken_from_npo = (plan: RefundPlan): number =>
@@ -205,12 +222,12 @@ export async function process_refund(
       // read before apply, whose loss path records a row of its own
       const opened = await recorded_at_open(tx, donation_id, party, src);
       const applied = await apply_refund_plan(tx, plan, src);
-      const taken = taken_from_npo(plan);
-      if (opened && taken > 0) {
+      const credit = opened ? open_credit(opened, taken_from_npo(plan)) : 0;
+      if (credit > 0) {
         await credit_owed(tx, {
           donation_id,
           party,
-          usd: taken,
+          usd: credit,
           reason: "dispute_reversed",
           ref: `${src.source_ref}:${g.dist.id}`,
           now: new Date().toISOString(),

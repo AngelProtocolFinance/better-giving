@@ -5,7 +5,8 @@ import { sources_of } from "#/__tests__/conformance/walk";
 // core's internals stay behind it so a rail can't hand-roll the load/guard again
 const platform = "apps/platform";
 const fenced = `${platform}/.server/refund/`;
-const internal_module = /(^|\/)refund\/(process|plan|apply|unfunded)(\.tsx?)?$/;
+const internal_module =
+  /(^|\/)refund\/(process|plan|apply|unfunded|partial|share)(\.tsx?)?$/;
 const internal_name = /\b(dists_for_refund|load_refund_plan|process_refund)\b/;
 // payout settlement rewrites the loss a refund recorded once that payout's
 // transfer goes unfunded: no charge goes back to a donor there

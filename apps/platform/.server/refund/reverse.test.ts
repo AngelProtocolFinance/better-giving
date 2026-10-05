@@ -78,6 +78,7 @@ vi.mock("../kit/stripe", () => ({
 
 // --- imports (after mocks) ---
 
+import { stripe } from "../kit/stripe";
 import { donation_get } from "../pg/queries/donation";
 import { create_test_db } from "../pg/test-utils/pglite";
 import { has_settled_dists, reversal_preview, reverse_charge } from "./reverse";
@@ -186,6 +187,7 @@ async function seed(via: string, o?: { fee?: number; currency?: string }) {
 }
 
 const notice = { id: "evt_1", lines: ["donation x, charge ch_1, event evt_1"] };
+const whole = { taken: 100, of: 100 };
 
 /** a second dist with no npo, which fails to reverse */
 const seed_orphan_dist = (id: string) =>
@@ -221,6 +223,7 @@ describe("reverse_charge — a full refund", () => {
       donation_id: id,
       rail: "stripe",
       source: "refund",
+      share: whole,
       alert_from: "charge-refunded",
       notice,
     });
@@ -264,6 +267,7 @@ describe("reverse_charge — a gift through a form, to a program", () => {
       donation_id: id,
       rail: "stripe",
       source: "refund",
+      share: whole,
       alert_from: "charge-refunded",
       notice,
     });
@@ -287,6 +291,7 @@ describe("reverse_charge — a gift named by its v1 id", () => {
       donation_id: `v1-${id}`,
       rail: "stripe",
       source: "refund",
+      share: whole,
       alert_from: "charge-refunded",
       notice,
     });
@@ -318,6 +323,7 @@ describe("reverse_charge — every refundable rail", () => {
         donation_id: id,
         rail,
         source,
+        share: whole,
         alert_from: "test",
         notice,
       });
@@ -377,6 +383,7 @@ describe("reverse_charge — a gift whose grant was already paid", () => {
         donation_id: id,
         rail,
         source: "refund",
+        share: whole,
         alert_from: "test",
         notice,
       });
@@ -411,6 +418,7 @@ describe("reverse_charge — a gift whose grant was already paid", () => {
         donation_id: id,
         rail: "stripe",
         source,
+        share: whole,
         alert_from: "test",
         notice,
       });
@@ -428,6 +436,7 @@ describe("reverse_charge — a gift whose grant was already paid", () => {
       donation_id: id,
       rail: "stripe",
       source: "refund",
+      share: whole,
       source_ref: "re_1",
       alert_from: "test",
       notice,
@@ -451,6 +460,7 @@ describe("reverse_charge — a gift whose grant was already paid", () => {
       donation_id: id,
       rail: "stripe",
       source: "refund",
+      share: whole,
       alert_from: "test",
       notice,
     });
@@ -476,6 +486,7 @@ describe("reverse_charge — a redelivery", () => {
         donation_id: id,
         rail: "stripe",
         source: "refund",
+        share: whole,
         alert_from: "charge-refunded",
         notice,
       });
@@ -496,25 +507,232 @@ describe("reverse_charge — a redelivery", () => {
   );
 });
 
-describe("reverse_charge — a partial amount", () => {
-  const queued = () =>
-    enqueue.mock.calls.flat().filter((m) => m.id === "fiat-notice");
+describe("reverse_charge — part of the charge, its grant paid", () => {
+  const part = (id: string, taken: number, ref = `re_${taken}`) =>
+    reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: { taken, of: 100 },
+      source_ref: ref,
+      alert_from: "charge-refunded",
+      notice: { id: `evt_${ref}`, lines: [`donation ${id}`] },
+    });
+
+  test("$40 of $100 records its share of what the npo received plus its card fee, and reverses nothing", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+
+    const res = await part(id, 40, "re_1");
+
+    expect(res.status).toBe("partial_owed");
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        npo_id,
+        source: "refund",
+        source_ref: "re_1",
+        received_usd: 36,
+        fee_processing_usd: 1.28,
+        outstanding_usd: 37.28,
+      }),
+    ]);
+    const [don] = await test_db
+      .current!.db.select()
+      .from(donations)
+      .where(eq(donations.id, id));
+    expect([don!.status, don!.refunded_share]).toEqual(["settled", 0.4]);
+  });
+
+  test("the $60 that completes the charge reverses the gift and leaves the row at the full figure, with no hand adjustment to undo", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    await part(id, 40, "re_1");
+
+    const res = await part(id, 100, "re_2");
+
+    expect(res).toMatchObject({ status: "reversed", applied: 1 });
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        source_ref: "re_1",
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        outstanding_usd: 93.2,
+      }),
+    ]);
+    expect((await state(id, npo_id)).don).toBe("refunded_loss");
+    const titles = enqueue.mock.calls
+      .flat()
+      .filter((m) => m.id === "fiat-notice")
+      .map((m) => m.payload.alert.title);
+    expect(titles).toEqual(["Partial Refund Recorded as Owed"]);
+  });
+
+  test("two refunds of $50 end as one full refund does, and a redelivery of either changes nothing", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+
+    await part(id, 50, "re_1");
+    await part(id, 50, "re_1");
+    const half = await owed_rows();
+    expect(half).toEqual([
+      expect.objectContaining({ received_usd: 45, fee_processing_usd: 1.6 }),
+    ]);
+
+    expect((await part(id, 100, "re_2")).status).toBe("reversed");
+    expect(await part(id, 50, "re_1")).toEqual({
+      status: "already_reversed",
+      donation_status: "refunded_loss",
+    });
+    expect(await part(id, 100, "re_2")).toMatchObject({
+      status: "already_reversed",
+    });
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        id: half[0]!.id,
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        outstanding_usd: 93.2,
+      }),
+    ]);
+  });
+
+  test("a lost dispute over $30 owes its share plus the dispute fee in full, and reverses nothing", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+
+    const res = await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: 30, of: 100 },
+      dispute_fee_usd: 15,
+      source_ref: "du_1",
+      alert_from: "charge-dispute",
+      notice: { id: "evt_lost", lines: [] },
+    });
+
+    expect(res.status).toBe("partial_owed");
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        source: "dispute",
+        source_ref: "du_1",
+        received_usd: 27,
+        fee_processing_usd: 0.96,
+        fee_dispute_usd: 15,
+        outstanding_usd: 42.96,
+      }),
+    ]);
+    expect((await state(id, npo_id)).don).toBe("settled");
+  });
+
+  test("a paid commission owes the same share, and the whole once the rest is refunded", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-07-01T00:00:00.000Z",
+      donation_id: `dist-${id}`,
+      npo_id,
+      amount: 5,
+      status: "paid",
+      ref: "ref-1",
+    });
+    const referrer_row = async () =>
+      (await owed_rows()).find((o) => o.referrer_npo === "NPO-REF");
+
+    await part(id, 40, "re_1");
+    expect(await referrer_row()).toMatchObject({
+      received_usd: 2,
+      outstanding_usd: 2,
+    });
+
+    await part(id, 100, "re_2");
+    expect(await referrer_row()).toMatchObject({
+      received_usd: 5,
+      outstanding_usd: 5,
+    });
+  });
+});
+
+describe("reverse_charge — a share the provider can't size", () => {
+  const unsized = (id: string, share: { taken: number; of: number } | null) =>
+    reverse_charge({
+      donation_id: id,
+      rail: "paypal",
+      source: "refund",
+      share,
+      alert_from: "paypal-refund",
+      notice: { id: "paypal-unsized_WH-1", lines: ["donation x, charge c_1"] },
+    });
+
+  test.each([
+    ["no share", null],
+    ["an amount that isn't a number", { taken: Number.NaN, of: 100 }],
+  ])(
+    "%s reverses nothing and tells ops it couldn't be sized",
+    async (_, share) => {
+      const { id, npo_id } = await seed("paypal");
+      await grant_paid(id, npo_id);
+
+      expect(await unsized(id, share)).toEqual({ status: "unsized" });
+
+      expect((await state(id, npo_id)).don).toBe("settled");
+      expect(await owed_rows()).toEqual([]);
+      const [m, ...rest] = enqueue.mock.calls.flat();
+      expect(rest).toEqual([]);
+      expect(m.payload.id).toBe("paypal-unsized_WH-1");
+      expect(m.payload.alert.title).toBe("Reversal Not Sized");
+      const body: string[] = m.payload.alert.body.split("\n");
+      expect(body[0]).toBe("donation x, charge c_1");
+      expect(body.at(-1)).toMatch(/could not be sized.*settle it by hand/);
+    }
+  );
+
+  test("on a reversed gift is acknowledged, with no notice", async () => {
+    const { id } = await seed("paypal");
+    await test_db
+      .current!.db.update(donations)
+      .set({ status: "refunded" })
+      .where(eq(donations.id, id));
+
+    expect(await unsized(id, null)).toEqual({
+      status: "already_reversed",
+      donation_status: "refunded",
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+});
+
+describe("reverse_charge — part of the charge, its grant not yet out", () => {
+  const notices = () =>
+    enqueue.mock.calls
+      .flat()
+      .filter((m) => m.id === "fiat-notice")
+      .map((m) => m.payload);
 
   test.each([
     ["refund", "Partial Refund Not Reversed"],
     ["dispute", "Lost Dispute Not Reversed"],
   ] as const)(
-    "a %s of part of the charge reverses nothing and tells ops to settle it by hand",
+    "a %s of part of a gift whose payout is pending records nothing and tells ops a pending grant is why",
     async (source, title) => {
       const { id, npo_id } = await seed("stripe:card");
+      await grant_paid(id, npo_id);
+      await test_db
+        .current!.db.update(payouts)
+        .set({ type: "pending", settled_date: null })
+        .where(eq(payouts.id, `payout-${id}`));
 
       const res = await reverse_charge({
         donation_id: id,
         rail: "stripe",
         source,
-        amount: 40,
-        dispute_fee:
-          source === "dispute" ? { amount: 15, currency: "usd" } : undefined,
+        share: { taken: 40, of: 100 },
         alert_from: "charge-refunded",
         notice: {
           id: "evt_9",
@@ -522,23 +740,18 @@ describe("reverse_charge — a partial amount", () => {
         },
       });
 
-      expect(res).toEqual({ status: "partial_not_acted" });
-      expect(await state(id, npo_id)).toEqual({
-        don: "settled",
-        dist: ["settled", null],
-        liq: 1000,
-        bal_txs: 0,
-      });
-      const [m, ...rest] = queued();
+      expect(res).toEqual({ status: "partial_pending", owed_msgs: [] });
+      expect(await owed_rows()).toEqual([]);
+      expect((await state(id, npo_id)).don).toBe("settled");
+      const [n, ...rest] = notices();
       expect(rest).toEqual([]);
-      expect(m.payload.id).toBe("evt_9");
-      expect(m.payload.alert).toMatchObject({
-        type: "NOTICE",
-        from: expect.stringMatching(/^charge-refunded-/),
-        title,
-      });
-      const body: string[] = m.payload.alert.body.split("\n");
+      expect(n.id).toBe("evt_9");
+      expect(n.alert.title).toBe(title);
+      const body: string[] = n.alert.body.split("\n");
       expect(body[0]).toBe("donation x, charge ch_1, event evt_9");
+      expect(body).toContainEqual(
+        expect.stringMatching(/its grant payout is still pending/)
+      );
       expect(body.at(-1)).toMatch(/^nothing was reversed automatically/);
     }
   );
@@ -553,6 +766,7 @@ describe("reverse_charge — a reversal that can't finish", () => {
       donation_id: id,
       rail: "paypal",
       source: "refund",
+      share: whole,
       alert_from: "paypal-refund",
       notice,
     });
@@ -583,6 +797,7 @@ describe("reverse_charge — a reversal that can't finish", () => {
       donation_id: id,
       rail: "crypto",
       source: "refund",
+      share: whole,
       alert_from: "nowpayments-refunded",
       notice,
     });
@@ -615,6 +830,7 @@ describe("reverse_charge — a gift on another rail", () => {
       donation_id: id,
       rail: "stripe",
       source: "admin",
+      share: whole,
       alert_from: "refund-action",
       notice,
     });
@@ -668,6 +884,7 @@ describe("reverse_charge — a subscription payment", () => {
         donation_id: id,
         rail,
         source,
+        share: whole,
         alert_from: "test",
         notice,
       });
@@ -689,6 +906,7 @@ describe("reverse_charge — a subscription payment", () => {
       donation_id: id,
       rail: "stripe",
       source: "refund",
+      share: whole,
       alert_from: "charge-refunded",
       notice,
     });
@@ -705,6 +923,7 @@ describe("reverse_charge — a subscription payment", () => {
       donation_id: id,
       rail: "stripe",
       source: "refund",
+      share: whole,
       alert_from: "charge-refunded",
       notice,
     } as const;
@@ -725,6 +944,7 @@ describe("reverse_charge — a subscription payment", () => {
       donation_id: id,
       rail: "stripe",
       source: "admin",
+      share: whole,
       alert_from: "refund-action",
       notice,
     });
@@ -732,6 +952,75 @@ describe("reverse_charge — a subscription payment", () => {
     expect(res).toMatchObject({ status: "failed", reason: "incomplete" });
     expect((await sub()).status).toBe("inactive");
     expect(deactivated()).toHaveLength(1);
+  });
+
+  test("a full refund held on an unsent refund reverses nothing and still stops the billing", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await seed_sub(npo_id);
+
+    const res = await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: whole,
+      unsent_refunds: ["re_2"],
+      alert_from: "charge-refunded",
+      notice,
+    });
+
+    expect(res).toEqual({ status: "held" });
+    expect(await state(id, npo_id)).toEqual({
+      don: "settled",
+      dist: ["settled", null],
+      liq: 1000,
+      bal_txs: 0,
+    });
+    expect((await sub()).status).toBe("inactive");
+  });
+
+  test("part of the charge held on an unsent refund records nothing and leaves the billing", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    await seed_sub(npo_id);
+
+    const res = await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: { taken: 40, of: 100 },
+      unsent_refunds: ["re_1"],
+      alert_from: "charge-refunded",
+      notice,
+    });
+
+    expect(res).toEqual({ status: "held" });
+    expect(await owed_rows()).toEqual([]);
+    expect((await sub()).status).toBe("active");
+  });
+
+  test("a gift whose settlement isn't on record yet ends the billing of the payment intent named", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await seed_sub(npo_id);
+    await test_db
+      .current!.db.delete(donation_settlements)
+      .where(eq(donation_settlements.donation_id, id));
+
+    await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "refund",
+      share: whole,
+      intent_id: "pi_1",
+      alert_from: "charge-refunded",
+      notice,
+    });
+
+    expect(vi.mocked(stripe.invoicePayments.list)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment: { payment_intent: "pi_1", type: "payment_intent" },
+      })
+    );
+    expect((await sub()).status).toBe("inactive");
   });
 });
 
@@ -749,6 +1038,7 @@ describe("reverse_charge — the ops notice of a full reversal", () => {
       donation_id: id,
       rail: "stripe",
       source: "dispute",
+      share: whole,
       alert_from: "charge-dispute",
       notice,
     });
@@ -771,6 +1061,7 @@ describe("reverse_charge — the ops notice of a full reversal", () => {
       donation_id: id,
       rail: "stripe",
       source: "dispute",
+      share: whole,
       alert_from: "charge-dispute",
       notice,
     });
@@ -791,6 +1082,7 @@ describe("reverse_charge — the ops notice of a full reversal", () => {
       donation_id: id,
       rail: "stripe",
       source: "dispute",
+      share: whole,
       alert_from: "charge-dispute",
       notice,
     });
@@ -810,92 +1102,13 @@ describe("reverse_charge — the ops notice of a full reversal", () => {
       donation_id: id,
       rail: "paypal",
       source: "refund",
+      share: whole,
       alert_from: "paypal-refund",
       notice,
     });
 
     expect(res.status).toBe("reversed");
     expect(queued()).toEqual([]);
-  });
-
-  test("a full refund after earlier partials brackets the reversal for ops' hand adjustment", async () => {
-    const { id } = await seed("stripe:card");
-    const refund = (rid: string, amount: number) =>
-      ({ id: rid, amount, status: "succeeded", created: 1 }) as any;
-
-    const res = await reverse_charge({
-      donation_id: id,
-      rail: "stripe",
-      source: "refund",
-      alert_from: "charge-refunded",
-      notice,
-      after_partials: {
-        seen_at: "charge ch_1, event evt_1",
-        currency: "usd",
-        completing: refund("re_2", 6000),
-        earlier: [refund("re_1", 4000)],
-      },
-    });
-
-    expect(res.status).toBe("reversed");
-    expect(queued().map((n) => [n.id, n.alert.title])).toEqual([
-      ["re_2_start", "Full Refund After Partial: Reversal Starting"],
-      ["re_2_undo", "Reversal Complete: Undo Hand Adjustment"],
-    ]);
-  });
-
-  const after_partials = {
-    seen_at: "charge ch_1, event evt_1",
-    currency: "usd",
-    completing: { id: "re_2", amount: 6000, status: "succeeded", created: 1 },
-    earlier: [{ id: "re_1", amount: 4000, status: "succeeded", created: 1 }],
-  } as any;
-
-  test("a full refund after earlier partials that doesn't finish tells ops to keep their hand adjustment", async () => {
-    const { id } = await seed("stripe:card");
-    await seed_orphan_dist(id);
-
-    const res = await reverse_charge({
-      donation_id: id,
-      rail: "stripe",
-      source: "admin",
-      alert_from: "refund-action",
-      notice,
-      after_partials,
-    });
-
-    expect(res).toMatchObject({ status: "failed", reason: "incomplete" });
-    const [, keep] = queued();
-    expect(keep.id).toBe("re_2_keep");
-    expect(keep.alert.title).toBe(
-      "Reversal Did Not Complete: Keep Hand Adjustment"
-    );
-    expect(keep.alert.body).toContain("1 of 2 dists failed to reverse");
-  });
-
-  test("a closing notice that can't be queued is reported with its instruction, the reversal standing", async () => {
-    const { id } = await seed("stripe:card");
-    enqueue
-      .mockResolvedValueOnce(undefined) // the start notice
-      .mockRejectedValueOnce(new Error("qstash 503"));
-
-    const res = await reverse_charge({
-      donation_id: id,
-      rail: "stripe",
-      source: "admin",
-      alert_from: "refund-action",
-      notice,
-      after_partials,
-    });
-
-    expect(res.status).toBe("reversed");
-    expect(report_error).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ message: "qstash 503" }),
-      expect.objectContaining({
-        donation_id: id,
-        title: "Reversal Complete: Undo Hand Adjustment",
-      })
-    );
   });
 });
 

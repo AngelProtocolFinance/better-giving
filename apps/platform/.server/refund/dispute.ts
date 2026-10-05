@@ -1,4 +1,3 @@
-import { and, asc, eq } from "drizzle-orm";
 import { db } from "../pg/db";
 import {
   dispute_close,
@@ -6,20 +5,21 @@ import {
   dispute_open,
   type IDispute,
 } from "../pg/queries/dispute";
-import type { DbOrTx } from "../pg/queries/helpers";
 import {
   credit_owed,
   type IOwed,
-  type IOwedRecord,
   type OwedParty,
   owed_for_donation,
   owed_total,
   record_owed,
 } from "../pg/queries/owed";
-import { dists } from "../pg/schema/dist";
-import { referrer_commissions } from "../pg/schema/referrer";
-import { dist_settled_usd, fee_processing_usd, referrer_of } from "./plan";
 import { load_reversible, type Rail, type Unreversible } from "./reverse";
+import {
+  fraction_of,
+  owed_shares,
+  type Share,
+  settled_dists_locked,
+} from "./share";
 
 export interface DisputeOpened {
   donation_id: string;
@@ -29,6 +29,8 @@ export interface DisputeOpened {
   dispute_id: string;
   /** when the provider opened it */
   opened_at: string;
+  /** how much of the charge is taken back so far, this dispute included */
+  share: Share;
   /** what the provider charged for the dispute, in usd; 0 when none */
   fee_usd: number;
 }
@@ -62,10 +64,11 @@ export type DisputeOpenedResult =
   | Extract<Unreversible, { status: "failed" }>;
 
 /**
- * a chargeback opened on a gift: records the dispute, and as owed what each
- * npo on the gift received plus its card fee and its share of the dispute
- * fee, and each referrer its paid commission. the gift stays settled until
- * the dispute closes.
+ * a chargeback opened on a gift: records the dispute, and as owed the share
+ * of the charge taken back so far of what each npo on the gift received plus
+ * its card fee, its part of the dispute fee in full, and that share of each
+ * referrer's paid commission. the gift stays settled until the dispute
+ * closes.
  *
  * safe to rerun: a redelivery records nothing new, and an open handled
  * after the dispute's close (providers don't order their events) none at all.
@@ -98,10 +101,17 @@ export async function dispute_opened(
       (await owed_for_donation(don.id, tx)).map((o) => [o.id, owed_total(o)])
     );
     const rows: IOwed[] = [];
-    for (const f of owed_at_open(ds, d.fee_usd)) {
+    const shares = owed_shares(ds, {
+      // an unsizable share is the whole: the open owes as much as it can, and
+      // a win credits it all back
+      f: fraction_of(d.share) ?? 1,
+      fee_usd: d.fee_usd,
+      owes: () => true,
+    });
+    for (const share of shares) {
       rows.push(
         await record_owed(tx, {
-          ...f,
+          ...share,
           donation_id: don.id,
           source: "dispute",
           source_ref: d.dispute_id,
@@ -203,108 +213,3 @@ const party_of = (o: IOwed): OwedParty =>
     : o.referrer_user !== null
       ? { referrer_user: o.referrer_user }
       : { referrer_npo: o.referrer_npo! };
-
-type OpenDist = Awaited<ReturnType<typeof settled_dists_locked>>[number];
-
-type OwedAtOpen = Pick<
-  IOwedRecord,
-  "party" | "received_usd" | "fee_processing_usd" | "fee_dispute_usd"
->;
-
-/** one figure per party: each npo what its dists received, their card fees
- * and their share of the dispute fee by settled amount; each referrer its
- * paid commissions */
-function owed_at_open(ds: OpenDist[], fee_usd: number): OwedAtOpen[] {
-  const fee_shares = split_cents(fee_usd, ds.map(dist_settled_usd));
-  const by_party = new Map<string, OwedAtOpen>();
-  const add = (key: string, f: OwedAtOpen) => {
-    const was = by_party.get(key);
-    by_party.set(
-      key,
-      was
-        ? {
-            party: f.party,
-            received_usd: was.received_usd + f.received_usd,
-            fee_processing_usd: was.fee_processing_usd + f.fee_processing_usd,
-            fee_dispute_usd:
-              (was.fee_dispute_usd ?? 0) + (f.fee_dispute_usd ?? 0),
-          }
-        : f
-    );
-  };
-  for (const [i, x] of ds.entries()) {
-    add(`npo:${x.to_id}`, {
-      party: { npo_id: x.to_id },
-      received_usd: x.net,
-      fee_processing_usd: fee_processing_usd(x),
-      fee_dispute_usd: fee_shares[i]!,
-    });
-    const c = x.commission;
-    if (c?.status !== "paid") continue;
-    const party = referrer_of(c);
-    add(`ref:${JSON.stringify(party)}`, {
-      party,
-      received_usd: c.amount,
-      fee_processing_usd: 0,
-    });
-  }
-  return [...by_party.values()];
-}
-
-/** `usd` split in whole cents in proportion to `weights`, the cents rounding
- * leaves going to the largest remainders, so the shares sum to `usd` */
-function split_cents(usd: number, weights: number[]): number[] {
-  const cents = Math.round(usd * 100);
-  const total = weights.reduce((s, w) => s + w, 0);
-  if (total <= 0) return weights.map(() => 0);
-  const exact = weights.map((w) => (cents * w) / total);
-  const shares = exact.map(Math.floor);
-  let left = cents - shares.reduce((s, c) => s + c, 0);
-  const by_remainder = exact
-    .map((e, i) => [e - shares[i]!, i] as const)
-    .sort((a, b) => b[0] - a[0]);
-  for (const [, i] of by_remainder) {
-    if (left-- <= 0) break;
-    shares[i]! += 1;
-  }
-  return shares.map((c) => c / 100);
-}
-
-/** the gift's dists not yet reversed, each with its commission, held locked:
- * a reversal of one waits */
-async function settled_dists_locked(tx: DbOrTx, donation_id: string) {
-  const rows = await tx
-    .select({
-      id: dists.id,
-      to_id: dists.to_id,
-      net: dists.net,
-      fee_base: dists.fee_base,
-      fee_fsa: dists.fee_fsa,
-      fee_processing: dists.fee_processing,
-      fee_allowance: dists.fee_allowance,
-      commission: {
-        amount: referrer_commissions.amount,
-        status: referrer_commissions.status,
-        referrer_user: referrer_commissions.referrer_user,
-        referrer_npo: referrer_commissions.referrer_npo,
-      },
-    })
-    .from(dists)
-    .leftJoin(
-      referrer_commissions,
-      eq(referrer_commissions.donation_id, dists.id)
-    )
-    .where(and(eq(dists.donation_id, donation_id), eq(dists.status, "settled")))
-    .orderBy(asc(dists.id))
-    .for("update", { of: dists });
-  return rows.map((r) => ({
-    id: r.id,
-    to_id: r.to_id ?? 0,
-    net: r.net ?? 0,
-    fee_base: r.fee_base ?? 0,
-    fee_fsa: r.fee_fsa ?? 0,
-    fee_processing: r.fee_processing ?? 0,
-    fee_allowance: r.fee_allowance ?? 0,
-    commission: r.commission,
-  }));
-}
