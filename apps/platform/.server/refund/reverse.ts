@@ -11,7 +11,7 @@ import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
 import { fraction_of, type Share } from "./share";
 
-export type { Share } from "./share";
+export { type Share, WHOLE } from "./share";
 
 /** the provider family a gift was paid through, from its `via` */
 export type Rail = "stripe" | "paypal" | "crypto";
@@ -165,11 +165,14 @@ export const unreversible = (
 const UNSIZED_ACTION =
   "how much of the charge is taken back could not be read, so this reversal could not be sized against the charge. nothing was reversed automatically: settle it by hand.";
 
+/** what a later event does on top of a hand adjustment for these dists */
+const LATER_EVENTS =
+  "once the grant has gone out, any later refund or dispute on this donation records as owed the whole share taken back so far, this one included, and a refund of the rest reverses the donation: undo any hand adjustment made for these dists when either happens, or they are debited twice.";
+
 const PARTIAL_REFUND = {
   owed: "Partial Refund Recorded as Owed",
   pending: "Partial Refund Not Reversed",
-  action:
-    "nothing was reversed automatically for these dists. if the rest is refunded later, the whole donation reverses automatically, so any hand adjustment made for them must then be undone.",
+  action: `nothing was reversed automatically for these dists. ${LATER_EVENTS}`,
 };
 
 const SHARE_NOTICE: Record<
@@ -181,8 +184,7 @@ const SHARE_NOTICE: Record<
   dispute: {
     owed: "Lost Dispute: Share Recorded as Owed",
     pending: "Lost Dispute Not Reversed",
-    action:
-      "nothing was reversed automatically for these dists: settle them by hand.",
+    action: `nothing was reversed automatically for these dists: settle them by hand. ${LATER_EVENTS}`,
   },
 };
 

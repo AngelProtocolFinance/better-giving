@@ -13,6 +13,9 @@ export interface Share {
   of: number;
 }
 
+/** the whole charge, for a caller that only ever takes all of it back */
+export const WHOLE: Share = { taken: 1, of: 1 };
+
 /** `taken` over `of`, at most 1; null when either can't size the charge */
 export function fraction_of(s: Share): number | null {
   const { taken, of } = s;
