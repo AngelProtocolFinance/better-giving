@@ -109,9 +109,9 @@ export async function record_owed(tx: DbOrTx, r: IOwedRecord): Promise<IOwed> {
     })
     .returning();
   // no row back: the conflict's update was skipped, and the row stands as it was
-  const recorded = row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
-  await queue_notice(tx, "recorded", recorded.id, r.now);
-  return recorded;
+  const owed = row ?? (await owed_for_party(r.donation_id, r.party, tx))!;
+  await queue_notice(tx, "recorded", owed.id, r.now);
+  return owed;
 }
 
 type OwedNoticeKind = (typeof owed_notices.$inferSelect)["kind"];

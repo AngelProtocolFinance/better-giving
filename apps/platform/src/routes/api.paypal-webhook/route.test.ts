@@ -57,7 +57,11 @@ const paypal_env = vi.hoisted(() => ({
   client_secret: "s",
   api_url: "https://api-m.sandbox.paypal.com",
 }));
-vi.mock("$/env", () => ({ paypal: paypal_env, stage: "production" }));
+vi.mock("$/env", () => ({
+  paypal: paypal_env,
+  stage: "production",
+  owed_terms_effective: null,
+}));
 vi.mock("$/kit/paypal", () => ({
   paypal: {
     get_order: get_order_mock,
