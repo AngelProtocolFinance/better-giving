@@ -139,6 +139,7 @@ describe("the recorded notice", () => {
     expect(claim).toMatchObject({
       status: "claimed",
       kind: "recorded",
+      round: 0,
       party: { npo_id: npo_a },
       row: {
         id: owed.id,
@@ -147,6 +148,24 @@ describe("the recorded notice", () => {
         outstanding_usd: 93.2,
       },
     });
+  });
+
+  test("is done without a send once the row owes nothing, the credit's own notice still due", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1");
+    const [notice] = await owed_notices_due(50, as_db(t.db));
+    await credit_owed(as_db(t.db), {
+      donation_id: "don-1",
+      party: { npo_id: npo_a },
+      reason: "dispute_won",
+      ref: "dp_won",
+      now: NOW,
+    });
+
+    expect(await claim_owed_notice(notice!.id, as_db(t.db))).toEqual({
+      status: "done",
+    });
+    expect(await due()).toEqual(["credited"]);
   });
 });
 
@@ -223,7 +242,38 @@ describe("the recorded notice, re-armed", () => {
     await record("re_2", 90, 3.2);
     await record("re_2", 90, 3.2);
 
-    expect(await due()).toEqual(["recorded"]);
+    const [again, ...more] = await owed_notices_due(50, as_db(t.db));
+    expect([again?.kind, more]).toEqual(["recorded", []]);
+    const claim = await claim_owed_notice(again!.id, as_db(t.db));
+    expect(claim).toMatchObject({ status: "claimed", round: 1 });
+  });
+
+  test("a credit-back after the row owed again is noticed again", async () => {
+    await gift("don-1", EFFECTIVE);
+    const fail = async (ref: string, received: number, fee: number) => {
+      for (const [reason, usd] of [
+        ["refund_failed", received],
+        ["refund_failed_fee", fee],
+      ] as const) {
+        await credit_owed(as_db(t.db), {
+          donation_id: "don-1",
+          party: { npo_id: npo_a },
+          usd,
+          reason,
+          ref: `${reason}:${ref}`,
+          now: NOW,
+        });
+      }
+    };
+    await record("re_1", 36, 1.28);
+    await fail("re_1", 36, 1.28);
+    await send_all();
+    await record("re_2", 90, 3.2);
+    await send_all();
+
+    await fail("re_2", 90, 3.2);
+
+    expect(await due()).toEqual(["credited"]);
   });
 
   test("is not due again while the row still owes when it grows", async () => {

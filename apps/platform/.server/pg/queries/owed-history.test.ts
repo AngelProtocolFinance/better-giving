@@ -180,6 +180,7 @@ describe("npo_owed_history", () => {
       fee_dispute_usd: 0,
       recovered_usd: 0,
       credited_back_usd: 0,
+      refund_failed_usd: 0,
       written_off_usd: 0,
       credited_back_at: null,
       written_off_at: null,
@@ -303,6 +304,32 @@ describe("npo_owed_history", () => {
       fee_processing_usd: 3.2,
       credited_back_usd: 0,
       outstanding_usd: 93.2,
+    });
+  });
+
+  test("a refund that failed after it was recorded shows what its failure credited back", async () => {
+    await gift("don-1", EFFECTIVE);
+    await refund("don-1", { npo_id: npo_a });
+    for (const [reason, usd] of [
+      ["refund_failed", 90],
+      ["refund_failed_fee", 3.2],
+    ] as const) {
+      await credit_owed(as_db(t.db), {
+        donation_id: "don-1",
+        party: { npo_id: npo_a },
+        usd,
+        reason,
+        ref: `${reason}:re_don-1`,
+        now: CREDIT_AT,
+      });
+    }
+
+    const [row] = await npo_owed_history(npo_a, as_db(t.db));
+    expect(row).toMatchObject({
+      state: "credited_back",
+      refund_failed_usd: 93.2,
+      credited_back_usd: 0,
+      outstanding_usd: 0,
     });
   });
 
@@ -432,6 +459,33 @@ describe("grant_run_deductions", () => {
       gift_amount: 100,
       gift_currency: "USD",
       usd: 12.5,
+    });
+  });
+
+  test("lists only the gifts that reach the npo, its gross still the whole run's", async () => {
+    await gift("don-old", "2026-10-31T23:59:59.000Z");
+    await gift("don-new", EFFECTIVE);
+    await refund("don-old", { npo_id: npo_a });
+    await refund("don-new", { npo_id: npo_a });
+    await deduct(recover_owed, "don-old", 12.5);
+    await deduct(recover_owed, "don-new", 7.5);
+    await t.db.insert(settlements).values({
+      id: "wise-tx-1",
+      other_id: "run-1",
+      npo_id: npo_a,
+      date: RUN_AT,
+      amount: 50,
+      sources: [],
+      status: "",
+    });
+
+    const run = await grant_run_deductions(npo_a, "wise-tx-1", as_db(t.db));
+    expect(run).toEqual({
+      gross: 70,
+      net: 50,
+      deductions: [
+        expect.objectContaining({ donation_id: "don-new", usd: 7.5 }),
+      ],
     });
   });
 

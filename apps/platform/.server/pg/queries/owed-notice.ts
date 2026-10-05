@@ -104,6 +104,8 @@ export type OwedNoticeClaim =
       status: "claimed";
       stamp: string;
       kind: IOwedNotice["kind"];
+      /** a `recorded` notice above 0 tells of the row owing again */
+      round: number;
       party: OwedParty;
       row: IOwedHistoryRow;
     }
@@ -115,6 +117,24 @@ export async function claim_owed_notice(
   id: string,
   tx: DbOrTx = db
 ): Promise<OwedNoticeClaim> {
+  // a row settled since its recorded notice was queued owes nothing to tell
+  // of; the credit or write-off that settled it has its own notice
+  const [settled] = await tx
+    .update(owed_notices)
+    .set({ sent_at: sql`now()` })
+    .where(
+      and(
+        eq(owed_notices.id, id),
+        eq(owed_notices.kind, "recorded"),
+        claimable(tx),
+        // spelled out: drizzle leaves a one-table subquery's columns unqualified
+        sql`EXISTS (SELECT 1 FROM "owed_amounts" o
+          WHERE o.id = "owed_notices"."owed_id" AND o.outstanding_usd < 0.01)`
+      )
+    )
+    .returning({ id: owed_notices.id });
+  if (settled) return { status: "done" };
+
   const [claimed] = await tx
     .update(owed_notices)
     // ms, so the stamp survives a driver that hands back a Date and still
@@ -124,6 +144,7 @@ export async function claim_owed_notice(
     .returning({
       stamp: owed_notices.claimed_at,
       kind: owed_notices.kind,
+      round: owed_notices.round,
       owed_id: owed_notices.owed_id,
     });
   if (claimed?.stamp) {
@@ -140,6 +161,7 @@ export async function claim_owed_notice(
       status: "claimed",
       stamp: claimed.stamp,
       kind: claimed.kind,
+      round: claimed.round,
       party: party_of(owed!),
       row: row!,
     };

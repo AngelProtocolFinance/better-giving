@@ -61,6 +61,9 @@ export interface IOwedHistoryRow
   gift_amount: number;
   gift_currency: string;
   state: OwedState;
+  /** credited back because a refund failed after it was recorded; kept out
+   * of `credited_back_usd`, which holds every other credit */
+  refund_failed_usd: number;
   /** negative: the party is due that much back */
   outstanding_usd: number;
   /** oldest first; a run whose transfer went unfunded is left out, its
@@ -147,6 +150,10 @@ async function history_of(tx: DbOrTx, where: SQL): Promise<IOwedHistoryRow[]> {
         sql<number>`${owed_amounts.credited_back_usd} - ${failed_received} - ${failed_fee}`.mapWith(
           owed_amounts.credited_back_usd
         ),
+      refund_failed_usd:
+        sql<number>`${failed_received} + ${failed_fee}`.mapWith(
+          owed_amounts.credited_back_usd
+        ),
       credited_back_at: owed_amounts.credited_back_at,
       written_off_usd: owed_amounts.written_off_usd,
       written_off_at: owed_amounts.written_off_at,
@@ -180,7 +187,8 @@ export interface IGrantRunDeductions {
   /** the run's payouts, to the cent as the run sent them */
   gross: number;
   net: number;
-  /** oldest gift first; they sum to gross less net */
+  /** oldest gift first, only the gifts that reach the npo; with none hidden,
+   * they sum to gross less net */
   deductions: IGrantRunDeduction[];
 }
 
@@ -204,8 +212,9 @@ export async function grant_run_deductions(
     );
   if (!run) return null;
 
-  const deductions = await tx
+  const entries = await tx
     .select({
+      reaches: sql<boolean>`${owed_reaches_party()}`,
       owed_id: owed_amounts.id,
       donation_id: owed_amounts.donation_id,
       gift_date: donations.created_at,
@@ -225,13 +234,14 @@ export async function grant_run_deductions(
     )
     .orderBy(asc(donations.created_at), asc(owed_amounts.donation_id));
 
-  // the run nets exactly its deductions off its gross; its payouts can't be
-  // summed for it, since one refunded in flight never settles under the run
-  const deducted = deductions.reduce((a, d) => a + d.usd, 0);
+  // the run nets exactly its deductions off its gross, a row hidden from the
+  // npo included; its payouts can't be summed for it, since one refunded in
+  // flight never settles under the run
+  const deducted = entries.reduce((a, d) => a + d.usd, 0);
   return {
     gross: to_units(run.net + deducted, 2) / 100,
     net: run.net,
-    deductions,
+    deductions: entries.filter((e) => e.reaches).map(({ reaches, ...d }) => d),
   };
 }
 

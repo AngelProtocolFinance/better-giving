@@ -145,8 +145,8 @@ export const owed_notices = pgTable(
       .notNull()
       .references(() => owed_amounts.id, { onDelete: "cascade" }),
     kind: text("kind").$type<"recorded" | "credited" | "waived">().notNull(),
-    /** a `recorded` notice's count of the row's rises from owing nothing to
-     * owing; 0 for the other kinds, which go once per row */
+    /** the row's rises from owing nothing to owing, counted by its `recorded`
+     * notices; a `credited` or `waived` notice takes the round it settles */
     round: integer("round").notNull().default(0),
     created_at: timestamptz("created_at").notNull(),
     claimed_at: timestamptz("claimed_at"),
@@ -154,10 +154,7 @@ export const owed_notices = pgTable(
   },
   (t) => [
     unique("owed_notices_owed_kind_round_uniq").on(t.owed_id, t.kind, t.round),
-    check(
-      "owed_notices_round_check",
-      sql`${t.round} >= 0 AND (${t.kind} = 'recorded' OR ${t.round} = 0)`
-    ),
+    check("owed_notices_round_check", sql`${t.round} >= 0`),
     check(
       "owed_notices_kind_check",
       sql`${t.kind} IN ('recorded','credited','waived')`

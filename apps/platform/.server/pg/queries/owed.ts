@@ -151,7 +151,7 @@ const NOTICE_OF_ENTRY: Partial<
   Record<(typeof owed_entries.$inferSelect)["kind"], OwedNoticeKind>
 > = { credit: "credited", write_off: "waived" };
 
-/** the party's notice of `kind` on the row, once ever per row and kind, in
+/** the party's notice of `kind` on the row, once per row, kind and round, in
  * the transaction of the ledger write it tells of; none for a row that does
  * not reach its party */
 async function queue_notice(
@@ -496,7 +496,10 @@ async function put_entry(
 ): Promise<IOwed | null> {
   const [row] = await put_entries(tx, kind, row_is, e, usd);
   const notice = NOTICE_OF_ENTRY[kind];
-  if (row && notice) await queue_notice(tx, notice, row.id, e.now);
+  // under the round it settles, so a row owing again is told of each again
+  const round = sql`(SELECT COALESCE(MAX(${owed_notices.round}), 0) FROM ${owed_notices}
+    WHERE ${owed_notices.owed_id} = ${owed_amounts.id} AND ${owed_notices.kind} = 'recorded')`;
+  if (row && notice) await queue_notice(tx, notice, row.id, e.now, round);
   if (row) return row;
   const [as_was] = await tx.select().from(owed_amounts).where(row_is);
   return as_was ?? null;
