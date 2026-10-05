@@ -168,6 +168,7 @@ beforeEach(async () => {
   charge_retrieve_mock.mockImplementation(async (id: string) => ({
     id,
     amount: 10_000,
+    amount_captured: 10_000,
     currency: "usd",
     amount_refunded: 0,
   }));
@@ -411,6 +412,7 @@ describe("a fund gift across two nonprofits", () => {
     charge_retrieve_mock.mockResolvedValue({
       id: `ch_${gift.id}`,
       amount: 7_500,
+      amount_captured: 7_500,
       currency: "usd",
       amount_refunded: 0,
     });
@@ -570,9 +572,9 @@ describe("a late win after the dispute was lost", () => {
 });
 
 describe("a dispute over part of the charge", () => {
-  const part = { amount: 4_000 };
+  const part = { amount: 3_000 };
 
-  it("records the dispute with nothing owed, and its loss is left to ops", async () => {
+  it("records the share disputed of what the npo received plus its card fee, and the dispute fee in full, its loss reversing nothing", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
 
     await deliver(event_of("charge.dispute.created", dispute_of(gift, part)));
@@ -585,14 +587,70 @@ describe("a dispute over part of the charge", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await owed_of(gift.id)).toEqual([]);
+    expect(await owed_of(gift.id)).toEqual([
+      {
+        npo_id: gift.npo_ids[0],
+        referrer_user: null,
+        source_ref: `du_${gift.id}`,
+        received_usd: 27,
+        fee_processing_usd: 0.96,
+        fee_dispute_usd: 15,
+        outstanding_usd: 42.96,
+      },
+    ]);
     expect(await disputes_of(db(), gift.id)).toMatchObject([
       { id: `du_${gift.id}`, status: "lost" },
     ]);
     expect(await status_of(gift.id)).toBe("settled");
     expect(notices().map((n) => n.payload.alert.title)).toEqual([
       "Stripe Dispute Opened",
-      "Lost Dispute Not Reversed",
+      "Lost Dispute: Share Recorded as Owed",
+    ]);
+  });
+
+  it("records the same share when its loss is the first event handled", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+
+    const res = await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...part, status: "lost" }),
+        CLOSED_UNIX
+      )
+    );
+
+    expect(res.status).toBe(200);
+    expect(await owed_of(gift.id)).toMatchObject([
+      {
+        received_usd: 27,
+        fee_processing_usd: 0.96,
+        fee_dispute_usd: 15,
+        outstanding_usd: 42.96,
+      },
+    ]);
+    expect(await status_of(gift.id)).toBe("settled");
+  });
+
+  it("counts the charge's refunds into the share its loss takes", async () => {
+    const gift = await seed_card_gift(db(), PAID_GRANT);
+    charge_retrieve_mock.mockImplementation(async (id: string) => ({
+      id,
+      amount: 10_000,
+      amount_captured: 10_000,
+      currency: "usd",
+      amount_refunded: 2_000,
+    }));
+
+    await deliver(
+      event_of(
+        "charge.dispute.closed",
+        dispute_of(gift, { ...part, status: "lost" }),
+        CLOSED_UNIX
+      )
+    );
+
+    expect(await owed_of(gift.id)).toMatchObject([
+      { received_usd: 45, fee_processing_usd: 1.6, outstanding_usd: 61.6 },
     ]);
   });
 });
@@ -637,7 +695,7 @@ describe("an inquiry", () => {
     );
   });
 
-  it("tells ops when it escalates over part of the charge, nothing owed", async () => {
+  it("records the share once it escalates over part of the charge, telling ops a loss won't reverse the gift", async () => {
     const gift = await seed_card_gift(db(), PAID_GRANT);
     await deliver(
       event_of(
@@ -653,12 +711,14 @@ describe("an inquiry", () => {
       )
     );
 
-    expect(await owed_of(gift.id)).toEqual([]);
+    expect(await owed_of(gift.id)).toMatchObject([
+      { received_usd: 36, fee_processing_usd: 1.28, outstanding_usd: 52.28 },
+    ]);
     const [asked, escalated, ...rest] = notices();
     expect(rest).toEqual([]);
     expect(asked.payload.alert.body).toMatch(/an inquiry/);
     expect(escalated.payload.alert.body).toMatch(
-      /part of the charge: 40\.00 USD of 100\.00 USD/
+      /recorded as owed: 52\.28 USD[\s\S]*if the dispute is lost, it stays owed and the donation is not reversed/
     );
   });
 

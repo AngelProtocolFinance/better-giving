@@ -10,19 +10,15 @@ const reverse_charge_mock = vi.hoisted(() => vi.fn());
 const send_alert_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 const enqueue_mock = vi.hoisted(() => vi.fn());
-const invoice_payments_list_mock = vi.hoisted(() => vi.fn());
-const sub_update_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
     paymentIntents: { retrieve: intent_retrieve_mock },
     charges: { retrieve: charge_retrieve_mock },
     refunds: { list: refunds_list_mock },
-    invoicePayments: { list: invoice_payments_list_mock },
   },
 }));
 vi.mock("$/pg/db", () => ({ db: {} }));
-vi.mock("$/pg/queries/subscription", () => ({ sub_update: sub_update_mock }));
 vi.mock("$/pg/queries/donation", () => ({
   donation_get: donation_get_mock,
   donation_by_sttl_id: donation_by_sttl_id_mock,
@@ -122,14 +118,15 @@ const text_of = (a: { title: string; body?: string }) =>
 /** what each reversal was handed, in order */
 const reversals = (): ChargeReversal[] =>
   reverse_charge_mock.mock.calls.map(([r]) => r);
-/** a partial is handed over as its share, which reverses nothing */
-const partials = () => reversals().filter((r) => r.amount !== undefined);
-const fulls = () => reversals().filter((r) => r.amount === undefined);
+const is_held = (r: ChargeReversal) => (r.unsent_refunds?.length ?? 0) > 0;
+const is_whole = (r: ChargeReversal) =>
+  r.share !== null && r.share.taken >= r.share.of;
+/** handed over with no refund unsent: a share of the charge, or the whole */
+const partials = () => reversals().filter((r) => !is_held(r) && !is_whole(r));
+const fulls = () => reversals().filter((r) => !is_held(r) && is_whole(r));
 const notice_text = (r: ChargeReversal) => r.notice.lines.join("\n");
 const new_line = (r: ChargeReversal) =>
   r.notice.lines.find((l) => l.startsWith("new in this event:"));
-const earlier_ids = (r: ChargeReversal) =>
-  r.after_partials?.earlier.map((x) => `${x.id} ${x.status}`);
 
 const reversed = {
   status: "reversed",
@@ -166,34 +163,16 @@ beforeEach(() => {
     program: null,
   }));
   donation_by_sttl_id_mock.mockResolvedValue(undefined);
+  // the entry's answers to what it is handed
   reverse_charge_mock.mockImplementation(async (r: ChargeReversal) => {
-    if (r.amount !== undefined) return { status: "partial_not_acted" };
+    if (is_held(r)) return { status: "held" };
+    if (!is_whole(r)) return { status: "partial_owed", owed_msgs: [] };
     don_status = "refunded";
     return reversed;
   });
   send_alert_mock.mockResolvedValue(undefined);
   enqueue_mock.mockResolvedValue(undefined);
-  invoice_payments_list_mock.mockResolvedValue({ data: [] });
 });
-
-/** the charge paid an invoice of subscription `sub_id`, whose row reads `status` */
-const billed_by = (sub_id: string, status: "active" | "inactive") => {
-  invoice_payments_list_mock.mockResolvedValue({
-    data: [
-      {
-        invoice: { parent: { subscription_details: { subscription: sub_id } } },
-      },
-    ],
-  });
-  let current: string = status;
-  sub_update_mock.mockImplementation(async (_db, id, data) => {
-    const prev_status = current;
-    current = data.status ?? current;
-    return { row: { id, ...data }, prev_status };
-  });
-};
-const deactivations = () =>
-  enqueue_mock.mock.calls.flat().filter((m) => m.id === "sub-deactivated");
 
 describe("stripe charge.refunded → donation reversal", () => {
   // resolving is what the route turns into a 200, so stripe stops redelivering
@@ -208,7 +187,9 @@ describe("stripe charge.refunded → donation reversal", () => {
       donation_id: ORDER_ID,
       rail: "stripe",
       source: "refund",
-      amount: 500,
+      share: { taken: 500, of: AMOUNT },
+      unsent_refunds: [],
+      source_ref: "re_1",
       alert_from: "charge-refunded",
       notice: { id: "evt_1" },
     });
@@ -308,47 +289,30 @@ describe("stripe charge.refunded → donation reversal", () => {
     );
   });
 
-  it("reverses the gift on a full refund, keyed on the refund that completed it", async () => {
+  // the intent names the recurring gift the entry ends
+  it("hands a full refund over as the whole charge, with its intent and the refund that completed it", async () => {
     await handle_charge_refunded(refund(AMOUNT));
 
-    expect(reverse_charge_mock).toHaveBeenCalledExactlyOnceWith({
-      donation_id: ORDER_ID,
-      rail: "stripe",
-      source: "refund",
-      alert_from: "charge-refunded",
-      notice: {
-        id: "re_1",
-        lines: [`donation ${ORDER_ID}, charge ch_1, event evt_1`],
-      },
-      after_partials: {
-        seen_at: "charge ch_1, event evt_1",
-        currency: "usd",
-        completing: expect.objectContaining({ id: "re_1" }),
-        earlier: [],
-      },
-    });
+    expect(reverse_charge_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        donation_id: ORDER_ID,
+        share: { taken: AMOUNT, of: AMOUNT },
+        unsent_refunds: [],
+        intent_id: "pi_1",
+        source_ref: "re_1",
+      })
+    );
+    expect(don_status).toBe("refunded");
     expect(send_alert_mock).not.toHaveBeenCalled();
   });
 
-  it("leaves the donation unreversed while the bank refund that completes it is pending", async () => {
+  it("hands the bank refund that completes the charge over as unsent while it is pending", async () => {
     await expect(
       handle_charge_refunded(refund(AMOUNT, "pending"))
     ).resolves.toBeUndefined();
 
-    expect(reverse_charge_mock).not.toHaveBeenCalled();
+    expect(reversals().map((r) => r.unsent_refunds)).toEqual([["re_1"]]);
     expect(don_status).toBe("settled");
-  });
-
-  it("stops a recurring gift's billing while its full bank refund is pending", async () => {
-    billed_by("sub_1", "active");
-
-    await handle_charge_refunded(refund(AMOUNT, "pending"));
-
-    expect(deactivations()).toHaveLength(1);
-    expect(deactivations()[0].payload).toMatchObject({
-      id: "sub_1",
-      status_cancel_reason: "refunded",
-    });
   });
 
   it("tells ops once that the reversal waits on the pending refund succeeding", async () => {
@@ -377,12 +341,12 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     expect(fulls()).toEqual([]);
     expect(don_status).toBe("settled");
-    const held = queued().filter((m) => /_held$/.test(m.payload.id));
+    const held = queued().filter((m) => m.payload.id === "re_2_held");
     expect(new Set(held.map((m) => m.dedupe))).toEqual(
       new Set(["fiat.notice_re_2_held"])
     );
     expect(text_of(held[0].payload.alert)).toContain(
-      "95.00 USD (re_1, pending)"
+      "waiting on: 95.00 USD (re_1, pending)"
     );
   });
 
@@ -396,7 +360,7 @@ describe("stripe charge.refunded → donation reversal", () => {
 
   it("ignores a redelivery after a reversal that took a loss", async () => {
     reverse_charge_mock.mockImplementation(async (r: ChargeReversal) => {
-      if (r.amount !== undefined) return { status: "partial_not_acted" };
+      if (!is_whole(r)) return { status: "partial_owed", owed_msgs: [] };
       don_status = "refunded_loss";
       return { ...reversed, has_loss: true };
     });
@@ -411,7 +375,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(fulls()).toHaveLength(1);
   });
 
-  it("reverses once when a later refund completes a partial, handing over the partial for ops' hand adjustment", async () => {
+  it("reverses once when a later refund completes a partial, sourced to the refund that completed it", async () => {
     await handle_charge_refunded(refund(500));
     expect(don_status).toBe("settled");
 
@@ -423,41 +387,31 @@ describe("stripe charge.refunded → donation reversal", () => {
     expect(partials()).toHaveLength(1);
     const [full, ...rest] = fulls();
     expect(rest).toEqual([]);
-    // keyed on the completing refund, which every path that reverses it sees
-    expect(full!.notice.id).toBe("re_2");
-    expect(full!.after_partials?.completing.id).toBe("re_2");
-    expect(earlier_ids(full!)).toEqual(["re_1 succeeded"]);
+    expect(full!.source_ref).toBe("re_2");
   });
 
-  it("hands over no earlier partials when a full refund replaces one that failed", async () => {
+  it("hands over only what live refunds took back, sourced to the live one, when a full refund replaces one that failed", async () => {
     refund(AMOUNT);
     refunds[0].status = "failed"; // the card was closed
 
     await handle_charge_refunded(refund(AMOUNT));
 
-    expect(don_status).toBe("refunded");
-    const [full, ...rest] = fulls();
-    expect(rest).toEqual([]);
-    expect(earlier_ids(full!)).toEqual([]);
+    expect(fulls()).toEqual([
+      expect.objectContaining({
+        share: { taken: AMOUNT, of: AMOUNT },
+        source_ref: "re_2",
+      }),
+    ]);
   });
 
-  it("still names a failed partial whose notice ops may have acted on when a full refund follows", async () => {
-    await handle_charge_refunded(refund(500));
-    refunds[0].status = "failed"; // the bank refund bounced back
-
-    await handle_charge_refunded(refund(AMOUNT));
-
-    expect(earlier_ids(fulls()[0]!)).toEqual(["re_1 failed"]);
-  });
-
-  it("names a real earlier partial but not the failed full refund it was replaced after", async () => {
-    await handle_charge_refunded(refund(500));
-    refund(9_500);
+  it("does nothing for a refund event once every refund on the charge failed", async () => {
+    const bounced = refund(500);
     refunds[0].status = "failed";
 
-    await handle_charge_refunded(refund(9_500));
+    await expect(handle_charge_refunded(bounced)).resolves.toBeUndefined();
 
-    expect(earlier_ids(fulls()[0]!)).toEqual(["re_1 succeeded"]);
+    expect(reverse_charge_mock).not.toHaveBeenCalled();
+    expect(queued()).toEqual([]);
   });
 
   it("fails the delivery when a full refund's reversal leaves dists unreversed", async () => {
@@ -494,11 +448,7 @@ describe("stripe charge.refunded → donation reversal", () => {
     await expect(handle_charge_refunded(completing)).rejects.toThrow();
     await expect(handle_charge_refunded(completing)).resolves.toBeUndefined();
 
-    expect(fulls().map((r) => r.after_partials?.completing.id)).toEqual([
-      "re_2",
-      "re_2",
-      "re_2",
-    ]);
+    expect(fulls().map((r) => r.source_ref)).toEqual(["re_2", "re_2", "re_2"]);
   });
 
   it("leaves the donation unreversed when the reversal can't queue its starting notice, so the redelivery retries it", async () => {
@@ -581,24 +531,8 @@ describe("stripe charge.refunded → donation reversal", () => {
       handle_charge_refunded(completing),
     ]);
 
-    expect(fulls().map((r) => r.after_partials?.completing.id)).toEqual([
-      "re_2",
-      "re_2",
-    ]);
+    expect(fulls().map((r) => r.source_ref)).toEqual(["re_2", "re_2"]);
     expect(partials()).toHaveLength(1);
-  });
-
-  // ending its billing is the reversal's, so the handler doesn't do it twice
-  it("leaves a recurring gift's billing to the reversal when it reverses a full refund", async () => {
-    billed_by("sub_1", "active");
-
-    await handle_charge_refunded(refund(AMOUNT));
-
-    expect(don_status).toBe("refunded");
-    expect(fulls()).toEqual([
-      expect.objectContaining({ rail: "stripe", source: "refund" }),
-    ]);
-    expect(deactivations()).toEqual([]);
   });
 
   it("leaves an admin refund alone once the donation is reversed", async () => {
@@ -633,7 +567,6 @@ describe("stripe charge.refunded → donation reversal", () => {
 
 describe("stripe refund.updated → donation reversal", () => {
   it("reverses the donation once the pending bank refund that completed the charge succeeds", async () => {
-    billed_by("sub_1", "active");
     await handle_charge_refunded(refund(AMOUNT, "pending"));
 
     await expect(
@@ -641,15 +574,14 @@ describe("stripe refund.updated → donation reversal", () => {
     ).resolves.toBeUndefined();
 
     expect(don_status).toBe("refunded");
-    expect(reverse_charge_mock).toHaveBeenCalledExactlyOnceWith(
+    expect(fulls()).toEqual([
       expect.objectContaining({
         donation_id: ORDER_ID,
-        rail: "stripe",
-        source: "refund",
+        unsent_refunds: [],
+        source_ref: "re_1",
         alert_from: "refund-updated",
-        notice: expect.objectContaining({ id: "re_1" }),
-      })
-    );
+      }),
+    ]);
   });
 
   it("reverses once when charge.refunded already reversed a card refund and stripe redelivers its refund.updated", async () => {
@@ -659,7 +591,7 @@ describe("stripe refund.updated → donation reversal", () => {
     await handle_refund_updated(updated);
     await handle_refund_updated(updated); // stripe redelivers
 
-    expect(reverse_charge_mock).toHaveBeenCalledOnce();
+    expect(fulls()).toHaveLength(1);
     expect(don_status).toBe("refunded");
   });
 
@@ -669,7 +601,7 @@ describe("stripe refund.updated → donation reversal", () => {
 
     await handle_charge_refunded(created);
 
-    expect(reverse_charge_mock).toHaveBeenCalledOnce();
+    expect(fulls()).toHaveLength(1);
     expect(don_status).toBe("refunded");
   });
 
@@ -682,20 +614,24 @@ describe("stripe refund.updated → donation reversal", () => {
         handle_refund_updated(settle("re_1", status))
       ).resolves.toBeUndefined();
 
-      expect(reverse_charge_mock).not.toHaveBeenCalled();
+      expect(reversals().filter((r) => !is_held(r))).toEqual([]);
       expect(don_status).toBe("settled");
     }
   );
 
-  it("leaves a partial bank refund to ops when it succeeds, looking up no donation", async () => {
+  it("hands a partial bank refund over as its share once it succeeds", async () => {
     await handle_charge_refunded(refund(500, "pending"));
-    vi.clearAllMocks();
 
     await handle_refund_updated(settle("re_1", "succeeded"));
 
-    expect(donation_by_sttl_id_mock).not.toHaveBeenCalled();
-    expect(reverse_charge_mock).not.toHaveBeenCalled();
-    expect(don_status).toBe("settled");
+    expect(partials()).toEqual([
+      expect.objectContaining({
+        share: { taken: 500, of: AMOUNT },
+        unsent_refunds: [],
+        source_ref: "re_1",
+        notice: expect.objectContaining({ id: "evt_re_1_succeeded" }),
+      }),
+    ]);
   });
 
   it("waits for the completing refund when an earlier pending partial succeeds first", async () => {

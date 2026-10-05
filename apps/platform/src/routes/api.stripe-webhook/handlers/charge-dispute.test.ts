@@ -83,6 +83,7 @@ beforeEach(() => {
   charge_retrieve_mock.mockImplementation(async () => ({
     id: "ch_1",
     amount: 10_000,
+    amount_captured: 10_000,
     currency: "usd",
     amount_refunded: refunds
       .filter((r) => r.status !== "failed")
@@ -126,8 +127,9 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
       donation_id: DON_ID,
       rail: "stripe",
       source: "dispute",
+      share: { taken: 10_000, of: 10_000 },
+      dispute_fee_usd: 15,
       source_ref: "dp_1",
-      dispute_fee: { amount: 1_500, currency: "usd" },
       alert_from: "charge-dispute",
       notice: { id: "evt_charge.dispute.closed", lines: expect.any(Array) },
     });
@@ -137,8 +139,11 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     expect(text).toMatch(/fee.*15\.00 USD/);
   });
 
-  it("hands a lost dispute covering only part of the gift over as that share, for ops to adjust by hand", async () => {
-    reverse_charge_mock.mockResolvedValue({ status: "partial_not_acted" });
+  it("hands a lost dispute covering only part of the gift over as that share", async () => {
+    reverse_charge_mock.mockResolvedValue({
+      status: "partial_owed",
+      owed_msgs: [],
+    });
 
     await expect(
       handle_dispute_closed(
@@ -147,7 +152,11 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     ).resolves.toBeUndefined();
 
     expect(reverse_charge_mock).toHaveBeenCalledWith(
-      expect.objectContaining({ source: "dispute", amount: 4_000 })
+      expect.objectContaining({
+        source: "dispute",
+        share: { taken: 4_000, of: 10_000 },
+        dispute_fee_usd: 15,
+      })
     );
     const text = notice_text();
     expect(text).toContain(DON_ID);
@@ -156,7 +165,10 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
   });
 
   it("keys a partial loss's notice on the event, so a redelivery collapses into it", async () => {
-    reverse_charge_mock.mockResolvedValue({ status: "partial_not_acted" });
+    reverse_charge_mock.mockResolvedValue({
+      status: "partial_owed",
+      owed_msgs: [],
+    });
     const partial = dispute_event("charge.dispute.closed", "lost", 4_000);
     await handle_dispute_closed(partial);
     await handle_dispute_closed(partial);
@@ -176,7 +188,10 @@ describe("stripe charge.dispute.closed → reversal on a loss", () => {
     );
 
     expect(reverse_charge_mock).toHaveBeenCalledOnce();
-    expect(reverse_charge_mock.mock.lastCall![0].amount).toBeUndefined();
+    expect(reverse_charge_mock.mock.lastCall![0].share).toEqual({
+      taken: 10_000,
+      of: 10_000,
+    });
     expect(notice_text()).toContain("60.00 USD (re_1, succeeded)");
   });
 

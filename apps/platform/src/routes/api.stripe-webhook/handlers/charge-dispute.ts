@@ -9,7 +9,7 @@ import { db } from "$/pg/db";
 import { dispute_close, dispute_get, dispute_open } from "$/pg/queries/dispute";
 import { type IOwed, owed_total } from "$/pg/queries/owed";
 import { dispute_opened, dispute_won } from "$/refund/dispute";
-import { load_reversible, type Money, reverse_charge } from "$/refund/reverse";
+import { load_reversible, reverse_charge } from "$/refund/reverse";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
 
@@ -29,21 +29,33 @@ const dispute_fees = (d: Stripe.Dispute) =>
     .map((bt) => `${money(bt.fee, bt.currency)} (${bt.id})`)
     .join(", ") || "none recorded";
 
-/** a dispute's balance transactions all settle in the charge's settlement
- * currency, so their fees sum */
-const dispute_fee = (d: Stripe.Dispute): { dispute_fee?: Money } => {
+/** the dispute fee owed in usd. a dispute's balance transactions all settle
+ * in the charge's settlement currency, so their fees sum; the account settles
+ * in usd, so a fee in any other currency is no figure this can owe: it counts
+ * as none, and `line` tells ops */
+const dispute_fee_usd = (d: Stripe.Dispute): { usd: number; line?: string } => {
   const [first, ...rest] = fee_txns(d);
-  if (!first) return {};
+  if (!first) return { usd: 0 };
   const amount = rest.reduce((sum, bt) => sum + bt.fee, first.fee);
-  return { dispute_fee: { amount, currency: first.currency } };
+  if (first.currency !== "usd") {
+    return {
+      usd: 0,
+      line: `dispute fee settled in ${first.currency.toUpperCase()} (${money(amount, first.currency)}): recorded as none owed, settle its share by hand.`,
+    };
+  }
+  return { usd: from_stripe_amount(amount, first.currency) };
 };
 
 /** dispute.amount can be part of the charge: the gift reverses only once the
- * dispute and earlier refunds leave nothing on it */
+ * dispute and the refunds leave nothing on it, and less owes its share. a
+ * charge has at most one dispute */
 async function taken_from_charge(d: Stripe.Dispute) {
   const charge = await stripe.charges.retrieve(str_id(d.charge));
-  const taken = d.amount + charge.amount_refunded;
-  return { charge, taken, partial: taken < charge.amount };
+  const share = {
+    taken: d.amount + charge.amount_refunded,
+    of: charge.amount_captured,
+  };
+  return { charge, share, partial: share.taken < share.of };
 }
 
 const CLOSED_STATUSES = new Set<Stripe.Dispute.Status>([
@@ -118,19 +130,20 @@ export async function handle_dispute_closed(
     return;
   }
 
-  const { charge, taken, partial } = await taken_from_charge(dispute);
+  const { charge, share, partial } = await taken_from_charge(dispute);
   const { data: refunds } = await stripe.refunds.list({
     charge: charge.id,
     limit: 100,
   });
+  const fee = dispute_fee_usd(dispute);
 
   const result = await reverse_charge({
     donation_id: don.id,
     rail: "stripe",
     source: "dispute",
+    share,
+    dispute_fee_usd: fee.usd,
     source_ref: dispute.id,
-    ...(partial ? { amount: dispute.amount } : {}),
-    ...dispute_fee(dispute),
     alert_from: ALERT_FROM,
     notice: {
       id: event.id,
@@ -140,10 +153,11 @@ export async function handle_dispute_closed(
         `earlier refunds: ${refund_list(refunds, charge.currency) || "none"}`,
         ...(partial
           ? [
-              `taken back so far: ${money(taken, charge.currency)} of ${money(charge.amount, charge.currency)}`,
+              `taken back so far: ${money(share.taken, charge.currency)} of ${money(share.of, charge.currency)}`,
             ]
           : []),
         `dispute fee: ${dispute_fees(dispute)}`,
+        ...(fee.line ? [fee.line] : []),
       ],
     },
   });
@@ -162,21 +176,6 @@ export async function handle_dispute_closed(
   throw new Error(`dispute ${dispute.id} not reversed: ${result.reason}`);
 }
 
-/** the dispute fee owed in usd. the account settles in usd, so a fee in any
- * other currency is no figure this can owe: it counts as none, and `line`
- * tells ops */
-const dispute_fee_usd = (d: Stripe.Dispute): { usd: number; line?: string } => {
-  const { dispute_fee: fee } = dispute_fee(d);
-  if (!fee) return { usd: 0 };
-  if (fee.currency !== "usd") {
-    return {
-      usd: 0,
-      line: `dispute fee settled in ${fee.currency.toUpperCase()} (${money(fee.amount, fee.currency)}): recorded as none owed, settle its share by hand.`,
-    };
-  }
-  return { usd: from_stripe_amount(fee.amount, fee.currency) };
-};
-
 /** an inquiry escalating to a chargeback stays the same dispute and sends no
  * second `created`: its `funds_withdrawn` is when there is something owed.
  * a chargeback opened outright withdraws as it opens, so both may arrive, in
@@ -194,37 +193,23 @@ export async function handle_dispute_opened(event: DisputeEvent) {
   const withdrawn = dispute.balance_transactions.some((bt) => bt.amount < 0);
   if (!withdrawn) {
     const inquiry = dispute.status.startsWith("warning_");
-    return record_only(event, don.id, "recorded", [
-      `${inquiry ? "an inquiry: " : ""}stripe has withdrawn no funds, so nothing recorded as owed. if it withdraws them, as when an inquiry escalates to a chargeback, what the gift's parties received is recorded as owed then.`,
+    return record_only(event, don.id, [
+      `${inquiry ? "an inquiry: " : ""}stripe has withdrawn no funds, so nothing recorded as owed. if it withdraws them, as when an inquiry escalates to a chargeback, what the gift's parties owe is recorded then.`,
     ]);
   }
-  const { charge, taken, partial } = await taken_from_charge(dispute);
-  if (partial) {
-    // an inquiry on record escalating says so only through `funds_withdrawn`.
-    // an outright one sends `created` too, and the queue's dedupe window
-    // collapses the pair
-    return record_only(
-      event,
-      don.id,
-      "partial",
-      [
-        `part of the charge: ${money(taken, charge.currency)} of ${money(charge.amount, charge.currency)} taken back with earlier refunds, so nothing recorded as owed. if it is lost, settle the donation by hand.`,
-      ],
-      event.type === "charge.dispute.funds_withdrawn"
-    );
-  }
-
+  const { share, partial } = await taken_from_charge(dispute);
   const fee = dispute_fee_usd(dispute);
   const res = await dispute_opened({
     donation_id: don.id,
     rail: "stripe",
     dispute_id: dispute.id,
     opened_at: iso(dispute.created),
+    share,
     fee_usd: fee.usd,
   });
   if (res.status === "closed") return;
   if (res.status === "failed") {
-    return record_only(event, don.id, "recorded", [
+    return record_only(event, don.id, [
       `nothing recorded as owed: ${res.reason}. settle the donation by hand.`,
     ]);
   }
@@ -260,30 +245,23 @@ export async function handle_dispute_opened(event: DisputeEvent) {
     `recorded as owed: ${usd(res.owed.reduce((s, o) => s + owed_total(o), 0))}`,
     ...res.owed.map(owed_line),
     ...(fee.line ? [fee.line] : []),
-    "the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if the dispute is lost, the donation reverses without taking it twice; if won, what is owed is credited back.",
+    `the donation stays settled while the dispute is open, and what is owed is recovered from each party's next grants. if the dispute is lost, ${partial ? "it stays owed and the donation is not reversed" : "the donation reverses without taking it twice"}; if won, what is owed is credited back.`,
   ]);
 }
 
 /** a dispute put on record with nothing owed for it. once on record, open or
- * closed, a redelivery or a late event notifies nothing again, unless it is
- * news of its own: `escalation` notifies an open dispute again, under
- * `kind`'s notice id */
+ * closed, a redelivery or a late event notifies nothing again */
 async function record_only(
   event: DisputeEvent,
   donation_id: string,
-  kind: "recorded" | "partial",
-  why: string[],
-  escalation = false
+  why: string[]
 ) {
   const { id, created } = event.data.object;
-  const on_record = await dispute_get(id);
-  if (on_record && !(escalation && on_record.status === "open")) return;
+  if (await dispute_get(id)) return;
   // ahead of the record: a lost notice fails the delivery with nothing
   // written, so the redelivery sends it
-  await notify_opened(event, donation_id, `${id}_${kind}`, why);
-  if (!on_record) {
-    await dispute_open(db, { id, donation_id, opened_at: iso(created) });
-  }
+  await notify_opened(event, donation_id, `${id}_recorded`, why);
+  await dispute_open(db, { id, donation_id, opened_at: iso(created) });
 }
 
 async function notify_opened(
