@@ -109,6 +109,7 @@ const notice_data = ({ kind, round, row: r }: IClaimed): INoticeData => ({
   fee_processing_usd: r.fee_processing_usd,
   fee_dispute_usd: r.fee_dispute_usd,
   refund_failed_usd: r.refund_failed_usd,
+  dispute_won_usd: r.dispute_won_usd,
   credited_back_usd: r.credited_back_usd,
   credited_back_at: r.credited_back_at
     ? to_utc_day(r.credited_back_at)

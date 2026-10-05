@@ -104,7 +104,7 @@ export function OwedHistory({ rows, run_noun, received_label }: IOwedHistory) {
   );
 }
 
-/** what has settled part of the row so far. both credits carry the row's
+/** what has settled part of the row so far. every credit carries the row's
  * latest credit date, the only one it keeps; a credit or write-off figure is
  * dated by the check constraints on it */
 function history(
@@ -116,6 +116,11 @@ function history(
   if (r.refund_failed_usd > 0) {
     lines.push(
       `Refund failed: ${usd(r.refund_failed_usd)} credited back on ${credited_on}`
+    );
+  }
+  if (r.dispute_won_usd > 0) {
+    lines.push(
+      `Dispute won: ${usd(r.dispute_won_usd)} credited back on ${credited_on}`
     );
   }
   if (r.credited_back_usd > 0) {

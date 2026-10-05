@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { createRoutesStub } from "react-router";
 import {
   afterAll,
@@ -113,6 +114,33 @@ async function refunded(id: string, created_at = GIFT_AT) {
   });
 }
 
+/** the $100 card gift lost to a dispute: $90 to the npo plus the $3.20 card fee */
+async function disputed(id: string) {
+  await refunded(id);
+  await db()
+    .update(owed_amounts)
+    .set({ source: "dispute" })
+    .where(eq(owed_amounts.donation_id, id));
+}
+
+/** the dispute won, booked as the takes ledger books a win: one credit per
+ * figure, keyed on the dispute */
+async function won(id: string, now: string) {
+  for (const [reason, usd, ref] of [
+    ["dispute_won", 90, `dp_${id}`],
+    ["dispute_won_fee", 3.2, `dp_${id}:fee`],
+  ] as const) {
+    await credit_owed(as_db(db()), {
+      donation_id: id,
+      party: { npo_id },
+      usd,
+      reason,
+      ref,
+      now,
+    });
+  }
+}
+
 /** a grant run that sent $60 after recovering $40 of don-2: $100 gross */
 async function recovering_grant() {
   await db().insert(settlements).values({
@@ -159,15 +187,10 @@ async function render_page() {
 describe("the npo's grant history", () => {
   it("shows a recorded, a partly recovered, a credited-back and a waived row with their figures, and the recovering grant's gross, deduction and net", async () => {
     const admin = await seed_user(db(), "ops@better.giving");
-    for (const id of ["don-1", "don-2", "don-3", "don-4"]) await refunded(id);
+    for (const id of ["don-1", "don-2", "don-4"]) await refunded(id);
+    await disputed("don-3");
     await recovering_grant();
-    await credit_owed(as_db(db()), {
-      donation_id: "don-3",
-      party: { npo_id },
-      reason: "dispute_won",
-      ref: "dp_won",
-      now: "2026-11-22T00:00:00.000Z",
-    });
+    await won("don-3", "2026-11-22T00:00:00.000Z");
     const [waived] = await owed_for_donation("don-4", as_db(db()));
     await write_off_owed(as_db(db()), {
       owed_id: waived!.id,
@@ -199,7 +222,7 @@ describe("the npo's grant history", () => {
     await expect.element(row("don-3")).toMatchTextContent(/Credited back/);
     await expect
       .element(history("don-3"))
-      .toHaveTextContent("$93.20 credited back on Nov 22, 2026");
+      .toHaveTextContent("Dispute won: $93.20 credited back on Nov 22, 2026");
     await expect.element(row("don-4")).toMatchTextContent(/Waived/);
     await expect
       .element(history("don-4"))
@@ -221,15 +244,10 @@ describe("the npo's grant history", () => {
   });
 
   it("reads a row credited back and then owed again as owed, keeping its credit-back on the line", async () => {
-    await refunded("don-5");
-    await credit_owed(as_db(db()), {
-      donation_id: "don-5",
-      party: { npo_id },
-      reason: "dispute_won",
-      ref: "dp_won",
-      now: "2026-11-22T00:00:00.000Z",
-    });
-    // a later dispute on the same gift brings its fee
+    await disputed("don-5");
+    await won("don-5", "2026-11-22T00:00:00.000Z");
+    // a later dispute on the same gift takes it whole again, with its fee;
+    // the ledger records the gift's live figures, the won one no longer counting
     await record_owed(as_db(db()), {
       donation_id: "don-5",
       party: { npo_id },
@@ -249,8 +267,10 @@ describe("the npo's grant history", () => {
     await expect.element(row).toMatchTextContent(/Owed/);
     await expect
       .element(row.getByRole("list", { name: "History" }))
-      .toHaveTextContent("$93.20 credited back on Nov 22, 2026");
-    await expect.element(row).toMatchTextContent(/\$15\.00$/);
+      .toHaveTextContent("Dispute won: $93.20 credited back on Nov 22, 2026");
+    // the won dispute's figures are not added back into the gift's
+    await expect.element(row).toMatchTextContent(/\$90\.00\$3\.20\$15\.00/);
+    await expect.element(row).toMatchTextContent(/\$108\.20$/);
   });
 
   it("shows a refund that failed after it was recorded as credited back for the failed amount", async () => {

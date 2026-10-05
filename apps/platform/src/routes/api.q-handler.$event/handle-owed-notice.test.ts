@@ -254,41 +254,78 @@ describe("handle_owed_notice", () => {
     ]);
   });
 
-  test("a row owing again after it was settled is mailed as owed again", async () => {
-    await refund();
+  test("a won dispute's credit is mailed as the dispute resolved in the party's favor", async () => {
+    await dispute();
     await deliver_due();
-    await credit_owed(as_db(db()), {
-      donation_id: "don-1",
-      party: { npo_id },
-      reason: "dispute_won",
-      ref: "dp_won",
-      now: NOW,
-    });
+    await win_dispute();
     await deliver_due();
-    await db().transaction((tx) =>
-      record_owed(as_db(tx), {
-        donation_id: "don-1",
-        party: { npo_id },
-        source: "dispute",
-        source_ref: "dp_2",
-        received_usd: 90,
-        fee_processing_usd: 3.2,
-        fee_dispute_usd: 15,
-        now: NOW,
-      })
+
+    const [, mail] = send_email_or_throw.mock.calls.map(([m]) => m);
+    expect(mail.subject).toBe("Amount owed credited back: don-1");
+    const text = await mail_text(mail);
+    expect(text).toMatch(
+      /dispute on the .* was resolved in your favor, so we credited back \$93\.20/
     );
+    expect(text).not.toMatch(/\$0\.00/);
+  });
+
+  test("a row owing again after it was settled is mailed as owed again, the won figures not added back", async () => {
+    await dispute();
+    await deliver_due();
+    await win_dispute();
+    await deliver_due();
+    // a later dispute takes the gift whole again, with its fee
+    await dispute(15);
     await deliver_due();
 
     const mails = send_email_or_throw.mock.calls.map(([m]) => m);
     expect(mails.map((m) => m.subject)).toEqual([
-      "Amount owed on a refunded gift: don-1",
+      "Amount owed on a disputed gift: don-1",
       "Amount owed credited back: don-1",
-      "Amount owed on a refunded gift: don-1",
+      "Amount owed on a disputed gift: don-1",
     ]);
     expect(await mail_text(mails[0])).not.toMatch(/owed again/);
-    expect(await mail_text(mails[2])).toMatch(/\$15\.00 is owed again/);
+    const again = await mail_text(mails[2]);
+    expect(again).toMatch(/\$108\.20 is owed again/);
+    expect(again).toMatch(
+      /Credited back when the dispute was resolved in your favor: \$93\.20/
+    );
+    expect(again).toMatch(/You received: \$90\.00/);
+    expect(again).toMatch(/Total owed: \$108\.20/);
   });
 });
+
+/** the dispute's record of the gift, as the refund core writes it */
+const dispute = (fee_dispute_usd = 0) =>
+  db().transaction((tx) =>
+    record_owed(as_db(tx), {
+      donation_id: "don-1",
+      party: { npo_id },
+      source: "dispute",
+      source_ref: "dp_1",
+      received_usd: 90,
+      fee_processing_usd: 3.2,
+      fee_dispute_usd,
+      now: NOW,
+    })
+  );
+
+/** the win, booked as the takes ledger books it: one credit per figure */
+async function win_dispute() {
+  for (const [reason, usd, ref] of [
+    ["dispute_won", 90, "dp_1"],
+    ["dispute_won_fee", 3.2, "dp_1:fee"],
+  ] as const) {
+    await credit_owed(as_db(db()), {
+      donation_id: "don-1",
+      party: { npo_id },
+      usd,
+      reason,
+      ref,
+      now: NOW,
+    });
+  }
+}
 
 /** the refund core's write when the recorded refund fails in full */
 async function fail_refund() {

@@ -1,7 +1,8 @@
 import { owed_npo_notif } from "emails";
 
+// the dispute won in full: its credit nets every figure to nothing
 const { node } = owed_npo_notif.template({
-  kind: "recorded",
+  kind: "credited",
   round: 0,
   to_name: "Save The Rainforest Foundation",
   history_url: "https://better.giving/admin/4021/dashboard/grants",
@@ -12,15 +13,16 @@ const { node } = owed_npo_notif.template({
   },
   source: "dispute",
   recorded_at: "Nov 20, 2026",
-  received_usd: 90,
-  fee_processing_usd: 3.2,
-  fee_dispute_usd: 15,
+  received_usd: 0,
+  fee_processing_usd: 0,
+  fee_dispute_usd: 0,
   refund_failed_usd: 0,
-  dispute_won_usd: 0,
+  dispute_won_usd: 93.2,
   credited_back_usd: 0,
+  credited_back_at: "Dec 2, 2026",
   recovered_usd: 0,
   written_off_usd: 0,
-  outstanding_usd: 108.2,
+  outstanding_usd: 0,
 });
 
 export default () => node;

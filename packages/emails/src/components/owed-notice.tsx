@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Text } from "react-email";
 import { Hr } from "./hr";
 import { KeyValue } from "./key-value";
@@ -31,15 +32,18 @@ export interface IOwedNotice {
   source: "refund" | "dispute";
   /** pretty date the refund or dispute was recorded */
   recorded_at: string;
-  /** received, card fee and credited back are net of `refund_failed_usd` */
+  /** received, both fees and credited back are net of `refund_failed_usd`
+   * and `dispute_won_usd`, so no total here adds either back in */
   received_usd: number;
   fee_processing_usd: number;
   fee_dispute_usd: number;
   /** credited back because the refund failed */
   refund_failed_usd: number;
+  /** credited back because a dispute was won or a claim accepted */
+  dispute_won_usd: number;
   /** every other credit */
   credited_back_usd: number;
-  /** pretty date of the latest credit, of either kind */
+  /** pretty date of the latest credit, of any kind */
   credited_back_at?: string;
   /** net of any due-back already paid */
   recovered_usd: number;
@@ -121,7 +125,13 @@ export function OwedNotice({ n, party }: IOwedNoticeProps) {
           value={usd(n.refund_failed_usd)}
         />
       )}
-      {/* a row whose refund failed in full owes nothing else: no zero lines */}
+      {n.dispute_won_usd > 0 && (
+        <KeyValue
+          label="Credited back when the dispute was resolved in your favor"
+          value={usd(n.dispute_won_usd)}
+        />
+      )}
+      {/* a row credited in full this way owes nothing else: no zero lines */}
       {owed_total(n) > 0 && <Breakdown n={n} party={party} />}
 
       <Text>
@@ -216,29 +226,49 @@ function Recorded({ n, party, gift }: IBody) {
 }
 
 function Credited({ n, party, gift }: IBody) {
-  const failed = n.refund_failed_usd > 0;
+  // one sentence per kind of credit, each opening lower-case so the first
+  // can take the date: [opening, the rest]
+  const credits: [string, ReactNode][] = [];
+  if (n.refund_failed_usd > 0) {
+    credits.push([
+      "the refund",
+      <>
+        {" "}
+        of the {gift} failed, so the gift stands and we credited back{" "}
+        <strong>{usd(n.refund_failed_usd)}</strong> of what was owed on it.
+      </>,
+    ]);
+  }
+  if (n.dispute_won_usd > 0) {
+    credits.push([
+      "the dispute",
+      <>
+        {" "}
+        on the {gift} was resolved in your favor, so we credited back{" "}
+        <strong>{usd(n.dispute_won_usd)}</strong>.
+      </>,
+    ]);
+  }
+  if (n.credited_back_usd > 0) {
+    credits.push([
+      "we credited back",
+      <>
+        {" "}
+        <strong>{usd(n.credited_back_usd)}</strong> of what was owed on the{" "}
+        {gift}.
+      </>,
+    ]);
+  }
   return (
     <>
-      {failed && (
-        <Text>
-          On {n.credited_back_at}, the refund of the {gift} failed, so the gift
-          stands and we credited back{" "}
-          <strong>{usd(n.refund_failed_usd)}</strong> of what was owed on it.
+      {credits.map(([opening, rest], i) => (
+        <Text key={opening}>
+          {i === 0
+            ? `On ${n.credited_back_at}, ${opening}`
+            : opening[0]!.toUpperCase() + opening.slice(1)}
+          {rest}
         </Text>
-      )}
-      {n.credited_back_usd > 0 &&
-        (failed ? (
-          <Text>
-            Other credits on it total{" "}
-            <strong>{usd(n.credited_back_usd)}</strong>.
-          </Text>
-        ) : (
-          <Text>
-            On {n.credited_back_at}, we credited back{" "}
-            <strong>{usd(n.credited_back_usd)}</strong> of what was owed on the{" "}
-            {gift}.
-          </Text>
-        ))}
+      ))}
       <Remaining n={n} party={party} />
     </>
   );

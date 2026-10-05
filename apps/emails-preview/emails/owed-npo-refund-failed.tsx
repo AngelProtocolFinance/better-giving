@@ -17,6 +17,7 @@ const { node } = owed_npo_notif.template({
   fee_processing_usd: 0,
   fee_dispute_usd: 0,
   refund_failed_usd: 93.2,
+  dispute_won_usd: 0,
   credited_back_usd: 0,
   credited_back_at: "Nov 22, 2026",
   recovered_usd: 0,

@@ -16,6 +16,7 @@ const { node } = owed_referrer_notif.template({
   fee_processing_usd: 0,
   fee_dispute_usd: 0,
   refund_failed_usd: 0,
+  dispute_won_usd: 0,
   credited_back_usd: 4.5,
   credited_back_at: "Dec 2, 2026",
   recovered_usd: 0,
