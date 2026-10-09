@@ -648,4 +648,40 @@ describe("RecipientDetailsForm", () => {
       .toEqual(["degraded"]);
     expect(reported[0][1]).toBeInstanceOf(TypeError);
   });
+
+  test("a requirements refresh whose connection drops mid-body is reported as degraded, and the form keeps its fields", async () => {
+    reported.length = 0;
+    mswWorker.use(
+      http.post(
+        "/api/wise/v1/quotes/:quoteId/account-requirements",
+        () =>
+          new HttpResponse(
+            new ReadableStream({
+              start(c) {
+                c.enqueue(new TextEncoder().encode('[{"type":"sort_'));
+                c.error(new TypeError("network error"));
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+      )
+    );
+    const { screen } = await render_form(
+      with_fields({ sortCode: { refreshRequirementsOnChange: true } })
+    );
+
+    await screen.getByLabelText("Sort code").fill("40-30-20");
+    await screen.getByRole("button", { name: "Elsewhere" }).click();
+
+    await expect
+      .poll(() => reported.map(([level]) => level))
+      .toEqual(["degraded"]);
+    expect(reported[0][1]).toBeInstanceOf(TypeError);
+    await expect
+      .element(screen.getByLabelText("Sort code"))
+      .toHaveValue("40-30-20");
+    await expect
+      .element(screen.getByLabelText("Account number"))
+      .toBeInTheDocument();
+  });
 });
