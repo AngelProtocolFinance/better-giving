@@ -20,11 +20,12 @@ vi.mock("$/pg/db", () => ({
     },
   }),
 }));
-const terms = vi.hoisted(() => ({ effective: null as string | null }));
-vi.mock("$/env", async (io) => ({
-  ...(await io<typeof import("$/env")>()),
-  get owed_terms_effective() {
-    return terms.effective;
+// "" is no date: no row reaches its party
+const terms = vi.hoisted(() => ({ date: "" }));
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  get TERMS_EFFECTIVE() {
+    return terms.date;
   },
 }));
 const send_email_or_throw = vi.hoisted(() => vi.fn(async (_: any) => ({})));
@@ -57,7 +58,8 @@ import { handle_owed_notice } from "./handle-owed-notice";
 const db = () => test_db.current!.db;
 const as_db = (x: unknown) => x as DbOrTx;
 
-const EFFECTIVE = "2026-11-01T00:00:00.000Z";
+/** the terms' date, before every gift here */
+const TERMS_DATE = "2026-11-01";
 const NOW = "2026-11-20T12:00:00.000Z";
 
 let npo_id: number;
@@ -71,7 +73,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  terms.effective = EFFECTIVE;
+  terms.date = TERMS_DATE;
   await db().delete(loss_logs);
   await db().delete(owed_amounts);
   await db().delete(donations);

@@ -65,7 +65,6 @@ export const SERVER_KEYS = [
   "ALCHEMY_SIGNING_KEY_ETH_MAINNET",
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
   "OWED_DEDUCTIONS",
-  "OWED_TERMS_EFFECTIVE",
 ] as const;
 
 export const CLIENT_KEYS = [
@@ -100,8 +99,6 @@ export const OPTIONAL_KEYS = [
   "ALCHEMY_SIGNING_KEY_BNB_MAINNET",
   // the owed-deductions switch, off unless "on"
   "OWED_DEDUCTIONS",
-  // the terms' effective date; unset, no owed row reaches its party
-  "OWED_TERMS_EFFECTIVE",
 ] as const satisfies readonly ServerKey[];
 
 export type OptionalKey = (typeof OPTIONAL_KEYS)[number];

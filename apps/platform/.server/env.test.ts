@@ -84,35 +84,3 @@ describe("env: owed deductions", () => {
     }
   );
 });
-
-describe("env: owed terms effective date", () => {
-  it("a calendar date is its midnight in utc", async () => {
-    const env = await load({ OWED_TERMS_EFFECTIVE: "2026-11-01" });
-    expect(env.owed_terms_effective).toBe("2026-11-01T00:00:00.000Z");
-  });
-
-  it("an instant keeps its offset", async () => {
-    const env = await load({
-      OWED_TERMS_EFFECTIVE: "2026-11-01T00:00:00-05:00",
-    });
-    expect(env.owed_terms_effective).toBe("2026-11-01T05:00:00.000Z");
-  });
-
-  it.each(["", "   "])("%j is no date", async (value) => {
-    const env = await load({ OWED_TERMS_EFFECTIVE: value });
-    expect(env.owed_terms_effective).toBeNull();
-  });
-
-  // a typo read as unset would hide every row from its party in silence
-  it.each([
-    "11/01/2026",
-    "2026-02-30",
-    "2026-11-01T00:00",
-    "2026-11-01T25:00Z",
-    "soon",
-  ])("%j refuses to boot", async (value) => {
-    await expect(load({ OWED_TERMS_EFFECTIVE: value })).rejects.toThrow(
-      /OWED_TERMS_EFFECTIVE/
-    );
-  });
-});

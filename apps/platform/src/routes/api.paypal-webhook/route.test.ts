@@ -60,7 +60,6 @@ const paypal_env = vi.hoisted(() => ({
 vi.mock("$/env", () => ({
   paypal: paypal_env,
   stage: "production",
-  owed_terms_effective: null,
 }));
 vi.mock("$/kit/paypal", () => ({
   paypal: {

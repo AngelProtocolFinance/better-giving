@@ -23,12 +23,6 @@ vi.mock("$/pg/db", () => ({
     },
   }),
 }));
-// browser mode snapshots a mocked module's exports, so the date is fixed for
-// the file; the unset date is pinned on the node side (owed-history, the cron)
-vi.mock("$/env", async (io) => ({
-  ...(await io<typeof import("$/env")>()),
-  owed_terms_effective: "2026-11-01T00:00:00.000Z",
-}));
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock()
 );
@@ -305,7 +299,8 @@ describe("the npo's grant history", () => {
   });
 
   it("shows nothing for a gift made before the effective date", async () => {
-    await refunded("don-before", "2026-10-31T23:59:59.000Z");
+    // a second before midnight in New York on TERMS_EFFECTIVE
+    await refunded("don-before", "2026-10-16T03:59:59.000Z");
     const screen = await render_page();
     await expect.element(screen.getByText("No amounts owed yet")).toBeVisible();
     expect(screen.getByText("don-before").query()).toBeNull();

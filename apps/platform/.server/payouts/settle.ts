@@ -1,6 +1,6 @@
 import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
-import { owed_deductions, stage } from "../env";
+import { stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
@@ -14,7 +14,7 @@ import {
 } from "../pg/queries/payout";
 import { reverse_unfunded_payout_loss } from "../refund/unfunded";
 import { net_owed } from "./net-owed";
-import { deduct, lock_run, undo_deductions } from "./owed-run";
+import { deduct, lock_run, owed_netting_on, undo_deductions } from "./owed-run";
 import {
   NotFundedError,
   payout_total,
@@ -61,7 +61,7 @@ export async function settle_npo_payouts(
   payout_ids: string[],
   to: IRecipient | null
 ): Promise<SettleResult> {
-  const nets = owed_deductions;
+  const nets = await owed_netting_on();
   const claim = await db.transaction(async (tx) => {
     if (nets) await lock_npo_run(tx, npo.id);
     const locked = await pending_payouts_locked(tx, payout_ids);

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
 import type { IPayout } from "@/referrals";
-import { owed_deductions, stage } from "../env";
+import { stage } from "../env";
 import { aws_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
@@ -20,7 +20,7 @@ import {
   refunded_in_flight_lines,
 } from "../refund/commission";
 import { net_owed } from "./net-owed";
-import { deduct, lock_run, undo_deductions } from "./owed-run";
+import { deduct, lock_run, owed_netting_on, undo_deductions } from "./owed-run";
 import type { Pay } from "./settle";
 import {
   NotFundedError,
@@ -78,7 +78,7 @@ export async function settle_referrer_commissions(
   referrer: ISettleReferrer,
   to: IReferrerRecipient | null
 ): Promise<CommissionSettleResult> {
-  const nets = owed_deductions;
+  const nets = await owed_netting_on();
   const party = party_of(referrer.id);
   let claimed: Awaited<ReturnType<typeof claim>>;
   try {

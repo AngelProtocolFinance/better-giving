@@ -23,12 +23,6 @@ vi.mock("$/pg/db", () => ({
     },
   }),
 }));
-// browser mode snapshots a mocked module's exports, so the date is fixed for
-// the file; the unset date is pinned on the node side (owed-history, the cron)
-vi.mock("$/env", async (io) => ({
-  ...(await io<typeof import("$/env")>()),
-  owed_terms_effective: "2026-11-01T00:00:00.000Z",
-}));
 vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock({ user_ctx: true })
 );

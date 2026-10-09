@@ -6,12 +6,13 @@ import {
   describe,
   expect,
   test,
+  vi,
 } from "vitest";
 import { seed_npo, seed_user } from "#/__tests__/fixtures/funds";
 import { user } from "../schema/auth";
 import { donations } from "../schema/donation";
 import { npos } from "../schema/npo";
-import { owed_amounts, owed_entries } from "../schema/owed";
+import { owed_amounts, owed_entries, owed_notices } from "../schema/owed";
 import { loss_logs } from "../schema/revenue";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
@@ -29,6 +30,13 @@ import {
   unrecover_owed,
   write_off_owed,
 } from "./owed";
+
+// before every gift here, so each row reaches its party and a run may net it
+// once its notice is sent
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  TERMS_EFFECTIVE: "2025-01-01",
+}));
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
 // which these queries do not read
@@ -1001,6 +1009,7 @@ describe("outstanding_for_npo", () => {
     await owing("don-zero", npo_a, 15);
     await credit_all("don-zero", npo_a);
     await owing("don-b", npo_b, 5);
+    await t.db.update(owed_notices).set({ sent_at: NOW });
   }
 
   test("reads the npo's rows owed or due back, oldest gift first", async () => {

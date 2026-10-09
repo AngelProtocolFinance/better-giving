@@ -36,11 +36,12 @@ import {
   referrer_owed_history,
 } from "./owed-history";
 
-const terms = vi.hoisted(() => ({ effective: null as string | null }));
-vi.mock("../../env", async (io) => ({
-  ...(await io<typeof import("../../env")>()),
-  get owed_terms_effective() {
-    return terms.effective;
+// "" is no date: no row reaches its party
+const terms = vi.hoisted(() => ({ date: "" }));
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  get TERMS_EFFECTIVE() {
+    return terms.date;
   },
 }));
 
@@ -48,8 +49,10 @@ vi.mock("../../env", async (io) => ({
 // which these queries do not read
 const as_db = (x: unknown) => x as DbOrTx;
 
-const EFFECTIVE = "2026-11-01T00:00:00.000Z";
-const DAY_BEFORE = "2026-10-31T23:59:59.000Z";
+/** the terms' date, and its midnight in New York */
+const TERMS_DATE = "2026-09-01";
+const EFFECTIVE = "2026-09-01T04:00:00.000Z";
+const DAY_BEFORE = "2026-09-01T03:59:59.000Z";
 const NOW = "2026-11-20T12:00:00.000Z";
 
 let t: TestDb;
@@ -64,7 +67,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  terms.effective = EFFECTIVE;
+  terms.date = TERMS_DATE;
   await t.db.delete(loss_logs);
   await t.db.delete(owed_amounts);
   await t.db.delete(payouts);
@@ -114,7 +117,7 @@ describe("which rows reach their party", () => {
   });
 
   test("while the date is unset no row reaches the npo, and the admin list still has it", async () => {
-    terms.effective = null;
+    terms.date = "";
     await gift("don-on", EFFECTIVE);
     await refund("don-on", { npo_id: npo_a });
 
@@ -542,7 +545,7 @@ describe("grant_run_deductions", () => {
   });
 
   test("lists only the gifts that reach the npo, its gross still the whole run's", async () => {
-    await gift("don-old", "2026-10-31T23:59:59.000Z");
+    await gift("don-old", DAY_BEFORE);
     await gift("don-new", EFFECTIVE);
     await refund("don-old", { npo_id: npo_a });
     await refund("don-new", { npo_id: npo_a });

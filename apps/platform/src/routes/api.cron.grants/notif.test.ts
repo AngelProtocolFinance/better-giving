@@ -22,6 +22,11 @@ vi.mock("$/env", () => ({
     return deductions.on;
   },
 }));
+// before every gift here, so a row a run may net once its notice is sent
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  TERMS_EFFECTIVE: "2026-01-01",
+}));
 vi.mock("$/kit/wise", () => ({
   wise: { balance: async () => ({ totalWorth: { value: 150 } }) },
 }));
@@ -44,7 +49,7 @@ const { index } = await import("./notif");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { banking_apps } = await import("$/pg/schema/banking");
 const { donations } = await import("$/pg/schema/donation");
-const { owed_amounts } = await import("$/pg/schema/owed");
+const { owed_amounts, owed_notices } = await import("$/pg/schema/owed");
 const { npos } = await import("$/pg/schema/npo");
 const { payouts } = await import("$/pg/schema/payout");
 
@@ -119,7 +124,7 @@ async function seed_owed(name: string, donation_id: string, usd: number) {
     source: "bg-marketplace",
     via: "stripe:card",
   });
-  await db()
+  const [owed] = await db()
     .insert(owed_amounts)
     .values({
       donation_id,
@@ -128,7 +133,15 @@ async function seed_owed(name: string, donation_id: string, usd: number) {
       source_ref: `re_${donation_id}`,
       recorded_at: "2026-09-15T00:00:00.000Z",
       received_usd: usd,
-    });
+    })
+    .returning({ id: owed_amounts.id });
+  // the party was told of it, so a run may net it
+  await db().insert(owed_notices).values({
+    owed_id: owed!.id,
+    kind: "recorded",
+    created_at: "2026-09-15T00:00:00.000Z",
+    sent_at: "2026-09-15T00:00:00.000Z",
+  });
 }
 
 describe("grants schedule notice", () => {

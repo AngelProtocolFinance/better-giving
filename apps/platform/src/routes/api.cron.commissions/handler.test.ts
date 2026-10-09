@@ -60,10 +60,14 @@ vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 vi.mock("$/env", () => ({
   stage: "test",
   wise: { profile_id: "1" },
-  owed_terms_effective: null,
   get owed_deductions() {
     return deductions.on;
   },
+}));
+// before every gift here, so a row a run may net once its notice is sent
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  TERMS_EFFECTIVE: "2026-01-01",
 }));
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert },
@@ -132,7 +136,9 @@ const { referrer_commissions, referrer_payouts } = await import(
 );
 const { donations } = await import("$/pg/schema/donation");
 const { dists } = await import("$/pg/schema/dist");
-const { owed_amounts, owed_entries } = await import("$/pg/schema/owed");
+const { owed_amounts, owed_entries, owed_notices } = await import(
+  "$/pg/schema/owed"
+);
 const { bal_txs } = await import("$/pg/schema/bal-tx");
 const { user } = await import("$/pg/schema/auth");
 const { dists_for_refund } = await import("$/pg/queries/dist");
@@ -561,7 +567,7 @@ describe("commissions cron", () => {
       source: "bg-marketplace",
       via: "stripe:card",
     });
-    await db()
+    const [owed] = await db()
       .insert(owed_amounts)
       .values({
         donation_id,
@@ -570,7 +576,15 @@ describe("commissions cron", () => {
         source_ref: `re_${donation_id}`,
         recorded_at: "2026-09-15T00:00:00.000Z",
         received_usd: usd,
-      });
+      })
+      .returning({ id: owed_amounts.id });
+    // the party was told of it, so a run may net it
+    await db().insert(owed_notices).values({
+      owed_id: owed!.id,
+      kind: "recorded",
+      created_at: "2026-09-15T00:00:00.000Z",
+      sent_at: "2026-09-15T00:00:00.000Z",
+    });
   }
 
   const owed_rows = async () =>

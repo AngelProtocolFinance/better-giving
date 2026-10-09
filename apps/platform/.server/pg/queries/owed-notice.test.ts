@@ -19,6 +19,7 @@ import type { DbOrTx } from "./helpers";
 import {
   admin_credit_owed,
   credit_owed,
+  outstanding_for_npo,
   owed_deductible,
   record_owed,
   write_off_owed,
@@ -31,11 +32,12 @@ import {
   release_owed_notice,
 } from "./owed-notice";
 
-const terms = vi.hoisted(() => ({ effective: null as string | null }));
-vi.mock("../../env", async (io) => ({
-  ...(await io<typeof import("../../env")>()),
-  get owed_terms_effective() {
-    return terms.effective;
+// "" is no date: no row reaches its party
+const terms = vi.hoisted(() => ({ date: "" }));
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  get TERMS_EFFECTIVE() {
+    return terms.date;
   },
 }));
 
@@ -43,7 +45,10 @@ vi.mock("../../env", async (io) => ({
 // which these queries do not read
 const as_db = (x: unknown) => x as DbOrTx;
 
-const EFFECTIVE = "2026-11-01T00:00:00.000Z";
+/** the terms' date, and its midnight in New York */
+const TERMS_DATE = "2026-09-01";
+const EFFECTIVE = "2026-09-01T04:00:00.000Z";
+const DAY_BEFORE = "2026-09-01T03:59:59.000Z";
 const NOW = "2026-11-20T12:00:00.000Z";
 
 let t: TestDb;
@@ -58,7 +63,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  terms.effective = EFFECTIVE;
+  terms.date = TERMS_DATE;
   await t.db.delete(loss_logs);
   await t.db.delete(owed_amounts);
   await t.db.delete(donations);
@@ -120,11 +125,11 @@ describe("the recorded notice", () => {
   });
 
   test("is none for a gift made before the effective date, or for any while it is unset", async () => {
-    await gift("don-before", "2026-10-31T23:59:59.000Z");
+    await gift("don-before", DAY_BEFORE);
     await refund("don-before");
     expect(await due()).toEqual([]);
 
-    terms.effective = null;
+    terms.date = "";
     await gift("don-on", EFFECTIVE);
     await refund("don-on");
     expect(await due()).toEqual([]);
@@ -175,7 +180,7 @@ describe("a claim", () => {
     await refund("don-1");
     const [notice] = await owed_notices_due(50, as_db(t.db));
 
-    terms.effective = "2026-11-02T00:00:00.000Z";
+    terms.date = "2026-09-02";
     expect(await due()).toEqual([]);
     expect(await claim_owed_notice(notice!.id, as_db(t.db))).toEqual({
       status: "done",
@@ -346,14 +351,65 @@ describe("owed_deductible", () => {
     await refund("don-1");
     await send();
 
-    terms.effective = null;
+    terms.date = "";
     expect(await deductible()).toEqual([]);
+  });
+});
+
+describe("what a run nets (outstanding_for_npo)", () => {
+  const owing = (donation_id: string, received_usd: number, fee: number) =>
+    t.db.transaction((tx) =>
+      record_owed(as_db(tx), {
+        donation_id,
+        party: { npo_id: npo_a },
+        source: "refund",
+        source_ref: `re_${donation_id}`,
+        received_usd,
+        fee_processing_usd: fee,
+        now: NOW,
+      })
+    );
+  const send_all = async () => {
+    for (const n of await owed_notices_due(50, as_db(t.db))) {
+      await claim_owed_notice(n.id, as_db(t.db));
+      await mark_owed_notice_sent(n.id, as_db(t.db));
+    }
+  };
+  const nets = async () =>
+    (await t.db.transaction((tx) => outstanding_for_npo(as_db(tx), npo_a))).map(
+      (r) => [r.donation_id, r.outstanding_usd]
+    );
+
+  test("a gift the day before the effective date is never netted, one on it is", async () => {
+    await gift("don-before", DAY_BEFORE);
+    await gift("don-on", EFFECTIVE);
+    await owing("don-before", 90, 3.2);
+    await owing("don-on", 50, 0);
+    await send_all();
+
+    expect(await nets()).toEqual([["don-on", 50]]);
+  });
+
+  test("nothing is netted while the effective date is still to come", async () => {
+    terms.date = "2099-01-01";
+    await gift("don-on", "2099-01-01T05:00:00.000Z");
+    await owing("don-on", 50, 0);
+    await send_all();
+
+    expect(await nets()).toEqual([]);
+  });
+
+  test("a row whose recorded notice is unsent is not netted", async () => {
+    await gift("don-on", EFFECTIVE);
+    await owing("don-on", 50, 0);
+
+    expect(await nets()).toEqual([]);
   });
 });
 
 describe("queue_owed_notices_missed", () => {
   test("queues one recorded notice for each owing row that reaches its party with none", async () => {
-    terms.effective = null;
+    terms.date = "";
     await gift("don-1", EFFECTIVE);
     await gift("don-2", EFFECTIVE);
     await refund("don-1");
@@ -368,7 +424,7 @@ describe("queue_owed_notices_missed", () => {
     });
     expect(await due()).toEqual([]);
 
-    terms.effective = EFFECTIVE;
+    terms.date = TERMS_DATE;
     expect(await queue_owed_notices_missed(as_db(t.db))).toBe(1);
     expect(await queue_owed_notices_missed(as_db(t.db))).toBe(0);
     const notices = await owed_notices_due(50, as_db(t.db));

@@ -18,11 +18,12 @@ vi.mock("$/pg/db", () => ({
     },
   }),
 }));
-const terms = vi.hoisted(() => ({ effective: null as string | null }));
-vi.mock("$/env", async (io) => ({
-  ...(await io<typeof import("$/env")>()),
-  get owed_terms_effective() {
-    return terms.effective;
+// "" is no date: no row reaches its party
+const terms = vi.hoisted(() => ({ date: "" }));
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  get TERMS_EFFECTIVE() {
+    return terms.date;
   },
 }));
 const enqueue = vi.hoisted(() => vi.fn(async (..._: IMsg[]) => {}));
@@ -41,7 +42,9 @@ import { action } from "./route";
 const db = () => test_db.current!.db;
 const as_db = (x: unknown) => x as DbOrTx;
 
-const EFFECTIVE = "2026-11-01T00:00:00.000Z";
+/** the terms' date, and its midnight in New York */
+const TERMS_DATE = "2026-11-01";
+const EFFECTIVE = "2026-11-01T04:00:00.000Z";
 const NOW = "2026-11-20T12:00:00.000Z";
 
 let npo_id: number;
@@ -55,7 +58,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  terms.effective = EFFECTIVE;
+  terms.date = TERMS_DATE;
   enqueue.mockClear();
   await db().delete(owed_amounts);
   await db().delete(donations);
@@ -113,7 +116,7 @@ describe("api.cron.owed-notices", () => {
 
   test("a gift made before the effective date, or any while it is unset, queues nothing, and the admin list still has it", async () => {
     await refunded_gift("don-before", "2026-10-31T23:59:59.000Z");
-    terms.effective = null;
+    terms.date = "";
     await refunded_gift("don-on", EFFECTIVE);
 
     await tick();
@@ -127,12 +130,12 @@ describe("api.cron.owed-notices", () => {
   });
 
   test("a row recorded while the date was unset is enqueued once the date is set", async () => {
-    terms.effective = null;
+    terms.date = "";
     await refunded_gift("don-on", EFFECTIVE);
     await tick();
     expect(enqueued()).toEqual([]);
 
-    terms.effective = EFFECTIVE;
+    terms.date = TERMS_DATE;
     await tick();
 
     const [notice, ...more] = await owed_notices_due(50, as_db(db()));

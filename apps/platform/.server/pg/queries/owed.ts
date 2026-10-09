@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { alias, type PgUpdateSetSource } from "drizzle-orm/pg-core";
-import { owed_terms_effective } from "../../env";
+import { TERMS_EFFECTIVE, terms_effective_at } from "@/terms";
 import { db } from "../db";
 import { user } from "../schema/auth";
 import { finite } from "../schema/columns";
@@ -34,19 +34,22 @@ export type OwedParty =
   | { referrer_npo: string };
 
 /** whether an owed row reaches its party — is mailed and shown in its
- * history: its gift was made at or after the terms'
- * effective date. none does while the date is unset; admins see every row
- * regardless. reads `donations.created_at`, so the query joins the row's gift */
-export const owed_reaches_party = (): SQL =>
-  owed_terms_effective
-    ? sql`${donations.created_at} >= ${owed_terms_effective}::timestamptz`
+ * history: its gift was made at or after the terms' effective date. none does
+ * while that date is unparsable; admins see every row regardless. reads
+ * `donations.created_at`, so the query joins the row's gift */
+export const owed_reaches_party = (): SQL => {
+  const effective = terms_effective_at(TERMS_EFFECTIVE);
+  return effective
+    ? sql`${donations.created_at} >= ${effective}::timestamptz`
     : sql`false`;
+};
 
-/** whether a run may net the row: it reaches its party, and the party has
- * been sent the notice of what it owes now — the row's latest `recorded`
- * notice. like `owed_reaches_party`, the query joins the row's gift */
+/** whether a run may net the row: it reaches its party, the effective date
+ * has arrived, and the party has been sent the notice of what it owes now —
+ * the row's latest `recorded` notice. like `owed_reaches_party`, the query
+ * joins the row's gift */
 export const owed_deductible = (): SQL =>
-  sql`(${owed_reaches_party()} AND (
+  sql`(${owed_reaches_party()} AND ${terms_effective_at(TERMS_EFFECTIVE)}::timestamptz <= now() AND (
     SELECT ${owed_notices.sent_at} IS NOT NULL FROM ${owed_notices}
     WHERE ${owed_notices.owed_id} = ${owed_amounts.id} AND ${owed_notices.kind} = 'recorded'
     ORDER BY ${owed_notices.round} DESC LIMIT 1
@@ -776,8 +779,9 @@ export async function owed_list(
   };
 }
 
-/** the npo's rows owed (> 0) or due back (< 0), oldest gift first, each held
- * locked until `tx` ends: a refund or credit landing on one waits for it */
+/** the npo's rows owed (> 0) or due back (< 0) that a run may net
+ * (`owed_deductible`), oldest gift first, each held locked until `tx` ends:
+ * a refund or credit landing on one waits for it */
 export function outstanding_for_npo(
   tx: DbOrTx,
   npo_id: number
@@ -795,7 +799,13 @@ export async function outstanding_for_party(
     .select(getTableColumns(owed_amounts))
     .from(owed_amounts)
     .innerJoin(donations, eq(donations.id, owed_amounts.donation_id))
-    .where(and(party_is(party), sql`${owed_amounts.outstanding_usd} <> 0`))
+    .where(
+      and(
+        party_is(party),
+        sql`${owed_amounts.outstanding_usd} <> 0`,
+        owed_deductible()
+      )
+    )
     .orderBy(asc(donations.created_at), asc(owed_amounts.id))
     .for("update", { of: owed_amounts });
 }
