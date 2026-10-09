@@ -309,29 +309,83 @@ describe("RecipientDetailsForm", () => {
       .toBeVisible();
   });
 
-  test("a refusal naming no field on screen shows its message in a prompt, and the next submit goes through", async () => {
-    refuse("iban");
+  test("a refusal naming no field on screen shows every message above the buttons, whatever its code, and the next submit goes through", async () => {
+    refuse_with(not_valid("iban"), {
+      code: "NOT_UNIQUE",
+      path: "accountNumber",
+      message: "This account is already registered",
+      arguments: [],
+    });
     const { screen, on_submit } = await render_form();
     await fill_all(screen);
 
     const focus = record_focus();
     await screen.getByRole("button", { name: "Continue" }).click();
 
-    const dialog = screen.getByRole("dialog");
-    await expect.element(dialog).toMatchTextContent("invalid iban");
+    const alert = screen.getByRole("alert");
+    await expect.element(alert).toMatchTextContent("invalid iban");
+    await expect
+      .element(alert)
+      .toMatchTextContent("This account is already registered");
+    expect(screen.getByRole("dialog").query()).toBeNull();
     const names = fields.map((f) => f.key).concat("combobox");
     expect((await focus.settle()).filter((n) => names.includes(n))).toEqual([]);
-
-    (
-      screen.getByRole("button", { name: "Ok" }).element() as HTMLElement
-    ).click();
-    await expect.element(dialog).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Continue" }))
+      .toHaveFocus();
 
     mswWorker.use(
       http.post("/api/wise/v1/accounts", () => HttpResponse.json({ id: 1 }))
     );
     await screen.getByRole("button", { name: "Continue" }).click();
     await vi.waitFor(() => expect(on_submit).toHaveBeenCalledOnce());
+    await expect.element(alert).toBeEmptyDOMElement();
+  });
+
+  test("a refusal with no NOT_VALID shows every message above the buttons, not just the first", async () => {
+    refuse_with(
+      {
+        code: "NOT_UNIQUE",
+        path: "accountNumber",
+        message: "This account is already registered",
+        arguments: [],
+      },
+      {
+        code: "INVALID_INPUT",
+        path: "currency",
+        message: "GBP payouts are paused for this profile",
+        arguments: [],
+      }
+    );
+    const { screen } = await render_form();
+    await fill_all(screen);
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    const alert = screen.getByRole("alert");
+    await expect
+      .element(alert)
+      .toMatchTextContent("This account is already registered");
+    await expect
+      .element(alert)
+      .toMatchTextContent("GBP payouts are paused for this profile");
+    expect(screen.getByRole("dialog").query()).toBeNull();
+  });
+
+  test("a refusal carrying no errors shows the generic prompt rather than nothing", async () => {
+    refuse_with();
+    const { screen } = await render_form();
+    await fill_all(screen);
+
+    await screen.getByRole("button", { name: "Continue" }).click();
+
+    await expect
+      .element(screen.getByRole("dialog"))
+      .toMatchTextContent("An unexpected error occurred while validating");
+    // the modal makes the page behind it inert, so the role query can't see it
+    expect(screen.container.querySelector("[role='alert']")?.textContent).toBe(
+      ""
+    );
   });
 
   test("a refusal listing fields out of screen order lands focus on the one highest on screen", async () => {
@@ -382,8 +436,11 @@ describe("RecipientDetailsForm", () => {
     const cell = (trigger.element() as HTMLElement).closest(
       '[data-scope="select"][data-part="root"]'
     )?.parentElement;
-    // hidden ones too: an empty label is hidden and still names the trigger
-    const labels = [...(cell?.querySelectorAll("label") ?? [])];
+    // hidden ones too: an empty label is hidden and still names the trigger.
+    // the select's caption is a `[data-part="label"]` span, not a <label>
+    const labels = [
+      ...(cell?.querySelectorAll('label, [data-part="label"]') ?? []),
+    ];
     expect(labels.map((l) => l.textContent)).toEqual(["Account type"]);
 
     await trigger.click();

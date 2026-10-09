@@ -195,7 +195,12 @@ describe("file upload", () => {
     call_route(upload_action, {
       request: new Request(
         `https://app.test/api/file-upload?filename=${encodeURIComponent(filename)}`,
-        { method: "POST", body: "bytes" }
+        // a real pdf, typed as an uploader posts it: a bare string goes as
+        // text/plain, and the route checks the bytes against the type
+        {
+          method: "POST",
+          body: new Blob(["%PDF-1.7\n"], { type: "application/pdf" }),
+        }
       ),
     });
 

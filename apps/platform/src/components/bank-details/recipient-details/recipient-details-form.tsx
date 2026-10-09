@@ -176,32 +176,13 @@ export function RecipientDetailsForm({
 
         //filter "NOT_VALID"
         const _errs = content.errors;
+        // a refusal with nothing to show the user is ours to report
+        if (!_errs?.length) throw new Error("wise 422 carried no errors");
         const validations = _errs.filter((err) => err.code === "NOT_VALID");
         const others = _errs.filter((err) => err.code !== "NOT_VALID");
 
-        if (validations.length === 0) {
-          ask_prompt(
-            { type: "error", children: _errs[0].message },
-            { key: PROMPT_SLOT }
-          );
-          return;
-        }
-
         const rejected = new Map(validations.map((v) => [v.path, v.message]));
         const shown = on_screen().filter((k) => rejected.has(k));
-
-        if (shown.length === 0) {
-          ask_prompt(
-            {
-              type: "error",
-              children: [...rejected].map(([path, message]) => (
-                <p key={path}>{message}</p>
-              )),
-            },
-            { key: PROMPT_SLOT }
-          );
-          return;
-        }
 
         // an error set on a key with no field is never cleared by the next
         // submit's validation, so it would refuse every submit after it
@@ -214,7 +195,7 @@ export function RecipientDetailsForm({
         ]);
 
         // fieldset is still disabled here; focused once the submit settles
-        first_invalid.current = shown[0];
+        first_invalid.current = shown[0] ?? null;
       } catch (err) {
         ask_prompt(error_prompt(err, { context: "validating" }), {
           key: PROMPT_SLOT,
@@ -462,7 +443,7 @@ export function RecipientDetailsForm({
               Bank statement
             </Label>
           }
-          specs={{ mbLimit: 6, mimeTypes: ["application/pdf"] }}
+          specs={{ mbLimit: 4, mimeTypes: ["application/pdf"] }}
           disabled={disabled}
           ref={bankStatement.ref}
           value={bankStatement.value}

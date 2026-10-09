@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { paypal_capture_outcome } from "@/donations/paypal-capture";
 
 const capture_order_mock = vi.hoisted(() => vi.fn());
+const get_order_mock = vi.hoisted(() => vi.fn());
 const donation_update_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 const report_degraded_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/paypal", () => ({
-  paypal: { capture_order: capture_order_mock },
+  paypal: { capture_order: capture_order_mock, get_order: get_order_mock },
 }));
 vi.mock("$/pg/db", () => ({ db: {} }));
 vi.mock("$/pg/queries/donation", () => ({
@@ -23,15 +24,26 @@ const { capture_order } = await import("./capture-order");
 
 const update_arg = () => donation_update_mock.mock.calls[0]![2];
 
-/** a capture paypal took, carrying the given payment source */
-const taken = (payment_source: unknown, status = "COMPLETED") => ({
+/** a capture paypal took for donation `don_id`, carrying the given payment source */
+const taken = (
+  payment_source: unknown,
+  status = "COMPLETED",
+  don_id = "d1"
+) => ({
   payment_source,
-  purchase_units: [{ payments: { captures: [{ status }] } }],
+  purchase_units: [{ custom_id: don_id, payments: { captures: [{ status }] } }],
+});
+
+/** an approved order as paypal reads it back before capture */
+const order_for = (don_id: string) => ({
+  status: "APPROVED",
+  purchase_units: [{ custom_id: don_id }],
 });
 
 beforeEach(() => {
   vi.clearAllMocks();
   donation_update_mock.mockResolvedValue({});
+  get_order_mock.mockResolvedValue(order_for("d1"));
 });
 
 describe("capture_order donor patch", () => {
@@ -65,7 +77,7 @@ describe("capture_order donor patch", () => {
       })
     );
 
-    await capture_order({ order_id: "o2", don_id: "d2" });
+    await capture_order({ order_id: "o2", don_id: "d1" });
 
     expect(update_arg()).toEqual({
       from_email: "jane@b.co",
@@ -86,7 +98,7 @@ describe("capture_order donor patch", () => {
       taken({ paypal: { email_address: "jane@b.co", name } })
     );
 
-    await capture_order({ order_id: "o3", don_id: "d3" });
+    await capture_order({ order_id: "o3", don_id: "d1" });
 
     expect(update_arg().from_name).toBe(expected);
   });
@@ -96,7 +108,7 @@ describe("capture_order donor patch", () => {
       taken({ venmo: { email_address: "v@b.co" } })
     );
 
-    await capture_order({ order_id: "o4", don_id: "d4" });
+    await capture_order({ order_id: "o4", don_id: "d1" });
 
     expect(donation_update_mock).toHaveBeenCalledOnce();
     expect(update_arg()).not.toHaveProperty("from_name");
@@ -109,7 +121,7 @@ describe("capture_order donor patch", () => {
       taken({ paypal: { name: { given_name: "Jane" } } })
     );
 
-    await capture_order({ order_id: "o5", don_id: "d5" });
+    await capture_order({ order_id: "o5", don_id: "d1" });
 
     expect(update_arg()).toEqual({ from_name: "Jane" });
   });
@@ -123,7 +135,7 @@ describe("capture_order donor patch", () => {
       })
     );
 
-    await capture_order({ order_id: "o6", don_id: "d6" });
+    await capture_order({ order_id: "o6", don_id: "d1" });
 
     expect(update_arg()).toEqual({ from_email: "jane@b.co" });
   });
@@ -133,7 +145,7 @@ describe("capture_order donor patch", () => {
       taken({ paypal: { email_address: "jane@b.co" } }, "PENDING")
     );
 
-    await capture_order({ order_id: "o10", don_id: "d10" });
+    await capture_order({ order_id: "o10", don_id: "d1" });
 
     expect(update_arg()).toEqual({ from_email: "jane@b.co" });
   });
@@ -141,9 +153,127 @@ describe("capture_order donor patch", () => {
   it("skips the update entirely when there is nothing to write", async () => {
     capture_order_mock.mockResolvedValue(taken({ paypal: {} }));
 
-    await capture_order({ order_id: "o7", don_id: "d7" });
+    await capture_order({ order_id: "o7", don_id: "d1" });
 
     expect(donation_update_mock).not.toHaveBeenCalled();
+  });
+});
+
+describe("capture_order for a donation the order isn't for", () => {
+  // a forged or reused order_id must not be charged before it is refused
+  it("refuses without capturing when the order names another donation", async () => {
+    get_order_mock.mockResolvedValue({
+      id: "o22",
+      status: "APPROVED",
+      purchase_units: [{ custom_id: "d-own" }],
+    });
+
+    const res = await capture_order({
+      order_id: "o22",
+      don_id: "d-victim",
+    }).catch((r: unknown) => r);
+
+    expect(capture_order_mock).not.toHaveBeenCalled();
+    expect(donation_update_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledOnce();
+    expect((res as Response).status).toBe(400);
+  });
+
+  // don ids appear in thank-you urls; the order's custom_id is the binding
+  it("writes no donor details onto the named donation, and refuses", async () => {
+    capture_order_mock.mockResolvedValue(
+      taken(
+        {
+          paypal: { email_address: "jane@b.co", name: { given_name: "Jane" } },
+        },
+        "COMPLETED",
+        "d-own"
+      )
+    );
+
+    const res = await capture_order({
+      order_id: "o15",
+      don_id: "d-victim",
+    }).catch((r: unknown) => r);
+
+    expect(donation_update_mock).not.toHaveBeenCalled();
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(400);
+  });
+
+  it("refuses a declined capture rather than return its payer details", async () => {
+    capture_order_mock.mockResolvedValue(
+      taken(
+        {
+          paypal: { email_address: "jane@b.co", name: { given_name: "Jane" } },
+        },
+        "DECLINED",
+        "d-own"
+      )
+    );
+
+    const res = await capture_order({
+      order_id: "o17",
+      don_id: "d-victim",
+    }).catch((r: unknown) => r);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(400);
+  });
+
+  // paypal's own capture examples carry custom_id on the capture, not the unit
+  it("accepts a capture whose donation id is only on the capture", async () => {
+    get_order_mock.mockResolvedValue(order_for("d18"));
+    capture_order_mock.mockResolvedValue({
+      payment_source: { paypal: { email_address: "jane@b.co" } },
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ custom_id: "d18", status: "COMPLETED" }],
+          },
+        },
+      ],
+    });
+
+    const res = await capture_order({ order_id: "o18", don_id: "d18" });
+
+    expect(paypal_capture_outcome(res).outcome).toBe("taken");
+    expect(update_arg()).toEqual({ from_email: "jane@b.co" });
+  });
+
+  it("refuses when the capture names another donation", async () => {
+    capture_order_mock.mockResolvedValue({
+      payment_source: { paypal: { email_address: "jane@b.co" } },
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ custom_id: "d-own", status: "COMPLETED" }],
+          },
+        },
+      ],
+    });
+
+    const res = await capture_order({
+      order_id: "o19",
+      don_id: "d-victim",
+    }).catch((r: unknown) => r);
+
+    expect(donation_update_mock).not.toHaveBeenCalled();
+    expect((res as Response).status).toBe(400);
+  });
+
+  it("refuses an order that names no donation", async () => {
+    capture_order_mock.mockResolvedValue({
+      payment_source: { paypal: { email_address: "jane@b.co" } },
+      purchase_units: [{ payments: { captures: [{ status: "COMPLETED" }] } }],
+    });
+
+    const res = await capture_order({ order_id: "o16", don_id: "d1" }).catch(
+      (r: unknown) => r
+    );
+
+    expect(donation_update_mock).not.toHaveBeenCalled();
+    expect((res as Response).status).toBe(400);
   });
 });
 
@@ -167,6 +297,7 @@ describe("capture_order when paypal declines the capture", () => {
           },
         ],
       };
+      get_order_mock.mockResolvedValue(order_for("d9"));
       capture_order_mock.mockResolvedValue(capture);
 
       const res = await capture_order({ order_id: "o9", don_id: "d9" });
@@ -193,6 +324,7 @@ describe("capture_order when paypal reports no capture status", () => {
       payment_source: { paypal: { email_address: "jane@b.co" } },
       purchase_units: [{ custom_id: "d11", payments: { captures: [{}] } }],
     };
+    get_order_mock.mockResolvedValue(order_for("d11"));
     capture_order_mock.mockResolvedValue(capture);
 
     const res = await capture_order({ order_id: "o11", don_id: "d11" });
@@ -221,6 +353,7 @@ describe("capture_order after paypal has captured", () => {
         },
       ],
     };
+    get_order_mock.mockResolvedValue(order_for("d8"));
     capture_order_mock.mockResolvedValue(capture);
     const db_down = new Error("neon: connection terminated");
     donation_update_mock.mockRejectedValue(db_down);
@@ -271,6 +404,7 @@ describe("capture_order when paypal refuses the payer's instrument", () => {
   it.each(["INSTRUMENT_DECLINED", "PAYER_ACTION_REQUIRED"])(
     "%s answers as a declined capture, and is reported",
     async (issue) => {
+      get_order_mock.mockResolvedValue(order_for("d12"));
       paypal_answers(unprocessable(issue));
 
       const res = await capture_order({ order_id: "o12", don_id: "d12" });
@@ -287,9 +421,74 @@ describe("capture_order when paypal refuses the payer's instrument", () => {
     }
   );
 
+  // the webhook's delayed fallback captured it while the donor's browser was away
+  it("answers an order already captured with that capture, as taken", async () => {
+    paypal_answers(unprocessable("ORDER_ALREADY_CAPTURED"));
+    get_order_mock.mockResolvedValue({
+      id: "o14",
+      status: "COMPLETED",
+      purchase_units: [
+        {
+          custom_id: "d14",
+          payments: { captures: [{ id: "c14", status: "COMPLETED" }] },
+        },
+      ],
+    });
+
+    const res = await capture_order({ order_id: "o14", don_id: "d14" });
+
+    expect(get_order_mock).toHaveBeenCalledWith("o14");
+    expect(paypal_capture_outcome(res).outcome).toBe("taken");
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("answers an order already captured whose id is only on the capture", async () => {
+    paypal_answers(unprocessable("ORDER_ALREADY_CAPTURED"));
+    get_order_mock.mockResolvedValue({
+      id: "o20",
+      status: "COMPLETED",
+      purchase_units: [
+        {
+          payments: {
+            captures: [{ id: "c20", custom_id: "d20", status: "COMPLETED" }],
+          },
+        },
+      ],
+    });
+
+    const res = await capture_order({ order_id: "o20", don_id: "d20" });
+
+    expect(paypal_capture_outcome(res).outcome).toBe("taken");
+  });
+
+  it("refuses an order already captured for another donation", async () => {
+    paypal_answers(unprocessable("ORDER_ALREADY_CAPTURED"));
+    get_order_mock.mockResolvedValue({
+      id: "o21",
+      status: "COMPLETED",
+      payment_source: { paypal: { email_address: "jane@b.co" } },
+      purchase_units: [
+        {
+          custom_id: "d-own",
+          payments: {
+            captures: [{ id: "c21", custom_id: "d-own", status: "COMPLETED" }],
+          },
+        },
+      ],
+    });
+
+    const res = await capture_order({
+      order_id: "o21",
+      don_id: "d-victim",
+    }).catch((r: unknown) => r);
+
+    expect(donation_update_mock).not.toHaveBeenCalled();
+    expect((res as Response).status).toBe(400);
+  });
+
   // the money may have moved, so the browser must hear a failure, never a decline
   it.each([
-    ["a 422 that isn't a refusal", unprocessable("ORDER_ALREADY_CAPTURED")],
+    ["a 422 that isn't a refusal", unprocessable("ORDER_NOT_APPROVED")],
     [
       "a 500",
       Response.json(
@@ -302,11 +501,26 @@ describe("capture_order when paypal refuses the payer's instrument", () => {
     ],
     ["a 422 with no json body", new Response("<html>", { status: 422 })],
   ])("%s is still thrown", async (_label, answer) => {
+    get_order_mock.mockResolvedValue(order_for("d13"));
     paypal_answers(answer);
 
     await expect(
       capture_order({ order_id: "o13", don_id: "d13" })
     ).rejects.toThrow("Failed to capture order");
     expect(report_degraded_mock).not.toHaveBeenCalled();
+  });
+});
+
+// the sdk bounds every call at 30s; paypal may have captured before the
+// answer was lost, so this must not read as a decline
+describe("capture_order when paypal's capture call times out", () => {
+  it("rejects with the timeout, writing nothing", async () => {
+    const timeout = new DOMException("signal timed out", "TimeoutError");
+    capture_order_mock.mockRejectedValue(timeout);
+
+    await expect(capture_order({ order_id: "o30", don_id: "d1" })).rejects.toBe(
+      timeout
+    );
+    expect(donation_update_mock).not.toHaveBeenCalled();
   });
 });

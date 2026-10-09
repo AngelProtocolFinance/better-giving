@@ -59,11 +59,16 @@ vi.mock("#/.server/auth", async () =>
   (await import("$/auth/test-utils")).make_auth_mock()
 );
 
+// init passes through: a status >= 400 skips revalidation, and the delete flow asserts on that
 vi.mock("#/.server/toast", async () => {
-  const { redirect } = await import("react-router");
+  const { data, redirect } = await import("react-router");
   return {
-    dataWithSuccess: vi.fn((_d: unknown, msg: string) => ({ toast: msg })),
-    dataWithError: vi.fn((_d: unknown, msg: string) => ({ error: msg })),
+    dataWithSuccess: vi.fn((_d: unknown, msg: string, init?: ResponseInit) =>
+      data({ toast: msg }, init)
+    ),
+    dataWithError: vi.fn((_d: unknown, msg: string, init?: ResponseInit) =>
+      data({ error: msg }, init)
+    ),
     redirectWithSuccess: vi.fn((url: string, _msg: string) => redirect(url)),
   };
 });
@@ -79,7 +84,10 @@ vi.mock("$/kit/wise", () => ({
 
 // --- imports (after mocks hoisted) ---
 
-import { delete_action } from "#/pages/admin/banking/delete-action";
+import {
+  delete_action,
+  delete_loader,
+} from "#/pages/admin/banking/delete-action";
 import { loader as list_loader } from "#/routes/admin.$id.banking._index/api";
 import PayoutMethodsList from "#/routes/admin.$id.banking._index/route";
 import {
@@ -183,6 +191,8 @@ async function render_banking_app(npo_id: number, initial_path: string) {
                 {
                   path: "delete",
                   Component: DeletePrompt,
+                  HydrateFallback: () => null,
+                  loader: delete_loader as any,
                   action: delete_action as any,
                 },
               ],
@@ -603,59 +613,10 @@ describe("delete", () => {
     const npo = await seed_npo();
     const id = await seed_bapp(npo.id);
 
-    await bapp_delete(id);
+    await bapp_delete(id, npo.id);
 
     const row = await get_bapp(id);
     expect(row).toBeUndefined();
-  });
-
-  async function render_delete_prompt(search: string) {
-    const Stub = createRoutesStub([
-      {
-        path: "/admin/:id/banking/:bank_id/delete",
-        Component: DeletePrompt,
-        HydrateFallback: () => null,
-      },
-    ]);
-
-    return await render(
-      <Stub initialEntries={[`/admin/1/banking/wise-1/delete${search}`]} />
-    );
-  }
-
-  it("blocks when default with heir", async () => {
-    const screen = await render_delete_prompt("?default=true&with_heir=true");
-
-    await expect
-      .element(
-        screen.getByText(
-          /set another payout method as default before deleting/i
-        )
-      )
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: /proceed/i }))
-      .not.toBeInTheDocument();
-  });
-
-  it("allows when default without heir", async () => {
-    const screen = await render_delete_prompt("?default=true");
-
-    await expect
-      .element(screen.getByText(/must have at least one banking connection/i))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: /proceed/i }))
-      .toBeInTheDocument();
-  });
-
-  it("shows simple confirmation when not default", async () => {
-    const screen = await render_delete_prompt("?default=false");
-
-    await expect.element(screen.getByText(/are you sure/i)).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: /proceed/i }))
-      .toBeInTheDocument();
   });
 
   it("detail → Delete → Proceed → redirects to list", async () => {
@@ -683,6 +644,140 @@ describe("delete", () => {
     await expect
       .element(screen.getByText(/no payout methods yet/i))
       .toBeVisible();
+  });
+
+  async function open_prompt(npo_id: number, bank_id: string) {
+    vi.mocked(wise.v2_account).mockResolvedValue(WISE_FIXTURE as any);
+    const screen = await render_banking_app(
+      npo_id,
+      `/admin/${npo_id}/banking/${bank_id}`
+    );
+    await screen.getByRole("link", { name: /delete/i }).click();
+    await expect
+      .element(screen.getByRole("dialog", { name: "Delete payout method" }))
+      .toBeVisible();
+    return screen;
+  }
+
+  async function proceed_delete(npo_id: number, bank_id: string) {
+    const screen = await open_prompt(npo_id, bank_id);
+    const proceed_btn = screen.getByRole("button", { name: /proceed/i });
+    await expect.element(proceed_btn).toBeVisible();
+    (proceed_btn.element() as HTMLElement).click();
+    return screen;
+  }
+
+  const DEFAULT_SUMMARY = "USD ending 1111";
+  const OTHER_SUMMARY = "EUR ending 2222";
+  const REFUSAL = /set another payout method as default before deleting/i;
+
+  it("refuses up front to delete the default while another approved method exists", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "approved",
+      bank_summary: OTHER_SUMMARY,
+    });
+
+    const screen = await open_prompt(npo.id, "100");
+
+    await expect.element(screen.getByText(REFUSAL)).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /proceed/i }))
+      .not.toBeInTheDocument();
+  });
+
+  it("warns before deleting the default when no other method is approved", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, { id: "100", status: "default" });
+    await seed_bapp(npo.id, { id: "200", status: "under-review" });
+
+    const screen = await open_prompt(npo.id, "100");
+
+    await expect
+      .element(screen.getByText(/must have at least one banking connection/i))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /proceed/i }))
+      .toBeInTheDocument();
+  });
+
+  it("refuses a stale prompt once another method was approved meanwhile", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "under-review",
+      bank_summary: OTHER_SUMMARY,
+    });
+    const screen = await open_prompt(npo.id, "100");
+    const proceed_btn = screen.getByRole("button", { name: /proceed/i });
+    await expect.element(proceed_btn).toBeVisible();
+
+    await test_db
+      .current!.db.update(banking_apps)
+      .set({ status: "approved" })
+      .where(eq(banking_apps.id, "200"));
+    (proceed_btn.element() as HTMLElement).click();
+
+    // the refusal answers below 400, so the prompt revalidates into it
+    await expect.element(screen.getByText(REFUSAL)).toBeVisible();
+    await expect.element(proceed_btn).not.toBeInTheDocument();
+    await cleanup();
+    const list = await render_banking_app(npo.id, `/admin/${npo.id}/banking`);
+    await expect.element(list.getByText(DEFAULT_SUMMARY)).toBeVisible();
+    await expect.element(list.getByText(OTHER_SUMMARY)).toBeVisible();
+  });
+
+  it("deletes the default when it is the only approved method", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "under-review",
+      bank_summary: OTHER_SUMMARY,
+    });
+
+    const screen = await proceed_delete(npo.id, "100");
+
+    await expect.element(screen.getByText(OTHER_SUMMARY)).toBeVisible();
+    await expect
+      .element(screen.getByText(DEFAULT_SUMMARY))
+      .not.toBeInTheDocument();
+  });
+
+  it("deletes a non-default method beside the default", async () => {
+    const npo = await seed_npo();
+    await seed_bapp(npo.id, {
+      id: "100",
+      status: "approved",
+      bank_summary: OTHER_SUMMARY,
+    });
+    await seed_bapp(npo.id, {
+      id: "200",
+      status: "default",
+      bank_summary: DEFAULT_SUMMARY,
+    });
+
+    const screen = await proceed_delete(npo.id, "100");
+
+    await expect.element(screen.getByText(DEFAULT_SUMMARY)).toBeVisible();
+    await expect
+      .element(screen.getByText(OTHER_SUMMARY))
+      .not.toBeInTheDocument();
   });
 
   it("detail → Delete → Cancel → stays on detail", async () => {

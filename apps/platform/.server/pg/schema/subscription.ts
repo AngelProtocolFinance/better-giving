@@ -26,6 +26,8 @@ export const subscriptions = pgTable(
     platform: text("platform").$type<"stripe" | "paypal">().notNull(),
     status: text("status").$type<"active" | "inactive">().notNull(),
     status_cancel_reason: text("status_cancel_reason"),
+    /** the donor's cancel, and only theirs: provider webhooks move `updated_at` without touching it */
+    cancel_requested_at: timestamptz("cancel_requested_at"),
     from_id: text("from_id").notNull(),
     created_at: timestamptz("created_at").notNull(),
     updated_at: timestamptz("updated_at").notNull(),
@@ -49,6 +51,13 @@ export const subscriptions = pgTable(
     index("subscriptions_active_idx")
       .on(t.from_id, t.created_at)
       .where(sql`${t.status} = 'active'`),
+    // the donor's own list: `from_id` is an email, stored in whatever case
+    // the checkout sent it
+    index("subscriptions_from_id_lower_status_idx").on(
+      sql`lower(${t.from_id})`,
+      t.status,
+      t.created_at
+    ),
     index("subscriptions_to_npo_id_status_idx").on(
       t.to_npo_id,
       t.status,

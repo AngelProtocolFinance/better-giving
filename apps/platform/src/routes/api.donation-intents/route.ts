@@ -1,5 +1,5 @@
 import type { ActionFunction } from "react-router";
-import { getDotPath, safeParse } from "valibot";
+import { type BaseIssue, getDotPath, object, safeParse } from "valibot";
 import {
   donations_cookie,
   type IDonationIntentExpiries,
@@ -8,6 +8,9 @@ import { to_fn } from "#/.server/donation-recipient";
 import { to_from } from "@/donations/helpers";
 import { intent as schema } from "@/donations/schema";
 import { resp } from "@/helpers/https";
+import { $req } from "@/schemas";
+import { form_get } from "$/pg/queries/form";
+import { npo_program_get } from "$/pg/queries/program";
 import { chariot_intent } from "./chariot";
 import { crypto_intent } from "./crypto";
 import { paypal_intent } from "./paypal";
@@ -22,6 +25,8 @@ const providers = {
   crypto: crypto_intent,
   chariot: chariot_intent,
 } satisfies Record<Ctx["via"], Provider>;
+
+const capture_schema = object({ order_id: $req, don_id: $req });
 
 const json_with_cookie_fn =
   (existing: null | IDonationIntentExpiries) =>
@@ -53,41 +58,69 @@ const json_with_cookie_fn =
     });
   };
 
+// every checkout shows this body via `json_ok`, which surfaces it for the
+// refusal header `resp.refuse` sets. the detail stays in the log
+const refused = (detail: string) => {
+  console.info(`[resp] 400 - ${detail}`);
+  return resp.refuse(
+    "We couldn't process this donation. Please refresh the page and try again."
+  );
+};
+
+const refused_issue = ([i]: [BaseIssue<unknown>, ...BaseIssue<unknown>[]]) =>
+  refused(`${getDotPath(i)}: ${i.message}`);
+
+// json can't encode `undefined`, so it marks a body that didn't parse
+const json_body = (request: Request): Promise<unknown> =>
+  request.json().catch(() => undefined);
+
 export const action: ActionFunction = async ({ request }) => {
   // server-side paypal capture
   if (request.method === "PATCH") {
-    const { order_id, don_id } = await request.json();
-    if (!order_id || !don_id)
-      return resp.status(400, "missing order_id/don_id");
-    const capture = await capture_order({ order_id, don_id });
+    const body = await json_body(request);
+    if (body === undefined) return refused("body is not json");
+    const parsed = safeParse(capture_schema, body);
+    if (parsed.issues) return refused_issue(parsed.issues);
+    const capture = await capture_order(parsed.output);
     return Response.json(capture);
   }
 
   const expiry_per_intent: IDonationIntentExpiries | null =
     await donations_cookie.parse(request.headers.get("cookie"));
 
-  const parsed = safeParse(schema, await request.json());
-  if (parsed.issues) {
-    const i = parsed.issues[0];
-    // a 4xx body reaches the donor verbatim; the detail stays in the log
-    console.info(`[resp] 400 - ${getDotPath(i)}: ${i.message}`);
-    return resp.txt(
-      "We couldn't process this donation. Please refresh the page and try again.",
-      400
-    );
-  }
-  const { to_id, via, via_extra, donor, ...intent } = parsed.output;
+  const body = await json_body(request);
+  if (body === undefined) return refused("body is not json");
+  const parsed = safeParse(schema, body);
+  if (parsed.issues) return refused_issue(parsed.issues);
+  const { to_id, via, via_extra, donor, program, form_id, ...rest } =
+    parsed.output;
 
   const to = await to_fn(to_id, { open_at: new Date() });
   if (!to) {
     const recipient = typeof to_id === "number" ? "nonprofit" : "fundraiser";
     console.info(`[resp] 404 - ${recipient}:${to_id} not found or closed`);
-    return resp.txt(
+    return resp.refuse(
       `This ${recipient} isn't accepting donations right now.`,
       404
     );
   }
   const from = to_from(donor);
+
+  // settlement credits intent.program and the form's running total; a program
+  // the recipient npo doesn't own, or a form raising for another recipient, is
+  // dropped so the gift still goes through, just unattributed
+  const [prog, form] = await Promise.all([
+    program && typeof to_id === "number"
+      ? npo_program_get(program.id, to_id)
+      : undefined,
+    form_id ? form_get(form_id) : undefined,
+  ]);
+  const form_to = form && (form.recipient_fund_id ?? form.recipient_npo_id);
+  const intent = {
+    ...rest,
+    ...(form_to === to_id && { form_id }),
+    ...(prog && { program: { id: prog.id, name: prog.title } }),
+  };
 
   const ctx: Ctx = { to, from, donor, via, via_extra, intent };
   const result = await providers[via](ctx);

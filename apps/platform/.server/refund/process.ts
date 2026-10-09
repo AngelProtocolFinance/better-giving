@@ -1,9 +1,10 @@
 import { donation_match_refund_notif as dmr } from "emails";
 import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
+import { humanize } from "@/helpers/decimal";
 import { to_amount } from "@/helpers/email";
 import { nav_log_date } from "@/nav";
-import { stage } from "../env";
+import { base_url, stage } from "../env";
 import { fiat_monitor } from "../kit/discord";
 import { db } from "../pg/db";
 import {
@@ -26,6 +27,7 @@ import { apply_refund_plan, StalePayoutError } from "./apply";
 import { donation_refund_status } from "./donation-status";
 import {
   calc_refund_plan,
+  loss_figures_off,
   type RefundCtx,
   type RefundInputs,
   type RefundPlan,
@@ -81,15 +83,18 @@ function project_inputs(
       alloc: dist.alloc ?? { liq: 0, lock: 0, cash: 0 },
       net: dist.net ?? 0,
       amount: dist.amount ?? 0,
+      amount_usd: dist.amount_usd,
       fee_base: dist.fee_base ?? 0,
       fee_fsa: dist.fee_fsa ?? 0,
       fee_processing: dist.fee_processing ?? 0,
+      fee_allowance: dist.fee_allowance ?? 0,
     },
     payout: g.payout ? { id: g.payout.id, type: g.payout.type ?? null } : null,
     commission: g.commission
       ? {
           donation_id: g.commission.donation_id,
           amount: g.commission.amount ?? 0,
+          status: g.commission.status,
         }
       : null,
     rev_log_ids: g.rev_logs.map((rl) => rl.id),
@@ -168,11 +173,11 @@ export async function process_refund(
     return db.transaction(async (tx) => {
       const cur = await dist_refund_state_locked(tx, g.dist.id);
       if (!cur || is_reversed(cur)) return { skipped: true } as const;
-      const loss = await apply_refund_plan(tx, plan);
+      const applied = await apply_refund_plan(tx, plan);
       await dist_refund_update(tx, g.dist.id, {
         refund_status: plan.is_loss ? "loss" : "completed",
       });
-      return { skipped: false, loss } as const;
+      return { skipped: false, ...applied } as const;
     });
   }
 
@@ -194,9 +199,24 @@ export async function process_refund(
       if (res.skipped) return;
       applied += 1;
 
-      const { loss } = res;
+      const { loss, commission_in_flight: c, paid_commission: pc } = res;
       if (loss) {
-        loss_msgs.push(`npo ${g.dist.to_id}: $${loss.amount} — ${loss.reason}`);
+        const off = loss_figures_off(loss);
+        if (off)
+          report_error(new Error(off), { loss_id: loss.id, donation_id });
+        loss_msgs.push(
+          `npo ${g.dist.to_id}: $${humanize(loss.amount)} — ${loss.reason}`
+        );
+      }
+      if (pc) {
+        loss_msgs.push(
+          `commission ${pc.donation_id}: $${humanize(pc.amount)} — already paid to its referrer, so the refund leaves it with them as the platform's loss`
+        );
+      }
+      if (c) {
+        loss_msgs.push(
+          `commission ${c.donation_id}: $${humanize(c.amount)} — refunded while claimed for a Wise payout to its referrer; check the transfer by customerTransactionId ${c.ref}`
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -213,10 +233,10 @@ export async function process_refund(
 
   // only finalize the donation status when every dist was applied. with
   // failures present the dists are in mixed states (some "completed",
-  // some "failed") and the donation must stay reversible so admin can
-  // retry once the failed dists are fixed. webhook path gets the same
-  // semantics: a partial failure leaves the row in "settled" and a future
-  // retry (manual or replayed event) can complete the refund.
+  // some "failed") and the donation stays "settled", so a later run can finish
+  // it: the admin retrying, or stripe redelivering the webhook that reversed
+  // the full refund (`charge.refunded`, or `refund.updated` for a refund that
+  // was pending), whose handler fails the delivery until this completes.
   //
   // the status flip and the match void go together in one transaction because
   // a void that fails silently is worse than no void at all: every suppression
@@ -225,12 +245,14 @@ export async function process_refund(
   // that failure loud — it rolls back, the donation stays "settled" with its
   // dists already "completed", which is exactly the mixed,
   // reversible-and-retryable state the paragraph above already documents. a
-  // replayed `charge.refunded` skips the completed dists via SKIP_STATUSES and
+  // replayed webhook skips the completed dists via SKIP_STATUSES and
   // retries the pair.
   //
-  // one write site covers both refund entry points: the `charge.refunded`
-  // webhook, and the admin refund action, which calls process_refund itself and
-  // whose resulting webhook short-circuits before reaching here.
+  // one write site covers every refund entry point: the `charge.refunded` and
+  // `refund.updated` webhooks, and the admin refund action, whose own stripe
+  // refund fires them too. so several can run on one donation at once; each
+  // dist is reversed once under its row lock in apply_dist, and the flip once
+  // under the donation lock below.
   //
   // `graphs` is a snapshot, and settle_npo can commit a dist after it was taken.
   // so the flip first locks the donation row: that waits out a settle_npo
@@ -341,6 +363,7 @@ async function notify_filed_claim_refunded(
     filed_at: ev.submitted_at ?? ev.created_at,
     refunded_at: ev.voided_at ?? new Date().toISOString(),
     void_reason: reason,
+    base_url,
   });
 
   // imported here rather than at the top: `../email` pulls in nodemailer, which

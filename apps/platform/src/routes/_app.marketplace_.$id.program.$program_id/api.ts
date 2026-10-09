@@ -19,7 +19,7 @@ export const loader = async ({ params }: Route.LoaderArgs) => {
   const npo = await (typeof id === "number" ? npo_get(id) : npo_by_slug(id));
   if (!npo) throw resp.status(404);
 
-  const prog = await npo_program_get(pid);
+  const prog = await npo_program_get(pid, npo.id);
   if (!prog) throw resp.status(404);
 
   return prog;

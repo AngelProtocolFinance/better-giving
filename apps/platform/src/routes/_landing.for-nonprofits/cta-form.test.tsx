@@ -147,6 +147,7 @@ describe("CtaForm", () => {
 
 describe_lead_form(CtaForm, {
   name_label: /nonprofit name/i,
+  submit_label: /join free forever/i,
   email_label: /work email/i,
   values: posted(),
   errors: ERRORS,

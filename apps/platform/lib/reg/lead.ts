@@ -36,4 +36,7 @@ export interface ILeadInvalid {
   /** set only when the browser holds a session for a *different* address than
    * the one posted. nothing was written; the form offers the two ways out. */
   signed_in_as?: string;
+  /** form-level refusal no field owns — set only when the poster is over its
+   * submission quota. nothing was written. */
+  message?: string;
 }

@@ -70,7 +70,7 @@ export const action: ActionFunction = async ({ request, params }) => {
       : await request.formData().then((fv) => fv.get("signer_eid")?.toString());
 
   const p1 = safeParse(fsa_docs_or_signer, payload);
-  if (p1.issues) return resp.status(400, p1.issues[0].message);
+  if (p1.issues) throw resp.status(400, p1.issues[0].message);
   const docs_or_eid = p1.output;
 
   let rid: string;
@@ -78,7 +78,7 @@ export const action: ActionFunction = async ({ request, params }) => {
     rid = await reg_id_from_signer_eid(docs_or_eid);
   } else {
     const p2 = safeParse(reg_id, params.reg_id);
-    if (p2.issues) return resp.status(400, p2.issues[0].message);
+    if (p2.issues) throw resp.status(400, p2.issues[0].message);
     rid = p2.output;
   }
 
@@ -117,7 +117,7 @@ export const action: ActionFunction = async ({ request, params }) => {
   if (!packet.won) {
     const moved = packet.row && wizard_exit(packet.row, 3);
     if (moved) return redirect(moved);
-    return resp.status(409, "application changed while signing");
+    throw resp.status(409, "application changed while signing");
   }
 
   await enqueue(msg("reg-updated", packet.row));

@@ -46,8 +46,11 @@ export function ProgramInfo(props: IProgram) {
           required
           error={errors.title?.message}
         />
-        <Label className="-mb-4">Banner image of program</Label>
+        <Label htmlFor="program-banner" className="-mb-4">
+          Banner image of program
+        </Label>
         <ImgEditor
+          id="program-banner"
           ref={image.ref}
           value={image.value}
           on_change={(v) => {

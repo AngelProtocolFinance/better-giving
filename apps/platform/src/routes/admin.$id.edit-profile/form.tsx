@@ -113,8 +113,11 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             error={general.errors.registration_number?.message}
             required
           />
-          <p className="label -mb-4">Banner image of your organization</p>
+          <label htmlFor="npo-banner" className="label -mb-4">
+            Banner image of your organization
+          </label>
           <ImgEditor
+            id="npo-banner"
             ref={general.banner.ref}
             value={general.banner.value}
             on_change={(val) => {
@@ -130,8 +133,11 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             classes={{ container: "mb-4", dropzone: "w-full aspect-4/1" }}
             error={general.errors.image?.message}
           />
-          <p className="label -mb-4">Logo of your organization</p>
+          <label htmlFor="npo-logo" className="label -mb-4">
+            Logo of your organization
+          </label>
           <ImgEditor
+            id="npo-logo"
             ref={general.logo.ref}
             value={general.logo.value}
             on_change={(val) => {
@@ -149,10 +155,11 @@ export function Form({ init_slug = "", init, id, base_url }: Props) {
             }}
             error={general.errors.logo?.message}
           />
-          <p className="label -mb-4">
+          <label htmlFor="npo-card-img" className="label -mb-4">
             Marketplace Card image for your organization
-          </p>
+          </label>
           <ImgEditor
+            id="npo-card-img"
             ref={general.card_img.ref}
             value={general.card_img.value}
             on_change={(val) => {

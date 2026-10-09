@@ -3,6 +3,7 @@ import type { IDonation } from "@/donations";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
 import { send_email } from "$/email";
+import { base_url } from "$/env";
 
 /**
  * tell the donor their employer's match landed.
@@ -29,6 +30,7 @@ export async function send_match_arrived(gift: IDonation, net: number) {
     // the admin's internal reference stands in for the donation row's name, and
     // is not something to show a donor as their employer.
     employer_name: gift.from_company_name || undefined,
+    base_url,
   };
 
   const { node, subject } = donation_match_arrived.template(data);

@@ -6,6 +6,7 @@ import { report_error } from "#/errors/report";
 import type { Payment } from "#/types/crypto";
 import type { IDonationIntent, IDonorFv } from "@/donations/schema";
 import { ru_vdec } from "@/helpers/decimal";
+import { HttpError, json_ok } from "@/helpers/https";
 import { ContinueBtn } from "../../common/continue-btn";
 import { use_donation_redirect } from "../../common/redirect";
 import { donation_return_url } from "../../common/return-url";
@@ -22,35 +23,34 @@ type Props = {
   tipv: number;
 };
 
-// the status rides with the message so reporting can tell an expected 4xx
-// from a server failure without reading the text
-class IntentError extends Error {
-  constructor(
-    readonly status: number,
-    message: string
-  ) {
-    super(message);
-  }
-}
-
 const fetcher = async (intent: IDonationIntent): Promise<Payment> => {
   const res = await fetch(href("/api/donation-intents"), {
     method: "POST",
     body: JSON.stringify(intent),
   });
-  if (res.ok) return res.json();
-
   // the 400 the intent route answers a below-minimum donation with is
   // deliberate — the client validates `base` against a cached minimum while
   // the server checks `base + tip + fee_allowance` against a freshly fetched
   // one, so an amount within a percent of the minimum can pass here and fail
   // there.
   //
-  // 4xx from this route is short donor-facing text — most usefully the token's
-  // actual minimum. 5xx is an unhandled throw whose body is a framework error
-  // page, so it keeps the generic message.
-  const txt = res.status < 500 ? (await res.text().catch(() => "")).trim() : "";
-  throw new IntentError(res.status, txt);
+  // the route's refusals are donor-facing text — most usefully the token's
+  // actual minimum. a 5xx asks the donor to try again later; anything else
+  // (an edge block, a malformed body) keeps the generic message.
+  return json_ok<Payment>(res);
+};
+
+// the intent route's `try_later` wording (routes/api.donation-intents/crypto);
+// json_ok never reads a 5xx body, so the client spells it out
+const TRY_LATER =
+  "We couldn't reach our crypto payment processor. Please try again in a few minutes.";
+
+const error_text = (error: unknown) => {
+  if (error instanceof HttpError) {
+    if (error.refused) return error.message;
+    if (error.status >= 500) return TRY_LATER;
+  }
+  return "Failed to load donation address";
 };
 
 /**
@@ -116,8 +116,8 @@ export function DirectMode({
 
   const { data, isLoading, error } = use_swr(intent, fetcher);
 
-  // report_error drops anything carrying a 4xx status, so the deliberate
-  // below-minimum answer never pages; a 5xx or a malformed body does
+  // report_error drops a refused HttpError, so the deliberate below-minimum
+  // answer never pages; any other non-ok answer or a malformed body does
   useEffect(() => {
     if (error) report_error(error);
   }, [error]);
@@ -142,11 +142,7 @@ export function DirectMode({
       {isLoading ? (
         <ContentLoader className="size-48 rounded" />
       ) : error || !data ? (
-        <ErrorStatus>
-          {error instanceof IntentError && error.message
-            ? error.message
-            : "Failed to load donation address"}
-        </ErrorStatus>
+        <ErrorStatus>{error_text(error)}</ErrorStatus>
       ) : (
         <PayQr
           token={fv.token}

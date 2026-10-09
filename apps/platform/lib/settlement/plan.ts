@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import type { IBalanceTx } from "../balance-txs";
 import { fees } from "../constants";
 import { default_allocation } from "../constants/common";
@@ -8,6 +9,7 @@ import type {
   IToSettings,
   TToType,
 } from "../donations";
+import { allocation } from "../donations/schema";
 import { nav_log_date } from "../nav/log-date";
 import type { IPayout } from "../payouts";
 import { msg } from "../queue";
@@ -49,7 +51,24 @@ export interface SettlementPlan {
   nav_log_entry: NavLogEntry | null;
   balance_deltas: IBalanceDeltas;
   msgs: IMsg[];
+  /** the stored allocation couldn't be split, so net went to default_allocation */
+  alloc_fell_back: boolean;
 }
+
+/**
+ * stored allocation is unvalidated jsonb, and settlement must put exactly net
+ * into buckets: a missing cash is the remainder; null when still not an allocation
+ */
+const settlement_allocation = (a: Partial<IAllocation>): IAllocation | null => {
+  const liq = a.liq ?? 0;
+  const lock = a.lock ?? 0;
+  const r = v.safeParse(allocation, {
+    liq,
+    lock,
+    cash: a.cash ?? 100 - liq - lock,
+  });
+  return r.success ? r.output : null;
+};
 
 // [resulting balance, excess fa]
 const credit_fa = (
@@ -117,9 +136,12 @@ export function calc_settlement_plan(
     fsa: ctx.fiscal_sponsored ? fees.fiscal_sponsor : 0,
   });
 
+  const stored_alloc = ctx.allocation
+    ? settlement_allocation(ctx.allocation)
+    : default_allocation;
   const settings: IToSettings = {
     fiscal_sponsored: ctx.fiscal_sponsored,
-    alloc: ctx.allocation ?? default_allocation,
+    alloc: stored_alloc ?? default_allocation,
   };
 
   const id = crypto.randomUUID();
@@ -392,6 +414,7 @@ export function calc_settlement_plan(
         },
       },
       program: don.program,
+      form: i.source,
     })
   );
 
@@ -405,5 +428,6 @@ export function calc_settlement_plan(
     nav_log_entry,
     balance_deltas,
     msgs,
+    alloc_fell_back: stored_alloc === null,
   };
 }

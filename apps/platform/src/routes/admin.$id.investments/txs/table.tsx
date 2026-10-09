@@ -47,17 +47,19 @@ export function Table({
               <td>
                 <div className="relative">
                   {r.status === "cancelled" && (
-                    <Tooltip
-                      tip={
-                        <Content className="max-w-xs text-xs">
-                          <Arrow />
-                          Transaction request was cancelled and will not be
-                          processed.
-                        </Content>
-                      }
-                    >
-                      <InfoIcon className="text-gray-11 absolute -left-5 top-0.5 icon-sm" />
-                    </Tooltip>
+                    <span className="absolute -left-5 top-0.5 flex">
+                      <Tooltip
+                        tip={
+                          <Content className="max-w-xs text-xs">
+                            <Arrow />
+                            Transaction request was cancelled and will not be
+                            processed.
+                          </Content>
+                        }
+                      >
+                        <InfoIcon className="text-gray-11 icon-sm" />
+                      </Tooltip>
+                    </span>
                   )}
                   ${humanize(r.amount)}{" "}
                 </div>

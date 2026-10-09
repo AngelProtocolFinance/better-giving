@@ -7,15 +7,13 @@ import type { Payment } from "#/types/crypto";
 import { ru_vdec } from "@/helpers/decimal";
 
 interface IQrModal extends Payment {
-  order_amount: number;
   on_close: () => void;
 }
 interface Props {
   payment_id: number | string;
   classes?: string;
-  amount: number;
 }
-export function PaymentResumer({ payment_id, classes, amount }: Props) {
+export function PaymentResumer({ payment_id, classes }: Props) {
   const ask_prompt = use_ask_prompt();
   const [intent_state, set_intent_state] = useState<"pending">();
   const [qr, set_qr] = useState<IQrModal>();
@@ -39,7 +37,6 @@ export function PaymentResumer({ payment_id, classes, amount }: Props) {
             const payment: Payment = await res.json();
             set_qr({
               ...payment,
-              order_amount: amount,
               on_close: () => set_qr(undefined),
             });
           } catch (err) {
@@ -71,7 +68,7 @@ function QrModal(props: IQrModal) {
 
       <p className="text-gray-11 text-balance text-center mb-3.5 max-w-sm justify-self-center">
         To complete your donation, send{" "}
-        {ru_vdec(props.order_amount, props.usdpu, token.precision)}
+        {ru_vdec(props.amount, props.usdpu, token.precision)}
         &nbsp;
         {token.symbol} from your crypto wallet to the address below
       </p>

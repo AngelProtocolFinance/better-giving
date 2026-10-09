@@ -1,4 +1,4 @@
-import { FileUpload } from "@ark-ui/react/file-upload";
+import { FileUpload, useFileUpload } from "@ark-ui/react/file-upload";
 import type { ReactNode, Ref } from "react";
 import { useId, useImperativeHandle, useRef, useState } from "react";
 import { ExtLink } from "../ext-link";
@@ -71,10 +71,17 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
     try {
       props.onChange("loading");
       const url = await props.upload(f);
-      return props.onChange(url);
+      props.onChange(url);
     } catch (err) {
       props.report_error(err);
-      return props.onChange("failure");
+      props.onChange("failure");
+    } finally {
+      // zag keeps the accepted File and rejects an identical re-pick as
+      // FILE_EXISTS — and fires that rejection only when it differs from the
+      // last one, so a held file swallows every repeat after the first. holding
+      // nothing makes each pick a fresh accept. the clear re-enters here with
+      // `[]`, which the `!f` guard above absorbs.
+      api.clearFiles();
     }
   };
 
@@ -99,30 +106,34 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
             ? `Uploaded ${subject}`
             : "";
 
+  const api = useFileUpload({
+    translations: { dropzone: props.dropzone_name },
+    accept: props.specs.mimeTypes,
+    maxFileSize: props.specs.mbLimit * 1e6,
+    maxFiles: 1,
+    disabled: props.disabled,
+    allowDrop: !busy,
+    invalid: !!props.error,
+    onFileAccept: (d) => handle_accept(d.files),
+    onFileReject: (d) => {
+      if (busy) return;
+      const f = d.files[0];
+      if (f) setFile(f.file);
+      const codes = f?.errors ?? [];
+      if (codes.includes("FILE_INVALID_TYPE")) {
+        return props.onChange("invalid-type");
+      }
+      if (codes.includes("FILE_TOO_LARGE")) {
+        return props.onChange("exceeds-size");
+      }
+    },
+  });
+
   return (
-    <FileUpload.Root
+    <FileUpload.RootProvider
+      value={api}
       ref={root_ref}
       className={`${props.classes ?? ""} scroll-mt-24`}
-      translations={{ dropzone: props.dropzone_name }}
-      accept={props.specs.mimeTypes}
-      maxFileSize={props.specs.mbLimit * 1e6}
-      maxFiles={1}
-      disabled={props.disabled}
-      allowDrop={!busy}
-      invalid={!!props.error}
-      onFileAccept={(d) => handle_accept(d.files)}
-      onFileReject={(d) => {
-        if (busy) return;
-        const f = d.files[0];
-        if (f) setFile(f.file);
-        const codes = f?.errors ?? [];
-        if (codes.includes("FILE_INVALID_TYPE")) {
-          return props.onChange("invalid-type");
-        }
-        if (codes.includes("FILE_TOO_LARGE")) {
-          return props.onChange("exceeds-size");
-        }
-      }}
     >
       {props.label}
       <p className="text-xs text-gray-11 mb-2">
@@ -180,6 +191,6 @@ export function FileDropzone({ ref, ...props }: Props & { ref?: Ref<El> }) {
       <span id={error_id} className="field-err mt-1 empty:hidden">
         {props.error}
       </span>
-    </FileUpload.Root>
+    </FileUpload.RootProvider>
   );
 }

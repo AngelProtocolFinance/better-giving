@@ -1,5 +1,7 @@
 import type { PurchaseUnitsRequest } from "@better-giving/paypal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { paypal_currencies } from "#/constants/paypal";
+import { paypal_charge } from "./charge";
 
 const create_order_mock = vi.hoisted(() => vi.fn());
 
@@ -19,9 +21,10 @@ const unit_for = async (
     order_id: "don-1",
     currency,
     npo_name: "Acme",
-    base,
-    tip,
-    fee_allowance,
+    charge: paypal_charge(
+      { base, tip, fee_allowance },
+      paypal_currencies[currency]!
+    ),
   });
   return create_order_mock.mock.calls[0]![0].purchase_units[0];
 };
@@ -91,10 +94,5 @@ describe("create_order purchase unit", () => {
       item_total: "1620",
       items: ["1500", "75", "45"],
     });
-  });
-
-  it("formats a currency outside the paypal table at two decimals", async () => {
-    const u = await unit_for("XYZ", 5, 0.05, 0.14);
-    expect(values(u).total).toBe("5.19");
   });
 });

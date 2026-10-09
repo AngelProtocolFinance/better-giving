@@ -7,9 +7,32 @@ const usds = (xs: { value_usd: number }[]) => xs.map((x) => x.value_usd);
 const cents = (xs: number[], scale = 100) =>
   xs.reduce((s, x) => s + Math.round(x * scale), 0);
 
+describe("to_amount", () => {
+  test.each([
+    // a unit worth under 1 usd still prints its iso 4217 minor units
+    [25.99, 25.99 * 0.73, "CAD", 25.99],
+    [500.5, 500.5 * 0.05, "MXN", 500.5],
+    [5000, 5000 * 0.0068, "JPY", 5000],
+    [12.34, 12.34, "USD", 12.34],
+    [10.999, 10.999 / 0.9, "EUR", 10.99],
+    // a token worth over a cent prints past 2 decimals: $500 is 0.005 btc
+    [0.005, 500, "BTC", 0.005],
+    [0.00512345678, 512.345678, "BTC", 0.0051234],
+    // 4 doge per usd prints one decimal
+    [100.37, 25.0925, "DOGE", 100.3],
+    // a summed amount's binary drift isn't truncated: 0.1 + 0.7 is 0.7999999999999999
+    [0.1 + 0.7, 2400, "ETH", 0.8],
+  ] as const)(
+    "%s worth %s usd in %s prints %s",
+    (amount, usd, denom, expected) => {
+      expect(to_amount(amount, usd, denom).value).toBe(expected);
+    }
+  );
+});
+
 describe("to_amount_shares", () => {
   test("a btc gift's shares print usd that adds up to the whole", () => {
-    // 0.001 btc at $100k: btc prints 2 decimals, so each token share is 0
+    // 0.001 btc at $100k
     const shares = to_amount_shares(0.001, 100, "BTC", 3);
 
     expect(usds(shares)).toEqual([33.34, 33.33, 33.33]);
@@ -86,6 +109,7 @@ describe("to_receipt", () => {
     from: { first_name: "Ada", full_name: "Ada Lovelace" },
     tax_receipt_id: "R-1",
     bg_npo_id: 1,
+    base_url: "https://staging.example",
   };
   const npo = (
     id: number,
@@ -111,6 +135,7 @@ describe("to_receipt", () => {
     ]);
     expect(r.amount).toEqual({ value: 105, currency: "USD", value_usd: 105 });
     expect(r.tax_receipt_id).toBe("R-1");
+    expect(r.base_url).toBe("https://staging.example");
     expect(r.to_name).toBe("Climate Fund");
     expect(r.is_fund).toBe(true);
     expect(r.is_bg).toBe(false);

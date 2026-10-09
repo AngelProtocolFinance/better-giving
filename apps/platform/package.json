@@ -6,8 +6,8 @@
   "scripts": {
     "start": "react-router-serve build/server/index.js",
     "build": "react-router build",
-    "postbuild": "if [ -n \"$CI\" ]; then drizzle-kit migrate; else echo 'postbuild: skipping migrations (CI unset)'; fi",
-    "migrate": "drizzle-kit migrate",
+    "postbuild": "if [ -z \"$CI\" ]; then echo 'postbuild: skipping migrations (CI unset)'; elif [ \"$VERCEL_ENV\" = production ]; then node .server/pg/check-migrations.ts && echo 'postbuild: production migrates in smoke.yml once checks pass'; else pnpm run migrate; fi",
+    "migrate": "node --env-file-if-exists=.env .server/pg/migrate.ts",
     "format": "biome check --write .",
     "format-unsafe": "biome check --write --unsafe src",
     "lint": "biome check .",

@@ -1,0 +1,58 @@
+import { createHash, randomUUID } from "node:crypto";
+import { to_units } from "@/helpers/decimal";
+
+/** a Wise payout failed with no money moved */
+export class NotFundedError extends Error {
+  constructor(cause: unknown) {
+    super("transfer not funded", { cause });
+    this.name = "NotFundedError";
+  }
+}
+
+/**
+ * what a payout run sends to Wise for these amounts: their sum in cents,
+ * rounded half down. the minimum check, the ref, the quote and every record of
+ * the payout take this one figure.
+ */
+export function payout_total(amounts: number[]): number {
+  return (
+    to_units(
+      amounts.reduce((a, b) => a + b, 0),
+      2,
+      "half_down"
+    ) / 100
+  );
+}
+
+// fixed namespace for the uuid v5 below; changing it re-keys every ref
+const REF_NAMESPACE = Buffer.from("cb853edef275466b85c79409fa3f037a", "hex");
+
+/**
+ * a claim's wise `customerTransactionId` (its idempotency key): uuid v5 of
+ * recipient + total + claimed id set + a nonce drawn per claim. made once, in
+ * the claim's tx, and stored on the claimed rows, so a retry within the claim
+ * reuses it; a set released and claimed again gets a new one, never the
+ * earlier claim's transfer, which wise may have cancelled meanwhile.
+ */
+export function transfer_ref(
+  ref_key: string,
+  total: number,
+  ids: string[],
+  nonce: string = randomUUID()
+): string {
+  const name = JSON.stringify([
+    ref_key,
+    total.toFixed(2),
+    [...ids].sort(),
+    nonce,
+  ]);
+  const b = createHash("sha1")
+    .update(REF_NAMESPACE)
+    .update(name)
+    .digest()
+    .subarray(0, 16);
+  b[6] = (b[6]! & 0x0f) | 0x50;
+  b[8] = (b[8]! & 0x3f) | 0x80;
+  const h = b.toString("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}

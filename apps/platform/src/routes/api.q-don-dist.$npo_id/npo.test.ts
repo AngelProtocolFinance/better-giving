@@ -11,11 +11,19 @@ import {
 import type { IInput, IParts } from "@/types/donation-dist";
 import type { TestDb } from "$/pg/test-utils/pglite";
 
-const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
+const test_db = vi.hoisted(() => ({
+  current: null as TestDb | null,
+  /** the next `db.transaction` rejects with this instead of running */
+  fail_next_tx: null as Error | null,
+}));
 const enqueue_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
+const report_degraded_mock = vi.hoisted(() => vi.fn());
 
-vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
+vi.mock("#/errors/report", () => ({
+  report_error: report_error_mock,
+  report_degraded: report_degraded_mock,
+}));
 vi.mock("$/kit/queue", () => ({ enqueue: enqueue_mock }));
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -24,6 +32,11 @@ vi.mock("$/pg/db", () => ({
       get(_, prop) {
         const real = test_db.current?.db;
         if (!real) throw new Error("test_db not initialized");
+        const failure = test_db.fail_next_tx;
+        if (prop === "transaction" && failure) {
+          test_db.fail_next_tx = null;
+          return () => Promise.reject(failure);
+        }
         return (real as any)[prop];
       },
     }
@@ -34,9 +47,15 @@ const { handle_npo } = await import("./npo");
 const { reversed_statuses } = await import("@/donations/settle");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { dists } = await import("$/pg/schema/dist");
+const { claim_dist_notice } = await import("$/pg/queries/dist");
 const { donations } = await import("$/pg/schema/donation");
 const { npos } = await import("$/pg/schema/npo");
 const { payouts } = await import("$/pg/schema/payout");
+const { bal_txs } = await import("$/pg/schema/bal-tx");
+const { rev_logs } = await import("$/pg/schema/revenue");
+const { nav_holders, nav_log_positions, nav_logs } = await import(
+  "$/pg/schema/nav"
+);
 
 const db = () => test_db.current!.db;
 
@@ -97,6 +116,10 @@ afterAll(async () => {
 beforeEach(async () => {
   vi.clearAllMocks();
   await db().delete(payouts);
+  await db().delete(bal_txs);
+  await db().delete(rev_logs);
+  await db().delete(nav_holders);
+  await db().delete(nav_logs);
   await db().delete(dists);
   await db().delete(donations);
   await db().delete(npos);
@@ -129,28 +152,126 @@ beforeEach(async () => {
 });
 
 describe("handle_npo", () => {
-  it("swallows the redelivery that loses on unique(donation_id, to_id)", async () => {
-    await handle_npo(make_input(npo_id));
-    expect(await db().select().from(dists)).toHaveLength(1);
-    expect(enqueue_mock).toHaveBeenCalledOnce();
-
-    enqueue_mock.mockClear();
+  it("resends the don-dist of a settlement whose first enqueue was lost, keyed to its dist", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    const [dist] = await db().select().from(dists);
 
     await expect(handle_npo(make_input(npo_id))).resolves.toBeUndefined();
+
     expect(await db().select().from(dists)).toHaveLength(1);
-    expect(enqueue_mock).not.toHaveBeenCalled();
+    expect(enqueue_mock).toHaveBeenCalledTimes(2);
+    const resent = enqueue_mock.mock.calls[1]!;
+    expect(resent).toHaveLength(1);
+    expect(resent[0]).toMatchObject({
+      id: "don-dist",
+      dedupe: `don.dist_${dist!.id}_${npo_id}`,
+      payload: { id: dist!.id, to_id: npo_id, net: 100 },
+    });
+    // the notice it carries is still owed
+    expect(await claim_dist_notice(dist!.id)).toMatchObject({
+      status: "claimed",
+    });
   });
 
-  it("reports the swallowed redelivery with its donation and npo", async () => {
-    await handle_npo(make_input(npo_id));
-    expect(report_error_mock).not.toHaveBeenCalled();
+  it("resends the stored dist's net, not one replanned from the npo's terms since", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    // a fiscal sponsor's fee would come out of a replanned net
+    await db()
+      .update(npos)
+      .set({ fiscal_sponsored: true })
+      .where(eq(npos.id, npo_id));
 
     await handle_npo(make_input(npo_id));
-    expect(report_error_mock).toHaveBeenCalledOnce();
-    expect(report_error_mock.mock.calls[0]![1]).toMatchObject({
+
+    const [resent] = enqueue_mock.mock.calls[1]!;
+    expect(resent.payload.net).toBe(100);
+  });
+
+  it("resends neither the tip nor the lock notice, which have no send-once gate", async () => {
+    await db()
+      .update(npos)
+      .set({ allocation: { cash: 50, liq: 0, lock: 50 } })
+      .where(eq(npos.id, npo_id));
+    // a lock allocation buys units at the latest nav snapshot, whose rows
+    // a deferred trigger wants in one transaction
+    const date = "2025-12-31T00:00:00.000Z";
+    await db().transaction(async (tx) => {
+      await tx.insert(nav_logs).values({
+        date,
+        reason: "test",
+        units: 100,
+        price: 1,
+        price_updated: date,
+      });
+      await tx.insert(nav_log_positions).values({
+        date,
+        ticker: "CASH",
+        qty: 1000,
+        price: 1,
+        value: 1000,
+        price_date: date,
+      });
+    });
+    const input = { ...make_input(npo_id), ps: parts({ sttl: amt(100, 10) }) };
+
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+    await expect(handle_npo(input)).rejects.toThrow(/qstash down/);
+    const kinds = (call: unknown[]) =>
+      call.map((m) => (m as { id: string }).id);
+    expect(kinds(enqueue_mock.mock.calls[0]!)).toEqual([
+      "tip-received",
+      "lock-tx-created",
+      "don-dist",
+    ]);
+
+    await handle_npo(input);
+    expect(kinds(enqueue_mock.mock.calls[1]!)).toEqual(["don-dist"]);
+  });
+
+  it("resends a don-dist the notice claim answers done once the notice went", async () => {
+    await handle_npo(make_input(npo_id));
+    const [dist] = await db().select().from(dists);
+    // every step stamped, as a finished notice or migration 0044 leaves it
+    await db()
+      .update(dists)
+      .set({
+        notice_sent_at: sql`now()`,
+        metric_counted_at: sql`now()`,
+        hooks_sent_at: sql`now()`,
+      })
+      .where(eq(dists.id, dist!.id));
+
+    await handle_npo(make_input(npo_id));
+
+    const [resent] = enqueue_mock.mock.calls[1]!;
+    expect(resent.payload.id).toBe(dist!.id);
+    expect(await claim_dist_notice(resent.payload.id)).toEqual({
+      status: "done",
+    });
+  });
+
+  it("reports the absorbed redelivery as degraded, not as a bug", async () => {
+    await handle_npo(make_input(npo_id));
+
+    await handle_npo(make_input(npo_id));
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).toHaveBeenCalledOnce();
+    expect(report_degraded_mock.mock.calls[0]![1]).toMatchObject({
       donation_id: DON_ID,
       npo_id,
     });
+  });
+
+  // entry.server's handleError reports the action's throw; a report here doubles it
+  it("rethrows a redelivery whose resend fails without reporting it itself", async () => {
+    await handle_npo(make_input(npo_id));
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(report_degraded_mock).not.toHaveBeenCalled();
   });
 
   it("rethrows a unique violation on any other constraint", async () => {
@@ -190,6 +311,40 @@ describe("handle_npo", () => {
     } finally {
       await db().execute(sql`DROP INDEX test_dists_to_id_uniq`);
     }
+  });
+
+  // on neon, drizzle's own rollback can fail on a dead socket and replace the
+  // 23505 with an error carrying no code
+  const dead_socket = () => new Error("Connection terminated unexpectedly");
+
+  it("swallows a redelivery whose unique violation arrives without its code", async () => {
+    await handle_npo(make_input(npo_id));
+    enqueue_mock.mockClear();
+
+    test_db.fail_next_tx = dead_socket();
+    await expect(handle_npo(make_input(npo_id))).resolves.toBeUndefined();
+
+    expect(report_degraded_mock).toHaveBeenCalledOnce();
+    expect(enqueue_mock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "don-dist" })
+    );
+  });
+
+  // a redelivery then finds the dist and resends what this one lost
+  it("rethrows an enqueue that fails after the commit, not reporting it as settled", async () => {
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(/qstash down/);
+    expect(report_error_mock).not.toHaveBeenCalled();
+  });
+
+  it("rethrows a codeless failure when nothing was settled", async () => {
+    test_db.fail_next_tx = dead_socket();
+
+    await expect(handle_npo(make_input(npo_id))).rejects.toThrow(
+      /terminated unexpectedly/
+    );
+    expect(report_error_mock).not.toHaveBeenCalled();
   });
 
   it("rethrows anything that is not that unique violation", async () => {

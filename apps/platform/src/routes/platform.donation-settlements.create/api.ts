@@ -5,6 +5,7 @@ import type { IMsg } from "@/queue/types";
 import type { IInput, IParts } from "@/types/donation-dist";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
+import { is_unique_violation } from "$/pg/errors";
 import { donation_get, donation_put } from "$/pg/queries/donation";
 import { claim_match_arrival, match_event_get } from "$/pg/queries/match";
 import { nav_ltd } from "$/pg/queries/nav";
@@ -32,6 +33,12 @@ const text = (fallback: string) =>
     ),
     fallback
   );
+
+/**
+ * the one refusal that names no field: a page loaded before the key existed
+ * posts none, and the fix is the reload, not a box to correct
+ */
+const stale_page_msg = "This page is out of date. Reload it and confirm again.";
 
 const schema = v.object({
   from: v.optional(v.picklist(["cheque", "daf", "match"]), "cheque"),
@@ -62,6 +69,21 @@ const schema = v.object({
    * cheque that names nothing is still money that has to be recorded.
    */
   for_donation_id: v.optional(v.string(), ""),
+  /**
+   * minted by the client when the preview opens, so a confirm whose response
+   * was lost replays under the same key. the settlement's ids derive from it,
+   * and the donation's primary key refuses the second write.
+   *
+   * required, with no server-minted fallback: a key minted here is fresh on
+   * every post, so the page that lost its response would settle twice. the
+   * absent key folds to "" only so the refusal reads as `stale_page_msg` —
+   * an object's missing-key issue carries the object's message, not this one's.
+   */
+  idempotency_key: v.pipe(
+    v.optional(v.string(), ""),
+    v.nonEmpty(stale_page_msg),
+    v.uuid()
+  ),
 });
 
 /**
@@ -309,6 +331,11 @@ export const action = async ({ request }: Route.ActionArgs) => {
   const fd = await request.formData();
   const result = v.safeParse(schema, Object.fromEntries(fd));
   if (!result.success) {
+    // outranks every field: nothing on a stale page is worth correcting, and the
+    // pipe goes on to report the blank key as a bad uuid beside it
+    if (result.issues.some((i) => i.message === stale_page_msg)) {
+      return { ok: false as const, error: stale_page_msg };
+    }
     // named, not "Invalid input": the submit happens from the preview step where
     // nothing is editable, so the field is the only thing that tells an admin
     // holding a cheque which box to go back and fix
@@ -391,8 +418,8 @@ export const action = async ({ request }: Route.ActionArgs) => {
   const from_name = gift
     ? gift.from_company_name || parsed.reference
     : parsed.donor_name;
-  const parent_id = crypto.randomUUID();
-  const sttl_id = `${parsed.from}-${crypto.randomUUID()}`;
+  const parent_id = parsed.idempotency_key;
+  const sttl_id = `${parsed.from}-${parsed.idempotency_key}`;
 
   const parent_don = build_parent(
     parent_id,
@@ -477,6 +504,13 @@ export const action = async ({ request }: Route.ActionArgs) => {
       return { matched: row, msgs };
     }));
   } catch (err) {
+    // the parent donation row is the transaction's first write and is keyed by
+    // the idempotency key, so a replay fails there and rolls back before any
+    // credit. reported as the success it already was: a refusal sends the admin
+    // back to preview again under a new key, which settles the money twice.
+    if (is_unique_violation(err, "donations_pkey")) {
+      return { ok: true as const, replayed: true as const };
+    }
     if (!(err instanceof MatchRefusedError)) throw err;
     // the claim gates on two things and says which by way of the row it left
     // behind — a null return can only come from a row that already existed,

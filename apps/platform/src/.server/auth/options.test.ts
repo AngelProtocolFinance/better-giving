@@ -5,6 +5,8 @@ import type { TestDb } from "$/pg/test-utils/pglite";
 
 const test_db = vi.hoisted(() => ({ current: null as TestDb | null }));
 const test_auth_ref = vi.hoisted(() => ({ current: null as any }));
+/** every sign-in link the config mails */
+const sent_links = vi.hoisted(() => [] as { email: string; url: string }[]);
 
 // --- mocks ---
 
@@ -31,6 +33,7 @@ vi.mock("$/email", () => ({
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import {
@@ -51,7 +54,9 @@ beforeAll(async () => {
   test_db.current = await create_test_db();
 
   const deps = {
-    send_login_link: async () => {},
+    send_login_link: async (a: { email: string; url: string }) => {
+      sent_links.push(a);
+    },
     referral_id,
   };
 
@@ -66,6 +71,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  sent_links.length = 0;
   const db = test_db.current!.db;
   await db.delete(verification);
   await db.delete(session);
@@ -73,17 +79,15 @@ beforeEach(async () => {
   await db.delete(user_table);
 });
 
-/** a real signed-in session, as a `Cookie` header carries it. sign-up leaves
- * the row unverified by config, and only a verified row can sign in. */
+/** a real signed-in session, as a `Cookie` header carries it. the seeded row
+ * starts unverified, and only a verified row can sign in. */
 async function sign_in(email = TEST_EMAIL) {
-  await test_auth_ref.current.api.signUpEmail({
-    body: {
-      email,
-      password: TEST_PW,
-      name: email,
-      first_name: "Jane",
-      last_name: "Doe",
-    },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password: TEST_PW,
+    name: email,
+    first_name: "Jane",
+    last_name: "Doe",
   });
   await test_db
     .current!.db.update(user_table)
@@ -189,44 +193,62 @@ describe("server-owned user fields", () => {
 
     expect((await row()).first_name).toBe("Janet");
   });
+});
 
-  it("keeps signup working, and closed to the server-owned five", async () => {
-    const res = await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: "new@example.com",
-        password: TEST_PW,
-        name: "new",
-        first_name: "Jane",
-        last_name: "Doe",
-      },
+describe("POST /api/auth/sign-in/magic-link", () => {
+  it("is refused over http, while the server-side seam still mails a link that redeems", async () => {
+    await test_db.current!.db.insert(user_table).values({
+      id: crypto.randomUUID(),
+      email: TEST_EMAIL,
+      name: "Jane Doe",
+      first_name: "Jane",
+      last_name: "Doe",
+      emailVerified: true,
     });
-    expect(res.user.email).toBe("new@example.com");
-    expect((await row("new@example.com")).first_name).toBe("Jane");
 
-    await expect(
-      test_auth_ref.current.api.signUpEmail({
-        body: {
-          email: "other@example.com",
+    const res: Response = await test_auth_ref.current.handler(
+      new Request(`${BASE_URL}/api/auth/sign-in/magic-link`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: BASE_URL },
+        body: JSON.stringify({ email: TEST_EMAIL }),
+      })
+    );
+    expect(res.status).toBe(404);
+    expect(sent_links).toHaveLength(0);
+
+    await test_auth_ref.current.api.signInMagicLink({
+      body: { email: TEST_EMAIL, callbackURL: "/marketplace" },
+      headers: new Headers(),
+    });
+    expect(sent_links).toHaveLength(1);
+
+    const verified: Response = await test_auth_ref.current.handler(
+      new Request(sent_links[0]!.url)
+    );
+    expect(verified.status).toBe(302);
+    expect(verified.headers.get("location")).toBe(`${BASE_URL}/marketplace`);
+    expect(verified.headers.getSetCookie().join()).toMatch(/session_token=/);
+  });
+});
+
+describe("POST /api/auth/sign-up/email", () => {
+  it("is refused, so every row still comes through the app's own signup", async () => {
+    const res: Response = await test_auth_ref.current.handler(
+      new Request(`${BASE_URL}/api/auth/sign-up/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: BASE_URL },
+        body: JSON.stringify({
+          email: "new@example.com",
           password: TEST_PW,
-          name: "other",
+          name: "new",
           first_name: "Jane",
           last_name: "Doe",
-          w_form: "someone-elses-eid",
-        },
+        }),
       })
-    ).rejects.toThrow();
+    );
 
-    await expect(
-      test_auth_ref.current.api.signUpEmail({
-        body: {
-          email: "third@example.com",
-          password: TEST_PW,
-          name: "third",
-          first_name: "Jane",
-          last_name: "Doe",
-          referral_code: "SOMEONE-ELSES",
-        },
-      })
-    ).rejects.toThrow();
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe("EMAIL_PASSWORD_SIGN_UP_DISABLED");
+    expect(await test_db.current!.db.select().from(user_table)).toHaveLength(0);
   });
 });

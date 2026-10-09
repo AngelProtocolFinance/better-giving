@@ -9,6 +9,8 @@ const chariot_intent_mock = vi.hoisted(() => vi.fn());
 const capture_order_mock = vi.hoisted(() => vi.fn());
 const npo_get_mock = vi.hoisted(() => vi.fn());
 const fund_get_mock = vi.hoisted(() => vi.fn());
+const npo_program_get_mock = vi.hoisted(() => vi.fn());
+const form_get_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("./stripe", () => ({ stripe_intent: stripe_intent_mock }));
 vi.mock("./paypal", () => ({ paypal_intent: paypal_intent_mock }));
@@ -25,6 +27,10 @@ const cookie_serialize_mock = vi.hoisted(() =>
 
 vi.mock("$/pg/queries/npo", () => ({ npo_get: npo_get_mock }));
 vi.mock("$/pg/queries/fund", () => ({ fund_get: fund_get_mock }));
+vi.mock("$/pg/queries/program", () => ({
+  npo_program_get: npo_program_get_mock,
+}));
+vi.mock("$/pg/queries/form", () => ({ form_get: form_get_mock }));
 vi.mock("#/.server/cookie", () => ({
   donations_cookie: {
     parse: cookie_parse_mock,
@@ -141,12 +147,13 @@ describe("api.donation-intents action", () => {
     await expect(res!.json()).resolves.toEqual({ id: "don-5" });
   });
 
-  // the checkout renders a 4xx text body to the donor verbatim
+  // a marked 4xx body is what `json_ok` shows the donor
   it("returns a donor sentence with 404 when recipient not found", async () => {
     npo_get_mock.mockResolvedValueOnce(undefined);
     const res = await invoke(post(valid_body("card")));
 
     expect(res!.status).toBe(404);
+    expect(res!.headers.get("x-refusal")).toBe("1");
     expect(res!.headers.get("content-type")).toBe("text/plain");
     await expect(res!.text()).resolves.toBe(
       "This nonprofit isn't accepting donations right now."
@@ -175,6 +182,7 @@ describe("api.donation-intents action", () => {
       const res = await invoke(post(fund_body()));
 
       expect(res.status).toBe(404);
+      expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
         "This fundraiser isn't accepting donations right now."
       );
@@ -189,6 +197,7 @@ describe("api.donation-intents action", () => {
       const res = await invoke(post(fund_body()));
 
       expect(res.status).toBe(404);
+      expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
         "This fundraiser isn't accepting donations right now."
       );
@@ -201,6 +210,7 @@ describe("api.donation-intents action", () => {
       const res = await invoke(post(fund_body()));
 
       expect(res.status).toBe(404);
+      expect(res.headers.get("x-refusal")).toBe("1");
       await expect(res.text()).resolves.toBe(
         "This fundraiser isn't accepting donations right now."
       );
@@ -226,6 +236,7 @@ describe("api.donation-intents action", () => {
         const res = await invoke(post(fund_body()));
 
         expect(res.status).toBe(404);
+        expect(res.headers.get("x-refusal")).toBe("1");
         expect(stripe_intent_mock).not.toHaveBeenCalled();
       });
 
@@ -273,6 +284,7 @@ describe("api.donation-intents action", () => {
     const res = await invoke(post(valid_body("card")));
 
     expect(res.status).toBe(404);
+    expect(res.headers.get("x-refusal")).toBe("1");
     await expect(res.text()).resolves.toBe(
       "This nonprofit isn't accepting donations right now."
     );
@@ -286,12 +298,35 @@ describe("api.donation-intents action", () => {
     );
 
     expect(res!.status).toBe(400);
+    expect(res!.headers.get("x-refusal")).toBe("1");
     expect(res!.headers.get("content-type")).toBe("text/plain");
     await expect(res!.text()).resolves.toBe(
       "We couldn't process this donation. Please refresh the page and try again."
     );
     expect(stripe_intent_mock).not.toHaveBeenCalled();
   });
+
+  it.each(["POST", "PATCH"])(
+    "%s answers a body that isn't json with the donor 400",
+    async (method) => {
+      const res = await invoke(
+        new Request("https://x/api/donation-intents", {
+          method,
+          body: "not json",
+          headers: { "content-type": "application/json" },
+        })
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.headers.get("x-refusal")).toBe("1");
+      expect(res.headers.get("content-type")).toBe("text/plain");
+      await expect(res.text()).resolves.toBe(
+        "We couldn't process this donation. Please refresh the page and try again."
+      );
+      expect(capture_order_mock).not.toHaveBeenCalled();
+      expect(stripe_intent_mock).not.toHaveBeenCalled();
+    }
+  );
 
   it("passes provider Response through without cookie wrap", async () => {
     stripe_intent_mock.mockResolvedValue(
@@ -302,6 +337,139 @@ describe("api.donation-intents action", () => {
     expect(res!.status).toBe(400);
     expect(cookie_serialize_mock).not.toHaveBeenCalled();
     await expect(res!.text()).resolves.toBe("less than min");
+  });
+
+  describe("program attribution", () => {
+    const program = {
+      id: "0b6f1c2e-3d4a-4b5c-8d9e-0f1a2b3c4d5e",
+      name: "Youth",
+    };
+
+    it("proceeds unattributed when the program belongs to another npo", async () => {
+      npo_program_get_mock.mockResolvedValueOnce(undefined);
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-p", { ok: 1 }));
+      const res = await invoke(
+        post({ ...(valid_body("card") as object), program })
+      );
+
+      expect(res.status).toBe(200);
+      expect(npo_program_get_mock).toHaveBeenCalledWith(program.id, 1);
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.program).toBeUndefined();
+    });
+
+    it("names the recipient npo's own program by its stored title, not the request's", async () => {
+      npo_program_get_mock.mockResolvedValueOnce({
+        id: program.id,
+        title: "Youth Literacy",
+        milestones: [],
+      });
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-p", { ok: 1 }));
+      await invoke(
+        post({
+          ...(valid_body("card") as object),
+          program: { id: program.id, name: "Send refunds to me" },
+        })
+      );
+
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.program).toEqual({
+        id: program.id,
+        name: "Youth Literacy",
+      });
+    });
+
+    it("drops any program when the recipient is a fund", async () => {
+      fund_get_mock.mockResolvedValueOnce({
+        id: "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9",
+        name: "Relief Fund",
+        hide_bg_tip: false,
+        members: [7],
+        active: true,
+        expiration: null,
+      });
+      npo_program_get_mock.mockResolvedValueOnce({
+        id: program.id,
+        title: "Youth",
+        milestones: [],
+      });
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-p", { ok: 1 }));
+      const res = await invoke(
+        post({
+          ...(valid_body("card") as object),
+          to_id: "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9",
+          program,
+        })
+      );
+
+      expect(res.status).toBe(200);
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.program).toBeUndefined();
+    });
+  });
+
+  describe("form attribution", () => {
+    const form_id = "frm-1";
+    const form_body = () => ({ ...(valid_body("card") as object), form_id });
+
+    it("drops a form whose recipient is another npo and still creates the intent", async () => {
+      form_get_mock.mockResolvedValueOnce({
+        id: form_id,
+        recipient_npo_id: 2,
+        recipient_fund_id: null,
+      });
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
+      const res = await invoke(post(form_body()));
+
+      expect(res.status).toBe(200);
+      expect(form_get_mock).toHaveBeenCalledWith(form_id);
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.form_id).toBeUndefined();
+    });
+
+    it("drops a form id naming no form", async () => {
+      form_get_mock.mockResolvedValueOnce(undefined);
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
+      await invoke(post(form_body()));
+
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.form_id).toBeUndefined();
+    });
+
+    it("keeps a form whose recipient is the intent's npo", async () => {
+      form_get_mock.mockResolvedValueOnce({
+        id: form_id,
+        recipient_npo_id: 1,
+        recipient_fund_id: null,
+      });
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
+      await invoke(post(form_body()));
+
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.form_id).toBe(form_id);
+    });
+
+    it("keeps a form whose recipient is the intent's fund", async () => {
+      const fund_id = "4f3b2a10-9c8d-4e7f-a6b5-c4d3e2f1a0b9";
+      fund_get_mock.mockResolvedValueOnce({
+        id: fund_id,
+        name: "Relief Fund",
+        hide_bg_tip: false,
+        members: [7],
+        active: true,
+        expiration: null,
+      });
+      form_get_mock.mockResolvedValueOnce({
+        id: form_id,
+        recipient_npo_id: null,
+        recipient_fund_id: fund_id,
+      });
+      stripe_intent_mock.mockResolvedValueOnce(ok_result("don-f", { ok: 1 }));
+      await invoke(post({ ...form_body(), to_id: fund_id }));
+
+      const ctx: Ctx = stripe_intent_mock.mock.calls[0]![0];
+      expect(ctx.intent.form_id).toBe(form_id);
+    });
   });
 
   it("PATCH calls capture_order and bypasses via dispatch", async () => {
@@ -321,6 +489,28 @@ describe("api.donation-intents action", () => {
     await expect(res!.json()).resolves.toEqual({ captured: true });
   });
 
+  it.each([
+    ["numeric order_id", { order_id: 123, don_id: "d1" }],
+    ["object order_id", { order_id: { $ne: "" }, don_id: "d1" }],
+    ["numeric don_id", { order_id: "o1", don_id: 7 }],
+    ["blank don_id", { order_id: "o1", don_id: "  " }],
+  ])("PATCH refuses a %s without capturing", async (_, body) => {
+    const res = await invoke(
+      new Request("https://x/api/donation-intents", {
+        method: "PATCH",
+        body: JSON.stringify(body),
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
+    await expect(res.text()).resolves.toBe(
+      "We couldn't process this donation. Please refresh the page and try again."
+    );
+    expect(capture_order_mock).not.toHaveBeenCalled();
+  });
+
   it("PATCH returns 400 on missing fields", async () => {
     const req = new Request("https://x/api/donation-intents", {
       method: "PATCH",
@@ -329,7 +519,25 @@ describe("api.donation-intents action", () => {
     });
     const res = await invoke(req);
 
-    expect(res!.status).toBe(400);
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
+    expect(res.headers.get("content-type")).toBe("text/plain");
+    await expect(res.text()).resolves.toBe(
+      "We couldn't process this donation. Please refresh the page and try again."
+    );
+    expect(capture_order_mock).not.toHaveBeenCalled();
+  });
+
+  it("PATCH returns 400 on a json null body", async () => {
+    const req = new Request("https://x/api/donation-intents", {
+      method: "PATCH",
+      body: "null",
+      headers: { "content-type": "application/json" },
+    });
+    const res = await invoke(req);
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(capture_order_mock).not.toHaveBeenCalled();
   });
 });

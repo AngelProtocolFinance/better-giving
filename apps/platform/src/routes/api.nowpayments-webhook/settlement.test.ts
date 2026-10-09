@@ -83,8 +83,13 @@ const { handle_failed } = await import("./handlers/failed");
 const { np } = await import("$/kit/nowpayments");
 const { process_refund } = await import("$/refund/process");
 const { dists } = await import("$/pg/schema/dist");
-const { donation_by_sttl_id, donation_get, donation_put, donation_update } =
-  await import("$/pg/queries/donation");
+const {
+  donation_by_sttl_id,
+  donation_get,
+  donation_hold_mark,
+  donation_put,
+  donation_update,
+} = await import("$/pg/queries/donation");
 const {
   donation_donors,
   donation_recipients,
@@ -193,6 +198,16 @@ const settlements = () => db().select().from(donation_settlements);
 /** the queue's dedupe keys of the nth enqueue — what makes a re-send a no-op */
 const dedupes = (nth: number): string[] =>
   enqueue_mock.mock.calls.at(nth)!.map((m: any) => m.dedupe);
+/** fiat notices as the queue delivers them: one per dedupe key, first wins */
+const notices = () => {
+  const by_key = new Map<string, any>();
+  for (const m of enqueue_mock.mock.calls.flat() as any[]) {
+    if (m.id === "fiat-notice" && !by_key.has(m.dedupe)) {
+      by_key.set(m.dedupe, m.payload.alert);
+    }
+  }
+  return [...by_key.values()];
+};
 const alert_titles = () =>
   send_alert_mock.mock.calls.map(([a]) => a.title as string);
 
@@ -346,6 +361,40 @@ describe("nowpayments ipn settlement", () => {
     const don = (await donation_get(ORDER_ID))!;
     expect(don.status).toBe("settled");
     expect(don.amount.base).toBeCloseTo(0.4);
+  });
+
+  // a lost confirming, or a dashboard resend of finished alone, leaves the
+  // intent's quoted amount on the row
+  it("settles a finished payment at what it actually paid, with no confirming before it", async () => {
+    await seed_donation({ status: "intent" });
+
+    const res = await deliver(payment({ actually_paid: 0.6 }));
+
+    expect(res.status).toBe(200);
+    const don = (await donation_get(ORDER_ID))!;
+    expect(don.status).toBe("settled");
+    expect(don.amount.base).toBeCloseTo(0.6);
+    expect(don.upusd).toBeCloseTo(1 / 2000);
+  });
+
+  it("settles a finished payment at the intent's rate and alerts when the pay-coin estimate fails", async () => {
+    await seed_donation({ status: "intent", upusd: 1 / 1800 });
+    vi.mocked(np.estimate).mockRejectedValueOnce(
+      new Error("currency disabled")
+    );
+
+    const res = await deliver(payment());
+
+    expect(res.status).toBe(200);
+
+    const don = (await donation_get(ORDER_ID))!;
+    expect(don.status).toBe("settled");
+    expect(don.upusd).toBeCloseTo(1 / 1800);
+    expect(await settlements()).toHaveLength(1);
+    expect(enqueue_mock).toHaveBeenCalledOnce();
+    expect(alert_titles()).toContainEqual(
+      expect.stringMatching(/intent's rate/i)
+    );
   });
 
   it("keeps a settled donation when a confirming read before the settle writes after it", async () => {
@@ -652,10 +701,237 @@ describe("nowpayments ipn settlement", () => {
       expect(don!.status).toBe("confirmed");
       expect(don!.amount.base).toBe(0.5);
       expect(await settlements()).toHaveLength(0);
-      expect(send_alert_mock).toHaveBeenCalledOnce();
-      const [a] = send_alert_mock.mock.calls[0];
+      const [a, ...rest] = notices();
+      expect(rest).toHaveLength(0);
       expect(`${a.title} ${a.body}`).toMatch(/USDTERC20.*ETH|ETH.*USDTERC20/);
       expect(a.body).toContain("payment:5001");
+    }
+  );
+
+  it("marks a deposit in another asset as held on the donation", async () => {
+    await seed_donation();
+
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    const don = await donation_get(ORDER_ID);
+    expect(don!.hold?.asset).toBe("USDTERC20");
+    expect(don!.hold?.at).toBeTruthy();
+  });
+
+  it("notices a held deposit once across redeliveries", async () => {
+    await seed_donation();
+    const held = payment({ pay_currency: "usdterc20", actually_paid: 50 });
+
+    await deliver(held);
+    const res = await deliver(held);
+
+    expect(res.status).toBe(200);
+    expect(notices()).toHaveLength(1);
+    expect(send_alert_mock).not.toHaveBeenCalled();
+  });
+
+  // the mark commits before the notice is queued; a queue refusal 500s, and
+  // the redelivery finds the row already held
+  it("queues the held notice again when its first enqueue failed", async () => {
+    await seed_donation();
+    const held = payment({ pay_currency: "usdterc20", actually_paid: 50 });
+    enqueue_mock.mockRejectedValueOnce(new Error("qstash down"));
+
+    expect((await deliver(held)).status).toBe(500);
+    expect((await deliver(held)).status).toBe(200);
+
+    const [first, second] = enqueue_mock.mock.calls.map(([m]) => m.dedupe);
+    expect(second).toBe(first);
+  });
+
+  // what a wrong-asset deposit reports back once ops process it is unknown, so
+  // no later ipn settles a hold — the alert is the whole handoff
+  it("tells ops the held deposit settles only by hand", async () => {
+    await seed_donation();
+
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    expect((await donation_get(ORDER_ID))!.status).toBe("confirmed");
+    const [a] = notices();
+    expect(a.body).toMatch(/never settle/i);
+    expect(a.body).toMatch(/reconcile by hand/i);
+    expect(a.body).toContain("held_at");
+    expect(a.body).toContain("outcome:990 USDC");
+  });
+
+  it("leaves a held donation unsettled when a payment in the order's asset finishes", async () => {
+    await seed_donation();
+    await deliver(
+      payment({
+        payment_id: 5003,
+        pay_currency: "usdterc20",
+        actually_paid: 50,
+      })
+    );
+
+    const res = await deliver(payment());
+
+    expect(res.status).toBe(200);
+    const don = (await donation_get(ORDER_ID))!;
+    expect(don.status).toBe("confirmed");
+    expect(don.hold?.asset).toBe("USDTERC20");
+    expect(await settlements()).toHaveLength(0);
+  });
+
+  it("notices a held payment once while confirming and once more at its final amounts", async () => {
+    await seed_donation();
+    const held = (o: Record<string, unknown>) =>
+      payment({ pay_currency: "usdterc20", ...o });
+
+    await deliver(
+      held({
+        payment_status: "confirming",
+        actually_paid: 40,
+        outcome_amount: 0,
+      })
+    );
+    const marked = (await donation_get(ORDER_ID))!.hold!.at;
+    await deliver(
+      held({
+        payment_status: "confirming",
+        actually_paid: 40,
+        outcome_amount: 0,
+      })
+    );
+    await deliver(held({ actually_paid: 50 }));
+    await deliver(held({ actually_paid: 50 }));
+
+    expect((await donation_get(ORDER_ID))!.hold!.at).toBe(marked);
+    const sent = notices();
+    expect(sent).toHaveLength(2);
+    expect(sent[0].body).toMatch(/provisional/i);
+    expect(sent[1].body).not.toMatch(/provisional/i);
+    expect(sent[1].body).toContain("paid:50 USDTERC20");
+    expect(sent[1].body).toContain("outcome:990 USDC");
+  });
+
+  it("records a repeated deposit in the order's asset on a held order as its own donation, leaving the held parent unsettled", async () => {
+    await seed_donation();
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    const res = await deliver(child());
+
+    expect(res.status).toBe(200);
+    const rows = await settlements();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sttl_id).toBe("5002");
+    const clone = (await donation_get(rows[0].donation_id))!;
+    expect(clone.id).not.toBe(ORDER_ID);
+    expect(clone.status).toBe("settled");
+    expect(clone.amount.base).toBeCloseTo(0.2);
+    expect(clone.hold).toBeUndefined();
+    const parent = (await donation_get(ORDER_ID))!;
+    expect(parent.status).toBe("confirmed");
+    expect(parent.hold?.asset).toBe("USDTERC20");
+  });
+
+  it("applies none of the held payment's own later ipns, a finished in the order's asset included", async () => {
+    await seed_donation();
+    await deliver(payment({ pay_currency: "usdterc20", actually_paid: 50 }));
+
+    const res = await deliver(payment());
+
+    expect(res.status).toBe(200);
+    expect(await settlements()).toHaveLength(0);
+    const parent = (await donation_get(ORDER_ID))!;
+    expect(parent.status).toBe("confirmed");
+    expect(parent.hold?.asset).toBe("USDTERC20");
+  });
+
+  it("leaves a donation a concurrent delivery held after this one read it unsettled", async () => {
+    await seed_donation();
+    const prior = (await donation_get(ORDER_ID))!;
+    await donation_hold_mark(ORDER_ID, "usdterc20");
+
+    const res = await handle_settled(payment() as any, prior);
+
+    expect(res.op).toBe("ignored");
+    expect((await donation_get(ORDER_ID))!.status).toBe("confirmed");
+    expect(await settlements()).toHaveLength(0);
+    expect(enqueue_mock).not.toHaveBeenCalled();
+  });
+
+  it("notices a deposit in another asset on a settled donation once across redeliveries and statuses", async () => {
+    await seed_donation({ status: "settled" });
+    const late = (payment_status: string) =>
+      payment({ payment_status, pay_currency: "usdterc20", actually_paid: 50 });
+
+    await deliver(late("confirming"));
+    await deliver(late("finished"));
+    const res = await deliver(late("finished"));
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.hold).toBeUndefined();
+    const [a, ...rest] = notices();
+    expect(rest).toHaveLength(0);
+    expect(a.body).toContain("prior:settled");
+  });
+
+  it("holds and notices a deposit in another asset with no outcome currency yet", async () => {
+    await seed_donation();
+
+    const res = await deliver(
+      payment({
+        payment_status: "confirming",
+        pay_currency: "usdterc20",
+        actually_paid: 50,
+        outcome_currency: null,
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect((await donation_get(ORDER_ID))!.hold?.asset).toBe("USDTERC20");
+    expect(notices()[0].body).toContain("paid:50 USDTERC20");
+  });
+
+  // the estimate carries nowpayments' conversion spread; usdc is a dollar
+  it.each(["usdc", "usdcmatic"])(
+    "records a %s outcome and fee at a dollar a unit, whatever the live estimate says",
+    async (usdc) => {
+      await seed_donation();
+      usd_rates[usdc] = 1.03;
+      try {
+        await deliver(
+          payment({
+            outcome_currency: usdc,
+            fee: { ...payment().fee, currency: usdc },
+          })
+        );
+      } finally {
+        usd_rates.usdc = 1;
+        delete usd_rates.usdcmatic;
+      }
+
+      const [row] = await settlements();
+      expect(row.net).toBe(990);
+      expect(row.fee).toBe(10);
+    }
+  );
+
+  it.each([
+    ["usdc", "a dollar a unit", 1],
+    ["maticusdce", "the live estimate", 1 / 1.03],
+  ])(
+    "values a finished %s payment's donation at %s",
+    async (code, _, upusd) => {
+      await seed_donation({ currency: code.toUpperCase(), upusd: 1 });
+      usd_rates[code] = 1.03;
+      try {
+        await deliver(payment({ pay_currency: code, actually_paid: 100 }));
+      } finally {
+        usd_rates.usdc = 1;
+        delete usd_rates.maticusdce;
+      }
+
+      const don = (await donation_get(ORDER_ID))!;
+      expect(don.status).toBe("settled");
+      expect(don.upusd).toBeCloseTo(upusd, 10);
     }
   );
 

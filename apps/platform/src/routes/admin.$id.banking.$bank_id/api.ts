@@ -17,7 +17,7 @@ export const loader = async (args: Route.LoaderArgs) => {
   const npo_id = args.context.get(admin_ctx);
 
   const x = await bapp_get(bank_id.toString());
-  if (!x || x.npo_id !== npo_id) return resp.status(404);
+  if (!x || x.npo_id !== npo_id) throw resp.status(404);
 
   // a wise outage must not take the payout method down with it: its status, the
   // uploaded bank statement, Delete and Set Default are all ours. neither action
@@ -28,7 +28,7 @@ export const loader = async (args: Route.LoaderArgs) => {
 
 export const default_action = async (args: Route.ActionArgs) => {
   const p_id = v.safeParse($int_gte1, args.params.bank_id);
-  if (p_id.issues) return resp.status(400, p_id.issues[0].message);
+  if (p_id.issues) throw resp.status(400, p_id.issues[0].message);
   const bank_id = p_id.output;
   const npo_id = args.context.get(admin_ctx);
 
@@ -46,7 +46,14 @@ export const default_action = async (args: Route.ActionArgs) => {
     );
   }
 
-  await bapp_set_default(bank_id.toString(), npo_id);
+  // re-checked in the write: the method can change state after the read above
+  const promoted = await bapp_set_default(bank_id.toString(), npo_id);
+  if (!promoted) {
+    return dataWithError(
+      null,
+      "Only an approved payout method can be set as default"
+    );
+  }
   await enqueue(msg("banking-default", { npo_id }));
   return dataWithSuccess(null, "Payout method set as default");
 };

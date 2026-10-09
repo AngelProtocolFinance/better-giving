@@ -93,6 +93,7 @@ function Prompt({
     <Modal
       open={open}
       onClose={() => set_open(false)}
+      title={`Share on ${social.title}`}
       size="md"
       classes="grid content-start border bg-background"
     >

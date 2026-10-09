@@ -11,7 +11,6 @@ repo root (turbo delegates) or scope with `--filter`:
 - `pnpm build` (root, whole graph) or `pnpm --filter blog build` — production build (outputs to `apps/blog/dist`)
 - `pnpm --filter blog schema` — extract schema → `schema.json` (SLOW, re-bundles studio)
 - `pnpm --filter blog typegen` — regen `types.ts` + copy `queries.ts` into `blog-types` (FAST, offline)
-- `pnpm --filter blog run studio:deploy` — `schema` + `typegen` + `sanity deploy` (publishes the hosted studio; from `main` only, see below)
 
 ## AFTER YOU EDIT (required)
 
@@ -27,16 +26,16 @@ Then stage the regenerated `blog-types` artifacts (`packages/types/blog/{types.t
 and `apps/blog/schema.json`) alongside your edit. platform consumes `blog-types`, so
 forgetting this means platform builds against stale types.
 
-Publishing the hosted studio is NOT part of this step. `studio:deploy` pushes the
-local schema to the live studio editors use, so run it only after the change is
-merged to `main`, as its own deliberate step — from an unmerged branch it ships
-fields `main` doesn't have.
+Publishing the studio is NOT part of this step. It is hosted on Vercel (project
+`better-giving-blog`, see `README.md` → Deploy), which rebuilds it from `main`, so a
+schema change reaches editors when it lands on `main`. Never run `sanity deploy`:
+it creates a second, Sanity-hosted copy at `<hostname>.sanity.studio`.
 
 ## Project
 
 - org: `oQxcQWCVV`
 - projectId + dataset live in three places that change together — nothing checks they agree:
-  `sanity.config.ts` (the studio), `sanity.cli.ts` (`api`, read by the CLI and `sanity deploy`),
+  `sanity.config.ts` (the studio), `sanity.cli.ts` (`api`, read by the CLI),
   and `packages/types/blog/project.ts` (the copy platform reads)
 - manage: https://www.sanity.io/manage/project/5820hdyj
 

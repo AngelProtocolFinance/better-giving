@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
   calc_refund_plan,
+  dist_settled_usd,
+  loss_figures_off,
   type RefundCtx,
   type RefundEffect,
   type RefundInputs,
@@ -15,9 +17,11 @@ const make_inputs = (overrides: Partial<RefundInputs> = {}): RefundInputs => ({
     alloc: { liq: 0, lock: 0, cash: 100 },
     net: 100,
     amount: 110,
+    amount_usd: 110,
     fee_base: 5,
     fee_fsa: 3,
     fee_processing: 2,
+    fee_allowance: 0,
   },
   payout: null,
   commission: null,
@@ -69,6 +73,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 100, lock: 0, cash: 0 },
           net: 50,
           amount: 55,
+          amount_usd: 55,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -100,6 +105,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 100, lock: 0, cash: 0 },
           net: 50,
           amount: 55,
+          amount_usd: 55,
           fee_base: 1,
           fee_fsa: 2,
           fee_processing: 3,
@@ -135,6 +141,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 0, lock: 100, cash: 0 },
           net: 80,
           amount: 88,
+          amount_usd: 88,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -175,6 +182,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 0, lock: 100, cash: 0 },
           net: 80,
           amount: 88,
+          amount_usd: 88,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -213,6 +221,70 @@ describe("calc_refund_plan", () => {
     expect(po.kind === "payout_status" && po.status).toBe("refunded_loss");
   });
 
+  test("savings short, cash payout pending → payout cancelled, only the shortfall is the loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: 1,
+          to_name: "Test NPO",
+          alloc: { liq: 60, lock: 0, cash: 40 },
+          net: 100,
+          amount: 110,
+          amount_usd: 110,
+          fee_base: 5,
+          fee_fsa: 3,
+          fee_processing: 2,
+        },
+        payout: { id: "po-1", type: "pending" },
+        bal: { liq: 10, lock_units: 0, cash: 40 },
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(true);
+    expect(plan.effects.slice(0, 2)).toEqual([
+      { kind: "payout_status", payout_id: "po-1", status: "refunded" },
+      {
+        kind: "balance_update",
+        npo_id: 1,
+        deltas: { liq: 0, lock: 0, lock_units: 0, cash: 40 },
+      },
+    ]);
+    const loss = plan.effects.find((e) => e.kind === "loss_log");
+    expect(loss?.kind === "loss_log" && loss.loss).toMatchObject({
+      type: "balance_liq",
+      amount: 70,
+      npo_amount: 60,
+      fees_bg: 8,
+      fees_processing: 2,
+    });
+    expect(plan.amount).toBe(70);
+  });
+
+  // dists.amount_usd is the pledge at the donation-time rate; net is settled usd
+  test("a gift that gained value before settling → the loss is the settled shortfall", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          ...make_inputs().dist,
+          alloc: { liq: 60, lock: 0, cash: 40 },
+          amount_usd: 90,
+        },
+        payout: { id: "po-1", type: "pending" },
+        bal: { liq: 50, lock_units: 0, cash: 40 },
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(true);
+    const loss = plan.effects.find((e) => e.kind === "loss_log");
+    expect(loss?.kind === "loss_log" && loss.loss).toMatchObject({
+      amount: 70,
+      npo_amount: 60,
+    });
+    expect(plan.amount).toBe(70);
+  });
+
   test("cash payout mid-transfer (processing) → loss, like a paid one", () => {
     const plan = calc_refund_plan(
       make_inputs({
@@ -239,6 +311,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 50, lock: 30, cash: 20 },
           net: 100,
           amount: 110,
+          amount_usd: 110,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -246,7 +319,7 @@ describe("calc_refund_plan", () => {
         payout: { id: "po-1", type: "pending" },
         bal: { liq: 100, lock_units: 100, cash: 0 },
         nav: { price: 1 },
-        commission: { donation_id: "don-1", amount: 5 },
+        commission: { donation_id: "don-1", amount: 5, status: "pending" },
         rev_log_ids: ["rl-1", "rl-2"],
       }),
       make_ctx({ form_id: "form-1", program_id: "prog-1" })
@@ -271,7 +344,7 @@ describe("calc_refund_plan", () => {
     const plan_ok = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "pending" },
-        commission: { donation_id: "don-1", amount: 5 },
+        commission: { donation_id: "don-1", amount: 5, status: "pending" },
       }),
       make_ctx()
     );
@@ -283,7 +356,7 @@ describe("calc_refund_plan", () => {
     const plan_loss = calc_refund_plan(
       make_inputs({
         payout: { id: "po-1", type: "settled" },
-        commission: { donation_id: "don-1", amount: 5 },
+        commission: { donation_id: "don-1", amount: 5, status: "pending" },
       }),
       make_ctx()
     );
@@ -292,6 +365,74 @@ describe("calc_refund_plan", () => {
     );
     expect(c_loss && c_loss.kind === "commission_status" && c_loss.status).toBe(
       "refunded_loss"
+    );
+  });
+
+  // apply decides the loss under the row lock; the preview only says it's likely
+  test("a commission claimed for a payout previews as a loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "processing" },
+      }),
+      make_ctx()
+    );
+    expect(plan.preview.warnings).toContainEqual({
+      label: "Commission",
+      pass: false,
+      reason:
+        "$5.00 is in a payout to its referrer, so it will be reversed as a loss",
+    });
+    expect(plan.preview.effects.map((l) => l.label)).not.toContain(
+      "Commission"
+    );
+    expect(plan.is_loss).toBe(false);
+  });
+
+  // the referrer has the money: the refund can't take it back
+  test("a paid commission is left paid", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+      }),
+      make_ctx()
+    );
+    expect(kinds(plan.effects)).not.toContain("commission_status");
+    expect(plan.is_loss).toBe(false);
+  });
+
+  // the platform's loss, not the npo's: no loss_logs row, which is per npo
+  test("a paid commission is carried for the alert, not logged as a loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+      }),
+      make_ctx()
+    );
+    expect(plan.paid_commission).toEqual({ donation_id: "don-1", amount: 5 });
+    expect(kinds(plan.effects)).not.toContain("loss_log");
+    expect(kinds(plan.effects)).toContain("balance_update");
+    expect(plan.loss_reasons).toEqual([]);
+  });
+
+  test("a paid commission previews as already paid and the platform's loss", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        payout: { id: "po-1", type: "pending" },
+        commission: { donation_id: "don-1", amount: 5, status: "paid" },
+      }),
+      make_ctx()
+    );
+    expect(plan.preview.warnings).toContainEqual({
+      label: "Commission",
+      pass: false,
+      reason:
+        "$5.00 was already paid to its referrer, so it stays with them as the platform's loss (ops is alerted)",
+    });
+    expect(plan.preview.effects.map((l) => l.label)).not.toContain(
+      "Commission"
     );
   });
 
@@ -317,6 +458,7 @@ describe("calc_refund_plan", () => {
           alloc: { liq: 0, lock: 0, cash: 0 },
           net: 0,
           amount: 0,
+          amount_usd: 0,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -334,6 +476,56 @@ describe("calc_refund_plan", () => {
     ]);
   });
 
+  test("dist alloc missing a share → that share is 0, deltas stay finite", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: 1,
+          to_name: "Test NPO",
+          // jsonb alloc written without a cash key
+          alloc: { liq: 100, lock: 0 },
+          net: 50,
+          amount: 55,
+          amount_usd: 55,
+          fee_base: 0,
+          fee_fsa: 0,
+          fee_processing: 0,
+        },
+        bal: { liq: 100, lock_units: 0, cash: 0 },
+      }),
+      make_ctx()
+    );
+    expect(plan.is_loss).toBe(false);
+    const bu = plan.effects.find((e) => e.kind === "balance_update");
+    expect(bu && bu.kind === "balance_update" && bu.deltas).toEqual({
+      liq: 50,
+      lock: 0,
+      lock_units: 0,
+      cash: 0,
+    });
+  });
+
+  test("dist alloc with no shares → nothing was credited, nothing reversed", () => {
+    const plan = calc_refund_plan(
+      make_inputs({
+        dist: {
+          ...make_inputs().dist,
+          alloc: {},
+        },
+      }),
+      make_ctx()
+    );
+    const bu = plan.effects.find((e) => e.kind === "balance_update");
+    expect(bu && bu.kind === "balance_update" && bu.deltas).toEqual({
+      liq: 0,
+      lock: 0,
+      lock_units: 0,
+      cash: 0,
+    });
+  });
+
   test("loss_log uses ctx.now as date", () => {
     const plan = calc_refund_plan(
       make_inputs({
@@ -347,7 +539,7 @@ describe("calc_refund_plan", () => {
     );
   });
 
-  test("plan.amount equals dist.amount for total_loss aggregation", () => {
+  test("plan.amount is the dist's settled usd, not its currency amount or pledge rate", () => {
     const plan = calc_refund_plan(
       make_inputs({
         dist: {
@@ -356,8 +548,9 @@ describe("calc_refund_plan", () => {
           to_id: 1,
           to_name: "Test NPO",
           alloc: { liq: 100, lock: 0, cash: 0 },
-          net: 50,
-          amount: 55,
+          net: 320,
+          amount: 50_000,
+          amount_usd: 333.33,
           fee_base: 0,
           fee_fsa: 0,
           fee_processing: 0,
@@ -367,6 +560,35 @@ describe("calc_refund_plan", () => {
       make_ctx()
     );
     expect(plan.is_loss).toBe(true);
-    expect(plan.amount).toBe(55);
+    expect(plan.amount).toBe(320);
+  });
+
+  // credit_fa adds the processing fee into net when the donor covered it
+  test("a row whose donor covered fees counts the processing fee once", () => {
+    const dist = {
+      ...make_inputs().dist,
+      alloc: { liq: 100, lock: 0, cash: 0 },
+      net: 102,
+      amount_usd: null,
+      fee_allowance: 2,
+    };
+    expect(dist_settled_usd(dist)).toBe(110);
+    const plan = calc_refund_plan(make_inputs({ dist }), make_ctx());
+    expect(plan.amount).toBe(110);
+  });
+});
+
+describe("loss_figures_off", () => {
+  test("passes a loss that covers its npo share", () => {
+    expect(loss_figures_off({ amount: 70, npo_amount: 60 })).toBeNull();
+  });
+
+  test("names a loss under its npo share or below zero", () => {
+    expect(loss_figures_off({ amount: 50, npo_amount: 60 })).toContain(
+      "amount 50"
+    );
+    expect(loss_figures_off({ amount: -8, npo_amount: -10 })).toContain(
+      "npo_amount -10"
+    );
   });
 });

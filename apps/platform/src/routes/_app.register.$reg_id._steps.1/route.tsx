@@ -1,7 +1,6 @@
 import { Field, LoadText, Select } from "@better-giving/ui";
 import type { SubmitHandler } from "react-hook-form";
 import { useFetcher, useNavigate } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import {
   GRANT_STEP,
@@ -21,13 +20,11 @@ export { ErrorBoundary } from "#/components/error";
 // the step a draft grant opens — this route, its loader gate and its action
 // all name it the same way
 export const loader = step_loader(GRANT_STEP);
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 export const action = update_action(next_step[GRANT_STEP], {
   registrant: true,
 });
 
-export default CacheRoute(Page);
-function Page({ loaderData: reg }: Route.ComponentProps) {
+export default function Page({ loaderData: reg }: Route.ComponentProps) {
   const fetcher = useFetcher();
   const {
     register,

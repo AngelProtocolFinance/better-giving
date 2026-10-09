@@ -1,11 +1,11 @@
 import { LoadMoreRow } from "@better-giving/ui";
 import { href, NavLink } from "react-router";
 import type { IPaginator } from "#/types/components";
-import type { IFund } from "@/fundraiser";
 import { toPP } from "@/helpers/date";
+import type { IFundListItem } from "$/pg/queries/fund";
 import { DeleteBtn } from "./delete-btn";
 
-interface Props extends IPaginator<IFund> {}
+interface Props extends IPaginator<IFundListItem> {}
 
 export function Table({
   items,

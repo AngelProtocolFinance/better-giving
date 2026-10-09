@@ -1,10 +1,12 @@
 import { AskHost } from "@better-giving/ui";
+import { useState } from "react";
 import { useController, useForm } from "react-hook-form";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-// the preview branch hides the file input in css (`hidden`), and whether that
-// input can take focus is the whole point of the fallback — so the real
-// stylesheet must be loaded for that case to be observable.
+// the preview branch hides its controls in css (`sr-only` until hover or a
+// keyboard focus inside), and whether they can take focus and then show is the point
+// of several cases — so the real stylesheet must be loaded to observe it.
 import "#/index.css";
 import { ImgEditor } from "./img-editor";
 import type { ControlledProps, ImgOutput, ImgSpec } from "./types";
@@ -227,8 +229,8 @@ describe("ImgEditor", () => {
 
   // the preview writes `value` straight into `background: url(...)`, so a
   // sentinel reaching that branch requests a relative path that does not exist
-  // and puts the file input under `hidden group-hover:flex` — a pointer-only
-  // way out of a state the user never chose. reachable without a local `file`:
+  // and hides the upload prompt behind a bare icon control in a state the
+  // user never chose. reachable without a local `file`:
   // a value restored from the server, or written back after the file cleared.
   test.each(["loading", "invalid-type", "exceeds-size", "failure"] as const)(
     "the %s sentinel is not rendered as a background url",
@@ -237,10 +239,11 @@ describe("ImgEditor", () => {
       const screen = await render_editor(props);
 
       await vi.waitFor(() => {
-        const dropzone = screen.container.querySelector("label");
+        const dropzone =
+          screen.container.querySelector<HTMLElement>("[data-drag]");
         expect(dropzone?.style.background).toBe("");
       });
-      // no preview means the upload prompt, not the hover-only control
+      // no preview means the upload prompt, not the bare icon control
       await expect.element(screen.getByText("Upload file")).toBeVisible();
     }
   );
@@ -336,7 +339,7 @@ describe("ImgEditor: focus target", () => {
     );
   });
 
-  test("preview branch: the dropzone takes focus and still scrolls", async () => {
+  test("preview branch: the file input takes focus and still scrolls", async () => {
     const screen = await render(
       <RHFHarness initial={PIXEL} rule={() => "rejected"} />
     );
@@ -346,11 +349,240 @@ describe("ImgEditor: focus target", () => {
 
     await screen.getByRole("button", { name: /submit/i }).click();
 
-    // the file input lives under `hidden` here, so focus() on it is a no-op —
-    // the dropzone takes it instead, where the focus-within ring paints
     await vi.waitFor(() => {
-      expect(document.activeElement).toBe(root.querySelector("label"));
+      expect(document.activeElement).toBe(
+        root.querySelector("input[type='file']")
+      );
       expect(scroll).toHaveBeenCalledWith({ block: "start" });
     });
+  });
+
+  test("an upload in flight: the dropzone takes focus instead", async () => {
+    const screen = await render(
+      <RHFHarness initial="loading" rule={() => "rejected"} />
+    );
+    const root = screen.getByText(LABEL).element()
+      .nextElementSibling as HTMLElement;
+
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    // the input is disabled while loading, so focus() on it is a no-op — the
+    // dropzone takes it instead, which paints its own focus ring
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(root.querySelector("[data-drag]"));
+    });
+  });
+
+  test("the dropzone fallback paints its ring after a mouse submit, until blur", async () => {
+    const screen = await render(
+      <RHFHarness initial="loading" rule={() => "rejected"} />
+    );
+    const root = screen.getByText(LABEL).element()
+      .nextElementSibling as HTMLElement;
+    const dropzone = root.querySelector("[data-drag]") as HTMLElement;
+
+    // a real pointer press: a focus that follows it is not :focus-visible
+    await screen.getByRole("button", { name: /submit/i }).click();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(dropzone);
+      expect(getComputedStyle(dropzone).outlineStyle).toBe("solid");
+    });
+
+    await screen.getByLabelText("Title").click();
+    await vi.waitFor(() =>
+      expect(getComputedStyle(dropzone).outlineStyle).toBe("none")
+    );
+  });
+});
+
+describe("ImgEditor: preview controls", () => {
+  test("Tab reaches the replace input, and its control shows while focused", async () => {
+    const screen = await render_editor(make_props({ value: PIXEL }));
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    // the button-styled box the sr-only input sits in is what a sighted
+    // keyboard user sees; its row is what is hidden at rest
+    const control = input.parentElement as HTMLElement;
+    const row = control.parentElement as HTMLElement;
+
+    // pointer users see the bare preview at rest
+    expect(row.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+
+    // the aspect tooltip's trigger may sit before it in the tab order
+    for (let i = 0; i < 5 && document.activeElement !== input; i++) {
+      await userEvent.tab();
+    }
+    await expect.element(input).toHaveFocus();
+    expect(row.getBoundingClientRect().width).toBeGreaterThan(1);
+    await expect.element(control).toBeVisible();
+  });
+
+  test("a mouse click does not leave the controls painted once the pointer leaves", async () => {
+    // a size, as every call site gives it: the preview branch's content is
+    // absolute, so the dropzone is otherwise a 0px box nothing can click
+    const screen = await render_editor(
+      make_props({ value: PIXEL, classes: { dropzone: "w-60 aspect-square" } })
+    );
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    // the native picker never opens in a test browser; this stands in for it
+    vi.spyOn(input, "click").mockImplementation(() => {});
+    const row = (input.parentElement as HTMLElement)
+      .parentElement as HTMLElement;
+    const dropzone = screen.container.querySelector(
+      "[data-drag]"
+    ) as HTMLElement;
+
+    await page.elementLocator(dropzone).click();
+    // the press focused the dropzone: a reveal keyed off :focus would keep them shown
+    expect(document.activeElement).toBe(dropzone);
+    await page.elementLocator(dropzone).unhover();
+
+    await vi.waitFor(() =>
+      expect(row.getBoundingClientRect().width).toBeLessThanOrEqual(1)
+    );
+  });
+
+  test("a touch screen shows the controls at rest", async () => {
+    // touch emulation, not an emulated media feature, so `(hover: none)`
+    // comes from the device the way a phone reports it. it lands a frame or so
+    // after the call
+    await cdp().send("Emulation.setTouchEmulationEnabled", {
+      enabled: true,
+      maxTouchPoints: 1,
+    });
+    try {
+      await vi.waitFor(() =>
+        expect(matchMedia("(hover: none)").matches).toBe(true)
+      );
+      const screen = await render_editor(make_props({ value: PIXEL }));
+      const input = screen.container.querySelector(
+        "input[type='file']"
+      ) as HTMLInputElement;
+      const control = input.parentElement as HTMLElement;
+
+      expect(
+        (control.parentElement as HTMLElement).getBoundingClientRect().width
+      ).toBeGreaterThan(1);
+      await expect.element(control).toBeVisible();
+    } finally {
+      await cdp().send("Emulation.setTouchEmulationEnabled", {
+        enabled: false,
+      });
+    }
+  });
+
+  // the dropzone forwards a pointer click to the input
+  test("a click on the preview opens the picker", async () => {
+    const screen = await render_editor(make_props({ value: PIXEL }));
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+    const pick = vi.spyOn(input, "click").mockImplementation(() => {});
+
+    (screen.container.querySelector("[data-drag]") as HTMLElement).click();
+    expect(pick).toHaveBeenCalledTimes(1);
+  });
+
+  test("the undo and crop buttons are named", async () => {
+    upload_mock.mockResolvedValue("https://cdn.example.com/cropped.png");
+    const screen = await render_editor(make_props());
+    const input = screen.container.querySelector(
+      "input[type='file']"
+    ) as HTMLInputElement;
+
+    const dt = new DataTransfer();
+    dt.items.add(new File(["img"], "photo.png", { type: "image/png" }));
+    Object.defineProperty(input, "files", { value: dt.files });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await screen.getByTestId("crop-save").click();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Undo image change" }))
+      .toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Crop image" }))
+      .toBeInTheDocument();
+  });
+});
+
+const reject_messages: Partial<Record<ImgOutput, string>> = {
+  "invalid-type": "invalid file type",
+  "exceeds-size": "exceeds file size limit",
+};
+
+/** a caller whose error follows the value, the way every call site's schema
+ * turns a picked file's sentinel into a message */
+function CaptionedEditor() {
+  const [value, set_value] = useState<ImgOutput>("");
+  return (
+    <>
+      <label htmlFor="banner">Banner</label>
+      <ImgEditor
+        id="banner"
+        value={value}
+        on_change={set_value}
+        on_undo={() => set_value("")}
+        spec={spec}
+        error={reject_messages[value]}
+      />
+      <AskHost />
+    </>
+  );
+}
+
+describe("ImgEditor: description", () => {
+  test("the types and size hint describes the input before any error", async () => {
+    const screen = await render(<CaptionedEditor />);
+    const input = screen.getByLabelText("Banner", { exact: true });
+
+    await expect.element(input).toHaveAccessibleDescription(/JPEG, PNG/);
+    await expect.element(input).not.toHaveAttribute("aria-invalid", "true");
+  });
+
+  test.each([
+    {
+      case: "wrong type",
+      file: new File(["data"], "file.svg", { type: "image/svg+xml" }),
+      message: "invalid file type",
+    },
+    {
+      case: "too large",
+      file: new File([new ArrayBuffer(6e6)], "big.png", { type: "image/png" }),
+      message: "exceeds file size limit",
+    },
+  ])(
+    "a $case file's message lands in a polite live region that describes the input, after the hint",
+    async ({ file, message }) => {
+      const screen = await render(<CaptionedEditor />);
+      const input = screen.getByLabelText("Banner", { exact: true });
+      const el = input.element() as HTMLInputElement;
+
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      Object.defineProperty(el, "files", { value: dt.files });
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+
+      const region = screen.getByText(message, { exact: true });
+      await expect.element(region).toHaveAttribute("aria-live", "polite");
+      await expect.element(input).toHaveAttribute("aria-invalid", "true");
+      const [hint_id, error_id] = (
+        el.getAttribute("aria-describedby") ?? ""
+      ).split(" ");
+      expect(document.getElementById(hint_id)?.textContent).toMatch(
+        /JPEG, PNG/
+      );
+      expect(error_id).toBe(region.element().id);
+    }
+  );
+
+  test("the live region is mounted before any error, so its first message is a change", async () => {
+    const screen = await render(<CaptionedEditor />);
+    const live = screen.container.querySelectorAll("[aria-live='polite']");
+    expect(live).toHaveLength(1);
+    expect(live[0].textContent).toBe("");
   });
 });

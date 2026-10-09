@@ -8,7 +8,7 @@ import { resp } from "@/helpers/https";
 import { msg } from "@/queue";
 import { enqueue } from "$/kit/queue";
 import { db } from "$/pg/db";
-import { bapp_put, npo_bapp_count } from "$/pg/queries/banking";
+import { bapp_get, bapp_put, npo_bapp_count } from "$/pg/queries/banking";
 
 export const action: ActionFunction = async (args) => {
   const payload = await args.request.json();
@@ -24,17 +24,38 @@ export const action: ActionFunction = async (args) => {
     );
 
   const count = await npo_bapp_count(npo_id);
-  if (count >= 10) return resp.fail(400, "Max 10 payout methods allowed");
-
-  await bapp_put(db, {
-    id: x.wiseRecipientID,
-    npo_id,
-    bank_summary: x.bankSummary,
-    bank_statement_url: x.bankStatementFile.publicUrl,
-    rejection_reason: "",
-    status: "under-review",
-    date_created: new Date().toISOString(),
-  });
+  const filed =
+    count < 10 &&
+    (await bapp_put(db, {
+      id: x.wiseRecipientID,
+      npo_id,
+      bank_summary: x.bankSummary,
+      bank_statement_url: x.bankStatementFile.publicUrl,
+      rejection_reason: "",
+      status: "under-review",
+      date_created: new Date().toISOString(),
+    }));
+  if (!filed) {
+    const existing = await bapp_get(x.wiseRecipientID);
+    if (!existing) return resp.fail(400, "Max 10 payout methods allowed");
+    if (existing.npo_id !== npo_id) {
+      return resp.fail(
+        409,
+        "This bank account is already registered to another nonprofit"
+      );
+    }
+    if (existing.status === "rejected") {
+      return resp.fail(
+        409,
+        "This bank account was rejected. Contact support, or use different account details."
+      );
+    }
+    if (existing.status !== "under-review") {
+      return resp.fail(409, "This bank account is already on file");
+    }
+    // a retried submit: its first try may have filed the row but failed to enqueue
+  }
+  // `banking.new_${npo_id}` dedupes, so a retry's second notice is collapsed
   await enqueue(msg("banking-new", { npo_id }));
 
   return redirectWithSuccess(

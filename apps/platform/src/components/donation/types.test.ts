@@ -197,6 +197,21 @@ describe("donation amount precision", () => {
     expect(stripe("1000", "JPY", 150).success).toBe(true);
   });
 
+  // a cad is worth under a usd, which a usd-magnitude rule prints at 1 decimal
+  test.each([
+    ["CAD", 1.37, 1.37, "1.37"],
+    ["MXN", 17.2, 34.567, "34.57"],
+    ["JPY", 150, 299.2, "300"],
+    ["USD", 1, 2, "2.00"],
+    // stripe takes these whole though iso 4217 gives them 2 decimals
+    ["HUF", 360, 700.4, "701"],
+    ["TWD", 32, 64.3, "65"],
+  ])("a %s minimum prints at its card precision", (code, rate, min, shown) => {
+    expect(field_issues(stripe("1", code, rate, min))).toEqual([
+      ["amount", `minimum of ${shown} ${code}`],
+    ]);
+  });
+
   test.each(["10.5", "0.01", "25.001"])(
     "a daf grant of %s is refused: grants are whole dollars",
     (amount) => {

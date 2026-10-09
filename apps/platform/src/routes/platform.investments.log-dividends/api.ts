@@ -13,8 +13,10 @@ import type { Route } from "./+types/route";
 
 export const action = async ({ request }: Route.ActionArgs) => {
   /** exclude: use server side time */
-  const p = safeParse(dividend_log_fv, await request.json());
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  const body = await request.json().catch(() => undefined);
+  if (body === undefined) throw resp.status(400, "body is not json");
+  const p = safeParse(dividend_log_fv, body);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const { date, ...fv } = p.output;
 
   const nav = await nav_ltd();

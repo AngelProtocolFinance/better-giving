@@ -1,5 +1,4 @@
 import { Outlet, useFetcher } from "react-router";
-import { CacheRoute, createClientLoaderCache } from "remix-client-cache";
 import { step_loader } from "#/pages/registration/data/step-loader";
 import type { Route } from "./+types/route";
 import { EndowmentStatus } from "./endowment-status";
@@ -8,10 +7,8 @@ import { Step } from "./step";
 export { ErrorBoundary } from "#/components/error";
 export { submit_action as action } from "./submit-action";
 export const loader = step_loader(5);
-export const clientLoader = createClientLoaderCache<Route.ClientLoaderArgs>();
 
-export default CacheRoute(Page);
-function Page({ loaderData: reg }: Route.ComponentProps) {
+export default function Page({ loaderData: reg }: Route.ComponentProps) {
   const fetcher = useFetcher({ key: "reg-sub" });
 
   const is_steps_disabled = fetcher.state !== "idle" || reg.status === "02";

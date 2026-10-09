@@ -54,4 +54,14 @@ describe("/signup ?redirect=", () => {
     await action({ request: post("/dashboard", oauth()) } as any);
     expect(sign_in_social.mock.calls[0][0].body.callbackURL).toBe("/dashboard");
   });
+
+  it("sends a failed google sign-in to /login, keeping the return path", async () => {
+    await action({ request: post("/donate/x?a=1&b=2", oauth()) } as any);
+    const to = new URL(
+      sign_in_social.mock.calls[0][0].body.errorCallbackURL,
+      "https://app.test"
+    );
+    expect(to.pathname).toBe("/login");
+    expect(to.searchParams.get("redirect")).toBe("/donate/x?a=1&b=2");
+  });
 });

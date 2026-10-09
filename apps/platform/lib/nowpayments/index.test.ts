@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Nowpayments, NowpaymentsError } from "./index";
+import {
+  Nowpayments,
+  NowpaymentsError,
+  NowpaymentsNotPayableError,
+} from "./index";
 
 const client = new Nowpayments({
   baseUrl: "https://api-sandbox.nowpayments.io",
@@ -69,6 +73,64 @@ describe("nowpayments client", () => {
     expect(url.pathname).toBe("/v1/estimate");
     expect(url.searchParams.get("currency_from")).toBe("usd");
     expect(url.searchParams.get("currency_to")).toBe("ETH");
+  });
+
+  it.each([
+    ["a zero estimated_amount", { amount_from: 100, estimated_amount: 0 }],
+    ["no estimated_amount", { amount_from: 100 }],
+    ["a negative estimated_amount", { amount_from: 100, estimated_amount: -1 }],
+    [
+      "a string estimated_amount",
+      { amount_from: 100, estimated_amount: "0.05" },
+    ],
+  ])(
+    "estimate throws on %s rather than return a usd rate of Infinity or NaN",
+    async (_, body) => {
+      fetch_mock().mockResolvedValueOnce(Response.json(body));
+      const err = await client.estimate("ETH").catch((e: unknown) => e);
+      // the same "pair not payable" an unusable minimum is, not an outage
+      expect(err).toBeInstanceOf(NowpaymentsNotPayableError);
+      expect((err as Error).message).toContain("v1/estimate");
+    }
+  );
+
+  it.each([
+    ["no fiat_equivalent", { min_amount: 0.001 }],
+    ["a zero fiat_equivalent", { min_amount: 0.001, fiat_equivalent: 0 }],
+    ["a zero min_amount", { min_amount: 0, fiat_equivalent: 2 }],
+    ["a string min_amount", { min_amount: "0.001", fiat_equivalent: 2 }],
+  ])(
+    "min_amount throws on %s rather than return a minimum that passes every check",
+    async (_, body) => {
+      fetch_mock().mockResolvedValueOnce(Response.json(body));
+      const err = await client.min_amount("ETH").catch((e: unknown) => e);
+      // a 200 with an unusable quote is "pair not payable", not an http outage
+      expect(err).toBeInstanceOf(NowpaymentsNotPayableError);
+      expect(err).not.toBeInstanceOf(NowpaymentsError);
+      expect((err as Error).name).toBe("NowpaymentsNotPayableError");
+      expect((err as Error).message).toContain("v1/min-amount");
+      expect((err as Error).message).toContain("ETH");
+    }
+  );
+
+  it("min_amount returns both figures when the quote is usable", async () => {
+    fetch_mock().mockResolvedValueOnce(
+      Response.json({ min_amount: 0.001, fiat_equivalent: 2 })
+    );
+    expect(await client.min_amount("ETH")).toEqual({ min: 0.001, min_usd: 2 });
+  });
+
+  it("min_amount quotes the token against the account's polygon usdc outcome, not against itself", async () => {
+    const spy = fetch_mock().mockResolvedValueOnce(
+      Response.json({ min_amount: 0.001, fiat_equivalent: 2 })
+    );
+    await client.min_amount("ETH");
+
+    const url = new URL(requested(spy).url);
+    expect(url.pathname).toBe("/v1/min-amount");
+    expect(url.searchParams.get("currency_from")).toBe("ETH");
+    expect(url.searchParams.get("currency_to")).toBe("usdcmatic");
+    expect(url.searchParams.get("fiat_equivalent")).toBe("usd");
   });
 
   it("every request carries a 10s timeout", async () => {

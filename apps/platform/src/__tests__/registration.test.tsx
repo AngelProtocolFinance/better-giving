@@ -131,8 +131,9 @@ vi.mock("#/components/bank-details/recipient-details/use-requirements", () => ({
   }),
 }));
 
+// the fetcher reads remix-toast's payload as-is — the toast rides a cookie
 vi.mock("#/.server/toast", () => ({
-  dataWithSuccess: vi.fn((_data: unknown, msg: string) => ({ toast: msg })),
+  dataWithSuccess: vi.fn((data: unknown) => data),
 }));
 
 vi.mock("#/components/bank-details/use-currencies", () => ({
@@ -146,11 +147,6 @@ vi.mock("#/components/bank-details/use-currencies", () => ({
     is_error: false,
     error: undefined,
   }),
-}));
-
-vi.mock("remix-client-cache", () => ({
-  CacheRoute: (Component: any) => Component,
-  createClientLoaderCache: () => undefined,
 }));
 
 // mock anvil signing — return a route the stub can handle
@@ -448,6 +444,10 @@ function render_registration(id: string, initial_step = "1") {
 // --- E2E tests ---
 
 describe("E2E: US path (501c3)", () => {
+  beforeEach(() => {
+    window.dataLayer = [];
+  });
+
   it("threads contact → org → banking → review → submit, skipping the agreement", async () => {
     const id = await create_reg();
     clear_qstash_events();
@@ -471,7 +471,7 @@ describe("E2E: US path (501c3)", () => {
     await expect.element(screen.getByText("Search engines")).toBeVisible();
     await screen.getByText("Search engines").click();
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // --- step 2: org details ---
     await expect.element(screen.getByLabelText(/website/i)).toBeVisible();
@@ -488,7 +488,7 @@ describe("E2E: US path (501c3)", () => {
     await expect.element(screen.getByText("Charity")).toBeVisible();
     await screen.getByText("Charity").click();
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // --- step 4: banking (step 3 is skipped — no agreement for a 501c3) ---
     await expect
@@ -547,9 +547,10 @@ describe("E2E: US path (501c3)", () => {
     expect(row.o_bank_id).toBe("999");
     expect(row.o_bank_statement).toBe("https://example.com/bank.pdf");
     expect(row.status).toBe("01");
+    expect(window.dataLayer).toEqual([]);
 
     // submit application
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await vi.waitFor(async () => {
       const r = await get_reg(id);
@@ -560,6 +561,7 @@ describe("E2E: US path (501c3)", () => {
     await expect
       .element(screen.getByText(/submitted for review/i))
       .toBeInTheDocument();
+    expect(window.dataLayer).toEqual([{ event: "nonprofit_signup" }]);
 
     // outbox event
     const events = await get_outbox_events();
@@ -589,7 +591,7 @@ describe("E2E: non-US path (FSA)", () => {
     await expect.element(screen.getByText("Search engines")).toBeVisible();
     await screen.getByText("Search engines").click();
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // --- step 2: org details (non-US) ---
     await expect.element(screen.getByLabelText(/website/i)).toBeVisible();
@@ -605,7 +607,7 @@ describe("E2E: non-US path (FSA)", () => {
     await expect.element(screen.getByText("Charity")).toBeVisible();
     await screen.getByText("Charity").click();
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // --- step 3: fiscal-sponsorship agreement ---
     await expect
@@ -696,7 +698,7 @@ describe("E2E: non-US path (FSA)", () => {
     expect(row.status).toBe("01");
 
     // submit
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await vi.waitFor(async () => {
       const r = await get_reg(id);
@@ -1059,7 +1061,7 @@ describe("E2E: dashboard update", () => {
     await screen.getByLabelText(/first name/i).clear();
     await screen.getByLabelText(/first name/i).fill("Janet");
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // prog.step === 5 (all steps complete) → redirects back to the summary
     await expect.element(screen.getByText(/summary/i)).toBeVisible();
@@ -1096,7 +1098,7 @@ describe("E2E: dashboard update", () => {
       .toHaveDisplayValue("Jane");
     await screen.getByLabelText(/first name/i).clear();
     await screen.getByLabelText(/first name/i).fill("Janet");
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // the agreement is unfinished again, so the summary bounces back to it
     await expect.element(screen.getByLabelText(/legal entity/i)).toBeVisible();
@@ -1110,6 +1112,10 @@ describe("E2E: dashboard update", () => {
 });
 
 describe("E2E: submitted state disables dashboard", () => {
+  beforeEach(() => {
+    window.dataLayer = [];
+  });
+
   it("status 02 shows in-review and disables Update links", async () => {
     const { id } = await seed_reg({
       ...CONTACT_FIELDS,
@@ -1135,11 +1141,49 @@ describe("E2E: submitted state disables dashboard", () => {
 
     // no Continue or Resubmit button
     await expect
-      .element(screen.getByRole("button", { name: /continue/i }))
+      .element(screen.getByRole("button", { name: /^continue\b/i }))
       .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: /resubmit/i }))
       .not.toBeInTheDocument();
+    // a returning visitor is not a conversion
+    expect(window.dataLayer).toEqual([]);
+  }, 15_000);
+
+  it("a refused submit pushes no conversion", async () => {
+    const { id } = await seed_reg({
+      ...CONTACT_FIELDS,
+      ...ORG_FIELDS,
+      ...BANKING_FIELDS,
+    });
+    const screen = await render_registration(id, "5");
+    await expect.element(screen.getByText(/summary/i)).toBeVisible();
+
+    set_authed("mallory@example.com");
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
+
+    await expect
+      .element(screen.getByRole("button", { name: /^continue\b/i }))
+      .not.toBeInTheDocument();
+    expect((await get_reg(id)).status).toBe("01");
+    expect(window.dataLayer).toEqual([]);
+  }, 15_000);
+
+  it("resubmitting a rejected application pushes no conversion", async () => {
+    const { id } = await seed_reg({
+      ...CONTACT_FIELDS,
+      ...ORG_FIELDS,
+      ...BANKING_FIELDS,
+      status: "04",
+    });
+    const screen = await render_registration(id, "5");
+
+    await screen.getByRole("button", { name: /resubmit/i }).click();
+
+    await expect
+      .element(screen.getByText(/submitted for review/i))
+      .toBeInTheDocument();
+    expect(window.dataLayer).toEqual([]);
   }, 15_000);
 });
 
@@ -1428,7 +1472,7 @@ describe("E2E: start screen", () => {
     await ein.fill("12-3456789");
     // a pasted, already-dashed ein survives the mask unchanged
     await expect.element(ein).toHaveValue("12-3456789");
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect.element(screen.getByText(/contact details/i)).toBeVisible();
 
@@ -1459,7 +1503,7 @@ describe("E2E: start screen", () => {
     await screen.getByRole("option", { name: /Kenya/i }).nth(0).click();
     await screen.getByLabelText(/registration number/i).fill("KE-99");
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect.element(screen.getByText(/contact details/i)).toBeVisible();
 
@@ -1481,7 +1525,7 @@ describe("E2E: start screen", () => {
     await screen.getByPlaceholder("Select a country").fill("Kenya");
     await screen.getByRole("option", { name: /Kenya/i }).nth(0).click();
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     // exact: a message naming both fields would not match
     await expect
@@ -1502,7 +1546,7 @@ describe("E2E: start screen", () => {
     await screen.getByText("International").click();
     await screen.getByLabelText(/registration number/i).fill("KE-99");
 
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect
       .element(
@@ -1531,7 +1575,7 @@ describe("E2E: start screen", () => {
     const screen = await render_start();
 
     await screen.getByText("International").click();
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect
       .element(
@@ -1560,7 +1604,7 @@ describe("E2E: start screen", () => {
     await screen
       .getByLabelText(/employer identification number/i)
       .fill("123456789");
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
 
     await expect.element(screen.getByText(/already registered/i)).toBeVisible();
     expect(await all_regs()).toHaveLength(0);
@@ -1572,7 +1616,7 @@ describe("E2E: start screen", () => {
 
     // an invalid start submission leaves its own error
     await screen.getByLabelText(/employer identification number/i).fill("123");
-    await screen.getByRole("button", { name: /continue/i }).click();
+    await screen.getByRole("button", { name: "Continue", exact: true }).click();
     await expect.element(screen.getByText(/valid 9-digit EIN/i)).toBeVisible();
 
     // a submission the client rejected never reached the server, so it is not

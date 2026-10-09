@@ -4,7 +4,7 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
+import { APP_NAME, EMAILS } from "../constants";
 import { format_amount } from "../helpers";
 import type { IAmount, IDonor } from "../types";
 
@@ -23,6 +23,8 @@ import type { IAmount, IDonor } from "../types";
  * this off.
  */
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   /** the donor's original gift — what the payment was recorded against */
   donation_id: string;
   from: IDonor;
@@ -72,7 +74,7 @@ function Jsx(d: IData) {
       <KeyValue
         label="Your donation"
         value={
-          <Link href={`${DAPP_URL}/donations/${d.donation_id}`}>
+          <Link href={`${d.base_url}/donations/${d.donation_id}`}>
             view your donation
           </Link>
         }

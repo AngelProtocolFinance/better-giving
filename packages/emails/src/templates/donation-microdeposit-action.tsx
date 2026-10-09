@@ -3,15 +3,17 @@ import { Text } from "react-email";
 import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
+import { APP_NAME, EMAILS } from "../constants";
 
 export interface IData {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   from_name: string;
   to_name: string;
   verification_link: string;
 }
 
-function Jsx({ from_name, to_name, verification_link }: IData) {
+function Jsx({ from_name, to_name, verification_link, base_url }: IData) {
   return (
     <PublicLayout type="donation">
       <Text>Hi {from_name},</Text>
@@ -41,7 +43,7 @@ function Jsx({ from_name, to_name, verification_link }: IData) {
 
       <Text>
         This verification link is also available in your donation record on your{" "}
-        <Link href={`${DAPP_URL}/dashboard/donations`}>My donations</Link> page.
+        <Link href={`${base_url}/dashboard/donations`}>My donations</Link> page.
         If you encounter any issues, please contact our support team at{" "}
         <MailTo email={EMAILS.support} /> for assistance.
       </Text>

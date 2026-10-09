@@ -25,3 +25,5 @@ allowBuilds:
   '@sentry/cli': false
   better-sqlite3: false
   sqlite3: false
+patchedDependencies:
+  remix-client-cache@3.0.0: patches/remix-client-cache@3.0.0.patch

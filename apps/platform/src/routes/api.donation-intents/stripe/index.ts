@@ -9,7 +9,7 @@ import type { Provider } from "../types";
 import { customer_with_currency } from "./customer-with-currency";
 import { donor_refusal } from "./donor-refusal";
 import { payment_intent } from "./payment-intent";
-import { setup_intent } from "./setup-intent";
+import { recurring_bank_methods, setup_intent } from "./setup-intent";
 
 export const stripe_intent: Provider = async ({
   to,
@@ -21,9 +21,19 @@ export const stripe_intent: Provider = async ({
   const upusd = await unit_per_usd(intent.currency);
   const base_usd = rd2num(intent.amount.base / upusd, 1);
   if (base_usd < MIN_DONATION_USD) {
-    return resp.txt(
-      `The minimum donation is $${MIN_DONATION_USD}. Try a larger amount.`,
-      400
+    return resp.refuse(
+      `The minimum donation is $${MIN_DONATION_USD}. Try a larger amount.`
+    );
+  }
+
+  const bank_only = via === "bank";
+  if (
+    bank_only &&
+    intent.frequency !== "one-time" &&
+    recurring_bank_methods(intent.currency).length === 0
+  ) {
+    return resp.refuse(
+      "Recurring bank payments are available in USD and CAD. Choose one of those currencies or pay by card."
     );
   }
 
@@ -47,7 +57,6 @@ export const stripe_intent: Provider = async ({
   };
   const don = await donation_put(db, r);
 
-  const bank_only = via === "bank";
   let client_secret: string;
   try {
     client_secret =
@@ -59,7 +68,7 @@ export const stripe_intent: Provider = async ({
             order_id: don.id,
             bank_only,
           })
-        : await setup_intent(don.id, customer_id, bank_only);
+        : await setup_intent(don.id, customer_id, don.currency, bank_only);
   } catch (err) {
     const refusal = donor_refusal(err);
     if (!refusal) throw err;
@@ -67,7 +76,7 @@ export const stripe_intent: Provider = async ({
     console.info(
       `[stripe-intent] 400 - ${refusal.code} - don ${don.id} - ${refusal.message}`
     );
-    return resp.txt(refusal.reason, 400);
+    return resp.refuse(refusal.reason);
   }
 
   const body: IStripeIntentReturn = {

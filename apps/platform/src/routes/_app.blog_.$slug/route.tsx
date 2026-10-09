@@ -2,9 +2,12 @@ import { PortableText, type PortableTextComponents } from "@portabletext/react";
 import { POST_QUERY } from "blog-types";
 import { ChevronLeft } from "lucide-react";
 import { href, Link } from "react-router";
+import { post_path } from "#/api/get/posts";
 import { sanity, urlFor } from "#/api/sanity";
+import { pt_value } from "#/components/rich-text/pt-value";
 import { app_name, base_url } from "#/constants/env";
 import { metas } from "#/helpers/seo";
+import { is_safe_href } from "@/helpers/safe-href";
 import type { Route } from "./+types/route";
 import { PostCta } from "./post-cta";
 
@@ -22,10 +25,9 @@ export const headers: Route.HeadersFunction = () => ({
 
 export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   if (!d) return [];
-  const post_url = `${base_url}/blog/${d.slug.current}`;
-  const image_url = d.image?.asset
-    ? urlFor(d.image).width(1200).height(630).url()
-    : undefined;
+  // the loader matched this slug from a url, so it encodes
+  const post_url = `${base_url}${post_path(d.slug.current)!}`;
+  const image_url = urlFor(d.image)?.width(1200).height(630).url();
 
   const blog_posting: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -74,28 +76,33 @@ export { ErrorBoundary } from "#/components/error";
 
 const ptComponents: PortableTextComponents = {
   types: {
-    image: ({ value }) =>
-      value?.asset ? (
+    image: ({ value }) => {
+      const src = urlFor(value)?.width(900).url();
+      return src ? (
         <figure className="my-6">
-          <img
-            src={urlFor(value).width(900).url()}
-            alt={value.alt ?? ""}
-            className="rounded"
-          />
+          <img src={src} alt={value.alt ?? ""} className="rounded" />
           {value.caption && (
             <figcaption className="mt-2 text-center text-sm text-gray-11">
               {value.caption}
             </figcaption>
           )}
         </figure>
-      ) : null,
+      ) : null;
+    },
+  },
+  marks: {
+    // react blocks only `javascript:`; writes that bypass the studio's uri rule can store `data:`/`vbscript:`/any scheme
+    link: ({ children, value }) =>
+      is_safe_href(value?.href) ? (
+        <a href={value.href}>{children}</a>
+      ) : (
+        children
+      ),
   },
 };
 
 export default function Post({ loaderData: post }: Route.ComponentProps) {
-  const heroUrl = post.image?.asset
-    ? urlFor(post.image).width(900).height(500).url()
-    : null;
+  const heroUrl = urlFor(post.image)?.width(900).height(500).url();
   return (
     <div className={container_style}>
       <Link
@@ -108,7 +115,7 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
       {heroUrl ? (
         <img
           src={heroUrl}
-          alt={post.image?.alt ?? post.title}
+          alt={post.image?.alt ?? ""}
           className="relative w-full aspect-9/5 object-cover object-top mt-4 rounded"
         />
       ) : (
@@ -133,7 +140,10 @@ export default function Post({ loaderData: post }: Route.ComponentProps) {
 
       <div className="prose lg:prose-lg prose-a:text-primary hover:prose-a:text-primary">
         {Array.isArray(post.body) && (
-          <PortableText value={post.body} components={ptComponents} />
+          <PortableText
+            value={pt_value(post.body, ptComponents)}
+            components={ptComponents}
+          />
         )}
       </div>
 

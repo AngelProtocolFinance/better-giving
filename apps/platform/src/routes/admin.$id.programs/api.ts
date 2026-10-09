@@ -29,7 +29,7 @@ export const action = async (x: Route.ActionArgs) => {
   if (x.request.method === "DELETE") {
     const fv = await x.request.formData();
     const p = safeParse(program_id, fv.get("programId"));
-    if (p.issues) return resp.status(400, p.issues[0].message);
+    if (p.issues) throw resp.status(400, p.issues[0].message);
     const pid = p.output;
     await npo_program_del(id, pid);
     return dataWithSuccess(null, "Program deleted");

@@ -7,9 +7,13 @@ import type { Route } from "./+types/route";
 
 export const action = async ({ params }: Route.ActionArgs) => {
   const p = safeParse($int_gte1, params.id);
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const key = await api_key_put(p.output);
-  return dataWithSuccess({ apiKey: key }, "API key generated");
+  // the new key deletes every stored hook, and zapier never learns a rest hook is gone
+  return dataWithSuccess(
+    { apiKey: key },
+    "API key generated. Your existing Zaps stop working until you reconnect Zapier with the new key and turn each Zap off and on."
+  );
 };
 
 export interface LoaderData {

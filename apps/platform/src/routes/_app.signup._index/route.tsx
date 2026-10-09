@@ -4,6 +4,7 @@ import { href, Link, type MetaDescriptor, useNavigation } from "react-router";
 import { useRemixForm } from "remix-hook-form";
 import googleIcon from "#/assets/icons/google.svg";
 import { app_name } from "#/constants/env";
+import { login_url } from "#/helpers/login-url";
 import { metas } from "#/helpers/seo";
 import type { ISignUp } from "#/types/auth";
 import type { Route } from "./+types/route";
@@ -103,7 +104,12 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
           {ctx.description}
         </p>
 
-        <RmxForm disabled={is_submitting} method="POST" className="contents">
+        <RmxForm
+          disabled={is_submitting}
+          busy={nav.state === "submitting"}
+          method="POST"
+          className="contents"
+        >
           <button
             name="intent"
             value="oauth"
@@ -172,7 +178,7 @@ export default function Page({ loaderData: to }: Route.ComponentProps) {
         <span className="flex-center gap-1 max-sm:text-sm">
           Already have an account?
           <Link
-            to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
+            to={login_url(to)}
             className="link aria-disabled:text-gray-11 font-medium underline"
             aria-disabled={is_submitting}
           >

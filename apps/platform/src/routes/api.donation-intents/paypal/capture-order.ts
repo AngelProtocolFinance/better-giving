@@ -1,10 +1,14 @@
-import type { CaptureOrderResponse } from "@better-giving/paypal";
+import {
+  type CaptureOrderResponse,
+  PayPalApiError,
+} from "@better-giving/paypal";
 import { report_degraded, report_error } from "#/errors/report";
 import { paypal_donor_update } from "@/donations/helpers";
 import {
   type IPaypalCaptured,
   paypal_capture_outcome,
 } from "@/donations/paypal-capture";
+import { resp } from "@/helpers/https";
 import { paypal } from "$/kit/paypal";
 import { db } from "$/pg/db";
 import { donation_update } from "$/pg/queries/donation";
@@ -34,15 +38,49 @@ const refused_issue = (err: unknown): string | undefined => {
   }
 };
 
+const already_captured = (err: unknown): boolean =>
+  err instanceof PayPalApiError &&
+  err.http_status === 422 &&
+  err.body.includes('"ORDER_ALREADY_CAPTURED"');
+
+// set on the unit at create time; paypal's capture examples echo it on the
+// capture and not the unit, so either one binds the order
+const is_for_donation = (
+  capture: CaptureOrderResponse,
+  don_id: string
+): boolean => {
+  const pu = capture.purchase_units?.[0];
+  return (
+    pu?.custom_id === don_id ||
+    pu?.payments?.captures?.[0]?.custom_id === don_id
+  );
+};
+
 /** not a paypal resource: the least the browser's `paypal_capture_outcome` reads as declined */
 const REFUSED_CAPTURE: IPaypalCaptured = {
   purchase_units: [{ payments: { captures: [{ status: "DECLINED" }] } }],
+};
+
+// don_id is the browser's word, custom_id is ours from create time. don ids
+// appear in thank-you urls, so a mismatch would write onto another receipt,
+// or hand a declined capture's payer details to whoever named it
+const refuse_other_donation = (order_id: string, don_id: string): never => {
+  report_degraded(new Error("paypal order for another donation"), {
+    order_id,
+    don_id,
+  });
+  throw resp.status(400, "order is not for this donation");
 };
 
 export const capture_order = async ({
   order_id,
   don_id,
 }: ICaptureInput): Promise<CaptureOrderResponse | IPaypalCaptured> => {
+  // checked before capturing: a forged or reused order_id would otherwise be
+  // charged first and refused after
+  const order = await paypal.get_order(order_id);
+  if (!is_for_donation(order, don_id)) refuse_other_donation(order_id, don_id);
+
   let capture: CaptureOrderResponse;
   try {
     // order_id is stable per intent — use it as the idempotency key so a retry
@@ -50,10 +88,18 @@ export const capture_order = async ({
     capture = await paypal.capture_order(order_id, `capture-${order_id}`);
   } catch (err) {
     const issue = refused_issue(err);
-    if (!issue) throw err;
-    report_degraded(err, { order_id, don_id, issue });
-    return REFUSED_CAPTURE;
+    if (issue) {
+      report_degraded(err, { order_id, don_id, issue });
+      return REFUSED_CAPTURE;
+    }
+    if (!already_captured(err)) throw err;
+    // the webhook's delayed fallback captured it while the donor was away;
+    // the order carries that capture
+    capture = await paypal.get_order(order_id);
   }
+
+  if (!is_for_donation(capture, don_id))
+    refuse_other_donation(order_id, don_id);
 
   const { outcome, status } = paypal_capture_outcome(capture);
   if (outcome !== "taken") {
@@ -73,9 +119,8 @@ export const capture_order = async ({
   if (Object.keys(update).length > 0) {
     // paypal has already taken the money: failing the response here tells the
     // donor it didn't, and they pay again. the capture webhook re-writes these
-    // details only when paypal returns an email, so a venmo / email-withheld
-    // payer's name and address are lost on this failure — data loss, so an
-    // error rather than a degrade.
+    // details from paypal's copy of the order, so they are lost only when that
+    // read fails too.
     await donation_update(db, don_id, update).catch((err) =>
       report_error(err, { don_id, order_id })
     );

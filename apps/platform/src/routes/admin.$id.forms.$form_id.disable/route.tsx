@@ -14,21 +14,29 @@ export const action = async (x: {
   context: { get: (key: typeof admin_ctx) => number };
 }) => {
   const { form_id } = x.params;
-  if (!form_id) return resp.status(400, "form_id required");
+  if (!form_id) throw resp.status(400, "form_id required");
 
   const form = await form_get(form_id);
-  if (!form) return resp.status(404, "form not found");
+  if (!form) throw resp.status(404, "form not found");
 
   const npo_id = x.context.get(admin_ctx);
-  if (form.owner_npo_id !== npo_id) return resp.status(403, "not authorized");
+  if (form.owner_npo_id !== npo_id) throw resp.status(403, "not authorized");
 
   await form_update(form_id, { status: "inactive" });
   return redirectWithSuccess("..", "Form deactivated");
 };
 
+// keyed, so the modal shell reads the submission Content makes
+const fetcher_key = "disable-form";
+
 export default function DisablePrompt() {
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal classes="grid content-start justify-items-center bg-panel">
+    <RouteModal
+      title="Disable form"
+      busy={fetcher.state !== "idle"}
+      classes="grid content-start justify-items-center bg-panel"
+    >
       <Content />
     </RouteModal>
   );
@@ -36,7 +44,7 @@ export default function DisablePrompt() {
 
 function Content() {
   const { form_id } = useParams();
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: fetcher_key });
   const is_submitting = fetcher.state !== "idle";
 
   return (

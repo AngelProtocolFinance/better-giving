@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 import type { IForm, IOwnerFormsPageOpts } from "@/forms/interfaces";
 import { db } from "../db";
 import { forms } from "../schema/form";
@@ -7,6 +7,26 @@ import { decode_date_cursor, encode_date_cursor } from "./helpers";
 
 export type FormRow = typeof forms.$inferSelect;
 type FormInsert = typeof forms.$inferInsert;
+
+/**
+ * a form row with its derived donation count: parent donations on the form
+ * with at least one settled dist. a fund gift settles as one dist per member
+ * in separate transactions, and refunds reverse per dist, so no counter
+ * written from either side can count the parent once without racing.
+ */
+export interface IFormListed extends FormRow {
+  donation_count: number;
+}
+
+// spelled out, not interpolated: drizzle renders a single-table select's
+// columns unqualified, which would turn `forms.id` here into `donations.id`
+const donation_count = sql<number>`(
+  select count(*) from donations d
+  where d.form_id = "forms"."id"
+    and exists (
+      select 1 from dists x where x.donation_id = d.id and x.status = 'settled'
+    )
+)`.mapWith(Number);
 
 // map compound IForm fields → flat DB columns (used by form_put)
 function from_iform(f: IForm): FormInsert {
@@ -73,7 +93,7 @@ export async function form_ltd_inc(
 export async function forms_owned_by(
   owner: string,
   opts?: IOwnerFormsPageOpts
-): Promise<IPage<FormRow>> {
+): Promise<IPage<IFormListed>> {
   const { limit = 10, next, status } = opts || {};
   const cursor = decode_date_cursor(next);
 
@@ -84,7 +104,7 @@ export async function forms_owned_by(
     : eq(forms.owner_user_id, owner);
 
   const rows = await db
-    .select()
+    .select({ ...getTableColumns(forms), donation_count })
     .from(forms)
     .where(
       and(

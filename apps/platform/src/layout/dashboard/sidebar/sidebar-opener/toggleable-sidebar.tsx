@@ -14,6 +14,7 @@ export function ToggleableSidebar({ linkGroups, set_open, open }: Props) {
       open={open}
       onClose={() => set_open(false)}
       size="none"
+      title="Dashboard menu"
       classes="fixed top-0 left-0 h-full"
     >
       <Sidebar

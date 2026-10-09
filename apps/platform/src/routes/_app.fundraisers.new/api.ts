@@ -5,7 +5,6 @@ import { getValidatedFormData } from "remix-hook-form";
 import { safeParse } from "valibot";
 import { get_session, to_auth } from "#/.server/auth";
 import { redirectWithSuccess } from "#/.server/toast";
-import { is_resp } from "#/.server/utils";
 import { to_text } from "#/components/rich-text";
 import { report_undefined } from "#/errors/report";
 import type { IFormInvalid } from "#/types/action";
@@ -14,7 +13,7 @@ import { resp, search } from "@/helpers/https";
 import { $int_gte1 } from "@/schemas";
 import { db } from "$/pg/db";
 import { fund_put } from "$/pg/queries/fund";
-import { npo_get, npos_batch_get } from "$/pg/queries/npo";
+import { npo_get, npo_public, npos_batch_get } from "$/pg/queries/npo";
 import { userxfund_put } from "$/pg/queries/user";
 import { user_npo_memberships } from "$/pg/schema/user";
 import type { Route } from "./+types/route";
@@ -27,8 +26,8 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   const { npo: id } = search(request);
   if (id) {
     const npo = await npo_get(+id);
-    if (!npo) return resp.status(404);
-    return npo;
+    if (!npo) throw resp.status(404);
+    return npo_public(npo);
   }
   return null;
 };
@@ -45,8 +44,8 @@ export const action: ActionFunction = async ({ request }) => {
   // honeypot validation - reject if the honeypot field is filled
   if (d.website && d.website !== "") {
     console.warn("Honeypot triggered - potential bot submission detected");
-    // return a generic error to avoid revealing the honeypot
-    return resp.status(400);
+    // a bare 400 rather than a field message, to avoid revealing the honeypot
+    throw resp.status(400);
   }
 
   const evl = await evaluate({
@@ -74,7 +73,7 @@ export const action: ActionFunction = async ({ request }) => {
   const npo_owner = await (async (n) => {
     if (!n) return undefined;
     const p = safeParse($int_gte1, n);
-    if (p.issues) return resp.status(400, p.issues[0].message);
+    if (p.issues) throw resp.status(400, p.issues[0].message);
     if (user.role !== "admin") {
       const [membership] = await db
         .select({ npo_id: user_npo_memberships.npo_id })
@@ -86,12 +85,10 @@ export const action: ActionFunction = async ({ request }) => {
           )
         )
         .limit(1);
-      if (!membership) return resp.status(403);
+      if (!membership) throw resp.status(403);
     }
     return p.output;
   })(npo_id);
-
-  if (is_resp(npo_owner)) return npo_owner;
 
   const id = crypto.randomUUID();
   const { expiration: raw_exp, members: ms, target, increments } = d;

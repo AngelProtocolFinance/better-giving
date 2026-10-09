@@ -6,7 +6,7 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL, HELP } from "../constants";
+import { APP_NAME, HELP } from "../constants";
 import { format_amount } from "../helpers";
 import type { IAmount, IDonation, IDonor } from "../types";
 
@@ -26,6 +26,8 @@ export interface IReceiptLine {
 }
 
 export interface IData extends Omit<IDonation, "program_name"> {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   is_recurring?: boolean;
   /** is donation to Better Giving directly (vs through NPO) */
   is_bg?: boolean;
@@ -81,15 +83,15 @@ function Jsx(d: IData) {
       <Text>
         If you know of any other nonprofits that could benefit from our Better
         Giving services, just direct them to our{" "}
-        <Link href={`${DAPP_URL}/register`}>registration page</Link> so they can
-        sign up and start to collect donations.
+        <Link href={`${d.base_url}/register`}>registration page</Link> so they
+        can sign up and start to collect donations.
       </Text>
       <Text>
         Many employers match their employees' charitable donations, but the
         match only happens if the employee files a short form with them. If
         yours has a matching program, everything that form asks for — our legal
         name, EIN and address, and this donation's details — is on your{" "}
-        <Link href={`${DAPP_URL}/donations/${d.id}`}>donation page</Link>.
+        <Link href={`${d.base_url}/donations/${d.id}`}>donation page</Link>.
       </Text>
       <Text>
         Thank you once again for your incredible support. We look forward to
@@ -180,9 +182,9 @@ function Jsx(d: IData) {
         }}
       >
         {LEGAL_NAME} ({APP_NAME}) is a US 501(c)(3) tax-exempt nonprofit with
-        EIN {EIN}, {ADDRESS}. No goods or services are provided to you in
-        exchange for your gift, so the full amount you paid qualifies as a
-        charitable contribution for US tax purposes.
+        EIN {EIN}, {ADDRESS}.
+        {d.tax_receipt_id &&
+          " No goods or services are provided to you in exchange for your gift, so the full amount you paid qualifies as a charitable contribution for US tax purposes."}
         {n_grants > 0 &&
           (d.is_fund
             ? ` ${APP_NAME} then grants the donation among the fund's member nonprofits on your behalf.`

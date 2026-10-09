@@ -11,12 +11,17 @@ import {
   onTestFinished,
   test,
 } from "vitest";
-import { pg_text_to_iso, timestamp_as_iso } from "./columns";
+import { numeric_as_number, pg_text_to_iso, timestamp_as_iso } from "./columns";
 
 const stamps = pgTable("stamps", {
   id: text("id").primaryKey(),
   tz: timestamp_as_iso("tz", { withTimezone: true }),
   bare: timestamp_as_iso("bare"),
+});
+
+const amounts = pgTable("amounts", {
+  id: text("id").primaryKey(),
+  a: numeric_as_number("a", { precision: 38, scale: 18 }).notNull(),
 });
 
 let client: PGlite;
@@ -26,6 +31,9 @@ beforeAll(async () => {
   client = new PGlite();
   await client.exec(
     "create table stamps (id text primary key, tz timestamptz, bare timestamp)"
+  );
+  await client.exec(
+    "create table amounts (id text primary key, a numeric(38, 18) not null check (a > 0))"
   );
   db = drizzle(client);
 });
@@ -116,5 +124,21 @@ describe("timestamp_as_iso", () => {
     );
     const [row] = await db.select().from(stamps);
     expect(row.bare).toBe("2027-09-23T12:55:37.000Z");
+  });
+});
+
+describe("numeric_as_number", () => {
+  // postgres numeric stores 'NaN', sorts it above every value, and it passes `> 0`
+  test.each([NaN, Infinity, -Infinity])("refuses to write %s", async (a) => {
+    await expect(db.insert(amounts).values({ id: "bad", a })).rejects.toThrow(
+      /finite/
+    );
+    expect(await db.select().from(amounts)).toEqual([]);
+  });
+
+  test("round-trips a finite amount", async () => {
+    await client.exec("truncate amounts");
+    await db.insert(amounts).values({ id: "ok", a: 12.5 });
+    expect(await db.select().from(amounts)).toEqual([{ id: "ok", a: 12.5 }]);
   });
 });

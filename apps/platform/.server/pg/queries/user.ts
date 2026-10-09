@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import type { INpoAdmin, IUserBookmark, IUserNpo } from "@/users/interfaces";
 import type {
@@ -73,7 +73,10 @@ export async function user_by_referral_code(
   return row;
 }
 
-/** address + greeting name for mailing a user known only by `user.id` */
+/**
+ * address + greeting name for mailing a user known only by `user.id`;
+ * undefined unless the address is verified and the user is not under a ban
+ */
 export async function user_contact_by_id(
   id: string,
   tx: DbOrTx = db
@@ -81,7 +84,17 @@ export async function user_contact_by_id(
   const [row] = await tx
     .select({ email: user.email, first_name: user.first_name })
     .from(user)
-    .where(eq(user.id, id))
+    .where(
+      and(
+        eq(user.id, id),
+        eq(user.emailVerified, true),
+        or(
+          isNull(user.banned),
+          eq(user.banned, false),
+          lte(user.banExpires, new Date())
+        )
+      )
+    )
     .limit(1);
   return row;
 }
@@ -223,8 +236,7 @@ export async function npo_admin_tx(
 
     if (invitee_user) {
       // existing account: skip the invite row entirely — there's nothing for
-      // the signup hook to consume, and a stale row would block re-invites of
-      // this email until expire_at.
+      // the signup hook to consume.
       await tx
         .insert(user_npo_memberships)
         .values({ user_id: invitee_user.id, npo_id })
@@ -232,14 +244,20 @@ export async function npo_admin_tx(
       return;
     }
 
-    await tx.insert(user_invites).values({
-      invitee: invite.invitee,
+    const pending = {
       invitee_first: invite.invitee_first_name,
       invitor_id,
       npo_name: invite.npo_name,
-      npo_id,
       expire_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    });
+    };
+    // a re-invite from the same npo refreshes its pending row; another npo's invite is its own row
+    await tx
+      .insert(user_invites)
+      .values({ invitee: invite.invitee, npo_id, ...pending })
+      .onConflictDoUpdate({
+        target: [user_invites.invitee, user_invites.npo_id],
+        set: pending,
+      });
   });
 }
 

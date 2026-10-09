@@ -14,6 +14,7 @@ import type { INposPage, INpoWithRegNum } from "@/npo/interfaces";
 import type { INposSearchObj } from "@/npo/schema";
 import type { IBalanceDeltas } from "@/types/donation";
 import { db } from "../db";
+import { finite } from "../schema/columns";
 import { npos } from "../schema/npo";
 import { user_npo_memberships } from "../schema/user";
 import { v_contributions } from "../schema/views";
@@ -31,6 +32,55 @@ export type INpo = Omit<NpoRow, "target_number" | "target_smart"> & {
   contributions_total: number;
   contributions_count: number;
 };
+
+// what an unauthenticated, CDN-cached page may see. an allow-list: a new npos
+// column is private until it is added here. balances, payout and referral
+// bookkeeping, the stored tax-form id and the donation split stay off it.
+export const NPO_PUBLIC_KEYS = [
+  "id",
+  "slug",
+  "keyword",
+  "registration_number",
+  "name",
+  "endow_designation",
+  "overview_v2",
+  "overview_pt",
+  "tagline",
+  "image",
+  "logo",
+  "card_img",
+  "hq_country",
+  "active_in_countries",
+  "social_media_urls",
+  "url",
+  "sdgs",
+  "receipt_msg",
+  "hide_bg_tip",
+  "published",
+  "active",
+  "prog_donations_allowed",
+  "donate_methods",
+  "donate_frequencies",
+  "increments",
+  "fund_opt_in",
+  "kyc_donors_only",
+  "fiscal_sponsored",
+  "street_address",
+  "donor_address_required",
+  "created_at",
+  "updated_at",
+  "target",
+  "contributions_total",
+  "contributions_count",
+] as const satisfies readonly (keyof INpo)[];
+
+export type INpoPublic = Pick<INpo, (typeof NPO_PUBLIC_KEYS)[number]>;
+
+export function npo_public(npo: INpo): INpoPublic {
+  return Object.fromEntries(
+    NPO_PUBLIC_KEYS.map((k) => [k, npo[k]])
+  ) as INpoPublic;
+}
 
 type JoinedRow = Awaited<ReturnType<typeof joined_select>>[number];
 
@@ -180,6 +230,9 @@ export async function npo_balance_adj(
   id: number,
   adj: Partial<Record<"liq" | "lock_units" | "cash", number>>
 ) {
+  for (const [k, v] of Object.entries(adj)) {
+    if (v != null) finite(v, `npo ${k} delta`);
+  }
   await db
     .update(npos)
     .set({
@@ -203,6 +256,10 @@ export async function npo_balance_update(
   dir: "inc" | "dec"
 ) {
   const s = dir === "inc" ? 1 : -1;
+  // NaN is falsy: unchecked, the spreads below would drop it without a word
+  finite(d.liq, "npo liq delta");
+  finite(d.lock_units, "npo lock_units delta");
+  finite(d.cash, "npo cash delta");
   await db
     .update(npos)
     .set({

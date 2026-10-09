@@ -11,6 +11,15 @@ interface Init<T extends string> {
 
 const TIMEOUT_MS = 10_000;
 const RATE_PROBE_USD = 100;
+/**
+ * the account pays out to usdc on polygon; nowpayments' lowercase `code` for
+ * it, and no endpoint reads it. without `currency_to`, min-amount quotes the
+ * coin to itself (the bare network floor), not the conversion to the payout
+ */
+const OUTCOME_CURRENCY = "usdcmatic";
+
+const is_positive = (x: unknown): x is number =>
+  typeof x === "number" && Number.isFinite(x) && x > 0;
 
 // not `status`: `report_error` keeps anything with a 4xx `status` off sentry,
 // and a 4xx from nowpayments is our misconfiguration, not the donor's
@@ -22,6 +31,14 @@ export class NowpaymentsError extends Error {
   ) {
     super(`nowpayments ${path} ${http_status}: ${body}`);
     this.name = "NowpaymentsError";
+  }
+}
+
+/** a 200 that quotes no usable minimum or rate: the pair isn't payable, not an outage */
+export class NowpaymentsNotPayableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NowpaymentsNotPayableError";
   }
 }
 
@@ -57,13 +74,14 @@ export class Nowpayments {
     return res.json();
   }
 
-  /** usd per unit of `token_code`, fees excluded */
+  /** usd per unit of `token_code`, fees excluded; throws unless the quote is a positive number */
   async estimate(token_code: string) {
+    const path = "v1/estimate";
     // quoted from the fiat side, the direction nowpayments documents; the
     // crypto amount keeps its precision where a usd figure would round a
     // sub-cent token to 0
     const { amount_from, estimated_amount } = await this.send<NP.Estimate>(
-      "v1/estimate",
+      path,
       {
         params: {
           amount: RATE_PROBE_USD.toString(),
@@ -72,18 +90,31 @@ export class Nowpayments {
         } satisfies NP.Estimate.Params,
       }
     );
-    return { usdpu: amount_from / estimated_amount };
+    const usdpu = amount_from / estimated_amount;
+    if (!is_positive(estimated_amount) || !is_positive(usdpu)) {
+      throw new NowpaymentsNotPayableError(
+        `nowpayments ${path} ${token_code}: amount_from:${amount_from} estimated_amount:${estimated_amount}`
+      );
+    }
+    return { usdpu };
   }
 
+  /** throws unless both figures are positive numbers: a NaN minimum passes every `<` check */
   async min_amount(token_code: string) {
-    const { min_amount: min, fiat_equivalent: min_usd } = await this.send<
-      Required<NP.MinAmount>
-    >("v1/min-amount", {
-      params: {
-        currency_from: token_code,
-        fiat_equivalent: "usd",
-      } satisfies NP.MinAmount.Params,
-    });
+    const path = "v1/min-amount";
+    const { min_amount: min, fiat_equivalent: min_usd } =
+      await this.send<NP.MinAmount>(path, {
+        params: {
+          currency_from: token_code,
+          currency_to: OUTCOME_CURRENCY,
+          fiat_equivalent: "usd",
+        } satisfies NP.MinAmount.Params,
+      });
+    if (!is_positive(min) || !is_positive(min_usd)) {
+      throw new NowpaymentsNotPayableError(
+        `nowpayments ${path} ${token_code}: min_amount:${min} fiat_equivalent:${min_usd}`
+      );
+    }
     return { min, min_usd };
   }
 

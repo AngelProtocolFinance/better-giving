@@ -1,7 +1,8 @@
 import { CircleAlert } from "lucide-react";
-import { href, Link, useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
+import { login_url } from "#/helpers/login-url";
 
-type Props = { email: string };
+type Props = { email: string; to: string };
 
 export function Expired(props: Props) {
   const fetcher = useFetcher();
@@ -33,7 +34,7 @@ export function Expired(props: Props) {
       </fetcher.Form>
 
       <Link
-        to={href("/login")}
+        to={login_url(props.to)}
         className="mt-5 link max-sm:text-sm font-medium underline text-center"
       >
         Back to Sign In

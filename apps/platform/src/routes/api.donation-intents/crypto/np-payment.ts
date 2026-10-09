@@ -7,6 +7,8 @@ export interface Order {
   description: string;
   amount: number;
   usdpu: number;
+  /** nowpayments converts `price_amount` back at its own rate, so pricing at it lands on `amount` */
+  price_usdpu: number;
   currency: string;
 }
 export async function crypto_payment(
@@ -14,7 +16,7 @@ export async function crypto_payment(
   webhook_url: string
 ): Promise<Payment> {
   const invoice = await np.invoice({
-    price_amount: order.amount * order.usdpu,
+    price_amount: order.amount * order.price_usdpu,
     price_currency: "usd",
     pay_currency: order.currency,
     ipn_callback_url: webhook_url,

@@ -87,10 +87,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const seed = (
-  status: TStatus | null,
-  fields: Partial<typeof COMPLETE> = COMPLETE
-) =>
+const seed = (status: TStatus, fields: Partial<typeof COMPLETE> = COMPLETE) =>
   test_db.current!.db.insert(registrations).values({
     id: RID,
     r_id: EMAIL,
@@ -117,6 +114,9 @@ const submit = () =>
     }
   );
 
+/** the payload under remix-toast's `data()` wrapper */
+const answer = (res: unknown) => (res as { data: unknown }).data;
+
 describe("submit_action", () => {
   // an approved application sent back to review would leave the npo live while
   // the queue shows it pending. a stale tab is how it gets here, so the answer
@@ -138,7 +138,7 @@ describe("submit_action", () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
-  test.each<TStatus | null>(["01", "04", null])(
+  test.each<TStatus>(["01", "04"])(
     "sends a %s application to review",
     async (status) => {
       await seed(status);
@@ -153,6 +153,19 @@ describe("submit_action", () => {
     }
   );
 
+  // the answer is what the step-5 page counts a signup on: a rejected
+  // application sent back is the same nonprofit, not another one.
+  test.each<[TStatus, boolean]>([
+    ["01", true],
+    ["04", false],
+  ])("answers a %s submit as first: %s", async (status, first) => {
+    await seed(status);
+
+    const res = await submit();
+
+    expect(answer(res)).toEqual({ first });
+  });
+
   // both presses can read the draft before either writes; only the status check
   // in the write itself tells them apart.
   test("a double press submits once and answers both as submitted", async () => {
@@ -162,11 +175,15 @@ describe("submit_action", () => {
     vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-09-01") });
     test_db.before_update = () => vi.setSystemTime(Date.now() + 1);
 
-    const statuses = (await Promise.all([submit(), submit()])).map((r) =>
+    const answers = await Promise.all([submit(), submit()]);
+    const statuses = answers.map((r) =>
       r instanceof Response ? r.status : "ok"
     );
 
     expect(statuses).toEqual(["ok", "ok"]);
+    expect(answers.map(answer)).toEqual(
+      expect.arrayContaining([{ first: true }, { first: false }])
+    );
     expect((await reg_get(RID))?.status).toBe("02");
     // one write, so one dedupe key: qstash delivers the second as a no-op
     const keys = vi.mocked(enqueue).mock.calls.map(([m]) => m.dedupe);

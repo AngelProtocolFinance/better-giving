@@ -3,7 +3,6 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PlatformLayout } from "../components/platform-layout";
-import { DAPP_URL } from "../constants";
 import { format_amount } from "../helpers";
 import type { IDonation, IDonor } from "../types";
 
@@ -20,6 +19,8 @@ import type { IDonation, IDonor } from "../types";
  * expect on ours.
  */
 export interface IData extends IDonation {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   from: IDonor;
   /** where the donor is reachable if the verification needs matching up */
   from_email: string;
@@ -54,8 +55,8 @@ function Jsx(d: IData) {
       <KeyValue
         label="donation page"
         value={
-          <Link href={`${DAPP_URL}/donations/${d.id}`}>
-            {`${DAPP_URL}/donations/${d.id}`}
+          <Link href={`${d.base_url}/donations/${d.id}`}>
+            {`${d.base_url}/donations/${d.id}`}
           </Link>
         }
       />

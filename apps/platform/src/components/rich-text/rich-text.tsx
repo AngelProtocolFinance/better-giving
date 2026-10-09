@@ -4,6 +4,7 @@ import { PortableText } from "@portabletext/react";
 import { lazy, type Ref, Suspense, useEffect, useState } from "react";
 import { to_document } from "./helpers";
 import { pt_components } from "./pt-components";
+import { pt_value } from "./pt-value";
 import type { Props } from "./types";
 
 const Editor = lazy(() => import("./editor"));
@@ -41,7 +42,7 @@ export function RichText({
       >
         {props.readOnly ? (
           <PortableText
-            value={to_document(props.content.value)}
+            value={pt_value(to_document(props.content.value), pt_components)}
             components={pt_components}
           />
         ) : is_client ? (

@@ -10,17 +10,11 @@ const migrations = import.meta.glob("../migrations/*.sql", {
   eager: true,
 }) as Record<string, string>;
 
-export async function create_test_db() {
-  const client = new PGlite({ extensions: { pg_trgm } });
-  await client.exec("CREATE EXTENSION IF NOT EXISTS pg_trgm");
-
-  // apply all migrations in order
-  const files = Object.keys(migrations).sort();
-
+async function apply(client: PGlite, files: string[]) {
   for (const file of files) {
     const sql = migrations[file];
     // drizzle-kit uses `--> statement-breakpoint` as separator
-    for (const stmt of sql.split("--> statement-breakpoint")) {
+    for (const stmt of sql!.split("--> statement-breakpoint")) {
       const trimmed = stmt.trim();
       if (!trimmed) continue;
       try {
@@ -32,9 +26,31 @@ export async function create_test_db() {
       }
     }
   }
+}
+
+/**
+ * `stop_before` (a migration file prefix, e.g. "0042") holds back that
+ * migration and every later one until `migrate_rest()`, to apply a migration
+ * on top of rows written under the schema before it.
+ */
+export async function create_test_db(opts?: { stop_before?: string }) {
+  const client = new PGlite({ extensions: { pg_trgm } });
+  await client.exec("CREATE EXTENSION IF NOT EXISTS pg_trgm");
+
+  const files = Object.keys(migrations).sort();
+  const cut = opts?.stop_before
+    ? files.findIndex((f) => f.split("/").pop()!.startsWith(opts.stop_before!))
+    : -1;
+  if (opts?.stop_before && cut < 0) {
+    throw new Error(`no migration starts with ${opts.stop_before}`);
+  }
+  const head = cut < 0 ? files : files.slice(0, cut);
+  const rest = cut < 0 ? [] : files.slice(cut);
+
+  await apply(client, head);
 
   const db = drizzle(client, { schema });
-  return { db, client };
+  return { db, client, migrate_rest: () => apply(client, rest) };
 }
 
 export type TestDb = Awaited<ReturnType<typeof create_test_db>>;

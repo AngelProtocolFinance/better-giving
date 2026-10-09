@@ -75,6 +75,15 @@ vi.mock("#/.server/auth/draft-grant", async (orig) => {
   };
 });
 
+vi.mock("#/pages/registration/new-application", async (orig) => {
+  const actual =
+    (await orig()) as typeof import("#/pages/registration/new-application");
+  return {
+    ...actual,
+    new_application_for: vi.fn(actual.new_application_for),
+  };
+});
+
 vi.mock("$/kit/queue", () => ({
   receiver: {},
   client: {},
@@ -110,12 +119,14 @@ import { eq } from "drizzle-orm";
 import { auth_options, login_link_plugin } from "#/.server/auth/options";
 import { reset_rate_limits } from "#/.server/auth/rate-limit";
 import { reg_cookie } from "#/.server/cookie";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import { reg_loader, step_loader } from "#/pages/registration/data/step-loader";
 import {
   LEAD_PER_IP,
   LEAD_PER_USER,
 } from "#/pages/registration/lead-application";
+import { new_application_for } from "#/pages/registration/new-application";
 import { resume_application } from "#/pages/registration/resume-application";
 import { next_step } from "#/pages/registration/routes";
 import { update_action } from "#/pages/registration/update-action";
@@ -139,6 +150,8 @@ import { create_test_db } from "$/pg/test-utils/pglite";
 const BASE_URL = "http://localhost:4200";
 const TEST_SECRET = "test-secret-at-least-32-characters-long!!";
 const LEAD_EMAIL = "lead@example.org";
+const LEAD_THROTTLED =
+  "Too many submissions. Please try again in a few minutes.";
 
 // --- setup ---
 
@@ -266,14 +279,12 @@ function post_as_from(
 
 /** a verified account already owning the address */
 async function verified_account(email: string) {
-  await test_auth_ref.current.api.signUpEmail({
-    body: {
-      email,
-      password: "Test1234!@",
-      name: "Real Owner",
-      first_name: "Real",
-      last_name: "Owner",
-    },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password: "Test1234!@",
+    name: "Real Owner",
+    first_name: "Real",
+    last_name: "Owner",
   });
   await test_db
     .current!.db.update(user_table)
@@ -309,8 +320,12 @@ const grant = () => issued.at(-1)!.split(";")[0]!;
 /** a real signed-in session, cookie included. `returnHeaders` hands back a
  * bare `Headers` — a `Response`'s would have its `set-cookie` stripped here. */
 async function sign_in(email: string, password = "Test1234!@") {
-  await test_auth_ref.current.api.signUpEmail({
-    body: { email, password, name: email, first_name: "A", last_name: "B" },
+  await seed_password_user(test_auth_ref.current, {
+    email,
+    password,
+    name: email,
+    first_name: "A",
+    last_name: "B",
   });
   await test_db
     .current!.db.update(user_table)
@@ -407,7 +422,7 @@ describe("marketing lead → application", () => {
     }
 
     mock_evaluate.mockClear();
-    const over: any = await us_action({
+    const over = us_action({
       request: post_from("203.0.113.30", {
         ...US_LEAD,
         o_ein: "98-7654321",
@@ -415,10 +430,16 @@ describe("marketing lead → application", () => {
       }),
     } as any);
 
-    // visible, and deliberately the bare 400 a honeypot trip already answers
-    // with — it fires on volume, never on anything about the address, so it
-    // tells a prober nothing it did not already know
-    expect(over.status).toBe(400);
+    // visible on the form, values kept — it fires on volume, never on anything
+    // about the address, so it tells a prober nothing it did not already know
+    const res: any = await over;
+    expect(res.init.status).toBe(400);
+    expect(res.data.message).toBe(LEAD_THROTTLED);
+    expect(res.data.errors).toEqual({});
+    expect(res.data.values).toMatchObject({
+      o_ein: "98-7654321",
+      email: "over@example.org",
+    });
     // and it refuses before spending any of what it exists to protect
     expect(mock_evaluate).not.toHaveBeenCalled();
     expect(await all_regs()).toHaveLength(LEAD_PER_IP.max);
@@ -442,7 +463,7 @@ describe("marketing lead → application", () => {
     }
 
     mock_evaluate.mockClear();
-    const over: any = await us_action({
+    const over = us_action({
       request: post_as_from(cookie, "203.0.113.31", {
         ...US_LEAD,
         o_ein: "98-7654321",
@@ -450,7 +471,9 @@ describe("marketing lead → application", () => {
       }),
     } as any);
 
-    expect(over.status).toBe(400);
+    const res: any = await over;
+    expect(res.init.status).toBe(400);
+    expect(res.data.message).toBe(LEAD_THROTTLED);
     expect(mock_evaluate).not.toHaveBeenCalled();
     expect(await all_regs()).toHaveLength(LEAD_PER_USER.max);
   }, 60_000);
@@ -472,14 +495,14 @@ describe("marketing lead → application", () => {
     }
 
     // spent, for anyone anonymous behind it
-    const anon: any = await us_action({
+    const anon = us_action({
       request: post_from(ip, {
         ...US_LEAD,
         o_ein: "98-7654321",
         email: "anon@example.org",
       }),
     } as any);
-    expect(anon.status).toBe(400);
+    expect(((await anon) as any).data.message).toBe(LEAD_THROTTLED);
 
     // two colleagues in that same building, each signed in: neither inherits it
     const pairs = [
@@ -493,6 +516,18 @@ describe("marketing lead → application", () => {
       expect(res.status).toBe(302);
     }
   }, 60_000);
+
+  it("fails loudly when starting the application answers with nowhere to go, creating no account", async () => {
+    const odd = new Response(null, { status: 200 });
+    vi.mocked(new_application_for).mockResolvedValueOnce(odd);
+
+    await expect(us_action({ request: post(US_LEAD) } as any)).rejects.toBe(
+      odd
+    );
+
+    expect(await all_users()).toHaveLength(0);
+    expect(issued).toHaveLength(0);
+  }, 30_000);
 
   it("faults an EIN that is not nine digits and creates nothing", async () => {
     const res: any = await us_action({
@@ -523,21 +558,21 @@ describe("marketing lead → application", () => {
   it("creates nothing for a post carrying no org type", async () => {
     const { o_type: _, ...without } = US_LEAD;
 
-    const res: any = await us_action({ request: post(without) } as any);
+    const res = us_action({ request: post(without) } as any);
 
     // `o_type` is a hidden input no one can edit — a fault on it is malformed,
     // not correctable, and must not reach a write
-    expect(res.status).toBe(400);
+    await expect(res).rejects.toMatchObject({ status: 400 });
     expect(await all_users()).toHaveLength(0);
     expect(await all_regs()).toHaveLength(0);
   }, 30_000);
 
   it("creates nothing when the honeypot is filled", async () => {
-    const res: any = await us_action({
+    const res = us_action({
       request: post({ ...US_LEAD, middle_name: "i am a bot" }),
     } as any);
 
-    expect(res.status).toBe(400);
+    await expect(res).rejects.toMatchObject({ status: 400 });
     expect(await all_users()).toHaveLength(0);
     expect(await all_regs()).toHaveLength(0);
     // the screen never ran, so nothing was spent on it either

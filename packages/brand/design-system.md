@@ -218,11 +218,27 @@ is the brand action color. The two blues split a ground from an element: see
 | --- | --- |
 | `--background` | the page itself: `gray-1`, `#fbfcfe`. The page ground is **not** `#ffffff`, and every contrast figure in this file is measured against the real ground rather than white. `--surface` is set to this same value on purpose; see "decisions that look like bugs". Ink is `text-gray-12`; there is no `--fg` |
 | `--panel` | every container lifted off the page, in the flow or over it: panel, tile, table shell, row, and the transient layers too (menu, combobox and select list, dialog, toast). Radix files all of them under one rung and so does this. `gray-2`, one step below the page, so a panel reads by its fill *and* its `--border`; that matters because the border alone is Lc 17.4. Splitting a floating layer back out later is a grep |
-| `--surface` | the fill a form control carries: Radix's `--color-surface`. `gray-1`, so on a `--panel` it sits one step *lighter* than its container, which is the direction Radix uses and the only one available: step 1 is the lightest rung there is. On the bare page it is fill-identical and reads by its border alone. Not fields only: `.btn-secondary` and the file dropzone rest here too, for the same reason: a control is a control wherever it sits |
+| `--surface` | the fill a form control carries: Radix's `--color-surface`. `gray-1`, so on a `--panel` it sits one step *lighter* than its container, which is the direction Radix uses and the only one available: step 1 is the lightest rung there is. On the bare page it is fill-identical and reads by its border alone. Not fields only: `.btn-secondary` and the file dropzone rest here too, for the same reason: a control is a control wherever it sits. One container rests here as well: a card on a `--band`, spelled `card-on-band`; see "On a band, a container goes up" below |
 | `--overlay` | the scrim a dialog lays over the page: `gray-12` at 30%, via `color-mix()`. The token is what stops a backdrop being picked by eye. It is the whole of the `modal` level's color: that level carries no shadow, so the scrim and the stacking step are what define it; see "Elevation". **Every backdrop in the app spells it** (the sites are listed under "Dialogs carry no shadow"). `apps/docs` spells it too, in the embed playground's `<dialog>`: that page is our own docs chrome around an embedded form, not a stand-in for a customer's site. The one backdrop outside this token is `demo-nonprofit`'s, and only because that whole page impersonates a fictional nonprofit's website: a system token there would stop it demonstrating the one thing it is for |
 | `--secondary` | second-tier action, plus chips and tags. The button does **not** rest on it: `.btn-secondary` rests on `--surface` with a `--border` (it is a control, and `--surface` is the fill a control carries) and takes `--secondary` (`blue-3`) on hover and `--secondary-active` (`blue-5`) pressed. So `--secondary` is a *state* fill for the button and a *resting* fill for chips: check which one you are in before assuming its ink. Ink is `text-gray-12` |
 | `--band` | the alternating full-bleed section on the marketing pages, and the far stop of the hero's `--background` → tint gradient. `blue-2`, the ramp's page-level subtle ground: **not** a UI element, and nothing hovers it. It is a *lighter* rung than `--secondary`, so every ink figure recorded below against `blue-3` is a floor for this band, not a ceiling |
 | `--sidebar-*` (6 tokens) | the dashboard sidebar's own set, so the nav chrome can diverge from the page without touching app tokens. It currently does not: `--sidebar` is `gray-1`, equal to `--background`, and the other five alias `--primary` / `--primary-fg` / `--secondary` / `--border` / `--ring`. Its two `-fg` twins went with the rest of the neutral ink. One call site today (`bg-sidebar` in `layout/dashboard/sidebar/sidebar.tsx`) |
+
+**On a band, a container goes up.** The `--panel` rule above assumes the ground
+is the page. `--band` is `blue-2`, the *same rung* as `--panel` in another hue,
+so going down a step from it lands nowhere: a panel on a band measures
+**1.004:1**, against **1.029:1** for a panel on the page, and reads as a
+same-value patch rather than an object. On a tinted ground a container
+separates by going **up**, to `--surface` (`gray-1`): **1.033:1** on a band,
+marginally more than a panel gets on the page. That is the `card-on-band`
+utility, `card` with its fill swapped and nothing else; a card that delegates
+its inset (the blog's media-framed post card) swaps `bg-panel` for `bg-surface`
+the same way. Not `#ffffff` (1.060:1): `gray-1` is this system's white, for the
+reason given under `--background`. The hairline does not rescue a panel here
+either: `border-gray-6` is 1.36:1 on the page and only **1.318:1** on a band,
+so on the one ground where the fill contributes nothing the edge is at its
+weakest. No sweep catches a panel on a band: the band usually arrives through a
+`classes` prop, so the pairing is not visible in any one file.
 
 ## Fill or ink: the distinction that causes the most drift
 
@@ -739,7 +755,7 @@ rather than by a hand-picked number.
 | step | value | what sits here |
 | --- | --- | --- |
 | `z-subbar` | 20 | a bar pinned *beneath* a pinned header: the checklist's progress bar at `top-16` |
-| `z-sticky` | 30 | page chrome that pins: the app and marketing headers, the announcement bar |
+| `z-sticky` | 30 | page chrome that pins: the app and marketing headers (the announcement bar above them scrolls away) |
 | `z-scrim` | 40 | the `--overlay` a modal lays over the page |
 | `z-modal` | 50 | dialog, drawer, route-modal: above its own scrim |
 | `z-floating` | 60 | menu, popup, tooltip, toast: **above an open modal**, which is what retired the hand-picked value |

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const q = vi.hoisted(() => ({
   bapp_get: vi.fn(),
-  bapp_delete: vi.fn(),
+  bapp_delete_guarded: vi.fn(),
 }));
 
 vi.mock("$/pg/queries/banking", () => q);
@@ -36,17 +36,41 @@ const call = () =>
 
 beforeEach(() => {
   q.bapp_get.mockReset();
-  q.bapp_delete.mockReset();
+  q.bapp_delete_guarded.mockReset();
+  q.bapp_delete_guarded.mockResolvedValue("deleted");
 });
 
 describe("delete payout method", () => {
+  it("tells the admin a method gone after the check is not found", async () => {
+    q.bapp_get.mockResolvedValue({ id: String(BANK_ID), npo_id: OWN_NPO });
+    q.bapp_delete_guarded.mockResolvedValue("not_found");
+
+    const res = await call();
+
+    expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
+  });
+
   it("deletes a method of the member's own nonprofit", async () => {
     q.bapp_get.mockResolvedValue({ id: String(BANK_ID), npo_id: OWN_NPO });
 
     const res: Response = await call();
 
     expect(res.status).toBe(302);
-    expect(q.bapp_delete).toHaveBeenCalledWith(String(BANK_ID));
+    expect(q.bapp_delete_guarded).toHaveBeenCalledWith(
+      String(BANK_ID),
+      OWN_NPO
+    );
+  });
+
+  it("refuses the default while another method is approved", async () => {
+    q.bapp_get.mockResolvedValue({ id: String(BANK_ID), npo_id: OWN_NPO });
+    q.bapp_delete_guarded.mockResolvedValue("refused");
+
+    const res = await call();
+
+    expect(res).toEqual({
+      error: expect.stringMatching(/another payout method as default/i),
+    });
   });
 
   it("tells the admin another nonprofit's method is not found and deletes nothing", async () => {
@@ -55,7 +79,7 @@ describe("delete payout method", () => {
     const res = await call();
 
     expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
-    expect(q.bapp_delete).not.toHaveBeenCalled();
+    expect(q.bapp_delete_guarded).not.toHaveBeenCalled();
   });
 
   it("tells the admin a method that does not exist is not found", async () => {
@@ -64,6 +88,6 @@ describe("delete payout method", () => {
     const res = await call();
 
     expect(res).toEqual({ error: expect.stringMatching(/not found/i) });
-    expect(q.bapp_delete).not.toHaveBeenCalled();
+    expect(q.bapp_delete_guarded).not.toHaveBeenCalled();
   });
 });

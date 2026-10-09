@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { type HttpError, json_ok } from "@/helpers/https";
 import type { TestDb } from "$/pg/test-utils/pglite";
 import type { Ctx } from "../types";
 
@@ -29,7 +30,9 @@ vi.mock("#/errors/report", () => ({
   report_error: report_error_mock,
   report_null: () => null,
 }));
-vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert: vi.fn() } }));
+vi.mock("$/kit/discord", () => ({
+  aws_monitor: { send_alert: vi.fn(async () => new Response()) },
+}));
 vi.mock("$/kit/coingecko", () => ({ coingecko: vi.fn() }));
 vi.mock("$/pg/db", () => ({
   db: new Proxy(
@@ -45,6 +48,7 @@ vi.mock("$/pg/db", () => ({
 }));
 
 const { crypto_intent } = await import("./index");
+const { coingecko } = await import("$/kit/coingecko");
 const { loader: estimate_loader } = await import(
   "#/routes/api.tokens.$code.estimate"
 );
@@ -155,6 +159,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// what the checkout shows the donor: only a marked refusal's body; any other
+// failure's `HTTP <status>` is never for their eyes
+const shown = (res: unknown) =>
+  json_ok(res as Response).then(
+    () => "",
+    (e: HttpError) => (e.refused ? e.message : "")
+  );
+
 describe("crypto_intent", () => {
   it("a currency outside the token map is a 400 before nowpayments or the db", async () => {
     const spy = fetch_spy();
@@ -162,22 +174,89 @@ describe("crypto_intent", () => {
 
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(400);
+    expect(await shown(res)).toMatch(/isn't supported.*different currency/);
     expect(spy).not.toHaveBeenCalled();
     expect(await rows()).toHaveLength(0);
   });
 
-  it("a nowpayments invoice error answers 502, reports, and leaves no row", async () => {
-    np_server({
-      "/v1/invoice": () =>
-        new Response('{"message":"currency disabled"}', { status: 400 }),
+  // retrying a coin nowpayments refuses can never succeed
+  it.each([400, 404])(
+    "a nowpayments %i tells the donor to pick another currency, reports, and leaves no row",
+    async (status) => {
+      np_server({
+        "/v1/invoice": () =>
+          new Response('{"message":"currency disabled"}', { status }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(400);
+      const msg = await shown(res);
+      expect(msg).toMatch(/isn't available right now.*different currency/);
+      expect(msg).not.toMatch(/currency disabled/);
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
+
+  it.each([
+    ["a 5xx", () => new Response("", { status: 503 })],
+    ["a 429", () => new Response("", { status: 429 })],
+    ["a network failure", () => Promise.reject(new TypeError("fetch failed"))],
+  ])(
+    "%s from nowpayments answers 502 try-again-later, reports, and leaves no row",
+    async (_, route) => {
+      np_server({ "/v1/invoice": route });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(502);
+      // `json_ok` drops every 5xx body; the retry cue is the checkout's
+      expect(await shown(res)).toBe("");
+      expect(report_error_mock).toHaveBeenCalledOnce();
+      expect(await rows()).toHaveLength(0);
+    }
+  );
+
+  it.each([0, null])(
+    "a %s pair minimum tells the donor the currency isn't available and leaves no row",
+    async (min_amount) => {
+      const spy = np_server({
+        "/v1/min-amount": () =>
+          Response.json({ min_amount, fiat_equivalent: 0 }),
+      });
+      const res = await crypto_intent(
+        ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
+      );
+
+      expect((res as Response).status).toBe(400);
+      expect(await shown(res)).toMatch(
+        /isn't available right now.*different currency/
+      );
+      expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
+      expect(await rows()).toHaveLength(0);
+      // an enabled token nowpayments won't quote is token-list drift
+      expect(report_error_mock).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("an unusable estimate tells the donor the currency isn't available and leaves no row", async () => {
+    const spy = np_server({
+      "/v1/estimate": () =>
+        Response.json({ amount_from: 100, estimated_amount: 0 }),
     });
     const res = await crypto_intent(
       ctx({ amount: { base: 0.01, tip: 0, fee_allowance: 0 } })
     );
 
-    expect((res as Response).status).toBe(502);
-    expect(await (res as Response).text()).not.toMatch(/currency disabled/);
+    expect((res as Response).status).toBe(400);
+    expect(await shown(res)).toMatch(
+      /isn't available right now.*different currency/
+    );
     expect(report_error_mock).toHaveBeenCalledOnce();
+    expect(await bodies(spy, "/v1/invoice")).toHaveLength(0);
     expect(await rows()).toHaveLength(0);
   });
 
@@ -200,6 +279,34 @@ describe("crypto_intent", () => {
       don_id: invoice.order_id,
       body: { id: "777", address: "0xdeposit", amount: 0.01 },
     });
+  });
+
+  // priced at nowpayments' rate, its conversion back lands on the donor's 10
+  it("a USDC intent values the row at a dollar a unit and prices the invoice at nowpayments' rate", async () => {
+    const spy = np_server({
+      "/v1/min-amount": () =>
+        Response.json({ min_amount: 1, fiat_equivalent: 1.03 }),
+      "/v1/estimate": () =>
+        Response.json({ amount_from: 100, estimated_amount: 100 / 1.03 }),
+      "/v1/invoice-payment": () =>
+        Response.json({
+          payment_id: "779",
+          pay_address: "0xdeposit",
+          payin_extra_id: null,
+          pay_amount: 10,
+          pay_currency: "usdc",
+        }),
+    });
+    const res = await crypto_intent(
+      ctx({ currency: "USDC", amount: { base: 10, tip: 0, fee_allowance: 0 } })
+    );
+
+    expect(res).not.toBeInstanceOf(Response);
+    const [invoice] = await bodies(spy, "/v1/invoice");
+    expect(invoice.price_amount).toBeCloseTo(10.3, 9);
+    const [row] = await rows();
+    expect(row.upusd).toBe(1);
+    expect(res).toMatchObject({ body: { usdpu: 1 } });
   });
 
   it.each([
@@ -241,17 +348,15 @@ describe("crypto_intent", () => {
     );
 
     expect((res as Response).status).toBe(400);
-    expect(await (res as Response).text()).toMatch(
-      /below the minimum of .+ ETH/
-    );
+    expect(await shown(res)).toMatch(/below the minimum of .+ ETH/);
     expect(await rows()).toHaveLength(0);
   });
 
   it("enforces the same minimum the estimate route shows the donor", async () => {
     // pair minimum 0.001 eth ($2) is over the $1 floor, +3% = 0.00103
     np_server();
-    const shown = await estimate_loader({ params: { code: "ETH" } } as any);
-    const { min, usdpu } = await (shown as Response).json();
+    const quoted = await estimate_loader({ params: { code: "ETH" } } as any);
+    const { min, usdpu } = await (quoted as Response).json();
     expect(min).toBeCloseTo(0.00103, 9);
     expect(usdpu).toBe(ETH_USD);
 
@@ -259,10 +364,30 @@ describe("crypto_intent", () => {
       ctx({ amount: { base: min * 0.999, tip: 0, fee_allowance: 0 } })
     );
     expect((under as Response).status).toBe(400);
+    expect(await shown(under)).toMatch(/below the minimum of .+ ETH/);
 
     const at = await crypto_intent(
       ctx({ amount: { base: min, tip: 0, fee_allowance: 0 } })
     );
     expect(at).not.toBeInstanceOf(Response);
+  });
+
+  // a custom token is priced off coingecko, never nowpayments
+  it("a custom token under a dollar's worth tells the donor the minimum and leaves no row", async () => {
+    const spy = fetch_spy();
+    vi.mocked(coingecko).mockResolvedValueOnce(
+      Response.json({ "karate-combat": { usd: 0.5 } })
+    );
+    const res = await crypto_intent(
+      ctx({
+        currency: "KARATE-1",
+        amount: { base: 1, tip: 0, fee_allowance: 0 },
+      })
+    );
+
+    expect((res as Response).status).toBe(400);
+    expect(await shown(res)).toMatch(/below the minimum of 2 KARATE-1/);
+    expect(spy).not.toHaveBeenCalled();
+    expect(await rows()).toHaveLength(0);
   });
 });

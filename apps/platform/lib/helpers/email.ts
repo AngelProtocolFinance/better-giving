@@ -6,7 +6,7 @@ import {
 } from "emails";
 import type { IDonation } from "../donations/interfaces";
 import { to_pretty_utc } from "./date";
-import { rd_vdec, rd2num, usdpu, vdec } from "./decimal/utils";
+import { amount_decimals, rd_amount, rd2num } from "./decimal/utils";
 
 export const to_amount = (
   amount: number,
@@ -14,7 +14,7 @@ export const to_amount = (
   denom: string
 ): IAmount => {
   return {
-    value: +rd_vdec(amount, usdpu(amount, amount_usd)),
+    value: +rd_amount(amount, amount_usd, denom),
     currency: denom,
     value_usd: rd2num(amount_usd),
   };
@@ -31,7 +31,7 @@ const split_units = (units: number, n: number): number[] => {
  * `to_amount(amount, amount_usd, denom)` split `n` ways: the token value and
  * the usd value each split in the smallest unit it prints, so both printed
  * figures sum to what the whole prints. the usd figure is split on its own —
- * derived from a token share, it moves by a whole token quantum (0.01 btc).
+ * derived from a token share, it moves by a whole token quantum, a cent or more.
  */
 export const to_amount_shares = (
   amount: number,
@@ -40,7 +40,7 @@ export const to_amount_shares = (
   n: number
 ): IAmount[] => {
   const whole = to_amount(amount, amount_usd, denom);
-  const scale = 10 ** vdec(usdpu(amount, amount_usd));
+  const scale = 10 ** amount_decimals(amount, amount_usd, denom);
   // rounded, not truncated: a printed value scaled to its units can land a
   // hair either side of the integer (1.1 * 100 is 110.00000000000001)
   const values = split_units(Math.round(whole.value * scale), n);
@@ -65,6 +65,8 @@ export interface IReceiptCtx {
   tax_receipt_id?: string;
   /** the npo id better giving receives gifts under */
   bg_npo_id: number;
+  /** the sending environment's origin the receipt's links are built on */
+  base_url: string;
 }
 
 type TReceiptDon = Pick<
@@ -153,7 +155,7 @@ export const to_receipt = (
       amount: to_remainder(
         printed(upto),
         printed(paid),
-        10 ** vdec(usdpu(upto, upto / d.upusd))
+        10 ** amount_decimals(upto, upto / d.upusd, d.currency)
       ),
     });
     paid = upto;
@@ -170,5 +172,6 @@ export const to_receipt = (
     tax_receipt_id: ctx.tax_receipt_id,
     from: ctx.from,
     lines,
+    base_url: ctx.base_url,
   };
 };

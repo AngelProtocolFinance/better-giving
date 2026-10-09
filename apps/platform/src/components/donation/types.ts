@@ -1,7 +1,7 @@
 import { currency_precision } from "#/helpers/stripe";
 import { currency_fv, type ICurrencyFv } from "#/types/currency";
 import type { IDonorFv } from "@/donations/schema";
-import { ru_vdec, snap } from "@/helpers/decimal";
+import { ru, ru_vdec, snap } from "@/helpers/decimal";
 import type { DonateMethodId } from "@/npo";
 import {
   $int_gte1,
@@ -66,7 +66,8 @@ const ticker_raw = v.object({
   amount: amount({ required: true }),
 
   // internal
-  usdpu: v.number(),
+  // 0 until the pick's estimate lands, and a quote of 0 is no price
+  usdpu: v.pipe(v.number(), v.gtValue(0)),
   min: v.number(),
   name: v.string(),
 });
@@ -96,8 +97,8 @@ const token_raw = v.object({
   name: v.string(),
   code: v.string(),
   min: v.number(),
-  /**  usd/unit */
-  usdpu: v.number(),
+  /**  usd/unit — 0 until the pick's estimate lands, and a quote of 0 is no price */
+  usdpu: v.pipe(v.number(), v.gtValue(0)),
   logo: v.string(),
   precision: v.number(),
   network: v.string(),
@@ -237,7 +238,7 @@ export const stripe_donation_details = v.pipe(
       [["amount"], ["currency"]],
       is_min_met,
       ({ input: i }) =>
-        `minimum of ${ru_vdec(i.currency.min, 1 / i.currency.rate)} ${i.currency.code}`
+        `minimum of ${ru(i.currency.min, currency_precision(i.currency.code))} ${i.currency.code}`
     ),
     ["amount"]
   ),

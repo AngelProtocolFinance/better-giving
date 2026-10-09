@@ -1,10 +1,16 @@
 import type Stripe from "stripe";
-import { str_id } from "#/helpers/stripe";
+import { from_stripe_amount, str_id, to_atomic_c } from "#/helpers/stripe";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { rd2num } from "@/helpers/decimal";
 import type { IMetadata } from "@/stripe";
-import type { ISub, TInterval } from "@/subscriptions";
+import {
+  FIRST_PAYMENT_INCOMPLETE,
+  type ISub,
+  type TInterval,
+  type TStatus,
+} from "@/subscriptions";
+import { stripe } from "$/kit/stripe";
 import { db } from "$/pg/db";
 import { donation_get } from "$/pg/queries/donation";
 import { sub_put } from "$/pg/queries/subscription";
@@ -18,6 +24,27 @@ const INTERVALS: Record<TInterval, true> = {
 
 const is_interval = (s: Stripe.Price.Recurring.Interval): s is TInterval =>
   s in INTERVALS;
+
+/**
+ * rows are born active unless stripe has already ended the sub or its first
+ * charge hasn't landed (FIRST_PAYMENT_INCOMPLETE). the webhook reactivates only
+ * a row still carrying that marker, once paid; any other row it only moves to
+ * inactive: an inactive row whose sub is still live at stripe is a cancel that
+ * hasn't landed there yet, not a recovery.
+ * undefined leaves the status as is: past_due, incomplete, trialing and paused can still recover
+ */
+export const row_status = (
+  live: Stripe.Subscription.Status
+): TStatus | undefined => {
+  switch (live) {
+    case "unpaid":
+    case "canceled":
+    case "incomplete_expired":
+      return "inactive";
+    default:
+      return undefined;
+  }
+};
 
 /**
  * project a stripe subscription + the order it came from into our row.
@@ -45,7 +72,9 @@ export function to_sub_record(
     );
   }
 
-  const total = amnt_sum(order.amount);
+  // what each period bills: the order total at the currency's precision
+  const c = order.currency;
+  const total = from_stripe_amount(to_atomic_c(c)(amnt_sum(order.amount)), c);
   const total_usd = total / order.upusd;
 
   return {
@@ -57,22 +86,26 @@ export function to_sub_record(
     next_billing: new Date(
       sub.items.data[0].current_period_end * 1000
     ).toISOString(),
-    amount: rd2num(total, 0),
-    amount_usd: rd2num(total_usd, 0),
+    amount: total,
+    amount_usd: rd2num(total_usd, 2),
     currency: order.currency,
     product_id: str_id(p.product),
     to_npo_id: order.to_type === "npo" ? Number(order.to_id) : null,
     to_fund_id: order.to_type === "fund" ? order.to_id : null,
     to_name: order.to_name,
     platform: "stripe",
-    status: "active",
+    ...(sub.status === "incomplete"
+      ? { status: "inactive", status_cancel_reason: FIRST_PAYMENT_INCOMPLETE }
+      : { status: row_status(sub.status) ?? "active" }),
     from_id: order.from_email,
   };
 }
 
 export async function handle_subscription_created({
-  object: sub,
+  object,
 }: Stripe.CustomerSubscriptionCreatedEvent.Data) {
+  // events arrive out of order: a deleted one may already have come and gone
+  const sub = await stripe.subscriptions.retrieve(object.id);
   const { order_id } = sub.metadata as IMetadata;
 
   const order = await donation_get(order_id);

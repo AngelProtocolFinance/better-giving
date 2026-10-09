@@ -5,11 +5,13 @@ import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { MailTo } from "../components/mail-to";
 import { PublicLayout } from "../components/public-layout";
-import { DAPP_URL, EMAILS } from "../constants";
+import { EMAILS } from "../constants";
 import { format_amount } from "../helpers";
 import type { IDonation, IDonor } from "../types";
 
 export interface IData extends IDonation {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   to_id: string;
   is_recurring?: boolean;
   from?: IDonor;
@@ -29,7 +31,7 @@ function Jsx(d: IData) {
           }}
         >
           Getting too many emails?{" "}
-          <Link href={`${DAPP_URL}/dashboard/settings`}>
+          <Link href={`${d.base_url}/dashboard/settings`}>
             Manage your preferences
           </Link>
         </Text>

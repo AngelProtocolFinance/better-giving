@@ -41,8 +41,18 @@ vi.mock("$/pg/db", () => ({
 
 vi.mock("$/kit/stripe", () => ({
   stripe: {
-    paymentIntents: { retrieve: vi.fn() },
-    refunds: { create: vi.fn() },
+    // no subscription billed the payment
+    invoicePayments: { list: vi.fn(async () => ({ data: [] })) },
+    // a refund stripe accepts; the action re-reads it and lists earlier ones
+    refunds: {
+      create: vi.fn(async () => ({ id: "re_1", status: "succeeded" })),
+      retrieve: vi.fn(async () => ({ id: "re_1", status: "succeeded" })),
+      list: vi.fn(async () => ({ data: [] })),
+    },
+    // the action reads the charge amount beside the refund list
+    paymentIntents: {
+      retrieve: vi.fn(async () => ({ amount_received: 10000 })),
+    },
   },
 }));
 
@@ -256,6 +266,15 @@ describe("refunds list — settled stripe donation", () => {
     const npo = await seed_npo({ liq: 100 });
     const don_id = await seed_donation(npo.id, npo.name);
     await seed_dist(don_id, npo.id, npo.name);
+    // the payment the refund goes back through; without one the action refuses
+    await test_db.current!.db.insert(donation_settlements).values({
+      donation_id: don_id,
+      sttl_id: `pi_${don_id}`,
+      date: new Date().toISOString(),
+      currency: "USD",
+      net: 4.53,
+      fee: 0.47,
+    });
 
     await test_db.current!.db.insert(rev_logs).values({
       id: "rl-1",

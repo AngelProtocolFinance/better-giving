@@ -73,8 +73,11 @@ export function Milestone(props: Props) {
             );
           })}
         >
-          <Label className="-mb-4">Image of milestone</Label>
+          <Label htmlFor={`milestone-${props.id}-media`} className="-mb-4">
+            Image of milestone
+          </Label>
           <ImgEditor
+            id={`milestone-${props.id}-media`}
             ref={media.ref}
             value={media.value}
             on_change={(v) => {

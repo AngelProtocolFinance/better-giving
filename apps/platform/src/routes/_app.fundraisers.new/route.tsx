@@ -162,10 +162,11 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           />
         )}
 
-        <Label className="mt-6 mb-2 label" required>
+        <Label htmlFor="fund-banner" className="mt-6 mb-2 label" required>
           Banner
         </Label>
         <ImgEditor
+          id="fund-banner"
           ref={banner.ref}
           value={banner.value}
           spec={img_spec([4, 1])}
@@ -184,10 +185,11 @@ export default function Page({ loaderData: endow }: Route.ComponentProps) {
           error={errors.banner?.message}
         />
 
-        <Label className="mt-6 mb-2 label" required>
+        <Label htmlFor="fund-logo" className="mt-6 mb-2 label" required>
           Logo
         </Label>
         <ImgEditor
+          id="fund-logo"
           ref={logo.ref}
           value={logo.value}
           on_change={(v) => {

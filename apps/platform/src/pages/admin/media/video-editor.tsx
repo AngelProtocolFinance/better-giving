@@ -14,6 +14,7 @@ export default function Page() {
   const [sp] = useSearchParams();
   const params = useParams();
   const navigate = useNavigate();
+  const nav = useNavigation();
 
   return (
     <Modal
@@ -22,6 +23,7 @@ export default function Page() {
         navigate("..", { preventScrollReset: true, replace: true })
       }
       classes="grid bg-panel"
+      busy={nav.state !== "idle"}
     >
       <Content
         action={params.media_id ? "edit" : "add"}
@@ -38,6 +40,11 @@ interface IProps {
 
 function Content(props: IProps) {
   const nav = useNavigation();
+  const busy = nav.state !== "idle";
+  // aria-disabled only blocks the pointer; Enter on a focused link still navigates
+  const hold = (e: { preventDefault(): void }) => {
+    if (busy) e.preventDefault();
+  };
   const {
     handleSubmit,
     register,
@@ -49,17 +56,19 @@ function Content(props: IProps) {
   return (
     <RmxForm
       method="POST"
-      disabled={nav.state !== "idle"}
+      disabled={busy}
+      busy={nav.state === "submitting"}
       onSubmit={handleSubmit}
     >
       <div className="relative">
-        <p className="text-xl capitalize font-bold text-center border-b bg-gray-3 p-5">
+        <h2 className="text-xl capitalize font-bold text-center border-b bg-gray-3 p-5">
           {props.action} video
-        </p>
+        </h2>
         <Link
           to=".."
           aria-label="Close"
-          aria-disabled={nav.state !== "idle"}
+          aria-disabled={busy}
+          onClick={hold}
           className="border p-2 rounded absolute top-1/2 right-4 transform -translate-y-1/2 aria-disabled:text-gray-11"
         >
           <X className="icon-2xl" />
@@ -76,7 +85,12 @@ function Content(props: IProps) {
       </div>
 
       <Actions band classes="mt-4">
-        <Link to=".." className="btn-secondary btn">
+        <Link
+          to=".."
+          aria-disabled={busy}
+          onClick={hold}
+          className="btn-secondary btn"
+        >
           Cancel
         </Link>
         <button disabled={!isDirty} type="submit" className="btn btn-primary">

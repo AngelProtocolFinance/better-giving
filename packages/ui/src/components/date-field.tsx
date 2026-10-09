@@ -3,7 +3,7 @@ import {
   type DateInputDateValue as DateValue,
 } from "@ark-ui/react/date-input";
 import { parseDate } from "@ark-ui/react/date-picker";
-import { useSyncExternalStore } from "react";
+import { useViewerToday } from "./use-viewer-today";
 
 interface IDateField {
   value: string;
@@ -19,24 +19,6 @@ interface IDateField {
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const to_dv = (s: string) => (ISO.test(s) ? [parseDate(s)] : []);
-const utc_today = () => new Date().toISOString().slice(0, 10);
-const local_today = () => {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-};
-// UTC−12's date: the earliest date that is still today somewhere, so a server
-// render (no viewer zone) never clamps a date that is valid for the viewer.
-const earliest_today = () =>
-  new Date(Date.now() - 12 * 3_600_000).toISOString().slice(0, 10);
-const no_subscribe = () => () => {};
-
-/** the viewer's local date once hydrated; UTC−12's date on the server. */
-function useViewerToday() {
-  return useSyncExternalStore(no_subscribe, local_today, earliest_today);
-}
-
 export function DateField({
   value,
   onChange,
@@ -48,13 +30,14 @@ export function DateField({
   required,
   classes = "",
 }: IDateField) {
-  const viewer_today = useViewerToday();
+  const min_today = useViewerToday("min");
+  const max_today = useViewerToday("max");
   return (
     <DateInput.Root
       selectionMode="single"
       value={to_dv(value)}
-      min={minToday ? parseDate(viewer_today) : undefined}
-      max={maxToday ? parseDate(utc_today()) : undefined}
+      min={minToday ? parseDate(min_today) : undefined}
+      max={maxToday ? parseDate(max_today) : undefined}
       onValueChange={({ value }) => onChange(value[0]?.toString() ?? "")}
       className={classes}
     >

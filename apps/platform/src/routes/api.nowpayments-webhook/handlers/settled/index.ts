@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   calc_donation_settle,
   type IDonation,
@@ -5,6 +6,7 @@ import {
   settle_msgs,
 } from "@/donations";
 import type { NP } from "@/nowpayments/types";
+import { usdpu_of } from "@/nowpayments/usdpu";
 import { nowpayments } from "$/env";
 import { np } from "$/kit/nowpayments";
 import { enqueue } from "$/kit/queue";
@@ -17,8 +19,10 @@ import {
   type SettleState,
   settle_state_of,
 } from "$/pg/queries/donation";
-import { alert_all } from "../alert";
-import { paid_amount, to_settlement } from "../payment";
+import type { DbOrTx } from "$/pg/queries/helpers";
+import { donations } from "$/pg/schema/donation";
+import { alert, alert_all } from "../alert";
+import { paid_amount, ref_of, to_settlement } from "../payment";
 import { settle_rates } from "../rates";
 import { transition } from "../status";
 
@@ -32,6 +36,15 @@ export type SettleOutcome =
   | { op: "ignored"; id: string; why: string };
 
 const ORDER = { repeat: false };
+
+/** run after the row lock is taken, so a hold that committed first is seen */
+const is_held = async (tx: DbOrTx, id: string): Promise<boolean> => {
+  const [row] = await tx
+    .select({ held_at: donations.held_at })
+    .from(donations)
+    .where(eq(donations.id, id));
+  return row?.held_at != null;
+};
 
 type Blocked = Exclude<SettleOutcome, { op: "settled" }>;
 
@@ -81,6 +94,27 @@ const requeue = async (row: IDonation | undefined) => {
   await enqueue(...msgs);
 };
 
+/**
+ * the pay coin's live rate, else the intent's: a coin toggled off after the
+ * donor paid answers 4xx on every redelivery, and holding the settle for a
+ * rate would leave arrived funds unsettled once redelivery gives up
+ */
+const settle_upusd = async (
+  payment: NP.PaymentPayload,
+  prior: IDonation
+): Promise<number> => {
+  try {
+    return 1 / (await usdpu_of(np, payment.pay_currency));
+  } catch (err) {
+    await alert({
+      title: "Settled at the intent's rate",
+      type: "ERROR",
+      body: `${ref_of(payment)} upusd:${prior.upusd} estimate: ${err instanceof Error ? err.message : String(err)}`,
+    });
+    return prior.upusd;
+  }
+};
+
 export const handle_settled = async (
   payment: NP.PaymentPayload,
   prior: IDonation
@@ -94,15 +128,13 @@ export const handle_settled = async (
   const sttl = to_settlement(payment, rates, new Date().toISOString());
   await alert_all(sttl.warnings);
 
-  // an underpayment is accepted as a donation of what arrived
-  const paid: IDonationUpdate =
-    payment.payment_status === "partially_paid"
-      ? {
-          amount: paid_amount(payment, prior, nowpayments.is_sandbox),
-          currency: prior.currency,
-          upusd: 1 / (await np.estimate(payment.pay_currency)).usdpu,
-        }
-      : {};
+  // what arrived, not the quote or an earlier confirming's figure — an
+  // underpayment is accepted as a donation of it too
+  const paid: IDonationUpdate = {
+    amount: paid_amount(payment, prior, nowpayments.is_sandbox),
+    currency: prior.currency,
+    upusd: await settle_upusd(payment, prior),
+  };
 
   const result = calc_donation_settle({
     kind: "one-time",
@@ -120,6 +152,13 @@ export const handle_settled = async (
   const locked = await db.transaction(async (tx) => {
     const state = await donation_settle_state_locked(tx, result.order_id);
     if (!state) throw new Error(`donation ${result.order_id} not found`);
+    // the caller's unlocked read saw no hold; a wrong-asset ipn may have marked one since
+    if (await is_held(tx, result.order_id)) {
+      return {
+        now: { op: "ignored", id: result.order_id, why: "held" } as const,
+        row: undefined,
+      };
+    }
     const now = settle_blocked(result.order_id, state, payment);
     if (now.op === "duplicate") {
       const row = await donation_by_sttl_id(payment.payment_id.toString(), tx);

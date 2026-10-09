@@ -33,7 +33,7 @@ beforeEach(async () => {
   await test_db.db.delete(registrations);
 });
 
-const seed = (status: TStatus | null) =>
+const seed = (status: TStatus) =>
   test_db.db.insert(registrations).values({
     id: "r-1",
     r_id: "jane@test.com",
@@ -120,27 +120,5 @@ describe("reg_update_from", () => {
 
     expect(res).toMatchObject({ won: true, row: { status: "01" } });
     expect((await row()).status).toBe("01");
-  });
-
-  test("writes a legacy row with no status when null is in from", async () => {
-    await seed(null);
-
-    const res = await reg_update_from(as_db(test_db.db), "r-1", EDITABLE, {
-      status: "01",
-    });
-
-    expect(res).toMatchObject({ won: true, row: { status: "01" } });
-    expect((await row()).status).toBe("01");
-  });
-
-  test("leaves a row with no status untouched when null is not in from", async () => {
-    await seed(null);
-
-    const res = await reg_update_from(as_db(test_db.db), "r-1", ["01"], {
-      status: "02",
-    });
-
-    expect(res.won).toBe(false);
-    expect((await row()).status).toBeNull();
   });
 });

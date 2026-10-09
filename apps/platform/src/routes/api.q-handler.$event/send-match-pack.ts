@@ -8,6 +8,7 @@ import { to_pretty_utc } from "@/helpers/date";
 import { to_amount } from "@/helpers/email";
 import { from_full } from "@/helpers/name";
 import { send_email } from "$/email";
+import { base_url } from "$/env";
 
 /**
  * the filing pack — what a donor copies into their employer's matching-gift
@@ -32,7 +33,12 @@ export async function send_match_pack(d: IDonation, employer_name: string) {
     full_name: d.from_name || "Valued Donor",
   };
 
-  const data: donation_match_pack.IData = { ...don, from, employer_name };
+  const data: donation_match_pack.IData = {
+    ...don,
+    from,
+    employer_name,
+    base_url,
+  };
   const { node, subject } = donation_match_pack.template(data);
   const res = await send_email({ node, subject, to: [d.from_email] });
 

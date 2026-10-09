@@ -45,10 +45,11 @@ const failed = (
     object: { id: "pi_1", metadata, last_payment_error: err },
   }) as any;
 
-const subs_invoice = (metadata: Record<string, string>) => ({
+const subs_invoice = (metadata: Record<string, string>, attempt_count = 1) => ({
   data: [
     {
       invoice: {
+        attempt_count,
         deleted: false,
         parent: { subscription_details: { metadata } },
       },
@@ -122,6 +123,34 @@ describe("stripe payment_intent.payment_failed → donor email", () => {
     );
 
     expect(donation_get_mock).not.toHaveBeenCalled();
+    expect(send_email_mock).not.toHaveBeenCalled();
+  });
+
+  // an off-session subscription charge has no form open to show it
+  it("tells the donor when a card declines a subscription charge", async () => {
+    invoice_payments_list_mock.mockResolvedValue(
+      subs_invoice({ order_id: ORDER_ID })
+    );
+
+    await handle_intent_failed(
+      failed({}, { type: "card_error", message: "Your card was declined." })
+    );
+
+    expect(send_email_mock).toHaveBeenCalledOnce();
+    const d = template_mock.mock.calls[0]![0] as any;
+    expect(d.error_message).toContain("Your card was declined.");
+  });
+
+  // stripe retries a failed invoice and each attempt fails its own intent
+  it("mails once per failed invoice, not on each retry of it", async () => {
+    invoice_payments_list_mock.mockResolvedValue(
+      subs_invoice({ order_id: ORDER_ID }, 2)
+    );
+
+    await handle_intent_failed(
+      failed({}, { type: "card_error", message: "Your card was declined." })
+    );
+
     expect(send_email_mock).not.toHaveBeenCalled();
   });
 

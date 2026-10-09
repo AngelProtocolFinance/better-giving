@@ -5,7 +5,7 @@ import { Hr } from "../components/hr";
 import { KeyValue } from "../components/key-value";
 import { Link } from "../components/link";
 import { PublicLayout } from "../components/public-layout";
-import { APP_NAME, DAPP_URL, EMAILS } from "../constants";
+import { APP_NAME, EMAILS } from "../constants";
 import { format_amount } from "../helpers";
 import type { IDonation, IDonor } from "../types";
 
@@ -21,6 +21,8 @@ import type { IDonation, IDonor } from "../types";
  * employer sentence below stays conditional by construction.
  */
 export interface IData extends IDonation {
+  /** the sending environment's origin, no trailing slash; every app link is built on it */
+  base_url: string;
   from: IDonor;
   /** the donor's own input, echoed back — never treated as a known employer */
   employer_name: string;
@@ -68,7 +70,9 @@ function Jsx(d: IData) {
       <KeyValue
         label="Receipt"
         value={
-          <Link href={`${DAPP_URL}/donations/${d.id}`}>view your donation</Link>
+          <Link href={`${d.base_url}/donations/${d.id}`}>
+            view your donation
+          </Link>
         }
       />
       {/* the beneficiary is named alongside us on purpose: a donor who thinks
@@ -113,7 +117,7 @@ function Jsx(d: IData) {
           employers verify with the charity, they don't report back to us */}
       <Text style={{ marginTop: 20 }}>
         Once you've filed it,{" "}
-        <Link href={`${DAPP_URL}/donations/${d.id}`}>
+        <Link href={`${d.base_url}/donations/${d.id}`}>
           let us know on your donation page
         </Link>
         . Then we'll know to expect your employer's verification request and can

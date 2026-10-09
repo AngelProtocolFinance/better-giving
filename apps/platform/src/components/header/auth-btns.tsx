@@ -1,4 +1,5 @@
 import { href, Link } from "react-router";
+import { login_url } from "#/helpers/login-url";
 
 interface Props {
   classes?: string;
@@ -7,10 +8,7 @@ interface Props {
 export function AuthBtns({ classes = "", to }: Props) {
   return (
     <div className={`${classes} flex items-center gap-x-4`}>
-      <Link
-        to={`${href("/login")}?redirect=${encodeURIComponent(to)}`}
-        className="btn btn-secondary text-nowrap"
-      >
+      <Link to={login_url(to)} className="btn btn-secondary text-nowrap">
         Log In
       </Link>
       <Link

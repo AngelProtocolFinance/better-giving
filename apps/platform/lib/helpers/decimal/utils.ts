@@ -24,14 +24,20 @@ function fmt(
  * 9.709999999999999 and 1.005 * 100 is 100.49999999999999 */
 export const snap = (num: number): number => +num.toPrecision(15);
 
-/** `num` as a whole count of 10^-precision units, rounded half up, or up */
+/** `num` as a whole count of 10^-precision units, rounded half up, half down, or up */
 export function to_units(
   num: number,
   precision: number,
-  mode: "half_up" | "up" = "half_up"
+  mode: "half_up" | "half_down" | "up" = "half_up"
 ): number {
   const scaled = snap(num * 10 ** precision);
-  return mode === "up" ? Math.ceil(scaled) : Math.round(scaled);
+  if (mode === "up") return Math.ceil(scaled);
+  if (mode === "half_down") {
+    const r = Math.ceil(scaled - 0.5);
+    // ceil(-0.5) is -0, which formats as "-0"
+    return r === 0 ? 0 : r;
+  }
+  return Math.round(scaled);
 }
 
 /** round down
@@ -39,6 +45,11 @@ export function to_units(
  */
 export function rd(num: number | string, precision = 2): string {
   return fmt(num, precision, "trunc");
+}
+
+/** round up, from the snapped value so float drift (0.07 * 100) can't add a unit */
+export function ru(num: number | string, precision: number): string {
+  return fmt(snap(+num), precision, "expand");
 }
 
 /** round down to num
@@ -101,6 +112,51 @@ export function rd_vdec(
   max_decimals = 2
 ) {
   return fmt(amount, vdec(usd_per_unit, max_decimals), "trunc");
+}
+
+/** iso 4217 codes; `Intl.NumberFormat` alone can't tell fiat from crypto, as
+ * it formats any well-formed 3-letter code (BTC) at 2 decimals */
+let fiats: Set<string> | undefined;
+const is_fiat = (currency: string) => {
+  fiats ??= new Set(Intl.supportedValuesOf("currency"));
+  return fiats.has(currency.toUpperCase());
+};
+
+/** decimals `amount` of `currency` prints: fiat its iso 4217 minor units,
+ * crypto as many as its usd magnitude gives a cent's worth of the token */
+export function amount_decimals(
+  amount: number,
+  amount_usd: number,
+  currency: string
+): number {
+  if (is_fiat(currency)) {
+    // always resolved for `style: "currency"`; the lib types it optional
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+    }).resolvedOptions().maximumFractionDigits!;
+  }
+  return vdec(usdpu(amount, amount_usd), Number.POSITIVE_INFINITY);
+}
+
+/** `amount` of `currency` rounded down at its `amount_decimals` */
+export function rd_amount(
+  amount: number,
+  amount_usd: number,
+  currency: string
+): string {
+  const d = amount_decimals(amount, amount_usd, currency);
+  return fmt(snap(amount), d, "trunc");
+}
+
+/** `amount` of `currency` rounded up at its `amount_decimals` */
+export function ru_amount(
+  amount: number,
+  amount_usd: number,
+  currency: string
+): string {
+  const d = amount_decimals(amount, amount_usd, currency);
+  return fmt(snap(amount), d, "expand");
 }
 
 function shorten(num: number): [number, string] {

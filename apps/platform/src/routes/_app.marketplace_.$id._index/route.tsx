@@ -25,7 +25,15 @@ export default function Page() {
           />
         </Container>
         <Suspense fallback={<ContentLoader className="h-40" />}>
-          <Await resolve={programs}>
+          <Await
+            resolve={programs}
+            errorElement={
+              <p className="px-8 text-sm text-gray-11">
+                We couldn't load this nonprofit's programs right now. Please try
+                again later.
+              </p>
+            }
+          >
             {(p) =>
               p.length > 0 ? (
                 <Container title="Programs">
@@ -37,7 +45,15 @@ export default function Page() {
         </Suspense>
 
         <Suspense fallback={<ContentLoader className="h-40" />}>
-          <Await resolve={media}>
+          <Await
+            resolve={media}
+            errorElement={
+              <p className="px-8 text-sm text-gray-11">
+                We couldn't load this nonprofit's videos right now. Please try
+                again later.
+              </p>
+            }
+          >
             {(m) =>
               m.length > 0 ? (
                 <Container title="Media">
@@ -65,7 +81,15 @@ export default function Page() {
         classes="self-start lg:sticky lg:top-22"
         fundraisers={
           <Suspense fallback={<ContentLoader className="h-40 mt-4" />}>
-            <Await resolve={funds}>
+            <Await
+              resolve={funds}
+              errorElement={
+                <p className="mt-4 px-8 text-sm text-gray-11">
+                  We couldn't load this nonprofit's fundraisers right now.
+                  Please try again later.
+                </p>
+              }
+            >
               {(f) =>
                 f.length > 0 ? <Fundraisers classes="mt-4" funds={f} /> : null
               }

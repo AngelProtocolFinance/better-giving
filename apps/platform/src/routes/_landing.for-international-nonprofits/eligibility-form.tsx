@@ -2,6 +2,7 @@ import { ExtLink, Honeypot, LoadText, RmxForm } from "@better-giving/ui";
 import { useEffect, useRef, useState } from "react";
 import { CountryCombo } from "#/components/country-combo";
 import { BOOK_A_DEMO } from "#/constants/urls";
+import { FormNotice } from "#/pages/@sections/form-notice";
 import { SignedInNotice } from "#/pages/@sections/signed-in-notice";
 import type { ILeadValues } from "@/reg/lead";
 
@@ -31,6 +32,8 @@ interface IEligibilityForm {
   values?: ILeadValues;
   /** the address the browser is signed in as, when it isn't the one posted */
   signed_in_as?: string;
+  /** a form-level refusal no field owns, e.g. over the submission quota */
+  message?: string;
   pending?: boolean;
 }
 
@@ -39,6 +42,7 @@ export function EligibilityForm({
   errors,
   values,
   signed_in_as,
+  message,
   pending,
 }: IEligibilityForm) {
   // seeded, not synced: the client keeps this state across the POST because the
@@ -54,6 +58,7 @@ export function EligibilityForm({
     email: null,
   });
   const notice_ref = useRef<HTMLDivElement>(null);
+  const message_ref = useRef<HTMLDivElement>(null);
 
   // a refused submit re-renders with focus wherever the round trip left it —
   // usually the button, several fields below whatever has to change. one move
@@ -63,10 +68,14 @@ export function EligibilityForm({
       notice_ref.current?.focus();
       return;
     }
+    if (message) {
+      message_ref.current?.focus();
+      return;
+    }
     if (!errors) return;
     const first = fields.find(([k]) => errors[k])?.[0];
     if (first) refs.current[first]?.focus();
-  }, [errors, signed_in_as]);
+  }, [errors, signed_in_as, message]);
 
   return (
     <div className={`${classes} card`}>
@@ -191,6 +200,8 @@ export function EligibilityForm({
             {errors?.email}
           </p>
         </div>
+
+        {message && <FormNotice ref={message_ref}>{message}</FormNotice>}
 
         {/* the hero carries no primary link — this is the page's only
             one, so it takes the hero's words */}

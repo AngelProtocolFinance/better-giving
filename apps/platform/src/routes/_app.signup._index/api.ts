@@ -4,6 +4,7 @@ import { getValidatedFormData } from "remix-hook-form";
 import { auth, create_unverified_user, get_session } from "#/.server/auth";
 import { check_email_url, request_login_link } from "#/.server/auth/login-link";
 import { report_undefined } from "#/errors/report";
+import { login_url } from "#/helpers/login-url";
 import type { IFormInvalid } from "#/types/action";
 import { type ISignUp, sign_up } from "#/types/auth";
 import { resp } from "@/helpers/https";
@@ -23,7 +24,12 @@ export const action: ActionFunction = async ({ request }) => {
 
   if (fv.get("intent") === "oauth") {
     const res = await auth.api.signInSocial({
-      body: { provider: "google", callbackURL: redirect_to },
+      body: {
+        provider: "google",
+        callbackURL: redirect_to,
+        // better-auth appends `error`, which the login page explains
+        errorCallbackURL: login_url(redirect_to),
+      },
       headers: request.headers,
       asResponse: true,
     });
@@ -45,8 +51,8 @@ export const action: ActionFunction = async ({ request }) => {
   // honeypot validation - reject if the honeypot field is filled
   if (p.data.middle_name && p.data.middle_name !== "") {
     console.warn("Honeypot triggered - potential bot submission detected");
-    // return a generic error to avoid revealing the honeypot
-    return resp.status(400);
+    // a bare 400 rather than a field message, to avoid revealing the honeypot
+    throw resp.status(400);
   }
 
   const evl = await evaluate({

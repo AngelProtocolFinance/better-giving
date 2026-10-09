@@ -74,7 +74,7 @@ Schema files: `.server/pg/schema/` (drizzle). Read the relevant file for column 
 ### Env var conventions (migrations)
 
 - **`DATABASE_URL`** → the target for that env file. runtime + `psql` + backfills.
-- **`DATABASE_URL_UNPOOLED`** → unpooled connection read by `drizzle.config.ts` (drizzle-kit needs a non-pooled URL for DDL). Present in `.env` and `.env.staging`; **absent from `.env.production`** — running drizzle-kit against prod from a laptop has no configured URL, which is deliberate: prod DDL goes through the deploy, not by hand.
+- **`DATABASE_URL_UNPOOLED`** → unpooled connection read by `drizzle.config.ts` (drizzle-kit needs a non-pooled URL for DDL). Present in `.env` and `.env.staging`; **absent from `.env.production`** — running drizzle-kit against prod from a laptop has no configured URL, which is deliberate: prod DDL goes through the release `migrate` job, not by hand.
 - **Prod is `.env.production`'s own `DATABASE_URL`.** No variable inside another env file names prod, so a script cannot detect its own target — a guard written that way passes silently and runs. There is no `--env` flag on any runner here (bun/node take `--env-file`, drizzle-kit takes `--config`). Name the file at the call site — that act is the acknowledgement:
 
   ```bash
@@ -85,10 +85,10 @@ Schema files: `.server/pg/schema/` (drizzle). Read the relevant file for column 
 
 ### How migrations actually reach each env
 
-`package.json` runs `postbuild: drizzle-kit migrate`, so **every Vercel build applies pending migrations to whatever `DATABASE_URL_UNPOOLED` that environment holds**:
+Every run goes through `pnpm --filter platform migrate` (`.server/pg/migrate.ts`): the migration guard, then drizzle-orm's migrator in-process under a postgres advisory lock held on the same session, so concurrent runs against one database apply one at a time and a killed run frees the lock and rolls back together. It refuses a `-pooler` or unparseable `DATABASE_URL_UNPOOLED`. A run waits at most 10min for another run's lock, then exits 1 naming the holder's pid (`pg_stat_activity` / `pg_terminate_backend` it if that session is dead). Each DDL statement waits at most 5s for its table lock — the previous deployment is serving — and the whole run rolls back and retries, 4 tries in all; a table still locked after that fails the run with `lock timeout` in the log: find the long transaction on that table, not a migration bug.
 
-- push to `staging` → staging deploy migrates the dev/staging branch
-- merge to `main` → prod deploy migrates prod
+- push to `staging` / preview → the Vercel build's `postbuild` migrates whatever `DATABASE_URL_UNPOOLED` that environment holds (the dev/staging branch)
+- land on `main` → the production **build does not migrate** (its `postbuild` only runs the guard); `.github/workflows/smoke.yml`'s `migrate` job migrates prod once `checks`/`test` pass for that commit, and `smoke (production)` reports only after it
 
 Locally, `drizzle-kit generate` produces the committed artifact; `drizzle-kit push` is for fast dev iteration only. Always `generate` so the journal and the artifact CI applies stay in sync.
 
@@ -96,17 +96,17 @@ Locally, `drizzle-kit generate` produces the committed artifact; `drizzle-kit pu
 
 1. **column addition** — add new nullable column only (no FK, no rename, no drop). edit schema → `drizzle-kit push` (against `.env` = neon dev) → `drizzle-kit generate` (migration artifact) → commit to CI
 2. **data migration / backfill** — backfill new column from old, clean orphan rows. run against dev first, then prod by passing `.env.production`'s `DATABASE_URL` inline (see the env var conventions above)
-3. **code changes + schema enforcement** — rename refs in codebase, add FK constraints, drop old column. **phase 2's backfill must have run against prod before this migration merges** — `postbuild: drizzle-kit migrate` applies every pending migration in one deploy, so a `SET NOT NULL` that ships alongside its own `ADD COLUMN` fails on unbackfilled rows and takes the deploy with it. verify on neon dev + preview CI, then merge
+3. **code changes + schema enforcement** — rename refs in codebase, add FK constraints, drop old column. **phase 2's backfill must have run against prod before this migration merges** — the release `migrate` job applies every pending migration in one run, so a `SET NOT NULL` that ships alongside its own `ADD COLUMN` fails on unbackfilled rows, the job goes red, and the commit never reaches production — while `smoke (production)` is a required check in the Vercel dashboard, which the repo can't show. verify on neon dev + preview CI, then merge
 
 ### Notes
 
 - dev uses `drizzle-kit push` (not migrate) — but migration journal must stay in sync; always also run `drizzle-kit generate` to produce the artifact CI will apply to prod
-- `push` applies DDL without a journal entry, and dev and staging are one branch — so a pushed change leaves the shared branch ahead of the journal, and the next staging deploy's `postbuild` re-applies it
-- drizzle-kit auto-loads `.env`, so a bare `pnpm exec drizzle-kit migrate` targets dev. to target another file, pass the value inline:
+- `push` applies DDL without a journal entry, and dev and staging are one branch — so a pushed change leaves the shared branch ahead of the journal, and the next staging deploy's `postbuild` migrate re-applies it
+- `pnpm --filter platform migrate` loads `.env`, so a bare run targets dev. to target another file, pass the value inline (an inline value wins over `.env`). never a bare `pnpm exec drizzle-kit migrate` — it skips the guard and the lock and races any build migrating the same branch:
   ```bash
-  DATABASE_URL_UNPOOLED="$(grep -m1 '^DATABASE_URL_UNPOOLED=' .env.staging | cut -d= -f2- | tr -d '"')" pnpm exec drizzle-kit migrate
+  DATABASE_URL_UNPOOLED="$(grep -m1 '^DATABASE_URL_UNPOOLED=' .env.staging | cut -d= -f2- | tr -d '"')" pnpm migrate
   ```
-- if the migration runner fails silently, run the `.sql` file directly via `psql -f` to see the actual error
+- the runner logs the failing statement and its postgres error. to dig further, `psql -f` the `.sql` against a throwaway neon branch, to read the error only — against a shared branch it bypasses the lock and the journal, and the next run re-applies it
 - **data migrations**: run against neon dev first to catch constraint violations (e.g. check constraints on rows with null new-columns)
 
 ## Rules

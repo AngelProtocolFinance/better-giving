@@ -32,8 +32,13 @@ export function PublicLayout() {
     // page box when printing, so the `100dvh` minimum would reserve a full
     // sheet for the outlet whatever it contains — a page of white before the
     // content on anything printed from these routes.
+    // the header pins: a sticky grid item is bounded by the grid container, not
+    // its 4rem track, so it rides the whole page. `scroll-pt-16` is that 4rem,
+    // set on the scroller (<html>) while this shell is mounted, so a `#id` jump
+    // lands below the pinned header instead of under it. the banner scrolls
+    // away and needs no padding.
     <div
-      className={`grid grid-cols-[minmax(0,1fr)] print:block ${
+      className={`grid grid-cols-[minmax(0,1fr)] [html:has(&)]:scroll-pt-16 print:block ${
         banner
           ? "grid-rows-[auto_4rem_minmax(calc(100dvh-4rem),1fr)_auto]"
           : "grid-rows-[4rem_minmax(calc(100dvh-4rem),1fr)_auto]"

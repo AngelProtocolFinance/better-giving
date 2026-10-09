@@ -23,8 +23,6 @@ if (dsn && stage === "production") {
     environment: stage,
     sendDefaultPii: false,
     tracesSampleRate: 0,
-    // the two listeners below are the only sink, so report.ts classifies
-    // every capture. `client_integrations` says why the callback form.
     integrations: client_integrations,
   });
 

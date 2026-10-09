@@ -7,10 +7,10 @@ import {
 } from "#/components/donation";
 import type { IWidgetSearchObj } from "#/types/widget";
 import type { IIncrement } from "@/schemas";
-import type { INpo } from "$/pg/queries/npo";
+import type { INpoPublic } from "$/pg/queries/npo";
 
 type Props = {
-  npo: INpo;
+  npo: INpoPublic;
   config: IWidgetSearchObj;
   program: IProgram | undefined;
   user: IUser | undefined;

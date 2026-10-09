@@ -43,8 +43,11 @@ function Page({ loaderData: data }: Route.ComponentProps) {
     >
       <h2 className="text-3xl mb-6">User Profile</h2>
 
-      <Label className="mb-2">Avatar</Label>
+      <Label htmlFor="user-avatar" className="mb-2">
+        Avatar
+      </Label>
       <ImgEditor
+        id="user-avatar"
         ref={rhf.avatar_url.ref}
         spec={avatar_spec}
         value={rhf.avatar_url.value}

@@ -1,24 +1,60 @@
-import type { ActionFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import * as v from "valibot";
 import { admin_ctx } from "#/.server/auth";
 import { dataWithError, redirectWithSuccess } from "#/.server/toast";
 import { resp } from "@/helpers/https";
 import { $int_gte1 } from "@/schemas";
-import { bapp_delete, bapp_get } from "$/pg/queries/banking";
+import {
+  bapp_delete_guarded,
+  bapp_get,
+  bapps_by_status,
+} from "$/pg/queries/banking";
 
-export const delete_action = async (
-  x: Pick<ActionFunctionArgs, "params" | "context">
-) => {
-  const p_del = v.safeParse($int_gte1, x.params.bank_id);
-  if (p_del.issues) return resp.status(400, p_del.issues[0].message);
-  const bank_id = p_del.output;
+type TArgs = Pick<
+  LoaderFunctionArgs | ActionFunctionArgs,
+  "params" | "context"
+>;
+
+const own_bapp = async (x: TArgs) => {
+  const p = v.safeParse($int_gte1, x.params.bank_id);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const npo_id = x.context.get(admin_ctx);
+  const ba = await bapp_get(p.output.toString());
+  return ba && ba.npo_id === npo_id ? ba : undefined;
+};
 
-  const ba = await bapp_get(bank_id.toString());
-  if (!ba || ba.npo_id !== npo_id) {
+/** the default can't go while another approved method could take its place */
+const is_guarded_default = async (ba: { status: string; npo_id: number }) => {
+  if (ba.status !== "default") return false;
+  const heirs = await bapps_by_status("approved", {
+    npo_id: ba.npo_id,
+    limit: 1,
+  });
+  return heirs.items.length > 0;
+};
+
+export const delete_loader = async (x: TArgs) => {
+  const ba = await own_bapp(x);
+  if (!ba) throw resp.status(404);
+  return {
+    is_default: ba.status === "default",
+    is_guarded: await is_guarded_default(ba),
+  };
+};
+
+export const delete_action = async (x: TArgs) => {
+  const ba = await own_bapp(x);
+  if (!ba) return dataWithError(null, "Payout method not found");
+
+  const result = await bapp_delete_guarded(ba.id, ba.npo_id);
+  if (result === "refused") {
+    return dataWithError(
+      null,
+      "Kindly set another payout method as default before deleting"
+    );
+  }
+  if (result === "not_found") {
     return dataWithError(null, "Payout method not found");
   }
-
-  await bapp_delete(bank_id.toString());
   return redirectWithSuccess("../..", "Payout method deleted");
 };

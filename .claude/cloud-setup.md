@@ -22,7 +22,7 @@ mcp.context7.com
 
 ```bash
 #!/bin/bash
-# kru v0.116.0
+# kru v0.138.0
 set -uo pipefail
 exec > >(tee -a /tmp/setup.log) 2>&1
 
@@ -54,6 +54,7 @@ try npx -y playwright@1.63.0 install --with-deps chromium
 try claude plugin marketplace add anthropics/claude-plugins-official
 try claude plugin marketplace add ap-justin/kru
 try claude plugin install kru@kru --scope user
+try claude plugin enable cc-plugin-you-should-know@builtin --scope user
 try claude plugin install vercel@claude-plugins-official --scope user
 
 node --version; pnpm --version; claude plugin list

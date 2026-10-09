@@ -10,7 +10,12 @@ interface Props {
   extraId: string | null;
 }
 
+/** what the coin calls the extra id the deposit address needs */
+const extra_id_label = (token: IToken) =>
+  token.network === "xrp" ? "Destination tag" : "Memo";
+
 export function PayQr({ classes = "", ...props }: Props) {
+  const label = extra_id_label(props.token);
   return (
     <div className={`${classes} grid justify-items-center`}>
       <QrCode.Root
@@ -31,6 +36,12 @@ export function PayQr({ classes = "", ...props }: Props) {
           />
         </QrCode.Overlay>
       </QrCode.Root>
+      {props.extraId && (
+        <p className="text-sm text-warning-subtle-fg bg-warning-subtle rounded p-2 mb-3.5 max-w-xs text-center">
+          Include this {label.toLowerCase()} with your transfer. Without it we
+          can't credit your donation.
+        </p>
+      )}
       <p className="text-sm mb-4">{props.recipient}</p>
       <Copier
         text={props.recipient}
@@ -41,19 +52,25 @@ export function PayQr({ classes = "", ...props }: Props) {
       >
         <span className="text-sm">Copy Address</span>
       </Copier>
-      {props.extraId && <Memo classes="mt-4" val={props.extraId} />}
+      {props.extraId && (
+        <Memo classes="mt-4" val={props.extraId} label={label} />
+      )}
     </div>
   );
 }
 
 interface IMemo {
   val: string;
+  label: string;
   classes?: string;
 }
-function Memo({ val, classes = "" }: IMemo) {
+function Memo({ val, label, classes = "" }: IMemo) {
   return (
     <div className={`grid justify-items-center ${classes}`}>
-      <p className="text-sm mb-2">{val}</p>
+      <p className="text-sm mb-2">
+        <span className="sr-only">{label}: </span>
+        {val}
+      </p>
       <Copier
         text={val}
         classes={{
@@ -61,7 +78,7 @@ function Memo({ val, classes = "" }: IMemo) {
           icon: "size-5",
         }}
       >
-        <span className="capitalize text-sm">Copy Memo</span>
+        <span className="text-sm">Copy {label}</span>
       </Copier>
     </div>
   );

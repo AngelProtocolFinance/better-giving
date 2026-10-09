@@ -6,11 +6,21 @@ import { LogForm } from "./log-form";
 import { Review } from "./review";
 import type { State } from "./types";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action } from "./api";
 
+// keyed, so the modal shell reads the submission Content makes
+const fetcher_key = "log-interest";
+
 export default function Page() {
+  const fetcher = useFetcher({ key: fetcher_key });
   return (
-    <RouteModal size="lg" classes="bg-panel">
+    <RouteModal
+      size="lg"
+      title="Log interest"
+      busy={fetcher.state !== "idle"}
+      classes="bg-panel"
+    >
       <Content />
     </RouteModal>
   );
@@ -18,7 +28,10 @@ export default function Page() {
 
 function Content() {
   const [state, setState] = useState<State>({ type: "form" });
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: fetcher_key });
+  const hold = (e: { preventDefault(): void }) => {
+    if (fetcher.state !== "idle") e.preventDefault();
+  };
 
   return (
     <div>
@@ -39,6 +52,7 @@ function Content() {
             preventScrollReset
             to=".."
             aria-disabled={fetcher.state !== "idle"}
+            onClick={hold}
             className="btn-secondary btn"
           >
             Back

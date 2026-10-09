@@ -4,7 +4,10 @@ import type { Props } from "./types";
 
 export function Form(props: Props) {
   return (
-    <RouteModal classes="grid bg-panel text-gray-12 p-6">
+    <RouteModal
+      classes="grid bg-panel text-gray-12 p-6"
+      busy={props.is_submitting}
+    >
       <Panel {...props} />
     </RouteModal>
   );

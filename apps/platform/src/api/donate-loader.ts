@@ -5,13 +5,12 @@ import { resp, search } from "@/helpers/https";
 import type { IProgram } from "@/npo";
 import { program_id } from "@/npo/schema";
 import { $int_gte1 } from "@/schemas";
-import type { INpo } from "$/pg/queries/npo";
-import { npo_get } from "$/pg/queries/npo";
-import { npo_program_get } from "$/pg/queries/program";
+import { type INpoPublic, npo_get, npo_public } from "$/pg/queries/npo";
+import { npo_program_get, npo_program_owned } from "$/pg/queries/program";
 
 export interface DonateData {
   id: number;
-  endow: INpo;
+  endow: INpoPublic;
   /** need to await */
   program?: IProgram;
   user?: AuthUser;
@@ -27,14 +26,21 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   if (p2.issues) throw resp.status(400, p2.issues[0].message);
   const id = p2.output;
   const endow = await npo_get(id);
-  if (!endow) throw new Response(null, { status: 404 });
+  if (!endow || endow.active === false) {
+    throw new Response(null, { status: 404 });
+  }
 
   const { user } = await get_session(request);
+  // another npo's program is dropped, not refused: the link still reaches this npo
+  const program =
+    pid && (await npo_program_owned(id, pid))
+      ? await npo_program_get(pid)
+      : undefined;
 
   return data({
     id,
-    endow,
-    program: pid ? await npo_program_get(pid) : undefined,
+    endow: npo_public(endow),
+    program,
     user,
     base_url: new URL(request.url).origin,
   } satisfies DonateData);

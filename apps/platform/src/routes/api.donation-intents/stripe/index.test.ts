@@ -3,9 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ctx } from "../types";
 
 const pi_create_mock = vi.hoisted(() => vi.fn());
+const si_create_mock = vi.hoisted(() => vi.fn());
 
 vi.mock("$/kit/stripe", () => ({
-  stripe: { paymentIntents: { create: pi_create_mock } },
+  stripe: {
+    paymentIntents: { create: pi_create_mock },
+    setupIntents: { create: si_create_mock },
+  },
 }));
 vi.mock("#/.server/unit-per-usd", () => ({ unit_per_usd: async () => 1 }));
 vi.mock("./customer-with-currency", () => ({
@@ -64,6 +68,7 @@ describe("stripe_intent refusals", () => {
     const res = (await stripe_intent(ctx())) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(await res.text()).toBe(reason);
   });
 
@@ -89,6 +94,7 @@ describe("stripe_intent refusals", () => {
     )) as Response;
 
     expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
     expect(await res.text()).toBe(
       "The minimum donation is $2. Try a larger amount."
     );
@@ -120,5 +126,75 @@ describe("stripe_intent refusals", () => {
     pi_create_mock.mockRejectedValue(err);
 
     await expect(stripe_intent(ctx())).rejects.toBe(err);
+  });
+});
+
+describe("recurring setup: acss mandate currency", () => {
+  beforeEach(() => {
+    si_create_mock.mockResolvedValue({ client_secret: "seti_secret" });
+  });
+
+  const setup_params = () => si_create_mock.mock.calls[0]![0];
+
+  it("mandates acss in the order's currency", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "USD" }));
+
+    expect(setup_params().payment_method_options.acss_debit.currency).toBe(
+      "usd"
+    );
+    expect(setup_params().payment_method_types).toContain("acss_debit");
+  });
+
+  it("offers both bank methods for a USD order on the bank tab", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "USD" }, "bank"));
+
+    expect(setup_params().payment_method_types).toEqual([
+      "us_bank_account",
+      "acss_debit",
+    ]);
+  });
+
+  it("offers only acss for a CAD order on the bank tab", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "CAD" }, "bank"));
+
+    expect(setup_params().payment_method_types).toEqual(["acss_debit"]);
+  });
+
+  it("refuses a EUR order on the bank tab before any setup intent exists", async () => {
+    const res = (await stripe_intent(
+      ctx({ frequency: "monthly", currency: "EUR" }, "bank")
+    )) as Response;
+
+    expect(res.status).toBe(400);
+    expect(res.headers.get("x-refusal")).toBe("1");
+    expect(await res.text()).toBe(
+      "Recurring bank payments are available in USD and CAD. Choose one of those currencies or pay by card."
+    );
+    expect(si_create_mock).not.toHaveBeenCalled();
+  });
+
+  it("excludes both bank methods for a EUR order among dynamic methods", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "EUR" }, "card"));
+
+    expect(setup_params().payment_method_options?.acss_debit).toBeUndefined();
+    expect(setup_params().automatic_payment_methods).toEqual({ enabled: true });
+    expect(setup_params().excluded_payment_method_types).toEqual([
+      "us_bank_account",
+      "acss_debit",
+    ]);
+  });
+
+  it("excludes us bank accounts for a CAD order among dynamic methods", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "CAD" }, "card"));
+
+    expect(setup_params().excluded_payment_method_types).toEqual([
+      "us_bank_account",
+    ]);
+  });
+
+  it("excludes no bank method for a USD order among dynamic methods", async () => {
+    await stripe_intent(ctx({ frequency: "monthly", currency: "USD" }, "card"));
+
+    expect(setup_params().excluded_payment_method_types).toBeUndefined();
   });
 });

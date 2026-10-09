@@ -196,7 +196,7 @@ describe("approve", () => {
     expect(send_email).toHaveBeenCalledOnce();
     expect(send_email.mock.calls[0][0]).toMatchObject({
       to: [EMAIL],
-      subject: expect.stringMatching(/account has been created/),
+      subject: expect.stringMatching(/has been created/),
     });
   });
 
@@ -211,7 +211,7 @@ describe("approve", () => {
 
     expect(send_email.mock.calls[0][0]).toMatchObject({
       to: [EMAIL],
-      subject: expect.stringMatching(/account has been created/),
+      subject: expect.stringMatching(/has been created/),
     });
     expect(report_error).toHaveBeenCalledOnce();
   });
@@ -256,6 +256,30 @@ describe("approve", () => {
     expect(wise.v2_account).not.toHaveBeenCalled();
     expect(await test_db.current!.db.select().from(npos)).toHaveLength(0);
     expect(enqueued).toHaveLength(0);
+  });
+
+  test("a bank account already filed by another nonprofit creates no npo", async () => {
+    const db = test_db.current!.db;
+    const [other] = await db
+      .insert(npos)
+      .values({
+        registration_number: "EIN-OTHER",
+        name: "Other",
+        endow_designation: "Charity",
+        overview_pt: "[]",
+        hq_country: "United States",
+      })
+      .returning();
+    await db
+      .insert(banking_apps)
+      .values({ id: IN_REVIEW.o_bank_id, npo_id: other!.id });
+
+    const res = (await verdict("approved").catch((e) => e)) as Response;
+    expect(res.status).toBe(409);
+    expect(await res.text()).toMatch(/already registered/);
+
+    expect(await db.select().from(npos)).toHaveLength(1);
+    expect((await reg_get(RID))?.status).toBe("02");
   });
 
   // both pass the route's read of "02"; the claim at the top of the transaction

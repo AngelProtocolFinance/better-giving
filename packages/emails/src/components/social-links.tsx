@@ -1,4 +1,5 @@
 import { socials } from "@better-giving/brand";
+import { Fragment } from "react";
 import { Section } from "react-email";
 import { Link } from "./link";
 
@@ -15,17 +16,21 @@ export function SocialLinks() {
   return (
     <Section style={{ textAlign: "center", paddingTop: 10 }}>
       {links.map((social, i) => (
-        <Link
-          key={social.label}
-          href={social.href}
-          style={{
-            marginRight: i < links.length - 1 ? 15 : 0,
-            textDecoration: "none",
-            fontSize: 14,
-          }}
-        >
-          {social.label}
-        </Link>
+        <Fragment key={social.label}>
+          {/* zero-width in html; whitespace to html-to-text, so the text
+          part's adjacent urls don't fuse into one auto-linked run */}
+          {i > 0 && "\u200b"}
+          <Link
+            href={social.href}
+            style={{
+              marginRight: i < links.length - 1 ? 15 : 0,
+              textDecoration: "none",
+              fontSize: 14,
+            }}
+          >
+            {social.label}
+          </Link>
+        </Fragment>
       ))}
     </Section>
   );

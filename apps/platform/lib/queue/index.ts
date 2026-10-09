@@ -1,5 +1,6 @@
 export {
   type Handlers,
+  type IAttempt,
   type IBankingPayload,
   type IDonDistPayload,
   type IDonFundReceiptPayload,
@@ -9,11 +10,15 @@ export {
   type IFundMemberRemovedPayload,
   type IInviteEmailPayload,
   type ILockTxCreatedPayload,
+  type IPaypalOrderCapturePayload,
   type IRegCreatedPayload,
+  type ISubCancelFailedEmailPayload,
   type ISubDeactivatedPayload,
   type ITipReceivedPayload,
   type Kind,
   msg,
+  PAYPAL_CAPTURE_DELAY_S,
   type Payloads,
+  retries_of,
 } from "./registry";
 export type { IDelivery, IMsg } from "./types";

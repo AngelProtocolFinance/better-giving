@@ -27,8 +27,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 export const action: ActionFunction = async ({ request, context }) => {
   const user = context.get(user_ctx);
 
-  const p = safeParse(alert_prefs, await request.json());
-  if (p.issues) return resp.status(400, p.issues[0].message);
+  const body = await request.json().catch(() => undefined);
+  if (body === undefined) throw resp.status(400, "body is not json");
+  const p = safeParse(alert_prefs, body);
+  if (p.issues) throw resp.status(400, p.issues[0].message);
   const prefs = p.output;
 
   await db.transaction(async (tx) => {

@@ -25,7 +25,7 @@ vi.mock("#/.server/toast", () => ({
 // --- imports (after mocks hoisted) ---
 
 import { admin_ctx } from "#/.server/auth";
-import { default_action } from "./api";
+import { default_action, loader } from "./api";
 
 const OWN_NPO = 11;
 const OTHER_NPO = 22;
@@ -49,9 +49,20 @@ const row = (o: { npo_id?: number; status: string }) => ({
 
 beforeEach(() => {
   for (const f of Object.values(q)) f.mockReset();
+  q.bapp_set_default.mockResolvedValue(true);
 });
 
 describe("set default payout method", () => {
+  it("refuses, announcing nothing, when the method stopped qualifying after the check", async () => {
+    q.bapp_get.mockResolvedValue(row({ status: "approved" }));
+    q.bapp_set_default.mockResolvedValue(false);
+
+    const res = await call();
+
+    expect(res).toEqual({ error: expect.stringMatching(/approved/i) });
+    expect(q.enqueue).not.toHaveBeenCalled();
+  });
+
   it("promotes an approved method of the member's own nonprofit", async () => {
     q.bapp_get.mockResolvedValue(row({ status: "approved" }));
 
@@ -96,5 +107,47 @@ describe("set default payout method", () => {
     expect(res).toEqual({ toast: expect.any(String) });
     expect(q.bapp_set_default).not.toHaveBeenCalled();
     expect(q.enqueue).not.toHaveBeenCalled();
+  });
+});
+
+describe("payout method detail", () => {
+  const read = (bank_id = String(BANK_ID)) =>
+    (loader as any)({
+      request: new Request(
+        `https://app.test/admin/${OWN_NPO}/banking/${bank_id}`
+      ),
+      params: { id: String(OWN_NPO), bank_id },
+      context: { get: (k: unknown) => (k === admin_ctx ? OWN_NPO : undefined) },
+    });
+
+  // a returned Response reaches the page as its data, which then reads
+  // `ba.status` off the body text
+  it("throws a 404 for another nonprofit's method", async () => {
+    q.bapp_get.mockResolvedValue(
+      row({ npo_id: OTHER_NPO, status: "approved" })
+    );
+
+    await expect(read()).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("throws a 404 for a method that doesn't exist", async () => {
+    q.bapp_get.mockResolvedValue(undefined);
+
+    await expect(read()).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("set default with a malformed id", () => {
+  it("throws a 400 and touches nothing", async () => {
+    const res = (default_action as any)({
+      request: new Request(`https://app.test/admin/${OWN_NPO}/banking/x`, {
+        method: "POST",
+      }),
+      params: { id: String(OWN_NPO), bank_id: "x" },
+      context: { get: (k: unknown) => (k === admin_ctx ? OWN_NPO : undefined) },
+    });
+
+    await expect(res).rejects.toMatchObject({ status: 400 });
+    expect(q.bapp_get).not.toHaveBeenCalled();
   });
 });

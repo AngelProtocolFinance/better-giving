@@ -6,10 +6,11 @@ import { EligibilityForm, type IEligibilityErrors } from "./eligibility-form";
 interface IHero {
   classes?: string;
   errors?: IEligibilityErrors;
-  /** the last submit's posted values and mismatched session, passed straight
-   * through to the form that owns them */
+  /** the last submit's posted values, mismatched session and form-level
+   * message, passed straight through to the form that owns them */
   values?: ILeadValues;
   signed_in_as?: string;
+  message?: string;
   pending?: boolean;
 }
 
@@ -18,6 +19,7 @@ export function Hero({
   errors,
   values,
   signed_in_as,
+  message,
   pending,
 }: IHero) {
   return (
@@ -58,6 +60,7 @@ export function Hero({
           errors={errors}
           values={values}
           signed_in_as={signed_in_as}
+          message={message}
           pending={pending}
         />
       </div>

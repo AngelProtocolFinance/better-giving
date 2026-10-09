@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { report_error } from "#/errors/report";
 import type { Alert } from "@/discord";
 import { stage } from "../env";
@@ -12,7 +11,11 @@ import {
   pending_payouts_locked,
   settlement_put,
 } from "../pg/queries/payout";
-import { reverse_unfunded_payout_loss } from "../refund/unfunded";
+import {
+  reverse_unfunded_payout_loss,
+  type UnfundedLossReversal,
+} from "../refund/unfunded";
+import { NotFundedError, payout_total, transfer_ref } from "./transfer";
 
 /**
  * wires the money: returns the transfer id once funding was accepted. throws
@@ -20,14 +23,6 @@ import { reverse_unfunded_payout_loss } from "../refund/unfunded";
  * outright; any other throw means the money may have moved.
  */
 export type Pay = (ref: string, total: number) => Promise<number | string>;
-
-/** `Pay` failed with no money moved */
-export class NotFundedError extends Error {
-  constructor(cause: unknown) {
-    super("transfer not funded", { cause });
-    this.name = "NotFundedError";
-  }
-}
 
 export type SettleResult =
   | { status: "none_pending" }
@@ -55,7 +50,8 @@ export async function settle_npo_payouts(
   const claim = await db.transaction(async (tx) => {
     const locked = await pending_payouts_locked(tx, payout_ids);
     if (locked.length === 0) return { status: "none_pending" } as const;
-    const total = locked.reduce((a, b) => a + b.amount, 0);
+    // wise moves cents: the quote, settlement and cash debit all take this one figure
+    const total = payout_total(locked.map((p) => p.amount));
     if (total < npo.payout_minimum) {
       const minimum = npo.payout_minimum;
       return { status: "under_minimum", total, minimum } as const;
@@ -94,7 +90,7 @@ export async function settle_npo_payouts(
         });
         return { status: "unreleased", ref };
       }
-      const { not_released, kept } = released;
+      const { not_released, kept, commissions_in_flight } = released;
       report_error(err.cause, {
         ...ctx,
         ...(not_released.length > 0 && { not_released }),
@@ -108,6 +104,25 @@ export async function settle_npo_payouts(
             {
               name: "not_reversed",
               value: kept.map((k) => `${k.id}: ${k.reason}`).join("\n"),
+            },
+          ],
+        });
+      }
+      if (commissions_in_flight.length > 0) {
+        // the commission side of the refund the release just redid, as process_refund reports it
+        await alert({
+          title: `commission refunded in flight, npo:${npo.id}`,
+          body: `releasing these unfunded payouts reversed their loss refunds, and each one's referrer commission was claimed for a Wise payout to its referrer, so it was refunded as a loss. check each transfer by its customerTransactionId`,
+          fields: [
+            ...fields,
+            {
+              name: "commissions",
+              value: commissions_in_flight
+                .map(
+                  (c) =>
+                    `commission ${c.donation_id}: $${c.amount} — customerTransactionId ${c.ref}`
+                )
+                .join("\n"),
             },
           ],
         });
@@ -182,6 +197,13 @@ interface IRelease {
   not_released: string[];
   /** loss-refunded in flight and left as a loss the npo was never paid for */
   kept: { id: string; reason: string }[];
+  /** commissions a reversed loss refund took while a referrer transfer held them */
+  commissions_in_flight: NonNullable<
+    Extract<
+      UnfundedLossReversal,
+      { status: "reversed" }
+    >["commission_in_flight"]
+  >[];
 }
 
 /**
@@ -195,18 +217,22 @@ async function release(tx: DbOrTx, ids: string[]): Promise<IRelease> {
   });
   const not_released = ids.filter((id) => !released.includes(id));
   const kept: IRelease["kept"] = [];
+  const commissions_in_flight: IRelease["commissions_in_flight"] = [];
   for (const id of await payouts_in(tx, not_released, "refunded_loss")) {
     try {
       const r = await tx.transaction((sp) =>
         reverse_unfunded_payout_loss(sp, id)
       );
       if (r.status === "kept") kept.push({ id, reason: r.reason });
+      if (r.status === "reversed" && r.commission_in_flight) {
+        commissions_in_flight.push(r.commission_in_flight);
+      }
     } catch (err) {
       report_error(err, { payout_id: id });
       kept.push({ id, reason: String(err) });
     }
   }
-  return { not_released, kept };
+  return { not_released, kept, commissions_in_flight };
 }
 
 /** an alert that fails to send is reported, never thrown past the money */
@@ -220,25 +246,4 @@ async function alert(a: Omit<Alert, "from" | "type">) {
   } catch (err) {
     report_error(err, { alert: a.title });
   }
-}
-
-// fixed namespace for the uuid v5 below; changing it re-keys every ref
-const REF_NAMESPACE = Buffer.from("cb853edef275466b85c79409fa3f037a", "hex");
-
-/**
- * uuid v5 of recipient + total + payout id set: wise's `customerTransactionId`
- * is its idempotency key, so only a retry of the same transfer to the same
- * account reuses it.
- */
-function transfer_ref(ref_key: string, total: number, ids: string[]): string {
-  const name = JSON.stringify([ref_key, total.toFixed(2), [...ids].sort()]);
-  const b = createHash("sha1")
-    .update(REF_NAMESPACE)
-    .update(name)
-    .digest()
-    .subarray(0, 16);
-  b[6] = (b[6]! & 0x0f) | 0x50;
-  b[8] = (b[8]! & 0x3f) | 0x80;
-  const h = b.toString("hex");
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }

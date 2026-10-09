@@ -1,11 +1,13 @@
 import { Actions, EmptyState } from "@better-giving/ui";
 import { AlertTriangleIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useFetcher, useNavigate } from "react-router";
 import { RouteModal } from "#/components/route-modal";
 import { humanize } from "@/helpers/decimal";
 import type { Route } from "./+types/route";
-import type { action, DistPreview, StripeRefundStatus } from "./api";
+import type { action, DistPreview, RefundState } from "./api";
 
+export { ErrorModal as ErrorBoundary } from "#/components/error";
 export { action, loader } from "./api";
 
 export default function Page({ loaderData }: Route.ComponentProps) {
@@ -28,7 +30,8 @@ function Content({
   on_close: () => void;
 }) {
   const fetcher = useFetcher<typeof action>();
-  const failures = fetcher.data?.ok === false ? fetcher.data.failures : [];
+  const failed = fetcher.data?.ok === false ? fetcher.data : null;
+  const failures = failed?.failures ?? [];
   const submitting = fetcher.state !== "idle";
   const has_blockers = data.previews.some((p) => p.blockers.length > 0);
   const no_dists = data.previews.length === 0;
@@ -36,14 +39,10 @@ function Content({
 
   if (fetcher.data?.ok === true) {
     return (
-      <div className="p-6 sm:p-8 text-center">
-        <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
-        <h3 className="text-lg font-bold mb-1">Refund processed</h3>
-        <RefundOutcome status={fetcher.data.stripe_refund} />
-        <button type="button" onClick={on_close} className="btn btn-primary">
-          Close
-        </button>
-      </div>
+      <RefundProcessed
+        held={fetcher.data.reversal === "held"}
+        on_close={on_close}
+      />
     );
   }
 
@@ -88,9 +87,7 @@ function Content({
       {has_warnings && (
         <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-warning-subtle border border-warning flex items-center gap-2 text-sm text-warning-subtle-fg">
           <AlertTriangleIcon className="shrink-0 icon-md" />
-          <span>
-            ${humanize(data.total_loss)} will be recorded as platform loss
-          </span>
+          <span>${humanize(data.total_loss)} will be a platform loss</span>
         </div>
       )}
 
@@ -98,11 +95,7 @@ function Content({
         {failures.length > 0 && (
           <div className="mx-6 sm:mx-8 mb-2 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg">
             <p className="font-semibold">Refund not completed</p>
-            <p>
-              Some distributions couldn't be reversed, so no Stripe refund was
-              issued and the donation is still settled. Resolve these before
-              retrying:
-            </p>
+            {failed && <p>{failure_lead(failed)}</p>}
             <ul className="list-disc pl-5 mt-1">
               {failures.map((f) => (
                 <li key={f}>{f}</li>
@@ -141,25 +134,73 @@ function Content({
   );
 }
 
-function RefundOutcome({ status }: { status: StripeRefundStatus | null }) {
-  if (status === "failed" || status === "canceled") {
-    return (
-      <div className="mb-4 p-3 rounded bg-destructive-subtle border border-destructive text-sm text-destructive-subtle-fg text-left">
-        <p className="font-semibold">Stripe refund not completed</p>
-        <p>
-          All records have been reversed, but Stripe did not complete the
-          refund, so the donor has not been refunded. Resolve it in Stripe.
-        </p>
-      </div>
-    );
+interface IIncompleteRefund {
+  refund: RefundState;
+  /** dists this attempt reversed; null when it stopped without counting */
+  reversed: number | null;
+  create_sent: boolean;
+}
+
+function failure_lead({
+  refund,
+  reversed,
+  create_sent,
+}: IIncompleteRefund): string {
+  switch (refund) {
+    case "not_issued":
+      return "No Stripe refund was issued and nothing was reversed. Resolve these before retrying:";
+    case "unknown":
+      if (!create_sent) {
+        return "This attempt made no refund because looking up earlier refunds failed, and nothing was reversed. Retrying now is safe:";
+      }
+      return "Stripe didn't confirm whether the refund was issued, and nothing was reversed. Check the payment in the Stripe dashboard before retrying: a retry within 24 hours gets the same answer back.";
+    case "requires_action":
+      return "The Stripe refund needs action before Stripe sends it, so nothing was reversed yet. Retry once Stripe shows it pending or succeeded:";
+    case "issued":
+      if (reversed === null) {
+        return "The Stripe refund was issued, but the reversal stopped with an error and the donation is still settled. Some distributions may already be reversed. Retry to finish it:";
+      }
+      if (reversed === 0) {
+        return "The Stripe refund was issued, but no distribution was reversed and the donation is still settled. Resolve these:";
+      }
+      return `The Stripe refund was issued and ${reversed} distribution(s) were reversed, but the rest couldn't be and the donation is still settled. Resolve these:`;
   }
+}
+
+interface IRefundOutcome {
+  /** a refund on the charge is unsent, so nothing is reversed yet */
+  held: boolean;
+}
+
+interface IRefundProcessed extends IRefundOutcome {
+  on_close: () => void;
+}
+
+function RefundProcessed({ held, on_close }: IRefundProcessed) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  // the panel replaces the confirm button, which takes focus with it
+  useEffect(() => heading.current?.focus(), []);
+
+  return (
+    <div className="p-6 sm:p-8 text-center">
+      <CheckCircle2Icon className="mx-auto mb-3 text-success pictogram-md" />
+      <h3 ref={heading} tabIndex={-1} className="text-lg font-bold mb-1">
+        Refund processed
+      </h3>
+      <RefundOutcome held={held} />
+      <button type="button" onClick={on_close} className="btn btn-primary">
+        Close
+      </button>
+    </div>
+  );
+}
+
+function RefundOutcome({ held }: IRefundOutcome) {
   return (
     <p className="text-sm text-gray-11 mb-4">
-      {status === null
-        ? "All records have been reversed. No Stripe refund was issued, so no money was moved."
-        : status === "succeeded"
-          ? "All records have been reversed and the Stripe refund completed."
-          : "All records have been reversed. The Stripe refund was submitted and is awaiting Stripe."}
+      {held
+        ? "The Stripe refund was issued, and a refund on this charge is pending with the bank. Nothing is reversed yet: the donation reverses once the bank refund succeeds."
+        : "All records have been reversed and the Stripe refund completed."}
     </p>
   );
 }

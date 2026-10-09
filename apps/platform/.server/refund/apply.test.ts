@@ -10,6 +10,8 @@ import {
 import type { DbOrTx } from "../pg/queries/helpers";
 import { npos } from "../pg/schema/npo";
 import { payouts, settlements } from "../pg/schema/payout";
+import { referrer_commissions } from "../pg/schema/referrer";
+import { loss_logs } from "../pg/schema/revenue";
 import { create_test_db, type TestDb } from "../pg/test-utils/pglite";
 import { apply_refund_plan, StalePayoutError } from "./apply";
 import { calc_refund_plan, type RefundPlan } from "./plan";
@@ -32,8 +34,10 @@ afterAll(async () => {
 
 beforeEach(async () => {
   const db = test_db.db;
+  await db.delete(loss_logs);
   await db.delete(payouts);
   await db.delete(settlements);
+  await db.delete(referrer_commissions);
   await db.delete(npos);
 });
 
@@ -80,6 +84,7 @@ function plan_marking(status: "refunded" | "refunded_loss"): RefundPlan {
     is_loss: status === "refunded_loss",
     loss_reasons: [],
     amount: 100,
+    paid_commission: null,
     effects: [{ kind: "payout_status", payout_id: PAYOUT_ID, status }],
     preview: { effects: [], blockers: [], warnings: [] },
   };
@@ -97,6 +102,7 @@ function plan_cancelling_cash(npo_id: number): RefundPlan {
         alloc: { liq: 0, lock: 0, cash: 100 },
         net: 100,
         amount: 100,
+        amount_usd: 100,
         fee_base: 0,
         fee_fsa: 0,
         fee_processing: 0,
@@ -180,5 +186,195 @@ describe("apply_refund_plan lock order", () => {
 
     expect(await npo_cash(npo_id)).toBe(0);
     expect(await payout_type()).toBe("refunded");
+  });
+});
+
+describe("apply_refund_plan commission_status", () => {
+  async function seed_commission(status: "pending" | "processing" | "paid") {
+    const [npo] = await test_db.db
+      .insert(npos)
+      .values({
+        registration_number: "EIN-COMM",
+        name: "Commission NPO",
+        endow_designation: "Charity",
+        overview_pt: "[]",
+        hq_country: "United States",
+        referral_id: "NPO-REF",
+      })
+      .returning();
+    await test_db.db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-09-01T00:00:00.000Z",
+      donation_id: "dist-1",
+      npo_id: npo!.id,
+      amount: 5,
+      status,
+      ref: status === "pending" ? null : "ref-1",
+    });
+  }
+
+  const plan_reversing_commission = (): RefundPlan => ({
+    is_loss: false,
+    loss_reasons: [],
+    amount: 100,
+    paid_commission: null,
+    effects: [
+      { kind: "commission_status", donation_id: "dist-1", status: "refunded" },
+    ],
+    preview: { effects: [], blockers: [], warnings: [] },
+  });
+
+  async function commission_status() {
+    const [row] = await test_db.db
+      .select({ status: referrer_commissions.status })
+      .from(referrer_commissions)
+      .where(eq(referrer_commissions.donation_id, "dist-1"));
+    return row?.status;
+  }
+
+  test("a pending commission is marked refunded", async () => {
+    await seed_commission("pending");
+
+    const res = await apply_refund_plan(
+      as_db(test_db.db),
+      plan_reversing_commission()
+    );
+
+    expect(await commission_status()).toBe("refunded");
+    expect(res.commission_in_flight).toBeUndefined();
+  });
+
+  // its wise transfer may already be paying the referrer
+  test("a processing commission is marked refunded_loss and reported", async () => {
+    await seed_commission("processing");
+
+    const res = await apply_refund_plan(
+      as_db(test_db.db),
+      plan_reversing_commission()
+    );
+
+    expect(await commission_status()).toBe("refunded_loss");
+    expect(res.commission_in_flight).toEqual({
+      donation_id: "dist-1",
+      amount: 5,
+      ref: "ref-1",
+    });
+  });
+
+  // paid after the plan was drawn: the referrer has the money, so it stays paid
+  test("a paid commission is left paid and reported", async () => {
+    await seed_commission("paid");
+
+    const res = await apply_refund_plan(
+      as_db(test_db.db),
+      plan_reversing_commission()
+    );
+
+    expect(await commission_status()).toBe("paid");
+    expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
+  });
+});
+
+describe("apply_refund_plan losses", () => {
+  // the referrer's paid commission is the platform's loss, never the npo's row
+  test("logs only the npo's loss and reports the paid commission", async () => {
+    const npo_id = await seed_payout("settled");
+    const plan = calc_refund_plan(
+      {
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: npo_id,
+          to_name: "Apply Test NPO",
+          alloc: { liq: 0, lock: 0, cash: 100 },
+          net: 100,
+          amount: 100,
+          amount_usd: 100,
+          fee_base: 0,
+          fee_fsa: 0,
+          fee_processing: 0,
+        },
+        payout: { id: PAYOUT_ID, type: "settled" },
+        commission: { donation_id: "dist-1", amount: 5, status: "paid" },
+        rev_log_ids: [],
+        bal: { liq: 0, lock_units: 0, cash: 100 },
+        nav: null,
+        sub_id: null,
+      },
+      {
+        now: "2026-09-03T00:00:00.000Z",
+        nav_date: "2026-09-03T00:00:00.001Z",
+        form_id: null,
+        program_id: null,
+      }
+    );
+
+    const res = await apply_refund_plan(as_db(test_db.db), plan);
+
+    const rows = await test_db.db.select().from(loss_logs);
+    expect(rows.map((r) => r.amount)).toEqual([100]);
+    expect(res.loss?.amount).toBe(100);
+    expect(res.paid_commission).toEqual({ donation_id: "dist-1", amount: 5 });
+  });
+});
+
+// a savings shortfall is the loss; the cash share still sits in a pending payout
+describe("apply_refund_plan savings shortfall beside a cash payout", () => {
+  function plan_liq_short(npo_id: number, payout: "pending" | "settled") {
+    return calc_refund_plan(
+      {
+        dist: {
+          id: "dist-1",
+          donation_id: "don-1",
+          to_id: npo_id,
+          to_name: "Apply Test NPO",
+          alloc: { liq: 50, lock: 0, cash: 50 },
+          net: 100,
+          amount: 110,
+          amount_usd: 110,
+          fee_base: 5,
+          fee_fsa: 3,
+          fee_processing: 2,
+        },
+        payout: { id: PAYOUT_ID, type: payout },
+        commission: null,
+        rev_log_ids: [],
+        bal: { liq: 10, lock_units: 0, cash: 100 },
+        nav: null,
+        sub_id: null,
+      },
+      {
+        now: "2026-09-03T00:00:00.000Z",
+        nav_date: "2026-09-03T00:00:00.001Z",
+        form_id: null,
+        program_id: null,
+      }
+    );
+  }
+
+  test("a pending payout is cancelled as refunded and its cash comes off the npo", async () => {
+    const npo_id = await seed_payout("pending");
+
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_liq_short(npo_id, "pending")
+    );
+
+    expect(await payout_type()).toBe("refunded");
+    expect(await npo_cash(npo_id)).toBe(50);
+    const rows = await test_db.db.select().from(loss_logs);
+    expect(rows.map((r) => r.type)).toEqual(["balance_liq"]);
+  });
+
+  test("a payout already sent is marked refunded_loss and its cash stays", async () => {
+    const npo_id = await seed_payout("settled");
+
+    await apply_refund_plan(
+      as_db(test_db.db),
+      plan_liq_short(npo_id, "settled")
+    );
+
+    expect(await payout_type()).toBe("refunded_loss");
+    expect(await npo_cash(npo_id)).toBe(100);
   });
 });

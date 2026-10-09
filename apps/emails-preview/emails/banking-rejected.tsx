@@ -1,6 +1,7 @@
 import { banking } from "emails";
 
 const { node } = banking.template({
+  base_url: "https://better.giving",
   action: "rejected",
   account_summary: "Chase Bank ending in 1234",
   rejection_reason:

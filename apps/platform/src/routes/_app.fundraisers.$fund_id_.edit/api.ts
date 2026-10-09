@@ -97,7 +97,7 @@ export const action = async ({ request, params }: Route.ActionArgs) => {
   }
 
   const p_upd = safeParse(fund_update, update);
-  if (p_upd.issues) return resp.status(400, p_upd.issues[0].message);
+  if (p_upd.issues) throw resp.status(400, p_upd.issues[0].message);
   const parsed = p_upd.output;
 
   // check if new slug is already taken (allow fund's own slug)

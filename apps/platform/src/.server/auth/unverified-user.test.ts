@@ -53,6 +53,7 @@ vi.mock("./auth", () => ({
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { betterAuth } from "better-auth/minimal";
 import { eq } from "drizzle-orm";
+import { seed_password_user } from "#/__tests__/fixtures/password-user";
 import { referral_id } from "#/helpers/referral";
 import * as schema from "$/pg/schema";
 import {
@@ -169,14 +170,12 @@ describe("create_unverified_user", () => {
   });
 
   it("creates nothing when a verified user already owns the email", async () => {
-    await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: "owner@example.com",
-        password: "Test1234!@",
-        name: "Real Owner",
-        first_name: "Real",
-        last_name: "Owner",
-      },
+    await seed_password_user(test_auth_ref.current, {
+      email: "owner@example.com",
+      password: "Test1234!@",
+      name: "Real Owner",
+      first_name: "Real",
+      last_name: "Owner",
     });
     await test_db
       .current!.db.update(user_table)
@@ -245,14 +244,12 @@ describe("verification link", () => {
    * moment a link proves it. a library upgrade that changed this would silently
    * lock people out, so it is pinned here rather than assumed. */
   it("deletes a password set before the address was ever proven", async () => {
-    await test_auth_ref.current.api.signUpEmail({
-      body: {
-        email: "lead@example.com",
-        password: "Test1234!@",
-        name: "Lead Person",
-        first_name: "Lead",
-        last_name: "Person",
-      },
+    await seed_password_user(test_auth_ref.current, {
+      email: "lead@example.com",
+      password: "Test1234!@",
+      name: "Lead Person",
+      first_name: "Lead",
+      last_name: "Person",
     });
 
     const before = await test_db.current!.db.select().from(account);

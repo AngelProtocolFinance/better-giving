@@ -3,7 +3,7 @@ import { render } from "vitest-browser-react";
 import { CsvExporter } from "../csv-exporter";
 
 describe("CsvExporter", () => {
-  test("downloads the file with provided name", async () => {
+  test("icon-only button is named by its label and downloads on press", async () => {
     const headers = [
       { key: "key1", label: "Key1" },
       { key: "key2", label: "Key2" },
@@ -34,12 +34,19 @@ describe("CsvExporter", () => {
       .mockImplementation(() => {});
 
     const screen = await render(
-      <CsvExporter data={data} headers={headers} filename={filename}>
-        Save
+      <CsvExporter
+        data={data}
+        headers={headers}
+        filename={filename}
+        label="Export donations as CSV"
+      >
+        <svg aria-hidden="true" />
       </CsvExporter>
     );
 
-    await screen.getByText("Save").click();
+    await screen
+      .getByRole("button", { name: "Export donations as CSV", exact: true })
+      .click();
 
     expect(click_spy).toHaveBeenCalled();
     expect(create_url).toHaveBeenCalledWith(expect.any(Blob));

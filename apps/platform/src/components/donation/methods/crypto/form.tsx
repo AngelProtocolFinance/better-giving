@@ -8,13 +8,14 @@ import type { ITokenEstimate } from "#/types/api";
 import { DONATION_INCREMENTS, logo_url } from "@/constants/common";
 import { ru_vdec } from "@/helpers/decimal";
 import { btn_disp, TokenField, type TTokenState } from "../../../token-field";
+import { init_token_option } from "../../common/constants";
 import { CpfToggle } from "../../common/cpf-toggle";
 import { Incrementers } from "../../common/incrementers";
 import { MethodBenefits } from "../../common/method-benefits";
 import { TipField } from "../../common/tip-field";
 import { tip_handlers } from "../../common/tip-handlers";
 import { use_donation } from "../../context";
-import { type TMethodState, to_step } from "../../types";
+import { type ITokenFv, type TMethodState, to_step } from "../../types";
 import { use_rhf } from "./use-rhf";
 
 async function search_tokens(
@@ -27,6 +28,9 @@ async function search_tokens(
   if (!res.ok) throw res;
   return res.json();
 }
+
+const ESTIMATE_ERROR =
+  "Couldn't get a price for this token. Pick it again or choose another.";
 
 export function Form(props: TMethodState<"crypto">) {
   const { don, don_set } = use_donation();
@@ -116,19 +120,33 @@ export function Form(props: TMethodState<"crypto">) {
       value={token.value.code ? token.value : undefined}
       on_change={async (t) => {
         if (!t) return;
+        // usdpu/min stay 0 until this token's own estimate lands — the schema
+        // rejects a 0 price, so the previous pick's can't pass for a new token
+        token.onChange({
+          ...init_token_option,
+          ...t,
+          amount: getValues("token.amount"),
+        } satisfies ITokenFv);
+        set_token_state("loading");
         try {
-          const current_amount = token.value.amount;
-          token.onChange({ ...t, amount: current_amount });
-          set_token_state("loading");
           const res = await fetch(
             href("/api/tokens/:code/estimate", { code: t.code })
           );
           if (!res.ok) throw res;
           const { usdpu, min }: ITokenEstimate = await res.json();
+          if (!(usdpu > 0)) throw new Error(`no price for ${t.code}`);
           set_token_state(undefined);
-          token.onChange({ ...t, amount: current_amount, usdpu, min });
+          // no stale resolve to drop: the combobox is disabled while this runs.
+          // the amount input is not — read it now
+          token.onChange({ ...getValues("token"), usdpu, min });
         } catch (err) {
           report_error(err);
+          // a combobox emits only on a changed value, so the failed pick is
+          // cleared — picking the same token again is what retries
+          token.onChange({
+            ...init_token_option,
+            amount: getValues("token.amount"),
+          } satisfies ITokenFv);
           set_token_state("error");
         }
       }}
@@ -150,7 +168,11 @@ export function Form(props: TMethodState<"crypto">) {
         amount={token.value.amount}
         amount_usd={token.value.usdpu * +token.value.amount}
         on_change={(x) => token.onChange({ ...token.value, amount: x })}
-        error={errors.token?.amount?.message || errors.token?.id?.message}
+        error={
+          token_state === "error"
+            ? ESTIMATE_ERROR
+            : errors.token?.amount?.message || errors.token?.id?.message
+        }
         label="Donation amount"
       />
 

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -10,7 +11,7 @@ import {
 import { user } from "../schema/auth";
 import { create_test_db, type TestDb } from "../test-utils/pglite";
 import type { DbOrTx } from "./helpers";
-import { user_by_referral_code, user_get } from "./user";
+import { user_by_referral_code, user_contact_by_id, user_get } from "./user";
 
 // pglite's drizzle handle differs from neon's only in the result-type HKT,
 // which these queries do not read.
@@ -134,5 +135,40 @@ describe("user_by_referral_code projection", () => {
     const row = await user_by_referral_code("NOBODY-1", as_db(test_db.db));
 
     expect(row).toBeUndefined();
+  });
+});
+
+describe("user_contact_by_id", () => {
+  const set = (v: Partial<typeof user.$inferInsert>) =>
+    test_db.db.update(user).set(v).where(eq(user.id, "u-1"));
+  const contact = () => user_contact_by_id("u-1", as_db(test_db.db));
+
+  test("a verified user's address is returned", async () => {
+    await set({ emailVerified: true });
+
+    expect(await contact()).toEqual({ email: EMAIL, first_name: "Ada" });
+  });
+
+  // anyone can type an address into a lead or signup form and mint an unverified row
+  test("an unverified user's address is not", async () => {
+    await set({ emailVerified: false });
+
+    expect(await contact()).toBeUndefined();
+  });
+
+  test("a banned user's address is not", async () => {
+    await set({ emailVerified: true, banned: true });
+
+    expect(await contact()).toBeUndefined();
+  });
+
+  test("a user whose ban has expired is mailable again", async () => {
+    await set({
+      emailVerified: true,
+      banned: true,
+      banExpires: new Date(Date.now() - 60_000),
+    });
+
+    expect(await contact()).toEqual({ email: EMAIL, first_name: "Ada" });
   });
 });

@@ -1,14 +1,12 @@
 import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
-import { min_payout_amount } from "@/npo/schema";
 import type { IPayout, IPendingStatus } from "@/payouts";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
 import { settle_npo_payouts } from "$/payouts/settle";
-import { npo_default_bapp } from "$/pg/queries/banking";
-import { npo_get } from "$/pg/queries/npo";
+import { wise_pay } from "$/payouts/wise-pay";
 import { pending_payouts, processing_payouts } from "$/pg/queries/payout";
-import { transfer_grant } from "./transfer-grant";
+import { grant_eligibility } from "./eligibility";
 
 // optional npo_id to retry a single npo
 interface IInput {
@@ -78,35 +76,24 @@ async function alert_unsettled_claims() {
 
 async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
   try {
-    const npo = await npo_get(npo_id);
-    if (!npo) throw new Error(`npo:${npo_id} not found`);
-    if (npo.active === false) {
-      console.info(`npo:${npo_id} inactive, skipping payout`);
+    // the minimum check skips the locking claim tx each run for an npo still
+    // under it; the settle's locked recheck is the authoritative one
+    const el = await grant_eligibility(
+      npo_id,
+      items.map((i) => i.amount)
+    );
+    if (el.status === "not_found") throw new Error(`npo:${npo_id} not found`);
+    if (el.status === "skipped") {
+      console.info(`npo:${npo_id} not paid: ${el.reason}`);
       return;
     }
-
-    const wise_id = await npo_default_bapp(npo.id).then((x) => x?.id);
-    if (!wise_id) {
-      console.info(`No wise recipient found for npo:${npo_id}`);
-      return;
-    }
-
-    // skips the locking claim tx each run for an npo still under its minimum;
-    // the settle's locked recheck is the authoritative one
-    const snapshot_total = items.reduce((a, b) => a + b.amount, 0);
-    const minimum = npo.payout_minimum ?? min_payout_amount;
-    if (snapshot_total < minimum) {
-      console.info(
-        `npo:${npo_id} payout minimum not met, min: ${minimum}, total: ${snapshot_total}`
-      );
-      return;
-    }
+    const { npo, minimum, wise_id } = el;
 
     const res = await settle_npo_payouts(
       { id: npo.id, name: npo.name, payout_minimum: minimum },
       items.map((i) => i.id),
-      String(wise_id),
-      (ref, total) => transfer_grant(+wise_id, total, ref)
+      wise_id,
+      (ref, total) => wise_pay(+wise_id, total, ref)
     );
     if (res.status !== "settled") {
       console.info(`npo:${npo_id} not paid: ${res.status}`);

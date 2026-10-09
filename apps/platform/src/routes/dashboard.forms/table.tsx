@@ -6,7 +6,7 @@ import { ChevronDownIcon, TagIcon } from "lucide-react";
 import { href, NavLink, useNavigate, useSearchParams } from "react-router";
 import type { IPaginator } from "#/types/components";
 import { toPP } from "@/helpers/date";
-import type { FormRow } from "$/pg/queries/form";
+import type { IFormListed } from "$/pg/queries/form";
 
 type Filter = "all" | "active" | "inactive";
 const FILTER_OPTS: Filter[] = ["all", "active", "inactive"];
@@ -20,7 +20,7 @@ const FILTER_COLLECTION = createListCollection({
   itemToString: (v) => FILTER_LABEL[v],
 });
 
-interface Props extends IPaginator<FormRow> {
+interface Props extends IPaginator<IFormListed> {
   status: string;
 }
 
@@ -75,7 +75,7 @@ export function FormsTable({
   );
 }
 
-function Row(f: FormRow) {
+function Row(f: IFormListed) {
   const target = f.target_smart ? "smart" : (f.target_number ?? null);
   return (
     <>
@@ -111,7 +111,7 @@ function Row(f: FormRow) {
 
       {/* donation count */}
       <td className="text-right figures">
-        {(f.ltd_count ?? 0).toLocaleString()}
+        {f.donation_count.toLocaleString()}
       </td>
 
       {/* created */}

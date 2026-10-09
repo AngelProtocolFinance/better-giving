@@ -26,8 +26,9 @@ export async function sub_get(id: string): Promise<ISub | undefined> {
   return row;
 }
 
+/** the donor's subscriptions; `from_id` keeps the case checkout sent, so the match ignores it */
 export async function sub_user_list(
-  user_id: string,
+  email: string,
   status?: TStatus
 ): Promise<ISub[]> {
   const rows = await db
@@ -35,7 +36,8 @@ export async function sub_user_list(
     .from(subscriptions)
     .where(
       and(
-        eq(subscriptions.from_id, user_id),
+        // matches the expression subscriptions_from_id_lower_status_idx is built on
+        sql`lower(${subscriptions.from_id}) = lower(${email})`,
         status ? eq(subscriptions.status, status) : undefined
       )
     )
@@ -72,6 +74,55 @@ export async function sub_update(
     .returning();
 
   return { row, prev_status };
+}
+
+/** sets the cancel reason only where none is recorded yet, in one statement */
+export async function sub_cancel_reason_default(
+  db: DbOrTx,
+  id: string,
+  reason: string
+) {
+  await db
+    .update(subscriptions)
+    .set({
+      status_cancel_reason: sql`coalesce(${subscriptions.status_cancel_reason}, ${reason})`,
+    })
+    .where(eq(subscriptions.id, id));
+}
+
+/**
+ * reactivates a row only while it still carries `pending_reason`, in one
+ * statement: a cancel that lands meanwhile overwrites the reason and wins.
+ * `cancelled_at`, when given, is that one cancel's `cancel_requested_at`, so an
+ * older job can't undo a newer cancel that reused the reason. true when this
+ * call is the one that reactivated it.
+ */
+export async function sub_reactivate_if(
+  db: DbOrTx,
+  id: string,
+  pending_reason: string,
+  cancelled_at?: string
+): Promise<boolean> {
+  const rows = await db
+    .update(subscriptions)
+    .set({
+      status: "active",
+      status_cancel_reason: null,
+      cancel_requested_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(subscriptions.id, id),
+        eq(subscriptions.status, "inactive"),
+        eq(subscriptions.status_cancel_reason, pending_reason),
+        cancelled_at
+          ? eq(subscriptions.cancel_requested_at, cancelled_at)
+          : undefined
+      )
+    )
+    .returning({ id: subscriptions.id });
+  return rows.length > 0;
 }
 
 // -- npo subscriber queries --

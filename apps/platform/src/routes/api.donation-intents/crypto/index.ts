@@ -4,8 +4,9 @@ import type { Payment } from "#/types/crypto";
 import type { IDonation } from "@/donations";
 import { amnt_sum } from "@/donations/helpers";
 import { resp } from "@/helpers/https";
+import { NowpaymentsError, NowpaymentsNotPayableError } from "@/nowpayments";
 import { donation_quote } from "@/nowpayments/min";
-import { deposit_addr } from "$/deposit-addr";
+import { deposit_addr, is_deposit_chain } from "$/deposit-addr";
 import { base_url } from "$/env";
 import { coingecko } from "$/kit/coingecko";
 import { aws_monitor } from "$/kit/discord";
@@ -14,6 +15,29 @@ import { db } from "$/pg/db";
 import { donation_put } from "$/pg/queries/donation";
 import type { Ctx, Provider } from "../types";
 import { crypto_payment } from "./np-payment";
+
+const unavailable = () =>
+  resp.refuse(
+    "This currency isn't available right now. Choose a different currency.",
+    400
+  );
+const try_later = () =>
+  resp.txt(
+    "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
+    502
+  );
+
+/** the donor's answer to a failed quote or invoice */
+const np_failure = (err: unknown, order_id: string, t: IToken) => {
+  report_error(err, { order_id, currency: t.code });
+  // a pair nowpayments won't quote or a coin disabled on the account:
+  // retrying it can never succeed
+  if (err instanceof NowpaymentsNotPayableError) return unavailable();
+  if (!(err instanceof NowpaymentsError)) return try_later();
+  const s = err.http_status;
+  if (s === 400 || s === 404) return unavailable();
+  return try_later();
+};
 
 const min_msg = (min: number, t: IToken) =>
   `This amount is below the minimum of ${min} ${t.code}. Try a larger amount or a different currency.`;
@@ -24,7 +48,7 @@ export const crypto_intent: Provider = async (ctx) => {
     console.info(
       `[resp] 400 - unknown crypto currency: ${ctx.intent.currency}`
     );
-    return resp.txt(
+    return resp.refuse(
       "This currency isn't supported. Choose a different currency.",
       400
     );
@@ -55,6 +79,7 @@ const to_row = (
 };
 
 async function custom_intent(c: Ctx, token: IToken) {
+  if (!is_deposit_chain(token.network)) return unavailable();
   const res = await coingecko((x) => {
     x.pathname = `api/v3/simple/price?ids=${token.cg_id}&vs_currencies=usd`;
     return x;
@@ -66,7 +91,7 @@ async function custom_intent(c: Ctx, token: IToken) {
 
   const to_pay = amnt_sum(c.intent.amount);
   const min = 1 / usdpu;
-  if (to_pay < min) return resp.txt(min_msg(min, token), 400);
+  if (to_pay < min) return resp.refuse(min_msg(min, token), 400);
 
   const r_id = crypto.randomUUID();
   const don = await donation_put(db, {
@@ -127,6 +152,7 @@ async function np_payment(
       description: c.to.to_name,
       amount: to_pay,
       usdpu: q.usdpu,
+      price_usdpu: q.price_usdpu,
       currency: token.code,
     },
     new URL("/api/nowpayments-webhook", base_url).toString()
@@ -144,21 +170,17 @@ async function np_intent(c: Ctx, token: IToken) {
   try {
     q = await np_payment(c, token, r_id, to_pay);
   } catch (err) {
-    report_error(err, { order_id: r_id, currency: token.code });
-    return resp.txt(
-      "We couldn't reach our crypto payment processor. Please try again in a few minutes.",
-      502
-    );
+    return np_failure(err, r_id, token);
   }
 
-  if (!q.payment) return resp.txt(min_msg(q.min, token), 400);
+  if (!q.payment) return resp.refuse(min_msg(q.min, token), 400);
   // nowpayments converts `price_amount` back at its own rate; under the pair
   // floor the deposit lands `failed` or `partially_paid`
   if (q.payment.amount < q.floor) {
     console.info(
       `[resp] 400 - pay_amount ${q.payment.amount} under floor ${q.floor} order:${r_id}`
     );
-    return resp.txt(min_msg(q.min, token), 400);
+    return resp.refuse(min_msg(q.min, token), 400);
   }
 
   const don = await donation_put(db, {
