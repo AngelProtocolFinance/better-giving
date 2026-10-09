@@ -2,7 +2,10 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
+import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -19,9 +22,7 @@ export const meta: Route.MetaFunction = () =>
 export default function TermsNonprofits() {
   return (
     <div className="page prose lg:prose-lg py-20">
-      <i className="text-gray-11 text-right block">
-        Effective [EFFECTIVE DATE — fill at posting]
-      </i>
+      <i className="text-gray-11 text-right block">Effective {EFFECTIVE}</i>
       <h2 className="text-center">
         <span className="block">Better Giving</span>
         <span className="block">Nonprofit Organization</span>
@@ -403,8 +404,8 @@ export default function TermsNonprofits() {
               recovered in full. Better Giving may waive any Recovery Amount in
               whole or in part at its discretion. Sections 4(g) through 4(i)
               apply only to donations made on or after{" "}
-              {/* fixed cut-off: stays put when a later amendment moves the effective line above */}
-              [EFFECTIVE DATE — fill at posting].
+              {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
+              {EFFECTIVE}.
             </li>
             <li>
               <b>Fees:</b> Use of the Platform as well as Better Giving’s

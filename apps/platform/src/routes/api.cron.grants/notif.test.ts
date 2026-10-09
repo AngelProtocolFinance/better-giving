@@ -18,14 +18,21 @@ const template = vi.hoisted(() =>
 vi.mock("#/errors/report", () => ({ report_error: vi.fn() }));
 vi.mock("$/env", () => ({
   wise: { profile_id: "1", balance_id_usd: "2" },
+  stage: "test",
   get owed_deductions() {
     return deductions.on;
   },
 }));
 // before every gift here, so a row a run may net once its notice is sent
+const terms = vi.hoisted(() => ({ effective: "2026-01-01" }));
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
-  TERMS_EFFECTIVE: "2026-01-01",
+  get TERMS_EFFECTIVE() {
+    return terms.effective;
+  },
+}));
+vi.mock("$/kit/discord", () => ({
+  aws_monitor: { send_alert: vi.fn(async () => {}) },
 }));
 vi.mock("$/kit/wise", () => ({
   wise: { balance: async () => ({ totalWorth: { value: 150 } }) },
@@ -66,6 +73,7 @@ afterAll(async () => {
 beforeEach(async () => {
   template.mockClear();
   deductions.on = false;
+  terms.effective = "2026-01-01";
   await db().delete(owed_amounts);
   await db().delete(donations);
   await db().delete(payouts);
@@ -215,6 +223,27 @@ describe("grants schedule notice", () => {
       deductions: [{ donation_id: "don-big", usd: 80 }],
     });
     expect(data.total_grant).toBe(406.8);
+  });
+
+  test("switched on with no terms effective date, a row is the gross one, as if switched off", async () => {
+    deductions.on = true;
+    terms.effective = "soon";
+    await seed_npo("Gross", { amount: 500 });
+    await seed_owed("Gross", "don-owed", 93.2);
+
+    await index();
+
+    const data = template.mock.calls[0]![0] as any;
+    expect(data.rows).toEqual([
+      {
+        id: npo_ids.Gross,
+        name: "Gross",
+        amount: 500,
+        min: 50,
+        effect: "pass",
+      },
+    ]);
+    expect(data.total_grant).toBe(500);
   });
 
   test("switched on, an npo whose net falls under its minimum is skipped, still showing what it owes", async () => {

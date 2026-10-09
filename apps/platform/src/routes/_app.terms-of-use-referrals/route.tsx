@@ -1,5 +1,8 @@
 import { metas } from "#/helpers/seo";
+import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 export const headers: Route.HeadersFunction = () => ({
   "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -15,7 +18,7 @@ export default function TermsReferrals() {
         Better Giving Referral Program Terms of Use
       </h2>
       <p>
-        <strong>Effective Date:</strong> [EFFECTIVE DATE — fill at posting]
+        <strong>Effective Date:</strong> {EFFECTIVE}
       </p>
       <p>
         These Referral Program Terms of Use (“Terms”) govern your participation
@@ -103,8 +106,8 @@ export default function TermsReferrals() {
             Better Giving will notify you of each amount before deducting it,
             and may waive any amount in whole or in part at its discretion. This
             section applies only to donations made on or after{" "}
-            {/* fixed cut-off: stays put when a later amendment moves the effective date above */}
-            [EFFECTIVE DATE — fill at posting].
+            {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
+            {EFFECTIVE}.
           </p>
         </li>
         <li>

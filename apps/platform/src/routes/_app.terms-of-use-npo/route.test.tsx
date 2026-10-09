@@ -8,14 +8,14 @@ const Stub = createRoutesStub([
 ]);
 
 describe("nonprofit terms", () => {
-  test("carry the recovery items in Receiving Grants, before Fees, under a placeholder date", async () => {
+  test("carry the recovery items in Receiving Grants, before Fees, under the effective date", async () => {
     const screen = await render(
       <Stub initialEntries={["/terms-of-use-npo"]} />
     );
 
     await expect
       .element(
-        screen.getByText("Effective [EFFECTIVE DATE — fill at posting]", {
+        screen.getByText("Effective October 16, 2026", {
           exact: true,
         })
       )

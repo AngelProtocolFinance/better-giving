@@ -1,9 +1,9 @@
 import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
 import type { ICommission } from "@/referrals";
-import { owed_deductions, stage } from "$/env";
+import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
-import { undo_deductions } from "$/payouts/owed-run";
+import { owed_netting_on, undo_deductions } from "$/payouts/owed-run";
 import { settle_referrer_commissions } from "$/payouts/settle-commissions";
 import { payout_total } from "$/payouts/transfer";
 import { wise_pay } from "$/payouts/wise-pay";
@@ -104,14 +104,15 @@ async function process_item(ref_id: string, items: ICommission[]) {
     const ref = await get_referrer(ref_id);
     if (!ref) throw new Error(`referrer:${ref_id} not found`);
 
+    const nets = await owed_netting_on();
     // netting may settle one owing it all with no transfer
-    if (!owed_deductions && !ref.pay_id) {
+    if (!nets && !ref.pay_id) {
       return console.info(`referrer:${ref_id} has no payout method`);
     }
     // skips the locking claim for a referrer still under it; the claim rechecks.
     // netting judges the minimum on the net, and owing it all needs no minimum
     const snapshot = payout_total(items.map((i) => i.amount));
-    if (!owed_deductions && snapshot < ref.pay_min) {
+    if (!nets && snapshot < ref.pay_min) {
       return console.info(
         `referrer:${ref_id} payout ${snapshot} is less than minimum ${ref.pay_min}`
       );

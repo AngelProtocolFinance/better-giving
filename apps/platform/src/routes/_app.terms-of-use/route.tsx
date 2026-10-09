@@ -2,7 +2,10 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
+import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -17,9 +20,7 @@ export const meta: Route.MetaFunction = () =>
 export default function TermsDonors() {
   return (
     <main className="prose lg:prose-lg page py-20">
-      <i className="text-gray-11 text-right block">
-        Effective [EFFECTIVE DATE — fill at posting]
-      </i>
+      <i className="text-gray-11 text-right block">Effective {EFFECTIVE}</i>
       <h2 className="text-center">
         Donor <br /> Terms of Use
       </h2>

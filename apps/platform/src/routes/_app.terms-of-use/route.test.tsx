@@ -8,12 +8,12 @@ const Stub = createRoutesStub([
 ]);
 
 describe("donor terms", () => {
-  test("Control of Funds voids a reversed gift's receipt, under a placeholder date", async () => {
+  test("Control of Funds voids a reversed gift's receipt, under the effective date", async () => {
     const screen = await render(<Stub initialEntries={["/terms-of-use"]} />);
 
     await expect
       .element(
-        screen.getByText("Effective [EFFECTIVE DATE — fill at posting]", {
+        screen.getByText("Effective October 16, 2026", {
           exact: true,
         })
       )

@@ -65,10 +65,19 @@ vi.mock("$/env", () => ({
   },
 }));
 // before every gift here, so a row a run may net once its notice is sent
+const terms = vi.hoisted(() => ({ effective: "2026-01-01" }));
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
-  TERMS_EFFECTIVE: "2026-01-01",
+  get TERMS_EFFECTIVE() {
+    return terms.effective;
+  },
 }));
+const settle_spy = vi.hoisted(() => vi.fn());
+vi.mock("$/payouts/settle-commissions", async (io) => {
+  const actual = await io<typeof import("$/payouts/settle-commissions")>();
+  settle_spy.mockImplementation(actual.settle_referrer_commissions);
+  return { ...actual, settle_referrer_commissions: settle_spy };
+});
 vi.mock("$/kit/discord", () => ({
   aws_monitor: { send_alert },
   fiat_monitor: { send_alert: vi.fn() },
@@ -161,6 +170,8 @@ beforeEach(async () => {
   credit.fails = false;
   release.fails = false;
   deductions.on = false;
+  terms.effective = "2026-01-01";
+  settle_spy.mockClear();
   referrer.pay_id = 42;
   referrer.pay_min = 50;
   referrer.real = false;
@@ -873,6 +884,23 @@ describe("commissions cron", () => {
       expect(await statuses()).toEqual({ "d-1": "paid" });
       expect(await owed_rows()).toEqual([
         { donation_id: "don-owed", recovered_usd: 20, outstanding_usd: 20 },
+      ]);
+    });
+
+    test("switched on with no terms effective date, a referrer with no payout method is never claimed, as if switched off", async () => {
+      deductions.on = true;
+      terms.effective = "soon";
+      send_alert.mockResolvedValue(undefined);
+      referrer.pay_id = undefined;
+      await seed("d-1", 20);
+      await seed_owed("don-owed", 40);
+
+      await index();
+
+      expect(settle_spy).not.toHaveBeenCalled();
+      expect(await statuses()).toEqual({ "d-1": "pending" });
+      expect(await owed_rows()).toEqual([
+        { donation_id: "don-owed", recovered_usd: 0, outstanding_usd: 40 },
       ]);
     });
 

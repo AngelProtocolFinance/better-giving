@@ -7,9 +7,8 @@ export const TERMS_ZONE = "America/New_York";
 
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/** `date`'s midnight in `TERMS_ZONE`, as an ISO instant; null when `date` is
- * not a calendar date */
-export function terms_effective_at(date: string): string | null {
+/** `date`'s midnight in utc, in ms; null when `date` is not a calendar date */
+function utc_midnight_of(date: string): number | null {
   const m = CALENDAR_DATE.exec(date);
   if (!m) return null;
   const [y, mo, d] = [m[1], m[2], m[3]].map(Number) as [number, number, number];
@@ -17,9 +16,29 @@ export function terms_effective_at(date: string): string | null {
   // Date.UTC rolls 2026-02-30 over into march rather than rejecting it
   const day = new Date(utc_midnight);
   if (day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d) return null;
+  return utc_midnight;
+}
+
+/** `date`'s midnight in `TERMS_ZONE`, as an ISO instant; null when `date` is
+ * not a calendar date */
+export function terms_effective_at(date: string): string | null {
+  const utc_midnight = utc_midnight_of(date);
+  if (utc_midnight == null) return null;
   // utc midnight is the evening before in New York, and its clocks change at
   // 2am, so the offset then is the offset at that night's midnight
   return new Date(utc_midnight - zone_offset_ms(utc_midnight)).toISOString();
+}
+
+const long_date = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long",
+  timeZone: "UTC",
+});
+
+/** `date` as the terms print it ("October 16, 2026"), the same calendar day
+ * in every zone; a non-date comes back as given */
+export function terms_date_label(date: string): string {
+  const utc_midnight = utc_midnight_of(date);
+  return utc_midnight == null ? date : long_date.format(utc_midnight);
 }
 
 const zone_clock = new Intl.DateTimeFormat("en-US", {

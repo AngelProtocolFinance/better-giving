@@ -8,14 +8,14 @@ const Stub = createRoutesStub([
 ]);
 
 describe("referral terms", () => {
-  test("recover a paid reward in its own section after Payment Terms, under a placeholder date", async () => {
+  test("recover a paid reward in its own section after Payment Terms, under the effective date", async () => {
     const screen = await render(
       <Stub initialEntries={["/terms-of-use-referrals"]} />
     );
 
     await expect
       .element(
-        screen.getByText("Effective Date: [EFFECTIVE DATE — fill at posting]", {
+        screen.getByText("Effective Date: October 16, 2026", {
           exact: true,
         })
       )

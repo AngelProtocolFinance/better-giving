@@ -30,9 +30,12 @@ vi.mock("$/env", () => ({
   },
 }));
 // before every gift here, so a row a run may net once its notice is sent
+const terms = vi.hoisted(() => ({ effective: "2026-01-01" }));
 vi.mock("@/terms", async (io) => ({
   ...(await io<typeof import("@/terms")>()),
-  TERMS_EFFECTIVE: "2026-01-01",
+  get TERMS_EFFECTIVE() {
+    return terms.effective;
+  },
 }));
 vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
 vi.mock("$/payouts/wise-pay", () => ({ wise_pay: wise_pay_mock }));
@@ -94,6 +97,7 @@ beforeEach(async () => {
   send_alert.mockReset();
   settle_spy.mockClear();
   deductions.on = false;
+  terms.effective = "2026-01-01";
   await db().delete(owed_amounts);
   await db().delete(donations);
   await db().delete(payouts);
@@ -471,6 +475,22 @@ describe("grants cron execute", () => {
 
     expect(report_error_mock).not.toHaveBeenCalled();
     expect(await payout_types()).toEqual({ "p-1": "settled" });
+  });
+
+  test("switched on with no terms effective date, a snapshot under the minimum claims nothing, as if switched off", async () => {
+    deductions.on = true;
+    terms.effective = "soon";
+    send_alert.mockResolvedValue(undefined);
+    const npo_id = await seed_npo({ cash: 500, payout_minimum: 80 });
+    await seed_payout(npo_id, "p-1", 30);
+    await seed_owed(npo_id, "don-owed", 50);
+
+    await index();
+
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(settle_spy).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({ "p-1": "pending" });
+    expect(await outstanding()).toEqual([50]);
   });
 
   test("switched on, an npo with no wise recipient owed a transfer is left pending", async () => {

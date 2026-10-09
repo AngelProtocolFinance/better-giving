@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { TERMS_EFFECTIVE, terms_effective_at } from "./terms";
+import { afterEach, describe, expect, test } from "vitest";
+import { TERMS_EFFECTIVE, terms_date_label, terms_effective_at } from "./terms";
 
 describe("terms_effective_at", () => {
   test("the terms take effect at midnight in New York on their date", () => {
@@ -23,4 +23,24 @@ describe("terms_effective_at", () => {
       expect(terms_effective_at(date)).toBeNull();
     }
   );
+});
+
+describe("terms_date_label", () => {
+  const tz = process.env.TZ;
+  afterEach(() => {
+    process.env.TZ = tz;
+  });
+
+  test("prints the date the way the terms pages do", () => {
+    expect(terms_date_label("2026-10-16")).toBe("October 16, 2026");
+  });
+
+  test("keeps the calendar day west of utc, where midnight utc is the day before", () => {
+    process.env.TZ = "America/Los_Angeles";
+    expect(terms_date_label("2027-01-01")).toBe("January 1, 2027");
+  });
+
+  test("a non-date comes back as given", () => {
+    expect(terms_date_label("2026-02-30")).toBe("2026-02-30");
+  });
 });

@@ -1,9 +1,9 @@
 import { report_error } from "#/errors/report";
 import { group_by } from "@/helpers/array";
 import type { IPayout, IPendingStatus } from "@/payouts";
-import { owed_deductions, stage } from "$/env";
+import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
-import { undo_deductions } from "$/payouts/owed-run";
+import { owed_netting_on, undo_deductions } from "$/payouts/owed-run";
 import { settle_npo_payouts } from "$/payouts/settle";
 import { wise_pay } from "$/payouts/wise-pay";
 import { pending_payouts, processing_payouts } from "$/pg/queries/payout";
@@ -86,7 +86,7 @@ async function process_item(npo_id: number, items: IPayout<IPendingStatus>[]) {
     const el = await grant_eligibility(
       npo_id,
       items.map((i) => i.amount),
-      owed_deductions
+      await owed_netting_on()
     );
     if (el.status === "not_found") throw new Error(`npo:${npo_id} not found`);
     if (el.status === "skipped") {

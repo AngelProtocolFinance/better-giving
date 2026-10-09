@@ -4,9 +4,10 @@ import { report_error } from "#/errors/report";
 import { emails } from "@/constants/common";
 import { group_by } from "@/helpers/array";
 import { send_email } from "$/email";
-import { owed_deductions, wise as wise_env } from "$/env";
+import { wise as wise_env } from "$/env";
 import { wise } from "$/kit/wise";
 import { net_owed } from "$/payouts/net-owed";
+import { owed_netting_on } from "$/payouts/owed-run";
 import { payout_total } from "$/payouts/transfer";
 import { db } from "$/pg/db";
 import { outstanding_for_npo } from "$/pg/queries/owed";
@@ -63,13 +64,14 @@ export async function index() {
 
     const rows: grants_schedule.IData["rows"] = [];
     const passing: number[] = [];
+    const nets = await owed_netting_on();
 
     for (const [npo_id, items = []] of Object.entries(by_npo)) {
       // el.total is the cents the payout run sends: notice, minimum and run agree
       const el = await grant_eligibility(
         +npo_id,
         items.map((i) => i.amount),
-        owed_deductions
+        nets
       );
       if (el.status === "not_found") {
         console.info(`NPO ${npo_id} not found, skipping`);
