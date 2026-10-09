@@ -1,5 +1,6 @@
 import type { Fetcher } from "swr";
 import use_swr from "swr/immutable";
+import { report_degraded_null } from "#/errors/report";
 import type {
   AccountRequirements,
   CreateRecipientRequest,
@@ -50,7 +51,11 @@ export function use_requirements(args: Input | null) {
   const req = use_swr(args, requirements);
 
   async function update_requirements(payload: ReqUpdateInput) {
-    const res = await fetch(
+    // fired from field change/blur handlers nobody awaits: a connection dropped
+    // before or during the body would otherwise escape as an unhandled
+    // rejection. the form keeps the requirements it already has, same as a
+    // non-ok answer.
+    const requirements = await fetch(
       `/api/wise/v1/quotes/${payload.quoteId}/account-requirements`,
       {
         headers: {
@@ -60,12 +65,16 @@ export function use_requirements(args: Input | null) {
         body: JSON.stringify(payload.request),
         method: "POST",
       }
-    );
+    )
+      .then((res) =>
+        res.ok ? (res.json() as Promise<AccountRequirements[]>) : null
+      )
+      .catch(report_degraded_null);
 
-    if (!res.ok) return;
+    if (!requirements) return;
 
     req.mutate(
-      { quoteId: payload.quoteId, requirements: await res.json() },
+      { quoteId: payload.quoteId, requirements },
       { revalidate: false }
     );
   }

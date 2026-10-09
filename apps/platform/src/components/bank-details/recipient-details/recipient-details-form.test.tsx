@@ -12,6 +12,18 @@ import type {
 import type { FormButtonsProps } from "../types";
 import { RecipientDetailsForm } from "./recipient-details-form";
 
+const reported = vi.hoisted(() => [] as [string, unknown][]);
+vi.mock("#/errors/report", async (orig) => ({
+  ...(await orig<typeof import("#/errors/report")>()),
+  report_error: (e: unknown) => {
+    reported.push(["error", e]);
+  },
+  report_degraded_null: (e: unknown) => {
+    reported.push(["degraded", e]);
+    return null;
+  },
+}));
+
 const field = (o: Pick<Group, "key" | "name" | "example"> & Partial<Group>) =>
   ({
     type: "text",
@@ -615,5 +627,61 @@ describe("RecipientDetailsForm", () => {
     await expect
       .element(screen.getByLabelText("Sort code"))
       .toHaveAccessibleDescription("invalid, e.g. 40-30-20");
+  });
+
+  test("a requirements refresh the visitor's connection drops is reported as degraded, not left to reject", async () => {
+    reported.length = 0;
+    mswWorker.use(
+      http.post("/api/wise/v1/quotes/:quoteId/account-requirements", () =>
+        HttpResponse.error()
+      )
+    );
+    const { screen } = await render_form(
+      with_fields({ sortCode: { refreshRequirementsOnChange: true } })
+    );
+
+    await screen.getByLabelText("Sort code").fill("40-30-20");
+    await screen.getByRole("button", { name: "Elsewhere" }).click();
+
+    await expect
+      .poll(() => reported.map(([level]) => level))
+      .toEqual(["degraded"]);
+    expect(reported[0][1]).toBeInstanceOf(TypeError);
+  });
+
+  test("a requirements refresh whose connection drops mid-body is reported as degraded, and the form keeps its fields", async () => {
+    reported.length = 0;
+    mswWorker.use(
+      http.post(
+        "/api/wise/v1/quotes/:quoteId/account-requirements",
+        () =>
+          new HttpResponse(
+            new ReadableStream({
+              start(c) {
+                c.enqueue(new TextEncoder().encode('[{"type":"sort_'));
+                c.error(new TypeError("network error"));
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+      )
+    );
+    const { screen } = await render_form(
+      with_fields({ sortCode: { refreshRequirementsOnChange: true } })
+    );
+
+    await screen.getByLabelText("Sort code").fill("40-30-20");
+    await screen.getByRole("button", { name: "Elsewhere" }).click();
+
+    await expect
+      .poll(() => reported.map(([level]) => level))
+      .toEqual(["degraded"]);
+    expect(reported[0][1]).toBeInstanceOf(TypeError);
+    await expect
+      .element(screen.getByLabelText("Sort code"))
+      .toHaveValue("40-30-20");
+    await expect
+      .element(screen.getByLabelText("Account number"))
+      .toBeInTheDocument();
   });
 });
