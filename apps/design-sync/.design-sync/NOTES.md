@@ -800,3 +800,27 @@ Fifteen previews wrote a deleted name and moved with the rest: `bg-card` → `bg
 in the panel-shaped ones, `bg-input` → `bg-surface` in `Increments`, `text-popover-fg` →
 `text-gray-12` in `Tooltip` and `HoverCard`. `Group.tsx` needed nothing and already
 covers the page → panel → field stack the rename is about.
+
+## Prop contracts corrected, 2026-10-09
+
+The standing props-diff pass (`git diff` over `packages/ui/src/components/` since mid-September) found
+three `cfg.dtsPropsFor` bodies behind the source. Nothing mechanical flagged any of them: typecheck,
+validate and `check-conventions.mjs` were all clean before the fix.
+
+- **`Modal`** gained `busy` (holds the dialog against Escape and outside clicks mid-submit) and
+  `onExitComplete`; its heading fallback widened from `h1`–`h3` to `h1`–`h6`. `docs/Modal.md` says
+  to pass `busy` during a submit and disable the caller's own close controls for the same span.
+- **`PasswordInput`** gained `label` (rendered by Ark, wired to input and reveal toggle) and a
+  narrowed `autoComplete: "current-password" | "new-password"` (default current). Doc updated.
+- **`PayoutStatus`** gained `processing`, same warning tone as `pending`. Preview `AllTypes` gained a
+  cell for it; doc updated.
+
+Also seen in that diff, with no contract change needed: `Tooltip`'s `trigger` was already in the
+config; `Form`/`RmxForm` gained `busy` and a `Fieldset` export, but forms are not on the published
+surface.
+
+**Fresh-clone setup in a cloud session**: `pnpm i --frozen-lockfile` at the root, the `.ds-sync`
+dep install from *The converter's own deps*, then `pnpm --filter design-sync styles`. The DesignSync
+tool needs a design authorization a non-interactive cloud session cannot obtain on its own; without
+it there is no remote anchor, so the driver reports every component as `added` — that is the
+missing anchor, not 52 changed components.

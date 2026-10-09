@@ -11,6 +11,12 @@ export const AllTypes = () => (
       <span className="text-xs text-gray-11">type="pending"</span>
     </div>
     <div className="flex items-center gap-3">
+      <PayoutStatus type="processing" />
+      <span className="text-xs text-gray-11">
+        type="processing" — in flight, same tone as pending
+      </span>
+    </div>
+    <div className="flex items-center gap-3">
       <PayoutStatus type="settled" />
       <span className="text-xs text-gray-11">type="settled"</span>
     </div>
