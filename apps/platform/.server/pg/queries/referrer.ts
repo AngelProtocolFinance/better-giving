@@ -163,14 +163,15 @@ const of_referrer = (referrer: string) =>
 
 /**
  * claims every pending commission of `referrer` for one transfer: moves them
- * to processing with `mk_ref(pending)` stored as their ref. undefined when
- * none is pending — a concurrent claim waits on the row locks, then finds
- * them processing and takes nothing.
+ * to processing with `mk_ref(pending, tx)` stored as their ref, called with
+ * them locked; a throw from it claims nothing. undefined when none is pending
+ * — a concurrent claim waits on the row locks, then finds them processing and
+ * takes nothing.
  */
 export async function commissions_claim(
   db: DbOrTx,
   referrer: string,
-  mk_ref: (pending: ICommission[]) => string
+  mk_ref: (pending: ICommission[], tx: DbOrTx) => string | Promise<string>
 ): Promise<{ ref: string; commissions: ICommission[] } | undefined> {
   return db.transaction(async (tx) => {
     const locked = await tx
@@ -183,7 +184,7 @@ export async function commissions_claim(
       .for("update");
     if (locked.length === 0) return undefined;
     const pending = locked.map(to_commission);
-    const ref = mk_ref(pending);
+    const ref = await mk_ref(pending, tx);
     await tx
       .update(referrer_commissions)
       .set({ status: "processing", ref })

@@ -69,3 +69,18 @@ describe("env: alchemy signing keys", () => {
     expect(SERVER_KEYS).toEqual(expect.arrayContaining(names));
   });
 });
+
+describe("env: owed deductions", () => {
+  it("are on only for the value on", async () => {
+    expect((await load({ OWED_DEDUCTIONS: "on" })).owed_deductions).toBe(true);
+  });
+
+  // an optional key's usual test is truthiness, which would read these as on
+  it.each(["", "off", "false", "0", "ON", "true"])(
+    "%j leaves them off",
+    async (value) => {
+      const env = await load({ OWED_DEDUCTIONS: value });
+      expect(env.owed_deductions).toBe(false);
+    }
+  );
+});
