@@ -11,7 +11,11 @@ import {
   reverse_charge,
 } from "$/refund/reverse";
 import { subscription_id_of } from "$/refund/subscription";
-import { is_failed_or_canceled, unsent_refunds } from "$/refund/unsent";
+import {
+  is_failed_or_canceled,
+  refund_take,
+  unsent_refunds,
+} from "$/refund/unsent";
 import type { Route } from "./+types/route";
 
 export type { DistPreview };
@@ -163,7 +167,7 @@ async function finish_refund(
     rail: "stripe",
     source: "admin",
     share: { taken, of: charge.amount_captured },
-    refunds: counted.map(({ id, amount }) => ({ id, amount })),
+    refunds: counted.map(refund_take),
     // an unsent one (a pending bank refund) can still fail, so the entry
     // holds: refund.updated reverses once the last succeeds
     unsent_refunds: unsent_refunds(refunds).map((x) => x.id),

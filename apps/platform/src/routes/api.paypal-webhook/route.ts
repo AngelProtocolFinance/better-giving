@@ -555,6 +555,8 @@ interface IReversal {
   share: Share | null;
   /** a refund naming no amount of its own: what paypal has refunded to date */
   refunded_to_date?: Share;
+  /** a refund's time at paypal */
+  refunded_at?: string;
   source: ReversalSource;
   /** paypal's refund or reversal id, recorded on what a party owes */
   ref: string | undefined;
@@ -607,6 +609,7 @@ const reverse_settled = async (ev: WebhookEvent, c: IReversal) => {
     source: c.source,
     share: c.share,
     refunded_to_date: c.refunded_to_date,
+    refunded_at: c.refunded_at,
     // a chargeback names no dispute: the entry lands it on the dispute filed
     // on the gift, or keeps it under its own ref for the filing to claim
     source_ref: c.ref,
@@ -1346,6 +1349,7 @@ export async function action({ request }: Route.ActionArgs) {
         // the resource is the refund; the capture it reverses is its `up` link
         const refund = ev.resource as {
           id?: string;
+          create_time?: string;
           amount?: { value?: string; currency_code?: string };
           seller_payable_breakdown?: {
             total_refunded_amount?: { value?: string; currency_code?: string };
@@ -1394,6 +1398,7 @@ export async function action({ request }: Route.ActionArgs) {
           ...sized,
           source: is_reversal ? "dispute" : "refund",
           ref: refund.id,
+          refunded_at: is_reversal ? undefined : refund.create_time,
           status: capture.status,
           refunded: money(part?.value, part?.currency_code),
           charged: money(gross?.value, gross?.currency_code),
@@ -1406,6 +1411,7 @@ export async function action({ request }: Route.ActionArgs) {
         const r = ev.resource as {
           id?: string;
           sale_id?: string;
+          create_time?: string;
           amount?: { total?: string; currency?: string };
         };
         const is_sale =
@@ -1435,6 +1441,7 @@ export async function action({ request }: Route.ActionArgs) {
           ...sized,
           source: is_reversal ? "dispute" : "refund",
           ref: r.id,
+          refunded_at: is_reversal ? undefined : r.create_time,
           status: state,
           refunded: money(r.amount?.total, r.amount?.currency),
           charged: money(whole?.total, whole?.currency),

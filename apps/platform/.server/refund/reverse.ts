@@ -9,12 +9,14 @@ import { dists_for_refund } from "../pg/queries/dist";
 import { donation_get } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { type ITake, takes_of } from "../pg/queries/take";
+import type { OwedSource } from "./apply";
 import { record_takes } from "./partial";
 import { dist_settled_usd, type PreviewLine } from "./plan";
 import { load_refund_plan, process_refund, type RefundResult } from "./process";
 import { fraction_of, type Share } from "./share";
 import {
   claim_paid,
+  type RefundTake,
   record_dispute_fees,
   take_chargeback,
   take_refund,
@@ -71,9 +73,12 @@ export interface ChargeReversal {
    * provider can't say: nothing is reversed, ops told */
   share: Share | null;
   /** the provider's refunds the event confirms: each one's own amount, in
-   * `share.of`'s unit, each its own take, put on record by whichever event
-   * names it first. a refund event's `share` then only gives `of` */
-  refunds?: { id: string; amount: number }[];
+   * `share.of`'s unit, and its time at the provider, each its own take, put
+   * on record by whichever event names it first. a refund event's `share`
+   * then only gives `of` */
+  refunds?: { id: string; amount: number; created_at?: string }[];
+  /** a refund event's time at the provider, for its own take */
+  refunded_at?: string;
   /** a refund whose own amount the event lacks: what the provider has
    * refunded to date, its own part being that less the gift's other refunds
    * on record */
@@ -217,10 +222,19 @@ export async function reverse_charge(
   r: ChargeReversal
 ): Promise<ReversalResult> {
   const loaded = await load_reversible(r.donation_id, r.rail);
+  const src = {
+    source: r.source === "dispute" ? "dispute" : "refund",
+    source_ref: r.source_ref ?? r.notice.id,
+  } as const;
+  if (loaded.status === "already_reversed") {
+    // a run that died between the reversal's commit and its fees left them
+    // to the provider's redelivery
+    await owe_dispute_fees(loaded.don.id, src);
+  }
   if (loaded.status !== "reversible") return unreversible(loaded);
   const { don } = loaded;
 
-  const ref = r.source_ref ?? r.notice.id;
+  const ref = src.source_ref;
   const refunds = own_refunds(r, ref);
   const chargeback = r.source === "dispute" && r.share && fraction_of(r.share);
   if (refunds === null || chargeback === null) {
@@ -261,14 +275,11 @@ export async function reverse_charge(
 
   const recorded = await record_takes({
     donation_id: don.id,
-    src: {
-      source: r.source === "dispute" ? "dispute" : "refund",
-      source_ref: ref,
-    },
+    src,
     refund: r.source !== "dispute",
     put: async (tx: DbOrTx, before: ITake[]) => {
       for (const t of refunds(before)) {
-        await take_refund(tx, don.id, t.ref, t.share);
+        await take_refund(tx, don.id, t);
       }
       if (chargeback !== false) {
         await take_chargeback(tx, {
@@ -292,20 +303,13 @@ export async function reverse_charge(
     return { status: "failed", reason: "not_distributed" };
   }
 
-  const src = {
-    source: r.source === "dispute" ? "dispute" : "refund",
-    source_ref: r.source_ref ?? r.notice.id,
-  } as const;
   const res = await process_refund(don.id, graphs, {
     form_id: don.form_id ?? null,
     program_id: don.program?.id ?? null,
     alert_from: r.alert_from,
     ...src,
   });
-  const now = new Date().toISOString();
-  await db.transaction((tx) =>
-    record_dispute_fees(tx, { donation_id: don.id, src, now })
-  );
+  await owe_dispute_fees(don.id, src);
 
   const failed = res.failures.length;
   console.info(
@@ -331,19 +335,34 @@ export async function reverse_charge(
   };
 }
 
+const owe_dispute_fees = (donation_id: string, src: OwedSource) =>
+  db.transaction((tx) =>
+    record_dispute_fees(tx, {
+      donation_id,
+      src,
+      now: new Date().toISOString(),
+    })
+  );
+
 /** a refund event's own takes, each its own part of the charge, given the
  * gift's takes on record; null when the event can't be sized */
 function own_refunds(
   r: ChargeReversal,
   ref: string
-): ((takes: ITake[]) => { ref: string; share: number }[]) | null {
+): ((takes: ITake[]) => RefundTake[]) | null {
   const of = r.share?.of;
   if (r.refunds && of && of > 0) {
-    return () => r.refunds!.map((x) => ({ ref: x.id, share: x.amount / of }));
+    return () =>
+      r.refunds!.map((x) => ({
+        ref: x.id,
+        share: x.amount / of,
+        refunded_at: x.created_at,
+      }));
   }
   if (r.source === "dispute") return () => [];
+  const refunded_at = r.refunded_at;
   const own = r.share && fraction_of(r.share);
-  if (own) return () => [{ ref, share: own }];
+  if (own) return () => [{ ref, share: own, refunded_at }];
   const to_date = r.refunded_to_date && fraction_of(r.refunded_to_date);
   if (!to_date) return null;
   return (takes) => {
@@ -352,7 +371,7 @@ function own_refunds(
         (t) => t.kind === "refund" && t.status === "active" && t.ref !== ref
       )
       .reduce((sum, t) => sum + t.share, 0);
-    return [{ ref, share: to_date - others }];
+    return [{ ref, share: to_date - others, refunded_at }];
   };
 }
 

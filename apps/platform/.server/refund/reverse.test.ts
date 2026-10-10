@@ -786,6 +786,23 @@ describe("reverse_charge — a whole lost dispute, its grant paid", () => {
     ]);
   });
 
+  test("redelivered after a run that reversed the gift and died before its fee, records the fee", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    await lost(id);
+    // the row as such a run leaves it
+    await test_db
+      .current!.db.update(owed_amounts)
+      .set({ fee_dispute_usd: 0 })
+      .where(eq(owed_amounts.npo_id, npo_id));
+
+    expect((await lost(id)).status).toBe("already_reversed");
+
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({ fee_dispute_usd: 15, outstanding_usd: 108.2 }),
+    ]);
+  });
+
   test("opened first, owes its fee once", async () => {
     const { id, npo_id } = await seed("stripe:card");
     await grant_paid(id, npo_id);
@@ -802,11 +819,29 @@ describe("reverse_charge — a whole lost dispute, its grant paid", () => {
   });
 });
 
-describe("owe_takes — a dist settled after its gift's dispute opened", () => {
-  test("owes the dispute's share of the new dist and its fee, once", async () => {
+describe("owe_takes — dists settled after their gift's dispute opened", () => {
+  /** `seed`'s gift split over two npos, its dists not yet settled, and a
+   * dispute over $30 of each $100 with a $15 fee already open */
+  async function opened_before_settling() {
     const { id, npo_id } = await seed("stripe:card");
     const db = test_db.current!.db;
-    const [dist] = await db.delete(dists).returning();
+    const [npo2] = await db
+      .insert(npos)
+      .values({
+        registration_number: `EIN-REV-${id}-2`,
+        name: "Second NPO",
+        endow_designation: "Charity",
+        overview_pt: "[]",
+        hq_country: "United States",
+      })
+      .returning();
+    const [first] = await db.delete(dists).returning();
+    const second = {
+      ...first!,
+      id: `${first!.id}-2`,
+      to_id: npo2!.id,
+      to_name: npo2!.name,
+    };
     await dispute_opened({
       donation_id: id,
       rail: "stripe",
@@ -815,25 +850,51 @@ describe("owe_takes — a dist settled after its gift's dispute opened", () => {
       disputed: { taken: 30, of: 100 },
       fee_usd: 15,
     });
-    expect(await owed_rows()).toEqual([]);
-
-    await db.insert(dists).values(dist!);
-    const settle = () =>
-      db.transaction((tx) =>
+    const settle = async (d: typeof first) => {
+      await db.insert(dists).values(d!);
+      await db.transaction((tx) =>
         owe_takes(tx as unknown as DbOrTx, id, "2026-07-04T00:00:00.000Z")
       );
-    await settle();
-    await settle();
+    };
+    return { id, npo_ids: [npo_id, npo2!.id], settle, first, second };
+  }
+  const by_npo = async () =>
+    (await owed_rows())
+      .sort((a, b) => a.npo_id! - b.npo_id!)
+      .map((o) => [o.received_usd, o.fee_dispute_usd, o.outstanding_usd]);
 
-    expect(await owed_rows()).toEqual([
-      expect.objectContaining({
-        npo_id,
-        source: "dispute",
-        source_ref: "du_1",
-        received_usd: 30,
-        fee_dispute_usd: 15,
-        outstanding_usd: 45,
-      }),
+  test("owes each new dist's share once, its fee left to the dispute's next event", async () => {
+    const { settle, first } = await opened_before_settling();
+    expect(await owed_rows()).toEqual([]);
+
+    await settle(first);
+    await test_db.current!.db.transaction((tx) =>
+      owe_takes(tx as unknown as DbOrTx, first!.donation_id, "2026-07-05")
+    );
+
+    expect(await by_npo()).toEqual([[30, 0, 30]]);
+  });
+
+  test("its loss then owes the fee split over every dist, never more than the fee", async () => {
+    const { id, settle, first, second } = await opened_before_settling();
+    await settle(first);
+    await settle(second);
+
+    await reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: { taken: 30, of: 100 },
+      dispute_id: "du_1",
+      dispute_fee_usd: 15,
+      source_ref: "du_1",
+      alert_from: "charge-dispute",
+      notice: { id: "evt_lost", lines: [] },
+    });
+
+    expect(await by_npo()).toEqual([
+      [30, 7.5, 37.5],
+      [30, 7.5, 37.5],
     ]);
   });
 });

@@ -1366,6 +1366,29 @@ describe("refunds and reversals", () => {
     expect(taken_back()).toBe(0.15);
   });
 
+  it.each([
+    ["PAYMENT.CAPTURE.REFUNDED", "2026-10-02T09:00:00Z"],
+    ["PAYMENT.CAPTURE.REVERSED", undefined],
+  ])(
+    "hands over %s with the refund's time at paypal, a chargeback with none",
+    async (event_type, refunded_at) => {
+      await settled_capture();
+      paypal_capture_is("PARTIALLY_REFUNDED");
+      const ev = capture_refund_ev(event_type);
+
+      await deliver({
+        ...ev,
+        resource: {
+          ...ev.resource,
+          create_time: "2026-10-02T09:00:00Z",
+          amount: { value: "-15.00", currency_code: "USD" },
+        },
+      });
+
+      expect(reversal().refunded_at).toBe(refunded_at);
+    }
+  );
+
   it("hands over a refund naming no amount of its own with what paypal says is refunded to date", async () => {
     await settled_capture();
     paypal_capture_is("PARTIALLY_REFUNDED");

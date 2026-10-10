@@ -208,10 +208,13 @@ describe("stripe charge.refunded → donation reversal", () => {
 
     await handle_charge_refunded(refund(2_000, "pending"));
 
+    // each with its time at stripe, which tells a claim's refund from an earlier one
+    const at = (id: string) =>
+      new Date(refunds.find((r) => r.id === id)!.created * 1000).toISOString();
     expect(reversals().map((r) => r.refunds)).toEqual([
       [
-        { id: "re_3", amount: 2_000 },
-        { id: "re_2", amount: 1_000 },
+        { id: "re_3", amount: 2_000, created_at: at("re_3") },
+        { id: "re_2", amount: 1_000, created_at: at("re_2") },
       ],
     ]);
   });

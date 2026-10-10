@@ -7,7 +7,11 @@ import { enqueue } from "$/kit/queue";
 import { stripe } from "$/kit/stripe";
 import { money, refund_list } from "$/kit/stripe-money";
 import { reverse_charge } from "$/refund/reverse";
-import { is_failed_or_canceled, unsent_refunds } from "$/refund/unsent";
+import {
+  is_failed_or_canceled,
+  refund_take,
+  unsent_refunds,
+} from "$/refund/unsent";
 import { ReversalIncompleteError } from "./reversal-incomplete";
 import { settled_donation } from "./settled-donation";
 
@@ -77,7 +81,7 @@ export async function reverse_refunds(
     rail: "stripe",
     source: "refund",
     share: { taken, of: charge.amount_captured },
-    refunds: live.map(({ id, amount }) => ({ id, amount })),
+    refunds: live.map(refund_take),
     unsent_refunds: unsent.map((r) => r.id),
     intent_id,
     source_ref: latest.id,

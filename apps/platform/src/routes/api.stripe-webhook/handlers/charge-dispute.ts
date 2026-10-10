@@ -9,6 +9,7 @@ import { db } from "$/pg/db";
 import { dispute_close, dispute_get, dispute_open } from "$/pg/queries/dispute";
 import { dispute_opened, dispute_won, owed_lines } from "$/refund/dispute";
 import { load_reversible, reverse_charge } from "$/refund/reverse";
+import { refund_take } from "$/refund/unsent";
 import { ReversalIncompleteError } from "../helpers/reversal-incomplete";
 import { settled_donation } from "../helpers/settled-donation";
 
@@ -57,7 +58,7 @@ async function taken_from_charge(d: Stripe.Dispute) {
   });
   const counted = refunds
     .filter((r) => r.status === "succeeded")
-    .map(({ id, amount }) => ({ id, amount }));
+    .map(refund_take);
   const refunded = counted.reduce((sum, r) => sum + r.amount, 0);
   const share = { taken: d.amount + refunded, of: charge.amount_captured };
   return { charge, refunds, counted, share, partial: share.taken < share.of };

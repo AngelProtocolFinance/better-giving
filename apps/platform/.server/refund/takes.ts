@@ -1,6 +1,7 @@
 import { inArray } from "drizzle-orm";
 import { report_error } from "#/errors/report";
 import { db } from "../pg/db";
+import { dispute_get } from "../pg/queries/dispute";
 import type { DbOrTx } from "../pg/queries/helpers";
 import {
   type IOwed,
@@ -142,20 +143,29 @@ export async function owe_takes(
   donation_id: string,
   now: string
 ): Promise<void> {
+  if (!(await takes_of(tx, donation_id)).some(active)) return;
+  const ds = await settled_dists_locked(tx, donation_id);
+  // read again under the lock: a take an event undid meanwhile is seen undone
   const takes = await takes_of(tx, donation_id);
   const first = takes.find(active);
   // all of it taken back: the gift is reversed, or its reversal is retried
   if (!first || taken_of(takes) >= 1) return;
-  const ds = await settled_dists_locked(tx, donation_id);
   const src = {
     source: first.kind === "dispute" ? "dispute" : "refund",
     source_ref: first.ref,
   } as const;
   for (const s of owed_targets(ds, takes).values()) {
-    if (s.received_usd + s.fee_processing_usd + (s.fee_dispute_usd ?? 0) <= 0) {
-      continue;
-    }
-    await record_owed(tx, { ...s, donation_id, ...src, now });
+    if (s.received_usd + s.fee_processing_usd <= 0) continue;
+    // a dispute fee splits over the dists settled so far, which a later dist
+    // of the gift changes, and a row's figure never comes down: the fee waits
+    // for the dispute's own next event, by when the gift is distributed
+    await record_owed(tx, {
+      ...s,
+      fee_dispute_usd: 0,
+      donation_id,
+      ...src,
+      now,
+    });
   }
 }
 
@@ -287,24 +297,32 @@ export const claim_paid = (takes: ITake[], share: number) =>
       same_share(t.share, share)
   );
 
+/** a refund: its id, its own part of the charge, and its time at the
+ * provider when the event states it */
+export interface RefundTake {
+  ref: string;
+  share: number;
+  refunded_at?: string;
+}
+
 /** a refund's take, its own part of the charge, undoing the open claim it
  * pays; a redelivery's is on record */
 export async function take_refund(
   tx: DbOrTx,
   donation_id: string,
-  ref: string,
-  share: number
+  r: RefundTake
 ) {
-  if (share <= 0) return;
+  if (r.share <= 0) return;
   const takes = await takes_of(tx, donation_id);
-  if (takes.some((t) => t.ref === ref)) return;
-  const claim = claim_paid(takes, share);
+  if (takes.some((t) => t.ref === r.ref)) return;
+  const claim = claim_paid(takes, r.share);
   if (claim) await take_undo(tx, donation_id, claim.ref);
   await take_add(tx, {
     donation_id,
-    ref,
+    ref: r.ref,
     kind: "refund",
-    share: Math.min(share, 1),
+    share: Math.min(r.share, 1),
+    refunded_at: r.refunded_at ?? null,
   });
 }
 
@@ -340,6 +358,10 @@ export async function take_chargeback(
       chargeback_ref: c.ref,
       share: Math.min(c.share, 1),
       fee_usd: Math.max(own.fee_usd, c.fee_usd),
+      ...(!active(own) &&
+        !(await closed_for_gift(tx, own.dispute_id)) && {
+          status: "active" as const,
+        }),
     });
     return;
   }
@@ -352,6 +374,19 @@ export async function take_chargeback(
     dispute_id: c.dispute_id ?? null,
     chargeback_ref: c.ref,
   });
+}
+
+/** whether the dispute closed without the buyer keeping the money: a
+ * chargeback of one undone by its win is its late delivery, which owes
+ * nothing; one undone while still open was paired with a refund it turns
+ * out not to be, and counts again */
+async function closed_for_gift(tx: DbOrTx, dispute_id: string | null) {
+  const d = dispute_id ? await dispute_get(dispute_id, tx) : undefined;
+  return (
+    d?.status === "won" ||
+    d?.status === "accepted" ||
+    d?.status === "inquiry_closed"
+  );
 }
 
 /** the chargeback recorded before its dispute was filed that a dispute of
@@ -440,9 +475,10 @@ export async function take_dispute(
 }
 
 /** whether a refund on record pays a claim of `share` opened at `opened_at`:
- * one of the same part, recorded after the claim was opened, that no dispute
- * of that part has been paired with. a refund recorded before the claim
- * opened is the donor's own, and the claim a dispute of what was left */
+ * one of the same part, made at the provider after the claim was opened,
+ * that no dispute of that part has been paired with. a refund made before
+ * the claim opened is the donor's own, and the claim a dispute of what was
+ * left; one of no known time pairs with nothing */
 const refund_paying = (takes: ITake[], share: number, opened_at: string) =>
   !takes.some((t) => t.kind === "dispute" && same_share(t.share, share)) &&
   takes.some(
@@ -450,5 +486,6 @@ const refund_paying = (takes: ITake[], share: number, opened_at: string) =>
       active(t) &&
       t.kind === "refund" &&
       same_share(t.share, share) &&
-      Date.parse(t.created_at) > Date.parse(opened_at)
+      t.refunded_at !== null &&
+      Date.parse(t.refunded_at) > Date.parse(opened_at)
   );

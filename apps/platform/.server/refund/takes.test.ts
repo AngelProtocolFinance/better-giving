@@ -53,6 +53,8 @@ import { reverse_charge } from "./reverse";
 // --- setup ---
 
 const OPENED = "2026-10-01T12:00:00.000Z";
+const BEFORE_OPENED = "2026-09-30T12:00:00.000Z";
+const AFTER_OPENED = "2026-10-02T12:00:00.000Z";
 const CLOSED = "2026-10-20T12:00:00.000Z";
 
 beforeAll(async () => {
@@ -73,12 +75,14 @@ beforeEach(async () => {
 /** the events on a $100 card gift whose $90 grant went out ($3.20 card fee),
  * as a provider delivers them: each acts through the refund core's entries */
 const on = (id: string) => ({
-  refund: (ref: string, usd: number) =>
+  /** `at`: the refund's time at the provider */
+  refund: (ref: string, usd: number, at?: string) =>
     reverse_charge({
       donation_id: id,
       rail: "stripe",
       source: "refund",
       share: { taken: usd, of: 100 },
+      refunded_at: at,
       source_ref: ref,
       alert_from: "paypal-refund",
       notice: { id: `WH-${ref}`, lines: [] },
@@ -336,14 +340,36 @@ describe("the takes ledger, a refund and a claim delivered out of order", () => 
   test("an accepted claim's refund delivered before its filing, then redelivered, reverses nothing and owes the refund's share", async () => {
     const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
     const e = on(id);
-    await e.refund("R-claim", 60);
+    await e.refund("R-claim", 60, AFTER_OPENED);
 
     await e.open("D0", 60);
-    const again = await e.refund("R-claim", 60);
+    const again = await e.refund("R-claim", 60, AFTER_OPENED);
     expect(again.status).toBe("partial_owed");
     expect(await outstanding(id)).toEqual([55.92]);
 
     await e.close("D0", "accepted");
+    expect(await outstanding(id)).toEqual([55.92]);
+  });
+
+  test("a refund made before a dispute of the same part, delivered after it opened, leaves the dispute its own", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.refund("R1", 30, BEFORE_OPENED);
+
+    await e.open("D0", 30);
+
+    expect(await outstanding(id)).toEqual([55.92]);
+  });
+
+  test("a dispute paired with a refund that turns out not to be its claim counts again once charged back", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.refund("R1", 30, AFTER_OPENED);
+    await e.open("D0", 30);
+    expect(await outstanding(id)).toEqual([27.96]);
+
+    await e.chargeback("REV-0", 30);
+
     expect(await outstanding(id)).toEqual([55.92]);
   });
 

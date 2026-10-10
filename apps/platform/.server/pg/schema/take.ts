@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, pgTable, text, unique } from "drizzle-orm/pg-core";
-import { numeric_as_number, timestamptz_now } from "./columns";
+import { numeric_as_number, timestamptz, timestamptz_now } from "./columns";
 import { donations } from "./donation";
 
 /** what one refund or one dispute took back of a gift's charge, one row
@@ -32,6 +32,10 @@ export const donation_takes = pgTable(
     dispute_id: text("dispute_id"),
     /** the chargeback's own ref, so a redelivered chargeback finds its take */
     chargeback_ref: text("chargeback_ref"),
+    /** a refund's time at the provider, when its event states it: what tells
+     * a claim's refund from one made before the claim, whatever order the
+     * events land in */
+    refunded_at: timestamptz("refunded_at"),
     created_at: timestamptz_now("created_at"),
   },
   (t) => [
@@ -54,5 +58,9 @@ export const donation_takes = pgTable(
       sql`${t.kind} = 'dispute' OR (${t.dispute_id} IS NULL AND ${t.chargeback_ref} IS NULL AND ${t.fee_usd} = 0)`
     ),
     check("donation_takes_ref_check", sql`${t.ref} <> ''`),
+    check(
+      "donation_takes_refunded_at_check",
+      sql`${t.kind} = 'refund' OR ${t.refunded_at} IS NULL`
+    ),
   ]
 );
