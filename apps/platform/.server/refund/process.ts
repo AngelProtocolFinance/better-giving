@@ -39,6 +39,7 @@ import {
   type RefundPlan,
   referrer_of,
 } from "./plan";
+import { open_credit, taken_from_npo } from "./share";
 
 export interface ProcessRefundCtx extends OwedSource {
   form_id: string | null;
@@ -87,26 +88,6 @@ async function recorded_at_open(
   const row = await owed_for_party(donation_id, party, tx);
   return row?.source === "dispute" ? row : null;
 }
-
-/** what a reversal taking `taken` from the npo's balances credits on the row
- * a dispute's open recorded: no more than the row counts it received, so a
- * share recorded at open keeps its fees owed */
-const open_credit = (row: IOwed, taken: number) =>
-  Math.min(
-    taken,
-    row.received_usd,
-    owed_total(row) - row.credited_back_usd - row.written_off_usd
-  );
-
-/** usd the plan takes back from the npo's balances and pending payout */
-const taken_from_npo = (plan: RefundPlan): number =>
-  plan.effects.reduce(
-    (sum, e) =>
-      e.kind === "balance_update"
-        ? sum + e.deltas.liq + e.deltas.lock + e.deltas.cash
-        : sum,
-    0
-  );
 
 /** project a rich DistRefundGraph + fetched npo/nav into the pure calc inputs */
 function project_inputs(

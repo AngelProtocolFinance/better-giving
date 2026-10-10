@@ -933,7 +933,7 @@ describe("a dispute lost after it opened", () => {
     expect(await owed_of(id)).toMatchObject([{ outstanding_usd: 15.96 }]);
   });
 
-  test("with no open on record, owes what the loss path records", async () => {
+  test("with no open on record, owes what the loss path records plus the dispute fee", async () => {
     // half to savings the npo no longer holds, half to a pending payout the
     // reversal cancels: a loss that takes $45 back and owes the rest
     const { id, npo_ids } = await seed({ ...PAID_GRANT, payout: "pending" });
@@ -951,7 +951,12 @@ describe("a dispute lost after it opened", () => {
     await lose(id);
 
     expect(await owed_of(id)).toMatchObject([
-      { received_usd: 45, fee_processing_usd: 3.2, outstanding_usd: 48.2 },
+      {
+        received_usd: 45,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        outstanding_usd: 63.2,
+      },
     ]);
   });
 

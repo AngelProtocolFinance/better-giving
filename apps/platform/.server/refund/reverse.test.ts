@@ -82,7 +82,9 @@ vi.mock("../kit/stripe", () => ({
 
 import { stripe } from "../kit/stripe";
 import { donation_get } from "../pg/queries/donation";
+import { commissions_mark_paid } from "../pg/queries/referrer";
 import { create_test_db } from "../pg/test-utils/pglite";
+import { dispute_opened } from "./dispute";
 import { has_settled_dists, reversal_preview, reverse_charge } from "./reverse";
 
 // --- setup ---
@@ -635,6 +637,38 @@ describe("reverse_charge — part of the charge, its grant paid", () => {
     expect((await state(id, npo_id)).don).toBe("settled");
   });
 
+  test("a commission claimed for a transfer owes its share, which stays once the transfer pays and the refund is redelivered", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    const db = test_db.current!.db;
+    await db
+      .update(npos)
+      .set({ referral_id: "NPO-REF" })
+      .where(eq(npos.id, npo_id));
+    await db.insert(referrer_commissions).values({
+      referrer_npo: "NPO-REF",
+      date: "2026-07-01T00:00:00.000Z",
+      donation_id: `dist-${id}`,
+      npo_id,
+      amount: 5,
+      status: "processing",
+      ref: "ref-1",
+    });
+    const referrer_row = async () =>
+      (await owed_rows()).find((o) => o.referrer_npo === "NPO-REF");
+
+    await part(id, 40, "re_1");
+    expect(await referrer_row()).toMatchObject({ outstanding_usd: 2 });
+
+    await commissions_mark_paid(db as never, "ref-1");
+    await part(id, 40, "re_1");
+
+    expect(await referrer_row()).toMatchObject({
+      received_usd: 2,
+      outstanding_usd: 2,
+    });
+  });
+
   test("a paid commission owes the same share, and the whole once the rest is refunded", async () => {
     const { id, npo_id } = await seed("stripe:card");
     await grant_paid(id, npo_id);
@@ -666,6 +700,66 @@ describe("reverse_charge — part of the charge, its grant paid", () => {
       received_usd: 5,
       outstanding_usd: 5,
     });
+  });
+});
+
+describe("reverse_charge — a whole lost dispute, its grant paid", () => {
+  const OPENED = "2026-07-03T00:00:00.000Z";
+  const lost = (id: string) =>
+    reverse_charge({
+      donation_id: id,
+      rail: "stripe",
+      source: "dispute",
+      share: whole,
+      dispute_id: "du_1",
+      dispute_fee_usd: 15,
+      source_ref: "du_1",
+      alert_from: "charge-dispute",
+      notice: { id: "evt_lost", lines: [] },
+    });
+  const opened = (id: string) =>
+    dispute_opened({
+      donation_id: id,
+      rail: "stripe",
+      dispute_id: "du_1",
+      opened_at: OPENED,
+      disputed: whole,
+      fee_usd: 15,
+    });
+
+  test("closed before its open, owes the dispute fee with the full figure, and the late open adds nothing", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+
+    expect((await lost(id)).status).toBe("reversed");
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        received_usd: 90,
+        fee_processing_usd: 3.2,
+        fee_dispute_usd: 15,
+        outstanding_usd: 108.2,
+      }),
+    ]);
+
+    expect((await opened(id)).status).toBe("already_reversed");
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({ outstanding_usd: 108.2 }),
+    ]);
+  });
+
+  test("opened first, owes its fee once", async () => {
+    const { id, npo_id } = await seed("stripe:card");
+    await grant_paid(id, npo_id);
+    await opened(id);
+
+    expect((await lost(id)).status).toBe("reversed");
+
+    expect(await owed_rows()).toEqual([
+      expect.objectContaining({
+        fee_dispute_usd: 15,
+        outstanding_usd: 108.2,
+      }),
+    ]);
   });
 });
 

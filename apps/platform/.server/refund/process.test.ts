@@ -10,6 +10,7 @@ import {
 } from "vitest";
 import { dist_refund_update, dists_for_refund } from "../pg/queries/dist";
 import type { DbOrTx } from "../pg/queries/helpers";
+import { record_owed } from "../pg/queries/owed";
 import { user } from "../pg/schema/auth";
 import { bal_txs } from "../pg/schema/bal-tx";
 import { dists } from "../pg/schema/dist";
@@ -826,6 +827,9 @@ describe("reverse_unfunded_payout_loss — a refund owed while its payout was in
     alloc: { liq: number; lock: number; cash: number };
     bal: { liq: number; lock_units?: number };
     fee_processing?: number;
+    /** a dispute's open recorded the dist's net, card fee and this fee
+     * before its loss reversed the gift */
+    dispute_fee?: number;
   }) {
     const { id, npo_id } = await seed({ event: false });
     const db = test_db.current!.db;
@@ -859,7 +863,21 @@ describe("reverse_unfunded_payout_loss — a refund owed while its payout was in
       amount: cash,
       type: "processing",
     });
-    await process_refund(id, await dists_for_refund(id), ctx);
+    if (o.dispute_fee === undefined) {
+      await process_refund(id, await dists_for_refund(id), ctx);
+      return { id, npo_id };
+    }
+    const src = { source: "dispute", source_ref: "du_1" } as const;
+    await record_owed(as_db(db), {
+      donation_id: id,
+      party: { npo_id },
+      received_usd: 100,
+      fee_processing_usd: o.fee_processing ?? 0,
+      fee_dispute_usd: o.dispute_fee,
+      ...src,
+      now: "2026-07-02T00:00:00.000Z",
+    });
+    await process_refund(id, await dists_for_refund(id), { ...ctx, ...src });
     return { id, npo_id };
   }
 
@@ -894,6 +912,24 @@ describe("reverse_unfunded_payout_loss — a refund owed while its payout was in
     expect(dist!.refund_status).toBe("completed");
     const [don] = await dons();
     expect([don!.id, don!.status]).toEqual([id, "refunded"]);
+  });
+
+  test("a dispute's loss credits back only what the npo received, its card and dispute fees still owed", async () => {
+    await refund_in_flight({
+      alloc: { liq: 0, lock: 0, cash: 100 },
+      bal: { liq: 0 },
+      fee_processing: 3.2,
+      dispute_fee: 15,
+    });
+    expect((await owed_rows())[0]).toMatchObject({ outstanding_usd: 118.2 });
+
+    expect(await unfund()).toEqual({ status: "reversed" });
+
+    const [owed] = await owed_rows();
+    expect(owed).toMatchObject({
+      credited_back_usd: 100,
+      outstanding_usd: 18.2,
+    });
   });
 
   test("a savings shortfall stays owed: the payout is cancelled, its cash taken back and credited", async () => {

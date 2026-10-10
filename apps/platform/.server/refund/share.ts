@@ -13,7 +13,12 @@ import {
 import { dists } from "../pg/schema/dist";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
-import { dist_settled_usd, fee_processing_usd, referrer_of } from "./plan";
+import {
+  dist_settled_usd,
+  fee_processing_usd,
+  type RefundPlan,
+  referrer_of,
+} from "./plan";
 
 /** a part of a charge, `taken` of `of`, in one unit */
 export interface Share {
@@ -105,6 +110,26 @@ async function dists_locked(tx: DbOrTx, where: SQL | undefined) {
   }));
 }
 
+/** what a reversal taking `taken` from the npo's balances credits on the row
+ * a dispute's open recorded: no more than the row counts it received, so a
+ * share recorded at open keeps its fees owed */
+export const open_credit = (row: IOwed, taken: number) =>
+  Math.min(
+    taken,
+    row.received_usd,
+    owed_total(row) - row.credited_back_usd - row.written_off_usd
+  );
+
+/** usd the plan takes back from the npo's balances and pending payout */
+export const taken_from_npo = (plan: RefundPlan): number =>
+  plan.effects.reduce(
+    (sum, e) =>
+      e.kind === "balance_update"
+        ? sum + e.deltas.liq + e.deltas.lock + e.deltas.cash
+        : sum,
+    0
+  );
+
 /** whether the dist's grant has gone out: a payout of its cash share no
  * longer pending, as the refund plan judges it a loss */
 export const grant_went_out = (d: LockedDist) =>
@@ -117,7 +142,9 @@ export type OwedShare = Pick<
 
 /** one figure per party: for each dist `owes` picks, its npo owes `f` of
  * what the dist received and of its card fee, plus its part of the dispute
- * fee by settled amount, in full; each referrer `f` of its paid commissions */
+ * fee by settled amount, in full; each referrer `f` of its commissions paid
+ * or claimed for a transfer: one whose transfer goes unfunded goes back to
+ * pending, and the run that pays it later nets what this recorded */
 export function owed_shares(
   ds: LockedDist[],
   o: {
@@ -160,7 +187,7 @@ export function owed_shares(
       });
     }
     const c = x.commission;
-    if (c?.status !== "paid") continue;
+    if (c?.status !== "paid" && c?.status !== "processing") continue;
     const party = referrer_of(c);
     add(`ref:${JSON.stringify(party)}`, {
       party,

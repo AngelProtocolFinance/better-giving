@@ -18,6 +18,7 @@ import { dist_settled_usd } from "./plan";
 import {
   type CreditPart,
   credit_parts,
+  gift_dists_locked,
   grant_went_out,
   type LockedDist,
   type OwedShare,
@@ -46,7 +47,7 @@ const party_key = (p: OwedParty) => JSON.stringify(p);
  * whose grant hasn't owes the disputes' share only, a refund there being ops'
  * to settle by hand. each active dispute's fee is owed in full, split over
  * the dists by settled amount, and each referrer owes the whole share of its
- * paid commission
+ * commission paid or claimed for a transfer
  */
 export function owed_targets(
   ds: LockedDist[],
@@ -69,6 +70,45 @@ export function owed_targets(
       owes: () => true,
     }).map((s) => [party_key(s.party), s])
   );
+}
+
+/**
+ * each npo's part of the gift's active dispute fees, split over its dists by
+ * settled amount, recorded on its row once the gift is reversed: the
+ * reversal records what the dists received and their card fees only, and a
+ * dispute whose open never ran recorded no fee. a fee its open recorded
+ * already changes nothing
+ */
+export async function record_dispute_fees(
+  tx: DbOrTx,
+  r: { donation_id: string; src: OwedSource; now: string }
+) {
+  const takes = (await takes_of(tx, r.donation_id)).filter(
+    (t) => active(t) && t.fee_usd > 0
+  );
+  if (takes.length === 0) return;
+  const ds = await gift_dists_locked(tx, r.donation_id);
+  const weights = ds.map(dist_settled_usd);
+  const fees = new Map<number, number>();
+  for (const t of takes) {
+    for (const [i, c] of split_cents(t.fee_usd, weights).entries()) {
+      const npo_id = ds[i]!.to_id;
+      fees.set(npo_id, (fees.get(npo_id) ?? 0) + c);
+    }
+  }
+  for (const [npo_id, fee] of fees) {
+    if (fee <= 0) continue;
+    // every figure only grows, so the zeros leave what the reversal recorded
+    await record_owed(tx, {
+      party: { npo_id },
+      donation_id: r.donation_id,
+      received_usd: 0,
+      fee_processing_usd: 0,
+      fee_dispute_usd: Math.round(fee * 100) / 100,
+      ...r.src,
+      now: r.now,
+    });
+  }
 }
 
 export interface OwedMove {
