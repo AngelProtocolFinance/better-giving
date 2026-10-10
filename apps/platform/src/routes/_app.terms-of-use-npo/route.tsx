@@ -2,7 +2,10 @@ import { EMAILS } from "@better-giving/brand";
 import type { PropsWithChildren } from "react";
 import { href, Link } from "react-router";
 import { metas } from "#/helpers/seo";
+import { TERMS_EFFECTIVE, terms_date_label } from "@/terms";
 import type { Route } from "./+types/route";
+
+const EFFECTIVE = terms_date_label(TERMS_EFFECTIVE);
 
 const U = ({ children }: PropsWithChildren) => (
   <span className="underline">{children}</span>
@@ -19,9 +22,7 @@ export const meta: Route.MetaFunction = () =>
 export default function TermsNonprofits() {
   return (
     <div className="page prose lg:prose-lg py-20">
-      <i className="text-gray-11 text-right block">
-        Effective October 25, 2024
-      </i>
+      <i className="text-gray-11 text-right block">Effective {EFFECTIVE}</i>
       <h2 className="text-center">
         <span className="block">Better Giving</span>
         <span className="block">Nonprofit Organization</span>
@@ -370,10 +371,50 @@ export default function TermsNonprofits() {
               donation(s) in any manner consistent with our charitable purpose.
             </li>
             <li>
+              <b>Refunds and Chargebacks.</b> Better Giving may, in its sole
+              discretion, refund a donation to a Donor, and a Donor’s bank or
+              payment provider may reverse or charge back a Donor’s payment
+              (each, a “<b>Reversed Donation</b>”). If Better Giving has already
+              granted you any part of a Reversed Donation, including through a
+              Withdrawal, you agree that Better Giving may recover the Recovery
+              Amount by deducting it from any grant later payable to you, until
+              it is recovered in full. The “<b>Recovery Amount</b>” is the part
+              of the Reversed Donation granted to you, plus the card and other
+              payment processing fees and the dispute fees Better Giving paid on
+              that donation. It does not include any fee Better Giving keeps for
+              itself, such as a Donor Fee. If only part of a donation is
+              refunded or reversed, the Recovery Amount is that share of the
+              amount granted to you, plus any fees described above. Better
+              Giving will notify you of each Recovery Amount, identifying the
+              donation and the date it was reversed, before deducting it.
+            </li>
+            <li>
+              <b>Disputed Payments.</b> If a Donor disputes a payment with the
+              Donor’s bank or payment provider, the donation is a Reversed
+              Donation from the day the dispute is opened, and Better Giving may
+              deduct its Recovery Amount from then on. If the dispute is
+              resolved in Better Giving’s favor, Better Giving will cancel that
+              Recovery Amount and add any part of it already deducted to your
+              next grant.
+            </li>
+            <li>
+              <b>Outstanding Recovery Amounts.</b> If the grants payable to you
+              are not enough to cover a Recovery Amount, the rest stays owed and
+              Better Giving may deduct it from later grants until it is
+              recovered in full. Better Giving may waive any Recovery Amount in
+              whole or in part at its discretion. Sections 4(g) through 4(i)
+              apply only to donations made on or after{" "}
+              {/* fixed cut-off: a later amendment dates the effective line above on its own and leaves TERMS_EFFECTIVE be */}
+              {EFFECTIVE}.
+            </li>
+            <li>
               <b>Fees:</b> Use of the Platform as well as Better Giving’s
               services are free for NPOs. We do not charge you a fee for
               registering on the Platform nor for receiving grants from Better
-              Giving. There are no hidden fees or recurring charges.
+              Giving. There are no hidden fees or recurring charges. A Recovery
+              Amount deducted under Section 4(g) can include the payment
+              processing and dispute fees that a Reversed Donation cost Better
+              Giving.
               <ol>
                 <li>
                   <U>Donor Fees</U>. NPOs may elect to have Donor Fees set as
@@ -593,8 +634,10 @@ export default function TermsNonprofits() {
               9(e).
             </li>
             <li>
-              The obligations of Sections 3(b), 5, 7, 8, 9, and 10 will survive
-              the termination of this Agreement
+              The obligations of Sections 3(b), 4(g) through 4(i), 5, 7, 8, 9,
+              and 10 will survive the termination of this Agreement. Any
+              Recovery Amount still owed at termination stays owed and may be
+              deducted from any grant made after termination.
             </li>
           </ol>
         </li>

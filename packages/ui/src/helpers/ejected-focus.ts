@@ -31,13 +31,20 @@ export function dialog_return_target(): HTMLElement | null {
 /**
  * resolves a dialog's recorded return target at close time. `null` leaves
  * focus to the dialog's default. `content` is the closing dialog's content,
- * still mounted through its exit animation.
+ * still mounted through its exit animation. `fallback` stands in only when
+ * there is no recorded target or it has left the document.
  */
 export function settle_return_target(
   el: HTMLElement | null,
-  content: HTMLElement | null
+  content: HTMLElement | null,
+  fallback?: () => HTMLElement | null
 ): HTMLElement | null {
-  if (!el?.isConnected) return null;
+  if (!el?.isConnected) {
+    const stand_in = fallback?.() ?? null;
+    // a cell or a heading takes focus only through a tabindex
+    if (stand_in && stand_in.tabIndex < 0) remove_tab_stop_on_blur(stand_in);
+    return stand_in;
+  }
   if (!el.matches(":disabled")) return el;
   // a control its still-disabled fieldset ejected is refocused by that
   // fieldset on re-enabling — provided focus is on `<body>` by then, so it is
