@@ -19,6 +19,7 @@ import {
   type ReferrerParty,
   refunded_in_flight_lines,
 } from "../refund/commission";
+import { owe_takes_of_dists } from "../refund/takes";
 import { net_owed } from "./net-owed";
 import { deduct, lock_run, owed_netting_on, undo_deductions } from "./owed-run";
 import type { Pay } from "./settle";
@@ -89,6 +90,7 @@ export async function settle_referrer_commissions(
   }
   if (!claimed) return { status: "none_pending" };
   if (!claimed.send) {
+    await owe_takes_of_dists(claimed.commissions.map((c) => c.donation_id));
     return { status: "recovered", ref: claimed.ref, total: claimed.gross };
   }
 
@@ -224,6 +226,8 @@ export async function settle_referrer_commissions(
     });
     return { status: "unrecorded", ref, transfer_id };
   }
+  // a refund or dispute recorded while a commission was pending owed nothing for it
+  await owe_takes_of_dists(paid);
   const unpaid = ids.filter((id) => !paid.includes(id));
   if (unpaid.length > 0) {
     await alert({

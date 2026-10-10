@@ -47,6 +47,7 @@ import type { DbOrTx } from "../pg/queries/helpers";
 import { owed_for_donation } from "../pg/queries/owed";
 import { create_test_db } from "../pg/test-utils/pglite";
 import { dispute_opened, dispute_won } from "./dispute";
+import { refund_failed } from "./failed";
 import { reverse_charge } from "./reverse";
 
 // --- setup ---
@@ -312,6 +313,55 @@ describe("the takes ledger, in the orders the review found", () => {
       expect(await outstanding(id)).toEqual([27.96]);
     }
   );
+});
+
+describe("the takes ledger, a refund and a claim delivered out of order", () => {
+  test("a refund that failed before any event recorded it is never added by an event that read it as succeeded", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+
+    const failed = await refund_failed({
+      donation_id: id,
+      rail: "stripe",
+      refund_id: "R1",
+    });
+    await e.refund("R1", 40);
+
+    expect(failed.status).toBe("not_recorded");
+    expect(await outstanding(id)).toEqual([]);
+    await e.refund("R2", 30);
+    expect(await outstanding(id)).toEqual([27.96]);
+  });
+
+  test("an accepted claim's refund delivered before its filing, then redelivered, reverses nothing and owes the refund's share", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    const e = on(id);
+    await e.refund("R-claim", 60);
+
+    await e.open("D0", 60);
+    const again = await e.refund("R-claim", 60);
+    expect(again.status).toBe("partial_owed");
+    expect(await outstanding(id)).toEqual([55.92]);
+
+    await e.close("D0", "accepted");
+    expect(await outstanding(id)).toEqual([55.92]);
+  });
+
+  test("a dispute opened after a refund of the same part is its own", async () => {
+    const { id } = await seed_card_gift(test_db.current!.db, PAID_GRANT);
+    await on(id).refund("R1", 30);
+
+    await dispute_opened({
+      donation_id: id,
+      rail: "stripe",
+      dispute_id: `${id}:D0`,
+      opened_at: new Date().toISOString(),
+      disputed: { taken: 30, of: 100 },
+      fee_usd: 0,
+    });
+
+    expect(await outstanding(id)).toEqual([55.92]);
+  });
 });
 
 /** a seeded generator, so a failing order reproduces */

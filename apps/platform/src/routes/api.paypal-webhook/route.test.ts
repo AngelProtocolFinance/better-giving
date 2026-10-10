@@ -2723,6 +2723,9 @@ describe("a dispute on a paid-grant $100 gift, on the real entry", () => {
       created_ev(charge, {
         dispute_id,
         dispute_amount: { currency_code: "USD", value },
+        // filed after any refund already delivered: a dispute of its own,
+        // not the claim that refund paid
+        create_time: new Date().toISOString(),
       })
     );
     await deliver(chargeback_ev(charge, value));

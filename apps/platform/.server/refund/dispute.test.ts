@@ -98,6 +98,13 @@ const opened_on = (donation_id: string, fee_usd = 15, own = 100) => ({
   fee_usd,
 });
 
+/** `opened_on`, opened now: after any refund already on record, so a dispute
+ * of its own rather than the claim that refund paid */
+const opened_after = (donation_id: string, fee_usd = 15, own = 100) => ({
+  ...opened_on(donation_id, fee_usd, own),
+  opened_at: new Date().toISOString(),
+});
+
 /** each party's row on the gift as it breaks down, npos by id, then referrers */
 const owed_of = async (donation_id: string) =>
   (await owed_for_donation(donation_id))
@@ -580,7 +587,7 @@ describe("dispute_opened, sized from the gift's own records", () => {
     const { id } = await seed(PAID_GRANT);
     await refund_share(id, 30, "re_1");
 
-    await dispute_opened(opened_on(id, 15, 30));
+    await dispute_opened(opened_after(id, 15, 30));
 
     expect(await dispute_get(`du_${id}`)).toMatchObject({
       share: 0.3,
@@ -598,7 +605,7 @@ describe("dispute_opened, sized from the gift's own records", () => {
       const { id } = await seed(PAID_GRANT);
       await refund_share(id, usd, "re_1");
       expect(await outstanding(id)).toEqual([owed]);
-      await dispute_opened(opened_on(id, 15, usd));
+      await dispute_opened(opened_after(id, 15, usd));
 
       await dispute_won(won_on(id));
 

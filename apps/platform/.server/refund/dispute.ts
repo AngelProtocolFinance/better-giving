@@ -100,6 +100,7 @@ export async function dispute_opened(
       dispute_id: d.dispute_id,
       share: fraction_of(d.disputed),
       fee_usd: d.fee_usd,
+      opened_at: d.opened_at,
     });
     const after = await takes_of(tx, don.id);
     const moves = await move_owed(tx, {

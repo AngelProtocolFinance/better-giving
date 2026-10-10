@@ -6,7 +6,7 @@ import { donation_lock } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { type OwedParty, owed_for_party, owed_total } from "../pg/queries/owed";
 import { refund_failed_ref } from "../pg/queries/owed-refund";
-import { type ITake, take_undo, takes_of } from "../pg/queries/take";
+import { type ITake, take_add, take_undo, takes_of } from "../pg/queries/take";
 import { donations } from "../pg/schema/donation";
 import { loss_logs } from "../pg/schema/revenue";
 import { fee_processing_usd, referrer_of } from "./plan";
@@ -48,7 +48,9 @@ export type RefundFailedResult =
       by_hand: string[];
     }
   /** the gift has none of the refund on record (it failed before an event
-   * recorded it, or a run before this one credited it back): nothing written */
+   * recorded it, or a run before this one credited it back): nothing
+   * credited, and the refund kept on record as failed, so no later event
+   * adds it */
   | { status: "not_recorded"; donation_status: IDonation["status"] }
   | Extract<Unreversible, { status: "failed" }>;
 
@@ -83,10 +85,20 @@ export async function refund_failed(
       (t) =>
         t.ref === r.refund_id && t.kind === "refund" && t.status === "active"
     );
-    // never recorded (it failed while held), or undone by an earlier run
-    if (!take || !(await take_undo(tx, don.id, take.ref))) {
+    if (!take) {
+      // put on record undone, so an event that read it before it failed
+      // finds it and adds nothing; undone from the start, its part is never
+      // read
+      await take_add(tx, {
+        donation_id: don.id,
+        ref: r.refund_id,
+        kind: "refund",
+        share: 1,
+        status: "undone",
+      });
       return { status: "not_recorded", donation_status };
     }
+    await take_undo(tx, don.id, take.ref);
     const after = await takes_of(tx, don.id);
     const moves = is_reversed(donation_status)
       ? await credit_reversed(tx, {

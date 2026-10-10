@@ -15,7 +15,7 @@ export function takes_of(tx: DbOrTx, donation_id: string): Promise<ITake[]> {
 }
 
 export type ITakeNew = Pick<ITake, "donation_id" | "ref" | "kind" | "share"> &
-  Partial<Pick<ITake, "fee_usd" | "dispute_id" | "chargeback_ref">>;
+  Partial<Pick<ITake, "fee_usd" | "dispute_id" | "chargeback_ref" | "status">>;
 
 /** puts the take on record; one already under its ref stays as it is. false
  * when it was */

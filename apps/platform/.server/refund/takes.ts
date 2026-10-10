@@ -1,3 +1,6 @@
+import { inArray } from "drizzle-orm";
+import { report_error } from "#/errors/report";
+import { db } from "../pg/db";
 import type { DbOrTx } from "../pg/queries/helpers";
 import {
   type IOwed,
@@ -13,6 +16,7 @@ import {
   take_update,
   takes_of,
 } from "../pg/queries/take";
+import { dists } from "../pg/schema/dist";
 import type { OwedSource } from "./apply";
 import { dist_settled_usd } from "./plan";
 import {
@@ -23,6 +27,7 @@ import {
   type LockedDist,
   type OwedShare,
   owed_shares,
+  settled_dists_locked,
   split_cents,
 } from "./share";
 
@@ -124,6 +129,53 @@ export interface OwedMove {
   wanted: number;
 }
 
+/**
+ * each party's row brought up to what the gift's active takes owe now. a
+ * take owes a party only once it is liable (its dist settled, its grant
+ * gone out, its commission claimed or paid), and `move_owed` runs on the
+ * gift's own events, so a dist's settlement and the commission run call
+ * this. a grant going out is left to the gift's next event: what it makes
+ * owed is a refund's share, which the refund told ops to settle by hand
+ */
+export async function owe_takes(
+  tx: DbOrTx,
+  donation_id: string,
+  now: string
+): Promise<void> {
+  const takes = await takes_of(tx, donation_id);
+  const first = takes.find(active);
+  // all of it taken back: the gift is reversed, or its reversal is retried
+  if (!first || taken_of(takes) >= 1) return;
+  const ds = await settled_dists_locked(tx, donation_id);
+  const src = {
+    source: first.kind === "dispute" ? "dispute" : "refund",
+    source_ref: first.ref,
+  } as const;
+  for (const s of owed_targets(ds, takes).values()) {
+    if (s.received_usd + s.fee_processing_usd + (s.fee_dispute_usd ?? 0) <= 0) {
+      continue;
+    }
+    await record_owed(tx, { ...s, donation_id, ...src, now });
+  }
+}
+
+/** `owe_takes` for the gifts of `dist_ids`, each in a transaction of its
+ * own. a failure is reported, not thrown: the money already moved, and the
+ * gift's next event records what is owed anyway */
+export async function owe_takes_of_dists(dist_ids: string[]): Promise<void> {
+  if (dist_ids.length === 0) return;
+  const gifts = await db
+    .selectDistinct({ id: dists.donation_id })
+    .from(dists)
+    .where(inArray(dists.id, dist_ids));
+  const now = new Date().toISOString();
+  for (const { id } of gifts) {
+    await db
+      .transaction((tx) => owe_takes(tx, id, now))
+      .catch((err) => report_error(err, { donation_id: id }));
+  }
+}
+
 /** the take that gave back part of what it took between `before` and
  * `after`: undone, or shrunk by its chargeback */
 const given_back = (before: ITake[], after: ITake[]) =>
@@ -134,9 +186,10 @@ const given_back = (before: ITake[], after: ITake[]) =>
 
 /**
  * moves each party's row from what the takes `before` owe to what the takes
- * `after` owe: a figure that rises is recorded, one that falls is credited
- * back under the take that gave its part back, each by the difference of
- * the two floors, so no cent of another take moves
+ * `after` owe: the row is brought up to what they owe now, which also catches
+ * a party made liable since the last event (see `owe_takes`); a figure that
+ * falls is credited back under the take that gave its part back, by the
+ * difference of the two floors, so no cent of another take moves
  */
 export async function move_owed(
   tx: DbOrTx,
@@ -164,7 +217,8 @@ export async function move_owed(
     });
     const [x, y] = [fig(b), fig(a)];
     let row = await owed_for_party(m.donation_id, party, tx);
-    if (y.r > x.r || y.p > x.p || y.f > x.f) {
+    // each figure only grows, so one already recorded stays as it is
+    if (y.r > 0 || y.p > 0 || y.f > 0) {
       row = await record_owed(tx, {
         party,
         donation_id: m.donation_id,
@@ -356,6 +410,8 @@ export async function take_dispute(
     dispute_id: string;
     share: number | null;
     fee_usd: number;
+    /** when the provider opened it */
+    opened_at: string;
   }
 ) {
   const own = await dispute_take(tx, d);
@@ -365,8 +421,8 @@ export async function take_dispute(
     }
     return;
   }
-  const share =
-    d.share ?? Math.max(1 - taken_of(await takes_of(tx, d.donation_id)), 0);
+  const takes = await takes_of(tx, d.donation_id);
+  const share = d.share ?? Math.max(1 - taken_of(takes), 0);
   if (share <= 0) return;
   await take_add(tx, {
     donation_id: d.donation_id,
@@ -375,5 +431,24 @@ export async function take_dispute(
     share: Math.min(share, 1),
     fee_usd: d.fee_usd,
     dispute_id: d.dispute_id,
+    // the claim its refund already paid, as `take_refund` undoes it filed first
+    ...(d.share !== null &&
+      refund_paying(takes, d.share, d.opened_at) && {
+        status: "undone" as const,
+      }),
   });
 }
+
+/** whether a refund on record pays a claim of `share` opened at `opened_at`:
+ * one of the same part, recorded after the claim was opened, that no dispute
+ * of that part has been paired with. a refund recorded before the claim
+ * opened is the donor's own, and the claim a dispute of what was left */
+const refund_paying = (takes: ITake[], share: number, opened_at: string) =>
+  !takes.some((t) => t.kind === "dispute" && same_share(t.share, share)) &&
+  takes.some(
+    (t) =>
+      active(t) &&
+      t.kind === "refund" &&
+      same_share(t.share, share) &&
+      Date.parse(t.created_at) > Date.parse(opened_at)
+  );
