@@ -3,10 +3,16 @@ import { group_by } from "@/helpers/array";
 import type { ICommission } from "@/referrals";
 import { stage } from "$/env";
 import { aws_monitor } from "$/kit/discord";
+import { owed_netting_on, undo_deductions } from "$/payouts/owed-run";
 import { settle_referrer_commissions } from "$/payouts/settle-commissions";
 import { payout_total } from "$/payouts/transfer";
 import { wise_pay } from "$/payouts/wise-pay";
 import { commissions_all_by_status } from "$/pg/queries/referrer";
+import {
+  CREDIT_BY_HAND,
+  referrer_of,
+  refunded_in_flight_lines,
+} from "$/refund/commission";
 import { get_referrer } from "./helpers";
 
 const lambda = `commissions-processor:${stage}`;
@@ -61,15 +67,32 @@ async function alert_unsettled_claims() {
       stuck,
       (c) => `${c.referrer_user ?? c.referrer_npo} ref ${c.ref || "unknown"}`
     );
-    const lines = Object.entries(by_claim).map(
-      ([claim, cs = []]) =>
-        `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`
-    );
+    const lines = Object.entries(by_claim).map(([claim, cs = []]) => {
+      const line = `${claim}: ${cs.map((c) => c.donation_id).join(", ")}`;
+      const first = cs[0]!;
+      return first.ref
+        ? `${line}\n  to reset: ${undo_deductions(referrer_of(first), first.ref)}`
+        : line;
+    });
+    const refs = [...new Set(stuck.flatMap((c) => (c.ref ? [c.ref] : [])))];
+    const in_flight = await refunded_in_flight_lines(refs).catch((err) => {
+      report_error(err);
+      return [];
+    });
     await aws_monitor.send_alert({
       type: "ERROR",
       from: lambda,
       title: "commissions claimed but not paid",
-      body: `reconcile in Wise before resetting any to pending\n${lines.join("\n")}`,
+      body: [
+        "reconcile in Wise before resetting any to pending",
+        ...lines,
+        ...(in_flight.length > 0
+          ? [
+              `refunded while a claim held them, so recorded as owed by the referrer: once that transfer is confirmed unfunded, ${CREDIT_BY_HAND}`,
+              ...in_flight,
+            ]
+          : []),
+      ].join("\n"),
     });
   } catch (err) {
     report_error(err);
@@ -81,12 +104,15 @@ async function process_item(ref_id: string, items: ICommission[]) {
     const ref = await get_referrer(ref_id);
     if (!ref) throw new Error(`referrer:${ref_id} not found`);
 
-    if (!ref.pay_id) {
+    const nets = await owed_netting_on();
+    // netting may settle one owing it all with no transfer
+    if (!nets && !ref.pay_id) {
       return console.info(`referrer:${ref_id} has no payout method`);
     }
-    // skips the locking claim for a referrer still under it; the claim rechecks
+    // skips the locking claim for a referrer still under it; the claim rechecks.
+    // netting judges the minimum on the net, and owing it all needs no minimum
     const snapshot = payout_total(items.map((i) => i.amount));
-    if (snapshot < ref.pay_min) {
+    if (!nets && snapshot < ref.pay_min) {
       return console.info(
         `referrer:${ref_id} payout ${snapshot} is less than minimum ${ref.pay_min}`
       );
@@ -94,9 +120,26 @@ async function process_item(ref_id: string, items: ICommission[]) {
 
     const pay_id = ref.pay_id;
     const res = await settle_referrer_commissions(
-      { id: ref_id, pay_id, pay_min: ref.pay_min },
-      (wise_ref, total) => wise_pay(pay_id, total, wise_ref)
+      { id: ref_id, pay_min: ref.pay_min },
+      pay_id
+        ? {
+            pay_id,
+            pay: (wise_ref, total) => wise_pay(pay_id, total, wise_ref),
+          }
+        : null
     );
+    if (res.status === "recovered") {
+      await aws_monitor.send_alert({
+        type: "NOTICE",
+        from: lambda,
+        title: `Commission recovered as owed for ${ref_id}`,
+        fields: [
+          { name: "amount", value: res.total.toString() },
+          { name: "ref_id", value: res.ref },
+        ],
+      });
+      return;
+    }
     if (res.status !== "paid") {
       return console.info(`referrer:${ref_id} not paid: ${res.status}`);
     }

@@ -66,4 +66,49 @@ describe("grants schedule text part", () => {
       "skipped",
     ]);
   });
+
+  test("a run netting what npos owe shows each one's gross, owed and net, and each deduction by gift", async () => {
+    const text = await sent_text({
+      rows: [
+        {
+          id: 12,
+          name: "Save The Rainforest",
+          amount: 500,
+          min: 50,
+          effect: "pass",
+          net: 406.8,
+          deductions: [{ donation_id: "don-owed", usd: 93.2 }],
+        },
+        {
+          id: 7,
+          name: "River Trust",
+          amount: 300,
+          min: 50,
+          effect: "pass",
+          net: 350,
+          deductions: [{ donation_id: "don-credited", usd: -50 }],
+        },
+      ],
+      total_grant: 756.8,
+      wise_usd_balance: 5000,
+      report_period: "2610",
+      low_balance: false,
+    });
+
+    expect(row_cells(text, "12")).toEqual([
+      "12",
+      "Save The Rainforest",
+      "$500",
+      "-$93.2",
+      "$406.8",
+      "$50",
+      "pass",
+    ]);
+    expect(row_cells(text, "don-owed")).toEqual(["don-owed", "12", "-$93.2"]);
+    expect(row_cells(text, "don-credited")).toEqual([
+      "don-credited",
+      "7",
+      "+$50",
+    ]);
+  });
 });

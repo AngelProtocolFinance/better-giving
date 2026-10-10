@@ -1,32 +1,29 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { report_error } from "#/errors/report";
 import { nav_log_date } from "@/nav";
 import { dist_refund_update } from "../pg/queries/dist";
 import { donation_lock, donation_update } from "../pg/queries/donation";
 import type { DbOrTx } from "../pg/queries/helpers";
 import { npo_balance_update, npo_get_locked } from "../pg/queries/npo";
+import { credit_owed, owed_for_party } from "../pg/queries/owed";
 import { payouts_move } from "../pg/queries/payout";
 import { dists } from "../pg/schema/dist";
 import { donations } from "../pg/schema/donation";
 import { donation_match_events } from "../pg/schema/match";
 import { payouts } from "../pg/schema/payout";
 import { referrer_commissions } from "../pg/schema/referrer";
-import { loss_logs, rev_logs } from "../pg/schema/revenue";
-import { apply_refund_plan, type IAppliedRefund } from "./apply";
+import { rev_logs } from "../pg/schema/revenue";
+import { apply_refund_plan } from "./apply";
 import { donation_refund_status } from "./donation-status";
-import { calc_refund_plan, loss_figures_off, type RefundEffect } from "./plan";
+import { calc_refund_plan, type RefundEffect, referrer_of } from "./plan";
 
 export type UnfundedLossReversal =
-  | {
-      status: "reversed";
-      /** its commission was claimed by a referrer transfer, so it went refunded_loss */
-      commission_in_flight?: IAppliedRefund["commission_in_flight"];
-    }
-  /** a savings/investment shortfall is still the loss: the payout is cancelled,
-   * its cash taken back and the loss cut by it, as with the payout pending */
-  | { status: "loss_reduced" }
-  /** nothing written: the pending-payout refund can't be reproduced exactly */
-  | { status: "kept"; reason: string };
+  | { status: "reversed" }
+  /** the savings/investment share stays owed: the payout is cancelled and
+   * its cash taken back and credited, as with the payout pending */
+  | { status: "owed_reduced" }
+  /** nothing written. `pre_ledger`: the refund was recorded before the owed
+   * ledger, as a loss log with no owed row */
+  | { status: "kept"; reason: string; pre_ledger?: true };
 
 // what the loss path skipped or wrote with the loss status. form/program
 // decrements and the message delete ran the same on both paths.
@@ -39,11 +36,11 @@ const LOSS_PATH_DIFFERS: ReadonlySet<RefundEffect["kind"]> = new Set([
 ]);
 
 /**
- * a refund that took payout `payout_id` as a loss while its transfer was in
- * flight, whose transfer then went unfunded: the npo was never paid, so this
- * writes in `tx` what the refund would have written had the payout still been
- * pending. a loss from the payout alone becomes `calc_refund_plan`'s non-loss
- * branch; one from a savings/investment shortfall stays, cut by the cash share.
+ * a refund that recorded what the npo owes while payout `payout_id` was in a
+ * transfer, whose transfer then went unfunded: the npo was never paid, so this
+ * writes in `tx` what the refund would write now had the payout been pending.
+ * savings and investment that cover their shares now reverse in full and clear
+ * what is owed; otherwise those shares stay owed, cut by the cash share.
  */
 export async function reverse_unfunded_payout_loss(
   tx: DbOrTx,
@@ -66,25 +63,14 @@ export async function reverse_unfunded_payout_loss(
   if (dist?.refund_status !== "loss") {
     return { status: "kept", reason: "its dist is not a loss refund" };
   }
-  const losses = await tx
-    .select()
-    .from(loss_logs)
-    .where(eq(loss_logs.dist_id, dist.id));
-  const [loss] = losses;
-  if (!loss || losses.length > 1) {
-    const reason = `dist ${dist.id} has ${losses.length} loss logs, expected 1`;
-    return { status: "kept", reason };
+  const to_id = dist.to_id ?? 0;
+  const party = { npo_id: to_id };
+  const owed = await owed_for_party(dist.donation_id, party, tx);
+  if (!owed) {
+    const reason = `dist ${dist.id} has no amount owed by npo:${to_id}`;
+    return { status: "kept", reason, pre_ledger: true };
   }
   const alloc = dist.alloc ?? { liq: 0, lock: 0, cash: 0 };
-
-  // the plan lists the payout reason last, so any other reason heads the type
-  const shortfall_stands = loss.type !== "payout";
-  if (!shortfall_stands && alloc.lock > 0) {
-    // the units it would have redeemed were priced at refund time, which nothing records
-    const reason =
-      "part of the dist was invested: the nav price at refund time is not recorded";
-    return { status: "kept", reason };
-  }
 
   const [still_loss] = await tx
     .select({ id: payouts.id })
@@ -94,32 +80,65 @@ export async function reverse_unfunded_payout_loss(
   if (!still_loss) {
     return { status: "kept", reason: "payout is no longer refunded_loss" };
   }
-  const to_id = dist.to_id ?? 0;
   const npo = await npo_get_locked(tx, to_id);
   if (!npo) return { status: "kept", reason: `npo:${to_id} not found` };
-  if (shortfall_stands) {
-    // `calc_refund_plan`'s pending-payout rule, against the loss it already logged
+  const now = new Date().toISOString();
+
+  // an invested share's units were priced at refund time, which nothing
+  // records, so only an uninvested dist can reverse in full
+  const plan =
+    alloc.lock > 0
+      ? null
+      : await uninvested_refund_plan(tx, dist, payout_id, npo, now);
+  await payouts_move(tx, [payout_id], "refunded_loss", { type: "refunded" });
+  if (!plan || plan.is_loss) {
+    // `calc_refund_plan`'s pending-payout rule: cancel it, take its cash back
     const cash = ((alloc.cash ?? 0) / 100) * (dist.net ?? 0);
-    const reduced = {
-      amount: loss.amount - cash,
-      npo_amount: loss.npo_amount - cash,
-      reason: loss.reason
-        .split("; ")
-        .filter((r) => !r.startsWith("payout "))
-        .join("; "),
-    };
-    const off = loss_figures_off(reduced);
-    if (off) report_error(new Error(off), { loss_id: loss.id, payout_id });
-    await payouts_move(tx, [payout_id], "refunded_loss", { type: "refunded" });
     await npo_balance_update(
       tx,
       to_id,
       { liq: 0, lock: 0, lock_units: 0, cash },
       "dec"
     );
-    await tx.update(loss_logs).set(reduced).where(eq(loss_logs.id, loss.id));
-    return { status: "loss_reduced" };
+    await credit_owed(tx, {
+      donation_id: dist.donation_id,
+      party,
+      usd: cash,
+      reason: "payout_cancelled",
+      ref: payout_id,
+      now,
+    });
+    return { status: "owed_reduced" };
   }
+
+  await apply_refund_plan(
+    tx,
+    {
+      ...plan,
+      effects: plan.effects.filter((e) => LOSS_PATH_DIFFERS.has(e.kind)),
+    },
+    { source: owed.source, source_ref: owed.source_ref }
+  );
+  await credit_owed(tx, {
+    donation_id: dist.donation_id,
+    party,
+    reason: "transfer_unfunded",
+    ref: payout_id,
+    now,
+  });
+  await dist_refund_update(tx, dist.id, { refund_status: "completed" });
+  await donation_status_recompute(tx, dist.donation_id, now);
+  return { status: "reversed" };
+}
+
+/** the refund of `dist` as it would run now with its payout pending */
+async function uninvested_refund_plan(
+  tx: DbOrTx,
+  dist: typeof dists.$inferSelect,
+  payout_id: string,
+  npo: { liq: number | null; lock_units: number | null; cash: number | null },
+  now: string
+) {
   const [rls, [comm]] = await Promise.all([
     tx
       .select({ id: rev_logs.id })
@@ -130,20 +149,21 @@ export async function reverse_unfunded_payout_loss(
         donation_id: referrer_commissions.donation_id,
         amount: referrer_commissions.amount,
         status: referrer_commissions.status,
+        referrer_user: referrer_commissions.referrer_user,
+        referrer_npo: referrer_commissions.referrer_npo,
       })
       .from(referrer_commissions)
       .where(eq(referrer_commissions.donation_id, dist.id)),
   ]);
 
-  const now = new Date().toISOString();
-  const plan = calc_refund_plan(
+  return calc_refund_plan(
     {
       dist: {
         id: dist.id,
         donation_id: dist.donation_id,
-        to_id,
+        to_id: dist.to_id ?? 0,
         to_name: dist.to_name ?? "",
-        alloc,
+        alloc: dist.alloc ?? { liq: 0, lock: 0, cash: 0 },
         net: dist.net ?? 0,
         amount: dist.amount ?? 0,
         amount_usd: dist.amount_usd,
@@ -153,7 +173,14 @@ export async function reverse_unfunded_payout_loss(
         fee_allowance: dist.fee_allowance ?? 0,
       },
       payout: { id: payout_id, type: "pending" },
-      commission: comm ?? null,
+      commission: comm
+        ? {
+            donation_id: comm.donation_id,
+            amount: comm.amount,
+            status: comm.status,
+            referrer: referrer_of(comm),
+          }
+        : null,
       rev_log_ids: rls.map((r) => r.id),
       bal: {
         liq: npo.liq ?? 0,
@@ -165,20 +192,6 @@ export async function reverse_unfunded_payout_loss(
     },
     { now, nav_date: nav_log_date(), form_id: null, program_id: null }
   );
-  if (plan.is_loss) {
-    const reason = `a refund now would be a loss too: ${plan.loss_reasons.join("; ")}`;
-    return { status: "kept", reason };
-  }
-
-  await payouts_move(tx, [payout_id], "refunded_loss", { type: "refunded" });
-  const { commission_in_flight } = await apply_refund_plan(tx, {
-    ...plan,
-    effects: plan.effects.filter((e) => LOSS_PATH_DIFFERS.has(e.kind)),
-  });
-  await tx.delete(loss_logs).where(eq(loss_logs.id, loss.id));
-  await dist_refund_update(tx, dist.id, { refund_status: "completed" });
-  await donation_status_recompute(tx, dist.donation_id, now);
-  return { status: "reversed", commission_in_flight };
 }
 
 /**

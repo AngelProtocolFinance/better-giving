@@ -15,6 +15,7 @@ const wise_pay_mock = vi.hoisted(() => vi.fn());
 const report_error_mock = vi.hoisted(() => vi.fn());
 const send_alert = vi.hoisted(() => vi.fn());
 const settle_spy = vi.hoisted(() => vi.fn());
+const deductions = vi.hoisted(() => ({ on: false }));
 /** runs right after the cron's pending snapshot — a write that commits
  * between the snapshot and the settle */
 const after_snapshot = vi.hoisted(() => ({
@@ -22,7 +23,20 @@ const after_snapshot = vi.hoisted(() => ({
 }));
 
 vi.mock("#/errors/report", () => ({ report_error: report_error_mock }));
-vi.mock("$/env", () => ({ stage: "test" }));
+vi.mock("$/env", () => ({
+  stage: "test",
+  get owed_deductions() {
+    return deductions.on;
+  },
+}));
+// before every gift here, so a row a run may net once its notice is sent
+const terms = vi.hoisted(() => ({ effective: "2026-01-01" }));
+vi.mock("@/terms", async (io) => ({
+  ...(await io<typeof import("@/terms")>()),
+  get TERMS_EFFECTIVE() {
+    return terms.effective;
+  },
+}));
 vi.mock("$/kit/discord", () => ({ aws_monitor: { send_alert } }));
 vi.mock("$/payouts/wise-pay", () => ({ wise_pay: wise_pay_mock }));
 vi.mock("$/payouts/settle", async (io) => {
@@ -58,6 +72,8 @@ const { index } = await import("./handler");
 const { NotFundedError } = await import("$/payouts/transfer");
 const { create_test_db } = await import("$/pg/test-utils/pglite");
 const { banking_apps } = await import("$/pg/schema/banking");
+const { donations } = await import("$/pg/schema/donation");
+const { owed_amounts, owed_notices } = await import("$/pg/schema/owed");
 const { npos } = await import("$/pg/schema/npo");
 const { payouts, settlements } = await import("$/pg/schema/payout");
 
@@ -80,13 +96,21 @@ beforeEach(async () => {
   report_error_mock.mockReset();
   send_alert.mockReset();
   settle_spy.mockClear();
+  deductions.on = false;
+  terms.effective = "2026-01-01";
+  await db().delete(owed_amounts);
+  await db().delete(donations);
   await db().delete(payouts);
   await db().delete(settlements);
   await db().delete(banking_apps);
   await db().delete(npos);
 });
 
-async function seed_npo(o: { cash: number; payout_minimum?: number }) {
+async function seed_npo(o: {
+  cash: number;
+  payout_minimum?: number;
+  recipient?: boolean;
+}) {
   const [npo] = await db()
     .insert(npos)
     .values({
@@ -99,9 +123,15 @@ async function seed_npo(o: { cash: number; payout_minimum?: number }) {
       payout_minimum: o.payout_minimum,
     })
     .returning();
-  await db()
-    .insert(banking_apps)
-    .values({ id: String(WISE_RECIPIENT), npo_id: npo!.id, status: "default" });
+  if (o.recipient !== false) {
+    await db()
+      .insert(banking_apps)
+      .values({
+        id: String(WISE_RECIPIENT),
+        npo_id: npo!.id,
+        status: "default",
+      });
+  }
   return npo!.id;
 }
 
@@ -132,6 +162,43 @@ async function seed_claimed(
     .set({ type: "processing", message: ref ?? null })
     .where(eq(payouts.id, id));
 }
+
+/** a gift refunded after its grant went out, the npo owing `usd` on it */
+async function seed_owed(npo_id: number, donation_id: string, usd: number) {
+  await db().insert(donations).values({
+    id: donation_id,
+    upusd: 1,
+    status: "refunded_loss",
+    amount_base: usd,
+    amount_tip: 0,
+    amount_fee_allowance: 0,
+    currency: "USD",
+    frequency: "one-time",
+    source: "bg-marketplace",
+    via: "stripe:card",
+  });
+  const [owed] = await db()
+    .insert(owed_amounts)
+    .values({
+      donation_id,
+      npo_id,
+      source: "refund",
+      source_ref: `re_${donation_id}`,
+      recorded_at: "2026-09-15T00:00:00.000Z",
+      received_usd: usd,
+    })
+    .returning({ id: owed_amounts.id });
+  // the party was told of it, so a run may net it
+  await db().insert(owed_notices).values({
+    owed_id: owed!.id,
+    kind: "recorded",
+    created_at: "2026-09-15T00:00:00.000Z",
+    sent_at: "2026-09-15T00:00:00.000Z",
+  });
+}
+
+const outstanding = async () =>
+  (await db().select().from(owed_amounts)).map((o) => o.outstanding_usd);
 
 async function mark_refunded(id: string) {
   await db()
@@ -259,6 +326,10 @@ describe("grants cron execute", () => {
       `npo:${npo_id} ref ref-a: stuck-1, stuck-2`
     );
     expect(errors[0].body).toContain(`npo:${npo_id} ref unknown: stuck-3`);
+    // a claim that netted has its deductions booked under its ref
+    expect(errors[0].body).toContain(
+      `unrecover_owed({ npo_id: ${npo_id}, ref: "ref-a" })`
+    );
     expect(wise_pay_mock).toHaveBeenCalledWith(
       WISE_RECIPIENT,
       60,
@@ -351,5 +422,88 @@ describe("grants cron execute", () => {
     });
     expect(await db().select().from(settlements)).toEqual([]);
     expect(await npo_cash(npo_id)).toBe(500);
+  });
+
+  test("switched on, pays the npo its pending total less what it owes", async () => {
+    deductions.on = true;
+    const npo_id = await seed_npo({ cash: 500 });
+    await seed_payout(npo_id, "p-1", 500);
+    await seed_owed(npo_id, "don-owed", 93.2);
+
+    await index();
+
+    expect(wise_pay_mock).toHaveBeenCalledWith(
+      WISE_RECIPIENT,
+      406.8,
+      expect.any(String)
+    );
+    expect(await outstanding()).toEqual([0]);
+  });
+
+  test("switched on, an npo under its minimum that owes at least its pending total is settled with no transfer, and ops told", async () => {
+    deductions.on = true;
+    const npo_id = await seed_npo({ cash: 80, payout_minimum: 100 });
+    await seed_payout(npo_id, "p-1", 80);
+    await seed_owed(npo_id, "don-owed", 93.2);
+
+    await index();
+
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(wise_pay_mock).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({ "p-1": "settled" });
+    expect(await outstanding()).toEqual([13.2]);
+    const [stlmt] = await db().select().from(settlements);
+    expect(send_alert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "NOTICE",
+        title: expect.stringMatching(/^Grant recovered as owed for npo:/),
+        fields: [
+          { name: "amount", value: "80" },
+          { name: "ref_id", value: stlmt!.id },
+        ],
+      })
+    );
+  });
+
+  test("switched on, an npo with no wise recipient that owes at least its pending total is settled with no transfer", async () => {
+    deductions.on = true;
+    const npo_id = await seed_npo({ cash: 80, recipient: false });
+    await seed_payout(npo_id, "p-1", 80);
+    await seed_owed(npo_id, "don-owed", 93.2);
+
+    await index();
+
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({ "p-1": "settled" });
+  });
+
+  test("switched on with no terms effective date, a snapshot under the minimum claims nothing, as if switched off", async () => {
+    deductions.on = true;
+    terms.effective = "soon";
+    send_alert.mockResolvedValue(undefined);
+    const npo_id = await seed_npo({ cash: 500, payout_minimum: 80 });
+    await seed_payout(npo_id, "p-1", 30);
+    await seed_owed(npo_id, "don-owed", 50);
+
+    await index();
+
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(settle_spy).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({ "p-1": "pending" });
+    expect(await outstanding()).toEqual([50]);
+  });
+
+  test("switched on, an npo with no wise recipient owed a transfer is left pending", async () => {
+    deductions.on = true;
+    const npo_id = await seed_npo({ cash: 500, recipient: false });
+    await seed_payout(npo_id, "p-1", 500);
+    await seed_owed(npo_id, "don-owed", 93.2);
+
+    await index();
+
+    expect(report_error_mock).not.toHaveBeenCalled();
+    expect(wise_pay_mock).not.toHaveBeenCalled();
+    expect(await payout_types()).toEqual({ "p-1": "pending" });
+    expect(await outstanding()).toEqual([93.2]);
   });
 });

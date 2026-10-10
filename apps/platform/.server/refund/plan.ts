@@ -1,7 +1,7 @@
 import type { IBalanceTx } from "@/balance-txs";
 import { humanize } from "@/helpers/decimal";
-import type { ILossLog, LossType } from "@/revenue";
 import type { IBalanceDeltas } from "@/types/donation";
+import type { IOwedRecord, OwedParty } from "../pg/queries/owed";
 
 export interface PreviewLine {
   label: string;
@@ -26,10 +26,27 @@ export interface RefundDistInput {
   fee_allowance?: number;
 }
 
+export type ReferrerParty = Exclude<OwedParty, { npo_id: number }>;
+
+/** the party a commission row names: exactly one is set, by its check */
+export const referrer_of = (c: {
+  referrer_user?: string | null;
+  referrer_npo?: string | null;
+}): ReferrerParty =>
+  c.referrer_user != null
+    ? { referrer_user: c.referrer_user }
+    : { referrer_npo: c.referrer_npo! };
+
 export interface RefundInputs {
   dist: RefundDistInput;
   payout: { id: string; type: string | null } | null;
-  commission: { donation_id: string; amount: number; status: string } | null;
+  /** keyed by the dist's id; `amount` in usd */
+  commission: {
+    donation_id: string;
+    amount: number;
+    status: string;
+    referrer: ReferrerParty;
+  } | null;
   rev_log_ids: string[];
   bal: { liq: number; lock_units: number; cash: number };
   nav: { price: number } | null;
@@ -75,11 +92,18 @@ export type RefundEffect =
       kind: "commission_status";
       donation_id: string;
       status: "refunded" | "refunded_loss";
+      /** its referrer's share, recorded once apply finds the commission paid,
+       * or claimed by a transfer that may pay it, with what the gift's other
+       * reversed dists left that referrer owing */
+      owed: OwedFigure & { party: ReferrerParty };
     }
   | { kind: "form_decrement"; form_id: string; net: number }
   | { kind: "program_decrement"; program_id: string; net: number }
   | { kind: "donation_message_del"; donation_id: string }
-  | { kind: "loss_log"; loss: ILossLog };
+  | { kind: "owed"; owed: OwedFigure };
+
+/** what a party owes back on the dist; the refund or dispute behind it is the caller's */
+export type OwedFigure = Omit<IOwedRecord, "source" | "source_ref">;
 
 export interface RefundPreview {
   effects: PreviewLine[];
@@ -90,33 +114,29 @@ export interface RefundPreview {
 export interface RefundPlan {
   is_loss: boolean;
   loss_reasons: string[];
-  /** the loss in usd, like every loss figure — `dist.amount` is in the donation's
-   * currency. the dist's settled gross less the cash share a cancelled payout recovers */
-  amount: number;
-  /** a commission its referrer was already paid: left `paid`, the platform's loss */
-  paid_commission: { donation_id: string; amount: number } | null;
+  /** what each party owes in usd, as the plan sees it. the npo's — on the loss
+   * path — is its settled net less the cash share a cancelled payout recovers,
+   * plus the processing fee; bg's own fees are forgone, not owed. the
+   * referrer's is a commission paid or claimed for a transfer, which apply
+   * re-reads under its lock */
+  amount: { party: OwedParty; usd: number }[];
   effects: RefundEffect[];
   preview: RefundPreview;
 }
 
-/** a dist's gross in settled usd. a fee allowance credits the processing fee
- * into `net` (`credit_fa` in `lib/settlement/plan.ts`), so it is counted once */
+/** the processing fee a dist cost beyond its `net`, in usd. a fee allowance
+ * credits it into `net` (`credit_fa` in `lib/settlement/plan.ts`), so it is 0 then */
+export const fee_processing_usd = (
+  d: Pick<RefundDistInput, "fee_processing" | "fee_allowance">
+): number => (d.fee_allowance ? 0 : d.fee_processing);
+
+/** a dist's gross in settled usd, counting the processing fee once */
 export const dist_settled_usd = (
   d: Pick<
     RefundDistInput,
     "net" | "fee_base" | "fee_fsa" | "fee_processing" | "fee_allowance"
   >
-): number =>
-  d.net + d.fee_base + d.fee_fsa + (d.fee_allowance ? 0 : d.fee_processing);
-
-/** what is wrong with a loss's figures, or null. the loss covers the npo's
- * share plus fees, so it is never under `npo_amount`, and neither goes negative */
-export const loss_figures_off = (
-  l: Pick<ILossLog, "amount" | "npo_amount">
-): string | null =>
-  l.npo_amount < 0 || l.amount < l.npo_amount
-    ? `loss figures off: amount ${l.amount}, npo_amount ${l.npo_amount}`
-    : null;
+): number => d.net + d.fee_base + d.fee_fsa + fee_processing_usd(d);
 
 export function calc_refund_plan(
   inputs: RefundInputs,
@@ -202,19 +222,18 @@ export function calc_refund_plan(
     }
   }
 
-  // commission (preview only; status follows is_loss below, and apply re-reads
-  // it under lock: a processing one goes refunded_loss, a paid one stays paid)
+  // commission (preview only; apply re-reads it under lock)
   if (commission?.status === "paid") {
     preview.warnings.push({
       label: "Commission",
       pass: false,
-      reason: `$${humanize(commission.amount)} was already paid to its referrer, so it stays with them as the platform's loss (ops is alerted)`,
+      reason: `$${humanize(commission.amount)} was already paid to its referrer, so it will be recovered from the referrer's next commission`,
     });
   } else if (commission?.status === "processing") {
     preview.warnings.push({
       label: "Commission",
       pass: false,
-      reason: `$${humanize(commission.amount)} is in a payout to its referrer, so it will be reversed as a loss`,
+      reason: `$${humanize(commission.amount)} is in a payout to its referrer: if that payout goes through, it will be recovered from the referrer's next commission`,
     });
   } else if (commission) {
     preview.effects.push({
@@ -249,7 +268,13 @@ export function calc_refund_plan(
   // reversed even when a savings/investment shortfall makes the refund a loss
   const payout_cancelled = payout?.type === "pending";
   const cash_recovered = payout_cancelled ? bd.cash : 0;
-  const loss_usd = dist_settled_usd(dist) - cash_recovered;
+  const owed: OwedFigure = {
+    donation_id: dist.donation_id,
+    party: { npo_id: dist.to_id },
+    received_usd: dist.net - cash_recovered,
+    fee_processing_usd: fee_processing_usd(dist),
+    now,
+  };
 
   const effects: RefundEffect[] = [];
 
@@ -350,18 +375,20 @@ export function calc_refund_plan(
     effects.push({ kind: "rev_log_status", rev_log_id: id, status });
   }
 
-  // reversed unless the referrer was already paid: that money stays with them
-  // as the platform's loss, carried on `paid_commission` rather than logged —
-  // loss_logs is per npo, and the npo's side still reverses in full
-  const paid_commission =
-    commission?.status === "paid"
-      ? { donation_id: commission.donation_id, amount: commission.amount }
-      : null;
-  if (commission && !paid_commission) {
+  // its referrer owes it if apply finds it paid (left paid) or claimed by a
+  // transfer, under its lock; the npo never owes it
+  if (commission) {
     effects.push({
       kind: "commission_status",
       donation_id: commission.donation_id,
       status,
+      owed: {
+        donation_id: dist.donation_id,
+        party: commission.referrer,
+        received_usd: commission.amount,
+        fee_processing_usd: 0,
+        now,
+      },
     });
   }
 
@@ -379,34 +406,16 @@ export function calc_refund_plan(
     donation_id: dist.donation_id,
   });
 
+  if (is_loss) effects.push({ kind: "owed", owed });
+
+  const amount: RefundPlan["amount"] = [];
   if (is_loss) {
-    const loss_type: LossType = loss_reasons[0].startsWith("liq")
-      ? "balance_liq"
-      : loss_reasons[0].startsWith("lock")
-        ? "balance_lock"
-        : "payout";
-    const loss: ILossLog = {
-      id: crypto.randomUUID(),
-      date: now,
-      donation_id: dist.donation_id,
-      dist_id: dist.id,
-      npo_id: dist.to_id,
-      type: loss_type,
-      amount: loss_usd,
-      npo_amount: dist.net - cash_recovered,
-      fees_bg: dist.fee_base + dist.fee_fsa,
-      fees_processing: dist.fee_processing,
-      reason: loss_reasons.join("; "),
-    };
-    effects.push({ kind: "loss_log", loss });
+    const usd = owed.received_usd + owed.fee_processing_usd;
+    amount.push({ party: owed.party, usd });
+  }
+  if (commission?.status === "paid" || commission?.status === "processing") {
+    amount.push({ party: commission.referrer, usd: commission.amount });
   }
 
-  return {
-    is_loss,
-    loss_reasons,
-    amount: loss_usd,
-    paid_commission,
-    effects,
-    preview,
-  };
+  return { is_loss, loss_reasons, amount, effects, preview };
 }
